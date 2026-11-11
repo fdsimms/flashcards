@@ -1,6 +1,6 @@
-# flashcards
+# Franki
 
-A small personal spaced-repetition app (React Native + Expo) built for language vocab and trivia, with import from Anki.
+A small personal spaced-repetition app (React Native + Expo) built for language vocab and trivia, with import from Anki. The repo is still called `flashcards`; the app is Franki.
 
 - **Scheduling:** FSRS via [`ts-fsrs`](https://github.com/open-spaced-repetition/ts-fsrs), with each deck's FSRS weights, desired retention and daily limits carried over from Anki
 - **Storage:** `expo-sqlite`, on the device only, with backup and restore through Files / iCloud Drive
@@ -48,7 +48,11 @@ Tap a deck to study it with its subdecks. **Undo** in the top right takes back t
 
 ## Installing on your iPhone
 
-The app doesn't use Expo Go. Both ways below build it with EAS, which needs an [Expo account](https://expo.dev) and a paid Apple Developer account. The bundle identifier is `com.fdsimms.flashcards` (`app.json`); change it before the first build if you want a different one.
+The app doesn't use Expo Go. Both ways below build it with EAS, which needs an [Expo account](https://expo.dev) and a paid Apple Developer account. The bundle identifier is `com.fdsimms.franki` (`app.json`). Once the first build is on App Store Connect it can't change without starting over as a new app.
+
+### The quickest way to TestFlight
+
+Run `npx testflight` in the repo and follow its prompts: it signs in to Expo and Apple, creates the signing certificate, builds in the cloud and uploads to TestFlight. Answer that the app doesn't use non-exempt encryption. If App Store Connect says the name "Franki" is taken, register it under something like "Franki Flashcards"; the home screen still shows "Franki". Run it again for each update. TestFlight builds stop working 90 days after upload, so upload a fresh one before then.
 
 ```bash
 npx eas-cli@latest login

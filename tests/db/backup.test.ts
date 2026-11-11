@@ -30,7 +30,7 @@ describe('restorePlan', () => {
 
 describe('backupFileName', () => {
   it('names the file after the day', () => {
-    expect(backupFileName('2026-11-11')).toBe('flashcards-backup-2026-11-11.db');
+    expect(backupFileName('2026-11-11')).toBe('franki-backup-2026-11-11.db');
   });
 });
 

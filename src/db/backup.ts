@@ -41,9 +41,9 @@ export function restorePlan(current: Map<string, string[]>, backup: Map<string, 
   });
 }
 
-/** `flashcards-backup-2026-11-11.db`, from a day key. */
+/** `franki-backup-2026-11-11.db`, from a day key. Restoring reads what's inside, never the name. */
 export function backupFileName(dayKey: string): string {
-  return `flashcards-backup-${dayKey}.db`;
+  return `franki-backup-${dayKey}.db`;
 }
 
 /** A `file://` URI as the plain path SQLite needs (`VACUUM INTO`, `ATTACH`). */
