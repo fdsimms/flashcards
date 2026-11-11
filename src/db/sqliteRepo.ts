@@ -181,8 +181,8 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async saveCard(c) {
       await db.runAsync(
-        'UPDATE cards SET suspended = ?, retired = ?, sched = ?, state = ?, due = ? WHERE id = ?',
-        c.suspended ? 1 : 0, c.retired ? 1 : 0, JSON.stringify(c.sched), c.sched.state, c.sched.due, c.id,
+        'UPDATE cards SET suspended = ?, retired = ?, buried_at = ?, sched = ?, state = ?, due = ? WHERE id = ?',
+        c.suspended ? 1 : 0, c.retired ? 1 : 0, c.buriedAt ?? null, JSON.stringify(c.sched), c.sched.state, c.sched.due, c.id,
       );
     },
     async addReview(e: ReviewLogEntry) {

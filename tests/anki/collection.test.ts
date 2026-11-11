@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildExport, readDeckKind } from '../../src/anki/collection';
+import { buildExport, readDeckConfig, readDeckKind } from '../../src/anki/collection';
 import { importAnkiJson } from '../../src/import/ankiJson';
 import { readCollectionRows } from '../support/ankiRows';
 import { NOW } from '../support/fixtures';
@@ -14,6 +14,13 @@ describe('reading a collection', () => {
   it('reads a deck kind blob Anki wrote', () => {
     expect(readDeckKind(hex('0A0408013803'))).toEqual({ configId: 1, newLimit: 3, reviewLimit: undefined, desiredRetention: undefined });
     expect(readDeckKind(hex('12260801'))).toBeUndefined(); // filtered
+  });
+
+  it("reads a preset's burying options", () => {
+    // Anki's own encoding (deck_config_pb2) of new 7, reviews 70, bury new and interday learning.
+    expect(readDeckConfig(hex('48075046D80101E80101'))).toMatchObject({
+      newPerDay: 7, reviewsPerDay: 70, buryNew: true, buryReviews: false, buryInterdayLearning: true,
+    });
   });
 
   it('reads notes, scheduling, deck settings and note types', async () => {

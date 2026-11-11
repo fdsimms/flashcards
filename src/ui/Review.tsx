@@ -6,7 +6,7 @@ import { isOmnilanguage, renderCard } from '../core/cards';
 import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from '../core/config';
 import { deckLimits, groupByDeck, isInDeck, treeQueue } from '../core/deckTree';
 import { studyDayStart } from '../core/day';
-import { nextLearningDue, studiedToday, type StudiedToday } from '../core/queue';
+import { nextLearningDue, siblingsToBury, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { paramsForDeck, previewIntervals, review, type RatingValue } from '../core/scheduler';
 import { bumpStudied, currentCard, type AnswerRecord } from '../core/session';
@@ -169,8 +169,12 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
     try {
       const when = new Date();
       const res = review(current.sched, rating, when, cardParams);
-      const updated: Card = { ...current, sched: res.sched };
+      const updated: Card = { ...current, sched: res.sched, buriedAt: undefined };
+      // The note's other cards that its preset holds back until tomorrow, as Anki does.
+      const siblings = siblingsToBury(current, cards ?? [], cardParams?.bury, when, DAY_STARTS_AT_HOUR);
+      const buried = siblings.map((s): Card => ({ ...s, buriedAt: when.toISOString() }));
       await repo.saveCard(updated);
+      for (const b of buried) await repo.saveCard(b);
       const reviewId = await repo.addReview({ cardId: current.id, ...res.log });
       // Into the kept Anki collection too, so "Send to Anki" carries this answer. If that write
       // fails, the answer still counts here, and you're told rather than it going missing.
@@ -178,7 +182,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       try {
         anki = await repo.writeAnkiAnswer({
           before: current, after: updated, rating, now: when,
-          takenMs: when.getTime() - shownAt.current, desiredRetention: cardParams?.desiredRetention,
+          takenMs: when.getTime() - shownAt.current, desiredRetention: cardParams?.desiredRetention, bury: siblings,
         });
       } catch (e: any) {
         if (!warnedAnki.current) {
@@ -189,11 +193,12 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
           );
         }
       }
-      const record: AnswerRecord = { before: current, reviewId, deck: note.deck, anki };
+      const record: AnswerRecord = { before: current, reviewId, deck: note.deck, anki, buried: siblings };
       setStudied((s) => bumpStudied(s, record.deck, record.before.sched.state, 1));
       setHistory((h) => [...h, record]);
       // Functional update: `cards` from this render's closure is stale once the awaits return.
-      setCards((prev) => prev && prev.map((c) => (c.id === updated.id ? updated : c)));
+      const changed = new Map([updated, ...buried].map((c) => [c.id, c]));
+      setCards((prev) => prev && prev.map((c) => changed.get(c.id) ?? c));
       setPreferId(undefined);
       setRevealed(false);
       setNow(when);
@@ -215,10 +220,12 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
         return;
       }
       await repo.saveCard(last.before);
+      for (const s of last.buried) await repo.saveCard(s);
       await repo.deleteReview(last.reviewId);
       setHistory((h) => h.slice(0, -1));
       setStudied((s) => bumpStudied(s, last.deck, last.before.sched.state, -1));
-      setCards((prev) => prev && prev.map((c) => (c.id === last.before.id ? last.before : c)));
+      const restored = new Map([last.before, ...last.buried].map((c) => [c.id, c]));
+      setCards((prev) => prev && prev.map((c) => restored.get(c.id) ?? c));
       setPreferId(last.before.id);
       setRevealed(false);
       setNow(new Date());

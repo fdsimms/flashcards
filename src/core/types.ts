@@ -52,6 +52,16 @@ export interface Card {
   sched: SchedState;
 }
 
+/**
+ * Which of a card's siblings (the other cards of its note) are held back until the next study day
+ * once it's answered: the Anki preset's Burying options.
+ */
+export interface BurySettings {
+  new: boolean;
+  reviews: boolean;
+  interdayLearning: boolean;
+}
+
 /** A deck's study settings, from its Anki preset: FSRS parameters and daily limits. */
 export interface DeckParams {
   /** FSRS weights. Empty means the preset was never optimized: use the defaults. */
@@ -62,6 +72,8 @@ export interface DeckParams {
   /** Daily limits from the Anki preset. Missing means the app's defaults (`src/core/config.ts`). */
   newPerDay?: number;
   reviewsPerDay?: number;
+  /** Missing (a deck with no Anki preset) buries nothing. */
+  bury?: BurySettings;
 }
 
 export interface ReviewLogEntry {

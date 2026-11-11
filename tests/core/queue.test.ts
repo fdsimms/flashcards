@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { buildQueue, isBuried, isDue, nextCard, nextLearningDue, studiedToday } from '../../src/core/queue';
+import { buildQueue, isBuried, isDue, nextCard, nextLearningDue, siblingsToBury, studiedToday } from '../../src/core/queue';
 import { review } from '../../src/core/scheduler';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
@@ -72,6 +72,42 @@ describe('buried cards', () => {
     const [base] = makeCards(omniNote(), NOW);
     const learning = withSched(base, { state: 1, due: new Date(2026, 10, 11, 13, 0).toISOString() });
     expect(nextLearningDue([{ ...learning, buriedAt: today }], { dayStartsAtHour: H, now: NOW })).toBeUndefined();
+  });
+});
+
+describe('burying siblings', () => {
+  const all = { new: true, reviews: true, interdayLearning: true };
+  const [base] = makeCards(omniNote(), NOW);
+  const sib = (id: string, over: Partial<Card['sched']>, more: Partial<Card> = {}): Card => ({ ...withSched(base, over), id, ...more });
+  const answered = sib('a', { state: 2, due: NOW.toISOString() });
+  const at = (d: number, h: number) => new Date(2026, 10, d, h, 0).toISOString();
+  const siblings = [
+    sib('new', { state: 0 }),
+    sib('reviewToday', { state: 2, due: at(11, 20) }),
+    sib('reviewTomorrow', { state: 2, due: at(12, 9) }),
+    // A learning step answered yesterday and due today: a day-long step. One due in ten minutes isn't.
+    sib('interday', { state: 1, due: at(11, 9), lastReview: at(10, 9) }),
+    sib('intraday', { state: 1, due: at(11, 12), lastReview: at(11, 11) }),
+    sib('suspended', { state: 0 }, { suspended: true }),
+    sib('otherNote', { state: 0 }, { noteId: 'elsewhere' }),
+  ];
+  const ids = (bury: Parameters<typeof siblingsToBury>[2]) =>
+    siblingsToBury(answered, [answered, ...siblings], bury, NOW, H).map((c) => c.id);
+
+  it("buries what the preset says, as Anki does: new, due reviews, and day-long learning steps", () => {
+    expect(ids(all)).toEqual(['new', 'reviewToday', 'interday']);
+    expect(ids({ new: true, reviews: false, interdayLearning: false })).toEqual(['new']);
+    expect(ids({ new: false, reviews: true, interdayLearning: false })).toEqual(['reviewToday']);
+  });
+
+  it('buries nothing for a deck with no preset, or one burying nothing', () => {
+    expect(ids(undefined)).toEqual([]);
+    expect(ids({ new: false, reviews: false, interdayLearning: false })).toEqual([]);
+  });
+
+  it('leaves a sibling already buried today alone', () => {
+    const already = sib('new', { state: 0 }, { buriedAt: at(11, 9) });
+    expect(siblingsToBury(answered, [answered, already], all, NOW, H)).toEqual([]);
   });
 });
 

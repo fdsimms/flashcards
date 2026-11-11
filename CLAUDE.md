@@ -212,7 +212,10 @@ Anki's cards are counted from the kept collection's review log, which holds answ
 AnkiMobile and Anki as well as Franki's own, and only Franki-only cards from Franki's table.
 Counting Franki's table alone offered new cards already studied in Anki that day. **A card Anki
 buried today is held back until the next study day** (`isBuried`, from the card's `mod` when it
-was imported); one buried on an earlier day is studied, as Anki unburies at each new day.
+was imported); one buried on an earlier day is studied, as Anki unburies at each new day. **Answering
+in Franki buries siblings as Anki does** (`siblingsToBury`, by the answered card's own preset's
+Burying options), in Franki's tables and in the kept collection in the answer's own transaction
+(queue -2), and undo restores them with the answer.
 
 **Counts shown in two places come from one function.** The deck list (`deckRows`) and the review
 screen both call `treeQueue`, so a deck never says "20 new" and then opens with none. A check that

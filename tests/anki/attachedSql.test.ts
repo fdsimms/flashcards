@@ -83,6 +83,16 @@ describe('the app\'s SQL against attached Anki collections', () => {
     db.prepare(SQL.revlogDelete).run(undone.id);
     db.exec('COMMIT');
     expect((db.prepare(SQL.unsentSince).get(0) as any).n).toBeGreaterThanOrEqual(1);
+    // writeAnkiAnswer's bury: a sibling held back as Anki's scheduler buries it, then undone with
+    // its answer, which puts the sibling's row back exactly as it was.
+    const first = cards.find((c) => c.sched.state === 0 && !c.suspended && cards.some((s) => s.noteId === c.noteId && s.id !== c.id))!;
+    const sibCid = Number(cards.find((s) => s.noteId === first.noteId && s.id !== first.id)!.ankiId);
+    const sibRow = db.prepare(SQL.cardRow).get(sibCid);
+    db.prepare(SQL.buryCard).run(Math.floor(now.getTime() / 1000), sibCid);
+    const buried = db.prepare(SQL.cardRow).get(sibCid) as any;
+    expect([buried.queue, buried.usn, buried.mod]).toEqual([-2, -1, Math.floor(now.getTime() / 1000)]);
+    db.prepare(SQL.cardUpdate).run(...cardRestoreParams(sibRow as any, sibCid));
+    expect(db.prepare(SQL.cardRow).get(sibCid)).toEqual(sibRow);
     // Stats read the review log from a time on: the kept answer is there, the undone one isn't.
     const log = db.prepare(SQL.revlogSince).all(now.getTime() - 1000) as any[];
     expect(log.map((r) => [r.id, r.cid, r.ease])).toEqual([[kept1.id, kept1.cid, 3]]);

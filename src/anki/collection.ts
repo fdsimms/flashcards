@@ -24,7 +24,10 @@ import { decodeMessage, float, floats, message, string, uint } from './protobuf'
  */
 
 /** DeckConfig.Config */
-const CONFIG = { fsrsParams4: 3, fsrsParams5: 5, fsrsParams6: 6, newPerDay: 9, reviewsPerDay: 10, maxInterval: 16, desiredRetention: 37 };
+const CONFIG = {
+  fsrsParams4: 3, fsrsParams5: 5, fsrsParams6: 6, newPerDay: 9, reviewsPerDay: 10, maxInterval: 16,
+  buryNew: 27, buryReviews: 28, buryInterdayLearning: 29, desiredRetention: 37,
+};
 /** Notetype.Config and Notetype.Template.Config */
 const NOTETYPE = { kind: 1, css: 3 };
 const TEMPLATE = { front: 1, back: 2 };
@@ -79,6 +82,10 @@ export function readDeckConfig(blob: Uint8Array): Required<Omit<AnkiDeckConfig, 
     desiredRetention: round(float(msg, CONFIG.desiredRetention), 4),
     weights: weights.map((w) => round(w, 6)!),
     maxInterval: uint(msg, CONFIG.maxInterval),
+    // bools, which proto3 leaves out when false
+    buryNew: uint(msg, CONFIG.buryNew) === 1,
+    buryReviews: uint(msg, CONFIG.buryReviews) === 1,
+    buryInterdayLearning: uint(msg, CONFIG.buryInterdayLearning) === 1,
   };
 }
 

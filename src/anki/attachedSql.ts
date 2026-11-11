@@ -1,5 +1,5 @@
 import { STRIP_UNICASE_SQL } from './collection';
-import { CARD_ROW_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL } from './writeback';
+import { BURY_CARD_SQL, CARD_ROW_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL } from './writeback';
 
 /**
  * The SQL the app runs against an Anki collection attached to its own connection under a schema
@@ -21,6 +21,7 @@ export function stripUnicaseIn(schema: string): string {
 export const keptSql = (schema = 'anki') => ({
   cardRow: inSchema(CARD_ROW_SQL, schema),
   cardUpdate: CARD_UPDATE_SQL.replace('UPDATE cards', `UPDATE ${schema}.cards`),
+  buryCard: BURY_CARD_SQL.replace('UPDATE cards', `UPDATE ${schema}.cards`),
   revlogInsert: REVLOG_INSERT_SQL.replace('INSERT INTO revlog', `INSERT INTO ${schema}.revlog`),
   revlogDelete: `DELETE FROM ${schema}.revlog WHERE id = ?`,
   maxRevlogId: `SELECT MAX(id) AS m FROM ${schema}.revlog`,

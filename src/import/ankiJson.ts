@@ -62,6 +62,10 @@ export interface AnkiDeckConfig {
   /** FSRS weights; empty or missing when the preset was never optimized. */
   weights?: number[];
   maxInterval?: number;
+  /** The preset's Burying options. */
+  buryNew?: boolean;
+  buryReviews?: boolean;
+  buryInterdayLearning?: boolean;
 }
 
 export interface AnkiExport {
@@ -87,6 +91,7 @@ export function deckParamsFromConfigs(configs: Record<string, AnkiDeckConfig>): 
       maxInterval: c.maxInterval ?? 36500,
       newPerDay: c.newPerDay,
       reviewsPerDay: c.reviewsPerDay,
+      bury: { new: !!c.buryNew, reviews: !!c.buryReviews, interdayLearning: !!c.buryInterdayLearning },
     });
   }
   return out;
