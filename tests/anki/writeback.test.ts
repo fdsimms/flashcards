@@ -41,6 +41,19 @@ describe('mapping an answer to Anki', () => {
     expect(JSON.parse(u.data!).s).toBeGreaterThan(0);
   });
 
+  it("writes a step that crosses into another day as Anki's day-long learning (queue 3), with its steps left", () => {
+    const params = { weights: [], desiredRetention: 0.9, maxInterval: 36500, learnSteps: [10, 1440, 4320] };
+    // At 20:00, a Good on the first step waits a day: due tomorrow, on step 2 of 3.
+    const after: Card = { ...card, sched: review(card.sched, 3, now, params).sched };
+    const u = cardUpdate(after, row(), { crt: CRT, now, steps: { learn: 3, relearn: 1 } });
+    expect(u).toMatchObject({ type: 1, queue: 3, left: 2 });
+    expect(u.due).toBe(ankiDayNumber(Math.floor(now.getTime() / 1000), CRT) + 1);
+    // Anki logs a day-long step in days, and a step within the day in negative seconds.
+    expect(revlogEntry(card, after, 3, { id: 1, cid: 1, previousIvl: 0, now, takenMs: 0, crt: CRT }).ivl).toBe(1);
+    const short: Card = { ...card, sched: review(card.sched, 3, new Date(2026, 10, 11, 9, 0)).sched };
+    expect(revlogEntry(card, short, 3, { id: 1, cid: 1, previousIvl: 0, now: new Date(2026, 10, 11, 9, 0), takenMs: 0, crt: CRT }).ivl).toBe(-600);
+  });
+
   it('writes a review as a day number counted from the collection\'s creation', () => {
     const graduated: Card = { ...card, sched: { ...review(card.sched, 4, now).sched } };
     expect(graduated.sched.state).toBe(2);

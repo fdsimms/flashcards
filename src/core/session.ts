@@ -1,6 +1,6 @@
 import { nextCard, type Queue, type StudiedToday } from './queue';
 import type { AnkiUndo } from '../anki/writeback';
-import type { Card } from './types';
+import type { Card, Note } from './types';
 
 /**
  * Bookkeeping for one review session, kept out of the screen so it can be tested: today's counts
@@ -40,6 +40,8 @@ export interface AnswerRecord {
   anki?: AnkiUndo;
   /** Siblings the answer buried (`siblingsToBury`), as they were before: undo puts them back. */
   buried: Card[];
+  /** The note as it was, when the answer made the card a leech and tagged it: undo puts it back. */
+  leechNote?: Note;
 }
 
 /**

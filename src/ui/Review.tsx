@@ -8,7 +8,8 @@ import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core
 import { studyDayStart } from '../core/day';
 import { nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
-import { paramsForDeck, previewIntervals, review, type RatingValue } from '../core/scheduler';
+import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, review, type RatingValue } from '../core/scheduler';
+import { saveNote, type NoteStore } from '../anki/noteService';
 import { bumpStudied, currentCard, type AnswerRecord } from '../core/session';
 import { cardDocument, renderTemplateCard } from '../core/template';
 import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
@@ -186,7 +187,10 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
     try {
       const when = new Date();
       const res = review(current.sched, rating, when, cardParams);
-      const updated: Card = { ...current, sched: res.sched, buriedAt: undefined };
+      // A forgotten review can make the card a leech: its note is tagged, and the card suspended if the preset says so, as in Anki.
+      const leech = cardParams?.leech ?? DEFAULT_LEECH;
+      const isLeech = becameLeech(current.sched, res.sched, leech);
+      const updated: Card = { ...current, sched: res.sched, buriedAt: undefined, suspended: current.suspended || (isLeech && leech.suspend) };
       // The note's other cards that its preset holds back until tomorrow, as Anki does.
       const siblings = siblingsToBury(current, cards ?? [], cardParams?.bury, when, H);
       const buried = siblings.map((s): Card => ({ ...s, buriedAt: when.toISOString() }));
@@ -200,6 +204,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
         anki = await repo.writeAnkiAnswer({
           before: current, after: updated, rating, now: when,
           takenMs: when.getTime() - shownAt.current, desiredRetention: cardParams?.desiredRetention, bury: siblings,
+          steps: { learn: (cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS).length, relearn: (cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS).length },
         });
       } catch (e: any) {
         if (!warnedAnki.current) {
@@ -210,8 +215,18 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
           );
         }
       }
+      let leechNote: Note | undefined;
+      if (isLeech && !note.tags.includes('leech')) {
+        try {
+          const tagged = await saveNote(repo as NoteStore, { id: note.id, deck: note.deck, model: note.model, fields: note.fields, tags: [...note.tags, 'leech'] }, when);
+          leechNote = note;
+          setNotes((prev) => new Map(prev).set(tagged.id, tagged));
+        } catch {
+          // The answer stands; the tag just isn't added.
+        }
+      }
       // Counted in the deck the card is studied in, as Anki counts it (a filtered deck's answers count there).
-      const record: AnswerRecord = { before: current, reviewId, deck: cardDeck(current, note.deck), anki, buried: siblings };
+      const record: AnswerRecord = { before: current, reviewId, deck: cardDeck(current, note.deck), anki, buried: siblings, leechNote };
       setStudied((s) => bumpStudied(s, record.deck, studiedKind(record.before, H), 1));
       setHistory((h) => [...h, record]);
       // Functional update: `cards` from this render's closure is stale once the awaits return.
@@ -240,6 +255,13 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       }
       await repo.saveCard(last.before);
       for (const s of last.buried) await repo.saveCard(s);
+      if (last.leechNote) {
+        const n = last.leechNote;
+        try {
+          const restored = await saveNote(repo as NoteStore, { id: n.id, deck: n.deck, model: n.model, fields: n.fields, tags: n.tags });
+          setNotes((prev) => new Map(prev).set(restored.id, restored));
+        } catch { /* the tag stays */ }
+      }
       await repo.deleteReview(last.reviewId);
       setHistory((h) => h.slice(0, -1));
       setStudied((s) => bumpStudied(s, last.deck, studiedKind(last.before, H), -1));

@@ -54,6 +54,8 @@ export interface AnkiLink {
   /** Writes an answer into the kept collection. Undefined when the card isn't from it. */
   writeAnkiAnswer(a: {
     before: Card; after: Card; rating: RatingValue; now: Date; takenMs: number; desiredRetention?: number;
+    /** The card's deck's step counts, for Anki's `left`. */
+    steps?: { learn: number; relearn: number };
     /** Siblings to bury with the answer (`siblingsToBury`), in the same transaction. */
     bury?: Card[];
   }): Promise<AnkiUndo | undefined>;
@@ -188,7 +190,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
       await setSetting(SETTING.lastSentId, String(max?.m ?? 0));
     },
 
-    writeAnkiAnswer: ({ before, after, rating, now, takenMs, desiredRetention, bury = [] }) => lockAnki(async () => {
+    writeAnkiAnswer: ({ before, after, rating, now, takenMs, desiredRetention, steps, bury = [] }) => lockAnki(async () => {
       await attach();
       if (!attached || !before.ankiId) return undefined;
       const cid = Number(before.ankiId);
@@ -203,8 +205,8 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
         if (sibling) buried.push({ cid: Number(s.ankiId), row: sibling });
       }
       await db.withTransactionAsync(async () => {
-        await db.runAsync(SQL.cardUpdate, ...cardUpdateParams(cardUpdate(after, row, { crt, now, desiredRetention }), cid));
-        await db.runAsync(SQL.revlogInsert, ...revlogParams(revlogEntry(before, after, rating, { id: revlogId, cid, previousIvl: row.ivl, now, takenMs })));
+        await db.runAsync(SQL.cardUpdate, ...cardUpdateParams(cardUpdate(after, row, { crt, now, desiredRetention, steps }), cid));
+        await db.runAsync(SQL.revlogInsert, ...revlogParams(revlogEntry(before, after, rating, { id: revlogId, cid, previousIvl: row.ivl, now, takenMs, crt })));
         for (const b of buried) await db.runAsync(SQL.buryCard, Math.floor(now.getTime() / 1000), b.cid);
         await db.runAsync(SQL.colModified, now.getTime());
       });
