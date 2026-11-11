@@ -55,7 +55,10 @@ function DeckRowView({ row, first, onOpen, onOptions }: { row: DeckRow; first: b
 
 export function DeckList(props: {
   decks: DeckRow[];
-  /** When the last backup was made, and whether another is due (`backupStatus`). */
+  /**
+   * When the last backup was made, and whether another is due (`backupStatus`). Not shown while
+   * sync is on: the Anki server then holds the collection, and Backup is still in Settings.
+   */
   backup?: { text: string; overdue: boolean };
   /** Answers given here and not yet in Anki: not synced, or (without sync) not sent back by file. */
   ankiUnsent?: number;
@@ -64,13 +67,13 @@ export function DeckList(props: {
   onOpen: (deck: string) => void;
   onImport: () => void;
   onBackup: () => void;
-  onStats: () => void;
   onSettings: () => void;
   onBrowse: () => void;
   onOptions: (deck: string) => void;
 }) {
   const c = useTheme();
   const groups = useMemo(() => groupByTopLevel(props.decks), [props.decks]);
+  const backup = props.sync ? undefined : props.backup;
   return (
     <Screen
       title="Decks"
@@ -81,19 +84,12 @@ export function DeckList(props: {
           <HeaderAction label="Settings" onPress={props.onSettings} />
         </View>
       }
-      footer={
-        <View style={{ flexDirection: 'row', gap: space.s }}>
-          <Button label="Anki" onPress={props.onImport} style={{ flex: 1 }} />
-          <Button label="Stats" variant="secondary" onPress={props.onStats} style={{ flex: 1 }} />
-          <Button label="Backup" variant="secondary" onPress={props.onBackup} style={{ flex: 1 }} />
-        </View>
-      }
     >
       <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
-        {props.backup?.overdue ? (
+        {backup?.overdue ? (
           <Pressable onPress={props.onBackup} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
             <View style={{ borderRadius: radius.l, borderWidth: 1, borderColor: c.warning, padding: space.m, gap: space.xs }}>
-              <Text style={{ ...type.headline, color: c.warning }}>{props.backup.text}</Text>
+              <Text style={{ ...type.headline, color: c.warning }}>{backup.text}</Text>
               <Text style={{ ...type.subhead, color: c.textSecondary }}>Everything is stored only on this iPhone. Tap to back up now.</Text>
             </View>
           </Pressable>
@@ -101,7 +97,8 @@ export function DeckList(props: {
         {groups.length === 0 ? (
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>No decks yet</Text>
-            <Help>Tap Anki to bring in your collection, exported from AnkiMobile.</Help>
+            <Help>Bring in your Anki collection, by syncing with your Anki server or from a file exported from AnkiMobile.</Help>
+            <Button label="Set up Anki" onPress={props.onImport} />
           </Card>
         ) : (
           groups.map((g) => (
@@ -133,8 +130,8 @@ export function DeckList(props: {
             </Text>
           </Pressable>
         ) : null}
-        {props.backup && !props.backup.overdue ? (
-          <Text style={{ ...type.footnote, color: c.textTertiary, textAlign: 'center' }}>{props.backup.text}</Text>
+        {backup && !backup.overdue ? (
+          <Text style={{ ...type.footnote, color: c.textTertiary, textAlign: 'center' }}>{backup.text}</Text>
         ) : null}
       </ScrollView>
     </Screen>

@@ -61,6 +61,28 @@ export function Screen(props: {
   );
 }
 
+/** A row in a list that opens another screen: its name, a line about it, and a chevron. */
+export function NavRow({ label, detail, onPress, first }: { label: string; detail?: string; onPress: () => void; first?: boolean }) {
+  const c = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={detail ? `${label}. ${detail}` : label}
+      style={({ pressed }) => ({
+        minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m,
+        borderTopWidth: first ? 0 : 1, borderTopColor: c.border, opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={{ ...type.body, color: c.text }}>{label}</Text>
+        {detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : null}
+      </View>
+      <Text style={{ ...type.body, color: c.textTertiary }}>›</Text>
+    </Pressable>
+  );
+}
+
 /** A small text action for a header or a row, at least a full tap target tall. */
 export function HeaderAction({ label, onPress, accessibilityLabel }: { label: string; onPress: () => void; accessibilityLabel?: string }) {
   const c = useTheme();

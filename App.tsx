@@ -24,7 +24,9 @@ import { useSync } from './src/ui/useSync';
 import { syncStatusText } from './src/anki/sync/runSync';
 
 type Screen =
-  | { name: 'decks' } | { name: 'anki' } | { name: 'backup' } | { name: 'sync' } | { name: 'stats' } | { name: 'settings' } | { name: 'browse' }
+  | { name: 'decks' } | { name: 'stats' } | { name: 'settings' } | { name: 'browse' }
+  // Opened from Settings, or from the deck list (its first-run card and its reminders): back goes there.
+  | { name: 'anki'; from: 'decks' | 'settings' } | { name: 'backup'; from: 'decks' | 'settings' } | { name: 'sync'; from: 'decks' | 'settings' }
   | { name: 'review'; deck: string } | { name: 'deckOptions'; deck: string };
 
 export default function App() {
@@ -89,9 +91,8 @@ export default function App() {
     // The safe-area insets every Screen pads itself by (status bar, Dynamic Island, home indicator).
     <SafeAreaProvider>
       {screen.name === 'decks' && (
-        <DeckList decks={decks} backup={backup} ankiUnsent={ankiUnsent} onOpen={(deck) => setScreen({ name: 'review', deck })} onImport={() => setScreen({ name: 'anki' })}
-          onBackup={() => setScreen({ name: 'backup' })}
-          onStats={() => setScreen({ name: 'stats' })}
+        <DeckList decks={decks} backup={backup} ankiUnsent={ankiUnsent} onOpen={(deck) => setScreen({ name: 'review', deck })} onImport={() => setScreen({ name: 'anki', from: 'decks' })}
+          onBackup={() => setScreen({ name: 'backup', from: 'decks' })}
           onSettings={() => setScreen({ name: 'settings' })}
           onBrowse={() => setScreen({ name: 'browse' })}
           onOptions={(deck) => setScreen({ name: 'deckOptions', deck })}
@@ -104,15 +105,23 @@ export default function App() {
         />
       )}
       {screen.name === 'anki' && (
-        <AnkiTransfer repo={repo} syncOn={!!syncSettings?.enabled} onSyncSettings={() => setScreen({ name: 'sync' })} onDone={() => setScreen({ name: 'decks' })} />
+        <AnkiTransfer repo={repo} syncOn={!!syncSettings?.enabled} onSyncSettings={() => setScreen({ name: 'sync', from: screen.from })}
+          backLabel={screen.from === 'settings' ? 'Settings' : 'Decks'} onDone={() => setScreen(screen.from === 'settings' ? { name: 'settings' } : { name: 'decks' })} />
       )}
       {screen.name === 'sync' && (
-        <SyncSettings repo={repo} settings={syncSettings} syncing={syncing} sync={sync} reload={reloadSync} onDone={() => setScreen({ name: 'anki' })} />
+        <SyncSettings repo={repo} settings={syncSettings} syncing={syncing} sync={sync} reload={reloadSync} onDone={() => setScreen({ name: 'anki', from: screen.from })} />
       )}
       {screen.name === 'browse' && <Browse repo={repo} onDone={() => setScreen({ name: 'decks' })} />}
-      {screen.name === 'settings' && <Settings repo={repo} onDone={() => setScreen({ name: 'decks' })} />}
-      {screen.name === 'stats' && <Stats repo={repo} onDone={() => setScreen({ name: 'decks' })} />}
-      {screen.name === 'backup' && <Backup store={repo} onDone={() => setScreen({ name: 'decks' })} />}
+      {screen.name === 'settings' && (
+        <Settings repo={repo} backupText={backup?.text} onDone={() => setScreen({ name: 'decks' })}
+          onAnki={() => setScreen({ name: 'anki', from: 'settings' })}
+          onStats={() => setScreen({ name: 'stats' })}
+          onBackup={() => setScreen({ name: 'backup', from: 'settings' })} />
+      )}
+      {screen.name === 'stats' && <Stats repo={repo} backLabel="Settings" onDone={() => setScreen({ name: 'settings' })} />}
+      {screen.name === 'backup' && (
+        <Backup store={repo} backLabel={screen.from === 'settings' ? 'Settings' : 'Decks'} onDone={() => setScreen(screen.from === 'settings' ? { name: 'settings' } : { name: 'decks' })} />
+      )}
       {screen.name === 'deckOptions' && <DeckOptions repo={repo} deck={screen.deck} onDone={() => setScreen({ name: 'decks' })} />}
       {screen.name === 'review' && <Review repo={repo} deck={screen.deck} onDone={() => { setScreen({ name: 'decks' }); sync(); }} />}
       <StatusBar style="auto" />

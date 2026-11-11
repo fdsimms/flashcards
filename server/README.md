@@ -38,7 +38,7 @@ Do this once, in this order:
 1. **Sync everything with AnkiWeb one last time**, on your computer and in AnkiMobile, so your computer has everything.
 2. **Anki on your computer:** Tools > Preferences > Syncing. Set the self-hosted sync server to `https://<your domain>/`. Sync, and sign in with the `ANKI_USER` and `ANKI_PASSWORD` from `.env`. The server starts empty, so Anki asks to upload: choose **Upload**. Let it sync media too.
 3. **AnkiMobile:** in its settings, under syncing, set the custom sync server to the same address. Sync, sign in the same way, and choose **Download** when it asks.
-4. **Franki:** tap **Anki**, then **Set up sync**, and enter the same address, user name and password. Franki downloads the collection, and from then on syncs on its own: when you open it, when you finish a deck, and when you leave the app.
+4. **Franki:** tap **Settings**, then **Anki**, then **Set up sync**, and enter the same address, user name and password. Franki downloads the collection, and from then on syncs on its own: when you open it, when you finish a deck, and when you leave the app.
 
 If Franki has answers you gave before setting up sync that never went back to Anki, it asks before downloading, since a download would replace them. Choose **Upload Franki's** only if Franki has the newest copy of everything; it replaces what's on the server, and your other devices then download it.
 

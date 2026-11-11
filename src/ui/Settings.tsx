@@ -2,11 +2,22 @@ import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { ANSWER_BUTTON_CHOICES, type AnswerButtons } from '../core/answerButtons';
 import type { Repo } from '../db/repo';
-import { Card, Help, Screen } from './kit';
+import { Card, Help, NavRow, Screen } from './kit';
 import { MIN_TAP, space, type, useTheme } from './theme';
 
-/** App-wide settings. So far: which answer buttons Review shows. */
-export function Settings({ repo, onDone }: { repo: Repo; onDone: () => void }) {
+/**
+ * App-wide settings: the screens that aren't about studying (Anki, Stats, Backup), and which
+ * answer buttons Review shows.
+ */
+export function Settings({ repo, backupText, onAnki, onStats, onBackup, onDone }: {
+  repo: Repo;
+  /** When the last backup was made (`backupStatus`). */
+  backupText?: string;
+  onAnki: () => void;
+  onStats: () => void;
+  onBackup: () => void;
+  onDone: () => void;
+}) {
   const c = useTheme();
   const [buttons, setButtons] = useState<AnswerButtons>();
 
@@ -20,6 +31,11 @@ export function Settings({ repo, onDone }: { repo: Repo; onDone: () => void }) {
   return (
     <Screen onBack={onDone} title="Settings">
       <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+        <Card style={{ paddingVertical: 0, gap: 0 }}>
+          <NavRow first label="Anki" detail="Sync, or send your collection to and from Anki by file" onPress={onAnki} />
+          <NavRow label="Stats" detail="Answers, how much you remember, and what's coming due" onPress={onStats} />
+          <NavRow label="Backup" detail={backupText ?? 'Save or restore everything in Franki'} onPress={onBackup} />
+        </Card>
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Answer buttons</Text>
           <Help>

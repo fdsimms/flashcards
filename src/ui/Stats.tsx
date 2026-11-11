@@ -22,7 +22,7 @@ const dayLabel = (d: Date) => d.toLocaleDateString(undefined, { weekday: 'short'
  * next 30 days' reviews, the last 30 days' answers, cards by stage, and retention. The numbers
  * come from src/core/stats.ts; this screen only gathers and shows them.
  */
-export function Stats({ repo, onDone }: { repo: Repo & AnkiLink; onDone: () => void }) {
+export function Stats({ repo, onDone, backLabel }: { repo: Repo & AnkiLink; onDone: () => void; backLabel?: string }) {
   const c = useTheme();
   const [data, setData] = useState<{ notes: Note[]; cards: Card[]; answers: Answer[]; params: Map<string, DeckParams>; now: Date }>();
   const [scope, setScope] = useState<string | null>(null);
@@ -54,7 +54,7 @@ export function Stats({ repo, onDone }: { repo: Repo & AnkiLink; onDone: () => v
   const target = scope !== null && data ? paramsForDeck(scope, data.params)?.desiredRetention : undefined;
 
   return (
-    <Screen onBack={onDone} title="Stats">
+    <Screen onBack={onDone} backLabel={backLabel} title="Stats">
       {!stats ? null : (
         <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
           {tops.length > 1 ? (
