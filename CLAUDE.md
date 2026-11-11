@@ -169,9 +169,10 @@ dictionary lookup, an AI hint) ships behind its own setting that defaults to off
 
 ### The study day
 
-**The day starts at `DAY_STARTS_AT_HOUR` (4 AM, as Anki's "Next day starts at"), not midnight.**
-A 1 AM session still belongs to the day before: its new cards come out of that day's limit.
-`src/core/day.ts` owns this.
+**The day starts at the collection's "Next day starts at" (`CollectionSettings.dayStartsAtHour`,
+read from Anki's `rollover`; 4 AM by default, `DAY_STARTS_AT_HOUR`), not midnight.** A 1 AM
+session still belongs to the day before: its new cards come out of that day's limit.
+`src/core/day.ts` owns this; screens read the hour from `repo.collectionSettings()`.
 
 - **Anything that decides which day something belongs to goes through `studyDayStart` /
   `nextStudyDayStart`**, never `setHours(0, 0, 0, 0)`, `toDateString()` or a bare `new Date()`
@@ -188,24 +189,35 @@ FSRS via `ts-fsrs`, wrapped in `src/core/scheduler.ts`; a card's whole FSRS stat
 with dates as ISO strings. **A Review-state card is due for its whole study day** (its due instant
 carries the time of day it was last answered); **a Learning/Relearning card is due at its exact
 instant** (`isDue` in `src/core/queue.ts`). Once nothing else is left, learning cards come up to
-`LEARN_AHEAD_MINUTES` early, as Anki's learn-ahead limit, and the review screen waits for the next
-one rather than declaring the deck done.
+the collection's learn-ahead limit early, and the review screen waits for the next one rather
+than declaring the deck done.
+
+**Learning steps are Anki's, applied on top of FSRS** (`stepOutcome` in `scheduler.ts`, from
+rslib's states/steps.rs): the ts-fsrs engines run with no steps, for the memory state and
+intervals, because ts-fsrs's own steps graduate a card on a step of a day or more and give Hard a
+different delay. Each deck's preset steps apply, else Anki's defaults. A step crossing into a
+later day is Anki's queue 3 (`isInterdayLearning`); its answers count as reviews and use the
+review limit. **Leeches** follow the preset (`becameLeech`): tagged, suspended if it says so.
 
 **Each deck schedules with its Anki preset's FSRS weights and desired retention** (`DeckParams`,
 read from the collection's deck options when it's imported). `paramsForDeck` falls back to
 the nearest ancestor deck, then to the `ts-fsrs` defaults. Every `review`/`previewIntervals` call
 passes the deck's params; one that doesn't silently schedules with the defaults.
 
-**Daily limits are per deck, from its Anki preset** (`DeckParams.newPerDay` / `reviewsPerDay`),
-with `NEW_PER_DAY` / `REVIEWS_PER_DAY` in `src/core/config.ts` only for a deck that has none. The
-review limit counts answers to Review-state cards today; learning cards are never limited, as in
-Anki.
+**Daily limits are per deck, from its Anki preset** (`DeckParams.newPerDay` / `reviewsPerDay`, or
+a today-only limit from Custom Study on its day), with `NEW_PER_DAY` / `REVIEWS_PER_DAY` in
+`src/core/config.ts` only for a deck that has none.
 
-**Studying a deck studies its subdecks, and every deck on the way up applies its limits**
-(`treeQueue` in `src/core/deckTree.ts`): a card in Polski::Odmiana counts against Odmiana's limit
-and Polski's. Today's counts are kept per deck by its own cards and summed up the tree. A card is
-always scheduled with **its own** deck's FSRS settings, never the settings of the parent being
-studied.
+**A study session is built as Anki's v3 scheduler builds it** (`treeQueue` in
+`src/core/deckTree.ts`, orders in `src/core/order.ts`; each rule's source in rslib is named where
+it's implemented). Limits form a tree from the deck opened down: a card in Polski::Odmiana counts
+against Odmiana's limit and Polski's when Polski is opened, but Polski's limits don't apply when
+Odmiana is opened unless the collection's "apply all parent limits" is on. New cards studied today
+also use review room, unless "new cards ignore review limit" is on. Steps within the day are never
+limited. The preset's gather, sort, review and mix orders decide the order (Anki's new-card
+position for new cards). A card is always scheduled with **its own home** deck's settings
+(`cardHomeDeck`), never the parent being studied, and is studied in the deck it's in
+(`cardDeck`): an Anki filtered deck takes its cards out of their home decks.
 
 **Today's counts include answers given on every device** (`studiedToday` in `src/core/queue.ts`):
 Anki's cards are counted from the kept collection's review log, which holds answers synced from
@@ -218,7 +230,8 @@ Burying options), in Franki's tables and in the kept collection in the answer's 
 (queue -2), and undo restores them with the answer.
 
 **Counts shown in two places come from one function.** The deck list (`deckRows`) and the review
-screen both call `treeQueue`, so a deck never says "20 new" and then opens with none. A check that
+screen both call `treeQueue`, with input from `queueInput`, so a deck never says "20 new" and then
+opens with none. A check that
 predicts what another code path will do calls that code path's function; don't write a lookalike.
 
 **A progress gate replaces a deck's daily new-card limit** (`DeckSettings.gateCap`, set on Deck
