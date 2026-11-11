@@ -35,5 +35,6 @@ Docs: https://docs.expo.dev/eas/index.md
 ## Rules
 
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
-- This app doesn't use Expo Go: it runs in a development build (`expo-dev-client`, the `development` profile in `eas.json`). After adding a library with native code, the development build on the phone has to be rebuilt (`eas build --profile development`) before the new code can load; say so in the PR.
+- This app doesn't use Expo Go: it runs in a development build (`expo-dev-client`) built on the owner's Mac with `npm run ios:device` (`npx expo run:ios --device`). After adding a library with native code, that build has to be rerun before the new code can load; say so in the PR.
+- **Builds run locally, never on Expo's servers.** Release builds are `npm run build:ios` (`eas build --local`); don't suggest cloud `eas build` or `npx testflight`, which builds in the cloud.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md

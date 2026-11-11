@@ -12,7 +12,8 @@ A small personal spaced-repetition app (React Native + Expo) built for language 
 
 ```bash
 npm install
-npx expo start      # serves the code to the development build on your iPhone (see below)
+npm run ios:device  # build and install the development build on a plugged-in iPhone (see below)
+npx expo start      # serve the latest code to it
 npm test            # scheduler, queue, study-day, importer, exporter and backup tests
 npm run typecheck
 npm run verify      # typecheck + tests, the loop to run before committing
@@ -48,42 +49,41 @@ Tap a deck to study it with its subdecks. **Undo** in the top right takes back t
 
 ## Installing on your iPhone
 
-The app doesn't use Expo Go. Both ways below build it with EAS, which needs an [Expo account](https://expo.dev) and a paid Apple Developer account. The bundle identifier is `com.fdsimms.franki` (`app.json`). Once the first build is on App Store Connect it can't change without starting over as a new app.
-
-### The quickest way to TestFlight
-
-Run `npx testflight` in the repo and follow its prompts: it signs in to Expo and Apple, creates the signing certificate, builds in the cloud and uploads to TestFlight. Answer that the app doesn't use non-exempt encryption. If App Store Connect says the name "Franki" is taken, register it under something like "Franki Flashcards"; the home screen still shows "Franki". Run it again for each update. TestFlight builds stop working 90 days after upload, so upload a fresh one before then.
-
-```bash
-npx eas-cli@latest login
-npx eas-cli@latest init          # once: links the project and adds its id to app.json
-```
+Everything builds on your Mac; nothing is built on Expo's servers. You need a Mac with **Xcode** (open it once so it installs the iOS components, then add your Apple ID under **Settings > Accounts**), **CocoaPods** and **fastlane** (`brew install cocoapods fastlane`), and a paid Apple Developer account. The app doesn't use Expo Go. The bundle identifier is `com.fdsimms.franki` (`app.json`); once the first build is on App Store Connect it can't change without starting over as a new app.
 
 ### For trying changes: a development build
 
-Install it once, then run the latest code from your computer with live reload.
+Plug the iPhone into the Mac, turn on **Settings > Privacy & Security > Developer Mode** on it (iOS asks you to restart), then:
 
 ```bash
-npx eas-cli@latest device:create                                  # once: register your iPhone (open the link it gives on the phone)
-npx eas-cli@latest build --platform ios --profile development     # builds in the cloud, gives an install link and QR code
+npm run ios:device      # npx expo run:ios --device: builds in Xcode, installs on the phone, starts the dev server
 ```
 
-1. Open the install link on your iPhone.
-2. Turn on **Settings > Privacy & Security > Developer Mode** (iOS asks you to restart).
-3. Run `npx expo start` on your computer and scan its QR code with the iPhone camera. The app loads your current code, and reloads as you change it.
-
-Rebuild the development build only when a native dependency changes (a new `expo-*` package with native code, or `app.json`'s plugins). Code changes never need a rebuild.
-
-A newly registered iPhone can take Apple up to a few days to accept on a new or just-renewed developer account; until then the first build may fail to install. Build again once it has gone through.
+The first time, it asks you to pick the iPhone and your developer team for signing. After that, code changes reload on the phone as you save. Run it again only when a native dependency changes (a new `expo-*` package with native code, or `app.json`'s plugins); otherwise `npx expo start` is enough to reconnect.
 
 ### For everyday use: TestFlight
 
+Once:
+
 ```bash
-npx eas-cli@latest build --platform ios --profile production
-npx eas-cli@latest submit --platform ios --latest                 # uploads to TestFlight
+npx eas-cli@latest login     # a free Expo account: it keeps your signing certificate and build number
+npx eas-cli@latest init      # links the project and adds its id to app.json (commit that)
 ```
 
-Then install it from the TestFlight app. This version runs on its own, without your computer. The `preview` profile makes the same app as an ad hoc build for your registered iPhone, without TestFlight.
+Each release:
+
+```bash
+npm run build:ios            # eas build --local: the full release build, run on this Mac; writes a .ipa here
+```
+
+The first time, it asks to sign in to your Apple account and creates the distribution certificate and provisioning profile. Answer that the app doesn't use non-exempt encryption. The build number goes up by itself on every build.
+
+Then upload the `.ipa`, either way:
+
+- `npx eas-cli@latest submit --platform ios --path <the .ipa>` (uploads through Expo, and the first time creates the app on App Store Connect for you), or
+- Apple's **Transporter** app (Mac App Store): drag the `.ipa` in and click **Deliver**. For this route, first create the app in App Store Connect yourself: **Apps > + > New App**, with the bundle id `com.fdsimms.franki`.
+
+If App Store Connect says the name "Franki" is taken, register it as something like "Franki Flashcards"; the home screen still shows "Franki". Apple processes an upload in 10 to 30 minutes. Then add yourself to an internal testing group in App Store Connect's **TestFlight** tab and install from the TestFlight app. TestFlight builds stop working 90 days after upload, so upload a fresh one before then.
 
 ## Layout
 

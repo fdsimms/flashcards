@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# local release builds (npm run build:ios)
+*.ipa
+*.app.dSYM.zip

@@ -19,7 +19,8 @@ progress), match it unless there's a stated reason not to.
 
 ```bash
 npm install          # node_modules isn't checked in; a fresh clone needs this first
-npx expo start       # dev server for the development build on the phone (no Expo Go; see README)
+npm run ios:device   # build the development build in Xcode and install it on a plugged-in iPhone
+npx expo start       # dev server for that build (no Expo Go; builds are all local, see README)
 npm run typecheck    # tsc --noEmit
 npm test             # vitest, the whole suite in under a second
 npx vitest run tests/core/queue.test.ts   # one file, while iterating
