@@ -58,6 +58,12 @@ export interface Card {
   filteredDeck?: string;
   /** A new card's position in Anki's new-card order (the card's `due` while it's new): lowest first. */
   position?: number;
+  /** When Anki last changed the card (its `mod`, unix seconds): part of the seed for Anki's review order. */
+  ankiMod?: number;
+  /** The card's `due` in its filtered deck: its place in the deck's order. */
+  filteredDue?: number;
+  /** In a preview filtered deck (Anki's queue 4): when it's shown again, ISO. */
+  previewDue?: string;
   sched: SchedState;
 }
 
@@ -112,8 +118,12 @@ export interface DeckParams {
   /** Today-only limits that replace `newPerDay` / `reviewsPerDay` on their day. */
   newLimitToday?: DayLimit;
   reviewLimitToday?: DayLimit;
-  /** Set for an Anki filtered deck: it has no limits, and studies with each card's own deck's settings. */
-  filtered?: { reschedule: boolean };
+  /**
+   * Set for an Anki filtered deck: it has no limits, and studies with each card's own deck's
+   * settings. Without rescheduling it only previews, showing a card again after Again, Hard or
+   * Good by `previewSecs` (0 finishes it).
+   */
+  filtered?: { reschedule: boolean; previewSecs?: { again: number; hard: number; good: number } };
 }
 
 /**
@@ -126,6 +136,10 @@ export interface CollectionSettings {
   learnAheadMinutes: number;
   newCardsIgnoreReviewLimit: boolean;
   applyAllParentLimits: boolean;
+  /** When the collection was created (`col.crt`, unix seconds, at a day's start): Anki numbers days from it. */
+  collectionCreated?: number;
+  /** The time zone it was created in (`creationOffset`, minutes west of UTC), which Anki dates the creation by. */
+  creationOffset?: number;
 }
 
 export interface ReviewLogEntry {

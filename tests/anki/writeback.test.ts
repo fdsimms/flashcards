@@ -6,7 +6,7 @@ import { buildExport } from '../../src/anki/collection';
 import { readPackage, writePackage } from '../../src/anki/package';
 import {
   CARD_ROW_SQL, CARD_UPDATE_SQL, REVLOG_INSERT_SQL, ankiDayNumber, cardUpdate, cardUpdateParams, nextRevlogId,
-  previewReturn, revlogDifficulty, revlogEntry, revlogParams, type AnkiCardRow,
+  previewAgain, previewReturn, revlogDifficulty, revlogEntry, revlogParams, type AnkiCardRow,
 } from '../../src/anki/writeback';
 import { makeCards } from '../../src/core/cards';
 import { review } from '../../src/core/scheduler';
@@ -59,6 +59,11 @@ describe('mapping an answer to Anki', () => {
     expect(cardUpdate(learning, row({ did: 99, odid: 5, odue: 40 }), { crt: CRT, now })).toMatchObject({ did: 99, odid: 5, queue: 1 });
     const graduated: Card = { ...card, sched: review(card.sched, 4, now).sched };
     expect(cardUpdate(graduated, row({ did: 99, odid: 5, odue: 40 }), { crt: CRT, now })).toMatchObject({ did: 5, odid: 0, odue: 0, queue: 2 });
+  });
+
+  it("keeps a previewed card in its filtered deck, due again after the delay, when it isn't finished", () => {
+    const inPreview = row({ did: 99, odid: 5, odue: 812, type: 2, queue: 2, due: -100000, ivl: 30 });
+    expect(previewAgain(inPreview, 1794000060, now)).toMatchObject({ did: 99, odid: 5, odue: 812, type: 2, queue: 4, due: 1794000060, ivl: 30, usn: -1 });
   });
 
   it("sends a previewed card home with its schedule untouched", () => {

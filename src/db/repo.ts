@@ -68,7 +68,10 @@ export class MemoryRepo implements Repo {
       // Same rule as the SQLite repo: re-importing never resets a card already studied here.
       const existing = this.cards.get(c.id);
       if (existing && existing.sched.state !== 0) {
-        this.cards.set(c.id, { ...existing, retired: false, buriedAt: c.buriedAt, deck: c.deck, filteredDeck: c.filteredDeck, position: c.position });
+        this.cards.set(c.id, {
+          ...existing, retired: false, buriedAt: c.buriedAt, deck: c.deck, filteredDeck: c.filteredDeck, position: c.position,
+          ankiMod: c.ankiMod, filteredDue: c.filteredDue, previewDue: c.previewDue,
+        });
         continue;
       }
       this.cards.set(c.id, { ...c, retired: false });

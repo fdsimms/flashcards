@@ -188,19 +188,26 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       const when = new Date();
       // A filtered deck that doesn't reschedule only previews: the card's schedule stays as it
       // was, and it goes home to its own deck (Anki would show it again after a short delay first).
-      const preview = !!current.filteredDeck && paramsForDeck(current.filteredDeck, allParams)?.filtered?.reschedule === false;
+      const filtered = current.filteredDeck ? paramsForDeck(current.filteredDeck, allParams)?.filtered : undefined;
+      const preview = filtered?.reschedule === false;
+      // Again, Hard and Good show a previewed card again after the deck's delay; Easy, or a delay of 0, finishes it.
+      const delay = preview ? [0, filtered.previewSecs?.again ?? 0, filtered.previewSecs?.hard ?? 0, filtered.previewSecs?.good ?? 0, 0][rating] : 0;
+      const previewAgainAt = delay > 0 ? new Date(when.getTime() + delay * 1000) : undefined;
       const res = preview ? { sched: current.sched, log: previewLog(current, rating, when) } : review(current.sched, rating, when, cardParams);
       // A forgotten review can make the card a leech: its note is tagged, and the card suspended if the preset says so, as in Anki.
       const leech = cardParams?.leech ?? DEFAULT_LEECH;
       const isLeech = !preview && becameLeech(current.sched, res.sched, leech);
       const updated: Card = {
         ...current, sched: res.sched, buriedAt: undefined, suspended: current.suspended || (isLeech && leech.suspend),
-        // Out of a filtered deck once it's a review (or after a preview), as in Anki; still learning, it stays.
-        filteredDeck: preview || res.sched.state === 2 ? undefined : current.filteredDeck,
+        // Out of a filtered deck once it's a review (or a finished preview), as in Anki; still learning, it stays.
+        filteredDeck: previewAgainAt ? current.filteredDeck : preview || res.sched.state === 2 ? undefined : current.filteredDeck,
+        previewDue: previewAgainAt?.toISOString(),
+        // Write-back stamps the Anki card's mod, which seeds Anki's review order.
+        ankiMod: current.ankiId ? Math.floor(when.getTime() / 1000) : current.ankiMod,
       };
       // The note's other cards that its preset holds back until tomorrow, as Anki does.
       const siblings = preview ? [] : siblingsToBury(current, cards ?? [], cardParams?.bury, when, H);
-      const buried = siblings.map((s): Card => ({ ...s, buriedAt: when.toISOString() }));
+      const buried = siblings.map((s): Card => ({ ...s, buriedAt: when.toISOString(), ankiMod: s.ankiId ? Math.floor(when.getTime() / 1000) : s.ankiMod }));
       await repo.saveCard(updated);
       for (const b of buried) await repo.saveCard(b);
       const reviewId = await repo.addReview({ cardId: current.id, ...res.log });
@@ -210,7 +217,8 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       try {
         anki = await repo.writeAnkiAnswer({
           before: current, after: updated, rating, now: when,
-          takenMs: when.getTime() - shownAt.current, desiredRetention: cardParams?.desiredRetention, bury: siblings, preview,
+          takenMs: when.getTime() - shownAt.current, desiredRetention: cardParams?.desiredRetention, bury: siblings,
+          preview: preview ? { again: previewAgainAt } : undefined,
           steps: { learn: (cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS).length, relearn: (cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS).length },
         });
       } catch (e: any) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { cardOrd, fnvHash, gatherNew, intersperse, mix, sortNew, sortReviews, type SortContext } from '../../src/core/order';
+import { ankiToday, cardOrd, fnvHash, gatherNew, intersperse, mix, sortNew, sortReviews, type SortContext } from '../../src/core/order';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -59,5 +59,49 @@ describe("Anki's study order", () => {
     expect(sortReviews(ivl, 4, ctx()).map((c) => c.id)).toEqual(['l', 's']);
     // The same shuffle all day.
     expect(sortReviews(cards, 8, ctx())).toEqual(sortReviews([...cards].reverse(), 8, ctx()));
+  });
+});
+
+describe("Anki's own shuffles, reproduced", () => {
+  // Recorded from Anki 26.09.4's get_queued_cards (Python `anki`), on day 0 of a collection:
+  // id -> [queue, due, mod, note id].
+  const anki: Record<string, [number, number, number, number]> = {
+    '1794437578881': [2, 0, 1794437578, 1794437578880], '1794437578883': [2, 0, 1794437578, 1794437578883],
+    '1794437578884': [2, 0, 1794437578, 1794437578884], '1794437578885': [2, 0, 1794437578, 1794437578885],
+    '1794437578886': [2, 0, 1794437578, 1794437578886], '1794437578887': [2, 0, 1794437578, 1794437578887],
+    '1794437578888': [0, 7, 1794437578, 1794437578888], '1794437578889': [0, 8, 1794437578, 1794437578889],
+    '1794437578890': [0, 9, 1794437578, 1794437578890], '1794437578891': [0, 10, 1794437578, 1794437578891],
+    '1794437578892': [0, 11, 1794437578, 1794437578892], '1794437578893': [0, 12, 1794437578, 1794437578893],
+  };
+  const cards = Object.entries(anki).map(([id, [queue, due, mod, nid]]) =>
+    card(id, { ankiId: id, ankiMod: mod, noteId: String(nid), kind: 'forward', position: queue === 0 ? due : undefined },
+      { state: queue === 0 ? 0 : 2, due: NOW.toISOString() }));
+  const reviews = cards.filter((c) => c.sched.state === 2);
+  const fresh = cards.filter((c) => c.sched.state === 0);
+  const c0 = { ...ctx(), ankiToday: 0 };
+  const ids = (list: Card[]) => list.map((c) => Number(c.id));
+  const REVIEWS = [1794437578887, 1794437578886, 1794437578884, 1794437578881, 1794437578885, 1794437578883];
+
+  it('orders reviews by fnvhash(id, mod), as Anki does', () => {
+    expect(ids(sortReviews(reviews, 0, c0))).toEqual(REVIEWS);
+    expect(ids(sortReviews(reviews, 8, c0))).toEqual(REVIEWS);
+  });
+
+  it("gathers new cards at random by knuth_salt(today), as Anki's SQL does", () => {
+    const random = [1794437578893, 1794437578892, 1794437578888, 1794437578890, 1794437578891, 1794437578889];
+    expect(ids(gatherNew(fresh, 4, c0, () => true))).toEqual(random);
+    expect(ids(gatherNew(fresh, 3, c0, () => true))).toEqual(random);
+  });
+
+  it("sorts gathered new cards by a random note, as Anki's sort_new does", () => {
+    const gathered = gatherNew(fresh, 0, c0, () => true);
+    expect(ids(sortNew(gathered, 3, c0))).toEqual([1794437578888, 1794437578890, 1794437578891, 1794437578889, 1794437578893, 1794437578892]);
+  });
+
+  it("numbers days as Anki does, from the creation date in its own time zone", () => {
+    const crt = Date.UTC(2026, 10, 11, 4) / 1000; // created at 4 AM, UTC (creationOffset 0)
+    expect(ankiToday(new Date(2026, 10, 20, 12, 0), 4, crt, 0)).toBe(9);
+    expect(ankiToday(new Date(2026, 10, 20, 3, 0), 4, crt, 0)).toBe(8);
+    expect(ankiToday(NOW, 4, undefined)).toBeUndefined();
   });
 });

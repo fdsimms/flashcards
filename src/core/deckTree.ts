@@ -1,6 +1,6 @@
 import { NEW_PER_DAY, REVIEWS_PER_DAY } from './config';
 import { nextStudyDayStart, studyDayKey } from './day';
-import { DEFAULT_ORDER, gatherNew, mix, sortNew, sortReviews, type SortContext } from './order';
+import { ankiToday, DEFAULT_ORDER, gatherNew, inFilteredOrder, mix, sortNew, sortReviews, type SortContext } from './order';
 import { isInProgress } from './progress';
 import { isBuried, isDue, isInterdayLearning, isLearning, studiable, type Queue, type StudiedToday } from './queue';
 import { paramsForDeck } from './scheduler';
@@ -96,6 +96,8 @@ export interface TreeQueueInput {
   gateFor?: (deck: string) => number | undefined;
   dayStartsAtHour: number;
   learnAheadMinutes?: number;
+  /** Anki's day number (`ankiToday`), which seeds its shuffled orders. */
+  ankiToday?: number;
   /** The collection's v3 options (`CollectionSettings`). */
   newCardsIgnoreReviewLimit?: boolean;
   applyAllParentLimits?: boolean;
@@ -206,10 +208,12 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   };
 
   // ---- gathering ----
-  const order: StudyOrder = paramsFor(root)?.filtered ? { ...DEFAULT_ORDER, newSortOrder: 1 } : paramsFor(root)?.order ?? DEFAULT_ORDER;
+  const rootFiltered = paramsFor(root)?.filtered;
+  // A filtered deck keeps its own order: Anki builds it with no sort, by its cards' places in it.
+  const order: StudyOrder = rootFiltered ? { ...DEFAULT_ORDER, newSortOrder: 1 } : paramsFor(root)?.order ?? DEFAULT_ORDER;
   const homeDeckOf = input.homeDeckOf ?? ((c: Card) => deckOfCard.get(c.id)!);
   const ctx: SortContext = {
-    now, dayStartsAtHour: h, deckOf: (c) => deckOfCard.get(c.id)!, noteOf: (c) => c.noteId,
+    now, dayStartsAtHour: h, ankiToday: input.ankiToday, deckOf: (c) => deckOfCard.get(c.id)!, noteOf: (c) => c.noteId,
     weightsOf: (c) => paramsFor(homeDeckOf(c))?.weights ?? [],
   };
   const all = active.flatMap((d) => studiable(input.cardsByDeck.get(d)!)).filter((c) => !isBuried(c, now, h));
@@ -222,22 +226,31 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
     if (own) buryFlags.set(c.noteId, { new: !!prev?.new || own.new, reviews: !!prev?.reviews || own.reviews, interdayLearning: !!prev?.interdayLearning || own.interdayLearning });
     return kind !== null && !!prev?.[kind];
   };
-  const intraday = all.filter((c) => isLearning(c) && !isInterdayLearning(c, h) && dueMs(c) < nextDay);
+  // A card being previewed in a filtered deck (Anki's queue 4) comes back like a learning step, when its preview time comes.
+  const shownAt = (c: Card) => (c.previewDue ? new Date(c.previewDue).getTime() : dueMs(c));
+  const previewing = all.filter((c) => c.previewDue);
+  const rest = all.filter((c) => !c.previewDue);
+  // A deck that only previews holds every card as a review, as Anki makes them when it fills one.
+  const previewDeck = rootFiltered && !rootFiltered.reschedule;
+  const intraday = [...previewing, ...(previewDeck ? [] : rest.filter((c) => isLearning(c) && !isInterdayLearning(c, h)))]
+    .filter((c) => shownAt(c) < nextDay);
   for (const c of intraday) heldBack(c, null);
   const gatherDue = (cards: Card[], kind: keyof BurySettings) =>
     sortReviews(cards, order.reviewOrder, ctx).filter((c) => !heldBack(c, kind) && admit(c, 'review'));
-  const interday = gatherDue(all.filter((c) => isInterdayLearning(c, h) && dueMs(c) < nextDay), 'interdayLearning');
-  const reviews = gatherDue(all.filter((c) => c.sched.state === 2 && isDue(c, now, h)), 'reviews');
-  const fresh = sortNew(
-    gatherNew(all.filter((c) => c.sched.state === 0), order.newGatherPriority, ctx, (c) => !heldBack(c, 'new') && admit(c, 'new')),
+  // A review in a filtered deck is due whatever its own due date: its due there is its place in the deck.
+  const reviewDue = (c: Card) => c.sched.state === 2 && (inFilteredOrder(c) || isDue(c, now, h));
+  const interday = previewDeck ? [] : gatherDue(rest.filter((c) => isInterdayLearning(c, h) && dueMs(c) < nextDay), 'interdayLearning');
+  const reviews = gatherDue(previewDeck ? rest : rest.filter(reviewDue), 'reviews');
+  const fresh = previewDeck ? [] : sortNew(
+    gatherNew(rest.filter((c) => c.sched.state === 0), order.newGatherPriority, ctx, (c) => !heldBack(c, 'new') && admit(c, 'new')),
     order.newSortOrder, ctx,
   );
 
   // ---- presentation ----
-  const learnOrder = (a: Card, b: Card) => Number(a.sched.reps === 0) - Number(b.sched.reps === 0) || dueMs(a) - dueMs(b);
+  const learnOrder = (a: Card, b: Card) => Number(a.sched.reps === 0) - Number(b.sched.reps === 0) || shownAt(a) - shownAt(b);
   const ahead = now.getTime() + (input.learnAheadMinutes ?? 0) * 60000;
-  const learnNow = intraday.filter((c) => dueMs(c) <= now.getTime()).sort(learnOrder);
-  const learnAhead = intraday.filter((c) => dueMs(c) > now.getTime() && dueMs(c) <= ahead).sort(learnOrder);
+  const learnNow = intraday.filter((c) => shownAt(c) <= now.getTime()).sort(learnOrder);
+  const learnAhead = intraday.filter((c) => shownAt(c) > now.getTime() && shownAt(c) <= ahead).sort(learnOrder);
   const main = mix(mix(reviews, interday, order.interdayLearningMix), fresh, order.newMix);
   return {
     due: [...learnNow, ...interday, ...reviews, ...learnAhead],
@@ -274,6 +287,7 @@ export function queueInput(a: {
     learnAheadMinutes: a.collection.learnAheadMinutes,
     newCardsIgnoreReviewLimit: a.collection.newCardsIgnoreReviewLimit,
     applyAllParentLimits: a.collection.applyAllParentLimits,
+    ankiToday: ankiToday(a.now, a.collection.dayStartsAtHour, a.collection.collectionCreated, a.collection.creationOffset),
     now: a.now,
   };
 }

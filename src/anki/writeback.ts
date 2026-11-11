@@ -208,6 +208,18 @@ export function previewReturn(current: AnkiCardRow, now: Date): AnkiCardUpdate {
   };
 }
 
+/**
+ * The card's Anki row after an answer in a preview deck that shows it again: it stays where it is,
+ * schedule untouched, in Anki's preview queue (4), due again at `dueSecs`.
+ */
+export function previewAgain(current: AnkiCardRow, dueSecs: number, now: Date): AnkiCardUpdate {
+  return {
+    did: current.did, odid: current.odid, odue: current.odue,
+    type: current.type, queue: 4, due: dueSecs, ivl: current.ivl, factor: current.factor, reps: current.reps, lapses: current.lapses,
+    left: current.left, data: current.data ?? '', mod: Math.floor(now.getTime() / 1000), usn: -1,
+  };
+}
+
 /** Reads the columns `cardUpdate` needs. One parameter: the Anki card id. */
 export const CARD_ROW_SQL =
   'SELECT did, odid, odue, type, queue, due, ivl, factor, reps, lapses, left, data, mod, usn FROM cards WHERE id = ?';

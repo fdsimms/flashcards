@@ -1,6 +1,6 @@
 import { default_w, forgetting_curve } from 'ts-fsrs';
 import { omnilanguageKindByOrd } from '../import/models';
-import { studyDayKey } from './day';
+import { studyDayKey, studyDayStart } from './day';
 import type { Card, StudyOrder } from './types';
 
 /**
@@ -8,9 +8,10 @@ import type { Card, StudyOrder } from './types';
  * scheduler/queue/builder: gathering.rs, sorting.rs, intersperser.rs, and storage/card's
  * review_order_sql). Pure: deckTree.ts gathers within the limits and calls these.
  *
- * Anki's "random" orders are seeded by its day number and card mtime, which Franki doesn't keep,
- * so they're seeded by the study day here instead: the same shuffle all day, a different one the
- * next, but not the same shuffle Anki's devices show.
+ * Anki's "random" orders are seeded as Anki seeds them: by its day number (`ankiToday`) and, for
+ * reviews, the card's id and last change (`Card.ankiMod`), hashed with FNV-1a, compared signed
+ * where Anki sorts in SQL and unsigned where it sorts in Rust. A card that never came from Anki,
+ * or a collection whose creation time isn't known, falls back to a seed from the study day.
  */
 
 /** Anki's defaults (deck_config.proto): mix new cards and day-long learning with reviews, gather by deck, sort by template, reviews by due date. */
@@ -42,8 +43,43 @@ export function fnvHash(...values: (bigint | string)[]): bigint {
 
 /** A card's or note's id as Anki's number when it has one, else the id's text. */
 const idValue = (id: string | undefined): bigint | string => (id && /^\d+$/.test(id) ? BigInt(id) : id ?? '');
-const daySalt = (now: Date, dayStartsAtHour: number) => studyDayKey(now, dayStartsAtHour);
 const cmpBig = (a: bigint, b: bigint) => (a < b ? -1 : a > b ? 1 : 0);
+/** As SQLite sorts Anki's `fnvhash()`: the signed 64-bit value. */
+const signed = (h: bigint) => BigInt.asIntN(64, h);
+
+/**
+ * Anki's day number for `now` (`sched.today`), as rslib's timing does it: the days between the
+ * study day the collection was created on, dated in the time zone it was created in
+ * (`creationOffset`, minutes west), and today's study day here. Undefined without the creation time.
+ */
+export function ankiToday(now: Date, dayStartsAtHour: number, collectionCreated: number | undefined, creationOffset?: number): number | undefined {
+  if (collectionCreated === undefined) return undefined;
+  const west = creationOffset ?? new Date(collectionCreated * 1000).getTimezoneOffset();
+  // The creation's local wall clock, read through UTC fields, less the rollover hour.
+  const created = new Date((collectionCreated - dayStartsAtHour * 3600 - west * 60) * 1000);
+  const createdDay = Date.UTC(created.getUTCFullYear(), created.getUTCMonth(), created.getUTCDate());
+  const [y, m, d] = studyDayKey(now, dayStartsAtHour).split('-').map(Number);
+  return Math.round((Date.UTC(y, m - 1, d) - createdDay) / 86400000);
+}
+
+/** Anki's `knuth_salt`: the day number times 2654435761, as a wrapping u32. */
+const knuthSalt = (today: number) => BigInt.asUintN(32, BigInt(today) * 2654435761n);
+
+/** Deck names as Anki orders them: by its stored name (levels joined by \x1f), case-insensitive, by code point. */
+export function compareDeckNames(a: string, b: string): number {
+  const fold = (s: string) => Array.from(s.split('::').join('\x1f').toLowerCase(), (ch) => ch.codePointAt(0)!);
+  const fa = fold(a);
+  const fb = fold(b);
+  for (let i = 0; i < Math.min(fa.length, fb.length); i++) if (fa[i] !== fb[i]) return fa[i] - fb[i];
+  return fa.length - fb.length;
+}
+
+/** Anki's card ids in ascending order: SQLite's scan order, the last tie-break of its queries. */
+const byCardId = (a: Card, b: Card) => {
+  const ia = idValue(a.ankiId ?? a.id);
+  const ib = idValue(b.ankiId ?? b.id);
+  return typeof ia === 'bigint' && typeof ib === 'bigint' ? cmpBig(ia, ib) : String(ia).localeCompare(String(ib));
+};
 
 /** A card's template ordinal: Anki's `ord`, from the card's kind. */
 export function cardOrd(card: Card): number {
@@ -79,6 +115,8 @@ export function mix<T>(reviews: T[], other: T[], how: number): T[] {
 export interface SortContext {
   now: Date;
   dayStartsAtHour: number;
+  /** Anki's day number (`ankiToday`), for its seeds. */
+  ankiToday?: number;
   /** The deck each card is studied in, for deck-ordered sorts. */
   deckOf: (card: Card) => string;
   noteOf: (card: Card) => string;
@@ -88,7 +126,18 @@ export interface SortContext {
 
 const dayMs = 86400000;
 const dueMs = (c: Card) => new Date(c.sched.due).getTime();
-const studyDayOf = (c: Card, h: number) => studyDayKey(new Date(c.sched.due), h);
+
+/**
+ * A card in a filtered deck takes its place in that deck's order as its due (Anki stores it
+ * from -100000 up), so it's due now and sorts ahead of every ordinary card, in the deck's order.
+ */
+export const inFilteredOrder = (c: Card) => c.filteredDue !== undefined && c.filteredDue < 0;
+
+/** The day a card is due on, as a number to sort by: its filtered-deck place, else its study day. */
+function dueDay(c: Card, h: number): number {
+  if (inFilteredOrder(c)) return c.filteredDue!;
+  return Math.round(studyDayStart(new Date(c.sched.due), h).getTime() / dayMs);
+}
 
 /** The chance of recalling a card now, by FSRS. Undefined for a card never reviewed. */
 export function retrievability(card: Card, now: Date, weights: number[]): number | undefined {
@@ -102,8 +151,10 @@ export function retrievability(card: Card, now: Date, weights: number[]): number
  * stable shuffle, as Anki's does.
  */
 export function sortReviews(cards: Card[], order: number, ctx: SortContext): Card[] {
-  const salt = daySalt(ctx.now, ctx.dayStartsAtHour);
-  const shuffle = new Map(cards.map((c) => [c.id, fnvHash(idValue(c.ankiId ?? c.id), salt)]));
+  // Anki's last key for every review order: fnvhash(id, mod), sorted signed.
+  const shuffle = new Map(cards.map((c) => [c.id, c.ankiId && c.ankiMod !== undefined
+    ? signed(fnvHash(BigInt(c.ankiId), BigInt(c.ankiMod)))
+    : signed(fnvHash(idValue(c.ankiId ?? c.id), studyDayKey(ctx.now, ctx.dayStartsAtHour)))]));
   const r = (c: Card) => retrievability(c, ctx.now, ctx.weightsOf(c));
   // NULL first ascending, last descending, as SQLite sorts it.
   const byR = (dir: 1 | -1) => (a: Card, b: Card) => {
@@ -120,8 +171,8 @@ export function sortReviews(cards: Card[], order: number, ctx: SortContext): Car
     const nb = noteNum(b);
     return typeof na === 'bigint' && typeof nb === 'bigint' ? cmpBig(na, nb) : String(na).localeCompare(String(nb));
   };
-  const byDay = (a: Card, b: Card) => studyDayOf(a, ctx.dayStartsAtHour).localeCompare(studyDayOf(b, ctx.dayStartsAtHour));
-  const byDeck = (a: Card, b: Card) => ctx.deckOf(a).localeCompare(ctx.deckOf(b));
+  const byDay = (a: Card, b: Card) => dueDay(a, ctx.dayStartsAtHour) - dueDay(b, ctx.dayStartsAtHour);
+  const byDeck = (a: Card, b: Card) => compareDeckNames(ctx.deckOf(a), ctx.deckOf(b));
   const keys: ((a: Card, b: Card) => number)[] = {
     [REVIEW.day]: [byDay],
     [REVIEW.dayThenDeck]: [byDay, byDeck],
@@ -154,15 +205,17 @@ export function sortReviews(cards: Card[], order: number, ctx: SortContext): Car
  * deck's own limit is spent, as Anki does.
  */
 export function gatherNew(cards: Card[], priority: number, ctx: SortContext, admit: (card: Card) => boolean): Card[] {
-  const salt = daySalt(ctx.now, ctx.dayStartsAtHour);
-  const pos = (c: Card) => c.position ?? Number.MAX_SAFE_INTEGER;
-  const byPosition = (a: Card, b: Card) => pos(a) - pos(b) || cardOrd(a) - cardOrd(b);
-  const byRandomNote = (a: Card, b: Card) => cmpBig(fnvHash(idValue(ctx.noteOf(a)), salt), fnvHash(idValue(ctx.noteOf(b)), salt)) || cardOrd(a) - cardOrd(b);
-  const byRandomCard = (a: Card, b: Card) => cmpBig(fnvHash(idValue(a.ankiId ?? a.id), salt), fnvHash(idValue(b.ankiId ?? b.id), salt));
+  // Anki's SQL seeds these with knuth_salt(today) and sorts the hash signed.
+  const salt: bigint | string = ctx.ankiToday !== undefined ? knuthSalt(ctx.ankiToday) : studyDayKey(ctx.now, ctx.dayStartsAtHour);
+  const hash = (id: string | undefined) => signed(fnvHash(idValue(id), salt));
+  const pos = (c: Card) => (inFilteredOrder(c) ? c.filteredDue! : c.position) ?? Number.MAX_SAFE_INTEGER;
+  const byPosition = (a: Card, b: Card) => pos(a) - pos(b) || cardOrd(a) - cardOrd(b) || byCardId(a, b);
+  const byRandomNote = (a: Card, b: Card) => cmpBig(hash(ctx.noteOf(a)), hash(ctx.noteOf(b))) || cardOrd(a) - cardOrd(b) || byCardId(a, b);
+  const byRandomCard = (a: Card, b: Card) => cmpBig(hash(a.ankiId ?? a.id), hash(b.ankiId ?? b.id)) || byCardId(a, b);
   const taken: Card[] = [];
   const take = (list: Card[]) => { for (const c of list) if (admit(c)) taken.push(c); };
   if (priority === GATHER.deck || priority === GATHER.deckThenRandomNotes) {
-    const decks = [...new Set(cards.map(ctx.deckOf))].sort((a, b) => a.localeCompare(b));
+    const decks = [...new Set(cards.map(ctx.deckOf))].sort(compareDeckNames);
     for (const deck of decks) {
       take(cards.filter((c) => ctx.deckOf(c) === deck).sort(priority === GATHER.deck ? byPosition : byRandomNote));
     }
@@ -170,7 +223,7 @@ export function gatherNew(cards: Card[], priority: number, ctx: SortContext, adm
   }
   const sort = {
     [GATHER.lowestPosition]: byPosition,
-    [GATHER.highestPosition]: (a: Card, b: Card) => pos(b) - pos(a) || cardOrd(a) - cardOrd(b),
+    [GATHER.highestPosition]: (a: Card, b: Card) => pos(b) - pos(a) || cardOrd(a) - cardOrd(b) || byCardId(a, b),
     [GATHER.randomNotes]: byRandomNote,
     [GATHER.randomCards]: byRandomCard,
   }[priority] ?? byPosition;
@@ -181,7 +234,8 @@ export function gatherNew(cards: Card[], priority: number, ctx: SortContext, adm
 /** The gathered new cards in a preset's sort order (Anki's sort_new, on the gathered cards only). */
 export function sortNew(cards: Card[], order: number, ctx: SortContext): Card[] {
   if (order === NEW_SORT.noSort) return cards;
-  const salt = daySalt(ctx.now, ctx.dayStartsAtHour);
+  // Anki's sort_new hashes [id, today] in Rust and compares unsigned.
+  const salt: bigint | string = ctx.ankiToday !== undefined ? BigInt(ctx.ankiToday) : studyDayKey(ctx.now, ctx.dayStartsAtHour);
   const cardHash = (c: Card) => fnvHash(idValue(c.ankiId ?? c.id), salt);
   const noteHash = (c: Card) => fnvHash(idValue(ctx.noteOf(c)), salt);
   const cmp = {

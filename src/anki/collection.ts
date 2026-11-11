@@ -40,7 +40,7 @@ const NORMAL = { configId: 1, reviewLimit: 6, newLimit: 7, reviewLimitToday: 8, 
 /** Deck.Normal.DayLimit */
 const DAY_LIMIT = { limit: 1, today: 2 };
 /** Deck.Filtered */
-const FILTERED = { reschedule: 1 };
+const FILTERED = { reschedule: 1, previewHardSecs: 5, previewGoodSecs: 6, previewAgainSecs: 7 };
 
 /** Run on a scratch copy, with `PRAGMA writable_schema = ON`, before reading the collated tables. */
 export const STRIP_UNICASE_SQL = "UPDATE sqlite_master SET sql = replace(sql, ' COLLATE unicase', '') WHERE sql LIKE '%COLLATE unicase%'";
@@ -56,7 +56,7 @@ export const COLLECTION_QUERIES = {
   decks: 'SELECT id, name, kind FROM decks',
   deckConfigs: 'SELECT id, config FROM deck_config',
   lastReviews: 'SELECT cid, MAX(id) AS last FROM revlog GROUP BY cid',
-  config: "SELECT key, val FROM config WHERE key IN ('rollover', 'collapseTime', 'newCardsIgnoreReviewLimit', 'applyAllParentLimits')",
+  config: "SELECT key, val FROM config WHERE key IN ('rollover', 'collapseTime', 'newCardsIgnoreReviewLimit', 'applyAllParentLimits', 'creationOffset')",
 } as const;
 
 type Num = number | bigint;
@@ -130,13 +130,21 @@ function dayLimit(msg: ReturnType<typeof message>) {
 }
 
 /** A filtered deck's settings. Undefined for a normal deck. */
-export function readFilteredDeck(blob: Uint8Array): { reschedule: boolean } | undefined {
+export function readFilteredDeck(blob: Uint8Array): { reschedule: boolean; previewSecs: { again: number; hard: number; good: number } } | undefined {
   const filtered = message(decodeMessage(blob), KIND_FILTERED);
-  return filtered ? { reschedule: uint(filtered, FILTERED.reschedule) === 1 } : undefined;
+  if (!filtered) return undefined;
+  return {
+    reschedule: uint(filtered, FILTERED.reschedule) === 1,
+    previewSecs: {
+      again: uint(filtered, FILTERED.previewAgainSecs) ?? 0,
+      hard: uint(filtered, FILTERED.previewHardSecs) ?? 0,
+      good: uint(filtered, FILTERED.previewGoodSecs) ?? 0,
+    },
+  };
 }
 
 /** The collection-wide settings Franki schedules by, from the collection's config rows. */
-export function collectionSettings(config: CollectionRows['config']): CollectionSettings {
+export function collectionSettings(config: CollectionRows['config'], collectionCreated?: number): CollectionSettings {
   const values = new Map<string, unknown>();
   for (const row of config ?? []) {
     const text = typeof row.val === 'string' ? row.val : String.fromCharCode(...row.val);
@@ -150,6 +158,8 @@ export function collectionSettings(config: CollectionRows['config']): Collection
     learnAheadMinutes: num('collapseTime') !== undefined ? num('collapseTime')! / 60 : COLLECTION_DEFAULTS.learnAheadMinutes,
     newCardsIgnoreReviewLimit: bool('newCardsIgnoreReviewLimit') ?? COLLECTION_DEFAULTS.newCardsIgnoreReviewLimit,
     applyAllParentLimits: bool('applyAllParentLimits') ?? COLLECTION_DEFAULTS.applyAllParentLimits,
+    ...(collectionCreated !== undefined ? { collectionCreated } : {}),
+    ...(num('creationOffset') !== undefined ? { creationOffset: num('creationOffset') } : {}),
   };
 }
 
@@ -221,6 +231,9 @@ export function buildExport(rows: CollectionRows): AnkiExport & {
       note: String(c.nid),
       deckName: decks.get(did)?.name ?? 'Default',
       filteredDeckName: inFiltered ? decks.get(Number(c.did))?.name : undefined,
+      filteredDue: inFiltered ? Number(c.due) : undefined,
+      previewDue: Number(c.queue) === 4 ? Number(c.due) : undefined,
+      mod: c.mod !== undefined ? Number(c.mod) : undefined,
       ord: Number(c.ord),
       type: Number(c.type),
       // Buried (-2, -3) is a today-only state: read it as the card's ordinary queue, and keep
@@ -254,5 +267,5 @@ export function buildExport(rows: CollectionRows): AnkiExport & {
     noteTypes.push({ name: m.name, kind, css, fields: (fieldNames.get(id) ?? []).filter(Boolean), templates });
   }
 
-  return { collectionCreated: Number(rows.col.crt), notes, cards, deckConfigs, noteTypes, collectionSettings: collectionSettings(rows.config) };
+  return { collectionCreated: Number(rows.col.crt), notes, cards, deckConfigs, noteTypes, collectionSettings: collectionSettings(rows.config, Number(rows.col.crt)) };
 }

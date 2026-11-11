@@ -30,7 +30,8 @@ describe('reading a collection', () => {
       newMix: 2, interdayLearningMix: 1, newSortOrder: 3, reviewOrder: 7, newGatherPriority: 1,
     });
     expect(readDeckKind(hex('0A0B080530324A05081E10AC06'))).toMatchObject({ configId: 5, reviewLimit: 50, newLimitToday: { limit: 30, today: 812 } });
-    expect(readFilteredDeck(hex('120C120A0A0669733A647565100A'))).toEqual({ reschedule: false });
+    expect(readFilteredDeck(hex('120C120A0A0669733A647565100A'))).toMatchObject({ reschedule: false });
+    expect(readFilteredDeck(hex('120528D804383C'))).toEqual({ reschedule: false, previewSecs: { again: 60, hard: 600, good: 0 } });
     expect(readFilteredDeck(hex('0A0408013803'))).toBeUndefined();
   });
 
@@ -68,8 +69,8 @@ describe('reading a collection', () => {
     expect(data.deckConfigs[THAI]).toMatchObject({ newPerDay: 1, reviewsPerDay: 150, desiredRetention: 0.85, maxInterval: 3650 });
     expect(data.deckConfigs[THAI].weights).toHaveLength(21);
     expect(data.deckConfigs['🧠 Trivia']).toMatchObject({ newPerDay: 3, reviewsPerDay: 200 });
-    expect(data.deckConfigs['Filtered Deck 1']).toEqual({ filtered: { reschedule: true } });
-    expect(data.collectionSettings).toEqual({ dayStartsAtHour: 4, learnAheadMinutes: 20, newCardsIgnoreReviewLimit: false, applyAllParentLimits: false });
+    expect(data.deckConfigs['Filtered Deck 1']).toEqual({ filtered: { reschedule: true, previewSecs: { again: 60, hard: 600, good: 0 } } });
+    expect(data.collectionSettings).toMatchObject({ dayStartsAtHour: 4, learnAheadMinutes: 20, newCardsIgnoreReviewLimit: false, applyAllParentLimits: false, collectionCreated: 1794369600 });
     const learning = data.cards.find((c) => c.queue === 1)!;
     expect(learning.due!).toBeGreaterThan(1_000_000_000);
     expect(learning.memoryState!.stability).toBeGreaterThan(0);

@@ -196,6 +196,17 @@ describe("Anki's v3 limits and gathering", () => {
     expect(treeQueue('Thai', base).due).toHaveLength(1);
   });
 
+  it('shows a previewed card again when its delay is up, ahead of the rest of the preview deck', () => {
+    const preview = { weights: [], desiredRetention: 0.9, maxInterval: 36500, filtered: { reschedule: false } };
+    const [waiting, other] = reviewCards(2, 20).map((c, i) => ({ ...c, filteredDeck: 'Peek', filteredDue: -100000 + i }));
+    const at = (m: number) => new Date(NOW.getTime() + m * 60000).toISOString();
+    const q = (c: Card) => treeQueue('Peek', { ...input({ Peek: [c, other] }), paramsFor: () => preview });
+    // Every card in a preview deck is a review, due now whatever its own due date.
+    expect(q(waiting).order.map((c) => c.id)).toEqual([waiting.id, other.id]);
+    expect(q({ ...waiting, previewDue: at(-1) }).order.map((c) => c.id)).toEqual([waiting.id, other.id]);
+    expect(q({ ...waiting, previewDue: at(10) }).order.map((c) => c.id)).toEqual([other.id]);
+  });
+
   it("holds back a sibling of a card gathered before it, by the sibling's preset", () => {
     const [front] = newCards(1);
     const back = { ...front, id: `${front.noteId}:reverse`, kind: 'reverse' as const };

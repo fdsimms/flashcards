@@ -3,7 +3,7 @@ import { inSchema, keptSql, stripUnicaseIn } from '../anki/attachedSql';
 import { COLLECTION_QUERIES, type CollectionRows } from '../anki/collection';
 import { ankiFolder, keptCollectionFile, pathOf, workFolder } from '../anki/files';
 import {
-  cardRestoreParams, cardUpdate, cardUpdateParams, nextRevlogId, previewReturn, revlogEntry, revlogParams, type AnkiCardRow, type AnkiUndo,
+  cardRestoreParams, cardUpdate, cardUpdateParams, nextRevlogId, previewAgain, previewReturn, revlogEntry, revlogParams, type AnkiCardRow, type AnkiUndo,
 } from '../anki/writeback';
 import type { SqlValue, SyncDb } from '../anki/sync/collectionSync';
 import type { MediaState } from '../anki/sync/mediaSync';
@@ -56,8 +56,11 @@ export interface AnkiLink {
     before: Card; after: Card; rating: RatingValue; now: Date; takenMs: number; desiredRetention?: number;
     /** The card's deck's step counts, for Anki's `left`. */
     steps?: { learn: number; relearn: number };
-    /** Answered in a filtered deck that doesn't reschedule: the card goes home unchanged (`previewReturn`). */
-    preview?: boolean;
+    /**
+     * Answered in a filtered deck that doesn't reschedule: the card is shown again at `again`
+     * (`previewAgain`), or, finished, goes home unchanged (`previewReturn`).
+     */
+    preview?: { again?: Date };
     /** Siblings to bury with the answer (`siblingsToBury`), in the same transaction. */
     bury?: Card[];
   }): Promise<AnkiUndo | undefined>;
@@ -207,7 +210,9 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
         if (sibling) buried.push({ cid: Number(s.ankiId), row: sibling });
       }
       await db.withTransactionAsync(async () => {
-        const update = preview ? previewReturn(row, now) : cardUpdate(after, row, { crt, now, desiredRetention, steps });
+        const update = !preview ? cardUpdate(after, row, { crt, now, desiredRetention, steps })
+          : preview.again ? previewAgain(row, Math.floor(preview.again.getTime() / 1000), now)
+          : previewReturn(row, now);
         await db.runAsync(SQL.cardUpdate, ...cardUpdateParams(update, cid));
         const entry = revlogEntry(before, after, rating, { id: revlogId, cid, previousIvl: row.ivl, now, takenMs, crt });
         // A preview is logged as Anki logs one: kind 3 (filtered), with no change of interval.

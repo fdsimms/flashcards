@@ -34,6 +34,12 @@ export interface AnkiCardInfo {
   stepsLeft?: number;
   /** The filtered deck the card is in, if any; `deckName` stays its home deck. */
   filteredDeckName?: string;
+  /** Its `due` in the filtered deck (its place there). */
+  filteredDue?: number;
+  /** In a preview filtered deck (queue 4): when it's shown again, unix seconds. */
+  previewDue?: number;
+  /** When Anki last changed the card (unix seconds). */
+  mod?: number;
   /**
    * Raw due value. A day number counted from `collectionCreated` for review and interday
    * learning cards; a unix timestamp in seconds for intraday learning cards (queue 1). For a new
@@ -89,7 +95,7 @@ export interface AnkiDeckConfig {
   newLimitToday?: { limit: number; today: number };
   reviewLimitToday?: { limit: number; today: number };
   /** Set for a filtered deck, which has no preset of its own. */
-  filtered?: { reschedule: boolean };
+  filtered?: { reschedule: boolean; previewSecs?: { again: number; hard: number; good: number } };
 }
 
 export interface AnkiExport {
@@ -253,6 +259,9 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
       target.suspended = ac.queue === -1;
       if (ac.deckName !== deck) target.deck = ac.deckName;
       if (ac.filteredDeckName) target.filteredDeck = ac.filteredDeckName;
+      if (ac.filteredDue !== undefined) target.filteredDue = ac.filteredDue;
+      if (ac.previewDue !== undefined) target.previewDue = new Date(ac.previewDue * 1000).toISOString();
+      if (ac.mod !== undefined) target.ankiMod = ac.mod;
       // A new card's `due` is its position in the new-card order.
       const position = ac.position ?? ((ac.type ?? 0) === 0 ? ac.due : undefined);
       if (position !== undefined) target.position = position;
