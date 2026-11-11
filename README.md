@@ -56,7 +56,7 @@ Changes to an Anki note go into your Anki collection as Anki would make them, so
 
 ## Backing up
 
-Everything lives on the phone. **Backup** (in Settings) makes one file with the database and the imported images and sounds, and opens the share sheet: choose **Save to Files** to keep it in iCloud Drive. **Restore from a backup** on the same screen replaces everything with a backup's contents (it asks first). The deck list says when you last backed up, and turns red after a week.
+Everything lives on the phone. **Backup** (in Settings) makes one file with the database and the imported images and sounds, and opens the share sheet: choose **Save to Files** to keep it in iCloud Drive. **Restore from a backup** on the same screen replaces everything with a backup's contents (it asks first). Without sync, the deck list says when you last backed up, and warns after a week. With sync on it doesn't, since your Anki server holds the collection; a backup still keeps Franki's own settings, such as progress gates.
 
 ## Studying
 
