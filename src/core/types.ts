@@ -1,4 +1,8 @@
-export type CardKind = 'forward' | 'reverse' | 'audio';
+/**
+ * forward / reverse / audio are Omnilanguage's cards (native renderer). `t<ord>` is a card of any
+ * other note type, rendered from its Anki template with that ordinal (cloze number - 1 for cloze).
+ */
+export type CardKind = 'forward' | 'reverse' | 'audio' | `t${number}`;
 
 export interface Note {
   id: string;
@@ -72,4 +76,15 @@ export interface RenderedCard {
   back: RenderedSide;
   /** BCP-47 tag for TTS, when the language is known. */
   speechLang?: string;
+}
+
+/** A note type's Anki templates and styling, for rendering cards the way Anki does. */
+export interface NoteType {
+  name: string;
+  kind: 'normal' | 'cloze';
+  /** Field names in Anki's order, for mapping a TSV export by position. */
+  fields: string[];
+  css: string;
+  /** In Anki's order; `ord` is the position. A cloze note type has one. */
+  templates: { ord: number; name: string; front: string; back: string }[];
 }

@@ -1,6 +1,8 @@
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { decodeMessage, exportCollection, readDeckConfig, readDeckKind } from '../../scripts/lib/ankiCollection.mjs';
+import { decodeMessage, exportCollection, mediaReferences, readDeckConfig, readDeckKind, writeBundle } from '../../scripts/lib/ankiCollection.mjs';
 import { importAnkiJson } from '../../src/import/ankiJson';
 import { NOW } from '../support/fixtures';
 
@@ -27,7 +29,7 @@ describe('protobuf reading', () => {
 describe('exportCollection', () => {
   it('reads a real Anki collection: notes, scheduling and deck settings', async () => {
     const data = await exportCollection(FIXTURE);
-    expect(data.notes).toHaveLength(5);
+    expect(data.notes).toHaveLength(7);
     expect(data.notes[0]).toMatchObject({ modelName: 'Basic (and reversed card)', tags: ['a1', 'noun'], fields: { Front: 'หนังสือ', Back: 'book' } });
 
     expect(data.deckConfigs[THAI]).toMatchObject({ newPerDay: 1, reviewsPerDay: 150, desiredRetention: 0.85, maxInterval: 3650 });
@@ -56,7 +58,40 @@ describe('exportCollection', () => {
     expect(card.sched.state).toBe(2);
     expect(new Date(card.sched.due).getTime()).toBeGreaterThan(crt * 1000);
     expect(res.deckParams!.get(THAI)).toMatchObject({ newPerDay: 1, reviewsPerDay: 150, desiredRetention: 0.85 });
-    // Basic (and reversed card) has two templates; this app shows only the first so far.
-    expect(res.warnings.join(' ')).toMatch(/2 cards of note type "Basic \(and reversed card\)" were skipped/);
+    // Every Anki card arrives: both templates of the reversed note, both clozes of the cloze note.
+    expect(res.warnings).toEqual([]);
+    expect(res.cards.filter((c) => c.noteId === book.id).map((c) => c.kind)).toEqual(['t0', 't1']);
+    const cloze = res.notes.find((n) => n.model === 'Cloze')!;
+    expect(res.cards.filter((c) => c.noteId === cloze.id).map((c) => c.kind)).toEqual(['t0', 't1']);
+  });
+
+  it('exports each note type in use with its kind, fields, templates and CSS', async () => {
+    const { noteTypes } = await exportCollection(FIXTURE);
+    expect(noteTypes.map((t) => [t.name, t.kind, t.templates.length]).sort((a, b) => String(a[0]).localeCompare(String(b[0])))).toEqual([
+      ['Basic', 'normal', 1], ['Basic (and reversed card)', 'normal', 2], ['Cloze', 'cloze', 1],
+    ]);
+    const cloze = noteTypes.find((t) => t.name === 'Cloze')!;
+    expect(cloze.fields).toEqual(['Text', 'Back Extra']);
+    expect(cloze.templates[0].front).toContain('{{cloze:Text}}');
+    expect(cloze.css).toContain('.card');
+  });
+});
+
+describe('media', () => {
+  it('takes the files notes and templates use, plus "_" files, and nothing else', async () => {
+    const data = await exportCollection(FIXTURE);
+    expect(mediaReferences(data, ['flag.svg', 'hello.mp3', 'unused.png', '_font.ttf'])).toEqual(['_font.ttf', 'flag.svg', 'hello.mp3']);
+  });
+  it('writes one bundle file with the export and its media', async () => {
+    const { DatabaseSync } = await import('node:sqlite');
+    const out = join(mkdtempSync(join(tmpdir(), 'bundle-')), 'anki-export.sqlite');
+    const data = await exportCollection(FIXTURE);
+    expect(await writeBundle(out, data, join(__dirname, '..', 'fixtures', 'anki', 'collection.media'))).toEqual({ media: 2 });
+    const db = new DatabaseSync(out, { readOnly: true });
+    const names = db.prepare('SELECT name FROM media ORDER BY name').all().map((r: any) => r.name);
+    const json = JSON.parse(String((db.prepare('SELECT json FROM export').get() as any).json));
+    db.close();
+    expect(names).toEqual(['flag.svg', 'hello.mp3']);
+    expect(json.notes).toHaveLength(7);
   });
 });

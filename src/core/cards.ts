@@ -1,6 +1,7 @@
 import { htmlToText, isTruthyField } from './html';
 import { newSchedState } from './scheduler';
-import type { Card, CardKind, Note, RenderedCard } from './types';
+import { templateOrdinals } from './template';
+import type { Card, CardKind, Note, NoteType, RenderedCard } from './types';
 
 const LANG_TAGS: Record<string, string> = {
   thai: 'th-TH', ภาษาไทย: 'th-TH',
@@ -43,8 +44,18 @@ export function cardKindsFor(note: Note): CardKind[] {
   return ['forward'];
 }
 
-export function makeCards(note: Note, now: Date = new Date()): Card[] {
-  return cardKindsFor(note).map((kind) => ({
+/**
+ * A note's cards. Omnilanguage gets its native kinds; another note type with its Anki templates
+ * known gets one `t<ord>` card per template (or cloze number) that has something to show; without
+ * them, one front/back card. An import that knows which cards Anki has passes `ords` instead.
+ */
+export function makeCards(note: Note, now: Date = new Date(), noteType?: NoteType, ords?: number[]): Card[] {
+  const kinds: CardKind[] = isOmnilanguage(note)
+    ? cardKindsFor(note)
+    : noteType
+      ? (ords ?? templateOrdinals(note, noteType)).map((o): CardKind => `t${o}`)
+      : ['forward'];
+  return kinds.map((kind) => ({
     id: `${note.id}:${kind}`,
     noteId: note.id,
     kind,

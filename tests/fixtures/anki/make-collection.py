@@ -1,7 +1,8 @@
 # Builds tests/fixtures/anki/collection.anki2, a real Anki collection for the exporter tests.
 #   python3 -m venv /tmp/ankienv && /tmp/ankienv/bin/pip install anki
 #   /tmp/ankienv/bin/python tests/fixtures/anki/make-collection.py tests/fixtures/anki/collection.anki2
-# Remove the old file first; Anki opens an existing collection rather than replacing it.
+# Remove the old file and collection.media first; Anki opens an existing collection rather than
+# replacing it. Then delete collection.media.db2 and any -wal/-shm files: the exporter reads neither.
 import sys
 from anki.collection import Collection
 path = sys.argv[1]
@@ -31,6 +32,13 @@ n2 = add(rev, thai, "<b>น้ำ</b>", "water")
 n3 = add(basic, trivia, "Capital of Peru?", "Lima")
 n4 = add(basic, trivia, "Capital of Chile?", "Santiago")
 add(basic, trivia, "Capital of Bolivia?", "Sucre")
+# Media: an image and a sound in a Basic note, and a cloze note, for template rendering.
+col.media.write_data("flag.svg", b'<svg xmlns="http://www.w3.org/2000/svg" width="3" height="2"><rect width="3" height="2" fill="red"/></svg>')
+col.media.write_data("hello.mp3", b"ID3fake")
+col.media.write_data("unused.png", b"not referenced by any note")
+add(basic, trivia, 'Flag of Peru?<br><img src="flag.svg">', "Peru [sound:hello.mp3]")
+cloze = col.models.by_name("Cloze")
+c = col.new_note(cloze); c["Text"] = "{{c1::Lima}} is the capital of {{c2::Peru::country}}"; col.add_note(c, trivia)
 # Answer some cards
 def answer_card(cid, ease):
     card = col.get_card(cid); card.start_timer()

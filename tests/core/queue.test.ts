@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { buildQueue, isDue, nextCard, nextLearningDue, queueOptionsFor } from '../../src/core/queue';
+import { buildQueue, isDue, nextCard, nextLearningDue } from '../../src/core/queue';
 import { review } from '../../src/core/scheduler';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
@@ -12,19 +12,15 @@ function withSched(card: Card, over: Partial<Card['sched']>): Card {
 }
 
 describe('queue', () => {
-  it('limits new cards and orders due cards by overdue-ness', () => {
+  it('orders due cards by overdue-ness and puts them before new cards', () => {
     const notes = [1, 2, 3, 4].map((i) => ({ ...omniNote(), id: `n${i}` }));
     const cards = notes.flatMap((n) => makeCards(n, NOW));
     cards[0].sched = review(cards[0].sched, 3, new Date(2026, 10, 1)).sched;
     cards[1].sched = review(cards[1].sched, 3, new Date(2026, 9, 1)).sched;
-    const q = buildQueue(cards, { newPerDay: 1, dayStartsAtHour: H, now: new Date(2027, 0, 1, 12) });
+    const q = buildQueue(cards, { dayStartsAtHour: H, now: new Date(2027, 0, 1, 12) });
     expect(q.due.map((c) => c.id)).toEqual([cards[1].id, cards[0].id]);
-    expect(q.fresh).toHaveLength(1);
+    expect(q.fresh).toHaveLength(2);
     expect(nextCard(q)?.id).toBe(cards[1].id);
-  });
-  it('respects new cards already introduced today', () => {
-    const cards = makeCards(omniNote(), NOW);
-    expect(buildQueue(cards, { newPerDay: 5, newIntroducedToday: 5, dayStartsAtHour: H, now: NOW }).fresh).toHaveLength(0);
   });
   it('shows a review card for its whole study day, not from the minute it falls due', () => {
     const [base] = makeCards(omniNote(), NOW);
@@ -40,56 +36,18 @@ describe('queue', () => {
     expect(isDue(card, new Date(2026, 10, 12, 9, 0), H)).toBe(false);
     expect(isDue(card, new Date(2026, 10, 12, 9, 10), H)).toBe(true);
   });
-  it('never counts a new or suspended card as due', () => {
+  it('never counts a new card as due, and leaves out suspended and retired cards', () => {
     const [base] = makeCards(omniNote(), NOW);
     expect(isDue(base, NOW, H)).toBe(false);
-    const suspended = { ...withSched(base, { state: 2, due: NOW.toISOString() }), suspended: true };
-    expect(buildQueue([suspended], { newPerDay: 20, dayStartsAtHour: H, now: NOW }).due).toHaveLength(0);
-  });
-
-  it('shows a learning card up to the learn-ahead limit early once nothing else is left', () => {
-    const [base] = makeCards(omniNote(), NOW);
-    const soon = withSched(base, { state: 1, due: new Date(2026, 10, 11, 12, 5).toISOString() });
-    const opts = { newPerDay: 20, dayStartsAtHour: H, now: NOW };
-    expect(buildQueue([soon], opts).due).toHaveLength(0);
-    expect(buildQueue([soon], { ...opts, learnAheadMinutes: 20 }).due.map((c) => c.id)).toEqual([soon.id]);
-    const later = withSched(base, { state: 3, due: new Date(2026, 10, 11, 12, 30).toISOString() });
-    expect(buildQueue([later], { ...opts, learnAheadMinutes: 20 }).due).toHaveLength(0);
-  });
-  it('does not learn ahead while new cards are still waiting', () => {
-    const [a] = makeCards(omniNote(), NOW);
-    const [b] = makeCards({ ...omniNote(), id: 'n2' }, NOW);
-    const soon = withSched(a, { state: 1, due: new Date(2026, 10, 11, 12, 5).toISOString() });
-    const q = buildQueue([soon, b], { newPerDay: 20, dayStartsAtHour: H, learnAheadMinutes: 20, now: NOW });
-    expect(q.due).toHaveLength(0);
-    expect(q.fresh.map((c) => c.id)).toEqual([b.id]);
+    const due = withSched(base, { state: 2, due: NOW.toISOString() });
+    expect(buildQueue([{ ...due, suspended: true }], { dayStartsAtHour: H, now: NOW }).due).toHaveLength(0);
+    expect(buildQueue([{ ...due, retired: true }], { dayStartsAtHour: H, now: NOW }).due).toHaveLength(0);
+    expect(buildQueue([{ ...base, retired: true }], { dayStartsAtHour: H, now: NOW }).fresh).toHaveLength(0);
   });
   it('says when the next learning card comes due', () => {
     const [base] = makeCards(omniNote(), NOW);
     const at = new Date(2026, 10, 11, 13, 0);
     expect(nextLearningDue([base])).toBeUndefined();
     expect(nextLearningDue([withSched(base, { state: 1, due: at.toISOString() })])).toEqual(at);
-  });
-  it('leaves out retired cards', () => {
-    const [base] = makeCards(omniNote(), NOW);
-    const retired = { ...withSched(base, { state: 2, due: NOW.toISOString() }), retired: true };
-    expect(buildQueue([retired], { newPerDay: 20, dayStartsAtHour: H, now: NOW }).due).toHaveLength(0);
-    expect(buildQueue([{ ...base, retired: true }], { newPerDay: 20, dayStartsAtHour: H, now: NOW }).fresh).toHaveLength(0);
-  });
-
-  it("stops reviews at the day's limit, most overdue first, and never limits learning cards", () => {
-    const cards = [1, 2, 3].map((i) => withSched(makeCards({ ...omniNote(), id: `n${i}` }, NOW)[0], {
-      state: 2, due: new Date(2026, 10, i, 12).toISOString(),
-    }));
-    const learning = withSched(makeCards({ ...omniNote(), id: 'n9' }, NOW)[0], { state: 1, due: NOW.toISOString() });
-    const q = buildQueue([...cards, learning], { newPerDay: 0, reviewsPerDay: 3, reviewedToday: 1, dayStartsAtHour: H, now: NOW });
-    expect(q.due.map((c) => c.id)).toEqual([cards[0].id, cards[1].id, learning.id]);
-  });
-  it("fills a deck's options from its preset, else the defaults", () => {
-    const base = { defaultNewPerDay: 20, defaultReviewsPerDay: 200, dayStartsAtHour: H };
-    const studied = { introduced: 1, reviewed: 5 };
-    expect(queueOptionsFor(undefined, studied, base)).toMatchObject({ newPerDay: 20, reviewsPerDay: 200, newIntroducedToday: 1, reviewedToday: 5 });
-    const thai = { weights: [], desiredRetention: 0.9, maxInterval: 36500, newPerDay: 10, reviewsPerDay: 150 };
-    expect(queueOptionsFor(thai, studied, base)).toMatchObject({ newPerDay: 10, reviewsPerDay: 150 });
   });
 });

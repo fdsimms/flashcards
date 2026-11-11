@@ -125,16 +125,18 @@ cut off silently. A field that's shown gets honored, refused inline with the rea
 ## Finding your way around
 
 ```
-src/core     types, FSRS wrapper, queue, study day, card rendering, config (pure TS)
+src/core     types, FSRS wrapper, queue, deck tree, study day, card rendering, Anki templates,
+             session bookkeeping (undo), config (pure TS)
 src/import   TSV + Anki JSON importers, re-import matching (reconcile.ts)
 src/db       Repo interface + MemoryRepo (tests), SQLite repo (app), backup planning
-src/ui       deck list, review, import, backup screens
+src/media    the media folder (expo-file-system)
+src/ui       deck list, review, import, backup screens, CardWebView
 scripts/     export-anki.mjs, the desktop exporter, and scripts/lib (what it runs, tested)
 tests/       vitest, mirroring src/ and scripts/ (src/core/queue.ts -> tests/core/queue.test.ts)
 ```
 
 **Tests mirror source 1:1**, and only pure logic is tested (`src/core`, `src/import`, `src/db`'s
-MemoryRepo, `summarizeDecks` and backup planning, `scripts/lib`). Vitest runs in `node` with no React renderer, so there are no
+MemoryRepo and backup planning, `scripts/lib`). Vitest runs in `node` with no React renderer, so there are no
 screen tests. Don't add a renderer to cover a UI change: verify by reasoning about the code and say
 so plainly rather than implying you ran it. Keep logic out of screens so it can be tested: if a
 screen grows a decision worth testing, move it into `src/core`.
@@ -190,11 +192,19 @@ with `NEW_PER_DAY` / `REVIEWS_PER_DAY` in `src/core/config.ts` only for a deck t
 review limit counts answers to Review-state cards today; learning cards are never limited, as in
 Anki.
 
-**Counts shown in two places come from one function.** The deck list (`summarizeDecks`) and the
-review screen both build a deck's queue with `buildQueue(cards, queueOptionsFor(params, studied,
-...))`, so a deck never says "20 new" and then opens with none. A check that predicts what another
-code path will do calls that code path's function; don't write a lookalike. Study defaults live
-once, in `src/core/config.ts` (`STUDY_DEFAULTS`).
+**Studying a deck studies its subdecks, and every deck on the way up applies its limits**
+(`treeQueue` in `src/core/deckTree.ts`): a card in Polski::Odmiana counts against Odmiana's limit
+and Polski's. Today's counts are kept per deck by its own cards and summed up the tree. A card is
+always scheduled with **its own** deck's FSRS settings, never the settings of the parent being
+studied.
+
+**Counts shown in two places come from one function.** The deck list (`deckRows`) and the review
+screen both call `treeQueue`, so a deck never says "20 new" and then opens with none. A check that
+predicts what another code path will do calls that code path's function; don't write a lookalike.
+
+**Undo restores the card as it was and deletes the review row** (`AnswerRecord` in
+`src/core/session.ts`), and today's counts go back down by the same rule they went up
+(`bumpStudied`). The undone card is shown next.
 
 ### Import
 
@@ -221,6 +231,17 @@ once, in `src/core/config.ts` (`STUDY_DEFAULTS`).
   something else and left to fail with an unrelated message (`.apkg`, and a backup `.db`, on the
   Import screen).
 
+### Card rendering
+
+- **Omnilanguage renders natively** (`renderCard`, with TTS); **every other note type renders its
+  Anki templates** (`src/core/template.ts`) in `CardWebView`, one `t<ord>` card per Anki card.
+  Template rendering follows Anki's rules where they matter: a field holding only whitespace,
+  `<br>` or `<div>` is empty but an image isn't (`fieldIsEmpty`), and a cloze card's ordinal is its
+  cloze number - 1.
+- **The WebView loads a page written to a file, not an HTML string**, with read access to the
+  documents folder and `<base href>` at the media folder. iOS's WebView only reads local files for
+  a page that came from a file URL; an HTML string with a file:// baseUrl shows no images.
+
 ### The Anki exporter (`scripts/`)
 
 - **It reads a copy of the collection, never the original**, with Anki's custom `unicase`
@@ -229,16 +250,21 @@ once, in `src/core/config.ts` (`STUDY_DEFAULTS`).
 - **Deck settings come from protobuf blobs** (`decks.kind`, `deck_config.config`). Read only the
   field numbers named in `scripts/lib/ankiCollection.mjs`, taken from Anki's `.proto` files; check
   a new one against `proto/anki/*.proto` in ankitects/anki rather than guessing.
+- **It writes one `.sqlite` bundle**: the JSON in `export`, and the media the notes and templates
+  reference (plus Anki's "_" files) in `media`. The app reads it by ATTACH and streams the media
+  row by row; a few hundred megabytes of images never sit in memory at once.
 - **Test against a real collection.** `tests/fixtures/anki/collection.anki2` was written by Anki
   itself (`make-collection.py` beside it rebuilds it with the `anki` Python package). Extend that
   script for a new case rather than hand-building rows.
 
 ### Backup
 
-- **A backup is `VACUUM INTO` a file, shared through the share sheet; a restore replaces each
-  table's rows inside one transaction** (`restorePlan` in `src/db/backup.ts`), copying only the
-  columns both sides have, so a backup from before a migration still restores. A new table that
+- **A backup is `VACUUM INTO` a file plus a `media` table of the media folder, shared through the
+  share sheet; a restore replaces each table's rows inside one transaction** (`restorePlan` in
+  `src/db/backup.ts`), copying only the columns both sides have, so a backup from before a
+  migration still restores, then rewrites the media folder from the backup's. A new table that
   holds the user's data goes in `RESTORED_TABLES`, or a restore silently leaves it behind.
+  `settings` is deliberately not in it: when this phone last backed up isn't the backup's to say.
 
 ### After an `await`
 

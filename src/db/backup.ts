@@ -15,7 +15,7 @@ const REQUIRED = ['notes', 'cards', 'reviews'] as const;
  * made before it existed) is emptied rather than kept: a restore puts back the backup's state,
  * not a mix of it and what was here.
  */
-export const RESTORED_TABLES = ['notes', 'cards', 'reviews', 'deck_params'] as const;
+export const RESTORED_TABLES = ['notes', 'cards', 'reviews', 'deck_params', 'note_types'] as const;
 
 export interface TableRestore {
   table: string;
@@ -49,4 +49,31 @@ export function backupFileName(dayKey: string): string {
 /** A `file://` URI as the plain path SQLite needs (`VACUUM INTO`, `ATTACH`). */
 export function fileUriToPath(uri: string): string {
   return decodeURIComponent(uri.replace(/^file:\/\//, ''));
+}
+
+/** Days after the last backup at which the deck list starts reminding. */
+export const BACKUP_REMINDER_DAYS = 7;
+
+/**
+ * The deck list's backup line: when the last backup was made, and whether it's time for another.
+ * Nothing while there's nothing to lose. "Backed up" means a backup file was made and the share
+ * sheet opened; whether it was then saved anywhere, the app can't see.
+ */
+export function backupStatus(lastBackupAt: string | null, now: Date, hasCards: boolean): { text: string; overdue: boolean } | undefined {
+  if (!hasCards) return undefined;
+  if (!lastBackupAt) return { text: 'Not backed up yet', overdue: true };
+  const days = Math.floor((now.getTime() - new Date(lastBackupAt).getTime()) / 86400000);
+  const text = days <= 0 ? 'Backed up today' : days === 1 ? 'Last backed up yesterday' : `Last backed up ${days} days ago`;
+  return { text, overdue: days >= BACKUP_REMINDER_DAYS };
+}
+
+/**
+ * What a picked SQLite file is, by its tables: an export from scripts/export-anki.mjs (`export`
+ * and `media`), a backup from this app (our core tables), or something else.
+ */
+export function sqliteFileKind(tables: string[]): 'export' | 'backup' | 'other' {
+  const has = new Set(tables);
+  if (has.has('export')) return 'export';
+  if (REQUIRED.every((t) => has.has(t))) return 'backup';
+  return 'other';
 }

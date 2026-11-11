@@ -1,5 +1,5 @@
 import { makeCards } from '../core/cards';
-import type { Card, DeckParams, Note } from '../core/types';
+import type { Card, DeckParams, Note, NoteType } from '../core/types';
 import { omnilanguageFieldNames } from './models';
 
 export interface ImportResult {
@@ -8,6 +8,8 @@ export interface ImportResult {
   warnings: string[];
   /** FSRS settings by deck, when the export carried them. */
   deckParams?: Map<string, DeckParams>;
+  /** Note types' templates and styling, when the export carried them. */
+  noteTypes?: NoteType[];
 }
 
 /** Split TSV text into rows, honoring Anki-style "quoted" fields that may contain tabs/newlines. */
@@ -42,7 +44,10 @@ const SEPARATORS: Record<string, string> = { tab: '\t', comma: ',', semicolon: '
  * Import an Anki "Notes in Plain Text" export (with # header lines), e.g. the Omnilanguage TSVs.
  * Fields are mapped by position using #columns, falling back to the Omnilanguage field order.
  */
-export function importTsv(text: string, opts: { fallbackDeck?: string; now?: Date } = {}): ImportResult {
+export function importTsv(
+  text: string,
+  opts: { fallbackDeck?: string; now?: Date; noteTypes?: Map<string, NoteType> } = {},
+): ImportResult {
   const warnings: string[] = [];
   const headers: Record<string, string> = {};
   const lines = text.replace(/^﻿/, '').split(/\r?\n/);
@@ -60,8 +65,11 @@ export function importTsv(text: string, opts: { fallbackDeck?: string; now?: Dat
   const deckCol = headers['deck column'] ? parseInt(headers['deck column'], 10) - 1 : -1;
   const guidCol = headers['guid column'] ? parseInt(headers['guid column'], 10) - 1 : -1;
 
-  const names = columns ?? (model === 'Omnilanguage' ? omnilanguageFieldNames : undefined);
-  if (!names) throw new Error('TSV has no #columns header and the note type is not Omnilanguage');
+  const noteType = model === 'Omnilanguage' ? undefined : opts.noteTypes?.get(model);
+  const names = columns ?? (model === 'Omnilanguage' ? omnilanguageFieldNames : noteType?.fields);
+  if (!names) {
+    throw new Error(`The file has no #columns line, and the fields of note type "${model}" aren't known here yet. Import the Anki export made by scripts/export-anki.mjs first, or export with columns.`);
+  }
 
   const body = lines.slice(bodyStart).join('\n');
   const rows = parseDelimited(body, sep).filter((r) => r.some((c) => c.trim() !== ''));
@@ -83,7 +91,7 @@ export function importTsv(text: string, opts: { fallbackDeck?: string; now?: Dat
     const id = guid ?? `tsv:${deck}:${entry}`;
     const note: Note = { id, deck, model, fields, tags };
     notes.push(note);
-    cards.push(...makeCards(note, opts.now));
+    cards.push(...makeCards(note, opts.now, noteType));
   });
   return { notes, cards, warnings };
 }

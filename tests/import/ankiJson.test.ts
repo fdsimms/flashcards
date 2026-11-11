@@ -88,7 +88,8 @@ describe('Anki JSON import', () => {
       collectionCreated: created, notes: [basic(5), basic(6)],
       cards: [5, 6].flatMap((n) => [0, 1, 2].map((ord) => ({ cardId: n * 10 + ord, note: n, deckName: 'Geo', ord, type: 0 }))),
     }, { now: NOW });
-    expect(res.warnings).toEqual(['4 cards of note type "Ultimate Geography" were skipped: only its first card type can be shown here yet']);
+    expect(res.warnings).toHaveLength(1);
+    expect(res.warnings[0]).toMatch(/^4 cards of note type "Ultimate Geography" were skipped: its card templates weren't in the file/);
   });
   it('takes per-deck limits and FSRS settings from deckConfigs over fsrsParams', () => {
     const res = importAnkiJson({
@@ -97,5 +98,23 @@ describe('Anki JSON import', () => {
       fsrsParams: { presets: [{ decks: ['Thai'], desired_retention: 0.9 }] },
     }, { now: NOW });
     expect(res.deckParams!.get('Thai')).toEqual({ weights: [0.1], desiredRetention: 0.85, maxInterval: 3650, newPerDay: 10, reviewsPerDay: 150 });
+  });
+
+  it('makes exactly the cards Anki has when the note type comes with its templates', () => {
+    const geo = { noteId: 7, modelName: 'Ultimate Geography', fields: { Country: 'Peru', Capital: 'Lima', Flag: '' } };
+    const noteTypes = [{
+      name: 'Ultimate Geography', kind: 'normal' as const, fields: ['Country', 'Capital', 'Flag'], css: '',
+      templates: [0, 1, 2].map((ord) => ({ ord, name: `Card ${ord + 1}`, front: '{{Country}}', back: '{{Capital}}' })),
+    }];
+    const res = importAnkiJson({
+      collectionCreated: created, noteTypes, notes: [geo],
+      cards: [
+        { cardId: 70, note: 7, deckName: 'Geo', ord: 0, type: 2, queue: 2, due: 400, interval: 9 },
+        { cardId: 72, note: 7, deckName: 'Geo', ord: 2, type: 0 },
+      ],
+    }, { now: NOW });
+    expect(res.cards.map((c) => [c.id, c.sched.state])).toEqual([['7:t0', 2], ['7:t2', 0]]);
+    expect(res.warnings).toEqual([]);
+    expect(res.noteTypes).toBe(noteTypes);
   });
 });

@@ -1,6 +1,6 @@
 import { isOmnilanguage, makeCards } from '../core/cards';
 import { newSchedState } from '../core/scheduler';
-import type { Card, CardKind, DeckParams, Note, SchedState } from '../core/types';
+import type { Card, CardKind, DeckParams, Note, NoteType, SchedState } from '../core/types';
 import { omnilanguageKindByOrd } from './models';
 import type { ImportResult } from './tsv';
 
@@ -71,6 +71,8 @@ export interface AnkiExport {
   fsrsParams?: { presets?: AnkiFsrsPreset[] };
   /** Each deck's settings, by full deck name (`scripts/export-anki.mjs`). Wins over `fsrsParams`. */
   deckConfigs?: Record<string, AnkiDeckConfig>;
+  /** Note types' templates, fields and CSS (`scripts/export-anki.mjs`), so cards render as in Anki. */
+  noteTypes?: NoteType[];
 }
 
 /** Each deck's settings from the exporter's `deckConfigs`. */
@@ -160,6 +162,7 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
 
   const cards: Card[] = [];
   const skippedByModel = new Map<string, number>();
+  const noteTypes = new Map((data.noteTypes ?? []).map((t) => [t.name, t]));
   for (const n of data.notes) {
     const id = String(n.noteId);
     const fields: Record<string, string> = {};
@@ -171,12 +174,16 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
 
     // Generate our cards from the note, then overlay Anki scheduling by template ordinal. The
     // ordinal is the template's position in Anki, fixed regardless of which cards a note
-    // generates; other note types only get the one front/back card, from ordinal 0.
-    const generated = makeCards(note, now);
-    const kindForOrd: readonly CardKind[] = isOmnilanguage(note) ? omnilanguageKindByOrd : ['forward'];
+    // generates. A note type with its templates known gets exactly the cards Anki has; without
+    // them, only the one front/back card, from ordinal 0.
+    const noteType = isOmnilanguage(note) ? undefined : noteTypes.get(note.model);
+    const ankiOrds = ankiCards.length ? [...new Set(ankiCards.map((c) => c.ord ?? 0))].sort((a, b) => a - b) : undefined;
+    const generated = makeCards(note, now, noteType, ankiOrds);
+    const kindFor = (ord: number): CardKind | undefined =>
+      isOmnilanguage(note) ? omnilanguageKindByOrd[ord] : noteType ? `t${ord}` : ord === 0 ? 'forward' : undefined;
     const byKind = new Map(generated.map((g) => [g.kind, g]));
     for (const ac of ankiCards) {
-      const kind = kindForOrd[ac.ord ?? 0];
+      const kind = kindFor(ac.ord ?? 0);
       const target = kind ? byKind.get(kind) : undefined;
       if (!target) {
         skippedByModel.set(n.modelName, (skippedByModel.get(n.modelName) ?? 0) + 1);
@@ -189,7 +196,7 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
   }
   // One line per note type rather than one per card: a multi-template type skips thousands.
   for (const [model, count] of skippedByModel) {
-    warnings.push(`${count} ${count === 1 ? 'card' : 'cards'} of note type "${model}" were skipped: only its first card type can be shown here yet`);
+    warnings.push(`${count} ${count === 1 ? 'card' : 'cards'} of note type "${model}" were skipped: its card templates weren't in the file, so only its first card type can be shown. Export with scripts/export-anki.mjs to get them all.`);
   }
   if (data.collectionCreated === undefined && data.cards?.some((c) => c.type !== 0 && (c.due ?? 0) < TIMESTAMP_DUE)) {
     warnings.push('collectionCreated missing: review cards were set due now instead of their real due dates');
@@ -197,5 +204,5 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
   const deckParams = data.deckConfigs
     ? deckParamsFromConfigs(data.deckConfigs)
     : data.fsrsParams?.presets ? deckParamsFromPresets(data.fsrsParams.presets) : undefined;
-  return { notes: [...notes.values()], cards, warnings, deckParams };
+  return { notes: [...notes.values()], cards, warnings, deckParams, noteTypes: data.noteTypes };
 }

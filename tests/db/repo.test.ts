@@ -1,25 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { review } from '../../src/core/scheduler';
-import { queueOptionsFor } from '../../src/core/queue';
-import { MemoryRepo, summarizeDecks } from '../../src/db/repo';
+import { MemoryRepo } from '../../src/db/repo';
 import { NOW, omniNote } from '../support/fixtures';
 
 const H = 4;
-const base = { defaultNewPerDay: 20, defaultReviewsPerDay: 200, dayStartsAtHour: H, now: NOW };
-const fresh = { introduced: 0, reviewed: 0 };
 
 describe('repo', () => {
-  it('summarizes decks and records new-card introductions', async () => {
+  it('records new-card introductions per deck', async () => {
     const repo = new MemoryRepo();
     const note = omniNote();
     const cards = makeCards(note, NOW);
     await repo.upsertNotesAndCards([note], cards);
-    const s = summarizeDecks(await repo.listNotes(), await repo.listCards(), () => queueOptionsFor(undefined, fresh, base));
-    expect(s).toEqual([{ deck: note.deck, due: 0, fresh: 1, total: 1 }]);
     const r = review(cards[0].sched, 3, NOW);
     await repo.addReview({ cardId: cards[0].id, ...r.log });
-    expect(await repo.studiedToday(note.deck, NOW, H)).toEqual({ introduced: 1, reviewed: 0 });
+    expect((await repo.studiedToday(NOW, H)).get(note.deck)).toEqual({ introduced: 1, reviewed: 0 });
   });
 
   it('counts a 1 AM session against the study day before it', async () => {
@@ -29,20 +24,37 @@ describe('repo', () => {
     await repo.upsertNotesAndCards([note], cards);
     const lateNight = new Date(2026, 10, 12, 1, 0);
     await repo.addReview({ cardId: cards[0].id, ...review(cards[0].sched, 3, lateNight).log });
-    expect((await repo.studiedToday(note.deck, new Date(2026, 10, 11, 20, 0), H)).introduced).toBe(1);
-    expect((await repo.studiedToday(note.deck, new Date(2026, 10, 12, 9, 0), H)).introduced).toBe(0);
+    expect((await repo.studiedToday(new Date(2026, 10, 11, 20, 0), H)).get(note.deck)?.introduced).toBe(1);
+    expect((await repo.studiedToday(new Date(2026, 10, 12, 9, 0), H)).get(note.deck)).toBeUndefined();
   });
 
-  it('takes the new-card count off what was introduced today, as the review screen does', () => {
-    const notes = [1, 2, 3].map((i) => ({ ...omniNote(), id: `n${i}` }));
-    const cards = notes.flatMap((n) => makeCards(n, NOW));
-    const deck = notes[0].deck;
-    const s = summarizeDecks(notes, cards, (d) => queueOptionsFor(
-      { weights: [], desiredRetention: 0.9, maxInterval: 36500, newPerDay: 2 },
-      d === deck ? { introduced: 1, reviewed: 0 } : fresh,
-      base,
-    ));
-    expect(s[0].fresh).toBe(1);
+  it('counts answers to review cards separately from first answers to new ones', async () => {
+    const repo = new MemoryRepo();
+    const note = omniNote();
+    const [card] = makeCards(note, NOW);
+    await repo.upsertNotesAndCards([note], [card]);
+    const learned = review(review(card.sched, 3, NOW).sched, 3, NOW).sched; // now in Review
+    await repo.addReview({ cardId: card.id, ...review(card.sched, 3, NOW).log });
+    await repo.addReview({ cardId: card.id, ...review(learned, 3, NOW).log });
+    await repo.addReview({ cardId: card.id, ...review(learned, 1, NOW).log });
+    expect((await repo.studiedToday(NOW, H)).get(note.deck)).toEqual({ introduced: 1, reviewed: 2 });
+  });
+
+  it('takes an answer back with deleteReview', async () => {
+    const repo = new MemoryRepo();
+    const note = omniNote();
+    const [card] = makeCards(note, NOW);
+    await repo.upsertNotesAndCards([note], [card]);
+    const id = await repo.addReview({ cardId: card.id, ...review(card.sched, 3, NOW).log });
+    await repo.deleteReview(id);
+    expect((await repo.studiedToday(NOW, H)).size).toBe(0);
+  });
+
+  it('lists a deck with its subdecks, not decks that merely share a prefix', async () => {
+    const repo = new MemoryRepo();
+    const notes = [['a', 'Polski'], ['b', 'Polski::Odmiana'], ['c', 'Polski Extra']].map(([id, deck]) => ({ ...omniNote(), id, deck }));
+    await repo.upsertNotesAndCards(notes, notes.flatMap((n) => makeCards(n, NOW)));
+    expect((await repo.listCards('Polski')).map((c) => c.noteId).sort()).toEqual(['a', 'b']);
   });
 
   it('never resets a studied card on re-import', async () => {
@@ -67,7 +79,6 @@ describe('repo', () => {
     const without = omniNote();
     await repo.upsertNotesAndCards([without], makeCards(without, NOW));
     expect((await repo.listCards()).find((c) => c.kind === 'reverse')!.retired).toBe(true);
-    expect(summarizeDecks([without], await repo.listCards(), () => queueOptionsFor(undefined, fresh, base))[0].total).toBe(1);
 
     await repo.upsertNotesAndCards([withReverse], makeCards(withReverse, NOW));
     const back = (await repo.listCards()).find((c) => c.kind === 'reverse')!;
@@ -75,7 +86,7 @@ describe('repo', () => {
     expect(back.sched.reps).toBe(1);
   });
 
-  it('keeps deck settings for decks a later import leaves out', async () => {
+  it('keeps deck settings and note types for those a later import leaves out', async () => {
     const repo = new MemoryRepo();
     const p = (r: number) => ({ weights: [], desiredRetention: r, maxInterval: 36500 });
     await repo.saveDeckParams(new Map([['A', p(0.9)], ['B', p(0.8)]]));
@@ -83,17 +94,11 @@ describe('repo', () => {
     const all = await repo.listDeckParams();
     expect(all.get('A')!.desiredRetention).toBe(0.85);
     expect(all.get('B')!.desiredRetention).toBe(0.8);
-  });
-
-  it('counts answers to review cards separately from first answers to new ones', async () => {
-    const repo = new MemoryRepo();
-    const note = omniNote();
-    const [card] = makeCards(note, NOW);
-    await repo.upsertNotesAndCards([note], [card]);
-    const learned = review(review(card.sched, 3, NOW).sched, 3, NOW).sched; // now in Review
-    await repo.addReview({ cardId: card.id, ...review(card.sched, 3, NOW).log });
-    await repo.addReview({ cardId: card.id, ...review(learned, 3, NOW).log });
-    await repo.addReview({ cardId: card.id, ...review(learned, 1, NOW).log });
-    expect(await repo.studiedToday(note.deck, NOW, H)).toEqual({ introduced: 1, reviewed: 2 });
+    const type = (name: string) => ({ name, kind: 'normal' as const, fields: [], css: '', templates: [] });
+    await repo.saveNoteTypes([type('Basic'), type('Geo')]);
+    await repo.saveNoteTypes([{ ...type('Basic'), css: '.card {}' }]);
+    const types = await repo.listNoteTypes();
+    expect([...types.keys()].sort()).toEqual(['Basic', 'Geo']);
+    expect(types.get('Basic')!.css).toBe('.card {}');
   });
 });

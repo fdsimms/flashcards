@@ -33,13 +33,13 @@ export function Backup({ store, onDone }: { store: BackupStore; onDone: () => vo
     const file = new File(Paths.cache, name);
     try {
       if (file.exists) file.delete();
-      await store.backupTo(fileUriToPath(file.uri));
+      const { media } = await store.backupTo(fileUriToPath(file.uri));
       if (!(await Sharing.isAvailableAsync())) {
         say(`Couldn't open the share sheet on this device, so ${name} wasn't saved anywhere.`);
         return;
       }
       await Sharing.shareAsync(file.uri, { UTI: 'public.database', mimeType: 'application/x-sqlite3', dialogTitle: 'Save backup' });
-      say(`Made ${name}. Choose "Save to Files" to keep it in iCloud Drive or on this iPhone.`);
+      say(`Made ${name}${media ? `, with ${media} images and sounds` : ''}. Choose "Save to Files" to keep it in iCloud Drive or on this iPhone.`);
     } catch (e: any) {
       say(`Couldn't make a backup. ${e?.message ?? e}`);
     }
@@ -59,8 +59,8 @@ export function Backup({ store, onDone }: { store: BackupStore; onDone: () => vo
           style: 'destructive',
           onPress: () => run(async () => {
             try {
-              const { notes, cards } = await store.restoreFrom(fileUriToPath(asset.uri));
-              say(`Restored ${asset.name}: ${notes} notes, ${cards} cards.`);
+              const { notes, cards, media } = await store.restoreFrom(fileUriToPath(asset.uri));
+              say(`Restored ${asset.name}: ${notes} notes, ${cards} cards${media ? `, ${media} images and sounds` : ''}.`);
             } catch (e: any) {
               const reason = e instanceof NotABackupError ? e.message : `${e?.message ?? e}`;
               say(`Couldn't restore ${asset.name}. ${reason}`);
@@ -77,7 +77,7 @@ export function Backup({ store, onDone }: { store: BackupStore; onDone: () => vo
       <Pressable onPress={onDone} style={{ paddingHorizontal: 20 }}><Text style={{ color: t.accent, fontSize: 16 }}>‹ Decks</Text></Pressable>
       <Text style={{ color: t.text, fontSize: 28, fontWeight: '700', padding: 20 }}>Backup</Text>
       <Text style={{ color: t.sub, paddingHorizontal: 20 }}>
-        Everything is stored only on this iPhone. A backup is one file with your decks, cards and review history. Save it to Files or iCloud Drive, and restore it here if you reinstall the app or move to a new phone.
+        Everything is stored only on this iPhone. A backup is one file with your decks, cards, review history, and the images and sounds imported from Anki. Save it to Files or iCloud Drive, and restore it here if you reinstall the app or move to a new phone.
       </Text>
       <Pressable onPress={backUp} disabled={busy} style={button}>
         <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{busy ? 'Working…' : 'Back up now'}</Text>

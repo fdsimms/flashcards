@@ -16,7 +16,7 @@ describe('scheduler', () => {
     expect(Object.keys(preview)).toHaveLength(4);
   });
   it('logs the state the card was in before the answer', () => {
-    // newIntroducedToday counts a card as introduced by a log with state 0, so this is load-bearing.
+    // studiedToday counts a card as introduced by a log with state 0, so this is load-bearing.
     const [card] = makeCards(omniNote(), NOW);
     const first = review(card.sched, 3, NOW);
     expect(first.log.state).toBe(0);

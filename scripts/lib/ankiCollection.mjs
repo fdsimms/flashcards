@@ -12,7 +12,7 @@
 //   DeckConfig.Config, both in proto/anki/decks.proto and proto/anki/deck_config.proto. Only the
 //   field numbers below are read; everything else in the blob is skipped.
 
-import { copyFileSync, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -26,6 +26,10 @@ const CONFIG = {
   maxInterval: 16,
   desiredRetention: 37,
 };
+
+/** Field numbers in Notetype.Config and Notetype.Template.Config (proto/anki/notetypes.proto). */
+const NOTETYPE = { kind: 1, css: 3 };
+const TEMPLATE = { front: 1, back: 2 };
 
 /** Field numbers in Deck.KindContainer and Deck.Normal (proto/anki/decks.proto). */
 const KIND_NORMAL = 1;
@@ -131,6 +135,47 @@ export function readDeckKind(blob) {
 
 const deckName = (raw) => raw.split('\x1f').join('::');
 
+function string(msg, field) {
+  const v = msg.get(field)?.at(-1);
+  return v && v.wire === 2 ? new TextDecoder().decode(v.value) : undefined;
+}
+
+/** A note type's kind and CSS from its `notetypes.config` blob. */
+export function readNotetypeConfig(blob) {
+  const msg = decodeMessage(blob);
+  return { kind: uint(msg, NOTETYPE.kind) === 1 ? 'cloze' : 'normal', css: string(msg, NOTETYPE.css) ?? '' };
+}
+
+/** A template's front and back from its `templates.config` blob. */
+export function readTemplateConfig(blob) {
+  const msg = decodeMessage(blob);
+  return { front: string(msg, TEMPLATE.front) ?? '', back: string(msg, TEMPLATE.back) ?? '' };
+}
+
+/**
+ * The media files an export needs: every file a note field or a template names (an <img> or
+ * other src, a [sound:...] tag, a CSS url()), plus every file starting with "_", which is Anki's
+ * convention for files templates load themselves (fonts, scripts) and Anki keeps even unused.
+ */
+export function mediaReferences(data, mediaFiles) {
+  const names = new Set();
+  const scan = (text) => {
+    for (const m of text.matchAll(/\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)) names.add(m[1] ?? m[2] ?? m[3]);
+    for (const m of text.matchAll(/\[sound:([^\]]+)\]/g)) names.add(m[1]);
+    for (const m of text.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/gi)) names.add(m[1]);
+  };
+  for (const n of data.notes) for (const v of Object.values(n.fields)) scan(String(v));
+  for (const t of data.noteTypes ?? []) {
+    scan(t.css);
+    for (const tpl of t.templates) { scan(tpl.front); scan(tpl.back); }
+  }
+  const available = new Set(mediaFiles);
+  const decoded = [...names].map((n) => { try { return decodeURIComponent(n); } catch { return n; } });
+  const wanted = new Set(decoded.filter((n) => available.has(n) && !n.includes('/')));
+  for (const f of mediaFiles) if (f.startsWith('_')) wanted.add(f);
+  return [...wanted].sort();
+}
+
 /**
  * The import file from a collection's rows.
  *
@@ -142,7 +187,9 @@ const deckName = (raw) => raw.split('\x1f').join('::');
  * @param rows.decks        [{ id, name, kind }]  (kind as bytes)
  * @param rows.deckConfigs  [{ id, config }]      (config as bytes)
  * @param rows.lastReviews  [{ cid, last }]       (max revlog id per card, ms)
- * @returns {import('../../src/import/ankiJson').AnkiExport & { collectionCreated: number, deckConfigs: Record<string, import('../../src/import/ankiJson').AnkiDeckConfig> }}
+ * @param rows.notetypes    may carry `config` (bytes) and rows.templates [{ ntid, ord, name, config }]
+ *                          to export each note type's templates and CSS
+ * @returns {import('../../src/import/ankiJson').AnkiExport & { collectionCreated: number, deckConfigs: Record<string, import('../../src/import/ankiJson').AnkiDeckConfig>, noteTypes: import('../../src/core/types').NoteType[] }}
  */
 export function buildExport(rows) {
   const modelName = new Map(rows.notetypes.map((m) => [Number(m.id), m.name]));
@@ -209,7 +256,22 @@ export function buildExport(rows) {
     };
   });
 
-  return { collectionCreated: Number(rows.col.crt), notes, cards, deckConfigs };
+  // Note types in use, with their templates and CSS, so the app renders their cards as Anki does.
+  const used = new Set(rows.notes.map((n) => Number(n.mid)));
+  /** @type {import('../../src/core/types').NoteType[]} */
+  const noteTypes = [];
+  for (const m of rows.notetypes) {
+    const id = Number(m.id);
+    if (!used.has(id) || !m.config) continue;
+    const { kind, css } = readNotetypeConfig(m.config);
+    const templates = (rows.templates ?? [])
+      .filter((t) => Number(t.ntid) === id)
+      .sort((a, b) => a.ord - b.ord)
+      .map((t) => ({ ord: Number(t.ord), name: t.name, ...readTemplateConfig(t.config) }));
+    noteTypes.push({ name: m.name, kind, css, fields: (fieldNames.get(id) ?? []).filter(Boolean), templates });
+  }
+
+  return { collectionCreated: Number(rows.col.crt), notes, cards, deckConfigs, noteTypes };
 }
 
 /**
@@ -236,7 +298,8 @@ export async function exportCollection(path) {
       const all = (sql) => db.prepare(sql).all();
       return buildExport({
         col: db.prepare('SELECT crt FROM col').get(),
-        notetypes: all('SELECT id, name FROM notetypes'),
+        notetypes: all('SELECT id, name, config FROM notetypes'),
+        templates: all('SELECT ntid, ord, name, config FROM templates'),
         fields: all('SELECT ntid, ord, name FROM fields'),
         notes: all('SELECT id, mid, tags, flds FROM notes'),
         cards: all('SELECT id, nid, did, ord, type, queue, due, ivl, factor, reps, lapses, odid, odue, data FROM cards'),
@@ -250,4 +313,28 @@ export async function exportCollection(path) {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+}
+
+/**
+ * Writes the export as one SQLite file the app imports: the JSON in `export`, and each media file
+ * it needs in `media`. One file, so it moves through iCloud Drive as a unit, and SQLite, so the
+ * app streams the media out row by row instead of holding it all in memory.
+ */
+export async function writeBundle(outPath, data, mediaDir) {
+  const { DatabaseSync } = await import('node:sqlite');
+  const mediaFiles = existsSync(mediaDir) ? readdirSync(mediaDir) : [];
+  const names = mediaReferences(data, mediaFiles);
+  rmSync(outPath, { force: true });
+  const db = new DatabaseSync(outPath);
+  try {
+    db.exec('CREATE TABLE export (json TEXT NOT NULL); CREATE TABLE media (name TEXT PRIMARY KEY, data BLOB NOT NULL);');
+    db.prepare('INSERT INTO export (json) VALUES (?)').run(JSON.stringify(data));
+    const insert = db.prepare('INSERT INTO media (name, data) VALUES (?, ?)');
+    db.exec('BEGIN');
+    for (const name of names) insert.run(name, readFileSync(join(mediaDir, name)));
+    db.exec('COMMIT');
+  } finally {
+    db.close();
+  }
+  return { media: names.length };
 }
