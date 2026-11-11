@@ -1,21 +1,10 @@
-import { nextStage } from './progress';
 import { nextCard, type Queue, type StudiedToday } from './queue';
-import { review, type RatingValue, type ReviewResult } from './scheduler';
-import type { Card, DeckParams } from './types';
+import type { Card } from './types';
 
 /**
  * Bookkeeping for one review session, kept out of the screen so it can be tested: today's counts
  * as answers are given and taken back, and which card to show after an undo.
  */
-
-/**
- * Answers a card: its FSRS state and its progress stage move together, so nothing that answers a
- * card can update one and forget the other.
- */
-export function answerCard(card: Card, rating: RatingValue, now: Date, params?: DeckParams): { card: Card; log: ReviewResult['log'] } {
-  const res = review(card.sched, rating, now, params);
-  return { card: { ...card, sched: res.sched, stage: nextStage(card.stage, card.sched.state, rating) }, log: res.log };
-}
 
 /**
  * Today's counts after an answer (`delta` 1) or its undo (-1) on a card in `deck` that was in

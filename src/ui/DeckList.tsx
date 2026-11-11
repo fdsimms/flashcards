@@ -42,9 +42,9 @@ export function DeckList(props: {
               {item.due} due · {item.fresh} new · {item.total} total
             </Text>
             {item.gate ? (
-              // Under the cap, new cards come in; at it, they wait until cards reach Guru.
-              <Text style={{ color: item.gate.apprentice >= item.gate.cap ? t.hard : t.sub, marginTop: 2 }}>
-                {item.gate.apprentice} of {item.gate.cap} in progress
+              // Under the cap, new cards come in; at it, they wait until cards are a week out.
+              <Text style={{ color: item.gate.inProgress >= item.gate.cap ? t.hard : t.sub, marginTop: 2 }}>
+                {item.gate.inProgress} of {item.gate.cap} in progress
               </Text>
             ) : null}
           </Pressable>

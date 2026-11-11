@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { DEFAULT_GATE_CAP } from '../core/config';
-import { apprenticeCount, groupByDeck } from '../core/deckTree';
-import { GURU, parseGateCap } from '../core/progress';
+import { groupByDeck, inProgressCount } from '../core/deckTree';
+import { GURU_INTERVAL_DAYS, parseGateCap } from '../core/progress';
 import type { DeckSettings } from '../core/types';
 import type { Repo } from '../db/repo';
 import { useTheme } from './theme';
@@ -13,7 +13,7 @@ export function DeckOptions({ repo, deck, onDone }: { repo: Repo; deck: string; 
   const [settings, setSettings] = useState<DeckSettings | null>(null);
   const [capText, setCapText] = useState('');
   const [error, setError] = useState<string>();
-  const [apprentice, setApprentice] = useState<number>();
+  const [inProgress, setInProgress] = useState<number>();
   const saving = useRef(Promise.resolve());
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export function DeckOptions({ repo, deck, onDone }: { repo: Repo; deck: string; 
       const s = all.get(deck) ?? {};
       setSettings(s);
       setCapText(String(s.gateCap ?? DEFAULT_GATE_CAP));
-      setApprentice(apprenticeCount(deck, groupByDeck(cards, new Map(notes.map((n) => [n.id, n.deck])))));
+      setInProgress(inProgressCount(deck, groupByDeck(cards, new Map(notes.map((n) => [n.id, n.deck])))));
     })();
   }, [repo, deck]);
 
@@ -72,8 +72,8 @@ export function DeckOptions({ repo, deck, onDone }: { repo: Repo; deck: string; 
           </View>
           <Text style={{ color: t.sub }}>
             Show new cards only while fewer than this many cards in this deck and its subdecks are still in
-            progress. A card stops counting once it reaches Guru, after {GURU - 1} correct reviews in a row. While
-            this is on, the deck's daily new card limit doesn't apply.
+            progress. A card stops counting once its next review is {GURU_INTERVAL_DAYS} days or more away, and
+            counts again if you forget it. While this is on, the deck's daily new card limit doesn't apply.
           </Text>
           {on ? (
             <View style={{ gap: 6 }}>
@@ -94,9 +94,9 @@ export function DeckOptions({ repo, deck, onDone }: { repo: Repo; deck: string; 
               {error ? <Text style={{ color: t.again }}>{error}</Text> : null}
             </View>
           ) : null}
-          {apprentice !== undefined ? (
+          {inProgress !== undefined ? (
             <Text style={{ color: t.sub }}>
-              {apprentice === 1 ? '1 card is' : `${apprentice} cards are`} in progress in this deck now.
+              {inProgress === 1 ? '1 card is' : `${inProgress} cards are`} in progress in this deck now.
             </Text>
           ) : null}
         </View>

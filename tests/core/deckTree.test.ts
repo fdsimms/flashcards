@@ -103,11 +103,13 @@ describe('treeQueue limits and learn-ahead', () => {
   });
 });
 
+/** Reviews scheduled under a week out: still in progress. */
 function inProgress(count: number): Card[] {
-  return newCards(count).map((c) => ({ ...c, stage: 2, sched: { ...c.sched, state: 2, due: new Date(2026, 11, 1).toISOString() } }));
+  return newCards(count).map((c) => ({ ...c, sched: { ...c.sched, state: 2, scheduledDays: 3, due: new Date(2026, 11, 1).toISOString() } }));
 }
+/** Reviews scheduled a week or more out: past the gate. */
 function guru(count: number): Card[] {
-  return inProgress(count).map((c) => ({ ...c, stage: 5 }));
+  return inProgress(count).map((c) => ({ ...c, sched: { ...c.sched, scheduledDays: 7 } }));
 }
 
 describe('progress gate', () => {
@@ -131,7 +133,7 @@ describe('progress gate', () => {
   });
   it('shows the count against the cap on a gated deck row', () => {
     const rows = deckRows(input({ Thai: [...inProgress(4), ...newCards(1)] }, {}, new Map(), { Thai: 10 }));
-    expect(rows[0].gate).toEqual({ apprentice: 4, cap: 10 });
+    expect(rows[0].gate).toEqual({ inProgress: 4, cap: 10 });
   });
 });
 

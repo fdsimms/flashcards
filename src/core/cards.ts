@@ -61,7 +61,6 @@ export function makeCards(note: Note, now: Date = new Date(), noteType?: NoteTyp
     kind,
     suspended: false,
     retired: false,
-    stage: 0,
     sched: newSchedState(now),
   }));
 }
