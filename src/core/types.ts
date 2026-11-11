@@ -38,6 +38,8 @@ export interface Card {
    * carry suspension (TSV) can't undo one, and a kind turned back on brings its history back.
    */
   retired: boolean;
+  /** WaniKani-style progress stage (0 new, 1-4 Apprentice, 5+ Guru and up); see progress.ts. */
+  stage: number;
   sched: SchedState;
 }
 
@@ -87,4 +89,13 @@ export interface NoteType {
   css: string;
   /** In Anki's order; `ord` is the position. A cloze note type has one. */
   templates: { ord: number; name: string; front: string; back: string }[];
+}
+
+/**
+ * A deck's settings made in this app, kept apart from `DeckParams` (which an Anki import replaces),
+ * so a re-import never undoes them.
+ */
+export interface DeckSettings {
+  /** Progress gate: new cards only while fewer than this many cards here are below Guru. */
+  gateCap?: number;
 }

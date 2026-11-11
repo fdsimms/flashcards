@@ -187,6 +187,7 @@ export function mediaReferences(data, mediaFiles) {
  * @param rows.decks        [{ id, name, kind }]  (kind as bytes)
  * @param rows.deckConfigs  [{ id, config }]      (config as bytes)
  * @param rows.lastReviews  [{ cid, last }]       (max revlog id per card, ms)
+ * @param rows.revlog       [{ cid, type, ease }] every review, oldest first, for each card's history
  * @param rows.notetypes    may carry `config` (bytes) and rows.templates [{ ntid, ord, name, config }]
  *                          to export each note type's templates and CSS
  * @returns {import('../../src/import/ankiJson').AnkiExport & { collectionCreated: number, deckConfigs: Record<string, import('../../src/import/ankiJson').AnkiDeckConfig>, noteTypes: import('../../src/core/types').NoteType[] }}
@@ -202,6 +203,13 @@ export function buildExport(rows) {
   const presets = new Map(rows.deckConfigs.map((c) => [Number(c.id), readDeckConfig(c.config)]));
   const decks = new Map(rows.decks.map((d) => [Number(d.id), { name: deckName(d.name), kind: readDeckKind(d.kind) }]));
   const lastReviewMs = new Map(rows.lastReviews.map((r) => [Number(r.cid), Number(r.last)]));
+  // Each card's answers as `type * 10 + ease`: compact, and the app turns it into a progress stage.
+  const history = new Map();
+  for (const r of rows.revlog ?? []) {
+    const cid = Number(r.cid);
+    if (!history.has(cid)) history.set(cid, []);
+    history.get(cid).push(Number(r.type) * 10 + Number(r.ease));
+  }
 
   /** @type {Record<string, import('../../src/import/ankiJson').AnkiDeckConfig>} */
   const deckConfigs = {};
@@ -253,6 +261,7 @@ export function buildExport(rows) {
       lapses: Number(c.lapses),
       memoryState: typeof data.s === 'number' && typeof data.d === 'number' ? { stability: data.s, difficulty: data.d } : undefined,
       lastReview: typeof data.lrt === 'number' ? data.lrt : fromRevlog !== undefined ? Math.floor(fromRevlog / 1000) : undefined,
+      history: history.get(Number(c.id)) ?? [],
     };
   });
 
@@ -306,6 +315,7 @@ export async function exportCollection(path) {
         decks: all('SELECT id, name, kind FROM decks'),
         deckConfigs: all('SELECT id, config FROM deck_config'),
         lastReviews: all('SELECT cid, MAX(id) AS last FROM revlog GROUP BY cid'),
+        revlog: all('SELECT cid, type, ease FROM revlog ORDER BY cid, id'),
       });
     } finally {
       db.close();

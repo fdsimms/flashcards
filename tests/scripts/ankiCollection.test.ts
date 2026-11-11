@@ -38,6 +38,9 @@ describe('exportCollection', () => {
     expect(data.deckConfigs['🧠 Trivia']).toMatchObject({ newPerDay: 3, reviewsPerDay: 200 });
     expect(data.deckConfigs['Filtered Deck 1']).toBeUndefined();
 
+    // Each card's review history, compact: two learning-step answers answered Good are [3, 3].
+    const bookNote = data.notes.find((n) => n.fields.Front === 'หนังสือ')!;
+    expect(data.cards.find((c) => c.note === bookNote.noteId && c.ord === 0)!.history).toEqual([3, 3]);
     const learning = data.cards.find((c) => c.queue === 1)!;
     expect(learning.due!).toBeGreaterThan(1_000_000_000);
     expect(learning.memoryState!.stability).toBeGreaterThan(0);
@@ -58,6 +61,9 @@ describe('exportCollection', () => {
     expect(card.sched.state).toBe(2);
     expect(new Date(card.sched.due).getTime()).toBeGreaterThan(crt * 1000);
     expect(res.deckParams!.get(THAI)).toMatchObject({ newPerDay: 1, reviewsPerDay: 150, desiredRetention: 0.85 });
+    // Stages come from Anki's review history: two learning answers make the card Apprentice 1.
+    expect(card.stage).toBe(1);
+    expect(res.cards.filter((c) => c.sched.state === 0).every((c) => c.stage === 0)).toBe(true);
     // Every Anki card arrives: both templates of the reversed note, both clozes of the cloze note.
     expect(res.warnings).toEqual([]);
     expect(res.cards.filter((c) => c.noteId === book.id).map((c) => c.kind)).toEqual(['t0', 't1']);

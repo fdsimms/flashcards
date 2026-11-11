@@ -21,3 +21,6 @@ export const DAY_STARTS_AT_HOUR = 4;
  * that card due a minute later.
  */
 export const LEARN_AHEAD_MINUTES = 20;
+
+/** The cap a progress gate starts at when it's turned on for a deck. */
+export const DEFAULT_GATE_CAP = 100;

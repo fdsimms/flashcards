@@ -12,8 +12,9 @@ function newCards(count: number): Card[] {
 function reviewCards(count: number, day: number): Card[] {
   return newCards(count).map((c) => ({ ...c, sched: { ...c.sched, state: 2, due: new Date(2026, 10, day, 12).toISOString() } }));
 }
-function input(cardsByDeck: Record<string, Card[]>, limits: Record<string, { newPerDay: number; reviewsPerDay: number }> = {}, studied: TreeQueueInput['studiedByDeck'] = new Map()): TreeQueueInput {
+function input(cardsByDeck: Record<string, Card[]>, limits: Record<string, { newPerDay: number; reviewsPerDay: number }> = {}, studied: TreeQueueInput['studiedByDeck'] = new Map(), gates: Record<string, number> = {}): TreeQueueInput {
   return {
+    gateFor: (d) => gates[d],
     cardsByDeck: new Map(Object.entries(cardsByDeck)),
     limitsFor: (d) => limits[d] ?? { newPerDay: 20, reviewsPerDay: 200 },
     studiedByDeck: studied,
@@ -99,6 +100,38 @@ describe('treeQueue limits and learn-ahead', () => {
     const q = treeQueue('D', { ...input({ D: [...soon, ...newCards(1)] }), learnAheadMinutes: 20 });
     expect(q.due).toHaveLength(0);
     expect(q.fresh).toHaveLength(1);
+  });
+});
+
+function inProgress(count: number): Card[] {
+  return newCards(count).map((c) => ({ ...c, stage: 2, sched: { ...c.sched, state: 2, due: new Date(2026, 11, 1).toISOString() } }));
+}
+function guru(count: number): Card[] {
+  return inProgress(count).map((c) => ({ ...c, stage: 5 }));
+}
+
+describe('progress gate', () => {
+  const daily1 = { newPerDay: 1, reviewsPerDay: 200 };
+  it('lets in new cards up to the cap less what is in progress, ignoring the daily new limit', () => {
+    const q = treeQueue('Thai', input({ Thai: [...inProgress(7), ...guru(50), ...newCards(10)] }, { Thai: daily1 }, new Map(), { Thai: 10 }));
+    expect(q.fresh).toHaveLength(3);
+  });
+  it('holds every new card back at the cap', () => {
+    const q = treeQueue('Thai', input({ Thai: [...inProgress(10), ...newCards(5)] }, {}, new Map(), { Thai: 10 }));
+    expect(q.fresh).toHaveLength(0);
+  });
+  it("counts the whole subtree, and lifts subdecks' daily limits under it", () => {
+    const decks = { Polski: inProgress(2), 'Polski::Odmiana': [...inProgress(3), ...newCards(5)], 'Polski::Rekcja': newCards(5) };
+    const limits = { 'Polski::Odmiana': daily1, 'Polski::Rekcja': daily1 };
+    expect(treeQueue('Polski', input(decks, limits, new Map(), { Polski: 8 })).fresh).toHaveLength(3);
+  });
+  it("still applies a parent's gate when a subdeck is opened on its own", () => {
+    const decks = { 'Polski::Odmiana': [...inProgress(6), ...newCards(5)], 'Polski::Rekcja': inProgress(3) };
+    expect(treeQueue('Polski::Odmiana', input(decks, {}, new Map(), { Polski: 10 })).fresh).toHaveLength(1);
+  });
+  it('shows the count against the cap on a gated deck row', () => {
+    const rows = deckRows(input({ Thai: [...inProgress(4), ...newCards(1)] }, {}, new Map(), { Thai: 10 }));
+    expect(rows[0].gate).toEqual({ apprentice: 4, cap: 10 });
   });
 });
 

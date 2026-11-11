@@ -1,4 +1,5 @@
 import { isOmnilanguage, makeCards } from '../core/cards';
+import { stageFromHistory, stageFromSchedule } from '../core/progress';
 import { newSchedState } from '../core/scheduler';
 import type { Card, CardKind, DeckParams, Note, NoteType, SchedState } from '../core/types';
 import { omnilanguageKindByOrd } from './models';
@@ -33,6 +34,11 @@ export interface AnkiCardInfo {
   due?: number;
   /** When the card was last answered (unix seconds), e.g. from the card's FSRS data or revlog. */
   lastReview?: number;
+  /**
+   * The card's Anki review log, oldest first, each entry `revlog.type * 10 + revlog.ease`
+   * (13 is a review answered Good). Gives its WaniKani-style stage (`stageFromHistory`).
+   */
+  history?: number[];
   interval?: number;
   /** Ease factor in permille, e.g. 2500. */
   factor?: number;
@@ -191,6 +197,7 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
       }
       target.sched = schedFromAnki(ac, data.collectionCreated, now);
       target.suspended = ac.queue === -1;
+      target.stage = ac.history ? stageFromHistory(ac.history) : stageFromSchedule(target.sched.state, target.sched.scheduledDays);
     }
     cards.push(...generated);
   }

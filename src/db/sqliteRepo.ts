@@ -1,6 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import { studyDayStart } from '../core/day';
-import type { Card, DeckParams, Note, NoteType, ReviewLogEntry } from '../core/types';
+import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } from '../core/types';
 import { clearMedia, listMedia, writeMedia } from '../media/mediaFiles';
 import { restorePlan, sqliteFileKind } from './backup';
 import type { Repo } from './repo';
@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS reviews (
 CREATE TABLE IF NOT EXISTS deck_params (deck TEXT PRIMARY KEY, params TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS note_types (name TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS deck_settings (deck TEXT PRIMARY KEY, data TEXT NOT NULL);
 `;
 
 /**
@@ -33,8 +34,14 @@ CREATE TABLE IF NOT EXISTS note_types (name TEXT PRIMARY KEY, data TEXT NOT NULL
  * deliberately not used: it has to be kept in step with the schema by hand, and anything that
  * drops and recreates tables without resetting it skips migrations on a schema that lacks them.
  */
-const MIGRATIONS: { table: string; column: string; sql: string }[] = [
+const MIGRATIONS: { table: string; column: string; sql: string; backfill?: string }[] = [
   { table: 'cards', column: 'retired', sql: 'ALTER TABLE cards ADD COLUMN retired INTEGER NOT NULL DEFAULT 0' },
+  {
+    table: 'cards', column: 'stage', sql: 'ALTER TABLE cards ADD COLUMN stage INTEGER NOT NULL DEFAULT 0',
+    // Cards studied before stages existed get one guessed from their schedule, the same rule as
+    // `stageFromSchedule` (progress.ts). Runs once: only on the launch that adds the column.
+    backfill: "UPDATE cards SET stage = CASE WHEN state = 0 THEN 0 WHEN state = 2 AND json_extract(sched, '$.scheduledDays') >= 7 THEN 5 WHEN state = 2 THEN 4 ELSE 1 END",
+  },
 ];
 
 async function migrate(db: SQLite.SQLiteDatabase) {
@@ -47,6 +54,7 @@ async function migrate(db: SQLite.SQLiteDatabase) {
     const have = columns.get(m.table)!;
     if (have.has(m.column)) continue;
     await db.execAsync(m.sql);
+    if (m.backfill) await db.execAsync(m.backfill);
     have.add(m.column);
   }
 }
@@ -74,7 +82,7 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
   await migrate(db);
 
   const rowToCard = (r: any): Card => ({
-    id: r.id, noteId: r.note_id, kind: r.kind, suspended: !!r.suspended, retired: !!r.retired, sched: JSON.parse(r.sched),
+    id: r.id, noteId: r.note_id, kind: r.kind, suspended: !!r.suspended, retired: !!r.retired, stage: r.stage ?? 0, sched: JSON.parse(r.sched),
   });
   const rowToNote = (r: any): Note => ({
     id: r.id, deck: r.deck, model: r.model, fields: JSON.parse(r.fields), tags: JSON.parse(r.tags),
@@ -103,13 +111,14 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
           // suspension are overwritten only on a card still New. Every card here is generated
           // again, so it is never retired.
           await db.runAsync(
-            'INSERT INTO cards (id, note_id, kind, suspended, retired, sched, state, due) VALUES (?, ?, ?, ?, 0, ?, ?, ?) ' +
+            'INSERT INTO cards (id, note_id, kind, suspended, retired, stage, sched, state, due) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?) ' +
               'ON CONFLICT(id) DO UPDATE SET retired = 0, ' +
               'suspended = CASE WHEN cards.state = 0 THEN excluded.suspended ELSE cards.suspended END, ' +
+              'stage = CASE WHEN cards.state = 0 THEN excluded.stage ELSE cards.stage END, ' +
               'sched = CASE WHEN cards.state = 0 THEN excluded.sched ELSE cards.sched END, ' +
               'due = CASE WHEN cards.state = 0 THEN excluded.due ELSE cards.due END, ' +
               'state = CASE WHEN cards.state = 0 THEN excluded.state ELSE cards.state END',
-            c.id, c.noteId, c.kind, c.suspended ? 1 : 0, JSON.stringify(c.sched), c.sched.state, c.sched.due,
+            c.id, c.noteId, c.kind, c.suspended ? 1 : 0, c.stage, JSON.stringify(c.sched), c.sched.state, c.sched.due,
           );
         }
       });
@@ -133,8 +142,8 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async saveCard(c) {
       await db.runAsync(
-        'UPDATE cards SET suspended = ?, retired = ?, sched = ?, state = ?, due = ? WHERE id = ?',
-        c.suspended ? 1 : 0, c.retired ? 1 : 0, JSON.stringify(c.sched), c.sched.state, c.sched.due, c.id,
+        'UPDATE cards SET suspended = ?, retired = ?, stage = ?, sched = ?, state = ?, due = ? WHERE id = ?',
+        c.suspended ? 1 : 0, c.retired ? 1 : 0, c.stage, JSON.stringify(c.sched), c.sched.state, c.sched.due, c.id,
       );
     },
     async addReview(e: ReviewLogEntry) {
@@ -176,6 +185,13 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     async listNoteTypes() {
       const rows = await db.getAllAsync<{ name: string; data: string }>('SELECT * FROM note_types');
       return new Map(rows.map((r) => [r.name, JSON.parse(r.data) as NoteType]));
+    },
+    async listDeckSettings() {
+      const rows = await db.getAllAsync<{ deck: string; data: string }>('SELECT * FROM deck_settings');
+      return new Map(rows.map((r) => [r.deck, JSON.parse(r.data) as DeckSettings]));
+    },
+    async saveDeckSettings(deck, settings) {
+      await db.runAsync('INSERT OR REPLACE INTO deck_settings (deck, data) VALUES (?, ?)', deck, JSON.stringify(settings));
     },
     async listDeckParams() {
       const rows = await db.getAllAsync<{ deck: string; params: string }>('SELECT * FROM deck_params');

@@ -8,11 +8,14 @@ import { backupStatus } from './src/db/backup';
 import type { Repo } from './src/db/repo';
 import { openRepo, type BackupStore } from './src/db/sqliteRepo';
 import { Backup } from './src/ui/Backup';
+import { DeckOptions } from './src/ui/DeckOptions';
 import { DeckList } from './src/ui/DeckList';
 import { Import } from './src/ui/Import';
 import { Review } from './src/ui/Review';
 
-type Screen = { name: 'decks' } | { name: 'import' } | { name: 'backup' } | { name: 'review'; deck: string };
+type Screen =
+  | { name: 'decks' } | { name: 'import' } | { name: 'backup' }
+  | { name: 'review'; deck: string } | { name: 'deckOptions'; deck: string };
 
 export default function App() {
   const [repo, setRepo] = useState<(Repo & BackupStore) | null>(null);
@@ -25,14 +28,16 @@ export default function App() {
   const refresh = useCallback(async () => {
     if (!repo) return;
     const now = new Date();
-    const [notes, cards, allParams, studiedByDeck, lastBackup] = await Promise.all([
+    const [notes, cards, allParams, studiedByDeck, lastBackup, settings] = await Promise.all([
       repo.listNotes(), repo.listCards(), repo.listDeckParams(), repo.studiedToday(now, DAY_STARTS_AT_HOUR), repo.lastBackupAt(),
+      repo.listDeckSettings(),
     ]);
     const deckOf = new Map(notes.map((n) => [n.id, n.deck]));
     setDecks(deckRows({
       cardsByDeck: groupByDeck(cards, deckOf),
       limitsFor: (d) => deckLimits(paramsForDeck(d, allParams), { newPerDay: NEW_PER_DAY, reviewsPerDay: REVIEWS_PER_DAY }),
       studiedByDeck,
+      gateFor: (d) => settings.get(d)?.gateCap,
       dayStartsAtHour: DAY_STARTS_AT_HOUR,
       learnAheadMinutes: LEARN_AHEAD_MINUTES,
       now,
@@ -49,10 +54,12 @@ export default function App() {
       {screen.name === 'decks' && (
         <DeckList decks={decks} backup={backup} onOpen={(deck) => setScreen({ name: 'review', deck })} onImport={() => setScreen({ name: 'import' })}
           onBackup={() => setScreen({ name: 'backup' })}
+          onOptions={(deck) => setScreen({ name: 'deckOptions', deck })}
         />
       )}
       {screen.name === 'import' && <Import repo={repo} onDone={() => setScreen({ name: 'decks' })} />}
       {screen.name === 'backup' && <Backup store={repo} onDone={() => setScreen({ name: 'decks' })} />}
+      {screen.name === 'deckOptions' && <DeckOptions repo={repo} deck={screen.deck} onDone={() => setScreen({ name: 'decks' })} />}
       {screen.name === 'review' && <Review repo={repo} deck={screen.deck} onDone={() => setScreen({ name: 'decks' })} />}
       <StatusBar style="auto" />
     </>
