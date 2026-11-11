@@ -8,7 +8,7 @@ import {
   downloadCollection, markDownloaded, prepareForUpload, syncCollection, uploadCollection,
 } from '../../../src/anki/sync/collectionSync';
 import { pullMedia, type MediaState } from '../../../src/anki/sync/mediaSync';
-import { addAnkiNote, ankiDeckId, ankiNoteType, deleteAnkiNotes, editAnkiNote } from '../../../src/anki/noteWrites';
+import { addAnkiNote, ankiDeckId, ankiNoteType, deleteAnkiNotes, editAnkiNote, moveAnkiNote } from '../../../src/anki/noteWrites';
 import {
   CARD_ROW_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams,
 } from '../../../src/anki/writeback';
@@ -107,6 +107,8 @@ function franki(server: AnkiServer, collated: boolean) {
         await editAnkiNote(db, { nid: grown.nid, noteType: reversed, fields: { Front: 'Capital of Paraguay?', Back: 'Asunción' }, tags: ['geo'], ords: [0, 1], now });
         const victim = (await db.first<{ id: number }>("SELECT id FROM notes WHERE flds LIKE 'Capital of Bolivia?%'"))!.id;
         await deleteAnkiNotes(db, [victim], now);
+        const moved = (await db.first<{ id: number }>("SELECT id FROM notes WHERE flds LIKE 'Capital of Chile?%'"))!.id;
+        await moveAnkiNote(db, moved, (await ankiDeckId(db, '👅 Languages'))!, now);
         return { added: added.nid, grown: grown.nid, deleted: victim };
       });
     },
@@ -223,7 +225,7 @@ for (const collated of [true, false]) {
       expect((await me.dump()).notes.map((n) => n[0])).not.toContain(gone[0]);
     });
 
-    it('sends notes added, edited and deleted in Franki, which Anki then has exactly', async () => {
+    it('sends notes added, edited, moved and deleted in Franki, which Anki then has exactly', async () => {
       const { added, grown, deleted } = await me.editNotes();
       expect(await me.sync()).toMatchObject({ kind: 'synced', sent: 0 });
       desktop.run('sync');

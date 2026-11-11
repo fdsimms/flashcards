@@ -2,7 +2,7 @@ import { isOmnilanguage, makeCards } from '../core/cards';
 import type { Card, Note, NoteType } from '../core/types';
 import type { Repo } from '../db/repo';
 import { omnilanguageKindByOrd } from '../import/models';
-import { addAnkiNote, ankiDeckId, ankiNoteType, deleteAnkiNotes, editAnkiNote } from './noteWrites';
+import { addAnkiNote, ankiDeckId, ankiNoteType, deleteAnkiNotes, editAnkiNote, moveAnkiNote } from './noteWrites';
 import type { SyncDb } from './sync/collectionSync';
 
 /**
@@ -55,7 +55,8 @@ export async function saveNote(store: NoteStore, draft: NoteDraft, now: Date = n
   const noteType = noteTypes.get(draft.model);
   const existing = draft.id ? await store.getNote(draft.id) : undefined;
   if (draft.id && !existing) throw new NoteRefused("This note isn't in Franki any more.");
-  const note: Note = { id: draft.id ?? '', deck: existing?.deck ?? draft.deck, model: draft.model, fields: draft.fields, tags: draft.tags };
+  // An edit can move the note to another deck; it can't change its note type.
+  const note: Note = { id: draft.id ?? '', deck: draft.deck, model: existing?.model ?? draft.model, fields: draft.fields, tags: draft.tags };
   const generated = cardsFor(note, noteTypes, now);
   if (!generated.length) {
     throw new NoteRefused(isOmnilanguage(note)
@@ -75,6 +76,12 @@ export async function saveNote(store: NoteStore, draft: NoteDraft, now: Date = n
         const nt = await ankiNoteType(db, note.model, fieldOrder);
         if (!nt) return null;
         if (existing) {
+          // Moved first, so a card the edit adds lands in the new deck.
+          if (note.deck !== existing.deck) {
+            const deckId = await ankiDeckId(db, note.deck);
+            if (deckId === null) return { refused: `The Anki collection has no deck called "${note.deck}", so the note can't move there.` };
+            await moveAnkiNote(db, Number(existing.id), deckId, now);
+          }
           const added = await editAnkiNote(db, { nid: Number(existing.id), noteType: nt, fields: note.fields, tags: note.tags, ords, now });
           return { nid: Number(existing.id), added };
         }
@@ -83,6 +90,7 @@ export async function saveNote(store: NoteStore, draft: NoteDraft, now: Date = n
         const r = await addAnkiNote(db, { noteType: nt, deckId, fields: note.fields, tags: note.tags, ords, now });
         return { nid: r.nid, added: r.cards };
       }));
+      if (result && 'refused' in result) throw new NoteRefused(result.refused);
       if (result) {
         if (!existing) note.id = String(result.nid);
         ankiIds = new Map(result.added.map((c) => [c.ord, String(c.id)]));

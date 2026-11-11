@@ -171,6 +171,19 @@ export async function editAnkiNote(db: SyncDb, w: NoteWrite & { nid: number }): 
   return added;
 }
 
+/**
+ * Moves a note's cards to another deck, as Anki's Change Deck does: a card in a filtered deck
+ * keeps its place there and has its home deck changed, so it goes back to the new one.
+ */
+export async function moveAnkiNote(db: SyncDb, nid: number, deckId: number, now: Date): Promise<void> {
+  const nowSecs = Math.floor(now.getTime() / 1000);
+  await db.transaction(async () => {
+    await db.run('UPDATE cards SET did = ?, mod = ?, usn = -1 WHERE nid = ? AND odid = 0 AND did != ?', deckId, nowSecs, nid, deckId);
+    await db.run('UPDATE cards SET odid = ?, mod = ?, usn = -1 WHERE nid = ? AND odid != 0 AND odid != ?', deckId, nowSecs, nid, deckId);
+    await db.run('UPDATE col SET mod = ?', now.getTime());
+  });
+}
+
 /** Deletes notes with their cards, leaving the graves sync sends so Anki deletes them too. Review history stays, as in Anki. */
 export async function deleteAnkiNotes(db: SyncDb, nids: number[], now: Date): Promise<void> {
   await db.transaction(async () => {

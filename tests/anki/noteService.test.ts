@@ -95,3 +95,30 @@ describe('deleting a note', () => {
     db.close();
   });
 });
+
+describe('moving a note to another deck', () => {
+  it('moves its cards in Anki and the note in Franki, keeping their schedules', async () => {
+    const { store, anki } = await franki();
+    const note = [...store.notes.values()].find((n) => n.fields.Front === 'Capital of Peru?')!;
+    const before = [...store.cards.values()].filter((c) => c.noteId === note.id);
+    const target = '👅 Languages::🐘 ภาษาไทย';
+    await saveNote(store, { id: note.id, deck: target, model: note.model, fields: note.fields, tags: note.tags }, NOW);
+    expect((await store.getNote(note.id))!.deck).toBe(target);
+    expect([...store.cards.values()].filter((c) => c.noteId === note.id)).toEqual(before);
+    const db = await anki();
+    // Each card's home deck: a card in a filtered deck (the fixture has one) keeps its place there.
+    const homes = await db.all<{ home: number }>('SELECT CASE WHEN odid != 0 THEN odid ELSE did END AS home FROM cards WHERE nid = ?', Number(note.id));
+    const decks = await db.all<{ id: number; name: string }>('SELECT id, name FROM decks NOT INDEXED');
+    for (const { home } of homes) expect(decks.find((d) => d.id === home)!.name).toBe(target.split('::').join('\x1f'));
+    expect(await db.all('SELECT DISTINCT usn FROM cards WHERE nid = ?', Number(note.id))).toEqual([{ usn: -1 }]);
+    db.close();
+  });
+
+  it('refuses a deck the Anki collection doesn\'t have, changing nothing', async () => {
+    const { store } = await franki();
+    const note = [...store.notes.values()].find((n) => n.fields.Front === 'Capital of Peru?')!;
+    await expect(saveNote(store, { id: note.id, deck: 'Not in Anki', model: note.model, fields: note.fields, tags: note.tags }, NOW))
+      .rejects.toThrow(/no deck called "Not in Anki"/);
+    expect((await store.getNote(note.id))!.deck).toBe(note.deck);
+  });
+});

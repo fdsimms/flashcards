@@ -96,3 +96,15 @@ for (const unicase of [false, true]) {
     });
   });
 }
+
+describe.skipIf(!unicaseExtension())('moving a note between decks', () => {
+  it('changes a card\'s deck, or a filtered card\'s home deck', async () => {
+    const db = await collection(true);
+    const nid = (await db.first<{ id: number }>("SELECT id FROM notes WHERE flds LIKE 'Capital of Peru?%'"))!.id;
+    const [card] = await db.all<{ id: number }>('SELECT id FROM cards WHERE nid = ?', nid);
+    await db.run('UPDATE cards SET odid = did, did = 999 WHERE id = ?', card.id); // as if in a filtered deck
+    const { moveAnkiNote } = await import('../../src/anki/noteWrites');
+    await moveAnkiNote(db, nid, 42, NOW);
+    expect(await db.first('SELECT did, odid, usn FROM cards WHERE id = ?', card.id)).toEqual({ did: 999, odid: 42, usn: -1 });
+  });
+});

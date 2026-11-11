@@ -76,7 +76,7 @@ export function NoteEditor(props: {
   }, [stored, model, noteTypes]); // eslint-disable-line react-hooks/exhaustive-deps
   const duplicate = fieldNames[0] ? duplicateOf(notes, { id: original?.id, model, fields: stored }, fieldNames[0]) : undefined;
   const changed = editing
-    ? !!original && (JSON.stringify(stored) !== JSON.stringify(Object.fromEntries(fieldNames.map((f) => [f, original.fields[f] ?? ''])))
+    ? !!original && (deck !== original.deck || JSON.stringify(stored) !== JSON.stringify(Object.fromEntries(fieldNames.map((f) => [f, original.fields[f] ?? ''])))
       || parseTags(tags).join(' ') !== original.tags.join(' '))
     : Object.values(fields).some((v) => v.trim()) || tags.trim() !== '';
 
@@ -134,16 +134,17 @@ export function NoteEditor(props: {
         right={<HeaderAction label={busy ? 'Saving…' : 'Save'} onPress={save} accessibilityLabel="Save the note" />}
       >
         <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled">
-          {editing ? (
-            <Text style={{ ...type.subhead, color: c.textSecondary }}>{deck} · {model}</Text>
-          ) : (
-            <Card>
-              <Text style={{ ...type.headline, color: c.text }}>Deck</Text>
-              <Chips options={decks} value={deck} onChange={setDeck} />
-              <Text style={{ ...type.headline, color: c.text }}>Note type</Text>
+          <Card>
+            <Text style={{ ...type.headline, color: c.text }}>Deck</Text>
+            <Chips options={decks} value={deck} onChange={(d) => { setDeck(d); setError(undefined); }} />
+            <Text style={{ ...type.headline, color: c.text }}>Note type</Text>
+            {editing ? (
+              // A note keeps its note type, as in Anki without its Change Note Type tool.
+              <Text style={{ ...type.body, color: c.textSecondary }}>{model}</Text>
+            ) : (
               <Chips options={models} value={model} onChange={(m) => { setModel(m); setError(undefined); }} />
-            </Card>
-          )}
+            )}
+          </Card>
           <Card>
             {fieldNames.map((name) => (
               <Field
