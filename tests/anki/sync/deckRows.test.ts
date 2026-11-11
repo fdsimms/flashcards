@@ -1,12 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { parseJson } from '../../../src/anki/sync/json';
 import { deckCommon, deckKind, deckRow, nativeDeckName } from '../../../src/anki/sync/deckRows';
 import type { DeckJson } from '../../../src/anki/sync/protocol';
 import { decodeMessage, int, MessageWriter } from '../../../src/anki/protobuf';
 
 /** Each deck's JSON (as sync sends it) beside the blobs Anki stored for it (make-sync-fixtures.py). */
-const fixtures = JSON.parse(readFileSync(join(__dirname, '..', '..', 'fixtures', 'anki', 'sync-fixtures.json'), 'utf8')) as {
+const fixtures = parseJson(readFileSync(join(__dirname, '..', '..', 'fixtures', 'anki', 'sync-fixtures.json'), 'utf8')) as unknown as {
   decks: { json: DeckJson; common: string; kind: string }[];
 };
 const b64 = (b: Uint8Array) => Buffer.from(b).toString('base64');

@@ -117,7 +117,7 @@
   {
    "json": {
     "id": 1794408857991,
-    "mod": 1794424937,
+    "mod": 1794425111,
     "name": "🧠 Trivia",
     "usn": -1,
     "lrnToday": [
@@ -198,8 +198,8 @@
   },
   {
    "json": {
-    "id": 1794424937176,
-    "mod": 1794424937,
+    "id": 1794425111538,
+    "mod": 1794425111,
     "name": "Polski",
     "usn": -1,
     "lrnToday": [
@@ -236,8 +236,8 @@
   },
   {
    "json": {
-    "id": 1794424937177,
-    "mod": 1794424937,
+    "id": 1794425111539,
+    "mod": 1794425111,
     "name": "Polski::Odmiana",
     "usn": -1,
     "lrnToday": [
@@ -287,8 +287,8 @@
   },
   {
    "json": {
-    "id": 1794424937183,
-    "mod": 1794424937,
+    "id": 1794425111546,
+    "mod": 1794425111,
     "name": "Cram",
     "usn": -1,
     "lrnToday": [
@@ -333,6 +333,1083 @@
    },
    "common": "CAEQAQ==",
    "kind": "EiYSEQoLZGVjazpUcml2aWEQMhgBEgwKBmlzOmR1ZRAUGAYw2AQ4Hg=="
+  }
+ ],
+ "deck_configs": [
+  {
+   "json": {
+    "id": 1,
+    "mod": 0,
+    "name": "Default",
+    "usn": 0,
+    "maxTaken": 60,
+    "autoplay": true,
+    "timer": 0,
+    "replayq": true,
+    "new": {
+     "bury": false,
+     "delays": [
+      1.0,
+      10.0
+     ],
+     "initialFactor": 2500,
+     "ints": [
+      1,
+      4,
+      0
+     ],
+     "order": 1,
+     "perDay": 20
+    },
+    "rev": {
+     "bury": false,
+     "ease4": 1.3,
+     "ivlFct": 1.0,
+     "maxIvl": 36500,
+     "perDay": 200,
+     "hardFactor": 1.2
+    },
+    "lapse": {
+     "delays": [
+      10.0
+     ],
+     "leechAction": 1,
+     "leechFails": 8,
+     "minInt": 1,
+     "mult": 0.0
+    },
+    "dyn": false,
+    "newMix": 0,
+    "newPerDayMinimum": 0,
+    "interdayLearningMix": 0,
+    "reviewOrder": 0,
+    "newSortOrder": 0,
+    "newGatherPriority": 0,
+    "buryInterdayLearning": false,
+    "fsrsWeights": [],
+    "fsrsParams5": [],
+    "fsrsParams6": [],
+    "desiredRetention": 0.9,
+    "ignoreRevlogsBeforeDate": "",
+    "easyDaysPercentages": [
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "stopTimerOnAnswer": false,
+    "secondsToShowQuestion": 0.0,
+    "secondsToShowAnswer": 0.0,
+    "questionAction": 0,
+    "answerAction": 0,
+    "waitForAudio": true,
+    "sm2Retention": 0.9,
+    "weightSearch": ""
+   },
+   "config": "CggAAIA/AAAgQRIEAAAgQSIcAACAPwAAgD8AAIA/AACAPwAAgD8AAIA/AACAP0gUUMgBXQAAIEBlZmamP22amZk/fQAAgD+AAZSdAogBAZABAZgBBKgBAbABCMABPK0CZmZmP8UCZmZmP+ACAQ=="
+  },
+  {
+   "json": {
+    "id": 1794408857993,
+    "mod": 1794408857,
+    "name": "Thai preset",
+    "usn": -1,
+    "maxTaken": 60,
+    "autoplay": true,
+    "timer": 0,
+    "replayq": true,
+    "new": {
+     "bury": false,
+     "delays": [
+      1.0,
+      10.0
+     ],
+     "initialFactor": 2500,
+     "ints": [
+      1,
+      4,
+      0
+     ],
+     "order": 1,
+     "perDay": 1
+    },
+    "rev": {
+     "bury": false,
+     "ease4": 1.3,
+     "ivlFct": 1.0,
+     "maxIvl": 3650,
+     "perDay": 150,
+     "hardFactor": 1.2
+    },
+    "lapse": {
+     "delays": [
+      10.0
+     ],
+     "leechAction": 1,
+     "leechFails": 8,
+     "minInt": 1,
+     "mult": 0.0
+    },
+    "dyn": false,
+    "newMix": 0,
+    "newPerDayMinimum": 0,
+    "interdayLearningMix": 0,
+    "reviewOrder": 0,
+    "newSortOrder": 0,
+    "newGatherPriority": 0,
+    "buryInterdayLearning": false,
+    "fsrsWeights": [],
+    "fsrsParams5": [],
+    "fsrsParams6": [
+     0.212,
+     1.2931,
+     2.3065,
+     8.2956,
+     6.4133,
+     0.8334,
+     3.0194,
+     0.001,
+     1.8722,
+     0.1666,
+     0.796,
+     1.4835,
+     0.0614,
+     0.2629,
+     1.6483,
+     0.6014,
+     1.8729,
+     0.5425,
+     0.0912,
+     0.0658,
+     0.1542
+    ],
+    "desiredRetention": 0.85,
+    "ignoreRevlogsBeforeDate": "",
+    "easyDaysPercentages": [
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "stopTimerOnAnswer": false,
+    "secondsToShowQuestion": 0.0,
+    "secondsToShowAnswer": 0.0,
+    "questionAction": 0,
+    "answerAction": 0,
+    "waitForAudio": true,
+    "sm2Retention": 0.9,
+    "weightSearch": ""
+   },
+   "config": "CggAAIA/AAAgQRIEAAAgQSIcAACAPwAAgD8AAIA/AACAPwAAgD8AAIA/AACAPzJUhxZZPk2EpT+ynRNAx7oEQcE5zUC0WVU/2T1BQG8SgzpApO8/MZkqPqjGSz9U470/kX57PdSahj5/+9I/WvUZPzC77z9I4Qo/Ece6PSfChj2b5h0+SAFQlgFdAAAgQGVmZqY/bZqZmT99AACAP4ABwhyIAQGQAQGYAQSoAQGwAQjAATytApqZWT/FAmZmZj/gAgE="
+  },
+  {
+   "json": {
+    "id": 1794425111548,
+    "mod": 1794425111,
+    "name": "Everything set",
+    "usn": -1,
+    "maxTaken": 45,
+    "autoplay": false,
+    "timer": 1,
+    "replayq": false,
+    "new": {
+     "bury": true,
+     "delays": [
+      2.5,
+      30.0,
+      1440.0
+     ],
+     "initialFactor": 2300,
+     "ints": [
+      2,
+      5,
+      0
+     ],
+     "order": 0,
+     "perDay": 7,
+     "addonNew": "x"
+    },
+    "rev": {
+     "bury": true,
+     "ease4": 1.25,
+     "ivlFct": 0.9,
+     "maxIvl": 3650,
+     "perDay": 150,
+     "hardFactor": 1.1
+    },
+    "lapse": {
+     "delays": [
+      5.0
+     ],
+     "leechAction": 0,
+     "leechFails": 6,
+     "minInt": 2,
+     "mult": 0.3
+    },
+    "dyn": false,
+    "newMix": 1,
+    "newPerDayMinimum": 2,
+    "interdayLearningMix": 2,
+    "reviewOrder": 7,
+    "newSortOrder": 3,
+    "newGatherPriority": 5,
+    "buryInterdayLearning": true,
+    "fsrsWeights": [],
+    "fsrsParams5": [],
+    "fsrsParams6": [
+     0.21,
+     1.29,
+     2.3,
+     8.29,
+     6.41,
+     0.83,
+     3.02,
+     0.001,
+     1.87,
+     0.17,
+     0.8,
+     1.48,
+     0.06,
+     0.26,
+     1.65,
+     0.6,
+     1.87,
+     0.54,
+     0.09,
+     0.07,
+     0.15
+    ],
+    "desiredRetention": 0.87,
+    "ignoreRevlogsBeforeDate": "2025-01-01",
+    "easyDaysPercentages": [
+     1.0,
+     1.0,
+     0.5,
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "stopTimerOnAnswer": true,
+    "secondsToShowQuestion": 3.5,
+    "secondsToShowAnswer": 2.0,
+    "questionAction": 1,
+    "answerAction": 2,
+    "waitForAudio": false,
+    "sm2Retention": 0.88,
+    "weightSearch": "deck:Polski",
+    "addonTop": {
+     "a": 1
+    }
+   },
+   "config": "CgwAACBAAADwQQAAtEQSBAAAoEAiHAAAgD8AAIA/AAAAPwAAgD8AAIA/AACAPwAAAAAyVD0KVz64HqU/MzMTQNejBEG4Hs1A4XpUP65HQUBvEoM6KVzvP3sULj7NzEw/pHC9P4/CdT24HoU+MzPTP5qZGT8pXO8/cT0KP+xRuD0pXI89mpkZPkgHUJYBXTMzE0BlAACgP23NzIw/dZqZmT59ZmZmP4ABwhyIAQKQAQKYAQWgAQGwAQa4AQHAAS3IAQHQAQHYAQHgAQHoAQHwAQH4AQKAAgOIAgeQAgWYAgKgAgGtAlK4Xj+wAgHFAq5HYT/NAgAAYEDVAgAAAEDYAgLqAgtkZWNrOlBvbHNrafICCjIwMjUtMDEtMDH6Dyt7Im5ldyI6eyJhZGRvbk5ldyI6IngifSwiYWRkb25Ub3AiOnsiYSI6MX19"
+  }
+ ],
+ "notetypes": [
+  {
+   "json": {
+    "id": 1794408857890,
+    "name": "Basic",
+    "type": 0,
+    "mod": 0,
+    "usn": 0,
+    "sortf": 0,
+    "did": null,
+    "tmpls": [
+     {
+      "name": "Card 1",
+      "ord": 0,
+      "qfmt": "{{Front}}",
+      "afmt": "{{FrontSide}}\n\n<hr id=answer>\n\n{{Back}}",
+      "bqfmt": "",
+      "bafmt": "",
+      "did": null,
+      "bfont": "",
+      "bsize": 0,
+      "id": 5373247829087962495
+     }
+    ],
+    "flds": [
+     {
+      "name": "Front",
+      "ord": 0,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": -349891133280338259,
+      "tag": null,
+      "preventDeletion": false
+     },
+     {
+      "name": "Back",
+      "ord": 1,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": 4702613774933266801,
+      "tag": null,
+      "preventDeletion": false
+     }
+    ],
+    "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+    "latexPre": "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n",
+    "latexPost": "\\end{document}",
+    "latexsvg": false,
+    "req": [
+     [
+      0,
+      "any",
+      [
+       0
+      ]
+     ]
+    ],
+    "originalStockKind": 1
+   },
+   "config": "GpQBLmNhcmQgewogICAgZm9udC1mYW1pbHk6IGFyaWFsOwogICAgZm9udC1zaXplOiAyMHB4OwogICAgbGluZS1oZWlnaHQ6IDEuNTsKICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgIGNvbG9yOiBibGFjazsKICAgIGJhY2tncm91bmQtY29sb3I6IHdoaXRlOwp9CiqyAVxkb2N1bWVudGNsYXNzWzEycHRde2FydGljbGV9ClxzcGVjaWFse3BhcGVyc2l6ZT0zaW4sNWlufQpcdXNlcGFja2FnZVt1dGY4XXtpbnB1dGVuY30KXHVzZXBhY2thZ2V7YW1zc3ltYixhbXNtYXRofQpccGFnZXN0eWxle2VtcHR5fQpcc2V0bGVuZ3Roe1xwYXJpbmRlbnR9ezBpbn0KXGJlZ2lue2RvY3VtZW50fQoyDlxlbmR7ZG9jdW1lbnR9QgUQARoBAEgB",
+   "fields": [
+    [
+     0,
+     "Front",
+     "GgVBcmlhbCAUSK39kNbj+7uS+wE="
+    ],
+    [
+     1,
+     "Back",
+     "GgVBcmlhbCAUSPGihpaBysKhQQ=="
+    ]
+   ],
+   "templates": [
+    [
+     0,
+     "Card 1",
+     "Cgl7e0Zyb250fX0SJ3t7RnJvbnRTaWRlfX0KCjxociBpZD1hbnN3ZXI+Cgp7e0JhY2t9fUD/irX36I3nyEo="
+    ]
+   ]
+  },
+  {
+   "json": {
+    "id": 1794408857891,
+    "name": "Basic (and reversed card)",
+    "type": 0,
+    "mod": 0,
+    "usn": 0,
+    "sortf": 0,
+    "did": null,
+    "tmpls": [
+     {
+      "name": "Card 1",
+      "ord": 0,
+      "qfmt": "{{Front}}",
+      "afmt": "{{FrontSide}}\n\n<hr id=answer>\n\n{{Back}}",
+      "bqfmt": "",
+      "bafmt": "",
+      "did": null,
+      "bfont": "",
+      "bsize": 0,
+      "id": -1492807369448720921
+     },
+     {
+      "name": "Card 2",
+      "ord": 1,
+      "qfmt": "{{Back}}",
+      "afmt": "{{FrontSide}}\n\n<hr id=answer>\n\n{{Front}}",
+      "bqfmt": "",
+      "bafmt": "",
+      "did": null,
+      "bfont": "",
+      "bsize": 0,
+      "id": 4681624154238612514
+     }
+    ],
+    "flds": [
+     {
+      "name": "Front",
+      "ord": 0,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": -177319858742879717,
+      "tag": null,
+      "preventDeletion": false
+     },
+     {
+      "name": "Back",
+      "ord": 1,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": -456205487287097286,
+      "tag": null,
+      "preventDeletion": false
+     }
+    ],
+    "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+    "latexPre": "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n",
+    "latexPost": "\\end{document}",
+    "latexsvg": false,
+    "req": [
+     [
+      0,
+      "any",
+      [
+       0
+      ]
+     ],
+     [
+      1,
+      "any",
+      [
+       1
+      ]
+     ]
+    ],
+    "originalStockKind": 2
+   },
+   "config": "GpQBLmNhcmQgewogICAgZm9udC1mYW1pbHk6IGFyaWFsOwogICAgZm9udC1zaXplOiAyMHB4OwogICAgbGluZS1oZWlnaHQ6IDEuNTsKICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgIGNvbG9yOiBibGFjazsKICAgIGJhY2tncm91bmQtY29sb3I6IHdoaXRlOwp9CiqyAVxkb2N1bWVudGNsYXNzWzEycHRde2FydGljbGV9ClxzcGVjaWFse3BhcGVyc2l6ZT0zaW4sNWlufQpcdXNlcGFja2FnZVt1dGY4XXtpbnB1dGVuY30KXHVzZXBhY2thZ2V7YW1zc3ltYixhbXNtYXRofQpccGFnZXN0eWxle2VtcHR5fQpcc2V0bGVuZ3Roe1xwYXJpbmRlbnR9ezBpbn0KXGJlZ2lue2RvY3VtZW50fQoyDlxlbmR7ZG9jdW1lbnR9QgUQARoBAEIHCAEQARoBAUgC",
+   "fields": [
+    [
+     0,
+     "Front",
+     "GgVBcmlhbCAUSJu0iMDykILF/QE="
+    ],
+    [
+     1,
+     "Back",
+     "GgVBcmlhbCAUSLrQrI3s8M7V+QE="
+    ]
+   ],
+   "templates": [
+    [
+     0,
+     "Card 1",
+     "Cgl7e0Zyb250fX0SJ3t7RnJvbnRTaWRlfX0KCjxociBpZD1hbnN3ZXI+Cgp7e0JhY2t9fUDn67GPtfOepOsB"
+    ],
+    [
+     1,
+     "Card 2",
+     "Cgh7e0JhY2t9fRIoe3tGcm9udFNpZGV9fQoKPGhyIGlkPWFuc3dlcj4KCnt7RnJvbnR9fUCi6J/q0oue/EA="
+    ]
+   ]
+  },
+  {
+   "json": {
+    "id": 1794408857892,
+    "name": "Basic (optional reversed card)",
+    "type": 0,
+    "mod": 0,
+    "usn": 0,
+    "sortf": 0,
+    "did": null,
+    "tmpls": [
+     {
+      "name": "Card 1",
+      "ord": 0,
+      "qfmt": "{{Front}}",
+      "afmt": "{{FrontSide}}\n\n<hr id=answer>\n\n{{Back}}",
+      "bqfmt": "",
+      "bafmt": "",
+      "did": null,
+      "bfont": "",
+      "bsize": 0,
+      "id": -7706984058225754553
+     },
+     {
+      "name": "Card 2",
+      "ord": 1,
+      "qfmt": "{{#Add Reverse}}{{Back}}{{/Add Reverse}}",
+      "afmt": "{{FrontSide}}\n\n<hr id=answer>\n\n{{Front}}",
+      "bqfmt": "",
+      "bafmt": "",
+      "did": null,
+      "bfont": "",
+      "bsize": 0,
+      "id": -4471738715049543895
+     }
+    ],
+    "flds": [
+     {
+      "name": "Front",
+      "ord": 0,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": -5515111857638516655,
+      "tag": null,
+      "preventDeletion": false
+     },
+     {
+      "name": "Back",
+      "ord": 1,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": 8549653289682288277,
+      "tag": null,
+      "preventDeletion": false
+     },
+     {
+      "name": "Add Reverse",
+      "ord": 2,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": -1248443824195795156,
+      "tag": null,
+      "preventDeletion": false
+     }
+    ],
+    "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+    "latexPre": "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n",
+    "latexPost": "\\end{document}",
+    "latexsvg": false,
+    "req": [
+     [
+      0,
+      "any",
+      [
+       0
+      ]
+     ],
+     [
+      1,
+      "all",
+      [
+       1,
+       2
+      ]
+     ]
+    ],
+    "originalStockKind": 3
+   },
+   "config": "GpQBLmNhcmQgewogICAgZm9udC1mYW1pbHk6IGFyaWFsOwogICAgZm9udC1zaXplOiAyMHB4OwogICAgbGluZS1oZWlnaHQ6IDEuNTsKICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgIGNvbG9yOiBibGFjazsKICAgIGJhY2tncm91bmQtY29sb3I6IHdoaXRlOwp9CiqyAVxkb2N1bWVudGNsYXNzWzEycHRde2FydGljbGV9ClxzcGVjaWFse3BhcGVyc2l6ZT0zaW4sNWlufQpcdXNlcGFja2FnZVt1dGY4XXtpbnB1dGVuY30KXHVzZXBhY2thZ2V7YW1zc3ltYixhbXNtYXRofQpccGFnZXN0eWxle2VtcHR5fQpcc2V0bGVuZ3Roe1xwYXJpbmRlbnR9ezBpbn0KXGJlZ2lue2RvY3VtZW50fQoyDlxlbmR7ZG9jdW1lbnR9QgUQARoBAEIICAEQAhoCAQJIAw==",
+   "fields": [
+    [
+     0,
+     "Front",
+     "GgVBcmlhbCAUSNGwpefF35i7swE="
+    ],
+    [
+     1,
+     "Back",
+     "GgVBcmlhbCAUSJX9jKLni57Tdg=="
+    ],
+    [
+     2,
+     "Add Reverse",
+     "GgVBcmlhbCAUSKyOnsbN3qjW7gE="
+    ]
+   ],
+   "templates": [
+    [
+     0,
+     "Card 1",
+     "Cgl7e0Zyb250fX0SJ3t7RnJvbnRTaWRlfX0KCjxociBpZD1hbnN3ZXI+Cgp7e0JhY2t9fUDH/Ou+0drShZUB"
+    ],
+    [
+     1,
+     "Card 2",
+     "Cih7eyNBZGQgUmV2ZXJzZX19e3tCYWNrfX17ey9BZGQgUmV2ZXJzZX19Eih7e0Zyb250U2lkZX19Cgo8aHIgaWQ9YW5zd2VyPgoKe3tGcm9udH19QKnu8MjLqsz4wQE="
+    ]
+   ]
+  },
+  {
+   "json": {
+    "id": 1794408857893,
+    "name": "Basic (type in the answer)",
+    "type": 0,
+    "mod": 0,
+    "usn": 0,
+    "sortf": 0,
+    "did": null,
+    "tmpls": [
+     {
+      "name": "Card 1",
+      "ord": 0,
+      "qfmt": "{{Front}}\n\n{{type:Back}}",
+      "afmt": "{{Front}}\n\n<hr id=answer>\n\n{{type:Back}}",
+      "bqfmt": "",
+      "bafmt": "",
+      "did": null,
+      "bfont": "",
+      "bsize": 0,
+      "id": -189928389581364918
+     }
+    ],
+    "flds": [
+     {
+      "name": "Front",
+      "ord": 0,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": 2673858917639408541,
+      "tag": null,
+      "preventDeletion": false
+     },
+     {
+      "name": "Back",
+      "ord": 1,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": 7624111956440371278,
+      "tag": null,
+      "preventDeletion": false
+     }
+    ],
+    "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+    "latexPre": "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n",
+    "latexPost": "\\end{document}",
+    "latexsvg": false,
+    "req": [
+     [
+      0,
+      "any",
+      [
+       0,
+       1
+      ]
+     ]
+    ],
+    "originalStockKind": 4
+   },
+   "config": "GpQBLmNhcmQgewogICAgZm9udC1mYW1pbHk6IGFyaWFsOwogICAgZm9udC1zaXplOiAyMHB4OwogICAgbGluZS1oZWlnaHQ6IDEuNTsKICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgIGNvbG9yOiBibGFjazsKICAgIGJhY2tncm91bmQtY29sb3I6IHdoaXRlOwp9CiqyAVxkb2N1bWVudGNsYXNzWzEycHRde2FydGljbGV9ClxzcGVjaWFse3BhcGVyc2l6ZT0zaW4sNWlufQpcdXNlcGFja2FnZVt1dGY4XXtpbnB1dGVuY30KXHVzZXBhY2thZ2V7YW1zc3ltYixhbXNtYXRofQpccGFnZXN0eWxle2VtcHR5fQpcc2V0bGVuZ3Roe1xwYXJpbmRlbnR9ezBpbn0KXGJlZ2lue2RvY3VtZW50fQoyDlxlbmR7ZG9jdW1lbnR9QgYQARoCAAFIBA==",
+   "fields": [
+    [
+     0,
+     "Front",
+     "GgVBcmlhbCAUSJ2XoavNkN2NJQ=="
+    ],
+    [
+     1,
+     "Back",
+     "GgVBcmlhbCAUSM6gv9vhrZLnaQ=="
+    ]
+   ],
+   "templates": [
+    [
+     0,
+     "Card 1",
+     "Chh7e0Zyb250fX0KCnt7dHlwZTpCYWNrfX0SKHt7RnJvbnR9fQoKPGhyIGlkPWFuc3dlcj4KCnt7dHlwZTpCYWNrfX1AysL28aykz679AQ=="
+    ]
+   ]
+  },
+  {
+   "json": {
+    "id": 1794408857894,
+    "name": "Cloze",
+    "type": 1,
+    "mod": 0,
+    "usn": 0,
+    "sortf": 0,
+    "did": null,
+    "tmpls": [
+     {
+      "name": "Cloze",
+      "ord": 0,
+      "qfmt": "{{cloze:Text}}",
+      "afmt": "{{cloze:Text}}<br>\n{{Back Extra}}",
+      "bqfmt": "",
+      "bafmt": "",
+      "did": null,
+      "bfont": "",
+      "bsize": 0,
+      "id": -2189229937795313368
+     }
+    ],
+    "flds": [
+     {
+      "name": "Text",
+      "ord": 0,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": 5750087640527992431,
+      "tag": 0,
+      "preventDeletion": true
+     },
+     {
+      "name": "Back Extra",
+      "ord": 1,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": -256904328062251570,
+      "tag": 1,
+      "preventDeletion": false
+     }
+    ],
+    "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n.cloze {\n    font-weight: bold;\n    color: blue;\n}\n.nightMode .cloze {\n    color: lightblue;\n}\n",
+    "latexPre": "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n",
+    "latexPost": "\\end{document}",
+    "latexsvg": false,
+    "req": [
+     [
+      0,
+      "any",
+      [
+       0
+      ]
+     ]
+    ],
+    "originalStockKind": 5
+   },
+   "config": "CAEa8wEuY2FyZCB7CiAgICBmb250LWZhbWlseTogYXJpYWw7CiAgICBmb250LXNpemU6IDIwcHg7CiAgICBsaW5lLWhlaWdodDogMS41OwogICAgdGV4dC1hbGlnbjogY2VudGVyOwogICAgY29sb3I6IGJsYWNrOwogICAgYmFja2dyb3VuZC1jb2xvcjogd2hpdGU7Cn0KLmNsb3plIHsKICAgIGZvbnQtd2VpZ2h0OiBib2xkOwogICAgY29sb3I6IGJsdWU7Cn0KLm5pZ2h0TW9kZSAuY2xvemUgewogICAgY29sb3I6IGxpZ2h0Ymx1ZTsKfQoqsgFcZG9jdW1lbnRjbGFzc1sxMnB0XXthcnRpY2xlfQpcc3BlY2lhbHtwYXBlcnNpemU9M2luLDVpbn0KXHVzZXBhY2thZ2VbdXRmOF17aW5wdXRlbmN9Clx1c2VwYWNrYWdle2Ftc3N5bWIsYW1zbWF0aH0KXHBhZ2VzdHlsZXtlbXB0eX0KXHNldGxlbmd0aHtccGFyaW5kZW50fXswaW59ClxiZWdpbntkb2N1bWVudH0KMg5cZW5ke2RvY3VtZW50fUIFEAEaAQBIBQ==",
+   "fields": [
+    [
+     0,
+     "Text",
+     "GgVBcmlhbCAUSO/so8jmx5rmT1AAWAE="
+    ],
+    [
+     1,
+     "Back Extra",
+     "GgVBcmlhbCAUSM6b24T/29K3/AFQAQ=="
+    ]
+   ],
+   "templates": [
+    [
+     0,
+     "Cloze",
+     "Cg57e2Nsb3plOlRleHR9fRIhe3tjbG96ZTpUZXh0fX08YnI+Cnt7QmFjayBFeHRyYX19QKiivdCH35LP4QE="
+    ]
+   ]
+  },
+  {
+   "json": {
+    "id": 1794408857895,
+    "name": "Image Occlusion",
+    "type": 1,
+    "mod": 0,
+    "usn": 0,
+    "sortf": 0,
+    "did": null,
+    "tmpls": [
+     {
+      "name": "Image Occlusion",
+      "ord": 0,
+      "qfmt": "{{#Header}}<div>{{Header}}</div>{{/Header}}\n<div style=\"display: none\">{{cloze:Occlusion}}</div>\n<div id=\"err\"></div>\n<div id=\"image-occlusion-container\">\n    {{Image}}\n    <canvas id=\"image-occlusion-canvas\"></canvas>\n</div>\n<script>\ntry {\n    anki.imageOcclusion.setup();\n} catch (exc) {\n    document.getElementById(\"err\").innerHTML = `Error loading image occlusion. Is your Anki version up to date?<br><br>${exc}`;\n}\n</script>\n",
+      "afmt": "{{#Header}}<div>{{Header}}</div>{{/Header}}\n<div style=\"display: none\">{{cloze:Occlusion}}</div>\n<div id=\"err\"></div>\n<div id=\"image-occlusion-container\">\n    {{Image}}\n    <canvas id=\"image-occlusion-canvas\"></canvas>\n</div>\n<script>\ntry {\n    anki.imageOcclusion.setup();\n} catch (exc) {\n    document.getElementById(\"err\").innerHTML = `Error loading image occlusion. Is your Anki version up to date?<br><br>${exc}`;\n}\n</script>\n\n<div><button id=\"toggle\">Toggle Masks</button></div>\n{{#Back Extra}}<div>{{Back Extra}}</div>{{/Back Extra}}\n",
+      "bqfmt": "",
+      "bafmt": "",
+      "did": null,
+      "bfont": "",
+      "bsize": 0,
+      "id": -4402443171369217543
+     }
+    ],
+    "flds": [
+     {
+      "name": "Occlusion",
+      "ord": 0,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": 3861602255196091302,
+      "tag": 0,
+      "preventDeletion": true
+     },
+     {
+      "name": "Image",
+      "ord": 1,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": -3320290917147497214,
+      "tag": 1,
+      "preventDeletion": true
+     },
+     {
+      "name": "Header",
+      "ord": 2,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": 7228858291639734926,
+      "tag": 2,
+      "preventDeletion": true
+     },
+     {
+      "name": "Back Extra",
+      "ord": 3,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": 875563257490585910,
+      "tag": 3,
+      "preventDeletion": true
+     },
+     {
+      "name": "Comments",
+      "ord": 4,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": 7876833396155765575,
+      "tag": 4,
+      "preventDeletion": false
+     }
+    ],
+    "css": "#image-occlusion-canvas {\n    --inactive-shape-color: #ffeba2;\n    --active-shape-color: #ff8e8e;\n    --inactive-shape-border: 1px #212121;\n    --active-shape-border: 1px #212121;\n    --highlight-shape-color: #ff8e8e00;\n    --highlight-shape-border: 1px #ff8e8e;\n}\n\n.card {\n    font-family: arial;\n    font-size: 20px;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+    "latexPre": "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n",
+    "latexPost": "\\end{document}",
+    "latexsvg": false,
+    "req": [
+     [
+      0,
+      "any",
+      [
+       0,
+       1,
+       2
+      ]
+     ]
+    ],
+    "originalStockKind": 6
+   },
+   "config": "CAEaiAMjaW1hZ2Utb2NjbHVzaW9uLWNhbnZhcyB7CiAgICAtLWluYWN0aXZlLXNoYXBlLWNvbG9yOiAjZmZlYmEyOwogICAgLS1hY3RpdmUtc2hhcGUtY29sb3I6ICNmZjhlOGU7CiAgICAtLWluYWN0aXZlLXNoYXBlLWJvcmRlcjogMXB4ICMyMTIxMjE7CiAgICAtLWFjdGl2ZS1zaGFwZS1ib3JkZXI6IDFweCAjMjEyMTIxOwogICAgLS1oaWdobGlnaHQtc2hhcGUtY29sb3I6ICNmZjhlOGUwMDsKICAgIC0taGlnaGxpZ2h0LXNoYXBlLWJvcmRlcjogMXB4ICNmZjhlOGU7Cn0KCi5jYXJkIHsKICAgIGZvbnQtZmFtaWx5OiBhcmlhbDsKICAgIGZvbnQtc2l6ZTogMjBweDsKICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgIGNvbG9yOiBibGFjazsKICAgIGJhY2tncm91bmQtY29sb3I6IHdoaXRlOwp9CiqyAVxkb2N1bWVudGNsYXNzWzEycHRde2FydGljbGV9ClxzcGVjaWFse3BhcGVyc2l6ZT0zaW4sNWlufQpcdXNlcGFja2FnZVt1dGY4XXtpbnB1dGVuY30KXHVzZXBhY2thZ2V7YW1zc3ltYixhbXNtYXRofQpccGFnZXN0eWxle2VtcHR5fQpcc2V0bGVuZ3Roe1xwYXJpbmRlbnR9ezBpbn0KXGJlZ2lue2RvY3VtZW50fQoyDlxlbmR7ZG9jdW1lbnR9QgcQARoDAAECSAY=",
+   "fields": [
+    [
+     0,
+     "Occlusion",
+     "GgVBcmlhbCAUSKbnveap2crLNVAAWAE="
+    ],
+    [
+     1,
+     "Image",
+     "GgVBcmlhbCAUSILa3qOKoP310QFQAVgB"
+    ],
+    [
+     2,
+     "Header",
+     "GgVBcmlhbCAUSI6ly+aOioSpZFACWAE="
+    ],
+    [
+     3,
+     "Back Extra",
+     "GgVBcmlhbCAUSLby8OjMhKiTDFADWAE="
+    ],
+    [
+     4,
+     "Comments",
+     "GgVBcmlhbCAUSMemsabZx4iobVAE"
+    ]
+   ],
+   "templates": [
+    [
+     0,
+     "Image Occlusion",
+     "Cq4De3sjSGVhZGVyfX08ZGl2Pnt7SGVhZGVyfX08L2Rpdj57ey9IZWFkZXJ9fQo8ZGl2IHN0eWxlPSJkaXNwbGF5OiBub25lIj57e2Nsb3plOk9jY2x1c2lvbn19PC9kaXY+CjxkaXYgaWQ9ImVyciI+PC9kaXY+CjxkaXYgaWQ9ImltYWdlLW9jY2x1c2lvbi1jb250YWluZXIiPgogICAge3tJbWFnZX19CiAgICA8Y2FudmFzIGlkPSJpbWFnZS1vY2NsdXNpb24tY2FudmFzIj48L2NhbnZhcz4KPC9kaXY+CjxzY3JpcHQ+CnRyeSB7CiAgICBhbmtpLmltYWdlT2NjbHVzaW9uLnNldHVwKCk7Cn0gY2F0Y2ggKGV4YykgewogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoImVyciIpLmlubmVySFRNTCA9IGBFcnJvciBsb2FkaW5nIGltYWdlIG9jY2x1c2lvbi4gSXMgeW91ciBBbmtpIHZlcnNpb24gdXAgdG8gZGF0ZT88YnI+PGJyPiR7ZXhjfWA7Cn0KPC9zY3JpcHQ+ChKcBHt7I0hlYWRlcn19PGRpdj57e0hlYWRlcn19PC9kaXY+e3svSGVhZGVyfX0KPGRpdiBzdHlsZT0iZGlzcGxheTogbm9uZSI+e3tjbG96ZTpPY2NsdXNpb259fTwvZGl2Pgo8ZGl2IGlkPSJlcnIiPjwvZGl2Pgo8ZGl2IGlkPSJpbWFnZS1vY2NsdXNpb24tY29udGFpbmVyIj4KICAgIHt7SW1hZ2V9fQogICAgPGNhbnZhcyBpZD0iaW1hZ2Utb2NjbHVzaW9uLWNhbnZhcyI+PC9jYW52YXM+CjwvZGl2Pgo8c2NyaXB0Pgp0cnkgewogICAgYW5raS5pbWFnZU9jY2x1c2lvbi5zZXR1cCgpOwp9IGNhdGNoIChleGMpIHsKICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJlcnIiKS5pbm5lckhUTUwgPSBgRXJyb3IgbG9hZGluZyBpbWFnZSBvY2NsdXNpb24uIElzIHlvdXIgQW5raSB2ZXJzaW9uIHVwIHRvIGRhdGU/PGJyPjxicj4ke2V4Y31gOwp9Cjwvc2NyaXB0PgoKPGRpdj48YnV0dG9uIGlkPSJ0b2dnbGUiPlRvZ2dsZSBNYXNrczwvYnV0dG9uPjwvZGl2Pgp7eyNCYWNrIEV4dHJhfX08ZGl2Pnt7QmFjayBFeHRyYX19PC9kaXY+e3svQmFjayBFeHRyYX19CkD5o8aVrKjY88IB"
+    ]
+   ]
+  },
+  {
+   "json": {
+    "id": 1794425111550,
+    "name": "Everything set",
+    "type": 0,
+    "mod": 1794425111,
+    "usn": -1,
+    "sortf": 1,
+    "did": null,
+    "tmpls": [
+     {
+      "name": "Card 1",
+      "ord": 0,
+      "qfmt": "{{Front}}",
+      "afmt": "{{FrontSide}}\n\n<hr id=answer>\n\n{{Back}}",
+      "bqfmt": "{{Front}} (browser)",
+      "bafmt": "{{Back}}",
+      "did": 1,
+      "bfont": "Courier",
+      "bsize": 14,
+      "id": -1492807369448720921,
+      "tmplAddon": "y"
+     },
+     {
+      "name": "Card 2",
+      "ord": 1,
+      "qfmt": "{{Back}}",
+      "afmt": "{{FrontSide}}\n\n<hr id=answer>\n\n{{Front}}",
+      "bqfmt": "",
+      "bafmt": "",
+      "did": null,
+      "bfont": "",
+      "bsize": 0,
+      "id": 4681624154238612514
+     }
+    ],
+    "flds": [
+     {
+      "name": "Front",
+      "ord": 0,
+      "sticky": true,
+      "rtl": true,
+      "font": "Georgia",
+      "size": 31,
+      "description": "The word",
+      "plainText": true,
+      "collapsed": true,
+      "excludeFromSearch": true,
+      "id": -177319858742879717,
+      "tag": null,
+      "preventDeletion": true,
+      "fieldAddon": 1
+     },
+     {
+      "name": "Back",
+      "ord": 1,
+      "sticky": false,
+      "rtl": false,
+      "font": "Arial",
+      "size": 20,
+      "description": "",
+      "plainText": false,
+      "collapsed": false,
+      "excludeFromSearch": false,
+      "id": -456205487287097286,
+      "tag": null,
+      "preventDeletion": false
+     }
+    ],
+    "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n\n.extra { color: red; }",
+    "latexPre": "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n",
+    "latexPost": "\\end{document}",
+    "latexsvg": true,
+    "req": [
+     [
+      0,
+      "any",
+      [
+       0
+      ]
+     ],
+     [
+      1,
+      "any",
+      [
+       1
+      ]
+     ]
+    ],
+    "originalStockKind": 2,
+    "addonKey": [
+     1,
+     2
+    ]
+   },
+   "config": "EAEaqwEuY2FyZCB7CiAgICBmb250LWZhbWlseTogYXJpYWw7CiAgICBmb250LXNpemU6IDIwcHg7CiAgICBsaW5lLWhlaWdodDogMS41OwogICAgdGV4dC1hbGlnbjogY2VudGVyOwogICAgY29sb3I6IGJsYWNrOwogICAgYmFja2dyb3VuZC1jb2xvcjogd2hpdGU7Cn0KCi5leHRyYSB7IGNvbG9yOiByZWQ7IH0qsgFcZG9jdW1lbnRjbGFzc1sxMnB0XXthcnRpY2xlfQpcc3BlY2lhbHtwYXBlcnNpemU9M2luLDVpbn0KXHVzZXBhY2thZ2VbdXRmOF17aW5wdXRlbmN9Clx1c2VwYWNrYWdle2Ftc3N5bWIsYW1zbWF0aH0KXHBhZ2VzdHlsZXtlbXB0eX0KXHNldGxlbmd0aHtccGFyaW5kZW50fXswaW59ClxiZWdpbntkb2N1bWVudH0KMg5cZW5ke2RvY3VtZW50fTgBQgUQARoBAEIHCAEQARoBAUgC+g8SeyJhZGRvbktleSI6WzEsMl19",
+   "fields": [
+    [
+     0,
+     "Front",
+     "CAEQARoHR2VvcmdpYSAfKghUaGUgd29yZDABOAFAAUibtIjA8pCCxf0BWAH6DxB7ImZpZWxkQWRkb24iOjF9"
+    ],
+    [
+     1,
+     "Back",
+     "GgVBcmlhbCAUSLrQrI3s8M7V+QE="
+    ]
+   ],
+   "templates": [
+    [
+     0,
+     "Card 1",
+     "Cgl7e0Zyb250fX0SJ3t7RnJvbnRTaWRlfX0KCjxociBpZD1hbnN3ZXI+Cgp7e0JhY2t9fRoTe3tGcm9udH19IChicm93c2VyKSIIe3tCYWNrfX0oATIHQ291cmllcjgOQOfrsY+1856k6wH6DxF7InRtcGxBZGRvbiI6InkifQ=="
+    ],
+    [
+     1,
+     "Card 2",
+     "Cgh7e0JhY2t9fRIoe3tGcm9udFNpZGV9fQoKPGhyIGlkPWFuc3dlcj4KCnt7RnJvbnR9fUCi6J/q0oue/EA="
+    ]
+   ]
   }
  ],
  "notes": [

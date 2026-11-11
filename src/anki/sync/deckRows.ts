@@ -1,4 +1,5 @@
 import { MessageWriter, utf8Encode } from '../protobuf';
+import { stringifyJson } from './json';
 import type { DeckJson } from './protocol';
 
 /**
@@ -68,7 +69,7 @@ export function deckCommon(d: DeckJson): Uint8Array {
   writeIf(w, COMMON.reviewStudied, rev.day === maxDay ? rev.amount : 0);
   writeIf(w, COMMON.learningStudied, lrn.day === maxDay ? lrn.amount : 0);
   writeIf(w, COMMON.msStudied, time.amount);
-  if (Object.keys(other).length) w.bytes(COMMON.other, utf8Encode(JSON.stringify(other)));
+  if (Object.keys(other).length) w.bytes(COMMON.other, utf8Encode(stringifyJson(other)));
   return w.finish();
 }
 

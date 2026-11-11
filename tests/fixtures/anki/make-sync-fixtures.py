@@ -4,6 +4,7 @@
 # - decks: each deck as sync sends it (the JSON form, `col.decks.all()`) beside the row Anki
 #   stores for it (`decks.common` and `decks.kind`, base64).
 # - notes: fields beside the sort field and checksum Anki computed for them.
+# - deck_configs / notetypes: each as sync sends it beside the rows Anki stores for it.
 # - unicase: strings in the order Anki's `unicase` collation sorts them (ties by their bytes), for
 #   the collation in modules/anki-unicase: every character with a case folding and what it folds
 #   to, plus words that exercise multi-character folds.
@@ -60,6 +61,45 @@ for row in col.db.all("select id, common, kind from decks"):
         "kind": base64.b64encode(bytes(row[2])).decode(),
     })
 
+# Deck options with most settings moved off their defaults, and keys only an add-on knows.
+conf = col.decks.add_config_returning_id("Everything set")
+c = col.decks.get_config(conf)
+c["new"].update(perDay=7, delays=[2.5, 30, 1440], ints=[2, 5, 0], initialFactor=2300, order=0, bury=True, addonNew="x")
+c["rev"].update(perDay=150, ease4=1.25, ivlFct=0.9, maxIvl=3650, hardFactor=1.1, bury=True)
+c["lapse"].update(delays=[5], leechAction=0, leechFails=6, minInt=2, mult=0.3)
+c.update(maxTaken=45, autoplay=False, timer=1, replayq=False, newMix=1, newPerDayMinimum=2, interdayLearningMix=2,
+         reviewOrder=7, newSortOrder=3, newGatherPriority=5, buryInterdayLearning=True,
+         fsrsParams6=[0.21, 1.29, 2.3, 8.29, 6.41, 0.83, 3.02, 0.001, 1.87, 0.17, 0.8, 1.48, 0.06, 0.26, 1.65, 0.6, 1.87, 0.54, 0.09, 0.07, 0.15],
+         desiredRetention=0.87, easyDaysPercentages=[1.0, 1.0, 0.5, 1.0, 1.0, 1.0, 0.0], stopTimerOnAnswer=True,
+         secondsToShowQuestion=3.5, secondsToShowAnswer=2.0, questionAction=1, answerAction=2, waitForAudio=False,
+         sm2Retention=0.88, weightSearch="deck:Polski", ignoreRevlogsBeforeDate="2025-01-01", addonTop={"a": 1})
+col.decks.update_config(c)
+deck_configs = []
+for row in col.db.all("select id, config from deck_config"):
+    deck_configs.append({"json": col.decks.get_config(row[0]), "config": base64.b64encode(bytes(row[1])).decode()})
+
+# A note type with field and template settings moved off their defaults.
+mm = col.models
+nt = mm.copy(mm.by_name("Basic (and reversed card)"), add=False)
+nt["name"] = "Everything set"
+nt["sortf"] = 1
+nt["css"] += "\n.extra { color: red; }"
+nt["latexsvg"] = True
+nt["addonKey"] = [1, 2]
+f0 = nt["flds"][0]
+f0.update(sticky=True, rtl=True, font="Georgia", size=31, description="The word", plainText=True, collapsed=True, excludeFromSearch=True, preventDeletion=True, fieldAddon=1)
+t0 = nt["tmpls"][0]
+t0.update(bqfmt="{{Front}} (browser)", bafmt="{{Back}}", bfont="Courier", bsize=14, did=1, tmplAddon="y")
+mm.add_dict(nt)
+notetypes = []
+for row in col.db.all("select id, config from notetypes"):
+    notetypes.append({
+        "json": mm.get(row[0]),
+        "config": base64.b64encode(bytes(row[1])).decode(),
+        "fields": [[r[0], r[1], base64.b64encode(bytes(r[2])).decode()] for r in col.db.all("select ord, name, config from fields where ntid = ? order by ord", row[0])],
+        "templates": [[r[0], r[1], base64.b64encode(bytes(r[2])).decode()] for r in col.db.all("select ord, name, config from templates where ntid = ? order by ord", row[0])],
+    })
+
 basic = col.models.by_name("Basic")
 fields = [
     "Tom & Jerry",
@@ -96,5 +136,5 @@ unicase = col.db.list("select x from unicase_sample order by x collate unicase, 
 
 col.close()
 with open(out, "w") as fh:
-    json.dump({"decks": decks, "notes": notes, "unicase": unicase}, fh, ensure_ascii=False, indent=1)
+    json.dump({"decks": decks, "deck_configs": deck_configs, "notetypes": notetypes, "notes": notes, "unicase": unicase}, fh, ensure_ascii=False, indent=1)
 shutil.rmtree(work)

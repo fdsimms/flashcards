@@ -88,9 +88,10 @@ export function messages(msg: Message, num: number): Message[] {
 
 // ---- writing ----
 
-function varintBytes(n: number): number[] {
-  // A negative int32/int64 is its 64-bit two's complement: ten bytes, as protobuf writes it.
-  if (n < 0) {
+function varintBytes(n: number | bigint): number[] {
+  // A negative int32/int64 is its 64-bit two's complement: ten bytes, as protobuf writes it. A
+  // bigint is a 64-bit id too large for a number (sync/json.ts).
+  if (typeof n === 'bigint' || n < 0) {
     const out: number[] = [];
     let v = BigInt.asUintN(64, BigInt(n));
     while (v > 127n) { out.push(Number(v & 127n) | 128); v >>= 7n; }
@@ -120,13 +121,17 @@ export function int(msg: Message, num: number): number | undefined {
 export class MessageWriter {
   private parts: number[] = [];
   /** A varint field: uint32/uint64, bool (0/1), an enum, or int32/int64 (negatives included). */
-  uint(num: number, value: number): this {
+  uint(num: number, value: number | bigint): this {
     this.parts.push(...varintBytes(num * 8), ...varintBytes(value));
     return this;
   }
   float(num: number, value: number): this {
     this.parts.push(...varintBytes(num * 8 + 5), ...f32Bytes(value));
     return this;
+  }
+  /** A repeated uint32, packed as proto3 writes it. */
+  packedUints(num: number, values: number[]): this {
+    return this.bytes(num, Uint8Array.from(values.flatMap(varintBytes)));
   }
   /** A repeated float, packed as proto3 writes it. */
   packedFloats(num: number, values: number[]): this {

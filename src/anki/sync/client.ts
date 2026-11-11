@@ -1,5 +1,6 @@
 import { utf8Decode, utf8Encode } from '../protobuf';
 import { concat, zstdDecoder, zstdUnwrap, zstdWrap } from '../zstd';
+import { parseJson, stringifyJson } from './json';
 import { CLIENT_VERSION, SYNC_VERSION, SyncError } from './protocol';
 
 /**
@@ -59,10 +60,10 @@ export class SyncClient {
     return key;
   }
 
-  /** A JSON request, answered with JSON. */
+  /** A JSON request, answered with JSON (64-bit integers kept exact, see json.ts). */
   async call<T>(path: string, body: unknown): Promise<T> {
-    const bytes = await this.callBytes(path, utf8Encode(JSON.stringify(body)));
-    return JSON.parse(utf8Decode(bytes)) as T;
+    const bytes = await this.callBytes(path, utf8Encode(stringifyJson(body)));
+    return parseJson(utf8Decode(bytes)) as T;
   }
 
   /** A media request: answered with `{ data, err }`, where `err` is the server's complaint. */

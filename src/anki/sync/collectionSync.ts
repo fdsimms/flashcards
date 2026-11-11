@@ -1,6 +1,7 @@
 import { decodeMessage, uint, utf8Decode, utf8Encode } from '../protobuf';
 import type { SyncClient } from './client';
 import { deckRow } from './deckRows';
+import { parseJson, stringifyJson } from './json';
 import { cleanField, sortFieldAndChecksum } from './noteFields';
 import {
   CHUNK_SIZE, CLIENT_VERSION, SYNC_VERSION, SyncError,
@@ -225,7 +226,7 @@ async function applyGraves(db: SyncDb, g: Graves, usn: number, state: SyncState)
 async function allConfig(db: SyncDb): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {};
   for (const r of await db.all<{ key: string; val: Uint8Array }>('SELECT KEY AS key, val FROM config')) {
-    try { out[r.key] = JSON.parse(utf8Decode(r.val)); } catch { /* not JSON: Anki couldn't read it either */ }
+    try { out[r.key] = parseJson(utf8Decode(r.val)); } catch { /* not JSON: Anki couldn't read it either */ }
   }
   return out;
 }
@@ -276,7 +277,7 @@ async function applyUnchunked(db: SyncDb, c: UnchunkedChanges, usn: number, now:
     await db.run('DELETE FROM config');
     const mtime = Math.floor(now() / 1000);
     for (const [key, value] of Object.entries(c.conf)) {
-      await db.run('INSERT OR REPLACE INTO config (KEY, usn, mtime_secs, val) VALUES (?, ?, ?, ?)', key, usn, mtime, utf8Encode(JSON.stringify(value)));
+      await db.run('INSERT OR REPLACE INTO config (KEY, usn, mtime_secs, val) VALUES (?, ?, ?, ?)', key, usn, mtime, utf8Encode(stringifyJson(value)));
     }
     changed = true;
   }
