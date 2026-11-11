@@ -3,15 +3,15 @@ import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, useColorScheme, View } from 'react-native';
 import { isOmnilanguage, renderCard } from '../core/cards';
-import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from '../core/config';
-import { deckLimits, groupByDeck, isInDeck, treeQueue } from '../core/deckTree';
+import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
+import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
 import { studyDayStart } from '../core/day';
-import { nextLearningDue, siblingsToBury, studiedToday, type StudiedToday } from '../core/queue';
+import { nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { paramsForDeck, previewIntervals, review, type RatingValue } from '../core/scheduler';
 import { bumpStudied, currentCard, type AnswerRecord } from '../core/session';
 import { cardDocument, renderTemplateCard } from '../core/template';
-import type { Card, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
+import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
 import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
@@ -65,7 +65,6 @@ function CardSurface({ children }: { children: React.ReactNode }) {
   );
 }
 
-const DEFAULT_LIMITS = { newPerDay: NEW_PER_DAY, reviewsPerDay: REVIEWS_PER_DAY };
 
 /**
  * Studies `deck` and its subdecks. Each card is scheduled with its own deck's FSRS settings, and
@@ -79,6 +78,9 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
+  // The Anki collection's day start, learn-ahead limit and v3 options.
+  const [collection, setCollection] = useState<CollectionSettings>(DEFAULT_COLLECTION_SETTINGS);
+  const H = collection.dayStartsAtHour;
   const [answerButtons, setAnswerButtons] = useState<AnswerButtons>('all');
   // Bumped after the note editor saves or deletes, to load the cards and notes again.
   const [reloads, setReloads] = useState(0);
@@ -96,13 +98,15 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   useEffect(() => {
     (async () => {
       const now = new Date();
-      const dayStart = studyDayStart(now, DAY_STARTS_AT_HOUR);
+      const cs = await repo.collectionSettings();
+      const dayStart = studyDayStart(now, cs.dayStartsAtHour);
       const [c, n, reviews, revlog, params, types, settings, buttons] = await Promise.all([
         // Every card, not only this deck's: a gate on a deck above this one counts its whole subtree.
         repo.listCards(), repo.listNotes(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
         repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(),
       ]);
-      const today = studiedToday({ notes: n, cards: c, reviews, revlog, now, dayStartsAtHour: DAY_STARTS_AT_HOUR });
+      const today = studiedToday({ notes: n, cards: c, reviews, revlog, now, dayStartsAtHour: cs.dayStartsAtHour });
+      setCollection(cs);
       setAnswerButtons(buttons);
       setDeckSettings(settings);
       setAllParams(params);
@@ -116,21 +120,15 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   const deckOf = useMemo(() => new Map([...notes.values()].map((n) => [n.id, n.deck])), [notes]);
   const queue = useMemo(() => {
     if (!cards) return null;
-    return treeQueue(deck, {
-      cardsByDeck: groupByDeck(cards, deckOf),
-      limitsFor: (d) => deckLimits(paramsForDeck(d, allParams), DEFAULT_LIMITS),
-      studiedByDeck: studied,
-      gateFor: (d) => deckSettings.get(d)?.gateCap,
-      dayStartsAtHour: DAY_STARTS_AT_HOUR,
-      learnAheadMinutes: LEARN_AHEAD_MINUTES,
-      now,
-    });
-  }, [cards, deckOf, allParams, studied, deckSettings, deck, now]);
+    return treeQueue(deck, queueInput({
+      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, collection, now,
+    }));
+  }, [cards, notes, allParams, studied, deckSettings, collection, deck, now]);
 
   const current = queue ? currentCard(queue, preferId) : undefined;
   const note = current ? notes.get(current.noteId) : undefined;
   // The card's own deck decides its FSRS settings, not the deck being studied.
-  const cardParams = note ? paramsForDeck(note.deck, allParams) : undefined;
+  const cardParams = note && current ? paramsForDeck(cardHomeDeck(current, note.deck), allParams) : undefined;
   const noteType = note && current?.kind.startsWith('t') && !isOmnilanguage(note) ? noteTypes.get(note.model) : undefined;
   const page = useMemo(() => {
     if (!note || !noteType || !current) return undefined;
@@ -190,7 +188,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       const res = review(current.sched, rating, when, cardParams);
       const updated: Card = { ...current, sched: res.sched, buriedAt: undefined };
       // The note's other cards that its preset holds back until tomorrow, as Anki does.
-      const siblings = siblingsToBury(current, cards ?? [], cardParams?.bury, when, DAY_STARTS_AT_HOUR);
+      const siblings = siblingsToBury(current, cards ?? [], cardParams?.bury, when, H);
       const buried = siblings.map((s): Card => ({ ...s, buriedAt: when.toISOString() }));
       await repo.saveCard(updated);
       for (const b of buried) await repo.saveCard(b);
@@ -212,8 +210,9 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
           );
         }
       }
-      const record: AnswerRecord = { before: current, reviewId, deck: note.deck, anki, buried: siblings };
-      setStudied((s) => bumpStudied(s, record.deck, record.before.sched.state, 1));
+      // Counted in the deck the card is studied in, as Anki counts it (a filtered deck's answers count there).
+      const record: AnswerRecord = { before: current, reviewId, deck: cardDeck(current, note.deck), anki, buried: siblings };
+      setStudied((s) => bumpStudied(s, record.deck, studiedKind(record.before, H), 1));
       setHistory((h) => [...h, record]);
       // Functional update: `cards` from this render's closure is stale once the awaits return.
       const changed = new Map([updated, ...buried].map((c) => [c.id, c]));
@@ -243,7 +242,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       for (const s of last.buried) await repo.saveCard(s);
       await repo.deleteReview(last.reviewId);
       setHistory((h) => h.slice(0, -1));
-      setStudied((s) => bumpStudied(s, last.deck, last.before.sched.state, -1));
+      setStudied((s) => bumpStudied(s, last.deck, studiedKind(last.before, H), -1));
       const restored = new Map([last.before, ...last.buried].map((c) => [c.id, c]));
       setCards((prev) => prev && prev.map((c) => restored.get(c.id) ?? c));
       setPreferId(last.before.id);
@@ -257,11 +256,11 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   // Out of cards with a learning card still to come: wake when it's within the learn-ahead limit
   // instead of declaring the deck done, which left it waiting until the deck was reopened.
   const waitingFor = !current && cards
-    ? nextLearningDue(cards.filter((c) => isInDeck(deckOf.get(c.noteId) ?? '', deck)), { dayStartsAtHour: DAY_STARTS_AT_HOUR })
+    ? nextLearningDue(cards.filter((c) => isInDeck(cardDeck(c, deckOf.get(c.noteId) ?? ''), deck)), { dayStartsAtHour: H })
     : undefined;
   useEffect(() => {
     if (!waitingFor) return;
-    const wake = waitingFor.getTime() - LEARN_AHEAD_MINUTES * 60000 - Date.now();
+    const wake = waitingFor.getTime() - collection.learnAheadMinutes * 60000 - Date.now();
     const id = setTimeout(() => setNow(new Date()), Math.max(0, wake) + 1000);
     return () => clearTimeout(id);
   }, [waitingFor?.getTime()]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -275,7 +274,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   const undoAction = history.length ? <IconAction name="arrow.uturn.backward" label="Undo the last answer" onPress={undo} /> : undefined;
 
   if (!current || !note || (!rendered && !page)) {
-    const minutes = waitingFor ? Math.max(1, Math.ceil((waitingFor.getTime() - Date.now()) / 60000) - LEARN_AHEAD_MINUTES) : 0;
+    const minutes = waitingFor ? Math.max(1, Math.ceil((waitingFor.getTime() - Date.now()) / 60000) - collection.learnAheadMinutes) : 0;
     return (
       <Screen onBack={onDone} right={undoAction} footer={<Button label="Back to decks" onPress={onDone} />}>
         <Reveal style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>

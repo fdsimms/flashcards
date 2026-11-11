@@ -8,21 +8,22 @@ import type { Card } from './types';
  */
 
 /**
- * Today's counts after an answer (`delta` 1) or its undo (-1) on a card in `deck` that was in
- * `stateBefore`. Only first answers to New cards and answers to Review cards count toward limits.
+ * Today's counts after an answer (`delta` 1) or its undo (-1) on a card in `deck`, by what the
+ * answer used of the limits (`studiedKind` of the card before it): the same rule `studiedToday`
+ * counts by, so an undo takes back exactly what the answer added.
  */
 export function bumpStudied(
   studied: Map<string, StudiedToday>,
   deck: string,
-  stateBefore: number,
+  kind: 'new' | 'review' | null,
   delta: 1 | -1,
 ): Map<string, StudiedToday> {
-  if (stateBefore !== 0 && stateBefore !== 2) return studied;
+  if (!kind) return studied;
   const out = new Map(studied);
   const s = out.get(deck) ?? { introduced: 0, reviewed: 0 };
   out.set(deck, {
-    introduced: Math.max(0, s.introduced + (stateBefore === 0 ? delta : 0)),
-    reviewed: Math.max(0, s.reviewed + (stateBefore === 2 ? delta : 0)),
+    introduced: Math.max(0, s.introduced + (kind === 'new' ? delta : 0)),
+    reviewed: Math.max(0, s.reviewed + (kind === 'review' ? delta : 0)),
   });
   return out;
 }
@@ -47,7 +48,7 @@ export interface AnswerRecord {
  */
 export function currentCard(queue: Queue, preferId?: string): Card | undefined {
   if (preferId) {
-    const preferred = queue.due.find((c) => c.id === preferId) ?? queue.fresh.find((c) => c.id === preferId);
+    const preferred = queue.order.find((c) => c.id === preferId);
     if (preferred) return preferred;
   }
   return nextCard(queue);

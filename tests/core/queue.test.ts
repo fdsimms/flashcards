@@ -1,26 +1,37 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { buildQueue, isBuried, isDue, nextCard, nextLearningDue, siblingsToBury, studiedToday } from '../../src/core/queue';
+import { treeQueue } from '../../src/core/deckTree';
+import { isBuried, isDue, nextCard, nextLearningDue, siblingsToBury, studiedToday } from '../../src/core/queue';
 import { review } from '../../src/core/scheduler';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
 const H = 4;
 
+/** One deck holding `cards`, with room to spare, as the review screen would study it. */
+function oneDeck(cards: Card[], opts: { now: Date; dayStartsAtHour: number }) {
+  return treeQueue('D', {
+    cardsByDeck: new Map([['D', cards]]), limitsFor: () => ({ newPerDay: 99, reviewsPerDay: 999 }),
+    studiedByDeck: new Map(), dayStartsAtHour: opts.dayStartsAtHour, now: opts.now,
+  });
+}
+
 function withSched(card: Card, over: Partial<Card['sched']>): Card {
   return { ...card, sched: { ...card.sched, ...over } };
 }
 
 describe('queue', () => {
-  it('orders due cards by overdue-ness and puts them before new cards', () => {
+  it('orders reviews by due day, and mixes new cards in among them', () => {
     const notes = [1, 2, 3, 4].map((i) => ({ ...omniNote(), id: `n${i}` }));
     const cards = notes.flatMap((n) => makeCards(n, NOW));
-    cards[0].sched = review(cards[0].sched, 3, new Date(2026, 10, 1)).sched;
-    cards[1].sched = review(cards[1].sched, 3, new Date(2026, 9, 1)).sched;
-    const q = buildQueue(cards, { dayStartsAtHour: H, now: new Date(2027, 0, 1, 12) });
+    cards[0] = withSched(cards[0], { state: 2, due: new Date(2026, 10, 1).toISOString() });
+    cards[1] = withSched(cards[1], { state: 2, due: new Date(2026, 9, 1).toISOString() });
+    const q = oneDeck(cards, { dayStartsAtHour: H, now: new Date(2027, 0, 1, 12) });
     expect(q.due.map((c) => c.id)).toEqual([cards[1].id, cards[0].id]);
     expect(q.fresh).toHaveLength(2);
     expect(nextCard(q)?.id).toBe(cards[1].id);
+    // Anki's default spaces 2 new cards through 2 reviews: review, new, review, new.
+    expect(q.order.map((c) => c.sched.state === 0 ? 'new' : 'review')).toEqual(['review', 'new', 'review', 'new']);
   });
   it('shows a review card for its whole study day, not from the minute it falls due', () => {
     const [base] = makeCards(omniNote(), NOW);
@@ -40,9 +51,9 @@ describe('queue', () => {
     const [base] = makeCards(omniNote(), NOW);
     expect(isDue(base, NOW, H)).toBe(false);
     const due = withSched(base, { state: 2, due: NOW.toISOString() });
-    expect(buildQueue([{ ...due, suspended: true }], { dayStartsAtHour: H, now: NOW }).due).toHaveLength(0);
-    expect(buildQueue([{ ...due, retired: true }], { dayStartsAtHour: H, now: NOW }).due).toHaveLength(0);
-    expect(buildQueue([{ ...base, retired: true }], { dayStartsAtHour: H, now: NOW }).fresh).toHaveLength(0);
+    expect(oneDeck([{ ...due, suspended: true }], { dayStartsAtHour: H, now: NOW }).due).toHaveLength(0);
+    expect(oneDeck([{ ...due, retired: true }], { dayStartsAtHour: H, now: NOW }).due).toHaveLength(0);
+    expect(oneDeck([{ ...base, retired: true }], { dayStartsAtHour: H, now: NOW }).fresh).toHaveLength(0);
   });
   it('says when the next learning card comes due', () => {
     const [base] = makeCards(omniNote(), NOW);
@@ -61,9 +72,9 @@ describe('buried cards', () => {
     const [base] = makeCards(omniNote(), NOW);
     const due = withSched(base, { state: 2, due: NOW.toISOString() });
     expect(isBuried({ ...due, buriedAt: today }, NOW, H)).toBe(true);
-    expect(buildQueue([{ ...due, buriedAt: today }], { dayStartsAtHour: H, now: NOW }).due).toHaveLength(0);
-    expect(buildQueue([{ ...base, buriedAt: today }], { dayStartsAtHour: H, now: NOW }).fresh).toHaveLength(0);
-    expect(buildQueue([{ ...due, buriedAt: yesterday }], { dayStartsAtHour: H, now: NOW }).due).toHaveLength(1);
+    expect(oneDeck([{ ...due, buriedAt: today }], { dayStartsAtHour: H, now: NOW }).due).toHaveLength(0);
+    expect(oneDeck([{ ...base, buriedAt: today }], { dayStartsAtHour: H, now: NOW }).fresh).toHaveLength(0);
+    expect(oneDeck([{ ...due, buriedAt: yesterday }], { dayStartsAtHour: H, now: NOW }).due).toHaveLength(1);
     // Buried at 1 AM belongs to the study day before, as Anki's day starts at 4.
     expect(isBuried({ ...due, buriedAt: new Date(2026, 10, 11, 1, 0).toISOString() }, NOW, H)).toBe(false);
   });
@@ -147,6 +158,8 @@ describe("today's counts", () => {
       // Reviews, one of them in a filtered deck (type 3).
       { id: at(9), cid: 101, ease: 3, lastIvl: 12, time: 3000, type: 1 },
       { id: at(10), cid: 101, ease: 1, lastIvl: 30, time: 3000, type: 3 },
+      // An answer to a learning card on a day-long step (its last interval in days) counts as a review.
+      { id: at(10) + 1, cid: 100, ease: 3, lastIvl: 1, time: 3000, type: 0 },
       // Yesterday's, and a manual reschedule (ease 0): neither counts.
       { id: new Date(2026, 10, 10, 20, 0).getTime(), cid: 101, ease: 3, lastIvl: 5, time: 3000, type: 1 },
       { id: at(11), cid: 101, ease: 0, lastIvl: 30, time: 0, type: 4 },
@@ -154,6 +167,6 @@ describe("today's counts", () => {
     // Franki's own answer to an Anki card is in the review log too (write-back), so its row in
     // Franki's table isn't counted again.
     const reviews = [{ cardId: fresh.id, ...review(fresh.sched, 3, NOW).log }];
-    expect(counts({ cards: [fresh, reviewing], revlog, reviews }).get(deck)).toEqual({ introduced: 1, reviewed: 2 });
+    expect(counts({ cards: [fresh, reviewing], revlog, reviews }).get(deck)).toEqual({ introduced: 1, reviewed: 3 });
   });
 });
