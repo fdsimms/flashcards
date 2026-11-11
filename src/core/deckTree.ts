@@ -170,6 +170,21 @@ export interface DeckRow extends DeckNode {
   gate?: { inProgress: number; cap: number };
 }
 
+/**
+ * What's waiting across the whole deck list. A top-level row's counts already include its
+ * subdecks, so adding every row would count a subdeck's cards twice: only the top ones are summed.
+ */
+export function deckListTotals(rows: DeckRow[]): { due: number; fresh: number } {
+  let due = 0;
+  let fresh = 0;
+  for (const r of rows) {
+    if (r.depth !== 0) continue;
+    due += r.due;
+    fresh += r.fresh;
+  }
+  return { due, fresh };
+}
+
 /** The deck list: every deck, nested, with what studying it would show. */
 export function deckRows(input: TreeQueueInput): DeckRow[] {
   return deckTree(input.cardsByDeck.keys()).map((node) => {

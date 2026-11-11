@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import type { DeckRow } from '../core/deckTree';
+import { deckListTotals, type DeckRow } from '../core/deckTree';
 import { Button, Card, Group, Icon, Screen } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
@@ -13,6 +13,43 @@ function groupByTopLevel(rows: DeckRow[]): DeckRow[][] {
     else groups[groups.length - 1].push(r);
   }
   return groups;
+}
+
+/** What's waiting across every deck, or that nothing is: the first thing the deck list says. */
+function TodaySummary({ due, fresh }: { due: number; fresh: number }) {
+  const c = useTheme();
+  const caughtUp = due + fresh === 0;
+  const figure = (value: number, label: string, color: string) => (
+    <View style={{ flex: 1, gap: 2 }}>
+      <Text style={{ ...type.largeTitle, color: value ? color : c.textTertiary, fontVariant: ['tabular-nums'] }}>{value}</Text>
+      <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
+    </View>
+  );
+  return (
+    <View
+      accessible
+      accessibilityLabel={caughtUp ? 'All caught up. Nothing is due today.' : `Today: ${due} due, ${fresh} new`}
+      style={{
+        flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, borderRadius: radius.l, ...smooth,
+        backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border,
+      }}
+    >
+      {caughtUp ? (
+        <>
+          <Icon name="checkmark.circle.fill" size={34} color={c.countDue} weight="regular" />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={{ ...type.headline, color: c.text }}>All caught up</Text>
+            <Text style={{ ...type.subhead, color: c.textSecondary }}>Nothing is due today.</Text>
+          </View>
+        </>
+      ) : (
+        <>
+          {figure(due, 'due today', c.countDue)}
+          {figure(fresh, 'new today', c.countNew)}
+        </>
+      )}
+    </View>
+  );
 }
 
 /** A count over its label, in a fixed-width column so a deck's numbers line up with the next deck's. */
@@ -90,6 +127,7 @@ export function DeckList(props: {
 }) {
   const c = useTheme();
   const groups = useMemo(() => groupByTopLevel(props.decks), [props.decks]);
+  const totals = useMemo(() => deckListTotals(props.decks), [props.decks]);
   const backup = props.sync ? undefined : props.backup;
   return (
     <Screen
@@ -121,6 +159,7 @@ export function DeckList(props: {
             </View>
           </Pressable>
         ) : null}
+        {groups.length ? <TodaySummary due={totals.due} fresh={totals.fresh} /> : null}
         {groups.length === 0 ? (
           <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
             <Icon name="tray" size={40} color={c.textTertiary} weight="regular" />
