@@ -3,12 +3,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, Text, useColorScheme, View } from 'react-native';
 import { isOmnilanguage, renderCard } from '../core/cards';
 import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from '../core/config';
-import { deckLimits, groupByDeck, treeQueue } from '../core/deckTree';
+import { deckLimits, groupByDeck, isInDeck, treeQueue } from '../core/deckTree';
 import { nextLearningDue, type StudiedToday } from '../core/queue';
-import { paramsForDeck, previewIntervals, review, type RatingValue } from '../core/scheduler';
-import { bumpStudied, currentCard, type AnswerRecord } from '../core/session';
+import { paramsForDeck, previewIntervals, type RatingValue } from '../core/scheduler';
+import { answerCard, bumpStudied, currentCard, type AnswerRecord } from '../core/session';
 import { cardDocument, renderTemplateCard } from '../core/template';
-import type { Card, DeckParams, Note, NoteType, RenderedSide } from '../core/types';
+import type { Card, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
 import type { Repo } from '../db/repo';
 import { mediaBaseUri } from '../media/mediaFiles';
 import { CardWebView } from './CardWebView';
@@ -45,6 +45,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
   const [noteTypes, setNoteTypes] = useState<Map<string, NoteType>>(new Map());
+  const [deckSettings, setDeckSettings] = useState<Map<string, DeckSettings>>(new Map());
   const [revealed, setRevealed] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [history, setHistory] = useState<AnswerRecord[]>([]);
@@ -55,10 +56,12 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
 
   useEffect(() => {
     (async () => {
-      const [c, n, today, params, types] = await Promise.all([
-        repo.listCards(deck), repo.listNotes(), repo.studiedToday(new Date(), DAY_STARTS_AT_HOUR),
-        repo.listDeckParams(), repo.listNoteTypes(),
+      const [c, n, today, params, types, settings] = await Promise.all([
+        // Every card, not only this deck's: a gate on a deck above this one counts its whole subtree.
+        repo.listCards(), repo.listNotes(), repo.studiedToday(new Date(), DAY_STARTS_AT_HOUR),
+        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(),
       ]);
+      setDeckSettings(settings);
       setAllParams(params);
       setNoteTypes(types);
       setStudied(today);
@@ -74,11 +77,12 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
       cardsByDeck: groupByDeck(cards, deckOf),
       limitsFor: (d) => deckLimits(paramsForDeck(d, allParams), DEFAULT_LIMITS),
       studiedByDeck: studied,
+      gateFor: (d) => deckSettings.get(d)?.gateCap,
       dayStartsAtHour: DAY_STARTS_AT_HOUR,
       learnAheadMinutes: LEARN_AHEAD_MINUTES,
       now,
     });
-  }, [cards, deckOf, allParams, studied, deck, now]);
+  }, [cards, deckOf, allParams, studied, deckSettings, deck, now]);
 
   const current = queue ? currentCard(queue, preferId) : undefined;
   const note = current ? notes.get(current.noteId) : undefined;
@@ -114,10 +118,9 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
     busy.current = true;
     try {
       const when = new Date();
-      const res = review(current.sched, rating, when, cardParams);
-      const updated: Card = { ...current, sched: res.sched };
+      const { card: updated, log } = answerCard(current, rating, when, cardParams);
       await repo.saveCard(updated);
-      const reviewId = await repo.addReview({ cardId: current.id, ...res.log });
+      const reviewId = await repo.addReview({ cardId: current.id, ...log });
       const record: AnswerRecord = { before: current, reviewId, deck: note.deck };
       setStudied((s) => bumpStudied(s, record.deck, record.before.sched.state, 1));
       setHistory((h) => [...h, record]);
@@ -151,7 +154,9 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
 
   // Out of cards with a learning card still to come: wake when it's within the learn-ahead limit
   // instead of declaring the deck done, which left it waiting until the deck was reopened.
-  const waitingFor = !current && cards ? nextLearningDue(cards) : undefined;
+  const waitingFor = !current && cards
+    ? nextLearningDue(cards.filter((c) => isInDeck(deckOf.get(c.noteId) ?? '', deck)))
+    : undefined;
   useEffect(() => {
     if (!waitingFor) return;
     const wake = waitingFor.getTime() - LEARN_AHEAD_MINUTES * 60000 - Date.now();

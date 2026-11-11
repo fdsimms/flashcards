@@ -1,7 +1,7 @@
 import { studyDayStart } from '../core/day';
 import { isInDeck } from '../core/deckTree';
 import type { StudiedToday } from '../core/queue';
-import type { Card, DeckParams, Note, NoteType, ReviewLogEntry } from '../core/types';
+import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } from '../core/types';
 
 export interface Repo {
   /**
@@ -30,6 +30,9 @@ export interface Repo {
   /** Replaces the note types given, by name; others are kept. */
   saveNoteTypes(types: NoteType[]): Promise<void>;
   listNoteTypes(): Promise<Map<string, NoteType>>;
+  /** Settings made in the app, by deck. An import never touches these. */
+  listDeckSettings(): Promise<Map<string, DeckSettings>>;
+  saveDeckSettings(deck: string, settings: DeckSettings): Promise<void>;
 }
 
 /** Simple in-memory repo, used by tests and as a reference implementation. */
@@ -40,6 +43,7 @@ export class MemoryRepo implements Repo {
   private nextReviewId = 1;
   deckParams = new Map<string, DeckParams>();
   noteTypes = new Map<string, NoteType>();
+  deckSettings = new Map<string, DeckSettings>();
 
   async upsertNotesAndCards(notes: Note[], cards: Card[]) {
     for (const n of notes) this.notes.set(n.id, n);
@@ -95,4 +99,6 @@ export class MemoryRepo implements Repo {
     for (const t of types) this.noteTypes.set(t.name, t);
   }
   async listNoteTypes() { return new Map(this.noteTypes); }
+  async listDeckSettings() { return new Map(this.deckSettings); }
+  async saveDeckSettings(deck: string, settings: DeckSettings) { this.deckSettings.set(deck, settings); }
 }

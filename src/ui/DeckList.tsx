@@ -10,6 +10,7 @@ export function DeckList(props: {
   onOpen: (deck: string) => void;
   onImport: () => void;
   onBackup: () => void;
+  onOptions: (deck: string) => void;
 }) {
   const t = useTheme();
   return (
@@ -31,10 +32,21 @@ export function DeckList(props: {
               borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16,
             }}
           >
-            <Text style={{ color: t.text, fontSize: item.depth === 0 ? 18 : 16, fontWeight: '600' }}>{item.name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Text style={{ color: t.text, fontSize: item.depth === 0 ? 18 : 16, fontWeight: '600', flex: 1 }}>{item.name}</Text>
+              <Pressable onPress={() => props.onOptions(item.deck)} hitSlop={10} accessibilityLabel={`Options for ${item.name}`}>
+                <Text style={{ color: t.accent }}>Options</Text>
+              </Pressable>
+            </View>
             <Text style={{ color: t.sub, marginTop: 4 }}>
               {item.due} due · {item.fresh} new · {item.total} total
             </Text>
+            {item.gate ? (
+              // Under the cap, new cards come in; at it, they wait until cards reach Guru.
+              <Text style={{ color: item.gate.apprentice >= item.gate.cap ? t.hard : t.sub, marginTop: 2 }}>
+                {item.gate.apprentice} of {item.gate.cap} in progress
+              </Text>
+            ) : null}
           </Pressable>
         )}
       />

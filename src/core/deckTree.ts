@@ -1,3 +1,4 @@
+import { isApprentice } from './progress';
 import { buildQueue, isLearning, studiable, type Queue, type StudiedToday } from './queue';
 import type { Card, DeckParams } from './types';
 
@@ -68,6 +69,8 @@ export interface TreeQueueInput {
   limitsFor: (deck: string) => DeckLimits;
   /** What each deck studied today, by its own cards only (not its subdecks'). */
   studiedByDeck: Map<string, StudiedToday>;
+  /** A deck's progress gate: the most cards below Guru it and its subdecks may hold. Undefined: no gate. */
+  gateFor?: (deck: string) => number | undefined;
   dayStartsAtHour: number;
   learnAheadMinutes?: number;
   now?: Date;
@@ -97,19 +100,43 @@ function childrenOf(root: string, decks: Iterable<string>): string[] {
 }
 
 /** The deck's queue with its own limits and every subdeck's applied, before learn-ahead. */
-function limitedQueue(deck: string, input: TreeQueueInput): Queue {
+/** Started cards below Guru in the deck and its subdecks: what a progress gate counts. */
+export function apprenticeCount(root: string, cardsByDeck: Map<string, Card[]>): number {
+  let n = 0;
+  for (const [deck, cards] of cardsByDeck) {
+    if (!isInDeck(deck, root)) continue;
+    for (const c of studiable(cards)) if (isApprentice(c)) n++;
+  }
+  return n;
+}
+
+/** How many new cards a gated deck lets in now: its cap less what's below Guru under it. */
+function gateBudget(deck: string, input: TreeQueueInput): number | undefined {
+  const cap = input.gateFor?.(deck);
+  return cap === undefined ? undefined : Math.max(0, cap - apprenticeCount(deck, input.cardsByDeck));
+}
+
+/**
+ * The deck's queue with its own limits and every subdeck's applied, before learn-ahead. Under a
+ * progress gate (on this deck or one above it), daily new-card limits don't apply: the gate is
+ * what holds new cards back.
+ */
+function limitedQueue(deck: string, input: TreeQueueInput, gatedAbove: boolean): Queue {
+  const gate = gateBudget(deck, input);
+  const underGate = gatedAbove || gate !== undefined;
   const own = buildQueue(input.cardsByDeck.get(deck) ?? [], { dayStartsAtHour: input.dayStartsAtHour, now: input.now });
-  const children = childrenOf(deck, input.cardsByDeck.keys()).map((c) => limitedQueue(c, input));
+  const children = childrenOf(deck, input.cardsByDeck.keys()).map((c) => limitedQueue(c, input, underGate));
   const due = [own.due, ...children.map((c) => c.due)].flat().sort((a, b) => dueMs(a) - dueMs(b));
   const fresh = [own.fresh, ...children.map((c) => c.fresh)].flat();
 
   const limits = input.limitsFor(deck);
   const studied = sumStudied(deck, input.studiedByDeck);
   let reviewBudget = Math.max(0, limits.reviewsPerDay - studied.reviewed);
+  const newBudget = gate ?? (underGate ? Number.POSITIVE_INFINITY : Math.max(0, limits.newPerDay - studied.introduced));
   return {
     // Learning cards pass regardless; reviews fill the budget most overdue first.
     due: due.filter((c) => c.sched.state !== 2 || reviewBudget-- > 0),
-    fresh: fresh.slice(0, Math.max(0, limits.newPerDay - studied.introduced)),
+    fresh: fresh.slice(0, newBudget),
   };
 }
 
@@ -119,7 +146,10 @@ function limitedQueue(deck: string, input: TreeQueueInput): Queue {
  * limit early. The deck list's counts and the review screen both come from this.
  */
 export function treeQueue(root: string, input: TreeQueueInput): Queue {
-  const q = limitedQueue(root, input);
+  // A gate on a deck above this one still applies: opening a subdeck must not get around it.
+  const above = deckLineage(root).slice(0, -1).map((d) => gateBudget(d, input)).filter((b): b is number => b !== undefined);
+  const limited = limitedQueue(root, input, above.length > 0);
+  const q = above.length ? { ...limited, fresh: limited.fresh.slice(0, Math.min(...above)) } : limited;
   if (q.due.length || q.fresh.length || !input.learnAheadMinutes) return q;
   const now = (input.now ?? new Date()).getTime();
   const cutoff = now + input.learnAheadMinutes * 60000;
@@ -136,6 +166,8 @@ export interface DeckRow extends DeckNode {
   fresh: number;
   /** Cards that can be studied in the deck and its subdecks. */
   total: number;
+  /** For a gated deck: cards below Guru under it, and its cap. */
+  gate?: { apprentice: number; cap: number };
 }
 
 /** The deck list: every deck, nested, with what studying it would show. */
@@ -146,7 +178,9 @@ export function deckRows(input: TreeQueueInput): DeckRow[] {
     for (const [deck, cards] of input.cardsByDeck) {
       if (isInDeck(deck, node.deck)) total += studiable(cards).length;
     }
-    return { ...node, due: q.due.length, fresh: q.fresh.length, total };
+    const cap = input.gateFor?.(node.deck);
+    const gate = cap === undefined ? undefined : { apprentice: apprenticeCount(node.deck, input.cardsByDeck), cap };
+    return { ...node, due: q.due.length, fresh: q.fresh.length, total, ...(gate ? { gate } : {}) };
   });
 }
 
