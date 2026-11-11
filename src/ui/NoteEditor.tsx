@@ -5,7 +5,7 @@ import { isOmnilanguage } from '../core/cards';
 import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, type Selection } from '../core/formatting';
 import { duplicateOf, editTextToField, fieldToEditText, parseTags } from '../core/noteEditing';
 import type { Note, NoteType } from '../core/types';
-import { Button, Card, Chip, Field, Help, HeaderAction, Screen } from './kit';
+import { Button, Card, Chip, Field, Help, HeaderAction, Screen, Select } from './kit';
 import { space, type, useTheme } from './theme';
 
 const OMNI_CARD_NAMES: Record<string, string> = { forward: 'Front', reverse: 'Reverse', audio: 'Audio' };
@@ -151,14 +151,15 @@ export function NoteEditor(props: {
       >
         <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
           <Card>
-            <Text style={{ ...type.headline, color: c.text }}>Deck</Text>
-            <Chips options={decks} value={deck} onChange={(d) => { setDeck(d); setError(undefined); }} />
-            <Text style={{ ...type.headline, color: c.text }}>Note type</Text>
+            <Select label="Deck" options={decks} value={deck} onChange={(d) => { setDeck(d); setError(undefined); }} />
             {editing ? (
               // A note keeps its note type, as in Anki without its Change Note Type tool.
-              <Text style={{ ...type.body, color: c.textSecondary }}>{model}</Text>
+              <View style={{ gap: space.xs }}>
+                <Text style={{ ...type.subhead, color: c.textSecondary }}>Note type</Text>
+                <Text style={{ ...type.body, color: c.text }}>{model}</Text>
+              </View>
             ) : (
-              <Chips options={models} value={model} onChange={(m) => { setModel(m); setError(undefined); }} />
+              <Select label="Note type" options={models} value={model} onChange={(m) => { setModel(m); setError(undefined); }} />
             )}
           </Card>
           <Card>
@@ -218,13 +219,5 @@ function Preview({ text }: { text: string }) {
         </Text>
       ))}
     </Text>
-  );
-}
-
-function Chips({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
-  return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-      {options.map((o) => <Chip key={o} label={o} selected={o === value} onPress={() => onChange(o)} />)}
-    </View>
   );
 }
