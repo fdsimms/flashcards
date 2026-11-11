@@ -1,5 +1,5 @@
 import { isInProgress } from './progress';
-import { buildQueue, isLearning, studiable, type Queue, type StudiedToday } from './queue';
+import { buildQueue, isBuried, isLearning, studiable, type Queue, type StudiedToday } from './queue';
 import type { Card, DeckParams } from './types';
 
 /**
@@ -156,7 +156,10 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const ahead: Card[] = [];
   for (const [deck, cards] of input.cardsByDeck) {
     if (!isInDeck(deck, root)) continue;
-    for (const c of studiable(cards)) if (isLearning(c) && dueMs(c) <= cutoff) ahead.push(c);
+    for (const c of studiable(cards)) {
+      // A learning card Anki buried today stays back here too, as it does in buildQueue.
+      if (isLearning(c) && dueMs(c) <= cutoff && !isBuried(c, new Date(now), input.dayStartsAtHour)) ahead.push(c);
+    }
   }
   return { due: ahead.sort((a, b) => dueMs(a) - dueMs(b)), fresh: [] };
 }

@@ -95,6 +95,12 @@ describe('treeQueue limits and learn-ahead', () => {
     expect(treeQueue('D', input({ D: [...soon, ...later] })).due).toHaveLength(0);
     expect(treeQueue('D', { ...input({ 'D::x': [...soon, ...later] }), learnAheadMinutes: 20 }).due.map((c) => c.id)).toEqual([soon[0].id]);
   });
+  it("doesn't learn ahead to a card Anki buried today", () => {
+    const soon = newCards(1).map((c) => ({
+      ...c, buriedAt: new Date(2026, 10, 11, 9, 0).toISOString(), sched: { ...c.sched, state: 1, due: new Date(2026, 10, 11, 12, 5).toISOString() },
+    }));
+    expect(treeQueue('D', { ...input({ D: soon }), learnAheadMinutes: 20 }).due).toHaveLength(0);
+  });
   it('does not learn ahead while new cards are still waiting', () => {
     const soon = newCards(1).map((c) => ({ ...c, sched: { ...c.sched, state: 1, due: new Date(2026, 10, 11, 12, 5).toISOString() } }));
     const q = treeQueue('D', { ...input({ D: [...soon, ...newCards(1)] }), learnAheadMinutes: 20 });
