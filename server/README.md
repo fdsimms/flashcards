@@ -27,7 +27,9 @@ Check it's running: open `https://<your domain>/health` in a browser. A blank pa
 
 Your collections and media live in Docker's `anki-data` volume, which survives restarts and upgrades. Anki on your computer keeps its own backups as well.
 
-**Upgrading Anki on the server:** set `ANKI_VERSION` in `.env` to the newer version (it should be at least as new as the newest Anki you sync with) and run `docker compose up -d --build` again.
+**Keep it up to date on its own:** run `sh install-auto-update.sh` once, in this folder. Every 15 minutes the server then checks GitHub, and when anything in `server/` changed on `main`, it pulls the change and rebuilds. Sync and the MCP are down for a few seconds while it restarts. `journalctl -u franki-update` shows what it did, `sh update.sh` updates right away, and `systemctl disable --now franki-update.timer` turns it off. It only ever fast-forwards: if you edited files here by hand, it stops and says so in that log rather than merge over them (`.env` is yours and never touched). If the repository is private, the server needs a read-only deploy key to fetch it: GitHub's repository settings, Deploy keys.
+
+**Upgrading Anki on the server:** the version is `ANKI_VERSION` in `docker-compose.yml` (keep it at least as new as the newest Anki you sync with), so with automatic updates on, a change to it on `main` reaches the server by itself. Setting `ANKI_VERSION` in `.env` overrides it, and then automatic updates leave the version alone.
 
 ## Move your devices over
 

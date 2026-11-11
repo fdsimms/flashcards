@@ -365,6 +365,9 @@ and never the server's files, so searches, note adds, scheduling and sync behave
   `pip install -r requirements-dev.txt`. CI runs them in their own job. Azure's request shapes are
   unverified against a live key (`speech.py` says so).
 - Keep `anki` in `requirements.txt` at the version the sync server runs (`ANKI_VERSION`).
+- **A merge to `main` that touches `server/` deploys itself** (`server/update.sh`, on a timer, within
+  about 15 minutes) and restarts sync and the MCP. A server change must work with nothing done by
+  hand on the server; if one truly needs a step there (a new `.env` setting), the PR says so plainly.
 
 ### Backup
 
