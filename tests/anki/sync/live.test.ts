@@ -8,6 +8,7 @@ import {
   downloadCollection, markDownloaded, prepareForUpload, syncCollection, uploadCollection,
 } from '../../../src/anki/sync/collectionSync';
 import { pullMedia, type MediaState } from '../../../src/anki/sync/mediaSync';
+import { addAnkiNote, ankiDeckId, ankiNoteType, deleteAnkiNotes, editAnkiNote } from '../../../src/anki/noteWrites';
 import {
   CARD_ROW_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams,
 } from '../../../src/anki/writeback';
@@ -95,6 +96,20 @@ function franki(server: AnkiServer, collated: boolean) {
       }, serverMediaUsn);
     },
     mediaFile: (n: string) => readFileSync(join(mediaDir, n), 'utf8'),
+    /** Adds, edits and deletes notes as the note editor does (noteWrites.ts). */
+    async editNotes() {
+      return withDb(async (db) => {
+        const now = new Date();
+        const reversed = (await ankiNoteType(db, 'Basic (and reversed card)', ['Front', 'Back']))!;
+        const deckId = (await ankiDeckId(db, '🧠 Trivia'))!;
+        const added = await addAnkiNote(db, { noteType: reversed, deckId, fields: { Front: 'Capital of Uruguay?', Back: 'Montevideo' }, tags: ['geo::south-america', 'franki'], ords: [0, 1], now });
+        const grown = await addAnkiNote(db, { noteType: reversed, deckId, fields: { Front: 'Capital of Paraguay?', Back: '' }, tags: [], ords: [0], now });
+        await editAnkiNote(db, { nid: grown.nid, noteType: reversed, fields: { Front: 'Capital of Paraguay?', Back: 'Asunción' }, tags: ['geo'], ords: [0, 1], now });
+        const victim = (await db.first<{ id: number }>("SELECT id FROM notes WHERE flds LIKE 'Capital of Bolivia?%'"))!.id;
+        await deleteAnkiNotes(db, [victim], now);
+        return { added: added.nid, grown: grown.nid, deleted: victim };
+      });
+    },
     /** The rows sync-device.py's dump returns, read with Node's SQLite and Anki's collation. */
     async dump() {
       const db = await sqliteWithUnicase(kept);
@@ -206,6 +221,19 @@ for (const collated of [true, false]) {
       expect(await me.sync()).toMatchObject({ kind: 'synced', received: true });
       await expectSame();
       expect((await me.dump()).notes.map((n) => n[0])).not.toContain(gone[0]);
+    });
+
+    it('sends notes added, edited and deleted in Franki, which Anki then has exactly', async () => {
+      const { added, grown, deleted } = await me.editNotes();
+      expect(await me.sync()).toMatchObject({ kind: 'synced', sent: 0 });
+      desktop.run('sync');
+      await expectSame();
+      const theirs = phone.run('dump').dump as Dump;
+      const nids = theirs.notes.map((n) => n[0]);
+      expect(nids).toContain(added);
+      expect(nids).not.toContain(deleted);
+      expect(theirs.cards.filter((c) => c[1] === grown).map((c) => c[3])).toEqual([0, 1]);
+      if (collated) expect(theirs.tags.map((t) => t[0])).toEqual(expect.arrayContaining(['franki', 'geo::south-america']));
     });
 
     it(collated
