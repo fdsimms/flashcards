@@ -1,15 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { DEFAULT_GATE_CAP } from '../core/config';
 import { groupByDeck, inProgressCount } from '../core/deckTree';
 import { GURU_INTERVAL_DAYS, parseGateCap } from '../core/progress';
 import type { DeckSettings } from '../core/types';
 import type { Repo } from '../db/repo';
-import { useTheme } from './theme';
+import { Card, Help, Screen } from './kit';
+import { radius, space, type, useTheme } from './theme';
 
 /** Settings made in the app for one deck: so far, the progress gate. */
 export function DeckOptions({ repo, deck, onDone }: { repo: Repo; deck: string; onDone: () => void }) {
-  const t = useTheme();
+  const c = useTheme();
   const [settings, setSettings] = useState<DeckSettings | null>(null);
   const [capText, setCapText] = useState('');
   const [error, setError] = useState<string>();
@@ -59,48 +60,44 @@ export function DeckOptions({ repo, deck, onDone }: { repo: Repo; deck: string; 
   const on = settings?.gateCap !== undefined;
   const name = deck.split('::').pop();
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: 56 }}>
-      <Pressable onPress={back} style={{ paddingHorizontal: 20 }}>
-        <Text style={{ color: t.accent, fontSize: 16 }}>‹ Decks</Text>
-      </Pressable>
-      <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
-        <Text style={{ color: t.text, fontSize: 28, fontWeight: '700' }}>{name}</Text>
-        <View style={{ backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 14, padding: 16, gap: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Text style={{ color: t.text, fontSize: 17, fontWeight: '600', flex: 1 }}>Limit cards in progress</Text>
-            <Switch value={on} onValueChange={toggle} disabled={!settings} />
+    <Screen onBack={back} title={name}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled">
+        <Card>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
+            <Text style={{ ...type.headline, color: c.text, flex: 1 }}>Limit cards in progress</Text>
+            <Switch value={on} onValueChange={toggle} disabled={!settings} trackColor={{ true: c.accent }} accessibilityLabel="Limit cards in progress" />
           </View>
-          <Text style={{ color: t.sub }}>
-            Show new cards only while fewer than this many cards in this deck and its subdecks are still in
-            progress. A card stops counting once its next review is {GURU_INTERVAL_DAYS} days or more away, and
-            counts again if you forget it. While this is on, the deck's daily new card limit doesn't apply.
-          </Text>
+          <Help>
+            Show new cards only while fewer than this many cards in this deck and its subdecks are still in progress. A card
+            stops counting once its next review is {GURU_INTERVAL_DAYS} days or more away, and counts again if you forget it.
+            While this is on, the deck's daily new card limit doesn't apply.
+          </Help>
           {on ? (
-            <View style={{ gap: 6 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <Text style={{ color: t.text, flex: 1 }}>Most cards in progress</Text>
+            <View style={{ gap: space.xs, borderTopWidth: 1, borderTopColor: c.border, paddingTop: space.m }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
+                <Text style={{ ...type.body, color: c.text, flex: 1 }}>Most cards in progress</Text>
                 <TextInput
                   value={capText}
                   onChangeText={(v) => { setCapText(v); setError(undefined); }}
                   onEndEditing={commitCap}
                   keyboardType="number-pad"
                   returnKeyType="done"
+                  accessibilityLabel="Most cards in progress"
                   style={{
-                    color: t.text, borderColor: error ? t.again : t.border, borderWidth: 1, borderRadius: 8,
-                    paddingHorizontal: 12, paddingVertical: 8, minWidth: 80, textAlign: 'right', fontSize: 17,
+                    ...type.body, color: c.text, backgroundColor: c.fill,
+                    borderColor: error ? c.danger : 'transparent', borderWidth: 1, borderRadius: radius.s,
+                    paddingHorizontal: space.m, paddingVertical: space.s, minWidth: 88, textAlign: 'right',
                   }}
                 />
               </View>
-              {error ? <Text style={{ color: t.again }}>{error}</Text> : null}
+              {error ? <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text> : null}
             </View>
           ) : null}
-          {inProgress !== undefined ? (
-            <Text style={{ color: t.sub }}>
-              {inProgress === 1 ? '1 card is' : `${inProgress} cards are`} in progress in this deck now.
-            </Text>
-          ) : null}
-        </View>
+        </Card>
+        {inProgress !== undefined ? (
+          <Help>{inProgress === 1 ? '1 card is' : `${inProgress} cards are`} in progress in this deck and its subdecks now.</Help>
+        ) : null}
       </ScrollView>
-    </View>
+    </Screen>
   );
 }

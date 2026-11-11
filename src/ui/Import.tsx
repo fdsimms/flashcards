@@ -1,14 +1,15 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import React, { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 import type { Repo } from '../db/repo';
 import type { BackupStore } from '../db/sqliteRepo';
 import { importAnkiJson, type AnkiExport } from '../import/ankiJson';
 import { fileUriToPath } from '../db/backup';
 import { reconcileIds } from '../import/reconcile';
 import { importTsv, type ImportResult } from '../import/tsv';
-import { useTheme } from './theme';
+import { Button, Card, Help, MessageList, Screen } from './kit';
+import { space, type, useTheme } from './theme';
 
 /** Warnings listed per import. Past this the rest are counted, never dropped silently. */
 const MAX_WARNINGS = 20;
@@ -17,7 +18,7 @@ const MAX_WARNINGS = 20;
 const SQLITE = /\.(sqlite|db)$/i;
 
 export function Import({ repo, onDone }: { repo: Repo & BackupStore; onDone: () => void }) {
-  const t = useTheme();
+  const c = useTheme();
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -78,18 +79,21 @@ export function Import({ repo, onDone }: { repo: Repo & BackupStore; onDone: () 
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: 56 }}>
-      <Pressable onPress={onDone} style={{ paddingHorizontal: 20 }}><Text style={{ color: t.accent, fontSize: 16 }}>‹ Decks</Text></Pressable>
-      <Text style={{ color: t.text, fontSize: 28, fontWeight: '700', padding: 20 }}>Import</Text>
-      <Text style={{ color: t.sub, paddingHorizontal: 20 }}>
-        Pick the anki-export.sqlite file made by scripts/export-anki.mjs on your computer. It keeps Anki's scheduling, each deck's limits, how each note type's cards look, and their images and sounds. An Anki plain-text export (.txt/.tsv) also works, but starts every card as new. Re-importing never resets cards you've already reviewed, and finds notes you already have even if their deck changed.
-      </Text>
-      <Pressable onPress={pick} disabled={busy} style={{ margin: 20, backgroundColor: t.accent, borderRadius: 14, padding: 16, alignItems: 'center', opacity: busy ? 0.5 : 1 }}>
-        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{busy ? 'Importing…' : 'Choose file'}</Text>
-      </Pressable>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, gap: 6 }}>
-        {log.map((l, i) => <Text key={i} style={{ color: t.sub }}>{l}</Text>)}
+    <Screen onBack={onDone} title="Import" footer={<Button label="Choose file" onPress={pick} busy={busy} />}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+        <Card>
+          <Text style={{ ...type.headline, color: c.text }}>From Anki</Text>
+          <Help>
+            Pick the anki-export.sqlite file made by scripts/export-anki.mjs on your computer. It keeps Anki's scheduling, each
+            deck's limits, how each note type's cards look, and their images and sounds.
+          </Help>
+          <Help>An Anki plain-text export (.txt or .tsv) also works, but starts every card as new.</Help>
+        </Card>
+        <Help>
+          Importing again never resets cards you've already reviewed here, and finds notes you already have even if their deck changed.
+        </Help>
+        <MessageList lines={log} />
       </ScrollView>
-    </View>
+    </Screen>
   );
 }

@@ -12,16 +12,27 @@ import type { Card, DeckParams, DeckSettings, Note, NoteType, RenderedSide } fro
 import type { Repo } from '../db/repo';
 import { mediaBaseUri } from '../media/mediaFiles';
 import { CardWebView } from './CardWebView';
-import { useTheme } from './theme';
+import { Button, Count, HeaderAction, Screen } from './kit';
+import { MIN_TAP, radius, space, type, useTheme } from './theme';
 
-function Side({ side }: { side: RenderedSide }) {
-  const t = useTheme();
+/**
+ * One side of a natively rendered card: the word or question large and centered, the details
+ * under it in smaller text with their labels.
+ */
+function Side({ side, which }: { side: RenderedSide; which: 'front' | 'back' }) {
+  const c = useTheme();
   return (
-    <View style={{ gap: 10 }}>
+    <View style={{ gap: space.m }}>
       {side.blocks.map((b, i) => (
-        <View key={i}>
-          {b.label ? <Text style={{ color: t.accent, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase' }}>{b.label}</Text> : null}
-          <Text style={{ color: b.emphasis ? t.text : t.sub, fontSize: b.emphasis ? 28 : 17, textAlign: b.emphasis ? 'center' : 'left' }}>
+        <View key={i} style={{ gap: space.xs }}>
+          {b.label ? (
+            <Text style={{ ...type.caption, fontWeight: '600', color: c.accent, letterSpacing: 0.8, textTransform: 'uppercase' }}>{b.label}</Text>
+          ) : null}
+          <Text
+            style={b.emphasis
+              ? { ...(which === 'front' ? type.cardFront : type.cardBack), color: c.text, textAlign: 'center' }
+              : { ...type.body, color: c.textSecondary, lineHeight: 24 }}
+          >
             {b.text}
           </Text>
         </View>
@@ -38,7 +49,7 @@ const DEFAULT_LIMITS = { newPerDay: NEW_PER_DAY, reviewsPerDay: REVIEWS_PER_DAY 
  * other note types render their Anki templates in a WebView.
  */
 export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDone: () => void }) {
-  const t = useTheme();
+  const c = useTheme();
   const dark = useColorScheme() === 'dark';
   const [cards, setCards] = useState<Card[] | null>(null);
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
@@ -93,9 +104,12 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
     if (!note || !noteType || !current) return undefined;
     const ord = Number(current.kind.slice(1));
     const { front, back } = renderTemplateCard(note, noteType, ord);
-    const opts = { css: noteType.css, ord, dark, autoplay: true, mediaBase: mediaBaseUri() };
+    const opts = {
+      css: noteType.css, ord, dark, autoplay: true, mediaBase: mediaBaseUri(),
+      colors: { background: c.surface, text: c.text, cloze: c.countNew },
+    };
     return { front: cardDocument(front, opts), back: cardDocument(back, opts) };
-  }, [note, noteType, current?.id, current?.kind, dark]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [note, noteType, current?.id, current?.kind, dark, c]); // eslint-disable-line react-hooks/exhaustive-deps
   const rendered = current && note && !page ? renderCard(note, current.kind) : undefined;
   const intervals = current && revealed ? previewIntervals(current.sched, now, cardParams) : undefined;
 
@@ -165,83 +179,101 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
     return () => clearTimeout(id);
   }, [waitingFor?.getTime()]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!cards) return <View style={{ flex: 1, backgroundColor: t.bg }} />;
+  if (!cards) return <Screen onBack={onDone}><View /></Screen>;
 
-  const header = (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, gap: 12 }}>
-      <Pressable onPress={onDone}><Text style={{ color: t.accent, fontSize: 16 }}>‹ Decks</Text></Pressable>
-      {queue && current ? <Text style={{ color: t.sub }}>{queue.due.length} due · {queue.fresh.length} new</Text> : null}
-      {history.length ? (
-        <Pressable onPress={undo} hitSlop={12}><Text style={{ color: t.accent, fontSize: 16 }}>Undo</Text></Pressable>
-      ) : <View style={{ width: 40 }} />}
-    </View>
-  );
+  const undoAction = history.length ? <HeaderAction label="Undo" onPress={undo} accessibilityLabel="Undo the last answer" /> : undefined;
 
   if (!current || !note || (!rendered && !page)) {
     const minutes = waitingFor ? Math.max(1, Math.ceil((waitingFor.getTime() - Date.now()) / 60000) - LEARN_AHEAD_MINUTES) : 0;
     return (
-      <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: 56 }}>
-        {header}
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-          <Text style={{ color: t.text, fontSize: 22 }}>{waitingFor ? 'Nothing due right now' : 'All done for now 🎉'}</Text>
-          {waitingFor ? <Text style={{ color: t.sub }}>The next card comes back in about {minutes} min.</Text> : null}
-          <Pressable onPress={onDone} style={{ backgroundColor: t.accent, borderRadius: 12, paddingHorizontal: 28, paddingVertical: 12 }}>
-            <Text style={{ color: '#fff', fontWeight: '700' }}>Back to decks</Text>
-          </Pressable>
+      <Screen onBack={onDone} right={undoAction} footer={<Button label="Back to decks" onPress={onDone} />}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
+          <Text style={{ ...type.title, color: c.text, textAlign: 'center' }}>
+            {waitingFor ? 'Nothing due right now' : 'All done for now'}
+          </Text>
+          <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>
+            {waitingFor ? `The next card comes back in about ${minutes} min.` : 'Nothing else is due in this deck today.'}
+          </Text>
         </View>
-      </View>
+      </Screen>
     );
   }
 
   const buttons: { r: RatingValue; label: string; color: string }[] = [
-    { r: 1, label: 'Again', color: t.again },
-    { r: 2, label: 'Hard', color: t.hard },
-    { r: 3, label: 'Good', color: t.good },
-    { r: 4, label: 'Easy', color: t.easy },
+    { r: 1, label: 'Again', color: c.again },
+    { r: 2, label: 'Hard', color: c.hard },
+    { r: 3, label: 'Good', color: c.good },
+    { r: 4, label: 'Easy', color: c.easy },
   ];
 
+  const footer = revealed ? (
+    <View style={{ flexDirection: 'row', gap: space.s }}>
+      {buttons.map((b) => (
+        <Pressable
+          key={b.r}
+          onPress={() => answer(b.r)}
+          accessibilityRole="button"
+          accessibilityLabel={`${b.label}, next in ${intervals?.[b.r] ?? ''}`}
+          style={({ pressed }) => ({
+            flex: 1, minHeight: 56, borderRadius: radius.m, paddingVertical: space.s,
+            alignItems: 'center', justifyContent: 'center', gap: 2,
+            backgroundColor: b.color, opacity: pressed ? 0.75 : 1,
+          })}
+        >
+          {/* The interval sits above the label, as in Anki, so the eye lands on when it's next due. */}
+          <Text style={{ ...type.caption, color: c.onRating, opacity: 0.85 }}>{intervals?.[b.r]}</Text>
+          <Text style={{ ...type.headline, color: c.onRating }}>{b.label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  ) : (
+    <Button label="Show answer" onPress={() => { setRevealed(true); if (rendered?.back.speak) speak(rendered.back.speak); }} />
+  );
+
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: 56 }}>
-      {header}
+    <Screen
+      onBack={onDone}
+      right={
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+          {queue ? (
+            <View style={{ flexDirection: 'row', gap: space.m, paddingHorizontal: space.s }}>
+              <Count value={queue.due.length} label="due" color={c.countDue} />
+              <Count value={queue.fresh.length} label="new" color={c.countNew} />
+            </View>
+          ) : null}
+          {undoAction}
+        </View>
+      }
+      footer={footer}
+    >
       {page ? (
-        <View style={{ flex: 1, marginTop: 12 }}>
+        <View style={{ flex: 1, marginHorizontal: space.l, marginTop: space.s, borderRadius: radius.l, overflow: 'hidden', backgroundColor: c.surface, borderWidth: 1, borderColor: c.border }}>
           <CardWebView key={`${current.id}:${revealed ? 'back' : 'front'}`} html={revealed ? page.back : page.front} />
         </View>
       ) : rendered ? (
-        <ScrollView contentContainerStyle={{ padding: 24, gap: 24, flexGrow: 1, justifyContent: 'center' }}>
-          <Side side={rendered.front} />
+        <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
+          <Side side={rendered.front} which="front" />
           {rendered.front.speak || rendered.back.speak ? (
-            <Pressable onPress={() => speak(rendered.back.speak ?? rendered.front.speak)} style={{ alignSelf: 'center' }}>
-              <Text style={{ color: t.accent, fontSize: 18 }}>🔊 Play</Text>
+            <Pressable
+              onPress={() => speak(rendered.back.speak ?? rendered.front.speak)}
+              accessibilityRole="button"
+              accessibilityLabel="Play the word"
+              style={({ pressed }) => ({
+                alignSelf: 'center', minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.l,
+                borderRadius: radius.pill, backgroundColor: c.fill, opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Text style={{ ...type.callout, color: c.accent }}>🔊 Play</Text>
             </Pressable>
           ) : null}
           {revealed ? (
             <>
-              <View style={{ height: 1, backgroundColor: t.border }} />
-              <Side side={rendered.back} />
+              <View style={{ height: 1, backgroundColor: c.border }} />
+              <Side side={rendered.back} which="back" />
             </>
           ) : null}
         </ScrollView>
       ) : null}
-      <View style={{ padding: 16, paddingBottom: 36 }}>
-        {revealed ? (
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {buttons.map((b) => (
-              <Pressable key={b.r} onPress={() => answer(b.r)} style={{ flex: 1, backgroundColor: b.color, borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
-                <Text style={{ color: '#fff', fontWeight: '700' }}>{b.label}</Text>
-                <Text style={{ color: '#ffffffcc', fontSize: 12 }}>{intervals?.[b.r]}</Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : (
-          <Pressable
-            onPress={() => { setRevealed(true); if (rendered?.back.speak) speak(rendered.back.speak); }}
-            style={{ backgroundColor: t.accent, borderRadius: 14, padding: 16, alignItems: 'center' }}
-          >
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Show answer</Text>
-          </Pressable>
-        )}
-      </View>
-    </View>
+    </Screen>
   );
 }
