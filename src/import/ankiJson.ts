@@ -25,6 +25,8 @@ export interface AnkiCardInfo {
   /** Anki card type: 0 new, 1 learning, 2 review, 3 relearning. */
   type?: number;
   queue?: number;
+  /** When Anki buried the card (unix seconds), when it's buried; `queue` then holds its ordinary queue. */
+  buriedAt?: number;
   /**
    * Raw due value. A day number counted from `collectionCreated` for review and interday
    * learning cards; a unix timestamp in seconds for intraday learning cards (queue 1). For a new
@@ -191,6 +193,7 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
       }
       target.sched = schedFromAnki(ac, data.collectionCreated, now);
       target.suspended = ac.queue === -1;
+      target.buriedAt = ac.buriedAt !== undefined ? new Date(ac.buriedAt * 1000).toISOString() : undefined;
       target.ankiId = String(ac.cardId);
     }
     cards.push(...generated);

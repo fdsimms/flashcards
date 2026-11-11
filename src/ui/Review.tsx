@@ -5,7 +5,8 @@ import { Alert, Pressable, ScrollView, Text, useColorScheme, View } from 'react-
 import { isOmnilanguage, renderCard } from '../core/cards';
 import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from '../core/config';
 import { deckLimits, groupByDeck, isInDeck, treeQueue } from '../core/deckTree';
-import { nextLearningDue, type StudiedToday } from '../core/queue';
+import { studyDayStart } from '../core/day';
+import { nextLearningDue, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { paramsForDeck, previewIntervals, review, type RatingValue } from '../core/scheduler';
 import { bumpStudied, currentCard, type AnswerRecord } from '../core/session';
@@ -76,11 +77,14 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
 
   useEffect(() => {
     (async () => {
-      const [c, n, today, params, types, settings, buttons] = await Promise.all([
+      const now = new Date();
+      const dayStart = studyDayStart(now, DAY_STARTS_AT_HOUR);
+      const [c, n, reviews, revlog, params, types, settings, buttons] = await Promise.all([
         // Every card, not only this deck's: a gate on a deck above this one counts its whole subtree.
-        repo.listCards(), repo.listNotes(), repo.studiedToday(new Date(), DAY_STARTS_AT_HOUR),
+        repo.listCards(), repo.listNotes(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
         repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(),
       ]);
+      const today = studiedToday({ notes: n, cards: c, reviews, revlog, now, dayStartsAtHour: DAY_STARTS_AT_HOUR });
       setAnswerButtons(buttons);
       setDeckSettings(settings);
       setAllParams(params);
@@ -226,7 +230,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   // Out of cards with a learning card still to come: wake when it's within the learn-ahead limit
   // instead of declaring the deck done, which left it waiting until the deck was reopened.
   const waitingFor = !current && cards
-    ? nextLearningDue(cards.filter((c) => isInDeck(deckOf.get(c.noteId) ?? '', deck)))
+    ? nextLearningDue(cards.filter((c) => isInDeck(deckOf.get(c.noteId) ?? '', deck)), { dayStartsAtHour: DAY_STARTS_AT_HOUR })
     : undefined;
   useEffect(() => {
     if (!waitingFor) return;

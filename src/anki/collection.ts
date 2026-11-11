@@ -42,7 +42,7 @@ export const COLLECTION_QUERIES = {
   fields: 'SELECT ntid, ord, name FROM fields',
   templates: 'SELECT ntid, ord, name, config FROM templates',
   notes: 'SELECT id, mid, tags, flds FROM notes',
-  cards: 'SELECT id, nid, did, ord, type, queue, due, ivl, factor, reps, lapses, odid, odue, data FROM cards',
+  cards: 'SELECT id, nid, did, ord, type, queue, due, ivl, factor, reps, lapses, odid, odue, data, mod FROM cards',
   decks: 'SELECT id, name, kind FROM decks',
   deckConfigs: 'SELECT id, config FROM deck_config',
   lastReviews: 'SELECT cid, MAX(id) AS last FROM revlog GROUP BY cid',
@@ -58,6 +58,8 @@ export interface CollectionRows {
   cards: {
     id: Num; nid: Num; did: Num; ord: Num; type: Num; queue: Num; due: Num; ivl: Num;
     factor: Num; reps: Num; lapses: Num; odid: Num; odue: Num; data: string | null;
+    /** When the card last changed (unix seconds): for a buried card, when it was buried. */
+    mod?: Num;
   }[];
   decks: { id: Num; name: string; kind: Uint8Array }[];
   deckConfigs: { id: Num; config: Uint8Array }[];
@@ -156,8 +158,10 @@ export function buildExport(rows: CollectionRows): AnkiExport & { collectionCrea
       deckName: decks.get(did)?.name ?? 'Default',
       ord: Number(c.ord),
       type: Number(c.type),
-      // Buried (-2, -3) is a today-only state; read it as the card's ordinary queue.
+      // Buried (-2, -3) is a today-only state: read it as the card's ordinary queue, and keep
+      // when it was buried so the queue can hold it back until the next study day (isBuried).
       queue: Number(c.queue) < -1 ? Number(c.type) : Number(c.queue),
+      buriedAt: Number(c.queue) < -1 && c.mod !== undefined ? Number(c.mod) : undefined,
       due: Number(inFiltered && Number(c.odue) !== 0 ? c.odue : c.due),
       interval: Number(c.ivl),
       factor: Number(c.factor),

@@ -1,5 +1,6 @@
-import { nextStudyDayStart } from './day';
-import type { Card } from './types';
+import { nextStudyDayStart, studyDayStart } from './day';
+import { answersFrom, type RevlogRow } from './stats';
+import type { Card, Note, ReviewLogEntry } from './types';
 
 export interface QueueOptions {
   /** The hour the study day starts (`DAY_STARTS_AT_HOUR`). */
@@ -36,13 +37,22 @@ export function studiable(cards: Card[]): Card[] {
 }
 
 /**
+ * Whether Anki has the card buried for today: held back until the next study day. Anki unburies
+ * every card when a new day starts, on whichever device opens first, so a card buried before
+ * today's study day began is studied as usual here without waiting for that device to sync.
+ */
+export function isBuried(card: Card, now: Date, dayStartsAtHour: number): boolean {
+  return !!card.buriedAt && new Date(card.buriedAt).getTime() >= studyDayStart(now, dayStartsAtHour).getTime();
+}
+
+/**
  * One deck's own cards, before any limit: everything due (most overdue first) and every new card.
  * `treeQueue` (deckTree.ts) adds the subdecks, the daily limits and learn-ahead on top; study
  * through that, not this.
  */
 export function buildQueue(cards: Card[], opts: QueueOptions): Queue {
   const now = opts.now ?? new Date();
-  const active = studiable(cards);
+  const active = studiable(cards).filter((c) => !isBuried(c, now, opts.dayStartsAtHour));
   const due = active
     .filter((c) => isDue(c, now, opts.dayStartsAtHour))
     .sort((a, b) => dueMs(a) - dueMs(b));
@@ -54,9 +64,11 @@ export function buildQueue(cards: Card[], opts: QueueOptions): Queue {
  * When the next learning card comes due, for a session that has run out of cards: the review
  * screen waits for it instead of declaring the deck done. Undefined when none is waiting.
  */
-export function nextLearningDue(cards: Card[]): Date | undefined {
+export function nextLearningDue(cards: Card[], opts: QueueOptions): Date | undefined {
+  const now = opts.now ?? new Date();
   let best: number | undefined;
   for (const c of studiable(cards)) {
+    if (isBuried(c, now, opts.dayStartsAtHour)) continue;
     if (isLearning(c) && (best === undefined || dueMs(c) < best)) best = dueMs(c);
   }
   return best === undefined ? undefined : new Date(best);
@@ -72,4 +84,40 @@ export interface StudiedToday {
   introduced: number;
   /** Answers given to cards in the Review state. */
   reviewed: number;
+}
+
+/**
+ * What each deck has used of today's limits, by its own cards (a parent deck's entry leaves out
+ * its subdecks'; `treeQueue` adds them up), from every answer given today on any device. Answers
+ * come as `answersFrom` (stats.ts) reads them: the kept collection's review log for Anki's cards,
+ * which holds answers synced from AnkiMobile and Anki and Franki's own (write-back puts them
+ * there), and Franki's reviews table for the rest. Counting only Franki's table offered new cards
+ * already studied in Anki that day. Pass `reviews` and `revlog` from the start of the study day.
+ */
+export function studiedToday(input: {
+  notes: Note[]; cards: Card[]; reviews: ReviewLogEntry[]; revlog: RevlogRow[]; now: Date; dayStartsAtHour: number;
+}): Map<string, StudiedToday> {
+  const start = studyDayStart(input.now, input.dayStartsAtHour).getTime();
+  const deckOfNote = new Map(input.notes.map((n) => [n.id, n.deck]));
+  const deckOf = new Map(input.cards.map((c) => [c.id, deckOfNote.get(c.noteId)]));
+  const introduced = new Map<string, Set<string>>();
+  const out = new Map<string, StudiedToday>();
+  for (const a of answersFrom(input)) {
+    if (a.at.getTime() < start) continue;
+    const deck = deckOf.get(a.cardId);
+    if (!deck) continue;
+    const s = out.get(deck) ?? { introduced: 0, reviewed: 0 };
+    if (a.wasNew) {
+      const seen = introduced.get(deck) ?? new Set<string>();
+      seen.add(a.cardId);
+      introduced.set(deck, seen);
+      s.introduced = seen.size;
+    } else if (a.kind === 'review') {
+      s.reviewed++;
+    } else {
+      continue;
+    }
+    out.set(deck, s);
+  }
+  return out;
 }

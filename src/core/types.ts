@@ -43,6 +43,12 @@ export interface Card {
    * written back to that card in the kept collection (src/anki/writeback.ts).
    */
   ankiId?: string;
+  /**
+   * When Anki buried the card (its `mod` time, ISO), if it's buried: held back until the next
+   * study day, as Anki does with a card's siblings once one is answered. `isBuried` (queue.ts)
+   * decides; a card buried on an earlier day is studied as usual.
+   */
+  buriedAt?: string;
   sched: SchedState;
 }
 
