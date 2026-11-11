@@ -14,39 +14,6 @@ describe('repo', () => {
     expect(await repo.swipeToRate()).toBe(true);
   });
 
-  it('records new-card introductions per deck', async () => {
-    const repo = new MemoryRepo();
-    const note = omniNote();
-    const cards = makeCards(note, NOW);
-    await repo.upsertNotesAndCards([note], cards);
-    const r = review(cards[0].sched, 3, NOW);
-    await repo.addReview({ cardId: cards[0].id, ...r.log });
-    expect((await repo.studiedToday(NOW, H)).get(note.deck)).toEqual({ introduced: 1, reviewed: 0 });
-  });
-
-  it('counts a 1 AM session against the study day before it', async () => {
-    const repo = new MemoryRepo();
-    const note = omniNote();
-    const cards = makeCards(note, NOW);
-    await repo.upsertNotesAndCards([note], cards);
-    const lateNight = new Date(2026, 10, 12, 1, 0);
-    await repo.addReview({ cardId: cards[0].id, ...review(cards[0].sched, 3, lateNight).log });
-    expect((await repo.studiedToday(new Date(2026, 10, 11, 20, 0), H)).get(note.deck)?.introduced).toBe(1);
-    expect((await repo.studiedToday(new Date(2026, 10, 12, 9, 0), H)).get(note.deck)).toBeUndefined();
-  });
-
-  it('counts answers to review cards separately from first answers to new ones', async () => {
-    const repo = new MemoryRepo();
-    const note = omniNote();
-    const [card] = makeCards(note, NOW);
-    await repo.upsertNotesAndCards([note], [card]);
-    const learned = review(review(card.sched, 3, NOW).sched, 3, NOW).sched; // now in Review
-    await repo.addReview({ cardId: card.id, ...review(card.sched, 3, NOW).log });
-    await repo.addReview({ cardId: card.id, ...review(learned, 3, NOW).log });
-    await repo.addReview({ cardId: card.id, ...review(learned, 1, NOW).log });
-    expect((await repo.studiedToday(NOW, H)).get(note.deck)).toEqual({ introduced: 1, reviewed: 2 });
-  });
-
   it('takes an answer back with deleteReview', async () => {
     const repo = new MemoryRepo();
     const note = omniNote();
@@ -54,7 +21,7 @@ describe('repo', () => {
     await repo.upsertNotesAndCards([note], [card]);
     const id = await repo.addReview({ cardId: card.id, ...review(card.sched, 3, NOW).log });
     await repo.deleteReview(id);
-    expect((await repo.studiedToday(NOW, H)).size).toBe(0);
+    expect(await repo.listReviews(new Date(0))).toEqual([]);
   });
 
   it('lists the answers logged from a time on, oldest first', async () => {

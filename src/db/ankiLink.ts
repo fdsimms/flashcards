@@ -52,7 +52,11 @@ export interface AnkiLink {
   /** Makes `collection` the one Franki keeps (it's moved, not copied), replacing any before it. */
   keepAnkiCollection(collection: File): Promise<void>;
   /** Writes an answer into the kept collection. Undefined when the card isn't from it. */
-  writeAnkiAnswer(a: { before: Card; after: Card; rating: RatingValue; now: Date; takenMs: number; desiredRetention?: number }): Promise<AnkiUndo | undefined>;
+  writeAnkiAnswer(a: {
+    before: Card; after: Card; rating: RatingValue; now: Date; takenMs: number; desiredRetention?: number;
+    /** Siblings to bury with the answer (`siblingsToBury`), in the same transaction. */
+    bury?: Card[];
+  }): Promise<AnkiUndo | undefined>;
   /**
    * Takes an answer back out of the kept collection. False, changing nothing, when it was already
    * synced (or the collection was replaced since): it's in the server's history, so as in Anki,
@@ -184,7 +188,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
       await setSetting(SETTING.lastSentId, String(max?.m ?? 0));
     },
 
-    writeAnkiAnswer: ({ before, after, rating, now, takenMs, desiredRetention }) => lockAnki(async () => {
+    writeAnkiAnswer: ({ before, after, rating, now, takenMs, desiredRetention, bury = [] }) => lockAnki(async () => {
       await attach();
       if (!attached || !before.ankiId) return undefined;
       const cid = Number(before.ankiId);
@@ -193,12 +197,18 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
       const crt = (await db.getFirstAsync<{ crt: number }>(SQL.crt))!.crt;
       const latest = await db.getFirstAsync<{ m: number | null }>(SQL.maxRevlogId);
       const revlogId = nextRevlogId(now.getTime(), latest?.m ?? null);
+      const buried: AnkiUndo['buried'] = [];
+      for (const s of bury) {
+        const sibling = s.ankiId ? await db.getFirstAsync<AnkiCardRow & { mod: number; usn: number }>(SQL.cardRow, Number(s.ankiId)) : null;
+        if (sibling) buried.push({ cid: Number(s.ankiId), row: sibling });
+      }
       await db.withTransactionAsync(async () => {
         await db.runAsync(SQL.cardUpdate, ...cardUpdateParams(cardUpdate(after, row, { crt, now, desiredRetention }), cid));
         await db.runAsync(SQL.revlogInsert, ...revlogParams(revlogEntry(before, after, rating, { id: revlogId, cid, previousIvl: row.ivl, now, takenMs })));
+        for (const b of buried) await db.runAsync(SQL.buryCard, Math.floor(now.getTime() / 1000), b.cid);
         await db.runAsync(SQL.colModified, now.getTime());
       });
-      return { cid, row, revlogId };
+      return { cid, row, revlogId, buried };
     }),
 
     undoAnkiAnswer: (u) => lockAnki(async () => {
@@ -209,6 +219,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
       if (!r || r.usn !== -1) return false;
       await db.withTransactionAsync(async () => {
         await db.runAsync(SQL.cardUpdate, ...cardRestoreParams(u.row, u.cid));
+        for (const b of u.buried) await db.runAsync(SQL.cardUpdate, ...cardRestoreParams(b.row, b.cid));
         await db.runAsync(SQL.revlogDelete, u.revlogId);
         await db.runAsync(SQL.colModified, Date.now());
       });

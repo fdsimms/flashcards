@@ -41,6 +41,8 @@ export interface AnswerRecord {
   /** The rating given, and how long the card was on screen before it, for the session's summary. */
   rating: RatingValue;
   takenMs: number;
+  /** Siblings the answer buried (`siblingsToBury`), as they were before: undo puts them back. */
+  buried: Card[];
 }
 
 /** How far through the session is: answers given over those plus the cards still queued. */
