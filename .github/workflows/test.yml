@@ -1,0 +1,57 @@
+name: Tests
+
+on:
+  pull_request:
+  # Also on main: a branch is only as green as the main it was cut from, and nothing else
+  # would notice a merge that left main red.
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Only superseded PR pushes are worth cancelling. Merges land close together, and cancelling a
+  # main run lets a merge that broke main have its run killed by the next one and never show red.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      # In UTC+14 rather than the runner's UTC, because UTC is the one zone where a UTC/local
+      # mix-up (a day key cut out of toISOString(), a `...Z` fixture read back as a local date)
+      # cannot fail. Local runs already cover UTC; `npm run test:tz` covers two more zones.
+      #
+      # Shuffled, because a test that leans on the one before it passes in declaration order and
+      # in no other. Vitest prints the seed on a failure; `--sequence.seed=<n>` replays it.
+      - run: npx vitest run --sequence.shuffle
+        env:
+          TZ: Pacific/Kiritimati
+      # The slowest step, and it only catches bundle-time breakage (a bad import path, a missing
+      # asset, a native config change). On PRs it runs only when a path that can cause that
+      # changed; on main it always runs, since that's the build every branch is cut from.
+      - name: Check for bundle-relevant changes
+        if: github.event_name == 'pull_request'
+        id: bundle-paths
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            bundle:
+              - 'package.json'
+              - 'package-lock.json'
+              - 'app.json'
+              - 'eas.json'
+              - 'App.tsx'
+              - 'index.ts'
+              - 'plugins/**'
+              - 'assets/**'
+      - if: github.event_name != 'pull_request' || steps.bundle-paths.outputs.bundle == 'true'
+        run: npx expo export --platform ios --output-dir /tmp/expo-export
+        env:
+          CI: 1
