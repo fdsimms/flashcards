@@ -4,6 +4,9 @@
 # - decks: each deck as sync sends it (the JSON form, `col.decks.all()`) beside the row Anki
 #   stores for it (`decks.common` and `decks.kind`, base64).
 # - notes: fields beside the sort field and checksum Anki computed for them.
+# - unicase: strings in the order Anki's `unicase` collation sorts them (ties by their bytes), for
+#   the collation in modules/anki-unicase: every character with a case folding and what it folds
+#   to, plus words that exercise multi-character folds.
 import base64, json, os, shutil, sys, tempfile
 from anki.collection import Collection
 
@@ -80,7 +83,18 @@ for front in fields:
     sfld, csum = col.db.first("select sfld, csum from notes where id = ?", n.id)
     notes.append({"fields": [front, "b"], "sfld": sfld, "csum": csum})
 
+sample = set("Straße STRASSE strasse ﬁle FILE ﬃx ffix iffy Ǆemal ǆemal džemal ΐx ΐ İstanbul i̇stanbul Ölçü ölçü Ab aB a A aa _ 0 9 Z z ~ 日本語 Русский русский Ⅻ ⅻ ᾷ ᾶι".split())
+for cp in range(1, 0x110000):
+    if 0xD800 <= cp <= 0xDFFF:
+        continue
+    c = chr(cp)
+    if c.casefold() != c or c.lower() != c or c.upper() != c:
+        sample.update({c, c.casefold()})
+col.db.execute("create table unicase_sample (x text)")
+col.db.executemany("insert into unicase_sample values (?)", [(x,) for x in sample])
+unicase = col.db.list("select x from unicase_sample order by x collate unicase, x")
+
 col.close()
 with open(out, "w") as fh:
-    json.dump({"decks": decks, "notes": notes}, fh, ensure_ascii=False, indent=1)
+    json.dump({"decks": decks, "notes": notes, "unicase": unicase}, fh, ensure_ascii=False, indent=1)
 shutil.rmtree(work)

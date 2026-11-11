@@ -23,6 +23,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # The tests build the app's unicase collation (modules/anki-unicase) as a SQLite extension,
+      # which needs SQLite's headers; tests/support/unicase.ts fails the run in CI without them.
+      - name: SQLite headers for the unicase extension
+        run: test -f /usr/include/sqlite3ext.h || (sudo apt-get update && sudo apt-get install -y libsqlite3-dev)
       - run: npx tsc --noEmit
       # In UTC+14 rather than the runner's UTC, because UTC is the one zone where a UTC/local
       # mix-up (a day key cut out of toISOString(), a `...Z` fixture read back as a local date)
@@ -50,6 +54,7 @@ jobs:
               - 'App.tsx'
               - 'index.ts'
               - 'plugins/**'
+              - 'modules/**'
               - 'assets/**'
       - if: github.event_name != 'pull_request' || steps.bundle-paths.outputs.bundle == 'true'
         run: npx expo export --platform ios --output-dir /tmp/expo-export
