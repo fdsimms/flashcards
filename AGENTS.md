@@ -24,7 +24,7 @@ There is no lint config. Run `npm run verify` before declaring any task done.
 
 ## Navigation & Routing
 
-- There is no router yet: `App.tsx` switches between the three screens with a `Screen` union. Don't assume `src/app/` routes exist.
+- There is no router yet: `App.tsx` switches between its screens (decks, review, import, backup) with a `Screen` union. Don't assume `src/app/` routes exist.
 - If navigation outgrows that (stack history, deep links, tabs), **Expo Router** is the one to adopt, with routes in `src/app/` and non-route code outside it. Docs: https://docs.expo.dev/router/introduction.md
 
 ## Building with EAS
@@ -35,5 +35,5 @@ Docs: https://docs.expo.dev/eas/index.md
 ## Rules
 
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
-- Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
+- This app doesn't use Expo Go: it runs in a development build (`expo-dev-client`, the `development` profile in `eas.json`). After adding a library with native code, the development build on the phone has to be rebuilt (`eas build --profile development`) before the new code can load; say so in the PR.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md

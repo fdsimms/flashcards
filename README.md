@@ -12,7 +12,7 @@ A small personal spaced-repetition app (React Native + Expo) built for language 
 
 ```bash
 npm install
-npx expo start      # scan the QR code with Expo Go on your iPhone
+npx expo start      # serves the code to the development build on your iPhone (see below)
 npm test            # scheduler, queue, study-day, importer, exporter and backup tests
 npm run typecheck
 npm run verify      # typecheck + tests, the loop to run before committing
@@ -46,16 +46,38 @@ Tap a deck to study it with its subdecks. **Undo** in the top right takes back t
 
 ## Installing on your iPhone
 
-Expo Go only runs the app while `npx expo start` is running on your computer. To have it on your phone for good, build it with EAS. This needs an [Expo account](https://expo.dev) and a paid Apple Developer account.
+The app doesn't use Expo Go. Both ways below build it with EAS, which needs an [Expo account](https://expo.dev) and a paid Apple Developer account. The bundle identifier is `com.fdsimms.flashcards` (`app.json`); change it before the first build if you want a different one.
 
 ```bash
 npx eas-cli@latest login
-npx eas-cli@latest init                                          # links the project, adds its id to app.json
-npx eas-cli@latest build --platform ios --profile production     # signs and builds in the cloud
-npx eas-cli@latest submit --platform ios --latest                # uploads to TestFlight
+npx eas-cli@latest init          # once: links the project and adds its id to app.json
 ```
 
-Then install it from TestFlight. The bundle identifier is `com.fdsimms.flashcards` (`app.json`); change it before the first build if you want a different one. The `preview` profile in `eas.json` makes an ad hoc build instead, for devices registered with `eas device:create`.
+### For trying changes: a development build
+
+Install it once, then run the latest code from your computer with live reload.
+
+```bash
+npx eas-cli@latest device:create                                  # once: register your iPhone (open the link it gives on the phone)
+npx eas-cli@latest build --platform ios --profile development     # builds in the cloud, gives an install link and QR code
+```
+
+1. Open the install link on your iPhone.
+2. Turn on **Settings > Privacy & Security > Developer Mode** (iOS asks you to restart).
+3. Run `npx expo start` on your computer and scan its QR code with the iPhone camera. The app loads your current code, and reloads as you change it.
+
+Rebuild the development build only when a native dependency changes (a new `expo-*` package with native code, or `app.json`'s plugins). Code changes never need a rebuild.
+
+A newly registered iPhone can take Apple up to a few days to accept on a new or just-renewed developer account; until then the first build may fail to install. Build again once it has gone through.
+
+### For everyday use: TestFlight
+
+```bash
+npx eas-cli@latest build --platform ios --profile production
+npx eas-cli@latest submit --platform ios --latest                 # uploads to TestFlight
+```
+
+Then install it from the TestFlight app. This version runs on its own, without your computer. The `preview` profile makes the same app as an ad hoc build for your registered iPhone, without TestFlight.
 
 ## Layout
 
