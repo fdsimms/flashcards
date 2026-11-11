@@ -7,24 +7,26 @@ import { deckLimits, deckRows, groupByDeck, type DeckRow } from './src/core/deck
 import { paramsForDeck } from './src/core/scheduler';
 import { backupStatus } from './src/db/backup';
 import type { Repo } from './src/db/repo';
+import type { AnkiLink } from './src/db/ankiLink';
 import { openRepo, type BackupStore } from './src/db/sqliteRepo';
 import { Backup } from './src/ui/Backup';
 import { DeckOptions } from './src/ui/DeckOptions';
 import { DeckList } from './src/ui/DeckList';
-import { Import } from './src/ui/Import';
+import { AnkiTransfer } from './src/ui/AnkiTransfer';
 import { Review } from './src/ui/Review';
 import { useTheme } from './src/ui/theme';
 
 type Screen =
-  | { name: 'decks' } | { name: 'import' } | { name: 'backup' }
+  | { name: 'decks' } | { name: 'anki' } | { name: 'backup' }
   | { name: 'review'; deck: string } | { name: 'deckOptions'; deck: string };
 
 export default function App() {
   const c = useTheme();
-  const [repo, setRepo] = useState<(Repo & BackupStore) | null>(null);
+  const [repo, setRepo] = useState<(Repo & BackupStore & AnkiLink) | null>(null);
   const [screen, setScreen] = useState<Screen>({ name: 'decks' });
   const [decks, setDecks] = useState<DeckRow[]>([]);
   const [backup, setBackup] = useState<{ text: string; overdue: boolean }>();
+  const [ankiUnsent, setAnkiUnsent] = useState(0);
 
   useEffect(() => { openRepo().then(setRepo); }, []);
 
@@ -46,6 +48,7 @@ export default function App() {
       now,
     }));
     setBackup(backupStatus(lastBackup, now, cards.length > 0));
+    setAnkiUnsent((await repo.ankiStatus()).unsent);
   }, [repo]);
 
   useEffect(() => { if (screen.name === 'decks') refresh(); }, [screen, refresh]);
@@ -62,12 +65,12 @@ export default function App() {
     // The safe-area insets every Screen pads itself by (status bar, Dynamic Island, home indicator).
     <SafeAreaProvider>
       {screen.name === 'decks' && (
-        <DeckList decks={decks} backup={backup} onOpen={(deck) => setScreen({ name: 'review', deck })} onImport={() => setScreen({ name: 'import' })}
+        <DeckList decks={decks} backup={backup} ankiUnsent={ankiUnsent} onOpen={(deck) => setScreen({ name: 'review', deck })} onImport={() => setScreen({ name: 'anki' })}
           onBackup={() => setScreen({ name: 'backup' })}
           onOptions={(deck) => setScreen({ name: 'deckOptions', deck })}
         />
       )}
-      {screen.name === 'import' && <Import repo={repo} onDone={() => setScreen({ name: 'decks' })} />}
+      {screen.name === 'anki' && <AnkiTransfer repo={repo} onDone={() => setScreen({ name: 'decks' })} />}
       {screen.name === 'backup' && <Backup store={repo} onDone={() => setScreen({ name: 'decks' })} />}
       {screen.name === 'deckOptions' && <DeckOptions repo={repo} deck={screen.deck} onDone={() => setScreen({ name: 'decks' })} />}
       {screen.name === 'review' && <Review repo={repo} deck={screen.deck} onDone={() => setScreen({ name: 'decks' })} />}

@@ -68,7 +68,7 @@ export function importTsv(
   const noteType = model === 'Omnilanguage' ? undefined : opts.noteTypes?.get(model);
   const names = columns ?? (model === 'Omnilanguage' ? omnilanguageFieldNames : noteType?.fields);
   if (!names) {
-    throw new Error(`The file has no #columns line, and the fields of note type "${model}" aren't known here yet. Import the Anki export made by scripts/export-anki.mjs first, or export with columns.`);
+    throw new Error(`The file has no #columns line, and the fields of note type "${model}" aren't known here yet. Import your collection from AnkiMobile first, or export with columns.`);
   }
 
   const body = lines.slice(bodyStart).join('\n');

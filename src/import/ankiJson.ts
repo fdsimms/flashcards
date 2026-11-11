@@ -52,7 +52,7 @@ export interface AnkiFsrsPreset {
   decks?: string[];
 }
 
-/** One deck's settings as `scripts/export-anki.mjs` writes them: its preset, with the deck's own overrides applied. */
+/** One deck's settings as read from an Anki collection (src/anki/collection.ts): its preset, with the deck's own overrides applied. */
 export interface AnkiDeckConfig {
   newPerDay?: number;
   reviewsPerDay?: number;
@@ -69,9 +69,9 @@ export interface AnkiExport {
   collectionCreated?: number;
   /** AnkiMCP `get_fsrs_params` output, as is. Gives each deck its preset's weights and retention. */
   fsrsParams?: { presets?: AnkiFsrsPreset[] };
-  /** Each deck's settings, by full deck name (`scripts/export-anki.mjs`). Wins over `fsrsParams`. */
+  /** Each deck's settings, by full deck name (src/anki/collection.ts). Wins over `fsrsParams`. */
   deckConfigs?: Record<string, AnkiDeckConfig>;
-  /** Note types' templates, fields and CSS (`scripts/export-anki.mjs`), so cards render as in Anki. */
+  /** Note types' templates, fields and CSS (src/anki/collection.ts), so cards render as in Anki. */
   noteTypes?: NoteType[];
 }
 
@@ -191,12 +191,13 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
       }
       target.sched = schedFromAnki(ac, data.collectionCreated, now);
       target.suspended = ac.queue === -1;
+      target.ankiId = String(ac.cardId);
     }
     cards.push(...generated);
   }
   // One line per note type rather than one per card: a multi-template type skips thousands.
   for (const [model, count] of skippedByModel) {
-    warnings.push(`${count} ${count === 1 ? 'card' : 'cards'} of note type "${model}" were skipped: its card templates weren't in the file, so only its first card type can be shown. Export with scripts/export-anki.mjs to get them all.`);
+    warnings.push(`${count} ${count === 1 ? 'card' : 'cards'} of note type "${model}" were skipped: its card templates weren't in the file, so only its first card type can be shown. Import your whole collection from AnkiMobile to get them all.`);
   }
   if (data.collectionCreated === undefined && data.cards?.some((c) => c.type !== 0 && (c.due ?? 0) < TIMESTAMP_DUE)) {
     warnings.push('collectionCreated missing: review cards were set due now instead of their real due dates');

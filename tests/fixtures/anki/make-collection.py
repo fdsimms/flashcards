@@ -2,7 +2,8 @@
 #   python3 -m venv /tmp/ankienv && /tmp/ankienv/bin/pip install anki
 #   /tmp/ankienv/bin/python tests/fixtures/anki/make-collection.py tests/fixtures/anki/collection.anki2
 # Remove the old file and collection.media first; Anki opens an existing collection rather than
-# replacing it. Then delete collection.media.db2 and any -wal/-shm files: the exporter reads neither.
+# replacing it. Then delete collection.media.db2 and any -wal/-shm files: the tests read neither.
+# It also writes collection.colpkg beside it: the same collection as Anki's own package export.
 import sys
 from anki.collection import Collection
 path = sys.argv[1]
@@ -56,3 +57,8 @@ f = col.decks.get(fid); f["terms"] = [["\"deck:🧠 Trivia\" is:review", 100, 0]
 col.sched.rebuild_filtered_deck(fid)
 col.close()
 print("ok")
+
+# The same collection as Anki exports it (File > Export > Anki Collection Package), with media.
+import os
+col = Collection(path)
+col.export_collection_package(os.path.join(os.path.dirname(path), "collection.colpkg"), include_media=True, legacy=False)

@@ -1,0 +1,111 @@
+import { copyFileSync, mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { inSchema, keptSql, stripUnicaseIn } from '../../src/anki/attachedSql';
+import { buildExport, COLLECTION_QUERIES, type CollectionRows } from '../../src/anki/collection';
+import { readPackage, writePackage } from '../../src/anki/package';
+import { cardRestoreParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams, type AnkiCardRow } from '../../src/anki/writeback';
+import { review } from '../../src/core/scheduler';
+import type { Card } from '../../src/core/types';
+import { importAnkiJson } from '../../src/import/ankiJson';
+import { bytesSource, fileSource, memorySink, writeBytes } from '../support/bytes';
+
+const DIR = join(__dirname, '..', 'fixtures', 'anki');
+
+/**
+ * The statements src/db/ankiLink.ts runs on the phone, in the same order, on one connection
+ * with the collections attached, as the app does. The phone's expo-sqlite and Node's SQLite are
+ * the same engine; what this can't cover is the file handling around it.
+ */
+describe('the app\'s SQL against attached Anki collections', () => {
+  it('reads a scratch copy, writes answers into the kept collection, undoes one, and packs it', async () => {
+    const { DatabaseSync } = await import('node:sqlite');
+    const work = mkdtempSync(join(tmpdir(), 'att-'));
+
+    // Unpack Anki's own package, as the import does.
+    const col = memorySink();
+    const media = new Map<string, ReturnType<typeof memorySink>>();
+    const unpacked = await readPackage(fileSource(join(DIR, 'collection.colpkg')), {
+      collection: async () => col,
+      media: async (i) => { const s = memorySink(); media.set(i, s); return s; },
+    });
+    const kept = join(work, 'collection.anki2');
+    writeBytes(kept, col.bytes());
+
+    const db = new DatabaseSync(join(work, 'franki.db'));
+    db.exec('PRAGMA journal_mode = WAL; CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);');
+
+    // readAnkiRows: a scratch copy, collation stripped, attached again, read.
+    const scratch = join(work, 'scratch.anki2');
+    copyFileSync(kept, scratch);
+    db.prepare('ATTACH DATABASE ? AS scratch').run(scratch);
+    db.exec('PRAGMA scratch.journal_mode = DELETE');
+    db.exec('PRAGMA writable_schema = ON');
+    db.exec(stripUnicaseIn('scratch'));
+    db.exec('PRAGMA writable_schema = OFF');
+    db.exec('DETACH DATABASE scratch');
+    db.prepare('ATTACH DATABASE ? AS scratch').run(scratch);
+    const all = (sql: string) => db.prepare(inSchema(sql, 'scratch')).all() as any[];
+    const rows: CollectionRows = {
+      col: db.prepare(inSchema(COLLECTION_QUERIES.col, 'scratch')).get() as any,
+      notetypes: all(COLLECTION_QUERIES.notetypes), fields: all(COLLECTION_QUERIES.fields), templates: all(COLLECTION_QUERIES.templates),
+      notes: all(COLLECTION_QUERIES.notes), cards: all(COLLECTION_QUERIES.cards), decks: all(COLLECTION_QUERIES.decks),
+      deckConfigs: all(COLLECTION_QUERIES.deckConfigs), lastReviews: all(COLLECTION_QUERIES.lastReviews),
+    };
+    db.exec('DETACH DATABASE scratch');
+    const data = buildExport(rows);
+    expect(data.notes).toHaveLength(7);
+    const cards = importAnkiJson(data).cards;
+
+    // keepAnkiCollection + writeAnkiAnswer: the kept file attached as `anki`, never stripped.
+    db.prepare('ATTACH DATABASE ? AS anki').run(kept);
+    db.exec('PRAGMA anki.journal_mode = DELETE');
+    const SQL = keptSql('anki');
+    const crt = (db.prepare(SQL.crt).get() as any).crt as number;
+    const now = new Date();
+    const answer = (before: Card, rating: 1 | 2 | 3 | 4) => {
+      const after: Card = { ...before, sched: review(before.sched, rating, now).sched };
+      const cid = Number(before.ankiId);
+      const row = db.prepare(SQL.cardRow).get(cid) as unknown as AnkiCardRow & { mod: number; usn: number };
+      const id = nextRevlogId(now.getTime(), (db.prepare(SQL.maxRevlogId).get() as any).m);
+      db.exec('BEGIN');
+      db.prepare(SQL.cardUpdate).run(...cardUpdateParams(cardUpdate(after, row, { crt, now }), cid));
+      db.prepare(SQL.revlogInsert).run(...revlogParams(revlogEntry(before, after, rating, { id, cid, previousIvl: row.ivl, now, takenMs: 3000 })));
+      db.exec('COMMIT');
+      return { cid, row, id, rating };
+    };
+    const kept1 = answer(cards.find((c) => c.sched.state === 2)!, 3);
+    const undone = answer(cards.find((c) => c.sched.state === 0 && !c.suspended)!, 4);
+    // undoAnkiAnswer
+    db.exec('BEGIN');
+    db.prepare(SQL.cardUpdate).run(...cardRestoreParams(undone.row, undone.cid));
+    db.prepare(SQL.revlogDelete).run(undone.id);
+    db.exec('COMMIT');
+    expect((db.prepare(SQL.unsentSince).get(0) as any).n).toBeGreaterThanOrEqual(1);
+    db.exec('DETACH DATABASE anki');
+    db.close();
+
+    // The kept file is complete on disk (rollback journal, nothing pending), and still Anki's
+    // schema: the collation was only ever stripped from the scratch copy.
+    const bytes = new Uint8Array(readFileSync(kept));
+    expect(bytes[18]).toBe(1);
+    const check = new DatabaseSync(kept, { readOnly: true });
+    expect((check.prepare("SELECT sql FROM sqlite_master WHERE name = 'fields'").get() as any).sql).toContain('COLLATE unicase');
+    expect((check.prepare('SELECT ease FROM revlog WHERE id = ?').get(kept1.id) as any).ease).toBe(3);
+    expect(check.prepare('SELECT 1 FROM revlog WHERE id = ?').get(undone.id)).toBeUndefined();
+    expect((check.prepare('SELECT type, usn FROM cards WHERE id = ?').get(undone.cid) as any)).toMatchObject({ type: 0, usn: undone.row.usn });
+    check.close();
+
+    // Packed for Anki. FRANKI_VERIFY_OUT keeps it for tests/fixtures/anki/verify-package.py.
+    const out = memorySink();
+    await writePackage(out, async () => bytesSource(bytes, 64 * 1024), unpacked.mediaNames.map((name, i) => ({
+      name, open: async () => bytesSource(media.get(String(i))!.bytes(), 64 * 1024),
+    })));
+    if (process.env.FRANKI_VERIFY_OUT) {
+      writeBytes(process.env.FRANKI_VERIFY_OUT, out.bytes());
+      writeBytes(`${process.env.FRANKI_VERIFY_OUT}.answers.json`, new TextEncoder().encode(JSON.stringify([{ cid: kept1.cid, ease: kept1.rating }])));
+    }
+    expect(out.bytes().length).toBeGreaterThan(1000);
+  });
+});

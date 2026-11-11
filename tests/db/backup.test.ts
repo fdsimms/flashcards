@@ -54,9 +54,9 @@ describe('backupStatus', () => {
 });
 
 describe('sqliteFileKind', () => {
-  it('tells an export bundle from a backup from anything else', async () => {
+  it('tells a backup from anything else', async () => {
     const { sqliteFileKind } = await import('../../src/db/backup');
-    expect(sqliteFileKind(['export', 'media'])).toBe('export');
+    expect(sqliteFileKind(['export', 'media'])).toBe('other');
     expect(sqliteFileKind(['notes', 'cards', 'reviews', 'deck_params', 'media'])).toBe('backup');
     expect(sqliteFileKind(['col', 'notes', 'cards', 'revlog'])).toBe('other'); // an Anki collection
   });

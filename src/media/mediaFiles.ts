@@ -36,3 +36,11 @@ export function listMedia(): File[] {
 export function clearMedia(): void {
   for (const f of listMedia()) f.delete();
 }
+
+/** Moves a file into the media folder under `name`, replacing one already there. */
+export async function moveIntoMedia(file: File, name: string): Promise<void> {
+  if (name.includes('/') || name === '.' || name === '..') throw new Error(`Refused media file name "${name}"`);
+  const target = new File(folder(), name);
+  if (target.exists) target.delete();
+  await file.move(target);
+}

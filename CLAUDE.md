@@ -132,12 +132,12 @@ src/import   TSV + Anki JSON importers, re-import matching (reconcile.ts)
 src/db       Repo interface + MemoryRepo (tests), SQLite repo (app), backup planning
 src/media    the media folder (expo-file-system)
 src/ui       screens, the shared pieces they're built from (kit.tsx), the theme, CardWebView
-scripts/     export-anki.mjs, the desktop exporter, and scripts/lib (what it runs, tested)
-tests/       vitest, mirroring src/ and scripts/ (src/core/queue.ts -> tests/core/queue.test.ts)
+src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested)
+tests/       vitest, mirroring src/ (src/core/queue.ts -> tests/core/queue.test.ts)
 ```
 
 **Tests mirror source 1:1**, and only pure logic is tested (`src/core`, `src/import`, `src/db`'s
-MemoryRepo and backup planning, `scripts/lib`). Vitest runs in `node` with no React renderer, so there are no
+MemoryRepo and backup planning, `src/anki` except files.ts). Vitest runs in `node` with no React renderer, so there are no
 screen tests. Don't add a renderer to cover a UI change: verify by reasoning about the code and say
 so plainly rather than implying you ran it. Keep logic out of screens so it can be tested: if a
 screen grows a decision worth testing, move it into `src/core`.
@@ -184,7 +184,7 @@ instant** (`isDue` in `src/core/queue.ts`). Once nothing else is left, learning 
 one rather than declaring the deck done.
 
 **Each deck schedules with its Anki preset's FSRS weights and desired retention** (`DeckParams`,
-imported from AnkiMCP's `get_fsrs_params` output in the JSON export). `paramsForDeck` falls back to
+read from the collection's deck options when it's imported). `paramsForDeck` falls back to
 the nearest ancestor deck, then to the `ts-fsrs` defaults. Every `review`/`previewIntervals` call
 passes the deck's params; one that doesn't silently schedules with the defaults.
 
@@ -267,20 +267,34 @@ import replaces it. A setting the user makes here goes in the first.
   token with a light and a dark value instead. Text grows with the system text size, so a box
   holding text gets padding or a `minHeight`, never a fixed `height`.
 
-### The Anki exporter (`scripts/`)
+### The Anki collection (`src/anki/`, `src/db/ankiLink.ts`)
 
-- **It reads a copy of the collection, never the original**, with Anki's custom `unicase`
-  collation stripped from the copy's schema (Node's SQLite can't register it, and the tables that
-  declare it refuse every query without it).
-- **Deck settings come from protobuf blobs** (`decks.kind`, `deck_config.config`). Read only the
-  field numbers named in `scripts/lib/ankiCollection.mjs`, taken from Anki's `.proto` files; check
-  a new one against `proto/anki/*.proto` in ankitects/anki rather than guessing.
-- **It writes one `.sqlite` bundle**: the JSON in `export`, and the media the notes and templates
-  reference (plus Anki's "_" files) in `media`. The app reads it by ATTACH and streams the media
-  row by row; a few hundred megabytes of images never sit in memory at once.
-- **Test against a real collection.** `tests/fixtures/anki/collection.anki2` was written by Anki
-  itself (`make-collection.py` beside it rebuilds it with the `anki` Python package). Extend that
-  script for a new case rather than hand-building rows.
+Franki takes in a whole Anki collection package (.colpkg, from AnkiMobile's Export), keeps that
+collection file, writes every answer into it, and packs it back up for Anki ("Send to Anki").
+One app holds the collection at a time. The sync server (step 2) will send the same rows.
+
+- **Anki's collection is the record.** A package import replaces every Anki card's scheduling
+  (`applyAnkiCollection`), studied here or not, unlike a TSV re-import; the screen warns first
+  when answers haven't been sent to Anki yet.
+- **The kept collection is only ever written through `cards` and `revlog`, the way Anki writes
+  an answer** (`src/anki/writeback.ts`: card columns, one review log row, both usn -1). Those
+  tables use no custom collation, so the file stays exactly Anki's plus Franki's answers. Every
+  answer and undo in Review goes through `writeAnkiAnswer` / `undoAnkiAnswer`.
+- **Anki's three collated tables (fields, templates, notetypes) are read from a scratch copy**
+  with the `unicase` collation stripped (`STRIP_UNICASE_SQL`), because no SQLite outside Anki can
+  register it. Never strip it from the kept collection.
+- **Blobs are protobuf.** Read and write only field numbers taken from `proto/anki/*.proto` in
+  ankitects/anki, named where they're used (`collection.ts`, `packageFormat.ts`); don't guess.
+- **Packages are written with zstd's uncompressed blocks** (`RawZstdEncoder`): there's no JS zstd
+  compressor, and Anki reads raw blocks like any other. Each media file needs its SHA-1 in the
+  media list, or Anki refuses the package.
+- **Everything streams** (`ByteSource` / `ByteSink` in `package.ts`), so a package with hundreds
+  of megabytes of media is never whole in memory.
+- **Test against what Anki itself writes.** `tests/fixtures/anki/` holds a collection and its
+  .colpkg made by Anki (`make-collection.py` rebuilds them with the `anki` Python package); extend
+  that script for a new case. After changing what goes into a package, run
+  `tests/fixtures/anki/verify-package.py`, which imports Franki's package with Anki's own code and
+  checks the answers are there (it needs the `anki` package, so CI can't run it).
 
 ### Backup
 
@@ -290,6 +304,9 @@ import replaces it. A setting the user makes here goes in the first.
   migration still restores, then rewrites the media folder from the backup's. A new table that
   holds the user's data goes in `RESTORED_TABLES`, or a restore silently leaves it behind.
   `settings` is deliberately not in it: when this phone last backed up isn't the backup's to say.
+- **The kept Anki collection travels in the backup too** (`anki_collection`, in 1 MB pieces), with
+  the settings that say what of it was already sent (`ANKI_SETTING_KEYS`). Without it, a restore
+  would bring back answers that could never reach Anki.
 
 ### After an `await`
 

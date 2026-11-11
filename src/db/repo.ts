@@ -11,6 +11,12 @@ export interface Repo {
    * that is comes back.
    */
   upsertNotesAndCards(notes: Note[], cards: Card[]): Promise<void>;
+  /**
+   * Takes in a whole Anki collection, which is the record: every card in it gets Anki's
+   * scheduling and suspension, studied here or not, and a card that came from Anki (has an
+   * `ankiId`) but isn't in it any more is retired. Cards that didn't come from Anki are left alone.
+   */
+  applyAnkiCollection(notes: Note[], cards: Card[]): Promise<void>;
   listNotes(): Promise<Note[]>;
   getNote(id: string): Promise<Note | undefined>;
   /** Every card, or the cards of `deck` and all its subdecks. */
@@ -61,6 +67,14 @@ export class MemoryRepo implements Repo {
       }
       this.cards.set(c.id, { ...c, retired: false });
     }
+  }
+  async applyAnkiCollection(notes: Note[], cards: Card[]) {
+    for (const n of notes) this.notes.set(n.id, n);
+    const incoming = new Set(cards.map((c) => c.id));
+    for (const [id, c] of this.cards) {
+      if (c.ankiId && !incoming.has(id)) this.cards.set(id, { ...c, retired: true });
+    }
+    for (const c of cards) this.cards.set(c.id, { ...c, retired: false });
   }
   async listNotes() { return [...this.notes.values()]; }
   async getNote(id: string) { return this.notes.get(id); }
