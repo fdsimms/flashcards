@@ -90,3 +90,36 @@ jobs:
         working-directory: server/mcp
         env:
           TZ: Pacific/Kiritimati
+
+  # Read & Listen's server (server/reader): lint, types and tests, the sync tests against a real
+  # Anki sync server from the same `anki` package. Only when something it reads changed.
+  reader:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server/reader
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for reader changes
+        if: github.event_name == 'pull_request'
+        id: paths
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            reader:
+              - 'server/reader/**'
+              - '.github/workflows/test.yml'
+      - if: github.event_name != 'pull_request' || steps.paths.outputs.reader == 'true'
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.13'
+          enable-cache: true
+          cache-dependency-glob: server/reader/uv.lock
+      - if: github.event_name != 'pull_request' || steps.paths.outputs.reader == 'true'
+        run: uv sync --frozen
+      - if: github.event_name != 'pull_request' || steps.paths.outputs.reader == 'true'
+        run: uv run ruff check . && uv run ruff format --check . && uv run mypy
+      - if: github.event_name != 'pull_request' || steps.paths.outputs.reader == 'true'
+        run: uv run pytest -q
+        env:
+          TZ: Pacific/Kiritimati

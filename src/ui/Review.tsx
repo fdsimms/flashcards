@@ -1,7 +1,7 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, ScrollView, Text, useColorScheme, View } from 'react-native';
+import { Alert, Animated, Easing, PanResponder, Pressable, ScrollView, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
 import { isOmnilanguage, renderCard } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
@@ -13,7 +13,8 @@ import { fuzzSeed } from '../core/ankiFuzz';
 import { balancerFor, buildLoadSnapshot, forgetCard, loadDayIndex, recordAnswer, type LoadSnapshot } from '../core/loadBalance';
 import { ankiToday, fnvHash } from '../core/order';
 import { saveNote, type NoteStore } from '../anki/noteService';
-import { bumpStudied, currentCard, type AnswerRecord } from '../core/session';
+import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../core/session';
+import { durationText } from '../core/stats';
 import { cardDocument, renderTemplateCard } from '../core/template';
 import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
 import type { AnkiUndo } from '../anki/writeback';
@@ -24,7 +25,7 @@ import { CardWebView } from './CardWebView';
 import { NoteEditor } from './NoteEditor';
 import { haptic } from './haptics';
 import { Button, Count, Icon, IconAction, Screen, Tappable } from './kit';
-import { Reveal } from './motion';
+import { Reveal, useReduceMotion } from './motion';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
@@ -69,6 +70,102 @@ function CardSurface({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** How far through the session is, as a thin line under the header. */
+function ProgressBar({ value }: { value: number }) {
+  const c = useTheme();
+  const reduce = useReduceMotion();
+  const v = useRef(new Animated.Value(value)).current;
+  useEffect(() => {
+    // Width can't use the native driver; the bar is one view, so the JS-driven animation is cheap.
+    Animated.timing(v, { toValue: value, duration: reduce ? 0 : 320, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  }, [value, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel="Progress through this session"
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(value * 100) }}
+      style={{ height: 4, marginHorizontal: space.l, marginTop: space.xs, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }}
+    >
+      <Animated.View style={{ height: 4, borderRadius: 2, backgroundColor: c.accent, width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'], extrapolate: 'clamp' }) }} />
+    </View>
+  );
+}
+
+/**
+ * The card sheet, draggable sideways once it's revealed when swiping is on: it follows the finger,
+ * tints toward the answer it would give (right Good, left Again), and flies off when let go past
+ * the line. Only a rating the answer buttons show can be given (`swipeRating`).
+ */
+function SwipeCard({ enabled, shown, onRate, children }: { enabled: boolean; shown: RatingValue[]; onRate: (r: RatingValue) => Promise<void>; children: React.ReactNode }) {
+  const c = useTheme();
+  const { width } = useWindowDimensions();
+  const x = useRef(new Animated.Value(0)).current;
+  // The responder is made once, so it reads the latest props from here.
+  const latest = useRef({ enabled, shown, onRate, width });
+  latest.current = { enabled, shown, onRate, width };
+  const crossed = useRef(false);
+  const back = () => Animated.spring(x, { toValue: 0, useNativeDriver: false, speed: 20, bounciness: 6 }).start();
+  const responder = useRef(
+    PanResponder.create({
+      // Claim only a clearly horizontal drag, so the card's own text still scrolls vertically.
+      onMoveShouldSetPanResponder: (_, g) => latest.current.enabled && Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+      onPanResponderMove: (_, g) => {
+        x.setValue(g.dx);
+        const past = swipeRating(g.dx, 0, latest.current.shown) !== null;
+        if (past !== crossed.current) { crossed.current = past; if (past) haptic.select(); }
+      },
+      onPanResponderRelease: (_, g) => {
+        crossed.current = false;
+        const rating = swipeRating(g.dx, g.vx, latest.current.shown);
+        if (!rating) { back(); return; }
+        Animated.timing(x, { toValue: Math.sign(g.dx) * latest.current.width * 1.2, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: false }).start(async () => {
+          await latest.current.onRate(rating);
+          x.setValue(0);
+        });
+      },
+      onPanResponderTerminate: () => { crossed.current = false; back(); },
+    }),
+  ).current;
+  const tint = (from: number, to: number) => x.interpolate({ inputRange: [from, to].sort((a, b) => a - b), outputRange: from < to ? [0, 0.22] : [0.22, 0], extrapolate: 'clamp' });
+  return (
+    <Animated.View
+      {...responder.panHandlers}
+      style={{ flex: 1, transform: [{ translateX: x }, { rotate: x.interpolate({ inputRange: [-300, 0, 300], outputRange: ['-5deg', '0deg', '5deg'], extrapolate: 'clamp' }) }] }}
+    >
+      <CardSurface>
+        {children}
+        {/* Tints and words that ramp in as the card is dragged: the answer it would give. */}
+        <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: c.good, opacity: tint(0, SWIPE_DISTANCE) }} />
+        <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: c.again, opacity: tint(0, -SWIPE_DISTANCE) }} />
+        <Animated.Text pointerEvents="none" style={{ ...type.title, position: 'absolute', top: space.l, left: space.xl, color: c.good, opacity: tint(0, SWIPE_DISTANCE).interpolate({ inputRange: [0, 0.22], outputRange: [0, 1] }) }}>Good</Animated.Text>
+        <Animated.Text pointerEvents="none" style={{ ...type.title, position: 'absolute', top: space.l, right: space.xl, color: c.again, opacity: tint(0, -SWIPE_DISTANCE).interpolate({ inputRange: [0, 0.22], outputRange: [0, 1] }) }}>Again</Animated.Text>
+      </CardSurface>
+    </Animated.View>
+  );
+}
+
+/** What this session did, shown when the queue is empty: cards answered, time, and how many were Again. */
+function SessionSummary({ history }: { history: AnswerRecord[] }) {
+  const c = useTheme();
+  const { answered, again, takenMs } = sessionSummary(history);
+  const tile = (value: string, label: string) => (
+    <View style={{ flex: 1, alignItems: 'center', gap: 2 }}>
+      <Text style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{value}</Text>
+      <Text style={{ ...type.footnote, color: c.textSecondary }}>{label}</Text>
+    </View>
+  );
+  return (
+    <View
+      accessible
+      accessibilityLabel={`This session: ${answered} ${answered === 1 ? 'card' : 'cards'}, ${durationText(takenMs)}, ${again} answered Again`}
+      style={{ flexDirection: 'row', alignSelf: 'stretch', marginTop: space.xl, paddingVertical: space.l, borderRadius: radius.l, ...smooth, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border }}
+    >
+      {tile(String(answered), answered === 1 ? 'card' : 'cards')}
+      {tile(durationText(takenMs), 'studying')}
+      {tile(String(again), 'Again')}
+    </View>
+  );
+}
 
 /**
  * Studies `deck` and its subdecks. Each card is scheduled with its own deck's FSRS settings, and
@@ -86,6 +183,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   const [collection, setCollection] = useState<CollectionSettings>(DEFAULT_COLLECTION_SETTINGS);
   const H = collection.dayStartsAtHour;
   const [answerButtons, setAnswerButtons] = useState<AnswerButtons>('all');
+  const [swipeOn, setSwipeOn] = useState(false);
   // Bumped after the note editor saves or deletes, to load the cards and notes again.
   const [reloads, setReloads] = useState(0);
   const [editingNote, setEditingNote] = useState<string | null>(null);
@@ -106,14 +204,15 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       const now = new Date();
       const cs = await repo.collectionSettings();
       const dayStart = studyDayStart(now, cs.dayStartsAtHour);
-      const [c, n, reviews, revlog, params, types, settings, buttons] = await Promise.all([
+      const [c, n, reviews, revlog, params, types, settings, buttons, swipe] = await Promise.all([
         // Every card, not only this deck's: a gate on a deck above this one counts its whole subtree.
         repo.listCards(), repo.listNotes(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
-        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(),
+        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(), repo.swipeToRate(),
       ]);
       const today = studiedToday({ notes: n, cards: c, reviews, revlog, now, dayStartsAtHour: cs.dayStartsAtHour });
       setCollection(cs);
       setAnswerButtons(buttons);
+      setSwipeOn(swipe);
       setDeckSettings(settings);
       setAllParams(params);
       setNoteTypes(types);
@@ -262,7 +361,11 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
         }
       }
       // Counted in the deck the card is studied in, as Anki counts it (a filtered deck's answers count there).
-      const record: AnswerRecord = { before: current, reviewId, deck: cardDeck(current, note.deck), anki, buried: siblings, leechNote };
+      // Time capped at a minute, as Anki's maximum answer time is, so a phone put down mid-card doesn't swell the summary.
+      const record: AnswerRecord = {
+        before: current, reviewId, deck: cardDeck(current, note.deck), anki, buried: siblings, leechNote,
+        rating, takenMs: Math.min(when.getTime() - shownAt.current, 60000),
+      };
       // Now a review, it weighs on the days the load balancer spreads later answers over, as in Anki.
       if (updated.sched.state === 2) recordAnswer(loadSnapshot.current, updated, cardParams?.presetId, updated.sched.scheduledDays);
       setStudied((s) => bumpStudied(s, record.deck, studiedKind(record.before, H), 1));
@@ -346,11 +449,13 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
           <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>
             {waitingFor ? `The next card comes back in about ${minutes} min.` : 'Nothing else is due in this deck today.'}
           </Text>
+          {history.length ? <SessionSummary history={history} /> : null}
         </Reveal>
       </Screen>
     );
   }
 
+  const reveal = () => { setRevealed(true); if (rendered?.back.speak) speak(rendered.back.speak); };
   const shown = ratingsShown(answerButtons);
   const buttons = ([
     { r: 1, label: 'Again', color: c.again },
@@ -381,7 +486,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       ))}
     </Reveal>
   ) : (
-    <Button label="Show answer" onPress={() => { setRevealed(true); if (rendered?.back.speak) speak(rendered.back.speak); }} />
+    <Button label="Show answer" onPress={reveal} />
   );
 
   return (
@@ -415,12 +520,15 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
           <Count value={queue.fresh.length} label="new" color={c.countNew} />
         </View>
       ) : null}
+      {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} /> : null}
       {page ? (
         <CardSurface>
           <CardWebView key={`${current.id}:${revealed ? 'back' : 'front'}`} html={revealed ? page.back : page.front} />
         </CardSurface>
       ) : rendered ? (
-        <CardSurface>
+        <SwipeCard enabled={swipeOn && revealed} shown={shown} onRate={answer}>
+          {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
+          <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the card, so each new one fades in rather than swapping. */}
             <Reveal key={current.id} rise={10} style={{ gap: space.xl }}>
@@ -448,7 +556,11 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
               </Reveal>
             ) : null}
           </ScrollView>
-        </CardSurface>
+          </Pressable>
+        </SwipeCard>
+      ) : null}
+      {swipeOn && revealed && rendered ? (
+        <Text style={{ ...type.footnote, color: c.textTertiary, textAlign: 'center' }}>Swipe right for Good, left for Again</Text>
       ) : null}
     </Screen>
   );

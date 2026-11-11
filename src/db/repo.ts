@@ -44,6 +44,9 @@ export interface Repo {
   /** The Anki collection's scheduling settings, as last imported or synced; Anki's defaults before that. */
   collectionSettings(): Promise<CollectionSettings>;
   saveCollectionSettings(settings: CollectionSettings): Promise<void>;
+  /** Whether a revealed card can be swiped to answer it (right Good, left Again). Off by default; this phone's own. */
+  swipeToRate(): Promise<boolean>;
+  saveSwipeToRate(on: boolean): Promise<void>;
 }
 
 /** Simple in-memory repo, used by tests and as a reference implementation. */
@@ -56,6 +59,7 @@ export class MemoryRepo implements Repo {
   noteTypes = new Map<string, NoteType>();
   deckSettings = new Map<string, DeckSettings>();
   answerButtonsSetting: string | null = null;
+  swipeToRateSetting = false;
 
   async upsertNotesAndCards(notes: Note[], cards: Card[]) {
     for (const n of notes) this.notes.set(n.id, n);
@@ -109,6 +113,8 @@ export class MemoryRepo implements Repo {
   collectionSettingsValue: CollectionSettings = DEFAULT_COLLECTION_SETTINGS;
   async collectionSettings() { return this.collectionSettingsValue; }
   async saveCollectionSettings(settings: CollectionSettings) { this.collectionSettingsValue = settings; }
+  async swipeToRate() { return this.swipeToRateSetting; }
+  async saveSwipeToRate(on: boolean) { this.swipeToRateSetting = on; }
   async listReviews(since: Date) {
     return [...this.reviews.values()]
       .filter((r) => new Date(r.reviewedAt) >= since)

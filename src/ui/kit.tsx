@@ -1,7 +1,7 @@
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import React, { useRef } from 'react';
 import {
-  ActivityIndicator, Animated, LayoutAnimation, Pressable, Text, TextInput, useColorScheme, View,
+  ActivityIndicator, Animated, LayoutAnimation, Pressable, Switch, Text, TextInput, useColorScheme, View,
   type PressableProps, type StyleProp, type TextInputInstance, type TextInputProps, type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -202,6 +202,29 @@ export function CheckRow({ label, hint, selected, onPress, first }: { label: str
       </View>
       {selected ? <Icon name="checkmark" size={17} color={c.accent} weight="semibold" /> : null}
     </Pressable>
+  );
+}
+
+/** A row in a `Group` with an on/off switch. The whole row is labelled for VoiceOver, which flips it. */
+export function SwitchRow({ label, hint, value, onValueChange, first }: { label: string; hint?: string; value: boolean; onValueChange: (on: boolean) => void; first?: boolean }) {
+  const c = useTheme();
+  return (
+    <View
+      accessible
+      accessibilityRole="switch"
+      accessibilityLabel={hint ? `${label}. ${hint}` : label}
+      accessibilityState={{ checked: value }}
+      accessibilityActions={[{ name: 'activate' }]}
+      onAccessibilityAction={() => { haptic.select(); onValueChange(!value); }}
+      style={{ minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l }}
+    >
+      {first ? null : <Divider inset={space.l} />}
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={{ ...type.body, color: c.text }}>{label}</Text>
+        {hint ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{hint}</Text> : null}
+      </View>
+      <Switch value={value} onValueChange={(on) => { haptic.select(); onValueChange(on); }} trackColor={{ true: c.accent, false: c.border }} ios_backgroundColor={c.border} />
+    </View>
   );
 }
 
@@ -447,5 +470,45 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
     >
       <Text style={{ ...type.subhead, color: selected ? c.onAccent : c.text, fontWeight: selected ? '600' : '400' }}>{label}</Text>
     </Tappable>
+  );
+}
+
+/** A row of equal segments, one of them chosen: a speed, a length, a text type. */
+export function Segments<T extends string | number>({ options, value, onChange, style }: {
+  options: { value: T; label: string; accessibilityLabel?: string }[];
+  value: T;
+  onChange: (value: T) => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const c = useTheme();
+  return (
+    <View accessibilityRole="radiogroup" style={[{ flexDirection: 'row', backgroundColor: c.fill, borderRadius: radius.s, padding: 2 }, style]}>
+      {options.map((o) => {
+        const selected = o.value === value;
+        return (
+          <Pressable
+            key={o.value}
+            onPress={() => onChange(o.value)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected }}
+            accessibilityLabel={o.accessibilityLabel ?? o.label}
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 36, borderRadius: radius.s - 2, backgroundColor: selected ? c.surface : 'transparent' }}
+          >
+            <Text style={{ ...type.subhead, fontWeight: '600', color: selected ? c.text : c.textSecondary }}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Something that failed, said as it is, with Try again when there's something to retry. */
+export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const c = useTheme();
+  return (
+    <View style={{ gap: space.xs, alignItems: 'flex-start' }}>
+      <Text style={{ ...type.subhead, color: c.danger }}>{message}</Text>
+      {onRetry ? <HeaderAction label="Try again" onPress={onRetry} /> : null}
+    </View>
   );
 }
