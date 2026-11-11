@@ -5,8 +5,8 @@ import { isOmnilanguage, renderCard } from '../core/cards';
 import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from '../core/config';
 import { deckLimits, groupByDeck, isInDeck, treeQueue } from '../core/deckTree';
 import { nextLearningDue, type StudiedToday } from '../core/queue';
-import { paramsForDeck, previewIntervals, type RatingValue } from '../core/scheduler';
-import { answerCard, bumpStudied, currentCard, type AnswerRecord } from '../core/session';
+import { paramsForDeck, previewIntervals, review, type RatingValue } from '../core/scheduler';
+import { bumpStudied, currentCard, type AnswerRecord } from '../core/session';
 import { cardDocument, renderTemplateCard } from '../core/template';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
 import type { Repo } from '../db/repo';
@@ -118,9 +118,10 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
     busy.current = true;
     try {
       const when = new Date();
-      const { card: updated, log } = answerCard(current, rating, when, cardParams);
+      const res = review(current.sched, rating, when, cardParams);
+      const updated: Card = { ...current, sched: res.sched };
       await repo.saveCard(updated);
-      const reviewId = await repo.addReview({ cardId: current.id, ...log });
+      const reviewId = await repo.addReview({ cardId: current.id, ...res.log });
       const record: AnswerRecord = { before: current, reviewId, deck: note.deck };
       setStudied((s) => bumpStudied(s, record.deck, record.before.sched.state, 1));
       setHistory((h) => [...h, record]);

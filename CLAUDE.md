@@ -202,16 +202,14 @@ studied.
 screen both call `treeQueue`, so a deck never says "20 new" and then opens with none. A check that
 predicts what another code path will do calls that code path's function; don't write a lookalike.
 
-**Every card carries a WaniKani-style progress stage beside its FSRS state** (`Card.stage`,
-`src/core/progress.ts`): 1-4 Apprentice, 5+ Guru. A card is answered through `answerCard`
-(session.ts), which moves FSRS state and stage together; don't call `review` alone. Imported cards
-get their stage from Anki's review history by the same `nextStage` rule (`stageFromHistory`), or a
-guess from their schedule when there's no history (`stageFromSchedule`, which the `stage` column's
-migration backfill mirrors in SQL).
-
 **A progress gate replaces a deck's daily new-card limit** (`DeckSettings.gateCap`, set on Deck
-options): new cards come in only while fewer than the cap are started and below Guru in that deck
-and its subdecks, and no daily new limit applies anywhere under it. A gate on a deck above the one
+options): new cards come in only while fewer than the cap are in progress in that deck and its
+subdecks, and no daily new limit applies anywhere under it. **In progress is read from the card's
+current FSRS schedule every time, never stored** (`isInProgress`, `src/core/progress.ts`): started,
+and not yet a Review scheduled `GURU_INTERVAL_DAYS` (7, WaniKani's Guru interval) or more out. So a
+card that drops back under a week (a lapse, a shorter interval) counts again at once. Counting
+correct answers instead was tried and dropped: FSRS spaces reviews too fast for "four right in a
+row" to track how well a card is known. A gate on a deck above the one
 opened still applies, so the review screen loads every card, not just the opened subtree.
 `DeckSettings` is the app's own and an import never writes it; `DeckParams` is Anki's and every
 import replaces it. A setting the user makes here goes in the first.

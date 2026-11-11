@@ -38,8 +38,6 @@ export interface Card {
    * carry suspension (TSV) can't undo one, and a kind turned back on brings its history back.
    */
   retired: boolean;
-  /** WaniKani-style progress stage (0 new, 1-4 Apprentice, 5+ Guru and up); see progress.ts. */
-  stage: number;
   sched: SchedState;
 }
 

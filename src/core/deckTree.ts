@@ -1,4 +1,4 @@
-import { isApprentice } from './progress';
+import { isInProgress } from './progress';
 import { buildQueue, isLearning, studiable, type Queue, type StudiedToday } from './queue';
 import type { Card, DeckParams } from './types';
 
@@ -69,7 +69,7 @@ export interface TreeQueueInput {
   limitsFor: (deck: string) => DeckLimits;
   /** What each deck studied today, by its own cards only (not its subdecks'). */
   studiedByDeck: Map<string, StudiedToday>;
-  /** A deck's progress gate: the most cards below Guru it and its subdecks may hold. Undefined: no gate. */
+  /** A deck's progress gate: the most cards in progress it and its subdecks may hold. Undefined: no gate. */
   gateFor?: (deck: string) => number | undefined;
   dayStartsAtHour: number;
   learnAheadMinutes?: number;
@@ -100,20 +100,20 @@ function childrenOf(root: string, decks: Iterable<string>): string[] {
 }
 
 /** The deck's queue with its own limits and every subdeck's applied, before learn-ahead. */
-/** Started cards below Guru in the deck and its subdecks: what a progress gate counts. */
-export function apprenticeCount(root: string, cardsByDeck: Map<string, Card[]>): number {
+/** Cards still in progress in the deck and its subdecks: what a progress gate counts. */
+export function inProgressCount(root: string, cardsByDeck: Map<string, Card[]>): number {
   let n = 0;
   for (const [deck, cards] of cardsByDeck) {
     if (!isInDeck(deck, root)) continue;
-    for (const c of studiable(cards)) if (isApprentice(c)) n++;
+    for (const c of studiable(cards)) if (isInProgress(c)) n++;
   }
   return n;
 }
 
-/** How many new cards a gated deck lets in now: its cap less what's below Guru under it. */
+/** How many new cards a gated deck lets in now: its cap less what's in progress under it. */
 function gateBudget(deck: string, input: TreeQueueInput): number | undefined {
   const cap = input.gateFor?.(deck);
-  return cap === undefined ? undefined : Math.max(0, cap - apprenticeCount(deck, input.cardsByDeck));
+  return cap === undefined ? undefined : Math.max(0, cap - inProgressCount(deck, input.cardsByDeck));
 }
 
 /**
@@ -166,8 +166,8 @@ export interface DeckRow extends DeckNode {
   fresh: number;
   /** Cards that can be studied in the deck and its subdecks. */
   total: number;
-  /** For a gated deck: cards below Guru under it, and its cap. */
-  gate?: { apprentice: number; cap: number };
+  /** For a gated deck: cards in progress under it, and its cap. */
+  gate?: { inProgress: number; cap: number };
 }
 
 /** The deck list: every deck, nested, with what studying it would show. */
@@ -179,7 +179,7 @@ export function deckRows(input: TreeQueueInput): DeckRow[] {
       if (isInDeck(deck, node.deck)) total += studiable(cards).length;
     }
     const cap = input.gateFor?.(node.deck);
-    const gate = cap === undefined ? undefined : { apprentice: apprenticeCount(node.deck, input.cardsByDeck), cap };
+    const gate = cap === undefined ? undefined : { inProgress: inProgressCount(node.deck, input.cardsByDeck), cap };
     return { ...node, due: q.due.length, fresh: q.fresh.length, total, ...(gate ? { gate } : {}) };
   });
 }

@@ -44,7 +44,7 @@ Everything lives on the phone. **Backup** on the deck list makes one file with t
 
 Tap a deck to study it with its subdecks. **Undo** in the top right takes back the last answer (and the one before, and so on) and shows that card again.
 
-**Limit cards in progress** (a deck's **Options**) works like WaniKani's Apprentice limit. Each card moves through WaniKani's stages: it's Apprentice once you've learned it, moves up one stage for each correct review and down for a wrong one, and reaches Guru after four correct reviews in a row. With the limit on, a deck shows new cards only while fewer than the cap (100 to start) of its cards, subdecks included, are still below Guru, and its daily new card limit no longer applies. Cards imported from Anki start at the stage their Anki review history puts them at. FSRS still decides when each card is due, and its intervals grow faster than WaniKani's, so a card usually takes weeks rather than days to reach Guru.
+**Limit cards in progress** (a deck's **Options**) works like WaniKani's Apprentice limit. A card is in progress from when you first learn it until its next review is a week or more away, which is what Guru means on WaniKani. If you forget it, or its next review comes back under a week, it counts again. With the limit on, a deck shows new cards only while fewer than the cap (100 to start) of its cards, subdecks included, are in progress, and its daily new card limit no longer applies.
 
 ## Installing on your iPhone
 

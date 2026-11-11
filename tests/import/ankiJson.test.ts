@@ -118,17 +118,4 @@ describe('Anki JSON import', () => {
     expect(res.noteTypes).toBe(noteTypes);
   });
 
-  it('sets each card\'s progress stage from its Anki history, or guesses it from its schedule', () => {
-    const res = importAnkiJson({
-      collectionCreated: created,
-      notes: [noteInfo(8), noteInfo(9)],
-      cards: [
-        { cardId: 80, note: 8, deckName: 'D', ord: 0, type: 2, queue: 2, due: 400, interval: 40, history: [3, 3, 13, 13, 13, 13] },
-        { cardId: 90, note: 9, deckName: 'D', ord: 0, type: 2, queue: 2, due: 400, interval: 3 },
-      ],
-    }, { now: NOW });
-    const stageOf = (noteId: string) => res.cards.find((c) => c.noteId === noteId && c.kind === 'forward')!.stage;
-    expect(stageOf('8')).toBe(5);
-    expect(stageOf('9')).toBe(4);
-  });
 });
