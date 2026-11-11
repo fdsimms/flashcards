@@ -208,6 +208,22 @@ export function SwitchRow({ label, hint, value, onValueChange, first }: { label:
   );
 }
 
+/** A small text action inside a screen's content (More ideas, Mark as unknown), a full tap target tall. */
+export function HeaderAction({ label, onPress, accessibilityLabel }: { label: string; onPress: () => void; accessibilityLabel?: string }) {
+  const c = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      hitSlop={space.s}
+      style={({ pressed }) => ({ minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.s, opacity: pressed ? 0.4 : 1 })}
+    >
+      <Text style={{ ...type.body, color: c.accent }}>{label}</Text>
+    </Pressable>
+  );
+}
+
 export function Button(props: {
   label: string;
   onPress: () => void;
@@ -395,5 +411,45 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
     >
       <Text style={{ ...type.subhead, color: selected ? c.onAccent : c.text, fontWeight: selected ? '600' : '400' }}>{label}</Text>
     </Tappable>
+  );
+}
+
+/** A row of equal segments, one of them chosen: a speed, a length, a text type. */
+export function Segments<T extends string | number>({ options, value, onChange, style }: {
+  options: { value: T; label: string; accessibilityLabel?: string }[];
+  value: T;
+  onChange: (value: T) => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const c = useTheme();
+  return (
+    <View accessibilityRole="radiogroup" style={[{ flexDirection: 'row', backgroundColor: c.fill, borderRadius: radius.s, padding: 2 }, style]}>
+      {options.map((o) => {
+        const selected = o.value === value;
+        return (
+          <Pressable
+            key={o.value}
+            onPress={() => onChange(o.value)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected }}
+            accessibilityLabel={o.accessibilityLabel ?? o.label}
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 36, borderRadius: radius.s - 2, backgroundColor: selected ? c.surface : 'transparent' }}
+          >
+            <Text style={{ ...type.subhead, fontWeight: '600', color: selected ? c.text : c.textSecondary }}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Something that failed, said as it is, with Try again when there's something to retry. */
+export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const c = useTheme();
+  return (
+    <View style={{ gap: space.xs, alignItems: 'flex-start' }}>
+      <Text style={{ ...type.subhead, color: c.danger }}>{message}</Text>
+      {onRetry ? <HeaderAction label="Try again" onPress={onRetry} /> : null}
+    </View>
   );
 }

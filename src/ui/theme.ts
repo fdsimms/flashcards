@@ -36,6 +36,13 @@ const light = {
    * (lightness band, chroma floor, 3:1 against the surface) in each mode.
    */
   chart: '#9a7210',
+  /** A quiet accent fill: a chosen word, a practice word's chip, speaker A in Read & Listen. */
+  accentFill: 'rgba(138, 109, 31, 0.13)',
+  /** Speaker B's badge in Read & Listen, and the text on it. */
+  speakerB: '#d2e6db',
+  onSpeakerB: '#24563f',
+  /** Behind a word that isn't in the deck, when Read & Listen highlights them. */
+  highlight: '#fbe2b0',
   /** A soft drop shadow under a raised surface (the review card). Near-invisible on dark, so it's heavier there. */
   shadow: '#2a2113',
   shadowOpacity: 0.08,
@@ -63,6 +70,10 @@ const dark: typeof light = {
   easy: '#3a6ea5',
   onRating: '#ffffff',
   chart: '#b88d32',
+  accentFill: 'rgba(212, 180, 106, 0.18)',
+  speakerB: '#22392f',
+  onSpeakerB: '#9fd6bb',
+  highlight: '#4d3a14',
   shadow: '#000000',
   shadowOpacity: 0.45,
 };

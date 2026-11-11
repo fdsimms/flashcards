@@ -11,6 +11,8 @@ import type { Note } from '../core/types';
 import { backupStatus } from '../db/backup';
 import type { AnkiLink, SyncSettings } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
+import { createApi, readerAddress, type Api } from '../reader/api';
+import { clearPassphrase, loadPassphrase, loadPrefs } from '../reader/storage';
 import { openRepo, type BackupStore } from '../db/sqliteRepo';
 import { useTheme } from './theme';
 import { useSync } from './useSync';
@@ -46,6 +48,14 @@ interface AppValue {
   openNoteEditor: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void;
   /** Called by the note editor's screen when it closes. */
   finishNoteEditor: (result?: NoteEditorResult) => void;
+  /** Read & Listen's server, once its passphrase is saved; null while it's off. */
+  readerApi: Api | null;
+  /** The sync server's address, which Read & Listen's server runs beside; undefined while sync is off. */
+  readerServer?: string;
+  /** Why Read & Listen's settings opened by themselves, e.g. the passphrase changed on the server. */
+  readerNotice: string | null;
+  signedInToReader: (passphrase: string) => void;
+  signOutOfReader: () => void;
 }
 
 const Context = createContext<AppValue | null>(null);
@@ -67,7 +77,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { openRepo().then(setRepo); }, []);
   // Card audio plays with the ring/silent switch on: it only ever plays because you opened a card
-  // with audio or pressed Play. iOS mutes an app's audio in silent mode unless it asks for this,
+  // with audio or pressed Play (and by the reader, which also plays in the background while it's
+  // open: src/ui/Reader.tsx). iOS mutes an app's audio in silent mode unless it asks for this,
   // which silenced recordings, text-to-speech and the play buttons on template cards alike.
   useEffect(() => { setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined); }, []);
 
@@ -109,6 +120,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [sync]);
 
+  // Read & Listen: on once its passphrase is saved, at the address beside the sync server. The
+  // reader's own settings are read with the passphrase, so it opens with them.
+  const [readerPassphrase, setReaderPassphrase] = useState<string | null>();
+  const [readerNotice, setReaderNotice] = useState<string | null>(null);
+  useEffect(() => {
+    Promise.all([loadPassphrase(), loadPrefs()]).then(([saved]) => setReaderPassphrase(saved), () => setReaderPassphrase(null));
+  }, []);
+  const readerServer = syncSettings?.enabled ? syncSettings.server : undefined;
+  const readerApi = useMemo(() => (readerServer && readerPassphrase
+    ? createApi(readerAddress(readerServer), readerPassphrase, fetch, () => {
+      // The passphrase was changed on the server: forget it and ask again, rather than fail every call.
+      clearPassphrase().catch(() => undefined);
+      setReaderPassphrase(null);
+      setReaderNotice('The passphrase changed on the server. Enter the new one.');
+      router.dismissAll();
+      router.push('/read-settings');
+    })
+    : null), [readerServer, readerPassphrase, router]);
+  const signedInToReader = useCallback((passphrase: string) => { setReaderNotice(null); setReaderPassphrase(passphrase); }, []);
+  const signOutOfReader = useCallback(() => {
+    clearPassphrase().catch(() => undefined);
+    setReaderPassphrase(null);
+  }, []);
+
   const editorClose = useRef<((result?: NoteEditorResult) => void) | null>(null);
   const openNoteEditor = useCallback((target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => {
     editorClose.current = onClose;
@@ -126,7 +161,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AppValue | null>(() => repo && {
     repo, decks, backup, ankiUnsent, syncSettings, syncing,
     sync, reloadSync, refresh, openNoteEditor, finishNoteEditor,
-  }, [repo, decks, backup, ankiUnsent, syncSettings, syncing, sync, reloadSync, refresh, openNoteEditor, finishNoteEditor]);
+    readerApi, readerServer, readerNotice, signedInToReader, signOutOfReader,
+  }, [repo, decks, backup, ankiUnsent, syncSettings, syncing, sync, reloadSync, refresh, openNoteEditor, finishNoteEditor,
+    readerApi, readerServer, readerNotice, signedInToReader, signOutOfReader]);
 
   if (!value) {
     return (

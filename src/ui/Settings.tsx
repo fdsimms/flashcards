@@ -6,13 +6,16 @@ import { CheckRow, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from '
 import { space, useTheme } from './theme';
 
 /**
- * App-wide settings: the screens that aren't about studying (Anki, Stats, Backup), and which
+ * App-wide settings: the screens that aren't about studying (Anki, Stats, Backup, Read & Listen), and which
  * answer buttons Review shows.
  */
-export function Settings({ repo, backupText, onAnki, onStats, onBackup }: {
+export function Settings({ repo, backupText, readerOn, onAnki, onStats, onBackup, onRead }: {
   repo: Repo;
   /** When the last backup was made (`backupStatus`). */
   backupText?: string;
+  /** Whether Read & Listen is turned on. */
+  readerOn: boolean;
+  onRead: () => void;
   onAnki: () => void;
   onStats: () => void;
   onBackup: () => void;
@@ -41,6 +44,7 @@ export function Settings({ repo, backupText, onAnki, onStats, onBackup }: {
           <NavRow first icon={{ name: 'arrow.triangle.2.circlepath', color: c.easy }} label="Anki" detail="Sync, or send your collection to and from Anki by file" onPress={onAnki} />
           <NavRow icon={{ name: 'chart.bar.fill', color: c.good }} label="Stats" detail="Answers, how much you remember, and what's coming due" onPress={onStats} />
           <NavRow icon={{ name: 'externaldrive.fill', color: c.hard }} label="Backup" detail={backupText ?? 'Save or restore everything in Franki'} onPress={onBackup} />
+          <NavRow icon={{ name: 'book.fill', color: c.again }} label="Read & Listen" detail={readerOn ? 'On' : 'Off. Texts to read and listen to, written from your decks'} onPress={onRead} />
         </Group>
         <SectionTitle>Review</SectionTitle>
         <Group>

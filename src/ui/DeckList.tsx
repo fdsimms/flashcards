@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { deckListTotals, type DeckRow } from '../core/deckTree';
-import { Button, Card, Group, Icon, Screen } from './kit';
+import { Button, Card, Group, Icon, NavRow, Screen } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /** Rows grouped under their top-level deck, so each family of decks sits in one card. */
@@ -124,6 +124,8 @@ export function DeckList(props: {
   onSettings: () => void;
   onBrowse: () => void;
   onOptions: (deck: string) => void;
+  /** Present when Read & Listen is on. */
+  onRead?: () => void;
 }) {
   const c = useTheme();
   const groups = useMemo(() => groupByTopLevel(props.decks), [props.decks]);
@@ -184,6 +186,11 @@ export function DeckList(props: {
             </Group>
           ))
         )}
+        {props.onRead ? (
+          <Group>
+            <NavRow first icon={{ name: 'book.fill', color: c.again }} label="Read & Listen" detail="Texts written from the words in your decks" onPress={props.onRead} />
+          </Group>
+        ) : null}
         {props.sync ? (
           <Pressable onPress={props.sync.onSync} accessibilityRole="button" accessibilityHint="Syncs now"
             style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
