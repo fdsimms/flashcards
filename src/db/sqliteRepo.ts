@@ -202,6 +202,13 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     async saveAnswerButtons(choice) {
       await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('answer_buttons', ?)", choice);
     },
+    async swipeToRate() {
+      const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'swipe_to_rate'");
+      return r?.value === '1';
+    },
+    async saveSwipeToRate(on) {
+      await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('swipe_to_rate', ?)", on ? '1' : '0');
+    },
     async listReviews(since) {
       // ISO strings are all UTC, so comparing them as text compares the instants.
       const rows = await db.getAllAsync<{ card_id: string; rating: number; reviewed_at: string; state: number; due: string; stability: number; difficulty: number }>(
