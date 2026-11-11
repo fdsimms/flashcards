@@ -57,6 +57,8 @@ export function DeckList(props: {
   decks: DeckRow[];
   /** When the last backup was made, and whether another is due (`backupStatus`). */
   backup?: { text: string; overdue: boolean };
+  /** Answers given here and not yet sent back to Anki. */
+  ankiUnsent?: number;
   onOpen: (deck: string) => void;
   onImport: () => void;
   onBackup: () => void;
@@ -69,7 +71,7 @@ export function DeckList(props: {
       title="Decks"
       footer={
         <View style={{ flexDirection: 'row', gap: space.s }}>
-          <Button label="Import" onPress={props.onImport} style={{ flex: 1 }} />
+          <Button label="Anki" onPress={props.onImport} style={{ flex: 1 }} />
           <Button label="Backup" variant="secondary" onPress={props.onBackup} style={{ flex: 1 }} />
         </View>
       }
@@ -86,7 +88,7 @@ export function DeckList(props: {
         {groups.length === 0 ? (
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>No decks yet</Text>
-            <Help>Tap Import and pick the anki-export.sqlite file made on your computer.</Help>
+            <Help>Tap Anki to bring in your collection, exported from AnkiMobile.</Help>
           </Card>
         ) : (
           groups.map((g) => (
@@ -103,6 +105,13 @@ export function DeckList(props: {
             </View>
           ))
         )}
+        {props.ankiUnsent ? (
+          <Pressable onPress={props.onImport} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+            <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>
+              {props.ankiUnsent} {props.ankiUnsent === 1 ? "answer isn't" : "answers aren't"} in Anki yet. Tap to send.
+            </Text>
+          </Pressable>
+        ) : null}
         {props.backup && !props.backup.overdue ? (
           <Text style={{ ...type.footnote, color: c.textTertiary, textAlign: 'center' }}>{props.backup.text}</Text>
         ) : null}

@@ -4,6 +4,7 @@ A small personal spaced-repetition app (React Native + Expo) built for language 
 
 - **Scheduling:** FSRS via [`ts-fsrs`](https://github.com/open-spaced-repetition/ts-fsrs), with each deck's FSRS weights, desired retention and daily limits carried over from Anki
 - **Storage:** `expo-sqlite`, on the device only, with backup and restore through Files / iCloud Drive
+- **Anki:** works on your real Anki collection, handed back and forth with AnkiMobile as a file, every answer written into it as Anki would
 - **Audio:** `expo-speech` (on-device TTS, language picked from the note's `Language` field or deck name)
 - **Cards:** Omnilanguage notes render natively with TTS: a front card (unless `SuppressFrontCard`), plus reverse / audio cards gated on `GenerateReverse` / `GenerateAudioCard`. Every other note type renders its own Anki templates and CSS in a WebView, with its images and sounds, one card per Anki card (cloze included).
 - **Decks:** nested as in Anki. Opening a parent studies its subdecks too, within each deck's limits.
@@ -19,23 +20,19 @@ npm run typecheck
 npm run verify      # typecheck + tests, the loop to run before committing
 ```
 
-## Moving your Anki collection over
+## Moving between Anki and Franki
 
-On your computer, with Anki closed and Node 22.13 or later:
+Franki works on your real Anki collection, handed back and forth as a file. Everything happens on the phone, with AnkiMobile.
 
-```bash
-node scripts/export-anki.mjs                      # the only profile; lists them if there are several
-node scripts/export-anki.mjs --profile "User 1" --out ~/Desktop/anki-export.json
-```
+**Bring it in:** in AnkiMobile, tap the button at the bottom left of the deck list, choose **Export**, pick **Collection** with media included, and save it to Files. In Franki, tap **Anki**, then **Choose file**, and pick it. Franki keeps the whole collection: every note and card with its scheduling and FSRS memory state, each deck's limits and FSRS settings, each note type's templates and styling, the images and sounds, and all of Anki's review history.
 
-It reads a copy of `collection.anki2` (the original is never opened) and writes `anki-export.sqlite`: every note, each card's scheduling and FSRS memory state, each deck's new/review limits, desired retention and FSRS weights, each note type's templates and CSS, and the images and sounds the notes use. Save it to iCloud Drive, then on the phone tap **Import** and pick it. `--out something.json` writes the JSON alone, without media.
+**Study in Franki.** Every answer is written into that collection the way Anki would write it.
 
-Other formats the Import screen reads:
+**Send it back:** in Franki's **Anki** screen, tap **Send to Anki** and open the file in AnkiMobile (from the share sheet, or save it to Files and import it in AnkiMobile). AnkiMobile replaces its collection with this one, which now holds every answer you gave in Franki; then sync Anki as usual. The deck list says how many answers aren't in Anki yet.
 
-1. **TSV**: Anki's "Notes in Plain Text" export, including your Omnilanguage TSVs. Every card starts as new. Uses `#columns` / `#tags column` / `#deck` when present, otherwise the Omnilanguage field order in `src/import/models.ts`.
-2. **AnkiConnect-style JSON**: `{ notes: notesInfo[], cards: cardsInfo[], collectionCreated }`, optionally with AnkiMCP's `get_fsrs_params` output as `fsrsParams`. The exporter above writes this same shape, plus `deckConfigs` and `noteTypes`. Without `noteTypes`, other note types get one plain front/back card.
+One app holds the collection at a time: don't study in AnkiMobile between bringing the collection into Franki and sending it back, or those answers are replaced. Importing again into Franki warns you first if Franki has answers that haven't gone back to Anki.
 
-Re-importing never resets cards that have already been reviewed here, and finds notes you already have even if the export format or deck changed. Cards a note stops generating (`GenerateReverse` turned off) are set aside with their history, not deleted.
+Franki also imports Anki's "Notes in Plain Text" export (.txt or .tsv). Those cards start as new and stay in Franki only. Uses `#columns` / `#tags column` / `#deck` when present, otherwise the Omnilanguage field order in `src/import/models.ts`.
 
 ## Backing up
 
@@ -94,12 +91,12 @@ src/import   TSV + Anki JSON importers, re-import matching
 src/db       Repo interface, in-memory repo (tests), SQLite repo (app), backup planning
 src/media    the images and sounds folder
 src/ui       deck list, review, import, backup screens, the card WebView
-scripts/     export-anki.mjs (desktop exporter) and its library
-tests/       vitest, mirroring src/ and scripts/; tests/fixtures/anki holds a real Anki collection
+src/anki     Anki collection packages: reading, writing answers back, packing
+tests/       vitest, mirroring src/; tests/fixtures/anki holds a collection and package Anki wrote
 ```
 
 The study day starts at 4 AM, as in Anki, so a late-night session counts toward the day before. Rules for working in the repo are in `CLAUDE.md`.
 
 ## Not built yet
 
-Typing the answer (`{{type:}}` shows the answer on the back instead), Anki's own TTS tags (`{{tts:}}`), recorded audio on Omnilanguage cards (TTS is used), collapsing decks, adding/editing cards in-app, stats, sync back to Anki, and reading `.apkg` files directly.
+Typing the answer (`{{type:}}` shows the answer on the back instead), Anki's own TTS tags (`{{tts:}}`), recorded audio on Omnilanguage cards (TTS is used), collapsing decks, adding/editing cards in-app, stats, and syncing with Anki automatically through your own sync server (planned: until then, the collection moves by file).

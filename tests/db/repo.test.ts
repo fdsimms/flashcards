@@ -101,4 +101,22 @@ describe('repo', () => {
     expect([...types.keys()].sort()).toEqual(['Basic', 'Geo']);
     expect(types.get('Basic')!.css).toBe('.card {}');
   });
+
+  it("takes a whole Anki collection as the record: overwrites studied cards, retires Anki cards it dropped", async () => {
+    const repo = new MemoryRepo();
+    const anki = { ...omniNote(), id: 'a' };
+    const local = { ...omniNote(), id: 'local' };
+    const [ankiCard] = makeCards(anki, NOW).map((c) => ({ ...c, ankiId: '1001' }));
+    const [gone] = makeCards({ ...omniNote(), id: 'gone' }, NOW).map((c) => ({ ...c, ankiId: '1002' }));
+    const [localCard] = makeCards(local, NOW);
+    await repo.upsertNotesAndCards([anki, local], [ankiCard, gone, localCard]);
+    await repo.saveCard({ ...ankiCard, sched: review(ankiCard.sched, 3, NOW).sched }); // studied here
+
+    const fromAnki = { ...ankiCard, sched: { ...ankiCard.sched, reps: 7 } };
+    await repo.applyAnkiCollection([anki], [fromAnki]);
+    const cards = new Map((await repo.listCards()).map((c) => [c.id, c]));
+    expect(cards.get(ankiCard.id)!.sched.reps).toBe(7);
+    expect(cards.get(gone.id)!.retired).toBe(true);
+    expect(cards.get(localCard.id)!.retired).toBe(false);
+  });
 });

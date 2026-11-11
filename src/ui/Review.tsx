@@ -1,6 +1,6 @@
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, useColorScheme, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, useColorScheme, View } from 'react-native';
 import { isOmnilanguage, renderCard } from '../core/cards';
 import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from '../core/config';
 import { deckLimits, groupByDeck, isInDeck, treeQueue } from '../core/deckTree';
@@ -9,6 +9,8 @@ import { paramsForDeck, previewIntervals, review, type RatingValue } from '../co
 import { bumpStudied, currentCard, type AnswerRecord } from '../core/session';
 import { cardDocument, renderTemplateCard } from '../core/template';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
+import type { AnkiUndo } from '../anki/writeback';
+import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { mediaBaseUri } from '../media/mediaFiles';
 import { CardWebView } from './CardWebView';
@@ -48,7 +50,7 @@ const DEFAULT_LIMITS = { newPerDay: NEW_PER_DAY, reviewsPerDay: REVIEWS_PER_DAY 
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDone: () => void }) {
+export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: string; onDone: () => void }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
   const [cards, setCards] = useState<Card[] | null>(null);
@@ -122,6 +124,12 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
     [rendered],
   );
 
+  // When the card came up, for the time Anki records against each answer.
+  const shownAt = useRef(Date.now());
+  // One warning per session if answers can't be written into the Anki collection.
+  const warnedAnki = useRef(false);
+  useEffect(() => { shownAt.current = Date.now(); }, [current?.id]);
+
   // Auto-speak the front when a card with audio appears.
   useEffect(() => {
     if (rendered?.front.speak) speak(rendered.front.speak);
@@ -136,7 +144,24 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
       const updated: Card = { ...current, sched: res.sched };
       await repo.saveCard(updated);
       const reviewId = await repo.addReview({ cardId: current.id, ...res.log });
-      const record: AnswerRecord = { before: current, reviewId, deck: note.deck };
+      // Into the kept Anki collection too, so "Send to Anki" carries this answer. If that write
+      // fails, the answer still counts here, and you're told rather than it going missing.
+      let anki: AnkiUndo | undefined;
+      try {
+        anki = await repo.writeAnkiAnswer({
+          before: current, after: updated, rating, now: when,
+          takenMs: when.getTime() - shownAt.current, desiredRetention: cardParams?.desiredRetention,
+        });
+      } catch (e: any) {
+        if (!warnedAnki.current) {
+          warnedAnki.current = true;
+          Alert.alert(
+            "Couldn't save this answer for Anki",
+            `It counts in Franki, but it won't be in the file sent to Anki. ${e?.message ?? e}`,
+          );
+        }
+      }
+      const record: AnswerRecord = { before: current, reviewId, deck: note.deck, anki };
       setStudied((s) => bumpStudied(s, record.deck, record.before.sched.state, 1));
       setHistory((h) => [...h, record]);
       // Functional update: `cards` from this render's closure is stale once the awaits return.
@@ -156,6 +181,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
     try {
       await repo.saveCard(last.before);
       await repo.deleteReview(last.reviewId);
+      if (last.anki) await repo.undoAnkiAnswer(last.anki);
       setHistory((h) => h.slice(0, -1));
       setStudied((s) => bumpStudied(s, last.deck, last.before.sched.state, -1));
       setCards((prev) => prev && prev.map((c) => (c.id === last.before.id ? last.before : c)));

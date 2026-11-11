@@ -43,3 +43,8 @@ yarn-error.*
 # local release builds (npm run build:ios)
 *.ipa
 *.app.dSYM.zip
+
+# SQLite side files (e.g. from opening a test fixture)
+*.anki2-shm
+*.anki2-wal
+*.anki2-journal

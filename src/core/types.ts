@@ -38,6 +38,11 @@ export interface Card {
    * carry suspension (TSV) can't undo one, and a kind turned back on brings its history back.
    */
   retired: boolean;
+  /**
+   * The Anki card this is (Anki's card id), when it came from an Anki collection. Answers are
+   * written back to that card in the kept collection (src/anki/writeback.ts).
+   */
+  ankiId?: string;
   sched: SchedState;
 }
 

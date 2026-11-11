@@ -1,4 +1,5 @@
 import { nextCard, type Queue, type StudiedToday } from './queue';
+import type { AnkiUndo } from '../anki/writeback';
 import type { Card } from './types';
 
 /**
@@ -34,6 +35,8 @@ export interface AnswerRecord {
   reviewId: number;
   /** The card's own deck (not the one being studied, which may be its parent). */
   deck: string;
+  /** What undoes the answer in the kept Anki collection, when the card is from one. */
+  anki?: AnkiUndo;
 }
 
 /**

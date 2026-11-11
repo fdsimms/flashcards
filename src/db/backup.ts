@@ -67,13 +67,8 @@ export function backupStatus(lastBackupAt: string | null, now: Date, hasCards: b
   return { text, overdue: days >= BACKUP_REMINDER_DAYS };
 }
 
-/**
- * What a picked SQLite file is, by its tables: an export from scripts/export-anki.mjs (`export`
- * and `media`), a backup from this app (our core tables), or something else.
- */
-export function sqliteFileKind(tables: string[]): 'export' | 'backup' | 'other' {
+/** What a picked SQLite file is, by its tables: a backup from this app (our core tables), or something else. */
+export function sqliteFileKind(tables: string[]): 'backup' | 'other' {
   const has = new Set(tables);
-  if (has.has('export')) return 'export';
-  if (REQUIRED.every((t) => has.has(t))) return 'backup';
-  return 'other';
+  return REQUIRED.every((t) => has.has(t)) ? 'backup' : 'other';
 }

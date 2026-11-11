@@ -1,7 +1,10 @@
+import { File } from 'expo-file-system';
 import * as SQLite from 'expo-sqlite';
 import { studyDayStart } from '../core/day';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } from '../core/types';
 import { clearMedia, listMedia, writeMedia } from '../media/mediaFiles';
+import { ankiFolder, fileSink, fileSource, keptCollectionFile } from '../anki/files';
+import { ANKI_SETTING_KEYS, makeAnkiLink, type AnkiLink } from './ankiLink';
 import { restorePlan, sqliteFileKind } from './backup';
 import type { Repo } from './repo';
 
@@ -36,6 +39,7 @@ CREATE TABLE IF NOT EXISTS deck_settings (deck TEXT PRIMARY KEY, data TEXT NOT N
  */
 const MIGRATIONS: { table: string; column: string; sql: string }[] = [
   { table: 'cards', column: 'retired', sql: 'ALTER TABLE cards ADD COLUMN retired INTEGER NOT NULL DEFAULT 0' },
+  { table: 'cards', column: 'anki_id', sql: 'ALTER TABLE cards ADD COLUMN anki_id TEXT' },
 ];
 
 async function migrate(db: SQLite.SQLiteDatabase) {
@@ -53,30 +57,29 @@ async function migrate(db: SQLite.SQLiteDatabase) {
 }
 
 /**
- * Backup, restore and reading an export bundle, which only the SQLite repo can do: they work on
- * database files, and carry the media folder in and out with them.
+ * Backup and restore, which only the SQLite repo can do: they work on database files, and carry
+ * the media folder and the kept Anki collection in and out with them.
  */
 export interface BackupStore {
   /** Writes a consistent copy of the whole database, media included, to `path` (a file path, not a URI). */
   backupTo(path: string): Promise<{ media: number }>;
   /** Replaces everything here, media included, with the backup at `path`. Throws `NotABackupError` for another kind of file. */
   restoreFrom(path: string): Promise<{ notes: number; cards: number; media: number }>;
-  /** What the SQLite file at `path` is: an Anki export bundle, one of our backups, or neither. */
-  sqliteFileKind(path: string): Promise<'export' | 'backup' | 'other'>;
-  /** An export bundle's JSON, after writing its media files into the media folder. */
-  readExportBundle(path: string): Promise<{ json: string; media: number }>;
+  /** What the SQLite file at `path` is: one of our backups, or something else. */
+  sqliteFileKind(path: string): Promise<'backup' | 'other'>;
   /** When `backupTo` last succeeded (ISO), or null. Kept outside what a restore replaces. */
   lastBackupAt(): Promise<string | null>;
 }
 
 // The file keeps its first name: renaming it would leave an installed copy's data behind.
-export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupStore> {
+export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupStore & AnkiLink> {
   const db = await SQLite.openDatabaseAsync(name);
   await db.execAsync(SCHEMA);
   await migrate(db);
+  const anki = makeAnkiLink(db);
 
   const rowToCard = (r: any): Card => ({
-    id: r.id, noteId: r.note_id, kind: r.kind, suspended: !!r.suspended, retired: !!r.retired, sched: JSON.parse(r.sched),
+    id: r.id, noteId: r.note_id, kind: r.kind, suspended: !!r.suspended, retired: !!r.retired, ankiId: r.anki_id ?? undefined, sched: JSON.parse(r.sched),
   });
   const rowToNote = (r: any): Note => ({
     id: r.id, deck: r.deck, model: r.model, fields: JSON.parse(r.fields), tags: JSON.parse(r.tags),
@@ -105,13 +108,36 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
           // suspension are overwritten only on a card still New. Every card here is generated
           // again, so it is never retired.
           await db.runAsync(
-            'INSERT INTO cards (id, note_id, kind, suspended, retired, sched, state, due) VALUES (?, ?, ?, ?, 0, ?, ?, ?) ' +
-              'ON CONFLICT(id) DO UPDATE SET retired = 0, ' +
+            'INSERT INTO cards (id, note_id, kind, suspended, retired, anki_id, sched, state, due) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?) ' +
+              'ON CONFLICT(id) DO UPDATE SET retired = 0, anki_id = COALESCE(excluded.anki_id, cards.anki_id), ' +
               'suspended = CASE WHEN cards.state = 0 THEN excluded.suspended ELSE cards.suspended END, ' +
               'sched = CASE WHEN cards.state = 0 THEN excluded.sched ELSE cards.sched END, ' +
               'due = CASE WHEN cards.state = 0 THEN excluded.due ELSE cards.due END, ' +
               'state = CASE WHEN cards.state = 0 THEN excluded.state ELSE cards.state END',
-            c.id, c.noteId, c.kind, c.suspended ? 1 : 0, JSON.stringify(c.sched), c.sched.state, c.sched.due,
+            c.id, c.noteId, c.kind, c.suspended ? 1 : 0, c.ankiId ?? null, JSON.stringify(c.sched), c.sched.state, c.sched.due,
+          );
+        }
+      });
+    },
+    async applyAnkiCollection(notes, cards) {
+      await db.withTransactionAsync(async () => {
+        for (const n of notes) {
+          await db.runAsync(
+            'INSERT OR REPLACE INTO notes (id, deck, model, fields, tags) VALUES (?, ?, ?, ?, ?)',
+            n.id, n.deck, n.model, JSON.stringify(n.fields), JSON.stringify(n.tags),
+          );
+        }
+        // Anki's cards no longer in the collection: retired, keeping their history here.
+        await db.execAsync('CREATE TEMP TABLE IF NOT EXISTS incoming_cards (id TEXT PRIMARY KEY)');
+        await db.execAsync('DELETE FROM incoming_cards');
+        for (const c of cards) await db.runAsync('INSERT OR IGNORE INTO incoming_cards (id) VALUES (?)', c.id);
+        await db.execAsync('UPDATE cards SET retired = 1 WHERE anki_id IS NOT NULL AND id NOT IN (SELECT id FROM incoming_cards)');
+        await db.execAsync('DELETE FROM incoming_cards');
+        for (const c of cards) {
+          // Anki's copy is the record: everything is overwritten, studied here or not.
+          await db.runAsync(
+            'INSERT OR REPLACE INTO cards (id, note_id, kind, suspended, retired, anki_id, sched, state, due) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)',
+            c.id, c.noteId, c.kind, c.suspended ? 1 : 0, c.ankiId ?? null, JSON.stringify(c.sched), c.sched.state, c.sched.due,
           );
         }
       });
@@ -205,6 +231,23 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
       } finally {
         await db.runAsync('DETACH DATABASE backup');
       }
+      // The kept Anki collection too, in 1 MB pieces so it never has to be in memory whole: a
+      // backup without it would restore answers that can no longer be sent to Anki.
+      const kept = await anki.keptCollection();
+      if (kept) {
+        await db.runAsync('ATTACH DATABASE ? AS backup', path);
+        try {
+          await db.execAsync('CREATE TABLE backup.anki_collection (seq INTEGER PRIMARY KEY, data BLOB NOT NULL)');
+          const src = fileSource(kept);
+          for (let seq = 0; ; seq++) {
+            const chunk = await src.read(1024 * 1024);
+            if (chunk === null) break;
+            await db.runAsync('INSERT INTO backup.anki_collection (seq, data) VALUES (?, ?)', seq, chunk);
+          }
+        } finally {
+          await db.runAsync('DETACH DATABASE backup');
+        }
+      }
       await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('last_backup_at', ?)", new Date().toISOString());
       return { media: files.length };
     },
@@ -239,6 +282,26 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
         });
         // Media after the rows, so a backup that fails to read leaves the cards and their files
         // as they were. A backup made before media was backed up has no table and keeps the files.
+        // The kept Anki collection, and the settings saying what of it was already sent, are
+        // the backup's: replaced by its copy, or removed when the backup has none.
+        // Written beside it first, so a failure part-way leaves the current one in place.
+        const hasAnki = await db.getFirstAsync("SELECT 1 FROM backup.sqlite_master WHERE type = 'table' AND name = 'anki_collection'");
+        const incoming = new File(ankiFolder(), 'restoring.anki2');
+        if (hasAnki) {
+          const sink = fileSink(incoming);
+          for await (const row of db.getEachAsync<{ data: Uint8Array }>('SELECT data FROM backup.anki_collection ORDER BY seq')) {
+            await sink.write(row.data);
+          }
+          await sink.close();
+        }
+        await anki.detachAnki();
+        const kept = keptCollectionFile();
+        if (kept.exists) kept.delete();
+        if (hasAnki) await incoming.move(kept);
+        for (const key of ANKI_SETTING_KEYS) {
+          await db.runAsync('DELETE FROM main.settings WHERE key = ?', key);
+          await db.runAsync('INSERT INTO main.settings (key, value) SELECT key, value FROM backup.settings WHERE key = ?', key);
+        }
         const hasMedia = await db.getFirstAsync("SELECT 1 FROM backup.sqlite_master WHERE type = 'table' AND name = 'media'");
         if (hasMedia) {
           clearMedia();
@@ -249,6 +312,7 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
         }
       } finally {
         await db.runAsync('DETACH DATABASE backup');
+        await anki.attachAnki();
       }
       const n = await db.getFirstAsync<{ notes: number; cards: number }>(
         'SELECT (SELECT COUNT(*) FROM notes) AS notes, (SELECT COUNT(*) FROM cards) AS cards',
@@ -264,21 +328,6 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
         await db.runAsync('DETACH DATABASE picked');
       }
     },
-    async readExportBundle(path) {
-      await db.runAsync('ATTACH DATABASE ? AS bundle', path);
-      try {
-        const row = await db.getFirstAsync<{ json: string }>('SELECT json FROM bundle.export');
-        if (!row) throw new Error("The export is empty. Run the exporter again.");
-        // Row by row, so a few hundred megabytes of images never sit in memory at once.
-        let media = 0;
-        for await (const m of db.getEachAsync<{ name: string; data: Uint8Array }>('SELECT name, data FROM bundle.media')) {
-          await writeMedia(m.name, m.data);
-          media++;
-        }
-        return { json: row.json, media };
-      } finally {
-        await db.runAsync('DETACH DATABASE bundle');
-      }
-    },
+    ...anki,
   };
 }
