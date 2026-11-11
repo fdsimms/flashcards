@@ -39,3 +39,28 @@ Do this once, in this order:
 4. **Franki:** tap **Anki**, then **Set up sync**, and enter the same address, user name and password. Franki downloads the collection, and from then on syncs on its own: when you open it, when you finish a deck, and when you leave the app.
 
 If Franki has answers you gave before setting up sync that never went back to Anki, it asks before downloading, since a download would replace them. Choose **Upload Franki's** only if Franki has the newest copy of everything; it replaces what's on the server, and your other devices then download it.
+
+## Use it from Claude
+
+The same server can run an MCP: a connector that lets Claude read and change your collection, on the web, in the Claude apps on your phone and computer, and in Claude Code. It's one more Anki client of your sync server, using Anki's own engine, so anything it changes reaches Anki, AnkiMobile and Franki at their next sync. It can:
+
+- list decks and note types, and search notes with Anki's search syntax
+- change a note type's card templates and styling, and build filtered decks
+- add notes (with Anki's duplicate check), edit them, delete them, and manage tags
+- suspend, bury, flag, move, reschedule, forget and reposition cards
+- study a deck with you: it shows each question, then the answer, and rates the card only with your say-so
+- show statistics and a card's FSRS memory state, and read, change and optimize a deck's FSRS settings
+- store and delete images and sounds, and record audio for notes with Azure's voices
+
+**Turn it on.** In `.env`, remove the `#` in front of `COMPOSE_PROFILES=mcp` and set `MCP_PASSWORD` to a long password of its own (not the Anki one). For audio, also set `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`: in the Azure portal, create a Speech resource (it has a free tier) and copy a key and its region (for example `westeurope`) from its Keys and Endpoint page. Then run `docker compose up -d --build` again. Check `https://<your domain>/mcp-health` shows `{"ok":true}`.
+
+**Connect Claude.** The address is `https://<your domain>/mcp`.
+
+- **Claude on the web, phone or desktop:** Settings > Connectors > Add custom connector, with that address. Claude opens a page asking for `MCP_PASSWORD`; enter it and choose **Connect**. A connector added on the web shows up in the apps too.
+- **Claude Code:** `claude mcp add --transport http franki https://<your domain>/mcp`, then `/mcp` in Claude Code to sign in the same way.
+
+Each Claude app asks for the password once; after that it stays signed in (it's asked again after 90 days without use). Changing `MCP_PASSWORD` doesn't sign out apps already connected: to do that, stop the MCP, delete `signins.sqlite` from its volume (`docker compose run --rm mcp rm /data/signins.sqlite`), and start it again.
+
+**What it keeps.** The MCP keeps its own copy of the collection and its media in Docker's `mcp-data` volume, so the server holds your media twice. It syncs before it reads and after every change. If another device replaces the server's collection (a full sync), the MCP takes the new one, unless it has changes of its own that never reached the server, in which case it stops and says so rather than overwrite either.
+
+**Upgrading:** the MCP's Anki version is in `mcp/requirements.txt`; keep it the same as `ANKI_VERSION`.

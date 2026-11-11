@@ -1,5 +1,6 @@
 # The Anki sync server behind Caddy, which gets and renews an HTTPS certificate on its own.
 # Settings come from .env (copy .env.example). Start with: docker compose up -d --build
+# The MCP (mcp/, for Claude) runs too when .env has COMPOSE_PROFILES=mcp.
 services:
   anki:
     build:
@@ -13,6 +14,23 @@ services:
       MAX_SYNC_PAYLOAD_MEGS: "${MAX_SYNC_PAYLOAD_MEGS:-500}"
     volumes:
       - anki-data:/data
+  mcp:
+    build: ./mcp
+    profiles: [mcp]
+    restart: unless-stopped
+    environment:
+      MCP_PUBLIC_URL: "https://${DOMAIN}"
+      MCP_PASSWORD: ${MCP_PASSWORD:-}
+      ANKI_SYNC_ENDPOINT: "http://anki:8080/"
+      ANKI_USER: ${ANKI_USER}
+      ANKI_PASSWORD: ${ANKI_PASSWORD}
+      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
+      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}
+      AZURE_SPEECH_ENDPOINT: ${AZURE_SPEECH_ENDPOINT:-}
+    volumes:
+      - mcp-data:/data
+    depends_on:
+      - anki
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -29,5 +47,6 @@ services:
       - anki
 volumes:
   anki-data:
+  mcp-data:
   caddy-data:
   caddy-config:

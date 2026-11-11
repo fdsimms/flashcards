@@ -1,0 +1,4 @@
+# The MCP server's dependencies. Keep anki at the version the sync server runs (server/Dockerfile).
+anki==26.9.4
+mcp==2.3.0
+httpx==0.28.1

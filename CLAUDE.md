@@ -134,7 +134,7 @@ src/media    the media folder (expo-file-system)
 src/ui       screens, the shared pieces they're built from (kit.tsx), the theme, CardWebView
 src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested);
              sync/ syncs with an Anki sync server (pure, tested; syncService.ts is the phone's side)
-server/      a ready-to-run Anki sync server (Docker, Caddy)
+server/      a ready-to-run Anki sync server (Docker, Caddy); server/mcp is the MCP for Claude (Python)
 tests/       vitest, mirroring src/ (src/core/queue.ts -> tests/core/queue.test.ts)
 ```
 
@@ -340,6 +340,31 @@ Anki's sync protocol (v11), as an Anki client speaks it, against the user's own 
   `lockAnki`**: a failure rolls back every local change and aborts on the server.
 - **The server's sign-in key lives in the Keychain** (`expo-secure-store`); the password is never
   stored. Settings are this phone's own and stay out of a backup.
+
+### The MCP (`server/mcp/`)
+
+A Python MCP that gives Claude the collection, run beside the sync server. It's **one more Anki
+client of the user's sync server, built on Anki's own `anki` package**, never Franki's TypeScript
+and never the server's files, so searches, note adds, scheduling and sync behave exactly as in Anki.
+
+- **Every tool goes through `CollectionManager.read` / `write`** (`collection.py`): one call at a
+  time (the `anki` package isn't thread-safe), a sync before reading, a sync after every change. A
+  full sync the server asks for is taken as a download, unless the MCP has changes that never
+  reached the server: then it refuses with the reason rather than overwrite either side.
+- **An error the caller can fix raises the SDK's `ToolError`** with what to change; any other
+  exception reaches the model as a bare "Error executing tool". Batch tools report each item's
+  result or reason rather than failing the whole call.
+- **Studying follows Anki's queue**: Anki only answers the card at the top of it, so `rate_card`
+  checks that first, and the server instructions tell Claude to show the answer and get the user's
+  rating before calling it.
+- **Sign-in is OAuth for one person** (`auth.py`): registration only for Claude's callback
+  addresses and loopback (any port, RFC 8252), a password page, rotating refresh tokens, tokens
+  stored hashed.
+- **Tests run against a real `anki.syncserver`** with Anki itself as the other device
+  (`tests/conftest.py`), and Azure faked (`FakeAzure`): `cd server/mcp && python -m pytest`, after
+  `pip install -r requirements-dev.txt`. CI runs them in their own job. Azure's request shapes are
+  unverified against a live key (`speech.py` says so).
+- Keep `anki` in `requirements.txt` at the version the sync server runs (`ANKI_VERSION`).
 
 ### Backup
 
