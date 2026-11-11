@@ -1,14 +1,13 @@
 import * as Speech from 'expo-speech';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { renderCard } from '../core/cards';
+import { DAY_STARTS_AT_HOUR, NEW_PER_DAY } from '../core/config';
 import { buildQueue, nextCard } from '../core/queue';
 import { previewIntervals, review, type RatingValue } from '../core/scheduler';
 import type { Card, Note, RenderedSide } from '../core/types';
 import type { Repo } from '../db/repo';
 import { useTheme } from './theme';
-
-const NEW_PER_DAY = 20;
 
 function Side({ side }: { side: RenderedSide }) {
   const t = useTheme();
@@ -33,10 +32,13 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
   const [introduced, setIntroduced] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  // Set while an answer is being written. A second tap during the await would otherwise rate the
+  // same card again from its old state and log two reviews for one answer.
+  const answering = useRef(false);
 
   useEffect(() => {
     (async () => {
-      const [c, n, intro] = await Promise.all([repo.listCards(deck), repo.listNotes(), repo.newIntroducedToday(deck, new Date())]);
+      const [c, n, intro] = await Promise.all([repo.listCards(deck), repo.listNotes(), repo.newIntroducedToday(deck, new Date(), DAY_STARTS_AT_HOUR)]);
       setCards(c);
       setNotes(new Map(n.map((x) => [x.id, x])));
       setIntroduced(intro);
@@ -44,7 +46,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
   }, [repo, deck]);
 
   const queue = useMemo(
-    () => (cards ? buildQueue(cards, { newPerDay: NEW_PER_DAY, newIntroducedToday: introduced, now }) : null),
+    () => (cards ? buildQueue(cards, { newPerDay: NEW_PER_DAY, newIntroducedToday: introduced, dayStartsAtHour: DAY_STARTS_AT_HOUR, now }) : null),
     [cards, introduced, now],
   );
   const current = queue ? nextCard(queue) : undefined;
@@ -67,16 +69,22 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
   }, [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const answer = async (rating: RatingValue) => {
-    if (!current || !cards) return;
-    const when = new Date();
-    const res = review(current.sched, rating, when);
-    const updated: Card = { ...current, sched: res.sched };
-    await repo.saveCard(updated);
-    await repo.addReview({ cardId: current.id, ...res.log });
-    if (current.sched.state === 0) setIntroduced((n) => n + 1);
-    setCards(cards.map((c) => (c.id === current.id ? updated : c)));
-    setRevealed(false);
-    setNow(when);
+    if (!current || answering.current) return;
+    answering.current = true;
+    try {
+      const when = new Date();
+      const res = review(current.sched, rating, when);
+      const updated: Card = { ...current, sched: res.sched };
+      await repo.saveCard(updated);
+      await repo.addReview({ cardId: current.id, ...res.log });
+      if (current.sched.state === 0) setIntroduced((n) => n + 1);
+      // Functional update: `cards` from this render's closure is stale once the awaits return.
+      setCards((prev) => prev && prev.map((c) => (c.id === updated.id ? updated : c)));
+      setRevealed(false);
+      setNow(when);
+    } finally {
+      answering.current = false;
+    }
   };
 
   if (!cards) return <View style={{ flex: 1, backgroundColor: t.bg }} />;

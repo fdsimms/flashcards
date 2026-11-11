@@ -7,6 +7,9 @@ import { importAnkiJson, type AnkiExport } from '../import/ankiJson';
 import { importTsv, type ImportResult } from '../import/tsv';
 import { useTheme } from './theme';
 
+/** Warnings listed per import. Past this the rest are counted, never dropped silently. */
+const MAX_WARNINGS = 20;
+
 export function Import({ repo, onDone }: { repo: Repo; onDone: () => void }) {
   const t = useTheme();
   const [log, setLog] = useState<string[]>([]);
@@ -16,19 +19,36 @@ export function Import({ repo, onDone }: { repo: Repo; onDone: () => void }) {
     const res = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: false });
     if (res.canceled) return;
     const asset = res.assets[0];
+    const name = asset.name.toLowerCase();
+    // A package is a zip, so read as text it would fail the TSV parser with a message about
+    // headers. Say what the file is and what to export instead.
+    if (name.endsWith('.apkg') || name.endsWith('.colpkg')) {
+      setLog((l) => [
+        `Couldn't import ${asset.name}. Anki package files can't be read yet. In Anki, export as "Notes in Plain Text" or use a JSON export instead.`,
+        ...l,
+      ]);
+      return;
+    }
     setBusy(true);
     try {
       const text = await new File(asset.uri).text();
       let result: ImportResult;
-      if (asset.name.toLowerCase().endsWith('.json')) {
+      if (name.endsWith('.json')) {
         result = importAnkiJson(JSON.parse(text) as AnkiExport);
       } else {
         result = importTsv(text);
       }
       await repo.upsertNotesAndCards(result.notes, result.cards);
-      setLog((l) => [`${asset.name}: ${result.notes.length} notes, ${result.cards.length} cards`, ...result.warnings.slice(0, 20), ...l]);
+      const shown = result.warnings.slice(0, MAX_WARNINGS);
+      const hidden = result.warnings.length - shown.length;
+      setLog((l) => [
+        `${asset.name}: ${result.notes.length} notes, ${result.cards.length} cards`,
+        ...shown,
+        ...(hidden > 0 ? [`and ${hidden} more warnings`] : []),
+        ...l,
+      ]);
     } catch (e: any) {
-      setLog((l) => [`${asset.name}: failed — ${e?.message ?? e}`, ...l]);
+      setLog((l) => [`Couldn't import ${asset.name}. ${e?.message ?? e}`, ...l]);
     } finally {
       setBusy(false);
     }

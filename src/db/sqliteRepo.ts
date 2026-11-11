@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { studyDayStart } from '../core/day';
 import type { Card, Note, ReviewLogEntry } from '../core/types';
 import type { Repo } from './repo';
 
@@ -18,9 +19,37 @@ CREATE TABLE IF NOT EXISTS reviews (
 );
 `;
 
+/**
+ * Columns added after a table first shipped. Append here; never edit the CREATE TABLE above,
+ * which only runs on a fresh install, so a column added there never reaches an existing one.
+ *
+ * Each entry is skipped when its column already exists, judged by reading the table's real
+ * columns (`PRAGMA table_info`). A `user_version` counter was the alternative and is
+ * deliberately not used: it has to be kept in step with the schema by hand, and anything that
+ * drops and recreates tables without resetting it skips migrations on a schema that lacks them.
+ */
+const MIGRATIONS: { table: string; column: string; sql: string }[] = [
+  // e.g. { table: 'cards', column: 'flag', sql: 'ALTER TABLE cards ADD COLUMN flag INTEGER NOT NULL DEFAULT 0' },
+];
+
+async function migrate(db: SQLite.SQLiteDatabase) {
+  const columns = new Map<string, Set<string>>();
+  for (const m of MIGRATIONS) {
+    if (!columns.has(m.table)) {
+      const rows = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${m.table})`);
+      columns.set(m.table, new Set(rows.map((r) => r.name)));
+    }
+    const have = columns.get(m.table)!;
+    if (have.has(m.column)) continue;
+    await db.execAsync(m.sql);
+    have.add(m.column);
+  }
+}
+
 export async function openRepo(name = 'flashcards.db'): Promise<Repo> {
   const db = await SQLite.openDatabaseAsync(name);
   await db.execAsync(SCHEMA);
+  await migrate(db);
 
   const rowToCard = (r: any): Card => ({
     id: r.id, noteId: r.note_id, kind: r.kind, suspended: !!r.suspended, sched: JSON.parse(r.sched),
@@ -74,8 +103,9 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo> {
         e.cardId, e.rating, e.reviewedAt, e.state, e.due, e.stability, e.difficulty,
       );
     },
-    async newIntroducedToday(deck, now) {
-      const start = new Date(now); start.setHours(0, 0, 0, 0);
+    async newIntroducedToday(deck, now, dayStartsAtHour) {
+      // ISO strings are all UTC, so comparing them as text compares the instants.
+      const start = studyDayStart(now, dayStartsAtHour);
       const r = await db.getFirstAsync<{ n: number }>(
         'SELECT COUNT(DISTINCT r.card_id) AS n FROM reviews r JOIN cards c ON c.id = r.card_id ' +
           'JOIN notes n ON n.id = c.note_id WHERE n.deck = ? AND r.state = 0 AND r.reviewed_at >= ?',
