@@ -9,7 +9,7 @@ AGENTS.md:
 
 ## What this app is
 
-A personal, lightweight Anki replacement for iPhone: language vocab (Thai, Polish, Russian, German
+Franki: a personal, lightweight Anki replacement for iPhone (the repo is still `flashcards`): language vocab (Thai, Polish, Russian, German
 and others) plus the odd trivia deck. It doesn't need Anki's full feature set, but it must import
 the owner's existing Anki decks and keep their scheduling. Where Anki has a convention the owner is
 used to (the study day starting at 4 AM, a review being due for its whole day, re-imports keeping

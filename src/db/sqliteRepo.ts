@@ -69,6 +69,7 @@ export interface BackupStore {
   lastBackupAt(): Promise<string | null>;
 }
 
+// The file keeps its first name: renaming it would leave an installed copy's data behind.
 export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupStore> {
   const db = await SQLite.openDatabaseAsync(name);
   await db.execAsync(SCHEMA);

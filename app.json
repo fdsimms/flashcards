@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "Flashcards",
-    "slug": "flashcards",
+    "name": "Franki",
+    "slug": "franki",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fdsimms.flashcards",
+      "bundleIdentifier": "com.fdsimms.franki",
       "config": {
         "usesNonExemptEncryption": false
       }
