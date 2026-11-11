@@ -9,7 +9,8 @@ import type { Card, DeckParams, Note } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { Card as Box, Chip, Help, Screen } from './kit';
-import { space, type, useTheme } from './theme';
+import { haptic } from './haptics';
+import { hairline, space, type, useTheme } from './theme';
 
 /** How many study days the charts cover, back and ahead. */
 const DAYS = 30;
@@ -143,7 +144,7 @@ function Tile({ value, label }: { value: string; label: string }) {
   const c = useTheme();
   return (
     <View style={{ width: '50%', gap: 2 }}>
-      <Text style={{ ...type.title, color: c.text }}>{value}</Text>
+      <Text style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{value}</Text>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
     </View>
   );
@@ -197,11 +198,11 @@ function Bars<T extends { start: Date; value: number }>({ days, describe, first,
   return (
     <View style={{ gap: space.xs }}>
       <Text style={{ ...type.footnote, color: c.textSecondary }}>{max.toLocaleString()}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: CHART_HEIGHT, gap: 2, borderBottomWidth: 1, borderColor: c.border }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: CHART_HEIGHT, gap: 2, borderBottomWidth: hairline, borderColor: c.border }}>
         {days.map((d, i) => (
           <Pressable
             key={i}
-            onPress={() => setPicked(i === picked ? null : i)}
+            onPress={() => { haptic.select(); setPicked(i === picked ? null : i); }}
             accessibilityRole="button"
             accessibilityLabel={describe(d, i, days.length).join(': ')}
             style={{ flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' }}
@@ -209,7 +210,7 @@ function Bars<T extends { start: Date; value: number }>({ days, describe, first,
             {d.value > 0 ? (
               <View style={{
                 width: '100%', maxWidth: 24, height: Math.max(2, (d.value / max) * CHART_HEIGHT),
-                backgroundColor: c.chart, borderTopLeftRadius: 4, borderTopRightRadius: 4,
+                backgroundColor: c.chart, borderTopLeftRadius: 5, borderTopRightRadius: 5,
                 opacity: picked === null || picked === i ? 1 : 0.35,
               }} />
             ) : null}
