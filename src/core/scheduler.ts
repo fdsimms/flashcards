@@ -160,6 +160,12 @@ export function review(sched: SchedState, rating: RatingValue, now: Date = new D
   };
 }
 
+/** The log entry for an answer in a filtered deck that only previews: the card's schedule as it was. */
+export function previewLog(card: { sched: SchedState }, rating: RatingValue, now: Date): ReviewResult['log'] {
+  const s = card.sched;
+  return { rating, reviewedAt: now.toISOString(), state: s.state, due: s.due, stability: s.stability, difficulty: s.difficulty };
+}
+
 /** Human-readable next interval for each rating, e.g. { 1: '1m', 2: '6m', 3: '10m', 4: '4d' }. */
 export function previewIntervals(sched: SchedState, now: Date = new Date(), params?: DeckParams): Record<RatingValue, string> {
   const out = {} as Record<RatingValue, string>;

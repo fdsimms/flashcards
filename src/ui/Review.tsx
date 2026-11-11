@@ -8,7 +8,7 @@ import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core
 import { studyDayStart } from '../core/day';
 import { nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
-import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, review, type RatingValue } from '../core/scheduler';
+import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type RatingValue } from '../core/scheduler';
 import { saveNote, type NoteStore } from '../anki/noteService';
 import { bumpStudied, currentCard, type AnswerRecord } from '../core/session';
 import { cardDocument, renderTemplateCard } from '../core/template';
@@ -186,13 +186,20 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
     haptic.answer();
     try {
       const when = new Date();
-      const res = review(current.sched, rating, when, cardParams);
+      // A filtered deck that doesn't reschedule only previews: the card's schedule stays as it
+      // was, and it goes home to its own deck (Anki would show it again after a short delay first).
+      const preview = !!current.filteredDeck && paramsForDeck(current.filteredDeck, allParams)?.filtered?.reschedule === false;
+      const res = preview ? { sched: current.sched, log: previewLog(current, rating, when) } : review(current.sched, rating, when, cardParams);
       // A forgotten review can make the card a leech: its note is tagged, and the card suspended if the preset says so, as in Anki.
       const leech = cardParams?.leech ?? DEFAULT_LEECH;
-      const isLeech = becameLeech(current.sched, res.sched, leech);
-      const updated: Card = { ...current, sched: res.sched, buriedAt: undefined, suspended: current.suspended || (isLeech && leech.suspend) };
+      const isLeech = !preview && becameLeech(current.sched, res.sched, leech);
+      const updated: Card = {
+        ...current, sched: res.sched, buriedAt: undefined, suspended: current.suspended || (isLeech && leech.suspend),
+        // Out of a filtered deck once it's a review (or after a preview), as in Anki; still learning, it stays.
+        filteredDeck: preview || res.sched.state === 2 ? undefined : current.filteredDeck,
+      };
       // The note's other cards that its preset holds back until tomorrow, as Anki does.
-      const siblings = siblingsToBury(current, cards ?? [], cardParams?.bury, when, H);
+      const siblings = preview ? [] : siblingsToBury(current, cards ?? [], cardParams?.bury, when, H);
       const buried = siblings.map((s): Card => ({ ...s, buriedAt: when.toISOString() }));
       await repo.saveCard(updated);
       for (const b of buried) await repo.saveCard(b);
@@ -203,7 +210,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       try {
         anki = await repo.writeAnkiAnswer({
           before: current, after: updated, rating, now: when,
-          takenMs: when.getTime() - shownAt.current, desiredRetention: cardParams?.desiredRetention, bury: siblings,
+          takenMs: when.getTime() - shownAt.current, desiredRetention: cardParams?.desiredRetention, bury: siblings, preview,
           steps: { learn: (cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS).length, relearn: (cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS).length },
         });
       } catch (e: any) {

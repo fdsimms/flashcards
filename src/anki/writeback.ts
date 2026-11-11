@@ -92,8 +92,10 @@ export function cardUpdate(
   const s = card.sched;
   const nowSecs = Math.floor(ctx.now.getTime() / 1000);
   const dueSecs = secs(s.due);
-  // An answer takes a card out of a filtered deck, home to its own deck, as in Anki.
-  const did = current.odid ? current.odid : current.did;
+  // In a filtered deck that reschedules, an answer that makes the card a review takes it home, as
+  // in Anki; one that leaves it learning keeps it there (`stillFiltered`).
+  const stillFiltered = !!current.odid && s.state !== 2 && s.state !== 0;
+  const did = current.odid && !stillFiltered ? current.odid : current.did;
 
   let queue: number;
   let due: number;
@@ -128,7 +130,7 @@ export function cardUpdate(
   }
 
   return {
-    did, odid: 0, odue: 0,
+    did, odid: stillFiltered ? current.odid : 0, odue: stillFiltered ? due : 0,
     type: s.state, queue, due, ivl,
     // A card leaving New gets Anki's starting ease; FSRS doesn't use it, but SM-2 would.
     factor: current.factor || (s.state === 0 ? 0 : 2500),
@@ -189,6 +191,21 @@ function learningStepIvl(before: Card, crt?: number): number {
   const s = before.sched;
   if ((s.state !== 1 && s.state !== 3) || !s.lastReview) return 0;
   return stepInterval(secs(s.lastReview), secs(s.due), crt);
+}
+
+/**
+ * The card's Anki row after an answer in a filtered deck that doesn't reschedule (Anki's preview):
+ * its schedule is left exactly as it was, and it goes home to its own deck, due as before.
+ */
+export function previewReturn(current: AnkiCardRow, now: Date): AnkiCardUpdate {
+  const due = current.odid ? current.odue : current.due;
+  // The queue its type and due put it in: a learning card due as a timestamp is queue 1, as a day number queue 3.
+  const queue = current.type === 0 ? 0 : current.type === 2 ? 2 : due > 1_000_000_000 ? 1 : 3;
+  return {
+    did: current.odid || current.did, odid: 0, odue: 0,
+    type: current.type, queue, due, ivl: current.ivl, factor: current.factor, reps: current.reps, lapses: current.lapses,
+    left: current.left, data: current.data ?? '', mod: Math.floor(now.getTime() / 1000), usn: -1,
+  };
 }
 
 /** Reads the columns `cardUpdate` needs. One parameter: the Anki card id. */

@@ -114,6 +114,15 @@ describe('moving a note to another deck', () => {
     db.close();
   });
 
+  it("moves a card that had a deck of its own along with the note, as Anki's move does", async () => {
+    const { store } = await franki();
+    const note = [...store.notes.values()].find((n) => n.fields.Front === 'Capital of Bolivia?')!;
+    const [card] = [...store.cards.values()].filter((c) => c.noteId === note.id);
+    store.cards.set(card.id, { ...card, deck: '🧠 Trivia::Elsewhere' });
+    await saveNote(store, { id: note.id, deck: 'Default', model: note.model, fields: note.fields, tags: note.tags }, NOW);
+    expect(store.cards.get(card.id)!.deck).toBeUndefined();
+  });
+
   it('refuses a deck the Anki collection doesn\'t have, changing nothing', async () => {
     const { store } = await franki();
     const note = [...store.notes.values()].find((n) => n.fields.Front === 'Capital of Peru?')!;
