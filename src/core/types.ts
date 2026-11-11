@@ -37,13 +37,16 @@ export interface Card {
   sched: SchedState;
 }
 
-/** A deck's FSRS settings, from its Anki preset. */
+/** A deck's study settings, from its Anki preset: FSRS parameters and daily limits. */
 export interface DeckParams {
   /** FSRS weights. Empty means the preset was never optimized: use the defaults. */
   weights: number[];
   desiredRetention: number;
   /** Days. */
   maxInterval: number;
+  /** Daily limits from the Anki preset. Missing means the app's defaults (`src/core/config.ts`). */
+  newPerDay?: number;
+  reviewsPerDay?: number;
 }
 
 export interface ReviewLogEntry {

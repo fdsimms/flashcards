@@ -28,10 +28,14 @@ export function isOmnilanguage(note: Note): boolean {
   return 'Entry' in note.fields && 'Meaning' in note.fields;
 }
 
-/** Which card kinds a note produces. Mirrors the GenerateReverse / GenerateAudioCard gating. */
+/**
+ * Which card kinds a note produces. Mirrors the Anki templates' gating: the front card unless
+ * SuppressFrontCard is set, and the reverse / audio cards when GenerateReverse /
+ * GenerateAudioCard are.
+ */
 export function cardKindsFor(note: Note): CardKind[] {
   if (isOmnilanguage(note)) {
-    const kinds: CardKind[] = ['forward'];
+    const kinds: CardKind[] = isTruthyField(note.fields.SuppressFrontCard) ? [] : ['forward'];
     if (isTruthyField(note.fields.GenerateReverse)) kinds.push('reverse');
     if (isTruthyField(note.fields.GenerateAudioCard)) kinds.push('audio');
     return kinds;

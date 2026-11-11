@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deckParamsFromPresets, importAnkiJson } from '../../src/import/ankiJson';
+import { ankiDueDate, deckParamsFromPresets, importAnkiJson } from '../../src/import/ankiJson';
 import { omnilanguageFieldNames } from '../../src/import/models';
 import { NOW } from '../support/fixtures';
 
@@ -56,5 +56,46 @@ describe('Anki JSON import', () => {
   });
   it('defaults a preset with no weights or retention', () => {
     expect(deckParamsFromPresets([{ decks: ['D'] }]).get('D')).toEqual({ weights: [], desiredRetention: 0.9, maxInterval: 36500 });
+  });
+
+  it('maps Anki ordinals to Omnilanguage templates whichever cards a note generates', () => {
+    // Only the audio card on: Anki's ord 2 is still the audio card.
+    const res = importAnkiJson({
+      collectionCreated: created,
+      notes: [noteInfo(3, { GenerateReverse: '', GenerateAudioCard: 'y', SuppressFrontCard: 'y' })],
+      cards: [{ cardId: 30, note: 3, deckName: 'Thai', ord: 2, type: 2, queue: 2, due: 400, interval: 12 }],
+    }, { now: NOW });
+    expect(res.cards.map((c) => c.kind)).toEqual(['audio']);
+    expect(res.cards[0].sched.state).toBe(2);
+    expect(res.warnings).toEqual([]);
+  });
+  it('reads a learning card\'s due as a timestamp and a review card\'s as a day number', () => {
+    const at = Math.floor(new Date(2026, 10, 11, 12, 10).getTime() / 1000);
+    expect(ankiDueDate({ cardId: 1, note: 1, deckName: 'D', type: 1, queue: 1, due: at }, created, NOW).getTime()).toBe(at * 1000);
+    expect(ankiDueDate({ cardId: 1, note: 1, deckName: 'D', type: 1, queue: 3, due: 10 }, created, NOW).getTime()).toBe((created + 10 * 86400) * 1000);
+  });
+  it('uses the real last-review time when the export has it', () => {
+    const lrt = Math.floor(new Date(2026, 10, 1, 9).getTime() / 1000);
+    const res = importAnkiJson({
+      collectionCreated: created, notes: [noteInfo(4)],
+      cards: [{ cardId: 40, note: 4, deckName: 'D', ord: 0, type: 2, queue: 2, due: 680, interval: 20, lastReview: lrt }],
+    }, { now: NOW });
+    expect(res.cards.find((c) => c.kind === 'forward')!.sched.lastReview).toBe(new Date(lrt * 1000).toISOString());
+  });
+  it('sums skipped cards per note type instead of one warning per card', () => {
+    const basic = (id: number) => ({ noteId: id, modelName: 'Ultimate Geography', fields: { Country: 'Peru', Capital: 'Lima' } });
+    const res = importAnkiJson({
+      collectionCreated: created, notes: [basic(5), basic(6)],
+      cards: [5, 6].flatMap((n) => [0, 1, 2].map((ord) => ({ cardId: n * 10 + ord, note: n, deckName: 'Geo', ord, type: 0 }))),
+    }, { now: NOW });
+    expect(res.warnings).toEqual(['4 cards of note type "Ultimate Geography" were skipped: only its first card type can be shown here yet']);
+  });
+  it('takes per-deck limits and FSRS settings from deckConfigs over fsrsParams', () => {
+    const res = importAnkiJson({
+      notes: [], cards: [],
+      deckConfigs: { Thai: { newPerDay: 10, reviewsPerDay: 150, desiredRetention: 0.85, weights: [0.1], maxInterval: 3650 } },
+      fsrsParams: { presets: [{ decks: ['Thai'], desired_retention: 0.9 }] },
+    }, { now: NOW });
+    expect(res.deckParams!.get('Thai')).toEqual({ weights: [0.1], desiredRetention: 0.85, maxInterval: 3650, newPerDay: 10, reviewsPerDay: 150 });
   });
 });

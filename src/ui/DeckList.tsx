@@ -7,6 +7,7 @@ export function DeckList(props: {
   decks: DeckSummary[];
   onOpen: (deck: string) => void;
   onImport: () => void;
+  onBackup: () => void;
 }) {
   const t = useTheme();
   return (
@@ -31,12 +32,20 @@ export function DeckList(props: {
           </Pressable>
         )}
       />
-      <Pressable
-        onPress={props.onImport}
-        style={{ margin: 16, marginBottom: 36, backgroundColor: t.accent, borderRadius: 14, padding: 16, alignItems: 'center' }}
-      >
-        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Import</Text>
-      </Pressable>
+      <View style={{ flexDirection: 'row', gap: 10, margin: 16, marginBottom: 36 }}>
+        <Pressable
+          onPress={props.onImport}
+          style={{ flex: 1, backgroundColor: t.accent, borderRadius: 14, padding: 16, alignItems: 'center' }}
+        >
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Import</Text>
+        </Pressable>
+        <Pressable
+          onPress={props.onBackup}
+          style={{ flex: 1, backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 14, padding: 16, alignItems: 'center' }}
+        >
+          <Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>Backup</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }

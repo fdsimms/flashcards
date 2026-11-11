@@ -126,14 +126,15 @@ cut off silently. A field that's shown gets honored, refused inline with the rea
 
 ```
 src/core     types, FSRS wrapper, queue, study day, card rendering, config (pure TS)
-src/import   TSV + Anki JSON importers
-src/db       Repo interface + MemoryRepo (tests), SQLite repo (app)
-src/ui       deck list, review, import screens
-tests/       vitest, mirroring src/ (src/core/queue.ts -> tests/core/queue.test.ts)
+src/import   TSV + Anki JSON importers, re-import matching (reconcile.ts)
+src/db       Repo interface + MemoryRepo (tests), SQLite repo (app), backup planning
+src/ui       deck list, review, import, backup screens
+scripts/     export-anki.mjs, the desktop exporter, and scripts/lib (what it runs, tested)
+tests/       vitest, mirroring src/ and scripts/ (src/core/queue.ts -> tests/core/queue.test.ts)
 ```
 
 **Tests mirror source 1:1**, and only pure logic is tested (`src/core`, `src/import`, `src/db`'s
-MemoryRepo and `summarizeDecks`). Vitest runs in `node` with no React renderer, so there are no
+MemoryRepo, `summarizeDecks` and backup planning, `scripts/lib`). Vitest runs in `node` with no React renderer, so there are no
 screen tests. Don't add a renderer to cover a UI change: verify by reasoning about the code and say
 so plainly rather than implying you ran it. Keep logic out of screens so it can be tested: if a
 screen grows a decision worth testing, move it into `src/core`.
@@ -184,11 +185,16 @@ imported from AnkiMCP's `get_fsrs_params` output in the JSON export). `paramsFor
 the nearest ancestor deck, then to the `ts-fsrs` defaults. Every `review`/`previewIntervals` call
 passes the deck's params; one that doesn't silently schedules with the defaults.
 
-**Counts shown in two places come from one function.** The deck list's due/new numbers are
-`summarizeDecks`, which is built on `buildQueue`, the same function the review screen uses, so a
-deck never says "20 new" and then opens with none. A check that predicts what another code path
-will do calls that code path's function; don't write a lookalike. Study settings (`NEW_PER_DAY`,
-`DAY_STARTS_AT_HOUR`) live once, in `src/core/config.ts`.
+**Daily limits are per deck, from its Anki preset** (`DeckParams.newPerDay` / `reviewsPerDay`),
+with `NEW_PER_DAY` / `REVIEWS_PER_DAY` in `src/core/config.ts` only for a deck that has none. The
+review limit counts answers to Review-state cards today; learning cards are never limited, as in
+Anki.
+
+**Counts shown in two places come from one function.** The deck list (`summarizeDecks`) and the
+review screen both build a deck's queue with `buildQueue(cards, queueOptionsFor(params, studied,
+...))`, so a deck never says "20 new" and then opens with none. A check that predicts what another
+code path will do calls that code path's function; don't write a lookalike. Study defaults live
+once, in `src/core/config.ts` (`STUDY_DEFAULTS`).
 
 ### Import
 
@@ -205,8 +211,34 @@ will do calls that code path's function; don't write a lookalike. Study settings
 - **A card whose kind the note no longer generates is `retired`, not deleted or suspended.**
   `suspended` comes from Anki and a TSV re-import doesn't carry it, so the two must stay separate;
   retiring keeps the card's history, and turning the kind back on restores it.
+- **An Anki card's `ord` is its template's position in the note type**, fixed whichever cards a
+  note generates (`omnilanguageKindByOrd`). Matching it against the list of kinds a note happens to
+  generate dropped the audio card's scheduling on notes with no reverse card.
+- **`omnilanguageFieldNames` must match the live note type exactly** (check with AnkiMCP's
+  `model_field_names`): a TSV without `#columns` is mapped by position, so a field added in Anki
+  and missing here shifts every field after it.
 - **An unreadable file is refused with the reason and what to export instead**, never parsed as
-  something else and left to fail with an unrelated message.
+  something else and left to fail with an unrelated message (`.apkg`, and a backup `.db`, on the
+  Import screen).
+
+### The Anki exporter (`scripts/`)
+
+- **It reads a copy of the collection, never the original**, with Anki's custom `unicase`
+  collation stripped from the copy's schema (Node's SQLite can't register it, and the tables that
+  declare it refuse every query without it).
+- **Deck settings come from protobuf blobs** (`decks.kind`, `deck_config.config`). Read only the
+  field numbers named in `scripts/lib/ankiCollection.mjs`, taken from Anki's `.proto` files; check
+  a new one against `proto/anki/*.proto` in ankitects/anki rather than guessing.
+- **Test against a real collection.** `tests/fixtures/anki/collection.anki2` was written by Anki
+  itself (`make-collection.py` beside it rebuilds it with the `anki` Python package). Extend that
+  script for a new case rather than hand-building rows.
+
+### Backup
+
+- **A backup is `VACUUM INTO` a file, shared through the share sheet; a restore replaces each
+  table's rows inside one transaction** (`restorePlan` in `src/db/backup.ts`), copying only the
+  columns both sides have, so a backup from before a migration still restores. A new table that
+  holds the user's data goes in `RESTORED_TABLES`, or a restore silently leaves it behind.
 
 ### After an `await`
 

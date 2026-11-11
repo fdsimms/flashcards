@@ -6,8 +6,11 @@
  * second copy of the limit is how the two would come to disagree.
  */
 
-/** New cards introduced per deck per study day. */
+/** New cards introduced per deck per study day, for a deck whose Anki preset didn't say (Anki's default). */
 export const NEW_PER_DAY = 20;
+
+/** Reviews per deck per study day, for a deck whose Anki preset didn't say (Anki's default). */
+export const REVIEWS_PER_DAY = 200;
 
 /** The hour the study day starts, as Anki's "Next day starts at" (4 AM by default). */
 export const DAY_STARTS_AT_HOUR = 4;
@@ -18,3 +21,11 @@ export const DAY_STARTS_AT_HOUR = 4;
  * that card due a minute later.
  */
 export const LEARN_AHEAD_MINUTES = 20;
+
+/** The defaults `queueOptionsFor` fills a deck's queue options from. */
+export const STUDY_DEFAULTS = {
+  defaultNewPerDay: NEW_PER_DAY,
+  defaultReviewsPerDay: REVIEWS_PER_DAY,
+  dayStartsAtHour: DAY_STARTS_AT_HOUR,
+  learnAheadMinutes: LEARN_AHEAD_MINUTES,
+};

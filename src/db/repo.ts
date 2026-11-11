@@ -1,5 +1,5 @@
 import { studyDayStart } from '../core/day';
-import { buildQueue } from '../core/queue';
+import { buildQueue, type QueueOptions, type StudiedToday } from '../core/queue';
 import type { Card, DeckParams, Note, ReviewLogEntry } from '../core/types';
 
 export interface DeckSummary {
@@ -22,8 +22,8 @@ export interface Repo {
   listCards(deck?: string): Promise<Card[]>;
   saveCard(card: Card): Promise<void>;
   addReview(entry: ReviewLogEntry): Promise<void>;
-  /** New cards first answered in `deck` during the study day `now` falls in. */
-  newIntroducedToday(deck: string, now: Date, dayStartsAtHour: number): Promise<number>;
+  /** What `deck` has studied during the study day `now` falls in, for its daily limits. */
+  studiedToday(deck: string, now: Date, dayStartsAtHour: number): Promise<StudiedToday>;
   /** Replaces the FSRS settings of the decks given; other decks keep theirs. */
   saveDeckParams(params: Map<string, DeckParams>): Promise<void>;
   listDeckParams(): Promise<Map<string, DeckParams>>;
@@ -61,14 +61,17 @@ export class MemoryRepo implements Repo {
   }
   async saveCard(card: Card) { this.cards.set(card.id, card); }
   async addReview(entry: ReviewLogEntry) { this.reviews.push(entry); }
-  async newIntroducedToday(deck: string, now: Date, dayStartsAtHour: number) {
+  async studiedToday(deck: string, now: Date, dayStartsAtHour: number) {
     const start = studyDayStart(now, dayStartsAtHour).getTime();
     const firsts = new Set<string>();
+    let reviewed = 0;
     for (const r of this.reviews) {
       if (new Date(r.reviewedAt).getTime() < start) continue;
-      if (r.state === 0 && this.notes.get(this.cards.get(r.cardId)?.noteId ?? '')?.deck === deck) firsts.add(r.cardId);
+      if (this.notes.get(this.cards.get(r.cardId)?.noteId ?? '')?.deck !== deck) continue;
+      if (r.state === 0) firsts.add(r.cardId);
+      if (r.state === 2) reviewed++;
     }
-    return firsts.size;
+    return { introduced: firsts.size, reviewed };
   }
   async saveDeckParams(params: Map<string, DeckParams>) {
     for (const [deck, p] of params) this.deckParams.set(deck, p);
@@ -76,20 +79,11 @@ export class MemoryRepo implements Repo {
   async listDeckParams() { return new Map(this.deckParams); }
 }
 
-export interface SummaryOptions {
-  newPerDay: number;
-  dayStartsAtHour: number;
-  learnAheadMinutes?: number;
-  /** New cards already introduced this study day, by deck. A deck missing from it has had none. */
-  introducedByDeck?: Map<string, number>;
-  now?: Date;
-}
-
 /**
- * Per-deck counts for the deck list, built on `buildQueue` so they match what opening the deck
- * shows: the same due rule and the same new-card budget, after what was introduced today.
+ * Per-deck counts for the deck list. The caller passes each deck's queue options (from
+ * `queueOptionsFor`, the same as the review screen), so a deck's numbers are what opening it shows.
  */
-export function summarizeDecks(notes: Note[], cards: Card[], opts: SummaryOptions): DeckSummary[] {
+export function summarizeDecks(notes: Note[], cards: Card[], optionsFor: (deck: string) => QueueOptions): DeckSummary[] {
   const deckOf = new Map(notes.map((n) => [n.id, n.deck]));
   const byDeck = new Map<string, Card[]>();
   for (const c of cards) {
@@ -99,13 +93,7 @@ export function summarizeDecks(notes: Note[], cards: Card[], opts: SummaryOption
   }
   const out: DeckSummary[] = [];
   for (const [deck, deckCards] of byDeck) {
-    const q = buildQueue(deckCards, {
-      newPerDay: opts.newPerDay,
-      newIntroducedToday: opts.introducedByDeck?.get(deck) ?? 0,
-      dayStartsAtHour: opts.dayStartsAtHour,
-      learnAheadMinutes: opts.learnAheadMinutes,
-      now: opts.now,
-    });
+    const q = buildQueue(deckCards, optionsFor(deck));
     out.push({ deck, due: q.due.length, fresh: q.fresh.length, total: deckCards.length });
   }
   return out.sort((a, b) => a.deck.localeCompare(b.deck));

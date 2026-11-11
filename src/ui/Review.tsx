@@ -2,8 +2,8 @@ import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { renderCard } from '../core/cards';
-import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY } from '../core/config';
-import { buildQueue, nextCard, nextLearningDue } from '../core/queue';
+import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, STUDY_DEFAULTS } from '../core/config';
+import { buildQueue, nextCard, nextLearningDue, queueOptionsFor, type StudiedToday } from '../core/queue';
 import { paramsForDeck, previewIntervals, review, type RatingValue } from '../core/scheduler';
 import type { Card, DeckParams, Note, RenderedSide } from '../core/types';
 import type { Repo } from '../db/repo';
@@ -29,7 +29,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
   const t = useTheme();
   const [cards, setCards] = useState<Card[] | null>(null);
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
-  const [introduced, setIntroduced] = useState(0);
+  const [studied, setStudied] = useState<StudiedToday>({ introduced: 0, reviewed: 0 });
   const [params, setParams] = useState<DeckParams | undefined>();
   const [revealed, setRevealed] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -39,22 +39,19 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
 
   useEffect(() => {
     (async () => {
-      const [c, n, intro, allParams] = await Promise.all([
-        repo.listCards(deck), repo.listNotes(), repo.newIntroducedToday(deck, new Date(), DAY_STARTS_AT_HOUR), repo.listDeckParams(),
+      const [c, n, today, allParams] = await Promise.all([
+        repo.listCards(deck), repo.listNotes(), repo.studiedToday(deck, new Date(), DAY_STARTS_AT_HOUR), repo.listDeckParams(),
       ]);
       setParams(paramsForDeck(deck, allParams));
       setCards(c);
       setNotes(new Map(n.map((x) => [x.id, x])));
-      setIntroduced(intro);
+      setStudied(today);
     })();
   }, [repo, deck]);
 
   const queue = useMemo(
-    () => (cards ? buildQueue(cards, {
-      newPerDay: NEW_PER_DAY, newIntroducedToday: introduced, dayStartsAtHour: DAY_STARTS_AT_HOUR,
-      learnAheadMinutes: LEARN_AHEAD_MINUTES, now,
-    }) : null),
-    [cards, introduced, now],
+    () => (cards ? buildQueue(cards, queueOptionsFor(params, studied, { ...STUDY_DEFAULTS, now })) : null),
+    [cards, studied, params, now],
   );
   const current = queue ? nextCard(queue) : undefined;
   const note = current ? notes.get(current.noteId) : undefined;
@@ -84,7 +81,13 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
       const updated: Card = { ...current, sched: res.sched };
       await repo.saveCard(updated);
       await repo.addReview({ cardId: current.id, ...res.log });
-      if (current.sched.state === 0) setIntroduced((n) => n + 1);
+      const before = current.sched.state;
+      if (before === 0 || before === 2) {
+        setStudied((s) => ({
+          introduced: s.introduced + (before === 0 ? 1 : 0),
+          reviewed: s.reviewed + (before === 2 ? 1 : 0),
+        }));
+      }
       // Functional update: `cards` from this render's closure is stale once the awaits return.
       setCards((prev) => prev && prev.map((c) => (c.id === updated.id ? updated : c)));
       setRevealed(false);

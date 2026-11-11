@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import { studyDayStart } from '../core/day';
 import type { Card, DeckParams, Note, ReviewLogEntry } from '../core/types';
+import { restorePlan } from './backup';
 import type { Repo } from './repo';
 
 const SCHEMA = `
@@ -47,7 +48,15 @@ async function migrate(db: SQLite.SQLiteDatabase) {
   }
 }
 
-export async function openRepo(name = 'flashcards.db'): Promise<Repo> {
+/** Backup and restore, which only the SQLite repo can do: they work on the database file. */
+export interface BackupStore {
+  /** Writes a consistent copy of the whole database to `path` (a file path, not a URI). */
+  backupTo(path: string): Promise<void>;
+  /** Replaces everything here with the backup at `path`. Throws `NotABackupError` for another kind of file. */
+  restoreFrom(path: string): Promise<{ notes: number; cards: number }>;
+}
+
+export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupStore> {
   const db = await SQLite.openDatabaseAsync(name);
   await db.execAsync(SCHEMA);
   await migrate(db);
@@ -118,15 +127,17 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo> {
         e.cardId, e.rating, e.reviewedAt, e.state, e.due, e.stability, e.difficulty,
       );
     },
-    async newIntroducedToday(deck, now, dayStartsAtHour) {
+    async studiedToday(deck, now, dayStartsAtHour) {
       // ISO strings are all UTC, so comparing them as text compares the instants.
       const start = studyDayStart(now, dayStartsAtHour);
-      const r = await db.getFirstAsync<{ n: number }>(
-        'SELECT COUNT(DISTINCT r.card_id) AS n FROM reviews r JOIN cards c ON c.id = r.card_id ' +
-          'JOIN notes n ON n.id = c.note_id WHERE n.deck = ? AND r.state = 0 AND r.reviewed_at >= ?',
+      const r = await db.getFirstAsync<{ introduced: number; reviewed: number }>(
+        'SELECT COUNT(DISTINCT CASE WHEN r.state = 0 THEN r.card_id END) AS introduced, ' +
+          'COALESCE(SUM(CASE WHEN r.state = 2 THEN 1 ELSE 0 END), 0) AS reviewed ' +
+          'FROM reviews r JOIN cards c ON c.id = r.card_id ' +
+          'JOIN notes n ON n.id = c.note_id WHERE n.deck = ? AND r.reviewed_at >= ?',
         deck, start.toISOString(),
       );
-      return r?.n ?? 0;
+      return { introduced: r?.introduced ?? 0, reviewed: r?.reviewed ?? 0 };
     },
     async saveDeckParams(params) {
       await db.withTransactionAsync(async () => {
@@ -138,6 +149,42 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo> {
     async listDeckParams() {
       const rows = await db.getAllAsync<{ deck: string; params: string }>('SELECT * FROM deck_params');
       return new Map(rows.map((r) => [r.deck, JSON.parse(r.params) as DeckParams]));
+    },
+    async backupTo(path) {
+      // VACUUM INTO writes a self-contained copy, WAL pages included, without closing anything.
+      await db.runAsync('VACUUM INTO ?', path);
+    },
+    async restoreFrom(path) {
+      const columnsOf = async (schema: 'main' | 'backup') => {
+        const tables = await db.getAllAsync<{ name: string }>(
+          `SELECT name FROM ${schema}.sqlite_master WHERE type = 'table'`,
+        );
+        const out = new Map<string, string[]>();
+        for (const { name } of tables) {
+          const cols = await db.getAllAsync<{ name: string }>(`PRAGMA ${schema}.table_info(${JSON.stringify(name)})`);
+          out.set(name, cols.map((c) => c.name));
+        }
+        return out;
+      };
+      // ATTACH can't run inside a transaction, so it brackets the one that does the work.
+      await db.runAsync('ATTACH DATABASE ? AS backup', path);
+      try {
+        const plan = restorePlan(await columnsOf('main'), await columnsOf('backup'));
+        await db.withTransactionAsync(async () => {
+          for (const { table, columns } of plan) {
+            await db.execAsync(`DELETE FROM main.${table}`);
+            if (columns.length === 0) continue;
+            const cols = columns.join(', ');
+            await db.execAsync(`INSERT INTO main.${table} (${cols}) SELECT ${cols} FROM backup.${table}`);
+          }
+        });
+      } finally {
+        await db.runAsync('DETACH DATABASE backup');
+      }
+      const n = await db.getFirstAsync<{ notes: number; cards: number }>(
+        'SELECT (SELECT COUNT(*) FROM notes) AS notes, (SELECT COUNT(*) FROM cards) AS cards',
+      );
+      return { notes: n?.notes ?? 0, cards: n?.cards ?? 0 };
     },
   };
 }

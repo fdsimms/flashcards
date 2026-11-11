@@ -1,10 +1,14 @@
 import { nextStudyDayStart } from './day';
-import type { Card } from './types';
+import type { Card, DeckParams } from './types';
 
 export interface QueueOptions {
   newPerDay: number;
   /** New cards already introduced this study day (counts against newPerDay). */
   newIntroducedToday?: number;
+  /** Review-state cards shown per study day. Learning cards aren't limited, as in Anki. */
+  reviewsPerDay?: number;
+  /** Review-state cards already answered this study day (counts against reviewsPerDay). */
+  reviewedToday?: number;
   /** The hour the study day starts (`DAY_STARTS_AT_HOUR`). */
   dayStartsAtHour: number;
   /** Show learning cards up to this many minutes early once nothing else is left (`LEARN_AHEAD_MINUTES`). */
@@ -53,6 +57,11 @@ export function buildQueue(cards: Card[], opts: QueueOptions): Queue {
   let due = active
     .filter((c) => isDue(c, now, opts.dayStartsAtHour))
     .sort((a, b) => dueMs(a) - dueMs(b));
+  if (opts.reviewsPerDay !== undefined) {
+    // The most overdue reviews fill the day's budget; learning cards pass regardless.
+    let reviewBudget = Math.max(0, opts.reviewsPerDay - (opts.reviewedToday ?? 0));
+    due = due.filter((c) => c.sched.state !== 2 || reviewBudget-- > 0);
+  }
   const budget = Math.max(0, opts.newPerDay - (opts.newIntroducedToday ?? 0));
   const fresh = active.filter((c) => c.sched.state === 0).slice(0, budget);
   if (due.length === 0 && fresh.length === 0 && opts.learnAheadMinutes) {
@@ -76,4 +85,32 @@ export function nextLearningDue(cards: Card[]): Date | undefined {
 
 export function nextCard(q: Queue): Card | undefined {
   return q.due[0] ?? q.fresh[0];
+}
+
+/** What a deck has already used of today's limits. */
+export interface StudiedToday {
+  /** New cards answered for the first time. */
+  introduced: number;
+  /** Answers given to cards in the Review state. */
+  reviewed: number;
+}
+
+/**
+ * The queue options for a deck: its own limits from its Anki preset when it has them, else the
+ * app's defaults. The deck list and the review screen both build their queue through this.
+ */
+export function queueOptionsFor(
+  params: DeckParams | undefined,
+  studied: StudiedToday,
+  base: { defaultNewPerDay: number; defaultReviewsPerDay: number; dayStartsAtHour: number; learnAheadMinutes?: number; now?: Date },
+): QueueOptions {
+  return {
+    newPerDay: params?.newPerDay ?? base.defaultNewPerDay,
+    reviewsPerDay: params?.reviewsPerDay ?? base.defaultReviewsPerDay,
+    newIntroducedToday: studied.introduced,
+    reviewedToday: studied.reviewed,
+    dayStartsAtHour: base.dayStartsAtHour,
+    learnAheadMinutes: base.learnAheadMinutes,
+    now: base.now,
+  };
 }

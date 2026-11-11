@@ -30,6 +30,10 @@ export function Import({ repo, onDone }: { repo: Repo; onDone: () => void }) {
       ]);
       return;
     }
+    if (name.endsWith('.db')) {
+      setLog((l) => [`Couldn't import ${asset.name}. It looks like a backup from this app. Restore it from the Backup screen instead.`, ...l]);
+      return;
+    }
     setBusy(true);
     try {
       const text = await new File(asset.uri).text();
@@ -63,7 +67,7 @@ export function Import({ repo, onDone }: { repo: Repo; onDone: () => void }) {
       <Pressable onPress={onDone} style={{ paddingHorizontal: 20 }}><Text style={{ color: t.accent, fontSize: 16 }}>‹ Decks</Text></Pressable>
       <Text style={{ color: t.text, fontSize: 28, fontWeight: '700', padding: 20 }}>Import</Text>
       <Text style={{ color: t.sub, paddingHorizontal: 20 }}>
-        Pick an Anki plain-text TSV export (.txt/.tsv) or a JSON export of notes and cards. Re-importing never resets cards you've already reviewed, and finds notes you already have even if their deck changed.
+        Pick the .json file made by scripts/export-anki.mjs on your computer, which keeps Anki's scheduling and each deck's limits, or an Anki plain-text export (.txt/.tsv), which starts every card as new. Re-importing never resets cards you've already reviewed, and finds notes you already have even if their deck changed.
       </Text>
       <Pressable onPress={pick} disabled={busy} style={{ margin: 20, backgroundColor: t.accent, borderRadius: 14, padding: 16, alignItems: 'center', opacity: busy ? 0.5 : 1 }}>
         <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{busy ? 'Importing…' : 'Choose file'}</Text>

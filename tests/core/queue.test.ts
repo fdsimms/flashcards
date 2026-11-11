@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { buildQueue, isDue, nextCard, nextLearningDue } from '../../src/core/queue';
+import { buildQueue, isDue, nextCard, nextLearningDue, queueOptionsFor } from '../../src/core/queue';
 import { review } from '../../src/core/scheduler';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
@@ -75,5 +75,21 @@ describe('queue', () => {
     const retired = { ...withSched(base, { state: 2, due: NOW.toISOString() }), retired: true };
     expect(buildQueue([retired], { newPerDay: 20, dayStartsAtHour: H, now: NOW }).due).toHaveLength(0);
     expect(buildQueue([{ ...base, retired: true }], { newPerDay: 20, dayStartsAtHour: H, now: NOW }).fresh).toHaveLength(0);
+  });
+
+  it("stops reviews at the day's limit, most overdue first, and never limits learning cards", () => {
+    const cards = [1, 2, 3].map((i) => withSched(makeCards({ ...omniNote(), id: `n${i}` }, NOW)[0], {
+      state: 2, due: new Date(2026, 10, i, 12).toISOString(),
+    }));
+    const learning = withSched(makeCards({ ...omniNote(), id: 'n9' }, NOW)[0], { state: 1, due: NOW.toISOString() });
+    const q = buildQueue([...cards, learning], { newPerDay: 0, reviewsPerDay: 3, reviewedToday: 1, dayStartsAtHour: H, now: NOW });
+    expect(q.due.map((c) => c.id)).toEqual([cards[0].id, cards[1].id, learning.id]);
+  });
+  it("fills a deck's options from its preset, else the defaults", () => {
+    const base = { defaultNewPerDay: 20, defaultReviewsPerDay: 200, dayStartsAtHour: H };
+    const studied = { introduced: 1, reviewed: 5 };
+    expect(queueOptionsFor(undefined, studied, base)).toMatchObject({ newPerDay: 20, reviewsPerDay: 200, newIntroducedToday: 1, reviewedToday: 5 });
+    const thai = { weights: [], desiredRetention: 0.9, maxInterval: 36500, newPerDay: 10, reviewsPerDay: 150 };
+    expect(queueOptionsFor(thai, studied, base)).toMatchObject({ newPerDay: 10, reviewsPerDay: 150 });
   });
 });

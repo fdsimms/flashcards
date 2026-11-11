@@ -8,6 +8,7 @@ describe('cards', () => {
     expect(cardKindsFor(omniNote())).toEqual(['forward']);
     expect(cardKindsFor(omniNote({ GenerateReverse: 'y' }))).toEqual(['forward', 'reverse']);
     expect(cardKindsFor(omniNote({ GenerateReverse: 'y', GenerateAudioCard: 'y' }))).toEqual(['forward', 'reverse', 'audio']);
+    expect(cardKindsFor(omniNote({ SuppressFrontCard: 'y', GenerateAudioCard: 'y' }))).toEqual(['audio']);
   });
   it('renders forward front as the entry and speaks it in the right language', () => {
     const r = renderCard(omniNote(), 'forward');

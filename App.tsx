@@ -1,17 +1,20 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY } from './src/core/config';
+import { DAY_STARTS_AT_HOUR, STUDY_DEFAULTS } from './src/core/config';
+import { queueOptionsFor } from './src/core/queue';
+import { paramsForDeck } from './src/core/scheduler';
 import { summarizeDecks, type DeckSummary, type Repo } from './src/db/repo';
-import { openRepo } from './src/db/sqliteRepo';
+import { openRepo, type BackupStore } from './src/db/sqliteRepo';
+import { Backup } from './src/ui/Backup';
 import { DeckList } from './src/ui/DeckList';
 import { Import } from './src/ui/Import';
 import { Review } from './src/ui/Review';
 
-type Screen = { name: 'decks' } | { name: 'import' } | { name: 'review'; deck: string };
+type Screen = { name: 'decks' } | { name: 'import' } | { name: 'backup' } | { name: 'review'; deck: string };
 
 export default function App() {
-  const [repo, setRepo] = useState<Repo | null>(null);
+  const [repo, setRepo] = useState<(Repo & BackupStore) | null>(null);
   const [screen, setScreen] = useState<Screen>({ name: 'decks' });
   const [decks, setDecks] = useState<DeckSummary[]>([]);
 
@@ -20,13 +23,15 @@ export default function App() {
   const refresh = useCallback(async () => {
     if (!repo) return;
     const now = new Date();
-    const [notes, cards] = await Promise.all([repo.listNotes(), repo.listCards()]);
+    const [notes, cards, allParams] = await Promise.all([repo.listNotes(), repo.listCards(), repo.listDeckParams()]);
     const deckNames = [...new Set(notes.map((n) => n.deck))];
-    const introduced = await Promise.all(deckNames.map((d) => repo.newIntroducedToday(d, now, DAY_STARTS_AT_HOUR)));
-    const introducedByDeck = new Map(deckNames.map((d, i) => [d, introduced[i]]));
-    setDecks(summarizeDecks(notes, cards, {
-      newPerDay: NEW_PER_DAY, dayStartsAtHour: DAY_STARTS_AT_HOUR, learnAheadMinutes: LEARN_AHEAD_MINUTES, introducedByDeck, now,
-    }));
+    const studied = await Promise.all(deckNames.map((d) => repo.studiedToday(d, now, DAY_STARTS_AT_HOUR)));
+    const studiedByDeck = new Map(deckNames.map((d, i) => [d, studied[i]]));
+    setDecks(summarizeDecks(notes, cards, (deck) => queueOptionsFor(
+      paramsForDeck(deck, allParams),
+      studiedByDeck.get(deck) ?? { introduced: 0, reviewed: 0 },
+      { ...STUDY_DEFAULTS, now },
+    )));
   }, [repo]);
 
   useEffect(() => { if (screen.name === 'decks') refresh(); }, [screen, refresh]);
@@ -36,9 +41,12 @@ export default function App() {
   return (
     <>
       {screen.name === 'decks' && (
-        <DeckList decks={decks} onOpen={(deck) => setScreen({ name: 'review', deck })} onImport={() => setScreen({ name: 'import' })} />
+        <DeckList decks={decks} onOpen={(deck) => setScreen({ name: 'review', deck })} onImport={() => setScreen({ name: 'import' })}
+          onBackup={() => setScreen({ name: 'backup' })}
+        />
       )}
       {screen.name === 'import' && <Import repo={repo} onDone={() => setScreen({ name: 'decks' })} />}
+      {screen.name === 'backup' && <Backup store={repo} onDone={() => setScreen({ name: 'decks' })} />}
       {screen.name === 'review' && <Review repo={repo} deck={screen.deck} onDone={() => setScreen({ name: 'decks' })} />}
       <StatusBar style="auto" />
     </>
