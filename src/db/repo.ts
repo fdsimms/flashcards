@@ -1,13 +1,7 @@
 import { studyDayStart } from '../core/day';
-import { buildQueue } from '../core/queue';
-import type { Card, DeckParams, Note, ReviewLogEntry } from '../core/types';
-
-export interface DeckSummary {
-  deck: string;
-  due: number;
-  fresh: number;
-  total: number;
-}
+import { isInDeck } from '../core/deckTree';
+import type { StudiedToday } from '../core/queue';
+import type { Card, DeckParams, Note, NoteType, ReviewLogEntry } from '../core/types';
 
 export interface Repo {
   /**
@@ -19,22 +13,33 @@ export interface Repo {
   upsertNotesAndCards(notes: Note[], cards: Card[]): Promise<void>;
   listNotes(): Promise<Note[]>;
   getNote(id: string): Promise<Note | undefined>;
+  /** Every card, or the cards of `deck` and all its subdecks. */
   listCards(deck?: string): Promise<Card[]>;
   saveCard(card: Card): Promise<void>;
-  addReview(entry: ReviewLogEntry): Promise<void>;
-  /** New cards first answered in `deck` during the study day `now` falls in. */
-  newIntroducedToday(deck: string, now: Date, dayStartsAtHour: number): Promise<number>;
+  /** Logs an answer and returns its id, which `deleteReview` takes to undo it. */
+  addReview(entry: ReviewLogEntry): Promise<number>;
+  deleteReview(id: number): Promise<void>;
+  /**
+   * What each deck has studied during the study day `now` falls in, by its own cards (a parent
+   * deck's entry leaves out its subdecks'; `treeQueue` adds them up). Decks with none are left out.
+   */
+  studiedToday(now: Date, dayStartsAtHour: number): Promise<Map<string, StudiedToday>>;
   /** Replaces the FSRS settings of the decks given; other decks keep theirs. */
   saveDeckParams(params: Map<string, DeckParams>): Promise<void>;
   listDeckParams(): Promise<Map<string, DeckParams>>;
+  /** Replaces the note types given, by name; others are kept. */
+  saveNoteTypes(types: NoteType[]): Promise<void>;
+  listNoteTypes(): Promise<Map<string, NoteType>>;
 }
 
 /** Simple in-memory repo, used by tests and as a reference implementation. */
 export class MemoryRepo implements Repo {
   notes = new Map<string, Note>();
   cards = new Map<string, Card>();
-  reviews: ReviewLogEntry[] = [];
+  reviews = new Map<number, ReviewLogEntry>();
+  private nextReviewId = 1;
   deckParams = new Map<string, DeckParams>();
+  noteTypes = new Map<string, NoteType>();
 
   async upsertNotesAndCards(notes: Note[], cards: Card[]) {
     for (const n of notes) this.notes.set(n.id, n);
@@ -57,56 +62,37 @@ export class MemoryRepo implements Repo {
   async getNote(id: string) { return this.notes.get(id); }
   async listCards(deck?: string) {
     const all = [...this.cards.values()];
-    return deck ? all.filter((c) => this.notes.get(c.noteId)?.deck === deck) : all;
+    return deck ? all.filter((c) => isInDeck(this.notes.get(c.noteId)?.deck ?? '', deck)) : all;
   }
   async saveCard(card: Card) { this.cards.set(card.id, card); }
-  async addReview(entry: ReviewLogEntry) { this.reviews.push(entry); }
-  async newIntroducedToday(deck: string, now: Date, dayStartsAtHour: number) {
+  async addReview(entry: ReviewLogEntry) {
+    const id = this.nextReviewId++;
+    this.reviews.set(id, entry);
+    return id;
+  }
+  async deleteReview(id: number) { this.reviews.delete(id); }
+  async studiedToday(now: Date, dayStartsAtHour: number) {
     const start = studyDayStart(now, dayStartsAtHour).getTime();
-    const firsts = new Set<string>();
-    for (const r of this.reviews) {
+    const firsts = new Map<string, Set<string>>();
+    const out = new Map<string, StudiedToday>();
+    for (const r of this.reviews.values()) {
       if (new Date(r.reviewedAt).getTime() < start) continue;
-      if (r.state === 0 && this.notes.get(this.cards.get(r.cardId)?.noteId ?? '')?.deck === deck) firsts.add(r.cardId);
+      const deck = this.notes.get(this.cards.get(r.cardId)?.noteId ?? '')?.deck;
+      if (!deck) continue;
+      const s = out.get(deck) ?? { introduced: 0, reviewed: 0 };
+      if (r.state === 0) (firsts.get(deck) ?? firsts.set(deck, new Set()).get(deck)!).add(r.cardId);
+      if (r.state === 2) s.reviewed++;
+      s.introduced = firsts.get(deck)?.size ?? 0;
+      if (r.state === 0 || r.state === 2) out.set(deck, s);
     }
-    return firsts.size;
+    return out;
   }
   async saveDeckParams(params: Map<string, DeckParams>) {
     for (const [deck, p] of params) this.deckParams.set(deck, p);
   }
   async listDeckParams() { return new Map(this.deckParams); }
-}
-
-export interface SummaryOptions {
-  newPerDay: number;
-  dayStartsAtHour: number;
-  learnAheadMinutes?: number;
-  /** New cards already introduced this study day, by deck. A deck missing from it has had none. */
-  introducedByDeck?: Map<string, number>;
-  now?: Date;
-}
-
-/**
- * Per-deck counts for the deck list, built on `buildQueue` so they match what opening the deck
- * shows: the same due rule and the same new-card budget, after what was introduced today.
- */
-export function summarizeDecks(notes: Note[], cards: Card[], opts: SummaryOptions): DeckSummary[] {
-  const deckOf = new Map(notes.map((n) => [n.id, n.deck]));
-  const byDeck = new Map<string, Card[]>();
-  for (const c of cards) {
-    if (c.suspended || c.retired) continue;
-    const deck = deckOf.get(c.noteId) ?? 'Imported';
-    (byDeck.get(deck) ?? byDeck.set(deck, []).get(deck)!).push(c);
+  async saveNoteTypes(types: NoteType[]) {
+    for (const t of types) this.noteTypes.set(t.name, t);
   }
-  const out: DeckSummary[] = [];
-  for (const [deck, deckCards] of byDeck) {
-    const q = buildQueue(deckCards, {
-      newPerDay: opts.newPerDay,
-      newIntroducedToday: opts.introducedByDeck?.get(deck) ?? 0,
-      dayStartsAtHour: opts.dayStartsAtHour,
-      learnAheadMinutes: opts.learnAheadMinutes,
-      now: opts.now,
-    });
-    out.push({ deck, due: q.due.length, fresh: q.fresh.length, total: deckCards.length });
-  }
-  return out.sort((a, b) => a.deck.localeCompare(b.deck));
+  async listNoteTypes() { return new Map(this.noteTypes); }
 }

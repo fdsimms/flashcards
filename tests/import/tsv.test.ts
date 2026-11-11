@@ -9,7 +9,7 @@ describe('TSV import', () => {
   });
   it('imports an Omnilanguage TSV with metadata headers and tags column', () => {
     const row = omnilanguageFieldNames.map((n) => ({ Entry: 'Haus', Meaning: 'house', GenerateReverse: 'y', Language: 'German' } as Record<string, string>)[n] ?? '');
-    const text = ['#separator:tab', '#html:true', '#notetype:Omnilanguage', '#deck:👅 Languages::🥨 Deutsch', '#tags column:28', [...row, 'noun a1'].join('\t')].join('\n');
+    const text = ['#separator:tab', '#html:true', '#notetype:Omnilanguage', '#deck:👅 Languages::🥨 Deutsch', '#tags column:29', [...row, 'noun a1'].join('\t')].join('\n');
     const res = importTsv(text, { now: NOW });
     expect(res.notes).toHaveLength(1);
     expect(res.notes[0].fields.Entry).toBe('Haus');

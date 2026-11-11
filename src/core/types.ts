@@ -1,4 +1,8 @@
-export type CardKind = 'forward' | 'reverse' | 'audio';
+/**
+ * forward / reverse / audio are Omnilanguage's cards (native renderer). `t<ord>` is a card of any
+ * other note type, rendered from its Anki template with that ordinal (cloze number - 1 for cloze).
+ */
+export type CardKind = 'forward' | 'reverse' | 'audio' | `t${number}`;
 
 export interface Note {
   id: string;
@@ -37,13 +41,16 @@ export interface Card {
   sched: SchedState;
 }
 
-/** A deck's FSRS settings, from its Anki preset. */
+/** A deck's study settings, from its Anki preset: FSRS parameters and daily limits. */
 export interface DeckParams {
   /** FSRS weights. Empty means the preset was never optimized: use the defaults. */
   weights: number[];
   desiredRetention: number;
   /** Days. */
   maxInterval: number;
+  /** Daily limits from the Anki preset. Missing means the app's defaults (`src/core/config.ts`). */
+  newPerDay?: number;
+  reviewsPerDay?: number;
 }
 
 export interface ReviewLogEntry {
@@ -69,4 +76,15 @@ export interface RenderedCard {
   back: RenderedSide;
   /** BCP-47 tag for TTS, when the language is known. */
   speechLang?: string;
+}
+
+/** A note type's Anki templates and styling, for rendering cards the way Anki does. */
+export interface NoteType {
+  name: string;
+  kind: 'normal' | 'cloze';
+  /** Field names in Anki's order, for mapping a TSV export by position. */
+  fields: string[];
+  css: string;
+  /** In Anki's order; `ord` is the position. A cloze note type has one. */
+  templates: { ord: number; name: string; front: string; back: string }[];
 }
