@@ -70,6 +70,7 @@ async function takeInCollection(repo: Repo & AnkiLink, collection: File) {
   if (result.noteTypes?.length) await repo.saveNoteTypes(result.noteTypes);
   await repo.applyAnkiCollection(result.notes, result.cards);
   if (result.deckParams?.size) await repo.saveDeckParams(result.deckParams);
+  if (result.collectionSettings) await repo.saveCollectionSettings(result.collectionSettings);
   return result;
 }
 

@@ -61,9 +61,8 @@ export interface AnkiRevlogRow {
   type: number;
 }
 
-/** ts-fsrs's default learning and relearning steps (1m 10m, and 10m), which Franki uses. */
-const LEARNING_STEPS = 2;
-const RELEARNING_STEPS = 1;
+/** Anki's default step counts (learn 1m 10m, relearn 10m), for a deck with no preset. */
+const DEFAULT_STEP_COUNTS = { learn: 2, relearn: 1 };
 /** Anki caps a review's recorded time at a minute by default ("Maximum answer seconds"). */
 const MAX_ANSWER_MS = 60_000;
 const DAY_SECS = 86400;
@@ -84,13 +83,19 @@ export function revlogDifficulty(difficulty: number): number {
 export function cardUpdate(
   card: Card,
   current: AnkiCardRow,
-  ctx: { crt: number; now: Date; desiredRetention?: number },
+  ctx: {
+    crt: number; now: Date; desiredRetention?: number;
+    /** How many learning and relearning steps the card's deck has: Anki's `left` counts the steps still to go. */
+    steps?: { learn: number; relearn: number };
+  },
 ): AnkiCardUpdate {
   const s = card.sched;
   const nowSecs = Math.floor(ctx.now.getTime() / 1000);
   const dueSecs = secs(s.due);
-  // An answer takes a card out of a filtered deck, home to its own deck, as in Anki.
-  const did = current.odid ? current.odid : current.did;
+  // In a filtered deck that reschedules, an answer that makes the card a review takes it home, as
+  // in Anki; one that leaves it learning keeps it there (`stillFiltered`).
+  const stillFiltered = !!current.odid && s.state !== 2 && s.state !== 0;
+  const did = current.odid && !stillFiltered ? current.odid : current.did;
 
   let queue: number;
   let due: number;
@@ -104,11 +109,13 @@ export function cardUpdate(
     due = ankiDayNumber(dueSecs, ctx.crt);
     ivl = Math.max(1, s.scheduledDays);
   } else {
-    // Learning or relearning: due within the day keeps its exact time; later, a day number.
-    const intraday = dueSecs - nowSecs < DAY_SECS;
+    // Learning or relearning: a step that ends today keeps its exact time (queue 1); one that
+    // crosses into a later day is due on that day (queue 3), as Anki's maybe_as_days does.
+    const intraday = ankiDayNumber(dueSecs, ctx.crt) === ankiDayNumber(nowSecs, ctx.crt);
     queue = intraday ? 1 : 3;
     due = intraday ? dueSecs : ankiDayNumber(dueSecs, ctx.crt);
-    left = Math.max(1, (s.state === 1 ? LEARNING_STEPS : RELEARNING_STEPS) - s.learningSteps);
+    const steps = ctx.steps ?? DEFAULT_STEP_COUNTS;
+    left = Math.max(1, (s.state === 1 ? steps.learn : steps.relearn) - s.learningSteps);
     if (s.state === 1) ivl = 0;
   }
   if (card.suspended) queue = -1;
@@ -123,7 +130,7 @@ export function cardUpdate(
   }
 
   return {
-    did, odid: 0, odue: 0,
+    did, odid: stillFiltered ? current.odid : 0, odue: stillFiltered ? due : 0,
     type: s.state, queue, due, ivl,
     // A card leaving New gets Anki's starting ease; FSRS doesn't use it, but SM-2 would.
     factor: current.factor || (s.state === 0 ? 0 : 2500),
@@ -134,10 +141,22 @@ export function cardUpdate(
 }
 
 /** The interval Anki records for a state: days for a review, negative seconds until due otherwise. */
-function revlogInterval(card: Card, now: Date): number {
+function revlogInterval(card: Card, now: Date, crt?: number): number {
   if (card.sched.state === 2) return Math.max(1, card.sched.scheduledDays);
   if (card.sched.state === 0) return 0;
-  return -Math.max(1, secs(card.sched.due) - Math.floor(now.getTime() / 1000));
+  return stepInterval(Math.floor(now.getTime() / 1000), secs(card.sched.due), crt);
+}
+
+/**
+ * A learning step as the review log records it (rslib's `as_revlog_interval`): negative seconds
+ * for one that ends the same day, positive days for one that crosses into a later day.
+ */
+function stepInterval(fromSecs: number, toSecs: number, crt?: number): number {
+  if (crt !== undefined) {
+    const days = ankiDayNumber(toSecs, crt) - ankiDayNumber(fromSecs, crt);
+    if (days > 0) return days;
+  }
+  return -Math.max(1, toSecs - fromSecs);
 }
 
 /** The review log row for one answer. `id` must be unique in the table: the answer's time in ms. */
@@ -145,16 +164,16 @@ export function revlogEntry(
   before: Card,
   after: Card,
   rating: RatingValue,
-  ctx: { id: number; cid: number; previousIvl: number; now: Date; takenMs: number },
+  ctx: { id: number; cid: number; previousIvl: number; now: Date; takenMs: number; crt?: number },
 ): AnkiRevlogRow {
   const type = before.sched.state === 2 ? 1 : before.sched.state === 3 ? 2 : 0;
-  const lastIvl = before.sched.state === 2 ? Math.max(1, ctx.previousIvl) : learningStepIvl(before);
+  const lastIvl = before.sched.state === 2 ? Math.max(1, ctx.previousIvl) : learningStepIvl(before, ctx.crt);
   return {
     id: ctx.id,
     cid: ctx.cid,
     usn: -1,
     ease: rating,
-    ivl: revlogInterval(after, ctx.now),
+    ivl: revlogInterval(after, ctx.now, ctx.crt),
     lastIvl,
     factor: revlogDifficulty(after.sched.difficulty),
     time: Math.min(MAX_ANSWER_MS, Math.max(0, Math.round(ctx.takenMs))),
@@ -168,10 +187,37 @@ export function revlogEntry(
  * `as_revlog_interval`), so a step 10 minutes after the last answer is -600. Only a new card's
  * first answer records 0, which is how a review log tells a new card from a learning step.
  */
-function learningStepIvl(before: Card): number {
+function learningStepIvl(before: Card, crt?: number): number {
   const s = before.sched;
   if ((s.state !== 1 && s.state !== 3) || !s.lastReview) return 0;
-  return -Math.max(1, Math.round((new Date(s.due).getTime() - new Date(s.lastReview).getTime()) / 1000));
+  return stepInterval(secs(s.lastReview), secs(s.due), crt);
+}
+
+/**
+ * The card's Anki row after an answer in a filtered deck that doesn't reschedule (Anki's preview):
+ * its schedule is left exactly as it was, and it goes home to its own deck, due as before.
+ */
+export function previewReturn(current: AnkiCardRow, now: Date): AnkiCardUpdate {
+  const due = current.odid ? current.odue : current.due;
+  // The queue its type and due put it in: a learning card due as a timestamp is queue 1, as a day number queue 3.
+  const queue = current.type === 0 ? 0 : current.type === 2 ? 2 : due > 1_000_000_000 ? 1 : 3;
+  return {
+    did: current.odid || current.did, odid: 0, odue: 0,
+    type: current.type, queue, due, ivl: current.ivl, factor: current.factor, reps: current.reps, lapses: current.lapses,
+    left: current.left, data: current.data ?? '', mod: Math.floor(now.getTime() / 1000), usn: -1,
+  };
+}
+
+/**
+ * The card's Anki row after an answer in a preview deck that shows it again: it stays where it is,
+ * schedule untouched, in Anki's preview queue (4), due again at `dueSecs`.
+ */
+export function previewAgain(current: AnkiCardRow, dueSecs: number, now: Date): AnkiCardUpdate {
+  return {
+    did: current.did, odid: current.odid, odue: current.odue,
+    type: current.type, queue: 4, due: dueSecs, ivl: current.ivl, factor: current.factor, reps: current.reps, lapses: current.lapses,
+    left: current.left, data: current.data ?? '', mod: Math.floor(now.getTime() / 1000), usn: -1,
+  };
 }
 
 /** Reads the columns `cardUpdate` needs. One parameter: the Anki card id. */

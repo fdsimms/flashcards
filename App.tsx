@@ -3,11 +3,9 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from './src/core/config';
 import { studyDayStart } from './src/core/day';
-import { deckLimits, deckRows, groupByDeck, type DeckRow } from './src/core/deckTree';
+import { deckRows, queueInput, type DeckRow } from './src/core/deckTree';
 import { studiedToday } from './src/core/queue';
-import { paramsForDeck } from './src/core/scheduler';
 import { backupStatus } from './src/db/backup';
 import type { Repo } from './src/db/repo';
 import type { AnkiLink } from './src/db/ankiLink';
@@ -86,23 +84,15 @@ export default function App() {
   const refresh = useCallback(async () => {
     if (!repo) return;
     const now = new Date();
-    const dayStart = studyDayStart(now, DAY_STARTS_AT_HOUR);
+    const collection = await repo.collectionSettings();
+    const dayStart = studyDayStart(now, collection.dayStartsAtHour);
     const [notes, cards, allParams, reviews, revlog, lastBackup, settings] = await Promise.all([
       repo.listNotes(), repo.listCards(), repo.listDeckParams(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
       repo.lastBackupAt(), repo.listDeckSettings(),
     ]);
     // Every answer given today, here or in Anki on another device (synced), counts toward the limits.
-    const studiedByDeck = studiedToday({ notes, cards, reviews, revlog, now, dayStartsAtHour: DAY_STARTS_AT_HOUR });
-    const deckOf = new Map(notes.map((n) => [n.id, n.deck]));
-    setDecks(deckRows({
-      cardsByDeck: groupByDeck(cards, deckOf),
-      limitsFor: (d) => deckLimits(paramsForDeck(d, allParams), { newPerDay: NEW_PER_DAY, reviewsPerDay: REVIEWS_PER_DAY }),
-      studiedByDeck,
-      gateFor: (d) => settings.get(d)?.gateCap,
-      dayStartsAtHour: DAY_STARTS_AT_HOUR,
-      learnAheadMinutes: LEARN_AHEAD_MINUTES,
-      now,
-    }));
+    const studied = studiedToday({ notes, cards, reviews, revlog, now, dayStartsAtHour: collection.dayStartsAtHour });
+    setDecks(deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now })));
     setBackup(backupStatus(lastBackup, now, cards.length > 0));
     setAnkiUnsent((await repo.ankiStatus()).unsent);
   }, [repo]);

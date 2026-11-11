@@ -1,5 +1,5 @@
 import { makeCards } from '../core/cards';
-import type { Card, DeckParams, Note, NoteType } from '../core/types';
+import type { Card, DeckParams, Note, NoteType, CollectionSettings } from '../core/types';
 import { omnilanguageFieldNames } from './models';
 
 export interface ImportResult {
@@ -10,6 +10,8 @@ export interface ImportResult {
   deckParams?: Map<string, DeckParams>;
   /** Note types' templates and styling, when the export carried them. */
   noteTypes?: NoteType[];
+  /** The Anki collection's own scheduling settings, when the import was a collection. */
+  collectionSettings?: CollectionSettings;
 }
 
 /** Split TSV text into rows, honoring Anki-style "quoted" fields that may contain tabs/newlines. */

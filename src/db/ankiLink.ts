@@ -3,7 +3,7 @@ import { inSchema, keptSql, stripUnicaseIn } from '../anki/attachedSql';
 import { COLLECTION_QUERIES, type CollectionRows } from '../anki/collection';
 import { ankiFolder, keptCollectionFile, pathOf, workFolder } from '../anki/files';
 import {
-  cardRestoreParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams, type AnkiCardRow, type AnkiUndo,
+  cardRestoreParams, cardUpdate, cardUpdateParams, nextRevlogId, previewAgain, previewReturn, revlogEntry, revlogParams, type AnkiCardRow, type AnkiUndo,
 } from '../anki/writeback';
 import type { SqlValue, SyncDb } from '../anki/sync/collectionSync';
 import type { MediaState } from '../anki/sync/mediaSync';
@@ -54,6 +54,13 @@ export interface AnkiLink {
   /** Writes an answer into the kept collection. Undefined when the card isn't from it. */
   writeAnkiAnswer(a: {
     before: Card; after: Card; rating: RatingValue; now: Date; takenMs: number; desiredRetention?: number;
+    /** The card's deck's step counts, for Anki's `left`. */
+    steps?: { learn: number; relearn: number };
+    /**
+     * Answered in a filtered deck that doesn't reschedule: the card is shown again at `again`
+     * (`previewAgain`), or, finished, goes home unchanged (`previewReturn`).
+     */
+    preview?: { again?: Date };
     /** Siblings to bury with the answer (`siblingsToBury`), in the same transaction. */
     bury?: Card[];
   }): Promise<AnkiUndo | undefined>;
@@ -188,7 +195,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
       await setSetting(SETTING.lastSentId, String(max?.m ?? 0));
     },
 
-    writeAnkiAnswer: ({ before, after, rating, now, takenMs, desiredRetention, bury = [] }) => lockAnki(async () => {
+    writeAnkiAnswer: ({ before, after, rating, now, takenMs, desiredRetention, steps, preview, bury = [] }) => lockAnki(async () => {
       await attach();
       if (!attached || !before.ankiId) return undefined;
       const cid = Number(before.ankiId);
@@ -203,8 +210,13 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
         if (sibling) buried.push({ cid: Number(s.ankiId), row: sibling });
       }
       await db.withTransactionAsync(async () => {
-        await db.runAsync(SQL.cardUpdate, ...cardUpdateParams(cardUpdate(after, row, { crt, now, desiredRetention }), cid));
-        await db.runAsync(SQL.revlogInsert, ...revlogParams(revlogEntry(before, after, rating, { id: revlogId, cid, previousIvl: row.ivl, now, takenMs })));
+        const update = !preview ? cardUpdate(after, row, { crt, now, desiredRetention, steps })
+          : preview.again ? previewAgain(row, Math.floor(preview.again.getTime() / 1000), now)
+          : previewReturn(row, now);
+        await db.runAsync(SQL.cardUpdate, ...cardUpdateParams(update, cid));
+        const entry = revlogEntry(before, after, rating, { id: revlogId, cid, previousIvl: row.ivl, now, takenMs, crt });
+        // A preview is logged as Anki logs one: kind 3 (filtered), with no change of interval.
+        await db.runAsync(SQL.revlogInsert, ...revlogParams(preview ? { ...entry, type: 3, ivl: row.ivl, lastIvl: row.ivl } : entry));
         for (const b of buried) await db.runAsync(SQL.buryCard, Math.floor(now.getTime() / 1000), b.cid);
         await db.runAsync(SQL.colModified, now.getTime());
       });
