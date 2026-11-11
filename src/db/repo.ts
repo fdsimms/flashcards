@@ -19,6 +19,8 @@ export interface Repo {
    */
   applyAnkiCollection(notes: Note[], cards: Card[]): Promise<void>;
   listNotes(): Promise<Note[]>;
+  /** Removes a note with its cards and their logged answers. */
+  deleteNote(id: string): Promise<void>;
   getNote(id: string): Promise<Note | undefined>;
   /** Every card, or the cards of `deck` and all its subdecks. */
   listCards(deck?: string): Promise<Card[]>;
@@ -84,6 +86,12 @@ export class MemoryRepo implements Repo {
     for (const c of cards) this.cards.set(c.id, { ...c, retired: false });
   }
   async listNotes() { return [...this.notes.values()]; }
+  async deleteNote(id: string) {
+    this.notes.delete(id);
+    const cardIds = new Set([...this.cards.values()].filter((c) => c.noteId === id).map((c) => c.id));
+    for (const cid of cardIds) this.cards.delete(cid);
+    for (const [rid, r] of this.reviews) if (cardIds.has(r.cardId)) this.reviews.delete(rid);
+  }
   async getNote(id: string) { return this.notes.get(id); }
   async listCards(deck?: string) {
     const all = [...this.cards.values()];

@@ -157,6 +157,13 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     async listNotes() {
       return (await db.getAllAsync('SELECT * FROM notes')).map(rowToNote);
     },
+    async deleteNote(id) {
+      await db.withTransactionAsync(async () => {
+        await db.runAsync('DELETE FROM reviews WHERE card_id IN (SELECT id FROM cards WHERE note_id = ?)', id);
+        await db.runAsync('DELETE FROM cards WHERE note_id = ?', id);
+        await db.runAsync('DELETE FROM notes WHERE id = ?', id);
+      });
+    },
     async getNote(id) {
       const r = await db.getFirstAsync('SELECT * FROM notes WHERE id = ?', id);
       return r ? rowToNote(r) : undefined;
