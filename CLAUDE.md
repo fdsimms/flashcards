@@ -131,7 +131,8 @@ src/core     types, FSRS wrapper, queue, deck tree, study day, card rendering, A
 src/import   TSV + Anki JSON importers, re-import matching (reconcile.ts)
 src/db       Repo interface + MemoryRepo (tests), SQLite repo (app), backup planning
 src/media    the media folder (expo-file-system)
-src/ui       screens, the shared pieces they're built from (kit.tsx), the theme, CardWebView
+src/app      routes (Expo Router): thin wrappers that give a screen in src/ui its props
+src/ui       screens, the shared pieces they're built from (kit.tsx), the theme, CardWebView, AppContext
 src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested);
              sync/ syncs with an Anki sync server (pure, tested; syncService.ts is the phone's side)
 server/      a ready-to-run Anki sync server (Docker, Caddy); server/mcp is the MCP for Claude (Python)
@@ -158,7 +159,7 @@ the review. `MemoryRepo` is the reference implementation and must behave like th
 (re-import rules included), since every repo test runs against it.
 
 **Audio plays with the silent switch on** (`setAudioModeAsync({ playsInSilentMode: true })` in
-`App.tsx`): iOS otherwise mutes an app's recordings, TTS and WebView audio alike, which made every
+`src/ui/AppContext.tsx`): iOS otherwise mutes an app's recordings, TTS and WebView audio alike, which made every
 play button look broken. `expo-audio`'s config plugin is set to add no microphone permission or
 background audio, neither of which Franki uses.
 
@@ -278,11 +279,13 @@ answer is already in the server's history (`undoAnkiAnswer` refuses it, under `l
 
 ### Screens and styling
 
-- **Build screens from `src/ui/kit.tsx`** (`Screen`, `Button`, `Card`, `Help`, `HeaderAction`,
-  `Count`, `MessageList`) before styling a `Pressable` or a box by hand, so a header or a button
-  looks the same everywhere.
-- **`Screen` pads by the safe-area insets; never pad a screen's top or bottom by a fixed number.**
-  The status bar and Dynamic Island differ by iPhone, and a hard-coded 56 put headers under them.
+- **Build screens from `src/ui/kit.tsx`** (`Screen`, `Group`, `NavRow`, `Button`, `Card`, `Help`,
+  `Count`, `MessageList`) before styling a `Pressable` or a box by hand, so a row or a button
+  looks the same everywhere. Icons are SF Symbols (`Icon`), and a tap gives back a haptic (`haptic`).
+- **The header is the native stack's, never drawn by a screen.** `Screen` sets the title and
+  header buttons; a ScrollView directly inside it takes `contentInsetAdjustmentBehavior="automatic"`
+  so the large title collapses. Never pad a screen's top or bottom by a fixed number: the status
+  bar and Dynamic Island differ by iPhone, and a hard-coded 56 put headers under them.
 - **Every color, gap, corner and text size comes from `src/ui/theme.ts`** (`useTheme()`, `space`,
   `radius`, `type`). `tests/noRawColors.test.ts` fails the build on a hex color in a screen; add a
   token with a light and a dark value instead. Text grows with the system text size, so a box

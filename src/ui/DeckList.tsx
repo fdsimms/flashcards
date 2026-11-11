@@ -1,7 +1,8 @@
+import { Stack } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import type { DeckRow } from '../core/deckTree';
-import { Button, Card, Group, Icon, IconAction, Screen } from './kit';
+import { Button, Card, Group, Icon, Screen } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /** Rows grouped under their top-level deck, so each family of decks sits in one card. */
@@ -93,15 +94,18 @@ export function DeckList(props: {
   return (
     <Screen
       title="Decks"
-      right={
-        <View style={{ flexDirection: 'row' }}>
-          {props.sync ? <IconAction name="arrow.triangle.2.circlepath" label={props.sync.syncing ? 'Syncing' : 'Sync now'} busy={props.sync.syncing} onPress={props.sync.onSync} /> : null}
-          <IconAction name="magnifyingglass" label="Browse and search notes" onPress={props.onBrowse} />
-          <IconAction name="gearshape" label="Settings" onPress={props.onSettings} />
-        </View>
+      toolbar={
+        <Stack.Toolbar placement="right">
+          {props.sync ? (
+            <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={props.sync.syncing} accessibilityLabel={props.sync.syncing ? 'Syncing' : 'Sync now'} onPress={props.sync.onSync} />
+          ) : null}
+          <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} />
+          <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={props.onSettings} />
+        </Stack.Toolbar>
       }
     >
       <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}
         // Pull down to sync, when sync is on.
         refreshControl={props.sync ? <RefreshControl refreshing={props.sync.syncing} onRefresh={props.sync.onSync} tintColor={c.textSecondary} /> : undefined}

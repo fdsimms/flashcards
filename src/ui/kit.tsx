@@ -1,3 +1,4 @@
+import { Stack } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import React, { useRef } from 'react';
 import {
@@ -63,61 +64,40 @@ export function Tappable({ style, scaleTo = 0.97, dimTo = 1, restOpacity = 1, on
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 /**
- * A full screen: the background, the safe-area insets (the status bar and Dynamic Island above,
- * the home indicator below), and a header with a back button and an optional action on the right.
- * Never pad a screen's top by a fixed amount; the inset differs from one iPhone to the next.
+ * A screen's content, with its native header: the title (large by default, collapsing as the list
+ * under it scrolls), `toolbar` for the buttons (a `Stack.Toolbar`, or several), and `footer`
+ * pinned to the bottom above the home indicator. The back button and its label come from the
+ * stack, so a screen never draws its own. Without a footer the content is returned as is, so a
+ * ScrollView in it is the screen's direct child, which is what the large title needs to collapse.
+ * Give that ScrollView `contentInsetAdjustmentBehavior="automatic"`.
  */
 export function Screen(props: {
-  /** Large title under the header. */
   title?: string;
-  /** Shows "‹ <backLabel>" at the top left. */
-  onBack?: () => void;
-  backLabel?: string;
-  /** Leave the chevron off the back button: for a sheet's Cancel, which closes rather than goes back. */
-  noBackChevron?: boolean;
-  /** A small action at the top right, e.g. Undo. */
-  right?: React.ReactNode;
+  /** False for an inline title: a sheet's, or a screen that's mostly its own content. */
+  largeTitle?: boolean;
+  /** `Stack.Toolbar` elements, e.g. `<Stack.Toolbar placement="right">` holding buttons. */
+  toolbar?: React.ReactNode;
   /** Pinned to the bottom, above the home indicator: the screen's main buttons. */
   footer?: React.ReactNode;
+  /** Turns off swiping the screen away, for a sheet with changes that would be lost. */
+  lockGesture?: boolean;
   children: React.ReactNode;
 }) {
-  const c = useTheme();
   const insets = useSafeAreaInsets();
+  const head = (
+    <>
+      <Stack.Screen options={{ title: props.title ?? '', headerLargeTitleEnabled: !!props.title && props.largeTitle !== false, gestureEnabled: !props.lockGesture }} />
+      {props.toolbar}
+    </>
+  );
+  if (!props.footer) return <>{head}{props.children}</>;
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top }}>
-      {props.onBack || props.right ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.s, minHeight: MIN_TAP }}>
-          {props.onBack ? (
-            <Pressable
-              onPress={props.onBack}
-              accessibilityRole="button"
-              accessibilityLabel={props.noBackChevron ? (props.backLabel ?? 'Back') : `Back to ${props.backLabel ?? 'Decks'}`}
-              hitSlop={space.s}
-              style={({ pressed }) => ({
-                minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.xs,
-                paddingLeft: props.noBackChevron ? space.s : 0, paddingRight: space.s, opacity: pressed ? 0.4 : 1,
-              })}
-            >
-              {props.noBackChevron ? null : <Icon name="chevron.left" size={19} color={c.accent} weight="semibold" />}
-              <Text style={{ ...type.body, color: c.accent }}>{props.backLabel ?? 'Decks'}</Text>
-            </Pressable>
-          ) : <View />}
-          {props.right ?? <View />}
-        </View>
-      ) : null}
-      {props.title ? (
-        <Text accessibilityRole="header" style={{ ...type.largeTitle, color: c.text, paddingHorizontal: space.l, paddingTop: space.xs, paddingBottom: space.m }}>
-          {props.title}
-        </Text>
-      ) : null}
+    <View style={{ flex: 1 }}>
+      {head}
       <View style={{ flex: 1 }}>{props.children}</View>
-      {props.footer ? (
-        <View style={{ paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: Math.max(insets.bottom, space.l), gap: space.s }}>
-          {props.footer}
-        </View>
-      ) : (
-        <View style={{ height: insets.bottom }} />
-      )}
+      <View style={{ paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: Math.max(insets.bottom, space.l), gap: space.s }}>
+        {props.footer}
+      </View>
     </View>
   );
 }
@@ -225,41 +205,6 @@ export function SwitchRow({ label, hint, value, onValueChange, first }: { label:
       </View>
       <Switch value={value} onValueChange={(on) => { haptic.select(); onValueChange(on); }} trackColor={{ true: c.accent, false: c.border }} ios_backgroundColor={c.border} />
     </View>
-  );
-}
-
-/** A small text action for a header or a row, at least a full tap target tall. */
-export function HeaderAction({ label, onPress, accessibilityLabel }: { label: string; onPress: () => void; accessibilityLabel?: string }) {
-  const c = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? label}
-      hitSlop={space.s}
-      style={({ pressed }) => ({ minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.s, opacity: pressed ? 0.4 : 1 })}
-    >
-      <Text style={{ ...type.body, color: c.accent }}>{label}</Text>
-    </Pressable>
-  );
-}
-
-/** A header action drawn as an icon, a full tap target square. `label` is what VoiceOver says. */
-export function IconAction({ name, label, onPress, busy, color }: { name: SFSymbol; label: string; onPress: () => void; busy?: boolean; color?: string }) {
-  const c = useTheme();
-  return (
-    <Tappable
-      onPress={onPress}
-      disabled={busy}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ busy: !!busy }}
-      scaleTo={0.88}
-      dimTo={0.6}
-      style={{ width: MIN_TAP, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
-    >
-      {busy ? <ActivityIndicator color={c.accent} /> : <Icon name={name} size={21} color={color ?? c.accent} />}
-    </Tappable>
   );
 }
 
@@ -372,26 +317,6 @@ export function Field({ label, error, ref, onFocus, onBlur, ...input }: TextInpu
           borderColor: error ? c.danger : focused ? c.accent : 'transparent', borderWidth: 1.5, borderRadius: radius.m,
           paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP,
         }}
-      />
-    </View>
-  );
-}
-
-/** A search box, as iOS draws one: a magnifier in a rounded gray field, with no label above it. */
-export function SearchField({ label, ...input }: TextInputProps & { label: string }) {
-  const c = useTheme();
-  const dark = useColorScheme() === 'dark';
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, backgroundColor: c.border, borderRadius: radius.m, ...smooth, paddingHorizontal: space.m, minHeight: 40 }}>
-      <Icon name="magnifyingglass" size={16} color={c.textTertiary} weight="semibold" />
-      <TextInput
-        accessibilityLabel={label}
-        placeholderTextColor={c.textSecondary}
-        selectionColor={c.accent}
-        keyboardAppearance={dark ? 'dark' : 'light'}
-        clearButtonMode="while-editing"
-        {...input}
-        style={{ ...type.body, color: c.text, flex: 1, paddingVertical: space.s }}
       />
     </View>
   );

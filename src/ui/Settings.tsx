@@ -9,14 +9,13 @@ import { space, useTheme } from './theme';
  * App-wide settings: the screens that aren't about studying (Anki, Stats, Backup), and which
  * answer buttons Review shows.
  */
-export function Settings({ repo, backupText, onAnki, onStats, onBackup, onDone }: {
+export function Settings({ repo, backupText, onAnki, onStats, onBackup }: {
   repo: Repo;
   /** When the last backup was made (`backupStatus`). */
   backupText?: string;
   onAnki: () => void;
   onStats: () => void;
   onBackup: () => void;
-  onDone: () => void;
 }) {
   const c = useTheme();
   const [buttons, setButtons] = useState<AnswerButtons>();
@@ -35,8 +34,8 @@ export function Settings({ repo, backupText, onAnki, onStats, onBackup, onDone }
   };
 
   return (
-    <Screen onBack={onDone} title="Settings">
-      <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+    <Screen title="Settings">
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         <Group>
           {/* The tile colors are the rating colors: each is picked so white reads on it in light and dark. */}
           <NavRow first icon={{ name: 'arrow.triangle.2.circlepath', color: c.easy }} label="Anki" detail="Sync, or send your collection to and from Anki by file" onPress={onAnki} />
