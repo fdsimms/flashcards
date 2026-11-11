@@ -63,7 +63,7 @@ export function SyncSettings(props: {
 
   return (
     <Screen onBack={props.onDone} backLabel="Anki" title="Sync">
-      <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         {s?.enabled ? (
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>Syncing with {s.server.replace(/^https?:\/\//, '').replace(/\/$/, '')}</Text>

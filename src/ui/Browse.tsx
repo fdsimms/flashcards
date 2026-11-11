@@ -44,6 +44,7 @@ export function Browse({ repo, onDone }: { repo: NoteStore; onDone: () => void }
         keyExtractor={(n) => n.id}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l }}
         ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: c.border }} />}
         renderItem={({ item }) => <NoteRow note={item} onPress={() => setEditing({ noteId: item.id })} />}

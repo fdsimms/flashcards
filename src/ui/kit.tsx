@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, Text, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View, type StyleProp, type TextInputInstance, type TextInputProps, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MIN_TAP, radius, space, type, useTheme } from './theme';
 
@@ -152,13 +152,14 @@ export function MessageList({ lines }: { lines: string[] }) {
   );
 }
 
-/** A labelled text field, for a form on a Card. The label is also what VoiceOver reads for it. */
-export function Field({ label, error, ...input }: TextInputProps & { label: string; error?: boolean }) {
+/** A labelled text field, for a form on a Card. The label is also what VoiceOver reads for it. `ref` reaches the TextInput (React 19 passes it as a prop). */
+export function Field({ label, error, ref, ...input }: TextInputProps & { label: string; error?: boolean; ref?: React.Ref<TextInputInstance> }) {
   const c = useTheme();
   return (
     <View style={{ gap: space.xs }}>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
       <TextInput
+        ref={ref}
         accessibilityLabel={label}
         placeholderTextColor={c.textTertiary}
         {...input}

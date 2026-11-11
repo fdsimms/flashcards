@@ -1,13 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Modal, ScrollView, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Modal, ScrollView, Text, View, type TextInputInstance } from 'react-native';
 import { cardsFor, deleteNote, NoteRefused, saveNote, type NoteStore } from '../anki/noteService';
 import { isOmnilanguage } from '../core/cards';
+import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, type Selection } from '../core/formatting';
 import { duplicateOf, editTextToField, fieldToEditText, parseTags } from '../core/noteEditing';
 import type { Note, NoteType } from '../core/types';
 import { Button, Card, Chip, Field, Help, HeaderAction, Screen } from './kit';
 import { space, type, useTheme } from './theme';
 
 const OMNI_CARD_NAMES: Record<string, string> = { forward: 'Front', reverse: 'Reverse', audio: 'Audio' };
+const MARK_LABELS: Record<Mark, string> = { b: 'Bold', i: 'Italic', u: 'Underline' };
 
 /**
  * Adding or editing a note, full screen over whatever opened it (Review, Browse), so that screen
@@ -31,6 +33,20 @@ export function NoteEditor(props: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const editing = 'noteId' in props.target;
+  // The field being typed in, its selection, and each field's input, for the formatting buttons.
+  const [focused, setFocused] = useState<string | null>(null);
+  const selections = useRef(new Map<string, Selection>());
+  const inputs = useRef(new Map<string, TextInputInstance | null>());
+
+  const format = (name: string, apply: (text: string, sel: Selection) => { text: string; selection: Selection }) => {
+    const text = fields[name] ?? '';
+    const sel = selections.current.get(name) ?? { start: text.length, end: text.length };
+    const out = apply(text, sel);
+    setFields((f) => ({ ...f, [name]: out.text }));
+    selections.current.set(name, out.selection);
+    // After the new text renders, select what was selected, so a second tap undoes the first.
+    requestAnimationFrame(() => inputs.current.get(name)?.setSelection(out.selection.start, out.selection.end));
+  };
 
   useEffect(() => {
     (async () => {
@@ -133,7 +149,7 @@ export function NoteEditor(props: {
         title={editing ? 'Edit note' : 'Add note'}
         right={<HeaderAction label={busy ? 'Saving…' : 'Save'} onPress={save} accessibilityLabel="Save the note" />}
       >
-        <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>Deck</Text>
             <Chips options={decks} value={deck} onChange={(d) => { setDeck(d); setError(undefined); }} />
@@ -147,14 +163,27 @@ export function NoteEditor(props: {
           </Card>
           <Card>
             {fieldNames.map((name) => (
-              <Field
-                key={name}
-                label={name}
-                value={fields[name] ?? ''}
-                onChangeText={(v) => { setFields((f) => ({ ...f, [name]: v })); setError(undefined); }}
-                multiline
-                autoCorrect={false}
-              />
+              <View key={name} style={{ gap: space.s }}>
+                <Field
+                  ref={(r) => { inputs.current.set(name, r); }}
+                  label={name}
+                  value={fields[name] ?? ''}
+                  onChangeText={(v) => { setFields((f) => ({ ...f, [name]: v })); setError(undefined); }}
+                  onFocus={() => setFocused(name)}
+                  onSelectionChange={(e) => selections.current.set(name, e.nativeEvent.selection)}
+                  multiline
+                  autoCorrect={false}
+                />
+                {focused === name ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
+                    {(['b', 'i', 'u'] as Mark[]).map((m) => (
+                      <Chip key={m} label={MARK_LABELS[m]} selected={false} onPress={() => format(name, (t, sel) => toggleMark(t, sel, m))} />
+                    ))}
+                    <Chip label="Plain text" selected={false} onPress={() => format(name, clearFormatting)} />
+                  </View>
+                ) : null}
+                {hasFormatting(fields[name] ?? '') ? <Preview text={fields[name] ?? ''} /> : null}
+              </View>
             ))}
             <Field label="Tags" value={tags} onChangeText={setTags} autoCapitalize="none" autoCorrect={false} placeholder="Separated by spaces" />
           </Card>
@@ -168,12 +197,27 @@ export function NoteEditor(props: {
             {cardNames.length
               ? `Makes ${cardNames.length === 1 ? '1 card' : `${cardNames.length} cards`}: ${cardNames.join(', ')}.`
               : 'Makes no cards yet. Fill in the fields the card fronts show.'}
-            {' '}A line break is kept as one. Other formatting shows as HTML and is kept as it is.
+            {' '}Select text in a field to make it bold, italic or underlined, or take its formatting away. A field with
+            formatting shows how it will look underneath.
           </Help>
           {editing ? <Button label="Delete note" variant="secondary" onPress={remove} disabled={busy} /> : null}
         </ScrollView>
       </Screen>
     </Modal>
+  );
+}
+
+/** How a field with formatting will read on the card. */
+function Preview({ text }: { text: string }) {
+  const c = useTheme();
+  return (
+    <Text accessibilityLabel="Shows as" style={{ ...type.subhead, color: c.textSecondary }}>
+      {formattedRuns(text).map((r, i) => (
+        <Text key={i} style={{ fontWeight: r.bold ? '700' : undefined, fontStyle: r.italic ? 'italic' : undefined, textDecorationLine: r.underline ? 'underline' : undefined }}>
+          {r.text}
+        </Text>
+      ))}
+    </Text>
   );
 }
 
