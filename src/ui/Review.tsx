@@ -1,3 +1,4 @@
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, useColorScheme, View } from 'react-native';
@@ -12,7 +13,7 @@ import type { Card, DeckParams, DeckSettings, Note, NoteType, RenderedSide } fro
 import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
-import { mediaBaseUri } from '../media/mediaFiles';
+import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
 import { CardWebView } from './CardWebView';
 import { Button, Count, HeaderAction, Screen } from './kit';
 import { MIN_TAP, radius, space, type, useTheme } from './theme';
@@ -115,10 +116,26 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   const rendered = current && note && !page ? renderCard(note, current.kind) : undefined;
   const intervals = current && revealed ? previewIntervals(current.sched, now, cardParams) : undefined;
 
+  // One player for the session's recorded audio, released when the screen closes.
+  const player = useRef<AudioPlayer | null>(null);
+  useEffect(() => () => { player.current?.remove(); player.current = null; Speech.stop(); }, []);
+
+  /**
+   * Says a side's word: the note's recording when it has one and the file is here, as Anki
+   * plays it, else the phone's text-to-speech voice.
+   */
   const speak = useCallback(
     (text?: string) => {
       if (!text || !rendered) return;
       Speech.stop();
+      player.current?.pause();
+      const uri = rendered.audioFile ? mediaFileUri(rendered.audioFile) : undefined;
+      if (uri) {
+        player.current ??= createAudioPlayer();
+        player.current.replace({ uri });
+        player.current.play();
+        return;
+      }
       Speech.speak(text, { language: rendered.speechLang, rate: 0.9 });
     },
     [rendered],

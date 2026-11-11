@@ -16,6 +16,11 @@ export function htmlToText(html: string): string {
     .trim();
 }
 
+/** The media files a field's [sound:...] tags name, in order. */
+export function soundFiles(field: string | undefined): string[] {
+  return [...(field ?? '').matchAll(/\[sound:([^\]]+)\]/g)].map((m) => m[1].trim()).filter(Boolean);
+}
+
 export function isTruthyField(v: string | undefined): boolean {
   if (!v) return false;
   const t = htmlToText(v).toLowerCase();

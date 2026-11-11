@@ -44,3 +44,10 @@ export async function moveIntoMedia(file: File, name: string): Promise<void> {
   if (target.exists) target.delete();
   await file.move(target);
 }
+
+/** A media file's file:// URI, or undefined when it isn't here (a package exported without media). */
+export function mediaFileUri(name: string): string | undefined {
+  if (name.includes('/')) return undefined;
+  const f = new File(folder(), name);
+  return f.exists ? f.uri : undefined;
+}

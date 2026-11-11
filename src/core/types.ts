@@ -81,6 +81,11 @@ export interface RenderedCard {
   back: RenderedSide;
   /** BCP-47 tag for TTS, when the language is known. */
   speechLang?: string;
+  /**
+   * The note's recorded audio (the media file named in its Audio field), played in place of TTS
+   * wherever a side would speak, as Anki plays it. TTS is the fallback when there's none.
+   */
+  audioFile?: string;
 }
 
 /** A note type's Anki templates and styling, for rendering cards the way Anki does. */

@@ -155,6 +155,11 @@ SQLite first, then update React state**, so a crash between the two loses the sc
 the review. `MemoryRepo` is the reference implementation and must behave like the SQLite one
 (re-import rules included), since every repo test runs against it.
 
+**Audio plays with the silent switch on** (`setAudioModeAsync({ playsInSilentMode: true })` in
+`App.tsx`): iOS otherwise mutes an app's recordings, TTS and WebView audio alike, which made every
+play button look broken. `expo-audio`'s config plugin is set to add no microphone permission or
+background audio, neither of which Franki uses.
+
 **Everything stays on the device.** TTS is `expo-speech` (on-device voices), storage is local
 SQLite, and there is no backend or network call. A future feature that needs the network (sync,
 a dictionary lookup, an AI hint) ships behind its own setting that defaults to off.
@@ -246,7 +251,9 @@ import replaces it. A setting the user makes here goes in the first.
 
 ### Card rendering
 
-- **Omnilanguage renders natively** (`renderCard`, with TTS); **every other note type renders its
+- **Omnilanguage renders natively** (`renderCard`), playing the note's recorded `Audio` file
+  (`RenderedCard.audioFile`, via `expo-audio`) and falling back to TTS only when there's none or
+  the file isn't on the phone; **every other note type renders its
   Anki templates** (`src/core/template.ts`) in `CardWebView`, one `t<ord>` card per Anki card.
   Template rendering follows Anki's rules where they matter: a field holding only whitespace,
   `<br>` or `<div>` is empty but an image isn't (`fieldIsEmpty`), and a cloze card's ordinal is its
