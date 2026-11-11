@@ -15,6 +15,7 @@ import { DeckOptions } from './src/ui/DeckOptions';
 import { DeckList } from './src/ui/DeckList';
 import { AnkiTransfer } from './src/ui/AnkiTransfer';
 import { Review } from './src/ui/Review';
+import { Browse } from './src/ui/Browse';
 import { Settings } from './src/ui/Settings';
 import { Stats } from './src/ui/Stats';
 import { SyncSettings } from './src/ui/SyncSettings';
@@ -23,7 +24,7 @@ import { useSync } from './src/ui/useSync';
 import { syncStatusText } from './src/anki/sync/runSync';
 
 type Screen =
-  | { name: 'decks' } | { name: 'anki' } | { name: 'backup' } | { name: 'sync' } | { name: 'stats' } | { name: 'settings' }
+  | { name: 'decks' } | { name: 'anki' } | { name: 'backup' } | { name: 'sync' } | { name: 'stats' } | { name: 'settings' } | { name: 'browse' }
   | { name: 'review'; deck: string } | { name: 'deckOptions'; deck: string };
 
 export default function App() {
@@ -92,6 +93,7 @@ export default function App() {
           onBackup={() => setScreen({ name: 'backup' })}
           onStats={() => setScreen({ name: 'stats' })}
           onSettings={() => setScreen({ name: 'settings' })}
+          onBrowse={() => setScreen({ name: 'browse' })}
           onOptions={(deck) => setScreen({ name: 'deckOptions', deck })}
           sync={syncSettings?.enabled ? {
             syncing,
@@ -107,6 +109,7 @@ export default function App() {
       {screen.name === 'sync' && (
         <SyncSettings repo={repo} settings={syncSettings} syncing={syncing} sync={sync} reload={reloadSync} onDone={() => setScreen({ name: 'anki' })} />
       )}
+      {screen.name === 'browse' && <Browse repo={repo} onDone={() => setScreen({ name: 'decks' })} />}
       {screen.name === 'settings' && <Settings repo={repo} onDone={() => setScreen({ name: 'decks' })} />}
       {screen.name === 'stats' && <Stats repo={repo} onDone={() => setScreen({ name: 'decks' })} />}
       {screen.name === 'backup' && <Backup store={repo} onDone={() => setScreen({ name: 'decks' })} />}

@@ -44,6 +44,12 @@ One app holds the collection at a time: don't study in AnkiMobile between bringi
 
 Franki also imports Anki's "Notes in Plain Text" export (.txt or .tsv). Those cards start as new and stay in Franki only. Uses `#columns` / `#tags column` / `#deck` when present, otherwise the Omnilanguage field order in `src/import/models.ts`.
 
+## Adding and editing notes
+
+**Edit** while studying opens the note of the card on screen. **Browse** on the deck list lists every note, searchable by any word in it, a tag or its deck, with **Add** for a new one (pick the deck and note type). The editor shows each field of the note type; a line break is kept as one, and any other formatting shows as HTML and is kept as it is. It says which cards the note makes, refuses one that makes none, and warns when another note of the type has the same first field. **Delete note** removes it with its cards.
+
+Changes to an Anki note go into your Anki collection as Anki would make them, so the next sync (or Send to Anki) brings them to Anki. An edit keeps every card's schedule and adds any card the note now makes; a card it no longer makes stays in Anki, as Anki keeps it. A note added to a deck Anki doesn't have stays in Franki only.
+
 ## Stats
 
 **Stats** on the deck list shows today's answers, time spent, new cards and Agains; what comes due over the next 30 days; answers over the last 30; cards by stage (new, learning, young, mature, suspended); and how often reviews were remembered, against the deck's desired retention. Pick a top-level deck at the top, or all of them. It counts your whole history from Anki, not just answers given in Franki. Tap a bar to see that day.
@@ -117,4 +123,4 @@ The study day starts at 4 AM, as in Anki, so a late-night session counts toward 
 
 ## Not built yet
 
-Typing the answer (`{{type:}}` shows the answer on the back instead), Anki's own TTS tags (`{{tts:}}`), collapsing decks, and adding/editing cards in-app.
+Typing the answer (`{{type:}}` shows the answer on the back instead), Anki's own TTS tags (`{{tts:}}`), collapsing decks, moving a note to another deck, and a formatting toolbar in the note editor.

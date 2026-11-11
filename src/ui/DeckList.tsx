@@ -66,6 +66,7 @@ export function DeckList(props: {
   onBackup: () => void;
   onStats: () => void;
   onSettings: () => void;
+  onBrowse: () => void;
   onOptions: (deck: string) => void;
 }) {
   const c = useTheme();
@@ -76,6 +77,7 @@ export function DeckList(props: {
       right={
         <View style={{ flexDirection: 'row' }}>
           {props.sync ? <HeaderAction label={props.sync.syncing ? 'Syncing…' : 'Sync'} onPress={props.sync.onSync} /> : null}
+          <HeaderAction label="Browse" onPress={props.onBrowse} accessibilityLabel="Browse and search notes" />
           <HeaderAction label="Settings" onPress={props.onSettings} />
         </View>
       }

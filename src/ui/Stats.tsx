@@ -8,8 +8,8 @@ import { answersFrom, computeStats, durationText, MATURE_DAYS, percent, type Ans
 import type { Card, DeckParams, Note } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
-import { Card as Box, Help, Screen } from './kit';
-import { radius, space, type, useTheme } from './theme';
+import { Card as Box, Chip, Help, Screen } from './kit';
+import { space, type, useTheme } from './theme';
 
 /** How many study days the charts cover, back and ahead. */
 const DAYS = 30;
@@ -137,24 +137,6 @@ function pastSummary(past: { learn: number; review: number; relearn: number; tak
   return `Studied on ${studied} of ${past.length} days: ${plural(total, 'answer', 'answers')}`
     + `${time ? ` in ${durationText(time)}` : ''} (${plural(sum('review'), 'review', 'reviews')}, `
     + `${sum('learn').toLocaleString()} learning, ${sum('relearn').toLocaleString()} relearning).`;
-}
-
-function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
-  const c = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      style={({ pressed }) => ({
-        minHeight: 36, justifyContent: 'center', paddingHorizontal: space.m, borderRadius: radius.pill,
-        backgroundColor: selected ? c.accent : c.surface, borderWidth: 1, borderColor: selected ? c.accent : c.border,
-        opacity: pressed ? 0.75 : 1,
-      })}
-    >
-      <Text style={{ ...type.subhead, color: selected ? c.onAccent : c.text }}>{label}</Text>
-    </Pressable>
-  );
 }
 
 function Tile({ value, label }: { value: string; label: string }) {

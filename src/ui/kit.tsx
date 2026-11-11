@@ -171,3 +171,22 @@ export function Field({ label, error, ...input }: TextInputProps & { label: stri
     </View>
   );
 }
+
+/** A choice among a few (a deck, a note type): pill-shaped, filled when chosen. */
+export function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const c = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      style={({ pressed }) => ({
+        minHeight: 36, justifyContent: 'center', paddingHorizontal: space.m, borderRadius: radius.pill,
+        backgroundColor: selected ? c.accent : c.surface, borderWidth: 1, borderColor: selected ? c.accent : c.border,
+        opacity: pressed ? 0.75 : 1,
+      })}
+    >
+      <Text style={{ ...type.subhead, color: selected ? c.onAccent : c.text }}>{label}</Text>
+    </Pressable>
+  );
+}

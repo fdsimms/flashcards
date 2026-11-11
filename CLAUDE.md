@@ -284,6 +284,10 @@ Franki keeps a whole Anki collection file and writes every answer into it. It ge
 (below) or by file: a collection package (.colpkg) from AnkiMobile's Export, packed back up for
 Anki with "Send to Anki", one app holding the collection at a time.
 
+- **Notes added, edited and deleted in Franki go into the kept collection as Anki writes them**
+  (`src/anki/noteWrites.ts`, through `noteService.ts`, which keeps Franki's tables in step), checked
+  live against Anki. A deck or note type is found by reading the whole table (`NOT INDEXED`) and
+  comparing names here, since a lookup by name needs Anki's collation.
 - **Anki's collection is the record.** A package import replaces every Anki card's scheduling
   (`applyAnkiCollection`), studied here or not, unlike a TSV re-import; the screen warns first
   when answers haven't been sent to Anki yet.
