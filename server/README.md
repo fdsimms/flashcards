@@ -45,11 +45,12 @@ If Franki has answers you gave before setting up sync that never went back to An
 The same server can run an MCP: a connector that lets Claude read and change your collection, on the web, in the Claude apps on your phone and computer, and in Claude Code. It's one more Anki client of your sync server, using Anki's own engine, so anything it changes reaches Anki, AnkiMobile and Franki at their next sync. It can:
 
 - list decks and note types, and search notes with Anki's search syntax
+- change a note type's card templates and styling, and build filtered decks
 - add notes (with Anki's duplicate check), edit them, delete them, and manage tags
 - suspend, bury, flag, move, reschedule, forget and reposition cards
 - study a deck with you: it shows each question, then the answer, and rates the card only with your say-so
-- show statistics, and read, change and optimize a deck's FSRS settings
-- store images and sounds, and record audio for notes with Azure's voices
+- show statistics and a card's FSRS memory state, and read, change and optimize a deck's FSRS settings
+- store and delete images and sounds, and record audio for notes with Azure's voices
 
 **Turn it on.** In `.env`, remove the `#` in front of `COMPOSE_PROFILES=mcp` and set `MCP_PASSWORD` to a long password of its own (not the Anki one). For audio, also set `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`: in the Azure portal, create a Speech resource (it has a free tier) and copy a key and its region (for example `westeurope`) from its Keys and Endpoint page. Then run `docker compose up -d --build` again. Check `https://<your domain>/mcp-health` shows `{"ok":true}`.
 

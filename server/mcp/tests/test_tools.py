@@ -120,6 +120,13 @@ async def test_media_reaches_the_server(client, cm, desktop):
     assert (desktop.path.parent / "collection.media" / "hello.txt").read_bytes() == b"hi"
 
 
+async def test_fetches_media_at_its_first_sync(client, cm, desktop, tmp_path):
+    desktop.run("media-sync")
+    await call(client, "list_decks")
+    cm.wait_for_media()
+    assert any((tmp_path / "mcp" / "collection.media").iterdir())
+
+
 async def test_sees_changes_made_in_anki_and_follows_a_full_sync(client, desktop):
     await call(client, "list_decks")
     desktop.run("add-note", TRIVIA, "Capital of Peru?", "Lima", "dup" , "+", "sync")
@@ -134,3 +141,58 @@ async def test_sees_changes_made_in_anki_and_follows_a_full_sync(client, desktop
 
 async def test_the_server_instructions_explain_studying(client):
     assert "Never rate a card" in client.instructions
+
+
+async def test_changes_templates_and_styling_without_a_full_sync(client, desktop):
+    nt = await call(client, "get_note_type", note_type="Basic")
+    assert nt["card_types"][0]["front"] == "{{Front}}" and nt["css"]
+    await call(client, "update_note_type", note_type="Basic",
+               card_types={"Card 1": {"front": "<div class=q>{{Front}}</div>"}}, css=nt["css"] + "\n.q { font-size: 30px; }")
+    assert "has no card type 'Card 9'" in await call_error(client, "update_note_type", note_type="Basic", card_types={"Card 9": {"front": "x"}})
+    assert "Anki refused" in await call_error(client, "update_note_type", note_type="Basic", card_types={"Card 1": {"front": "{{Nope}}"}})
+    out = desktop.run("sync")
+    assert "full" not in str(out).lower()
+    templates = [t for t in desktop.run("dump")["dump"]["templates"]]
+    assert len(templates) > 0
+    found = (await call(client, "get_note_type", note_type="Basic"))["card_types"][0]["front"]
+    assert found == "<div class=q>{{Front}}</div>"
+
+
+async def test_filtered_decks(client):
+    made = await call(client, "filtered_deck", action="create", name="Cram", search=f'"deck:{TRIVIA}"', order="random", reschedule=False)
+    assert made["cards"] > 0
+    assert any(d["deck"] == "Cram" for d in (await call(client, "list_decks"))["decks"])
+    await call(client, "filtered_deck", action="empty", name="Cram")
+    assert (await call(client, "filtered_deck", action="rebuild", name="Cram"))["cards"] > 0
+    await call(client, "filtered_deck", action="delete", name="Cram")
+    assert not any(d["deck"] == "Cram" for d in (await call(client, "list_decks"))["decks"])
+    assert "normal deck" in await call_error(client, "filtered_deck", action="empty", name=TRIVIA)
+    assert "no filtered deck" in await call_error(client, "filtered_deck", action="rebuild", name="Nope")
+
+
+async def test_memory_state_after_an_answer(client):
+    first = (await call(client, "study_next", deck=TRIVIA))["card"]
+    before = (await call(client, "card_memory_state", card_ids=[first["card_id"]]))["cards"][0]
+    await call(client, "rate_card", card_id=first["card_id"], rating=3)
+    after = (await call(client, "card_memory_state", card_ids=[first["card_id"]]))["cards"][0]
+    assert before.get("memory_state", "x") is None or before.get("stability_days")
+    assert after["stability_days"] > 0 and 1 <= after["difficulty"] <= 10 and 0 <= after["difficulty_percent"] <= 100
+    assert after["desired_retention"]
+
+
+async def test_deletes_media_only_when_unused_unless_asked(client, cm, desktop):
+    desktop.run("media-sync")  # the fixture's images reach the server, and from it the MCP
+    await call(client, "sync_now")
+    cm.wait_for_media()
+    flag = (await call(client, "get_notes", note_ids=[1794408858030]))["notes"][0]["fields"]["Front"].split('src="')[1].split('"')[0]
+    await call(client, "store_media", filename="spare.txt", data_base64=base64.b64encode(b"x").decode())
+    cm.wait_for_media()
+    desktop.run("media-sync")
+    assert (desktop.path.parent / "collection.media" / "spare.txt").exists()
+    out = await call(client, "delete_media", filenames=["spare.txt", flag, "missing.png"])
+    assert out["deleted"] == 1
+    errors = {r["filename"]: r.get("error", "") for r in out["results"]}
+    assert "Notes still use it" in errors[flag] and "no media file" in errors["missing.png"]
+    cm.wait_for_media()
+    desktop.run("media-sync")
+    assert not (desktop.path.parent / "collection.media" / "spare.txt").exists()

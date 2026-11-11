@@ -140,7 +140,11 @@ class CollectionManager:
                 )
             self._full_download(auth)
         self._unsent = False
+        first = self._synced_at == 0.0
         self._synced_at = time.monotonic()
+        if first:
+            # Its media copy starts empty: fetch the collection's images and sounds in the background.
+            self._start_media_sync()
 
     def _has_local_changes(self) -> bool:
         db = self.col.db

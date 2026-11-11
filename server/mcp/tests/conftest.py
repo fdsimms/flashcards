@@ -32,6 +32,7 @@ class AnkiDevice:
     def __init__(self, folder: Path, url: str):
         self.path = folder / "collection.anki2"
         shutil.copy(FIXTURES / "collection.anki2", self.path)
+        shutil.copytree(FIXTURES / "collection.media", folder / "collection.media")
         self.url = url
 
     def run(self, *args: str) -> dict:
@@ -111,15 +112,15 @@ async def client(cm, azure):
         yield c
 
 
-async def call(client, name: str, **args) -> dict:
+async def call(client, tool: str, /, **args) -> dict:
     """Calls a tool and returns its result, failing the test on an error."""
-    r = await client.call_tool(name, args)
+    r = await client.call_tool(tool, args)
     assert not r.is_error, r.content[0].text
     return r.structured_content or json.loads(r.content[0].text)
 
 
-async def call_error(client, name: str, **args) -> str:
-    r = await client.call_tool(name, args)
+async def call_error(client, tool: str, /, **args) -> str:
+    r = await client.call_tool(tool, args)
     assert r.is_error, r.content
     return r.content[0].text
 

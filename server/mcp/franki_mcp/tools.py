@@ -18,6 +18,7 @@ from typing import Any, Literal
 from anki.collection import Collection  # first: the anki package's modules import each other
 from anki.cards import Card
 from anki.consts import QUEUE_TYPE_DAY_LEARN_RELEARN, QUEUE_TYPE_LRN, QUEUE_TYPE_NEW, QUEUE_TYPE_REV
+from anki.decks_pb2 import Deck as DeckProto
 from anki.notes import Note
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError  # its message reaches the model; any other error doesn't
@@ -29,6 +30,7 @@ from .speech import SpeechClient, SpeechError, audio_filename, locale_of
 
 MAX_NOTES_PER_CALL = 100
 MAX_AUDIO_NOTES_PER_CALL = 10
+FILTER_ORDERS = {name.lower(): value for name, value in DeckProto.Filtered.SearchTerm.Order.items()}
 SOUND = re.compile(r"\[sound:[^\]]*\]")
 MATURE_DAYS = 21
 READ = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
@@ -147,6 +149,17 @@ class NewNote(BaseModel):
     note_type: str = Field(description='Note type name, e.g. "Basic" or "Omnilanguage". list_note_types names them and their fields.')
     fields: dict[str, str] = Field(description="Field name to content (HTML). Fields left out stay empty.")
     tags: list[str] = Field(default_factory=list)
+
+
+class CardTemplate(BaseModel):
+    front: str | None = Field(default=None, description="The question side's template.")
+    back: str | None = Field(default=None, description="The answer side's template, usually starting {{FrontSide}}<hr id=answer>.")
+
+
+FilteredOrder = Literal[
+    "oldest_reviewed_first", "random", "intervals_ascending", "intervals_descending", "lapses", "added", "due",
+    "reverse_added", "retrievability_ascending", "retrievability_descending", "relative_overdueness",
+]
 
 
 class Replacement(BaseModel):
@@ -647,6 +660,161 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         started = time.monotonic()
         message = await cm.sync_now()
         return {"message": message, "seconds": round(time.monotonic() - started, 1)}
+
+    # ---- note types ----
+
+    @server.tool(annotations=READ)
+    async def get_note_type(note_type: str) -> dict[str, Any]:
+        """A note type's fields, each card type's front and back templates (Anki's {{Field}}
+        syntax), and its styling (CSS), to read before changing them with update_note_type."""
+
+        def run(col: Collection) -> dict[str, Any]:
+            nt = _note_type(col, note_type)
+            return {
+                "note_type": nt["name"], "fields": [f["name"] for f in nt["flds"]],
+                "card_types": [{"name": t["name"], "front": t["qfmt"], "back": t["afmt"]} for t in nt["tmpls"]],
+                "css": nt["css"], "notes": col.models.use_count(nt),
+            }
+
+        return await cm.read(run)
+
+    @server.tool(annotations=WRITE)
+    async def update_note_type(
+        note_type: str,
+        card_types: dict[str, CardTemplate] | None = None,
+        css: str | None = None,
+    ) -> dict[str, Any]:
+        """Changes a note type's card templates (by card type name: a new front, back or both) or
+        its styling. Every note of the type shows the change; Anki refuses a template that's
+        broken (say, a field that doesn't exist) and nothing changes. Adding or removing fields or
+        card types isn't offered: in Anki that forces every device to a full sync."""
+        if not card_types and css is None:
+            raise ToolError("Pass card_types, css or both.")
+
+        def run(col: Collection) -> dict[str, Any]:
+            nt = _note_type(col, note_type)
+            by_name = {t["name"]: t for t in nt["tmpls"]}
+            unknown = [n for n in card_types or {} if n not in by_name]
+            if unknown:
+                raise ToolError(f'"{nt["name"]}" has no card type {", ".join(repr(u) for u in unknown)}. Its card types: {", ".join(by_name)}.')
+            for name, t in (card_types or {}).items():
+                if t.front is not None:
+                    by_name[name]["qfmt"] = t.front
+                if t.back is not None:
+                    by_name[name]["afmt"] = t.back
+            if css is not None:
+                nt["css"] = css
+            try:
+                col.models.update_dict(nt)
+            except Exception as e:  # noqa: BLE001 - Anki's template check says what's wrong
+                raise ToolError(f"Anki refused the change: {e}") from e
+            return {"note_type": nt["name"], "updated": True}
+
+        return await cm.write(run)
+
+    # ---- filtered decks ----
+
+    @server.tool(annotations=WRITE)
+    async def filtered_deck(
+        action: Literal["create", "rebuild", "empty", "delete"],
+        name: str,
+        search: str | None = None,
+        limit: int = 100,
+        order: FilteredOrder = "due",
+        reschedule: bool = True,
+    ) -> dict[str, Any]:
+        """Filtered decks, as Anki's Create Filtered Deck has them:
+        - create: a deck `name` gathering up to `limit` cards matching `search` (Anki's syntax,
+          e.g. "deck:Polski is:due" or "rated:1:1" for today's Again answers), in `order`; with
+          reschedule=false, studying them doesn't change their schedule. Creating one that exists
+          changes its search and rebuilds it.
+        - rebuild: gather its cards again; empty: send its cards back to their own decks;
+          delete: empty it and remove it.
+        """
+
+        def run(col: Collection) -> dict[str, Any]:
+            did = col.decks.id_for_name(name)
+            if did and not col.decks.is_filtered(did):
+                raise ToolError(f'"{name}" is a normal deck, not a filtered one.')
+            if action == "create":
+                if not search:
+                    raise ToolError("create needs search.")
+                deck = col.sched.get_or_create_filtered_deck(did or 0)
+                deck.name = name
+                term = deck.config.search_terms[0]
+                term.search, term.limit = search, max(1, min(limit, 9999))
+                term.order = FILTER_ORDERS[order]
+                deck.config.reschedule = reschedule
+                try:
+                    new_id = col.sched.add_or_update_filtered_deck(deck).id
+                except Exception as e:  # noqa: BLE001 - e.g. no cards match
+                    raise ToolError(f"Anki couldn't build it: {e}") from e
+                return {"deck_id": new_id, "cards": len(col.find_cards(f"did:{new_id}"))}
+            if not did:
+                raise ToolError(f'There\'s no filtered deck called "{name}".')
+            if action == "rebuild":
+                return {"cards": col.sched.rebuild_filtered_deck(did).count}
+            if action == "empty":
+                col.sched.empty_filtered_deck(did)
+                return {"emptied": name}
+            col.decks.remove([did])
+            return {"deleted": name}
+
+        return await cm.write(run)
+
+    # ---- memory state ----
+
+    @server.tool(annotations=READ)
+    async def card_memory_state(card_ids: list[int]) -> dict[str, Any]:
+        """FSRS's view of cards: stability (days until recall drops to 90%), difficulty (1 to 10,
+        and as Anki shows it, 0 to 100%), and retrievability (the chance of recalling it now),
+        with the deck preset's desired retention. Cards never reviewed under FSRS have none."""
+
+        def run(col: Collection) -> dict[str, Any]:
+            out = []
+            for cid in card_ids[:MAX_NOTES_PER_CALL]:
+                _get_card(col, cid)
+                stats = col.card_stats_data(cid)
+                entry: dict[str, Any] = {"card_id": cid, "preset": stats.preset,
+                                         "desired_retention": round(stats.desired_retention, 3) if stats.desired_retention else None}
+                if stats.HasField("memory_state"):
+                    m = stats.memory_state
+                    entry.update(stability_days=round(m.stability, 2), difficulty=round(m.difficulty, 2),
+                                 difficulty_percent=round((m.difficulty - 1) / 9 * 100))
+                else:
+                    entry["memory_state"] = None
+                entry["retrievability"] = round(stats.fsrs_retrievability, 3) if stats.HasField("fsrs_retrievability") else None
+                out.append(entry)
+            return {"cards": out}
+
+        return await cm.read(run)
+
+    # ---- deleting media ----
+
+    @server.tool(annotations=DESTRUCTIVE)
+    async def delete_media(filenames: list[str], even_if_used: bool = False) -> dict[str, Any]:
+        """Deletes media files (to Anki's media trash, and from other devices at their next media
+        sync). A file a note still uses is kept unless even_if_used is true, since its card would
+        show a missing image or sound."""
+
+        def run(col: Collection) -> dict[str, Any]:
+            results, trash = [], []
+            for name in filenames:
+                if not col.media.have(name):
+                    results.append({"filename": name, "error": "There's no media file by that name."})
+                    continue
+                like = "%" + name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+                users = col.db.list("select id from notes where flds like ? escape '\\' limit 5", like)
+                if users and not even_if_used:
+                    results.append({"filename": name, "error": f"Notes still use it ({', '.join(map(str, users))}). Pass even_if_used to delete it anyway.", "used_by": users})
+                    continue
+                trash.append(name)
+                results.append({"filename": name, "deleted": True})
+            if trash:
+                col.media.trash_files(trash)
+            return {"deleted": len(trash), "results": results}
+
+        return await cm.write(run, media=True)
 
     # ---- audio ----
 
