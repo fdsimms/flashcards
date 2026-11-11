@@ -1,7 +1,7 @@
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import React, { useRef } from 'react';
 import {
-  ActivityIndicator, Animated, LayoutAnimation, Pressable, Text, TextInput, useColorScheme, View,
+  ActivityIndicator, Animated, LayoutAnimation, Pressable, Switch, Text, TextInput, useColorScheme, View,
   type PressableProps, type StyleProp, type TextInputInstance, type TextInputProps, type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -202,6 +202,29 @@ export function CheckRow({ label, hint, selected, onPress, first }: { label: str
       </View>
       {selected ? <Icon name="checkmark" size={17} color={c.accent} weight="semibold" /> : null}
     </Pressable>
+  );
+}
+
+/** A row in a `Group` with an on/off switch. The whole row is labelled for VoiceOver, which flips it. */
+export function SwitchRow({ label, hint, value, onValueChange, first }: { label: string; hint?: string; value: boolean; onValueChange: (on: boolean) => void; first?: boolean }) {
+  const c = useTheme();
+  return (
+    <View
+      accessible
+      accessibilityRole="switch"
+      accessibilityLabel={hint ? `${label}. ${hint}` : label}
+      accessibilityState={{ checked: value }}
+      accessibilityActions={[{ name: 'activate' }]}
+      onAccessibilityAction={() => { haptic.select(); onValueChange(!value); }}
+      style={{ minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l }}
+    >
+      {first ? null : <Divider inset={space.l} />}
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={{ ...type.body, color: c.text }}>{label}</Text>
+        {hint ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{hint}</Text> : null}
+      </View>
+      <Switch value={value} onValueChange={(on) => { haptic.select(); onValueChange(on); }} trackColor={{ true: c.accent, false: c.border }} ios_backgroundColor={c.border} />
+    </View>
   );
 }
 

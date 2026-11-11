@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { ANSWER_BUTTON_CHOICES, type AnswerButtons } from '../core/answerButtons';
 import type { Repo } from '../db/repo';
-import { CheckRow, Group, Help, NavRow, Screen, SectionTitle } from './kit';
+import { CheckRow, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
 import { space, useTheme } from './theme';
 
 /**
@@ -20,12 +20,18 @@ export function Settings({ repo, backupText, onAnki, onStats, onBackup, onDone }
 }) {
   const c = useTheme();
   const [buttons, setButtons] = useState<AnswerButtons>();
+  const [swipe, setSwipe] = useState<boolean>();
 
-  useEffect(() => { repo.answerButtons().then(setButtons); }, [repo]);
+  useEffect(() => { repo.answerButtons().then(setButtons); repo.swipeToRate().then(setSwipe); }, [repo]);
 
   const choose = async (value: AnswerButtons) => {
     setButtons(value);
     await repo.saveAnswerButtons(value);
+  };
+
+  const chooseSwipe = async (on: boolean) => {
+    setSwipe(on);
+    await repo.saveSwipeToRate(on);
   };
 
   return (
@@ -36,6 +42,16 @@ export function Settings({ repo, backupText, onAnki, onStats, onBackup, onDone }
           <NavRow first icon={{ name: 'arrow.triangle.2.circlepath', color: c.easy }} label="Anki" detail="Sync, or send your collection to and from Anki by file" onPress={onAnki} />
           <NavRow icon={{ name: 'chart.bar.fill', color: c.good }} label="Stats" detail="Answers, how much you remember, and what's coming due" onPress={onStats} />
           <NavRow icon={{ name: 'externaldrive.fill', color: c.hard }} label="Backup" detail={backupText ?? 'Save or restore everything in Franki'} onPress={onBackup} />
+        </Group>
+        <SectionTitle>Review</SectionTitle>
+        <Group>
+          <SwitchRow
+            first
+            label="Swipe to answer"
+            hint="After the answer is shown, drag the card right for Good or left for Again. Only for Omnilanguage cards; other note types use the buttons."
+            value={!!swipe}
+            onValueChange={chooseSwipe}
+          />
         </Group>
         <SectionTitle>Answer buttons</SectionTitle>
         <Group accessibilityRole="radiogroup">

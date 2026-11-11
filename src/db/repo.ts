@@ -47,6 +47,9 @@ export interface Repo {
   /** Which answer buttons Review shows, for every deck. This phone's own: a backup doesn't carry it. */
   answerButtons(): Promise<AnswerButtons>;
   saveAnswerButtons(choice: AnswerButtons): Promise<void>;
+  /** Whether a revealed card can be swiped to answer it (right Good, left Again). Off by default; this phone's own. */
+  swipeToRate(): Promise<boolean>;
+  saveSwipeToRate(on: boolean): Promise<void>;
 }
 
 /** Simple in-memory repo, used by tests and as a reference implementation. */
@@ -59,6 +62,7 @@ export class MemoryRepo implements Repo {
   noteTypes = new Map<string, NoteType>();
   deckSettings = new Map<string, DeckSettings>();
   answerButtonsSetting: string | null = null;
+  swipeToRateSetting = false;
 
   async upsertNotesAndCards(notes: Note[], cards: Card[]) {
     for (const n of notes) this.notes.set(n.id, n);
@@ -106,6 +110,8 @@ export class MemoryRepo implements Repo {
   async deleteReview(id: number) { this.reviews.delete(id); }
   async answerButtons() { return parseAnswerButtons(this.answerButtonsSetting); }
   async saveAnswerButtons(choice: AnswerButtons) { this.answerButtonsSetting = choice; }
+  async swipeToRate() { return this.swipeToRateSetting; }
+  async saveSwipeToRate(on: boolean) { this.swipeToRateSetting = on; }
   async listReviews(since: Date) {
     return [...this.reviews.values()]
       .filter((r) => new Date(r.reviewedAt) >= since)

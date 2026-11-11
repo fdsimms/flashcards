@@ -7,6 +7,13 @@ import { NOW, omniNote } from '../support/fixtures';
 const H = 4;
 
 describe('repo', () => {
+  it('has swipe to answer off until it is turned on', async () => {
+    const repo = new MemoryRepo();
+    expect(await repo.swipeToRate()).toBe(false);
+    await repo.saveSwipeToRate(true);
+    expect(await repo.swipeToRate()).toBe(true);
+  });
+
   it('records new-card introductions per deck', async () => {
     const repo = new MemoryRepo();
     const note = omniNote();
