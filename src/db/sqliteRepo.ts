@@ -1,6 +1,7 @@
 import { File } from 'expo-file-system';
 import * as SQLite from 'expo-sqlite';
 import { registerUnicase } from '../../modules/anki-unicase';
+import { parseAnswerButtons } from '../core/answerButtons';
 import { studyDayStart } from '../core/day';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } from '../core/types';
 import { clearMedia, listMedia, writeMedia } from '../media/mediaFiles';
@@ -185,6 +186,13 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async deleteReview(id) {
       await db.runAsync('DELETE FROM reviews WHERE id = ?', id);
+    },
+    async answerButtons() {
+      const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'answer_buttons'");
+      return parseAnswerButtons(r?.value);
+    },
+    async saveAnswerButtons(choice) {
+      await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('answer_buttons', ?)", choice);
     },
     async listReviews(since) {
       // ISO strings are all UTC, so comparing them as text compares the instants.

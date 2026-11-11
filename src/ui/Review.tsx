@@ -6,6 +6,7 @@ import { isOmnilanguage, renderCard } from '../core/cards';
 import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from '../core/config';
 import { deckLimits, groupByDeck, isInDeck, treeQueue } from '../core/deckTree';
 import { nextLearningDue, type StudiedToday } from '../core/queue';
+import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { paramsForDeck, previewIntervals, review, type RatingValue } from '../core/scheduler';
 import { bumpStudied, currentCard, type AnswerRecord } from '../core/session';
 import { cardDocument, renderTemplateCard } from '../core/template';
@@ -58,6 +59,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
+  const [answerButtons, setAnswerButtons] = useState<AnswerButtons>('all');
   const [noteTypes, setNoteTypes] = useState<Map<string, NoteType>>(new Map());
   const [deckSettings, setDeckSettings] = useState<Map<string, DeckSettings>>(new Map());
   const [revealed, setRevealed] = useState(false);
@@ -70,11 +72,12 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
 
   useEffect(() => {
     (async () => {
-      const [c, n, today, params, types, settings] = await Promise.all([
+      const [c, n, today, params, types, settings, buttons] = await Promise.all([
         // Every card, not only this deck's: a gate on a deck above this one counts its whole subtree.
         repo.listCards(), repo.listNotes(), repo.studiedToday(new Date(), DAY_STARTS_AT_HOUR),
-        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(),
+        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(),
       ]);
+      setAnswerButtons(buttons);
       setDeckSettings(settings);
       setAllParams(params);
       setNoteTypes(types);
@@ -248,12 +251,13 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
     );
   }
 
-  const buttons: { r: RatingValue; label: string; color: string }[] = [
+  const shown = ratingsShown(answerButtons);
+  const buttons = ([
     { r: 1, label: 'Again', color: c.again },
     { r: 2, label: 'Hard', color: c.hard },
     { r: 3, label: 'Good', color: c.good },
     { r: 4, label: 'Easy', color: c.easy },
-  ];
+  ] as { r: RatingValue; label: string; color: string }[]).filter((b) => shown.includes(b.r));
 
   const footer = revealed ? (
     <View style={{ flexDirection: 'row', gap: space.s }}>

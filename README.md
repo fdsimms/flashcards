@@ -58,6 +58,8 @@ Tap a deck to study it with its subdecks. **Undo** in the top right takes back t
 
 **Limit cards in progress** (a deck's **Options**) works like WaniKani's Apprentice limit. A card is in progress from when you first learn it until its next review is a week or more away, which is what Guru means on WaniKani. If you forget it, or its next review comes back under a week, it counts again. With the limit on, a deck shows new cards only while fewer than the cap (100 to start) of its cards, subdecks included, are in progress, and its daily new card limit no longer applies.
 
+**Answer buttons** (**Settings** on the deck list) chooses which buttons Review shows for every deck: all four as in Anki, Again, Good and Easy, or just Again and Good. Whether you remembered a card matters most to FSRS; Hard and Easy only nudge the next interval. Always press Again for a card you didn't remember. After changing how you use the buttons, run Optimize in Anki's deck options after a few weeks so the schedule learns the new habit.
+
 ## Installing on your iPhone
 
 Everything builds on your Mac; nothing is built on Expo's servers. You need a Mac with **Xcode** (open it once so it installs the iOS components, then add your Apple ID under **Settings > Accounts**), **CocoaPods** and **fastlane** (`brew install cocoapods fastlane`), and a paid Apple Developer account. The app doesn't use Expo Go. The bundle identifier is `com.fdsimms.franki` (`app.json`); once the first build is on App Store Connect it can't change without starting over as a new app.

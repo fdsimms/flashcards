@@ -1,6 +1,7 @@
 import { studyDayStart } from '../core/day';
 import { isInDeck } from '../core/deckTree';
 import type { StudiedToday } from '../core/queue';
+import { parseAnswerButtons, type AnswerButtons } from '../core/answerButtons';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } from '../core/types';
 
 export interface Repo {
@@ -41,6 +42,9 @@ export interface Repo {
   /** Settings made in the app, by deck. An import never touches these. */
   listDeckSettings(): Promise<Map<string, DeckSettings>>;
   saveDeckSettings(deck: string, settings: DeckSettings): Promise<void>;
+  /** Which answer buttons Review shows, for every deck. This phone's own: a backup doesn't carry it. */
+  answerButtons(): Promise<AnswerButtons>;
+  saveAnswerButtons(choice: AnswerButtons): Promise<void>;
 }
 
 /** Simple in-memory repo, used by tests and as a reference implementation. */
@@ -52,6 +56,7 @@ export class MemoryRepo implements Repo {
   deckParams = new Map<string, DeckParams>();
   noteTypes = new Map<string, NoteType>();
   deckSettings = new Map<string, DeckSettings>();
+  answerButtonsSetting: string | null = null;
 
   async upsertNotesAndCards(notes: Note[], cards: Card[]) {
     for (const n of notes) this.notes.set(n.id, n);
@@ -91,6 +96,8 @@ export class MemoryRepo implements Repo {
     return id;
   }
   async deleteReview(id: number) { this.reviews.delete(id); }
+  async answerButtons() { return parseAnswerButtons(this.answerButtonsSetting); }
+  async saveAnswerButtons(choice: AnswerButtons) { this.answerButtonsSetting = choice; }
   async listReviews(since: Date) {
     return [...this.reviews.values()]
       .filter((r) => new Date(r.reviewedAt) >= since)

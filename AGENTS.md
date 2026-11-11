@@ -24,7 +24,7 @@ There is no lint config. Run `npm run verify` before declaring any task done.
 
 ## Navigation & Routing
 
-- There is no router yet: `App.tsx` switches between its screens (decks, review, Anki, sync, stats, backup, deck options) with a `Screen` union. Don't assume `src/app/` routes exist.
+- There is no router yet: `App.tsx` switches between its screens (decks, review, Anki, sync, stats, settings, backup, deck options) with a `Screen` union. Don't assume `src/app/` routes exist.
 - If navigation outgrows that (stack history, deep links, tabs), **Expo Router** is the one to adopt, with routes in `src/app/` and non-route code outside it. Docs: https://docs.expo.dev/router/introduction.md
 
 ## Building with EAS
