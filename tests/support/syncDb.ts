@@ -1,10 +1,14 @@
 import type { HttpPost } from '../../src/anki/sync/client';
 import type { SqlValue, SyncDb } from '../../src/anki/sync/collectionSync';
+import { sqliteWithUnicase } from './unicase';
 
-/** The app's SyncDb over Node's SQLite: one connection to a collection file, as on the phone. */
-export async function nodeSyncDb(path: string): Promise<SyncDb & { close(): void }> {
+/**
+ * The app's SyncDb over Node's SQLite: one connection to a collection file, as on the phone.
+ * `unicase`: with Anki's collation loaded, as on a phone whose build has modules/anki-unicase.
+ */
+export async function nodeSyncDb(path: string, opts: { unicase?: boolean } = {}): Promise<SyncDb & { close(): void }> {
   const { DatabaseSync } = await import('node:sqlite');
-  const db = new DatabaseSync(path);
+  const db = opts.unicase ? await sqliteWithUnicase(path) : new DatabaseSync(path);
   const params = (p: SqlValue[]) => p as (string | number | null | Uint8Array)[];
   return {
     async all<T>(sql: string, ...p: SqlValue[]) { return db.prepare(sql).all(...params(p)) as T[]; },

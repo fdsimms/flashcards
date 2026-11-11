@@ -7,6 +7,7 @@ import { prepareForUpload, syncCollection } from '../../../src/anki/sync/collect
 import type { CardEntry, SyncMeta } from '../../../src/anki/sync/protocol';
 import { zstdUnwrap, zstdWrap } from '../../../src/anki/zstd';
 import { nodeSyncDb } from '../../support/syncDb';
+import { unicaseExtension } from '../../support/unicase';
 
 /**
  * The sync's decisions against a scripted server, so CI covers them without Anki. That the
@@ -43,11 +44,11 @@ function fakeServer(routes: Record<string, Handler>) {
 const opened: { close(): void }[] = [];
 afterEach(() => { while (opened.length) opened.pop()!.close(); });
 
-async function collection() {
+async function collection(opts: { unicase?: boolean } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'sync-unit-'));
   const path = join(dir, 'collection.anki2');
   copyFileSync(FIXTURE, path);
-  const db = await nodeSyncDb(path);
+  const db = await nodeSyncDb(path, opts);
   opened.push(db);
   // The fixture was never synced, so Anki left everything in it marked as waiting to be sent;
   // after a first (full) sync nothing is.
@@ -201,5 +202,57 @@ describe('syncing the kept collection', () => {
     expect((await db.first<{ n: number }>('SELECT COUNT(*) AS n FROM cards WHERE usn = -1'))!.n).toBe(0);
     expect((await db.first<{ n: number }>('SELECT COUNT(*) AS n FROM graves'))!.n).toBe(0);
     expect(await colRow(db)).toMatchObject({ scm: NOW, ls: NOW, usn: before.usn + 1 });
+  });
+});
+
+describe.skipIf(!unicaseExtension())('with Anki\'s collation, writing decks, options, note types and tags in place', () => {
+  const changes = (over: Record<string, unknown>) => ({ models: [], decks: [[], []], tags: [], ...over });
+
+  it('adds a deck, giving a name already taken a "+" as Anki does, and deletes one', async () => {
+    const db = await collection({ unicase: true });
+    const col = await colRow(db);
+    const [victim] = await db.all<{ id: number }>("SELECT id FROM decks WHERE name != 'Default' LIMIT 1");
+    const s = fakeServer(quietRoutes(col, {
+      'sync/start': () => ({ cards: [], notes: [], decks: [victim.id] }),
+      'sync/applyChanges': () => changes({ decks: [[{ id: 77, name: 'DEFAULT', mod: 5, usn: 10, dyn: 0, conf: 1 }, { id: 78, name: 'Polski::Odmiana', mod: 5, usn: 10, dyn: 0, conf: 1 }], []] }),
+    }));
+    expect(await syncCollection(db, s.client, () => NOW)).toMatchObject({ kind: 'synced', received: true });
+    const rows = await db.all<{ id: number; name: string; usn: number; mtime_secs: number }>('SELECT id, name, usn, mtime_secs FROM decks WHERE id IN (77, 78, ?) ORDER BY id', victim.id);
+    expect(rows).toEqual([
+      { id: 77, name: 'DEFAULT+', usn: 10, mtime_secs: NOW / 1000 },
+      { id: 78, name: 'Polski\x1fOdmiana', usn: 10, mtime_secs: 5 },
+    ]);
+    expect(await db.first('SELECT type FROM graves WHERE oid = ?', victim.id)).toEqual({ type: 2 });
+  });
+
+  it('replaces a note type\'s rows, fields and templates included, unless its fields were added or removed', async () => {
+    const db = await collection({ unicase: true });
+    const col = await colRow(db);
+    const nt = (await db.first<{ id: number }>("SELECT id FROM notetypes WHERE name = 'Basic'"))!;
+    const json = (flds: string[]) => ({
+      id: nt.id, name: 'Basic', type: 0, mod: 9_999_999_999, usn: 10, sortf: 0, did: null, css: '.card {}', latexPre: '', latexPost: '', latexsvg: false, req: [[0, 'any', [0]]],
+      flds: flds.map((name, ord) => ({ name, ord, sticky: false, rtl: false, font: 'Arial', size: 20 })),
+      tmpls: [{ name: 'Card 1', ord: 0, qfmt: '{{Front}}!', afmt: '{{Back}}', did: null, bqfmt: '', bafmt: '' }],
+    });
+    const same = fakeServer(quietRoutes(col, { 'sync/applyChanges': () => changes({ models: [json(['Front', 'Back'])] }) }));
+    expect(await syncCollection(db, same.client, () => NOW)).toMatchObject({ kind: 'synced' });
+    const t = await db.first<{ mtime_secs: number; usn: number }>('SELECT mtime_secs, usn FROM templates WHERE ntid = ?', nt.id);
+    expect(t).toEqual({ mtime_secs: 0, usn: 0 });
+
+    const db2 = await collection({ unicase: true });
+    const more = fakeServer(quietRoutes(col, { 'sync/applyChanges': () => changes({ models: [json(['Front', 'Back', 'Notes'])] }) }));
+    expect(await syncCollection(db2, more.client, () => NOW)).toMatchObject({ kind: 'downloadNeeded', reason: "a note type's fields or card types changed" });
+  });
+
+  it('adds a tag in its nearest parent\'s case, and leaves one already here alone', async () => {
+    const db = await collection({ unicase: true });
+    const col = await colRow(db);
+    await db.run("INSERT INTO tags (tag, usn, collapsed) VALUES ('polski', 3, 0)");
+    const s = fakeServer(quietRoutes(col, { 'sync/applyChanges': () => changes({ tags: ['POLSKI', 'Polski::Odmiana::Rzeczowniki'] }) }));
+    await syncCollection(db, s.client, () => NOW);
+    expect(await db.all('SELECT tag, usn, collapsed FROM tags ORDER BY tag')).toEqual(expect.arrayContaining([
+      { tag: 'polski', usn: 3, collapsed: 0 },
+      { tag: 'polski::Odmiana::Rzeczowniki', usn: 10, collapsed: 1 },
+    ]));
   });
 });

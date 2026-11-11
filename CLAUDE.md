@@ -294,8 +294,14 @@ Anki with "Send to Anki", one app holding the collection at a time.
   `lockAnki` while a sync or an import holds the collection. A sync also writes what Anki's own
   sync writes (notes, graves, config, decks in place).
 - **Anki's three collated tables (fields, templates, notetypes) are read from a scratch copy**
-  with the `unicase` collation stripped (`STRIP_UNICASE_SQL`), because no SQLite outside Anki can
-  register it. Never strip it from the kept collection.
+  with the `unicase` collation stripped (`STRIP_UNICASE_SQL`), which works on any build. Never
+  strip it from the kept collection: its indexes are ordered by it.
+- **The app registers Anki's `unicase` collation itself** (`modules/anki-unicase`, a local Expo
+  module, on every connection via expo-sqlite's `exsqlite3_auto_extension`), so a sync can write
+  the collated tables. Its ordering is measured against Anki's own, quirks included
+  (`make-table.py` says which); change the table only by rerunning that script, and check with
+  `tests/anki/sync/unicase.test.ts`. The tests load the same C as a SQLite extension
+  (`tests/support/unicase.ts`).
 - **Blobs are protobuf.** Read and write only field numbers taken from `proto/anki/*.proto` in
   ankitects/anki, named where they're used (`collection.ts`, `packageFormat.ts`); don't guess.
 - **Packages are written with zstd's uncompressed blocks** (`RawZstdEncoder`): there's no JS zstd
@@ -319,11 +325,13 @@ Anki's sync protocol (v11), as an Anki client speaks it, against the user's own 
   by row: `FRANKI_ANKI_PYTHON=<venv>/bin/python npx vitest run tests/anki/sync/live.test.ts`. CI
   skips it (no Anki), so run it after any change to the sync. The CI tests use a scripted server and
   fixtures Anki made (`make-sync-fixtures.py`); the protocol's shapes come from rslib/src/sync.
-- **Anki's collated tables can't be inserted into, renamed or deleted from here**, and `tags` can't
-  even be read. A sync updates an existing deck in place (`deckRows.ts`, byte for byte what Anki
-  writes), since answering in Anki changes a deck every time; for anything else it finishes the sync
-  (so Franki's answers reach the server) and then downloads the whole collection (`downloadNeeded`).
-  Never strip the collation from the kept collection to get around this.
+- **Decks, deck options, note types and tags are merged in place as Anki's merge does**
+  (`deckRows.ts`, `deckConfigRow.ts`, `notetypeRows.ts`, each checked against rows Anki wrote),
+  when the collation is registered. Without it (a build made before the module) a sync still updates
+  an existing deck in place and otherwise finishes, so Franki's answers reach the server, then
+  downloads the whole collection (`downloadNeeded`). The live test runs both ways.
+- **Sync JSON keeps 64-bit integers exact** (`sync/json.ts`): note type fields and templates carry
+  random 64-bit ids that `JSON.parse` would round. Read and write sync JSON only through it.
 - **A sync runs on its own connection to the kept collection, in one transaction, inside
   `lockAnki`**: a failure rolls back every local change and aborts on the server.
 - **The server's sign-in key lives in the Keychain** (`expo-secure-store`); the password is never

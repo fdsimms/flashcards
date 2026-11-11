@@ -1,8 +1,10 @@
 import { decodeMessage, uint, utf8Decode, utf8Encode } from '../protobuf';
 import type { SyncClient } from './client';
+import { deckConfigRow, type DeckConfigJson } from './deckConfigRow';
 import { deckRow } from './deckRows';
 import { parseJson, stringifyJson } from './json';
 import { cleanField, sortFieldAndChecksum } from './noteFields';
+import { notetypeRows, type NotetypeJson } from './notetypeRows';
 import {
   CHUNK_SIZE, CLIENT_VERSION, SYNC_VERSION, SyncError,
   type CardEntry, type Chunk, type Graves, type NoteEntry, type RevlogEntry, type SanityCounts, type SanityResponse,
@@ -16,15 +18,16 @@ import {
  * (rslib/src/sync/collection/normal.rs): meta, start (deletions), unchunked changes (note types,
  * decks, deck options, tags, config), chunks from the server, chunks to it, sanity check, finish.
  *
- * What Franki can't write. Anki gives decks, deck options, note types and tags a collation SQLite
- * outside Anki doesn't have (`unicase`), and an insert, rename or delete on those tables needs it.
- * Franki can update an existing deck in place, which covers the usual case: answering a card in
- * Anki bumps its deck's daily counts. For anything else (a new or renamed deck, a deleted deck,
- * changed deck options or note types, a new tag) it still finishes the sync, so its answers reach
- * the server and the server merges them by Anki's own rules, and then asks for a full download,
- * which replaces its copy with the server's. Nothing is lost either way. The sanity check at the
- * end is answered with the counts Franki would have had after writing those rows, which are the
- * counts it has after the download.
+ * Anki's collated tables. Decks, deck options, note types and tags are kept under a collation
+ * of Anki's own (`unicase`), which an insert, rename or delete on them needs. The app registers
+ * it on every connection (modules/anki-unicase), and then a sync writes those rows as Anki's merge
+ * does (`collated`). A build without that module can still update an existing deck in place,
+ * which covers the usual case (answering in Anki bumps its deck's daily counts); anything else
+ * (a new, renamed or deleted deck, changed deck options or note types, a tag) it leaves unwritten,
+ * finishes the sync so its answers reach the server, and then asks for a full download. So does
+ * a note type whose fields or templates were added or removed, which Anki's own merge refuses.
+ * Nothing is lost either way. The sanity check at the end is then answered with the counts Franki
+ * would have had after writing those rows, which are the counts it has after the download.
  *
  * Runs on its own connection to the collection, in one transaction: a failure anywhere rolls back
  * every local change and tells the server to abort.
@@ -105,7 +108,7 @@ export async function syncCollection(db: SyncDb, client: SyncClient, now: () => 
 
   const serverUsn = remote.usn;
   const localIsNewer = local.mod > remote.mod;
-  const state = new SyncState();
+  const state = new SyncState(await hasUnicase(db));
   let sent = 0;
   let received = false;
 
@@ -172,6 +175,7 @@ export async function syncCollection(db: SyncDb, client: SyncClient, now: () => 
  * the sanity check needs, and the full download that follows brings.
  */
 class SyncState {
+  constructor(readonly collated: boolean) {}
   needsDownload: string[] = [];
   extraNotetypes = new Set<number>();
   extraDecks = new Set<number>();
@@ -205,6 +209,15 @@ function* graveChunks(g: Graves): Generator<Graves> {
   }
 }
 
+/** Whether this connection has Anki's collation, so the collated tables can be written. */
+async function hasUnicase(db: SyncDb): Promise<boolean> {
+  try {
+    return (await db.first<{ ok: number }>("SELECT 'a' = 'A' COLLATE unicase AS ok"))?.ok === 1;
+  } catch {
+    return false;
+  }
+}
+
 async function applyGraves(db: SyncDb, g: Graves, usn: number, state: SyncState): Promise<boolean> {
   for (const id of g.notes) {
     await db.run('DELETE FROM notes WHERE id = ?', id);
@@ -215,10 +228,15 @@ async function applyGraves(db: SyncDb, g: Graves, usn: number, state: SyncState)
     await db.run('INSERT OR IGNORE INTO graves (usn, oid, type) VALUES (?, ?, ?)', usn, id, GRAVE.card);
   }
   for (const id of g.decks) {
+    if (state.collated) {
+      await db.run('DELETE FROM decks WHERE id = ?', id);
+      await db.run('INSERT OR IGNORE INTO graves (usn, oid, type) VALUES (?, ?, ?)', usn, id, GRAVE.deck);
+      continue;
+    }
     if (await db.first('SELECT id FROM decks WHERE id = ?', id)) state.goneDecks.add(id);
     state.later('a deck was deleted');
   }
-  return g.notes.length + g.cards.length > 0;
+  return g.notes.length + g.cards.length + g.decks.length > 0;
 }
 
 // ---- unchunked changes ----
@@ -233,13 +251,45 @@ async function allConfig(db: SyncDb): Promise<Record<string, unknown>> {
 
 async function applyUnchunked(db: SyncDb, c: UnchunkedChanges, usn: number, now: () => number, state: SyncState): Promise<boolean> {
   let changed = false;
+  const nowSecs = Math.floor(now() / 1000);
 
-  for (const nt of c.models ?? []) {
+  // As rslib's merge_notetypes: the newer one wins.
+  for (const nt of (c.models ?? []) as NotetypeJson[]) {
     const id = Number(nt.id);
     const existing = await db.first<{ mtime_secs: number }>('SELECT mtime_secs FROM notetypes WHERE id = ?', id);
     if (existing && existing.mtime_secs > Number(nt.mod ?? 0)) continue;
-    if (!existing) state.extraNotetypes.add(id);
-    state.later('a note type changed');
+    const rows = notetypeRows(nt);
+    if (state.collated && existing) {
+      // Anki refuses to merge a note type whose fields or templates were added or removed.
+      const fields = (await db.first<{ n: number }>('SELECT COUNT(*) AS n FROM fields WHERE ntid = ?', id))!.n;
+      const templates = (await db.first<{ n: number }>('SELECT COUNT(*) AS n FROM templates WHERE ntid = ?', id))!.n;
+      if (fields !== rows.fields.length || templates !== rows.templates.length) {
+        state.later("a note type's fields or card types changed");
+        continue;
+      }
+    }
+    if (!state.collated) {
+      if (!existing) state.extraNotetypes.add(id);
+      state.later('a note type changed');
+      continue;
+    }
+    // ensure_notetype_name_unique: another note type with this name gets "+" added to this one.
+    while (true) {
+      const other = await db.first<{ id: number }>('SELECT id FROM notetypes WHERE name = ?', rows.name);
+      if (!other || other.id === id) break;
+      rows.name += '+';
+      rows.mtime = nowSecs;
+      rows.usn = usn;
+    }
+    await db.run('INSERT OR REPLACE INTO notetypes (id, name, mtime_secs, usn, config) VALUES (?, ?, ?, ?, ?)', id, rows.name, rows.mtime, rows.usn, rows.config);
+    await db.run('DELETE FROM fields WHERE ntid = ?', id);
+    for (const f of rows.fields) await db.run('INSERT INTO fields (ntid, ord, name, config) VALUES (?, ?, ?, ?)', id, f.ord, f.name, f.config);
+    await db.run('DELETE FROM templates WHERE ntid = ?', id);
+    for (const t of rows.templates) {
+      await db.run('INSERT INTO templates (ntid, ord, name, mtime_secs, usn, config) VALUES (?, ?, ?, 0, 0, ?)', id, t.ord, t.name, t.config);
+    }
+    state.sortField.delete(id);
+    changed = true;
   }
 
   const [decks, configs] = c.decks ?? [[], []];
@@ -247,26 +297,50 @@ async function applyUnchunked(db: SyncDb, c: UnchunkedChanges, usn: number, now:
     const row = deckRow(d);
     const existing = await db.first<{ name: string; mtime_secs: number }>('SELECT name, mtime_secs FROM decks WHERE id = ?', row.id);
     if (existing && existing.mtime_secs > row.mtime) continue;
-    if (existing && existing.name === row.name) {
+    if (state.collated) {
+      // ensure_deck_name_unique: another deck with this name gets "+" added to this one.
+      while (true) {
+        const other = await db.first<{ id: number }>('SELECT id FROM decks WHERE name = ?', row.name);
+        if (!other || other.id === row.id) break;
+        row.name += '+';
+        row.mtime = nowSecs;
+        row.usn = usn;
+      }
+      await db.run('INSERT OR REPLACE INTO decks (id, name, mtime_secs, usn, common, kind) VALUES (?, ?, ?, ?, ?, ?)', row.id, row.name, row.mtime, row.usn, row.common, row.kind);
+      changed = true;
+    } else if (existing && existing.name === row.name) {
+      // Without the collation only the columns outside the name's index can be written.
       await db.run('UPDATE decks SET mtime_secs = ?, usn = ?, common = ?, kind = ? WHERE id = ?', row.mtime, row.usn, row.common, row.kind, row.id);
       changed = true;
-      continue;
+    } else {
+      if (!existing) state.extraDecks.add(row.id);
+      state.later(existing ? 'a deck was renamed' : 'a deck was added');
     }
-    if (!existing) state.extraDecks.add(row.id);
-    state.later(existing ? 'a deck was renamed' : 'a deck was added');
   }
 
-  for (const conf of configs) {
+  for (const conf of configs as DeckConfigJson[]) {
     const id = Number(conf.id);
     const existing = await db.first<{ mtime_secs: number }>('SELECT mtime_secs FROM deck_config WHERE id = ?', id);
     if (existing && existing.mtime_secs > Number(conf.mod ?? 0)) continue;
-    if (!existing) state.extraDeckConfigs.add(id);
-    state.later('deck options changed');
+    if (!state.collated) {
+      if (!existing) state.extraDeckConfigs.add(id);
+      state.later('deck options changed');
+      continue;
+    }
+    const row = deckConfigRow(conf);
+    await db.run('INSERT OR REPLACE INTO deck_config (id, name, mtime_secs, usn, config) VALUES (?, ?, ?, ?, ?)', row.id, row.name, row.mtime, row.usn, row.config);
+    changed = true;
   }
 
-  // The server sends a tag only when it's new or changed, and the tags table can't be read or
-  // written without Anki's collation.
-  if (c.tags?.length) state.later('a tag was added or changed');
+  // The server sends a tag only when it's new or changed. Without the collation the tags table
+  // can't even be read.
+  for (const tag of c.tags ?? []) {
+    if (!state.collated) {
+      state.later('a tag was added or changed');
+      break;
+    }
+    if (await registerTag(db, tag, usn)) changed = true;
+  }
 
   if (c.crt !== undefined) {
     await db.run('UPDATE col SET crt = ?', c.crt);
@@ -282,6 +356,27 @@ async function applyUnchunked(db: SyncDb, c: UnchunkedChanges, usn: number, now:
     changed = true;
   }
   return changed;
+}
+
+/**
+ * As rslib's register_tag: a tag already here (whatever its case) is left as it is; a new one
+ * takes the case of the nearest parent tag already here ("Polski::odmiana" under "polski" becomes
+ * "polski::odmiana"), and starts collapsed. True when it was added.
+ */
+async function registerTag(db: SyncDb, tag: string, usn: number): Promise<boolean> {
+  if (await db.first('SELECT tag FROM tags WHERE tag = ?', tag)) return false;
+  let name = tag;
+  for (let parent = tag; parent.includes('::');) {
+    parent = parent.slice(0, parent.lastIndexOf('::'));
+    const found = await db.first<{ tag: string }>('SELECT tag FROM tags WHERE tag = ?', parent);
+    if (found) {
+      const depth = found.tag.split('::').length;
+      name = [found.tag, ...tag.split('::').slice(depth)].join('::');
+      break;
+    }
+  }
+  await db.run('INSERT OR REPLACE INTO tags (tag, usn, collapsed) VALUES (?, ?, 1)', name, usn);
+  return true;
 }
 
 // ---- chunks ----
@@ -396,10 +491,11 @@ async function sanityCounts(db: SyncDb, state: SyncState): Promise<SanityCounts>
 export async function prepareForUpload(db: SyncDb, now: () => number = Date.now): Promise<void> {
   await db.transaction(async () => {
     await db.run('DELETE FROM graves');
-    for (const t of ['notes', 'cards', 'revlog', 'deck_config', 'decks', 'notetypes']) {
-      await db.run(`UPDATE ${t} SET usn = 0 WHERE usn = -1`);
-    }
-    // Tags can't be written without Anki's collation; Franki never marks one as changed.
+    for (const t of ['notes', 'cards', 'revlog']) await db.run(`UPDATE ${t} SET usn = 0 WHERE usn = -1`);
+    // These four Anki zeroes outright (clear_deck_usns and the like). Tags only with the collation,
+    // without which the table can't be written; Franki never marks a tag as changed anyway.
+    for (const t of ['deck_config', 'decks', 'notetypes']) await db.run(`UPDATE ${t} SET usn = 0 WHERE usn != 0`);
+    if (await hasUnicase(db)) await db.run('UPDATE tags SET usn = 0 WHERE usn != 0');
     const ms = now();
     await db.run('UPDATE col SET usn = usn + 1, scm = ?, ls = ?', ms, ms);
   });

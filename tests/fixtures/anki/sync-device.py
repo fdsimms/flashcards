@@ -15,7 +15,12 @@ chained with "+" as separate arguments:
     add-note <deck> <front> <back> [tags]   adds a Basic note (making the deck if needed)
     delete-note <front>         deletes the Basic notes with that front
     rename-deck <old> <new>
+    add-deck <name>
+    delete-deck <name>
     set-new-per-day <deck> <n>  changes the deck's options preset
+    edit-template <notetype> <text>   appends text to the first card template's back
+    add-field <notetype> <name> adds a field (a change Anki's own merge refuses: full sync)
+    integrity                   prints SQLite's integrity check, run with Anki's collation
     add-media <name> <text>     writes a media file and refers to it from a new note
     media-sync                  syncs media
     dump                        prints the collection's rows as JSON
@@ -39,9 +44,16 @@ def main():
             commands[-1].append(a)
 
     col = Collection(path)
-    auth = col.sync_login(os.environ.get("FRANKI_SYNC_USER", "user"), os.environ.get("FRANKI_SYNC_PASS", "pass"), server)
+    signed_in = []
+
+    def auth_():
+        if not signed_in:
+            signed_in.append(col.sync_login(os.environ.get("FRANKI_SYNC_USER", "user"), os.environ.get("FRANKI_SYNC_PASS", "pass"), server))
+        return signed_in[0]
+
     out = {}
     for cmd, *args in commands:
+        auth = auth_() if cmd in ("upload", "download", "sync", "media-sync") else None
         if cmd == "upload":
             col.close_for_full_sync()
             col.full_upload_or_download(auth=auth, server_usn=None, upload=True)
@@ -79,6 +91,20 @@ def main():
         elif cmd == "rename-deck":
             d = col.decks.by_name(args[0])
             col.decks.rename(d, args[1])
+        elif cmd == "add-deck":
+            out["deck"] = col.decks.id(args[0])
+        elif cmd == "delete-deck":
+            col.decks.remove([col.decks.id(args[0], create=False)])
+        elif cmd == "edit-template":
+            nt = col.models.by_name(args[0])
+            nt["tmpls"][0]["afmt"] += args[1]
+            col.models.update_dict(nt)
+        elif cmd == "add-field":
+            nt = col.models.by_name(args[0])
+            col.models.add_field(nt, col.models.new_field(args[1]))
+            col.models.update_dict(nt)
+        elif cmd == "integrity":
+            out["integrity"] = col.db.list("pragma integrity_check")
         elif cmd == "set-new-per-day":
             d = col.decks.by_name(args[0])
             conf = col.decks.config_dict_for_deck_id(d["id"])
@@ -106,6 +132,11 @@ def main():
                 "notes": db.all("select id, guid, mid, mod, usn, tags, flds, sfld, csum from notes order by id"),
                 "revlog": db.all("select * from revlog order by id"),
                 "decks": [[r[0], r[1], r[2], r[3], b64(r[4]), b64(r[5])] for r in db.all("select id, name, mtime_secs, usn, common, kind from decks order by id")],
+                "deck_config": [[r[0], r[1], r[2], r[3], b64(r[4])] for r in db.all("select id, name, mtime_secs, usn, config from deck_config order by id")],
+                "notetypes": [[r[0], r[1], r[2], r[3], b64(r[4])] for r in db.all("select id, name, mtime_secs, usn, config from notetypes order by id")],
+                "fields": [[r[0], r[1], r[2], b64(r[3])] for r in db.all("select ntid, ord, name, config from fields order by ntid, ord")],
+                "templates": [[r[0], r[1], r[2], r[3], r[4], b64(r[5])] for r in db.all("select ntid, ord, name, mtime_secs, usn, config from templates order by ntid, ord")],
+                "tags": db.all("select tag, usn, collapsed from tags order by tag"),
                 "config": {k: json.loads(bytes(v)) for k, v in db.all("select key, val from config")},
                 "graves": db.all("select oid, type from graves order by oid"),
             }

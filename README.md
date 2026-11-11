@@ -28,7 +28,7 @@ Franki works on your real Anki collection. It gets there one of two ways.
 
 Run your own Anki sync server ([server/README.md](server/README.md) sets one up on a small cloud server, with HTTPS), and point Anki on your computer, AnkiMobile and Franki at it. Franki then syncs the way Anki does: when you open it, when you finish studying a deck, when you leave the app, and when you tap **Sync**. Your answers go to the server, and reviews, new notes and changes made in Anki come back, with images and sounds. Franki can't sync with AnkiWeb, whose terms allow only Anki's own apps.
 
-When Anki changed something Franki can't merge in place (a new or renamed deck, deck options, a note type, a tag), Franki sends its answers first and then downloads the whole collection, so nothing is lost. When the two collections can't be merged at all (the first sync, say), Franki downloads the server's, and asks first if that would lose answers given in Franki.
+New, renamed and deleted decks, deck options, note types and tags are merged the way Anki merges them. (On a build made before that was added, Franki sends its answers and then downloads the whole collection instead, so nothing is lost.) When the two collections can't be merged at all (the first sync, or after a field was added to a note type, which makes Anki upload), Franki downloads the server's, and asks first if that would lose answers given in Franki.
 
 ### By file
 
@@ -102,6 +102,7 @@ src/db       Repo interface, in-memory repo (tests), SQLite repo (app), backup p
 src/media    the images and sounds folder
 src/ui       deck list, review, import, backup screens, the card WebView
 src/anki     Anki collection packages: reading, writing answers back, packing; sync/ talks to an Anki sync server
+modules/     anki-unicase: Anki's text ordering for the phone's SQLite, so sync can write Anki's decks and note types
 server/      a ready-to-run Anki sync server (Docker, with HTTPS from Caddy)
 tests/       vitest, mirroring src/; tests/fixtures/anki holds a collection and package Anki wrote
 ```
@@ -110,4 +111,4 @@ The study day starts at 4 AM, as in Anki, so a late-night session counts toward 
 
 ## Not built yet
 
-Typing the answer (`{{type:}}` shows the answer on the back instead), Anki's own TTS tags (`{{tts:}}`), collapsing decks, adding/editing cards in-app, and stats. Sync takes in deck option, note type and tag changes by downloading the whole collection rather than merging them.
+Typing the answer (`{{type:}}` shows the answer on the back instead), Anki's own TTS tags (`{{tts:}}`), collapsing decks, adding/editing cards in-app, and stats.

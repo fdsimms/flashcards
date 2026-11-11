@@ -34,6 +34,15 @@ export async function startAnkiServer(): Promise<AnkiServer> {
   return { url: `http://127.0.0.1:${port}/`, stop: () => proc.kill() };
 }
 
+/** Anki's own integrity check (with its collation) on a copy of a collection file: ['ok'] when sound. */
+export function ankiIntegrity(path: string): string[] {
+  const dir = mkdtempSync(join(tmpdir(), 'anki-check-'));
+  const copy = join(dir, 'collection.anki2');
+  copyFileSync(path, copy);
+  const out = execFileSync(ANKI_PYTHON!, ['-I', join(FIXTURES, 'sync-device.py'), copy, 'http://unused/', 'integrity'], { encoding: 'utf8' });
+  return JSON.parse(out.trim().split('\n').at(-1)!).integrity;
+}
+
 /** A device running Anki: its own collection, started as a copy of the fixture. */
 export function ankiDevice(server: AnkiServer, name: string) {
   const dir = mkdtempSync(join(tmpdir(), `anki-${name}-`));

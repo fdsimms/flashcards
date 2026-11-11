@@ -1,5 +1,6 @@
 import { File } from 'expo-file-system';
 import * as SQLite from 'expo-sqlite';
+import { registerUnicase } from '../../modules/anki-unicase';
 import { studyDayStart } from '../core/day';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } from '../core/types';
 import { clearMedia, listMedia, writeMedia } from '../media/mediaFiles';
@@ -76,6 +77,10 @@ export interface BackupStore {
 
 // The file keeps its first name: renaming it would leave an installed copy's data behind.
 export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupStore & AnkiLink> {
+  // Before any connection opens: every one opened after this has Anki's collation, so a sync
+  // can write Anki's decks, deck options, note types and tags (modules/anki-unicase). A build
+  // without the module returns false, and a sync downloads whole collections for those instead.
+  registerUnicase();
   const db = await SQLite.openDatabaseAsync(name);
   // A sync writes the kept Anki collection on a connection of its own; reads of it here wait out
   // that sync's commit instead of failing with "database is locked".

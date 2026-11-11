@@ -1,4 +1,4 @@
-import { requireOptionalNativeModule } from 'expo-modules-core';
+import { requireOptionalNativeModule } from 'expo';
 
 /**
  * Anki's `unicase` collation for every SQLite connection opened after `registerUnicase()`, so the
