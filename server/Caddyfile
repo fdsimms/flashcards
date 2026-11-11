@@ -1,9 +1,14 @@
 # HTTPS for $DOMAIN, with a certificate from Let's Encrypt: Anki's sync requests go to the sync
-# server, everything else to the MCP (when it's turned on; without it those paths answer 502).
+# server, /reader/... to Read & Listen with /reader taken off, everything else to the MCP (each
+# only when it's turned on; without it those paths answer 502).
 {$DOMAIN} {
 	@anki path /sync/* /msync/* /health
 	handle @anki {
 		reverse_proxy anki:8080
+	}
+	handle /reader/* {
+		uri strip_prefix /reader
+		reverse_proxy reader:8080
 	}
 	handle {
 		reverse_proxy mcp:8000

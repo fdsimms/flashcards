@@ -66,6 +66,12 @@ Tap a deck to study it with its subdecks. **Undo** in the top right takes back t
 
 **Answer buttons** (**Settings** on the deck list) chooses which buttons Review shows for every deck: all four as in Anki, Again, Good and Easy, or just Again and Good. Whether you remembered a card matters most to FSRS; Hard and Easy only nudge the next interval. Always press Again for a card you didn't remember. After changing how you use the buttons, run Optimize in Anki's deck options after a few weeks so the schedule learns the new habit.
 
+## Read & Listen
+
+Short dialogues and stories in Thai or Spanish, written from the words in your decks so that nearly every word is one you know, with a few you're learning mixed in. Tap any word for its meaning, play the text line by line at 0.7x to 1.0x (it keeps playing with the screen locked), and rate it at the end so the next one is easier or harder. Reading never answers or adds cards.
+
+The texts are written by Read & Listen's server, which runs beside your Anki sync server (`server/README.md`, Read & Listen) and uses Claude and Azure's voices. Once it's running, turn it on in **Settings**, **Read & Listen**, with its passphrase; the deck list then shows a Read & Listen row. Sync has to be set up first, since the server is at the same address.
+
 ## Installing on your iPhone
 
 Everything builds on your Mac; nothing is built on Expo's servers. You need a Mac with **Xcode** (open it once so it installs the iOS components, then add your Apple ID under **Settings > Accounts**), **CocoaPods** and **fastlane** (`brew install cocoapods fastlane`), and a paid Apple Developer account. The app doesn't use Expo Go. The bundle identifier is `com.fdsimms.franki` (`app.json`); once the first build is on App Store Connect it can't change without starting over as a new app.
@@ -112,10 +118,13 @@ src/core     types, FSRS wrapper, queue, deck tree, study day, card rendering, A
 src/import   TSV + Anki JSON importers, re-import matching
 src/db       Repo interface, in-memory repo (tests), SQLite repo (app), backup planning
 src/media    the images and sounds folder
-src/ui       deck list, review, import, backup screens, the card WebView
+src/ui       deck list, review, import, backup and Read & Listen screens, the card WebView
+src/reader   Read & Listen: its server's API, the reading session, playback
 src/anki     Anki collection packages: reading, writing answers back, packing; sync/ talks to an Anki sync server
 modules/     anki-unicase: Anki's text ordering for the phone's SQLite, so sync can write Anki's decks and note types
-server/      a ready-to-run Anki sync server (Docker, with HTTPS from Caddy)
+server/      a ready-to-run Anki sync server (Docker, with HTTPS from Caddy), the MCP for Claude, and
+             Read & Listen's server
+docs/        Read & Listen's design
 tests/       vitest, mirroring src/; tests/fixtures/anki holds a collection and package Anki wrote
 ```
 
