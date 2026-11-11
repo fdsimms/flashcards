@@ -4,7 +4,7 @@ A small personal spaced-repetition app (React Native + Expo) built for language 
 
 - **Scheduling:** FSRS via [`ts-fsrs`](https://github.com/open-spaced-repetition/ts-fsrs), with each deck's FSRS weights, desired retention and daily limits carried over from Anki
 - **Storage:** `expo-sqlite`, on the device only, with backup and restore through Files / iCloud Drive
-- **Anki:** works on your real Anki collection, handed back and forth with AnkiMobile as a file, every answer written into it as Anki would
+- **Anki:** works on your real Anki collection, every answer written into it as Anki would. Syncs with your own Anki sync server (the one Anki on your computer and AnkiMobile sync with), or moves back and forth with AnkiMobile as a file
 - **Audio:** each note's recorded audio from Anki (`expo-audio`), else `expo-speech` (on-device TTS, language picked from the note's `Language` field or deck name). Plays with the silent switch on.
 - **Cards:** Omnilanguage notes render natively, playing the recording in their `Audio` field (or TTS when there's none): a front card (unless `SuppressFrontCard`), plus reverse / audio cards gated on `GenerateReverse` / `GenerateAudioCard`. Every other note type renders its own Anki templates and CSS in a WebView, with its images and sounds, one card per Anki card (cloze included).
 - **Decks:** nested as in Anki. Opening a parent studies its subdecks too, within each deck's limits.
@@ -22,7 +22,17 @@ npm run verify      # typecheck + tests, the loop to run before committing
 
 ## Moving between Anki and Franki
 
-Franki works on your real Anki collection, handed back and forth as a file. Everything happens on the phone, with AnkiMobile.
+Franki works on your real Anki collection. It gets there one of two ways.
+
+### Sync (recommended)
+
+Run your own Anki sync server ([server/README.md](server/README.md) sets one up on a small cloud server, with HTTPS), and point Anki on your computer, AnkiMobile and Franki at it. Franki then syncs the way Anki does: when you open it, when you finish studying a deck, when you leave the app, and when you tap **Sync**. Your answers go to the server, and reviews, new notes and changes made in Anki come back, with images and sounds. Franki can't sync with AnkiWeb, whose terms allow only Anki's own apps.
+
+New, renamed and deleted decks, deck options, note types and tags are merged the way Anki merges them. (On a build made before that was added, Franki sends its answers and then downloads the whole collection instead, so nothing is lost.) When the two collections can't be merged at all (the first sync, or after a field was added to a note type, which makes Anki upload), Franki downloads the server's, and asks first if that would lose answers given in Franki.
+
+### By file
+
+Everything happens on the phone, with AnkiMobile.
 
 **Bring it in:** in AnkiMobile, tap the button at the bottom left of the deck list, choose **Export**, pick **Collection** with media included, and save it to Files. In Franki, tap **Anki**, then **Choose file**, and pick it. Franki keeps the whole collection: every note and card with its scheduling and FSRS memory state, each deck's limits and FSRS settings, each note type's templates and styling, the images and sounds, and all of Anki's review history.
 
@@ -91,7 +101,9 @@ src/import   TSV + Anki JSON importers, re-import matching
 src/db       Repo interface, in-memory repo (tests), SQLite repo (app), backup planning
 src/media    the images and sounds folder
 src/ui       deck list, review, import, backup screens, the card WebView
-src/anki     Anki collection packages: reading, writing answers back, packing
+src/anki     Anki collection packages: reading, writing answers back, packing; sync/ talks to an Anki sync server
+modules/     anki-unicase: Anki's text ordering for the phone's SQLite, so sync can write Anki's decks and note types
+server/      a ready-to-run Anki sync server (Docker, with HTTPS from Caddy)
 tests/       vitest, mirroring src/; tests/fixtures/anki holds a collection and package Anki wrote
 ```
 
@@ -99,4 +111,4 @@ The study day starts at 4 AM, as in Anki, so a late-night session counts toward 
 
 ## Not built yet
 
-Typing the answer (`{{type:}}` shows the answer on the back instead), Anki's own TTS tags (`{{tts:}}`), collapsing decks, adding/editing cards in-app, stats, and syncing with Anki automatically through your own sync server (planned: until then, the collection moves by file).
+Typing the answer (`{{type:}}` shows the answer on the back instead), Anki's own TTS tags (`{{tts:}}`), collapsing decks, adding/editing cards in-app, and stats.

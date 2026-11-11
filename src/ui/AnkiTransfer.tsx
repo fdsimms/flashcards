@@ -19,10 +19,17 @@ const MAX_WARNINGS = 20;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /**
- * Moving the collection between AnkiMobile and Franki: bring it in (a .colpkg from AnkiMobile's
- * Export), and send it back with Franki's answers written into it.
+ * Moving the collection between AnkiMobile and Franki: by sync with an Anki server (set up on
+ * SyncSettings), or by file: bring it in (a .colpkg from AnkiMobile's Export), and send it back
+ * with Franki's answers written into it. With sync on, sending a file back is hidden: it would
+ * replace AnkiMobile's collection behind the server's back.
  */
-export function AnkiTransfer({ repo, onDone }: { repo: Repo & BackupStore & AnkiLink; onDone: () => void }) {
+export function AnkiTransfer({ repo, syncOn, onSyncSettings, onDone }: {
+  repo: Repo & BackupStore & AnkiLink;
+  syncOn: boolean;
+  onSyncSettings: () => void;
+  onDone: () => void;
+}) {
   const c = useTheme();
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState<'import' | 'send' | null>(null);
@@ -49,7 +56,8 @@ export function AnkiTransfer({ repo, onDone }: { repo: Repo & BackupStore & Anki
 
   const importPackage = (picked: File, name: string) => run('import', async () => {
     try {
-      const r = await importCollectionPackage(repo, picked);
+      // Holding the kept collection, so neither a sync nor an answer writes it mid-import.
+      const r = await repo.lockAnki(() => importCollectionPackage(repo, picked));
       const shown = r.warnings.slice(0, MAX_WARNINGS);
       setLog((l) => [
         `Imported ${name}: ${plural(r.notes, 'note', 'notes')}, ${plural(r.cards, 'card', 'cards')}, ${plural(r.media, 'image or sound', 'images and sounds')}.`,
@@ -139,14 +147,24 @@ export function AnkiTransfer({ repo, onDone }: { repo: Repo & BackupStore & Anki
     <Screen onBack={onDone} title="Anki">
       <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         <Card>
+          <Text style={{ ...type.headline, color: c.text }}>Sync with your Anki server</Text>
+          <Help>
+            {syncOn
+              ? 'Sync is on. Answers given here go to your Anki server, and changes made in Anki come back, with no files to move.'
+              : 'Instead of moving files, Franki can sync with an Anki sync server you run, the way Anki on your other devices does.'}
+          </Help>
+          <Button label={syncOn ? 'Sync settings' : 'Set up sync'} variant="secondary" onPress={onSyncSettings} />
+        </Card>
+        <Card>
           <Text style={{ ...type.headline, color: c.text }}>Bring your collection in</Text>
           <Help>
             In AnkiMobile, tap the button at the bottom left of the deck list, choose Export, and pick Collection with media
             included. Save it to Files, then choose it here. It replaces what Franki has, and keeps all of Anki's history.
+            {syncOn ? " The next sync then asks whether to keep this collection or the server's." : ''}
           </Help>
           <Button label="Choose file" onPress={pick} busy={busy === 'import'} disabled={busy === 'send'} />
         </Card>
-        {status?.linked ? (
+        {status?.linked && !syncOn ? (
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>Send your answers to Anki</Text>
             <Text style={{ ...type.body, color: status.unsent ? c.warning : c.textSecondary }}>

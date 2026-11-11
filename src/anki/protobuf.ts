@@ -88,7 +88,16 @@ export function messages(msg: Message, num: number): Message[] {
 
 // ---- writing ----
 
-function varintBytes(n: number): number[] {
+function varintBytes(n: number | bigint): number[] {
+  // A negative int32/int64 is its 64-bit two's complement: ten bytes, as protobuf writes it. A
+  // bigint is a 64-bit id too large for a number (sync/json.ts).
+  if (typeof n === 'bigint' || n < 0) {
+    const out: number[] = [];
+    let v = BigInt.asUintN(64, BigInt(n));
+    while (v > 127n) { out.push(Number(v & 127n) | 128); v >>= 7n; }
+    out.push(Number(v));
+    return out;
+  }
   const out: number[] = [];
   let v = n;
   while (v > 127) { out.push((v % 128) | 128); v = Math.floor(v / 128); }
@@ -96,12 +105,37 @@ function varintBytes(n: number): number[] {
   return out;
 }
 
+function f32Bytes(v: number): number[] {
+  const b = new Uint8Array(4);
+  new DataView(b.buffer).setFloat32(0, v, true);
+  return Array.from(b);
+}
+
+/** A signed varint field (int32/int64) read back as a number, negative values included. */
+export function int(msg: Message, num: number): number | undefined {
+  const v = msg.get(num)?.at(-1);
+  return v && v.wire === 0 ? Number(BigInt.asIntN(64, v.value)) : undefined;
+}
+
 /** Builds a message field by field, in the order written. */
 export class MessageWriter {
   private parts: number[] = [];
-  uint(num: number, value: number): this {
+  /** A varint field: uint32/uint64, bool (0/1), an enum, or int32/int64 (negatives included). */
+  uint(num: number, value: number | bigint): this {
     this.parts.push(...varintBytes(num * 8), ...varintBytes(value));
     return this;
+  }
+  float(num: number, value: number): this {
+    this.parts.push(...varintBytes(num * 8 + 5), ...f32Bytes(value));
+    return this;
+  }
+  /** A repeated uint32, packed as proto3 writes it. */
+  packedUints(num: number, values: number[]): this {
+    return this.bytes(num, Uint8Array.from(values.flatMap(varintBytes)));
+  }
+  /** A repeated float, packed as proto3 writes it. */
+  packedFloats(num: number, values: number[]): this {
+    return this.bytes(num, Uint8Array.from(values.flatMap(f32Bytes)));
   }
   bytes(num: number, value: Uint8Array): this {
     this.parts.push(...varintBytes(num * 8 + 2), ...varintBytes(value.length));

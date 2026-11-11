@@ -196,9 +196,15 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
     if (!last || busy.current) return;
     busy.current = true;
     try {
+      // Out of the Anki collection first: a synced answer is in the server's history, and taking
+      // it back here alone would leave the two disagreeing. As in Anki, undo stops at the last sync.
+      if (last.anki && !(await repo.undoAnkiAnswer(last.anki))) {
+        setHistory([]);
+        Alert.alert("Couldn't undo that answer", 'It has already been synced to your Anki server. Undo only goes back to the last sync.');
+        return;
+      }
       await repo.saveCard(last.before);
       await repo.deleteReview(last.reviewId);
-      if (last.anki) await repo.undoAnkiAnswer(last.anki);
       setHistory((h) => h.slice(0, -1));
       setStudied((s) => bumpStudied(s, last.deck, last.before.sched.state, -1));
       setCards((prev) => prev && prev.map((c) => (c.id === last.before.id ? last.before : c)));

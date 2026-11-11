@@ -42,12 +42,7 @@ export async function importCollectionPackage(repo: Repo & AnkiLink, picked: Fil
         : "It isn't an Anki collection package. In AnkiMobile, use Export and choose Collection (.colpkg).");
     }
 
-    const data = buildExport(await repo.readAnkiRows(collection));
-    const result = reconcileIds(importAnkiJson(data), await repo.listNotes());
-    // Note types first: a card whose template is missing falls back to plain text.
-    if (result.noteTypes?.length) await repo.saveNoteTypes(result.noteTypes);
-    await repo.applyAnkiCollection(result.notes, result.cards);
-    if (result.deckParams?.size) await repo.saveDeckParams(result.deckParams);
+    const result = await takeInCollection(repo, collection);
 
     // The package holds every media file the collection has: it replaces what's here.
     clearMedia();
@@ -61,6 +56,33 @@ export async function importCollectionPackage(repo: Repo & AnkiLink, picked: Fil
     if (work.exists) work.delete();
     if (mediaDir.exists) mediaDir.delete();
   }
+}
+
+/**
+ * Makes Franki's decks match a collection file: its notes, cards with their scheduling, note
+ * types and deck settings. Anki's scheduling wins for every card that came from Anki, as
+ * `applyAnkiCollection` says. Used for an imported package and after a sync changed the kept one.
+ */
+async function takeInCollection(repo: Repo & AnkiLink, collection: File) {
+  const data = buildExport(await repo.readAnkiRows(collection));
+  const result = reconcileIds(importAnkiJson(data), await repo.listNotes());
+  // Note types first: a card whose template is missing falls back to plain text.
+  if (result.noteTypes?.length) await repo.saveNoteTypes(result.noteTypes);
+  await repo.applyAnkiCollection(result.notes, result.cards);
+  if (result.deckParams?.size) await repo.saveDeckParams(result.deckParams);
+  return result;
+}
+
+/** After a sync changed the kept collection: Franki's decks are read from it again. */
+export async function refreshFromKeptCollection(repo: Repo & AnkiLink): Promise<void> {
+  const kept = await repo.keptCollection();
+  if (kept) await takeInCollection(repo, kept);
+}
+
+/** A collection downloaded whole from a sync server becomes the kept one, and Franki's decks follow it. */
+export async function adoptDownloadedCollection(repo: Repo & AnkiLink, downloaded: File): Promise<void> {
+  await takeInCollection(repo, downloaded);
+  await repo.keepAnkiCollection(downloaded);
 }
 
 /** Packs the kept collection, with Franki's answers in it, as a package for Anki to import. */

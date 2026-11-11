@@ -48,3 +48,6 @@ yarn-error.*
 *.anki2-shm
 *.anki2-wal
 *.anki2-journal
+
+# The sync server's settings, with its password (server/.env.example is the template)
+server/.env

@@ -1,5 +1,5 @@
 import { STRIP_UNICASE_SQL } from './collection';
-import { CARD_ROW_SQL, CARD_UPDATE_SQL, REVLOG_INSERT_SQL } from './writeback';
+import { CARD_ROW_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL } from './writeback';
 
 /**
  * The SQL the app runs against an Anki collection attached to its own connection under a schema
@@ -25,5 +25,7 @@ export const keptSql = (schema = 'anki') => ({
   revlogDelete: `DELETE FROM ${schema}.revlog WHERE id = ?`,
   maxRevlogId: `SELECT MAX(id) AS m FROM ${schema}.revlog`,
   crt: `SELECT crt FROM ${schema}.col`,
+  colModified: COL_MODIFIED_SQL.replace('UPDATE col', `UPDATE ${schema}.col`),
   unsentSince: `SELECT COUNT(*) AS n FROM ${schema}.revlog WHERE id > ? AND usn = -1`,
+  revlogUsn: `SELECT usn FROM ${schema}.revlog WHERE id = ?`,
 });

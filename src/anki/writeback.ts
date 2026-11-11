@@ -185,6 +185,12 @@ export function revlogParams(r: AnkiRevlogRow): number[] {
   return [r.id, r.cid, r.usn, r.ease, r.ivl, r.lastIvl, r.factor, r.time, r.type];
 }
 
+/**
+ * Every write stamps the collection as modified (milliseconds), as Anki does: a sync compares this
+ * stamp with the server's to decide whether anything changed, so without it an answer never syncs.
+ */
+export const COL_MODIFIED_SQL = 'UPDATE col SET mod = ?';
+
 /** The review log id for an answer at `ms`: its time, moved on past any id already taken. */
 export function nextRevlogId(ms: number, latestId: number | null): number {
   return latestId !== null && latestId >= ms ? latestId + 1 : ms;

@@ -1,0 +1,4 @@
+# HTTPS for the sync server at $DOMAIN, with a certificate from Let's Encrypt.
+{$DOMAIN} {
+	reverse_proxy anki:8080
+}

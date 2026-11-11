@@ -45,6 +45,18 @@ export async function moveIntoMedia(file: File, name: string): Promise<void> {
   await file.move(target);
 }
 
+/** Whether a media file is here. */
+export function hasMedia(name: string): boolean {
+  return !name.includes('/') && new File(folder(), name).exists;
+}
+
+/** Removes one media file, if it's here. */
+export function removeMedia(name: string): void {
+  if (name.includes('/')) return;
+  const f = new File(folder(), name);
+  if (f.exists) f.delete();
+}
+
 /** A media file's file:// URI, or undefined when it isn't here (a package exported without media). */
 export function mediaFileUri(name: string): string | undefined {
   if (name.includes('/')) return undefined;

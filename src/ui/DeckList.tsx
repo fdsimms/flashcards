@@ -57,8 +57,10 @@ export function DeckList(props: {
   decks: DeckRow[];
   /** When the last backup was made, and whether another is due (`backupStatus`). */
   backup?: { text: string; overdue: boolean };
-  /** Answers given here and not yet sent back to Anki. */
+  /** Answers given here and not yet in Anki: not synced, or (without sync) not sent back by file. */
   ankiUnsent?: number;
+  /** Present when sync is on. */
+  sync?: { syncing: boolean; status: string; failed: boolean; onSync: () => void };
   onOpen: (deck: string) => void;
   onImport: () => void;
   onBackup: () => void;
@@ -69,6 +71,7 @@ export function DeckList(props: {
   return (
     <Screen
       title="Decks"
+      right={props.sync ? <HeaderAction label={props.sync.syncing ? 'Syncing…' : 'Sync'} onPress={props.sync.onSync} /> : undefined}
       footer={
         <View style={{ flexDirection: 'row', gap: space.s }}>
           <Button label="Anki" onPress={props.onImport} style={{ flex: 1 }} />
@@ -105,7 +108,15 @@ export function DeckList(props: {
             </View>
           ))
         )}
-        {props.ankiUnsent ? (
+        {props.sync ? (
+          <Pressable onPress={props.sync.onSync} accessibilityRole="button" accessibilityHint="Syncs now"
+            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+            <Text style={{ ...type.footnote, color: props.sync.failed ? c.warning : c.textSecondary, textAlign: 'center' }}>
+              {props.sync.syncing ? 'Syncing…' : props.sync.status}
+              {props.ankiUnsent ? ` ${props.ankiUnsent} ${props.ankiUnsent === 1 ? "answer isn't" : "answers aren't"} synced yet.` : ''}
+            </Text>
+          </Pressable>
+        ) : props.ankiUnsent ? (
           <Pressable onPress={props.onImport} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
             <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>
               {props.ankiUnsent} {props.ankiUnsent === 1 ? "answer isn't" : "answers aren't"} in Anki yet. Tap to send.
