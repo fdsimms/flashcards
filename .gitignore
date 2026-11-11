@@ -51,3 +51,7 @@ yarn-error.*
 
 # The sync server's settings, with its password (server/.env.example is the template)
 server/.env
+
+# Python (server/mcp)
+__pycache__/
+.pytest_cache/

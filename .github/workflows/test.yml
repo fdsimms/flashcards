@@ -60,3 +60,33 @@ jobs:
         run: npx expo export --platform ios --output-dir /tmp/expo-export
         env:
           CI: 1
+
+  # The MCP (server/mcp), against a real Anki sync server from the same `anki` package. Its own
+  # job so the app's checks don't wait on pip, and only when something it reads changed.
+  mcp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for MCP changes
+        if: github.event_name == 'pull_request'
+        id: paths
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            mcp:
+              - 'server/mcp/**'
+              - 'tests/fixtures/anki/**'
+              - '.github/workflows/test.yml'
+      - if: github.event_name != 'pull_request' || steps.paths.outputs.mcp == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: server/mcp/requirements*.txt
+      - if: github.event_name != 'pull_request' || steps.paths.outputs.mcp == 'true'
+        run: pip install -r server/mcp/requirements-dev.txt
+      - if: github.event_name != 'pull_request' || steps.paths.outputs.mcp == 'true'
+        run: python -m pytest -q
+        working-directory: server/mcp
+        env:
+          TZ: Pacific/Kiritimati

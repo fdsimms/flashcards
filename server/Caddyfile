@@ -1,4 +1,11 @@
-# HTTPS for the sync server at $DOMAIN, with a certificate from Let's Encrypt.
+# HTTPS for $DOMAIN, with a certificate from Let's Encrypt: Anki's sync requests go to the sync
+# server, everything else to the MCP (when it's turned on; without it those paths answer 502).
 {$DOMAIN} {
-	reverse_proxy anki:8080
+	@anki path /sync/* /msync/* /health
+	handle @anki {
+		reverse_proxy anki:8080
+	}
+	handle {
+		reverse_proxy mcp:8000
+	}
 }
