@@ -207,6 +207,16 @@ and Polski's. Today's counts are kept per deck by its own cards and summed up th
 always scheduled with **its own** deck's FSRS settings, never the settings of the parent being
 studied.
 
+**Today's counts include answers given on every device** (`studiedToday` in `src/core/queue.ts`):
+Anki's cards are counted from the kept collection's review log, which holds answers synced from
+AnkiMobile and Anki as well as Franki's own, and only Franki-only cards from Franki's table.
+Counting Franki's table alone offered new cards already studied in Anki that day. **A card Anki
+buried today is held back until the next study day** (`isBuried`, from the card's `mod` when it
+was imported); one buried on an earlier day is studied, as Anki unburies at each new day. **Answering
+in Franki buries siblings as Anki does** (`siblingsToBury`, by the answered card's own preset's
+Burying options), in Franki's tables and in the kept collection in the answer's own transaction
+(queue -2), and undo restores them with the answer.
+
 **Counts shown in two places come from one function.** The deck list (`deckRows`) and the review
 screen both call `treeQueue`, so a deck never says "20 new" and then opens with none. A check that
 predicts what another code path will do calls that code path's function; don't write a lookalike.

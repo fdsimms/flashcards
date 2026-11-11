@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildExport, readDeckKind } from '../../src/anki/collection';
+import { buildExport, readDeckConfig, readDeckKind } from '../../src/anki/collection';
 import { importAnkiJson } from '../../src/import/ankiJson';
 import { readCollectionRows } from '../support/ankiRows';
 import { NOW } from '../support/fixtures';
@@ -14,6 +14,13 @@ describe('reading a collection', () => {
   it('reads a deck kind blob Anki wrote', () => {
     expect(readDeckKind(hex('0A0408013803'))).toEqual({ configId: 1, newLimit: 3, reviewLimit: undefined, desiredRetention: undefined });
     expect(readDeckKind(hex('12260801'))).toBeUndefined(); // filtered
+  });
+
+  it("reads a preset's burying options", () => {
+    // Anki's own encoding (deck_config_pb2) of new 7, reviews 70, bury new and interday learning.
+    expect(readDeckConfig(hex('48075046D80101E80101'))).toMatchObject({
+      newPerDay: 7, reviewsPerDay: 70, buryNew: true, buryReviews: false, buryInterdayLearning: true,
+    });
   });
 
   it('reads notes, scheduling, deck settings and note types', async () => {
@@ -32,6 +39,19 @@ describe('reading a collection', () => {
     expect(data.noteTypes.map((t) => [t.name, t.kind, t.templates.length]).sort((a, b) => String(a[0]).localeCompare(String(b[0])))).toEqual([
       ['Basic', 'normal', 1], ['Basic (and reversed card)', 'normal', 2], ['Cloze', 'cloze', 1],
     ]);
+  });
+
+  it('keeps when a buried card was buried, and reads it as its ordinary queue', async () => {
+    const rows = await readCollectionRows(FIXTURE);
+    const review = rows.cards.find((c) => Number(c.queue) === 2)!;
+    const buriedAt = new Date(2026, 10, 11, 9, 30);
+    review.queue = -3;
+    review.mod = buriedAt.getTime() / 1000;
+    const res = importAnkiJson(buildExport(rows), { now: NOW });
+    const card = res.cards.find((c) => c.ankiId === String(review.id))!;
+    expect(card.buriedAt).toBe(buriedAt.toISOString());
+    expect(card.sched.state).toBe(2);
+    expect(res.cards.filter((c) => c.buriedAt)).toHaveLength(1);
   });
 
   it('imports with every Anki card, its scheduling and its Anki card id', async () => {

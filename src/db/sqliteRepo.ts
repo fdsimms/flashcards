@@ -2,7 +2,6 @@ import { File } from 'expo-file-system';
 import * as SQLite from 'expo-sqlite';
 import { registerUnicase } from '../../modules/anki-unicase';
 import { parseAnswerButtons } from '../core/answerButtons';
-import { studyDayStart } from '../core/day';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } from '../core/types';
 import { clearMedia, listMedia, writeMedia } from '../media/mediaFiles';
 import { ankiFolder, fileSink, fileSource, keptCollectionFile } from '../anki/files';
@@ -45,6 +44,7 @@ CREATE TABLE IF NOT EXISTS anki_media (name TEXT PRIMARY KEY, sha1 TEXT NOT NULL
 const MIGRATIONS: { table: string; column: string; sql: string }[] = [
   { table: 'cards', column: 'retired', sql: 'ALTER TABLE cards ADD COLUMN retired INTEGER NOT NULL DEFAULT 0' },
   { table: 'cards', column: 'anki_id', sql: 'ALTER TABLE cards ADD COLUMN anki_id TEXT' },
+  { table: 'cards', column: 'buried_at', sql: 'ALTER TABLE cards ADD COLUMN buried_at TEXT' },
 ];
 
 async function migrate(db: SQLite.SQLiteDatabase) {
@@ -91,7 +91,8 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
   const anki = makeAnkiLink(db);
 
   const rowToCard = (r: any): Card => ({
-    id: r.id, noteId: r.note_id, kind: r.kind, suspended: !!r.suspended, retired: !!r.retired, ankiId: r.anki_id ?? undefined, sched: JSON.parse(r.sched),
+    id: r.id, noteId: r.note_id, kind: r.kind, suspended: !!r.suspended, retired: !!r.retired, ankiId: r.anki_id ?? undefined,
+    buriedAt: r.buried_at ?? undefined, sched: JSON.parse(r.sched),
   });
   const rowToNote = (r: any): Note => ({
     id: r.id, deck: r.deck, model: r.model, fields: JSON.parse(r.fields), tags: JSON.parse(r.tags),
@@ -120,13 +121,13 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
           // suspension are overwritten only on a card still New. Every card here is generated
           // again, so it is never retired.
           await db.runAsync(
-            'INSERT INTO cards (id, note_id, kind, suspended, retired, anki_id, sched, state, due) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?) ' +
-              'ON CONFLICT(id) DO UPDATE SET retired = 0, anki_id = COALESCE(excluded.anki_id, cards.anki_id), ' +
+            'INSERT INTO cards (id, note_id, kind, suspended, retired, anki_id, buried_at, sched, state, due) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?) ' +
+              'ON CONFLICT(id) DO UPDATE SET retired = 0, anki_id = COALESCE(excluded.anki_id, cards.anki_id), buried_at = excluded.buried_at, ' +
               'suspended = CASE WHEN cards.state = 0 THEN excluded.suspended ELSE cards.suspended END, ' +
               'sched = CASE WHEN cards.state = 0 THEN excluded.sched ELSE cards.sched END, ' +
               'due = CASE WHEN cards.state = 0 THEN excluded.due ELSE cards.due END, ' +
               'state = CASE WHEN cards.state = 0 THEN excluded.state ELSE cards.state END',
-            c.id, c.noteId, c.kind, c.suspended ? 1 : 0, c.ankiId ?? null, JSON.stringify(c.sched), c.sched.state, c.sched.due,
+            c.id, c.noteId, c.kind, c.suspended ? 1 : 0, c.ankiId ?? null, c.buriedAt ?? null, JSON.stringify(c.sched), c.sched.state, c.sched.due,
           );
         }
       });
@@ -148,8 +149,8 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
         for (const c of cards) {
           // Anki's copy is the record: everything is overwritten, studied here or not.
           await db.runAsync(
-            'INSERT OR REPLACE INTO cards (id, note_id, kind, suspended, retired, anki_id, sched, state, due) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)',
-            c.id, c.noteId, c.kind, c.suspended ? 1 : 0, c.ankiId ?? null, JSON.stringify(c.sched), c.sched.state, c.sched.due,
+            'INSERT OR REPLACE INTO cards (id, note_id, kind, suspended, retired, anki_id, buried_at, sched, state, due) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)',
+            c.id, c.noteId, c.kind, c.suspended ? 1 : 0, c.ankiId ?? null, c.buriedAt ?? null, JSON.stringify(c.sched), c.sched.state, c.sched.due,
           );
         }
       });
@@ -180,8 +181,8 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async saveCard(c) {
       await db.runAsync(
-        'UPDATE cards SET suspended = ?, retired = ?, sched = ?, state = ?, due = ? WHERE id = ?',
-        c.suspended ? 1 : 0, c.retired ? 1 : 0, JSON.stringify(c.sched), c.sched.state, c.sched.due, c.id,
+        'UPDATE cards SET suspended = ?, retired = ?, buried_at = ?, sched = ?, state = ?, due = ? WHERE id = ?',
+        c.suspended ? 1 : 0, c.retired ? 1 : 0, c.buriedAt ?? null, JSON.stringify(c.sched), c.sched.state, c.sched.due, c.id,
       );
     },
     async addReview(e: ReviewLogEntry) {
@@ -210,18 +211,6 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
         cardId: r.card_id, rating: r.rating as ReviewLogEntry['rating'], reviewedAt: r.reviewed_at,
         state: r.state, due: r.due, stability: r.stability, difficulty: r.difficulty,
       }));
-    },
-    async studiedToday(now, dayStartsAtHour) {
-      // ISO strings are all UTC, so comparing them as text compares the instants.
-      const start = studyDayStart(now, dayStartsAtHour);
-      const rows = await db.getAllAsync<{ deck: string; introduced: number; reviewed: number }>(
-        'SELECT n.deck AS deck, COUNT(DISTINCT CASE WHEN r.state = 0 THEN r.card_id END) AS introduced, ' +
-          'SUM(CASE WHEN r.state = 2 THEN 1 ELSE 0 END) AS reviewed ' +
-          'FROM reviews r JOIN cards c ON c.id = r.card_id JOIN notes n ON n.id = c.note_id ' +
-          'WHERE r.reviewed_at >= ? AND r.state IN (0, 2) GROUP BY n.deck',
-        start.toISOString(),
-      );
-      return new Map(rows.map((r) => [r.deck, { introduced: r.introduced, reviewed: r.reviewed }]));
     },
     async saveDeckParams(params) {
       await db.withTransactionAsync(async () => {

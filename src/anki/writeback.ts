@@ -45,6 +45,8 @@ export interface AnkiUndo {
   cid: number;
   row: AnkiCardRow & { mod: number; usn: number };
   revlogId: number;
+  /** Siblings the answer buried, with their rows as they were, to restore on undo. */
+  buried: { cid: number; row: AnkiCardRow & { mod: number; usn: number } }[];
 }
 
 export interface AnkiRevlogRow {
@@ -202,6 +204,13 @@ export function revlogParams(r: AnkiRevlogRow): number[] {
  * stamp with the server's to decide whether anything changed, so without it an answer never syncs.
  */
 export const COL_MODIFIED_SQL = 'UPDATE col SET mod = ?';
+
+/**
+ * Buries a card until the next day as Anki's scheduler does when a sibling is answered: queue -2
+ * (buried by the scheduler, which Anki undoes when a new day starts), its modified time in
+ * seconds, and usn -1 so a sync sends it. Parameters: the time (unix seconds), the Anki card id.
+ */
+export const BURY_CARD_SQL = 'UPDATE cards SET queue = -2, mod = ?, usn = -1 WHERE id = ?';
 
 /** The review log id for an answer at `ms`: its time, moved on past any id already taken. */
 export function nextRevlogId(ms: number, latestId: number | null): number {

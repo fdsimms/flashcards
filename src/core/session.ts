@@ -37,6 +37,8 @@ export interface AnswerRecord {
   deck: string;
   /** What undoes the answer in the kept Anki collection, when the card is from one. */
   anki?: AnkiUndo;
+  /** Siblings the answer buried (`siblingsToBury`), as they were before: undo puts them back. */
+  buried: Card[];
 }
 
 /**

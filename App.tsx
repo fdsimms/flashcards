@@ -4,7 +4,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from './src/core/config';
+import { studyDayStart } from './src/core/day';
 import { deckLimits, deckRows, groupByDeck, type DeckRow } from './src/core/deckTree';
+import { studiedToday } from './src/core/queue';
 import { paramsForDeck } from './src/core/scheduler';
 import { backupStatus } from './src/db/backup';
 import type { Repo } from './src/db/repo';
@@ -65,10 +67,13 @@ export default function App() {
   const refresh = useCallback(async () => {
     if (!repo) return;
     const now = new Date();
-    const [notes, cards, allParams, studiedByDeck, lastBackup, settings] = await Promise.all([
-      repo.listNotes(), repo.listCards(), repo.listDeckParams(), repo.studiedToday(now, DAY_STARTS_AT_HOUR), repo.lastBackupAt(),
-      repo.listDeckSettings(),
+    const dayStart = studyDayStart(now, DAY_STARTS_AT_HOUR);
+    const [notes, cards, allParams, reviews, revlog, lastBackup, settings] = await Promise.all([
+      repo.listNotes(), repo.listCards(), repo.listDeckParams(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
+      repo.lastBackupAt(), repo.listDeckSettings(),
     ]);
+    // Every answer given today, here or in Anki on another device (synced), counts toward the limits.
+    const studiedByDeck = studiedToday({ notes, cards, reviews, revlog, now, dayStartsAtHour: DAY_STARTS_AT_HOUR });
     const deckOf = new Map(notes.map((n) => [n.id, n.deck]));
     setDecks(deckRows({
       cardsByDeck: groupByDeck(cards, deckOf),
