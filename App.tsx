@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY } from './src/core/config';
 import { summarizeDecks, type DeckSummary, type Repo } from './src/db/repo';
 import { openRepo } from './src/db/sqliteRepo';
 import { DeckList } from './src/ui/DeckList';
@@ -18,8 +19,14 @@ export default function App() {
 
   const refresh = useCallback(async () => {
     if (!repo) return;
+    const now = new Date();
     const [notes, cards] = await Promise.all([repo.listNotes(), repo.listCards()]);
-    setDecks(summarizeDecks(notes, cards, 20));
+    const deckNames = [...new Set(notes.map((n) => n.deck))];
+    const introduced = await Promise.all(deckNames.map((d) => repo.newIntroducedToday(d, now, DAY_STARTS_AT_HOUR)));
+    const introducedByDeck = new Map(deckNames.map((d, i) => [d, introduced[i]]));
+    setDecks(summarizeDecks(notes, cards, {
+      newPerDay: NEW_PER_DAY, dayStartsAtHour: DAY_STARTS_AT_HOUR, learnAheadMinutes: LEARN_AHEAD_MINUTES, introducedByDeck, now,
+    }));
   }, [repo]);
 
   useEffect(() => { if (screen.name === 'decks') refresh(); }, [screen, refresh]);

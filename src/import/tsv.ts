@@ -1,11 +1,13 @@
 import { makeCards } from '../core/cards';
-import type { Card, Note } from '../core/types';
+import type { Card, DeckParams, Note } from '../core/types';
 import { omnilanguageFieldNames } from './models';
 
 export interface ImportResult {
   notes: Note[];
   cards: Card[];
   warnings: string[];
+  /** FSRS settings by deck, when the export carried them. */
+  deckParams?: Map<string, DeckParams>;
 }
 
 /** Split TSV text into rows, honoring Anki-style "quoted" fields that may contain tabs/newlines. */

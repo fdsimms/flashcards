@@ -28,7 +28,22 @@ export interface Card {
   noteId: string;
   kind: CardKind;
   suspended: boolean;
+  /**
+   * The note no longer generates this kind (GenerateReverse / GenerateAudioCard turned off and
+   * re-imported). Kept apart from `suspended`, which comes from Anki, so a re-import that doesn't
+   * carry suspension (TSV) can't undo one, and a kind turned back on brings its history back.
+   */
+  retired: boolean;
   sched: SchedState;
+}
+
+/** A deck's FSRS settings, from its Anki preset. */
+export interface DeckParams {
+  /** FSRS weights. Empty means the preset was never optimized: use the defaults. */
+  weights: number[];
+  desiredRetention: number;
+  /** Days. */
+  maxInterval: number;
 }
 
 export interface ReviewLogEntry {

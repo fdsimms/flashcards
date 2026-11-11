@@ -1,14 +1,13 @@
 import * as Speech from 'expo-speech';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { renderCard } from '../core/cards';
-import { buildQueue, nextCard } from '../core/queue';
-import { previewIntervals, review, type RatingValue } from '../core/scheduler';
-import type { Card, Note, RenderedSide } from '../core/types';
+import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY } from '../core/config';
+import { buildQueue, nextCard, nextLearningDue } from '../core/queue';
+import { paramsForDeck, previewIntervals, review, type RatingValue } from '../core/scheduler';
+import type { Card, DeckParams, Note, RenderedSide } from '../core/types';
 import type { Repo } from '../db/repo';
 import { useTheme } from './theme';
-
-const NEW_PER_DAY = 20;
 
 function Side({ side }: { side: RenderedSide }) {
   const t = useTheme();
@@ -31,12 +30,19 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
   const [cards, setCards] = useState<Card[] | null>(null);
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
   const [introduced, setIntroduced] = useState(0);
+  const [params, setParams] = useState<DeckParams | undefined>();
   const [revealed, setRevealed] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  // Set while an answer is being written. A second tap during the await would otherwise rate the
+  // same card again from its old state and log two reviews for one answer.
+  const answering = useRef(false);
 
   useEffect(() => {
     (async () => {
-      const [c, n, intro] = await Promise.all([repo.listCards(deck), repo.listNotes(), repo.newIntroducedToday(deck, new Date())]);
+      const [c, n, intro, allParams] = await Promise.all([
+        repo.listCards(deck), repo.listNotes(), repo.newIntroducedToday(deck, new Date(), DAY_STARTS_AT_HOUR), repo.listDeckParams(),
+      ]);
+      setParams(paramsForDeck(deck, allParams));
       setCards(c);
       setNotes(new Map(n.map((x) => [x.id, x])));
       setIntroduced(intro);
@@ -44,13 +50,16 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
   }, [repo, deck]);
 
   const queue = useMemo(
-    () => (cards ? buildQueue(cards, { newPerDay: NEW_PER_DAY, newIntroducedToday: introduced, now }) : null),
+    () => (cards ? buildQueue(cards, {
+      newPerDay: NEW_PER_DAY, newIntroducedToday: introduced, dayStartsAtHour: DAY_STARTS_AT_HOUR,
+      learnAheadMinutes: LEARN_AHEAD_MINUTES, now,
+    }) : null),
     [cards, introduced, now],
   );
   const current = queue ? nextCard(queue) : undefined;
   const note = current ? notes.get(current.noteId) : undefined;
   const rendered = current && note ? renderCard(note, current.kind) : undefined;
-  const intervals = current && revealed ? previewIntervals(current.sched, now) : undefined;
+  const intervals = current && revealed ? previewIntervals(current.sched, now, params) : undefined;
 
   const speak = useCallback(
     (text?: string) => {
@@ -67,24 +76,44 @@ export function Review({ repo, deck, onDone }: { repo: Repo; deck: string; onDon
   }, [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const answer = async (rating: RatingValue) => {
-    if (!current || !cards) return;
-    const when = new Date();
-    const res = review(current.sched, rating, when);
-    const updated: Card = { ...current, sched: res.sched };
-    await repo.saveCard(updated);
-    await repo.addReview({ cardId: current.id, ...res.log });
-    if (current.sched.state === 0) setIntroduced((n) => n + 1);
-    setCards(cards.map((c) => (c.id === current.id ? updated : c)));
-    setRevealed(false);
-    setNow(when);
+    if (!current || answering.current) return;
+    answering.current = true;
+    try {
+      const when = new Date();
+      const res = review(current.sched, rating, when, params);
+      const updated: Card = { ...current, sched: res.sched };
+      await repo.saveCard(updated);
+      await repo.addReview({ cardId: current.id, ...res.log });
+      if (current.sched.state === 0) setIntroduced((n) => n + 1);
+      // Functional update: `cards` from this render's closure is stale once the awaits return.
+      setCards((prev) => prev && prev.map((c) => (c.id === updated.id ? updated : c)));
+      setRevealed(false);
+      setNow(when);
+    } finally {
+      answering.current = false;
+    }
   };
+
+  // Out of cards with a learning card still to come: wake when it's within the learn-ahead limit
+  // instead of declaring the deck done, which left it waiting until the deck was reopened.
+  const waitingFor = !current && cards ? nextLearningDue(cards) : undefined;
+  useEffect(() => {
+    if (!waitingFor) return;
+    const wake = waitingFor.getTime() - LEARN_AHEAD_MINUTES * 60000 - Date.now();
+    const id = setTimeout(() => setNow(new Date()), Math.max(0, wake) + 1000);
+    return () => clearTimeout(id);
+  }, [waitingFor?.getTime()]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!cards) return <View style={{ flex: 1, backgroundColor: t.bg }} />;
 
   if (!current || !rendered) {
+    const minutes = waitingFor ? Math.max(1, Math.ceil((waitingFor.getTime() - Date.now()) / 60000) - LEARN_AHEAD_MINUTES) : 0;
     return (
       <View style={{ flex: 1, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-        <Text style={{ color: t.text, fontSize: 22 }}>All done for now 🎉</Text>
+        <Text style={{ color: t.text, fontSize: 22 }}>{waitingFor ? 'Nothing due right now' : 'All done for now 🎉'}</Text>
+        {waitingFor ? (
+          <Text style={{ color: t.sub }}>The next card comes back in about {minutes} min.</Text>
+        ) : null}
         <Pressable onPress={onDone} style={{ backgroundColor: t.accent, borderRadius: 12, paddingHorizontal: 28, paddingVertical: 12 }}>
           <Text style={{ color: '#fff', fontWeight: '700' }}>Back to decks</Text>
         </Pressable>

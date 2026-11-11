@@ -15,19 +15,17 @@ Use `bunx` instead of `npx` if the project uses bun (`bun.lock` present).
 ```bash
 npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
 npx expo start              # start the dev server
-npx expo lint               # lint
-npx tsc --noEmit            # typecheck
+npm run verify              # typecheck + tests + git status (the loop to run before committing)
 npx expo-doctor             # diagnose dependency and config issues
 npx expo install --fix      # fix incompatible package versions
 ```
 
-Run lint and typecheck before declaring any task done.
+There is no lint config. Run `npm run verify` before declaring any task done.
 
 ## Navigation & Routing
 
-- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
-- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
-- Docs: https://docs.expo.dev/router/introduction.md
+- There is no router yet: `App.tsx` switches between the three screens with a `Screen` union. Don't assume `src/app/` routes exist.
+- If navigation outgrows that (stack history, deep links, tabs), **Expo Router** is the one to adopt, with routes in `src/app/` and non-route code outside it. Docs: https://docs.expo.dev/router/introduction.md
 
 ## Building with EAS
 

@@ -1,6 +1,6 @@
 import { makeCards } from '../core/cards';
 import { newSchedState } from '../core/scheduler';
-import type { Card, CardKind, Note, SchedState } from '../core/types';
+import type { Card, CardKind, DeckParams, Note, SchedState } from '../core/types';
 import type { ImportResult } from './tsv';
 
 /**
@@ -35,11 +35,37 @@ export interface AnkiCardInfo {
   memoryState?: { stability: number; difficulty: number };
 }
 
+/** One deck preset as AnkiMCP's `get_fsrs_params` returns it. */
+export interface AnkiFsrsPreset {
+  preset_name?: string;
+  fsrs_weights?: number[];
+  desired_retention?: number;
+  max_interval?: number;
+  /** Full deck names using this preset. */
+  decks?: string[];
+}
+
 export interface AnkiExport {
   notes: AnkiNoteInfo[];
   cards: AnkiCardInfo[];
   /** Collection creation time (unix seconds). Needed to turn Anki's day-offset `due` into a date. */
   collectionCreated?: number;
+  /** AnkiMCP `get_fsrs_params` output, as is. Gives each deck its preset's weights and retention. */
+  fsrsParams?: { presets?: AnkiFsrsPreset[] };
+}
+
+/** Each deck's FSRS settings from the presets that list it. Presets listing no deck are skipped. */
+export function deckParamsFromPresets(presets: AnkiFsrsPreset[]): Map<string, DeckParams> {
+  const out = new Map<string, DeckParams>();
+  for (const p of presets) {
+    const params: DeckParams = {
+      weights: p.fsrs_weights ?? [],
+      desiredRetention: p.desired_retention ?? 0.9,
+      maxInterval: p.max_interval ?? 36500,
+    };
+    for (const deck of p.decks ?? []) out.set(deck, params);
+  }
+  return out;
 }
 
 export function easeToDifficulty(factor: number | undefined): number {
@@ -115,5 +141,6 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
   if (data.collectionCreated === undefined && data.cards?.some((c) => c.type === 2)) {
     warnings.push('collectionCreated missing: review cards were set due now instead of their real due dates');
   }
-  return { notes: [...notes.values()], cards, warnings };
+  const deckParams = data.fsrsParams?.presets ? deckParamsFromPresets(data.fsrsParams.presets) : undefined;
+  return { notes: [...notes.values()], cards, warnings, deckParams };
 }
