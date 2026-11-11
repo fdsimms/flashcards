@@ -173,6 +173,58 @@ export function Field({ label, error, ref, ...input }: TextInputProps & { label:
   );
 }
 
+/**
+ * A choice among many (every deck, every note type): one row showing the choice, which opens a
+ * list of the options. A name with `::` in it is a subdeck, shown by its last part, indented. Use
+ * `Chip`s only for a handful of choices.
+ */
+export function Select({ label, options, value, onChange }: { label: string; options: string[]; value: string; onChange: (v: string) => void }) {
+  const c = useTheme();
+  const [open, setOpen] = React.useState(false);
+  return (
+    <View style={{ gap: space.xs }}>
+      <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
+      <Pressable
+        onPress={() => setOpen((o) => !o)}
+        accessibilityRole="button"
+        accessibilityLabel={`${label}: ${value || 'none'}`}
+        accessibilityState={{ expanded: open }}
+        style={({ pressed }) => ({
+          flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP, paddingHorizontal: space.m, paddingVertical: space.s,
+          backgroundColor: c.fill, borderRadius: radius.s, opacity: pressed ? 0.75 : 1,
+        })}
+      >
+        <Text style={{ ...type.body, color: c.text, flex: 1 }}>{value || 'Choose'}</Text>
+        <Text style={{ ...type.body, color: c.textSecondary }}>{open ? '▴' : '▾'}</Text>
+      </Pressable>
+      {open ? (
+        <View style={{ backgroundColor: c.fill, borderRadius: radius.s, overflow: 'hidden' }}>
+          {options.map((o) => {
+            const parts = o.split('::');
+            const selected = o === value;
+            return (
+              <Pressable
+                key={o}
+                onPress={() => { onChange(o); setOpen(false); }}
+                accessibilityRole="button"
+                accessibilityLabel={o}
+                accessibilityState={{ selected }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP, paddingVertical: space.s,
+                  paddingLeft: space.m + (parts.length - 1) * space.l, paddingRight: space.m, opacity: pressed ? 0.75 : 1,
+                })}
+              >
+                <Text style={{ ...type.body, color: selected ? c.accent : c.text, flex: 1, fontWeight: selected ? '600' : undefined }}>{parts[parts.length - 1]}</Text>
+                {selected ? <Text style={{ ...type.body, color: c.accent }}>✓</Text> : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 /** A choice among a few (a deck, a note type): pill-shaped, filled when chosen. */
 export function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
   const c = useTheme();
