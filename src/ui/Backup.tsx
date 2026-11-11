@@ -2,14 +2,15 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import React, { useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text } from 'react-native';
 import { dayKeyOf } from '../core/day';
 import { backupFileName, fileUriToPath, NotABackupError } from '../db/backup';
 import type { BackupStore } from '../db/sqliteRepo';
-import { useTheme } from './theme';
+import { Button, Card, Help, MessageList, Screen } from './kit';
+import { space, type, useTheme } from './theme';
 
 export function Backup({ store, onDone }: { store: BackupStore; onDone: () => void }) {
-  const t = useTheme();
+  const c = useTheme();
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   // A second tap while a backup or restore is running would start another one over the first.
@@ -71,23 +72,24 @@ export function Backup({ store, onDone }: { store: BackupStore; onDone: () => vo
     );
   };
 
-  const button = { margin: 20, marginBottom: 0, backgroundColor: t.accent, borderRadius: 14, padding: 16, alignItems: 'center' as const, opacity: busy ? 0.5 : 1 };
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: 56 }}>
-      <Pressable onPress={onDone} style={{ paddingHorizontal: 20 }}><Text style={{ color: t.accent, fontSize: 16 }}>‹ Decks</Text></Pressable>
-      <Text style={{ color: t.text, fontSize: 28, fontWeight: '700', padding: 20 }}>Backup</Text>
-      <Text style={{ color: t.sub, paddingHorizontal: 20 }}>
-        Everything is stored only on this iPhone. A backup is one file with your decks, cards, review history, and the images and sounds imported from Anki. Save it to Files or iCloud Drive, and restore it here if you reinstall the app or move to a new phone.
-      </Text>
-      <Pressable onPress={backUp} disabled={busy} style={button}>
-        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{busy ? 'Working…' : 'Back up now'}</Text>
-      </Pressable>
-      <Pressable onPress={restore} disabled={busy} style={{ ...button, backgroundColor: t.card, borderColor: t.border, borderWidth: 1 }}>
-        <Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>Restore from a backup</Text>
-      </Pressable>
-      <ScrollView contentContainerStyle={{ padding: 20, gap: 6 }}>
-        {log.map((l, i) => <Text key={i} style={{ color: t.sub }}>{l}</Text>)}
+    <Screen onBack={onDone} title="Backup">
+      <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+        <Card>
+          <Text style={{ ...type.headline, color: c.text }}>Back up</Text>
+          <Help>
+            Everything is stored only on this iPhone. A backup is one file with your decks, cards, review history, and the images
+            and sounds imported from Anki. Choose "Save to Files" to keep it in iCloud Drive.
+          </Help>
+          <Button label="Back up now" onPress={backUp} busy={busy} />
+        </Card>
+        <Card>
+          <Text style={{ ...type.headline, color: c.text }}>Restore</Text>
+          <Help>Replace everything on this iPhone with a backup, for example after reinstalling the app or on a new phone.</Help>
+          <Button label="Restore from a backup" variant="secondary" onPress={restore} disabled={busy} />
+        </Card>
+        <MessageList lines={log} />
       </ScrollView>
-    </View>
+    </Screen>
   );
 }

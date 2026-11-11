@@ -72,4 +72,10 @@ describe('cardDocument', () => {
     expect(doc).toContain('data-sound="hello.mp3"');
     expect(doc).toContain('playSound(first.dataset.sound)');
   });
+
+  it("paints the page in the app's colors when given them", () => {
+    const doc = cardDocument('Hi', { css: '', ord: 0, dark: true, autoplay: false, colors: { background: '#123456', text: '#abcdef', cloze: '#fedcba' } });
+    expect(doc).toContain('background: #123456; color: #abcdef;');
+    expect(doc).toContain('.cloze { font-weight: bold; color: #fedcba; }');
+  });
 });

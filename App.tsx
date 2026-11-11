@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from './src/core/config';
 import { deckLimits, deckRows, groupByDeck, type DeckRow } from './src/core/deckTree';
 import { paramsForDeck } from './src/core/scheduler';
@@ -12,12 +13,14 @@ import { DeckOptions } from './src/ui/DeckOptions';
 import { DeckList } from './src/ui/DeckList';
 import { Import } from './src/ui/Import';
 import { Review } from './src/ui/Review';
+import { useTheme } from './src/ui/theme';
 
 type Screen =
   | { name: 'decks' } | { name: 'import' } | { name: 'backup' }
   | { name: 'review'; deck: string } | { name: 'deckOptions'; deck: string };
 
 export default function App() {
+  const c = useTheme();
   const [repo, setRepo] = useState<(Repo & BackupStore) | null>(null);
   const [screen, setScreen] = useState<Screen>({ name: 'decks' });
   const [decks, setDecks] = useState<DeckRow[]>([]);
@@ -47,10 +50,17 @@ export default function App() {
 
   useEffect(() => { if (screen.name === 'decks') refresh(); }, [screen, refresh]);
 
-  if (!repo) return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator /></View>;
+  if (!repo) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', backgroundColor: c.bg }}>
+        <ActivityIndicator color={c.accent} />
+      </View>
+    );
+  }
 
   return (
-    <>
+    // The safe-area insets every Screen pads itself by (status bar, Dynamic Island, home indicator).
+    <SafeAreaProvider>
       {screen.name === 'decks' && (
         <DeckList decks={decks} backup={backup} onOpen={(deck) => setScreen({ name: 'review', deck })} onImport={() => setScreen({ name: 'import' })}
           onBackup={() => setScreen({ name: 'backup' })}
@@ -62,6 +72,6 @@ export default function App() {
       {screen.name === 'deckOptions' && <DeckOptions repo={repo} deck={screen.deck} onDone={() => setScreen({ name: 'decks' })} />}
       {screen.name === 'review' && <Review repo={repo} deck={screen.deck} onDone={() => setScreen({ name: 'decks' })} />}
       <StatusBar style="auto" />
-    </>
+    </SafeAreaProvider>
   );
 }

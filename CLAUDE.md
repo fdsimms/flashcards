@@ -131,7 +131,7 @@ src/core     types, FSRS wrapper, queue, deck tree, study day, card rendering, A
 src/import   TSV + Anki JSON importers, re-import matching (reconcile.ts)
 src/db       Repo interface + MemoryRepo (tests), SQLite repo (app), backup planning
 src/media    the media folder (expo-file-system)
-src/ui       deck list, review, import, backup screens, CardWebView
+src/ui       screens, the shared pieces they're built from (kit.tsx), the theme, CardWebView
 scripts/     export-anki.mjs, the desktop exporter, and scripts/lib (what it runs, tested)
 tests/       vitest, mirroring src/ and scripts/ (src/core/queue.ts -> tests/core/queue.test.ts)
 ```
@@ -254,6 +254,18 @@ import replaces it. A setting the user makes here goes in the first.
 - **The WebView loads a page written to a file, not an HTML string**, with read access to the
   documents folder and `<base href>` at the media folder. iOS's WebView only reads local files for
   a page that came from a file URL; an HTML string with a file:// baseUrl shows no images.
+
+### Screens and styling
+
+- **Build screens from `src/ui/kit.tsx`** (`Screen`, `Button`, `Card`, `Help`, `HeaderAction`,
+  `Count`, `MessageList`) before styling a `Pressable` or a box by hand, so a header or a button
+  looks the same everywhere.
+- **`Screen` pads by the safe-area insets; never pad a screen's top or bottom by a fixed number.**
+  The status bar and Dynamic Island differ by iPhone, and a hard-coded 56 put headers under them.
+- **Every color, gap, corner and text size comes from `src/ui/theme.ts`** (`useTheme()`, `space`,
+  `radius`, `type`). `tests/noRawColors.test.ts` fails the build on a hex color in a screen; add a
+  token with a light and a dark value instead. Text grows with the system text size, so a box
+  holding text gets padding or a `minHeight`, never a fixed `height`.
 
 ### The Anki exporter (`scripts/`)
 

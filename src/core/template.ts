@@ -196,17 +196,24 @@ function soundButtons(html: string): string {
  */
 export function cardDocument(
   html: string,
-  opts: { css: string; ord: number; dark: boolean; autoplay: boolean; mediaBase?: string },
+  opts: {
+    css: string; ord: number; dark: boolean; autoplay: boolean; mediaBase?: string;
+    /** The app's colors for the page behind the card, so it matches the frame it sits in. */
+    colors?: { background: string; text: string; cloze: string };
+  },
 ): string {
+  const colors = opts.colors ?? (opts.dark
+    ? { background: '#1a1d24', text: '#f1f1f1', cloze: '#6fa8ec' }
+    : { background: '#ffffff', text: '#1b1b1b', cloze: '#2f6db5' });
   const night = opts.dark ? ' nightMode night_mode' : '';
   const base = opts.mediaBase ? `<base href="${escapeAttr(opts.mediaBase)}">` : '';
   return `<!doctype html><html><head><meta charset="utf-8">${base}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 body { margin: 0; padding: 16px; font-family: -apple-system, system-ui, sans-serif; font-size: 20px; text-align: center;
-  background: ${opts.dark ? '#0f1115' : '#ffffff'}; color: ${opts.dark ? '#f1f1f1' : '#1b1b1b'}; }
+  background: ${colors.background}; color: ${colors.text}; }
 img { max-width: 100%; height: auto; }
-.cloze { font-weight: bold; color: ${opts.dark ? '#7fb2ff' : '#1d5fd0'}; }
+.cloze { font-weight: bold; color: ${colors.cloze}; }
 .replay-button { display: inline-block; text-decoration: none; font-size: 22px; padding: 2px 8px; }
 ${opts.css}
 </style></head>
