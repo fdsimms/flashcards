@@ -127,7 +127,7 @@ cut off silently. A field that's shown gets honored, refused inline with the rea
 
 ```
 src/core     types, FSRS wrapper, queue, deck tree, study day, card rendering, Anki templates,
-             session bookkeeping (undo), config (pure TS)
+             session bookkeeping (undo), stats, config (pure TS)
 src/import   TSV + Anki JSON importers, re-import matching (reconcile.ts)
 src/db       Repo interface + MemoryRepo (tests), SQLite repo (app), backup planning
 src/media    the media folder (expo-file-system)

@@ -25,6 +25,8 @@ export interface Repo {
   /** Logs an answer and returns its id, which `deleteReview` takes to undo it. */
   addReview(entry: ReviewLogEntry): Promise<number>;
   deleteReview(id: number): Promise<void>;
+  /** Answers logged here at or after `since`, oldest first (for stats). */
+  listReviews(since: Date): Promise<ReviewLogEntry[]>;
   /**
    * What each deck has studied during the study day `now` falls in, by its own cards (a parent
    * deck's entry leaves out its subdecks'; `treeQueue` adds them up). Decks with none are left out.
@@ -89,6 +91,11 @@ export class MemoryRepo implements Repo {
     return id;
   }
   async deleteReview(id: number) { this.reviews.delete(id); }
+  async listReviews(since: Date) {
+    return [...this.reviews.values()]
+      .filter((r) => new Date(r.reviewedAt) >= since)
+      .sort((a, b) => a.reviewedAt.localeCompare(b.reviewedAt));
+  }
   async studiedToday(now: Date, dayStartsAtHour: number) {
     const start = studyDayStart(now, dayStartsAtHour).getTime();
     const firsts = new Map<string, Set<string>>();

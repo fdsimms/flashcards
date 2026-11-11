@@ -8,6 +8,7 @@ import {
 import type { SqlValue, SyncDb } from '../anki/sync/collectionSync';
 import type { MediaState } from '../anki/sync/mediaSync';
 import type { RatingValue } from '../core/scheduler';
+import type { RevlogRow } from '../core/stats';
 import type { Card } from '../core/types';
 import { File } from 'expo-file-system';
 import { fileUriToPath } from './backup';
@@ -61,6 +62,8 @@ export interface AnkiLink {
   /** The kept collection's file, ready to pack, or null without one. */
   keptCollection(): Promise<File | null>;
   markSentToAnki(): Promise<void>;
+  /** The kept collection's review log from `since` on: Anki's whole history plus Franki's answers (for stats). */
+  ankiReviewLog(since: Date): Promise<RevlogRow[]>;
   /** For backup and restore, which carry the kept collection: let go of the file, and take it back. */
   detachAnki(): Promise<void>;
   attachAnki(): Promise<void>;
@@ -223,6 +226,12 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
       const max = await db.getFirstAsync<{ m: number | null }>(SQL.maxRevlogId);
       await setSetting(SETTING.lastSentId, String(max?.m ?? 0));
       await setSetting(SETTING.lastSentAt, new Date().toISOString());
+    },
+
+    async ankiReviewLog(since) {
+      await attach();
+      if (!attached) return [];
+      return db.getAllAsync<RevlogRow>(SQL.revlogSince, since.getTime());
     },
 
     detachAnki: detach,
