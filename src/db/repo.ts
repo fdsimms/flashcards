@@ -1,6 +1,4 @@
-import { studyDayStart } from '../core/day';
 import { isInDeck } from '../core/deckTree';
-import type { StudiedToday } from '../core/queue';
 import { parseAnswerButtons, type AnswerButtons } from '../core/answerButtons';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } from '../core/types';
 
@@ -30,11 +28,6 @@ export interface Repo {
   deleteReview(id: number): Promise<void>;
   /** Answers logged here at or after `since`, oldest first (for stats). */
   listReviews(since: Date): Promise<ReviewLogEntry[]>;
-  /**
-   * What each deck has studied during the study day `now` falls in, by its own cards (a parent
-   * deck's entry leaves out its subdecks'; `treeQueue` adds them up). Decks with none are left out.
-   */
-  studiedToday(now: Date, dayStartsAtHour: number): Promise<Map<string, StudiedToday>>;
   /** Replaces the FSRS settings of the decks given; other decks keep theirs. */
   saveDeckParams(params: Map<string, DeckParams>): Promise<void>;
   listDeckParams(): Promise<Map<string, DeckParams>>;
@@ -47,6 +40,9 @@ export interface Repo {
   /** Which answer buttons Review shows, for every deck. This phone's own: a backup doesn't carry it. */
   answerButtons(): Promise<AnswerButtons>;
   saveAnswerButtons(choice: AnswerButtons): Promise<void>;
+  /** Whether a revealed card can be swiped to answer it (right Good, left Again). Off by default; this phone's own. */
+  swipeToRate(): Promise<boolean>;
+  saveSwipeToRate(on: boolean): Promise<void>;
 }
 
 /** Simple in-memory repo, used by tests and as a reference implementation. */
@@ -59,6 +55,7 @@ export class MemoryRepo implements Repo {
   noteTypes = new Map<string, NoteType>();
   deckSettings = new Map<string, DeckSettings>();
   answerButtonsSetting: string | null = null;
+  swipeToRateSetting = false;
 
   async upsertNotesAndCards(notes: Note[], cards: Card[]) {
     for (const n of notes) this.notes.set(n.id, n);
@@ -71,7 +68,7 @@ export class MemoryRepo implements Repo {
       // Same rule as the SQLite repo: re-importing never resets a card already studied here.
       const existing = this.cards.get(c.id);
       if (existing && existing.sched.state !== 0) {
-        this.cards.set(c.id, { ...existing, retired: false });
+        this.cards.set(c.id, { ...existing, retired: false, buriedAt: c.buriedAt });
         continue;
       }
       this.cards.set(c.id, { ...c, retired: false });
@@ -106,26 +103,12 @@ export class MemoryRepo implements Repo {
   async deleteReview(id: number) { this.reviews.delete(id); }
   async answerButtons() { return parseAnswerButtons(this.answerButtonsSetting); }
   async saveAnswerButtons(choice: AnswerButtons) { this.answerButtonsSetting = choice; }
+  async swipeToRate() { return this.swipeToRateSetting; }
+  async saveSwipeToRate(on: boolean) { this.swipeToRateSetting = on; }
   async listReviews(since: Date) {
     return [...this.reviews.values()]
       .filter((r) => new Date(r.reviewedAt) >= since)
       .sort((a, b) => a.reviewedAt.localeCompare(b.reviewedAt));
-  }
-  async studiedToday(now: Date, dayStartsAtHour: number) {
-    const start = studyDayStart(now, dayStartsAtHour).getTime();
-    const firsts = new Map<string, Set<string>>();
-    const out = new Map<string, StudiedToday>();
-    for (const r of this.reviews.values()) {
-      if (new Date(r.reviewedAt).getTime() < start) continue;
-      const deck = this.notes.get(this.cards.get(r.cardId)?.noteId ?? '')?.deck;
-      if (!deck) continue;
-      const s = out.get(deck) ?? { introduced: 0, reviewed: 0 };
-      if (r.state === 0) (firsts.get(deck) ?? firsts.set(deck, new Set()).get(deck)!).add(r.cardId);
-      if (r.state === 2) s.reviewed++;
-      s.introduced = firsts.get(deck)?.size ?? 0;
-      if (r.state === 0 || r.state === 2) out.set(deck, s);
-    }
-    return out;
   }
   async saveDeckParams(params: Map<string, DeckParams>) {
     for (const [deck, p] of params) this.deckParams.set(deck, p);

@@ -5,8 +5,9 @@ import { groupByDeck, inProgressCount } from '../core/deckTree';
 import { GURU_INTERVAL_DAYS, parseGateCap } from '../core/progress';
 import type { DeckSettings } from '../core/types';
 import type { Repo } from '../db/repo';
+import { haptic } from './haptics';
 import { Card, Help, Screen } from './kit';
-import { radius, space, type, useTheme } from './theme';
+import { hairline, radius, smooth, space, type, useTheme } from './theme';
 
 /** Settings made in the app for one deck: so far, the progress gate. */
 export function DeckOptions({ repo, deck, onDone }: { repo: Repo; deck: string; onDone: () => void }) {
@@ -35,6 +36,7 @@ export function DeckOptions({ repo, deck, onDone }: { repo: Repo; deck: string; 
 
   const toggle = (on: boolean) => {
     if (!settings) return;
+    haptic.select();
     if (!on) { save({ ...settings, gateCap: undefined }); setError(undefined); return; }
     const parsed = parseGateCap(capText);
     save({ ...settings, gateCap: 'cap' in parsed ? parsed.cap : DEFAULT_GATE_CAP });
@@ -65,7 +67,7 @@ export function DeckOptions({ repo, deck, onDone }: { repo: Repo; deck: string; 
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
             <Text style={{ ...type.headline, color: c.text, flex: 1 }}>Limit cards in progress</Text>
-            <Switch value={on} onValueChange={toggle} disabled={!settings} trackColor={{ true: c.accent }} accessibilityLabel="Limit cards in progress" />
+            <Switch value={on} onValueChange={toggle} disabled={!settings} trackColor={{ true: c.accent, false: c.border }} ios_backgroundColor={c.border} accessibilityLabel="Limit cards in progress" />
           </View>
           <Help>
             Show new cards only while fewer than this many cards in this deck and its subdecks are still in progress. A card
@@ -73,7 +75,7 @@ export function DeckOptions({ repo, deck, onDone }: { repo: Repo; deck: string; 
             While this is on, the deck's daily new card limit doesn't apply.
           </Help>
           {on ? (
-            <View style={{ gap: space.xs, borderTopWidth: 1, borderTopColor: c.border, paddingTop: space.m }}>
+            <View style={{ gap: space.xs, borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.m }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
                 <Text style={{ ...type.body, color: c.text, flex: 1 }}>Most cards in progress</Text>
                 <TextInput
@@ -85,7 +87,7 @@ export function DeckOptions({ repo, deck, onDone }: { repo: Repo; deck: string; 
                   accessibilityLabel="Most cards in progress"
                   style={{
                     ...type.body, color: c.text, backgroundColor: c.fill,
-                    borderColor: error ? c.danger : 'transparent', borderWidth: 1, borderRadius: radius.s,
+                    borderColor: error ? c.danger : 'transparent', borderWidth: 1.5, borderRadius: radius.m, ...smooth,
                     paddingHorizontal: space.m, paddingVertical: space.s, minWidth: 88, textAlign: 'right',
                   }}
                 />

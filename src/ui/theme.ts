@@ -1,4 +1,4 @@
-import { useColorScheme } from 'react-native';
+import { StyleSheet, useColorScheme } from 'react-native';
 
 /**
  * The design tokens. Screens take every color, gap, corner and text size from here, never a
@@ -43,8 +43,9 @@ const light = {
   onSpeakerB: '#24563f',
   /** Behind a word that isn't in the deck, when Read & Listen highlights them. */
   highlight: '#fbe2b0',
-  /** Under a popover that floats over the page. */
-  shadow: 'rgba(27, 27, 27, 0.18)',
+  /** A soft drop shadow under a raised surface (the review card). Near-invisible on dark, so it's heavier there. */
+  shadow: '#2a2113',
+  shadowOpacity: 0.08,
 };
 
 const dark: typeof light = {
@@ -73,7 +74,8 @@ const dark: typeof light = {
   speakerB: '#22392f',
   onSpeakerB: '#9fd6bb',
   highlight: '#4d3a14',
-  shadow: 'rgba(0, 0, 0, 0.6)',
+  shadow: '#000000',
+  shadowOpacity: 0.45,
 };
 
 export type Colors = typeof light;
@@ -85,14 +87,33 @@ export function useTheme(): Colors {
 /** Spacing, doubling-ish from 4. Use these for padding, margin and gap. */
 export const space = { xs: 4, s: 8, m: 12, l: 16, xl: 24, xxl: 32 } as const;
 
-export const radius = { s: 8, m: 12, l: 16, pill: 999 } as const;
+export const radius = { s: 8, m: 12, l: 16, xl: 22, pill: 999 } as const;
+
+/**
+ * Spread into any rounded box. iOS's own corners are continuous curves, not circular arcs; the
+ * difference is small and is the first thing that makes a rounded rectangle look hand-made.
+ */
+export const smooth = { borderCurve: 'continuous' } as const;
+
+/** The thinnest line the screen can draw: a row separator or the edge of a group. */
+export const hairline = StyleSheet.hairlineWidth;
+
+/** A raised surface's shadow, from the theme's two shadow tokens. */
+export function lift(c: Colors, depth: 'low' | 'high' = 'low') {
+  return {
+    shadowColor: c.shadow,
+    shadowOpacity: c.shadowOpacity * (depth === 'high' ? 1.5 : 1),
+    shadowRadius: depth === 'high' ? 18 : 8,
+    shadowOffset: { width: 0, height: depth === 'high' ? 6 : 2 },
+  } as const;
+}
 
 /**
  * Text sizes, after iOS's own text styles. Text still grows with the system text size, so a
  * box holding text never gets a fixed height: give it padding or a minHeight instead.
  */
 export const type = {
-  largeTitle: { fontSize: 32, fontWeight: '700' },
+  largeTitle: { fontSize: 34, fontWeight: '700', letterSpacing: 0.4 },
   title: { fontSize: 22, fontWeight: '700' },
   headline: { fontSize: 17, fontWeight: '600' },
   body: { fontSize: 17 },
@@ -100,6 +121,8 @@ export const type = {
   subhead: { fontSize: 15 },
   footnote: { fontSize: 13 },
   caption: { fontSize: 12 },
+  /** A small all-caps label over a group or a field on a card. */
+  overline: { fontSize: 12, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase' },
   /** The word or question on a card. */
   cardFront: { fontSize: 34, fontWeight: '600' },
   cardBack: { fontSize: 26, fontWeight: '600' },

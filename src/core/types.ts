@@ -43,7 +43,23 @@ export interface Card {
    * written back to that card in the kept collection (src/anki/writeback.ts).
    */
   ankiId?: string;
+  /**
+   * When Anki buried the card (its `mod` time, ISO), if it's buried: held back until the next
+   * study day, as Anki does with a card's siblings once one is answered. `isBuried` (queue.ts)
+   * decides; a card buried on an earlier day is studied as usual.
+   */
+  buriedAt?: string;
   sched: SchedState;
+}
+
+/**
+ * Which of a card's siblings (the other cards of its note) are held back until the next study day
+ * once it's answered: the Anki preset's Burying options.
+ */
+export interface BurySettings {
+  new: boolean;
+  reviews: boolean;
+  interdayLearning: boolean;
 }
 
 /** A deck's study settings, from its Anki preset: FSRS parameters and daily limits. */
@@ -56,6 +72,8 @@ export interface DeckParams {
   /** Daily limits from the Anki preset. Missing means the app's defaults (`src/core/config.ts`). */
   newPerDay?: number;
   reviewsPerDay?: number;
+  /** Missing (a deck with no Anki preset) buries nothing. */
+  bury?: BurySettings;
 }
 
 export interface ReviewLogEntry {

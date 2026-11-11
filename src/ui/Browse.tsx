@@ -3,9 +3,9 @@ import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../anki/noteService';
 import { notePreview, searchNotes } from '../core/noteEditing';
 import type { Note } from '../core/types';
-import { Chip, Field, HeaderAction, Screen } from './kit';
+import { Chip, IconAction, Screen, SearchField } from './kit';
 import { NoteEditor } from './NoteEditor';
-import { space, type, useTheme } from './theme';
+import { hairline, space, type, useTheme } from './theme';
 
 /**
  * Every note, searchable and narrowed to a top-level deck; tap one to edit it, or Add a new one.
@@ -25,9 +25,9 @@ export function Browse({ repo, onDone }: { repo: NoteStore; onDone: () => void }
   const found = useMemo(() => (notes ? searchNotes(notes, query, scope) : []), [notes, query, scope]);
 
   return (
-    <Screen onBack={onDone} title="Browse" right={<HeaderAction label="Add" onPress={() => setEditing({ deck: scope })} accessibilityLabel="Add a note" />}>
+    <Screen onBack={onDone} title="Browse" right={<IconAction name="plus" label="Add a note" onPress={() => setEditing({ deck: scope })} />}>
       <View style={{ paddingHorizontal: space.l, gap: space.s, paddingBottom: space.s }}>
-        <Field label="Search" value={query} onChangeText={setQuery} placeholder="Words in a note, a tag or a deck" autoCapitalize="none" autoCorrect={false} clearButtonMode="while-editing" returnKeyType="search" />
+        <SearchField label="Search" value={query} onChangeText={setQuery} placeholder="Words in a note, a tag or a deck" autoCapitalize="none" autoCorrect={false} returnKeyType="search" />
         {tops.length > 1 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.s }} keyboardShouldPersistTaps="handled">
             {[null, ...tops].map((d) => <Chip key={d ?? '*'} label={d ?? 'All decks'} selected={scope === d} onPress={() => setScope(d)} />)}
@@ -46,7 +46,7 @@ export function Browse({ repo, onDone }: { repo: NoteStore; onDone: () => void }
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets
         contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l }}
-        ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: c.border }} />}
+        ItemSeparatorComponent={() => <View style={{ height: hairline, backgroundColor: c.border }} />}
         renderItem={({ item }) => <NoteRow note={item} onPress={() => setEditing({ noteId: item.id })} />}
       />
       {editing ? (

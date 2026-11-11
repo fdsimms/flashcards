@@ -4,7 +4,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, AppState, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from './src/core/config';
+import { studyDayStart } from './src/core/day';
 import { deckLimits, deckRows, groupByDeck, type DeckRow } from './src/core/deckTree';
+import { studiedToday } from './src/core/queue';
 import { paramsForDeck } from './src/core/scheduler';
 import { backupStatus } from './src/db/backup';
 import type { Repo } from './src/db/repo';
@@ -19,6 +21,7 @@ import { Browse } from './src/ui/Browse';
 import { Settings } from './src/ui/Settings';
 import { Stats } from './src/ui/Stats';
 import { SyncSettings } from './src/ui/SyncSettings';
+import { ScreenTransition } from './src/ui/motion';
 import { useTheme } from './src/ui/theme';
 import { useSync } from './src/ui/useSync';
 import { syncStatusText } from './src/anki/sync/runSync';
@@ -43,6 +46,24 @@ type Screen =
 
 const READ_SCREENS = new Set<Screen['name']>(['read', 'reader', 'readPast', 'readWords', 'readGrammar']);
 
+/**
+ * How deep a screen sits in the app (the deck list is 0), so moving to a deeper one slides in
+ * from the right and moving to a shallower one slides in from the left.
+ */
+function depthOf(s: Screen): number {
+  switch (s.name) {
+    case 'decks': return 0;
+    case 'settings': case 'browse': case 'review': case 'deckOptions': return 1;
+    case 'anki': case 'backup': return s.from === 'settings' ? 2 : 1;
+    case 'stats': return 2;
+    case 'sync': return (s.from === 'settings' ? 2 : 1) + 1;
+    case 'read': return 1;
+    case 'readPast': case 'readWords': case 'readGrammar': return 2;
+    case 'reader': return s.source.kind === 'past' ? 3 : 2;
+    case 'readSettings': return s.from === 'settings' ? 2 : 1;
+  }
+}
+
 export default function App() {
   const c = useTheme();
   const [repo, setRepo] = useState<(Repo & BackupStore & AnkiLink) | null>(null);
@@ -50,6 +71,10 @@ export default function App() {
   const [decks, setDecks] = useState<DeckRow[]>([]);
   const [backup, setBackup] = useState<{ text: string; overdue: boolean }>();
   const [ankiUnsent, setAnkiUnsent] = useState(0);
+  const depth = depthOf(screen);
+  const previousDepth = useRef(depth);
+  const direction = Math.sign(depth - previousDepth.current) as -1 | 0 | 1;
+  useEffect(() => { previousDepth.current = depth; }, [depth]);
 
   useEffect(() => { openRepo().then(setRepo); }, []);
   // Card audio plays with the ring/silent switch on: it only ever plays because you opened a card
@@ -61,10 +86,13 @@ export default function App() {
   const refresh = useCallback(async () => {
     if (!repo) return;
     const now = new Date();
-    const [notes, cards, allParams, studiedByDeck, lastBackup, settings] = await Promise.all([
-      repo.listNotes(), repo.listCards(), repo.listDeckParams(), repo.studiedToday(now, DAY_STARTS_AT_HOUR), repo.lastBackupAt(),
-      repo.listDeckSettings(),
+    const dayStart = studyDayStart(now, DAY_STARTS_AT_HOUR);
+    const [notes, cards, allParams, reviews, revlog, lastBackup, settings] = await Promise.all([
+      repo.listNotes(), repo.listCards(), repo.listDeckParams(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
+      repo.lastBackupAt(), repo.listDeckSettings(),
     ]);
+    // Every answer given today, here or in Anki on another device (synced), counts toward the limits.
+    const studiedByDeck = studiedToday({ notes, cards, reviews, revlog, now, dayStartsAtHour: DAY_STARTS_AT_HOUR });
     const deckOf = new Map(notes.map((n) => [n.id, n.deck]));
     setDecks(deckRows({
       cardsByDeck: groupByDeck(cards, deckOf),
@@ -127,6 +155,9 @@ export default function App() {
   return (
     // The safe-area insets every Screen pads itself by (status bar, Dynamic Island, home indicator).
     <SafeAreaProvider>
+      {/* The theme's background behind every screen, so a sliding one never shows white (or black) past its edge. */}
+      <View style={{ flex: 1, backgroundColor: c.bg }}>
+      <ScreenTransition key={screen.name} direction={direction}>
       {screen.name === 'decks' && (
         <DeckList decks={decks} backup={backup} ankiUnsent={ankiUnsent} onOpen={(deck) => setScreen({ name: 'review', deck })} onImport={() => setScreen({ name: 'anki', from: 'decks' })}
           onBackup={() => setScreen({ name: 'backup', from: 'decks' })}
@@ -191,6 +222,8 @@ export default function App() {
       )}
       {readerApi && screen.name === 'readWords' && <ReadWords api={readerApi} onDone={() => setScreen({ name: 'read' })} />}
       {readerApi && screen.name === 'readGrammar' && <ReadGrammar api={readerApi} onDone={() => setScreen({ name: 'read' })} />}
+      </ScreenTransition>
+      </View>
       <StatusBar style="auto" />
     </SafeAreaProvider>
   );

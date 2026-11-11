@@ -75,7 +75,7 @@ export function SyncSettings(props: {
               added in Anki come down with each sync.
             </Help>
             <Button label="Sync now" onPress={syncNow} busy={props.syncing} />
-            <Button label="Turn off sync" variant="secondary" onPress={turnOff} disabled={props.syncing} />
+            <Button label="Turn off sync" variant="destructive" onPress={turnOff} disabled={props.syncing} />
           </Card>
         ) : (
           <Card>

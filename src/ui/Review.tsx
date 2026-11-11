@@ -1,14 +1,16 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, useColorScheme, View } from 'react-native';
+import { Alert, Animated, Easing, PanResponder, Pressable, ScrollView, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
 import { isOmnilanguage, renderCard } from '../core/cards';
 import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from '../core/config';
 import { deckLimits, groupByDeck, isInDeck, treeQueue } from '../core/deckTree';
-import { nextLearningDue, type StudiedToday } from '../core/queue';
+import { studyDayStart } from '../core/day';
+import { nextLearningDue, siblingsToBury, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { paramsForDeck, previewIntervals, review, type RatingValue } from '../core/scheduler';
-import { bumpStudied, currentCard, type AnswerRecord } from '../core/session';
+import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../core/session';
+import { durationText } from '../core/stats';
 import { cardDocument, renderTemplateCard } from '../core/template';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
 import type { AnkiUndo } from '../anki/writeback';
@@ -17,8 +19,10 @@ import type { Repo } from '../db/repo';
 import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
 import { CardWebView } from './CardWebView';
 import { NoteEditor } from './NoteEditor';
-import { Button, Count, HeaderAction, Screen } from './kit';
-import { MIN_TAP, radius, space, type, useTheme } from './theme';
+import { haptic } from './haptics';
+import { Button, Count, Icon, IconAction, Screen, Tappable } from './kit';
+import { Reveal, useReduceMotion } from './motion';
+import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
  * One side of a natively rendered card: the word or question large and centered, the details
@@ -31,7 +35,7 @@ function Side({ side, which }: { side: RenderedSide; which: 'front' | 'back' }) 
       {side.blocks.map((b, i) => (
         <View key={i} style={{ gap: space.xs }}>
           {b.label ? (
-            <Text style={{ ...type.caption, fontWeight: '600', color: c.accent, letterSpacing: 0.8, textTransform: 'uppercase' }}>{b.label}</Text>
+            <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text>
           ) : null}
           <Text
             style={b.emphasis
@@ -42,6 +46,119 @@ function Side({ side, which }: { side: RenderedSide; which: 'front' | 'back' }) 
           </Text>
         </View>
       ))}
+    </View>
+  );
+}
+
+/** The card itself: a raised sheet that fills the space between the header and the buttons. */
+function CardSurface({ children }: { children: React.ReactNode }) {
+  const c = useTheme();
+  return (
+    <View
+      style={{
+        flex: 1, marginHorizontal: space.l, marginTop: space.s, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
+        backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, ...lift(c),
+      }}
+    >
+      {/* Clipped inside the shadow's box: a view that clips can't also cast one. */}
+      <View style={{ flex: 1, borderRadius: radius.xl, ...smooth, overflow: 'hidden' }}>{children}</View>
+    </View>
+  );
+}
+
+/** How far through the session is, as a thin line under the header. */
+function ProgressBar({ value }: { value: number }) {
+  const c = useTheme();
+  const reduce = useReduceMotion();
+  const v = useRef(new Animated.Value(value)).current;
+  useEffect(() => {
+    // Width can't use the native driver; the bar is one view, so the JS-driven animation is cheap.
+    Animated.timing(v, { toValue: value, duration: reduce ? 0 : 320, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  }, [value, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel="Progress through this session"
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(value * 100) }}
+      style={{ height: 4, marginHorizontal: space.l, marginTop: space.xs, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }}
+    >
+      <Animated.View style={{ height: 4, borderRadius: 2, backgroundColor: c.accent, width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'], extrapolate: 'clamp' }) }} />
+    </View>
+  );
+}
+
+/**
+ * The card sheet, draggable sideways once it's revealed when swiping is on: it follows the finger,
+ * tints toward the answer it would give (right Good, left Again), and flies off when let go past
+ * the line. Only a rating the answer buttons show can be given (`swipeRating`).
+ */
+function SwipeCard({ enabled, shown, onRate, children }: { enabled: boolean; shown: RatingValue[]; onRate: (r: RatingValue) => Promise<void>; children: React.ReactNode }) {
+  const c = useTheme();
+  const { width } = useWindowDimensions();
+  const x = useRef(new Animated.Value(0)).current;
+  // The responder is made once, so it reads the latest props from here.
+  const latest = useRef({ enabled, shown, onRate, width });
+  latest.current = { enabled, shown, onRate, width };
+  const crossed = useRef(false);
+  const back = () => Animated.spring(x, { toValue: 0, useNativeDriver: false, speed: 20, bounciness: 6 }).start();
+  const responder = useRef(
+    PanResponder.create({
+      // Claim only a clearly horizontal drag, so the card's own text still scrolls vertically.
+      onMoveShouldSetPanResponder: (_, g) => latest.current.enabled && Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+      onPanResponderMove: (_, g) => {
+        x.setValue(g.dx);
+        const past = swipeRating(g.dx, 0, latest.current.shown) !== null;
+        if (past !== crossed.current) { crossed.current = past; if (past) haptic.select(); }
+      },
+      onPanResponderRelease: (_, g) => {
+        crossed.current = false;
+        const rating = swipeRating(g.dx, g.vx, latest.current.shown);
+        if (!rating) { back(); return; }
+        Animated.timing(x, { toValue: Math.sign(g.dx) * latest.current.width * 1.2, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: false }).start(async () => {
+          await latest.current.onRate(rating);
+          x.setValue(0);
+        });
+      },
+      onPanResponderTerminate: () => { crossed.current = false; back(); },
+    }),
+  ).current;
+  const tint = (from: number, to: number) => x.interpolate({ inputRange: [from, to].sort((a, b) => a - b), outputRange: from < to ? [0, 0.22] : [0.22, 0], extrapolate: 'clamp' });
+  return (
+    <Animated.View
+      {...responder.panHandlers}
+      style={{ flex: 1, transform: [{ translateX: x }, { rotate: x.interpolate({ inputRange: [-300, 0, 300], outputRange: ['-5deg', '0deg', '5deg'], extrapolate: 'clamp' }) }] }}
+    >
+      <CardSurface>
+        {children}
+        {/* Tints and words that ramp in as the card is dragged: the answer it would give. */}
+        <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: c.good, opacity: tint(0, SWIPE_DISTANCE) }} />
+        <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: c.again, opacity: tint(0, -SWIPE_DISTANCE) }} />
+        <Animated.Text pointerEvents="none" style={{ ...type.title, position: 'absolute', top: space.l, left: space.xl, color: c.good, opacity: tint(0, SWIPE_DISTANCE).interpolate({ inputRange: [0, 0.22], outputRange: [0, 1] }) }}>Good</Animated.Text>
+        <Animated.Text pointerEvents="none" style={{ ...type.title, position: 'absolute', top: space.l, right: space.xl, color: c.again, opacity: tint(0, -SWIPE_DISTANCE).interpolate({ inputRange: [0, 0.22], outputRange: [0, 1] }) }}>Again</Animated.Text>
+      </CardSurface>
+    </Animated.View>
+  );
+}
+
+/** What this session did, shown when the queue is empty: cards answered, time, and how many were Again. */
+function SessionSummary({ history }: { history: AnswerRecord[] }) {
+  const c = useTheme();
+  const { answered, again, takenMs } = sessionSummary(history);
+  const tile = (value: string, label: string) => (
+    <View style={{ flex: 1, alignItems: 'center', gap: 2 }}>
+      <Text style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{value}</Text>
+      <Text style={{ ...type.footnote, color: c.textSecondary }}>{label}</Text>
+    </View>
+  );
+  return (
+    <View
+      accessible
+      accessibilityLabel={`This session: ${answered} ${answered === 1 ? 'card' : 'cards'}, ${durationText(takenMs)}, ${again} answered Again`}
+      style={{ flexDirection: 'row', alignSelf: 'stretch', marginTop: space.xl, paddingVertical: space.l, borderRadius: radius.l, ...smooth, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border }}
+    >
+      {tile(String(answered), answered === 1 ? 'card' : 'cards')}
+      {tile(durationText(takenMs), 'studying')}
+      {tile(String(again), 'Again')}
     </View>
   );
 }
@@ -61,6 +178,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
   const [answerButtons, setAnswerButtons] = useState<AnswerButtons>('all');
+  const [swipeOn, setSwipeOn] = useState(false);
   // Bumped after the note editor saves or deletes, to load the cards and notes again.
   const [reloads, setReloads] = useState(0);
   const [editingNote, setEditingNote] = useState<string | null>(null);
@@ -76,12 +194,16 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
 
   useEffect(() => {
     (async () => {
-      const [c, n, today, params, types, settings, buttons] = await Promise.all([
+      const now = new Date();
+      const dayStart = studyDayStart(now, DAY_STARTS_AT_HOUR);
+      const [c, n, reviews, revlog, params, types, settings, buttons, swipe] = await Promise.all([
         // Every card, not only this deck's: a gate on a deck above this one counts its whole subtree.
-        repo.listCards(), repo.listNotes(), repo.studiedToday(new Date(), DAY_STARTS_AT_HOUR),
-        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(),
+        repo.listCards(), repo.listNotes(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
+        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(), repo.swipeToRate(),
       ]);
+      const today = studiedToday({ notes: n, cards: c, reviews, revlog, now, dayStartsAtHour: DAY_STARTS_AT_HOUR });
       setAnswerButtons(buttons);
+      setSwipeOn(swipe);
       setDeckSettings(settings);
       setAllParams(params);
       setNoteTypes(types);
@@ -162,11 +284,16 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   const answer = async (rating: RatingValue) => {
     if (!current || !note || busy.current) return;
     busy.current = true;
+    haptic.answer();
     try {
       const when = new Date();
       const res = review(current.sched, rating, when, cardParams);
-      const updated: Card = { ...current, sched: res.sched };
+      const updated: Card = { ...current, sched: res.sched, buriedAt: undefined };
+      // The note's other cards that its preset holds back until tomorrow, as Anki does.
+      const siblings = siblingsToBury(current, cards ?? [], cardParams?.bury, when, DAY_STARTS_AT_HOUR);
+      const buried = siblings.map((s): Card => ({ ...s, buriedAt: when.toISOString() }));
       await repo.saveCard(updated);
+      for (const b of buried) await repo.saveCard(b);
       const reviewId = await repo.addReview({ cardId: current.id, ...res.log });
       // Into the kept Anki collection too, so "Send to Anki" carries this answer. If that write
       // fails, the answer still counts here, and you're told rather than it going missing.
@@ -174,7 +301,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       try {
         anki = await repo.writeAnkiAnswer({
           before: current, after: updated, rating, now: when,
-          takenMs: when.getTime() - shownAt.current, desiredRetention: cardParams?.desiredRetention,
+          takenMs: when.getTime() - shownAt.current, desiredRetention: cardParams?.desiredRetention, bury: siblings,
         });
       } catch (e: any) {
         if (!warnedAnki.current) {
@@ -185,11 +312,13 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
           );
         }
       }
-      const record: AnswerRecord = { before: current, reviewId, deck: note.deck, anki };
+      // Capped at a minute, as Anki's maximum answer time is, so a phone put down mid-card doesn't swell the summary.
+      const record: AnswerRecord = { before: current, reviewId, deck: note.deck, anki, buried: siblings, rating, takenMs: Math.min(when.getTime() - shownAt.current, 60000) };
       setStudied((s) => bumpStudied(s, record.deck, record.before.sched.state, 1));
       setHistory((h) => [...h, record]);
       // Functional update: `cards` from this render's closure is stale once the awaits return.
-      setCards((prev) => prev && prev.map((c) => (c.id === updated.id ? updated : c)));
+      const changed = new Map([updated, ...buried].map((c) => [c.id, c]));
+      setCards((prev) => prev && prev.map((c) => changed.get(c.id) ?? c));
       setPreferId(undefined);
       setRevealed(false);
       setNow(when);
@@ -202,6 +331,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
     const last = history[history.length - 1];
     if (!last || busy.current) return;
     busy.current = true;
+    haptic.tap();
     try {
       // Out of the Anki collection first: a synced answer is in the server's history, and taking
       // it back here alone would leave the two disagreeing. As in Anki, undo stops at the last sync.
@@ -211,10 +341,12 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
         return;
       }
       await repo.saveCard(last.before);
+      for (const s of last.buried) await repo.saveCard(s);
       await repo.deleteReview(last.reviewId);
       setHistory((h) => h.slice(0, -1));
       setStudied((s) => bumpStudied(s, last.deck, last.before.sched.state, -1));
-      setCards((prev) => prev && prev.map((c) => (c.id === last.before.id ? last.before : c)));
+      const restored = new Map([last.before, ...last.buried].map((c) => [c.id, c]));
+      setCards((prev) => prev && prev.map((c) => restored.get(c.id) ?? c));
       setPreferId(last.before.id);
       setRevealed(false);
       setNow(new Date());
@@ -226,7 +358,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   // Out of cards with a learning card still to come: wake when it's within the learn-ahead limit
   // instead of declaring the deck done, which left it waiting until the deck was reopened.
   const waitingFor = !current && cards
-    ? nextLearningDue(cards.filter((c) => isInDeck(deckOf.get(c.noteId) ?? '', deck)))
+    ? nextLearningDue(cards.filter((c) => isInDeck(deckOf.get(c.noteId) ?? '', deck)), { dayStartsAtHour: DAY_STARTS_AT_HOUR })
     : undefined;
   useEffect(() => {
     if (!waitingFor) return;
@@ -235,26 +367,33 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
     return () => clearTimeout(id);
   }, [waitingFor?.getTime()]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Clearing the deck by answering its last card is worth a tap; opening one with nothing due isn't.
+  const cleared = !!cards && !current && !waitingFor && history.length > 0;
+  useEffect(() => { if (cleared) haptic.success(); }, [cleared]);
+
   if (!cards) return <Screen onBack={onDone}><View /></Screen>;
 
-  const undoAction = history.length ? <HeaderAction label="Undo" onPress={undo} accessibilityLabel="Undo the last answer" /> : undefined;
+  const undoAction = history.length ? <IconAction name="arrow.uturn.backward" label="Undo the last answer" onPress={undo} /> : undefined;
 
   if (!current || !note || (!rendered && !page)) {
     const minutes = waitingFor ? Math.max(1, Math.ceil((waitingFor.getTime() - Date.now()) / 60000) - LEARN_AHEAD_MINUTES) : 0;
     return (
       <Screen onBack={onDone} right={undoAction} footer={<Button label="Back to decks" onPress={onDone} />}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
-          <Text style={{ ...type.title, color: c.text, textAlign: 'center' }}>
+        <Reveal style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
+          <Icon name={waitingFor ? 'clock' : 'checkmark.circle.fill'} size={56} color={waitingFor ? c.textTertiary : c.countDue} weight="regular" />
+          <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>
             {waitingFor ? 'Nothing due right now' : 'All done for now'}
           </Text>
           <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>
             {waitingFor ? `The next card comes back in about ${minutes} min.` : 'Nothing else is due in this deck today.'}
           </Text>
-        </View>
+          {history.length ? <SessionSummary history={history} /> : null}
+        </Reveal>
       </Screen>
     );
   }
 
+  const reveal = () => { setRevealed(true); if (rendered?.back.speak) speak(rendered.back.speak); };
   const shown = ratingsShown(answerButtons);
   const buttons = ([
     { r: 1, label: 'Again', color: c.again },
@@ -264,42 +403,37 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   ] as { r: RatingValue; label: string; color: string }[]).filter((b) => shown.includes(b.r));
 
   const footer = revealed ? (
-    <View style={{ flexDirection: 'row', gap: space.s }}>
+    <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
       {buttons.map((b) => (
-        <Pressable
+        <Tappable
           key={b.r}
           onPress={() => answer(b.r)}
           accessibilityRole="button"
           accessibilityLabel={`${b.label}, next in ${intervals?.[b.r] ?? ''}`}
-          style={({ pressed }) => ({
-            flex: 1, minHeight: 56, borderRadius: radius.m, paddingVertical: space.s,
-            alignItems: 'center', justifyContent: 'center', gap: 2,
-            backgroundColor: b.color, opacity: pressed ? 0.75 : 1,
-          })}
+          scaleTo={0.95}
+          dimTo={0.85}
+          style={{
+            flex: 1, minHeight: 60, borderRadius: radius.m + 2, ...smooth, paddingVertical: space.s,
+            alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: b.color,
+          }}
         >
           {/* The interval sits above the label, as in Anki, so the eye lands on when it's next due. */}
-          <Text style={{ ...type.caption, color: c.onRating, opacity: 0.85 }}>{intervals?.[b.r]}</Text>
+          <Text style={{ ...type.caption, color: c.onRating, opacity: 0.85, fontVariant: ['tabular-nums'] }}>{intervals?.[b.r]}</Text>
           <Text style={{ ...type.headline, color: c.onRating }}>{b.label}</Text>
-        </Pressable>
+        </Tappable>
       ))}
-    </View>
+    </Reveal>
   ) : (
-    <Button label="Show answer" onPress={() => { setRevealed(true); if (rendered?.back.speak) speak(rendered.back.speak); }} />
+    <Button label="Show answer" onPress={reveal} />
   );
 
   return (
     <Screen
       onBack={onDone}
       right={
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-          {queue ? (
-            <View style={{ flexDirection: 'row', gap: space.m, paddingHorizontal: space.s }}>
-              <Count value={queue.due.length} label="due" color={c.countDue} />
-              <Count value={queue.fresh.length} label="new" color={c.countNew} />
-            </View>
-          ) : null}
-          <HeaderAction label="Edit" onPress={() => setEditingNote(note.id)} accessibilityLabel="Edit this card's note" />
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {undoAction}
+          <IconAction name="pencil" label="Edit this card's note" onPress={() => setEditingNote(note.id)} />
         </View>
       }
       footer={footer}
@@ -318,33 +452,53 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
           }}
         />
       ) : null}
-      {page ? (
-        <View style={{ flex: 1, marginHorizontal: space.l, marginTop: space.s, borderRadius: radius.l, overflow: 'hidden', backgroundColor: c.surface, borderWidth: 1, borderColor: c.border }}>
-          <CardWebView key={`${current.id}:${revealed ? 'back' : 'front'}`} html={revealed ? page.back : page.front} />
+      {queue ? (
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
+          <Count value={queue.due.length} label="due" color={c.countDue} />
+          <Count value={queue.fresh.length} label="new" color={c.countNew} />
         </View>
+      ) : null}
+      {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} /> : null}
+      {page ? (
+        <CardSurface>
+          <CardWebView key={`${current.id}:${revealed ? 'back' : 'front'}`} html={revealed ? page.back : page.front} />
+        </CardSurface>
       ) : rendered ? (
-        <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
-          <Side side={rendered.front} which="front" />
-          {rendered.front.speak || rendered.back.speak ? (
-            <Pressable
-              onPress={() => speak(rendered.back.speak ?? rendered.front.speak)}
-              accessibilityRole="button"
-              accessibilityLabel="Play the word"
-              style={({ pressed }) => ({
-                alignSelf: 'center', minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.l,
-                borderRadius: radius.pill, backgroundColor: c.fill, opacity: pressed ? 0.6 : 1,
-              })}
-            >
-              <Text style={{ ...type.callout, color: c.accent }}>🔊 Play</Text>
-            </Pressable>
-          ) : null}
-          {revealed ? (
-            <>
-              <View style={{ height: 1, backgroundColor: c.border }} />
-              <Side side={rendered.back} which="back" />
-            </>
-          ) : null}
-        </ScrollView>
+        <SwipeCard enabled={swipeOn && revealed} shown={shown} onRate={answer}>
+          {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
+          <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
+          <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
+            {/* Keyed to the card, so each new one fades in rather than swapping. */}
+            <Reveal key={current.id} rise={10} style={{ gap: space.xl }}>
+              <Side side={rendered.front} which="front" />
+              {rendered.front.speak || rendered.back.speak ? (
+                <Tappable
+                  onPress={() => { haptic.tap(); speak(rendered.back.speak ?? rendered.front.speak); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Play the word"
+                  scaleTo={0.94}
+                  style={{
+                    alignSelf: 'center', minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.s,
+                    paddingHorizontal: space.l, borderRadius: radius.pill, backgroundColor: c.fill,
+                  }}
+                >
+                  <Icon name="speaker.wave.2.fill" size={18} color={c.accent} />
+                  <Text style={{ ...type.callout, color: c.accent, fontWeight: '600' }}>Play</Text>
+                </Tappable>
+              ) : null}
+            </Reveal>
+            {revealed ? (
+              <Reveal rise={8} style={{ gap: space.xl }}>
+                <View style={{ height: hairline, backgroundColor: c.border }} />
+                <Side side={rendered.back} which="back" />
+              </Reveal>
+            ) : null}
+          </ScrollView>
+          </Pressable>
+        </SwipeCard>
+      ) : null}
+      {swipeOn && revealed && rendered ? (
+        <Text style={{ ...type.footnote, color: c.textTertiary, textAlign: 'center' }}>Swipe right for Good, left for Again</Text>
       ) : null}
     </Screen>
   );

@@ -7,7 +7,7 @@ import { grammarSummary } from '../reader/grammar';
 import { ideaPage } from '../reader/ideas';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import { describeProgress } from '../reader/progress';
-import { Button, Card, ErrorNote, Field, HeaderAction, Help, NavRow, Screen, Segments } from './kit';
+import { Button, Card, ErrorNote, Field, Group, HeaderAction, Help, NavRow, Screen, Segments } from './kit';
 import { MIN_TAP, radius, space, type, useTheme } from './theme';
 
 /**
@@ -234,11 +234,11 @@ export function ReadTopics({ api, onOpen, onWords, onPast, onGrammar, onDone }: 
           <Help>New topics start as favorites, so a text is written for them right away.</Help>
         </Card>
 
-        <Card style={{ paddingVertical: 0, gap: 0 }}>
+        <Group>
           <NavRow first label="Past texts" detail="Read or listen to a text again" onPress={onPast} />
           <NavRow label="Marked words" detail={markedCount === null ? undefined : `${markedCount} marked as unknown`} onPress={onWords} />
           {settings ? <NavRow label="Grammar" detail={grammar ?? 'Practice or avoid'} onPress={onGrammar} /> : null}
-        </Card>
+        </Group>
 
         {settings ? (
           <Card>

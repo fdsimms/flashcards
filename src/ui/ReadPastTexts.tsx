@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
 import { ApiError, type Api, type PastText, type Rating } from '../reader/api';
-import { Card, ErrorNote, Help, NavRow, Screen } from './kit';
+import { ErrorNote, Group, Help, NavRow, Screen } from './kit';
 import { space, useTheme } from './theme';
 
 /**
@@ -44,7 +44,7 @@ export function ReadPastTexts({ api, onOpen, onDone }: { api: Api; onOpen: (text
         {texts !== null && texts.length === 0 ? <Help>No past texts yet. Texts you finish show up here, to read or listen to again.</Help> : null}
         {texts !== null && texts.length > 0 ? (
           <>
-            <Card style={{ paddingVertical: 0, gap: 0 }}>
+            <Group>
               {texts.map((t, i) => (
                 <NavRow
                   key={t.id}
@@ -54,7 +54,7 @@ export function ReadPastTexts({ api, onOpen, onDone }: { api: Api; onOpen: (text
                   onPress={() => onOpen(t)}
                 />
               ))}
-            </Card>
+            </Group>
             <Help>Reading a text again isn't logged and doesn't change how hard new texts are.</Help>
           </>
         ) : null}

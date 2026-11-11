@@ -146,6 +146,7 @@ export function NoteEditor(props: {
       <Screen
         onBack={cancel}
         backLabel="Cancel"
+        noBackChevron
         title={editing ? 'Edit note' : 'Add note'}
         right={<HeaderAction label={busy ? 'Saving…' : 'Save'} onPress={save} accessibilityLabel="Save the note" />}
       >
@@ -201,7 +202,7 @@ export function NoteEditor(props: {
             {' '}Select text in a field to make it bold, italic or underlined, or take its formatting away. A field with
             formatting shows how it will look underneath.
           </Help>
-          {editing ? <Button label="Delete note" variant="secondary" onPress={remove} disabled={busy} /> : null}
+          {editing ? <Button label="Delete note" variant="destructive" onPress={remove} disabled={busy} /> : null}
         </ScrollView>
       </Screen>
     </Modal>

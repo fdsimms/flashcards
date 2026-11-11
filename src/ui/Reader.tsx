@@ -11,7 +11,7 @@ import { RATES } from '../reader/playbackRate';
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
 import { prefs, savePrefs } from '../reader/storage';
 import { Button, Card, ErrorNote, HeaderAction, Help, Screen, Segments } from './kit';
-import { MIN_TAP, radius, space, type, useTheme, type Colors } from './theme';
+import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './theme';
 
 /**
  * The reader: a text split into words by the server, a gloss on tap, audio line by line, and a
@@ -638,7 +638,7 @@ function GlossPopover({ tapped, grammar, flagged, onToggleFlag, onClose }: {
         style={{
           position: 'absolute', top, left, width: popWidth, opacity: popHeight > 0 ? 1 : 0,
           backgroundColor: c.surface, borderColor: c.border, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.l,
-          padding: space.l, gap: space.xs, shadowColor: c.shadow, shadowOpacity: 1, shadowRadius: 15, shadowOffset: { width: 0, height: 8 },
+          padding: space.l, gap: space.xs, ...lift(c, 'high'),
         }}
       >
         <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
