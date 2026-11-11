@@ -28,4 +28,5 @@ export const keptSql = (schema = 'anki') => ({
   colModified: COL_MODIFIED_SQL.replace('UPDATE col', `UPDATE ${schema}.col`),
   unsentSince: `SELECT COUNT(*) AS n FROM ${schema}.revlog WHERE id > ? AND usn = -1`,
   revlogUsn: `SELECT usn FROM ${schema}.revlog WHERE id = ?`,
+  revlogSince: `SELECT id, cid, ease, lastIvl, time, type FROM ${schema}.revlog WHERE id >= ? ORDER BY id`,
 });

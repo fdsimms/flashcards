@@ -123,6 +123,11 @@ export async function syncCollection(db: SyncDb, client: SyncClient, now: () => 
 
       // ---- unchunked: note types, decks, deck options, tags, config ----
       const mine: UnchunkedChanges = { models: [], decks: [[], []], tags: [] };
+      // Tags added here (a note edited or added in Franki), as Anki's changed_tags sends them.
+      if (state.collated) {
+        mine.tags = (await db.all<{ tag: string }>('SELECT tag FROM tags WHERE usn = -1')).map((r) => r.tag);
+        if (mine.tags.length) await db.run('UPDATE tags SET usn = ? WHERE usn = -1', serverUsn);
+      }
       if (localIsNewer) {
         mine.conf = await allConfig(db);
         mine.crt = local.crt;
@@ -210,7 +215,7 @@ function* graveChunks(g: Graves): Generator<Graves> {
 }
 
 /** Whether this connection has Anki's collation, so the collated tables can be written. */
-async function hasUnicase(db: SyncDb): Promise<boolean> {
+export async function hasUnicase(db: SyncDb): Promise<boolean> {
   try {
     return (await db.first<{ ok: number }>("SELECT 'a' = 'A' COLLATE unicase AS ok"))?.ok === 1;
   } catch {
@@ -363,7 +368,7 @@ async function applyUnchunked(db: SyncDb, c: UnchunkedChanges, usn: number, now:
  * takes the case of the nearest parent tag already here ("Polski::odmiana" under "polski" becomes
  * "polski::odmiana"), and starts collapsed. True when it was added.
  */
-async function registerTag(db: SyncDb, tag: string, usn: number): Promise<boolean> {
+export async function registerTag(db: SyncDb, tag: string, usn: number): Promise<boolean> {
   if (await db.first('SELECT tag FROM tags WHERE tag = ?', tag)) return false;
   let name = tag;
   for (let parent = tag; parent.includes('::');) {

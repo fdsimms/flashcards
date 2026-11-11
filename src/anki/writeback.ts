@@ -146,7 +146,7 @@ export function revlogEntry(
   ctx: { id: number; cid: number; previousIvl: number; now: Date; takenMs: number },
 ): AnkiRevlogRow {
   const type = before.sched.state === 2 ? 1 : before.sched.state === 3 ? 2 : 0;
-  const lastIvl = before.sched.state === 2 ? Math.max(1, ctx.previousIvl) : 0;
+  const lastIvl = before.sched.state === 2 ? Math.max(1, ctx.previousIvl) : learningStepIvl(before);
   return {
     id: ctx.id,
     cid: ctx.cid,
@@ -158,6 +158,18 @@ export function revlogEntry(
     time: Math.min(MAX_ANSWER_MS, Math.max(0, Math.round(ctx.takenMs))),
     type,
   };
+}
+
+/**
+ * The interval Anki records as `lastIvl` for a card answered from a learning or relearning step:
+ * that step's length, as negative seconds (rslib's `IntervalKind::InSecs` via
+ * `as_revlog_interval`), so a step 10 minutes after the last answer is -600. Only a new card's
+ * first answer records 0, which is how a review log tells a new card from a learning step.
+ */
+function learningStepIvl(before: Card): number {
+  const s = before.sched;
+  if ((s.state !== 1 && s.state !== 3) || !s.lastReview) return 0;
+  return -Math.max(1, Math.round((new Date(s.due).getTime() - new Date(s.lastReview).getTime()) / 1000));
 }
 
 /** Reads the columns `cardUpdate` needs. One parameter: the Anki card id. */

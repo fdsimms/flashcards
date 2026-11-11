@@ -31,6 +31,11 @@ const light = {
   easy: '#4a80bd',
   /** Text on the four rating buttons. */
   onRating: '#ffffff',
+  /**
+   * A chart's bars (Stats): the accent's gold, stepped to pass the dataviz checks for a data mark
+   * (lightness band, chroma floor, 3:1 against the surface) in each mode.
+   */
+  chart: '#9a7210',
 };
 
 const dark: typeof light = {
@@ -54,6 +59,7 @@ const dark: typeof light = {
   good: '#3d7a52',
   easy: '#3a6ea5',
   onRating: '#ffffff',
+  chart: '#b88d32',
 };
 
 export type Colors = typeof light;

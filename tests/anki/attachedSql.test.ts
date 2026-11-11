@@ -83,6 +83,9 @@ describe('the app\'s SQL against attached Anki collections', () => {
     db.prepare(SQL.revlogDelete).run(undone.id);
     db.exec('COMMIT');
     expect((db.prepare(SQL.unsentSince).get(0) as any).n).toBeGreaterThanOrEqual(1);
+    // Stats read the review log from a time on: the kept answer is there, the undone one isn't.
+    const log = db.prepare(SQL.revlogSince).all(now.getTime() - 1000) as any[];
+    expect(log.map((r) => [r.id, r.cid, r.ease])).toEqual([[kept1.id, kept1.cid, 3]]);
     db.exec('DETACH DATABASE anki');
     db.close();
 

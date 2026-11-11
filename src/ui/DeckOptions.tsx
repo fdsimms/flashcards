@@ -61,7 +61,7 @@ export function DeckOptions({ repo, deck, onDone }: { repo: Repo; deck: string; 
   const name = deck.split('::').pop();
   return (
     <Screen onBack={back} title={name}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
             <Text style={{ ...type.headline, color: c.text, flex: 1 }}>Limit cards in progress</Text>

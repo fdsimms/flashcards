@@ -6,6 +6,7 @@ import { isOmnilanguage, renderCard } from '../core/cards';
 import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from '../core/config';
 import { deckLimits, groupByDeck, isInDeck, treeQueue } from '../core/deckTree';
 import { nextLearningDue, type StudiedToday } from '../core/queue';
+import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { paramsForDeck, previewIntervals, review, type RatingValue } from '../core/scheduler';
 import { bumpStudied, currentCard, type AnswerRecord } from '../core/session';
 import { cardDocument, renderTemplateCard } from '../core/template';
@@ -15,6 +16,7 @@ import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
 import { CardWebView } from './CardWebView';
+import { NoteEditor } from './NoteEditor';
 import { Button, Count, HeaderAction, Screen } from './kit';
 import { MIN_TAP, radius, space, type, useTheme } from './theme';
 
@@ -58,6 +60,10 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
+  const [answerButtons, setAnswerButtons] = useState<AnswerButtons>('all');
+  // Bumped after the note editor saves or deletes, to load the cards and notes again.
+  const [reloads, setReloads] = useState(0);
+  const [editingNote, setEditingNote] = useState<string | null>(null);
   const [noteTypes, setNoteTypes] = useState<Map<string, NoteType>>(new Map());
   const [deckSettings, setDeckSettings] = useState<Map<string, DeckSettings>>(new Map());
   const [revealed, setRevealed] = useState(false);
@@ -70,11 +76,12 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
 
   useEffect(() => {
     (async () => {
-      const [c, n, today, params, types, settings] = await Promise.all([
+      const [c, n, today, params, types, settings, buttons] = await Promise.all([
         // Every card, not only this deck's: a gate on a deck above this one counts its whole subtree.
         repo.listCards(), repo.listNotes(), repo.studiedToday(new Date(), DAY_STARTS_AT_HOUR),
-        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(),
+        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(),
       ]);
+      setAnswerButtons(buttons);
       setDeckSettings(settings);
       setAllParams(params);
       setNoteTypes(types);
@@ -82,7 +89,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       setNotes(new Map(n.map((x) => [x.id, x])));
       setCards(c);
     })();
-  }, [repo, deck]);
+  }, [repo, deck, reloads]);
 
   const deckOf = useMemo(() => new Map([...notes.values()].map((n) => [n.id, n.deck])), [notes]);
   const queue = useMemo(() => {
@@ -248,12 +255,13 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
     );
   }
 
-  const buttons: { r: RatingValue; label: string; color: string }[] = [
+  const shown = ratingsShown(answerButtons);
+  const buttons = ([
     { r: 1, label: 'Again', color: c.again },
     { r: 2, label: 'Hard', color: c.hard },
     { r: 3, label: 'Good', color: c.good },
     { r: 4, label: 'Easy', color: c.easy },
-  ];
+  ] as { r: RatingValue; label: string; color: string }[]).filter((b) => shown.includes(b.r));
 
   const footer = revealed ? (
     <View style={{ flexDirection: 'row', gap: space.s }}>
@@ -290,11 +298,26 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
               <Count value={queue.fresh.length} label="new" color={c.countNew} />
             </View>
           ) : null}
+          <HeaderAction label="Edit" onPress={() => setEditingNote(note.id)} accessibilityLabel="Edit this card's note" />
           {undoAction}
         </View>
       }
       footer={footer}
     >
+      {editingNote ? (
+        <NoteEditor
+          repo={repo}
+          target={{ noteId: editingNote }}
+          onClose={(result) => {
+            setEditingNote(null);
+            if (!result) return;
+            // A deleted note's cards are gone, so an answer to one can't be undone any more.
+            if ('deleted' in result) setHistory([]);
+            else setPreferId(current.id);
+            setReloads((r) => r + 1);
+          }}
+        />
+      ) : null}
       {page ? (
         <View style={{ flex: 1, marginHorizontal: space.l, marginTop: space.s, borderRadius: radius.l, overflow: 'hidden', backgroundColor: c.surface, borderWidth: 1, borderColor: c.border }}>
           <CardWebView key={`${current.id}:${revealed ? 'back' : 'front'}`} html={revealed ? page.back : page.front} />

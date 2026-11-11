@@ -64,6 +64,9 @@ export function DeckList(props: {
   onOpen: (deck: string) => void;
   onImport: () => void;
   onBackup: () => void;
+  onStats: () => void;
+  onSettings: () => void;
+  onBrowse: () => void;
   onOptions: (deck: string) => void;
 }) {
   const c = useTheme();
@@ -71,10 +74,17 @@ export function DeckList(props: {
   return (
     <Screen
       title="Decks"
-      right={props.sync ? <HeaderAction label={props.sync.syncing ? 'Syncing…' : 'Sync'} onPress={props.sync.onSync} /> : undefined}
+      right={
+        <View style={{ flexDirection: 'row' }}>
+          {props.sync ? <HeaderAction label={props.sync.syncing ? 'Syncing…' : 'Sync'} onPress={props.sync.onSync} /> : null}
+          <HeaderAction label="Browse" onPress={props.onBrowse} accessibilityLabel="Browse and search notes" />
+          <HeaderAction label="Settings" onPress={props.onSettings} />
+        </View>
+      }
       footer={
         <View style={{ flexDirection: 'row', gap: space.s }}>
           <Button label="Anki" onPress={props.onImport} style={{ flex: 1 }} />
+          <Button label="Stats" variant="secondary" onPress={props.onStats} style={{ flex: 1 }} />
           <Button label="Backup" variant="secondary" onPress={props.onBackup} style={{ flex: 1 }} />
         </View>
       }

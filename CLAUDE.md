@@ -127,7 +127,7 @@ cut off silently. A field that's shown gets honored, refused inline with the rea
 
 ```
 src/core     types, FSRS wrapper, queue, deck tree, study day, card rendering, Anki templates,
-             session bookkeeping (undo), config (pure TS)
+             session bookkeeping (undo), stats, config (pure TS)
 src/import   TSV + Anki JSON importers, re-import matching (reconcile.ts)
 src/db       Repo interface + MemoryRepo (tests), SQLite repo (app), backup planning
 src/media    the media folder (expo-file-system)
@@ -284,6 +284,10 @@ Franki keeps a whole Anki collection file and writes every answer into it. It ge
 (below) or by file: a collection package (.colpkg) from AnkiMobile's Export, packed back up for
 Anki with "Send to Anki", one app holding the collection at a time.
 
+- **Notes added, edited and deleted in Franki go into the kept collection as Anki writes them**
+  (`src/anki/noteWrites.ts`, through `noteService.ts`, which keeps Franki's tables in step), checked
+  live against Anki. A deck or note type is found by reading the whole table (`NOT INDEXED`) and
+  comparing names here, since a lookup by name needs Anki's collation.
 - **Anki's collection is the record.** A package import replaces every Anki card's scheduling
   (`applyAnkiCollection`), studied here or not, unlike a TSV re-import; the screen warns first
   when answers haven't been sent to Anki yet.

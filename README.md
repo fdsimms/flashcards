@@ -44,6 +44,16 @@ One app holds the collection at a time: don't study in AnkiMobile between bringi
 
 Franki also imports Anki's "Notes in Plain Text" export (.txt or .tsv). Those cards start as new and stay in Franki only. Uses `#columns` / `#tags column` / `#deck` when present, otherwise the Omnilanguage field order in `src/import/models.ts`.
 
+## Adding and editing notes
+
+**Edit** while studying opens the note of the card on screen. **Browse** on the deck list lists every note, searchable by any word in it, a tag or its deck, with **Add** for a new one (pick the deck and note type). The editor shows each field of the note type, and the note's deck, which you can change to move it. Select text in a field and tap **Bold**, **Italic** or **Underline** (again to undo), or **Plain text** to take formatting away; a field with formatting shows how it will look underneath. A line break is kept as one, and other formatting shows as HTML and is kept as it is. It says which cards the note makes, refuses one that makes none, and warns when another note of the type has the same first field. **Delete note** removes it with its cards.
+
+Changes to an Anki note go into your Anki collection as Anki would make them, so the next sync (or Send to Anki) brings them to Anki. An edit keeps every card's schedule and adds any card the note now makes; a card it no longer makes stays in Anki, as Anki keeps it. A note added to a deck Anki doesn't have stays in Franki only.
+
+## Stats
+
+**Stats** on the deck list shows today's answers, time spent, new cards and Agains; what comes due over the next 30 days; answers over the last 30; cards by stage (new, learning, young, mature, suspended); and how often reviews were remembered, against the deck's desired retention. Pick a top-level deck at the top, or all of them. It counts your whole history from Anki, not just answers given in Franki. Tap a bar to see that day.
+
 ## Backing up
 
 Everything lives on the phone. **Backup** on the deck list makes one file with the database and the imported images and sounds, and opens the share sheet: choose **Save to Files** to keep it in iCloud Drive. **Restore from a backup** on the same screen replaces everything with a backup's contents (it asks first). The deck list says when you last backed up, and turns red after a week.
@@ -53,6 +63,8 @@ Everything lives on the phone. **Backup** on the deck list makes one file with t
 Tap a deck to study it with its subdecks. **Undo** in the top right takes back the last answer (and the one before, and so on) and shows that card again.
 
 **Limit cards in progress** (a deck's **Options**) works like WaniKani's Apprentice limit. A card is in progress from when you first learn it until its next review is a week or more away, which is what Guru means on WaniKani. If you forget it, or its next review comes back under a week, it counts again. With the limit on, a deck shows new cards only while fewer than the cap (100 to start) of its cards, subdecks included, are in progress, and its daily new card limit no longer applies.
+
+**Answer buttons** (**Settings** on the deck list) chooses which buttons Review shows for every deck: all four as in Anki, Again, Good and Easy, or just Again and Good. Whether you remembered a card matters most to FSRS; Hard and Easy only nudge the next interval. Always press Again for a card you didn't remember. After changing how you use the buttons, run Optimize in Anki's deck options after a few weeks so the schedule learns the new habit.
 
 ## Installing on your iPhone
 
@@ -111,4 +123,4 @@ The study day starts at 4 AM, as in Anki, so a late-night session counts toward 
 
 ## Not built yet
 
-Typing the answer (`{{type:}}` shows the answer on the back instead), Anki's own TTS tags (`{{tts:}}`), collapsing decks, adding/editing cards in-app, and stats.
+Typing the answer (`{{type:}}` shows the answer on the back instead), Anki's own TTS tags (`{{tts:}}`), collapsing decks, and changing a note's type.

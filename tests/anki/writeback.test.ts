@@ -62,6 +62,17 @@ describe('mapping an answer to Anki', () => {
     expect(r.ivl).toBeLessThan(0); // learning: negative seconds
   });
 
+  it('logs a learning step\'s length as the previous interval, in negative seconds, as Anki does', () => {
+    // Anki logged [type 0, lastIvl 0] for a new card's first answer, then [type 0, lastIvl -600]
+    // for its next step, ten minutes later.
+    const step = review(card.sched, 3, now).sched;
+    expect(step.state).toBe(1);
+    const learning: Card = { ...card, sched: { ...step, lastReview: now.toISOString(), due: new Date(now.getTime() + 600_000).toISOString() } };
+    const later = new Date(now.getTime() + 600_000);
+    const after: Card = { ...learning, sched: review(learning.sched, 3, later).sched };
+    expect(revlogEntry(learning, after, 3, { id: 2, cid: 7, previousIvl: 0, now: later, takenMs: 3000 })).toMatchObject({ type: 0, lastIvl: -600 });
+  });
+
   it('never reuses a review log id', () => {
     expect(nextRevlogId(1000, null)).toBe(1000);
     expect(nextRevlogId(1000, 1000)).toBe(1001);

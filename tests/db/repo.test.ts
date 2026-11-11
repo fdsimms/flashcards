@@ -50,6 +50,16 @@ describe('repo', () => {
     expect((await repo.studiedToday(NOW, H)).size).toBe(0);
   });
 
+  it('lists the answers logged from a time on, oldest first', async () => {
+    const repo = new MemoryRepo();
+    const note = omniNote();
+    const [card] = makeCards(note, NOW);
+    await repo.upsertNotesAndCards([note], [card]);
+    const at = (h: number) => new Date(2026, 10, 11, h);
+    for (const h of [11, 9, 7]) await repo.addReview({ cardId: card.id, ...review(card.sched, 3, at(h)).log });
+    expect((await repo.listReviews(at(8))).map((r) => new Date(r.reviewedAt).getHours())).toEqual([9, 11]);
+  });
+
   it('lists a deck with its subdecks, not decks that merely share a prefix', async () => {
     const repo = new MemoryRepo();
     const notes = [['a', 'Polski'], ['b', 'Polski::Odmiana'], ['c', 'Polski Extra']].map(([id, deck]) => ({ ...omniNote(), id, deck }));

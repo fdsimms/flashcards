@@ -1,6 +1,7 @@
 import { File } from 'expo-file-system';
 import * as SQLite from 'expo-sqlite';
 import { registerUnicase } from '../../modules/anki-unicase';
+import { parseAnswerButtons } from '../core/answerButtons';
 import { studyDayStart } from '../core/day';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } from '../core/types';
 import { clearMedia, listMedia, writeMedia } from '../media/mediaFiles';
@@ -156,6 +157,13 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     async listNotes() {
       return (await db.getAllAsync('SELECT * FROM notes')).map(rowToNote);
     },
+    async deleteNote(id) {
+      await db.withTransactionAsync(async () => {
+        await db.runAsync('DELETE FROM reviews WHERE card_id IN (SELECT id FROM cards WHERE note_id = ?)', id);
+        await db.runAsync('DELETE FROM cards WHERE note_id = ?', id);
+        await db.runAsync('DELETE FROM notes WHERE id = ?', id);
+      });
+    },
     async getNote(id) {
       const r = await db.getFirstAsync('SELECT * FROM notes WHERE id = ?', id);
       return r ? rowToNote(r) : undefined;
@@ -185,6 +193,23 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async deleteReview(id) {
       await db.runAsync('DELETE FROM reviews WHERE id = ?', id);
+    },
+    async answerButtons() {
+      const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'answer_buttons'");
+      return parseAnswerButtons(r?.value);
+    },
+    async saveAnswerButtons(choice) {
+      await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('answer_buttons', ?)", choice);
+    },
+    async listReviews(since) {
+      // ISO strings are all UTC, so comparing them as text compares the instants.
+      const rows = await db.getAllAsync<{ card_id: string; rating: number; reviewed_at: string; state: number; due: string; stability: number; difficulty: number }>(
+        'SELECT card_id, rating, reviewed_at, state, due, stability, difficulty FROM reviews WHERE reviewed_at >= ? ORDER BY reviewed_at', since.toISOString(),
+      );
+      return rows.map((r) => ({
+        cardId: r.card_id, rating: r.rating as ReviewLogEntry['rating'], reviewedAt: r.reviewed_at,
+        state: r.state, due: r.due, stability: r.stability, difficulty: r.difficulty,
+      }));
     },
     async studiedToday(now, dayStartsAtHour) {
       // ISO strings are all UTC, so comparing them as text compares the instants.
