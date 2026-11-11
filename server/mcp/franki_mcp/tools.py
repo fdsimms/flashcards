@@ -46,6 +46,16 @@ def _text(col: Collection, html: str) -> str:
     return col._backend.html_to_text_line(text=html, preserve_media_filenames=True).strip()
 
 
+# A note type's stylesheet and scripts, which Anki puts in every rendered card: often many KB, and
+# nothing a reader of the card needs.
+STYLE_SCRIPT = re.compile(r"<(style|script)\b[^>]*>.*?</\1\s*>", re.S | re.I)
+
+
+def _bare_html(html: str) -> str:
+    """A rendered card side without its styles and scripts."""
+    return STYLE_SCRIPT.sub("", html).strip()
+
+
 def _deck_name(col: Collection, did: int) -> str:
     d = col.decks.get(did, default=False)
     return d["name"] if d else f"(missing deck {did})"
@@ -451,9 +461,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
     # ---- studying ----
 
     @server.tool(annotations=WRITE)
-    async def study_next(deck: str) -> dict[str, Any]:
+    async def study_next(deck: str, include_html: bool = False) -> dict[str, Any]:
         """The next card to study in a deck (with its subdecks), in Anki's order and within its
-        limits, with the question as text and HTML, and when each rating would bring it back.
+        limits, with the question as text (image and sound file names kept), and when each rating
+        would bring it back. include_html adds the card's HTML, without its styles and scripts.
         Show the user the question and wait for their answer before present_card(show_answer=true)."""
 
         def run(col: Collection) -> dict[str, Any]:
@@ -467,7 +478,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             return {
                 "card": _card_dict(col, card),
                 "question_text": _text(col, card.question()),
-                "question_html": card.question(),
+                **({"question_html": _bare_html(card.question())} if include_html else {}),
                 "next_if": dict(zip(["again", "hard", "good", "easy"], [i.replace("⁨", "").replace("⁩", "") for i in intervals])),
                 "remaining": {"new": queued.new_count, "learning": queued.learning_count, "review": queued.review_count},
             }
@@ -476,16 +487,19 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         return await cm.write(run)
 
     @server.tool(annotations=READ)
-    async def present_card(card_id: int, show_answer: bool = False) -> dict[str, Any]:
+    async def present_card(card_id: int, show_answer: bool = False, include_html: bool = False) -> dict[str, Any]:
         """A card's question, and its answer only with show_answer=true (after the user has
-        answered), as text and HTML."""
+        answered), as text. include_html adds the HTML, without its styles and scripts."""
 
         def run(col: Collection) -> dict[str, Any]:
             card = _get_card(col, card_id)
-            out = {"card": _card_dict(col, card), "question_text": _text(col, card.question()), "question_html": card.question()}
+            out = {"card": _card_dict(col, card), "question_text": _text(col, card.question())}
+            if include_html:
+                out["question_html"] = _bare_html(card.question())
             if show_answer:
                 out["answer_text"] = _text(col, card.answer())
-                out["answer_html"] = card.answer()
+                if include_html:
+                    out["answer_html"] = _bare_html(card.answer())
             return out
 
         return await cm.read(run)

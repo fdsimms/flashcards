@@ -32,4 +32,7 @@ UNIT
 
 systemctl daemon-reload
 systemctl enable --now franki-update.timer
-echo "Automatic updates are on. Next check: $(systemctl show franki-update.timer -p NextElapseUSecRealtime --value)"
+echo "Automatic updates are on. The next check (NEXT) and the last one (LAST):"
+# list-timers, not `systemctl show ... NextElapseUSecRealtime`: this timer counts from boot and
+# from its last run, so it has no calendar time and that property is empty.
+systemctl list-timers --no-pager franki-update.timer
