@@ -1,6 +1,7 @@
 import { isInDeck } from '../core/deckTree';
 import { parseAnswerButtons, type AnswerButtons } from '../core/answerButtons';
-import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } from '../core/types';
+import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
+import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry, CollectionSettings } from '../core/types';
 
 export interface Repo {
   /**
@@ -40,6 +41,9 @@ export interface Repo {
   /** Which answer buttons Review shows, for every deck. This phone's own: a backup doesn't carry it. */
   answerButtons(): Promise<AnswerButtons>;
   saveAnswerButtons(choice: AnswerButtons): Promise<void>;
+  /** The Anki collection's scheduling settings, as last imported or synced; Anki's defaults before that. */
+  collectionSettings(): Promise<CollectionSettings>;
+  saveCollectionSettings(settings: CollectionSettings): Promise<void>;
 }
 
 /** Simple in-memory repo, used by tests and as a reference implementation. */
@@ -64,7 +68,7 @@ export class MemoryRepo implements Repo {
       // Same rule as the SQLite repo: re-importing never resets a card already studied here.
       const existing = this.cards.get(c.id);
       if (existing && existing.sched.state !== 0) {
-        this.cards.set(c.id, { ...existing, retired: false, buriedAt: c.buriedAt });
+        this.cards.set(c.id, { ...existing, retired: false, buriedAt: c.buriedAt, deck: c.deck, filteredDeck: c.filteredDeck, position: c.position });
         continue;
       }
       this.cards.set(c.id, { ...c, retired: false });
@@ -99,6 +103,9 @@ export class MemoryRepo implements Repo {
   async deleteReview(id: number) { this.reviews.delete(id); }
   async answerButtons() { return parseAnswerButtons(this.answerButtonsSetting); }
   async saveAnswerButtons(choice: AnswerButtons) { this.answerButtonsSetting = choice; }
+  collectionSettingsValue: CollectionSettings = DEFAULT_COLLECTION_SETTINGS;
+  async collectionSettings() { return this.collectionSettingsValue; }
+  async saveCollectionSettings(settings: CollectionSettings) { this.collectionSettingsValue = settings; }
   async listReviews(since: Date) {
     return [...this.reviews.values()]
       .filter((r) => new Date(r.reviewedAt) >= since)

@@ -49,6 +49,15 @@ export interface Card {
    * decides; a card buried on an earlier day is studied as usual.
    */
   buriedAt?: string;
+  /**
+   * The card's own deck, when it isn't its note's (`Note.deck`): Anki keeps a deck per card, and a
+   * note's cards can sit in different decks. `cardHomeDeck` (deckTree.ts) reads it.
+   */
+  deck?: string;
+  /** The Anki filtered deck the card is in, if any: it's studied there, not in its own deck (`cardDeck`). */
+  filteredDeck?: string;
+  /** A new card's position in Anki's new-card order (the card's `due` while it's new): lowest first. */
+  position?: number;
   sched: SchedState;
 }
 
@@ -60,6 +69,26 @@ export interface BurySettings {
   new: boolean;
   reviews: boolean;
   interdayLearning: boolean;
+}
+
+/**
+ * The order a deck's cards come up in, from its Anki preset (DeckConfig.Config fields 30 to 34),
+ * as Anki's enum values: `newMix` and `interdayLearningMix` 0 mix with reviews, 1 after reviews,
+ * 2 before reviews; `newSortOrder`, `reviewOrder` and `newGatherPriority` as in
+ * proto/anki/deck_config.proto. `src/core/order.ts` applies them.
+ */
+export interface StudyOrder {
+  newMix: number;
+  interdayLearningMix: number;
+  newSortOrder: number;
+  reviewOrder: number;
+  newGatherPriority: number;
+}
+
+/** A limit set for one day only (Anki's Custom Study "increase today's limit"): `day` is the study day's key (`dayKeyOf`). */
+export interface DayLimit {
+  limit: number;
+  day: string;
 }
 
 /** A deck's study settings, from its Anki preset: FSRS parameters and daily limits. */
@@ -74,6 +103,29 @@ export interface DeckParams {
   reviewsPerDay?: number;
   /** Missing (a deck with no Anki preset) buries nothing. */
   bury?: BurySettings;
+  /** The preset's learning and relearning steps, in minutes. Missing means ts-fsrs's (1m 10m, and 10m). */
+  learnSteps?: number[];
+  relearnSteps?: number[];
+  /** A card lapsing `threshold` times becomes a leech: tagged, and suspended too when `suspend`. */
+  leech?: { threshold: number; suspend: boolean };
+  order?: StudyOrder;
+  /** Today-only limits that replace `newPerDay` / `reviewsPerDay` on their day. */
+  newLimitToday?: DayLimit;
+  reviewLimitToday?: DayLimit;
+  /** Set for an Anki filtered deck: it has no limits, and studies with each card's own deck's settings. */
+  filtered?: { reschedule: boolean };
+}
+
+/**
+ * Collection-wide scheduling settings from the Anki collection's config: when the study day
+ * starts (Anki's "Next day starts at"), the learn-ahead limit, and two options of Anki's v3
+ * scheduler. Defaults are Anki's.
+ */
+export interface CollectionSettings {
+  dayStartsAtHour: number;
+  learnAheadMinutes: number;
+  newCardsIgnoreReviewLimit: boolean;
+  applyAllParentLimits: boolean;
 }
 
 export interface ReviewLogEntry {
