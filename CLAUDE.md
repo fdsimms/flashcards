@@ -15,6 +15,10 @@ the owner's existing Anki decks and keep their scheduling. Where Anki has a conv
 used to (the study day starting at 4 AM, a review being due for its whole day, re-imports keeping
 progress), match it unless there's a stated reason not to.
 
+It's also taking over **Read & Listen** from the owner's separate app (fdsimms/ailing): texts
+written from the words in the deck, to read and listen to. Its server has moved to `server/reader/`;
+its screens come next. See "Read & Listen" below.
+
 ## Commands
 
 ```bash
@@ -26,6 +30,8 @@ npm test             # vitest, the whole suite in under a second
 npx vitest run tests/core/queue.test.ts   # one file, while iterating
 npm run test:tz      # the suite in UTC+14, UTC-11 and Newfoundland (half-hour offset, DST)
 npm run verify       # the whole verification loop, below
+cd server/reader && uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest -q
+                     # Read & Listen's server: its loop, after any change under server/reader
 ```
 
 **The verification loop is `npm run verify`** (`tsc --noEmit && vitest run && git status --short`).
@@ -134,7 +140,9 @@ src/media    the media folder (expo-file-system)
 src/ui       screens, the shared pieces they're built from (kit.tsx), the theme, CardWebView
 src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested);
              sync/ syncs with an Anki sync server (pure, tested; syncService.ts is the phone's side)
-server/      a ready-to-run Anki sync server (Docker, Caddy); server/mcp is the MCP for Claude (Python)
+server/      a ready-to-run Anki sync server (Docker, Caddy); server/mcp is the MCP for Claude (Python);
+             server/reader is Read & Listen's server (Python)
+docs/read-and-listen/   Read & Listen's spec (brief.md) and the decisions since (architecture.md)
 tests/       vitest, mirroring src/ (src/core/queue.ts -> tests/core/queue.test.ts)
 ```
 
@@ -364,10 +372,42 @@ and never the server's files, so searches, note adds, scheduling and sync behave
   (`tests/conftest.py`), and Azure faked (`FakeAzure`): `cd server/mcp && python -m pytest`, after
   `pip install -r requirements-dev.txt`. CI runs them in their own job. Azure's request shapes are
   unverified against a live key (`speech.py` says so).
-- Keep `anki` in `requirements.txt` at the version the sync server runs (`ANKI_VERSION`).
+- Keep `anki` in `requirements.txt` at the version the sync server runs (`ANKI_VERSION`;
+  `tests/test_anki_version.py` checks).
 - **A merge to `main` that touches `server/` deploys itself** (`server/update.sh`, on a timer, within
-  about 15 minutes) and restarts sync and the MCP. A server change must work with nothing done by
+  about 15 minutes) and restarts sync, the MCP and Read & Listen. A server change must work with nothing done by
   hand on the server; if one truly needs a step there (a new `.env` setting), the PR says so plainly.
+
+### Read & Listen (`server/reader/`)
+
+Texts (dialogues, short stories) written by Claude from the words already in the Thai and Spanish
+decks, checked in code to be 95-98% known words, recorded with Azure's voices, read in the app with
+a gloss on every word. **`docs/read-and-listen/brief.md` is the spec, with the evidence behind each
+rule; `architecture.md` beside it has every decision since.** Where they and this file disagree,
+they win and this is stale. The rules that must not break:
+
+- **Never grade FSRS from exposure, and never create Anki cards or reviews without an explicit
+  approval step.** The server only reads the collection (`collection.py`; `test_collection.py`
+  checks a read leaves nothing to send). When the screens come to the app, nothing in them answers
+  a card.
+- **Generate, then verify in code.** The model writes lines as `|`-split strings with stretch words
+  in `*asterisks*`; the server re-segments every line itself (lexicon-first for Thai, by lemma for
+  Spanish) and sends drafts under the floor back with the unknown words named. Never trust the
+  model to stay in vocabulary.
+- **A word counts as known only when its note is studied** (young or mature); a word found only
+  inside a studied phrase is partial and counts as unknown. Spanish also counts the 10,000 most
+  common word families.
+- **Batch and cache.** Texts are written in the background and queued, never inside a request, and
+  never one API call per word or page view.
+- **The owner picks the topic.** Already rejected, don't revisit: cloze cards, saving generated
+  sentences as Anki cards, rescheduling Thai cards.
+- **It reads Anki as a sync client of the sync server beside it**, through Anki's own `anki`
+  package like the MCP, every read under `with_timeout` (45 seconds) so a server that stops
+  answering leaves it on the last snapshot. Keep `anki` in `server/reader/pyproject.toml` at the
+  sync server's `ANKI_VERSION` (`tests/test_anki_version.py` checks).
+- It runs as the `reader` service in `server/docker-compose.yml`, under `/reader` on the sync
+  server's domain, with its own passphrase. Its keys (Claude, Azure) stay on the server, never in
+  the app.
 
 ### Backup
 
