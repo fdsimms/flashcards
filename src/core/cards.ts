@@ -45,6 +45,7 @@ export function makeCards(note: Note, now: Date = new Date()): Card[] {
     noteId: note.id,
     kind,
     suspended: false,
+    retired: false,
     sched: newSchedState(now),
   }));
 }
@@ -111,9 +112,19 @@ export function renderCard(note: Note, kind: CardKind): RenderedCard {
   return { front: { blocks: front, speak: entry }, back: { blocks: back }, speechLang };
 }
 
+/**
+ * The field a note is asked by: Entry for Omnilanguage, else Front/Question/Prompt, else the first.
+ * Rendering and import matching (`matchKey`) both use this, so they agree on what a note "is".
+ */
+export function frontFieldName(note: Note): string | undefined {
+  if (isOmnilanguage(note)) return 'Entry';
+  const names = Object.keys(note.fields);
+  return names.find((n) => /^(front|question|prompt)$/i.test(n)) ?? names[0];
+}
+
 function renderGeneric(note: Note): RenderedCard {
   const names = Object.keys(note.fields);
-  const frontName = names.find((n) => /^(front|question|prompt)$/i.test(n)) ?? names[0];
+  const frontName = frontFieldName(note) ?? names[0];
   const backName = names.find((n) => /^(back|answer)$/i.test(n)) ?? names[1];
   const front: Block[] = [{ text: t(note, frontName), emphasis: true }];
   const back: Block[] = [];

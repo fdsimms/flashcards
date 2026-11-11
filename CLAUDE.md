@@ -175,7 +175,14 @@ A 1 AM session still belongs to the day before: its new cards come out of that d
 FSRS via `ts-fsrs`, wrapped in `src/core/scheduler.ts`; a card's whole FSRS state is `Card.sched`,
 with dates as ISO strings. **A Review-state card is due for its whole study day** (its due instant
 carries the time of day it was last answered); **a Learning/Relearning card is due at its exact
-instant** (`isDue` in `src/core/queue.ts`).
+instant** (`isDue` in `src/core/queue.ts`). Once nothing else is left, learning cards come up to
+`LEARN_AHEAD_MINUTES` early, as Anki's learn-ahead limit, and the review screen waits for the next
+one rather than declaring the deck done.
+
+**Each deck schedules with its Anki preset's FSRS weights and desired retention** (`DeckParams`,
+imported from AnkiMCP's `get_fsrs_params` output in the JSON export). `paramsForDeck` falls back to
+the nearest ancestor deck, then to the `ts-fsrs` defaults. Every `review`/`previewIntervals` call
+passes the deck's params; one that doesn't silently schedules with the defaults.
 
 **Counts shown in two places come from one function.** The deck list's due/new numbers are
 `summarizeDecks`, which is built on `buildQueue`, the same function the review screen uses, so a
@@ -189,8 +196,15 @@ will do calls that code path's function; don't write a lookalike. Study settings
   GUID column, or `tsv:<deck>:<entry>`), and a card's id is `<noteId>:<kind>`, so re-importing the
   same file updates rows instead of duplicating them. Any row the app writes unattended follows
   the same rule.
-- **Re-importing never resets a card already studied here.** The upsert only overwrites a card
-  still in state New. Keep that true in both repos.
+- **A re-import finds a note it already has even when the id differs** (`reconcileIds`): same id
+  first, else the one stored note with the same note type and front field (`matchKey`), in any
+  deck. Several matches means a homograph: import as new and warn, never guess. Import screens
+  always pass results through it before writing.
+- **Re-importing never resets a card already studied here.** The upsert only overwrites scheduling
+  and suspension on a card still in state New. Keep that true in both repos.
+- **A card whose kind the note no longer generates is `retired`, not deleted or suspended.**
+  `suspended` comes from Anki and a TSV re-import doesn't carry it, so the two must stay separate;
+  retiring keeps the card's history, and turning the kind back on restores it.
 - **An unreadable file is refused with the reason and what to export instead**, never parsed as
   something else and left to fail with an unrelated message.
 

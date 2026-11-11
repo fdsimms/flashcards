@@ -1,6 +1,6 @@
 import { studyDayStart } from '../core/day';
 import { buildQueue } from '../core/queue';
-import type { Card, Note, ReviewLogEntry } from '../core/types';
+import type { Card, DeckParams, Note, ReviewLogEntry } from '../core/types';
 
 export interface DeckSummary {
   deck: string;
@@ -10,6 +10,12 @@ export interface DeckSummary {
 }
 
 export interface Repo {
+  /**
+   * Writes imported notes and their cards. A card already studied keeps its scheduling and
+   * suspension; only a card still New is overwritten. `cards` must hold every card each note
+   * generates now: an existing card of one of these notes that isn't in it is retired, and one
+   * that is comes back.
+   */
   upsertNotesAndCards(notes: Note[], cards: Card[]): Promise<void>;
   listNotes(): Promise<Note[]>;
   getNote(id: string): Promise<Note | undefined>;
@@ -18,6 +24,9 @@ export interface Repo {
   addReview(entry: ReviewLogEntry): Promise<void>;
   /** New cards first answered in `deck` during the study day `now` falls in. */
   newIntroducedToday(deck: string, now: Date, dayStartsAtHour: number): Promise<number>;
+  /** Replaces the FSRS settings of the decks given; other decks keep theirs. */
+  saveDeckParams(params: Map<string, DeckParams>): Promise<void>;
+  listDeckParams(): Promise<Map<string, DeckParams>>;
 }
 
 /** Simple in-memory repo, used by tests and as a reference implementation. */
@@ -25,14 +34,23 @@ export class MemoryRepo implements Repo {
   notes = new Map<string, Note>();
   cards = new Map<string, Card>();
   reviews: ReviewLogEntry[] = [];
+  deckParams = new Map<string, DeckParams>();
 
   async upsertNotesAndCards(notes: Note[], cards: Card[]) {
     for (const n of notes) this.notes.set(n.id, n);
+    const incoming = new Set(cards.map((c) => c.id));
+    const noteIds = new Set(notes.map((n) => n.id));
+    for (const [id, c] of this.cards) {
+      if (noteIds.has(c.noteId) && !incoming.has(id)) this.cards.set(id, { ...c, retired: true });
+    }
     for (const c of cards) {
       // Same rule as the SQLite repo: re-importing never resets a card already studied here.
       const existing = this.cards.get(c.id);
-      if (existing && existing.sched.state !== 0) continue;
-      this.cards.set(c.id, c);
+      if (existing && existing.sched.state !== 0) {
+        this.cards.set(c.id, { ...existing, retired: false });
+        continue;
+      }
+      this.cards.set(c.id, { ...c, retired: false });
     }
   }
   async listNotes() { return [...this.notes.values()]; }
@@ -52,11 +70,16 @@ export class MemoryRepo implements Repo {
     }
     return firsts.size;
   }
+  async saveDeckParams(params: Map<string, DeckParams>) {
+    for (const [deck, p] of params) this.deckParams.set(deck, p);
+  }
+  async listDeckParams() { return new Map(this.deckParams); }
 }
 
 export interface SummaryOptions {
   newPerDay: number;
   dayStartsAtHour: number;
+  learnAheadMinutes?: number;
   /** New cards already introduced this study day, by deck. A deck missing from it has had none. */
   introducedByDeck?: Map<string, number>;
   now?: Date;
@@ -70,7 +93,7 @@ export function summarizeDecks(notes: Note[], cards: Card[], opts: SummaryOption
   const deckOf = new Map(notes.map((n) => [n.id, n.deck]));
   const byDeck = new Map<string, Card[]>();
   for (const c of cards) {
-    if (c.suspended) continue;
+    if (c.suspended || c.retired) continue;
     const deck = deckOf.get(c.noteId) ?? 'Imported';
     (byDeck.get(deck) ?? byDeck.set(deck, []).get(deck)!).push(c);
   }
@@ -80,6 +103,7 @@ export function summarizeDecks(notes: Note[], cards: Card[], opts: SummaryOption
       newPerDay: opts.newPerDay,
       newIntroducedToday: opts.introducedByDeck?.get(deck) ?? 0,
       dayStartsAtHour: opts.dayStartsAtHour,
+      learnAheadMinutes: opts.learnAheadMinutes,
       now: opts.now,
     });
     out.push({ deck, due: q.due.length, fresh: q.fresh.length, total: deckCards.length });

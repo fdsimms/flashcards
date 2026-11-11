@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { importAnkiJson } from '../../src/import/ankiJson';
+import { deckParamsFromPresets, importAnkiJson } from '../../src/import/ankiJson';
 import { omnilanguageFieldNames } from '../../src/import/models';
 import { NOW } from '../support/fixtures';
 
@@ -41,5 +41,20 @@ describe('Anki JSON import', () => {
     expect(res.cards[0].sched.stability).toBe(42.5);
     expect(res.cards[0].sched.difficulty).toBe(6.1);
     expect(res.warnings.join(' ')).toMatch(/collectionCreated/);
+  });
+
+  it('reads each deck\'s FSRS settings from AnkiMCP get_fsrs_params output', () => {
+    const res = importAnkiJson({
+      notes: [], cards: [],
+      fsrsParams: { presets: [
+        { preset_name: 'Tier 1', fsrs_weights: [0.1, 0.2], desired_retention: 0.82, max_interval: 36500, decks: ['Languages::Español', 'Languages::Français'] },
+        { preset_name: 'Unused', fsrs_weights: [], desired_retention: 0.9, max_interval: 36500, decks: [] },
+      ] },
+    }, { now: NOW });
+    expect([...res.deckParams!.keys()]).toEqual(['Languages::Español', 'Languages::Français']);
+    expect(res.deckParams!.get('Languages::Español')).toEqual({ weights: [0.1, 0.2], desiredRetention: 0.82, maxInterval: 36500 });
+  });
+  it('defaults a preset with no weights or retention', () => {
+    expect(deckParamsFromPresets([{ decks: ['D'] }]).get('D')).toEqual({ weights: [], desiredRetention: 0.9, maxInterval: 36500 });
   });
 });

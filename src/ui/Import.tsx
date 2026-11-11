@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import type { Repo } from '../db/repo';
 import { importAnkiJson, type AnkiExport } from '../import/ankiJson';
+import { reconcileIds } from '../import/reconcile';
 import { importTsv, type ImportResult } from '../import/tsv';
 import { useTheme } from './theme';
 
@@ -38,11 +39,14 @@ export function Import({ repo, onDone }: { repo: Repo; onDone: () => void }) {
       } else {
         result = importTsv(text);
       }
+      result = reconcileIds(result, await repo.listNotes());
       await repo.upsertNotesAndCards(result.notes, result.cards);
+      if (result.deckParams?.size) await repo.saveDeckParams(result.deckParams);
       const shown = result.warnings.slice(0, MAX_WARNINGS);
       const hidden = result.warnings.length - shown.length;
       setLog((l) => [
-        `${asset.name}: ${result.notes.length} notes, ${result.cards.length} cards`,
+        `${asset.name}: ${result.notes.length} notes, ${result.cards.length} cards` +
+          (result.deckParams?.size ? `, FSRS settings for ${result.deckParams.size} decks` : ''),
         ...shown,
         ...(hidden > 0 ? [`and ${hidden} more warnings`] : []),
         ...l,
@@ -59,7 +63,7 @@ export function Import({ repo, onDone }: { repo: Repo; onDone: () => void }) {
       <Pressable onPress={onDone} style={{ paddingHorizontal: 20 }}><Text style={{ color: t.accent, fontSize: 16 }}>‹ Decks</Text></Pressable>
       <Text style={{ color: t.text, fontSize: 28, fontWeight: '700', padding: 20 }}>Import</Text>
       <Text style={{ color: t.sub, paddingHorizontal: 20 }}>
-        Pick an Anki plain-text TSV export (.txt/.tsv) or a JSON export of notes and cards. Re-importing never resets cards you've already reviewed.
+        Pick an Anki plain-text TSV export (.txt/.tsv) or a JSON export of notes and cards. Re-importing never resets cards you've already reviewed, and finds notes you already have even if their deck changed.
       </Text>
       <Pressable onPress={pick} disabled={busy} style={{ margin: 20, backgroundColor: t.accent, borderRadius: 14, padding: 16, alignItems: 'center', opacity: busy ? 0.5 : 1 }}>
         <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{busy ? 'Importing…' : 'Choose file'}</Text>

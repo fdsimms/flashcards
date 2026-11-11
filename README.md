@@ -20,9 +20,9 @@ npm run verify      # typecheck + tests, the loop to run before committing
 ## Importing from Anki
 
 1. **TSV**: the "Notes in Plain Text" export (with `#` header lines), including your Omnilanguage TSVs. Uses `#columns` / `#tags column` / `#deck` when present, otherwise the Omnilanguage field order in `src/import/models.ts`.
-2. **JSON**: AnkiConnect-style `{ notes: notesInfo[], cards: cardsInfo[], collectionCreated }`. Carries over interval, ease → difficulty, due date, lapses and suspension. If `memoryState` (FSRS stability/difficulty) is present on a card it is used instead of the ease-based estimate. `collectionCreated` (unix seconds) is needed to turn Anki's day-offset `due` into a real date.
+2. **JSON**: AnkiConnect-style `{ notes: notesInfo[], cards: cardsInfo[], collectionCreated }`. Carries over interval, ease → difficulty, due date, lapses and suspension. If `memoryState` (FSRS stability/difficulty) is present on a card it is used instead of the ease-based estimate. `collectionCreated` (unix seconds) is needed to turn Anki's day-offset `due` into a real date. Add AnkiMCP's `get_fsrs_params` output as `fsrsParams` and each deck schedules with its preset's FSRS weights and desired retention.
 
-Re-importing never resets cards that have already been reviewed here.
+Re-importing never resets cards that have already been reviewed here, and finds notes you already have even if the export format or deck changed. Cards a note stops generating (`GenerateReverse` turned off) are set aside with their history, not deleted.
 
 ## Layout
 

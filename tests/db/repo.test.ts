@@ -48,4 +48,33 @@ describe('repo', () => {
     await repo.upsertNotesAndCards([note], makeCards(note, NOW));
     expect((await repo.listCards())[0].sched.reps).toBe(1);
   });
+
+  it('retires cards a note stops generating, and brings them back with their history', async () => {
+    const repo = new MemoryRepo();
+    const withReverse = omniNote({ GenerateReverse: 'y' });
+    const cards = makeCards(withReverse, NOW);
+    await repo.upsertNotesAndCards([withReverse], cards);
+    const rev = cards.find((c) => c.kind === 'reverse')!;
+    await repo.saveCard({ ...rev, sched: review(rev.sched, 3, NOW).sched });
+
+    const without = omniNote();
+    await repo.upsertNotesAndCards([without], makeCards(without, NOW));
+    expect((await repo.listCards()).find((c) => c.kind === 'reverse')!.retired).toBe(true);
+    expect(summarizeDecks([without], await repo.listCards(), { newPerDay: 20, dayStartsAtHour: H, now: NOW })[0].total).toBe(1);
+
+    await repo.upsertNotesAndCards([withReverse], makeCards(withReverse, NOW));
+    const back = (await repo.listCards()).find((c) => c.kind === 'reverse')!;
+    expect(back.retired).toBe(false);
+    expect(back.sched.reps).toBe(1);
+  });
+
+  it('keeps deck settings for decks a later import leaves out', async () => {
+    const repo = new MemoryRepo();
+    const p = (r: number) => ({ weights: [], desiredRetention: r, maxInterval: 36500 });
+    await repo.saveDeckParams(new Map([['A', p(0.9)], ['B', p(0.8)]]));
+    await repo.saveDeckParams(new Map([['A', p(0.85)]]));
+    const all = await repo.listDeckParams();
+    expect(all.get('A')!.desiredRetention).toBe(0.85);
+    expect(all.get('B')!.desiredRetention).toBe(0.8);
+  });
 });

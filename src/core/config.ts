@@ -11,3 +11,10 @@ export const NEW_PER_DAY = 20;
 
 /** The hour the study day starts, as Anki's "Next day starts at" (4 AM by default). */
 export const DAY_STARTS_AT_HOUR = 4;
+
+/**
+ * How early a learning card may be shown when nothing else is left, as Anki's "Learn ahead limit"
+ * (20 minutes by default). Without it, pressing Again on the last card ends the session with
+ * that card due a minute later.
+ */
+export const LEARN_AHEAD_MINUTES = 20;
