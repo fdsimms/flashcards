@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS deck_params (deck TEXT PRIMARY KEY, params TEXT NOT N
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS note_types (name TEXT PRIMARY KEY, data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS deck_settings (deck TEXT PRIMARY KEY, data TEXT NOT NULL);
+-- Each media file's SHA-1 as of the last sync (src/anki/sync/mediaSync.ts). Not in a backup:
+-- a restore clears it, so the next sync checks the restored files again.
+CREATE TABLE IF NOT EXISTS anki_media (name TEXT PRIMARY KEY, sha1 TEXT NOT NULL);
 `;
 
 /**
@@ -74,6 +77,9 @@ export interface BackupStore {
 // The file keeps its first name: renaming it would leave an installed copy's data behind.
 export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupStore & AnkiLink> {
   const db = await SQLite.openDatabaseAsync(name);
+  // A sync writes the kept Anki collection on a connection of its own; reads of it here wait out
+  // that sync's commit instead of failing with "database is locked".
+  await db.execAsync('PRAGMA busy_timeout = 5000');
   await db.execAsync(SCHEMA);
   await migrate(db);
   const anki = makeAnkiLink(db);
@@ -309,6 +315,7 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
             await writeMedia(row.name, row.data);
             media++;
           }
+          await anki.forgetMediaSync();
         }
       } finally {
         await db.runAsync('DETACH DATABASE backup');

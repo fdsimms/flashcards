@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MIN_TAP, radius, space, type, useTheme } from './theme';
 
@@ -149,5 +149,25 @@ export function MessageList({ lines }: { lines: string[] }) {
         <Text key={i} style={{ ...type.subhead, color: i === 0 ? c.text : c.textSecondary }}>{l}</Text>
       ))}
     </Card>
+  );
+}
+
+/** A labelled text field, for a form on a Card. The label is also what VoiceOver reads for it. */
+export function Field({ label, error, ...input }: TextInputProps & { label: string; error?: boolean }) {
+  const c = useTheme();
+  return (
+    <View style={{ gap: space.xs }}>
+      <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
+      <TextInput
+        accessibilityLabel={label}
+        placeholderTextColor={c.textTertiary}
+        {...input}
+        style={{
+          ...type.body, color: c.text, backgroundColor: c.fill,
+          borderColor: error ? c.danger : 'transparent', borderWidth: 1, borderRadius: radius.s,
+          paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP,
+        }}
+      />
+    </View>
   );
 }

@@ -1,0 +1,428 @@
+{
+ "decks": [
+  {
+   "json": {
+    "id": 1,
+    "mod": 0,
+    "name": "Default",
+    "usn": 0,
+    "lrnToday": [
+     0,
+     0
+    ],
+    "revToday": [
+     0,
+     0
+    ],
+    "newToday": [
+     0,
+     0
+    ],
+    "timeToday": [
+     0,
+     0
+    ],
+    "collapsed": true,
+    "browserCollapsed": true,
+    "desc": "",
+    "dyn": 0,
+    "conf": 1,
+    "extendNew": 0,
+    "extendRev": 0,
+    "reviewLimit": null,
+    "newLimit": null,
+    "reviewLimitToday": null,
+    "newLimitToday": null,
+    "desiredRetention": null
+   },
+   "common": "CAEQAQ==",
+   "kind": "CgIIAQ=="
+  },
+  {
+   "json": {
+    "id": 1794408857989,
+    "mod": 1794408858,
+    "name": "👅 Languages",
+    "usn": -1,
+    "lrnToday": [
+     0,
+     0
+    ],
+    "revToday": [
+     0,
+     0
+    ],
+    "newToday": [
+     0,
+     3
+    ],
+    "timeToday": [
+     0,
+     1
+    ],
+    "collapsed": true,
+    "browserCollapsed": true,
+    "desc": "",
+    "dyn": 0,
+    "conf": 1,
+    "extendNew": 0,
+    "extendRev": 0,
+    "reviewLimit": null,
+    "newLimit": null,
+    "reviewLimitToday": null,
+    "newLimitToday": null,
+    "desiredRetention": null
+   },
+   "common": "CAEQASADOAE=",
+   "kind": "CgIIAQ=="
+  },
+  {
+   "json": {
+    "id": 1794408857990,
+    "mod": 1794408858,
+    "name": "👅 Languages::🐘 ภาษาไทย",
+    "usn": -1,
+    "lrnToday": [
+     0,
+     0
+    ],
+    "revToday": [
+     0,
+     0
+    ],
+    "newToday": [
+     0,
+     3
+    ],
+    "timeToday": [
+     0,
+     1
+    ],
+    "collapsed": true,
+    "browserCollapsed": true,
+    "desc": "",
+    "dyn": 0,
+    "conf": 1794408857993,
+    "extendNew": 0,
+    "extendRev": 0,
+    "reviewLimit": null,
+    "newLimit": null,
+    "reviewLimitToday": null,
+    "newLimitToday": null,
+    "desiredRetention": null
+   },
+   "common": "CAEQASADOAE=",
+   "kind": "CgcIiYPp2Jw0"
+  },
+  {
+   "json": {
+    "id": 1794408857991,
+    "mod": 1794423158,
+    "name": "🧠 Trivia",
+    "usn": -1,
+    "lrnToday": [
+     0,
+     0
+    ],
+    "revToday": [
+     0,
+     0
+    ],
+    "newToday": [
+     0,
+     3
+    ],
+    "timeToday": [
+     0,
+     0
+    ],
+    "collapsed": true,
+    "browserCollapsed": true,
+    "desc": "",
+    "dyn": 0,
+    "conf": 1,
+    "extendNew": 0,
+    "extendRev": 0,
+    "reviewLimit": null,
+    "newLimit": 3,
+    "reviewLimitToday": null,
+    "newLimitToday": null,
+    "desiredRetention": null
+   },
+   "common": "CAEQASAD",
+   "kind": "CgQIATgD"
+  },
+  {
+   "json": {
+    "id": 1794408858039,
+    "mod": 1794408858,
+    "name": "Filtered Deck 1",
+    "usn": -1,
+    "lrnToday": [
+     0,
+     0
+    ],
+    "revToday": [
+     0,
+     0
+    ],
+    "newToday": [
+     0,
+     0
+    ],
+    "timeToday": [
+     0,
+     0
+    ],
+    "collapsed": true,
+    "browserCollapsed": true,
+    "desc": "",
+    "dyn": 1,
+    "resched": true,
+    "terms": [
+     [
+      "\"deck:🧠 Trivia\" is:review",
+      100,
+      0
+     ]
+    ],
+    "separate": true,
+    "delays": null,
+    "previewDelay": 0,
+    "previewAgainSecs": 60,
+    "previewHardSecs": 600,
+    "previewGoodSecs": 0
+   },
+   "common": "CAEQAQ==",
+   "kind": "EikIARIgChwiZGVjazrwn6egIFRyaXZpYSIgaXM6cmV2aWV3EGQo2AQ4PA=="
+  },
+  {
+   "json": {
+    "id": 1794423158956,
+    "mod": 1794423158,
+    "name": "Polski",
+    "usn": -1,
+    "lrnToday": [
+     0,
+     0
+    ],
+    "revToday": [
+     0,
+     0
+    ],
+    "newToday": [
+     0,
+     0
+    ],
+    "timeToday": [
+     0,
+     0
+    ],
+    "collapsed": true,
+    "browserCollapsed": true,
+    "desc": "",
+    "dyn": 0,
+    "conf": 1,
+    "extendNew": 0,
+    "extendRev": 0,
+    "reviewLimit": null,
+    "newLimit": null,
+    "reviewLimitToday": null,
+    "newLimitToday": null,
+    "desiredRetention": null
+   },
+   "common": "CAEQAQ==",
+   "kind": "CgIIAQ=="
+  },
+  {
+   "json": {
+    "id": 1794423158957,
+    "mod": 1794423158,
+    "name": "Polski::Odmiana",
+    "usn": -1,
+    "lrnToday": [
+     0,
+     0
+    ],
+    "revToday": [
+     0,
+     0
+    ],
+    "newToday": [
+     0,
+     0
+    ],
+    "timeToday": [
+     0,
+     0
+    ],
+    "collapsed": true,
+    "browserCollapsed": true,
+    "desc": "Cases & <b>endings</b>",
+    "md": true,
+    "dyn": 0,
+    "someAddonKey": {
+     "nested": [
+      1,
+      2
+     ]
+    },
+    "conf": 1,
+    "extendNew": 5,
+    "extendRev": 0,
+    "reviewLimit": 120,
+    "newLimit": 0,
+    "reviewLimitToday": {
+     "limit": 50,
+     "today": 0
+    },
+    "newLimitToday": {
+     "limit": 3,
+     "today": 0
+    },
+    "desiredRetention": 93
+   },
+   "common": "CAEQAfoPIXsic29tZUFkZG9uS2V5Ijp7Im5lc3RlZCI6WzEsMl19fQ==",
+   "kind": "Ci8IARAFIhZDYXNlcyAmIDxiPmVuZGluZ3M8L2I+KAEweDgAQgIIMkoCCANVexRuPw=="
+  },
+  {
+   "json": {
+    "id": 1794423158965,
+    "mod": 1794423158,
+    "name": "Cram",
+    "usn": -1,
+    "lrnToday": [
+     0,
+     0
+    ],
+    "revToday": [
+     0,
+     0
+    ],
+    "newToday": [
+     0,
+     0
+    ],
+    "timeToday": [
+     0,
+     0
+    ],
+    "collapsed": true,
+    "browserCollapsed": true,
+    "desc": "",
+    "dyn": 1,
+    "resched": false,
+    "terms": [
+     [
+      "deck:Trivia",
+      50,
+      1
+     ],
+     [
+      "is:due",
+      20,
+      6
+     ]
+    ],
+    "separate": true,
+    "delays": null,
+    "previewDelay": 0,
+    "previewAgainSecs": 30,
+    "previewHardSecs": 0,
+    "previewGoodSecs": 600
+   },
+   "common": "CAEQAQ==",
+   "kind": "EiYSEQoLZGVjazpUcml2aWEQMhgBEgwKBmlzOmR1ZRAUGAYw2AQ4Hg=="
+  }
+ ],
+ "notes": [
+  {
+   "fields": [
+    "Tom & Jerry",
+    "b"
+   ],
+   "sfld": "Tom & Jerry",
+   "csum": 495331847
+  },
+  {
+   "fields": [
+    "caf&eacute; &amp; cr&egrave;me",
+    "b"
+   ],
+   "sfld": "café & crème",
+   "csum": 2761972633
+  },
+  {
+   "fields": [
+    "&#x1F600; &#233;t&#xE9;",
+    "b"
+   ],
+   "sfld": "😀 été",
+   "csum": 1792481945
+  },
+  {
+   "fields": [
+    "<div>line one</div><div>line&nbsp;two</div>",
+    "b"
+   ],
+   "sfld": "line oneline two",
+   "csum": 2422162698
+  },
+  {
+   "fields": [
+    "<img src='single.png' alt=\"x\"> and <img src=bare.jpg>",
+    "b"
+   ],
+   "sfld": " single.png  and  bare.jpg ",
+   "csum": 1873107551
+  },
+  {
+   "fields": [
+    "<audio src=\"a.mp3\" controls></audio><!-- hidden --><style>p{}</style>text",
+    "b"
+   ],
+   "sfld": " a.mp3 text",
+   "csum": 2806737280
+  },
+  {
+   "fields": [
+    "42",
+    "b"
+   ],
+   "sfld": 42,
+   "csum": 2463092403
+  },
+  {
+   "fields": [
+    "  spaced  ",
+    "b"
+   ],
+   "sfld": "  spaced  ",
+   "csum": 1457908487
+  },
+  {
+   "fields": [
+    "&unknownentity; stays",
+    "b"
+   ],
+   "sfld": "&unknownentity; stays",
+   "csum": 1121327276
+  },
+  {
+   "fields": [
+    "Tom & Jerry &amp; co",
+    "b"
+   ],
+   "sfld": "Tom & Jerry &amp; co",
+   "csum": 1447482666
+  },
+  {
+   "fields": [
+    "&amp no semicolon &lt;",
+    "b"
+   ],
+   "sfld": "&amp no semicolon &lt;",
+   "csum": 3134122241
+  }
+ ]
+}

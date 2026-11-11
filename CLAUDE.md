@@ -132,7 +132,9 @@ src/import   TSV + Anki JSON importers, re-import matching (reconcile.ts)
 src/db       Repo interface + MemoryRepo (tests), SQLite repo (app), backup planning
 src/media    the media folder (expo-file-system)
 src/ui       screens, the shared pieces they're built from (kit.tsx), the theme, CardWebView
-src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested)
+src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested);
+             sync/ syncs with an Anki sync server (pure, tested; syncService.ts is the phone's side)
+server/      a ready-to-run Anki sync server (Docker, Caddy)
 tests/       vitest, mirroring src/ (src/core/queue.ts -> tests/core/queue.test.ts)
 ```
 
@@ -160,9 +162,10 @@ the review. `MemoryRepo` is the reference implementation and must behave like th
 play button look broken. `expo-audio`'s config plugin is set to add no microphone permission or
 background audio, neither of which Franki uses.
 
-**Everything stays on the device.** TTS is `expo-speech` (on-device voices), storage is local
-SQLite, and there is no backend or network call. A future feature that needs the network (sync,
-a dictionary lookup, an AI hint) ships behind its own setting that defaults to off.
+**Everything stays on the device, except sync.** TTS is `expo-speech` (on-device voices), storage
+is local SQLite, and there is no backend. The one network call is sync with the user's own Anki
+sync server (`src/anki/sync/`), off until they sign in. A future feature that needs the network (a
+dictionary lookup, an AI hint) ships behind its own setting that defaults to off.
 
 ### The study day
 
@@ -222,7 +225,8 @@ import replaces it. A setting the user makes here goes in the first.
 
 **Undo restores the card as it was and deletes the review row** (`AnswerRecord` in
 `src/core/session.ts`), and today's counts go back down by the same rule they went up
-(`bumpStudied`). The undone card is shown next.
+(`bumpStudied`). The undone card is shown next. As in Anki, undo stops at the last sync: a synced
+answer is already in the server's history (`undoAnkiAnswer` refuses it, under `lockAnki`).
 
 ### Import
 
@@ -276,17 +280,19 @@ import replaces it. A setting the user makes here goes in the first.
 
 ### The Anki collection (`src/anki/`, `src/db/ankiLink.ts`)
 
-Franki takes in a whole Anki collection package (.colpkg, from AnkiMobile's Export), keeps that
-collection file, writes every answer into it, and packs it back up for Anki ("Send to Anki").
-One app holds the collection at a time. The sync server (step 2) will send the same rows.
+Franki keeps a whole Anki collection file and writes every answer into it. It gets there by sync
+(below) or by file: a collection package (.colpkg) from AnkiMobile's Export, packed back up for
+Anki with "Send to Anki", one app holding the collection at a time.
 
 - **Anki's collection is the record.** A package import replaces every Anki card's scheduling
   (`applyAnkiCollection`), studied here or not, unlike a TSV re-import; the screen warns first
   when answers haven't been sent to Anki yet.
-- **The kept collection is only ever written through `cards` and `revlog`, the way Anki writes
-  an answer** (`src/anki/writeback.ts`: card columns, one review log row, both usn -1). Those
-  tables use no custom collation, so the file stays exactly Anki's plus Franki's answers. Every
-  answer and undo in Review goes through `writeAnkiAnswer` / `undoAnkiAnswer`.
+- **Franki writes the kept collection only through `cards` and `revlog`, the way Anki writes
+  an answer** (`src/anki/writeback.ts`: card columns, one review log row, both usn -1, and the
+  collection's modified stamp, `COL_MODIFIED_SQL`, without which a sync never sees the answer).
+  Every answer and undo in Review goes through `writeAnkiAnswer` / `undoAnkiAnswer`, which wait on
+  `lockAnki` while a sync or an import holds the collection. A sync also writes what Anki's own
+  sync writes (notes, graves, config, decks in place).
 - **Anki's three collated tables (fields, templates, notetypes) are read from a scratch copy**
   with the `unicase` collation stripped (`STRIP_UNICASE_SQL`), because no SQLite outside Anki can
   register it. Never strip it from the kept collection.
@@ -302,6 +308,26 @@ One app holds the collection at a time. The sync server (step 2) will send the s
   that script for a new case. After changing what goes into a package, run
   `tests/fixtures/anki/verify-package.py`, which imports Franki's package with Anki's own code and
   checks the answers are there (it needs the `anki` package, so CI can't run it).
+
+### Sync (`src/anki/sync/`)
+
+Anki's sync protocol (v11), as an Anki client speaks it, against the user's own Anki sync server
+(`server/` sets one up). AnkiWeb's terms allow only Anki's own apps, so never point it there.
+
+- **Test against Anki's own server.** `tests/anki/sync/live.test.ts` starts `anki.syncserver` and
+  uses Anki's own client (`sync-device.py`) as the other device, then compares both collections row
+  by row: `FRANKI_ANKI_PYTHON=<venv>/bin/python npx vitest run tests/anki/sync/live.test.ts`. CI
+  skips it (no Anki), so run it after any change to the sync. The CI tests use a scripted server and
+  fixtures Anki made (`make-sync-fixtures.py`); the protocol's shapes come from rslib/src/sync.
+- **Anki's collated tables can't be inserted into, renamed or deleted from here**, and `tags` can't
+  even be read. A sync updates an existing deck in place (`deckRows.ts`, byte for byte what Anki
+  writes), since answering in Anki changes a deck every time; for anything else it finishes the sync
+  (so Franki's answers reach the server) and then downloads the whole collection (`downloadNeeded`).
+  Never strip the collation from the kept collection to get around this.
+- **A sync runs on its own connection to the kept collection, in one transaction, inside
+  `lockAnki`**: a failure rolls back every local change and aborts on the server.
+- **The server's sign-in key lives in the Keychain** (`expo-secure-store`); the password is never
+  stored. Settings are this phone's own and stay out of a backup.
 
 ### Backup
 

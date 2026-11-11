@@ -1,31 +1,48 @@
-import type * as SQLite from 'expo-sqlite';
+import * as SQLite from 'expo-sqlite';
 import { inSchema, keptSql, stripUnicaseIn } from '../anki/attachedSql';
 import { COLLECTION_QUERIES, type CollectionRows } from '../anki/collection';
 import { ankiFolder, keptCollectionFile, pathOf, workFolder } from '../anki/files';
 import {
   cardRestoreParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams, type AnkiCardRow, type AnkiUndo,
 } from '../anki/writeback';
+import type { SqlValue, SyncDb } from '../anki/sync/collectionSync';
+import type { MediaState } from '../anki/sync/mediaSync';
 import type { RatingValue } from '../core/scheduler';
 import type { Card } from '../core/types';
 import { File } from 'expo-file-system';
+import { fileUriToPath } from './backup';
 
 /**
  * The Anki collection Franki keeps (Documents/anki/collection.anki2), attached to the app's one
  * SQLite connection as `anki`. Imported from Anki whole, written to on every answer, and packed
- * back up for Anki on "Send to Anki". It's never edited except through `cards` and `revlog`,
+ * back up for Anki on "Send to Anki". Franki itself edits it only through `cards` and `revlog`,
  * whose columns use no custom collation, so it stays exactly the file Anki wrote plus Franki's
- * answers. Step 2 (syncing) will send the rows these writes mark unsynced (usn -1).
+ * answers. A sync with an Anki server (src/anki/sync) sends the rows these writes mark unsynced
+ * (usn -1) and writes what Anki's own sync writes, on a connection of its own to the same file.
  */
 
 export interface AnkiStatus {
   /** Whether Franki holds an Anki collection at all. */
   linked: boolean;
-  /** Answers given in Franki and not yet sent back to Anki. */
+  /**
+   * Answers given in Franki and not yet in Anki: neither synced (a sync marks them sent) nor
+   * handed back by file since (`markSentToAnki`).
+   */
   unsent: number;
   lastSentAt: string | null;
 }
 
 export type { AnkiUndo };
+
+/** Sync with an Anki server: off until set up. The sign-in key itself is in the Keychain, not here. */
+export interface SyncSettings {
+  enabled: boolean;
+  server: string;
+  user: string;
+  lastSyncAt: string | null;
+  /** The last sync's failure, as shown to the person, or null when it worked. */
+  lastError: string | null;
+}
 
 export interface AnkiLink {
   ankiStatus(): Promise<AnkiStatus>;
@@ -35,23 +52,55 @@ export interface AnkiLink {
   keepAnkiCollection(collection: File): Promise<void>;
   /** Writes an answer into the kept collection. Undefined when the card isn't from it. */
   writeAnkiAnswer(a: { before: Card; after: Card; rating: RatingValue; now: Date; takenMs: number; desiredRetention?: number }): Promise<AnkiUndo | undefined>;
-  undoAnkiAnswer(u: AnkiUndo): Promise<void>;
+  /**
+   * Takes an answer back out of the kept collection. False, changing nothing, when it was already
+   * synced (or the collection was replaced since): it's in the server's history, so as in Anki,
+   * undo stops at the last sync.
+   */
+  undoAnkiAnswer(u: AnkiUndo): Promise<boolean>;
   /** The kept collection's file, ready to pack, or null without one. */
   keptCollection(): Promise<File | null>;
   markSentToAnki(): Promise<void>;
   /** For backup and restore, which carry the kept collection: let go of the file, and take it back. */
   detachAnki(): Promise<void>;
   attachAnki(): Promise<void>;
+
+  /**
+   * Runs `fn` with the kept collection to itself: answer and undo writes wait until it's done.
+   * A sync and an import of a whole collection hold it.
+   */
+  lockAnki<T>(fn: () => Promise<T>): Promise<T>;
+  /** A connection of its own to the kept collection, for a sync; closed after `fn`. Call inside `lockAnki`. */
+  withSyncConnection<T>(fn: (db: SyncDb) => Promise<T>): Promise<T>;
+  /** What the media pull remembers between syncs. */
+  mediaSyncState(): MediaState;
+  /** Forgets it, after a restore puts back a backup's media folder: the next sync checks every file again. */
+  forgetMediaSync(): Promise<void>;
+  syncSettings(): Promise<SyncSettings>;
+  saveSyncSettings(patch: Partial<SyncSettings>): Promise<void>;
 }
 
 const SETTING = { lastSentId: 'anki_last_sent_revlog_id', lastSentAt: 'anki_last_sent_at' };
 /** The settings that belong to the kept collection, and so travel with it in a backup. */
 export const ANKI_SETTING_KEYS = Object.values(SETTING);
 
+/** This phone's own: not in a backup, which shouldn't turn sync on or off or move it to another server. */
+const SYNC = {
+  enabled: 'sync_enabled', server: 'sync_server', user: 'sync_user', lastSyncAt: 'sync_last_at',
+  lastError: 'sync_last_error', mediaUsn: 'sync_media_usn',
+};
+
 const SQL = keptSql('anki');
 
 export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
   let attached = false;
+  // One holder of the kept collection at a time, in the order they asked.
+  let queue: Promise<unknown> = Promise.resolve();
+  const lockAnki = <T,>(fn: () => Promise<T>): Promise<T> => {
+    const run = queue.then(fn, fn);
+    queue = run.catch(() => undefined);
+    return run;
+  };
 
   const getSetting = async (key: string) =>
     (await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', key))?.value ?? null;
@@ -132,7 +181,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
       await setSetting(SETTING.lastSentId, String(max?.m ?? 0));
     },
 
-    async writeAnkiAnswer({ before, after, rating, now, takenMs, desiredRetention }) {
+    writeAnkiAnswer: ({ before, after, rating, now, takenMs, desiredRetention }) => lockAnki(async () => {
       await attach();
       if (!attached || !before.ankiId) return undefined;
       const cid = Number(before.ankiId);
@@ -144,18 +193,24 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
       await db.withTransactionAsync(async () => {
         await db.runAsync(SQL.cardUpdate, ...cardUpdateParams(cardUpdate(after, row, { crt, now, desiredRetention }), cid));
         await db.runAsync(SQL.revlogInsert, ...revlogParams(revlogEntry(before, after, rating, { id: revlogId, cid, previousIvl: row.ivl, now, takenMs })));
+        await db.runAsync(SQL.colModified, now.getTime());
       });
       return { cid, row, revlogId };
-    },
+    }),
 
-    async undoAnkiAnswer(u) {
+    undoAnkiAnswer: (u) => lockAnki(async () => {
       await attach();
-      if (!attached) return;
+      if (!attached) return false;
+      // Checked under the lock, so a sync can't send the answer between this check and the undo.
+      const r = await db.getFirstAsync<{ usn: number }>(SQL.revlogUsn, u.revlogId);
+      if (!r || r.usn !== -1) return false;
       await db.withTransactionAsync(async () => {
         await db.runAsync(SQL.cardUpdate, ...cardRestoreParams(u.row, u.cid));
         await db.runAsync(SQL.revlogDelete, u.revlogId);
+        await db.runAsync(SQL.colModified, Date.now());
       });
-    },
+      return true;
+    }),
 
     async keptCollection() {
       await attach();
@@ -172,6 +227,63 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
 
     detachAnki: detach,
     attachAnki: attach,
+
+    lockAnki,
+
+    async withSyncConnection(fn) {
+      if (!keptCollectionFile().exists) throw new Error('There is no Anki collection in Franki yet.');
+      const conn = await SQLite.openDatabaseAsync(keptCollectionFile().name, {}, fileUriToPath(ankiFolder().uri));
+      try {
+        // Waits out the main connection's brief reads rather than failing; and a rollback journal,
+        // as the main connection keeps it (see `attach`).
+        await conn.execAsync('PRAGMA busy_timeout = 5000');
+        await conn.execAsync('PRAGMA journal_mode = DELETE');
+        const p = (params: SqlValue[]) => params as SQLite.SQLiteBindValue[];
+        return await fn({
+          all: (sql, ...params) => conn.getAllAsync(sql, p(params)),
+          first: (sql, ...params) => conn.getFirstAsync(sql, p(params)),
+          run: async (sql, ...params) => { await conn.runAsync(sql, p(params)); },
+          transaction: (work) => conn.withTransactionAsync(work),
+        });
+      } finally {
+        await conn.closeAsync();
+      }
+    },
+
+    mediaSyncState() {
+      return {
+        lastUsn: async () => Number(await getSetting(SYNC.mediaUsn) ?? 0),
+        setLastUsn: (usn) => setSetting(SYNC.mediaUsn, String(usn)).then(() => undefined),
+        recorded: async (name) => (await db.getFirstAsync<{ sha1: string }>('SELECT sha1 FROM anki_media WHERE name = ?', name))?.sha1,
+        record: async (name, sha1) => {
+          if (sha1) await db.runAsync('INSERT OR REPLACE INTO anki_media (name, sha1) VALUES (?, ?)', name, sha1);
+          else await db.runAsync('DELETE FROM anki_media WHERE name = ?', name);
+        },
+      };
+    },
+
+    async forgetMediaSync() {
+      await db.runAsync('DELETE FROM anki_media');
+      await db.runAsync('DELETE FROM settings WHERE key = ?', SYNC.mediaUsn);
+    },
+
+    async syncSettings() {
+      return {
+        enabled: (await getSetting(SYNC.enabled)) === '1',
+        server: (await getSetting(SYNC.server)) ?? '',
+        user: (await getSetting(SYNC.user)) ?? '',
+        lastSyncAt: await getSetting(SYNC.lastSyncAt),
+        lastError: await getSetting(SYNC.lastError),
+      };
+    },
+
+    async saveSyncSettings(patch) {
+      for (const [k, v] of Object.entries(patch) as [keyof SyncSettings, SyncSettings[keyof SyncSettings]][]) {
+        const key = SYNC[k];
+        if (v === null) await db.runAsync('DELETE FROM settings WHERE key = ?', key);
+        else await setSetting(key, typeof v === 'boolean' ? (v ? '1' : '0') : v);
+      }
+    },
   };
   return link;
 }

@@ -1,0 +1,33 @@
+# The Anki sync server behind Caddy, which gets and renews an HTTPS certificate on its own.
+# Settings come from .env (copy .env.example). Start with: docker compose up -d --build
+services:
+  anki:
+    build:
+      context: .
+      args:
+        ANKI_VERSION: ${ANKI_VERSION:-26.09.4}
+    restart: unless-stopped
+    environment:
+      SYNC_USER1: "${ANKI_USER}:${ANKI_PASSWORD}"
+      # Anki's default is 100 MB, below what a collection with years of reviews can reach.
+      MAX_SYNC_PAYLOAD_MEGS: "${MAX_SYNC_PAYLOAD_MEGS:-500}"
+    volumes:
+      - anki-data:/data
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - anki
+volumes:
+  anki-data:
+  caddy-data:
+  caddy-config:

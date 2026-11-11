@@ -1,7 +1,7 @@
 import { setAudioModeAsync } from 'expo-audio';
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, AppState, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from './src/core/config';
 import { deckLimits, deckRows, groupByDeck, type DeckRow } from './src/core/deckTree';
@@ -15,10 +15,13 @@ import { DeckOptions } from './src/ui/DeckOptions';
 import { DeckList } from './src/ui/DeckList';
 import { AnkiTransfer } from './src/ui/AnkiTransfer';
 import { Review } from './src/ui/Review';
+import { SyncSettings } from './src/ui/SyncSettings';
 import { useTheme } from './src/ui/theme';
+import { useSync } from './src/ui/useSync';
+import { syncStatusText } from './src/anki/sync/runSync';
 
 type Screen =
-  | { name: 'decks' } | { name: 'anki' } | { name: 'backup' }
+  | { name: 'decks' } | { name: 'anki' } | { name: 'backup' } | { name: 'sync' }
   | { name: 'review'; deck: string } | { name: 'deckOptions'; deck: string };
 
 export default function App() {
@@ -58,6 +61,19 @@ export default function App() {
 
   useEffect(() => { if (screen.name === 'decks') refresh(); }, [screen, refresh]);
 
+  // Sync, when it's on: at launch, on coming back to the app (from the deck list, so a deck being
+  // studied isn't changed under it), after studying a deck, and on leaving the app.
+  const { settings: syncSettings, syncing, sync, reload: reloadSync } = useSync(repo, refresh);
+  const screenRef = useRef(screen);
+  screenRef.current = screen;
+  useEffect(() => { if (repo) sync(); }, [repo]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background' || (state === 'active' && screenRef.current.name === 'decks')) sync();
+    });
+    return () => sub.remove();
+  }, [sync]);
+
   if (!repo) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', backgroundColor: c.bg }}>
@@ -73,12 +89,23 @@ export default function App() {
         <DeckList decks={decks} backup={backup} ankiUnsent={ankiUnsent} onOpen={(deck) => setScreen({ name: 'review', deck })} onImport={() => setScreen({ name: 'anki' })}
           onBackup={() => setScreen({ name: 'backup' })}
           onOptions={(deck) => setScreen({ name: 'deckOptions', deck })}
+          sync={syncSettings?.enabled ? {
+            syncing,
+            status: syncStatusText(syncSettings, new Date()),
+            failed: !!syncSettings.lastError,
+            onSync: () => { sync(); },
+          } : undefined}
         />
       )}
-      {screen.name === 'anki' && <AnkiTransfer repo={repo} onDone={() => setScreen({ name: 'decks' })} />}
+      {screen.name === 'anki' && (
+        <AnkiTransfer repo={repo} syncOn={!!syncSettings?.enabled} onSyncSettings={() => setScreen({ name: 'sync' })} onDone={() => setScreen({ name: 'decks' })} />
+      )}
+      {screen.name === 'sync' && (
+        <SyncSettings repo={repo} settings={syncSettings} syncing={syncing} sync={sync} reload={reloadSync} onDone={() => setScreen({ name: 'anki' })} />
+      )}
       {screen.name === 'backup' && <Backup store={repo} onDone={() => setScreen({ name: 'decks' })} />}
       {screen.name === 'deckOptions' && <DeckOptions repo={repo} deck={screen.deck} onDone={() => setScreen({ name: 'decks' })} />}
-      {screen.name === 'review' && <Review repo={repo} deck={screen.deck} onDone={() => setScreen({ name: 'decks' })} />}
+      {screen.name === 'review' && <Review repo={repo} deck={screen.deck} onDone={() => { setScreen({ name: 'decks' }); sync(); }} />}
       <StatusBar style="auto" />
     </SafeAreaProvider>
   );
