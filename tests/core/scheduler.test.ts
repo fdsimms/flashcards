@@ -69,7 +69,8 @@ describe("Anki's learning steps", () => {
 
   it('keeps a card on a step of a day or more in learning, where ts-fsrs would graduate it', () => {
     const second = review(newSchedState(at), 3, at, p([10, 1440])).sched;
-    expect([second.state, second.learningSteps, mins(second)]).toEqual([1, 1, 1440]);
+    // As in Anki, a step crossing into a later day is due from the start of that study day (4 AM tomorrow).
+    expect([second.state, second.learningSteps, second.due]).toEqual([1, 1, new Date(2026, 10, 12, 4, 0).toISOString()]);
   });
 
   it('relearns a forgotten review on the relearning steps, or keeps it a review without any', () => {

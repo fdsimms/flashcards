@@ -1,0 +1,3375 @@
+{
+ "rng": [
+  {
+   "seed": "0",
+   "seed_bytes_hex": "ecf273f981b5cd4587f0467306ad6cadd0d0a3e33317e767f29bea72d78a7dfe",
+   "first_u32": [
+    3442241407,
+    3140108210,
+    2384947579,
+    3321986196
+   ],
+   "fuzz_factor": 0.8014591932296753
+  },
+  {
+   "seed": "1",
+   "seed_bytes_hex": "ead81d725d26104e899c3bf842ce782ebad303da9997d2c2120256ac7366fb1b",
+   "first_u32": [
+    3543144545,
+    4184349284,
+    3423430986,
+    2968834341
+   ],
+   "fuzz_factor": 0.8249526023864746
+  },
+  {
+   "seed": "2",
+   "seed_bytes_hex": "4dd110ccb17c371eedef448eee7dd70722fa5429d7aa4398736dac0593aaf378",
+   "first_u32": [
+    348700191,
+    1277004721,
+    3967593022,
+    75366465
+   ],
+   "fuzz_factor": 0.08118808269500732
+  },
+  {
+   "seed": "3",
+   "seed_bytes_hex": "6c5af71ba0ba06474c7cdd8e57855cafeb1a282e00eb854ab84274e4cf8d129b",
+   "first_u32": [
+    2781141484,
+    408920382,
+    4211637060,
+    1513922966
+   ],
+   "fuzz_factor": 0.6475348472595215
+  },
+  {
+   "seed": "1700000000000",
+   "seed_bytes_hex": "63a68c8909dfb9617612f4b68372be281113048133c28b73d55643dd1720129e",
+   "first_u32": [
+    354886393,
+    2812776976,
+    695566895,
+    974901363
+   ],
+   "fuzz_factor": 0.08262836933135986
+  },
+  {
+   "seed": "1700000000005",
+   "seed_bytes_hex": "59eba580b1b81f5c2573091c29620e8e55a4044bd218086424031ffa8f19b138",
+   "first_u32": [
+    2585106036,
+    297715809,
+    4046581256,
+    3792961230
+   ],
+   "fuzz_factor": 0.6018918752670288
+  },
+  {
+   "seed": "1754000000123",
+   "seed_bytes_hex": "3827e062b7c85d2122efd5bbdf4fefa45b72baf745c9cac5b8d9a26ee523ab5b",
+   "first_u32": [
+    1198946256,
+    3549671473,
+    2771652105,
+    3429728363
+   ],
+   "fuzz_factor": 0.2791513204574585
+  },
+  {
+   "seed": "18446744073709551615",
+   "seed_bytes_hex": "2f4792e3d610281035542d952cf95e439ae9347b03ddc537637ac7b04320613e",
+   "first_u32": [
+    775774136,
+    262641736,
+    1091716766,
+    171143348
+   ],
+   "fuzz_factor": 0.1806238889694214
+  }
+ ],
+ "learning_fuzz": [
+  {
+   "seed": 1700000000000,
+   "secs": 30,
+   "result": 30
+  },
+  {
+   "seed": 1700000000000,
+   "secs": 60,
+   "result": 61
+  },
+  {
+   "seed": 1700000000000,
+   "secs": 330,
+   "result": 336
+  },
+  {
+   "seed": 1700000000000,
+   "secs": 600,
+   "result": 612
+  },
+  {
+   "seed": 1700000000000,
+   "secs": 1800,
+   "result": 1824
+  },
+  {
+   "seed": 1700000000000,
+   "secs": 7200,
+   "result": 7224
+  },
+  {
+   "seed": 1700000000001,
+   "secs": 30,
+   "result": 33
+  },
+  {
+   "seed": 1700000000001,
+   "secs": 60,
+   "result": 67
+  },
+  {
+   "seed": 1700000000001,
+   "secs": 330,
+   "result": 369
+  },
+  {
+   "seed": 1700000000001,
+   "secs": 600,
+   "result": 671
+  },
+  {
+   "seed": 1700000000001,
+   "secs": 1800,
+   "result": 1943
+  },
+  {
+   "seed": 1700000000001,
+   "secs": 7200,
+   "result": 7343
+  },
+  {
+   "seed": 1754000000123,
+   "secs": 30,
+   "result": 31
+  },
+  {
+   "seed": 1754000000123,
+   "secs": 60,
+   "result": 64
+  },
+  {
+   "seed": 1754000000123,
+   "secs": 330,
+   "result": 352
+  },
+  {
+   "seed": 1754000000123,
+   "secs": 600,
+   "result": 641
+  },
+  {
+   "seed": 1754000000123,
+   "secs": 1800,
+   "result": 1883
+  },
+  {
+   "seed": 1754000000123,
+   "secs": 7200,
+   "result": 7283
+  }
+ ],
+ "anki_learn_and_sm2": {
+  "today": 0,
+  "day_cutoff": 1794456000,
+  "crt": 1794369600,
+  "learn": [
+   {
+    "card_id": 1700000000000,
+    "reps_before": 0,
+    "seed": 1700000000000,
+    "ease": 3,
+    "step_secs": 600,
+    "due": 1794438338,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 12,
+    "predicted_offset": 12
+   },
+   {
+    "card_id": 1700000001009,
+    "reps_before": 0,
+    "seed": 1700000001009,
+    "ease": 3,
+    "step_secs": 600,
+    "due": 1794438360,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 34,
+    "predicted_offset": 34
+   },
+   {
+    "card_id": 1700000002018,
+    "reps_before": 0,
+    "seed": 1700000002018,
+    "ease": 3,
+    "step_secs": 600,
+    "due": 1794438416,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 90,
+    "predicted_offset": 90
+   },
+   {
+    "card_id": 1700000003027,
+    "reps_before": 0,
+    "seed": 1700000003027,
+    "ease": 1,
+    "step_secs": 60,
+    "due": 1794437800,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 14,
+    "predicted_offset": 14
+   },
+   {
+    "card_id": 1700000004036,
+    "reps_before": 0,
+    "seed": 1700000004036,
+    "ease": 1,
+    "step_secs": 60,
+    "due": 1794437791,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 5,
+    "predicted_offset": 5
+   },
+   {
+    "card_id": 1700000005045,
+    "reps_before": 0,
+    "seed": 1700000005045,
+    "ease": 2,
+    "step_secs": 330,
+    "due": 1794438062,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 6,
+    "predicted_offset": 6
+   },
+   {
+    "card_id": 1700000006054,
+    "reps_before": 0,
+    "seed": 1700000006054,
+    "ease": 2,
+    "step_secs": 330,
+    "due": 1794438108,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 52,
+    "predicted_offset": 52
+   },
+   {
+    "card_id": 1700000007063,
+    "reps_before": 0,
+    "seed": 1700000007063,
+    "ease": 3,
+    "step_secs": 600,
+    "due": 1794438341,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 15,
+    "predicted_offset": 15
+   },
+   {
+    "card_id": 1700000008072,
+    "reps_before": 0,
+    "seed": 1700000008072,
+    "ease": 3,
+    "step_secs": 600,
+    "due": 1794438338,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 12,
+    "predicted_offset": 12
+   },
+   {
+    "card_id": 1700000009081,
+    "reps_before": 0,
+    "seed": 1700000009081,
+    "ease": 3,
+    "step_secs": 7200,
+    "due": 1794445102,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 176,
+    "predicted_offset": 176
+   },
+   {
+    "card_id": 1700000010090,
+    "reps_before": 0,
+    "seed": 1700000010090,
+    "ease": 3,
+    "step_secs": 7200,
+    "due": 1794444934,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 8,
+    "predicted_offset": 8
+   },
+   {
+    "card_id": 1700000011099,
+    "reps_before": 0,
+    "seed": 1700000011099,
+    "ease": 2,
+    "step_secs": 4500,
+    "due": 1794442524,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 298,
+    "predicted_offset": 298
+   },
+   {
+    "card_id": 1700000000000,
+    "reps_before": 1,
+    "seed": 1700000000001,
+    "ease": 1,
+    "step_secs": 60,
+    "due": 1794437793,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 7,
+    "predicted_offset": 7
+   },
+   {
+    "card_id": 1700000001009,
+    "reps_before": 1,
+    "seed": 1700000001010,
+    "ease": 1,
+    "step_secs": 60,
+    "due": 1794437794,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 8,
+    "predicted_offset": 8
+   },
+   {
+    "card_id": 1700000003027,
+    "reps_before": 1,
+    "seed": 1700000003028,
+    "ease": 3,
+    "step_secs": 600,
+    "due": 1794438437,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 111,
+    "predicted_offset": 111
+   },
+   {
+    "card_id": 1700000004036,
+    "reps_before": 1,
+    "seed": 1700000004037,
+    "ease": 2,
+    "step_secs": 330,
+    "due": 1794438133,
+    "queue": 1,
+    "now_before": 1794437726,
+    "now_after": 1794437726,
+    "offset": 77,
+    "predicted_offset": 77
+   }
+  ],
+  "sm2": [
+   {
+    "card_id": 1700000000000,
+    "reps": 5,
+    "seed": 1700000000005,
+    "fuzz_factor": 0.6018918752670288,
+    "ivl": 10,
+    "factor": 2500,
+    "days_late": 0,
+    "got_hard_good_easy": [
+     13,
+     26,
+     33
+    ],
+    "predicted": [
+     13,
+     26,
+     33
+    ]
+   },
+   {
+    "card_id": 1700000001009,
+    "reps": 6,
+    "seed": 1700000001015,
+    "fuzz_factor": 0.5618385076522827,
+    "ivl": 10,
+    "factor": 2500,
+    "days_late": 0,
+    "got_hard_good_easy": [
+     13,
+     25,
+     33
+    ],
+    "predicted": [
+     13,
+     25,
+     33
+    ]
+   },
+   {
+    "card_id": 1700000002018,
+    "reps": 2,
+    "seed": 1700000002020,
+    "fuzz_factor": 0.004610776901245117,
+    "ivl": 3,
+    "factor": 2500,
+    "days_late": 0,
+    "got_hard_good_easy": [
+     4,
+     6,
+     8
+    ],
+    "predicted": [
+     4,
+     6,
+     8
+    ]
+   },
+   {
+    "card_id": 1700000003027,
+    "reps": 7,
+    "seed": 1700000003034,
+    "fuzz_factor": 0.8596806526184082,
+    "ivl": 20,
+    "factor": 2300,
+    "days_late": 0,
+    "got_hard_good_easy": [
+     27,
+     49,
+     64
+    ],
+    "predicted": [
+     27,
+     49,
+     64
+    ]
+   },
+   {
+    "card_id": 1700000004036,
+    "reps": 9,
+    "seed": 1700000004045,
+    "fuzz_factor": 0.769405722618103,
+    "ivl": 40,
+    "factor": 2500,
+    "days_late": 3,
+    "got_hard_good_easy": [
+     50,
+     108,
+     145
+    ],
+    "predicted": [
+     50,
+     108,
+     145
+    ]
+   },
+   {
+    "card_id": 1700000005045,
+    "reps": 11,
+    "seed": 1700000005056,
+    "fuzz_factor": 0.6527384519577026,
+    "ivl": 100,
+    "factor": 2500,
+    "days_late": 0,
+    "got_hard_good_easy": [
+     123,
+     254,
+     331
+    ],
+    "predicted": [
+     123,
+     254,
+     331
+    ]
+   },
+   {
+    "card_id": 1700000006054,
+    "reps": 4,
+    "seed": 1700000006058,
+    "fuzz_factor": 0.963935375213623,
+    "ivl": 7,
+    "factor": 2500,
+    "days_late": 0,
+    "got_hard_good_easy": [
+     10,
+     20,
+     26
+    ],
+    "predicted": [
+     10,
+     20,
+     26
+    ]
+   },
+   {
+    "card_id": 1700000007063,
+    "reps": 1,
+    "seed": 1700000007064,
+    "fuzz_factor": 0.14535701274871826,
+    "ivl": 1,
+    "factor": 2500,
+    "days_late": 0,
+    "got_hard_good_easy": [
+     2,
+     3,
+     4
+    ],
+    "predicted": [
+     2,
+     3,
+     4
+    ]
+   }
+  ]
+ },
+ "anki_fsrs_review_lb_off_on": {
+  "today": 0,
+  "next_day_at": 1794456000,
+  "now": 1794437805,
+  "tz": [
+   "UTC",
+   "UTC"
+  ],
+  "weekday_of_day1": 3,
+  "countsA": [
+   9,
+   4,
+   7,
+   2,
+   5,
+   3,
+   3,
+   6,
+   4,
+   4,
+   2,
+   5,
+   8,
+   3,
+   6,
+   1,
+   4,
+   7,
+   2,
+   5,
+   3,
+   3,
+   6,
+   4,
+   4,
+   2,
+   5,
+   5,
+   3,
+   6,
+   1,
+   4,
+   7,
+   2,
+   5,
+   3,
+   3,
+   6,
+   4,
+   4,
+   2,
+   5,
+   5,
+   3,
+   6,
+   1,
+   4,
+   7,
+   2,
+   5,
+   3,
+   3,
+   6,
+   4,
+   4,
+   2,
+   5,
+   5,
+   3,
+   6,
+   1,
+   4,
+   7,
+   2,
+   5,
+   3,
+   3,
+   6,
+   4,
+   4,
+   2,
+   5,
+   5,
+   3,
+   6,
+   1,
+   4,
+   7,
+   2,
+   5,
+   3,
+   3,
+   6,
+   4,
+   4,
+   2,
+   5,
+   5,
+   3,
+   6,
+   1,
+   4,
+   7,
+   2,
+   5,
+   3,
+   3,
+   6,
+   4
+  ],
+  "countsB": [
+   5,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   5,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3,
+   2,
+   1,
+   4,
+   3
+  ],
+  "lb_off": [
+   {
+    "card_id": 1700000100000,
+    "note_id": 1794437805851,
+    "preset": "A",
+    "reps": 4,
+    "seed": 1700000100004,
+    "fuzz_factor": 0.8421088457107544,
+    "stability_in": 5.0,
+    "difficulty_in": 5.0,
+    "ivl": 5,
+    "post_stability_hge": [
+     12.434220314025879,
+     17.36152458190918,
+     28.151897430419922
+    ],
+    "raw_interval_hge_approx": [
+     12.434220314025879,
+     17.36152458190918,
+     28.151897430419922
+    ],
+    "got_hge": [
+     15,
+     20,
+     31
+    ],
+    "predicted_hge": [
+     15,
+     20,
+     31
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000107919,
+    "note_id": 1794437805852,
+    "preset": "A",
+    "reps": 5,
+    "seed": 1700000107924,
+    "fuzz_factor": 0.7704719305038452,
+    "stability_in": 10.0,
+    "difficulty_in": 5.0,
+    "ivl": 10,
+    "post_stability_hge": [
+     23.24688720703125,
+     32.02674865722656,
+     51.2538948059082
+    ],
+    "raw_interval_hge_approx": [
+     23.24688720703125,
+     32.02674865722656,
+     51.2538948059082
+    ],
+    "got_hge": [
+     25,
+     34,
+     54
+    ],
+    "predicted_hge": [
+     25,
+     34,
+     54
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000115838,
+    "note_id": 1794437805853,
+    "preset": "A",
+    "reps": 6,
+    "seed": 1700000115844,
+    "fuzz_factor": 0.13603854179382324,
+    "stability_in": 20.0,
+    "difficulty_in": 6.0,
+    "ivl": 15,
+    "post_stability_hge": [
+     35.90765380859375,
+     46.4510383605957,
+     69.54015350341797
+    ],
+    "raw_interval_hge_approx": [
+     35.90765380859375,
+     46.4510383605957,
+     69.54015350341797
+    ],
+    "got_hge": [
+     33,
+     43,
+     65
+    ],
+    "predicted_hge": [
+     33,
+     43,
+     65
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000123757,
+    "note_id": 1794437805854,
+    "preset": "A",
+    "reps": 7,
+    "seed": 1700000123764,
+    "fuzz_factor": 0.7954638004302979,
+    "stability_in": 30.0,
+    "difficulty_in": 4.0,
+    "ivl": 30,
+    "post_stability_hge": [
+     68.60943603515625,
+     94.19925689697266,
+     150.23880004882812
+    ],
+    "raw_interval_hge_approx": [
+     68.60943603515625,
+     94.19925689697266,
+     150.23880004882812
+    ],
+    "got_hge": [
+     72,
+     99,
+     156
+    ],
+    "predicted_hge": [
+     72,
+     99,
+     156
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000131676,
+    "note_id": 1794437805855,
+    "preset": "A",
+    "reps": 8,
+    "seed": 1700000131684,
+    "fuzz_factor": 0.426693320274353,
+    "stability_in": 50.0,
+    "difficulty_in": 5.0,
+    "ivl": 40,
+    "post_stability_hge": [
+     93.01427459716797,
+     121.52357482910156,
+     183.9564971923828
+    ],
+    "raw_interval_hge_approx": [
+     93.01427459716797,
+     121.52357482910156,
+     183.9564971923828
+    ],
+    "got_hge": [
+     92,
+     120,
+     182
+    ],
+    "predicted_hge": [
+     92,
+     120,
+     182
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000139595,
+    "note_id": 1794437805856,
+    "preset": "A",
+    "reps": 3,
+    "seed": 1700000139598,
+    "fuzz_factor": 0.7278560400009155,
+    "stability_in": 3.0,
+    "difficulty_in": 7.0,
+    "ivl": 2,
+    "post_stability_hge": [
+     5.3915557861328125,
+     6.97664737701416,
+     10.44786262512207
+    ],
+    "raw_interval_hge_approx": [
+     5.3915557861328125,
+     6.97664737701416,
+     10.44786262512207
+    ],
+    "got_hge": [
+     6,
+     9,
+     12
+    ],
+    "predicted_hge": [
+     6,
+     9,
+     12
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000147514,
+    "note_id": 1794437805857,
+    "preset": "A",
+    "reps": 9,
+    "seed": 1700000147523,
+    "fuzz_factor": 0.9494178295135498,
+    "stability_in": 80.0,
+    "difficulty_in": 5.0,
+    "ivl": 60,
+    "post_stability_hge": [
+     140.6099853515625,
+     180.781494140625,
+     268.753662109375
+    ],
+    "raw_interval_hge_approx": [
+     140.6099853515625,
+     180.781494140625,
+     268.753662109375
+    ],
+    "got_hge": [
+     150,
+     191,
+     283
+    ],
+    "predicted_hge": [
+     150,
+     191,
+     283
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000155433,
+    "note_id": 1794437805858,
+    "preset": "A",
+    "reps": 2,
+    "seed": 1700000155435,
+    "fuzz_factor": 0.9070780277252197,
+    "stability_in": 2.0,
+    "difficulty_in": 8.0,
+    "ivl": 2,
+    "post_stability_hge": [
+     3.7320573329925537,
+     4.88004207611084,
+     7.394031047821045
+    ],
+    "raw_interval_hge_approx": [
+     3.7320573329925537,
+     4.88004207611084,
+     7.394031047821045
+    ],
+    "got_hge": [
+     5,
+     8,
+     11
+    ],
+    "predicted_hge": [
+     5,
+     8,
+     11
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000163352,
+    "note_id": 1794437805859,
+    "preset": "B",
+    "reps": 4,
+    "seed": 1700000163356,
+    "fuzz_factor": 0.25436508655548096,
+    "stability_in": 5.0,
+    "difficulty_in": 5.0,
+    "ivl": 5,
+    "post_stability_hge": [
+     12.434220314025879,
+     17.36152458190918,
+     28.151897430419922
+    ],
+    "raw_interval_hge_approx": [
+     12.434220314025879,
+     17.36152458190918,
+     28.151897430419922
+    ],
+    "got_hge": [
+     11,
+     16,
+     27
+    ],
+    "predicted_hge": [
+     11,
+     16,
+     27
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000171271,
+    "note_id": 1794437805860,
+    "preset": "B",
+    "reps": 5,
+    "seed": 1700000171276,
+    "fuzz_factor": 0.3222149610519409,
+    "stability_in": 10.0,
+    "difficulty_in": 5.0,
+    "ivl": 10,
+    "post_stability_hge": [
+     23.24688720703125,
+     32.02674865722656,
+     51.2538948059082
+    ],
+    "raw_interval_hge_approx": [
+     23.24688720703125,
+     32.02674865722656,
+     51.2538948059082
+    ],
+    "got_hge": [
+     22,
+     30,
+     50
+    ],
+    "predicted_hge": [
+     22,
+     30,
+     50
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000179190,
+    "note_id": 1794437805861,
+    "preset": "B",
+    "reps": 6,
+    "seed": 1700000179196,
+    "fuzz_factor": 0.4445526599884033,
+    "stability_in": 20.0,
+    "difficulty_in": 6.0,
+    "ivl": 15,
+    "post_stability_hge": [
+     35.90765380859375,
+     46.4510383605957,
+     69.54015350341797
+    ],
+    "raw_interval_hge_approx": [
+     35.90765380859375,
+     46.4510383605957,
+     69.54015350341797
+    ],
+    "got_hge": [
+     36,
+     46,
+     69
+    ],
+    "predicted_hge": [
+     36,
+     46,
+     69
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000187109,
+    "note_id": 1794437805862,
+    "preset": "B",
+    "reps": 7,
+    "seed": 1700000187116,
+    "fuzz_factor": 0.6761306524276733,
+    "stability_in": 30.0,
+    "difficulty_in": 4.0,
+    "ivl": 30,
+    "post_stability_hge": [
+     68.60943603515625,
+     94.19925689697266,
+     150.23880004882812
+    ],
+    "raw_interval_hge_approx": [
+     68.60943603515625,
+     94.19925689697266,
+     150.23880004882812
+    ],
+    "got_hge": [
+     71,
+     97,
+     154
+    ],
+    "predicted_hge": [
+     71,
+     97,
+     154
+    ],
+    "match": true
+   }
+  ],
+  "lb_on": [
+   {
+    "card_id": 1700000100000,
+    "note_id": 1794437805851,
+    "preset": "A",
+    "reps": 4,
+    "seed": 1700000100004,
+    "fuzz_factor": 0.8421088457107544,
+    "stability_in": 5.0,
+    "difficulty_in": 5.0,
+    "ivl": 5,
+    "post_stability_hge": [
+     12.434220314025879,
+     17.36152458190918,
+     28.151897430419922
+    ],
+    "raw_interval_hge_approx": [
+     12.434220314025879,
+     17.36152458190918,
+     28.151897430419922
+    ],
+    "got_hge": [
+     15,
+     20,
+     30
+    ],
+    "predicted_hge": [
+     15,
+     20,
+     30
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000107919,
+    "note_id": 1794437805852,
+    "preset": "A",
+    "reps": 5,
+    "seed": 1700000107924,
+    "fuzz_factor": 0.7704719305038452,
+    "stability_in": 10.0,
+    "difficulty_in": 5.0,
+    "ivl": 10,
+    "post_stability_hge": [
+     23.24688720703125,
+     32.02674865722656,
+     51.2538948059082
+    ],
+    "raw_interval_hge_approx": [
+     23.24688720703125,
+     32.02674865722656,
+     51.2538948059082
+    ],
+    "got_hge": [
+     25,
+     31,
+     55
+    ],
+    "predicted_hge": [
+     25,
+     31,
+     55
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000115838,
+    "note_id": 1794437805853,
+    "preset": "A",
+    "reps": 6,
+    "seed": 1700000115844,
+    "fuzz_factor": 0.13603854179382324,
+    "stability_in": 20.0,
+    "difficulty_in": 6.0,
+    "ivl": 15,
+    "post_stability_hge": [
+     35.90765380859375,
+     46.4510383605957,
+     69.54015350341797
+    ],
+    "raw_interval_hge_approx": [
+     35.90765380859375,
+     46.4510383605957,
+     69.54015350341797
+    ],
+    "got_hge": [
+     33,
+     45,
+     66
+    ],
+    "predicted_hge": [
+     33,
+     45,
+     66
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000123757,
+    "note_id": 1794437805854,
+    "preset": "A",
+    "reps": 7,
+    "seed": 1700000123764,
+    "fuzz_factor": 0.7954638004302979,
+    "stability_in": 30.0,
+    "difficulty_in": 4.0,
+    "ivl": 30,
+    "post_stability_hge": [
+     68.60943603515625,
+     94.19925689697266,
+     150.23880004882812
+    ],
+    "raw_interval_hge_approx": [
+     68.60943603515625,
+     94.19925689697266,
+     150.23880004882812
+    ],
+    "got_hge": [
+     70,
+     99,
+     156
+    ],
+    "predicted_hge": [
+     70,
+     99,
+     156
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000131676,
+    "note_id": 1794437805855,
+    "preset": "A",
+    "reps": 8,
+    "seed": 1700000131684,
+    "fuzz_factor": 0.426693320274353,
+    "stability_in": 50.0,
+    "difficulty_in": 5.0,
+    "ivl": 40,
+    "post_stability_hge": [
+     93.01427459716797,
+     121.52357482910156,
+     183.9564971923828
+    ],
+    "raw_interval_hge_approx": [
+     93.01427459716797,
+     121.52357482910156,
+     183.9564971923828
+    ],
+    "got_hge": [
+     92,
+     120,
+     182
+    ],
+    "predicted_hge": [
+     92,
+     120,
+     182
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000139595,
+    "note_id": 1794437805856,
+    "preset": "A",
+    "reps": 3,
+    "seed": 1700000139598,
+    "fuzz_factor": 0.7278560400009155,
+    "stability_in": 3.0,
+    "difficulty_in": 7.0,
+    "ivl": 2,
+    "post_stability_hge": [
+     5.3915557861328125,
+     6.97664737701416,
+     10.44786262512207
+    ],
+    "raw_interval_hge_approx": [
+     5.3915557861328125,
+     6.97664737701416,
+     10.44786262512207
+    ],
+    "got_hge": [
+     6,
+     9,
+     10
+    ],
+    "predicted_hge": [
+     6,
+     9,
+     10
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000147514,
+    "note_id": 1794437805857,
+    "preset": "A",
+    "reps": 9,
+    "seed": 1700000147523,
+    "fuzz_factor": 0.9494178295135498,
+    "stability_in": 80.0,
+    "difficulty_in": 5.0,
+    "ivl": 60,
+    "post_stability_hge": [
+     140.6099853515625,
+     180.781494140625,
+     268.753662109375
+    ],
+    "raw_interval_hge_approx": [
+     140.6099853515625,
+     180.781494140625,
+     268.753662109375
+    ],
+    "got_hge": [
+     150,
+     191,
+     283
+    ],
+    "predicted_hge": [
+     150,
+     191,
+     283
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000155433,
+    "note_id": 1794437805858,
+    "preset": "A",
+    "reps": 2,
+    "seed": 1700000155435,
+    "fuzz_factor": 0.9070780277252197,
+    "stability_in": 2.0,
+    "difficulty_in": 8.0,
+    "ivl": 2,
+    "post_stability_hge": [
+     3.7320573329925537,
+     4.88004207611084,
+     7.394031047821045
+    ],
+    "raw_interval_hge_approx": [
+     3.7320573329925537,
+     4.88004207611084,
+     7.394031047821045
+    ],
+    "got_hge": [
+     4,
+     6,
+     9
+    ],
+    "predicted_hge": [
+     4,
+     6,
+     9
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000163352,
+    "note_id": 1794437805859,
+    "preset": "B",
+    "reps": 4,
+    "seed": 1700000163356,
+    "fuzz_factor": 0.25436508655548096,
+    "stability_in": 5.0,
+    "difficulty_in": 5.0,
+    "ivl": 5,
+    "post_stability_hge": [
+     12.434220314025879,
+     17.36152458190918,
+     28.151897430419922
+    ],
+    "raw_interval_hge_approx": [
+     12.434220314025879,
+     17.36152458190918,
+     28.151897430419922
+    ],
+    "got_hge": [
+     12,
+     16,
+     28
+    ],
+    "predicted_hge": [
+     12,
+     16,
+     28
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000171271,
+    "note_id": 1794437805860,
+    "preset": "B",
+    "reps": 5,
+    "seed": 1700000171276,
+    "fuzz_factor": 0.3222149610519409,
+    "stability_in": 10.0,
+    "difficulty_in": 5.0,
+    "ivl": 10,
+    "post_stability_hge": [
+     23.24688720703125,
+     32.02674865722656,
+     51.2538948059082
+    ],
+    "raw_interval_hge_approx": [
+     23.24688720703125,
+     32.02674865722656,
+     51.2538948059082
+    ],
+    "got_hge": [
+     20,
+     28,
+     48
+    ],
+    "predicted_hge": [
+     20,
+     28,
+     48
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000179190,
+    "note_id": 1794437805861,
+    "preset": "B",
+    "reps": 6,
+    "seed": 1700000179196,
+    "fuzz_factor": 0.4445526599884033,
+    "stability_in": 20.0,
+    "difficulty_in": 6.0,
+    "ivl": 15,
+    "post_stability_hge": [
+     35.90765380859375,
+     46.4510383605957,
+     69.54015350341797
+    ],
+    "raw_interval_hge_approx": [
+     35.90765380859375,
+     46.4510383605957,
+     69.54015350341797
+    ],
+    "got_hge": [
+     36,
+     44,
+     68
+    ],
+    "predicted_hge": [
+     36,
+     44,
+     68
+    ],
+    "match": true
+   },
+   {
+    "card_id": 1700000187109,
+    "note_id": 1794437805862,
+    "preset": "B",
+    "reps": 7,
+    "seed": 1700000187116,
+    "fuzz_factor": 0.6761306524276733,
+    "stability_in": 30.0,
+    "difficulty_in": 4.0,
+    "ivl": 30,
+    "post_stability_hge": [
+     68.60943603515625,
+     94.19925689697266,
+     150.23880004882812
+    ],
+    "raw_interval_hge_approx": [
+     68.60943603515625,
+     94.19925689697266,
+     150.23880004882812
+    ],
+    "got_hge": [
+     68,
+     97,
+     154
+    ],
+    "predicted_hge": [
+     68,
+     97,
+     154
+    ],
+    "match": true
+   }
+  ]
+ },
+ "anki_lb_quirks": {
+  "today": 0,
+  "next_day_at": 1794456000,
+  "tz": [
+   "UTC",
+   "UTC"
+  ],
+  "scenarios": {
+   "D_new_counted": {
+    "rows": [
+     {
+      "card_id": 1700000200000,
+      "reps": 3,
+      "seed": 1700000200003,
+      "ivl": 4,
+      "got_hge": [
+       5,
+       8,
+       11
+      ],
+      "full_model": [
+       5,
+       8,
+       11
+      ],
+      "ablated_model": [
+       5,
+       10,
+       11
+      ]
+     },
+     {
+      "card_id": 1700000207919,
+      "reps": 4,
+      "seed": 1700000207923,
+      "ivl": 4,
+      "got_hge": [
+       5,
+       9,
+       13
+      ],
+      "full_model": [
+       5,
+       9,
+       13
+      ],
+      "ablated_model": [
+       5,
+       10,
+       13
+      ]
+     },
+     {
+      "card_id": 1700000215838,
+      "reps": 5,
+      "seed": 1700000215843,
+      "ivl": 4,
+      "got_hge": [
+       5,
+       9,
+       12
+      ],
+      "full_model": [
+       5,
+       9,
+       12
+      ],
+      "ablated_model": [
+       5,
+       10,
+       12
+      ]
+     },
+     {
+      "card_id": 1700000223757,
+      "reps": 6,
+      "seed": 1700000223763,
+      "ivl": 4,
+      "got_hge": [
+       6,
+       10,
+       13
+      ],
+      "full_model": [
+       6,
+       10,
+       13
+      ],
+      "ablated_model": [
+       6,
+       10,
+       13
+      ]
+     },
+     {
+      "card_id": 1700000231676,
+      "reps": 7,
+      "seed": 1700000231683,
+      "ivl": 4,
+      "got_hge": [
+       6,
+       11,
+       14
+      ],
+      "full_model": [
+       6,
+       11,
+       14
+      ],
+      "ablated_model": [
+       6,
+       10,
+       14
+      ]
+     },
+     {
+      "card_id": 1700000239595,
+      "reps": 3,
+      "seed": 1700000239598,
+      "ivl": 4,
+      "got_hge": [
+       5,
+       8,
+       12
+      ],
+      "full_model": [
+       5,
+       8,
+       12
+      ],
+      "ablated_model": [
+       5,
+       10,
+       12
+      ]
+     },
+     {
+      "card_id": 1700000247514,
+      "reps": 4,
+      "seed": 1700000247518,
+      "ivl": 4,
+      "got_hge": [
+       6,
+       10,
+       13
+      ],
+      "full_model": [
+       6,
+       10,
+       13
+      ],
+      "ablated_model": [
+       6,
+       10,
+       13
+      ]
+     },
+     {
+      "card_id": 1700000255433,
+      "reps": 5,
+      "seed": 1700000255438,
+      "ivl": 4,
+      "got_hge": [
+       5,
+       9,
+       13
+      ],
+      "full_model": [
+       5,
+       9,
+       13
+      ],
+      "ablated_model": [
+       5,
+       10,
+       13
+      ]
+     },
+     {
+      "card_id": 1700000263352,
+      "reps": 6,
+      "seed": 1700000263358,
+      "ivl": 4,
+      "got_hge": [
+       5,
+       8,
+       11
+      ],
+      "full_model": [
+       5,
+       8,
+       11
+      ],
+      "ablated_model": [
+       5,
+       10,
+       11
+      ]
+     },
+     {
+      "card_id": 1700000271271,
+      "reps": 7,
+      "seed": 1700000271278,
+      "ivl": 4,
+      "got_hge": [
+       5,
+       8,
+       11
+      ],
+      "full_model": [
+       5,
+       8,
+       11
+      ],
+      "ablated_model": [
+       5,
+       10,
+       11
+      ]
+     },
+     {
+      "card_id": 1700000279190,
+      "reps": 3,
+      "seed": 1700000279193,
+      "ivl": 4,
+      "got_hge": [
+       5,
+       8,
+       11
+      ],
+      "full_model": [
+       5,
+       8,
+       11
+      ],
+      "ablated_model": [
+       5,
+       10,
+       11
+      ]
+     },
+     {
+      "card_id": 1700000287109,
+      "reps": 4,
+      "seed": 1700000287113,
+      "ivl": 4,
+      "got_hge": [
+       5,
+       9,
+       13
+      ],
+      "full_model": [
+       5,
+       9,
+       13
+      ],
+      "ablated_model": [
+       5,
+       10,
+       13
+      ]
+     },
+     {
+      "card_id": 1700000295028,
+      "reps": 5,
+      "seed": 1700000295033,
+      "ivl": 4,
+      "got_hge": [
+       6,
+       10,
+       14
+      ],
+      "full_model": [
+       6,
+       10,
+       14
+      ],
+      "ablated_model": [
+       6,
+       10,
+       14
+      ]
+     },
+     {
+      "card_id": 1700000302947,
+      "reps": 6,
+      "seed": 1700000302953,
+      "ivl": 4,
+      "got_hge": [
+       5,
+       9,
+       12
+      ],
+      "full_model": [
+       5,
+       9,
+       12
+      ],
+      "ablated_model": [
+       5,
+       10,
+       12
+      ]
+     },
+     {
+      "card_id": 1700000310866,
+      "reps": 7,
+      "seed": 1700000310873,
+      "ivl": 4,
+      "got_hge": [
+       6,
+       11,
+       14
+      ],
+      "full_model": [
+       6,
+       11,
+       14
+      ],
+      "ablated_model": [
+       6,
+       10,
+       14
+      ]
+     },
+     {
+      "card_id": 1700000318785,
+      "reps": 3,
+      "seed": 1700000318788,
+      "ivl": 4,
+      "got_hge": [
+       6,
+       12,
+       15
+      ],
+      "full_model": [
+       6,
+       12,
+       15
+      ],
+      "ablated_model": [
+       6,
+       10,
+       15
+      ]
+     },
+     {
+      "card_id": 1700000326704,
+      "reps": 4,
+      "seed": 1700000326708,
+      "ivl": 4,
+      "got_hge": [
+       5,
+       8,
+       11
+      ],
+      "full_model": [
+       5,
+       8,
+       11
+      ],
+      "ablated_model": [
+       5,
+       10,
+       11
+      ]
+     },
+     {
+      "card_id": 1700000334623,
+      "reps": 5,
+      "seed": 1700000334628,
+      "ivl": 4,
+      "got_hge": [
+       5,
+       8,
+       11
+      ],
+      "full_model": [
+       5,
+       8,
+       11
+      ],
+      "ablated_model": [
+       5,
+       10,
+       11
+      ]
+     },
+     {
+      "card_id": 1700000342542,
+      "reps": 6,
+      "seed": 1700000342548,
+      "ivl": 4,
+      "got_hge": [
+       5,
+       8,
+       11
+      ],
+      "full_model": [
+       5,
+       8,
+       11
+      ],
+      "ablated_model": [
+       5,
+       10,
+       11
+      ]
+     },
+     {
+      "card_id": 1700000350461,
+      "reps": 7,
+      "seed": 1700000350468,
+      "ivl": 4,
+      "got_hge": [
+       5,
+       8,
+       11
+      ],
+      "full_model": [
+       5,
+       8,
+       11
+      ],
+      "ablated_model": [
+       5,
+       10,
+       11
+      ]
+     }
+    ],
+    "full_matches": 20,
+    "ablated_matches": 3,
+    "n": 20,
+    "ablation": "count_new"
+   },
+   "E_zero_day_sibling": {
+    "rows": [
+     {
+      "card_id": 1700000358380,
+      "reps": 3,
+      "seed": 1700000358383,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       20,
+       23
+      ],
+      "full_model": [
+       9,
+       20,
+       23
+      ],
+      "ablated_model": [
+       9,
+       22,
+       23
+      ]
+     },
+     {
+      "card_id": 1700000366299,
+      "reps": 4,
+      "seed": 1700000366303,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       20,
+       23
+      ],
+      "full_model": [
+       9,
+       20,
+       23
+      ],
+      "ablated_model": [
+       9,
+       22,
+       23
+      ]
+     },
+     {
+      "card_id": 1700000374218,
+      "reps": 5,
+      "seed": 1700000374223,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       20,
+       24
+      ],
+      "full_model": [
+       9,
+       20,
+       24
+      ],
+      "ablated_model": [
+       9,
+       22,
+       24
+      ]
+     },
+     {
+      "card_id": 1700000382137,
+      "reps": 6,
+      "seed": 1700000382143,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       20,
+       23
+      ],
+      "full_model": [
+       9,
+       20,
+       23
+      ],
+      "ablated_model": [
+       9,
+       22,
+       23
+      ]
+     },
+     {
+      "card_id": 1700000390056,
+      "reps": 7,
+      "seed": 1700000390063,
+      "ivl": 8,
+      "got_hge": [
+       11,
+       22,
+       28
+      ],
+      "full_model": [
+       11,
+       22,
+       28
+      ],
+      "ablated_model": [
+       11,
+       22,
+       28
+      ]
+     },
+     {
+      "card_id": 1700000397975,
+      "reps": 3,
+      "seed": 1700000397978,
+      "ivl": 8,
+      "got_hge": [
+       11,
+       22,
+       28
+      ],
+      "full_model": [
+       11,
+       22,
+       28
+      ],
+      "ablated_model": [
+       11,
+       22,
+       28
+      ]
+     },
+     {
+      "card_id": 1700000405894,
+      "reps": 4,
+      "seed": 1700000405898,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       20,
+       24
+      ],
+      "full_model": [
+       9,
+       20,
+       24
+      ],
+      "ablated_model": [
+       9,
+       22,
+       24
+      ]
+     },
+     {
+      "card_id": 1700000413813,
+      "reps": 5,
+      "seed": 1700000413818,
+      "ivl": 8,
+      "got_hge": [
+       10,
+       20,
+       25
+      ],
+      "full_model": [
+       10,
+       20,
+       25
+      ],
+      "ablated_model": [
+       10,
+       22,
+       25
+      ]
+     },
+     {
+      "card_id": 1700000421732,
+      "reps": 6,
+      "seed": 1700000421738,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       20,
+       24
+      ],
+      "full_model": [
+       9,
+       20,
+       24
+      ],
+      "ablated_model": [
+       9,
+       22,
+       24
+      ]
+     },
+     {
+      "card_id": 1700000429651,
+      "reps": 7,
+      "seed": 1700000429658,
+      "ivl": 8,
+      "got_hge": [
+       11,
+       22,
+       27
+      ],
+      "full_model": [
+       11,
+       22,
+       27
+      ],
+      "ablated_model": [
+       11,
+       22,
+       27
+      ]
+     },
+     {
+      "card_id": 1700000437570,
+      "reps": 3,
+      "seed": 1700000437573,
+      "ivl": 8,
+      "got_hge": [
+       11,
+       22,
+       28
+      ],
+      "full_model": [
+       11,
+       22,
+       28
+      ],
+      "ablated_model": [
+       11,
+       22,
+       28
+      ]
+     },
+     {
+      "card_id": 1700000445489,
+      "reps": 4,
+      "seed": 1700000445493,
+      "ivl": 8,
+      "got_hge": [
+       12,
+       22,
+       29
+      ],
+      "full_model": [
+       12,
+       22,
+       29
+      ],
+      "ablated_model": [
+       12,
+       22,
+       29
+      ]
+     },
+     {
+      "card_id": 1700000453408,
+      "reps": 5,
+      "seed": 1700000453413,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       20,
+       23
+      ],
+      "full_model": [
+       9,
+       20,
+       23
+      ],
+      "ablated_model": [
+       9,
+       22,
+       23
+      ]
+     },
+     {
+      "card_id": 1700000461327,
+      "reps": 6,
+      "seed": 1700000461333,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       20,
+       23
+      ],
+      "full_model": [
+       9,
+       20,
+       23
+      ],
+      "ablated_model": [
+       9,
+       22,
+       23
+      ]
+     },
+     {
+      "card_id": 1700000469246,
+      "reps": 7,
+      "seed": 1700000469253,
+      "ivl": 8,
+      "got_hge": [
+       11,
+       22,
+       27
+      ],
+      "full_model": [
+       11,
+       22,
+       27
+      ],
+      "ablated_model": [
+       11,
+       22,
+       27
+      ]
+     },
+     {
+      "card_id": 1700000477165,
+      "reps": 3,
+      "seed": 1700000477168,
+      "ivl": 8,
+      "got_hge": [
+       12,
+       22,
+       29
+      ],
+      "full_model": [
+       12,
+       22,
+       29
+      ],
+      "ablated_model": [
+       12,
+       22,
+       29
+      ]
+     },
+     {
+      "card_id": 1700000485084,
+      "reps": 4,
+      "seed": 1700000485088,
+      "ivl": 8,
+      "got_hge": [
+       12,
+       22,
+       29
+      ],
+      "full_model": [
+       12,
+       22,
+       29
+      ],
+      "ablated_model": [
+       12,
+       22,
+       29
+      ]
+     },
+     {
+      "card_id": 1700000493003,
+      "reps": 5,
+      "seed": 1700000493008,
+      "ivl": 8,
+      "got_hge": [
+       10,
+       20,
+       26
+      ],
+      "full_model": [
+       10,
+       20,
+       26
+      ],
+      "ablated_model": [
+       10,
+       22,
+       26
+      ]
+     },
+     {
+      "card_id": 1700000500922,
+      "reps": 6,
+      "seed": 1700000500928,
+      "ivl": 8,
+      "got_hge": [
+       12,
+       22,
+       28
+      ],
+      "full_model": [
+       12,
+       22,
+       28
+      ],
+      "ablated_model": [
+       12,
+       22,
+       28
+      ]
+     },
+     {
+      "card_id": 1700000508841,
+      "reps": 7,
+      "seed": 1700000508848,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       20,
+       24
+      ],
+      "full_model": [
+       9,
+       20,
+       24
+      ],
+      "ablated_model": [
+       9,
+       22,
+       24
+      ]
+     }
+    ],
+    "full_matches": 20,
+    "ablated_matches": 9,
+    "n": 20,
+    "ablation": "zero_ignores_mods"
+   },
+   "G_self_sibling": {
+    "rows": [
+     {
+      "card_id": 1700000516760,
+      "reps": 3,
+      "seed": 1700000516763,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       3,
+       4
+      ],
+      "full_model": [
+       2,
+       3,
+       4
+      ],
+      "ablated_model": [
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "card_id": 1700000524679,
+      "reps": 4,
+      "seed": 1700000524683,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       3,
+       4
+      ],
+      "full_model": [
+       2,
+       3,
+       4
+      ],
+      "ablated_model": [
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "card_id": 1700000532598,
+      "reps": 5,
+      "seed": 1700000532603,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       3,
+       4
+      ],
+      "full_model": [
+       2,
+       3,
+       4
+      ],
+      "ablated_model": [
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "card_id": 1700000540517,
+      "reps": 6,
+      "seed": 1700000540523,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       3,
+       4
+      ],
+      "full_model": [
+       2,
+       3,
+       4
+      ],
+      "ablated_model": [
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "card_id": 1700000548436,
+      "reps": 7,
+      "seed": 1700000548443,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       3,
+       4
+      ],
+      "full_model": [
+       2,
+       3,
+       4
+      ],
+      "ablated_model": [
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "card_id": 1700000556355,
+      "reps": 3,
+      "seed": 1700000556358,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       4,
+       6
+      ],
+      "full_model": [
+       2,
+       4,
+       6
+      ],
+      "ablated_model": [
+       2,
+       3,
+       5
+      ]
+     },
+     {
+      "card_id": 1700000564274,
+      "reps": 4,
+      "seed": 1700000564278,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       3,
+       4
+      ],
+      "full_model": [
+       2,
+       3,
+       4
+      ],
+      "ablated_model": [
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "card_id": 1700000572193,
+      "reps": 5,
+      "seed": 1700000572198,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       4,
+       6
+      ],
+      "full_model": [
+       2,
+       4,
+       6
+      ],
+      "ablated_model": [
+       2,
+       4,
+       6
+      ]
+     },
+     {
+      "card_id": 1700000580112,
+      "reps": 6,
+      "seed": 1700000580118,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       3,
+       4
+      ],
+      "full_model": [
+       2,
+       3,
+       4
+      ],
+      "ablated_model": [
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "card_id": 1700000588031,
+      "reps": 7,
+      "seed": 1700000588038,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       4,
+       6
+      ],
+      "full_model": [
+       2,
+       4,
+       6
+      ],
+      "ablated_model": [
+       2,
+       4,
+       6
+      ]
+     },
+     {
+      "card_id": 1700000595950,
+      "reps": 3,
+      "seed": 1700000595953,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       3,
+       4
+      ],
+      "full_model": [
+       2,
+       3,
+       4
+      ],
+      "ablated_model": [
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "card_id": 1700000603869,
+      "reps": 4,
+      "seed": 1700000603873,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       3,
+       4
+      ],
+      "full_model": [
+       2,
+       3,
+       4
+      ],
+      "ablated_model": [
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "card_id": 1700000611788,
+      "reps": 5,
+      "seed": 1700000611793,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       3,
+       5
+      ],
+      "full_model": [
+       2,
+       3,
+       5
+      ],
+      "ablated_model": [
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "card_id": 1700000619707,
+      "reps": 6,
+      "seed": 1700000619713,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       4,
+       6
+      ],
+      "full_model": [
+       2,
+       4,
+       6
+      ],
+      "ablated_model": [
+       2,
+       4,
+       6
+      ]
+     },
+     {
+      "card_id": 1700000627626,
+      "reps": 7,
+      "seed": 1700000627633,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       3,
+       4
+      ],
+      "full_model": [
+       2,
+       3,
+       4
+      ],
+      "ablated_model": [
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "card_id": 1700000635545,
+      "reps": 3,
+      "seed": 1700000635548,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       4,
+       6
+      ],
+      "full_model": [
+       2,
+       4,
+       6
+      ],
+      "ablated_model": [
+       2,
+       4,
+       6
+      ]
+     },
+     {
+      "card_id": 1700000643464,
+      "reps": 4,
+      "seed": 1700000643468,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       3,
+       4
+      ],
+      "full_model": [
+       2,
+       3,
+       4
+      ],
+      "ablated_model": [
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "card_id": 1700000651383,
+      "reps": 5,
+      "seed": 1700000651388,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       3,
+       4
+      ],
+      "full_model": [
+       2,
+       3,
+       4
+      ],
+      "ablated_model": [
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "card_id": 1700000659302,
+      "reps": 6,
+      "seed": 1700000659308,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       4,
+       6
+      ],
+      "full_model": [
+       2,
+       4,
+       6
+      ],
+      "ablated_model": [
+       2,
+       4,
+       6
+      ]
+     },
+     {
+      "card_id": 1700000667221,
+      "reps": 7,
+      "seed": 1700000667228,
+      "ivl": 1,
+      "got_hge": [
+       2,
+       3,
+       4
+      ],
+      "full_model": [
+       2,
+       3,
+       4
+      ],
+      "ablated_model": [
+       2,
+       3,
+       4
+      ]
+     }
+    ],
+    "full_matches": 20,
+    "ablated_matches": 18,
+    "n": 20,
+    "ablation": "self_sibling"
+   },
+   "H_easy_days": {
+    "rows": [
+     {
+      "card_id": 1700000675140,
+      "reps": 3,
+      "seed": 1700000675143,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       21,
+       27
+      ],
+      "full_model": [
+       9,
+       21,
+       27
+      ],
+      "ablated_model": [
+       10,
+       20,
+       26
+      ]
+     },
+     {
+      "card_id": 1700000683059,
+      "reps": 4,
+      "seed": 1700000683063,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       20,
+       26
+      ],
+      "full_model": [
+       9,
+       20,
+       26
+      ],
+      "ablated_model": [
+       10,
+       19,
+       25
+      ]
+     },
+     {
+      "card_id": 1700000690978,
+      "reps": 5,
+      "seed": 1700000690983,
+      "ivl": 8,
+      "got_hge": [
+       12,
+       23,
+       29
+      ],
+      "full_model": [
+       12,
+       23,
+       29
+      ],
+      "ablated_model": [
+       12,
+       23,
+       29
+      ]
+     },
+     {
+      "card_id": 1700000698897,
+      "reps": 6,
+      "seed": 1700000698903,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       20,
+       23
+      ],
+      "full_model": [
+       9,
+       20,
+       23
+      ],
+      "ablated_model": [
+       9,
+       18,
+       24
+      ]
+     },
+     {
+      "card_id": 1700000706816,
+      "reps": 7,
+      "seed": 1700000706823,
+      "ivl": 8,
+      "got_hge": [
+       12,
+       23,
+       29
+      ],
+      "full_model": [
+       12,
+       23,
+       29
+      ],
+      "ablated_model": [
+       12,
+       23,
+       29
+      ]
+     },
+     {
+      "card_id": 1700000714735,
+      "reps": 3,
+      "seed": 1700000714738,
+      "ivl": 8,
+      "got_hge": [
+       12,
+       22,
+       28
+      ],
+      "full_model": [
+       12,
+       22,
+       28
+      ],
+      "ablated_model": [
+       11,
+       21,
+       27
+      ]
+     },
+     {
+      "card_id": 1700000722654,
+      "reps": 4,
+      "seed": 1700000722658,
+      "ivl": 8,
+      "got_hge": [
+       12,
+       23,
+       29
+      ],
+      "full_model": [
+       12,
+       23,
+       29
+      ],
+      "ablated_model": [
+       12,
+       23,
+       29
+      ]
+     },
+     {
+      "card_id": 1700000730573,
+      "reps": 5,
+      "seed": 1700000730578,
+      "ivl": 8,
+      "got_hge": [
+       12,
+       23,
+       29
+      ],
+      "full_model": [
+       12,
+       23,
+       29
+      ],
+      "ablated_model": [
+       12,
+       23,
+       29
+      ]
+     },
+     {
+      "card_id": 1700000738492,
+      "reps": 6,
+      "seed": 1700000738498,
+      "ivl": 8,
+      "got_hge": [
+       12,
+       22,
+       28
+      ],
+      "full_model": [
+       12,
+       22,
+       28
+      ],
+      "ablated_model": [
+       11,
+       21,
+       27
+      ]
+     },
+     {
+      "card_id": 1700000746411,
+      "reps": 7,
+      "seed": 1700000746418,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       21,
+       27
+      ],
+      "full_model": [
+       9,
+       21,
+       27
+      ],
+      "ablated_model": [
+       10,
+       20,
+       26
+      ]
+     },
+     {
+      "card_id": 1700000754330,
+      "reps": 3,
+      "seed": 1700000754333,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       19,
+       23
+      ],
+      "full_model": [
+       9,
+       19,
+       23
+      ],
+      "ablated_model": [
+       9,
+       17,
+       23
+      ]
+     },
+     {
+      "card_id": 1700000762249,
+      "reps": 4,
+      "seed": 1700000762253,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       20,
+       26
+      ],
+      "full_model": [
+       9,
+       20,
+       26
+      ],
+      "ablated_model": [
+       9,
+       18,
+       24
+      ]
+     },
+     {
+      "card_id": 1700000770168,
+      "reps": 5,
+      "seed": 1700000770173,
+      "ivl": 8,
+      "got_hge": [
+       12,
+       23,
+       29
+      ],
+      "full_model": [
+       12,
+       23,
+       29
+      ],
+      "ablated_model": [
+       12,
+       22,
+       28
+      ]
+     },
+     {
+      "card_id": 1700000778087,
+      "reps": 6,
+      "seed": 1700000778093,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       19,
+       23
+      ],
+      "full_model": [
+       9,
+       19,
+       23
+      ],
+      "ablated_model": [
+       9,
+       17,
+       23
+      ]
+     },
+     {
+      "card_id": 1700000786006,
+      "reps": 7,
+      "seed": 1700000786013,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       20,
+       26
+      ],
+      "full_model": [
+       9,
+       20,
+       26
+      ],
+      "ablated_model": [
+       10,
+       18,
+       25
+      ]
+     },
+     {
+      "card_id": 1700000793925,
+      "reps": 3,
+      "seed": 1700000793928,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       19,
+       23
+      ],
+      "full_model": [
+       9,
+       19,
+       23
+      ],
+      "ablated_model": [
+       9,
+       17,
+       23
+      ]
+     },
+     {
+      "card_id": 1700000801844,
+      "reps": 4,
+      "seed": 1700000801848,
+      "ivl": 8,
+      "got_hge": [
+       9,
+       20,
+       26
+      ],
+      "full_model": [
+       9,
+       20,
+       26
+      ],
+      "ablated_model": [
+       9,
+       18,
+       24
+      ]
+     },
+     {
+      "card_id": 1700000809763,
+      "reps": 5,
+      "seed": 1700000809768,
+      "ivl": 8,
+      "got_hge": [
+       12,
+       22,
+       28
+      ],
+      "full_model": [
+       12,
+       22,
+       28
+      ],
+      "ablated_model": [
+       11,
+       22,
+       28
+      ]
+     },
+     {
+      "card_id": 1700000817682,
+      "reps": 6,
+      "seed": 1700000817688,
+      "ivl": 8,
+      "got_hge": [
+       12,
+       23,
+       29
+      ],
+      "full_model": [
+       12,
+       23,
+       29
+      ],
+      "ablated_model": [
+       12,
+       22,
+       28
+      ]
+     },
+     {
+      "card_id": 1700000825601,
+      "reps": 7,
+      "seed": 1700000825608,
+      "ivl": 8,
+      "got_hge": [
+       12,
+       23,
+       29
+      ],
+      "full_model": [
+       12,
+       23,
+       29
+      ],
+      "ablated_model": [
+       12,
+       23,
+       29
+      ]
+     }
+    ],
+    "full_matches": 20,
+    "ablated_matches": 5,
+    "n": 20,
+    "ablation": "easy_days"
+   }
+  }
+ },
+ "anki_graduation_relearn": {
+  "rows": [
+   {
+    "path": "new->Easy",
+    "card_id": 1700000300000,
+    "reps": 0,
+    "seed": 1700000300000,
+    "fuzz_factor": 0.6683285236358643,
+    "good_raw": 2.30649995803833,
+    "easy_raw": 8.295599937438965,
+    "got": 9,
+    "predicted": 9
+   },
+   {
+    "path": "new->Easy",
+    "card_id": 1700000404729,
+    "reps": 0,
+    "seed": 1700000404729,
+    "fuzz_factor": 0.26162123680114746,
+    "good_raw": 2.30649995803833,
+    "easy_raw": 8.295599937438965,
+    "got": 7,
+    "predicted": 7
+   },
+   {
+    "path": "new->Easy",
+    "card_id": 1700000509458,
+    "reps": 0,
+    "seed": 1700000509458,
+    "fuzz_factor": 0.8074887990951538,
+    "good_raw": 2.30649995803833,
+    "easy_raw": 8.295599937438965,
+    "got": 10,
+    "predicted": 10
+   },
+   {
+    "path": "new->Easy",
+    "card_id": 1700000614187,
+    "reps": 0,
+    "seed": 1700000614187,
+    "fuzz_factor": 0.6120158433914185,
+    "good_raw": 2.30649995803833,
+    "easy_raw": 8.295599937438965,
+    "got": 9,
+    "predicted": 9
+   },
+   {
+    "path": "learning(last step)->Good",
+    "card_id": 1700000718916,
+    "reps": 1,
+    "seed": 1700000718917,
+    "fuzz_factor": 0.7395491600036621,
+    "good_raw": 2.30649995803833,
+    "got": 2,
+    "predicted": 2
+   },
+   {
+    "path": "learning(last step)->Good",
+    "card_id": 1700000823645,
+    "reps": 1,
+    "seed": 1700000823646,
+    "fuzz_factor": 0.534069299697876,
+    "good_raw": 2.30649995803833,
+    "got": 2,
+    "predicted": 2
+   },
+   {
+    "path": "learning(last step)->Good",
+    "card_id": 1700000928374,
+    "reps": 1,
+    "seed": 1700000928375,
+    "fuzz_factor": 0.7389553785324097,
+    "good_raw": 2.30649995803833,
+    "got": 2,
+    "predicted": 2
+   },
+   {
+    "path": "learning(last step)->Good",
+    "card_id": 1700001033103,
+    "reps": 1,
+    "seed": 1700001033104,
+    "fuzz_factor": 0.9783987998962402,
+    "good_raw": 2.30649995803833,
+    "got": 2,
+    "predicted": 2
+   }
+  ],
+  "relearn": [
+   {
+    "card_id": 1700001137832,
+    "reps_before": 6,
+    "seed": 1700001137838,
+    "step_secs": 600,
+    "now_before": 1794437899,
+    "now_after": 1794437899,
+    "due": 1794438605,
+    "queue": 1,
+    "type": 3,
+    "offset": 106,
+    "predicted_offset": 106
+   },
+   {
+    "card_id": 1700001242561,
+    "reps_before": 6,
+    "seed": 1700001242567,
+    "step_secs": 600,
+    "now_before": 1794437899,
+    "now_after": 1794437899,
+    "due": 1794438598,
+    "queue": 1,
+    "type": 3,
+    "offset": 99,
+    "predicted_offset": 99
+   }
+  ]
+ }
+}

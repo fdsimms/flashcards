@@ -199,6 +199,12 @@ different delay. Each deck's preset steps apply, else Anki's defaults. A step cr
 later day is Anki's queue 3 (`isInterdayLearning`); its answers count as reviews and use the
 review limit. **Leeches** follow the preset (`becameLeech`): tagged, suspended if it says so.
 
+**Fuzz and the load balancer are Anki's, bit for bit** (`src/core/ankiFuzz.ts`, `loadBalance.ts`):
+the ts-fsrs engines don't fuzz; intervals get Anki's fuzz from Rust's StdRng (ChaCha12) seeded by
+the Anki card id plus reps before the answer, in f32 as Anki computes them, or the load balancer's
+day from a snapshot taken when the session is built. `tests/fixtures/anki/fuzz-vectors.json` holds
+outputs recorded from the real `anki` package; a change here has to keep matching them.
+
 **Each deck schedules with its Anki preset's FSRS weights and desired retention** (`DeckParams`,
 read from the collection's deck options when it's imported). `paramsForDeck` falls back to
 the nearest ancestor deck, then to the `ts-fsrs` defaults. Every `review`/`previewIntervals` call

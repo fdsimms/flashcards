@@ -115,6 +115,10 @@ export interface DeckParams {
   /** A card lapsing `threshold` times becomes a leech: tagged, and suspended too when `suspend`. */
   leech?: { threshold: number; suspend: boolean };
   order?: StudyOrder;
+  /** The Anki preset it uses (its config id): the load balancer counts cards by preset. */
+  presetId?: number;
+  /** The preset's easy days, Monday to Sunday (1 normal, 0 minimum, anything else reduced). */
+  easyDays?: number[];
   /** Today-only limits that replace `newPerDay` / `reviewsPerDay` on their day. */
   newLimitToday?: DayLimit;
   reviewLimitToday?: DayLimit;
@@ -140,6 +144,8 @@ export interface CollectionSettings {
   collectionCreated?: number;
   /** The time zone it was created in (`creationOffset`, minutes west of UTC), which Anki dates the creation by. */
   creationOffset?: number;
+  /** Anki's load balancer (`loadBalancerEnabled`), on unless turned off. */
+  loadBalancer?: boolean;
 }
 
 export interface ReviewLogEntry {

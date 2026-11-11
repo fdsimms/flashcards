@@ -91,6 +91,9 @@ export interface AnkiDeckConfig {
   newSortOrder?: number;
   reviewOrder?: number;
   newGatherPriority?: number;
+  /** The preset's id, and its easy days (Monday to Sunday). */
+  presetId?: number;
+  easyDays?: number[];
   /** Today-only limits: the limit, and the Anki day number it's for. */
   newLimitToday?: { limit: number; today: number };
   reviewLimitToday?: { limit: number; today: number };
@@ -138,6 +141,8 @@ export function deckParamsFromConfigs(configs: Record<string, AnkiDeckConfig>, c
         newMix: c.newMix, interdayLearningMix: c.interdayLearningMix ?? 0, newSortOrder: c.newSortOrder ?? 0,
         reviewOrder: c.reviewOrder ?? 0, newGatherPriority: c.newGatherPriority ?? 0,
       } : undefined,
+      presetId: c.presetId,
+      easyDays: c.easyDays?.length ? c.easyDays : undefined,
       newLimitToday: dayLimit(c.newLimitToday),
       reviewLimitToday: dayLimit(c.reviewLimitToday),
     });

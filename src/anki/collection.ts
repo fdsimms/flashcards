@@ -26,7 +26,7 @@ import { decodeMessage, float, floats, message, string, uint } from './protobuf'
 
 /** DeckConfig.Config */
 const CONFIG = {
-  learnSteps: 1, relearnSteps: 2, fsrsParams4: 3, fsrsParams5: 5, fsrsParams6: 6, newPerDay: 9, reviewsPerDay: 10,
+  learnSteps: 1, relearnSteps: 2, fsrsParams4: 3, easyDays: 4, fsrsParams5: 5, fsrsParams6: 6, newPerDay: 9, reviewsPerDay: 10,
   maxInterval: 16, leechAction: 21, leechThreshold: 22, buryNew: 27, buryReviews: 28, buryInterdayLearning: 29,
   newMix: 30, interdayLearningMix: 31, newSortOrder: 32, reviewOrder: 33, newGatherPriority: 34, desiredRetention: 37,
 };
@@ -56,7 +56,7 @@ export const COLLECTION_QUERIES = {
   decks: 'SELECT id, name, kind FROM decks',
   deckConfigs: 'SELECT id, config FROM deck_config',
   lastReviews: 'SELECT cid, MAX(id) AS last FROM revlog GROUP BY cid',
-  config: "SELECT key, val FROM config WHERE key IN ('rollover', 'collapseTime', 'newCardsIgnoreReviewLimit', 'applyAllParentLimits', 'creationOffset')",
+  config: "SELECT key, val FROM config WHERE key IN ('rollover', 'collapseTime', 'newCardsIgnoreReviewLimit', 'applyAllParentLimits', 'creationOffset', 'loadBalancerEnabled')",
 } as const;
 
 type Num = number | bigint;
@@ -84,7 +84,7 @@ export interface CollectionRows {
 /** float32 noise off: 0.85 is stored as 0.8500000238. */
 const round = (x: number | undefined, places: number) => (x === undefined ? undefined : Number(x.toFixed(places)));
 
-export function readDeckConfig(blob: Uint8Array): Required<Omit<AnkiDeckConfig, 'desiredRetention' | 'maxInterval' | 'newLimitToday' | 'reviewLimitToday' | 'filtered'>> & AnkiDeckConfig {
+export function readDeckConfig(blob: Uint8Array): Required<Omit<AnkiDeckConfig, 'desiredRetention' | 'maxInterval' | 'newLimitToday' | 'reviewLimitToday' | 'filtered' | 'presetId'>> & AnkiDeckConfig {
   const msg = decodeMessage(blob);
   // The newest parameter set the preset has: FSRS-6, else 5, else 4. ts-fsrs migrates older ones.
   const weights = [CONFIG.fsrsParams6, CONFIG.fsrsParams5, CONFIG.fsrsParams4].map((f) => floats(msg, f)).find((w) => w.length > 0) ?? [];
@@ -107,6 +107,7 @@ export function readDeckConfig(blob: Uint8Array): Required<Omit<AnkiDeckConfig, 
     newSortOrder: uint(msg, CONFIG.newSortOrder) ?? 0,
     reviewOrder: uint(msg, CONFIG.reviewOrder) ?? 0,
     newGatherPriority: uint(msg, CONFIG.newGatherPriority) ?? 0,
+    easyDays: floats(msg, CONFIG.easyDays),
   };
 }
 
@@ -160,6 +161,7 @@ export function collectionSettings(config: CollectionRows['config'], collectionC
     applyAllParentLimits: bool('applyAllParentLimits') ?? COLLECTION_DEFAULTS.applyAllParentLimits,
     ...(collectionCreated !== undefined ? { collectionCreated } : {}),
     ...(num('creationOffset') !== undefined ? { creationOffset: num('creationOffset') } : {}),
+    loadBalancer: bool('loadBalancerEnabled') ?? true,
   };
 }
 
@@ -202,6 +204,7 @@ export function buildExport(rows: CollectionRows): AnkiExport & {
       newPerDay: kind.newLimit ?? preset.newPerDay,
       reviewsPerDay: kind.reviewLimit ?? preset.reviewsPerDay,
       desiredRetention: kind.desiredRetention ?? preset.desiredRetention,
+      presetId: presets.has(kind.configId) ? kind.configId : 1,
       newLimitToday: kind.newLimitToday,
       reviewLimitToday: kind.reviewLimitToday,
     };

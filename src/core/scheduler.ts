@@ -1,11 +1,15 @@
 import {
   createEmptyCard,
+  default_w,
   fsrs,
   generatorParameters,
   Rating,
   type Card as FsrsCard,
   type Grade,
 } from 'ts-fsrs';
+import { fsrsGraduatingDays, fsrsReviewDays, fuzzFactor, learningStepWithFuzz, type Balancer } from './ankiFuzz';
+import { DAY_STARTS_AT_HOUR } from './config';
+import { nextStudyDayStart } from './day';
 import type { DeckParams, ReviewLogEntry, SchedState } from './types';
 
 type Engine = ReturnType<typeof fsrs>;
@@ -16,7 +20,8 @@ type Engine = ReturnType<typeof fsrs>;
  * card on any step of a day or more, and its Hard repeats the first step's rule at every step.
  */
 const NO_STEPS = { learning_steps: [] as [], relearning_steps: [] as [] };
-const defaultEngine = fsrs(generatorParameters({ enable_fuzz: true, request_retention: 0.9, ...NO_STEPS }));
+// No fuzz either: Anki's own fuzz and load balancer are applied on top (ankiFuzz.ts).
+const defaultEngine = fsrs(generatorParameters({ enable_fuzz: false, request_retention: 0.9, ...NO_STEPS }));
 const engines = new Map<string, Engine>();
 
 /**
@@ -29,7 +34,7 @@ function engineFor(params?: DeckParams): Engine {
   let e = engines.get(key);
   if (!e) {
     e = fsrs(generatorParameters({
-      enable_fuzz: true,
+      enable_fuzz: false,
       // ts-fsrs migrates FSRS-5 (19) weights to FSRS-6 (21) itself. An empty list means Anki never
       // optimized the preset: leave w out so ts-fsrs uses its defaults rather than warning.
       w: params.weights.length ? params.weights : undefined,
@@ -133,19 +138,80 @@ export function stepOutcome(steps: number[], index: number, rating: RatingValue)
  * deck's own learning and relearning steps (its Anki preset's, else Anki's defaults) decide
  * whether it waits on a step instead. A step of a day or more stays a learning step, as in Anki.
  */
-export function review(sched: SchedState, rating: RatingValue, now: Date = new Date(), params?: DeckParams): ReviewResult {
-  const { card, log } = engineFor(params).next(toFsrs(sched), now, rating as Grade);
+/** What an answer needs to fuzz and place intervals as Anki does. Without it, nothing is fuzzed. */
+export interface AnswerContext {
+  /** Anki's fuzz seed for the card: its id plus its reps before the answer (`fuzzSeed`). */
+  seed?: bigint;
+  /** When the study day starts, so a step crossing into a later day becomes a day-long step. */
+  dayStartsAtHour?: number;
+  /** The load balancer for the card's preset, when the collection has it on. */
+  balance?: Balancer;
+}
+
+/**
+ * The interval FSRS gives a stability, unrounded, as fsrs-rs computes it (in f32): the days until
+ * recall falls to the desired retention.
+ */
+export function rawInterval(stability: number, desiredRetention: number, weights: number[]): number {
+  const f = Math.fround;
+  const w = weights.length >= 21 ? weights : default_w;
+  const decay = f(-w[20]);
+  const factor = f(f(Math.exp(f(f(Math.log(f(0.9))) / decay))) - 1);
+  return f(f(stability / factor) * f(f(Math.pow(f(desiredRetention), f(1 / decay))) - 1));
+}
+
+/**
+ * Answers a card as Anki's v3 scheduler does with FSRS. FSRS updates the memory state; the deck's
+ * learning and relearning steps (its Anki preset's, else Anki's defaults) decide whether the card
+ * waits on a step (`stepOutcome`), fuzzed by up to 5 minutes, or a day-long step once it crosses
+ * into a later day. Otherwise it gets FSRS's interval, fuzzed (or load-balanced) as Anki does:
+ * graduating by `fsrsGraduatingDays`, a review by `fsrsReviewDays`, and a forgotten review with
+ * no relearning steps by FSRS's own interval, unfuzzed.
+ */
+export function review(sched: SchedState, rating: RatingValue, now: Date = new Date(), params?: DeckParams, ctx: AnswerContext = {}): ReviewResult {
+  const engine = engineFor(params);
+  const outcomes = engine.repeat(toFsrs(sched), now);
+  const { card, log } = outcomes[rating as Grade];
   let next = fromFsrs(card);
   const learn = params?.learnSteps ?? DEFAULT_LEARN_STEPS;
   const relearn = params?.relearnSteps ?? DEFAULT_RELEARN_STEPS;
+  const retention = params?.desiredRetention ?? 0.9;
+  const weights = params?.weights ?? [];
+  const maxInterval = params?.maxInterval ?? 36500;
+  const factor = ctx.seed !== undefined ? fuzzFactor(ctx.seed) : undefined;
+  const raw = (r: RatingValue) => rawInterval(outcomes[r as Grade].card.stability, retention, weights);
+  const DAY = 86400000;
+  const onDay = (days: number) => new Date(now.getTime() + days * DAY).toISOString();
+  /** A wait of `secs`: fuzzed within the day, or a day-long step from the start of the day it lands on. */
+  const step = (secs: number) => {
+    const nextDay = nextStudyDayStart(now, ctx.dayStartsAtHour ?? DAY_STARTS_AT_HOUR).getTime();
+    const untilRollover = Math.floor((nextDay - now.getTime()) / 1000);
+    if (secs >= untilRollover) return new Date(nextDay + Math.floor((secs - untilRollover) / 86400) * DAY).toISOString();
+    return new Date(now.getTime() + learningStepWithFuzz(ctx.seed, secs) * 1000).toISOString();
+  };
+
   // A new or learning card follows the learning steps; a relearning card, or a review forgotten, the relearning steps.
   const ladder = sched.state === 0 || sched.state === 1 ? { steps: learn, index: sched.state === 0 ? 0 : sched.learningSteps, state: 1 }
     : sched.state === 3 ? { steps: relearn, index: sched.learningSteps, state: 3 }
     : rating === 1 ? { steps: relearn, index: 0, state: 3 }
     : undefined;
-  const step = ladder ? stepOutcome(ladder.steps, ladder.index, rating) : 'graduate';
-  if (ladder && step !== 'graduate') {
-    next = { ...next, state: ladder.state, due: new Date(now.getTime() + step.secs * 1000).toISOString(), scheduledDays: 0, learningSteps: step.index };
+  const outcome = ladder ? stepOutcome(ladder.steps, ladder.index, rating) : 'graduate';
+  // FSRS-6 (or no weights) may keep a card on a short wait instead of steps, as Anki does when there are none.
+  const allowShort = weights.length === 0 || (weights.length >= 19 && weights[17] > 0 && weights[18] > 0);
+  if (ladder && outcome !== 'graduate') {
+    next = { ...next, state: ladder.state, due: step(outcome.secs), scheduledDays: 0, learningSteps: outcome.index };
+  } else if (ladder && ladder.steps.length === 0 && rating !== 4 && allowShort && raw(rating) < 0.5) {
+    next = { ...next, state: ladder.state, due: step(Math.trunc(raw(rating) * 86400)), scheduledDays: 0, learningSteps: 0 };
+  } else if (sched.state === 2 && rating === 1) {
+    // Forgotten, with no relearning steps: FSRS's interval as it is, as Anki does.
+    const days = Math.min(Math.max(Math.round(raw(1)), 1), Math.max(maxInterval, 1));
+    next = { ...next, state: 2, due: onDay(days), scheduledDays: days, learningSteps: 0 };
+  } else if (sched.state === 2) {
+    const days = fsrsReviewDays([raw(2), raw(3), raw(4)], sched.scheduledDays, maxInterval, factor, ctx.balance)[rating - 2];
+    next = { ...next, state: 2, due: onDay(days), scheduledDays: days, learningSteps: 0 };
+  } else {
+    const days = fsrsGraduatingDays(rating, { chosen: raw(rating), good: raw(3) }, maxInterval, factor, ctx.balance);
+    next = { ...next, state: 2, due: onDay(days), scheduledDays: days, learningSteps: 0 };
   }
   return {
     sched: next,
@@ -153,7 +219,7 @@ export function review(sched: SchedState, rating: RatingValue, now: Date = new D
       rating,
       reviewedAt: now.toISOString(),
       state: log.state,
-      due: log.due.toISOString(),
+      due: next.due,
       stability: log.stability,
       difficulty: log.difficulty,
     },
@@ -167,10 +233,10 @@ export function previewLog(card: { sched: SchedState }, rating: RatingValue, now
 }
 
 /** Human-readable next interval for each rating, e.g. { 1: '1m', 2: '6m', 3: '10m', 4: '4d' }. */
-export function previewIntervals(sched: SchedState, now: Date = new Date(), params?: DeckParams): Record<RatingValue, string> {
+export function previewIntervals(sched: SchedState, now: Date = new Date(), params?: DeckParams, ctx?: AnswerContext): Record<RatingValue, string> {
   const out = {} as Record<RatingValue, string>;
   for (const r of [Rating.Again, Rating.Hard, Rating.Good, Rating.Easy] as const) {
-    out[r as RatingValue] = formatInterval(new Date(review(sched, r as RatingValue, now, params).sched.due).getTime() - now.getTime());
+    out[r as RatingValue] = formatInterval(new Date(review(sched, r as RatingValue, now, params, ctx).sched.due).getTime() - now.getTime());
   }
   return out;
 }

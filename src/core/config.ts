@@ -36,4 +36,5 @@ export const DEFAULT_COLLECTION_SETTINGS: CollectionSettings = {
   learnAheadMinutes: LEARN_AHEAD_MINUTES,
   newCardsIgnoreReviewLimit: false,
   applyAllParentLimits: false,
+  loadBalancer: true,
 };

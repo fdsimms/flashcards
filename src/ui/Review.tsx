@@ -5,10 +5,13 @@ import { Alert, ScrollView, Text, useColorScheme, View } from 'react-native';
 import { isOmnilanguage, renderCard } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
-import { studyDayStart } from '../core/day';
+import { nextStudyDayStart, studyDayStart } from '../core/day';
 import { nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
-import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type RatingValue } from '../core/scheduler';
+import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type AnswerContext, type RatingValue } from '../core/scheduler';
+import { fuzzSeed } from '../core/ankiFuzz';
+import { balancerFor, buildLoadSnapshot, forgetCard, loadDayIndex, recordAnswer, type LoadSnapshot } from '../core/loadBalance';
+import { ankiToday, fnvHash } from '../core/order';
 import { saveNote, type NoteStore } from '../anki/noteService';
 import { bumpStudied, currentCard, type AnswerRecord } from '../core/session';
 import { cardDocument, renderTemplateCard } from '../core/template';
@@ -95,6 +98,8 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   // Set while an answer or an undo is being written. A second tap during the await would
   // otherwise act on the same card again from its old state.
   const busy = useRef(false);
+  // Anki's load balancer works from a snapshot of the days ahead, taken when the session is built.
+  const loadSnapshot = useRef<LoadSnapshot>(new Map());
 
   useEffect(() => {
     (async () => {
@@ -114,6 +119,12 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       setNoteTypes(types);
       setStudied(today);
       setNotes(new Map(n.map((x) => [x.id, x])));
+      const deckOfNote = new Map(n.map((x) => [x.id, x.deck]));
+      const dayNumber = ankiToday(now, cs.dayStartsAtHour, cs.collectionCreated, cs.creationOffset);
+      loadSnapshot.current = buildLoadSnapshot(
+        c, (card) => paramsForDeck(cardHomeDeck(card, deckOfNote.get(card.noteId) ?? ''), params)?.presetId,
+        (card) => loadDayIndex(card, now, cs.dayStartsAtHour, dayNumber),
+      );
       setCards(c);
     })();
   }, [repo, deck, reloads]);
@@ -142,7 +153,17 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
     return { front: cardDocument(front, opts), back: cardDocument(back, opts) };
   }, [note, noteType, current?.id, current?.kind, dark, c]); // eslint-disable-line react-hooks/exhaustive-deps
   const rendered = current && note && !page ? renderCard(note, current.kind) : undefined;
-  const intervals = current && revealed ? previewIntervals(current.sched, now, cardParams) : undefined;
+  // The fuzz seed and load balancer for answering the current card, as Anki has them: the buttons show what an answer does.
+  const answerContext = (card: Card, when: Date): AnswerContext => {
+    const seed = fuzzSeed(card.ankiId, card.sched.reps) ?? BigInt.asUintN(64, fnvHash(card.id) + BigInt(card.sched.reps));
+    // A card in a filtered deck has no preset there, so Anki fuzzes it without balancing.
+    const balance = collection.loadBalancer === false || card.filteredDeck ? undefined : balancerFor(loadSnapshot.current, card, {
+      preset: cardParams?.presetId, seed, easyDays: cardParams?.easyDays, buryReviews: !!cardParams?.bury?.reviews,
+      nextDayAt: nextStudyDayStart(when, H),
+    });
+    return { seed, dayStartsAtHour: H, balance };
+  };
+  const intervals = current && revealed ? previewIntervals(current.sched, now, cardParams, answerContext(current, now)) : undefined;
 
   // One player for the session's recorded audio, released when the screen closes.
   const player = useRef<AudioPlayer | null>(null);
@@ -193,7 +214,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       // Again, Hard and Good show a previewed card again after the deck's delay; Easy, or a delay of 0, finishes it.
       const delay = preview ? [0, filtered.previewSecs?.again ?? 0, filtered.previewSecs?.hard ?? 0, filtered.previewSecs?.good ?? 0, 0][rating] : 0;
       const previewAgainAt = delay > 0 ? new Date(when.getTime() + delay * 1000) : undefined;
-      const res = preview ? { sched: current.sched, log: previewLog(current, rating, when) } : review(current.sched, rating, when, cardParams);
+      const res = preview ? { sched: current.sched, log: previewLog(current, rating, when) } : review(current.sched, rating, when, cardParams, answerContext(current, when));
       // A forgotten review can make the card a leech: its note is tagged, and the card suspended if the preset says so, as in Anki.
       const leech = cardParams?.leech ?? DEFAULT_LEECH;
       const isLeech = !preview && becameLeech(current.sched, res.sched, leech);
@@ -242,6 +263,8 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       }
       // Counted in the deck the card is studied in, as Anki counts it (a filtered deck's answers count there).
       const record: AnswerRecord = { before: current, reviewId, deck: cardDeck(current, note.deck), anki, buried: siblings, leechNote };
+      // Now a review, it weighs on the days the load balancer spreads later answers over, as in Anki.
+      if (updated.sched.state === 2) recordAnswer(loadSnapshot.current, updated, cardParams?.presetId, updated.sched.scheduledDays);
       setStudied((s) => bumpStudied(s, record.deck, studiedKind(record.before, H), 1));
       setHistory((h) => [...h, record]);
       // Functional update: `cards` from this render's closure is stale once the awaits return.
@@ -278,6 +301,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
         } catch { /* the tag stays */ }
       }
       await repo.deleteReview(last.reviewId);
+      forgetCard(loadSnapshot.current, last.before.id);
       setHistory((h) => h.slice(0, -1));
       setStudied((s) => bumpStudied(s, last.deck, studiedKind(last.before, H), -1));
       const restored = new Map([last.before, ...last.buried].map((c) => [c.id, c]));

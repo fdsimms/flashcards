@@ -40,8 +40,11 @@ describe('reading a collection', () => {
     expect(collectionSettings([
       { key: 'rollover', val: val(2) }, { key: 'collapseTime', val: val(600) },
       { key: 'newCardsIgnoreReviewLimit', val: val(true) }, { key: 'applyAllParentLimits', val: val(true) },
-    ])).toEqual({ dayStartsAtHour: 2, learnAheadMinutes: 10, newCardsIgnoreReviewLimit: true, applyAllParentLimits: true });
-    expect(collectionSettings(undefined)).toEqual({ dayStartsAtHour: 4, learnAheadMinutes: 20, newCardsIgnoreReviewLimit: false, applyAllParentLimits: false });
+      { key: 'loadBalancerEnabled', val: val(false) },
+    ])).toEqual({ dayStartsAtHour: 2, learnAheadMinutes: 10, newCardsIgnoreReviewLimit: true, applyAllParentLimits: true, loadBalancer: false });
+    expect(collectionSettings(undefined)).toEqual({ dayStartsAtHour: 4, learnAheadMinutes: 20, newCardsIgnoreReviewLimit: false, applyAllParentLimits: false, loadBalancer: true });
+    // Easy days, Monday to Sunday, as Anki encodes them.
+    expect(readDeckConfig(hex('221C0000803F0000803F0000803F0000803F0000803F0000003F00000000')).easyDays).toEqual([1, 1, 1, 1, 1, 0.5, 0]);
   });
 
   it("imports each card's own deck, filtered deck, new-card position and learning step", async () => {
