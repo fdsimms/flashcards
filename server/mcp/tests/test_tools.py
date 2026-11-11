@@ -196,3 +196,13 @@ async def test_deletes_media_only_when_unused_unless_asked(client, cm, desktop):
     cm.wait_for_media()
     desktop.run("media-sync")
     assert not (desktop.path.parent / "collection.media" / "spare.txt").exists()
+
+
+async def test_cards_come_as_text_unless_html_is_asked_for(client):
+    card = (await call(client, "study_next", deck=TRIVIA))["card"]["card_id"]
+    plain = await call(client, "present_card", card_id=card, show_answer=True)
+    assert plain["question_text"] and plain["answer_text"]
+    assert "question_html" not in plain and "answer_html" not in plain
+    full = await call(client, "present_card", card_id=card, show_answer=True, include_html=True)
+    assert full["answer_html"] and "<style" not in full["question_html"] and "<style" not in full["answer_html"]
+    assert "question_html" not in await call(client, "study_next", deck=TRIVIA)
