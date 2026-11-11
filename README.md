@@ -34,7 +34,7 @@ New, renamed and deleted decks, deck options, note types and tags are merged the
 
 Everything happens on the phone, with AnkiMobile.
 
-**Bring it in:** in AnkiMobile, tap the button at the bottom left of the deck list, choose **Export**, pick **Collection** with media included, and save it to Files. In Franki, tap **Anki**, then **Choose file**, and pick it. Franki keeps the whole collection: every note and card with its scheduling and FSRS memory state, each deck's limits and FSRS settings, each note type's templates and styling, the images and sounds, and all of Anki's review history.
+**Bring it in:** in AnkiMobile, tap the button at the bottom left of the deck list, choose **Export**, pick **Collection** with media included, and save it to Files. In Franki, tap **Settings**, then **Anki**, then **Choose file**, and pick it. Franki keeps the whole collection: every note and card with its scheduling and FSRS memory state, each deck's limits and FSRS settings, each note type's templates and styling, the images and sounds, and all of Anki's review history.
 
 **Study in Franki.** Every answer is written into that collection the way Anki would write it.
 
@@ -52,11 +52,11 @@ Changes to an Anki note go into your Anki collection as Anki would make them, so
 
 ## Stats
 
-**Stats** on the deck list shows today's answers, time spent, new cards and Agains; what comes due over the next 30 days; answers over the last 30; cards by stage (new, learning, young, mature, suspended); and how often reviews were remembered, against the deck's desired retention. Pick a top-level deck at the top, or all of them. It counts your whole history from Anki, not just answers given in Franki. Tap a bar to see that day.
+**Stats** (in Settings) shows today's answers, time spent, new cards and Agains; what comes due over the next 30 days; answers over the last 30; cards by stage (new, learning, young, mature, suspended); and how often reviews were remembered, against the deck's desired retention. Pick a top-level deck at the top, or all of them. It counts your whole history from Anki, not just answers given in Franki. Tap a bar to see that day.
 
 ## Backing up
 
-Everything lives on the phone. **Backup** on the deck list makes one file with the database and the imported images and sounds, and opens the share sheet: choose **Save to Files** to keep it in iCloud Drive. **Restore from a backup** on the same screen replaces everything with a backup's contents (it asks first). The deck list says when you last backed up, and turns red after a week.
+Everything lives on the phone. **Backup** (in Settings) makes one file with the database and the imported images and sounds, and opens the share sheet: choose **Save to Files** to keep it in iCloud Drive. **Restore from a backup** on the same screen replaces everything with a backup's contents (it asks first). The deck list says when you last backed up, and turns red after a week.
 
 ## Studying
 

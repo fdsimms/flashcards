@@ -64,7 +64,6 @@ export function DeckList(props: {
   onOpen: (deck: string) => void;
   onImport: () => void;
   onBackup: () => void;
-  onStats: () => void;
   onSettings: () => void;
   onBrowse: () => void;
   onOptions: (deck: string) => void;
@@ -81,13 +80,6 @@ export function DeckList(props: {
           <HeaderAction label="Settings" onPress={props.onSettings} />
         </View>
       }
-      footer={
-        <View style={{ flexDirection: 'row', gap: space.s }}>
-          <Button label="Anki" onPress={props.onImport} style={{ flex: 1 }} />
-          <Button label="Stats" variant="secondary" onPress={props.onStats} style={{ flex: 1 }} />
-          <Button label="Backup" variant="secondary" onPress={props.onBackup} style={{ flex: 1 }} />
-        </View>
-      }
     >
       <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         {props.backup?.overdue ? (
@@ -101,7 +93,8 @@ export function DeckList(props: {
         {groups.length === 0 ? (
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>No decks yet</Text>
-            <Help>Tap Anki to bring in your collection, exported from AnkiMobile.</Help>
+            <Help>Bring in your Anki collection, by syncing with your Anki server or from a file exported from AnkiMobile.</Help>
+            <Button label="Set up Anki" onPress={props.onImport} />
           </Card>
         ) : (
           groups.map((g) => (

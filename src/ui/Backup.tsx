@@ -9,7 +9,7 @@ import type { BackupStore } from '../db/sqliteRepo';
 import { Button, Card, Help, MessageList, Screen } from './kit';
 import { space, type, useTheme } from './theme';
 
-export function Backup({ store, onDone }: { store: BackupStore; onDone: () => void }) {
+export function Backup({ store, onDone, backLabel }: { store: BackupStore; onDone: () => void; backLabel?: string }) {
   const c = useTheme();
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -73,7 +73,7 @@ export function Backup({ store, onDone }: { store: BackupStore; onDone: () => vo
   };
 
   return (
-    <Screen onBack={onDone} title="Backup">
+    <Screen onBack={onDone} backLabel={backLabel} title="Backup">
       <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Back up</Text>
