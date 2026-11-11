@@ -1,4 +1,4 @@
-import { htmlToText, isTruthyField } from './html';
+import { htmlToText, isTruthyField, soundFiles } from './html';
 import { newSchedState } from './scheduler';
 import { templateOrdinals } from './template';
 import type { Card, CardKind, Note, NoteType, RenderedCard } from './types';
@@ -76,9 +76,14 @@ function pushIf(blocks: Block[], text: string, label?: string, emphasis?: boolea
 }
 
 export function renderCard(note: Note, kind: CardKind): RenderedCard {
-  const speechLang = speechLangFor(note);
-
   if (!isOmnilanguage(note)) return renderGeneric(note);
+  const card = renderOmnilanguage(note, kind);
+  const audioFile = soundFiles(note.fields.Audio)[0];
+  return audioFile ? { ...card, audioFile } : card;
+}
+
+function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
+  const speechLang = speechLangFor(note);
 
   const entry = t(note, 'Entry');
   const translit = t(note, 'Transliteration');

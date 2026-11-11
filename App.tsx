@@ -1,3 +1,4 @@
+import { setAudioModeAsync } from 'expo-audio';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -29,6 +30,10 @@ export default function App() {
   const [ankiUnsent, setAnkiUnsent] = useState(0);
 
   useEffect(() => { openRepo().then(setRepo); }, []);
+  // Card audio plays with the ring/silent switch on: it only ever plays because you opened a card
+  // with audio or pressed Play. iOS mutes an app's audio in silent mode unless it asks for this,
+  // which silenced recordings, text-to-speech and the play buttons on template cards alike.
+  useEffect(() => { setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined); }, []);
 
   const refresh = useCallback(async () => {
     if (!repo) return;

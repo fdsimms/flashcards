@@ -5,8 +5,8 @@ A small personal spaced-repetition app (React Native + Expo) built for language 
 - **Scheduling:** FSRS via [`ts-fsrs`](https://github.com/open-spaced-repetition/ts-fsrs), with each deck's FSRS weights, desired retention and daily limits carried over from Anki
 - **Storage:** `expo-sqlite`, on the device only, with backup and restore through Files / iCloud Drive
 - **Anki:** works on your real Anki collection, handed back and forth with AnkiMobile as a file, every answer written into it as Anki would
-- **Audio:** `expo-speech` (on-device TTS, language picked from the note's `Language` field or deck name)
-- **Cards:** Omnilanguage notes render natively with TTS: a front card (unless `SuppressFrontCard`), plus reverse / audio cards gated on `GenerateReverse` / `GenerateAudioCard`. Every other note type renders its own Anki templates and CSS in a WebView, with its images and sounds, one card per Anki card (cloze included).
+- **Audio:** each note's recorded audio from Anki (`expo-audio`), else `expo-speech` (on-device TTS, language picked from the note's `Language` field or deck name). Plays with the silent switch on.
+- **Cards:** Omnilanguage notes render natively, playing the recording in their `Audio` field (or TTS when there's none): a front card (unless `SuppressFrontCard`), plus reverse / audio cards gated on `GenerateReverse` / `GenerateAudioCard`. Every other note type renders its own Anki templates and CSS in a WebView, with its images and sounds, one card per Anki card (cloze included).
 - **Decks:** nested as in Anki. Opening a parent studies its subdecks too, within each deck's limits.
 
 ## Run it
@@ -99,4 +99,4 @@ The study day starts at 4 AM, as in Anki, so a late-night session counts toward 
 
 ## Not built yet
 
-Typing the answer (`{{type:}}` shows the answer on the back instead), Anki's own TTS tags (`{{tts:}}`), recorded audio on Omnilanguage cards (TTS is used), collapsing decks, adding/editing cards in-app, stats, and syncing with Anki automatically through your own sync server (planned: until then, the collection moves by file).
+Typing the answer (`{{type:}}` shows the answer on the back instead), Anki's own TTS tags (`{{tts:}}`), collapsing decks, adding/editing cards in-app, stats, and syncing with Anki automatically through your own sync server (planned: until then, the collection moves by file).

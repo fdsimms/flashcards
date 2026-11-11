@@ -27,4 +27,12 @@ describe('cards', () => {
     expect(r.front.blocks[0].text).toBe('Capital of Peru?');
     expect(r.back.blocks[0].text).toBe('Lima');
   });
+
+  it("names the note's recorded audio, for playing in place of text-to-speech", () => {
+    const withAudio = omniNote({ Audio: '[sound:hypertts-cbb27612.mp3]' });
+    for (const kind of ['forward', 'reverse', 'audio'] as const) {
+      expect(renderCard(withAudio, kind).audioFile).toBe('hypertts-cbb27612.mp3');
+    }
+    expect(renderCard(omniNote(), 'forward').audioFile).toBeUndefined();
+  });
 });
