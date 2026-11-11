@@ -80,7 +80,7 @@ It needs more memory than the rest (up to about 350 MB with both languages), so 
 - `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`: the same ones as the MCP's audio (above)
 - `READER_BUCKET_*` (optional, recommended): an S3-compatible bucket that the database is backed up to continuously. When the database is missing (a new server, a lost volume), it's restored from there.
 
-Then run `docker compose up -d --build`. Check `https://<your domain>/reader/health` shows `{"status":"ok"}`. The app's server address is `https://<your domain>/reader`.
+Then run `docker compose up -d --build`. Check `https://<your domain>/reader/health` shows `{"status":"ok"}`. Then in Franki, open **Settings**, **Read & Listen**, and enter the passphrase. Franki finds the server at `https://<your domain>/reader` by itself, from the sync settings.
 
 ### Moving it from Fly
 
@@ -89,7 +89,7 @@ Read & Listen used to run on Fly.io, with its database backed up to a Tigris buc
 1. Copy the bucket's settings from the Fly machine while it's still running: `fly ssh console -a ailing -C "printenv BUCKET_NAME AWS_ENDPOINT_URL_S3 AWS_REGION AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY"`. They go in `.env` in that order, as `READER_BUCKET_NAME`, `READER_BUCKET_ENDPOINT`, `READER_BUCKET_REGION`, `READER_BUCKET_KEY_ID` and `READER_BUCKET_SECRET`. Copy `ANTHROPIC_API_KEY` and the passphrase (`APP_PASSPHRASE` there, `READER_PASSPHRASE` here) from your password manager.
 2. Stop the Fly server: `fly scale count 0 -a ailing`. Litestream sends its last changes as it stops.
 3. Turn Read & Listen on here, as above. `docker compose logs reader` shows Litestream restoring the database, then the server starting.
-4. Build the app with `EXPO_PUBLIC_API_URL` set to `https://<your domain>/reader`.
+4. In Franki, turn on Read & Listen with the same passphrase (Settings, Read & Listen). The old Read & Listen app can be deleted from the phone.
 5. Leave the Fly app stopped rather than deleting it until you've checked the bucket survives without it: it was made with `fly storage create` for that app.
 
 Audio already recorded on Fly isn't moved: each line is recorded again the first time it's played.

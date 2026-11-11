@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import type { DeckRow } from '../core/deckTree';
-import { Button, Card, Count, Help, HeaderAction, Screen } from './kit';
+import { Button, Card, Count, Help, HeaderAction, NavRow, Screen } from './kit';
 import { radius, space, type, useTheme } from './theme';
 
 /** Rows grouped under their top-level deck, so each family of decks sits in one card. */
@@ -70,6 +70,8 @@ export function DeckList(props: {
   onSettings: () => void;
   onBrowse: () => void;
   onOptions: (deck: string) => void;
+  /** Present when Read & Listen is on. */
+  onRead?: () => void;
 }) {
   const c = useTheme();
   const groups = useMemo(() => groupByTopLevel(props.decks), [props.decks]);
@@ -115,6 +117,11 @@ export function DeckList(props: {
             </View>
           ))
         )}
+        {props.onRead ? (
+          <Card style={{ paddingVertical: 0, gap: 0 }}>
+            <NavRow first label="Read & Listen" detail="Texts written from the words in your decks" onPress={props.onRead} />
+          </Card>
+        ) : null}
         {props.sync ? (
           <Pressable onPress={props.sync.onSync} accessibilityRole="button" accessibilityHint="Syncs now"
             style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>

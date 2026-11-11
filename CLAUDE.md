@@ -15,9 +15,8 @@ the owner's existing Anki decks and keep their scheduling. Where Anki has a conv
 used to (the study day starting at 4 AM, a review being due for its whole day, re-imports keeping
 progress), match it unless there's a stated reason not to.
 
-It's also taking over **Read & Listen** from the owner's separate app (fdsimms/ailing): texts
-written from the words in the deck, to read and listen to. Its server has moved to `server/reader/`;
-its screens come next. See "Read & Listen" below.
+It also has **Read & Listen**, which replaced the owner's separate app (fdsimms/ailing): texts
+written from the words in the deck, to read and listen to. See "Read & Listen" below.
 
 ## Commands
 
@@ -137,7 +136,10 @@ src/core     types, FSRS wrapper, queue, deck tree, study day, card rendering, A
 src/import   TSV + Anki JSON importers, re-import matching (reconcile.ts)
 src/db       Repo interface + MemoryRepo (tests), SQLite repo (app), backup planning
 src/media    the media folder (expo-file-system)
-src/ui       screens, the shared pieces they're built from (kit.tsx), the theme, CardWebView
+src/ui       screens, the shared pieces they're built from (kit.tsx), the theme, CardWebView;
+             Read & Listen's screens are Read*.tsx and Reader.tsx
+src/reader   Read & Listen's side of the app: its server's API, the reading session, playback (pure,
+             tested; storage.ts keeps the passphrase in the Keychain)
 src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested);
              sync/ syncs with an Anki sync server (pure, tested; syncService.ts is the phone's side)
 server/      a ready-to-run Anki sync server (Docker, Caddy); server/mcp is the MCP for Claude (Python);
@@ -147,7 +149,7 @@ tests/       vitest, mirroring src/ (src/core/queue.ts -> tests/core/queue.test.
 ```
 
 **Tests mirror source 1:1**, and only pure logic is tested (`src/core`, `src/import`, `src/db`'s
-MemoryRepo and backup planning, `src/anki` except files.ts). Vitest runs in `node` with no React renderer, so there are no
+MemoryRepo and backup planning, `src/anki` except files.ts, `src/reader` except storage.ts). Vitest runs in `node` with no React renderer, so there are no
 screen tests. Don't add a renderer to cover a UI change: verify by reasoning about the code and say
 so plainly rather than implying you ran it. Keep logic out of screens so it can be tested: if a
 screen grows a decision worth testing, move it into `src/core`.
@@ -167,13 +169,16 @@ the review. `MemoryRepo` is the reference implementation and must behave like th
 
 **Audio plays with the silent switch on** (`setAudioModeAsync({ playsInSilentMode: true })` in
 `App.tsx`): iOS otherwise mutes an app's recordings, TTS and WebView audio alike, which made every
-play button look broken. `expo-audio`'s config plugin is set to add no microphone permission or
-background audio, neither of which Franki uses.
+play button look broken. `expo-audio`'s config plugin adds no microphone permission (Franki never
+records) but does allow background audio, which only Read & Listen's reader turns on, while it's
+open (`shouldPlayInBackground`), so listening goes on with the screen locked.
 
-**Everything stays on the device, except sync.** TTS is `expo-speech` (on-device voices), storage
-is local SQLite, and there is no backend. The one network call is sync with the user's own Anki
-sync server (`src/anki/sync/`), off until they sign in. A future feature that needs the network (a
-dictionary lookup, an AI hint) ships behind its own setting that defaults to off.
+**Everything stays on the device, except sync and Read & Listen.** TTS is `expo-speech` (on-device
+voices) and storage is local SQLite. The network calls are sync with the user's own Anki sync
+server (`src/anki/sync/`), off until they sign in, and Read & Listen, which talks to its server
+beside the sync server and is off until its passphrase is entered (Settings, Read & Listen). A
+future feature that needs the network (a dictionary lookup, an AI hint) ships behind its own setting
+that defaults to off.
 
 ### The study day
 
@@ -378,7 +383,7 @@ and never the server's files, so searches, note adds, scheduling and sync behave
   about 15 minutes) and restarts sync, the MCP and Read & Listen. A server change must work with nothing done by
   hand on the server; if one truly needs a step there (a new `.env` setting), the PR says so plainly.
 
-### Read & Listen (`server/reader/`)
+### Read & Listen (`server/reader/`, `src/reader/`)
 
 Texts (dialogues, short stories) written by Claude from the words already in the Thai and Spanish
 decks, checked in code to be 95-98% known words, recorded with Azure's voices, read in the app with
@@ -388,8 +393,8 @@ they win and this is stale. The rules that must not break:
 
 - **Never grade FSRS from exposure, and never create Anki cards or reviews without an explicit
   approval step.** The server only reads the collection (`collection.py`; `test_collection.py`
-  checks a read leaves nothing to send). When the screens come to the app, nothing in them answers
-  a card.
+  checks a read leaves nothing to send), and the app's side imports nothing that schedules or
+  writes cards (`tests/reader/noGrading.test.ts` fails the build on it).
 - **Generate, then verify in code.** The model writes lines as `|`-split strings with stretch words
   in `*asterisks*`; the server re-segments every line itself (lexicon-first for Thai, by lemma for
   Spanish) and sends drafts under the floor back with the unknown words named. Never trust the
@@ -408,6 +413,10 @@ they win and this is stale. The rules that must not break:
 - It runs as the `reader` service in `server/docker-compose.yml`, under `/reader` on the sync
   server's domain, with its own passphrase. Its keys (Claude, Azure) stay on the server, never in
   the app.
+- **In the app, the server holds Read & Listen's data** (topics, texts, the reading log, marked
+  words, grammar choices); the screens fetch and show it, and keep nothing but the passphrase and
+  the reader's speed and highlight (`src/reader/storage.ts`). The address is the sync server's plus
+  `/reader` (`readerAddress`), so it's on only while sync is.
 
 ### Backup
 

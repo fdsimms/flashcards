@@ -4,8 +4,8 @@ Decisions made after `brief.md` was written, with the reason for each. Where thi
 brief disagree, this file is newer.
 
 Read & Listen was its own app (fdsimms/ailing) until 11 November 2026, when the owner decided to
-bring it into Franki. Its server moved first, to `server/reader/`; the app's screens are still in
-that repo's `client/` until they're rebuilt in Franki. Paths below under `client/` are that repo's.
+bring it into Franki and retire that app: its server is `server/reader/`, and its screens are
+Franki's (Client, below).
 
 ## Kept from the brief
 
@@ -34,17 +34,19 @@ that repo's `client/` until they're rebuilt in Franki. Paths below under `client
 
 ## Client
 
-- **An Expo / React Native iOS app** (`client/`), not the brief's home-screen web app. The owner
-  chose this on 19 October 2026 to match dundundun. It uses the same Expo, React Native and
-  TypeScript versions as dundundun, and the same test setup (Jest on pure logic, no component tests).
-- Built with EAS and installed through TestFlight.
-- Background audio is on (`UIBackgroundModes: audio`), so listening keeps going with the screen
-  locked or in another app. That was the main thing a web app couldn't do well.
-- The server's address is plain build config: `EXPO_PUBLIC_API_URL` in `client/eas.json`, inlined at
-  build time. Since the move it's `https://<sync server's domain>/reader`. Nothing secret ships in
-  the app.
-- Five screens (login, topics, reader, past texts, marked words) switched by state in `App.tsx`,
-  with no navigation library. The reader shows the server's word split as tappable words: a tap shows the
+- **Part of Franki** (11 November 2026, by the owner's decision; before that its own Expo app,
+  chosen on 19 October 2026 over the brief's home-screen web app). The logic is in `src/reader/`
+  (tested with vitest, like the rest of Franki), the screens are `src/ui/Read*.tsx` and
+  `src/ui/Reader.tsx`, built from Franki's kit and theme.
+- **Off until it's turned on** in Settings, Read & Listen, with the passphrase: Franki's rule for
+  anything that uses the network besides sync. The server's address isn't asked for: it's the sync
+  server's plus `/reader` (`readerAddress`), so Read & Listen needs sync set up first. Once on, the
+  deck list shows a Read & Listen row.
+- **Background audio** (`UIBackgroundModes: audio`, from `expo-audio`'s plugin), so listening keeps
+  going with the screen locked or in another app. The reader turns it on while it's open and off on
+  the way out, so card audio in Review is unchanged. Turning it on needed a new build of the app.
+- Screens (topics, reader, past texts, marked words, grammar, settings) are switched by state in
+  `App.tsx`, like the rest of Franki. The reader shows the server's word split as tappable words: a tap shows the
   gloss, and marking a word unknown is a second tap inside the gloss, so looking up a half-known
   word doesn't also flag it.
 - Each line has an EN button that shows that line's English alone, so checking one line doesn't
@@ -61,8 +63,8 @@ that repo's `client/` until they're rebuilt in Franki. Paths below under `client
   shouldn't count toward the exit check or move difficulty. So there's no Done or rating, and words
   can be looked up but not marked unknown. One rated "About right" can be played listen-only straight
   away, since that's when the brief unlocks it.
-- The reader's playback speed and the highlight switch are kept between launches, in the keychain
-  next to the passphrase (`client/src/savedPrefs.ts`), so no new native module was needed.
+- The reader's playback speed and the highlight switch are kept between launches, in the Keychain
+  next to the passphrase (`src/reader/storage.ts`).
 - **Progress** on the topics screen: finished texts over the last 14 days against the Milestone 1
   exit check (10 texts, median coverage 95% or more, most rated "about right"), and the coverage
   target and practice word count new texts are written at, so the effect of a rating is visible.
@@ -76,7 +78,9 @@ that repo's `client/` until they're rebuilt in Franki. Paths below under `client
   time instead of a new one being written. A listen-only pass comes after Done, so leaving it by
   any route still logs the reading as finished.
 - When the server rejects the saved passphrase (it was changed), the app forgets it and asks again.
-  Topics also has a Log out.
+  Turning Read & Listen off in Settings forgets it too.
+- **Nothing in the app grades or writes cards.** Its code imports nothing that schedules or writes
+  them (`tests/reader/noGrading.test.ts`).
 
 ## Hosting
 
@@ -338,5 +342,5 @@ Every `/api` route needs the passphrase as `Authorization: Bearer <passphrase>`;
 4. Reader and login (done; audio controls come with audio)
 5. Audio (done; voices and the Azure call unverified until the first real call)
 6. Deploy to Fly.io (done; since moved)
-7. Move into Franki: the server beside the sync server (done), then the app's screens, then
-   archive the ailing repo
+7. Move into Franki: the server beside the sync server, then the app's screens (done), then
+   retire the ailing repo, its Fly app and the droplet's Anki proxy

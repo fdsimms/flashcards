@@ -265,3 +265,43 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
     </Pressable>
   );
 }
+
+/** A row of equal segments, one of them chosen: a speed, a length, a text type. */
+export function Segments<T extends string | number>({ options, value, onChange, style }: {
+  options: { value: T; label: string; accessibilityLabel?: string }[];
+  value: T;
+  onChange: (value: T) => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const c = useTheme();
+  return (
+    <View accessibilityRole="radiogroup" style={[{ flexDirection: 'row', backgroundColor: c.fill, borderRadius: radius.s, padding: 2 }, style]}>
+      {options.map((o) => {
+        const selected = o.value === value;
+        return (
+          <Pressable
+            key={o.value}
+            onPress={() => onChange(o.value)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected }}
+            accessibilityLabel={o.accessibilityLabel ?? o.label}
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 36, borderRadius: radius.s - 2, backgroundColor: selected ? c.surface : 'transparent' }}
+          >
+            <Text style={{ ...type.subhead, fontWeight: '600', color: selected ? c.text : c.textSecondary }}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Something that failed, said as it is, with Try again when there's something to retry. */
+export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const c = useTheme();
+  return (
+    <View style={{ gap: space.xs, alignItems: 'flex-start' }}>
+      <Text style={{ ...type.subhead, color: c.danger }}>{message}</Text>
+      {onRetry ? <HeaderAction label="Try again" onPress={onRetry} /> : null}
+    </View>
+  );
+}
