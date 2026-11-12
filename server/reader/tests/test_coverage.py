@@ -123,8 +123,30 @@ def test_empty_text_does_not_pass() -> None:
     assert not check([], Lexicon(["ฉัน"])).meets()
 
 
-def test_ik_wa_is_not_split_as_i_and_kwa(lexicon: Lexicon) -> None:
-    assert lexicon.segment("ฉันถามอีกว่า") == ["ฉัน", "ถาม", "อีก", "ว่า"]
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        ("ฉันถามอีกว่า", ["ฉัน", "ถาม", "อีก", "ว่า"]),
+        ("ฉันบอกว่าไม่ไป", ["ฉัน", "บอก", "ว่า", "ไม่", "ไป"]),
+        ("เขาออกว่าจะมา", ["เขา", "ออก", "ว่า", "จะ", "มา"]),
+        ("เขามาจากว่า", ["เขา", "มาจาก", "ว่า"]),
+        ("ฉันต้องไปประตูไหนคะ", ["ฉัน", "ต้อง", "ไป", "ประตู", "ไหน", "คะ"]),
+        ("แล้วจะไป", ["แล้ว", "จะ", "ไป"]),
+        ("ตามมากไป", ["ตาม", "มาก", "ไป"]),
+    ],
+)
+def test_a_letter_glued_to_a_particle_goes_back_to_its_word(
+    lexicon: Lexicon, line: str, expected: list[str]
+) -> None:
+    assert lexicon.segment(line) == expected
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [("ราคาถูกกว่า", ["ราคา", "ถูก", "กว่า"]), ("ดีกว่าเดิม", ["ดีกว่า", "เดิม"])],
+)
+def test_a_real_kwa_is_left_alone(lexicon: Lexicon, line: str, expected: list[str]) -> None:
+    assert lexicon.segment(line) == expected
 
 
 def test_a_marked_name_is_not_counted_for_or_against_coverage(lexicon: Lexicon) -> None:
