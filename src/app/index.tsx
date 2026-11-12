@@ -30,7 +30,7 @@ export default function DecksRoute() {
         syncing,
         status: syncStatusText(syncSettings, new Date()),
         failed: !!syncSettings.lastError,
-        onSync: () => { sync(); },
+        onSync: () => sync(),
       } : undefined}
     />
   );
