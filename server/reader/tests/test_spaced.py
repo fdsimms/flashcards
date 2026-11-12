@@ -399,8 +399,8 @@ def test_greek_alternatives_are_each_an_entry() -> None:
     assert lexicon.status("της") == "known"
 
 
-def test_polish_counts_only_its_deck_with_the_gender_marker_known_from_the_entry() -> None:
-    lexicon = lexicon_of("pl", ["ta kobieta", "to dziecko", "pić / wypić", "i", "nie", "mały"])
+def test_polish_with_no_common_words_counts_only_its_deck_and_the_gender_marker() -> None:
+    lexicon = lexicon_of("pl", ["ta kobieta", "to dziecko", "pić / wypić", "i", "nie", "mały"], 0)
     assert word_statuses(lexicon, "Ta kobieta i małe dziecko nie piją.") == {
         "Ta": "known",
         "kobieta": "known",
@@ -410,7 +410,19 @@ def test_polish_counts_only_its_deck_with_the_gender_marker_known_from_the_entry
         "nie": "known",
         "piją": "known",
     }
-    assert lexicon.status("dom") == "unknown"  # common, but Polish counts only its deck
+    assert lexicon.status("dom") == "unknown"  # common, but none are counted here
+
+
+def test_polish_counts_its_250_most_common_words_by_default() -> None:
+    lexicon = lexicon_of("pl", ["ta kobieta"])
+    assert word_statuses(lexicon, "Ja nie mam na to psa.") == {
+        "Ja": "known",
+        "nie": "known",
+        "mam": "known",
+        "na": "known",
+        "to": "known",
+        "psa": "unknown",
+    }
 
 
 def test_norwegian_entries_match_without_their_article_or_infinitive_marker() -> None:

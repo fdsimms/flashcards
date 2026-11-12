@@ -255,7 +255,7 @@ DECKS = {
     "nb": "👅 Languages::🐟 Norsk",
 }
 # How many common words each language counts as known when none was chosen (not Thai: deck only).
-COMMON = {"es": 10000, "de": 3000, "fr": 3000, "ru": 3000, "el": 3000, "pl": 0, "nb": 1000}
+COMMON = {"es": 10000, "de": 3000, "fr": 3000, "ru": 3000, "el": 3000, "pl": 250, "nb": 1000}
 # Each language's voice for each slot (the first of a gender where it has no second), the same.
 VOICES = {
     "th": {

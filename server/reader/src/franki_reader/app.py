@@ -71,6 +71,11 @@ marked words, ideas) is in the current language, the `language` setting.
                                       or {kind: "gap", id, point, before, answer, after, english,
                                       wrong, hint}; `missing` names points that got none. Writes
                                       more gap questions in the background when Claude is set up
+    GET   /api/vocab-check?language=pl   the vocabulary check's questions (vocab_check.py): {state:
+                                      "ready", items: [{word, rank, meaning, wrong}]} without the
+                                      deck's words, or "preparing" (Claude is writing them, ask
+                                      again soon), "failed" or "unavailable"; not for Thai. The
+                                      quiz and its scoring are in the app
     GET   /api/grammar/{id}           one point's page: {id, state, seen, choices (its language's,
                                       for the related points), examples: [{text_id, title, line,
                                       english, words}]}, lines from texts read, the latest first
@@ -107,7 +112,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from franki_speech import SpeechClient, SpeechError, locale_of
 from pydantic import BaseModel, Field
 
-from franki_reader import config, drills, exposure, grammar, store
+from franki_reader import config, drills, exposure, grammar, store, vocab_check
 from franki_reader.collection import AnkiDeck, SyncSettings
 from franki_reader.coverage import parse_line
 from franki_reader.engine import Engine, NotAvailable, NotFound
@@ -136,6 +141,7 @@ from franki_reader.suggestions import suggest
 from franki_reader.tts import AudioCache, Speech, azure_synthesize
 
 # The window the progress summary covers: the Milestone 1 exit check's two weeks.
+VOCAB_RETRY = timedelta(minutes=10)  # before a vocabulary check bank that failed is written again
 PROGRESS_DAYS = 14
 # How many past texts the list shows.
 PAST_TEXTS = 50
@@ -294,10 +300,15 @@ def create_app(
     status_token: str | None = None,
     read_due: ReadDue | None = None,
     write_drills: drills.WriteDrills | None = None,
+    write_vocab: vocab_check.WriteVocab | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
     # Points whose drill questions are being written, shared by every request (drills.top_up).
     drills_writing: set[str] = set()
+    # Languages whose vocabulary check words are being written, and when one last failed, so a
+    # language Claude can't gloss isn't asked again on every poll of the quiz.
+    vocab_writing: set[Code] = set()
+    vocab_failed: dict[Code, datetime] = {}
 
     def given_key(authorization: str | None) -> bytes:
         # Header values arrive decoded as latin-1, so turn them back into the bytes that were sent
@@ -764,6 +775,7 @@ def create_app(
         by_language = store.spending(engine.conn, since)
         explained = store.explanation_spending(engine.conn, since)
         drilled = store.drill_spending(engine.conn, since)
+        vocab = store.vocab_spending(engine.conn, since)
         rows = by_language.values()
         total = store.Spending(
             sum(r.read for r in rows),
@@ -807,6 +819,20 @@ def create_app(
                         "cost_usd": round(c, 4),
                     }
                     for code, (n, c) in drilled.items()
+                ],
+            },
+            # The vocabulary check's words, glossed once a language (vocab_check.py).
+            "vocab_checks": {
+                "batches": sum(n for n, _ in vocab.values()),
+                "cost_usd": round(sum(c for _, c in vocab.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "batches": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in vocab.items()
                 ],
             },
         }
@@ -880,6 +906,38 @@ def create_app(
             "missing": [p for p in points if p not in asked],
             "writing": write_drills is not None,
         }
+
+    async def write_vocab_bank(language: Code) -> None:
+        assert write_vocab is not None
+        vocab_writing.add(language)
+        try:
+            if await vocab_check.write_bank(engine.conn, write_vocab, language, engine.clock):
+                vocab_failed.pop(language, None)
+            else:
+                vocab_failed[language] = engine.clock()
+        finally:
+            vocab_writing.discard(language)
+
+    @app.get("/api/vocab-check", dependencies=authed)
+    async def get_vocab_check(language: Code, background: BackgroundTasks) -> dict[str, Any]:
+        """The vocabulary check's questions for a language (vocab_check.py). `state` is "ready" with
+        the `items`, "preparing" while Claude writes them (ask again in a few seconds), "failed"
+        when it couldn't (not asked again for `VOCAB_RETRY`), or "unavailable" with no Claude key."""
+        if not LANGUAGES[language].spaced:
+            raise HTTPException(422, f"{LANGUAGES[language].name} counts only its deck.")
+        if store.vocab_items(engine.conn, language):
+            items = vocab_check.serve(engine.conn, engine.snapshot(language)[1], language)
+            return {"state": "ready", "items": items}
+        if write_vocab is None:
+            return {"state": "unavailable", "items": []}
+        if language in vocab_writing:
+            return {"state": "preparing", "items": []}
+        failed = vocab_failed.get(language)
+        if failed is not None and engine.clock() - failed < VOCAB_RETRY:
+            return {"state": "failed", "items": []}
+        vocab_writing.add(language)  # before the response, so the next poll sees it
+        background.add_task(write_vocab_bank, language)
+        return {"state": "preparing", "items": []}
 
     @app.get("/api/grammar/{point_id}", dependencies=authed)
     async def get_grammar_point(point_id: str) -> dict[str, Any]:
@@ -1062,12 +1120,14 @@ def production_app() -> FastAPI:
     explain: Explain | None = None
     explain_phrase: ExplainPhrase | None = None
     write_drills: drills.WriteDrills | None = None
+    write_vocab: vocab_check.WriteVocab | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
         explain = claude_explain(client)
         explain_phrase = claude_explain_phrase(client)
         write_drills = drills.claude_drills(client)
+        write_vocab = vocab_check.claude_vocab(client)
 
         def ask_for(entries: list[Entry], language: Code) -> Ask:
             return claude_ask(client, entries, language)
@@ -1123,4 +1183,5 @@ def production_app() -> FastAPI:
         status_token=settings.secrets.get("STATUS_TOKEN"),
         read_due=due_with_timeout(anki.due) if anki else None,
         write_drills=write_drills,
+        write_vocab=write_vocab,
     )

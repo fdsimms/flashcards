@@ -206,12 +206,14 @@ Thai letters, so none of them is a language here. Each new language works as Spa
   about the variety (Mexican Spanish, Bokmål).
 - **How many common words count as known is a setting for each language but Thai** (12 November
   2026, the owner's decision: they weren't sure of their level in each, and found 10,000 a stretch
-  for every language, Spanish included): `common` in `/api/settings`, None, 1,000, 2,000, 3,000,
+  for every language, Spanish included): `common` in `/api/settings`, None, 250, 500, 1,000, 2,000, 3,000,
   5,000 or 10,000, chosen on the language's settings page under the deck. The defaults are first guesses from
   each deck, to be moved by feel: Spanish keeps 10,000, so nothing changed under it; German, French,
   Russian and Greek, whose decks hold advanced words, 3,000; Norwegian, whose deck holds everyday
-  words, 1,000; Polish, a beginner's deck, none, as the owner chose (only the deck counts, as for
-  Thai). The count goes in each request, not the cached system prompt, so changing it costs no
+  words, 1,000; Polish, a beginner's deck, 250 (first tried with none, so only the deck counted; the
+  first Polish text came out as strings of unrelated nouns, since 89 words have no connectives, and
+  1,000 was too many for someone two or three Duolingo units in, so 250 and 500 were added: the most
+  common 250 families are mostly the small words). The count goes in each request, not the cached system prompt, so changing it costs no
   cache. A text already waiting keeps the count it was written with, as with difficulty.
 - **The other decks**, checked on 12 November 2026: German (`🥨 Deutsch`, about 270 studied notes),
   French (`🥐 Français`, 280), Russian (`🐻 Русский`, 170) and Greek (`🏝️ Ελληνικά`, 455) are
@@ -677,3 +679,28 @@ in the current language, with when one was last read to the end. Nothing else le
    retire the ailing repo, its Fly app and the droplet's Anki proxy
 8. Mining, practice words after studying, a deck setting per language (done, 12 November 2026)
 9. The shelf and ongoing stories, in place of the topics screen (done, 12 November 2026)
+
+- **The prompt ranks sense above coverage** (12 November 2026, after the first Polish text, "A sink,
+  a white bird. It's April."): the rules say every line must be something a person would say there,
+  with few known words to pick a plain situation, and the self-check reads each line for sense as
+  well as vocabulary. Stretch words are optional when the request lets the model choose: if none fits
+  a sensible situation with the known words, it uses fewer or none.
+
+- **The vocabulary check suggests the common-words setting** (12 November 2026, the owner's idea, for
+  every language but Thai): 20 questions on a language's most common words, from its settings page.
+  The server keeps a bank (`vocab_check.py`): `PER_BAND` words from each of seven rank bands (1 to 100
+  up to 3,001 to 5,000), a fixed sample per language, glossed by Claude once with three wrong choices
+  and checked in code (a word it didn't ask for, or a wrong choice that could also be right, is
+  dropped). It is written in the background the first time (`GET /api/vocab-check` answers
+  "preparing" until then), its cost is in `/api/costs` as `vocab_checks`, and words already in the
+  deck are left out when it's served. **The quiz and its scoring run in the app** (`src/reader/
+  vocabCheck.ts`, pure and tested): it starts at the 251 to 500 band, goes up a band after a right
+  answer and down after a wrong one or "I don't know", and scores each band with a wrong answer
+  taking a third of a right one (a guess among four). It suggests the largest setting at which at
+  least 90% of the words it would count as known are known, by each band's share, taking an unasked
+  band below the lowest asked as known and nothing above the highest asked. The owner accepts it or
+  keeps their setting; it never writes a card or changes anything else. Twenty questions was checked
+  by simulation against a learner whose chance of knowing a word falls with its rank: the suggestion
+  was within one setting step of the right one 98% of the time (95% at 12 questions, 99% at 40) and
+  exactly right 62% of the time (69% at 40), so more questions buy little. Not tried on a real
+  learner.
