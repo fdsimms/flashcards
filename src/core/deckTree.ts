@@ -1,6 +1,7 @@
 import { NEW_PER_DAY, REVIEWS_PER_DAY } from './config';
 import { nextStudyDayStart, studyDayKey } from './day';
 import { ankiToday, DEFAULT_ORDER, gatherNew, inFilteredOrder, mix, sortNew, sortReviews, type SortContext } from './order';
+import { boostCap, type Boost } from './priority';
 import { isInProgress } from './progress';
 import { isBuried, isDue, isInterdayLearning, isLearning, studiable, type Queue, type StudiedToday } from './queue';
 import { paramsForDeck } from './scheduler';
@@ -119,6 +120,8 @@ export interface TreeQueueInput {
    * and Review cards are ever held; learning cards keep their steps.
    */
   held?: Set<string>;
+  /** Tagged cards that come first when `root` is studied (`boostFor`, priority.ts). */
+  boostFor?: (root: string) => Boost | undefined;
 }
 
 const dueMs = (c: Card) => new Date(c.sched.due).getTime();
@@ -258,10 +261,21 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const reviewDue = (c: Card) => c.sched.state === 2 && (inFilteredOrder(c) || isDue(c, now, h));
   const interday = previewDeck ? [] : gatherDue(rest.filter((c) => isInterdayLearning(c, h) && dueMs(c) < nextDay), 'interdayLearning');
   const reviews = gatherDue(previewDeck ? rest : rest.filter(reviewDue), 'reviews');
-  const fresh = previewDeck ? [] : sortNew(
-    gatherNew(rest.filter((c) => c.sched.state === 0), order.newGatherPriority, ctx, (c) => !heldBack(c, 'new') && admit(c, 'new')),
-    order.newSortOrder, ctx,
-  );
+  const newCards = rest.filter((c) => c.sched.state === 0);
+  const gatherFresh = (cards: Card[], limit = Number.POSITIVE_INFINITY) => {
+    let n = 0;
+    return sortNew(
+      gatherNew(cards, order.newGatherPriority, ctx, (c) => n < limit && !heldBack(c, 'new') && admit(c, 'new') && ++n > 0),
+      order.newSortOrder, ctx,
+    );
+  };
+  // Tagged cards first: gathered ahead of the rest, up to a share of the room the limits leave,
+  // so they use the same limits and a boosted card that doesn't fit waits in line like any other.
+  const boost = previewDeck ? undefined : input.boostFor?.(root);
+  const boosted = boost ? newCards.filter((c) => boost.noteIds.has(c.noteId)) : [];
+  const firstNew = boosted.length ? gatherFresh(boosted, boostCap(boost!.percent, nodes.get(root)!.new)) : [];
+  const firstIds = new Set(firstNew.map((c) => c.id));
+  const fresh = previewDeck ? [] : [...firstNew, ...gatherFresh(newCards.filter((c) => !firstIds.has(c.id)))];
 
   // ---- presentation ----
   const learnOrder = (a: Card, b: Card) => Number(a.sched.reps === 0) - Number(b.sched.reps === 0) || shownAt(a) - shownAt(b);
@@ -292,6 +306,8 @@ export function queueInput(a: {
   now: Date;
   /** Lookalikes held back (`heldCards`). */
   held?: Set<string>;
+  /** Tagged cards first (`boostFor`). */
+  boostFor?: (root: string) => Boost | undefined;
 }): TreeQueueInput {
   const deckOfNote = new Map([...a.notes].map((n) => [n.id, n.deck]));
   const todayKey = studyDayKey(a.now, a.collection.dayStartsAtHour);
@@ -309,6 +325,7 @@ export function queueInput(a: {
     ankiToday: ankiToday(a.now, a.collection.dayStartsAtHour, a.collection.collectionCreated, a.collection.creationOffset),
     now: a.now,
     held: a.held,
+    boostFor: a.boostFor,
   };
 }
 

@@ -9,6 +9,7 @@ import type { DeckSettings } from '../core/types';
 import type { Repo } from '../db/repo';
 import type { RecordDeps } from '../anki/recordService';
 import { DeckFormsOptions } from './DeckFormsOptions';
+import { DeckPriorityOptions } from './DeckPriorityOptions';
 import { DeckRecordings } from './DeckRecordings';
 import { haptic } from './haptics';
 import { Card, Group, Help, NavRow, Screen } from './kit';
@@ -119,6 +120,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
             <NavRow first label="Custom study" detail="Study more today, or pick cards to study now" onPress={onCustomStudy} />
           </Group>
         )}
+        {settings ? <DeckPriorityOptions deck={deck} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {settings ? <DeckFormsOptions deck={deck} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {filtered ? null : <DeckRecordings repo={repo} deck={deck} recorder={recorder} />}
       </ScrollView>
