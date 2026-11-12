@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import type { ReaderText, Word } from '../../src/reader/api';
-import { countOutsideDeck, isOutsideDeck, underFloor } from '../../src/reader/deckWords';
+import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../../src/reader/deckWords';
 
 const word = (text: string, status: Word['status']): Word => ({ text, status, gloss: null, stretch: false, deck: false, grammar: null });
 
@@ -9,6 +9,12 @@ test("unknown and partial words are outside the deck; known words and punctuatio
   expect(isOutsideDeck(word('รับ', 'partial'))).toBe(true);
   expect(isOutsideDeck(word('ครับ', 'known'))).toBe(false);
   expect(isOutsideDeck(word(' ', null))).toBe(false);
+});
+
+test('a name is not outside the deck, and is the only word isName is true for', () => {
+  expect(isOutsideDeck(word('มะลิ', 'name'))).toBe(false);
+  expect(isName(word('มะลิ', 'name'))).toBe(true);
+  expect(isName(word('ทอน', 'unknown'))).toBe(false);
 });
 
 test('counts every occurrence across the lines', () => {
