@@ -42,15 +42,22 @@ def render(
     lexicon: Checker,
     meanings: dict[str, str],
     deck_translits: dict[str, str] | None = None,
+    unset: tuple[str, ...] = (),
 ) -> dict[str, Any]:
+    """`unset` is the language's grammar points the owner hasn't marked, as of now: any that turn
+    up are marked and explained like the known ones worked in for review."""
     stretch = set(text.stretch)
     practice = tuple(text.grammar.get("practice", []))
     avoid = tuple(text.grammar.get("avoid", []))
+    review = tuple(p for p in text.grammar.get("review", []) if p not in practice + avoid)
+    unset = tuple(p for p in unset if p not in practice + avoid + review)
+    used: set[str] = set()
     lines = []
     for line in text.lines:
         plain, _ = parse_line(line.text, lexicon.spaced)
-        # Which words use a practiced or avoided point, by index among the line's words.
-        marked = grammar.marks(plain, lexicon, practice + avoid)
+        # Which words use a marked point, by index among the line's words; the first role wins.
+        marked = grammar.marks(plain, lexicon, practice + avoid + review + unset)
+        used.update(marked.values())
         at = 0
         words = []
         for piece, is_name in segment_line(line.text, lexicon):
@@ -100,7 +107,8 @@ def render(
         "roles": text.roles,
         "form": text.form,
         "language": text.language,
-        # The grammar this text was written to practice or avoid, for the reader's notes.
+        # The grammar this text was written to practice or avoid, for the reader's notes, then the
+        # known points worked in and the unmarked ones that turned up, where a word uses them.
         "grammar": [
             {
                 "id": pid,
@@ -108,7 +116,12 @@ def render(
                 "note": grammar.POINTS[pid].note,
                 "role": role,
             }
-            for role, ids in (("practice", practice), ("avoid", avoid))
+            for role, ids in (
+                ("practice", practice),
+                ("avoid", avoid),
+                ("review", tuple(p for p in review if p in used)),
+                ("unset", tuple(p for p in unset if p in used)),
+            )
             for pid in ids
             if pid in grammar.POINTS
         ],

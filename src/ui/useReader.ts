@@ -26,6 +26,8 @@ export interface ReaderState {
   miningLeft: number;
   /** Counts one more marked word added to the deck today. */
   recordMined: () => void;
+  /** The hour the study day starts, for saying "today" or "2 days ago" (the Grammar screen). */
+  dayStartsAtHour: number;
 }
 
 /**
@@ -76,6 +78,6 @@ export function useReader(server: string | undefined, dayStartsAtHour: number): 
   }, [dayStartsAtHour]);
 
   return useMemo(() => ({
-    api, server, notice, signedIn, signOut, settings, setSettings, miningLeft: miningLeft(mined, today), recordMined,
-  }), [api, server, notice, signedIn, signOut, settings, mined, today, recordMined]);
+    api, server, notice, signedIn, signOut, settings, setSettings, miningLeft: miningLeft(mined, today), recordMined, dayStartsAtHour,
+  }), [api, server, notice, signedIn, signOut, settings, mined, today, recordMined, dayStartsAtHour]);
 }

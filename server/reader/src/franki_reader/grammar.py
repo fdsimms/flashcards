@@ -29,6 +29,7 @@ Finder = Callable[[list[str]], list[Span]]
 
 PRACTICE_USES = 2  # a practiced point appears at least this many times
 MAX_PRACTICE = 2  # points practiced at once, so texts stay natural
+UNSET_USES = 2  # uses of points the owner hasn't marked, in all, before a draft goes back
 
 
 @dataclass(frozen=True)

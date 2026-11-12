@@ -166,6 +166,27 @@ def test_the_request_names_what_to_practice_and_avoid() -> None:
     assert "Grammar to avoid" in message and "Preterite (Finished past" in message
 
 
+def test_the_request_names_known_points_to_work_in_and_unmarked_ones_to_keep_few() -> None:
+    message = request_message(
+        TextRequest("food", language="es", review=("es.future",), unset=("es.conditional",))
+    )
+    assert "work these in where they fit naturally" in message and "Future (Will do" in message
+    assert "at most 2 times in the whole text" in message and "Conditional (Would do" in message
+
+
+def test_more_than_two_uses_of_unmarked_grammar_go_back() -> None:
+    three = draft("Yo|comería|y|hablaría.", "Ella|tendría|tiempo.")
+    two = draft("Yo|comería|y|hablaría.", "Ella|tiene|tiempo.")
+    model = Model(three, two)
+    request = TextRequest("t", language="es", unset=("es.conditional", "es.future"))
+    result = asyncio.run(generate(model, ES, request))
+    assert result.passed and result.attempts == 2 and result.grammar_problems == 0
+    assert (
+        "Use grammar the learner may not know at most 2 times in all; this draft has: "
+        "Conditional (comería, hablaría, tendría)." in model.sent[1][-1]["content"]
+    )
+
+
 def test_an_avoided_tense_sends_the_draft_back_naming_the_words() -> None:
     model = Model(PRETERITE, PRESENT)
     result = asyncio.run(
@@ -222,6 +243,28 @@ def test_practiced_and_avoided_words_are_marked_in_the_reader() -> None:
     ]
 
 
+def test_known_points_worked_in_and_unmarked_ones_that_turn_up_are_marked() -> None:
+    text = StoredText(
+        1,
+        1,
+        "t",
+        (Line("A", "Yo|comía|y|mañana|hablaré.", "."),),
+        {},
+        (),
+        1.0,
+        language="es",
+        grammar={"practice": [], "avoid": [], "review": ["es.imperfect", "es.pluperfect"]},
+    )
+    out = render(text, ES, {}, unset=("es.future", "es.conditional"))
+    marked = {w["text"]: w["grammar"] for w in out["lines"][0]["words"] if w["grammar"]}
+    assert marked == {"comía": "es.imperfect", "hablaré": "es.future"}
+    # Only points a word uses are listed: the pluperfect and the conditional never came up.
+    assert [(g["id"], g["role"]) for g in out["grammar"]] == [
+        ("es.imperfect", "review"),
+        ("es.future", "unset"),
+    ]
+
+
 def test_a_text_written_with_a_point_since_removed_still_renders() -> None:
     text = StoredText(
         1, 1, "t", (Line("A", "ฉัน", "."),), {}, (), 1.0, grammar={"practice": ["th.gone"]}
@@ -243,13 +286,24 @@ def client(language: str = "es") -> tuple[TestClient, Engine]:
 AUTH = {"Authorization": "Bearer p"}
 
 
-def test_the_grammar_list_is_the_current_languages_and_starts_normal() -> None:
+def test_the_grammar_list_is_the_current_languages_and_starts_unset() -> None:
     c, _ = client("es")
     body = c.get("/api/grammar", headers=AUTH).json()
     assert body["max_practice"] == 2
     assert [p["id"] for p in body["points"]][:2] == ["es.preterite", "es.imperfect"]
-    assert {p["state"] for p in body["points"]} == {"normal"}
+    assert {p["state"] for p in body["points"]} == {"unset"}
+    assert body["points"][0]["seen"] == {"texts": 0, "uses": 0, "last": None}
+    assert body["least"] == []  # nothing is known yet, so nothing is worked in
     assert c.get("/api/grammar").status_code == 401
+
+
+def test_know_it_is_kept_and_the_least_seen_known_points_are_listed() -> None:
+    c, _ = client("es")
+    c.put("/api/grammar/es.future", json={"state": "normal"}, headers=AUTH)
+    body = c.put("/api/grammar/es.imperfect", json={"state": "normal"}, headers=AUTH).json()
+    states = {p["id"]: p["state"] for p in body["points"]}
+    assert states["es.future"] == "normal" and states["es.preterite"] == "unset"
+    assert body["least"] == ["es.imperfect", "es.future"]
 
 
 def test_at_most_two_points_are_practiced_at_once() -> None:
@@ -263,7 +317,7 @@ def test_at_most_two_points_are_practiced_at_once() -> None:
     )
     third = c.put("/api/grammar/es.conditional", json={"state": "practice"}, headers=AUTH)
     assert third.status_code == 422
-    assert third.json()["detail"].startswith("Practice at most 2 at a time.")
+    assert third.json()["detail"] == "Practice at most 2 at a time. Set one to Know it first."
     # Avoiding has no limit, and setting one back to normal makes room.
     assert (
         c.put("/api/grammar/es.preterite", json={"state": "avoid"}, headers=AUTH).status_code == 200

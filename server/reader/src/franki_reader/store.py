@@ -139,7 +139,8 @@ class StoredText:
     genders: dict[str, str] = field(default_factory=dict)
     form: Form = "dialogue"
     language: Code = "th"
-    # {"practice": [point ids], "avoid": [point ids]}, as asked for when it was written
+    # {"practice": [point ids], "avoid": [point ids], "review": [point ids]}, as asked for when it
+    # was written ("review" since 12 November 2026: known points worked in, exposure.py)
     grammar: dict[str, list[str]] = field(default_factory=dict)
     # Transliterations the model wrote for the words it glossed, by word (the deck's own are
     # read from the lexicon at render time).
@@ -966,19 +967,48 @@ GrammarState = Literal["practice", "avoid", "normal"]
 
 def load_grammar(conn: sqlite3.Connection) -> dict[str, GrammarState]:
     """The owner's grammar choices for every language, by point id. A point that isn't listed is
-    normal: neither asked for nor kept out."""
+    not set: allowed a little, and never worked in on purpose (docs/read-and-listen/architecture.md,
+    Grammar). Before 12 November 2026 normal ("Know it") wasn't stored either, so a point the owner
+    set to it then reads as not set."""
     raw = _get_meta(conn, "grammar")
     return json.loads(raw) if raw else {}
 
 
 def set_grammar(conn: sqlite3.Connection, point_id: str, state: GrammarState) -> None:
     choices = load_grammar(conn)
-    if state == "normal":
-        choices.pop(point_id, None)
-    else:
-        choices[point_id] = state
+    choices[point_id] = state
     with conn:
         _set_meta(conn, "grammar", json.dumps(choices))
+
+
+def finished_texts(conn: sqlite3.Connection, language: Code) -> list[tuple[StoredText, datetime]]:
+    """Every text in this language read to the end, each with when it was last read."""
+    rows = conn.execute(
+        """SELECT r.text_id, MAX(r.logged_at) FROM readings r JOIN texts x ON x.id = r.text_id
+           WHERE r.finished = 1 AND x.language = ? GROUP BY r.text_id""",
+        (language,),
+    ).fetchall()
+    out = []
+    for text_id, at in rows:
+        text = get_text(conn, text_id)
+        if text is not None:
+            out.append((text, datetime.fromisoformat(at)))
+    return out
+
+
+def grammar_offered(conn: sqlite3.Connection, language: Code) -> dict[str, datetime]:
+    """For each grammar point a text in this language was asked to work in for review, when the
+    latest such text was written, read or not."""
+    rows = conn.execute(
+        "SELECT created_at, grammar FROM texts WHERE language = ?", (language,)
+    ).fetchall()
+    out: dict[str, datetime] = {}
+    for created, raw in rows:
+        at = datetime.fromisoformat(created)
+        for pid in json.loads(raw).get("review", []):
+            if pid not in out or at > out[pid]:
+                out[pid] = at
+    return out
 
 
 # ==== Settings ====

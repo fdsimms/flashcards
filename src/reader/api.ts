@@ -23,17 +23,27 @@ export type Word = {
   translit?: string | null; // the pronunciation in Latin letters, when there is one (Thai)
   stretch: boolean;
   deck: boolean; // a deck word, as against one known for being common (every language but Thai)
-  grammar: string | null; // the grammar point this word uses, if the text practices or avoids it
+  grammar: string | null; // the grammar point this word uses, if the text marks it (TextGrammar)
 };
 
 // Practice: used at least twice in each text. Avoid ("Don't know it" on screen): kept out.
-// Normal ("Know it" on screen): allowed, not asked for.
-export type GrammarState = 'practice' | 'avoid' | 'normal';
+// Normal ("Know it" on screen): allowed, and the least seen are worked in. Unset (never marked):
+// allowed at most twice in a text, and marked in the reader. Only the server reports unset.
+export type GrammarState = 'practice' | 'avoid' | 'normal' | 'unset';
+export type GrammarChoice = Exclude<GrammarState, 'unset'>;
 
-export type GrammarPoint = { id: string; name: string; note: string; state: GrammarState };
+// How often a point came up in texts read to the end. Absent from a server older than it.
+export type GrammarSeen = { texts: number; uses: number; last: string | null };
 
-// A grammar point a text was written to practice or avoid.
-export type TextGrammar = { id: string; name: string; note: string; role: 'practice' | 'avoid' };
+export type GrammarPoint = { id: string; name: string; note: string; state: GrammarState; seen?: GrammarSeen };
+
+// `least`: the known points the next texts are asked to work in, least seen first.
+export type GrammarList = { max_practice: number; points: GrammarPoint[]; least?: string[] };
+
+// A grammar point a text marks: written to practice or avoid, a known one worked in for review,
+// or one never marked that turned up.
+export type TextGrammarRole = 'practice' | 'avoid' | 'review' | 'unset';
+export type TextGrammar = { id: string; name: string; note: string; role: TextGrammarRole };
 
 // The languages texts are written in. Topics are shared; the rest is per language.
 export type Language = 'th' | 'es' | 'de' | 'fr' | 'ru' | 'el' | 'pl' | 'nb';
@@ -251,9 +261,9 @@ export function createApi(
       call<Topic>('PATCH', `/api/topics/${id}`, { favorite }),
     progress: () => call<Progress>('GET', '/api/progress'),
     markedWords: () => call<MarkedWord[]>('GET', '/api/words'),
-    grammar: () => call<{ max_practice: number; points: GrammarPoint[] }>('GET', '/api/grammar'),
-    setGrammar: (id: string, state: GrammarState) =>
-      call<{ max_practice: number; points: GrammarPoint[] }>('PUT', `/api/grammar/${id}`, { state }),
+    grammar: () => call<GrammarList>('GET', '/api/grammar'),
+    setGrammar: (id: string, state: GrammarChoice) =>
+      call<GrammarList>('PUT', `/api/grammar/${id}`, { state }),
     clearWord: (word: string) => call<void>('POST', '/api/words/clear', { word }),
     settings: () => call<Settings>('GET', '/api/settings'),
     updateSettings: (settings: SettingsChange) => call<Settings>('PATCH', '/api/settings', settings),

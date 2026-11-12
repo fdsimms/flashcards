@@ -117,6 +117,10 @@ class TextRequest:
     # Grammar point ids (grammar.py): used at least twice each, or kept out.
     practice: tuple[str, ...] = ()
     avoid: tuple[str, ...] = ()
+    # Known points to work in where they fit, with no minimum and no check (exposure.py).
+    review: tuple[str, ...] = ()
+    # Points the owner hasn't marked: at most grammar.UNSET_USES uses in all, as they may be new.
+    unset: tuple[str, ...] = ()
     story: StoryContext | None = None
 
     def __post_init__(self) -> None:
@@ -386,6 +390,17 @@ def request_message(request: TextRequest) -> str:
             "Grammar to avoid: the learner hasn't learned these yet, so don't use them at all; "
             "say it another way:\n" + _grammar_list(request.avoid)
         )
+    if request.review:
+        parts.append(
+            "Grammar the learner knows and hasn't met in a while: work these in where they fit "
+            "naturally, without forcing them:\n" + _grammar_list(request.review)
+        )
+    if request.unset:
+        parts.append(
+            "Grammar the learner may not know yet: use these at most "
+            f"{grammar.UNSET_USES} times in the whole text, all of them together, or not at all; "
+            "the reader explains any that appear:\n" + _grammar_list(request.unset)
+        )
     return "\n".join(parts)
 
 
@@ -426,8 +441,9 @@ def grammar_problems(
     lines: list[str], lexicon: Checker, request: TextRequest
 ) -> tuple[list[str], int]:
     """What's wrong with a draft's grammar, as sentences for the revision message, and how much:
-    each use short of a practiced point, plus each use of an avoided one."""
-    found = grammar.find_in_lines(lines, lexicon, request.practice + request.avoid)
+    each use short of a practiced point, plus each use of an avoided one, plus each use of a
+    point that isn't set past the few allowed."""
+    found = grammar.find_in_lines(lines, lexicon, request.practice + request.avoid + request.unset)
     problems = []
     misses = 0
     for pid in request.practice:
@@ -445,6 +461,18 @@ def grammar_problems(
                 + ", ".join(dict.fromkeys(used))
                 + ". Say those another way."
             )
+    unset = [(pid, w) for pid in request.unset for w in found[pid]]
+    if (n := len(unset)) > grammar.UNSET_USES:
+        misses += n - grammar.UNSET_USES
+        problems.append(
+            f"Use grammar the learner may not know at most {grammar.UNSET_USES} times in all; "
+            "this draft has: "
+            + "; ".join(
+                f"{grammar.POINTS[pid].name} ({', '.join(dict.fromkeys(w for p, w in unset if p == pid))})"
+                for pid in dict.fromkeys(pid for pid, _ in unset)
+            )
+            + ". Say some of those another way."
+        )
     return problems, misses
 
 

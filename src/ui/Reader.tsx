@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ApiError, type Api, type Language, type Length, type PastText, type Rating, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
+import { ApiError, type Api, type GrammarChoice, type Language, type Length, type PastText, type Rating, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../reader/deckWords';
 import { scrollTarget, type Box } from '../reader/follow';
 import { THAI_FONTS, THAI_FONT_LABELS, readFont, type ReadFont, type ThaiFont } from '../reader/fonts';
@@ -17,6 +17,7 @@ import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
 import { LineExplanation } from './ReaderExplain';
+import { ReadGrammarNote } from './ReadGrammarNote';
 import { Button, Card, Chip, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './theme';
 
@@ -111,6 +112,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const [paragraphMode, setParagraphMode] = useState(prefs().paragraphs);
   const [thaiFont, setThaiFont] = useState(prefs().thaiFont);
   const [tapped, setTapped] = useState<Tapped | null>(null);
+  // Grammar points marked from the popover while reading, by id (ReadGrammarNote).
+  const [grammarChosen, setGrammarChosen] = useState<Record<string, GrammarChoice>>({});
   const [ended, setEnded] = useState(false);
   const [rating, setRating] = useState<Rating | null>(null);
   const [leaving, setLeaving] = useState(false);
@@ -753,6 +756,9 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
       <GlossPopover
         tapped={tapped}
         grammar={tapped && text ? grammarOf(text, tapped.word) : null}
+        api={api}
+        grammarChosen={grammarChosen}
+        onGrammarChosen={(id, state) => setGrammarChosen((prev) => ({ ...prev, [id]: state }))}
         flagged={tapped && session ? isFlagged(session, tapped.word.text) : false}
         onToggleFlag={review ? null : () => { if (tapped && session) setSession(toggleFlag(session, tapped.word.text)); }}
         onPlay={() => {
@@ -909,12 +915,17 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, named, selec
           // The underline is a bottom border, not textDecoration: iOS draws a text underline through
           // Thai's below-the-line vowels and consonant feet. The border is always there (transparent
           // when unused) so every word is the same height and a row stays aligned.
-          // Grammar is underlined solid when practiced, dashed when it slipped in while avoided; a
-          // practice word's or a marked word's dotted underline takes its place.
+          // Grammar is underlined solid when practiced, dashed when it slipped in while avoided, and
+          // with a thin gray line when it's a known point worked in or one not set yet (thinner by
+          // half a point, made up below it so the row's height doesn't change); a practice word's
+          // or a marked word's dotted underline takes its place.
           { borderBottomWidth: 1.5, borderBottomColor: 'transparent' },
-          grammar ? {
+          grammar && (grammar.role === 'practice' || grammar.role === 'avoid') ? {
             borderStyle: grammar.role === 'practice' ? 'solid' : 'dashed',
             borderBottomColor: grammar.role === 'practice' ? c.onSpeakerB : c.textTertiary,
+          } : null,
+          grammar && (grammar.role === 'review' || grammar.role === 'unset') ? {
+            borderStyle: 'solid', borderBottomWidth: 1, marginBottom: 0.5, borderBottomColor: c.textTertiary,
           } : null,
           word.stretch || flagged ? { borderStyle: 'dotted', borderBottomColor: flagged ? c.danger : c.accent } : null,
         ]}
@@ -929,9 +940,12 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-function GlossPopover({ tapped, grammar, flagged, onToggleFlag, onPlay, onClose }: {
+function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onClose }: {
   tapped: Tapped | null;
   grammar: TextGrammar | null;
+  api: Api;
+  grammarChosen: Record<string, GrammarChoice>;
+  onGrammarChosen: (id: string, state: GrammarChoice) => void;
   flagged: boolean;
   onPlay: () => void;
   /** null when marking isn't recorded (reading a past text). */
@@ -979,13 +993,7 @@ function GlossPopover({ tapped, grammar, flagged, onToggleFlag, onPlay, onClose 
           )
         ) : null}
         <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
-        {grammar ? (
-          <Text style={{ ...type.footnote, color: c.textSecondary }}>
-            {grammar.role === 'practice'
-              ? `Grammar you're practicing: ${grammar.name}. ${grammar.note}.`
-              : `${grammar.name}, which you're avoiding, slipped in here. ${grammar.note}.`}
-          </Text>
-        ) : null}
+        {grammar ? <ReadGrammarNote grammar={grammar} api={api} chosen={grammarChosen[grammar.id]} onChosen={onGrammarChosen} /> : null}
         {onToggleFlag ? (
           <View style={{ alignItems: 'flex-start' }}>
             <HeaderAction label={flagged ? 'Unmark' : 'Mark as unknown'} onPress={onToggleFlag} />
