@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type Form, type Language, type Shelf, type ShelfText } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
-import { cardDetail, playMinutes, playOrder, reasonLabel } from '../reader/shelf';
+import { cardDetail, playMinutes, playOrder, reasonLabel, surprisePick } from '../reader/shelf';
 import { haptic } from './haptics';
 import { Button, Card, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
 import { MIN_TAP, radius, space, type, useTheme } from './theme';
@@ -371,8 +371,27 @@ function WriteCard({ api, onWriting }: { api: Api; onWriting: () => void }) {
     }
   };
 
+  // A topic idea the deck fits, in a random form, written like a typed topic.
+  const surprise = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const pick = surprisePick(await api.suggestions(), Math.random);
+      if (!pick) throw new ApiError('There are no topic ideas left. Type a topic below and write a text on it instead.', 0);
+      await api.writeAbout(pick.name, pick.form);
+      onWriting();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Couldn't start writing that. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <Card>
+      <Button label="Surprise me" variant="secondary" onPress={surprise} busy={busy} />
+      <Help>Writes a text on an idea you haven't tried, with no topic needed.</Help>
       <Field label="Write one about something else" placeholder="For example, haggling at a market" value={name} onChangeText={setName} returnKeyType="done" onSubmitEditing={write} />
       <Segments<Form> options={[{ value: 'dialogue', label: 'Dialogue' }, { value: 'story', label: 'Story' }]} value={form} onChange={setForm} />
       {error ? <ErrorNote message={error} /> : null}
