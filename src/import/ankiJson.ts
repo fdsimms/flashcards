@@ -40,6 +40,8 @@ export interface AnkiCardInfo {
   previewDue?: number;
   /** When Anki last changed the card (unix seconds). */
   mod?: number;
+  /** Its flag: 0 none, 1 red, 2 orange, 3 green, 4 blue, 5 pink, 6 turquoise, 7 purple. */
+  flag?: number;
   /**
    * Raw due value. A day number counted from `collectionCreated` for review and interday
    * learning cards; a unix timestamp in seconds for intraday learning cards (queue 1). For a new
@@ -267,6 +269,7 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
       if (ac.filteredDue !== undefined) target.filteredDue = ac.filteredDue;
       if (ac.previewDue !== undefined) target.previewDue = new Date(ac.previewDue * 1000).toISOString();
       if (ac.mod !== undefined) target.ankiMod = ac.mod;
+      if (ac.flag) target.flag = ac.flag;
       // A new card's `due` is its position in the new-card order.
       const position = ac.position ?? ((ac.type ?? 0) === 0 ? ac.due : undefined);
       if (position !== undefined) target.position = position;

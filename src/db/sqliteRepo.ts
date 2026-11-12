@@ -52,6 +52,7 @@ const MIGRATIONS: { table: string; column: string; sql: string }[] = [
   { table: 'cards', column: 'anki_mod', sql: 'ALTER TABLE cards ADD COLUMN anki_mod INTEGER' },
   { table: 'cards', column: 'filtered_due', sql: 'ALTER TABLE cards ADD COLUMN filtered_due INTEGER' },
   { table: 'cards', column: 'preview_due', sql: 'ALTER TABLE cards ADD COLUMN preview_due TEXT' },
+  { table: 'cards', column: 'flag', sql: 'ALTER TABLE cards ADD COLUMN flag INTEGER' },
 ];
 
 async function migrate(db: SQLite.SQLiteDatabase) {
@@ -101,7 +102,7 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     id: r.id, noteId: r.note_id, kind: r.kind, suspended: !!r.suspended, retired: !!r.retired, ankiId: r.anki_id ?? undefined,
     buriedAt: r.buried_at ?? undefined, deck: r.deck ?? undefined, filteredDeck: r.filtered_deck ?? undefined,
     position: r.position ?? undefined, ankiMod: r.anki_mod ?? undefined, filteredDue: r.filtered_due ?? undefined,
-    previewDue: r.preview_due ?? undefined, sched: JSON.parse(r.sched),
+    previewDue: r.preview_due ?? undefined, flag: r.flag || undefined, sched: JSON.parse(r.sched),
   });
   const rowToNote = (r: any): Note => ({
     id: r.id, deck: r.deck, model: r.model, fields: JSON.parse(r.fields), tags: JSON.parse(r.tags),
@@ -130,16 +131,16 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
           // suspension are overwritten only on a card still New. Every card here is generated
           // again, so it is never retired.
           await db.runAsync(
-            'INSERT INTO cards (id, note_id, kind, suspended, retired, anki_id, buried_at, deck, filtered_deck, position, anki_mod, filtered_due, preview_due, sched, state, due) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ' +
+            'INSERT INTO cards (id, note_id, kind, suspended, retired, anki_id, buried_at, deck, filtered_deck, position, anki_mod, filtered_due, preview_due, flag, sched, state, due) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ' +
               'ON CONFLICT(id) DO UPDATE SET retired = 0, anki_id = COALESCE(excluded.anki_id, cards.anki_id), buried_at = excluded.buried_at, ' +
               'deck = excluded.deck, filtered_deck = excluded.filtered_deck, position = excluded.position, ' +
-              'anki_mod = excluded.anki_mod, filtered_due = excluded.filtered_due, preview_due = excluded.preview_due, ' +
+              'anki_mod = excluded.anki_mod, filtered_due = excluded.filtered_due, preview_due = excluded.preview_due, flag = excluded.flag, ' +
               'suspended = CASE WHEN cards.state = 0 THEN excluded.suspended ELSE cards.suspended END, ' +
               'sched = CASE WHEN cards.state = 0 THEN excluded.sched ELSE cards.sched END, ' +
               'due = CASE WHEN cards.state = 0 THEN excluded.due ELSE cards.due END, ' +
               'state = CASE WHEN cards.state = 0 THEN excluded.state ELSE cards.state END',
             c.id, c.noteId, c.kind, c.suspended ? 1 : 0, c.ankiId ?? null, c.buriedAt ?? null, c.deck ?? null, c.filteredDeck ?? null, c.position ?? null,
-            c.ankiMod ?? null, c.filteredDue ?? null, c.previewDue ?? null,
+            c.ankiMod ?? null, c.filteredDue ?? null, c.previewDue ?? null, c.flag ?? 0,
             JSON.stringify(c.sched), c.sched.state, c.sched.due,
           );
         }
@@ -162,9 +163,9 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
         for (const c of cards) {
           // Anki's copy is the record: everything is overwritten, studied here or not.
           await db.runAsync(
-            'INSERT OR REPLACE INTO cards (id, note_id, kind, suspended, retired, anki_id, buried_at, deck, filtered_deck, position, anki_mod, filtered_due, preview_due, sched, state, due) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT OR REPLACE INTO cards (id, note_id, kind, suspended, retired, anki_id, buried_at, deck, filtered_deck, position, anki_mod, filtered_due, preview_due, flag, sched, state, due) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             c.id, c.noteId, c.kind, c.suspended ? 1 : 0, c.ankiId ?? null, c.buriedAt ?? null, c.deck ?? null, c.filteredDeck ?? null, c.position ?? null,
-            c.ankiMod ?? null, c.filteredDue ?? null, c.previewDue ?? null,
+            c.ankiMod ?? null, c.filteredDue ?? null, c.previewDue ?? null, c.flag ?? 0,
             JSON.stringify(c.sched), c.sched.state, c.sched.due,
           );
         }
@@ -196,10 +197,10 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async saveCard(c) {
       await db.runAsync(
-        'UPDATE cards SET suspended = ?, retired = ?, buried_at = ?, deck = ?, filtered_deck = ?, position = ?, anki_mod = ?, filtered_due = ?, preview_due = ?, ' +
+        'UPDATE cards SET suspended = ?, retired = ?, buried_at = ?, deck = ?, filtered_deck = ?, position = ?, anki_mod = ?, filtered_due = ?, preview_due = ?, flag = ?, ' +
           'sched = ?, state = ?, due = ? WHERE id = ?',
         c.suspended ? 1 : 0, c.retired ? 1 : 0, c.buriedAt ?? null, c.deck ?? null, c.filteredDeck ?? null, c.position ?? null,
-            c.ankiMod ?? null, c.filteredDue ?? null, c.previewDue ?? null,
+            c.ankiMod ?? null, c.filteredDue ?? null, c.previewDue ?? null, c.flag ?? 0,
         JSON.stringify(c.sched), c.sched.state, c.sched.due, c.id,
       );
     },

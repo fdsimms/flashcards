@@ -46,6 +46,8 @@ const light = {
   /** A soft drop shadow under a raised surface (the review card). Near-invisible on dark, so it's heavier there. */
   shadow: '#2a2113',
   shadowOpacity: 0.08,
+  /** Anki's card flags, 1 to 7: red, orange, green, blue, pink, turquoise, purple (index 0 unused). */
+  flags: ['', '#d0453f', '#d8792a', '#3e9354', '#3a78c9', '#cc5fae', '#22999a', '#8656c8'],
 };
 
 const dark: typeof light = {
@@ -76,6 +78,7 @@ const dark: typeof light = {
   highlight: '#4d3a14',
   shadow: '#000000',
   shadowOpacity: 0.45,
+  flags: ['', '#ee6b63', '#f0984f', '#62bd7b', '#6ba2ec', '#e486cb', '#4cc4c4', '#a989e6'],
 };
 
 export type Colors = typeof light;

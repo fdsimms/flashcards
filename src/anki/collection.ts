@@ -52,7 +52,7 @@ export const COLLECTION_QUERIES = {
   fields: 'SELECT ntid, ord, name FROM fields',
   templates: 'SELECT ntid, ord, name, config FROM templates',
   notes: 'SELECT id, mid, tags, flds FROM notes',
-  cards: 'SELECT id, nid, did, ord, type, queue, due, ivl, factor, reps, lapses, left, odid, odue, data, mod FROM cards',
+  cards: 'SELECT id, nid, did, ord, type, queue, due, ivl, factor, reps, lapses, left, odid, odue, data, mod, flags FROM cards',
   decks: 'SELECT id, name, kind FROM decks',
   deckConfigs: 'SELECT id, config FROM deck_config',
   lastReviews: 'SELECT cid, MAX(id) AS last FROM revlog GROUP BY cid',
@@ -73,6 +73,8 @@ export interface CollectionRows {
     mod?: Num;
     /** Learning steps left (`left % 1000`). */
     left?: Num;
+    /** The card's flag in its low 3 bits (0 none, 1 red ... 7 purple). */
+    flags?: Num;
   }[];
   decks: { id: Num; name: string; kind: Uint8Array }[];
   deckConfigs: { id: Num; config: Uint8Array }[];
@@ -237,6 +239,7 @@ export function buildExport(rows: CollectionRows): AnkiExport & {
       filteredDue: inFiltered ? Number(c.due) : undefined,
       previewDue: Number(c.queue) === 4 ? Number(c.due) : undefined,
       mod: c.mod !== undefined ? Number(c.mod) : undefined,
+      flag: c.flags !== undefined ? Number(c.flags) & 7 : undefined,
       ord: Number(c.ord),
       type: Number(c.type),
       // Buried (-2, -3) is a today-only state: read it as the card's ordinary queue, and keep

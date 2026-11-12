@@ -1,5 +1,7 @@
 import { isOmnilanguage, makeCards } from '../core/cards';
+import { cardStateOf, withCardState, type CardState } from '../core/cardState';
 import type { Card, Note, NoteType } from '../core/types';
+import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { omnilanguageKindByOrd } from '../import/models';
 import { addAnkiNote, ankiDeckId, ankiNoteType, deleteAnkiNotes, editAnkiNote, moveAnkiNote } from './noteWrites';
@@ -123,4 +125,23 @@ export async function deleteNote(store: NoteStore, noteId: string, now: Date = n
     await store.lockAnki(() => store.withSyncConnection((db) => deleteAnkiNotes(db, [Number(noteId)], now)));
   }
   await store.deleteNote(noteId);
+}
+
+/**
+ * Suspends, buries or flags cards: in Franki's tables first, then in the kept collection as Anki
+ * writes it (`setAnkiCardStates`), so sync and Send to Anki carry it. The cards come back as saved;
+ * `ankiError` says why the collection didn't take the change, which stays made in Franki.
+ */
+export async function setCardStates(
+  store: Pick<Repo, 'saveCard'> & Pick<AnkiLink, 'setAnkiCardStates'>,
+  targets: Card[], change: (s: CardState) => CardState, now: Date, dayStartsAtHour: number,
+): Promise<{ cards: Card[]; ankiError?: unknown }> {
+  const cards = targets.map((t) => withCardState(t, change(cardStateOf(t, now, dayStartsAtHour)), now));
+  for (const c of cards) await store.saveCard(c);
+  try {
+    await store.setAnkiCardStates(cards.filter((c) => c.ankiId).map((c) => ({ ankiId: c.ankiId!, state: cardStateOf(c, now, dayStartsAtHour) })), now);
+  } catch (e) {
+    return { cards, ankiError: e };
+  }
+  return { cards };
 }

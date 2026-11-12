@@ -1,7 +1,8 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Easing, PanResponder, Pressable, ScrollView, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
+import { ActionSheetIOS, Alert, Animated, Easing, PanResponder, Pressable, ScrollView, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
+import { FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
 import { isOmnilanguage, renderCard } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
@@ -12,7 +13,7 @@ import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS,
 import { fuzzSeed } from '../core/ankiFuzz';
 import { balancerFor, buildLoadSnapshot, forgetCard, loadDayIndex, recordAnswer, type LoadSnapshot } from '../core/loadBalance';
 import { ankiToday, fnvHash } from '../core/order';
-import { saveNote, type NoteStore } from '../anki/noteService';
+import { saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../core/session';
 import { durationText } from '../core/stats';
 import { cardDocument, renderTemplateCard } from '../core/template';
@@ -489,13 +490,57 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
     <Button label="Show answer" onPress={reveal} />
   );
 
+  // Suspend, bury or flag cards from the menu: in Franki first, then in the kept collection, as Anki writes it.
+  const setStates = async (targets: Card[], change: (s: CardState) => CardState) => {
+    if (busy.current || !targets.length) return;
+    busy.current = true;
+    try {
+      const when = new Date();
+      const { cards: updated, ankiError } = await setCardStates(repo, targets, change, when, H);
+      if (ankiError) {
+        Alert.alert("Couldn't save this change for Anki", `It's made in Franki, but it won't reach Anki. ${(ankiError as any)?.message ?? ankiError}`);
+      }
+      const byId = new Map(updated.map((u) => [u.id, u]));
+      setCards((prev) => prev && prev.map((c) => byId.get(c.id) ?? c));
+      setRevealed(false);
+      setNow(when);
+    } finally {
+      busy.current = false;
+    }
+  };
+  const chooseFlag = () => {
+    const names = FLAG_NAMES.slice(1);
+    const options = [...names, ...(current.flag ? ['Remove flag'] : []), 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({ title: 'Flag this card', options, cancelButtonIndex: options.length - 1 }, (i) => {
+      if (i === options.length - 1) return;
+      const flag = i < names.length ? i + 1 : 0;
+      setStates([current], (s) => ({ ...s, flag }));
+    });
+  };
+  const openMenu = () => {
+    const options = ['Flag', 'Bury card', 'Bury note', 'Suspend card', 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 4, destructiveButtonIndex: 3 }, (i) => {
+      // Bury holds a card back until the next study day; Bury note does it to every card of the note; Suspend until it's unsuspended.
+      if (i === 0) chooseFlag();
+      if (i === 1) setStates([current], (s) => ({ ...s, buried: true }));
+      if (i === 2) setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }));
+      if (i === 3) setStates([current], (s) => ({ ...s, suspended: true }));
+    });
+  };
+
   return (
     <Screen
       onBack={onDone}
       right={
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {current.flag ? (
+            <View accessible accessibilityLabel={`Flagged ${FLAG_NAMES[current.flag]}`} style={{ paddingHorizontal: space.xs }}>
+              <Icon name="flag.fill" color={c.flags[current.flag]} />
+            </View>
+          ) : null}
           {undoAction}
           <IconAction name="pencil" label="Edit this card's note" onPress={() => setEditingNote(note.id)} />
+          <IconAction name="ellipsis.circle" label="Flag, bury or suspend this card" onPress={openMenu} />
         </View>
       }
       footer={footer}

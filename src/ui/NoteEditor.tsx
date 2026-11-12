@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, ScrollView, Text, View, type TextInputInstance } from 'react-native';
-import { cardsFor, deleteNote, NoteRefused, saveNote, type NoteStore } from '../anki/noteService';
+import { cardsFor, deleteNote, NoteRefused, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
+import { cardStateOf, FLAG_NAMES, type CardState } from '../core/cardState';
+import type { AnkiLink } from '../db/ankiLink';
 import { isOmnilanguage } from '../core/cards';
 import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, type Selection } from '../core/formatting';
 import { duplicateOf, editTextToField, fieldToEditText, parseTags } from '../core/noteEditing';
@@ -17,10 +19,11 @@ const MARK_LABELS: Record<Mark, string> = { b: 'Bold', i: 'Italic', u: 'Underlin
  * Anki collection; Delete removes the note there too.
  */
 export function NoteEditor(props: {
-  repo: NoteStore;
+  repo: NoteStore & Pick<AnkiLink, 'setAnkiCardStates'>;
   /** Edit this note, or add one (starting in `deck`). */
   target: { noteId: string } | { deck: string | null };
-  onClose: (result?: { saved: Note } | { deleted: string }) => void;
+  /** `cardsChanged`: a card was unsuspended, unburied or unflagged here, though the note wasn't saved. */
+  onClose: (result?: { saved: Note } | { deleted: string } | { cardsChanged: true }) => void;
 }) {
   const c = useTheme();
   const [notes, setNotes] = useState<Note[]>([]);
@@ -32,6 +35,11 @@ export function NoteEditor(props: {
   const [tags, setTags] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  // The note's cards, for undoing a suspend, bury or flag set while studying.
+  const [noteCardList, setNoteCardList] = useState<CardRow[]>([]);
+  const [dayStartsAtHour, setDayStartsAtHour] = useState(4);
+  const cardsChanged = useRef(false);
+  const close = () => props.onClose(cardsChanged.current ? { cardsChanged: true } : undefined);
   const editing = 'noteId' in props.target;
   // The field being typed in, its selection, and each field's input, for the formatting buttons.
   const [focused, setFocused] = useState<string | null>(null);
@@ -56,6 +64,9 @@ export function NoteEditor(props: {
       if ('noteId' in props.target) {
         const n = all.find((x) => x.id === (props.target as { noteId: string }).noteId);
         if (!n) return;
+        const [cs, cards] = await Promise.all([props.repo.collectionSettings(), props.repo.listCards()]);
+        setDayStartsAtHour(cs.dayStartsAtHour);
+        setNoteCardList(cards.filter((x) => x.noteId === n.id && !x.retired));
         setOriginal(n);
         setDeck(n.deck);
         setModel(n.model);
@@ -111,10 +122,10 @@ export function NoteEditor(props: {
   };
 
   const cancel = () => {
-    if (!changed) { props.onClose(); return; }
+    if (!changed) { close(); return; }
     Alert.alert('Discard changes?', "If you leave now, they'll be lost.", [
       { text: 'Keep editing', style: 'cancel' },
-      { text: 'Discard', style: 'destructive', onPress: () => props.onClose() },
+      { text: 'Discard', style: 'destructive', onPress: close },
     ]);
   };
 
@@ -202,10 +213,56 @@ export function NoteEditor(props: {
             {' '}Select text in a field to make it bold, italic or underlined, or take its formatting away. A field with
             formatting shows how it will look underneath.
           </Help>
+          {editing ? (
+            <CardStates
+              cards={noteCardList}
+              nameOf={(kind) => (original && isOmnilanguage(original) ? OMNI_CARD_NAMES[kind] ?? kind : noteTypes.get(model)?.templates.find((t) => `t${t.ord}` === kind)?.name ?? 'Card')}
+              dayStartsAtHour={dayStartsAtHour}
+              onChange={async (card, change) => {
+                const { cards, ankiError } = await setCardStates(props.repo, [card], change, new Date(), dayStartsAtHour);
+                cardsChanged.current = true;
+                setNoteCardList((list) => list.map((x) => (x.id === card.id ? cards[0] : x)));
+                if (ankiError) setError(`Changed in Franki, but it won't reach Anki. ${(ankiError as any)?.message ?? ankiError}`);
+              }}
+            />
+          ) : null}
           {editing ? <Button label="Delete note" variant="destructive" onPress={remove} disabled={busy} /> : null}
         </ScrollView>
       </Screen>
     </Modal>
+  );
+}
+
+type CardRow = import('../core/types').Card;
+
+/**
+ * The note's cards that are suspended, buried or flagged (set while studying, or in Anki), each
+ * with the button that undoes it. Shows nothing when none is.
+ */
+function CardStates({ cards, nameOf, dayStartsAtHour, onChange }: {
+  cards: CardRow[]; nameOf: (kind: string) => string; dayStartsAtHour: number;
+  onChange: (card: CardRow, change: (s: CardState) => CardState) => Promise<void>;
+}) {
+  const c = useTheme();
+  const now = new Date();
+  const marked = cards.map((card) => ({ card, s: cardStateOf(card, now, dayStartsAtHour) })).filter(({ s }) => s.suspended || s.buried || s.flag);
+  if (!marked.length) return null;
+  return (
+    <Card>
+      <Text style={{ ...type.headline, color: c.text }}>Cards</Text>
+      {marked.map(({ card, s }) => (
+        <View key={card.id} style={{ gap: space.s }}>
+          <Text style={{ ...type.body, color: c.text }}>
+            {nameOf(card.kind)}: {[s.suspended && 'suspended', s.buried && 'buried until tomorrow', s.flag && `flagged ${FLAG_NAMES[s.flag].toLowerCase()}`].filter(Boolean).join(', ')}
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
+            {s.suspended ? <Button label="Unsuspend" variant="secondary" onPress={() => onChange(card, (x) => ({ ...x, suspended: false }))} /> : null}
+            {s.buried ? <Button label="Unbury" variant="secondary" onPress={() => onChange(card, (x) => ({ ...x, buried: false }))} /> : null}
+            {s.flag ? <Button label="Remove flag" variant="secondary" onPress={() => onChange(card, (x) => ({ ...x, flag: 0 }))} /> : null}
+          </View>
+        </View>
+      ))}
+    </Card>
   );
 }
 

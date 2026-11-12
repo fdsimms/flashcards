@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildExport } from '../../src/anki/collection';
-import { deleteNote, NoteRefused, saveNote, type NoteStore } from '../../src/anki/noteService';
+import { deleteNote, NoteRefused, saveNote, setCardStates, type NoteStore } from '../../src/anki/noteService';
 import { review } from '../../src/core/scheduler';
 import { MemoryRepo } from '../../src/db/repo';
 import { importAnkiJson } from '../../src/import/ankiJson';
@@ -129,5 +129,32 @@ describe('moving a note to another deck', () => {
     await expect(saveNote(store, { id: note.id, deck: 'Not in Anki', model: note.model, fields: note.fields, tags: note.tags }, NOW))
       .rejects.toThrow(/no deck called "Not in Anki"/);
     expect((await store.getNote(note.id))!.deck).toBe(note.deck);
+  });
+});
+
+describe('suspending, burying and flagging a card', () => {
+  it('saves in Franki first, then sends the Anki cards to the kept collection', async () => {
+    const repo = new MemoryRepo();
+    const sent: unknown[] = [];
+    const store = Object.assign(repo, { setAnkiCardStates: async (changes: unknown[]) => { sent.push(...changes); } });
+    const data = importAnkiJson(buildExport(await readCollectionRows(FIXTURE)), { now: NOW });
+    await repo.applyAnkiCollection(data.notes, data.cards);
+    const card = data.cards.find((c) => !c.suspended)!;
+    const { cards, ankiError } = await setCardStates(store, [card], (s) => ({ ...s, flag: 4, buried: true }), NOW, 4);
+    expect(ankiError).toBeUndefined();
+    expect(cards[0]).toMatchObject({ flag: 4, buriedAt: NOW.toISOString() });
+    expect((await repo.listCards()).find((c) => c.id === card.id)).toMatchObject({ flag: 4 });
+    expect(sent).toEqual([{ ankiId: card.ankiId, state: { suspended: false, buried: true, flag: 4 } }]);
+  });
+
+  it("keeps the change in Franki and reports it when Anki's collection can't take it", async () => {
+    const repo = new MemoryRepo();
+    const store = Object.assign(repo, { setAnkiCardStates: async () => { throw new Error('locked'); } });
+    const data = importAnkiJson(buildExport(await readCollectionRows(FIXTURE)), { now: NOW });
+    await repo.applyAnkiCollection(data.notes, data.cards);
+    const card = data.cards.find((c) => !c.suspended)!;
+    const { ankiError } = await setCardStates(store, [card], (s) => ({ ...s, suspended: true }), NOW, 4);
+    expect((ankiError as Error).message).toBe('locked');
+    expect((await repo.listCards()).find((c) => c.id === card.id)!.suspended).toBe(true);
   });
 });

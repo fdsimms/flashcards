@@ -64,6 +64,8 @@ export interface Card {
   filteredDue?: number;
   /** In a preview filtered deck (Anki's queue 4): when it's shown again, ISO. */
   previewDue?: string;
+  /** Anki's flag: 1 red, 2 orange, 3 green, 4 blue, 5 pink, 6 turquoise, 7 purple; none when missing or 0. */
+  flag?: number;
   sched: SchedState;
 }
 

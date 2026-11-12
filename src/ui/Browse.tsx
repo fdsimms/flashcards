@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../anki/noteService';
+import type { AnkiLink } from '../db/ankiLink';
 import { notePreview, searchNotes } from '../core/noteEditing';
 import type { Note } from '../core/types';
 import { Chip, IconAction, Screen, SearchField } from './kit';
@@ -11,7 +12,7 @@ import { hairline, space, type, useTheme } from './theme';
  * Every note, searchable and narrowed to a top-level deck; tap one to edit it, or Add a new one.
  * Search matches every word in any field, a tag or the deck name (src/core/noteEditing.ts).
  */
-export function Browse({ repo, onDone }: { repo: NoteStore; onDone: () => void }) {
+export function Browse({ repo, onDone }: { repo: NoteStore & Pick<AnkiLink, 'setAnkiCardStates'>; onDone: () => void }) {
   const c = useTheme();
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [query, setQuery] = useState('');

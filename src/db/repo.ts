@@ -74,7 +74,7 @@ export class MemoryRepo implements Repo {
       if (existing && existing.sched.state !== 0) {
         this.cards.set(c.id, {
           ...existing, retired: false, buriedAt: c.buriedAt, deck: c.deck, filteredDeck: c.filteredDeck, position: c.position,
-          ankiMod: c.ankiMod, filteredDue: c.filteredDue, previewDue: c.previewDue,
+          ankiMod: c.ankiMod, filteredDue: c.filteredDue, previewDue: c.previewDue, flag: c.flag,
         });
         continue;
       }
