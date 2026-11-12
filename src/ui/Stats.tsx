@@ -9,6 +9,7 @@ import {
 import type { Card, DeckParams, Note } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
+import { WANIKANI_SCOPE } from '../wanikani/log';
 import { Card as Box, Chip, Help, Screen } from './kit';
 import { haptic } from './haptics';
 import { AnswerCalendar } from './StatsCalendar';
@@ -24,9 +25,11 @@ const dayLabel = (d: Date) => d.toLocaleDateString(undefined, { weekday: 'short'
  * Study statistics for the whole collection or one top-level deck with its subdecks: today, the
  * next 30 days' reviews, the last 30 days' answers, a year's calendar of answers, cards by stage
  * and by interval, and retention. The numbers come from src/core/stats.ts; this screen only
- * gathers and shows them.
+ * gathers and shows them. WaniKani's answers given here (`wanikani`, src/wanikani/log.ts) count
+ * with the rest and have a chip of their own; its items aren't cards, so the charts about cards
+ * leave them out.
  */
-export function Stats({ repo }: { repo: Repo & AnkiLink }) {
+export function Stats({ repo, wanikani = [] }: { repo: Repo & AnkiLink; wanikani?: Answer[] }) {
   const c = useTheme();
   const [data, setData] = useState<{ notes: Note[]; cards: Card[]; answers: Answer[]; params: Map<string, DeckParams>; now: Date; dayStartsAtHour: number }>();
   const [scope, setScope] = useState<string | null>(null);
@@ -45,21 +48,25 @@ export function Stats({ repo }: { repo: Repo & AnkiLink }) {
     })();
   }, [repo]);
 
-  const tops = useMemo(() => [...new Set((data?.notes ?? []).map((n) => n.deck.split('::')[0]))].sort((a, b) => a.localeCompare(b)), [data]);
+  const tops = useMemo(() => [
+    ...[...new Set((data?.notes ?? []).map((n) => n.deck.split('::')[0]))].sort((a, b) => a.localeCompare(b)),
+    ...(wanikani.length ? [WANIKANI_SCOPE] : []),
+  ], [data, wanikani.length]);
+  const onWaniKani = scope === WANIKANI_SCOPE;
 
   const stats = useMemo(() => {
     if (!data) return undefined;
     const deckOf = new Map(data.notes.map((n) => [n.id, n.deck]));
-    const cards = scope === null ? data.cards : data.cards.filter((card) => isInDeck(cardHomeDeck(card, deckOf.get(card.noteId) ?? ''), scope));
+    const cards = scope === null ? data.cards : scope === WANIKANI_SCOPE ? [] : data.cards.filter((card) => isInDeck(cardHomeDeck(card, deckOf.get(card.noteId) ?? ''), scope));
     const ids = new Set(cards.map((card) => card.id));
-    const answers = scope === null ? data.answers : data.answers.filter((a) => ids.has(a.cardId));
+    const answers = scope === null ? [...data.answers, ...wanikani] : scope === WANIKANI_SCOPE ? wanikani : data.answers.filter((a) => ids.has(a.cardId));
     const { now, dayStartsAtHour } = data;
     return {
       ...computeStats({ cards, answers, now, dayStartsAtHour, days: DAYS }),
       calendar: answerCalendar({ answers, now, dayStartsAtHour }),
       intervals: intervalGroups(cards),
     };
-  }, [data, scope]);
+  }, [data, scope, wanikani]);
 
   const target = scope !== null && data ? paramsForDeck(scope, data.params)?.desiredRetention : undefined;
 
@@ -80,11 +87,16 @@ export function Stats({ repo }: { repo: Repo & AnkiLink }) {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: space.m }}>
               <Tile value={stats.today.answered.toLocaleString()} label={stats.today.answered === 1 ? 'answer' : 'answers'} />
               <Tile value={durationText(stats.today.takenMs)} label="studying" />
-              <Tile value={stats.today.newCards.toLocaleString()} label="new cards" />
-              <Tile value={stats.today.again.toLocaleString()} label="answered Again" />
+              <Tile value={stats.today.newCards.toLocaleString()} label={onWaniKani ? 'lessons' : 'new cards'} />
+              <Tile value={stats.today.again.toLocaleString()} label={onWaniKani ? 'missed along the way' : 'answered Again'} />
             </View>
           </Box>
 
+          {onWaniKani ? (
+            <Help>WaniKani answers given in Franki. Answers given on wanikani.com aren't counted here.</Help>
+          ) : null}
+
+          {onWaniKani ? null : (
           <Box>
             <Text style={{ ...type.headline, color: c.text }}>Due in the next {DAYS} days</Text>
             <Bars
@@ -98,6 +110,7 @@ export function Stats({ repo }: { repo: Repo & AnkiLink }) {
               {plural(Math.round(stats.forecast.reduce((n, d) => n + d.due, 0) / DAYS), 'card', 'cards')} a day.
             </Help>
           </Box>
+          )}
 
           <Box>
             <Text style={{ ...type.headline, color: c.text }}>Answers in the last {DAYS} days</Text>
@@ -111,6 +124,8 @@ export function Stats({ repo }: { repo: Repo & AnkiLink }) {
 
           <AnswerCalendar calendar={stats.calendar} />
 
+          {onWaniKani ? null : (
+          <>
           <Box>
             <Text style={{ ...type.headline, color: c.text }}>Cards</Text>
             <Row label="New" value={stats.counts.new} />
@@ -134,13 +149,19 @@ export function Stats({ repo }: { repo: Repo & AnkiLink }) {
                 : 'No cards in review yet.'}
             </Help>
           </Box>
+          </>
+          )}
 
           <Box>
             <Text style={{ ...type.headline, color: c.text }}>Remembered</Text>
-            <Help>Reviews not answered Again. Learning and relearning steps aren't counted.</Help>
+            <Help>
+              {onWaniKani
+                ? 'Reviews answered right the first time, meaning and reading. Lessons aren\'t counted.'
+                : "Reviews not answered Again. Learning and relearning steps aren't counted."}
+            </Help>
             <Rated label="Last 7 days" rate={stats.retention.week} />
             <Rated label={`Last ${DAYS} days`} rate={stats.retention.month} />
-            <Rated label={`Mature cards, last ${DAYS} days`} rate={stats.retention.matureMonth} />
+            {onWaniKani ? null : <Rated label={`Mature cards, last ${DAYS} days`} rate={stats.retention.matureMonth} />}
             {target ? <Help>This deck aims for {Math.round(target * 100)}% (its desired retention in Anki).</Help> : null}
           </Box>
         </ScrollView>

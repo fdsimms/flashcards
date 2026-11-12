@@ -46,7 +46,7 @@ import { Reveal, useReduceMotion } from './motion';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /** The card itself: a raised sheet that fills the space between the header and the buttons. */
-function CardSurface({ children }: { children: React.ReactNode }) {
+export function CardSurface({ children }: { children: React.ReactNode }) {
   const c = useTheme();
   return (
     <View
@@ -62,7 +62,7 @@ function CardSurface({ children }: { children: React.ReactNode }) {
 }
 
 /** How far through the session is, as a thin line under the header. */
-function ProgressBar({ value }: { value: number }) {
+export function ProgressBar({ value }: { value: number }) {
   const c = useTheme();
   const reduce = useReduceMotion();
   const v = useRef(new Animated.Value(value)).current;

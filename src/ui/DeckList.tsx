@@ -68,9 +68,13 @@ function Stat({ value, label, color }: { value: number; label: string; color: st
   );
 }
 
-function DeckRowView({ row, first, onOpen, onMenu, onToggle, onLift, onStep }: {
+export function DeckRowView({ row, first, detail, menuHint = 'Add a note, rename, options or delete', onOpen, onMenu, onToggle, onLift, onStep }: {
   row: ShownRow;
   first: boolean;
+  /** The line under the name in place of the card count (WaniKani's level), and its color. */
+  detail?: { text: string; warning?: boolean };
+  /** What the ⋯ menu offers, for VoiceOver. */
+  menuHint?: string;
   onOpen: () => void;
   onMenu: () => void;
   onToggle?: () => void;
@@ -103,7 +107,9 @@ function DeckRowView({ row, first, onOpen, onMenu, onToggle, onLift, onStep }: {
       ) : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{row.name}</Text>
-        <Text style={{ ...type.footnote, color: c.textSecondary }}>{row.total.toLocaleString()} {row.total === 1 ? 'card' : 'cards'}</Text>
+        <Text style={{ ...type.footnote, color: detail?.warning ? c.warning : c.textSecondary }}>
+          {detail ? detail.text : `${row.total.toLocaleString()} ${row.total === 1 ? 'card' : 'cards'}`}
+        </Text>
         {row.gate ? (
           // Under the cap, new cards come in; at it, they wait until cards are a week out.
           <Text style={{ ...type.footnote, color: atCap ? c.warning : c.textSecondary }}>
@@ -117,7 +123,7 @@ function DeckRowView({ row, first, onOpen, onMenu, onToggle, onLift, onStep }: {
         onPress={onMenu}
         accessibilityRole="button"
         accessibilityLabel={`More for ${row.name}`}
-        accessibilityHint="Add a note, rename, options or delete"
+        accessibilityHint={menuHint}
         style={({ pressed }) => ({ width: MIN_TAP - 4, height: MIN_TAP, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.4 : 1 })}
       >
         <Icon name="ellipsis" size={18} color={c.textTertiary} weight="semibold" />
@@ -172,6 +178,11 @@ export function DeckList(props: {
   /** Decks whose subdecks are hidden: Anki's own collapsed state, shared through sync. */
   collapsed?: Set<string>;
   onToggleCollapsed?: (deck: string) => void;
+  /**
+   * A deck that isn't Anki's (WaniKani, WaniKaniDeck.tsx), shown after the Anki decks and counted
+   * in today's totals. `refresh` reads its counts again: on a pull, and with the sync button.
+   */
+  extra?: { node: React.ReactNode; due: number; fresh: number; refresh: () => Promise<unknown> };
 }) {
   const c = useTheme();
   const shown = useMemo(() => shownDeckRows(props.decks, props.collapsed ?? new Set()), [props.decks, props.collapsed]);
@@ -182,7 +193,10 @@ export function DeckList(props: {
   // The pull-down spinner is for a pull-down only. Tied to every sync, the one at launch scrolled
   // the list to show the spinner, and the large title flashed open and snapped shut.
   const [pulling, setPulling] = useState(false);
-  const totals = useMemo(() => deckListTotals(props.decks), [props.decks]);
+  const totals = useMemo(() => {
+    const t = deckListTotals(props.decks);
+    return props.extra ? { due: t.due + props.extra.due, fresh: t.fresh + props.extra.fresh } : t;
+  }, [props.decks, props.extra?.due, props.extra?.fresh]); // eslint-disable-line react-hooks/exhaustive-deps
   const backup = props.sync ? undefined : props.backup;
   const drag = useDeckDrag({
     decks: allDecks,
@@ -203,7 +217,7 @@ export function DeckList(props: {
       toolbar={
         <Stack.Toolbar placement="right">
           {props.sync ? (
-            <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={props.sync.syncing} accessibilityLabel={props.sync.syncing ? 'Syncing' : 'Sync now'} onPress={props.sync.onSync} />
+            <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={props.sync.syncing} accessibilityLabel={props.sync.syncing ? 'Syncing' : 'Sync now'} onPress={() => { props.extra?.refresh(); props.sync?.onSync(); }} />
           ) : null}
           <Stack.Toolbar.Button icon="rectangle.stack.badge.plus" accessibilityLabel="New deck" onPress={props.onNewDeck} />
           <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} />
@@ -214,15 +228,16 @@ export function DeckList(props: {
       <ScrollView
         {...drag.scrollProps}
         contentInsetAdjustmentBehavior="automatic"
-        // Pull down to sync, when sync is on. Always mounted: sync's settings load a moment after
-        // the screen opens, and a refresh control added then moved the content down and showed the
-        // large title that had been scrolled out of view at launch. Without sync a pull does nothing.
+        // Pull down to sync, when sync is on, and to read WaniKani's counts again. Always mounted:
+        // sync's settings load a moment after the screen opens, and a refresh control added then
+        // moved the content down and showed the large title that had been scrolled out of view at
+        // launch. With neither, a pull does nothing.
         refreshControl={(
           <RefreshControl
             refreshing={pulling}
             onRefresh={async () => {
               setPulling(true);
-              try { await props.sync?.onSync(); } finally { setPulling(false); }
+              try { await Promise.all([props.sync?.onSync(), props.extra?.refresh()]); } finally { setPulling(false); }
             }}
             tintColor={c.textSecondary}
           />
@@ -241,7 +256,7 @@ export function DeckList(props: {
               </View>
             </Pressable>
           ) : null}
-          {groups.length ? <TodaySummary due={totals.due} fresh={totals.fresh} /> : null}
+          {groups.length || props.extra ? <TodaySummary due={totals.due} fresh={totals.fresh} /> : null}
           {groups.length === 0 ? (props.loaded === false ? null : (
             <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
               <Icon name="tray" size={40} color={c.textTertiary} weight="regular" />
@@ -288,6 +303,7 @@ export function DeckList(props: {
               </Group>
             ))
           )}
+          {props.extra?.node}
           {props.sync ? (
             <Pressable onPress={props.sync.onSync} accessibilityRole="button" accessibilityHint="Syncs now"
               style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
