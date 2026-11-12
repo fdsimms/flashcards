@@ -143,10 +143,22 @@ def _common(code: str, count: int) -> frozenset[str]:
 
 
 # Forms simplemma takes back to the wrong verb. It reads vengo and the present subjunctive of venir
-# as forms of vengar (to avenge), so "Ya vengo" showed up as a deck word glossed "to avenge".
+# as forms of vengar (to avenge), so "Ya vengo" showed up as a deck word glossed "to avenge". Only
+# forms that belong to one verb are listed: a form two verbs share (creas, di, fuera) can't be
+# settled without the sentence.
 _LEMMA_FIXES: dict[str, dict[str, str]] = {
     "es": {
-        w: "venir" for w in ("vengo", "venga", "vengas", "vengamos", "vengáis", "vengan", "vendría")
+        w: verb
+        for verb, forms in {
+            "venir": "vengo venga vengas vengamos vengáis vengan vendría",
+            "salir": "salgo salga salgas salgamos salgáis salgan",
+            "entrar": "entraba entrabas entrábamos entrabais entraban",
+            "empezar": "empecemos empeces empecéis",
+            "recibir": "recibís",
+            "morir": "muera mueras mueran muramos",
+            "correr": "correría correrías",
+        }.items()
+        for w in forms.split()
     },
 }
 
@@ -155,8 +167,14 @@ _LEMMA_FIXES: dict[str, dict[str, str]] = {
 def lemma(word: str, code: str) -> str:
     import simplemma  # loaded on first use; see the module docstring
 
-    fixed = _LEMMA_FIXES.get(code, {}).get(fold(word, code))
-    return fixed or fold(str(simplemma.lemmatize(word, lang=code, low_memory=True)), code)
+    word = fold(word, code)
+    if fixed := _LEMMA_FIXES.get(code, {}).get(word):
+        return fixed
+    found = fold(str(simplemma.lemmatize(word, lang=code, low_memory=True)), code)
+    if code == "es" and found.endswith("rse") and not word.endswith("se"):
+        # volverías and utilizaréis come back as volverse and utilizarse
+        return found[:-2]
+    return found
 
 
 def fold(word: str, code: str) -> str:

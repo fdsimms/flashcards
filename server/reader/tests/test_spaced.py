@@ -450,3 +450,15 @@ def test_vengo_is_venir_not_vengar() -> None:
     lexicon = lexicon_from([Entry(8, "vengar", "to avenge", "mature")], "es")
     assert lexicon.entry_of("vengo") is None
     assert lexicon.entry_of("vengaré") == "vengar"
+
+
+def test_forms_simplemma_takes_to_the_wrong_verb() -> None:
+    from franki_reader.spaced import lemma
+
+    assert lemma("salgo", "es") == "salir"
+    assert lemma("entraba", "es") == "entrar"
+    assert lemma("recibís", "es") == "recibir"
+    # the future and conditional of a verb come back as its reflexive
+    assert lemma("volverías", "es") == "volver"
+    assert lemma("utilizaréis", "es") == "utilizar"
+    assert lemma("verse", "es") == "verse"
