@@ -65,7 +65,7 @@ export function makeCards(note: Note, now: Date = new Date(), noteType?: NoteTyp
   }));
 }
 
-type Block = { label?: string; text: string; emphasis?: boolean; tapLabel?: string };
+type Block = { label?: string; text: string; emphasis?: boolean; tapLabel?: string; icon?: 'speaker.wave.2.fill' };
 
 function t(note: Note, name: string): string {
   return htmlToText(note.fields[name] ?? '');
@@ -157,7 +157,7 @@ function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
   }
 
   // audio: hear it, recall the meaning
-  front.push({ text: '🔊 Listen', emphasis: true });
+  front.push({ text: 'Listen', emphasis: true, icon: 'speaker.wave.2.fill' });
   pushIf(back, entry, undefined, true);
   pushIf(back, translit, undefined, undefined, 'Show transliteration');
   pushIf(back, meaning, undefined, true);
