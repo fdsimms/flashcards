@@ -5,7 +5,15 @@ import asyncio
 import httpx
 import pytest
 
-from franki_speech import OUTPUT_FORMAT, THAI_PAUSE, SpeechClient, SpeechError, locale_of, ssml
+from franki_speech import (
+    OUTPUT_FORMAT,
+    THAI_PAUSE,
+    THAI_PRONUNCIATIONS,
+    SpeechClient,
+    SpeechError,
+    locale_of,
+    ssml,
+)
 
 VOICE = "th-TH-NiwatNeural"
 
@@ -25,8 +33,13 @@ def test_ssml_pauses_at_a_thai_clause_break() -> None:
 
 def test_ssml_respells_a_thai_word_the_voice_misreads() -> None:
     out = ssml("มะม่วงราคาห้าสิบบาทค่ะ", VOICE)
-    assert "<sub alias='มะ ม่วง'>มะม่วง</sub>ราคา" in out
+    assert "<sub alias='มะ\u200bม่วง'>มะม่วง</sub>ราคา" in out
     assert "<sub" not in ssml("มะม่วง", "es-MX-JorgeNeural")
+
+
+def test_a_thai_respelling_has_no_space_the_voice_would_pause_at() -> None:
+    for alias in THAI_PRONUNCIATIONS.values():
+        assert not any(c.isspace() and c != "\u200b" for c in alias)
 
 
 def test_ssml_sets_the_speed() -> None:
