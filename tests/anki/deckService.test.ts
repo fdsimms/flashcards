@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildExport } from '../../src/anki/collection';
-import { createDeck, deckDeletionPreview, DeckRefused, deleteDeck, renameDeck } from '../../src/anki/deckService';
+import { createDeck, deckDeletionPreview, DeckRefused, deleteDeck, moveDeck, renameDeck } from '../../src/anki/deckService';
+import { deckMove } from '../../src/core/deckOrder';
 import type { NoteStore } from '../../src/anki/noteService';
 import { listedDecks } from '../../src/core/deckNames';
 import { newSchedState } from '../../src/core/scheduler';
@@ -119,6 +120,41 @@ describe('renaming a deck', () => {
     expect(f.store.deckSettings.get('🧠 Trivia::Imported')).toEqual({ collapsed: true });
     expect(f.refreshes()).toBe(0);
     expect(await f.ankiDecks()).not.toContain('🧠 Trivia::Imported');
+  });
+});
+
+describe('moving a deck by dragging it', () => {
+  const LIST = [LANGUAGES, THAI, TRIVIA];
+
+  it('nests it under its new parent in Anki and Franki, and saves its place among the subdecks there', async () => {
+    const f = await franki();
+    await f.store.saveDeckSettings(TRIVIA, { gateCap: 5, position: 1 });
+    const move = deckMove(LIST, TRIVIA, LANGUAGES, 1)!;
+    expect(await moveDeck(f.store, move, f.refresh, NOW)).toBe(`${LANGUAGES}::${TRIVIA}`);
+    expect(await f.ankiDecks()).toContain(`${LANGUAGES}::${TRIVIA}`);
+    expect(f.store.deckSettings.get(`${LANGUAGES}::${TRIVIA}`)).toEqual({ gateCap: 5, position: 0 });
+    expect(f.store.deckSettings.get(THAI)).toEqual({ position: 1 });
+    expect(f.refreshes()).toBe(1);
+  });
+
+  it('reorders without touching Anki, and unnests by renaming', async () => {
+    const f = await franki();
+    expect(await moveDeck(f.store, deckMove(LIST, TRIVIA, null, 0)!, f.refresh, NOW)).toBe(TRIVIA);
+    expect(f.refreshes()).toBe(0);
+    expect([TRIVIA, LANGUAGES].map((d) => f.store.deckSettings.get(d)?.position)).toEqual([0, 1]);
+    // Thai dropped at the top level, after Languages and the subdecks inside it.
+    expect(await moveDeck(f.store, deckMove([TRIVIA, LANGUAGES, THAI], THAI, LANGUAGES, 0)!, f.refresh, NOW)).toBe('🐘 ภาษาไทย');
+    expect(await f.ankiDecks()).toContain('🐘 ภาษาไทย');
+    expect([TRIVIA, LANGUAGES, '🐘 ภาษาไทย'].map((d) => f.store.deckSettings.get(d)?.position)).toEqual([0, 1, 2]);
+  });
+
+  it('refuses a name another deck has under the new parent, changing nothing', async () => {
+    const f = await franki();
+    await f.store.saveDeckSettings('🧠 Trivia::🐘 ภาษาไทย', { created: true });
+    await addOwnNote(f.store, 'tsv:1', '🧠 Trivia::🐘 ภาษาไทย');
+    await expect(moveDeck(f.store, deckMove([...LIST, '🧠 Trivia::🐘 ภาษาไทย'], THAI, TRIVIA, 1)!, f.refresh, NOW)).rejects.toThrow(DeckRefused);
+    expect(await f.ankiDecks()).toContain(THAI);
+    expect(f.store.deckSettings.get(THAI)).toBeUndefined();
   });
 });
 
