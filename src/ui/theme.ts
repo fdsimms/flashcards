@@ -46,6 +46,13 @@ const light = {
    * against the surface (checked with the dataviz skill's ordinal ramp validator).
    */
   heat: ['#d2ae52', '#b8922c', '#8f6a0e', '#5f4504'],
+  /**
+   * Counting money's banknotes, largest first, and its coins: plain tints with the amount on,
+   * never a picture of a real note. `onCash` is the amount's color on any of them.
+   */
+  cashNotes: ['#d9cdf0', '#f3c6bf', '#c4d7f2', '#c8e6cf', '#f2deb0', '#e3d6c6', '#d6e3e6'],
+  cashCoin: '#dcd8cf',
+  onCash: '#1b1b1b',
   /** A quiet accent fill: a chosen word, a practice word's chip, speaker A in Read & Listen. */
   accentFill: 'rgba(138, 109, 31, 0.13)',
   /** Speaker B's badge in Read & Listen, and the text on it. */
@@ -87,6 +94,9 @@ const dark: typeof light = {
   violet: '#694595',
   chart: '#b88d32',
   heat: ['#614e20', '#87692a', '#b38f3e', '#e6c270'],
+  cashNotes: ['#4b3f66', '#6a3f38', '#34496a', '#365a40', '#665a33', '#5a4b3c', '#3b5357'],
+  cashCoin: '#4a4e57',
+  onCash: '#f1f1f1',
   accentFill: 'rgba(212, 180, 106, 0.18)',
   speakerB: '#22392f',
   onSpeakerB: '#9fd6bb',

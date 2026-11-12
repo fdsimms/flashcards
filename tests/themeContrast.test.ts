@@ -51,6 +51,13 @@ describe.each(['light', 'dark'] as const)('theme contrast, %s', (mode) => {
     expect(contrast(t.textTertiary, t.bg)).toBeLessThan(contrast(t.textSecondary, t.bg) - 1);
   });
 
+  it("reads an amount on Counting money's notes and coins", () => {
+    const block = new RegExp(`const ${mode}[^=]*= \\{([\\s\\S]*?)\\n\\};`).exec(source)?.[1] ?? '';
+    const notes = [...(/cashNotes: \[([^\]]*)\]/.exec(block)?.[1] ?? '').matchAll(/#[0-9a-f]{6}/gi)].map((m) => m[0]);
+    expect(notes.length).toBeGreaterThan(5);
+    for (const fill of [...notes, t.cashCoin]) expect(contrast(t.onCash, fill), `onCash on ${fill}`).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('reads the label on a filled button', () => {
     expect(contrast(t.onAccent, t.accent), 'onAccent on accent').toBeGreaterThanOrEqual(4.5);
     for (const fill of ['again', 'good', 'easy']) expect(contrast(t.onRating, t[fill]), `onRating on ${fill}`).toBeGreaterThanOrEqual(4.5);
