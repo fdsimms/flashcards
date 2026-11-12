@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, type Api, type Length, type PastText, type Rating, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
 import { countOutsideDeck, isOutsideDeck, underFloor } from '../reader/deckWords';
 import { scrollTarget, type Box } from '../reader/follow';
+import { THAI_FONTS, THAI_FONT_LABELS, readFont, type ReadFont, type ThaiFont } from '../reader/fonts';
 import { LANGUAGES, wordStatus } from '../reader/languages';
 import { firstLine, nextLine, paragraphs, previousLine, rangeOf } from '../reader/playback';
 import { RATES } from '../reader/playbackRate';
@@ -22,7 +23,7 @@ import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './the
  * The reader: a text split into words by the server, a gloss on tap, audio line by line, and a
  * rating at the end (docs/read-and-listen/architecture.md, Client). Nothing here answers a card.
  *
- * Layout: the title, practice words, the Show English and highlight switches, the lines (each with
+ * Layout: the title, practice words, the Show English, highlight and Thai letters controls, the lines (each with
  * its own replay button, and an EN button that shows that line's English alone), then Done, with
  * the player pinned under the scroll view. Done swaps the lines for the end view (rating, stats,
  * words marked unknown). The gloss popover is a transparent Modal, so a tap's page coordinates
@@ -98,6 +99,7 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
   const [listenOnly, setListenOnly] = useState(false);
   const [highlight, setHighlight] = useState(prefs().highlight);
   const [paragraphMode, setParagraphMode] = useState(prefs().paragraphs);
+  const [thaiFont, setThaiFont] = useState(prefs().thaiFont);
   const [tapped, setTapped] = useState<Tapped | null>(null);
   const [ended, setEnded] = useState(false);
   const [rating, setRating] = useState<Rating | null>(null);
@@ -401,6 +403,11 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
     setParagraphMode(on);
   };
 
+  const chooseThaiFont = (font: ThaiFont) => {
+    savePrefs({ thaiFont: font });
+    setThaiFont(font);
+  };
+
   const turnOnHighlight = (on: boolean) => {
     savePrefs({ highlight: on });
     setHighlight(on);
@@ -493,6 +500,16 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
                 <ToggleRow label={language.highlightLabel}>
                   <Switch value={highlight} onValueChange={turnOnHighlight} trackColor={{ true: c.accent }} accessibilityLabel={language.highlightLabel} />
                 </ToggleRow>
+                {text.language === 'th' || text.language === undefined ? (
+                  <ToggleRow label="Thai letters">
+                    <Segments
+                      options={THAI_FONTS.map((f) => ({ value: f, label: THAI_FONT_LABELS[f] }))}
+                      value={thaiFont}
+                      onChange={chooseThaiFont}
+                      style={{ width: 180 }}
+                    />
+                  </ToggleRow>
+                ) : null}
                 {highlight && countOutsideDeck(text) === 0 ? (
                   <Text style={{ ...type.footnote, color: c.textSecondary }}>Every word in this text is in your deck.</Text>
                 ) : null}
@@ -522,14 +539,14 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
                     {lines.map((l, k) => (
                       <React.Fragment key={k}>
-                        {k > 0 ? <View style={{ width: readStyle(text).fontSize * 0.5 }} /> : null}
+                        {k > 0 ? <View style={{ width: readStyle(text, thaiFont).fontSize * 0.5 }} /> : null}
                         {wrapGroups(l.words).map((chunk, j) => (
                           <View key={j} style={{ flexDirection: 'row', alignItems: 'center' }}>
                             {chunk.map((word, m) => (
                               <WordView
                                 key={m}
                                 word={word}
-                                textStyle={readStyle(text)}
+                                textStyle={readStyle(text, thaiFont)}
                                 grammar={grammarOf(text, word)}
                                 flagged={isFlagged(session, word.text)}
                                 highlighted={highlight && isOutsideDeck(word)}
@@ -577,7 +594,7 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
                           <WordView
                             key={k}
                             word={word}
-                            textStyle={readStyle(text)}
+                            textStyle={readStyle(text, thaiFont)}
                             grammar={grammarOf(text, word)}
                             flagged={isFlagged(session, word.text)}
                             highlighted={highlight && isOutsideDeck(word)}
@@ -723,9 +740,10 @@ const RATINGS: { value: Rating; label: string; hint: string }[] = [
 ];
 
 /** The reading size for a text's language. */
-function readStyle(text: ReaderText) {
-  const info = LANGUAGES[text.language ?? 'th'];
-  return { fontSize: info.fontSize, lineHeight: info.fontSize * info.lineHeight };
+function readStyle(text: ReaderText, thaiFont: ThaiFont) {
+  const language = text.language ?? 'th';
+  const info = LANGUAGES[language];
+  return { fontSize: info.fontSize, lineHeight: info.fontSize * info.lineHeight, font: readFont(language, thaiFont) };
 }
 
 function practicedGrammar(text: ReaderText): TextGrammar[] {
@@ -812,7 +830,7 @@ function RoundButton({ icon, label, accessibilityLabel, on, onPress }: {
 function WordView({ word, grammar, textStyle, flagged, highlighted, selected, playing = false, onPress }: {
   word: Word;
   grammar: TextGrammar | null;
-  textStyle: { fontSize: number; lineHeight: number };
+  textStyle: { fontSize: number; lineHeight: number; font: ReadFont };
   flagged: boolean;
   highlighted: boolean;
   selected: boolean;
@@ -824,7 +842,7 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, selected, pl
   if (word.status === null) {
     // A space becomes a gap; punctuation is shown but can't be tapped.
     return word.text.trim()
-      ? <Text style={{ ...textStyle, color: c.text }}>{word.text}</Text>
+      ? <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: c.text }}>{word.text}</Text>
       : <View style={{ width: textStyle.fontSize * 0.3 }} />;
   }
   return (
@@ -844,8 +862,8 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, selected, pl
     >
       <Text
         style={[
-          { ...textStyle, color: word.stretch ? c.accent : c.text },
-          word.stretch ? { fontWeight: '700' } : null,
+          { fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: word.stretch ? c.accent : c.text },
+          word.stretch ? textStyle.font.emphasis : null,
           // The underline is a bottom border, not textDecoration: iOS draws a text underline through
           // Thai's below-the-line vowels and consonant feet. The border is always there (transparent
           // when unused) so every word is the same height and a row stays aligned.
