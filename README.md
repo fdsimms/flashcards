@@ -59,6 +59,8 @@ The deck list shows every deck in your Anki collection, empty ones too (all but 
 - **Deck options** opens its options, as swiping the row left does.
 - **Delete** says how many cards will go, then deletes the deck, every deck inside it, their cards, and any note left with no cards. Anki keeps its Default deck: deleting it deletes what's in it and leaves it empty.
 
+**Hold a deck and drag it** to move it. Up and down chooses where it goes; sideways chooses how deep: right puts it inside the deck above, left takes it out of the deck it's in. A line shows where it will land, and the decks inside it move with it. Moving a deck into another renames it, as Rename does. The order of decks next to each other is Franki's own: Anki lists decks by name, so AnkiMobile and Anki on the computer still show them A to Z. A deck you haven't dragged comes after the ones you have, by name. With VoiceOver, a deck's row has Move up and Move down actions.
+
 These changes go into your Anki collection as Anki would make them, so the next sync (or Send to Anki) brings them to Anki. Without an Anki collection in Franki, a deck you make or change stays in Franki. An app built before Franki could register Anki's collation can't change Anki's decks and says so.
 
 ## Stats

@@ -38,6 +38,12 @@ describe('deck paths', () => {
       ['Trivia', 'Trivia', 0],
     ]);
   });
+  it('puts decks dragged into place first among their siblings, the rest by name after them', () => {
+    const position = new Map([['Trivia', 0], ['Languages::Thai', 0], ['Languages', 1]]);
+    expect(deckTree(['Languages::Polski', 'Languages::Thai', 'Trivia', 'Art'], (d) => position.get(d)).map((d) => d.deck)).toEqual([
+      'Trivia', 'Languages', 'Languages::Thai', 'Languages::Polski', 'Art',
+    ]);
+  });
   it('takes limits from deck settings, else the defaults', () => {
     const defaults = { newPerDay: 20, reviewsPerDay: 200 };
     expect(deckLimits(undefined, defaults)).toEqual(defaults);

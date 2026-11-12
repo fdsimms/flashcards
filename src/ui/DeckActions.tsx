@@ -1,19 +1,20 @@
 import { useCallback, useRef } from 'react';
 import { ActionSheetIOS, Alert } from 'react-native';
-import { createDeck, deckDeletionPreview, DeckRefused, deleteDeck, renameDeck } from '../anki/deckService';
+import { createDeck, deckDeletionPreview, DeckRefused, deleteDeck, moveDeck, renameDeck } from '../anki/deckService';
 import { refreshFromKeptCollection } from '../anki/transfer';
 import { deckDeletionWarning } from '../core/deckNames';
+import type { DeckMove } from '../core/deckOrder';
 import { isInDeck } from '../core/deckTree';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
 
 /**
- * Making, renaming and deleting decks from the deck list (src/anki/deckService.ts): "New deck" in
- * the toolbar, and a menu on each deck's row. Names are asked for in the system's text prompt;
+ * Making, renaming, moving and deleting decks from the deck list (src/anki/deckService.ts): "New
+ * deck" in the toolbar, a menu on each deck's row, and dragging a row (DeckDrag.tsx). Names are asked for in the system's text prompt;
  * a name that's refused (taken, empty, inside the deck itself) asks again, saying why.
  */
 export function useDeckActions(onOptions: (deck: string) => void) {
-  const { repo, decks, refresh, openNoteEditor } = useApp();
+  const { repo, decks, refresh, openNoteEditor, collapse } = useApp();
   // One change at a time: a second tap while one is being written does nothing.
   const busy = useRef(false);
 
@@ -70,6 +71,14 @@ export function useDeckActions(onOptions: (deck: string) => void) {
     ]);
   }, [repo, decks, run, fromAnki]);
 
+  /** A deck dragged to a new place. Dropped into a collapsed deck, that deck opens to show it there. */
+  const move = useCallback((m: DeckMove) => {
+    run("Couldn't move the deck.", async () => {
+      await moveDeck(repo, m, fromAnki);
+      if (m.parent !== null && collapse.collapsed.has(m.parent)) collapse.toggle(m.parent);
+    });
+  }, [repo, run, fromAnki, collapse]);
+
   /** The menu on a deck's row: add a note to it, rename it, its options, delete it. */
   const menu = useCallback((deck: string) => {
     haptic.tap();
@@ -83,5 +92,5 @@ export function useDeckActions(onOptions: (deck: string) => void) {
     });
   }, [openNoteEditor, refresh, rename, onOptions, remove]);
 
-  return { create: () => create(), menu };
+  return { create: () => create(), menu, move };
 }
