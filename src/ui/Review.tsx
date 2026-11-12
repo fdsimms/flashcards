@@ -474,10 +474,10 @@ export function Review({ repo, deck, onDone, onEditNote }: {
   const shown = ratingsShown(answerButtons);
   const buttons = ([
     { r: 1, label: 'Again', color: c.again },
-    { r: 2, label: 'Hard', color: c.hard },
+    { r: 2, label: 'Hard', color: c.hard, on: c.onHard },
     { r: 3, label: 'Good', color: c.good },
     { r: 4, label: 'Easy', color: c.easy },
-  ] as { r: RatingValue; label: string; color: string }[]).filter((b) => shown.includes(b.r));
+  ] as { r: RatingValue; label: string; color: string; on?: string }[]).filter((b) => shown.includes(b.r));
 
   const footer = revealed ? (
     <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
@@ -495,8 +495,8 @@ export function Review({ repo, deck, onDone, onEditNote }: {
           }}
         >
           {/* The interval sits above the label, as in Anki, so the eye lands on when it's next due. */}
-          <Text style={{ ...type.caption, color: c.onRating, opacity: 0.85, fontVariant: ['tabular-nums'] }}>{intervals?.[b.r]}</Text>
-          <Text style={{ ...type.headline, color: c.onRating }}>{b.label}</Text>
+          <Text style={{ ...type.caption, color: b.on ?? c.onRating, fontVariant: ['tabular-nums'] }}>{intervals?.[b.r]}</Text>
+          <Text style={{ ...type.headline, color: b.on ?? c.onRating }}>{b.label}</Text>
         </Tappable>
       ))}
     </Reveal>
@@ -572,7 +572,7 @@ export function Review({ repo, deck, onDone, onEditNote }: {
         </SwipeCard>
       ) : null}
       {swipeOn && revealed && rendered ? (
-        <Text style={{ ...type.footnote, color: c.textTertiary, textAlign: 'center' }}>Swipe right for Good, left for Again</Text>
+        <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Swipe right for Good, left for Again</Text>
       ) : null}
     </Screen>
   );

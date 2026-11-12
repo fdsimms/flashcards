@@ -206,6 +206,7 @@ export function ReadTopics({ api, onOpen, onWords, onPast, onGrammar }: {
                   disabled={opening !== null}
                   accessibilityRole="button"
                   accessibilityHint="Opens a text on this topic"
+                  hitSlop={{ top: 4, bottom: 4 }}
                   style={({ pressed }) => ({
                     flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 36, paddingHorizontal: space.m,
                     borderRadius: radius.pill, backgroundColor: c.fill, opacity: pressed || (opening && opening !== idea.name) ? 0.6 : 1,
@@ -278,7 +279,7 @@ function ProgressCard({ progress }: { progress: Progress }) {
     <Card style={{ gap: space.xs }}>
       <Text style={{ ...type.headline, color: c.text }}>{headline}</Text>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{detail}</Text>
-      <Text style={{ ...type.footnote, color: c.textTertiary }}>{next}</Text>
+      <Text style={{ ...type.footnote, color: c.textSecondary }}>{next}</Text>
     </Card>
   );
 }
@@ -338,7 +339,7 @@ function TopicRow({ topic, first, onOpen, onStar, onRemove }: {
         ) : topic.state === 'writing' ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
             <ActivityIndicator size="small" color={c.accent} />
-            <Text style={{ ...type.footnote, color: c.textTertiary }}>Writing a text</Text>
+            <Text style={{ ...type.footnote, color: c.textSecondary }}>Writing a text</Text>
           </View>
         ) : topic.state === 'failed' ? (
           <Text style={{ ...type.footnote, color: c.textSecondary }}>Couldn't write one</Text>

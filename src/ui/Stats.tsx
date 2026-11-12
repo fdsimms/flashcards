@@ -218,8 +218,8 @@ function Bars<T extends { start: Date; value: number }>({ days, describe, first,
         ))}
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={{ ...type.caption, color: c.textTertiary }}>{first}</Text>
-        <Text style={{ ...type.caption, color: c.textTertiary }}>{last}</Text>
+        <Text style={{ ...type.caption, color: c.textSecondary }}>{first}</Text>
+        <Text style={{ ...type.caption, color: c.textSecondary }}>{last}</Text>
       </View>
       <Text style={{ ...type.subhead, color: c.text }}>{caption(picked, days[peak].value, describe(days[shown], shown, days.length))}</Text>
     </View>
