@@ -735,7 +735,7 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
               </View>
             ) : null
           ) : <Button label="Next text" onPress={() => finish('next')} busy={leaving} />}
-          <Button label="Back to the shelf" variant={source.kind === 'shelf' && !upNext ? 'primary' : 'secondary'} onPress={() => finish('back')} />
+          <Button label={review ? 'Back to the shelf' : 'Save and back to the shelf'} variant={source.kind === 'shelf' && !upNext ? 'primary' : 'secondary'} onPress={() => finish('back')} />
         </ScrollView>
       ) : null}
 
