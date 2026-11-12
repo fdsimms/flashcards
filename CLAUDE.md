@@ -136,7 +136,8 @@ src/core     types, FSRS wrapper, queue, deck tree, study day, card rendering, A
 src/import   TSV + Anki JSON importers, re-import matching (reconcile.ts)
 src/db       Repo interface + MemoryRepo (tests), SQLite repo (app), backup planning
 src/media    the media folder (expo-file-system)
-src/ui       screens, the shared pieces they're built from (kit.tsx), the theme, CardWebView;
+src/app      routes (Expo Router): thin wrappers that give a screen in src/ui its props
+src/ui       screens, the shared pieces they're built from (kit.tsx), the theme, CardWebView, AppContext;
              Read & Listen's screens are Read*.tsx and Reader.tsx
 src/reader   Read & Listen's side of the app: its server's API, the reading session, playback (pure,
              tested; storage.ts keeps the passphrase in the Keychain)
@@ -168,7 +169,7 @@ the review. `MemoryRepo` is the reference implementation and must behave like th
 (re-import rules included), since every repo test runs against it.
 
 **Audio plays with the silent switch on** (`setAudioModeAsync({ playsInSilentMode: true })` in
-`App.tsx`): iOS otherwise mutes an app's recordings, TTS and WebView audio alike, which made every
+`src/ui/AppContext.tsx`): iOS otherwise mutes an app's recordings, TTS and WebView audio alike, which made every
 play button look broken. `expo-audio`'s config plugin adds no microphone permission (Franki never
 records) but does allow background audio, which only Read & Listen's reader turns on, while it's
 open (`shouldPlayInBackground`), so listening goes on with the screen locked.
@@ -310,11 +311,13 @@ answer is already in the server's history (`undoAnkiAnswer` refuses it, under `l
 
 ### Screens and styling
 
-- **Build screens from `src/ui/kit.tsx`** (`Screen`, `Button`, `Card`, `Help`, `HeaderAction`,
-  `Count`, `MessageList`) before styling a `Pressable` or a box by hand, so a header or a button
-  looks the same everywhere.
-- **`Screen` pads by the safe-area insets; never pad a screen's top or bottom by a fixed number.**
-  The status bar and Dynamic Island differ by iPhone, and a hard-coded 56 put headers under them.
+- **Build screens from `src/ui/kit.tsx`** (`Screen`, `Group`, `NavRow`, `Button`, `Card`, `Help`,
+  `Count`, `MessageList`) before styling a `Pressable` or a box by hand, so a row or a button
+  looks the same everywhere. Icons are SF Symbols (`Icon`), and a tap gives back a haptic (`haptic`).
+- **The header is the native stack's, never drawn by a screen.** `Screen` sets the title and
+  header buttons; a ScrollView directly inside it takes `contentInsetAdjustmentBehavior="automatic"`
+  so the large title collapses. Never pad a screen's top or bottom by a fixed number: the status
+  bar and Dynamic Island differ by iPhone, and a hard-coded 56 put headers under them.
 - **Every color, gap, corner and text size comes from `src/ui/theme.ts`** (`useTheme()`, `space`,
   `radius`, `type`). `tests/noRawColors.test.ts` fails the build on a hex color in a screen; add a
   token with a light and a dark value instead. Text grows with the system text size, so a box
@@ -427,7 +430,7 @@ they win and this is stale. The rules that must not break:
   approval step.** The server only reads the collection (`collection.py`; `test_collection.py`
   checks a read leaves nothing to send), and the app's side imports nothing that schedules or
   writes cards (`tests/reader/noGrading.test.ts` fails the build on it). Adding a marked word to the
-  deck goes through the note editor, opened by `App.tsx`, where saving is the approval, and at most
+  deck goes through the note editor, opened by the `read-words` route, where saving is the approval, and at most
   `MINING_PER_DAY` a study day (`src/reader/mining.ts`).
 - **Generate, then verify in code.** The model writes lines as `|`-split strings with stretch words
   in `*asterisks*`; the server re-segments every line itself (lexicon-first for Thai, by lemma for

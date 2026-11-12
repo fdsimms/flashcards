@@ -21,7 +21,7 @@ import { MIN_TAP, radius, space, type, useTheme } from './theme';
 // While a text is being written, check back this often.
 const WRITING_POLL_MS = 10_000;
 
-export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWords, onPast, onGrammar, onDone }: {
+export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWords, onPast, onGrammar }: {
   api: Api;
   /** Franki's decks, to choose each language's deck from. */
   deckNames: string[];
@@ -33,7 +33,6 @@ export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWor
   onWords: () => void;
   onPast: () => void;
   onGrammar: () => void;
-  onDone: () => void;
 }) {
   const c = useTheme();
   const [topics, setTopics] = useState<Topic[] | null>(null);
@@ -176,8 +175,9 @@ export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWor
   const language = settings?.language ?? 'th';
 
   return (
-    <Screen onBack={onDone} title="Read & Listen">
+    <Screen title="Read & Listen">
       <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
@@ -230,6 +230,7 @@ export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWor
                   disabled={opening !== null}
                   accessibilityRole="button"
                   accessibilityHint="Opens a text on this topic"
+                  hitSlop={{ top: 4, bottom: 4 }}
                   style={({ pressed }) => ({
                     flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 36, paddingHorizontal: space.m,
                     borderRadius: radius.pill, backgroundColor: c.fill, opacity: pressed || (opening && opening !== idea.name) ? 0.6 : 1,
@@ -314,7 +315,7 @@ function ProgressCard({ progress }: { progress: Progress }) {
     <Card style={{ gap: space.xs }}>
       <Text style={{ ...type.headline, color: c.text }}>{headline}</Text>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{detail}</Text>
-      <Text style={{ ...type.footnote, color: c.textTertiary }}>{next}</Text>
+      <Text style={{ ...type.footnote, color: c.textSecondary }}>{next}</Text>
     </Card>
   );
 }
@@ -374,7 +375,7 @@ function TopicRow({ topic, first, onOpen, onStar, onRemove }: {
         ) : topic.state === 'writing' ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
             <ActivityIndicator size="small" color={c.accent} />
-            <Text style={{ ...type.footnote, color: c.textTertiary }}>Writing a text</Text>
+            <Text style={{ ...type.footnote, color: c.textSecondary }}>Writing a text</Text>
           </View>
         ) : topic.state === 'failed' ? (
           <Text style={{ ...type.footnote, color: c.textSecondary }}>Couldn't write one</Text>

@@ -1,61 +1,66 @@
+import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../anki/noteService';
 import { notePreview, searchNotes } from '../core/noteEditing';
 import type { Note } from '../core/types';
-import { Chip, IconAction, Screen, SearchField } from './kit';
-import { NoteEditor } from './NoteEditor';
+import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
+import { Chip, Screen } from './kit';
 import { hairline, space, type, useTheme } from './theme';
 
 /**
  * Every note, searchable and narrowed to a top-level deck; tap one to edit it, or Add a new one.
  * Search matches every word in any field, a tag or the deck name (src/core/noteEditing.ts).
  */
-export function Browse({ repo, onDone }: { repo: NoteStore; onDone: () => void }) {
+export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void }) {
   const c = useTheme();
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<string | null>(null);
-  const [editing, setEditing] = useState<{ noteId: string } | { deck: string | null } | null>(null);
 
   const load = useCallback(async () => setNotes(await repo.listNotes()), [repo]);
   useEffect(() => { load(); }, [load]);
 
   const tops = useMemo(() => [...new Set((notes ?? []).map((n) => n.deck.split('::')[0]))].sort((a, b) => a.localeCompare(b)), [notes]);
   const found = useMemo(() => (notes ? searchNotes(notes, query, scope) : []), [notes, query, scope]);
+  // The editor is a sheet over this screen; a saved or deleted note means the list is out of date.
+  const edit = (target: NoteEditorTarget) => onEditNote(target, (result) => { if (result) load(); });
 
   return (
-    <Screen onBack={onDone} title="Browse" right={<IconAction name="plus" label="Add a note" onPress={() => setEditing({ deck: scope })} />}>
-      <View style={{ paddingHorizontal: space.l, gap: space.s, paddingBottom: space.s }}>
-        <SearchField label="Search" value={query} onChangeText={setQuery} placeholder="Words in a note, a tag or a deck" autoCapitalize="none" autoCorrect={false} returnKeyType="search" />
-        {tops.length > 1 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.s }} keyboardShouldPersistTaps="handled">
-            {[null, ...tops].map((d) => <Chip key={d ?? '*'} label={d ?? 'All decks'} selected={scope === d} onPress={() => setScope(d)} />)}
-          </ScrollView>
-        ) : null}
-        {notes ? (
-          <Text style={{ ...type.footnote, color: c.textSecondary }}>
-            {found.length.toLocaleString()} {found.length === 1 ? 'note' : 'notes'}
-          </Text>
-        ) : null}
-      </View>
+    <Screen
+      title="Browse"
+      toolbar={
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button icon="plus" accessibilityLabel="Add a note" onPress={() => edit({ deck: scope })} />
+        </Stack.Toolbar>
+      }
+    >
+      <Stack.SearchBar placeholder="Words in a note, a tag or a deck" autoCapitalize="none" onChangeText={(e) => setQuery(e.nativeEvent.text)} />
       <FlatList
         data={found}
         keyExtractor={(n) => n.id}
+        contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets
         contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l }}
         ItemSeparatorComponent={() => <View style={{ height: hairline, backgroundColor: c.border }} />}
-        renderItem={({ item }) => <NoteRow note={item} onPress={() => setEditing({ noteId: item.id })} />}
+        ListHeaderComponent={
+          <View style={{ gap: space.s, paddingBottom: space.s }}>
+            {tops.length > 1 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.s }} keyboardShouldPersistTaps="handled">
+                {[null, ...tops].map((d) => <Chip key={d ?? '*'} label={d ?? 'All decks'} selected={scope === d} onPress={() => setScope(d)} />)}
+              </ScrollView>
+            ) : null}
+            {notes ? (
+              <Text style={{ ...type.footnote, color: c.textSecondary }}>
+                {found.length.toLocaleString()} {found.length === 1 ? 'note' : 'notes'}
+              </Text>
+            ) : null}
+          </View>
+        }
+        renderItem={({ item }) => <NoteRow note={item} onPress={() => edit({ noteId: item.id })} />}
       />
-      {editing ? (
-        <NoteEditor
-          repo={repo}
-          target={editing}
-          onClose={(result) => { setEditing(null); if (result) load(); }}
-        />
-      ) : null}
     </Screen>
   );
 }
@@ -72,7 +77,7 @@ function NoteRow({ note, onPress }: { note: Note; onPress: () => void }) {
     >
       <Text numberOfLines={1} style={{ ...type.body, color: c.text }}>{front || '(empty)'}</Text>
       {back ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{back}</Text> : null}
-      <Text numberOfLines={1} style={{ ...type.footnote, color: c.textTertiary }}>{note.deck}</Text>
+      <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary }}>{note.deck}</Text>
     </Pressable>
   );
 }

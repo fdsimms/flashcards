@@ -9,10 +9,11 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = join(__dirname, '..');
 const UI = join(ROOT, 'src', 'ui');
+const APP = join(ROOT, 'src', 'app');
 const HEX = /['"`]#[0-9a-fA-F]{3,8}['"`]/;
 
 describe('colors in screens', () => {
-  const files = [...readdirSync(UI).filter((f) => /\.tsx?$/.test(f) && f !== 'theme.ts').map((f) => join(UI, f)), join(ROOT, 'App.tsx')];
+  const files = [UI, APP].flatMap((dir) => readdirSync(dir).filter((f) => /\.tsx?$/.test(f) && f !== 'theme.ts').map((f) => join(dir, f)));
 
   it('scans the screens', () => {
     expect(files.length).toBeGreaterThan(5);

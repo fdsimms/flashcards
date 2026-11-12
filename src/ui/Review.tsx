@@ -1,4 +1,5 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
+import { Stack } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Easing, PanResponder, Pressable, ScrollView, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
@@ -22,10 +23,10 @@ import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
 import { CardWebView } from './CardWebView';
-import { NoteEditor } from './NoteEditor';
+import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
 import { haptic } from './haptics';
-import { Button, Count, Icon, IconAction, Screen, Tappable } from './kit';
+import { Button, Count, Icon, Screen, Tappable } from './kit';
 import { Reveal, useReduceMotion } from './motion';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
@@ -173,7 +174,7 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, onDone }: {
+export function Review({ repo, deck, practice, onDone, onEditNote }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -181,7 +182,10 @@ export function Review({ repo, deck, practice, onDone }: {
    * ends, it offers a text that practices the words just studied.
    */
   practice?: { languageDeck: string; onRead: (words: string[]) => void };
+  /** Leaves the screen: the deck is done. */
   onDone: () => void;
+  /** Opens the note editor over this screen, calling `onClose` with what happened. */
+  onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void;
 }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
@@ -196,7 +200,6 @@ export function Review({ repo, deck, practice, onDone }: {
   const [swipeOn, setSwipeOn] = useState(false);
   // Bumped after the note editor saves or deletes, to load the cards and notes again.
   const [reloads, setReloads] = useState(0);
-  const [editingNote, setEditingNote] = useState<string | null>(null);
   const [noteTypes, setNoteTypes] = useState<Map<string, NoteType>>(new Map());
   const [deckSettings, setDeckSettings] = useState<Map<string, DeckSettings>>(new Map());
   const [revealed, setRevealed] = useState(false);
@@ -443,9 +446,12 @@ export function Review({ repo, deck, practice, onDone }: {
   const cleared = !!cards && !current && !waitingFor && history.length > 0;
   useEffect(() => { if (cleared) haptic.success(); }, [cleared]);
 
-  if (!cards) return <Screen onBack={onDone}><View /></Screen>;
+  const title = deck.split('::').pop() ?? deck;
+  if (!cards) return <Screen title={title} largeTitle={false}><View /></Screen>;
 
-  const undoAction = history.length ? <IconAction name="arrow.uturn.backward" label="Undo the last answer" onPress={undo} /> : undefined;
+  const undoButton = history.length
+    ? <Stack.Toolbar.Button icon="arrow.uturn.backward" accessibilityLabel="Undo the last answer" onPress={undo} />
+    : null;
 
   if (!current || !note || (!rendered && !page)) {
     const minutes = waitingFor ? Math.max(1, Math.ceil((waitingFor.getTime() - Date.now()) / 60000) - collection.learnAheadMinutes) : 0;
@@ -457,7 +463,12 @@ export function Review({ repo, deck, practice, onDone }: {
       </>
     ) : <Button label="Back to decks" onPress={onDone} />;
     return (
-      <Screen onBack={onDone} right={undoAction} footer={footer}>
+      <Screen
+        title={title}
+        largeTitle={false}
+        toolbar={undoButton ? <Stack.Toolbar placement="right">{undoButton}</Stack.Toolbar> : undefined}
+        footer={footer}
+      >
         <Reveal style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
           <Icon name={waitingFor ? 'clock' : 'checkmark.circle.fill'} size={56} color={waitingFor ? c.textTertiary : c.countDue} weight="regular" />
           <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>
@@ -476,10 +487,10 @@ export function Review({ repo, deck, practice, onDone }: {
   const shown = ratingsShown(answerButtons);
   const buttons = ([
     { r: 1, label: 'Again', color: c.again },
-    { r: 2, label: 'Hard', color: c.hard },
+    { r: 2, label: 'Hard', color: c.hard, on: c.onHard },
     { r: 3, label: 'Good', color: c.good },
     { r: 4, label: 'Easy', color: c.easy },
-  ] as { r: RatingValue; label: string; color: string }[]).filter((b) => shown.includes(b.r));
+  ] as { r: RatingValue; label: string; color: string; on?: string }[]).filter((b) => shown.includes(b.r));
 
   const footer = revealed ? (
     <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
@@ -497,8 +508,8 @@ export function Review({ repo, deck, practice, onDone }: {
           }}
         >
           {/* The interval sits above the label, as in Anki, so the eye lands on when it's next due. */}
-          <Text style={{ ...type.caption, color: c.onRating, opacity: 0.85, fontVariant: ['tabular-nums'] }}>{intervals?.[b.r]}</Text>
-          <Text style={{ ...type.headline, color: c.onRating }}>{b.label}</Text>
+          <Text style={{ ...type.caption, color: b.on ?? c.onRating, fontVariant: ['tabular-nums'] }}>{intervals?.[b.r]}</Text>
+          <Text style={{ ...type.headline, color: b.on ?? c.onRating }}>{b.label}</Text>
         </Tappable>
       ))}
     </Reveal>
@@ -508,29 +519,26 @@ export function Review({ repo, deck, practice, onDone }: {
 
   return (
     <Screen
-      onBack={onDone}
-      right={
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {undoAction}
-          <IconAction name="pencil" label="Edit this card's note" onPress={() => setEditingNote(note.id)} />
-        </View>
+      title={title}
+      largeTitle={false}
+      toolbar={
+        <Stack.Toolbar placement="right">
+          {undoButton}
+          <Stack.Toolbar.Button
+            icon="pencil"
+            accessibilityLabel="Edit this card's note"
+            onPress={() => onEditNote({ noteId: note.id }, (result) => {
+              if (!result) return;
+              // A deleted note's cards are gone, so an answer to one can't be undone any more.
+              if ('deleted' in result) setHistory([]);
+              else setPreferId(current.id);
+              setReloads((n) => n + 1);
+            })}
+          />
+        </Stack.Toolbar>
       }
       footer={footer}
     >
-      {editingNote ? (
-        <NoteEditor
-          repo={repo}
-          target={{ noteId: editingNote }}
-          onClose={(result) => {
-            setEditingNote(null);
-            if (!result) return;
-            // A deleted note's cards are gone, so an answer to one can't be undone any more.
-            if ('deleted' in result) setHistory([]);
-            else setPreferId(current.id);
-            setReloads((r) => r + 1);
-          }}
-        />
-      ) : null}
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
           <Count value={queue.due.length} label="due" color={c.countDue} />
@@ -577,7 +585,7 @@ export function Review({ repo, deck, practice, onDone }: {
         </SwipeCard>
       ) : null}
       {swipeOn && revealed && rendered ? (
-        <Text style={{ ...type.footnote, color: c.textTertiary, textAlign: 'center' }}>Swipe right for Good, left for Again</Text>
+        <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Swipe right for Good, left for Again</Text>
       ) : null}
     </Screen>
   );

@@ -9,15 +9,14 @@ import { space, type, useTheme } from './theme';
 /**
  * Every word marked unknown while reading, newest first, with its meaning, so they can be looked at
  * together. Clear takes a word off the list until it's marked again. Add to deck opens Franki's
- * note editor with the word filled in (App does): nothing reaches the deck unless it's saved there,
+ * note editor with the word filled in (the read-words route does): nothing reaches the deck unless it's saved there,
  * and at most MINING_PER_DAY a study day (src/reader/mining.ts). This screen writes nothing itself
  * (CLAUDE.md, Read & Listen).
  */
-export function ReadWords({ api, mining, onDone }: {
+export function ReadWords({ api, mining }: {
   api: Api;
   /** Present when words can be added to the deck: its name, how many more today, and what opens the editor. */
   mining?: { deck: string; left: number; onAdd: (word: MarkedWord) => void };
-  onDone: () => void;
 }) {
   const c = useTheme();
   const [words, setWords] = useState<MarkedWord[] | null>(null);
@@ -46,8 +45,9 @@ export function ReadWords({ api, mining, onDone }: {
   };
 
   return (
-    <Screen onBack={onDone} backLabel="Read & Listen" title="Marked words">
+    <Screen title="Marked words">
       <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
       >
@@ -62,7 +62,7 @@ export function ReadWords({ api, mining, onDone }: {
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={{ ...type.title, fontWeight: '400', color: c.text }}>{w.word}</Text>
                     <Text style={{ ...type.body, color: c.text }}>{w.gloss ?? 'No meaning available'}</Text>
-                    <Text style={{ ...type.footnote, color: c.textTertiary }}>
+                    <Text style={{ ...type.footnote, color: c.textSecondary }}>
                       {wordStatus(w)}{w.times > 1 ? `. Marked ${w.times} times.` : ''}
                     </Text>
                   </View>

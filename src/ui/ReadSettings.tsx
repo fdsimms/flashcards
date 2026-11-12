@@ -10,7 +10,7 @@ import { space, type, useTheme } from './theme';
  * so it's off until you sign in here with its passphrase (CLAUDE.md, Read & Listen). Its server runs
  * beside the Anki sync server, so its address comes from the sync settings.
  */
-export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignOut, onSyncSetup, onDone, backLabel }: {
+export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignOut, onSyncSetup }: {
   /** The sync server's address, or undefined while sync is off. */
   syncServer?: string;
   signedIn: boolean;
@@ -19,8 +19,6 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   onSignedIn: (passphrase: string) => void;
   onSignOut: () => void;
   onSyncSetup: () => void;
-  onDone: () => void;
-  backLabel: string;
 }) {
   const c = useTheme();
   const [value, setValue] = useState('');
@@ -46,8 +44,8 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   };
 
   return (
-    <Screen onBack={onDone} backLabel={backLabel} title="Read & Listen">
-      <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled">
+    <Screen title="Read & Listen">
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled">
         <Card>
           <Help>
             Short dialogues and stories written from the words in your Thai and Spanish decks, mostly words you already

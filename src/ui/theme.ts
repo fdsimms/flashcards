@@ -15,22 +15,24 @@ const light = {
   fill: '#efebe2',
   text: '#1b1b1b',
   textSecondary: '#5f636b',
-  textTertiary: '#9a9da4',
+  /** Icons, chevrons and a count of zero: things meant to recede, at 3:1 (WCAG's floor for icons). Words that carry information use textSecondary. */
+  textTertiary: '#898c95',
   border: '#e3dfd4',
-  accent: '#8a6d1f',
+  accent: '#876a1e',
   /** Text and icons drawn on an accent-colored fill. */
   onAccent: '#ffffff',
   danger: '#b3443b',
-  warning: '#b7791f',
+  warning: '#99651a',
   countNew: '#2f6db5',
   countLearn: '#b5473f',
   countDue: '#3d7a52',
-  again: '#c4554c',
+  again: '#c35249',
   hard: '#c98a3a',
-  good: '#4a9063',
-  easy: '#4a80bd',
-  /** Text on the four rating buttons. */
+  good: '#43835a',
+  easy: '#4279b6',
+  /** Text on the rating buttons. Hard's amber is too light for white (2.9:1), so it has its own. */
   onRating: '#ffffff',
+  onHard: '#1b1407',
   /**
    * A chart's bars (Stats): the accent's gold, stepped to pass the dataviz checks for a data mark
    * (lightness band, chroma floor, 3:1 against the surface) in each mode.
@@ -65,10 +67,11 @@ const dark: typeof light = {
   countLearn: '#e0766c',
   countDue: '#6cc08a',
   again: '#b5473f',
-  hard: '#a8742f',
+  hard: '#9d6c2c',
   good: '#3d7a52',
   easy: '#3a6ea5',
   onRating: '#ffffff',
+  onHard: '#ffffff',
   chart: '#b88d32',
   accentFill: 'rgba(212, 180, 106, 0.18)',
   speakerB: '#22392f',

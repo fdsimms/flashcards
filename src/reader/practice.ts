@@ -1,6 +1,6 @@
 // "Read a text with these words": after studying a language's deck, the words just studied become
 // the next text's practice words (docs/read-and-listen/architecture.md, Practice words). Pure, so
-// it's tested; Review shows the button and App opens Read & Listen with the words.
+// it's tested; Review shows the button and its route opens Read & Listen with the words.
 import { htmlToText } from '../core/html';
 import type { Note } from '../core/types';
 import type { Language } from './api';

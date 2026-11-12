@@ -22,7 +22,7 @@ const dayLabel = (d: Date) => d.toLocaleDateString(undefined, { weekday: 'short'
  * next 30 days' reviews, the last 30 days' answers, cards by stage, and retention. The numbers
  * come from src/core/stats.ts; this screen only gathers and shows them.
  */
-export function Stats({ repo, onDone, backLabel }: { repo: Repo & AnkiLink; onDone: () => void; backLabel?: string }) {
+export function Stats({ repo }: { repo: Repo & AnkiLink }) {
   const c = useTheme();
   const [data, setData] = useState<{ notes: Note[]; cards: Card[]; answers: Answer[]; params: Map<string, DeckParams>; now: Date; dayStartsAtHour: number }>();
   const [scope, setScope] = useState<string | null>(null);
@@ -55,9 +55,9 @@ export function Stats({ repo, onDone, backLabel }: { repo: Repo & AnkiLink; onDo
   const target = scope !== null && data ? paramsForDeck(scope, data.params)?.desiredRetention : undefined;
 
   return (
-    <Screen onBack={onDone} backLabel={backLabel} title="Stats">
+    <Screen title="Stats">
       {!stats ? null : (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
           {tops.length > 1 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.s }}>
               {[null, ...tops].map((d) => (
@@ -218,8 +218,8 @@ function Bars<T extends { start: Date; value: number }>({ days, describe, first,
         ))}
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={{ ...type.caption, color: c.textTertiary }}>{first}</Text>
-        <Text style={{ ...type.caption, color: c.textTertiary }}>{last}</Text>
+        <Text style={{ ...type.caption, color: c.textSecondary }}>{first}</Text>
+        <Text style={{ ...type.caption, color: c.textSecondary }}>{last}</Text>
       </View>
       <Text style={{ ...type.subhead, color: c.text }}>{caption(picked, days[peak].value, describe(days[shown], shown, days.length))}</Text>
     </View>

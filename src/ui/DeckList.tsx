@@ -1,7 +1,8 @@
+import { Stack } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import type { DeckRow } from '../core/deckTree';
-import { Button, Card, Group, Icon, IconAction, NavRow, Screen } from './kit';
+import { deckListTotals, type DeckRow } from '../core/deckTree';
+import { Button, Card, Group, Icon, NavRow, Screen } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /** Rows grouped under their top-level deck, so each family of decks sits in one card. */
@@ -14,13 +15,50 @@ function groupByTopLevel(rows: DeckRow[]): DeckRow[][] {
   return groups;
 }
 
+/** What's waiting across every deck, or that nothing is: the first thing the deck list says. */
+function TodaySummary({ due, fresh }: { due: number; fresh: number }) {
+  const c = useTheme();
+  const caughtUp = due + fresh === 0;
+  const figure = (value: number, label: string, color: string) => (
+    <View style={{ flex: 1, gap: 2 }}>
+      <Text style={{ ...type.largeTitle, color: value ? color : c.textTertiary, fontVariant: ['tabular-nums'] }}>{value}</Text>
+      <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
+    </View>
+  );
+  return (
+    <View
+      accessible
+      accessibilityLabel={caughtUp ? 'All caught up. Nothing is due today.' : `Today: ${due} due, ${fresh} new`}
+      style={{
+        flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, borderRadius: radius.l, ...smooth,
+        backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border,
+      }}
+    >
+      {caughtUp ? (
+        <>
+          <Icon name="checkmark.circle.fill" size={34} color={c.countDue} weight="regular" />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={{ ...type.headline, color: c.text }}>All caught up</Text>
+            <Text style={{ ...type.subhead, color: c.textSecondary }}>Nothing is due today.</Text>
+          </View>
+        </>
+      ) : (
+        <>
+          {figure(due, 'due today', c.countDue)}
+          {figure(fresh, 'new today', c.countNew)}
+        </>
+      )}
+    </View>
+  );
+}
+
 /** A count over its label, in a fixed-width column so a deck's numbers line up with the next deck's. */
 function Stat({ value, label, color }: { value: number; label: string; color: string }) {
   const c = useTheme();
   return (
     <View style={{ minWidth: 40, alignItems: 'center' }}>
       <Text style={{ ...type.headline, color: value ? color : c.textTertiary, fontVariant: ['tabular-nums'] }}>{value}</Text>
-      <Text style={{ ...type.caption, color: c.textTertiary }}>{label}</Text>
+      <Text style={{ ...type.caption, color: c.textSecondary }}>{label}</Text>
     </View>
   );
 }
@@ -47,7 +85,7 @@ function DeckRowView({ row, first, onOpen, onOptions }: { row: DeckRow; first: b
       ) : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{row.name}</Text>
-        <Text style={{ ...type.footnote, color: c.textTertiary }}>{row.total.toLocaleString()} {row.total === 1 ? 'card' : 'cards'}</Text>
+        <Text style={{ ...type.footnote, color: c.textSecondary }}>{row.total.toLocaleString()} {row.total === 1 ? 'card' : 'cards'}</Text>
         {row.gate ? (
           // Under the cap, new cards come in; at it, they wait until cards are a week out.
           <Text style={{ ...type.footnote, color: atCap ? c.warning : c.textSecondary }}>
@@ -91,19 +129,23 @@ export function DeckList(props: {
 }) {
   const c = useTheme();
   const groups = useMemo(() => groupByTopLevel(props.decks), [props.decks]);
+  const totals = useMemo(() => deckListTotals(props.decks), [props.decks]);
   const backup = props.sync ? undefined : props.backup;
   return (
     <Screen
       title="Decks"
-      right={
-        <View style={{ flexDirection: 'row' }}>
-          {props.sync ? <IconAction name="arrow.triangle.2.circlepath" label={props.sync.syncing ? 'Syncing' : 'Sync now'} busy={props.sync.syncing} onPress={props.sync.onSync} /> : null}
-          <IconAction name="magnifyingglass" label="Browse and search notes" onPress={props.onBrowse} />
-          <IconAction name="gearshape" label="Settings" onPress={props.onSettings} />
-        </View>
+      toolbar={
+        <Stack.Toolbar placement="right">
+          {props.sync ? (
+            <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={props.sync.syncing} accessibilityLabel={props.sync.syncing ? 'Syncing' : 'Sync now'} onPress={props.sync.onSync} />
+          ) : null}
+          <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} />
+          <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={props.onSettings} />
+        </Stack.Toolbar>
       }
     >
       <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}
         // Pull down to sync, when sync is on.
         refreshControl={props.sync ? <RefreshControl refreshing={props.sync.syncing} onRefresh={props.sync.onSync} tintColor={c.textSecondary} /> : undefined}
@@ -119,6 +161,7 @@ export function DeckList(props: {
             </View>
           </Pressable>
         ) : null}
+        {groups.length ? <TodaySummary due={totals.due} fresh={totals.fresh} /> : null}
         {groups.length === 0 ? (
           <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
             <Icon name="tray" size={40} color={c.textTertiary} weight="regular" />
@@ -164,7 +207,7 @@ export function DeckList(props: {
           </Pressable>
         ) : null}
         {backup && !backup.overdue ? (
-          <Text style={{ ...type.footnote, color: c.textTertiary, textAlign: 'center' }}>{backup.text}</Text>
+          <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{backup.text}</Text>
         ) : null}
       </ScrollView>
     </Screen>
