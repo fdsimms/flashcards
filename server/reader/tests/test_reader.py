@@ -42,6 +42,21 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
     assert out["lines"][0]["english"] == "I'd like mango sticky rice."
 
 
+def test_a_lines_paragraph_mark_is_sent_with_it() -> None:
+    text = StoredText(
+        7,
+        1,
+        "t",
+        (Line("N", "ฉัน", "I.", True), Line("N", "กิน", "Eat.")),
+        {},
+        (),
+        1.0,
+        form="story",
+    )
+    lines = render(text, lexicon_from(ENTRIES), MEANINGS)["lines"]
+    assert [ln["paragraph"] for ln in lines] == [True, False]
+
+
 def test_the_speakers_roles_are_sent_with_the_text() -> None:
     assert render(TEXT, lexicon_from(ENTRIES), MEANINGS)["roles"] == {
         "A": "Vendor",

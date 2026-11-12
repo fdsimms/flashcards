@@ -298,6 +298,30 @@ def test_a_story_is_asked_for_by_name_and_a_dialogue_by_default() -> None:
     assert "Write a short story of 6 lines." in story
 
 
+def _marked(*marks: bool) -> dict[str, Any]:
+    d = draft(*["ฉัน|อยาก|กิน|ครับ"] * len(marks))
+    for line, mark in zip(d["lines"], marks, strict=True):
+        line["paragraph"] = mark
+    return d
+
+
+def test_a_story_keeps_its_paragraph_marks_and_the_first_line_opens_one() -> None:
+    story = run(
+        ScriptedModel(_marked(False, False, True, False)), TextRequest("food", form="story")
+    )
+    assert [ln.paragraph for ln in story.lines] == [True, False, True, False]
+
+
+def test_a_story_with_no_marks_has_no_paragraphs() -> None:
+    story = run(ScriptedModel(_marked(False, False)), TextRequest("food", form="story"))
+    assert [ln.paragraph for ln in story.lines] == [False, False]
+
+
+def test_a_dialogue_has_no_paragraphs_even_if_the_model_marks_them() -> None:
+    result = run(ScriptedModel(_marked(True, True)), TextRequest("food"))
+    assert [ln.paragraph for ln in result.lines] == [False, False]
+
+
 def test_the_system_prompt_is_the_same_for_stories_and_dialogues() -> None:
     # The form goes in the request, so the cached lexicon prefix is shared by both.
     prompt = system_prompt(ENTRIES)

@@ -8,7 +8,7 @@ import { ApiError, type Api, type PastText, type Rating, type ReaderText, type T
 import { countOutsideDeck, isOutsideDeck, underFloor } from '../reader/deckWords';
 import { scrollTarget, type Box } from '../reader/follow';
 import { LANGUAGES, wordStatus } from '../reader/languages';
-import { firstLine, nextLine } from '../reader/playback';
+import { firstLine, nextLine, paragraphs, rangeOf, type Range } from '../reader/playback';
 import { RATES } from '../reader/playbackRate';
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
 import { prefs, savePrefs } from '../reader/storage';
@@ -92,6 +92,12 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
   const [rate, setRate] = useState(prefs().rate);
   const [silentLine, setSilentLine] = useState<number | null>(null);
   const [repeat, setRepeat] = useState(false);
+  // Where a paragraph's play stops (its last line); null when playing on to the end of the text.
+  const playEnd = useRef<number | null>(null);
+
+  // What a row shows: a paragraph of a story, or else a single line.
+  const groups: Range[] = text ? (paragraphs(text.lines) ?? text.lines.map((_, i) => ({ start: i, end: i }))) : [];
+  const byParagraph = text ? paragraphs(text.lines) !== null : false;
 
   const scroller = useRef<ScrollViewInstance>(null);
   const lineBoxes = useRef<Box[]>([]);
@@ -99,14 +105,16 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
   const viewHeight = useRef(0);
 
   useEffect(() => {
-    const box = current === null ? undefined : lineBoxes.current[current];
+    const at = current === null ? -1 : rangeOf(groups, current);
+    const box = at < 0 ? undefined : lineBoxes.current[at];
     if (!box || !viewHeight.current) return;
     const y = scrollTarget(box, scrollY.current, viewHeight.current);
     if (y !== null) scroller.current?.scrollTo({ y, animated: true });
   }, [current]);
 
-  const playLine = (i: number, all: boolean) => {
+  const playLine = (i: number, all: boolean, end: number | null = null) => {
     if (!text) return;
+    playEnd.current = end;
     setSilentLine(null);
     player.replace(api.audioSource(text.id, i));
     player.setPlaybackRate(rate, 'high');
@@ -138,13 +146,13 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
 
   useEffect(() => {
     if (!status.didJustFinish || current === null || !text) return;
-    const next = nextLine(text.lines, current, playingAll, repeat);
+    const next = nextLine(text.lines, current, playingAll, repeat, playEnd.current);
     if (next === current) {
       // The same source again: rewind rather than reload it.
       player.seekTo(0).then(() => player.play(), () => undefined);
       return;
     }
-    if (next !== null) playLine(next, true);
+    if (next !== null) playLine(next, true, playEnd.current);
     else setPlayingAll(false);
   }, [status.didJustFinish]); // eslint-disable-line react-hooks/exhaustive-deps -- reacts to a line ending only
 
@@ -152,8 +160,8 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
   useEffect(() => {
     if (!status.error || current === null || !text) return;
     setSilentLine(current);
-    const next = nextLine(text.lines, current, playingAll);
-    if (next !== null) playLine(next, true);
+    const next = nextLine(text.lines, current, playingAll, false, playEnd.current);
+    if (next !== null) playLine(next, true, playEnd.current);
     else setPlayingAll(false);
   }, [status.error]); // eslint-disable-line react-hooks/exhaustive-deps -- reacts to a load error only
 
@@ -277,7 +285,7 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
       largeTitle={false}
       footer={text && !ended ? (
         hasAudio ? (
-          <PlayerBar playing={status.playing} current={current} total={text.lines.length} what={text.form === 'story' ? 'story' : 'dialogue'}
+          <PlayerBar playing={status.playing} current={current} total={text.lines.length} what={text.form === 'story' ? 'story' : 'dialogue'} byParagraph={byParagraph}
             rate={rate} repeat={repeat} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={() => setRepeat((r) => !r)} />
         ) : <Help>No audio for this text.</Help>
       ) : undefined}
@@ -353,60 +361,83 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
               </>
             )}
           </View>
-          {text.lines.map((line, i) => (
+          {groups.map((group, g) => {
+            const i = group.start; // the paragraph's (or line's) first line, which names it
+            const lines = text.lines.slice(group.start, group.end + 1);
+            const line = lines[0];
+            const hasLineAudio = lines.some((l) => l.audio);
+            const label = byParagraph ? `paragraph ${g + 1}` : `line ${i + 1}`;
+            const isCurrent = current !== null && current >= group.start && current <= group.end;
+            return (
             <View
               key={i}
               onLayout={(e) => {
                 const { y, height } = e.nativeEvent.layout;
-                lineBoxes.current[i] = { y, height };
+                lineBoxes.current[g] = { y, height };
               }}
               style={{
                 flexDirection: 'row', gap: space.m, paddingHorizontal: space.l, paddingVertical: space.m,
                 borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border,
-                backgroundColor: current === i ? c.surface : undefined,
+                backgroundColor: isCurrent ? c.surface : undefined,
               }}
             >
               {line.speaker === 'N' ? null : <View style={{ paddingTop: space.s }}><SpeakerBadge who={line.speaker} /></View>}
               <View style={{ flex: 1 }}>
                 {listenOnly ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, paddingVertical: space.s }}>
-                    {(line.speaker !== 'N' && text.roles[line.speaker]) || `Line ${i + 1}`}
+                    {byParagraph ? `Paragraph ${g + 1}` : (line.speaker !== 'N' && text.roles[line.speaker]) || `Line ${i + 1}`}
                   </Text>
                 ) : (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
-                    {line.words.map((word, j) => (
-                      <WordView
-                        key={j}
-                        word={word}
-                        textStyle={readStyle(text)}
-                        grammar={grammarOf(text, word)}
-                        flagged={isFlagged(session, word.text)}
-                        highlighted={highlight && isOutsideDeck(word)}
-                        selected={tapped?.word === word}
-                        onPress={tap}
-                      />
+                    {lines.map((l, k) => (
+                      <React.Fragment key={k}>
+                        {k > 0 ? <View style={{ width: readStyle(text).fontSize * 0.5 }} /> : null}
+                        {l.words.map((word, j) => (
+                          <WordView
+                            key={j}
+                            word={word}
+                            textStyle={readStyle(text)}
+                            grammar={grammarOf(text, word)}
+                            flagged={isFlagged(session, word.text)}
+                            highlighted={highlight && isOutsideDeck(word)}
+                            selected={tapped?.word === word}
+                            playing={byParagraph && current === group.start + k}
+                            onPress={tap}
+                          />
+                        ))}
+                      </React.Fragment>
                     ))}
                   </View>
                 )}
                 {!listenOnly && (english || lineEnglish.includes(i)) ? (
-                  <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: 2 }}>{line.english}</Text>
+                  <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: 2 }}>{lines.map((l) => l.english).join(' ')}</Text>
                 ) : null}
               </View>
               <View style={{ gap: space.xs }}>
-                {line.audio ? (
-                  <RoundButton icon="play.fill" accessibilityLabel={`Play line ${i + 1}`} on onPress={() => playLine(i, false)} />
+                {hasLineAudio ? (
+                  <RoundButton
+                    icon="play.fill"
+                    accessibilityLabel={`Play ${label}`}
+                    on
+                    onPress={() => {
+                      const start = firstLine(text.lines, group.start);
+                      // A paragraph plays its lines in turn; a single line plays alone.
+                      if (start !== null) playLine(start, byParagraph, group.end);
+                    }}
+                  />
                 ) : null}
                 {!english && !listenOnly ? (
                   <RoundButton
                     label="EN"
-                    accessibilityLabel={lineEnglish.includes(i) ? `Hide English for line ${i + 1}` : `Show English for line ${i + 1}`}
+                    accessibilityLabel={lineEnglish.includes(i) ? `Hide English for ${label}` : `Show English for ${label}`}
                     on={lineEnglish.includes(i)}
                     onPress={() => toggleLineEnglish(i)}
                   />
                 ) : null}
               </View>
             </View>
-          ))}
+            );
+          })}
           {review ? null : (
             <View style={{ padding: space.l }}>
               <Button label="Done" onPress={() => { player.pause(); setEnded(true); }} />
@@ -575,13 +606,15 @@ function RoundButton({ icon, label, accessibilityLabel, on, onPress }: {
   );
 }
 
-function WordView({ word, grammar, textStyle, flagged, highlighted, selected, onPress }: {
+function WordView({ word, grammar, textStyle, flagged, highlighted, selected, playing, onPress }: {
   word: Word;
   grammar: TextGrammar | null;
   textStyle: { fontSize: number; lineHeight: number };
   flagged: boolean;
   highlighted: boolean;
   selected: boolean;
+  /** In the line being played, within a paragraph (a single line's row is shaded as a whole). */
+  playing: boolean;
   onPress: (word: Word, x: number, y: number) => void;
 }) {
   const c = useTheme();
@@ -603,7 +636,7 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, selected, on
         // words sit flush and only real spaces in the text show as gaps.
         borderRadius: radius.s - 2, borderWidth: 1.5, marginHorizontal: -1.5,
         borderColor: selected ? c.accent : 'transparent',
-        backgroundColor: selected ? c.accentFill : highlighted ? c.highlight : undefined,
+        backgroundColor: selected ? c.accentFill : highlighted ? c.highlight : playing ? c.fill : undefined,
       }}
     >
       <Text
@@ -685,11 +718,12 @@ function GlossPopover({ tapped, grammar, flagged, onToggleFlag, onClose }: {
   );
 }
 
-function PlayerBar({ playing, current, total, what, rate, repeat, silentLine, onToggle, onRate, onRepeat }: {
+function PlayerBar({ playing, current, total, what, byParagraph, rate, repeat, silentLine, onToggle, onRate, onRepeat }: {
   playing: boolean;
   current: number | null;
   total: number;
   what: 'dialogue' | 'story';
+  byParagraph: boolean;
   rate: number;
   repeat: boolean;
   silentLine: number | null;
@@ -713,7 +747,7 @@ function PlayerBar({ playing, current, total, what, rate, repeat, silentLine, on
         <View style={{ flex: 1 }}>
           <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{current === null ? `Play the ${what}` : `Line ${current + 1} of ${total}`}</Text>
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
-            {silentLine !== null ? `Line ${silentLine + 1} has no audio.` : repeat ? 'Repeating this line' : "Tap a line's play button to replay it"}
+            {silentLine !== null ? `Line ${silentLine + 1} has no audio.` : repeat ? 'Repeating this line' : `Tap a ${byParagraph ? 'paragraph' : 'line'}'s play button to replay it`}
           </Text>
         </View>
         <Tappable
