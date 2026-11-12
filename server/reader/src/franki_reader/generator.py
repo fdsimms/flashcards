@@ -23,7 +23,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam, BetaTe
 
 from franki_reader import grammar
 from franki_reader.coverage import FLOOR, MINIMUM, Checker, Coverage, check
-from franki_reader.languages import Code
+from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry
 
 MODEL = "claude-sonnet-5-5"
@@ -94,6 +94,8 @@ class TextRequest:
     choose: int | None = None
     form: Form = "dialogue"
     language: Code = "th"
+    # How many of the language's most common words count as known (the `common` setting).
+    common: int = 0
     # Grammar point ids (grammar.py): used at least twice each, or kept out.
     practice: tuple[str, ...] = ()
     avoid: tuple[str, ...] = ()
@@ -198,41 +200,49 @@ is not in the list.
 Known words, one per line as: word | meaning | M or Y
 """
 
-# Spanish counts the 10,000 most common words as known as well as the deck (spanish.py), and the
-# deck holds advanced words, so the list is what to recycle rather than the only words allowed.
-_SPANISH_INSTRUCTIONS = """\
-You write short Spanish texts for one learner to read and listen to: dialogues, or short stories. \
-Write Mexican Spanish: ustedes, never vosotros. The learner knows the 10,000 most common Spanish \
-words, in all their forms, plus the words and phrases listed below, which are advanced words from \
-their own flashcards.
+# Every other language counts as many of its most common words as known as the `common` setting
+# says, as well as the deck (spaced.py), and most of the decks hold advanced words, so the list is
+# what to recycle rather than the only words allowed. How many common words is in each request, so
+# this prefix stays the same, and cached, when the setting changes.
+_SPACED_INSTRUCTIONS = """\
+You write short {name} texts for one learner to read and listen to: dialogues, or short stories. \
+{variety}They must be built almost entirely from words the learner already knows: the words and \
+phrases listed below, which are from their own flashcards, and as many of the most common {name} \
+words as each request says, in all their forms.
 
 Rules:
-- Use common, everyday Spanish freely, along with words from the list. Every other word (anything \
-rarer than the 10,000 most common words and not on the list) makes the text harder; the server \
-measures this and sends back any text under the learner's coverage target. A word that appears \
-only inside a longer list phrase is not known on its own: quemarropa is not known just because \
-"a quemarropa" is.
-- Before you answer, go through your draft word by word and check each one is either common or on \
-the list. Replace any that isn't with a common word or a simpler way of saying it. Getting this \
-right first time matters more than a clever text.
-- A dialogue is natural, everyday spoken Spanish between two speakers, A and B. In "roles", say \
+- Use the common words the request allows freely, along with words from the list, in any of their \
+forms. Every other word makes the text harder; the server measures this and sends back any text \
+under the learner's coverage target. When the request allows no common words, use only words from \
+the list. A word that appears only inside a longer list phrase is not known on its own.
+- Prefer entries marked M (well known) over Y (still being learned).
+- Before you answer, go through your draft word by word and check each one is either an allowed \
+common word or on the list. Replace any that isn't with an allowed word or a simpler way of saying \
+it. Getting this right first time matters more than a clever text.
+- A dialogue is natural, everyday spoken {name} between two speakers, A and B. In "roles", say \
 who A and B are in this situation, in one to three English words each, like "Waiter" and \
 "Customer".
 - A story is told by a narrator: every line's speaker is N, each line is one or two simple \
 sentences, and the story has a beginning, something that happens, and an end. Leave both roles \
 empty.
 - In each line's text, put | between words instead of spaces, keep punctuation on its word, and \
-wrap each stretch word or phrase in asterisks every time it appears, like \
-¿Lograron|*mantener|a|raya*|al|enemigo? A stretch word can be inflected (*mantuvimos|a|raya*).
+wrap each stretch word or phrase in asterisks every time it appears, like {example} A stretch \
+word can be inflected.
 - Give "english", a natural English translation of each line.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
-is neither common nor on the list.
+is neither an allowed common word nor on the list.
 
 The learner's flashcard words, one per line as: word | meaning | M (well known) or Y (still being \
 learned)
 """
 
-_PROMPTS: dict[Code, str] = {"th": _INSTRUCTIONS, "es": _SPANISH_INSTRUCTIONS}
+
+def _instructions(language: Code) -> str:
+    if language == "th":
+        return _INSTRUCTIONS
+    info = LANGUAGES[language]
+    variety = f"{info.variety} " if info.variety else ""
+    return _SPACED_INSTRUCTIONS.format(name=info.name, variety=variety, example=info.example)
 
 
 def system_prompt(entries: list[Entry], language: Code = "th") -> str:
@@ -242,7 +252,7 @@ def system_prompt(entries: list[Entry], language: Code = "th") -> str:
     words = "\n".join(
         f"{e.text} | {e.meaning} | {'M' if e.tier == 'mature' else 'Y'}" for e in known
     )
-    return _PROMPTS[language] + words
+    return _instructions(language) + words
 
 
 def request_message(request: TextRequest) -> str:
@@ -250,10 +260,20 @@ def request_message(request: TextRequest) -> str:
     parts = [
         f"Topic: {request.topic}",
         f"Write {what} of {request.lines} lines.",
-        f"Coverage target: at least {request.floor:.0%} of words from the list."
-        if request.language == "th"
-        else f"Coverage target: at least {request.floor:.0%} of words common or from the list.",
     ]
+    if request.language != "th":
+        name = LANGUAGES[request.language].name
+        parts.append(
+            f"Known words: the list, plus the {request.common:,} most common {name} words in all "
+            "their forms."
+            if request.common
+            else "Known words: only the list, in any of their forms. No common words this time."
+        )
+    parts.append(
+        f"Coverage target: at least {request.floor:.0%} of words common or from the list."
+        if request.common
+        else f"Coverage target: at least {request.floor:.0%} of words from the list."
+    )
     listed = "\n".join(f"- {e.text} ({e.meaning})" for e in request.stretch)
     if request.choose is not None:
         how_many = "1" if request.choose == 1 else f"1 to {request.choose}"

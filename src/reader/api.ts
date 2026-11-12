@@ -21,7 +21,7 @@ export type Word = {
   status: 'known' | 'partial' | 'unknown' | null; // null for spaces and punctuation
   gloss: string | null;
   stretch: boolean;
-  deck: boolean; // a deck word, as against one known for being common (Spanish)
+  deck: boolean; // a deck word, as against one known for being common (every language but Thai)
   grammar: string | null; // the grammar point this word uses, if the text practices or avoids it
 };
 
@@ -34,7 +34,10 @@ export type GrammarPoint = { id: string; name: string; note: string; state: Gram
 export type TextGrammar = { id: string; name: string; note: string; role: 'practice' | 'avoid' };
 
 // The languages texts are written in. Topics are shared; the rest is per language.
-export type Language = 'th' | 'es';
+export type Language = 'th' | 'es' | 'de' | 'fr' | 'ru' | 'el' | 'pl' | 'nb';
+
+// Every language but Thai counts this many of its most common words as known, as well as its deck.
+export type CommonCount = 0 | 1000 | 2000 | 3000 | 5000 | 10000;
 
 // A and B are a dialogue's two speakers; N is a story's narrator.
 export type TextLine = { speaker: 'A' | 'B' | 'N'; english: string; words: Word[]; audio: boolean };
@@ -67,15 +70,19 @@ export type Speakers = { A: string; B: string };
 
 // `decks`: the deck each language's words come from (the default when none was chosen).
 // `voices`: each language's speakers' Azure voices (the defaults when none were chosen).
+// `common`: how many of each language's most common words count as known (not Thai: deck only);
+// missing from a server older than the setting.
 export type Settings = {
   stretch_words: StretchWords; lines: Length; form: Form; language: Language;
   decks: Record<Language, string>; voices: Record<Language, Speakers>;
+  common?: Partial<Record<Language, CommonCount>>;
 };
 
 // A change to the settings. A deck or voice named '' goes back to the default.
-export type SettingsChange = Partial<Omit<Settings, 'decks' | 'voices'>> & {
+export type SettingsChange = Partial<Omit<Settings, 'decks' | 'voices' | 'common'>> & {
   decks?: Partial<Record<Language, string>>;
   voices?: Partial<Record<Language, Partial<Speakers>>>;
+  common?: Partial<Record<Language, CommonCount>>;
 };
 
 // One of Azure's voices, as the server lists them.

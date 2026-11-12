@@ -10,6 +10,12 @@ import { space } from './theme';
 const SAMPLES: Record<Language, string> = {
   th: 'สวัสดีครับ วันนี้อากาศดีนะครับ',
   es: 'Hola, ¿qué tal? Hoy hace muy buen día.',
+  de: 'Hallo, wie geht es dir? Heute ist ein schöner Tag.',
+  fr: 'Bonjour, comment ça va ? Il fait très beau aujourd’hui.',
+  ru: 'Привет, как дела? Сегодня очень хорошая погода.',
+  el: 'Γεια σου, τι κάνεις; Σήμερα έχει πολύ ωραίο καιρό.',
+  pl: 'Cześć, co słychać? Dzisiaj jest bardzo ładna pogoda.',
+  nb: 'Hei, hvordan går det? I dag er det veldig fint vær.',
 };
 
 const SPEAKERS: { key: keyof Speakers; title: string; hint: string }[] = [
