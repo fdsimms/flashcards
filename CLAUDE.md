@@ -265,6 +265,9 @@ Burying options), in Franki's tables and in the kept collection in the answer's 
 screen both call `treeQueue`, with input from `queueInput`, so a deck never says "20 new" and then
 opens with none. A check that
 predicts what another code path will do calls that code path's function; don't write a lookalike.
+Anything that leaves cards out goes in through `queueInput` too, for both: lookalikes of a word just
+seen (`heldCards`, `src/core/lookalikes.ts`) are loaded by `loadHeld` for the deck list and by
+`useReviewForms` in Review, and a card held in one but not the other shows a count the deck can't open with.
 
 **A progress gate replaces a deck's daily new-card limit** (`DeckSettings.gateCap`, set on Deck
 options): new cards come in only while fewer than the cap are in progress in that deck and its
