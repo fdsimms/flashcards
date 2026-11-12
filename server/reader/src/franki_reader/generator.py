@@ -24,6 +24,7 @@ import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam, BetaTextBlockParam
 
 from franki_reader import grammar
+from franki_reader.characters import CHARACTERS
 from franki_reader.coverage import MINIMUM, Checker, Coverage, check
 from franki_reader.difficulty import DEFAULT_FLOOR
 from franki_reader.gender import GENDERS, gender_problems
@@ -154,6 +155,8 @@ class Generated:
     roles: dict[str, str] = field(default_factory=dict)  # speaker -> who they are, e.g. "Waiter"
     # speaker -> "male" or "female", for a dialogue (gender.py picks each one's voice)
     genders: dict[str, str] = field(default_factory=dict)
+    # speaker -> one of characters.CHARACTERS, for a dialogue; the app draws it in the speaker's gender
+    characters: dict[str, str] = field(default_factory=dict)
     # False when a Thai line uses a word of the other gender than its speaker's, or a dialogue
     # doesn't say who is a man or a woman. Such a draft is never kept.
     gender_ok: bool = True
@@ -186,6 +189,15 @@ DRAFT_SCHEMA: dict[str, Any] = {
             "properties": {
                 "A": {"type": "string", "enum": [*GENDERS, "none"]},
                 "B": {"type": "string", "enum": [*GENDERS, "none"]},
+            },
+            "required": ["A", "B"],
+            "additionalProperties": False,
+        },
+        "characters": {
+            "type": "object",
+            "properties": {
+                "A": {"type": "string", "enum": [*CHARACTERS, "none"]},
+                "B": {"type": "string", "enum": [*CHARACTERS, "none"]},
             },
             "required": ["A", "B"],
             "additionalProperties": False,
@@ -223,7 +235,7 @@ DRAFT_SCHEMA: dict[str, Any] = {
         "series": {"type": "string"},
         "cast": {"type": "string"},
     },
-    "required": ["title", "roles", "genders", "lines", "glosses"],
+    "required": ["title", "roles", "genders", "characters", "lines", "glosses"],
     "additionalProperties": False,
 }
 
@@ -249,6 +261,10 @@ man's voice for a man and a woman's voice for a woman, so every line has to fit 
 says ครับ and ผม; a woman says ค่ะ (statements) or คะ (questions) and ดิฉัน, never ครับ or ผม. \
 Choose each speaker's gender to suit the situation and vary it from text to text: a man and a \
 woman, two men or two women. In a story, set both to "none".
+- In "characters", pick the picture shown beside each speaker: parent, grandparent, child, friend, \
+waiter, shopkeeper, doctor, teacher, traveler, or person for anyone else. Pick the one nearest \
+the role, and "none" for both in a story. The picture is drawn as a man or a woman from "genders", \
+so a parent is a father or a mother. Prefer two different characters.
 - A story is told by a narrator: every line's speaker is N, each line is one or two simple \
 sentences, and the story has a beginning, something that happens, and an end. Keep the language \
 plain, since description pulls in words the learner may not know. Leave both roles empty.
@@ -302,6 +318,10 @@ man's voice for a man and a woman's voice for a woman, so every line has to fit 
 {name} shows the speaker's gender (verb endings, adjectives, participles, titles), use the form for \
 that gender. Choose each speaker's gender to suit the situation and vary it from text to text: a \
 man and a woman, two men or two women. In a story, set both to "none".
+- In "characters", pick the picture shown beside each speaker: parent, grandparent, child, friend, \
+waiter, shopkeeper, doctor, teacher, traveler, or person for anyone else. Pick the one nearest \
+the role, and "none" for both in a story. The picture is drawn as a man or a woman from "genders", \
+so a parent is a father or a mother. Prefer two different characters.
 - A story is told by a narrator: every line's speaker is N, each line is one or two simple \
 sentences, and the story has a beginning, something that happens, and an end. Leave both roles \
 empty.
@@ -601,6 +621,11 @@ def _assess(
             for k, v in (draft.get("genders") or {}).items()
             if k in ("A", "B") and v in GENDERS
         }
+        characters = {
+            k: v
+            for k, v in (draft.get("characters") or {}).items()
+            if k in ("A", "B") and v in CHARACTERS
+        }
         recap, series, cast_ = (
             str(draft.get(k) or "").strip() for k in ("recap", "series", "cast")
         )
@@ -613,6 +638,7 @@ def _assess(
     used, problems = _stretch_used(coverage, request, lexicon)
     if request.form == "story":
         genders = {}  # a story has only its narrator
+        characters = {}
         gender_issues: list[str] = []
     elif set(genders) != {"A", "B"}:
         gender_issues = ['Say in "genders" whether A and B are a man or a woman.']
@@ -644,6 +670,7 @@ def _assess(
         stretch=stretch,
         roles=roles,
         genders=genders,
+        characters=characters,
         gender_ok=not gender_issues,
         grammar_problems=grammar_misses,
         translits=translits,

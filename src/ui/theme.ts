@@ -58,6 +58,16 @@ const light = {
   /** Speaker B's badge in Read & Listen, and the text on it. */
   speakerB: '#d2e6db',
   onSpeakerB: '#24563f',
+  /**
+   * Read & Listen's drawn characters (reader/characters.ts): a face and clothes in a softer tone
+   * of the speaker's color, opaque so they read the same on any row, and the white-ish of an apron
+   * or a stethoscope. The strongest tone (hair, details) is the badge's own text color.
+   */
+  speakerAFace: '#c3b48f',
+  speakerABody: '#ac9763',
+  speakerBFace: '#90afa0',
+  speakerBBody: '#668d7a',
+  characterWhite: '#ffffff',
   /** Behind a word that isn't in the deck, when Read & Listen highlights them. */
   highlight: '#fbe2b0',
   /** Behind a name in a Read & Listen text (Mali, Kasia), when names are marked. */
@@ -100,6 +110,11 @@ const dark: typeof light = {
   accentFill: 'rgba(212, 180, 106, 0.18)',
   speakerB: '#22392f',
   onSpeakerB: '#9fd6bb',
+  speakerAFace: '#70613f',
+  speakerABody: '#96814f',
+  speakerBFace: '#517564',
+  speakerBBody: '#6f9a86',
+  characterWhite: '#e9e6df',
   highlight: '#4d3a14',
   nameFill: '#1f3a4f',
   shadow: '#000000',
