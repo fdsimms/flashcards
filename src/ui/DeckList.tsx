@@ -136,6 +136,8 @@ export function DeckList(props: {
    * sync is on: the Anki server then holds the collection, and Backup is still in Settings.
    */
   backup?: { text: string; overdue: boolean };
+  /** False until the first load of the decks has finished, so an empty list isn't "No decks yet" yet. */
+  loaded?: boolean;
   /** Answers given here and not yet in Anki: not synced, or (without sync) not sent back by file. */
   ankiUnsent?: number;
   /** Present when sync is on. */
@@ -204,7 +206,7 @@ export function DeckList(props: {
           </Pressable>
         ) : null}
         {groups.length ? <TodaySummary due={totals.due} fresh={totals.fresh} /> : null}
-        {groups.length === 0 ? (
+        {groups.length === 0 ? (props.loaded === false ? null : (
           <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
             <Icon name="tray" size={40} color={c.textTertiary} weight="regular" />
             <Text style={{ ...type.title, color: c.text, marginTop: space.s }}>No decks yet</Text>
@@ -213,7 +215,7 @@ export function DeckList(props: {
             </Text>
             <Button label="Set up Anki" onPress={props.onImport} style={{ alignSelf: 'stretch' }} />
           </Card>
-        ) : (
+        )) : (
           groups.map((g) => (
             <Group key={g[0].deck}>
               {g.map((row, i) => (
