@@ -102,9 +102,9 @@ def _thai_any(*markers: str) -> Finder:
 
 
 def _lemma(word: str) -> str:
-    from franki_reader.spanish import lemma  # loads simplemma, so only when Spanish is checked
+    from franki_reader.spaced import lemma  # loads simplemma, so only when Spanish is checked
 
-    return lemma(word)
+    return lemma(word, "es")
 
 
 def _verb_lemma(word: str) -> str | None:

@@ -13,7 +13,7 @@ Each counted token is one of:
 - unknown: anything else
 Whitespace and punctuation aren't counted.
 
-`Lexicon` is Thai's checker. Spanish has its own (spanish.py); both fit `Checker`, which is all the
+`Lexicon` is Thai's checker. The other languages share one (spaced.py); both fit `Checker`, which is all the
 generator, the reader and `check` need.
 """
 

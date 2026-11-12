@@ -112,7 +112,8 @@ class Engine:
         """A language's entries and its checker (cached by `lexicon_from`)."""
         language = language or self.language()
         entries = store.load_snapshot(self.conn, language)[0]
-        return entries, lexicon_from(entries, language)
+        common = store.load_settings(self.conn).common_for(language)
+        return entries, lexicon_from(entries, language, common)
 
     def entries(self, language: Code | None = None) -> list[Entry]:
         return self.snapshot(language)[0]
@@ -304,6 +305,7 @@ class Engine:
                 choose=choose,
                 form=settings.form,
                 language=language,
+                common=settings.common_for(language) if LANGUAGES[language].spaced else 0,
                 practice=practice,
                 avoid=avoid,
             )
@@ -338,7 +340,7 @@ class Engine:
             await self.line_audio(text, i)
 
     def voices_for(self, language: Code) -> dict[str, str]:
-        # Thai's can be overridden from the environment (config.py); Spanish uses its defaults.
+        # Thai's can be overridden from the environment (config.py); the rest use their defaults.
         return self.voices if language == "th" else LANGUAGES[language].voices
 
     async def line_audio(self, text: StoredText, line: int) -> Path | None:

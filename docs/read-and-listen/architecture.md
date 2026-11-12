@@ -110,8 +110,10 @@ Franki's (Client, below).
   `COMPOSE_PROFILES`. Caddy serves it under `/reader` (`server/Caddyfile`), so the app's address
   ends in `/reader`. A merge to `main` that touches `server/` deploys it with the rest
   (`server/update.sh`). The owner chose one place for everything over keeping the memory apart:
-  the reader peaks near 334 MB with both languages, on top of sync and the MCP, so the server may
-  need 2 GB; check `docker stats` after the first texts are written.
+  the reader peaked near 334 MB with Thai and Spanish, on top of sync and the MCP, so the server may
+  need 2 GB; check `docker stats` after the first texts are written. simplemma has run in its
+  low-memory form since 12 November 2026 (Languages), which should bring that down; the whole
+  process hasn't been measured again.
 - **Always on**, so background work isn't cut off. A compose healthcheck reads `/health`; one that
   stops answering shows as unhealthy and `server/update.sh`, on its 15-minute timer, restarts it
   (Fly's own check did this before).
@@ -144,57 +146,109 @@ Spanish was added on 26 October 2026, by the owner's decision, ahead of the Mile
 and of Milestone 3 where the brief put it. Mining followed on 12 November 2026 (Client). Thai
 works as before.
 
+German, French, Russian, Greek, Polish and Norwegian (Bokmål) followed on 12 November 2026, at the
+owner's request for "all my other languages" but English. Japanese is held back by the owner's
+decision, to be tried with WaniKani's data instead; it would also need a word splitter like Thai's.
+The Backlog decks (Portuguese, Italian, Esperanto, Chinese) were empty, and Loopless Letters is
+Thai letters, so none of them is a language here. Each new language works as Spanish does
+(`spaced.py`, below), with its own deck, voices and list of common words; none has grammar points
+yet, and the Grammar screen says so.
+
 - **Each language's deck is a setting** (12 November 2026, by the owner's decision): `decks` in
   `/api/settings`, chosen on the topics screen from Franki's decks, defaulting to the owner's. A
   language's skipped subdecks (Thai's consonant classes) are skipped under whichever deck is chosen
   (`with_deck`). Changing the deck forgets the old snapshot and reads the new deck at once, so a
   text is never written from the old deck's words; texts already waiting stay as they are. Another
-  language still needs its own voices, prompt and known-word checker in code.
+  language still needs its deck, voices and rules for its entries in code (`languages.py`,
+  `spaced.py`) and a list of common words (`scripts/build_common.py`).
 
-- **One setting, `language`** (`th` or `es`), picks the language new texts are written and served
-  in. It's a switch at the top of the topics screen. **Topics are shared**: a topic like "At a
+- **One setting, `language`** (`th`, `es`, `de`, `fr`, `ru`, `el`, `pl` or `nb`), picks the
+  language new texts are written and served in. It's a menu at the top of the topics screen. **Topics are shared**: a topic like "At a
   coffee shop" has texts in each language. The lexicon snapshot, ready texts, difficulty, progress,
   past texts, marked words, practiced stretch words and failures are per language. Only the current
   language is topped up in the background, so a second language doesn't double the spending.
-  `server/reader/src/franki_reader/languages.py` holds what differs: the deck, the query, the voices, and whether
-  words are written with spaces.
+  `server/reader/src/franki_reader/languages.py` holds what differs: the deck, the query, the voices,
+  whether words are written with spaces, the default common-words count and what the prompt says
+  about the variety (Mexican Spanish, Bokmål).
+- **How many common words count as known is a setting for each language but Thai** (12 November
+  2026, the owner's decision: they weren't sure of their level in each, and found 10,000 a stretch
+  for every language, Spanish included): `common` in `/api/settings`, None, 1,000, 2,000, 3,000,
+  5,000 or 10,000, chosen on the topics screen under the deck. The defaults are first guesses from
+  each deck, to be moved by feel: Spanish keeps 10,000, so nothing changed under it; German, French,
+  Russian and Greek, whose decks hold advanced words, 3,000; Norwegian, whose deck holds everyday
+  words, 1,000; Polish, a beginner's deck, none, as the owner chose (only the deck counts, as for
+  Thai). The count goes in each request, not the cached system prompt, so changing it costs no
+  cache. A text already waiting keeps the count it was written with, as with difficulty.
+- **The other decks**, checked on 12 November 2026: German (`🥨 Deutsch`, about 270 studied notes),
+  French (`🥐 Français`, 280), Russian (`🐻 Русский`, 170) and Greek (`🏝️ Ελληνικά`, 455) are
+  mostly advanced words and phrases, like Spanish's; Norwegian (`🐟 Norsk`, 150) is everyday words;
+  Polish (`💈 Polski`, 89) is a beginner's (ta kobieta, i, nie, jeść / zjeść). Polish's subdecks
+  (Odmiana, Przypadki, Rekcja) are conjugation and case drills ("czekać (to wait) - wy"), not
+  words, so they're skipped like Thai's consonant classes.
 - **The Spanish deck** is `👅 Languages::🌮 Español`, with the same Omnilanguage note type as Thai,
   so the snapshot reads Entry and Meaning the same way. What it holds, checked against the real deck
   on 26 October 2026: about 790 notes of advanced words and phrases (el blindaje, a quemarropa,
   mantener a raya, cerciorarse), and no everyday words at all (casa, tener, de: none).
-- **What counts as known in Spanish** (owner's decision). Since the deck holds no everyday words,
-  the deck alone can't be the dictionary as it is for Thai: almost no text would reach 90%. A
-  Spanish word counts as known when its lemma is one of the **10,000 most common Spanish word
-  families** or a **reviewed deck entry**. The list (`server/reader/src/franki_reader/data/es_common.txt`) was
-  built from wordfreq's 50,000 most common Spanish forms, each lemmatized with simplemma and its
-  frequency added to its lemma's, so a verb whose use is spread over many forms (sentar: sentamos,
-  sentó) still counts. Ranking single forms instead missed llover, sentar and disculpar. Everyday
-  dialogues measured 100% with it; a sentence of rare words (ornitorrinco, escabulló, estuario)
-  is flagged. `server/reader/src/franki_reader/spanish.py` is the checker:
-  - Lemmas from simplemma (hablé, hablaríamos to hablar). It's loaded the first time Spanish is
-    used, about 100 MB: Thai alone peaks near 233 MB, both together near 334 MB, measured on Fly's
-    512 MB machine. Beside sync and the MCP, the server may need 2 GB (Hosting).
-  - Pronouns joined to a verb come off (dámelo to dar), a reflexive entry matches its forms
-    (cerciorarse matches cercioramos and cerciorándonos), and an entry's article is ignored
-    (el blindaje matches blindaje).
+- **What counts as known outside Thai** (owner's decision, for Spanish first). Since the Spanish
+  deck holds no everyday words, the deck alone can't be the dictionary as it is for Thai: almost no
+  text would reach 90%. A word counts as known when its lemma is one of the language's **most
+  common word families**, as many as the `common` setting says, or a **reviewed deck entry**. Each
+  list (`server/reader/src/franki_reader/data/<code>_common.txt`, 10,000 long, most common first)
+  is built by `server/reader/scripts/build_common.py` from wordfreq's 50,000 most common forms,
+  each lemmatized with simplemma and its frequency added to its lemma's, so a verb whose use is
+  spread over many forms (sentar: sentamos, sentó) still counts. Ranking single forms instead
+  missed llover, sentar and disculpar. The script rebuilds Spanish's list exactly as it was made
+  by hand. Everyday Spanish dialogues measured 100% at 10,000; a sentence of rare words
+  (ornitorrinco, escabulló, estuario) is flagged. wordfreq writes Greek's final sigma as σ, so the
+  script puts ς back before lemmatizing. `server/reader/src/franki_reader/spaced.py` is the
+  checker, one for every language but Thai (it was `spanish.py`):
+  - Lemmas from simplemma (hablé, hablaríamos to hablar), loaded the first time a language is
+    used, in simplemma's **low-memory form** (12 November 2026). The default form took 99 MB for
+    Spanish and 408 MB for Polish; the low-memory one takes 12 MB and 54 MB, gives the same lemma
+    for every listed word and two inflections of each, and is about as fast. Before it, Thai alone
+    peaked near 233 MB and Thai with Spanish near 334 MB, measured on Fly's 512 MB machine.
+  - Spanish pronouns joined to a verb come off (dámelo to dar), and a reflexive entry matches its
+    forms (cerciorarse matches cercioramos and cerciorándonos).
+  - An entry's article, infinitive marker or reflexive pronoun is ignored, and counts as known in
+    its own right, since it was studied with the entry: el blindaje, der Gipfel, l'amertume,
+    en butikk, å vente, sich verlieben, se balader, bać się, å skynde seg, and Polish's
+    gender markers (ta kobieta). Alternatives split on "/" are each an entry (jeść / zjeść,
+    ποιος/ποια/ποιο, der Verräter / die Verräterin), and a lone article among them isn't
+    (der/die Mitwirkende); a note in parentheses is ignored (zweifeln (an)).
+  - French elisions are words of their own (l'homme is l' + homme, l' counting as le). simplemma
+    takes a French past participle for an adjective (craché) and some present forms for nouns
+    (balade), so a French word ending like a regular verb form is also tried as that verb's
+    infinitive, against deck entries only, never the common words. Polish forms simplemma gets
+    wrong (je for jeść, zjadła) aren't guessed: they come back to the model as unknown words.
+  - Russian ё and е are the same letter for matching, since texts, the lists and simplemma each
+    write one or the other. A hyphenated word (что-то, peut-être) is known when it's listed or
+    every part is.
   - A deck phrase is found by its lemmas and becomes one token, counted once, like a Thai compound:
     mantuvimos a raya is known, as mantener a raya. A rare word only inside a deck phrase
     (quemarropa, from a quemarropa) is partial, as in Thai.
   - Words are written with spaces, so the model puts `|` where a space goes
     (`¿Qué|quieres|*tomar*?`) and the server turns each back into a space. A stretch word can be
     inflected, and counts as the entry it's a form of.
-- **The prompt** for Spanish says the learner knows the 10,000 most common words, that the list is
-  their advanced flashcard words, and to write Mexican Spanish (ustedes, never vosotros). Each
-  language has its own cached system prompt.
-- **Voices**: Mexican Spanish, `es-MX-JorgeNeural` (A, and the narrator) and `es-MX-DaliaNeural`
-  (B), as the owner chose. The speech request's language comes from the voice's name. Not tried
-  against Azure yet.
+- **The prompt** outside Thai is one template (`_SPACED_INSTRUCTIONS`): the list is the learner's
+  flashcard words, and each request says how many common words are allowed besides ("the 3,000
+  most common German words in all their forms", or "only the list" when the setting is none). A
+  language's variety is named where it matters: Mexican Spanish (ustedes, never vosotros), Bokmål,
+  Modern Greek with accents, Russian with ё. Each language has its own cached system prompt.
+- **Voices**: a male voice for A (and the narrator) and a female one for B, Azure's standard
+  neural voices for the country, checked to exist with the MCP's `list_voices`: Mexican Spanish
+  `es-MX-JorgeNeural` and `es-MX-DaliaNeural` (the owner's choice), German `de-DE-ConradNeural`
+  and `de-DE-KatjaNeural`, French `fr-FR-HenriNeural` and `fr-FR-DeniseNeural`, Russian
+  `ru-RU-DmitryNeural` and `ru-RU-SvetlanaNeural`, Greek `el-GR-NestorasNeural` and
+  `el-GR-AthinaNeural`, Polish `pl-PL-MarekNeural` and `pl-PL-ZofiaNeural`, Norwegian
+  `nb-NO-FinnNeural` and `nb-NO-PernilleNeural`. The speech request's language comes from the
+  voice's name.
 - **In the app**, a word known for being common rather than from the deck says "A common word" in
-  its gloss, and the Spanish highlight switch is "Highlight words you might not know". Spanish is
-  set a little smaller than Thai.
-- **Topic ideas** are ranked by fit for Thai only: with 10,000 common words known, every idea fits
-  Spanish equally, so Spanish keeps the listed order.
-- The reading log names the language as before (`thai`, now also `spanish`).
+  its gloss, and outside Thai the highlight switch is "Highlight words you might not know". Every
+  language but Thai is set a little smaller than Thai.
+- **Topic ideas** are ranked by fit for Thai only: their words are Thai, so every other language
+  keeps the listed order.
+- The reading log names each language in English, lowercase (`thai`, `spanish`, `german`, `french`,
+  `russian`, `greek`, `polish`, `norwegian`).
 
 ## Grammar
 
@@ -205,7 +259,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   present is always allowed). Thai: เคย, กำลัง, จะ, แล้ว, ต้อง, กว่า, ที่สุด, ถ้า, เพราะ, and yes or no
   questions (ไหม, หรือเปล่า). Each is **practice** (used at least twice in each text), **avoid**
   (left out, for grammar not learned yet) or **normal**. At most 2 are practiced at once, so texts
-  stay natural; avoiding has no limit. The choices are stored together for both languages and
+  stay natural; avoiding has no limit. The choices are stored together for every language and
   apply from the next text written (`GET /api/grammar`, `PUT /api/grammar/{id}`).
 - **Generate, then verify, as for coverage.** The request names the points to practice and avoid,
   and the server finds them in the draft. A practiced point used fewer than twice, or an avoided one
@@ -334,7 +388,7 @@ are listed at the top of `server/reader/src/franki_reader/app.py`.
 
 - Azure neural voices, one per speaker: `th-TH-NiwatNeural` (male) for A and `th-TH-PremwadeeNeural`
   (female) for B. `AZURE_VOICE_A` and `AZURE_VOICE_B` in `server/.env` override them without a code
-  change (Spanish's are set in `languages.py`). Azure is
+  change (the other languages' are set in `languages.py`). Azure is
   called through the client shared with the MCP (`server/speech`, `franki_speech`, since 12 November
   2026), whose docstring says which parts of the API were checked; the first real call is the check
   for the rest.

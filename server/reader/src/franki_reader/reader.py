@@ -57,7 +57,7 @@ def render(text: StoredText, lexicon: Checker, meanings: dict[str, str]) -> dict
                     "status": lexicon.status(piece),
                     "gloss": gloss_for(piece, text.glosses, lexicon, meanings),
                     "stretch": (entry or piece) in stretch,
-                    # A deck word, as against one known for being common (Spanish only).
+                    # A deck word, as against one known for being common (every language but Thai).
                     "deck": entry is not None,
                     "grammar": point,
                 }

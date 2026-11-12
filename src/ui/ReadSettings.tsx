@@ -48,8 +48,8 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled">
         <Card>
           <Help>
-            Short dialogues and stories written from the words in your Thai and Spanish decks, mostly words you already
-            know, with audio and the meaning of every word a tap away. Reading never answers or adds cards.
+            Short dialogues and stories written from the words in your language decks, mostly words you already know,
+            with audio and the meaning of every word a tap away. Reading never answers or adds cards.
           </Help>
           <Help>
             Texts are written on your Anki sync server, which sends the words in those decks to Claude and the lines to

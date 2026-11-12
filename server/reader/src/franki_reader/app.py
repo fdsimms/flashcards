@@ -12,10 +12,12 @@ serves all of it under /reader (../../Caddyfile), so the app's address ends in /
                                       being written in the background, so ask again shortly. With
                                       {words: [...]}, a text written to practice those words
     GET   /api/settings               {stretch_words: "topic" | "any", lines: 6 | 8 | 12,
-                                      form: "dialogue" | "story", language: "th" | "es",
-                                      decks: {th: <deck>, es: <deck>}}
+                                      form: "dialogue" | "story", language: "th" | "es" | ...,
+                                      decks: {th: <deck>, es: <deck>, ...},
+                                      common: {es: 10000, de: 3000, ...}} (every language but
+                                      Thai: how many of its most common words count as known)
 
-Topics are shared by both languages. Everything else (ready texts, /next, progress, past texts,
+Topics are shared by every language. Everything else (ready texts, /next, progress, past texts,
 marked words, ideas) is in the current language, the `language` setting.
     PATCH /api/settings               the same fields; takes effect from the next text written. A
                                       changed deck is read again at once
@@ -48,7 +50,7 @@ from franki_reader.collection import AnkiDeck, SyncSettings
 from franki_reader.engine import Engine, NotAvailable, NotFound
 from franki_reader.gateway import with_timeout
 from franki_reader.generator import Ask, Form, claude_ask
-from franki_reader.languages import LANGUAGES, Code, with_deck
+from franki_reader.languages import LANGUAGES, Code, CommonCount, with_deck
 from franki_reader.lexicon import Entry
 from franki_reader.reader import gloss_for, render
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
@@ -85,6 +87,8 @@ class SettingsUpdate(BaseModel):
     language: Code | None = None
     # A language's deck by its full Anki name; an empty name goes back to the default.
     decks: dict[Code, Annotated[str, Field(max_length=500)]] | None = None
+    # How many of a language's most common words count as known. Not Thai's: only its deck counts.
+    common: dict[Code, CommonCount] | None = None
 
 
 class NextIn(BaseModel):
@@ -210,7 +214,8 @@ def create_app(engine: Engine, passphrase: str | None) -> FastAPI:
     def settings_out(current: Settings) -> dict[str, Any]:
         # Every language's deck, the default where none was chosen, so the app shows what's used.
         decks = {code: with_deck(code, current.decks.get(code)).deck for code in LANGUAGES}
-        return {**current.__dict__, "decks": decks}
+        common = {code: current.common_for(code) for code, info in LANGUAGES.items() if info.spaced}
+        return {**current.__dict__, "decks": decks, "common": common}
 
     @app.get("/api/settings", dependencies=authed)
     async def settings() -> dict[str, Any]:
@@ -219,6 +224,14 @@ def create_app(engine: Engine, passphrase: str | None) -> FastAPI:
     @app.patch("/api/settings", dependencies=authed)
     async def update_settings(body: SettingsUpdate, background: BackgroundTasks) -> dict[str, Any]:
         current = store.load_settings(engine.conn)
+        if body.common and any(not LANGUAGES[code].spaced for code in body.common):
+            raise HTTPException(422, "Thai counts only the words in its deck.")
+        common = dict(current.common)
+        for code, count in (body.common or {}).items():
+            if count == LANGUAGES[code].common:
+                common.pop(code, None)
+            else:
+                common[code] = count
         decks = dict(current.decks)
         changed_decks: list[Code] = []
         for code, name in (body.decks or {}).items():
@@ -236,6 +249,7 @@ def create_app(engine: Engine, passphrase: str | None) -> FastAPI:
             form=body.form or current.form,
             language=body.language or current.language,
             decks=decks,
+            common=common,
         )
         store.save_settings(engine.conn, updated)
         for code in changed_decks:
@@ -386,7 +400,7 @@ def production_app() -> FastAPI:
             user_agent="franki-reader",
             voice_help=(
                 "Check the voice names: Thai's are AZURE_VOICE_A and AZURE_VOICE_B in server/.env,"
-                " Spanish's are in server/reader/src/franki_reader/languages.py."
+                " the other languages' are in server/reader/src/franki_reader/languages.py."
             ),
         )
         synthesize = azure_synthesize(speech)

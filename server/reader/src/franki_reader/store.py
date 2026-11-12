@@ -18,7 +18,16 @@ from franki_reader.lexicon import Entry, ReadDeck
 
 SNAPSHOT_MAX_AGE = timedelta(hours=24)
 # How the reading log names each language (it said "thai" before there was a second one).
-LOG_LANGUAGE: dict[Code, str] = {"th": "thai", "es": "spanish"}
+LOG_LANGUAGE: dict[Code, str] = {
+    "th": "thai",
+    "es": "spanish",
+    "de": "german",
+    "fr": "french",
+    "ru": "russian",
+    "el": "greek",
+    "pl": "polish",
+    "nb": "norwegian",
+}
 MODE = "read_listen"
 
 log = logging.getLogger(__name__)
@@ -123,6 +132,12 @@ class Settings:
     language: Code = "th"  # the language new texts are written and served in
     # The deck each language's word list comes from, where it isn't the default (languages.py).
     decks: dict[str, str] = field(default_factory=dict)
+    # How many of each language's most common words count as known, where it isn't the default
+    # (languages.py). Thai has none: only its deck counts.
+    common: dict[str, int] = field(default_factory=dict)
+
+    def common_for(self, language: Code) -> int:
+        return self.common.get(language, LANGUAGES[language].common)
 
 
 @dataclass(frozen=True)
