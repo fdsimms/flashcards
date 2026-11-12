@@ -1,3 +1,4 @@
+import { grammarPointsFor } from '../core/grammar';
 import type { Language } from '../reader/api';
 import { LANGUAGE_ORDER } from '../reader/languages';
 import { sayFrenchTime } from './french/time';
@@ -19,7 +20,7 @@ import type { ClockTime, TimeSaying } from './time';
  * collection: a tool never grades a card or writes a review.
  */
 
-export type ToolId = 'time';
+export type ToolId = 'time' | 'grammar';
 
 export interface ToolInfo {
   id: ToolId;
@@ -50,6 +51,13 @@ export const TOOLS: ToolInfo[] = [
     title: 'Telling the time',
     summary: 'Say a time out loud, then check it.',
     languages: withSayer(TIME_SAYERS),
+  },
+  {
+    // Spaced drills on the grammar points set to Practice or Know it (docs/grammar.md, step 5).
+    id: 'grammar',
+    title: 'Grammar',
+    summary: "Short drills on the grammar you're practicing, spaced over days.",
+    languages: LANGUAGE_ORDER.filter((l) => grammarPointsFor(l).length > 0),
   },
 ];
 

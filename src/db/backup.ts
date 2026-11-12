@@ -15,7 +15,7 @@ const REQUIRED = ['notes', 'cards', 'reviews'] as const;
  * made before it existed) is emptied rather than kept: a restore puts back the backup's state,
  * not a mix of it and what was here.
  */
-export const RESTORED_TABLES = ['notes', 'cards', 'reviews', 'deck_params', 'note_types', 'deck_settings', 'form_practice'] as const;
+export const RESTORED_TABLES = ['notes', 'cards', 'reviews', 'deck_params', 'note_types', 'deck_settings', 'form_practice', 'grammar_answers'] as const;
 
 export interface TableRestore {
   table: string;

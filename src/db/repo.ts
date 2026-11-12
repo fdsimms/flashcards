@@ -3,6 +3,7 @@ import { renamedDeck } from '../core/deckNames';
 import { parseAnswerButtons, type AnswerButtons } from '../core/answerButtons';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import type { PracticeRecord } from '../core/forms';
+import type { GrammarAnswer } from '../core/grammarDrills';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
 import { parseVoiceSettings, type VoiceSettings } from '../core/voices';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry, CollectionSettings } from '../core/types';
@@ -70,6 +71,9 @@ export interface Repo {
   addPractice(record: PracticeRecord): Promise<void>;
   /** Forms practice logged at or after `since` (all of it without), oldest first. */
   listPractice(since?: Date): Promise<PracticeRecord[]>;
+  /** Grammar drills' answers (src/core/grammarDrills.ts): Franki's own, never sent to Anki. */
+  addGrammarAnswer(answer: GrammarAnswer): Promise<void>;
+  listGrammarAnswers(): Promise<GrammarAnswer[]>;
   /** Whether forms practice is answered by picking or typing: the last choice made. This phone's own. */
   formsAnswerMode(): Promise<'pick' | 'type'>;
   saveFormsAnswerMode(mode: 'pick' | 'type'): Promise<void>;
@@ -95,6 +99,7 @@ export class MemoryRepo implements Repo {
   showCardHintsSetting = false;
   thaiTextSizeSetting: ThaiTextSize = DEFAULT_THAI_TEXT_SIZE;
   practice: PracticeRecord[] = [];
+  grammarAnswers: GrammarAnswer[] = [];
   formsAnswerModeSetting: 'pick' | 'type' = 'pick';
   grammarHintsDismissedSetting: Record<string, string> = {};
   voiceSettingsValue = '{}';
@@ -185,6 +190,8 @@ export class MemoryRepo implements Repo {
       .filter((p) => !since || new Date(p.practicedAt) >= since)
       .sort((a, b) => a.practicedAt.localeCompare(b.practicedAt));
   }
+  async addGrammarAnswer(answer: GrammarAnswer) { this.grammarAnswers.push({ ...answer }); }
+  async listGrammarAnswers() { return [...this.grammarAnswers].sort((a, b) => a.answeredAt.localeCompare(b.answeredAt)); }
   async formsAnswerMode() { return this.formsAnswerModeSetting; }
   async saveFormsAnswerMode(mode: 'pick' | 'type') { this.formsAnswerModeSetting = mode; }
   async grammarHintsDismissed() { return { ...this.grammarHintsDismissedSetting }; }

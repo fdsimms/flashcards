@@ -55,12 +55,21 @@ describe('the Know it suggestion', () => {
     expect(suggestKnowIt({ ...base, state: 'practice', practice: before, dismissedAt: new Date(2026, 8, 1).toISOString() })).toBeDefined();
   });
 
+  it('counts grammar drills with Forms practice', () => {
+    const drill = Array.from({ length: 12 }, (_, i) => ({ pointId: 'es.preterite', drillId: 'd1', kind: 'gap' as const, correct: i < 11, answeredAt: at(11) }));
+    const got = suggestKnowIt({ ...base, state: 'practice', practice: many(10, 10), drillAnswers: drill });
+    expect(got).toMatchObject({ answers: 22, right: 21, from: { forms: true, drills: true } });
+    expect(knowItReason(got!, 0)).toBe('21 of 22 right in Forms practice and grammar drills over the last 30 days.');
+    const other = drill.map((a) => ({ ...a, pointId: 'es.imperfect' }));
+    expect(suggestKnowIt({ ...base, state: 'practice', practice: many(10, 10), drillAnswers: other })).toBeUndefined();
+  });
+
   it('says why, and over which answers', () => {
-    expect(knowItReason({ answers: 48, right: 41, missed: [], sinceNotYet: false }, 9))
+    expect(knowItReason({ answers: 48, right: 41, missed: [], sinceNotYet: false, from: { forms: true, drills: false } }, 9))
       .toBe('41 of 48 right in Forms practice over the last 30 days, and in 9 texts you read.');
-    expect(knowItReason({ answers: 20, right: 20, missed: [], sinceNotYet: true }, 1))
+    expect(knowItReason({ answers: 20, right: 20, missed: [], sinceNotYet: true, from: { forms: true, drills: false } }, 1))
       .toBe('20 of 20 right in Forms practice since you last chose Not yet, and in 1 text you read.');
-    expect(knowItReason({ answers: 20, right: 19, missed: [], sinceNotYet: false }, 0))
+    expect(knowItReason({ answers: 20, right: 19, missed: [], sinceNotYet: false, from: { forms: true, drills: false } }, 0))
       .toBe('19 of 20 right in Forms practice over the last 30 days.');
   });
 });

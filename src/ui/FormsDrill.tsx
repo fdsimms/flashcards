@@ -228,7 +228,8 @@ function Question({ prompt, reveal }: { prompt: FormPrompt; reveal?: string }) {
   );
 }
 
-type ChoiceState = 'open' | 'right' | 'wrongPick' | 'other';
+/** A choice before answering, the answer, the wrong one picked, or another. Also the grammar drill's (tools/GrammarDrill.tsx). */
+export type ChoiceState = 'open' | 'right' | 'wrongPick' | 'other';
 
 function choiceState(choice: string, prompt: FormPrompt, current?: Answered): ChoiceState {
   if (!current) return 'open';
@@ -236,7 +237,7 @@ function choiceState(choice: string, prompt: FormPrompt, current?: Answered): Ch
   return choice === current.given ? 'wrongPick' : 'other';
 }
 
-function ChoiceButton({ label, state, onPress }: { label: string; state: ChoiceState; onPress: () => void }) {
+export function ChoiceButton({ label, state, onPress }: { label: string; state: ChoiceState; onPress: () => void }) {
   const c = useTheme();
   const border = state === 'right' ? c.good : state === 'wrongPick' ? c.danger : c.border;
   return (
