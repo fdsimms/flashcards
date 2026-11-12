@@ -156,6 +156,10 @@ src/reader   Read & Listen's side of the app: its server's API, the reading sess
              tested; storage.ts keeps the passphrase in the Keychain)
 src/wanikani WaniKani as a deck: its API, the study session (undo holds the latest answer), answer
              checking, kana input, production notes (pure, tested; storage.ts keeps the token in the Keychain)
+src/tools    the Practice tab's tools (Telling the time): the list (tools.ts), each tool's logic, and each
+             language's under its own folder (thai/, spanish/...); pure, tested, except storage.ts. A tool
+             comes in every app language unless it doesn't apply, and never grades or writes a card
+             (tests/tools/noGrading.test.ts). Screens are src/ui/Practice.tsx and src/ui/tools/
 src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested);
              sync/ syncs with an Anki sync server (pure, tested; syncService.ts is the phone's side)
 server/      a ready-to-run Anki sync server (Docker, Caddy); server/mcp is the MCP for Claude (Python);
@@ -166,7 +170,7 @@ tests/       vitest, mirroring src/ (src/core/queue.ts -> tests/core/queue.test.
 ```
 
 **Tests mirror source 1:1**, and only pure logic is tested (`src/core`, `src/import`, `src/db`'s
-MemoryRepo and backup planning, `src/anki` except files.ts, `src/reader` and `src/wanikani` except storage.ts). Vitest runs in `node` with no React renderer, so there are no
+MemoryRepo and backup planning, `src/anki` except files.ts, `src/reader`, `src/tools` and `src/wanikani` except storage.ts). Vitest runs in `node` with no React renderer, so there are no
 screen tests. Don't add a renderer to cover a UI change: verify by reasoning about the code and say
 so plainly rather than implying you ran it. Keep logic out of screens so it can be tested: if a
 screen grows a decision worth testing, move it into `src/core`.
