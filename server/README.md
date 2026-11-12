@@ -66,3 +66,30 @@ Each Claude app asks for the password once; after that it stays signed in (it's 
 **What it keeps.** The MCP keeps its own copy of the collection and its media in Docker's `mcp-data` volume, so the server holds your media twice. It syncs before it reads and after every change. If another device replaces the server's collection (a full sync), the MCP takes the new one, unless it has changes of its own that never reached the server, in which case it stops and says so rather than overwrite either.
 
 **Upgrading:** the MCP's Anki version is in `mcp/requirements.txt`; keep it the same as `ANKI_VERSION`.
+
+## Read & Listen
+
+The same server can run Read & Listen's server (`reader/`): it writes short Thai and Spanish dialogues and stories from the words in your deck, checks they're mostly words you know, and records them with Azure's voices. It's one more Anki client of your sync server, and it only reads: it never answers, adds or changes cards. Its design is in `docs/read-and-listen/` at the top of this repository.
+
+It needs more memory than the rest (up to about 350 MB with both languages), so the server may need **2 GB**. After the first texts are written, `docker stats --no-stream` shows how much each part uses.
+
+**Turn it on.** In `.env`, add `reader` to `COMPOSE_PROFILES` (for example `COMPOSE_PROFILES=mcp,reader`) and set:
+
+- `READER_PASSPHRASE`: a long passphrase of its own, typed once in the app
+- `ANTHROPIC_API_KEY`: a Claude API key, for writing the texts
+- `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`: the same ones as the MCP's audio (above). Both use the same Azure client (`speech/`).
+- `READER_BUCKET_*` (optional, recommended): an S3-compatible bucket that the database is backed up to continuously. When the database is missing (a new server, a lost volume), it's restored from there.
+
+Then run `docker compose up -d --build`. Check `https://<your domain>/reader/health` shows `{"status":"ok"}`. Then in Franki, open **Settings**, **Read & Listen**, and enter the passphrase. Franki finds the server at `https://<your domain>/reader` by itself, from the sync settings.
+
+### Moving it from Fly
+
+Read & Listen used to run on Fly.io, with its database backed up to a Tigris bucket. Keep using that bucket and the first start here restores everything (topics, texts, the reading log) from it. Only one server may write to the bucket at a time, so stop the Fly one first.
+
+1. Copy the bucket's settings from the Fly machine while it's still running: `fly ssh console -a ailing -C "printenv BUCKET_NAME AWS_ENDPOINT_URL_S3 AWS_REGION AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY"`. They go in `.env` in that order, as `READER_BUCKET_NAME`, `READER_BUCKET_ENDPOINT`, `READER_BUCKET_REGION`, `READER_BUCKET_KEY_ID` and `READER_BUCKET_SECRET`. Copy `ANTHROPIC_API_KEY` and the passphrase (`APP_PASSPHRASE` there, `READER_PASSPHRASE` here) from your password manager.
+2. Stop the Fly server: `fly scale count 0 -a ailing`. Litestream sends its last changes as it stops.
+3. Turn Read & Listen on here, as above. `docker compose logs reader` shows Litestream restoring the database, then the server starting.
+4. In Franki, turn on Read & Listen with the same passphrase (Settings, Read & Listen). The old Read & Listen app can be deleted from the phone.
+5. Leave the Fly app stopped rather than deleting it until you've checked the bucket survives without it: it was made with `fly storage create` for that app.
+
+Audio already recorded on Fly isn't moved: each line is recorded again the first time it's played.

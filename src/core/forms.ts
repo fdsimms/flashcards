@@ -1,8 +1,8 @@
 import { speechLangFor, isOmnilanguage } from './cards';
 import { studyDayKey, studyDayStart } from './day';
-import { inheritedSetting } from './deckTree';
+import { inheritedSetting, isInDeck } from './deckTree';
 import { htmlToText } from './html';
-import type { DeckSettings, Note, ReviewLogEntry } from './types';
+import type { Card, DeckSettings, Note, ReviewLogEntry } from './types';
 
 /**
  * Forms practice: the forms a word's note lists (a verb's conjugations, a noun's plural, its
@@ -500,4 +500,44 @@ export function patternPrompts(
     out.push(left.splice(i >= 0 ? i : 0, 1)[0]);
   }
   return out.map((c) => promptFor(c.word.note, c.form, pool, random));
+}
+
+// ---------------------------------------------------------------------------------------------
+// What a drill asks
+
+/**
+ * What a drill is for, small enough to pass to its screen: some words' forms (a card's own word,
+ * or the words gathered at the end of a session), or a pattern across a deck.
+ */
+export type DrillRequest =
+  | { kind: 'words'; noteIds: string[]; perWord: number }
+  | { kind: 'pattern'; deck: string; patterns: string[]; groups: string[]; sentence: boolean };
+
+/** Words in `deck` (and its subdecks) with forms, that have a card answered at least once. */
+export function studiedWords(deck: string, notes: Iterable<Note>, cards: Card[]): PracticeWord[] {
+  const studied = new Set(cards.filter((c) => c.sched.state !== 0).map((c) => c.noteId));
+  return practicePool(notes).filter((w) => isInDeck(w.note.deck, deck) && studied.has(w.note.id));
+}
+
+/**
+ * The prompts a drill asks, and what it says about Forms lines it couldn't read. "In a sentence"
+ * keeps only forms that the word's example sentence holds.
+ */
+export function drillPrompts(
+  request: DrillRequest,
+  data: { notes: Note[]; cards: Card[]; practice: PracticeRecord[]; dayStartsAtHour: number },
+  random: () => number = Math.random,
+): { prompts: FormPrompt[]; notice?: string } {
+  const pool = practicePool(data.notes);
+  if (request.kind === 'words') {
+    const byId = new Map(data.notes.map((n) => [n.id, n]));
+    const targets = request.noteIds.map((id) => byId.get(id)).filter((n): n is Note => !!n);
+    return { prompts: wordPrompts(targets, pool, data.practice, request.perWord, data.dayStartsAtHour, random), notice: unreadableNotice(targets) };
+  }
+  const words = studiedWords(request.deck, data.notes, data.cards);
+  const choice = { patterns: request.patterns, groups: request.groups };
+  const all = patternPrompts(words, choice, data.practice, request.sentence ? Number.POSITIVE_INFINITY : PATTERN_PROMPTS, data.dayStartsAtHour, random, pool);
+  const prompts = request.sentence ? all.filter((p) => p.sentence).slice(0, PATTERN_PROMPTS) : all;
+  const chosen = words.filter((w) => choice.patterns.includes(patternOf(w.note))).map((w) => w.note);
+  return { prompts, notice: unreadableNotice(chosen) };
 }

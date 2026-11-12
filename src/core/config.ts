@@ -1,3 +1,5 @@
+import type { CollectionSettings } from './types';
+
 /**
  * Study settings. Constants for now; when they become user settings, every caller already
  * takes them as parameters, so only where they're read from changes.
@@ -24,3 +26,15 @@ export const LEARN_AHEAD_MINUTES = 20;
 
 /** The cap a progress gate starts at when it's turned on for a deck. */
 export const DEFAULT_GATE_CAP = 100;
+
+/**
+ * Anki's own defaults for the collection-wide settings Franki schedules by, used until a
+ * collection says otherwise (`collectionSettings` in src/anki/collection.ts reads them).
+ */
+export const DEFAULT_COLLECTION_SETTINGS: CollectionSettings = {
+  dayStartsAtHour: DAY_STARTS_AT_HOUR,
+  learnAheadMinutes: LEARN_AHEAD_MINUTES,
+  newCardsIgnoreReviewLimit: false,
+  applyAllParentLimits: false,
+  loadBalancer: true,
+};

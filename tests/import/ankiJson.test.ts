@@ -91,13 +91,44 @@ describe('Anki JSON import', () => {
     expect(res.warnings).toHaveLength(1);
     expect(res.warnings[0]).toMatch(/^4 cards of note type "Ultimate Geography" were skipped: its card templates weren't in the file/);
   });
+  it("keeps a card in another deck than its note's first card in its own deck", () => {
+    const res = importAnkiJson({
+      notes: [{ noteId: 9, modelName: 'Basic (and reversed card)', fields: { Front: 'kot', Back: 'cat' } }],
+      cards: [
+        { cardId: 2, note: 9, deckName: 'Polski::Extra', ord: 1, type: 0, due: 7 },
+        { cardId: 1, note: 9, deckName: 'Polski', ord: 0, type: 0, due: 6 },
+      ],
+      noteTypes: [{
+        name: 'Basic (and reversed card)', kind: 'normal', fields: ['Front', 'Back'], css: '',
+        templates: [0, 1].map((ord) => ({ ord, name: `Card ${ord + 1}`, front: '{{Front}}', back: '{{Back}}' })),
+      }],
+    }, { now: NOW });
+    expect(res.notes[0].deck).toBe('Polski');
+    const byAnki = new Map(res.cards.map((c) => [c.ankiId, c]));
+    expect(byAnki.get('1')).toMatchObject({ position: 6 });
+    expect(byAnki.get('1')!.deck).toBeUndefined();
+    expect(byAnki.get('2')).toMatchObject({ deck: 'Polski::Extra', position: 7 });
+  });
+
+  it("places a today-only limit on its study day, counted from the collection's creation", () => {
+    const created = new Date(2026, 0, 1, 4, 0).getTime() / 1000;
+    const res = importAnkiJson({
+      notes: [], cards: [], collectionCreated: created,
+      deckConfigs: { Thai: { newPerDay: 10, reviewsPerDay: 100, newLimitToday: { limit: 25, today: 31 } } },
+    }, { now: NOW });
+    expect(res.deckParams!.get('Thai')!.newLimitToday).toEqual({ limit: 25, day: '2026-02-01' });
+  });
+
   it('takes per-deck limits and FSRS settings from deckConfigs over fsrsParams', () => {
     const res = importAnkiJson({
       notes: [], cards: [],
-      deckConfigs: { Thai: { newPerDay: 10, reviewsPerDay: 150, desiredRetention: 0.85, weights: [0.1], maxInterval: 3650 } },
+      deckConfigs: { Thai: { newPerDay: 10, reviewsPerDay: 150, desiredRetention: 0.85, weights: [0.1], maxInterval: 3650, buryNew: true } },
       fsrsParams: { presets: [{ decks: ['Thai'], desired_retention: 0.9 }] },
     }, { now: NOW });
-    expect(res.deckParams!.get('Thai')).toEqual({ weights: [0.1], desiredRetention: 0.85, maxInterval: 3650, newPerDay: 10, reviewsPerDay: 150 });
+    expect(res.deckParams!.get('Thai')).toEqual({
+      weights: [0.1], desiredRetention: 0.85, maxInterval: 3650, newPerDay: 10, reviewsPerDay: 150,
+      bury: { new: true, reviews: false, interdayLearning: false },
+    });
   });
 
   it('makes exactly the cards Anki has when the note type comes with its templates', () => {

@@ -1,0 +1,41 @@
+[project]
+name = "franki-reader"
+version = "0.1.0"
+description = "Read & Listen: texts written from the words in your Anki deck"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "pythainlp>=5",
+    "anthropic>=1",
+    # Anki's own engine, to keep a copy of the collection in step with the sync server. Keep it at
+    # the version the sync server runs (ANKI_VERSION in ../docker-compose.yml).
+    "anki==26.9.4",
+    "simplemma>=2.0.0",
+    # Azure's text to speech, shared with the MCP (../speech).
+    "franki-speech",
+]
+
+[tool.uv.sources]
+franki-speech = { path = "../speech" }
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11", "httpx>=0.27"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/franki_reader"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.mypy]
+strict = true
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

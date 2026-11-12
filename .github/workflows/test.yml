@@ -51,8 +51,7 @@ jobs:
               - 'package-lock.json'
               - 'app.json'
               - 'eas.json'
-              - 'App.tsx'
-              - 'index.ts'
+              - 'src/app/**'
               - 'plugins/**'
               - 'modules/**'
               - 'assets/**'
@@ -75,6 +74,7 @@ jobs:
           filters: |
             mcp:
               - 'server/mcp/**'
+              - 'server/speech/**'
               - 'tests/fixtures/anki/**'
               - '.github/workflows/test.yml'
       - if: github.event_name != 'pull_request' || steps.paths.outputs.mcp == 'true'
@@ -84,9 +84,45 @@ jobs:
           cache: pip
           cache-dependency-path: server/mcp/requirements*.txt
       - if: github.event_name != 'pull_request' || steps.paths.outputs.mcp == 'true'
-        run: pip install -r server/mcp/requirements-dev.txt
+        # The shared Azure client (server/speech) is a package of its own.
+        run: pip install -r server/mcp/requirements-dev.txt ./server/speech
       - if: github.event_name != 'pull_request' || steps.paths.outputs.mcp == 'true'
         run: python -m pytest -q
         working-directory: server/mcp
+        env:
+          TZ: Pacific/Kiritimati
+
+  # Read & Listen's server (server/reader), and the Azure client it shares with the MCP
+  # (server/speech): lint, types and tests, the sync tests against a real Anki sync server from the
+  # same `anki` package. Only when something it reads changed.
+  reader:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server/reader
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for reader changes
+        if: github.event_name == 'pull_request'
+        id: paths
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            reader:
+              - 'server/reader/**'
+              - 'server/speech/**'
+              - '.github/workflows/test.yml'
+      - if: github.event_name != 'pull_request' || steps.paths.outputs.reader == 'true'
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.13'
+          enable-cache: true
+          cache-dependency-glob: server/reader/uv.lock
+      - if: github.event_name != 'pull_request' || steps.paths.outputs.reader == 'true'
+        run: uv sync --frozen
+      - if: github.event_name != 'pull_request' || steps.paths.outputs.reader == 'true'
+        run: uv run ruff check . ../speech && uv run ruff format --check . ../speech && uv run mypy && uv run mypy ../speech
+      - if: github.event_name != 'pull_request' || steps.paths.outputs.reader == 'true'
+        run: uv run pytest -q && uv run pytest -q ../speech/tests
         env:
           TZ: Pacific/Kiritimati

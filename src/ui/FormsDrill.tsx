@@ -1,8 +1,10 @@
-import React, { useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
-import { checkAnswer, type FormPrompt, type Verdict } from '../core/forms';
-import { Button, Card, Chip, Field, Help, Screen } from './kit';
-import { MIN_TAP, radius, space, type, useTheme } from './theme';
+import React, { useEffect, useRef, useState } from 'react';
+import { ScrollView, Text, View } from 'react-native';
+import { checkAnswer, drillPrompts, type DrillRequest, type FormPrompt, type PracticeRecord, type Verdict } from '../core/forms';
+import type { Repo } from '../db/repo';
+import { haptic } from './haptics';
+import { Button, Card, Field, Help, Icon, Screen, Segments, Tappable } from './kit';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 export type AnswerMode = 'pick' | 'type';
 
@@ -17,37 +19,46 @@ interface Answered {
 const isRight = (a: Answered) => a.verdict === 'right' || a.counted;
 
 /**
- * Practicing forms, full screen over whatever opened it (Review, a deck's practice screen), so
- * that screen keeps its place. Each answer is handed to `onAnswer` as it's given, which writes it
- * before the drill moves on. Nothing here touches the card's schedule.
+ * Practicing forms: the prompts `request` asks for (`drillPrompts`), one at a time, then how it
+ * went. Each answer is written as it's given (`addPractice`), before the drill moves on. Nothing
+ * here touches a card's schedule or the Anki collection.
  */
-export function FormsDrill(props: {
-  prompts: FormPrompt[];
-  /** Where Back goes: "Back to card", "Back to deck". */
-  backLabel: string;
-  mode: AnswerMode;
-  /** When true, Pick isn't offered (practicing "In a sentence"). */
-  typeOnly?: boolean;
-  onModeChange: (mode: AnswerMode) => void;
-  /** Writes one answer. `correct` counts an "almost" the user accepted. */
-  onAnswer: (prompt: FormPrompt, correct: boolean) => Promise<void>;
-  /** Shown on the summary: lines of a Forms field that couldn't be read, and the like. */
-  notice?: string;
-  onClose: () => void;
-}) {
+export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: DrillRequest; onDone: () => void }) {
   const c = useTheme();
-  const [prompts, setPrompts] = useState(props.prompts);
+  const [prompts, setPrompts] = useState<FormPrompt[] | null>(null);
+  const [notice, setNotice] = useState<string>();
   const [index, setIndex] = useState(0);
   const [answered, setAnswered] = useState<Answered[]>([]);
   const [typed, setTyped] = useState('');
-  const [mode, setMode] = useState<AnswerMode>(props.typeOnly ? 'type' : props.mode);
+  // "In a sentence" is always typed; otherwise the last choice made, on any drill.
+  const typeOnly = request.kind === 'pattern' && request.sentence;
+  const [mode, setMode] = useState<AnswerMode>('pick');
   // Set while an answer is being written: a second tap must not answer the same prompt twice.
   const busy = useRef(false);
+
+  useEffect(() => {
+    (async () => {
+      const [notes, cards, practice, collection, saved] = await Promise.all([
+        repo.listNotes(), repo.listCards(), repo.listPractice(), repo.collectionSettings(), repo.formsAnswerMode(),
+      ]);
+      const built = drillPrompts(request, { notes, cards, practice, dayStartsAtHour: collection.dayStartsAtHour });
+      setMode(typeOnly ? 'type' : saved);
+      setNotice(built.notice);
+      setPrompts(built.prompts);
+    })();
+  }, [repo]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!prompts) return <Screen title="Practice forms" largeTitle={false}><View /></Screen>;
 
   const done = index >= prompts.length;
   const prompt = prompts[index];
   const current = answered.length > index ? answered[index] : undefined;
   const picking = mode === 'pick' && !!prompt?.choices;
+
+  const log = async (p: FormPrompt, correct: boolean) => {
+    const record: PracticeRecord = { noteId: p.noteId, key: p.key, correct, practicedAt: new Date().toISOString() };
+    await repo.addPractice(record);
+  };
 
   const answer = async (given: string, picked = false) => {
     if (!prompt || current || busy.current) return;
@@ -55,7 +66,8 @@ export function FormsDrill(props: {
     try {
       // A pick is the form or it isn't: a choice one accent away is another form, not a typo.
       const verdict: Verdict = picked ? (prompt.answers.includes(given) ? 'right' : 'wrong') : checkAnswer(given, prompt.answers);
-      await props.onAnswer(prompt, verdict === 'right');
+      await log(prompt, verdict === 'right');
+      if (verdict === 'right') haptic.success(); else haptic.select();
       setAnswered((a) => [...a, { prompt, given, verdict, counted: false }]);
     } finally {
       busy.current = false;
@@ -67,7 +79,7 @@ export function FormsDrill(props: {
     if (!current || current.verdict !== 'almost' || current.counted || busy.current) return;
     busy.current = true;
     try {
-      await props.onAnswer(current.prompt, true);
+      await log(current.prompt, true);
       setAnswered((a) => a.map((x, i) => (i === index ? { ...x, counted: true } : x)));
     } finally {
       busy.current = false;
@@ -76,91 +88,103 @@ export function FormsDrill(props: {
 
   const next = () => { setTyped(''); setIndex((i) => i + 1); };
 
-  const switchMode = (m: AnswerMode) => { setMode(m); props.onModeChange(m); };
+  const switchMode = (m: AnswerMode) => { setMode(m); repo.saveFormsAnswerMode(m); };
 
+  const missed = answered.filter((a) => !isRight(a));
   const again = () => {
-    const missed = answered.filter((a) => !isRight(a)).map((a) => a.prompt);
-    setPrompts(missed);
+    setPrompts(missed.map((a) => a.prompt));
     setAnswered([]);
     setIndex(0);
     setTyped('');
   };
 
-  const footer = done ? (
-    <>
-      {answered.some((a) => !isRight(a)) ? (
-        <Button
-          label={answered.filter((a) => !isRight(a)).length === 1 ? 'Practice the missed one again' : 'Practice the missed ones again'}
-          variant="secondary" onPress={again}
-        />
-      ) : null}
-      <Button label={props.backLabel} onPress={props.onClose} />
-    </>
-  ) : current ? (
+  if (!prompts.length) {
+    return (
+      <Screen title="Practice forms" largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.m }}>
+          <Text style={{ ...type.headline, color: c.text }}>Nothing to practice</Text>
+          <Help>None of these words list forms that can be asked here. Forms come from each note's Forms field, one per line, like "present · yo: espero".</Help>
+          {notice ? <Help>{notice}</Help> : null}
+        </ScrollView>
+      </Screen>
+    );
+  }
+
+  if (done) {
+    return (
+      <Screen
+        title={`${answered.filter(isRight).length} of ${answered.length} right`}
+        footer={
+          <>
+            {missed.length ? <Button label={missed.length === 1 ? 'Practice the missed one again' : 'Practice the missed ones again'} variant="secondary" onPress={again} /> : null}
+            <Button label="Done" onPress={onDone} />
+          </>
+        }
+      >
+        <Summary answered={answered} notice={notice} />
+      </Screen>
+    );
+  }
+
+  const footer = current ? (
     <Button label={index === prompts.length - 1 ? 'See how it went' : 'Next'} onPress={next} />
   ) : !picking ? (
     <Button label="Check" onPress={() => answer(typed)} disabled={!typed.trim()} />
   ) : undefined;
 
   return (
-    <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={props.onClose}>
-      <Screen
-        onBack={props.onClose}
-        backLabel={props.backLabel.replace(/^Back to /, '').replace(/^./, (ch) => ch.toUpperCase())}
-        right={done ? undefined : <Text style={{ ...type.subhead, color: c.textSecondary, paddingHorizontal: space.l }}>{index + 1} of {prompts.length}</Text>}
-        title={done ? summaryTitle(answered) : undefined}
-        footer={footer}
+    <Screen title={`${index + 1} of ${prompts.length}`} largeTitle={false} footer={footer}>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: space.l, gap: space.xl, flexGrow: 1, width: '100%', maxWidth: 640, alignSelf: 'center' }}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
       >
-        {done ? (
-          <Summary answered={answered} notice={props.notice} />
-        ) : (
-          <ScrollView
-            contentContainerStyle={{ padding: space.l, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
-            keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets
-          >
-            <View style={{ height: 4, borderRadius: radius.pill, backgroundColor: c.border }}>
-              <View style={{ width: `${(index / prompts.length) * 100}%`, height: 4, borderRadius: radius.pill, backgroundColor: c.accent }} />
-            </View>
-            {props.typeOnly ? null : (
-              <View style={{ flexDirection: 'row', gap: space.s }} accessibilityLabel="Answer by">
-                <Chip label="Pick" selected={mode === 'pick'} onPress={() => switchMode('pick')} />
-                <Chip label="Type" selected={mode === 'type'} onPress={() => switchMode('type')} />
-              </View>
-            )}
-            <Question prompt={prompt} reveal={current ? prompt.answers[0] : undefined} />
-            {picking ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-                {prompt.choices!.map((choice) => (
-                  <ChoiceButton key={choice} label={choice} state={choiceState(choice, prompt, current)} onPress={() => answer(choice, true)} />
-                ))}
-              </View>
-            ) : (
-              <Field
-                key={index}
-                label="Your answer"
-                value={current ? current.given : typed}
-                onChangeText={setTyped}
-                editable={!current}
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={() => { if (typed.trim()) answer(typed); }}
-                error={!!current && !isRight(current)}
-              />
-            )}
-            {mode === 'pick' && !prompt.choices ? <Help>This one is typed: the word lists no other forms to pick from.</Help> : null}
-            {current ? <Feedback answered={current} onCount={countIt} /> : null}
-          </ScrollView>
+        <View
+          accessibilityRole="progressbar"
+          accessibilityLabel="Progress through this practice"
+          accessibilityValue={{ min: 0, max: prompts.length, now: index }}
+          style={{ height: 4, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }}
+        >
+          <View style={{ width: `${(index / prompts.length) * 100}%`, height: 4, borderRadius: 2, backgroundColor: c.accent }} />
+        </View>
+        {typeOnly ? null : (
+          <Segments<AnswerMode>
+            options={[{ value: 'pick', label: 'Pick' }, { value: 'type', label: 'Type' }]}
+            value={mode}
+            onChange={switchMode}
+          />
         )}
-      </Screen>
-    </Modal>
+        <View style={{ flex: 1, justifyContent: 'center', gap: space.xl }}>
+          <Question prompt={prompt} reveal={current ? prompt.answers[0] : undefined} />
+          {picking ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
+              {prompt.choices!.map((choice) => (
+                <ChoiceButton key={choice} label={choice} state={choiceState(choice, prompt, current)} onPress={() => answer(choice, true)} />
+              ))}
+            </View>
+          ) : (
+            <Field
+              key={index}
+              label="Your answer"
+              value={current ? current.given : typed}
+              onChangeText={setTyped}
+              editable={!current}
+              autoCapitalize="none"
+              autoCorrect={false}
+              spellCheck={false}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={() => { if (typed.trim()) answer(typed); }}
+              error={!!current && !isRight(current)}
+            />
+          )}
+          {mode === 'pick' && !prompt.choices ? <Help>This one is typed: there are no other forms to pick from.</Help> : null}
+          {current ? <Feedback answered={current} onCount={countIt} /> : null}
+        </View>
+      </ScrollView>
+    </Screen>
   );
-}
-
-function summaryTitle(answered: Answered[]): string {
-  return `${answered.filter(isRight).length} of ${answered.length} right`;
 }
 
 /** The word, what's asked, and the example sentence with a gap where the answer goes. */
@@ -205,20 +229,21 @@ function ChoiceButton({ label, state, onPress }: { label: string; state: ChoiceS
   const c = useTheme();
   const border = state === 'right' ? c.good : state === 'wrongPick' ? c.danger : c.border;
   return (
-    <Pressable
+    <Tappable
       onPress={onPress}
       disabled={state !== 'open'}
       accessibilityRole="button"
       accessibilityLabel={state === 'right' ? `${label}, the answer` : state === 'wrongPick' ? `${label}, not it` : label}
-      style={({ pressed }) => ({
+      restOpacity={state === 'other' ? 0.6 : 1}
+      style={{
         flexBasis: '48%', flexGrow: 1, minHeight: 64, paddingHorizontal: space.m, paddingVertical: space.m,
-        alignItems: 'center', justifyContent: 'center', borderRadius: radius.m,
-        borderWidth: state === 'open' || state === 'other' ? 1 : 2, borderColor: border, backgroundColor: c.surface,
-        opacity: pressed ? 0.75 : state === 'other' ? 0.6 : 1,
-      })}
+        flexDirection: 'row', gap: space.s, alignItems: 'center', justifyContent: 'center', borderRadius: radius.m, ...smooth,
+        borderWidth: state === 'open' || state === 'other' ? hairline : 2, borderColor: border, backgroundColor: c.surface,
+      }}
     >
+      {state === 'right' ? <Icon name="checkmark" size={18} color={c.good} weight="bold" /> : null}
       <Text style={{ ...type.title, fontWeight: state === 'right' ? '700' : '400', color: c.text, textAlign: 'center' }}>{label}</Text>
-    </Pressable>
+    </Tappable>
   );
 }
 
@@ -238,9 +263,9 @@ function Feedback({ answered, onCount }: { answered: Answered; onCount: () => vo
         <Text style={{ ...type.headline, color: c.warning }}>{answered.counted ? `Counted as right: ${answer}` : `Almost: ${answer}`}</Text>
         <Help>Only an accent or a mark differs, and that can make it a different form.</Help>
         {answered.counted ? null : (
-          <Pressable onPress={onCount} accessibilityRole="button" style={({ pressed }) => ({ minHeight: MIN_TAP, justifyContent: 'center', opacity: pressed ? 0.5 : 1, alignSelf: 'flex-start' })}>
-            <Text style={{ ...type.subhead, color: c.accent }}>Count it as right</Text>
-          </Pressable>
+          <Tappable onPress={onCount} accessibilityRole="button" style={{ minHeight: MIN_TAP, justifyContent: 'center', alignSelf: 'flex-start' }}>
+            <Text style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>Count it as right</Text>
+          </Tappable>
         )}
       </Card>
     );
@@ -256,10 +281,15 @@ function Feedback({ answered, onCount }: { answered: Answered; onCount: () => vo
 function Summary({ answered, notice }: { answered: Answered[]; notice?: string }) {
   const c = useTheme();
   return (
-    <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
       <Card style={{ gap: 0, paddingVertical: space.xs }}>
         {answered.map((a, i) => (
-          <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingVertical: space.s, borderTopWidth: i ? 1 : 0, borderTopColor: c.border }}>
+          <View
+            key={i}
+            accessible
+            accessibilityLabel={`${[a.prompt.headword, a.prompt.label, a.prompt.group].filter(Boolean).join(', ')}: ${a.prompt.answers[0]}. ${isRight(a) ? 'Right' : `Wrong, you answered ${a.given}`}`}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingVertical: space.s, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}
+          >
             <Text style={{ ...type.subhead, color: c.textSecondary, width: 130 }}>
               {[a.prompt.headword, a.prompt.label, a.prompt.group].filter(Boolean).join(' · ')}
             </Text>
@@ -268,9 +298,7 @@ function Summary({ answered, notice }: { answered: Answered[]; notice?: string }
               {a.verdict === 'almost' && a.counted ? <Text style={{ ...type.footnote, color: c.warning }}>Accent missed, counted as right</Text> : null}
               {!isRight(a) ? <Text style={{ ...type.footnote, color: c.danger }}>{`You answered ${a.given}`}</Text> : null}
             </View>
-            <Text accessibilityLabel={isRight(a) ? 'Right' : 'Wrong'} style={{ ...type.headline, color: isRight(a) ? c.countDue : c.danger }}>
-              {isRight(a) ? '✓' : '✕'}
-            </Text>
+            <Icon name={isRight(a) ? 'checkmark' : 'xmark'} size={18} color={isRight(a) ? c.countDue : c.danger} weight="bold" />
           </View>
         ))}
       </Card>

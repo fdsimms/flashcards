@@ -10,8 +10,9 @@ import {
 import { pullMedia, type MediaState } from '../../../src/anki/sync/mediaSync';
 import { addAnkiNote, ankiDeckId, ankiNoteType, deleteAnkiNotes, editAnkiNote, moveAnkiNote } from '../../../src/anki/noteWrites';
 import {
-  CARD_ROW_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams,
+  CARD_ROW_SQL, CARD_STATE_SQL, CARD_STATE_UPDATE_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams,
 } from '../../../src/anki/writeback';
+import { ankiCollapsedDecks, setAnkiDeckCollapsed } from '../../../src/anki/deckWrites';
 import { review } from '../../../src/core/scheduler';
 import type { Card } from '../../../src/core/types';
 import { importAnkiJson } from '../../../src/import/ankiJson';
@@ -80,6 +81,23 @@ function franki(server: AnkiServer, collated: boolean) {
         });
         return { cid, revlogId: id };
       });
+    },
+    /** Collapses or expands a deck as the deck list does (setAnkiDeckCollapsed), and reads them back. */
+    collapse: (name: string, collapsed: boolean) => withDb((db) => setAnkiDeckCollapsed(db, name, collapsed, new Date())),
+    collapsed: () => withDb(ankiCollapsedDecks),
+    /** Suspends, buries and flags cards as the review menu does (setAnkiCardStates). */
+    async setStates(changes: { pick: (c: Card) => boolean; state: { suspended: boolean; buried: boolean; flag: number } }[], now = new Date()) {
+      const cards = importAnkiJson(buildExport(await readCollectionRows(kept))).cards;
+      const cids: number[] = [];
+      await withDb(async (db) => db.transaction(async () => {
+        for (const { pick, state } of changes) {
+          const cid = Number(cards.find((c) => pick(c) && !cids.includes(Number(c.ankiId)))!.ankiId);
+          await db.run(CARD_STATE_UPDATE_SQL, ...cardStateParams((await db.first<any>(CARD_STATE_SQL, cid))!, state, now, cid));
+          cids.push(cid);
+        }
+        await db.run(COL_MODIFIED_SQL, now.getTime());
+      }));
+      return cids;
     },
     async pullMedia(serverMediaUsn: number) {
       mkdirSync(mediaDir, { recursive: true });
@@ -212,6 +230,48 @@ for (const collated of [true, false]) {
       desktop.run('study', '1', '+', 'sync');
       expect((await me.sync()).kind).toBe('synced');
       desktop.run('sync');
+      await expectSame();
+    });
+
+    it('sends a suspend, a bury and a flag set in Franki, which Anki then has exactly', async () => {
+      const none = { suspended: false, buried: false, flag: 0 };
+      const [suspended, buried, flagged] = await me.setStates([
+        { pick: (c) => c.sched.state === 2 && !c.suspended, state: { ...none, suspended: true } },
+        { pick: (c) => c.sched.state === 0 && !c.suspended, state: { ...none, buried: true } },
+        { pick: (c) => !c.suspended, state: { ...none, flag: 3 } },
+      ]);
+      expect(await me.sync()).toMatchObject({ kind: 'synced' });
+      desktop.run('sync');
+      await expectSame();
+      // Anki's cards columns: queue is 7, flags 16.
+      const theirs = new Map((desktop.run('dump').dump.cards as number[][]).map((c) => [c[0], c]));
+      expect(theirs.get(suspended)![7]).toBe(-1);
+      expect(theirs.get(buried)![7]).toBe(-3);
+      expect(theirs.get(flagged)![16]).toBe(3);
+      // And taken back off, as the note editor's Unsuspend, Unbury and Remove flag do.
+      await me.setStates([
+        { pick: (c) => c.ankiId === String(suspended), state: none },
+        { pick: (c) => c.ankiId === String(buried), state: none },
+        { pick: (c) => c.ankiId === String(flagged), state: none },
+      ]);
+      expect(await me.sync()).toMatchObject({ kind: 'synced' });
+      desktop.run('sync');
+      await expectSame();
+      const back = new Map((desktop.run('dump').dump.cards as number[][]).map((c) => [c[0], c]));
+      expect([back.get(suspended)![7], back.get(buried)![7], back.get(flagged)![16]]).toEqual([2, 0, 0]);
+    });
+
+    it('shares collapsed decks with Anki both ways, without a full sync', async () => {
+      // Every deck Anki makes starts collapsed; expanding one here reaches Anki as a changed deck.
+      expect(await me.collapse('🧠 Trivia', false)).toBe(true);
+      expect(await me.sync()).toMatchObject({ kind: 'synced' });
+      desktop.run('sync');
+      await expectSame();
+      // And one Anki expands comes here, written in place whether or not the collation is there.
+      desktop.run('collapse-deck', '👅 Languages', '0', '+', 'sync');
+      expect(await me.sync()).toMatchObject({ kind: 'synced', received: true });
+      const mine = await me.collapsed();
+      expect([mine.has('🧠 Trivia'), mine.has('👅 Languages'), mine.has('Default')]).toEqual([false, false, true]);
       await expectSame();
     });
 

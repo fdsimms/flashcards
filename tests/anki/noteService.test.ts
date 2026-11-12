@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildExport } from '../../src/anki/collection';
-import { deleteNote, NoteRefused, saveNote, type NoteStore } from '../../src/anki/noteService';
+import { collapsedDecks, deleteNote, NoteRefused, saveNote, setCardStates, setDeckCollapsed, type NoteStore } from '../../src/anki/noteService';
 import { review } from '../../src/core/scheduler';
 import { MemoryRepo } from '../../src/db/repo';
 import { importAnkiJson } from '../../src/import/ankiJson';
@@ -114,11 +114,71 @@ describe('moving a note to another deck', () => {
     db.close();
   });
 
+  it("moves a card that had a deck of its own along with the note, as Anki's move does", async () => {
+    const { store } = await franki();
+    const note = [...store.notes.values()].find((n) => n.fields.Front === 'Capital of Bolivia?')!;
+    const [card] = [...store.cards.values()].filter((c) => c.noteId === note.id);
+    store.cards.set(card.id, { ...card, deck: '🧠 Trivia::Elsewhere' });
+    await saveNote(store, { id: note.id, deck: 'Default', model: note.model, fields: note.fields, tags: note.tags }, NOW);
+    expect(store.cards.get(card.id)!.deck).toBeUndefined();
+  });
+
   it('refuses a deck the Anki collection doesn\'t have, changing nothing', async () => {
     const { store } = await franki();
     const note = [...store.notes.values()].find((n) => n.fields.Front === 'Capital of Peru?')!;
     await expect(saveNote(store, { id: note.id, deck: 'Not in Anki', model: note.model, fields: note.fields, tags: note.tags }, NOW))
       .rejects.toThrow(/no deck called "Not in Anki"/);
     expect((await store.getNote(note.id))!.deck).toBe(note.deck);
+  });
+});
+
+describe('suspending, burying and flagging a card', () => {
+  it('saves in Franki first, then sends the Anki cards to the kept collection', async () => {
+    const repo = new MemoryRepo();
+    const sent: unknown[] = [];
+    const store = Object.assign(repo, { setAnkiCardStates: async (changes: unknown[]) => { sent.push(...changes); } });
+    const data = importAnkiJson(buildExport(await readCollectionRows(FIXTURE)), { now: NOW });
+    await repo.applyAnkiCollection(data.notes, data.cards);
+    const card = data.cards.find((c) => !c.suspended)!;
+    const { cards, ankiError } = await setCardStates(store, [card], (s) => ({ ...s, flag: 4, buried: true }), NOW, 4);
+    expect(ankiError).toBeUndefined();
+    expect(cards[0]).toMatchObject({ flag: 4, buriedAt: NOW.toISOString() });
+    expect((await repo.listCards()).find((c) => c.id === card.id)).toMatchObject({ flag: 4 });
+    expect(sent).toEqual([{ ankiId: card.ankiId, state: { suspended: false, buried: true, flag: 4 } }]);
+  });
+
+  it("keeps the change in Franki and reports it when Anki's collection can't take it", async () => {
+    const repo = new MemoryRepo();
+    const store = Object.assign(repo, { setAnkiCardStates: async () => { throw new Error('locked'); } });
+    const data = importAnkiJson(buildExport(await readCollectionRows(FIXTURE)), { now: NOW });
+    await repo.applyAnkiCollection(data.notes, data.cards);
+    const card = data.cards.find((c) => !c.suspended)!;
+    const { ankiError } = await setCardStates(store, [card], (s) => ({ ...s, suspended: true }), NOW, 4);
+    expect((ankiError as Error).message).toBe('locked');
+    expect((await repo.listCards()).find((c) => c.id === card.id)!.suspended).toBe(true);
+  });
+});
+
+describe('collapsing a deck on the deck list', () => {
+  it("writes Anki's flag for a deck Anki has, and Franki's own for one it doesn't", async () => {
+    const { store, anki } = await franki();
+    // Every deck Anki makes starts collapsed.
+    expect((await collapsedDecks(store)).has('👅 Languages')).toBe(true);
+    await setDeckCollapsed(store, '👅 Languages', false, NOW);
+    await setDeckCollapsed(store, 'TSV only', true, NOW);
+    const now = await collapsedDecks(store);
+    expect([now.has('👅 Languages'), now.has('TSV only'), now.has('🧠 Trivia')]).toEqual([false, true, true]);
+    expect((await store.listDeckSettings()).get('👅 Languages')?.collapsed).toBeUndefined();
+    const db = await anki();
+    expect((await db.first<{ usn: number }>("SELECT usn FROM decks NOT INDEXED WHERE id = 1794408857989"))!.usn).toBe(-1);
+    db.close();
+    await setDeckCollapsed(store, 'TSV only', false, NOW);
+    expect((await collapsedDecks(store)).has('TSV only')).toBe(false);
+  });
+
+  it("keeps it in Franki when there's no Anki collection", async () => {
+    const { store } = await franki({ kept: false });
+    await setDeckCollapsed(store, '👅 Languages', true, NOW);
+    expect(await collapsedDecks(store)).toEqual(new Set(['👅 Languages']));
   });
 });

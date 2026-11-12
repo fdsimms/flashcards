@@ -1,9 +1,8 @@
-import { studyDayStart } from '../core/day';
 import { isInDeck } from '../core/deckTree';
-import type { StudiedToday } from '../core/queue';
-import type { PracticeRecord } from '../core/forms';
 import { parseAnswerButtons, type AnswerButtons } from '../core/answerButtons';
-import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } from '../core/types';
+import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
+import type { PracticeRecord } from '../core/forms';
+import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry, CollectionSettings } from '../core/types';
 
 export interface Repo {
   /**
@@ -31,11 +30,6 @@ export interface Repo {
   deleteReview(id: number): Promise<void>;
   /** Answers logged here at or after `since`, oldest first (for stats). */
   listReviews(since: Date): Promise<ReviewLogEntry[]>;
-  /**
-   * What each deck has studied during the study day `now` falls in, by its own cards (a parent
-   * deck's entry leaves out its subdecks'; `treeQueue` adds them up). Decks with none are left out.
-   */
-  studiedToday(now: Date, dayStartsAtHour: number): Promise<Map<string, StudiedToday>>;
   /** Replaces the FSRS settings of the decks given; other decks keep theirs. */
   saveDeckParams(params: Map<string, DeckParams>): Promise<void>;
   listDeckParams(): Promise<Map<string, DeckParams>>;
@@ -45,6 +39,15 @@ export interface Repo {
   /** Settings made in the app, by deck. An import never touches these. */
   listDeckSettings(): Promise<Map<string, DeckSettings>>;
   saveDeckSettings(deck: string, settings: DeckSettings): Promise<void>;
+  /** Which answer buttons Review shows, for every deck. This phone's own: a backup doesn't carry it. */
+  answerButtons(): Promise<AnswerButtons>;
+  saveAnswerButtons(choice: AnswerButtons): Promise<void>;
+  /** The Anki collection's scheduling settings, as last imported or synced; Anki's defaults before that. */
+  collectionSettings(): Promise<CollectionSettings>;
+  saveCollectionSettings(settings: CollectionSettings): Promise<void>;
+  /** Whether a revealed card can be swiped to answer it (right Good, left Again). Off by default; this phone's own. */
+  swipeToRate(): Promise<boolean>;
+  saveSwipeToRate(on: boolean): Promise<void>;
   /** Logs one answered forms practice prompt. Franki's own: never written to Anki. */
   addPractice(record: PracticeRecord): Promise<void>;
   /** Forms practice logged at or after `since` (all of it without), oldest first. */
@@ -52,9 +55,6 @@ export interface Repo {
   /** Whether forms practice is answered by picking or typing: the last choice made. This phone's own. */
   formsAnswerMode(): Promise<'pick' | 'type'>;
   saveFormsAnswerMode(mode: 'pick' | 'type'): Promise<void>;
-  /** Which answer buttons Review shows, for every deck. This phone's own: a backup doesn't carry it. */
-  answerButtons(): Promise<AnswerButtons>;
-  saveAnswerButtons(choice: AnswerButtons): Promise<void>;
 }
 
 /** Simple in-memory repo, used by tests and as a reference implementation. */
@@ -67,6 +67,7 @@ export class MemoryRepo implements Repo {
   noteTypes = new Map<string, NoteType>();
   deckSettings = new Map<string, DeckSettings>();
   answerButtonsSetting: string | null = null;
+  swipeToRateSetting = false;
   practice: PracticeRecord[] = [];
   formsAnswerModeSetting: 'pick' | 'type' = 'pick';
 
@@ -81,7 +82,10 @@ export class MemoryRepo implements Repo {
       // Same rule as the SQLite repo: re-importing never resets a card already studied here.
       const existing = this.cards.get(c.id);
       if (existing && existing.sched.state !== 0) {
-        this.cards.set(c.id, { ...existing, retired: false });
+        this.cards.set(c.id, {
+          ...existing, retired: false, buriedAt: c.buriedAt, deck: c.deck, filteredDeck: c.filteredDeck, position: c.position,
+          ankiMod: c.ankiMod, filteredDue: c.filteredDue, previewDue: c.previewDue, flag: c.flag,
+        });
         continue;
       }
       this.cards.set(c.id, { ...c, retired: false });
@@ -115,6 +119,13 @@ export class MemoryRepo implements Repo {
     return id;
   }
   async deleteReview(id: number) { this.reviews.delete(id); }
+  async answerButtons() { return parseAnswerButtons(this.answerButtonsSetting); }
+  async saveAnswerButtons(choice: AnswerButtons) { this.answerButtonsSetting = choice; }
+  collectionSettingsValue: CollectionSettings = DEFAULT_COLLECTION_SETTINGS;
+  async collectionSettings() { return this.collectionSettingsValue; }
+  async saveCollectionSettings(settings: CollectionSettings) { this.collectionSettingsValue = settings; }
+  async swipeToRate() { return this.swipeToRateSetting; }
+  async saveSwipeToRate(on: boolean) { this.swipeToRateSetting = on; }
   async addPractice(record: PracticeRecord) { this.practice.push({ ...record }); }
   async listPractice(since?: Date) {
     return this.practice
@@ -123,28 +134,10 @@ export class MemoryRepo implements Repo {
   }
   async formsAnswerMode() { return this.formsAnswerModeSetting; }
   async saveFormsAnswerMode(mode: 'pick' | 'type') { this.formsAnswerModeSetting = mode; }
-  async answerButtons() { return parseAnswerButtons(this.answerButtonsSetting); }
-  async saveAnswerButtons(choice: AnswerButtons) { this.answerButtonsSetting = choice; }
   async listReviews(since: Date) {
     return [...this.reviews.values()]
       .filter((r) => new Date(r.reviewedAt) >= since)
       .sort((a, b) => a.reviewedAt.localeCompare(b.reviewedAt));
-  }
-  async studiedToday(now: Date, dayStartsAtHour: number) {
-    const start = studyDayStart(now, dayStartsAtHour).getTime();
-    const firsts = new Map<string, Set<string>>();
-    const out = new Map<string, StudiedToday>();
-    for (const r of this.reviews.values()) {
-      if (new Date(r.reviewedAt).getTime() < start) continue;
-      const deck = this.notes.get(this.cards.get(r.cardId)?.noteId ?? '')?.deck;
-      if (!deck) continue;
-      const s = out.get(deck) ?? { introduced: 0, reviewed: 0 };
-      if (r.state === 0) (firsts.get(deck) ?? firsts.set(deck, new Set()).get(deck)!).add(r.cardId);
-      if (r.state === 2) s.reviewed++;
-      s.introduced = firsts.get(deck)?.size ?? 0;
-      if (r.state === 0 || r.state === 2) out.set(deck, s);
-    }
-    return out;
   }
   async saveDeckParams(params: Map<string, DeckParams>) {
     for (const [deck, p] of params) this.deckParams.set(deck, p);

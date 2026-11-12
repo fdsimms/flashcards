@@ -16,7 +16,6 @@ export function SyncSettings(props: {
   syncing: boolean;
   sync: () => Promise<string | undefined>;
   reload: () => Promise<void>;
-  onDone: () => void;
 }) {
   const c = useTheme();
   const s = props.settings;
@@ -62,8 +61,8 @@ export function SyncSettings(props: {
   );
 
   return (
-    <Screen onBack={props.onDone} backLabel="Anki" title="Sync">
-      <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+    <Screen title="Sync">
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         {s?.enabled ? (
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>Syncing with {s.server.replace(/^https?:\/\//, '').replace(/\/$/, '')}</Text>
@@ -75,7 +74,7 @@ export function SyncSettings(props: {
               added in Anki come down with each sync.
             </Help>
             <Button label="Sync now" onPress={syncNow} busy={props.syncing} />
-            <Button label="Turn off sync" variant="secondary" onPress={turnOff} disabled={props.syncing} />
+            <Button label="Turn off sync" variant="destructive" onPress={turnOff} disabled={props.syncing} />
           </Card>
         ) : (
           <Card>

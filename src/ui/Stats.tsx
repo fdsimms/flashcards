@@ -1,15 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { DAY_STARTS_AT_HOUR } from '../core/config';
 import { studyDayStart } from '../core/day';
-import { isInDeck } from '../core/deckTree';
+import { cardHomeDeck, isInDeck } from '../core/deckTree';
 import { paramsForDeck } from '../core/scheduler';
 import { answersFrom, computeStats, durationText, MATURE_DAYS, percent, type Answer, type Rate } from '../core/stats';
 import type { Card, DeckParams, Note } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { Card as Box, Chip, Help, Screen } from './kit';
-import { space, type, useTheme } from './theme';
+import { haptic } from './haptics';
+import { hairline, space, type, useTheme } from './theme';
 
 /** How many study days the charts cover, back and ahead. */
 const DAYS = 30;
@@ -22,21 +22,22 @@ const dayLabel = (d: Date) => d.toLocaleDateString(undefined, { weekday: 'short'
  * next 30 days' reviews, the last 30 days' answers, cards by stage, and retention. The numbers
  * come from src/core/stats.ts; this screen only gathers and shows them.
  */
-export function Stats({ repo, onDone, backLabel }: { repo: Repo & AnkiLink; onDone: () => void; backLabel?: string }) {
+export function Stats({ repo }: { repo: Repo & AnkiLink }) {
   const c = useTheme();
-  const [data, setData] = useState<{ notes: Note[]; cards: Card[]; answers: Answer[]; params: Map<string, DeckParams>; now: Date }>();
+  const [data, setData] = useState<{ notes: Note[]; cards: Card[]; answers: Answer[]; params: Map<string, DeckParams>; now: Date; dayStartsAtHour: number }>();
   const [scope, setScope] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       const now = new Date();
+      const { dayStartsAtHour } = await repo.collectionSettings();
       // A day before the first one shown, so a card first answered then isn't counted new today.
-      const since = studyDayStart(now, DAY_STARTS_AT_HOUR);
+      const since = studyDayStart(now, dayStartsAtHour);
       since.setDate(since.getDate() - DAYS);
       const [notes, cards, reviews, revlog, params] = await Promise.all([
         repo.listNotes(), repo.listCards(), repo.listReviews(since), repo.ankiReviewLog(since), repo.listDeckParams(),
       ]);
-      setData({ notes, cards, answers: answersFrom({ revlog, reviews, cards }), params, now });
+      setData({ notes, cards, answers: answersFrom({ revlog, reviews, cards }), params, now, dayStartsAtHour });
     })();
   }, [repo]);
 
@@ -45,18 +46,18 @@ export function Stats({ repo, onDone, backLabel }: { repo: Repo & AnkiLink; onDo
   const stats = useMemo(() => {
     if (!data) return undefined;
     const deckOf = new Map(data.notes.map((n) => [n.id, n.deck]));
-    const cards = scope === null ? data.cards : data.cards.filter((card) => isInDeck(deckOf.get(card.noteId) ?? '', scope));
+    const cards = scope === null ? data.cards : data.cards.filter((card) => isInDeck(cardHomeDeck(card, deckOf.get(card.noteId) ?? ''), scope));
     const ids = new Set(cards.map((card) => card.id));
     const answers = scope === null ? data.answers : data.answers.filter((a) => ids.has(a.cardId));
-    return computeStats({ cards, answers, now: data.now, dayStartsAtHour: DAY_STARTS_AT_HOUR, days: DAYS });
+    return computeStats({ cards, answers, now: data.now, dayStartsAtHour: data.dayStartsAtHour, days: DAYS });
   }, [data, scope]);
 
   const target = scope !== null && data ? paramsForDeck(scope, data.params)?.desiredRetention : undefined;
 
   return (
-    <Screen onBack={onDone} backLabel={backLabel} title="Stats">
+    <Screen title="Stats">
       {!stats ? null : (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
           {tops.length > 1 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.s }}>
               {[null, ...tops].map((d) => (
@@ -143,7 +144,7 @@ function Tile({ value, label }: { value: string; label: string }) {
   const c = useTheme();
   return (
     <View style={{ width: '50%', gap: 2 }}>
-      <Text style={{ ...type.title, color: c.text }}>{value}</Text>
+      <Text style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{value}</Text>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
     </View>
   );
@@ -197,11 +198,11 @@ function Bars<T extends { start: Date; value: number }>({ days, describe, first,
   return (
     <View style={{ gap: space.xs }}>
       <Text style={{ ...type.footnote, color: c.textSecondary }}>{max.toLocaleString()}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: CHART_HEIGHT, gap: 2, borderBottomWidth: 1, borderColor: c.border }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: CHART_HEIGHT, gap: 2, borderBottomWidth: hairline, borderColor: c.border }}>
         {days.map((d, i) => (
           <Pressable
             key={i}
-            onPress={() => setPicked(i === picked ? null : i)}
+            onPress={() => { haptic.select(); setPicked(i === picked ? null : i); }}
             accessibilityRole="button"
             accessibilityLabel={describe(d, i, days.length).join(': ')}
             style={{ flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' }}
@@ -209,7 +210,7 @@ function Bars<T extends { start: Date; value: number }>({ days, describe, first,
             {d.value > 0 ? (
               <View style={{
                 width: '100%', maxWidth: 24, height: Math.max(2, (d.value / max) * CHART_HEIGHT),
-                backgroundColor: c.chart, borderTopLeftRadius: 4, borderTopRightRadius: 4,
+                backgroundColor: c.chart, borderTopLeftRadius: 5, borderTopRightRadius: 5,
                 opacity: picked === null || picked === i ? 1 : 0.35,
               }} />
             ) : null}
@@ -217,8 +218,8 @@ function Bars<T extends { start: Date; value: number }>({ days, describe, first,
         ))}
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={{ ...type.caption, color: c.textTertiary }}>{first}</Text>
-        <Text style={{ ...type.caption, color: c.textTertiary }}>{last}</Text>
+        <Text style={{ ...type.caption, color: c.textSecondary }}>{first}</Text>
+        <Text style={{ ...type.caption, color: c.textSecondary }}>{last}</Text>
       </View>
       <Text style={{ ...type.subhead, color: c.text }}>{caption(picked, days[peak].value, describe(days[shown], shown, days.length))}</Text>
     </View>

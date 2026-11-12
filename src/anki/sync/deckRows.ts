@@ -1,5 +1,5 @@
-import { MessageWriter, utf8Encode } from '../protobuf';
-import { stringifyJson } from './json';
+import { bytesField, decodeMessage, float, floats, int, message, messages, MessageWriter, string, uint, utf8Decode, utf8Encode, type Message } from '../protobuf';
+import { parseJson, stringifyJson } from './json';
 import type { DeckJson } from './protocol';
 
 /**
@@ -124,6 +124,76 @@ export function deckKind(d: DeckJson): Uint8Array {
 /** The stored name: "::" between levels becomes \x1f. */
 export function nativeDeckName(human: string): string {
   return human.split('::').join('\x1f');
+}
+
+/** The keys `From<Deck> for DeckSchema11` writes itself; `Common.other` can't override them. */
+const RESERVED_KEYS = new Set(['usn', 'revToday', 'newLimit', 'dyn', 'reviewLimit', 'newToday', 'timeToday', 'reviewLimitToday', 'extendNew', 'mod',
+  'newLimitToday', 'desc', 'name', 'lrnToday', 'conf', 'browserCollapsed', 'extendRev', 'id', 'collapsed', 'desiredRetention']);
+
+function readDayLimit(msg: Message | undefined) {
+  return msg ? { limit: uint(msg, DAY_LIMIT.limit) ?? 0, today: uint(msg, DAY_LIMIT.today) ?? 0 } : null;
+}
+
+/**
+ * The reverse of `deckRow`: a deck as Anki keeps it, as the JSON sync sends (rslib's
+ * `From<Deck> for DeckSchema11`), so a deck changed here (collapsed on the deck list) can be sent
+ * in `applyChanges` rather than forcing a full sync. Every today count carries the last day
+ * studied, an unset limit is null, and `Common.other` adds the keys Anki doesn't read itself.
+ */
+export function deckJson(row: DeckRow): DeckJson {
+  const common = decodeMessage(row.common);
+  const kind = decodeMessage(row.kind);
+  const day = uint(common, COMMON.lastDayStudied) ?? 0;
+  const otherBytes = bytesField(common, COMMON.other);
+  const otherAll = otherBytes?.length ? parseJson(utf8Decode(otherBytes)) : {};
+  const other = otherAll && typeof otherAll === 'object' && !Array.isArray(otherAll)
+    ? Object.fromEntries(Object.entries(otherAll).filter(([k]) => !RESERVED_KEYS.has(k))) : {};
+  const normal = message(kind, KIND.normal);
+  const filtered = message(kind, KIND.filtered);
+  const base: DeckJson = {
+    id: row.id,
+    mod: row.mtime,
+    name: row.name.split('\x1f').join('::'),
+    usn: row.usn,
+    lrnToday: [day, int(common, COMMON.learningStudied) ?? 0],
+    revToday: [day, int(common, COMMON.reviewStudied) ?? 0],
+    newToday: [day, int(common, COMMON.newStudied) ?? 0],
+    timeToday: [day, int(common, COMMON.msStudied) ?? 0],
+    collapsed: uint(common, COMMON.studyCollapsed) === 1,
+    browserCollapsed: uint(common, COMMON.browserCollapsed) === 1,
+    desc: (normal && string(normal, NORMAL.description)) || '',
+    ...(normal && uint(normal, NORMAL.markdown) === 1 ? { md: true } : {}),
+    dyn: filtered ? 1 : 0,
+    ...other,
+  };
+  if (filtered) {
+    const delays = floats(filtered, FILTERED.delays);
+    return {
+      ...base,
+      resched: uint(filtered, FILTERED.reschedule) === 1,
+      terms: messages(filtered, FILTERED.terms).map((t) => [string(t, TERM.search) ?? '', uint(t, TERM.limit) ?? 0, int(t, TERM.order) ?? 0]),
+      separate: true,
+      delays: delays.length ? delays : null,
+      previewDelay: uint(filtered, FILTERED.previewDelay) ?? 0,
+      previewAgainSecs: uint(filtered, FILTERED.previewAgainSecs) ?? 0,
+      previewHardSecs: uint(filtered, FILTERED.previewHardSecs) ?? 0,
+      previewGoodSecs: uint(filtered, FILTERED.previewGoodSecs) ?? 0,
+    };
+  }
+  const n = normal ?? new Map();
+  const dr = float(n, NORMAL.desiredRetention);
+  return {
+    ...base,
+    conf: uint(n, NORMAL.configId) ?? 0,
+    extendNew: uint(n, NORMAL.extendNew) ?? 0,
+    extendRev: uint(n, NORMAL.extendReview) ?? 0,
+    reviewLimit: uint(n, NORMAL.reviewLimit) ?? null,
+    newLimit: uint(n, NORMAL.newLimit) ?? null,
+    reviewLimitToday: readDayLimit(message(n, NORMAL.reviewLimitToday)),
+    newLimitToday: readDayLimit(message(n, NORMAL.newLimitToday)),
+    // Anki's (v * 100.0) as u32, in f32.
+    desiredRetention: dr === undefined ? null : Math.trunc(Math.fround(Math.fround(dr) * 100)),
+  };
 }
 
 export function deckRow(d: DeckJson): DeckRow {

@@ -1,3 +1,5 @@
+import { ttsFilter, ttsTags, withoutTts, TTS_NO_LANGUAGE, type TtsTag } from './tts';
+import { clozeForTyping, compareAnswer } from './typeAnswer';
 import type { Note, NoteType } from './types';
 
 /**
@@ -6,9 +8,10 @@ import type { Note, NoteType } from './types';
  * WebView; `cardDocument` wraps it with the note type's CSS.
  *
  * Covered: {{Field}}, {{#Field}}...{{/Field}}, {{^Field}}...{{/Field}}, the special fields
- * (FrontSide, Tags, Type, Deck, Subdeck, Card), and the filters text, hint, type, cloze,
- * furigana, kana, kanji and tts (dropped: TTS isn't wired here). An unknown filter passes the
- * value through, as Anki does for add-on filters it can't run.
+ * (FrontSide, Tags, Type, Deck, Subdeck, Card), and the filters text, hint, cloze, cloze-only,
+ * furigana, kana, kanji and tts (read aloud, src/core/tts.ts). An unknown filter passes the value through, as
+ * Anki does for add-on filters it can't run. {{type:Field}} (and type:cloze:, type:nc:) asks for
+ * the answer to be typed, as Anki's reviewer does it: see `renderTemplateCard`.
  */
 
 export interface RenderContext {
@@ -39,6 +42,14 @@ export function clozeNumbers(text: string): number[] {
   return [...out].sort((a, b) => a - b);
 }
 
+/**
+ * Anki's cloze-only (reveal_cloze_text_only): just the card's cloze, for reading aloud: its hint
+ * (or "...") on the question, its text on the answer, several joined with ", ".
+ */
+function clozeOnly(text: string, n: number, side: 'front' | 'back'): string {
+  return [...text.matchAll(CLOZE)].filter((m) => Number(m[1]) === n).map((m) => (side === 'front' ? m[3] ?? '...' : m[2])).join(', ');
+}
+
 function renderCloze(text: string, n: number, side: 'front' | 'back'): string {
   return text.replace(CLOZE, (_, num: string, answer: string, hint?: string) => {
     if (Number(num) !== n) return `<span class="cloze-inactive">${answer}</span>`;
@@ -58,13 +69,11 @@ function furigana(text: string, mode: 'furigana' | 'kana' | 'kanji'): string {
 
 function applyFilter(filter: string, value: string, fieldName: string, ctx: RenderContext): string {
   const name = filter.trim();
-  if (name.startsWith('tts')) return '';
+  if (name.startsWith('tts ')) return ttsFilter(name.slice(4), value);
   switch (name) {
     case 'text': return stripHtml(value);
     case 'cloze': return renderCloze(value, ctx.ord + 1, ctx.side);
-    case 'cloze-only': return renderCloze(value, ctx.ord + 1, ctx.side);
-    // No typing on a phone: the answer is shown on the back instead of compared.
-    case 'type': return ctx.side === 'back' ? value : '';
+    case 'cloze-only': return clozeOnly(value, ctx.ord + 1, ctx.side);
     case 'hint':
       if (fieldIsEmpty(value)) return '';
       return `<a class="hint" href="#" onclick="this.style.display='none';this.nextElementSibling.style.display='block';return false;">${fieldName}</a><div class="hint" style="display:none">${value}</div>`;
@@ -128,6 +137,12 @@ export function renderTemplate(template: string, ctx: RenderContext): string {
 
     const parts = tag.split(':');
     const field = parts.pop()!.trim();
+    // As rslib: {{type:...}} becomes [[type:...]] for the reviewer's pass, whatever filters are inside it.
+    if (parts[0]?.trim() === 'type') {
+      const inner = parts.slice(1).map((p) => p.trim());
+      out += `[[type:${inner.length === 1 && (inner[0] === 'cloze' || inner[0] === 'nc') ? `${inner[0]}:` : ''}${field}]]`;
+      continue;
+    }
     let value = fieldValue(field, ctx);
     // Filters apply right to left: {{text:hint:F}} is text(hint(F)).
     for (const f of parts.reverse()) value = applyFilter(f, value, field, ctx);
@@ -148,15 +163,72 @@ function findSectionEnd(template: string, from: number, field: string): { start:
   return { start: template.length, after: template.length };
 }
 
-/** Both sides of a card, as Anki would render them. */
-export function renderTemplateCard(note: Note, noteType: NoteType, ord: number): { front: string; back: string } {
+/** What a {{type:}} card asks for: the text to compare against, and whether accents count. */
+export interface TypeAnswer {
+  expected: string;
+  /** False for {{type:nc:Field}}, which ignores combining marks (accents). */
+  combining: boolean;
+}
+
+const TYPE_PATTERN = /\[\[type:(.+?)\]\]/;
+const TYPE_PATTERN_ALL = /\[\[type:(.+?)\]\]/g;
+
+/**
+ * The question side of a {{type:}} card, as aqt's reviewer has it (typeAnsQuestionFilter): the
+ * first [[type:]] names the field. Where it sits, Franki shows nothing, as the text box is under
+ * the card; an empty field asks for nothing, and a field the note type doesn't have says so.
+ */
+function typeAnswerQuestion(html: string, note: Note, noteType: NoteType, ord: number): { html: string; ask?: TypeAnswer } {
+  const m = TYPE_PATTERN.exec(html);
+  if (!m) return { html };
+  let field = m[1];
+  let clozeNumber: number | undefined;
+  let combining = true;
+  if (field.startsWith('cloze:')) { clozeNumber = ord + 1; field = field.split(':')[1]; }
+  if (field.startsWith('nc:')) { combining = false; field = field.split(':')[1]; }
+  let expected: string | undefined;
+  if (noteType.fields.includes(field)) {
+    expected = note.fields[field] ?? '';
+    if (clozeNumber !== undefined) expected = clozeForTyping(expected, clozeNumber) || undefined;
+  }
+  if (expected === undefined) {
+    const warning = clozeNumber !== undefined ? `Type answer: cloze ${clozeNumber} isn't on this note.` : `Type answer: unknown field ${field}`;
+    return { html: html.replace(TYPE_PATTERN_ALL, warning) };
+  }
+  if (!expected) return { html: html.replace(TYPE_PATTERN_ALL, '') };
+  return { html: html.replace(TYPE_PATTERN_ALL, ''), ask: { expected, combining } };
+}
+
+/**
+ * The answer side (typeAnsAnswerFilter): each [[type:]] becomes the comparison of what was typed
+ * with the field. When the back has `<hr id=answer>` (the usual {{FrontSide}} card), the line
+ * moves to just above the comparison, as in Anki, so the question's [[type:]] in FrontSide is
+ * where the comparison shows.
+ */
+function typeAnswerAnswer(html: string, ask: TypeAnswer | undefined, typed: string): string {
+  if (!ask) return html.replace(TYPE_PATTERN_ALL, '');
+  const hr = '<hr id=answer>';
+  const buf = html.split(hr).join('');
+  const hadHr = buf.length !== html.length;
+  if (hadHr && !TYPE_PATTERN.test(buf)) return html;
+  const shown = `${hadHr ? hr : ''}<div>${compareAnswer(ask.expected, typed, ask.combining)}</div>`;
+  return buf.replace(TYPE_PATTERN_ALL, () => shown);
+}
+
+/**
+ * Both sides of a card, as Anki would render them. A {{type:}} card also says what it asks for
+ * (`typeAnswer`), and its back compares `typed` with it.
+ */
+export function renderTemplateCard(note: Note, noteType: NoteType, ord: number, typed = ''): { front: string; back: string; typeAnswer?: TypeAnswer } {
   const t = noteType.templates.find((x) => x.ord === (noteType.kind === 'cloze' ? 0 : ord)) ?? noteType.templates[0];
   if (!t) return { front: '', back: '' };
   const base = { note, noteType, ord };
   const front = renderTemplate(t.front, { ...base, side: 'front' });
-  // {{FrontSide}} on the back shows the question without its sounds playing again.
-  const back = renderTemplate(t.back, { ...base, side: 'back', frontSide: front.replace(/\[sound:[^\]]*\]/g, '') });
-  return { front, back };
+  // {{FrontSide}} on the back shows the question without its sounds or speech playing again (and
+  // keeps its [[type:]], where Anki shows the comparison).
+  const back = renderTemplate(t.back, { ...base, side: 'back', frontSide: withoutTts(front.replace(/\[sound:[^\]]*\]/g, '')) });
+  const question = typeAnswerQuestion(front, note, noteType, ord);
+  return { front: question.html, back: typeAnswerAnswer(back, question.ask, typed), typeAnswer: question.ask };
 }
 
 /**
@@ -189,6 +261,22 @@ function soundButtons(html: string): string {
     `<a class="replay-button" href="#" data-sound="${escapeAttr(file)}" onclick="playSound(this.dataset.sound);return false;">▶</a>`);
 }
 
+/** [anki:tts] -> a play button that asks the app to read it (`sideAudio` lists them in the same order). */
+function ttsButtons(html: string): string {
+  return ttsTags(html, (tag, i) => (tag
+    ? `<a class="replay-button" href="#" onclick="speakTts(${i});return false;">▶</a>`
+    : escapeAttr(TTS_NO_LANGUAGE))).html;
+}
+
+/**
+ * What a rendered side has to play: its text-to-speech tags, in the order of their play buttons,
+ * and whether it has a recording. A recording wins: a side with one plays it on its own when shown
+ * and reads nothing aloud until a play button is tapped, the rule Omnilanguage follows.
+ */
+export function sideAudio(html: string): { tts: TtsTag[]; hasSound: boolean } {
+  return { tts: ttsTags(html, () => '').tags, hasSound: /\[sound:[^\]]+\]/.test(html) };
+}
+
 /**
  * A complete page for the WebView: the note type's CSS, Anki's body classes (`card cardN`, and
  * `nightMode night_mode` in dark mode, which many decks style), and the sound player. Relative
@@ -215,12 +303,18 @@ body { margin: 0; padding: 16px; font-family: -apple-system, system-ui, sans-ser
 img { max-width: 100%; height: auto; }
 .cloze { font-weight: bold; color: ${colors.cloze}; }
 .replay-button { display: inline-block; text-decoration: none; font-size: 22px; padding: 2px 8px; }
+/* A typed answer's comparison, as Anki's reviewer styles it (a deck's own CSS, after this, can restyle it). */
+code#typeans { display: inline-block; white-space: pre-wrap; font-family: ui-monospace, Menlo, monospace; line-height: 1.75; }
+.typeGood { color: black; background: #afa; }
+.typeBad { color: black; background: #faa; }
+.typeMissed { color: black; background: #ccc; }
 ${opts.css}
 </style></head>
-<body class="card card${opts.ord + 1}${night}"><div id="qa">${soundButtons(html)}</div>
+<body class="card card${opts.ord + 1}${night}"><div id="qa">${ttsButtons(soundButtons(html))}</div>
 <script>
 var player = null;
 function playSound(file) { if (player) player.pause(); player = new Audio(file); player.play(); }
+function speakTts(i) { if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ tts: i })); }
 ${opts.autoplay ? "var first = document.querySelector('[data-sound]'); if (first) playSound(first.dataset.sound);" : ''}
 </script></body></html>`;
 }

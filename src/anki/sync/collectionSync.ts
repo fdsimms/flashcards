@@ -1,7 +1,7 @@
 import { decodeMessage, uint, utf8Decode, utf8Encode } from '../protobuf';
 import type { SyncClient } from './client';
 import { deckConfigRow, type DeckConfigJson } from './deckConfigRow';
-import { deckRow } from './deckRows';
+import { deckJson, deckRow } from './deckRows';
 import { parseJson, stringifyJson } from './json';
 import { cleanField, sortFieldAndChecksum } from './noteFields';
 import { notetypeRows, type NotetypeJson } from './notetypeRows';
@@ -76,12 +76,13 @@ export async function localMeta(db: SyncDb): Promise<Local & { empty: boolean }>
 }
 
 /**
- * Rows of the collated tables marked as changed here, which only a full upload can send. (Tags
- * can't be read at all without the collation; nothing Franki does marks one.)
+ * Rows of the collated tables marked as changed here that only a full upload can send. Decks
+ * changed here (collapsed on the deck list) are sent in applyChanges; nothing Franki does changes
+ * a note type or a preset. (Tags can't be read at all without the collation.)
  */
 async function localUnsendable(db: SyncDb): Promise<number> {
   let n = 0;
-  for (const t of ['notetypes', 'decks', 'deck_config']) {
+  for (const t of ['notetypes', 'deck_config']) {
     n += (await db.first<{ n: number }>(`SELECT COUNT(*) AS n FROM ${t} WHERE usn = -1`))!.n;
   }
   return n;
@@ -127,6 +128,14 @@ export async function syncCollection(db: SyncDb, client: SyncClient, now: () => 
       if (state.collated) {
         mine.tags = (await db.all<{ tag: string }>('SELECT tag FROM tags WHERE usn = -1')).map((r) => r.tag);
         if (mine.tags.length) await db.run('UPDATE tags SET usn = ? WHERE usn = -1', serverUsn);
+      }
+      // Decks changed here, as Anki's changed_decks sends them: marked with the server's usn, as JSON.
+      const decks = await db.all<{ id: number; name: string; mtime_secs: number; common: Uint8Array; kind: Uint8Array }>(
+        'SELECT id, name, mtime_secs, common, kind FROM decks NOT INDEXED WHERE usn = -1',
+      );
+      if (decks.length) {
+        mine.decks = [decks.map((d) => deckJson({ id: Number(d.id), name: d.name, mtime: d.mtime_secs, usn: serverUsn, common: d.common, kind: d.kind })), []];
+        await db.run('UPDATE decks SET usn = ? WHERE usn = -1', serverUsn);
       }
       if (localIsNewer) {
         mine.conf = await allConfig(db);

@@ -1,6 +1,7 @@
 # The Anki sync server behind Caddy, which gets and renews an HTTPS certificate on its own.
 # Settings come from .env (copy .env.example). Start with: docker compose up -d --build
-# The MCP (mcp/, for Claude) runs too when .env has COMPOSE_PROFILES=mcp.
+# The MCP (mcp/, for Claude) runs too when .env's COMPOSE_PROFILES has mcp, and Read & Listen
+# (reader/) when it has reader.
 services:
   anki:
     build:
@@ -15,7 +16,10 @@ services:
     volumes:
       - anki-data:/data
   mcp:
-    build: ./mcp
+    # From this folder, so the MCP and Read & Listen can both copy the shared speech/ package.
+    build:
+      context: .
+      dockerfile: mcp/Dockerfile
     profiles: [mcp]
     restart: unless-stopped
     environment:
@@ -29,6 +33,34 @@ services:
       AZURE_SPEECH_ENDPOINT: ${AZURE_SPEECH_ENDPOINT:-}
     volumes:
       - mcp-data:/data
+    depends_on:
+      - anki
+  reader:
+    build:
+      context: .
+      dockerfile: reader/Dockerfile
+    profiles: [reader]
+    restart: unless-stopped
+    environment:
+      READER_DB_PATH: /data/reader.db
+      READER_AUDIO_DIR: /data/audio
+      READER_ANKI_DIR: /data/anki
+      ANKI_SYNC_ENDPOINT: "http://anki:8080/"
+      ANKI_USER: ${ANKI_USER}
+      ANKI_PASSWORD: ${ANKI_PASSWORD}
+      APP_PASSPHRASE: ${READER_PASSPHRASE:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
+      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}
+      AZURE_SPEECH_ENDPOINT: ${AZURE_SPEECH_ENDPOINT:-}
+      # Backups (optional): an S3-compatible bucket Litestream streams the database to.
+      BUCKET_NAME: ${READER_BUCKET_NAME:-}
+      AWS_ENDPOINT_URL_S3: ${READER_BUCKET_ENDPOINT:-}
+      AWS_REGION: ${READER_BUCKET_REGION:-}
+      AWS_ACCESS_KEY_ID: ${READER_BUCKET_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${READER_BUCKET_SECRET:-}
+    volumes:
+      - reader-data:/data
     depends_on:
       - anki
   caddy:
@@ -48,5 +80,6 @@ services:
 volumes:
   anki-data:
   mcp-data:
+  reader-data:
   caddy-data:
   caddy-config:

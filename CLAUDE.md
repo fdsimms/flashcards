@@ -15,6 +15,9 @@ the owner's existing Anki decks and keep their scheduling. Where Anki has a conv
 used to (the study day starting at 4 AM, a review being due for its whole day, re-imports keeping
 progress), match it unless there's a stated reason not to.
 
+It also has **Read & Listen**, which replaced the owner's separate app (fdsimms/ailing): texts
+written from the words in the deck, to read and listen to. See "Read & Listen" below.
+
 ## Commands
 
 ```bash
@@ -26,6 +29,8 @@ npm test             # vitest, the whole suite in under a second
 npx vitest run tests/core/queue.test.ts   # one file, while iterating
 npm run test:tz      # the suite in UTC+14, UTC-11 and Newfoundland (half-hour offset, DST)
 npm run verify       # the whole verification loop, below
+cd server/reader && uv run ruff check . ../speech && uv run ruff format --check . ../speech && uv run mypy && uv run mypy ../speech && uv run pytest -q && uv run pytest -q ../speech/tests
+                     # Read & Listen's server and the shared Azure client: their loop, after any change under server/reader or server/speech
 ```
 
 **The verification loop is `npm run verify`** (`tsc --noEmit && vitest run && git status --short`).
@@ -59,6 +64,18 @@ depends on an unmerged PR, branch from it but open against `main`, and say which
 
 **One session's work is one PR when the pieces are likely to conflict.** Split only when the pieces
 touch disjoint files and either can merge first. If unsure, combine them.
+
+**Other sessions merge into `main` while your PR is open, so keep the overlap small.** Several
+sessions work in parallel, mostly in the same few screens, and every PR that lands first turns
+yours into a conflict for the owner to see.
+- **Merge `origin/main` into your branch before every push**, then run `npm run verify`, not only
+  when GitHub reports a conflict.
+- **Don't widen a shared hub; give the feature a file of its own.** App-wide state is a hook in its
+  own file that `AppContext` calls in one line (`useSync`, `useCollapsedDecks`), never more lines
+  in AppContext's own body, its value or its dependency list. Likewise a route stays a thin wrapper,
+  and a screen's new part is a component beside it rather than more lines inside one big render.
+- **Keep a PR's life short:** open it once it's verified, and don't keep adding new issues to an
+  open one; the longer it's open, the more of `main` it has to catch up with.
 
 **Batch pushes.** Each push reruns CI, and Actions minutes are a fixed allowance. When several
 review comments or failures land together, fix them all locally, run the loop, and push once. Push
@@ -131,15 +148,21 @@ src/core     types, FSRS wrapper, queue, deck tree, study day, card rendering, A
 src/import   TSV + Anki JSON importers, re-import matching (reconcile.ts)
 src/db       Repo interface + MemoryRepo (tests), SQLite repo (app), backup planning
 src/media    the media folder (expo-file-system)
-src/ui       screens, the shared pieces they're built from (kit.tsx), the theme, CardWebView
+src/app      routes (Expo Router): thin wrappers that give a screen in src/ui its props
+src/ui       screens, the shared pieces they're built from (kit.tsx), the theme, CardWebView, AppContext;
+             Read & Listen's screens are Read*.tsx and Reader.tsx
+src/reader   Read & Listen's side of the app: its server's API, the reading session, playback (pure,
+             tested; storage.ts keeps the passphrase in the Keychain)
 src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested);
              sync/ syncs with an Anki sync server (pure, tested; syncService.ts is the phone's side)
-server/      a ready-to-run Anki sync server (Docker, Caddy); server/mcp is the MCP for Claude (Python)
+server/      a ready-to-run Anki sync server (Docker, Caddy); server/mcp is the MCP for Claude (Python);
+             server/reader is Read & Listen's server (Python); server/speech is the Azure client both use
+docs/read-and-listen/   Read & Listen's spec (brief.md) and the decisions since (architecture.md)
 tests/       vitest, mirroring src/ (src/core/queue.ts -> tests/core/queue.test.ts)
 ```
 
 **Tests mirror source 1:1**, and only pure logic is tested (`src/core`, `src/import`, `src/db`'s
-MemoryRepo and backup planning, `src/anki` except files.ts). Vitest runs in `node` with no React renderer, so there are no
+MemoryRepo and backup planning, `src/anki` except files.ts, `src/reader` except storage.ts). Vitest runs in `node` with no React renderer, so there are no
 screen tests. Don't add a renderer to cover a UI change: verify by reasoning about the code and say
 so plainly rather than implying you ran it. Keep logic out of screens so it can be tested: if a
 screen grows a decision worth testing, move it into `src/core`.
@@ -158,20 +181,24 @@ the review. `MemoryRepo` is the reference implementation and must behave like th
 (re-import rules included), since every repo test runs against it.
 
 **Audio plays with the silent switch on** (`setAudioModeAsync({ playsInSilentMode: true })` in
-`App.tsx`): iOS otherwise mutes an app's recordings, TTS and WebView audio alike, which made every
-play button look broken. `expo-audio`'s config plugin is set to add no microphone permission or
-background audio, neither of which Franki uses.
+`src/ui/AppContext.tsx`): iOS otherwise mutes an app's recordings, TTS and WebView audio alike, which made every
+play button look broken. `expo-audio`'s config plugin adds no microphone permission (Franki never
+records) but does allow background audio, which only Read & Listen's reader turns on, while it's
+open (`shouldPlayInBackground`), so listening goes on with the screen locked.
 
-**Everything stays on the device, except sync.** TTS is `expo-speech` (on-device voices), storage
-is local SQLite, and there is no backend. The one network call is sync with the user's own Anki
-sync server (`src/anki/sync/`), off until they sign in. A future feature that needs the network (a
-dictionary lookup, an AI hint) ships behind its own setting that defaults to off.
+**Everything stays on the device, except sync and Read & Listen.** TTS is `expo-speech` (on-device
+voices) and storage is local SQLite. The network calls are sync with the user's own Anki sync
+server (`src/anki/sync/`), off until they sign in, and Read & Listen, which talks to its server
+beside the sync server and is off until its passphrase is entered (Settings, Read & Listen). A
+future feature that needs the network (a dictionary lookup, an AI hint) ships behind its own setting
+that defaults to off.
 
 ### The study day
 
-**The day starts at `DAY_STARTS_AT_HOUR` (4 AM, as Anki's "Next day starts at"), not midnight.**
-A 1 AM session still belongs to the day before: its new cards come out of that day's limit.
-`src/core/day.ts` owns this.
+**The day starts at the collection's "Next day starts at" (`CollectionSettings.dayStartsAtHour`,
+read from Anki's `rollover`; 4 AM by default, `DAY_STARTS_AT_HOUR`), not midnight.** A 1 AM
+session still belongs to the day before: its new cards come out of that day's limit.
+`src/core/day.ts` owns this; screens read the hour from `repo.collectionSettings()`.
 
 - **Anything that decides which day something belongs to goes through `studyDayStart` /
   `nextStudyDayStart`**, never `setHours(0, 0, 0, 0)`, `toDateString()` or a bare `new Date()`
@@ -188,27 +215,55 @@ FSRS via `ts-fsrs`, wrapped in `src/core/scheduler.ts`; a card's whole FSRS stat
 with dates as ISO strings. **A Review-state card is due for its whole study day** (its due instant
 carries the time of day it was last answered); **a Learning/Relearning card is due at its exact
 instant** (`isDue` in `src/core/queue.ts`). Once nothing else is left, learning cards come up to
-`LEARN_AHEAD_MINUTES` early, as Anki's learn-ahead limit, and the review screen waits for the next
-one rather than declaring the deck done.
+the collection's learn-ahead limit early, and the review screen waits for the next one rather
+than declaring the deck done.
+
+**Learning steps are Anki's, applied on top of FSRS** (`stepOutcome` in `scheduler.ts`, from
+rslib's states/steps.rs): the ts-fsrs engines run with no steps, for the memory state and
+intervals, because ts-fsrs's own steps graduate a card on a step of a day or more and give Hard a
+different delay. Each deck's preset steps apply, else Anki's defaults. A step crossing into a
+later day is Anki's queue 3 (`isInterdayLearning`); its answers count as reviews and use the
+review limit. **Leeches** follow the preset (`becameLeech`): tagged, suspended if it says so.
+
+**Fuzz and the load balancer are Anki's, bit for bit** (`src/core/ankiFuzz.ts`, `loadBalance.ts`):
+the ts-fsrs engines don't fuzz; intervals get Anki's fuzz from Rust's StdRng (ChaCha12) seeded by
+the Anki card id plus reps before the answer, in f32 as Anki computes them, or the load balancer's
+day from a snapshot taken when the session is built. `tests/fixtures/anki/fuzz-vectors.json` holds
+outputs recorded from the real `anki` package; a change here has to keep matching them.
 
 **Each deck schedules with its Anki preset's FSRS weights and desired retention** (`DeckParams`,
 read from the collection's deck options when it's imported). `paramsForDeck` falls back to
 the nearest ancestor deck, then to the `ts-fsrs` defaults. Every `review`/`previewIntervals` call
 passes the deck's params; one that doesn't silently schedules with the defaults.
 
-**Daily limits are per deck, from its Anki preset** (`DeckParams.newPerDay` / `reviewsPerDay`),
-with `NEW_PER_DAY` / `REVIEWS_PER_DAY` in `src/core/config.ts` only for a deck that has none. The
-review limit counts answers to Review-state cards today; learning cards are never limited, as in
-Anki.
+**Daily limits are per deck, from its Anki preset** (`DeckParams.newPerDay` / `reviewsPerDay`, or
+a today-only limit from Custom Study on its day), with `NEW_PER_DAY` / `REVIEWS_PER_DAY` in
+`src/core/config.ts` only for a deck that has none.
 
-**Studying a deck studies its subdecks, and every deck on the way up applies its limits**
-(`treeQueue` in `src/core/deckTree.ts`): a card in Polski::Odmiana counts against Odmiana's limit
-and Polski's. Today's counts are kept per deck by its own cards and summed up the tree. A card is
-always scheduled with **its own** deck's FSRS settings, never the settings of the parent being
-studied.
+**A study session is built as Anki's v3 scheduler builds it** (`treeQueue` in
+`src/core/deckTree.ts`, orders in `src/core/order.ts`; each rule's source in rslib is named where
+it's implemented). Limits form a tree from the deck opened down: a card in Polski::Odmiana counts
+against Odmiana's limit and Polski's when Polski is opened, but Polski's limits don't apply when
+Odmiana is opened unless the collection's "apply all parent limits" is on. New cards studied today
+also use review room, unless "new cards ignore review limit" is on. Steps within the day are never
+limited. The preset's gather, sort, review and mix orders decide the order (Anki's new-card
+position for new cards). A card is always scheduled with **its own home** deck's settings
+(`cardHomeDeck`), never the parent being studied, and is studied in the deck it's in
+(`cardDeck`): an Anki filtered deck takes its cards out of their home decks.
+
+**Today's counts include answers given on every device** (`studiedToday` in `src/core/queue.ts`):
+Anki's cards are counted from the kept collection's review log, which holds answers synced from
+AnkiMobile and Anki as well as Franki's own, and only Franki-only cards from Franki's table.
+Counting Franki's table alone offered new cards already studied in Anki that day. **A card Anki
+buried today is held back until the next study day** (`isBuried`, from the card's `mod` when it
+was imported); one buried on an earlier day is studied, as Anki unburies at each new day. **Answering
+in Franki buries siblings as Anki does** (`siblingsToBury`, by the answered card's own preset's
+Burying options), in Franki's tables and in the kept collection in the answer's own transaction
+(queue -2), and undo restores them with the answer.
 
 **Counts shown in two places come from one function.** The deck list (`deckRows`) and the review
-screen both call `treeQueue`, so a deck never says "20 new" and then opens with none. A check that
+screen both call `treeQueue`, with input from `queueInput`, so a deck never says "20 new" and then
+opens with none. A check that
 predicts what another code path will do calls that code path's function; don't write a lookalike.
 
 **A progress gate replaces a deck's daily new-card limit** (`DeckSettings.gateCap`, set on Deck
@@ -268,11 +323,16 @@ answer is already in the server's history (`undoAnkiAnswer` refuses it, under `l
 
 ### Screens and styling
 
-- **Build screens from `src/ui/kit.tsx`** (`Screen`, `Button`, `Card`, `Help`, `HeaderAction`,
-  `Count`, `MessageList`) before styling a `Pressable` or a box by hand, so a header or a button
-  looks the same everywhere.
-- **`Screen` pads by the safe-area insets; never pad a screen's top or bottom by a fixed number.**
-  The status bar and Dynamic Island differ by iPhone, and a hard-coded 56 put headers under them.
+- **Build screens from `src/ui/kit.tsx`** (`Screen`, `Group`, `NavRow`, `Button`, `Card`, `Help`,
+  `Count`, `MessageList`) before styling a `Pressable` or a box by hand, so a row or a button
+  looks the same everywhere. Icons are SF Symbols (`Icon`), never a text glyph or an emoji (`›`, `✓`,
+  `🔊`), which draw at the wrong weight and size next to the system's. A button or chip is a
+  `Tappable`, not a hand-styled `Pressable`, so it gives under the finger, and a tap gives back a
+  haptic (`haptic`).
+- **The header is the native stack's, never drawn by a screen.** `Screen` sets the title and
+  header buttons; a ScrollView directly inside it takes `contentInsetAdjustmentBehavior="automatic"`
+  so the large title collapses. Never pad a screen's top or bottom by a fixed number: the status
+  bar and Dynamic Island differ by iPhone, and a hard-coded 56 put headers under them.
 - **Every color, gap, corner and text size comes from `src/ui/theme.ts`** (`useTheme()`, `space`,
   `radius`, `type`). `tests/noRawColors.test.ts` fails the build on a hex color in a screen; add a
   token with a light and a dark value instead. Text grows with the system text size, so a box
@@ -362,12 +422,54 @@ and never the server's files, so searches, note adds, scheduling and sync behave
   stored hashed.
 - **Tests run against a real `anki.syncserver`** with Anki itself as the other device
   (`tests/conftest.py`), and Azure faked (`FakeAzure`): `cd server/mcp && python -m pytest`, after
-  `pip install -r requirements-dev.txt`. CI runs them in their own job. Azure's request shapes are
-  unverified against a live key (`speech.py` says so).
-- Keep `anki` in `requirements.txt` at the version the sync server runs (`ANKI_VERSION`).
+  `pip install -r requirements-dev.txt ../speech`. CI runs them in their own job.
+- **Azure is called through one client shared with Read & Listen** (`server/speech`, the
+  `franki_speech` package), so a fix to how Azure is called reaches both. Both images are built from
+  `server/` to copy it (`server/.dockerignore` keeps `.env` out of the build). Azure's request
+  shapes are unverified against a live key (its docstring says which parts were checked).
+- Keep `anki` in `requirements.txt` at the version the sync server runs (`ANKI_VERSION`;
+  `tests/test_anki_version.py` checks).
 - **A merge to `main` that touches `server/` deploys itself** (`server/update.sh`, on a timer, within
-  about 15 minutes) and restarts sync and the MCP. A server change must work with nothing done by
+  about 15 minutes) and restarts sync, the MCP and Read & Listen. A server change must work with nothing done by
   hand on the server; if one truly needs a step there (a new `.env` setting), the PR says so plainly.
+
+### Read & Listen (`server/reader/`, `src/reader/`)
+
+Texts (dialogues, short stories) written by Claude from the words already in the Thai and Spanish
+decks, checked in code to be 95-98% known words, recorded with Azure's voices, read in the app with
+a gloss on every word. **`docs/read-and-listen/brief.md` is the spec, with the evidence behind each
+rule; `architecture.md` beside it has every decision since.** Where they and this file disagree,
+they win and this is stale. The rules that must not break:
+
+- **Never grade FSRS from exposure, and never create Anki cards or reviews without an explicit
+  approval step.** The server only reads the collection (`collection.py`; `test_collection.py`
+  checks a read leaves nothing to send), and the app's side imports nothing that schedules or
+  writes cards (`tests/reader/noGrading.test.ts` fails the build on it). Adding a marked word to the
+  deck goes through the note editor, opened by the `read-words` route, where saving is the approval, and at most
+  `MINING_PER_DAY` a study day (`src/reader/mining.ts`).
+- **Generate, then verify in code.** The model writes lines as `|`-split strings with stretch words
+  in `*asterisks*`; the server re-segments every line itself (lexicon-first for Thai, by lemma for
+  Spanish) and sends drafts under the floor back with the unknown words named. Never trust the
+  model to stay in vocabulary.
+- **A word counts as known only when its note is studied** (young or mature); a word found only
+  inside a studied phrase is partial and counts as unknown. Spanish also counts the 10,000 most
+  common word families.
+- **Batch and cache.** Texts are written in the background and queued, never inside a request, and
+  never one API call per word or page view.
+- **The owner picks the topic.** Already rejected, don't revisit: cloze cards, saving generated
+  sentences as Anki cards, rescheduling Thai cards.
+- **It reads Anki as a sync client of the sync server beside it**, through Anki's own `anki`
+  package like the MCP, every read under `with_timeout` (45 seconds) so a server that stops
+  answering leaves it on the last snapshot. Keep `anki` in `server/reader/pyproject.toml` at the
+  sync server's `ANKI_VERSION` (`tests/test_anki_version.py` checks).
+- It runs as the `reader` service in `server/docker-compose.yml`, under `/reader` on the sync
+  server's domain, with its own passphrase. Its keys (Claude, Azure) stay on the server, never in
+  the app.
+- **In the app, the server holds Read & Listen's data** (topics, texts, the reading log, marked
+  words, grammar choices, each language's deck); the screens fetch and show it, and keep nothing but
+  the passphrase, the reader's speed and highlight, and today's count of words added to the deck
+  (`src/reader/storage.ts`). The address is the sync server's plus
+  `/reader` (`readerAddress`), so it's on only while sync is.
 
 ### Backup
 

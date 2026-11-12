@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardDocument, clozeNumbers, fieldIsEmpty, renderTemplate, renderTemplateCard, templateOrdinals } from '../../src/core/template';
+import { cardDocument, clozeNumbers, fieldIsEmpty, renderTemplate, renderTemplateCard, sideAudio, templateOrdinals } from '../../src/core/template';
 import type { Note, NoteType } from '../../src/core/types';
 
 const geo: NoteType = {
@@ -37,11 +37,76 @@ describe('renderTemplate', () => {
     const ctx = { note, noteType: geo, ord: 0, side: 'front' as const };
     expect(renderTemplate('{{hint:Capital}}', ctx)).toMatch(/>Capital<\/a><div class="hint" style="display:none">Lima<\/div>/);
     expect(renderTemplate('{{text:Html}}', ctx)).toBe('bold');
-    expect(renderTemplate('{{type:Capital}}', ctx)).toBe('');
-    expect(renderTemplate('{{type:Capital}}', { ...ctx, side: 'back' })).toBe('Lima');
+    // As rslib: a placeholder for the reviewer's pass (renderTemplateCard).
+    expect(renderTemplate('{{type:Capital}}', ctx)).toBe('[[type:Capital]]');
+    expect(renderTemplate('{{type:cloze:Capital}} {{type:nc:Capital}} {{type:text:Capital}}', ctx)).toBe('[[type:cloze:Capital]] [[type:nc:Capital]] [[type:Capital]]');
     expect(renderTemplate('{{furigana:Reading}}', ctx)).toBe('<ruby><rb>日本</rb><rt>にほん</rt></ruby>');
     expect(renderTemplate('{{kana:Reading}}', ctx)).toBe('にほん');
-    expect(renderTemplate('{{tts en_US:Capital}}', ctx)).toBe('');
+    expect(renderTemplate('{{tts en_US speed=0.8:Capital}}', ctx)).toBe('[anki:tts lang=en_US speed=0.8]Lima[/anki:tts]');
+  });
+});
+
+describe('type the answer', () => {
+  const typed = (front: string, back: string): NoteType => ({ ...geo, templates: [{ ord: 0, name: 'Typed', front, back }] });
+
+  it('asks for the field under the card, and compares on the back where {{type:}} sits', () => {
+    const nt = typed('{{Country}}<br>{{type:Capital}}', '{{Country}}<hr id=answer>{{type:Capital}}');
+    const { front, back, typeAnswer } = renderTemplateCard(peru, nt, 0, 'Lma');
+    expect(front).toBe('Peru<br>');
+    expect(typeAnswer).toEqual({ expected: 'Lima', combining: true });
+    expect(back).toBe('Peru<hr id=answer><div><code id=typeans><span class=typeGood>L</span><span class=typeMissed>-</span><span class=typeGood>ma</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>L</span><span class=typeMissed>i</span><span class=typeGood>ma</span></code></div>');
+  });
+
+  it("shows the comparison where FrontSide's [[type:]] is, with the line moved above it, as Anki does", () => {
+    const nt = typed('{{Country}} {{type:Capital}}', '{{FrontSide}}<hr id=answer>{{Capital}}');
+    const { back } = renderTemplateCard(peru, nt, 0, 'Lima');
+    expect(back).toBe('Peru <hr id=answer><div><code id=typeans><span class=typeGood>Lima</span></code></div>Lima');
+  });
+
+  it("shows the answer alone when nothing was typed, and asks nothing for an empty field", () => {
+    const nt = typed('{{type:Capital}}', '{{type:Capital}}');
+    expect(renderTemplateCard(peru, nt, 0).back).toBe('<div><code id=typeans>Lima</code></div>');
+    const empty = renderTemplateCard({ ...peru, fields: { ...peru.fields, Capital: '' } }, nt, 0);
+    expect([empty.front, empty.back, empty.typeAnswer]).toEqual(['', '', undefined]);
+  });
+
+  it("says when the field isn't in the note type", () => {
+    const { front, typeAnswer } = renderTemplateCard(peru, typed('{{type:Nope}}', ''), 0);
+    expect([front, typeAnswer]).toEqual(['Type answer: unknown field Nope', undefined]);
+  });
+
+  it("types a cloze's text, and ignores accents with nc", () => {
+    const note: Note = { id: 'c', deck: 'D', model: 'Cloze', tags: [], fields: { Text: '{{c1::Łódź}} is in {{c2::Poland}}', Extra: '' } };
+    const nt: NoteType = { ...cloze, templates: [{ ord: 0, name: 'Cloze', front: '{{cloze:Text}}{{type:cloze:Text}}', back: '{{type:cloze:Text}}' }] };
+    expect(renderTemplateCard(note, nt, 0).typeAnswer).toEqual({ expected: 'Łódź', combining: true });
+    expect(renderTemplateCard(note, nt, 1).typeAnswer).toEqual({ expected: 'Poland', combining: true });
+    expect(renderTemplateCard(note, nt, 2).front).toContain("Type answer: cloze 3 isn't on this note.");
+    const nc = typed('{{type:nc:Capital}}', '{{type:nc:Capital}}');
+    const accented = { ...peru, fields: { ...peru.fields, Capital: 'Bogotá' } };
+    expect(renderTemplateCard(accented, nc, 0, 'Bogota').back).toBe('<div><code id=typeans><span class=typeGood>Bogotá</span></code></div>');
+  });
+});
+
+describe('reading aloud', () => {
+  const spoken: NoteType = { ...geo, templates: [{ ord: 0, name: 'Spoken', front: '{{Country}}{{tts es_ES:Capital}}', back: '{{FrontSide}}<hr id=answer>{{tts es_ES:Country}}' }] };
+
+  it('gives each side a play button per tag, and the back reads only its own', () => {
+    const { front, back } = renderTemplateCard(peru, spoken, 0);
+    expect(sideAudio(front)).toEqual({ tts: [{ text: 'Lima', lang: 'es_ES', voices: [], speed: 1 }], hasSound: false });
+    expect(sideAudio(back).tts.map((t) => t.text)).toEqual(['Peru']);
+    expect(cardDocument(front, { css: '', ord: 0, dark: false, autoplay: true })).toContain('onclick="speakTts(0);return false;"');
+  });
+
+  it("knows a side with a recording, which plays instead of being read", () => {
+    expect(sideAudio('[sound:lima.mp3][anki:tts lang=es_ES]Lima[/anki:tts]').hasSound).toBe(true);
+  });
+
+  it('reads only the cloze with cloze-only, as Anki does', () => {
+    const note: Note = { id: 'c', deck: 'D', model: 'Cloze', tags: [], fields: { Text: '{{c1::Lima}} and {{c1::Cusco::city}} are in {{c2::Peru}}', Extra: '' } };
+    const nt: NoteType = { ...cloze, templates: [{ ord: 0, name: 'Cloze', front: '{{cloze:Text}}{{tts es_ES:cloze-only:Text}}', back: '{{tts es_ES:cloze-only:Text}}' }] };
+    const card = renderTemplateCard(note, nt, 0);
+    expect(sideAudio(card.front).tts[0].text).toBe('..., city');
+    expect(sideAudio(card.back).tts[0].text).toBe('Lima, Cusco');
   });
 });
 

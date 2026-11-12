@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   checkAnswer, chooseForms, formsOf, formsSettings, formsSuggestion, headword, introductions, patternOf, patternPrompts,
-  practiceChoices, practicePool, promptFor, sentenceGap, unreadableNotice, withoutArticle, wordPrompts, type PracticeRecord,
+  practiceChoices, practicePool, promptFor, drillPrompts, studiedWords, sentenceGap, unreadableNotice, withoutArticle, wordPrompts, type PracticeRecord,
 } from '../../src/core/forms';
+import { newSchedState } from '../../src/core/scheduler';
 import type { Note } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -248,5 +249,29 @@ describe('unreadableNotice', () => {
     const notice = unreadableNotice([esperar({ Forms: 'present · yo: espero<br>espero<br>esperas' })]);
     expect(notice).toContain('(2 in esperar)');
     expect(notice).toContain('"present · yo: espero"');
+  });
+});
+
+describe('drillPrompts', () => {
+  const hablar = esperar({ Entry: 'hablar', Forms: 'present · yo: hablo<br>present · tú: hablas', Context: 'Hablo poco.' }, 'hablar');
+  const notes = [esperar(), hablar];
+  const studied = (noteId: string) => ({ id: `${noteId}:forward`, noteId, kind: 'forward' as const, suspended: false, retired: false, sched: { ...newSchedState(NOW), state: 2 } });
+  const data = { notes, cards: [studied('esperar')], practice: [], dayStartsAtHour: DAY_START };
+
+  it("asks the words named, up to the number per word", () => {
+    const { prompts } = drillPrompts({ kind: 'words', noteIds: ['hablar', 'gone'], perWord: 6 }, data, seeded());
+    expect(prompts.map((p) => p.noteId)).toEqual(['hablar', 'hablar']);
+  });
+  it('practices a pattern with studied words only, and in a sentence only forms the sentence holds', () => {
+    const request = { kind: 'pattern' as const, deck: '👅 Languages', patterns: ['-ar, regular'], groups: ['present'], sentence: false };
+    expect(new Set(drillPrompts(request, data, seeded()).prompts.map((p) => p.noteId))).toEqual(new Set(['esperar']));
+    const both = { ...data, cards: [studied('esperar'), studied('hablar')] };
+    const inSentence = drillPrompts({ ...request, sentence: true }, both, seeded()).prompts;
+    expect(inSentence.map((p) => p.key).sort()).toEqual(['present · yo', 'present · yo']);
+    expect(inSentence.every((p) => p.sentence)).toBe(true);
+  });
+  it('lists studied words in a deck and its subdecks', () => {
+    expect(studiedWords('👅 Languages', notes, [studied('hablar')]).map((w) => w.note.id)).toEqual(['hablar']);
+    expect(studiedWords('Other', notes, [studied('hablar')])).toEqual([]);
   });
 });

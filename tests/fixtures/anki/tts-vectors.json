@@ -1,0 +1,141 @@
+[
+ {
+  "html": "[anki:tts lang=en_US]Hello[/anki:tts]",
+  "tags": [
+   {
+    "text": "Hello",
+    "lang": "en_US",
+    "voices": [],
+    "speed": 1.0
+   }
+  ],
+  "rendered": "[anki:play:q:0]"
+ },
+ {
+  "html": "[anki:tts lang=th_TH voices=Apple_Kanya,Apple_Narisa speed=0.8]สวัสดี[/anki:tts]",
+  "tags": [
+   {
+    "text": "สวัสดี",
+    "lang": "th_TH",
+    "voices": [
+     "Apple_Kanya",
+     "Apple_Narisa"
+    ],
+    "speed": 0.8
+   }
+  ],
+  "rendered": "[anki:play:q:0]"
+ },
+ {
+  "html": "[anki:tts lang=pl_PL]<b>kot</b><br>pies&nbsp;i&amp;ryba<div>koń</div>[/anki:tts]",
+  "tags": [
+   {
+    "text": "kot pies i&ryba koń ",
+    "lang": "pl_PL",
+    "voices": [],
+    "speed": 1.0
+   }
+  ],
+  "rendered": "[anki:play:q:0]"
+ },
+ {
+  "html": "[anki:tts lang=de_DE]Ich <span class=\"cloze\">[...]</span> nach Hause[/anki:tts]",
+  "tags": [
+   {
+    "text": "Ich blank nach Hause",
+    "lang": "de_DE",
+    "voices": [],
+    "speed": 1.0
+   }
+  ],
+  "rendered": "[anki:play:q:0]"
+ },
+ {
+  "html": "[anki:tts lang=de_DE cloze_blank=hmm]Ich [...] nach Hause[/anki:tts]",
+  "tags": [
+   {
+    "text": "Ich hmm nach Hause",
+    "lang": "de_DE",
+    "voices": [],
+    "speed": 1.0
+   }
+  ],
+  "rendered": "[anki:play:q:0]"
+ },
+ {
+  "html": "[anki:tts lang=en_US speed=foo]bad speed[/anki:tts]",
+  "tags": [
+   {
+    "text": "bad speed",
+    "lang": "en_US",
+    "voices": [],
+    "speed": 1.0
+   }
+  ],
+  "rendered": "[anki:play:q:0]"
+ },
+ {
+  "html": "[anki:tts lang=\"en_US\" voices=\"A B\"]quoted[/anki:tts]",
+  "tags": [
+   {
+    "text": "quoted",
+    "lang": "en_US",
+    "voices": [
+     "A B"
+    ],
+    "speed": 1.0
+   }
+  ],
+  "rendered": "[anki:play:q:0]"
+ },
+ {
+  "html": "[anki:tts voices=Bob]no language[/anki:tts]",
+  "tags": [],
+  "rendered": "[Error in directive '⁨anki:tts⁩': ⁨'⁨lang⁩' not set⁩]"
+ },
+ {
+  "html": "front [sound:a.mp3] [anki:tts lang=ru_RU]мир[/anki:tts] and [anki:tts lang=es_ES]paz[/anki:tts]",
+  "tags": [
+   {
+    "sound": "a.mp3"
+   },
+   {
+    "text": "мир",
+    "lang": "ru_RU",
+    "voices": [],
+    "speed": 1.0
+   },
+   {
+    "text": "paz",
+    "lang": "es_ES",
+    "voices": [],
+    "speed": 1.0
+   }
+  ],
+  "rendered": "front [anki:play:q:0] [anki:play:q:1] and [anki:play:q:2]"
+ },
+ {
+  "html": "[anki:tts lang=en_US]line<br/>break<p>para</p>[/anki:tts]",
+  "tags": [
+   {
+    "text": "linebreak para ",
+    "lang": "en_US",
+    "voices": [],
+    "speed": 1.0
+   }
+  ],
+  "rendered": "[anki:play:q:0]"
+ },
+ {
+  "html": "[anki:tts lang=en_US bar=baz]extra option[/anki:tts]",
+  "tags": [
+   {
+    "text": "extra option",
+    "lang": "en_US",
+    "voices": [],
+    "speed": 1.0
+   }
+  ],
+  "rendered": "[anki:play:q:0]"
+ }
+]

@@ -9,7 +9,11 @@ import { WebView } from 'react-native-webview';
  * for a page that itself came from a file URL, with read access granted to the folder above both.
  * An HTML string with a file:// baseUrl doesn't get that access.
  */
-export function CardWebView({ html }: { html: string }) {
+export function CardWebView({ html, onMessage }: {
+  html: string;
+  /** What the page posts: a tts play button's `{"tts": i}` (cardDocument's speakTts). */
+  onMessage?: (data: string) => void;
+}) {
   const [uri, setUri] = useState<string>();
   const seq = useRef(0);
 
@@ -42,6 +46,7 @@ export function CardWebView({ html }: { html: string }) {
       allowFileAccess
       allowFileAccessFromFileURLs
       mediaPlaybackRequiresUserAction={false}
+      onMessage={(e) => onMessage?.(e.nativeEvent.data)}
       style={{ flex: 1, backgroundColor: 'transparent' }}
     />
   );

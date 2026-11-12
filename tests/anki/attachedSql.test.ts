@@ -5,10 +5,12 @@ import { describe, expect, it } from 'vitest';
 import { inSchema, keptSql, stripUnicaseIn } from '../../src/anki/attachedSql';
 import { buildExport, COLLECTION_QUERIES, type CollectionRows } from '../../src/anki/collection';
 import { readPackage, writePackage } from '../../src/anki/package';
-import { cardRestoreParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams, type AnkiCardRow } from '../../src/anki/writeback';
+import { cardRestoreParams, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams, type AnkiCardRow } from '../../src/anki/writeback';
 import { review } from '../../src/core/scheduler';
+import { isBuried } from '../../src/core/queue';
 import type { Card } from '../../src/core/types';
 import { importAnkiJson } from '../../src/import/ankiJson';
+import { readCollectionRows } from '../support/ankiRows';
 import { bytesSource, fileSource, memorySink, writeBytes } from '../support/bytes';
 
 const DIR = join(__dirname, '..', 'fixtures', 'anki');
@@ -83,6 +85,16 @@ describe('the app\'s SQL against attached Anki collections', () => {
     db.prepare(SQL.revlogDelete).run(undone.id);
     db.exec('COMMIT');
     expect((db.prepare(SQL.unsentSince).get(0) as any).n).toBeGreaterThanOrEqual(1);
+    // writeAnkiAnswer's bury: a sibling held back as Anki's scheduler buries it, then undone with
+    // its answer, which puts the sibling's row back exactly as it was.
+    const first = cards.find((c) => c.sched.state === 0 && !c.suspended && cards.some((s) => s.noteId === c.noteId && s.id !== c.id))!;
+    const sibCid = Number(cards.find((s) => s.noteId === first.noteId && s.id !== first.id)!.ankiId);
+    const sibRow = db.prepare(SQL.cardRow).get(sibCid);
+    db.prepare(SQL.buryCard).run(Math.floor(now.getTime() / 1000), sibCid);
+    const buried = db.prepare(SQL.cardRow).get(sibCid) as any;
+    expect([buried.queue, buried.usn, buried.mod]).toEqual([-2, -1, Math.floor(now.getTime() / 1000)]);
+    db.prepare(SQL.cardUpdate).run(...cardRestoreParams(sibRow as any, sibCid));
+    expect(db.prepare(SQL.cardRow).get(sibCid)).toEqual(sibRow);
     // Stats read the review log from a time on: the kept answer is there, the undone one isn't.
     const log = db.prepare(SQL.revlogSince).all(now.getTime() - 1000) as any[];
     expect(log.map((r) => [r.id, r.cid, r.ease])).toEqual([[kept1.id, kept1.cid, 3]]);
@@ -110,5 +122,32 @@ describe('the app\'s SQL against attached Anki collections', () => {
       writeBytes(`${process.env.FRANKI_VERIFY_OUT}.answers.json`, new TextEncoder().encode(JSON.stringify([{ cid: kept1.cid, ease: kept1.rating }])));
     }
     expect(out.bytes().length).toBeGreaterThan(1000);
+  });
+
+  it("writes a card's suspend, bury and flag into the kept collection, and reads them back as Anki does", async () => {
+    const { DatabaseSync } = await import('node:sqlite');
+    const work = mkdtempSync(join(tmpdir(), 'att-state-'));
+    const kept = join(work, 'collection.anki2');
+    copyFileSync(join(DIR, 'collection.anki2'), kept);
+    const db = new DatabaseSync(join(work, 'franki.db'));
+    db.prepare('ATTACH DATABASE ? AS anki').run(kept);
+    const SQL = keptSql('anki');
+    const now = new Date(2026, 10, 11, 12);
+    const [a, b] = (db.prepare('SELECT id FROM anki.cards WHERE queue >= 0 ORDER BY id LIMIT 2').all() as any[]).map((r) => Number(r.id));
+    // setAnkiCardStates, for each change.
+    const set = (cid: number, state: { suspended: boolean; buried: boolean; flag: number }) =>
+      db.prepare(SQL.cardStateUpdate).run(...cardStateParams(db.prepare(SQL.cardState).get(cid) as any, state, now, cid));
+    set(a, { suspended: true, buried: false, flag: 2 });
+    set(b, { suspended: false, buried: true, flag: 0 });
+    db.exec('DETACH DATABASE anki');
+    db.close();
+
+    const cards = importAnkiJson(buildExport(await readCollectionRows(kept)), { now }).cards;
+    const byAnki = (cid: number) => cards.find((c) => c.ankiId === String(cid))!;
+    expect([byAnki(a).suspended, byAnki(a).flag]).toEqual([true, 2]);
+    expect(isBuried(byAnki(b), now, 4)).toBe(true);
+    const check = new DatabaseSync(kept, { readOnly: true });
+    expect(check.prepare('SELECT queue, flags, usn FROM cards WHERE id = ?').get(b)).toEqual({ queue: -3, flags: 0, usn: -1 });
+    check.close();
   });
 });
