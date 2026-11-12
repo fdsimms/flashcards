@@ -21,6 +21,13 @@ describe('repo', () => {
     expect(await repo.showCardHints()).toBe(true);
   });
 
+  it('draws Thai at Large until another size is chosen', async () => {
+    const repo = new MemoryRepo();
+    expect(await repo.thaiTextSize()).toBe('large');
+    await repo.saveThaiTextSize('largest');
+    expect(await repo.thaiTextSize()).toBe('largest');
+  });
+
   it('keeps the voices chosen for each language', async () => {
     const repo = new MemoryRepo();
     expect(await repo.voiceSettings()).toEqual({});

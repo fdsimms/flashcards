@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View, type TextStyle } from 'react-native';
 import { markSegments } from '../core/highlight';
-import { hasThai } from '../core/script';
+import { DEFAULT_THAI_TEXT_SIZE, hasThai, thaiTextStyle, type ThaiTextSize } from '../core/script';
 import type { RenderedSide } from '../core/types';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
@@ -32,8 +32,11 @@ function MarkedText({ text, mark, style, c }: { text: string; mark?: string; sty
  * sentence's lines sit close together with the word highlighted, and a note is set off in a box.
  * `showHints` shows the lines Anki hides behind a tap (romanization, translation) without one.
  */
-export function Side({ side, which, showHints }: { side: RenderedSide; which: 'front' | 'back'; showHints: boolean }) {
+export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE }: {
+  side: RenderedSide; which: 'front' | 'back'; showHints: boolean; thaiSize?: ThaiTextSize;
+}) {
   const c = useTheme();
+  const thai = thaiTextStyle(thaiSize);
   // Blocks with a tapLabel (Anki's {{hint:Field}}) stay hidden until tapped; each Side is keyed by card,
   // so what was tapped open is closed again on the next card.
   const [shownHints, setShownHints] = useState<ReadonlySet<number>>(new Set());
@@ -65,7 +68,7 @@ export function Side({ side, which, showHints }: { side: RenderedSide; which: 'f
 
   const line = ({ b, i }: Item) => {
     if (b.role === 'example') {
-      return <MarkedText key={i} text={b.text} mark={b.mark} c={c} style={{ fontSize: type.title.fontSize, lineHeight: 34, color: c.text }} />;
+      return <MarkedText key={i} text={b.text} mark={b.mark} c={c} style={{ ...(hasThai(b.text) ? thai : { fontSize: type.title.fontSize, lineHeight: 34 }), color: c.text }} />;
     }
     if (b.role === 'exampleRomanized' || b.role === 'exampleTranslation') {
       return <MarkedText key={i} text={b.text} mark={b.mark} c={c} style={{ ...type.subhead, lineHeight: 21, color: c.textSecondary }} />;
@@ -117,10 +120,10 @@ export function Side({ side, which, showHints }: { side: RenderedSide; which: 'f
                 <Text style={{ ...(which === 'front' ? type.cardFront : type.cardBack), color: c.text, textAlign: 'center' }}>{b.text}</Text>
               ) : (
                 // A field can hold Thai and its romanization on separate lines; the Thai lines get the
-                // size of an example sentence, since Thai is hard to read at body size.
+                // size of an example sentence, since Thai is hard to read at body size (the size is a setting).
                 <View style={{ gap: space.xs }}>
                   {b.text.split('\n').map((ln, k) => (hasThai(ln)
-                    ? <Text key={k} style={{ fontSize: type.title.fontSize, lineHeight: 34, color: c.text }}>{ln}</Text>
+                    ? <Text key={k} style={{ ...thai, color: c.text }}>{ln}</Text>
                     : <Text key={k} style={{ ...type.body, color: c.textSecondary, lineHeight: 24 }}>{ln}</Text>))}
                 </View>
               )}
