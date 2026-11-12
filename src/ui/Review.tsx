@@ -44,9 +44,21 @@ import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from '
  */
 function Side({ side, which }: { side: RenderedSide; which: 'front' | 'back' }) {
   const c = useTheme();
+  // Blocks with a tapLabel (Anki's {{hint:Field}}) stay hidden until tapped; each Side is keyed by card.
+  const [shownHints, setShownHints] = useState<ReadonlySet<number>>(new Set());
   return (
     <View style={{ gap: space.m }}>
       {side.blocks.map((b, i) => (
+        b.tapLabel && !shownHints.has(i) ? (
+          <Tappable
+            key={i}
+            accessibilityRole="button"
+            onPress={() => { haptic.select(); setShownHints((prev) => new Set(prev).add(i)); }}
+            style={{ alignSelf: 'center', minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.m }}
+          >
+            <Text style={{ ...type.callout, color: c.accent }}>{b.tapLabel}</Text>
+          </Tappable>
+        ) : (
         <View key={i} style={{ gap: space.xs }}>
           {b.label ? (
             <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text>
@@ -59,6 +71,7 @@ function Side({ side, which }: { side: RenderedSide; which: 'front' | 'back' }) 
             {b.text}
           </Text>
         </View>
+        )
       ))}
     </View>
   );
@@ -783,7 +796,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
           <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the card, so each new one fades in rather than swapping. */}
             <Reveal key={current.id} rise={10} style={{ gap: space.xl }}>
-              <Side side={rendered.front} which="front" />
+              <Side key={current.id} side={rendered.front} which="front" />
               {playbackFor(rendered, revealed) ? (
                 <Tappable
                   onPress={() => { haptic.tap(); speak(playbackFor(rendered, revealed)); }}
@@ -803,7 +816,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
             {revealed ? (
               <Reveal rise={8} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
-                <Side side={rendered.back} which="back" />
+                <Side key={current.id} side={rendered.back} which="back" />
                 {extras}
               </Reveal>
             ) : null}

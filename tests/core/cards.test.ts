@@ -21,6 +21,15 @@ describe('cards', () => {
     const r = renderCard(omniNote({ Meaning: 'a <b>book</b><br>(noun) [sound:x.mp3]' }), 'forward');
     expect(r.back.blocks.find((b) => b.text.startsWith('a book'))?.text).toBe('a book\n(noun)');
   });
+  it("hides what Anki's template wraps in {{hint:}} behind a tap-to-show label", () => {
+    const note = omniNote({ Transliteration: 'nang-suu', Context: 'Ctx', ContextRomanized: 'rom', ContextTranslation: 'He reads.' });
+    const back = renderCard(note, 'forward').back.blocks;
+    expect(back.find((b) => b.text === 'nang-suu')?.tapLabel).toBe('Show transliteration');
+    expect(back.find((b) => b.text === 'rom')?.tapLabel).toBe('Show romanization');
+    expect(back.find((b) => b.text === 'He reads.')?.tapLabel).toBe('Show translation');
+    expect(back.find((b) => b.text === 'Ctx')?.tapLabel).toBeUndefined();
+    expect(back.find((b) => b.text === 'book')?.tapLabel).toBeUndefined();
+  });
   it('renders plain Front/Back notes for trivia', () => {
     const note: Note = { id: 't', deck: 'Trivia', model: 'Basic', fields: { Front: 'Capital of Peru?', Back: 'Lima' }, tags: [] };
     const r = renderCard(note, 'forward');

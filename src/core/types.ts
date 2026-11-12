@@ -163,7 +163,13 @@ export interface ReviewLogEntry {
 
 export interface RenderedSide {
   /** Labeled blocks shown in order. */
-  blocks: { label?: string; text: string; emphasis?: boolean }[];
+  blocks: {
+    label?: string;
+    text: string;
+    emphasis?: boolean;
+    /** Anki's `{{hint:Field}}`: the text stays hidden behind a tap-to-show link with this label. */
+    tapLabel?: string;
+  }[];
   /** Text to speak aloud for this side, if any. */
   speak?: string;
 }
