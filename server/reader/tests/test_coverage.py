@@ -114,9 +114,9 @@ def test_stretch_words_are_listed_once_in_order(lexicon: Lexicon) -> None:
 
 def test_floor() -> None:
     lexicon = Lexicon(["ฉัน"])
-    nineteen_known = ["ฉัน"] * 19
-    assert check([*nineteen_known, "ทอน"], lexicon).meets(FLOOR)
-    assert not check([*nineteen_known[:18], "ทอน"], lexicon).meets(FLOOR)
+    nine_known = ["ฉัน"] * 9
+    assert check([*nine_known, "ทอน"], lexicon).meets(FLOOR)
+    assert not check([*nine_known[:8], "ทอน"], lexicon).meets(FLOOR)
 
 
 def test_empty_text_does_not_pass() -> None:

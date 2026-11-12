@@ -59,6 +59,9 @@ export interface Repo {
   /** Whether a revealed card can be swiped to answer it (right Good, left Again). Off by default; this phone's own. */
   swipeToRate(): Promise<boolean>;
   saveSwipeToRate(on: boolean): Promise<void>;
+  /** Whether a card's romanization and translation show without a tap. Off by default; this phone's own. */
+  showCardHints(): Promise<boolean>;
+  saveShowCardHints(on: boolean): Promise<void>;
   /** Logs one answered forms practice prompt. Franki's own: never written to Anki. */
   addPractice(record: PracticeRecord): Promise<void>;
   /** Forms practice logged at or after `since` (all of it without), oldest first. */
@@ -82,6 +85,7 @@ export class MemoryRepo implements Repo {
   deckSettings = new Map<string, DeckSettings>();
   answerButtonsSetting: string | null = null;
   swipeToRateSetting = false;
+  showCardHintsSetting = false;
   practice: PracticeRecord[] = [];
   formsAnswerModeSetting: 'pick' | 'type' = 'pick';
   voiceSettingsValue = '{}';
@@ -162,6 +166,8 @@ export class MemoryRepo implements Repo {
   async saveCollectionSettings(settings: CollectionSettings) { this.collectionSettingsValue = settings; }
   async swipeToRate() { return this.swipeToRateSetting; }
   async saveSwipeToRate(on: boolean) { this.swipeToRateSetting = on; }
+  async showCardHints() { return this.showCardHintsSetting; }
+  async saveShowCardHints(on: boolean) { this.showCardHintsSetting = on; }
   async addPractice(record: PracticeRecord) { this.practice.push({ ...record }); }
   async listPractice(since?: Date) {
     return this.practice

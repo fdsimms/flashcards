@@ -316,15 +316,26 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   (`สวัสดี|ครับ ไป|ไหน`), the server keeps it (one beside a `|` is dropped as noise), the reader
   shows it as a gap, and the voice pauses there (Audio). Before this every Thai space was dropped,
   so a two-sentence line was spoken as one run with no pause; texts written then still are.
+- **A target range, not only a floor** (owner's decision, 12 November 2026). The 95% floor with a
+  98% aim gave texts that were nearly all known words, so every dialogue was too easy. The target
+  now starts at 92% (`DEFAULT_FLOOR`, `difficulty.py`) and "too easy" ratings lower it to 90%
+  (`FLOOR`, `coverage.py`), "too hard" raises it to 99%. A text also has a ceiling, `CEILING_GAP`
+  (4 points) above the target, and a draft over it goes back for revision with a message asking for
+  more natural words outside the list, each glossed. A text still over the ceiling after 3 attempts
+  is served anyway (too easy is never a reason to drop one), choosing the attempt closest to the
+  range. The request names the range, and the prompt tells the model to write natural target-language
+  speech rather than word-for-word English idioms. Difficulty is saved under a new key
+  (`difficulty_v2`), so every language restarts at 92% once, rather than staying at an old 95%.
+  The 95% below is the old floor; read it as the target.
 - **Revise rather than regenerate.** A text under the 95% floor goes back to the model with the
   unknown words named ("replace ทอน, กลิ่น"). At most 3 attempts in total.
 - **The closest attempt is kept** (owner's decision, 26 October 2026, so texts don't fail for
   being a little short). If none of the 3 attempts reaches the floor, the one with the highest
-  coverage is served, as long as it's at least 90% (`MINIMUM` in `coverage.py`); under 90% the text
+  coverage is served, as long as it's at least 85% (`MINIMUM` in `coverage.py`, 90% until 12 November 2026); under 85% the text
   is dropped as before. 90% is where the brief's evidence says listening comprehension already
   varied widely between people. All 3 attempts are still made first, and the prompt asks the model
   to check every word against the list before answering, so most texts meet the floor. The reader
-  notes a text under 95% ("fewer than usual") and offers to highlight the words outside the deck,
+  notes a text under 90% ("fewer than usual") and offers to highlight the words outside the deck,
   each of which has a gloss. Since the texts table records each text's coverage and floor, how
   often this happens can be read from it, and the exit check's median coverage still counts these
   texts as they are.
@@ -447,7 +458,7 @@ are listed at the top of `server/reader/src/franki_reader/app.py`.
 - Per text: date, language, mode, token count, verified coverage, stretch words, words glossed,
   words flagged unknown, rating, audio speed, listen-only or not, time spent.
 - The rating adjusts the difficulty of texts written after it (too hard: coverage target up 1
-  point, one fewer stretch word; too easy: the reverse), within a 95% to 99% target and 1 to 3
+  point, one fewer stretch word; too easy: the reverse), within a 90% to 99% target (92% to start) and 1 to 3
   stretch words (`server/reader/src/franki_reader/difficulty.py`). A text already waiting in a favorite's queue
   keeps the difficulty it was written at, so a rating shows up one text later; the owner chose that
   over discarding queued texts (19 October 2026). The Milestone 1 exit check reads the log.

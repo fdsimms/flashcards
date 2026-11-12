@@ -610,9 +610,14 @@ def clear_word(conn: sqlite3.Connection, word: str, now: datetime) -> None:
 # ==== Difficulty ====
 
 
+# v2: the range moved down on 12 November 2026 (95% was the old lowest target), so a floor saved
+# before it, which can't go below 95%, starts again at the new default rather than staying there.
+_DIFFICULTY_KEY = "difficulty_v2"
+
+
 def load_difficulty(conn: sqlite3.Connection, language: Code = "th") -> Difficulty:
     """Each language has its own, moved by ratings of texts in that language."""
-    raw = _get_meta(conn, _per_language("difficulty", language))
+    raw = _get_meta(conn, _per_language(_DIFFICULTY_KEY, language))
     return Difficulty(**json.loads(raw)) if raw else Difficulty()
 
 
@@ -620,7 +625,7 @@ def save_difficulty(
     conn: sqlite3.Connection, difficulty: Difficulty, language: Code = "th"
 ) -> None:
     with conn:
-        _set_meta(conn, _per_language("difficulty", language), json.dumps(difficulty.__dict__))
+        _set_meta(conn, _per_language(_DIFFICULTY_KEY, language), json.dumps(difficulty.__dict__))
 
 
 # ==== Grammar ====

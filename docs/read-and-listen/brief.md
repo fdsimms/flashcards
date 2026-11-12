@@ -103,6 +103,11 @@ constraints.
 2. **Coverage floor 95%, target 98%.** Texts below 95% known words are regenerated, not shown.
    Listen-first texts aim for 98% or higher, since speech can't be reread.
 
+   > **Changed on 12 November 2026 by the owner.** At 95% to 98%, every text came out too easy (a
+   > 12-line dialogue held almost no word they hadn't studied). The target now starts at 92% and a
+   > rating moves it between 90% and 99%, and a text more than 4 points above the target is too
+   > easy and is revised like one under it. The 90% below became 85%. See `architecture.md`.
+
    > **Changed on 26 October 2026 by the owner.** A text under the floor is still revised, but if
    > no attempt reaches it, the closest attempt is shown when it's at least 90% known words, with a
    > note in the reader. Under 90% is still rejected. See `architecture.md`.

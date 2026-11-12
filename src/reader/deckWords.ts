@@ -11,9 +11,10 @@ export function countOutsideDeck(text: ReaderText): number {
   return text.lines.reduce((n, line) => n + line.words.filter(isOutsideDeck).length, 0);
 }
 
-// The usual floor. A text under it is the closest of the server's attempts, kept because it's still
-// at 90% or more (docs/read-and-listen/architecture.md, Generation and coverage), so the reader says so.
-export const FLOOR = 0.95;
+// The lowest coverage target (`FLOOR` in server/reader/src/franki_reader/coverage.py). A text under
+// it is the closest of the server's attempts, kept because it's still at 85% or more
+// (docs/read-and-listen/architecture.md, Generation and coverage), so the reader says so.
+export const FLOOR = 0.9;
 
 export function underFloor(text: ReaderText): boolean {
   return text.coverage < FLOOR;
