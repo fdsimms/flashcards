@@ -6,7 +6,7 @@ import { LANGUAGES } from '../reader/languages';
 import { cardDetail, playMinutes, playOrder, reasonLabel, surprisePick } from '../reader/shelf';
 import { haptic } from './haptics';
 import { Button, Card, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
-import { MIN_TAP, radius, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, radius, space, type, useTheme } from './theme';
 
 /**
  * Read & Listen's home: one language's shelf (docs/read-and-listen/architecture.md, Shelf). On top,
@@ -324,7 +324,7 @@ function StoryCard({ api, shelf, onOpen, onStarted }: { api: Api; shelf: Shelf; 
   const next = story.next;
   const episode = next ? next.episode : story.read + 1;
   return (
-    <Card style={{ borderColor: c.accent, gap: space.s }}>
+    <Card style={{ borderColor: c.accent, gap: space.m }}>
       <Text style={{ ...type.overline, color: c.accent }}>{`${name} · Episode ${episode}`}</Text>
       {next ? (
         <>
@@ -350,7 +350,12 @@ function StoryCard({ api, shelf, onOpen, onStarted }: { api: Api; shelf: Shelf; 
       ) : (
         <Help>The next episode is written when you pull down or come back here.</Help>
       )}
-      {story.last_recap ? <Help>{`Last time: ${story.last_recap}`}</Help> : null}
+      {story.last_recap ? (
+        <View style={{ marginTop: space.s, paddingTop: space.m, gap: space.xs, borderTopWidth: hairline, borderTopColor: c.border }}>
+          <Text style={{ ...type.overline, color: c.textSecondary }}>Last time</Text>
+          <Help>{story.last_recap}</Help>
+        </View>
+      ) : null}
     </Card>
   );
 }
