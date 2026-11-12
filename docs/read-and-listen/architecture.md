@@ -287,6 +287,11 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   server removes them, splits the line again with the lexicon-first segmenter, and computes coverage
   from that. The model's breaks are only a cross-check, and the asterisks still mark stretch words.
   The reader's tap targets come from the server's split.
+- **A Thai space is a clause break** (12 November 2026). Written Thai has no commas or periods; a
+  space ends a clause or sentence. The model puts a space instead of `|` there
+  (`สวัสดี|ครับ ไป|ไหน`), the server keeps it (one beside a `|` is dropped as noise), the reader
+  shows it as a gap, and the voice pauses there (Audio). Before this every Thai space was dropped,
+  so a two-sentence line was spoken as one run with no pause; texts written then still are.
 - **Revise rather than regenerate.** A text under the 95% floor goes back to the model with the
   unknown words named ("replace ทอน, กลิ่น"). At most 3 attempts in total.
 - **The closest attempt is kept** (owner's decision, 26 October 2026, so texts don't fail for
@@ -392,6 +397,9 @@ are listed at the top of `server/reader/src/franki_reader/app.py`.
   called through the client shared with the MCP (`server/speech`, `franki_speech`, since 12 November
   2026), whose docstring says which parts of the API were checked; the first real call is the check
   for the rest.
+- In Thai, each space between clauses becomes a 300 ms SSML `<break>` (`THAI_PAUSE` in
+  `franki_speech`), since a voice may not pause at a bare space. It applies to the MCP's
+  `add_tts_audio` too. Audio already cached keeps no pauses.
 - Each line is spoken once at normal speed and cached as an MP3 on the volume
   (`READER_AUDIO_DIR/<text>/<line>.mp3`). A new text gets its audio before it counts as ready; a line
   with no audio yet is made when it's first asked for, which covers texts written before the Azure
