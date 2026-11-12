@@ -189,6 +189,8 @@ export interface PracticeRecord {
   correct: boolean;
   /** ISO. */
   practicedAt: string;
+  /** What was typed or picked. Absent on practice logged before it was kept. */
+  given?: string;
 }
 
 /** Keys missed in a note's latest practice (its latest study day with any), most recent first. */

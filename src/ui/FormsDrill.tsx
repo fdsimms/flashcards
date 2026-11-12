@@ -55,8 +55,8 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
   const current = answered.length > index ? answered[index] : undefined;
   const picking = mode === 'pick' && !!prompt?.choices;
 
-  const log = async (p: FormPrompt, correct: boolean) => {
-    const record: PracticeRecord = { noteId: p.noteId, key: p.key, correct, practicedAt: new Date().toISOString() };
+  const log = async (p: FormPrompt, correct: boolean, given: string) => {
+    const record: PracticeRecord = { noteId: p.noteId, key: p.key, correct, practicedAt: new Date().toISOString(), given };
     await repo.addPractice(record);
   };
 
@@ -66,7 +66,7 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
     try {
       // A pick is the form or it isn't: a choice one accent away is another form, not a typo.
       const verdict: Verdict = picked ? (prompt.answers.includes(given) ? 'right' : 'wrong') : checkAnswer(given, prompt.answers);
-      await log(prompt, verdict === 'right');
+      await log(prompt, verdict === 'right', given);
       if (verdict === 'right') haptic.success(); else haptic.select();
       setAnswered((a) => [...a, { prompt, given, verdict, counted: false }]);
     } finally {
@@ -79,7 +79,7 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
     if (!current || current.verdict !== 'almost' || current.counted || busy.current) return;
     busy.current = true;
     try {
-      await log(current.prompt, true);
+      await log(current.prompt, true, current.given);
       setAnswered((a) => a.map((x, i) => (i === index ? { ...x, counted: true } : x)));
     } finally {
       busy.current = false;
