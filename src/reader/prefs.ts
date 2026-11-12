@@ -1,10 +1,10 @@
-// The reader's settings that last between launches: playback speed and whether words outside the
-// deck are highlighted. Pure, so it's tested; storage.ts keeps them in the Keychain.
+// The reader's settings that last between launches: playback speed, whether words outside the
+// deck are highlighted, and whether a story with paragraphs is shown as paragraphs. Pure, so it's tested; storage.ts keeps them in the Keychain.
 import { RATES } from './playbackRate';
 
-export type Prefs = { rate: number; highlight: boolean };
+export type Prefs = { rate: number; highlight: boolean; paragraphs: boolean };
 
-export const DEFAULT_PREFS: Prefs = { rate: 0.9, highlight: false };
+export const DEFAULT_PREFS: Prefs = { rate: 0.9, highlight: false, paragraphs: true };
 
 // Anything unreadable or out of range falls back to the default for that setting.
 export function parsePrefs(raw: string | null): Prefs {
@@ -18,5 +18,6 @@ export function parsePrefs(raw: string | null): Prefs {
   return {
     rate: typeof saved.rate === 'number' && RATES.includes(saved.rate) ? saved.rate : DEFAULT_PREFS.rate,
     highlight: typeof saved.highlight === 'boolean' ? saved.highlight : DEFAULT_PREFS.highlight,
+    paragraphs: typeof saved.paragraphs === 'boolean' ? saved.paragraphs : DEFAULT_PREFS.paragraphs,
   };
 }

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { firstLine, nextLine } from '../../src/reader/playback';
+import { firstLine, nextLine, paragraphs, previousLine, rangeOf } from '../../src/reader/playback';
 
 const lines = [{ audio: false }, { audio: true }, { audio: false }, { audio: true }];
 
@@ -22,4 +22,28 @@ test('with repeat on, the line that just finished plays again', () => {
   expect(nextLine(lines, 0, true, true)).toBe(0);
   expect(nextLine(lines, 1, false, true)).toBe(1);
   expect(nextLine(lines, 0, true, false)).toBe(1);
+});
+
+test('previous line skips silent lines and stops at the start', () => {
+  const lines = [{ audio: true }, { audio: false }, { audio: true }];
+  expect(previousLine(lines, 2)).toBe(0);
+  expect(previousLine(lines, 0)).toBeNull();
+});
+
+test('paragraphs start at each marked line, and the first line always starts one', () => {
+  const marks = (...p: boolean[]) => p.map((paragraph) => ({ paragraph }));
+  expect(paragraphs(marks(true, false, true, false, false))).toEqual([{ start: 0, end: 1 }, { start: 2, end: 4 }]);
+  expect(paragraphs(marks(false, false, true))).toEqual([{ start: 0, end: 1 }, { start: 2, end: 2 }]);
+});
+
+test('a text with no paragraph marks has no paragraphs', () => {
+  expect(paragraphs([{}, {}])).toBeNull();
+  expect(paragraphs([{ paragraph: false }])).toBeNull();
+});
+
+test('rangeOf finds the paragraph a line is in', () => {
+  const ranges = [{ start: 0, end: 1 }, { start: 2, end: 4 }];
+  expect(rangeOf(ranges, 1)).toBe(0);
+  expect(rangeOf(ranges, 3)).toBe(1);
+  expect(rangeOf(ranges, 9)).toBe(-1);
 });
