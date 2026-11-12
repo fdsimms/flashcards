@@ -113,5 +113,24 @@ def test_empty_text_does_not_pass() -> None:
     assert not check([], Lexicon(["ฉัน"])).meets()
 
 
-def test_ik_wa_is_not_split_as_i_and_kwa(lexicon: Lexicon) -> None:
-    assert lexicon.segment("ฉันถามอีกว่า") == ["ฉัน", "ถาม", "อีก", "ว่า"]
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        ("ฉันถามอีกว่า", ["ฉัน", "ถาม", "อีก", "ว่า"]),
+        ("ฉันบอกว่าไม่ไป", ["ฉัน", "บอก", "ว่า", "ไม่", "ไป"]),
+        ("เขาออกว่าจะมา", ["เขา", "ออก", "ว่า", "จะ", "มา"]),
+        ("เขามาจากว่า", ["เขา", "มาจาก", "ว่า"]),
+    ],
+)
+def test_a_word_ending_in_k_keeps_it_before_wa(
+    lexicon: Lexicon, line: str, expected: list[str]
+) -> None:
+    assert lexicon.segment(line) == expected
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [("ราคาถูกกว่า", ["ราคา", "ถูก", "กว่า"]), ("ดีกว่าเดิม", ["ดีกว่า", "เดิม"])],
+)
+def test_a_real_kwa_is_left_alone(lexicon: Lexicon, line: str, expected: list[str]) -> None:
+    assert lexicon.segment(line) == expected

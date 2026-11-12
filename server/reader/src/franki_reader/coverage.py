@@ -123,7 +123,22 @@ class Lexicon:
 
     def segment(self, text: str) -> list[str]:
         tokens = list(word_tokenize(text, custom_dict=self._segmenter, engine="newmm"))
-        return _fix_ties(tokens)
+        return self._fix_kwa(tokens)
+
+    def _fix_kwa(self, tokens: list[str]) -> list[str]:
+        """newmm prefers the fewest words and breaks a tie toward the shorter first word, so
+        บอกว่า (said that) comes out as บอ + กว่า, and likewise จากว่า, ออกว่า, อีกว่า. Both splits
+        are two words. When a word followed by กว่า would be a word with the ก moved over, take
+        that reading: it's the common one for these verbs and particles. A genuine X + กว่า with
+        Xก also a word (ปีกว่า, just over a year) loses, which is the rarer case."""
+        out: list[str] = []
+        for token in tokens:
+            if token == "กว่า" and out and out[-1] + "ก" in self._segmenter:
+                out[-1] += "ก"
+                out.append("ว่า")
+            else:
+                out.append(token)
+        return out
 
     def status(self, token: str) -> Status:
         if token in self.known or _is_number(token):
@@ -147,25 +162,6 @@ class Lexicon:
 
     def entry_of(self, token: str) -> str | None:
         return token if token in self.known else None
-
-
-# newmm prefers the fewest words and breaks a tie toward the shorter first word, so อีกว่า (again,
-# that...) comes out as อี + กว่า. Both splits are two words; this one is always the wrong one.
-_TIES = {("อี", "กว่า"): ("อีก", "ว่า")}
-
-
-def _fix_ties(tokens: list[str]) -> list[str]:
-    out: list[str] = []
-    i = 0
-    while i < len(tokens):
-        pair = tuple(tokens[i : i + 2])
-        if pair in _TIES:
-            out.extend(_TIES[pair])
-            i += 2
-        else:
-            out.append(tokens[i])
-            i += 1
-    return out
 
 
 def parse_line(line: str, spaced: bool = False) -> tuple[str, list[str]]:
