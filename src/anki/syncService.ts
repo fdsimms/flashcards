@@ -128,6 +128,7 @@ export async function syncNow(
       hasCollection: async () => (await repo.keptCollection()) !== null,
       withCollection: (fn) => repo.withSyncConnection(fn),
       unsentAnswers: async () => (await repo.ankiStatus()).unsent,
+      unsentEdits: () => repo.ankiUnsentEdits(),
       download: async () => {
         const file = await receiveCollection(client);
         await adoptDownloadedCollection(repo, file);

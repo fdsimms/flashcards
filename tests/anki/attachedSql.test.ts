@@ -93,6 +93,8 @@ describe('the app\'s SQL against attached Anki collections', () => {
     db.prepare(SQL.buryCard).run(Math.floor(now.getTime() / 1000), sibCid);
     const buried = db.prepare(SQL.cardRow).get(sibCid) as any;
     expect([buried.queue, buried.usn, buried.mod]).toEqual([-2, -1, Math.floor(now.getTime() / 1000)]);
+    // The bury is a change a full download would lose, besides the answers.
+    expect((db.prepare(SQL.unsentEdits).get() as any).n).toBeGreaterThanOrEqual(1);
     db.prepare(SQL.cardUpdate).run(...cardRestoreParams(sibRow as any, sibCid));
     expect(db.prepare(SQL.cardRow).get(sibCid)).toEqual(sibRow);
     // Stats read the review log from a time on: the kept answer is there, the undone one isn't.

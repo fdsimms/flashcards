@@ -48,6 +48,12 @@ export interface SyncSettings {
 
 export interface AnkiLink {
   ankiStatus(): Promise<AnkiStatus>;
+  /**
+   * Notes, deletions and card changes in the kept collection that a sync hasn't sent yet, besides
+   * answers (`ankiStatus().unsent`): what a full download would also lose. Read only for sync,
+   * which marks them sent; without sync ("Send to Anki"), nothing does.
+   */
+  ankiUnsentEdits(): Promise<number>;
   /** A collection's rows for the importer, read from a scratch copy (the original is untouched). */
   readAnkiRows(collection: File): Promise<CollectionRows>;
   /** Makes `collection` the one Franki keeps (it's moved, not copied), replacing any before it. */
@@ -145,6 +151,12 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
       const since = Number(await getSetting(SETTING.lastSentId) ?? 0);
       const r = await db.getFirstAsync<{ n: number }>(SQL.unsentSince, since);
       return { linked: true, unsent: r?.n ?? 0, lastSentAt: await getSetting(SETTING.lastSentAt) };
+    },
+
+    async ankiUnsentEdits() {
+      await attach();
+      if (!attached) return 0;
+      return (await db.getFirstAsync<{ n: number }>(SQL.unsentEdits))?.n ?? 0;
     },
 
     async readAnkiRows(collection) {
