@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardDocument, clozeNumbers, fieldIsEmpty, renderTemplate, renderTemplateCard, templateOrdinals } from '../../src/core/template';
+import { cardDocument, clozeNumbers, fieldIsEmpty, renderTemplate, renderTemplateCard, sideAudio, templateOrdinals } from '../../src/core/template';
 import type { Note, NoteType } from '../../src/core/types';
 
 const geo: NoteType = {
@@ -42,7 +42,7 @@ describe('renderTemplate', () => {
     expect(renderTemplate('{{type:cloze:Capital}} {{type:nc:Capital}} {{type:text:Capital}}', ctx)).toBe('[[type:cloze:Capital]] [[type:nc:Capital]] [[type:Capital]]');
     expect(renderTemplate('{{furigana:Reading}}', ctx)).toBe('<ruby><rb>日本</rb><rt>にほん</rt></ruby>');
     expect(renderTemplate('{{kana:Reading}}', ctx)).toBe('にほん');
-    expect(renderTemplate('{{tts en_US:Capital}}', ctx)).toBe('');
+    expect(renderTemplate('{{tts en_US speed=0.8:Capital}}', ctx)).toBe('[anki:tts lang=en_US speed=0.8]Lima[/anki:tts]');
   });
 });
 
@@ -84,6 +84,29 @@ describe('type the answer', () => {
     const nc = typed('{{type:nc:Capital}}', '{{type:nc:Capital}}');
     const accented = { ...peru, fields: { ...peru.fields, Capital: 'Bogotá' } };
     expect(renderTemplateCard(accented, nc, 0, 'Bogota').back).toBe('<div><code id=typeans><span class=typeGood>Bogotá</span></code></div>');
+  });
+});
+
+describe('reading aloud', () => {
+  const spoken: NoteType = { ...geo, templates: [{ ord: 0, name: 'Spoken', front: '{{Country}}{{tts es_ES:Capital}}', back: '{{FrontSide}}<hr id=answer>{{tts es_ES:Country}}' }] };
+
+  it('gives each side a play button per tag, and the back reads only its own', () => {
+    const { front, back } = renderTemplateCard(peru, spoken, 0);
+    expect(sideAudio(front)).toEqual({ tts: [{ text: 'Lima', lang: 'es_ES', voices: [], speed: 1 }], hasSound: false });
+    expect(sideAudio(back).tts.map((t) => t.text)).toEqual(['Peru']);
+    expect(cardDocument(front, { css: '', ord: 0, dark: false, autoplay: true })).toContain('onclick="speakTts(0);return false;"');
+  });
+
+  it("knows a side with a recording, which plays instead of being read", () => {
+    expect(sideAudio('[sound:lima.mp3][anki:tts lang=es_ES]Lima[/anki:tts]').hasSound).toBe(true);
+  });
+
+  it('reads only the cloze with cloze-only, as Anki does', () => {
+    const note: Note = { id: 'c', deck: 'D', model: 'Cloze', tags: [], fields: { Text: '{{c1::Lima}} and {{c1::Cusco::city}} are in {{c2::Peru}}', Extra: '' } };
+    const nt: NoteType = { ...cloze, templates: [{ ord: 0, name: 'Cloze', front: '{{cloze:Text}}{{tts es_ES:cloze-only:Text}}', back: '{{tts es_ES:cloze-only:Text}}' }] };
+    const card = renderTemplateCard(note, nt, 0);
+    expect(sideAudio(card.front).tts[0].text).toBe('..., city');
+    expect(sideAudio(card.back).tts[0].text).toBe('Lima, Cusco');
   });
 });
 

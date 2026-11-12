@@ -16,7 +16,8 @@ import { ankiToday, fnvHash } from '../core/order';
 import { saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../core/session';
 import { durationText } from '../core/stats';
-import { cardDocument, renderTemplateCard } from '../core/template';
+import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
+import { pickVoice, speechLanguage, type TtsTag } from '../core/tts';
 import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
 import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
@@ -253,7 +254,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       css: noteType.css, ord, dark, autoplay: true, mediaBase: mediaBaseUri(),
       colors: { background: c.surface, text: c.text, cloze: c.countNew },
     };
-    return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer };
+    return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer, frontAudio: sideAudio(front), backAudio: sideAudio(back) };
   }, [note, noteType, current?.id, current?.kind, dark, c, typedShown]); // eslint-disable-line react-hooks/exhaustive-deps
   const rendered = current && note && !page ? renderCard(note, current.kind) : undefined;
   // The fuzz seed and load balancer for answering the current card, as Anki has them: the buttons show what an answer does.
@@ -292,6 +293,28 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
     },
     [rendered],
   );
+
+  // Anki's {{tts:}} tags, read with the phone's voices: on their own when a side without a
+  // recording is shown (a recording plays instead, in the page), and from each play button.
+  const voices = useRef<Speech.Voice[]>([]);
+  useEffect(() => { Speech.getAvailableVoicesAsync().then((v) => { voices.current = v; }).catch(() => {}); }, []);
+  const readAloud = useCallback((tags: TtsTag[]) => {
+    Speech.stop();
+    for (const t of tags) Speech.speak(t.text, { language: speechLanguage(t.lang), voice: pickVoice(voices.current, t), rate: t.speed });
+  }, []);
+  const pageAudio = page && (revealed ? page.backAudio : page.frontAudio);
+  useEffect(() => {
+    if (!pageAudio) return;
+    if (pageAudio.hasSound || !pageAudio.tts.length) Speech.stop();
+    else readAloud(pageAudio.tts);
+  }, [current?.id, revealed]); // eslint-disable-line react-hooks/exhaustive-deps
+  const onPageMessage = (data: string) => {
+    try {
+      const i = JSON.parse(data)?.tts;
+      const tag = typeof i === 'number' ? pageAudio?.tts[i] : undefined;
+      if (tag) readAloud([tag]);
+    } catch { /* not a message of ours */ }
+  };
 
   // When the card came up, for the time Anki records against each answer.
   const shownAt = useRef(Date.now());
@@ -599,7 +622,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} /> : null}
       {page ? (
         <CardSurface>
-          <CardWebView key={`${current.id}:${revealed ? 'back' : 'front'}`} html={revealed ? page.back : page.front} />
+          <CardWebView key={`${current.id}:${revealed ? 'back' : 'front'}`} html={revealed ? page.back : page.front} onMessage={onPageMessage} />
         </CardSurface>
       ) : rendered ? (
         <SwipeCard enabled={swipeOn && revealed} shown={shown} onRate={answer}>
