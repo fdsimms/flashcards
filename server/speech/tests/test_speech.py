@@ -5,7 +5,7 @@ import asyncio
 import httpx
 import pytest
 
-from franki_speech import OUTPUT_FORMAT, SpeechClient, SpeechError, locale_of, ssml
+from franki_speech import OUTPUT_FORMAT, THAI_PAUSE, SpeechClient, SpeechError, locale_of, ssml
 
 VOICE = "th-TH-NiwatNeural"
 
@@ -15,6 +15,12 @@ def test_ssml_names_the_voice_takes_its_language_and_escapes_the_text() -> None:
     assert "xml:lang='th-TH'" in out and "<voice name='th-TH-NiwatNeural'>" in out
     assert "<prosody rate='+0%'>A &amp; B &lt;ok&gt;</prosody>" in out
     assert "xml:lang='es-MX'" in ssml("¿Qué tal?", "es-MX-JorgeNeural")
+
+
+def test_ssml_pauses_at_a_thai_clause_break() -> None:
+    out = ssml("สวัสดีครับ ไปไหนครับ? กลับบ้าน OK ค่ะ", VOICE)
+    assert f"สวัสดีครับ{THAI_PAUSE}ไปไหนครับ?{THAI_PAUSE}กลับบ้าน OK ค่ะ" in out
+    assert "<break" not in ssml("¿Qué tal? Bien.", "es-MX-JorgeNeural")
 
 
 def test_ssml_sets_the_speed() -> None:

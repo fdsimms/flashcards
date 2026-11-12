@@ -186,7 +186,11 @@ A and B are in this situation, in one to three English words each, like "Waiter"
 sentences, and the story has a beginning, something that happens, and an end. Keep the language \
 plain, since description pulls in words the learner may not know. Leave both roles empty.
 - In each line's text, put | between every word, and wrap each stretch word in asterisks every \
-time it appears, like ฉัน|ต้องการ|*น้ำ*. Don't add spaces.
+time it appears, like ฉัน|ต้องการ|*น้ำ*.
+- Where a clause or sentence ends, put a space instead of |, as Thai is written: \
+สวัสดี|ครับ ไป|ไหน|มา|ครับ. The voice pauses at each space, so put one at every clause or sentence \
+break and nowhere else: never between words of the same clause, and never before a particle like \
+ครับ, ค่ะ or นะ.
 - Give "english", a natural English translation of each line.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
 is not in the list.

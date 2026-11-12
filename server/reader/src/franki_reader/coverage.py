@@ -42,7 +42,10 @@ _NOT_A_WORD = re.compile(r"^[\W_ๆฯ]+$")
 
 
 # Whitespace with a Thai character on each side.
-_BETWEEN_THAI = re.compile(r"(?<=[฀-๿])\s+(?=[฀-๿])")
+# Thai has no commas or periods: a space is where a clause or sentence ends, and the voice pauses
+# there (franki_speech's ssml). So in Thai a space the model writes on its own is kept, while one
+# beside a `|`, which already marks the word boundary, is noise and dropped.
+_BESIDE_BAR = re.compile(r"\s*\|\s*")
 # In a spaced language, the space a `|` became before closing punctuation or after opening.
 _SPACE_BEFORE_CLOSING = re.compile(r"\s+(?=[.,;:!?)\]»…])")
 _SPACE_AFTER_OPENING = re.compile(r"(?<=[¿¡(\[«])\s+")
@@ -170,15 +173,15 @@ def _fix_ties(tokens: list[str]) -> list[str]:
 
 def parse_line(line: str, spaced: bool = False) -> tuple[str, list[str]]:
     """A model line (`ฉัน|ต้องการ|*น้ำ*`) as plain text plus its stretch words. Thai is written
-    without spaces, so any the model adds between Thai characters are dropped. In a spaced language
+    without spaces between words, so `|` is dropped, and a space only marks a clause break
+    (`สวัสดี|ครับ ไป|ไหน`): kept as one space, unless it's beside a `|`. In a spaced language
     (`¿Qué|quieres|*tomar*?`) each `|` stands for a space, and punctuation stays on its word."""
-    joiner = " " if spaced else ""
 
     def join(text: str) -> str:
-        text = text.replace("*", "").replace("|", joiner)
+        text = text.replace("*", "")
         if not spaced:
-            return _BETWEEN_THAI.sub("", text)
-        text = " ".join(text.split())
+            return " ".join(_BESIDE_BAR.sub("", text).split())
+        text = " ".join(text.replace("|", " ").split())
         return _SPACE_AFTER_OPENING.sub("", _SPACE_BEFORE_CLOSING.sub("", text))
 
     stretch = [join(s).strip() for s in re.findall(r"\*([^*]+)\*", line)]
