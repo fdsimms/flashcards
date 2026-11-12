@@ -65,14 +65,14 @@ export function makeCards(note: Note, now: Date = new Date(), noteType?: NoteTyp
   }));
 }
 
-type Block = { label?: string; text: string; emphasis?: boolean };
+type Block = { label?: string; text: string; emphasis?: boolean; tapLabel?: string; icon?: 'speaker.wave.2.fill' };
 
 function t(note: Note, name: string): string {
   return htmlToText(note.fields[name] ?? '');
 }
 
-function pushIf(blocks: Block[], text: string, label?: string, emphasis?: boolean) {
-  if (text) blocks.push({ label, text, emphasis });
+function pushIf(blocks: Block[], text: string, label?: string, emphasis?: boolean, tapLabel?: string) {
+  if (text) blocks.push({ label, text, emphasis, tapLabel });
 }
 
 export function renderCard(note: Note, kind: CardKind): RenderedCard {
@@ -126,8 +126,9 @@ function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
   const detail = (): Block[] => {
     const b: Block[] = [];
     pushIf(b, t(note, 'Context'), 'Context');
-    pushIf(b, t(note, 'ContextRomanized'), undefined);
-    pushIf(b, t(note, 'ContextTranslation'), undefined);
+    // The Anki template wraps these three in {{hint:...}}: a tap-to-show link, not text.
+    pushIf(b, t(note, 'ContextRomanized'), undefined, undefined, 'Show romanization');
+    pushIf(b, t(note, 'ContextTranslation'), undefined, undefined, 'Show translation');
     const meta = [t(note, 'PartOfSpeech'), t(note, 'Gender'), t(note, 'Register')].filter(Boolean).join(' · ');
     pushIf(b, meta, undefined);
     pushIf(b, t(note, 'KeyForms'), 'Forms');
@@ -140,7 +141,7 @@ function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
   if (kind === 'forward') {
     pushIf(front, entry, undefined, true);
     pushIf(front, t(note, 'LeechHint'), undefined);
-    pushIf(back, translit, undefined);
+    pushIf(back, translit, undefined, undefined, 'Show transliteration');
     pushIf(back, meaning, undefined, true);
     back.push(...detail());
     return { front: { blocks: front, speak: entry }, back: { blocks: back }, speechLang };
@@ -150,15 +151,15 @@ function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
     pushIf(front, meaning, undefined, true);
     pushIf(front, t(note, 'LeechHint'), undefined);
     pushIf(back, entry, undefined, true);
-    pushIf(back, translit, undefined);
+    pushIf(back, translit, undefined, undefined, 'Show transliteration');
     back.push(...detail());
     return { front: { blocks: front }, back: { blocks: back, speak: entry }, speechLang };
   }
 
   // audio: hear it, recall the meaning
-  front.push({ text: '🔊 Listen', emphasis: true });
+  front.push({ text: 'Listen', emphasis: true, icon: 'speaker.wave.2.fill' });
   pushIf(back, entry, undefined, true);
-  pushIf(back, translit, undefined);
+  pushIf(back, translit, undefined, undefined, 'Show transliteration');
   pushIf(back, meaning, undefined, true);
   back.push(...detail());
   return { front: { blocks: front, speak: entry }, back: { blocks: back }, speechLang };

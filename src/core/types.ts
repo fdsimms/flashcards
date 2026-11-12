@@ -163,7 +163,15 @@ export interface ReviewLogEntry {
 
 export interface RenderedSide {
   /** Labeled blocks shown in order. */
-  blocks: { label?: string; text: string; emphasis?: boolean }[];
+  blocks: {
+    label?: string;
+    text: string;
+    emphasis?: boolean;
+    /** Anki's `{{hint:Field}}`: the text stays hidden behind a tap-to-show link with this label. */
+    tapLabel?: string;
+    /** An SF Symbol drawn before the text (the screen draws it, so no emoji goes in `text`). */
+    icon?: 'speaker.wave.2.fill';
+  }[];
   /** Text to speak aloud for this side, if any. */
   speak?: string;
 }
@@ -212,6 +220,12 @@ export interface DeckSettings {
    * (`listedDecks`). A deck made with one is Anki's, and listed from it.
    */
   created?: boolean;
+  /**
+   * Where the deck was dragged to among its siblings on the deck list (0 first; `compareDecks`).
+   * Franki's own: Anki lists decks by name and keeps no other order. Unset, a deck comes after
+   * those that have one, by name.
+   */
+  position?: number;
   /*
    * The settings below apply to the deck and its subdecks, unless a subdeck sets its own
    * (`inheritedSetting`). Undefined means the default.

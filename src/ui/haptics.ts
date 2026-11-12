@@ -14,6 +14,8 @@ export const haptic = {
   tap: () => quiet(Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)),
   /** A card answered: a touch firmer than a button, since it's what the whole app is for. */
   answer: () => quiet(Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)),
+  /** A row picked up to drag it. */
+  lift: () => quiet(Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)),
   /** Something finished well: a deck cleared. */
   success: () => quiet(Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)),
 };

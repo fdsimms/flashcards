@@ -30,7 +30,23 @@ LOCALE = re.compile(r"^([a-z]{2,3}-[A-Z]{2})-")
 THAI_PAUSE = "<break time='300ms'/>"
 _THAI_BREAK = re.compile(r"(?<=[\u0e00-\u0e7f?!])\s+(?=[\u0e00-\u0e7f])")
 
-__all__ = ["OUTPUT_FORMAT", "THAI_PAUSE", "SpeechClient", "SpeechError", "locale_of", "ssml"]
+# Thai words Azure's voices misread, each with a respelling it reads correctly, spoken in the word's
+# place with SSML's <sub alias>. Add a word here when a recording gets it wrong. The respellings are
+# unverified against a live key: listen to the re-recorded line and adjust the alias if it's still off.
+THAI_PRONUNCIATIONS = {
+    # Was read "ma mor" instead of "ma muang".
+    "มะม่วง": "มะ ม่วง",
+}
+
+__all__ = [
+    "OUTPUT_FORMAT",
+    "THAI_PAUSE",
+    "THAI_PRONUNCIATIONS",
+    "SpeechClient",
+    "SpeechError",
+    "locale_of",
+    "ssml",
+]
 
 
 class SpeechError(Exception):
@@ -123,6 +139,8 @@ def ssml(text: str, voice: str, rate: float = 1.0) -> str:
     body = escape(text)
     if locale.startswith("th-"):
         body = _THAI_BREAK.sub(THAI_PAUSE, body)
+        for word, alias in THAI_PRONUNCIATIONS.items():
+            body = body.replace(word, f"<sub alias='{alias}'>{word}</sub>")
     return (
         f"<speak version='1.0' xml:lang='{locale}'><voice name='{escape(voice)}'>"
         f"<prosody rate='{pct:+d}%'>{body}</prosody></voice></speak>"
