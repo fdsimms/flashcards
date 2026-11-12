@@ -21,9 +21,16 @@ if git -C "$repo" diff --quiet HEAD origin/main -- server/; then
 fi
 
 echo "Updating to $(git -C "$repo" log -1 --format='%h %s' origin/main)"
+# Caddy reads its Caddyfile only when it starts, and `up` doesn't restart it for a changed file, so
+# a new route (say, /reader) would otherwise wait for the next reboot.
+caddyfile_changed=$(git -C "$repo" diff --quiet HEAD origin/main -- server/Caddyfile || echo yes)
 # Fast-forward only: if the copy here was edited by hand, stop rather than merge over it.
 git -C "$repo" merge --ff-only --quiet origin/main
 docker compose up -d --build --remove-orphans
+if [ -n "$caddyfile_changed" ]; then
+  # Recreated, not reloaded: git writes the file anew, and the container's mount still shows the old one.
+  docker compose up -d --force-recreate caddy
+fi
 # The images the rebuild replaced, which otherwise fill the disk a few hundred MB at a time.
 docker image prune -f >/dev/null
 echo "Updated."
