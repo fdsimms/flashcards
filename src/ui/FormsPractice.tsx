@@ -22,14 +22,14 @@ export function FormsPractice({ repo, deck, onStart }: { repo: Repo; deck: strin
   const [patterns, setPatterns] = useState<string[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
   const [answering, setAnswering] = useState<Answering>('pick');
-  const [data, setData] = useState<{ notes: Note[]; cards: StoredCard[]; practice: PracticeRecord[]; dayStartsAtHour: number }>();
+  const [data, setData] = useState<{ notes: Note[]; cards: StoredCard[]; practice: PracticeRecord[] }>();
 
   useEffect(() => {
     (async () => {
-      const [notes, cards, mode, practice, collection] = await Promise.all([
-        repo.listNotes(), repo.listCards(deck), repo.formsAnswerMode(), repo.listPractice(), repo.collectionSettings(),
+      const [notes, cards, mode, practice] = await Promise.all([
+        repo.listNotes(), repo.listCards(deck), repo.formsAnswerMode(), repo.listPractice(),
       ]);
-      setData({ notes, cards, practice, dayStartsAtHour: collection.dayStartsAtHour });
+      setData({ notes, cards, practice });
       const mine = studiedWords(deck, notes, cards);
       const choices = practiceChoices(mine);
       setWords(mine);

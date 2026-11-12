@@ -38,10 +38,10 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
 
   useEffect(() => {
     (async () => {
-      const [notes, cards, practice, collection, saved] = await Promise.all([
-        repo.listNotes(), repo.listCards(), repo.listPractice(), repo.collectionSettings(), repo.formsAnswerMode(),
+      const [notes, cards, practice, saved] = await Promise.all([
+        repo.listNotes(), repo.listCards(), repo.listPractice(), repo.formsAnswerMode(),
       ]);
-      const built = drillPrompts(request, { notes, cards, practice, dayStartsAtHour: collection.dayStartsAtHour });
+      const built = drillPrompts(request, { notes, cards, practice });
       setMode(typeOnly ? 'type' : saved);
       setNotice(built.notice);
       setPrompts(built.prompts);
