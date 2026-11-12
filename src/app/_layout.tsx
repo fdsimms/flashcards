@@ -25,8 +25,10 @@ export default function RootLayout() {
     <ThemeProvider value={theme}>
       <AppProvider>
         <Stack screenOptions={stackOptions}>
-          {/* The tabs (Decks, Read & Listen) each hold their own stack, with their own header. */}
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          {/* The tabs (Decks, Read & Listen) each hold their own stack, with their own header. The
+              title is never shown; it is the back button's label on a screen pushed over a tab,
+              which would otherwise read "(tabs)", the route group's name. */}
+          <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Back' }} />
           {/* The note editor opens over Review and Browse as a sheet. */}
           <Stack.Screen name="note-editor" options={{ presentation: 'modal' }} />
         </Stack>

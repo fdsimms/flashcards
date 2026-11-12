@@ -127,3 +127,18 @@ def test_a_compound_of_deck_words_is_transliterated_from_its_pieces() -> None:
     deck = {e.text: e.translit for e in entries}
     word = render(text, lexicon_from(entries), {}, deck)["lines"][0]["words"][0]
     assert word["translit"] == "ráan + aa-hǎan"
+
+
+def test_a_marked_name_is_sent_with_the_name_status() -> None:
+    text = StoredText(
+        7,
+        1,
+        "t",
+        (Line("A", "~สมชาย~|กิน|ครับ", "Somchai eats."),),
+        {"สมชาย": "a man's name"},
+        (),
+        1.0,
+    )
+    words = render(text, lexicon_from(ENTRIES), MEANINGS)["lines"][0]["words"]
+    assert [(w["text"], w["status"]) for w in words][:1] == [("สมชาย", "name")]
+    assert words[0]["gloss"] == "a man's name"

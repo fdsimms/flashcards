@@ -3,6 +3,7 @@ import { renamedDeck } from '../core/deckNames';
 import { parseAnswerButtons, type AnswerButtons } from '../core/answerButtons';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import type { PracticeRecord } from '../core/forms';
+import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
 import { parseVoiceSettings, type VoiceSettings } from '../core/voices';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry, CollectionSettings } from '../core/types';
 
@@ -62,6 +63,9 @@ export interface Repo {
   /** Whether a card's romanization and translation show without a tap. Off by default; this phone's own. */
   showCardHints(): Promise<boolean>;
   saveShowCardHints(on: boolean): Promise<void>;
+  /** How large Thai text is drawn on a card. Large by default; this phone's own. */
+  thaiTextSize(): Promise<ThaiTextSize>;
+  saveThaiTextSize(size: ThaiTextSize): Promise<void>;
   /** Logs one answered forms practice prompt. Franki's own: never written to Anki. */
   addPractice(record: PracticeRecord): Promise<void>;
   /** Forms practice logged at or after `since` (all of it without), oldest first. */
@@ -86,6 +90,7 @@ export class MemoryRepo implements Repo {
   answerButtonsSetting: string | null = null;
   swipeToRateSetting = false;
   showCardHintsSetting = false;
+  thaiTextSizeSetting: ThaiTextSize = DEFAULT_THAI_TEXT_SIZE;
   practice: PracticeRecord[] = [];
   formsAnswerModeSetting: 'pick' | 'type' = 'pick';
   voiceSettingsValue = '{}';
@@ -168,6 +173,8 @@ export class MemoryRepo implements Repo {
   async saveSwipeToRate(on: boolean) { this.swipeToRateSetting = on; }
   async showCardHints() { return this.showCardHintsSetting; }
   async saveShowCardHints(on: boolean) { this.showCardHintsSetting = on; }
+  async thaiTextSize() { return this.thaiTextSizeSetting; }
+  async saveThaiTextSize(size: ThaiTextSize) { this.thaiTextSizeSetting = size; }
   async addPractice(record: PracticeRecord) { this.practice.push({ ...record }); }
   async listPractice(since?: Date) {
     return this.practice

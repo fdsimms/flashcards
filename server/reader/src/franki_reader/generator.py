@@ -253,13 +253,16 @@ one at a change of scene, time or subject, usually every two to four lines. It i
 other line, and on every line of a dialogue.
 - In each line's text, put | between every word, and wrap each stretch word in asterisks every \
 time it appears, like ฉัน|ต้องการ|*น้ำ*.
+- Wrap a person's, pet's or place's name in tildes every time it appears, like ~มะลิ~|เป็น|สาว. \
+Names don't count against the known-word target, so mark only real names, never ordinary words, \
+and use at most 4 different names in a text.
 - Where a clause or sentence ends, put a space instead of |, as Thai is written: \
 สวัสดี|ครับ ไป|ไหน|มา|ครับ. The voice pauses at each space, so put one at every clause or sentence \
 break and nowhere else: never between words of the same clause, and never before a particle like \
 ครับ, ค่ะ or นะ.
 - Give "english", a natural English translation of each line.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
-is not in the list. For each of those words also give "translit", its pronunciation in Latin letters \
+is not in the list, and for each name ("a girl's name"). For each of those words also give "translit", its pronunciation in Latin letters \
 with tone marks and a hyphen between syllables, as the learner's own cards write it: \
 nǎng-sǔue (หนังสือ), kâao (ข้าว), mâi-pen-rai (ไม่เป็นไร).
 
@@ -304,6 +307,9 @@ other line, and on every line of a dialogue.
 - In each line's text, put | between words instead of spaces, keep punctuation on its word, and \
 wrap each stretch word or phrase in asterisks every time it appears, like {example} A stretch \
 word can be inflected.
+- Wrap a person's, pet's or place's name in tildes every time it appears, like ~Kasia~|mieszka. \
+Names don't count against the known-word target, so mark only real names, never ordinary words, \
+and use at most 4 different names in a text.
 - Give "english", a natural English translation of each line.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
 is neither an allowed common word nor on the list. Also gloss any word whose form matches a listed \
@@ -587,6 +593,7 @@ def _assess(
             request.language, [(ln.speaker, ln.text) for ln in lines], genders
         )
     problems += gender_issues
+    problems += name_problems(coverage, lexicon.spaced)
     grammar_issues, grammar_misses = grammar_problems([ln.text for ln in lines], lexicon, request)
     problems += grammar_issues
     # Stretch words are glossed from the deck, so only off-list words need the model's gloss.
@@ -617,6 +624,29 @@ def _assess(
         cast=cast_,
     )
     return generated, problems
+
+
+MAX_NAMES = 4
+
+
+def name_problems(coverage: Coverage, spaced: bool) -> list[str]:
+    """What's wrong with the names a draft marked, as sentences for the revision message. Names
+    leave the coverage count, so they're limited and, where the language capitalizes them, checked,
+    or the model could mark hard words as names to get past the floor."""
+    problems = []
+    if len(coverage.names) > MAX_NAMES:
+        problems.append(
+            f"Mark at most {MAX_NAMES} different names; this draft marks "
+            + ", ".join(coverage.names)
+            + "."
+        )
+    if spaced and (lower := [n for n in coverage.names if not n[:1].isupper()]):
+        problems.append(
+            "Only names that start with a capital letter can be marked with tildes: "
+            + ", ".join(lower)
+            + "."
+        )
+    return problems
 
 
 def _stretch_used(
