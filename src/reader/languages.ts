@@ -44,6 +44,7 @@ export function commonNamed(label: string): CommonCount | undefined {
 
 // For the gloss popover and the marked words list.
 export function wordStatus(word: Pick<Word, 'status' | 'deck'>): string {
+  if (word.status === 'name') return 'A name';
   if (word.status === 'partial') return 'Only inside a longer phrase in your deck';
   if (word.status === 'unknown') return 'Not in your deck';
   return word.deck ? 'In your deck' : 'A common word';
