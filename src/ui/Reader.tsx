@@ -672,7 +672,13 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                 backgroundColor: current === i ? c.surface : undefined,
               }}
             >
-              {line.speaker === 'N' ? null : <View style={{ paddingTop: space.s }}><SpeakerBadge who={line.speaker} /></View>}
+              {line.speaker === 'N' ? null : (
+                // Centered on the first line of words, which is a word's line height plus its
+                // padding and underline border (4.5) tall; the badge is 26 tall.
+                <View style={{ paddingTop: listenOnly ? space.s : Math.max(0, (readStyle(text, thaiFont).lineHeight + 4.5 - 26) / 2) }}>
+                  <SpeakerBadge who={line.speaker} />
+                </View>
+              )}
               <View style={{ flex: 1 }}>
                 {listenOnly ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, paddingVertical: space.s }}>
