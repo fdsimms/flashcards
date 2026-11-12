@@ -111,3 +111,7 @@ def test_floor() -> None:
 
 def test_empty_text_does_not_pass() -> None:
     assert not check([], Lexicon(["ฉัน"])).meets()
+
+
+def test_ik_wa_is_not_split_as_i_and_kwa(lexicon: Lexicon) -> None:
+    assert lexicon.segment("ฉันถามอีกว่า") == ["ฉัน", "ถาม", "อีก", "ว่า"]
