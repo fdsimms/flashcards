@@ -384,7 +384,10 @@ def production_app() -> FastAPI:
             region,
             settings.speech_endpoint,
             user_agent="franki-reader",
-            voice_help="Check AZURE_VOICE_A and AZURE_VOICE_B in server/.env.",
+            voice_help=(
+                "Check the voice names: Thai's are AZURE_VOICE_A and AZURE_VOICE_B in server/.env,"
+                " Spanish's are in server/reader/src/franki_reader/languages.py."
+            ),
         )
         synthesize = azure_synthesize(speech)
 

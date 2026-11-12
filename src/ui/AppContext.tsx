@@ -3,20 +3,18 @@ import { usePathname, useRouter } from 'expo-router';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';
 import { DAY_STARTS_AT_HOUR } from '../core/config';
-import { studyDayKey, studyDayStart } from '../core/day';
+import { studyDayStart } from '../core/day';
 import { deckRows, queueInput, type DeckRow } from '../core/deckTree';
 import { studiedToday } from '../core/queue';
 import type { Note } from '../core/types';
 import { backupStatus } from '../db/backup';
 import type { AnkiLink, SyncSettings } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
-import { createApi, readerAddress, type Api, type Settings as ReaderSettings } from '../reader/api';
-import { minedOne, miningLeft, type MiningCount } from '../reader/mining';
-import { clearPassphrase, loadMined, loadPassphrase, loadPrefs, saveMined } from '../reader/storage';
 import { openRepo, type BackupStore } from '../db/sqliteRepo';
 import { useTheme } from './theme';
 import { loadHeld } from './lookalikeHold';
 import { useCollapsedDecks, type CollapsedDecks } from './useCollapsedDecks';
+import { useReader, type ReaderState } from './useReader';
 import { useSync } from './useSync';
 
 /**
@@ -54,24 +52,8 @@ interface AppValue {
   openNoteEditor: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void;
   /** Called by the note editor's screen when it closes. */
   finishNoteEditor: (result?: NoteEditorResult) => void;
-  /** Read & Listen's server, once its passphrase is saved; null while it's off. */
-  readerApi: Api | null;
-  /** The sync server's address, which Read & Listen's server runs beside; undefined while sync is off. */
-  readerServer?: string;
-  /** Why Read & Listen's settings opened by themselves, e.g. the passphrase changed on the server. */
-  readerNotice: string | null;
-  signedInToReader: (passphrase: string) => void;
-  signOutOfReader: () => void;
-  /**
-   * Read & Listen's settings as its server has them (which deck is each language's), for Review's
-   * "Read a text with these words" and adding marked words to the deck; null until loaded.
-   */
-  readerSettings: ReaderSettings | null;
-  setReaderSettings: (settings: ReaderSettings) => void;
-  /** How many more marked words can be added to the deck today (src/reader/mining.ts). */
-  miningLeft: number;
-  /** Counts one more marked word added to the deck today. */
-  recordMined: () => void;
+  /** Read & Listen: its server, sign-in and settings (useReader). */
+  reader: ReaderState;
 }
 
 const Context = createContext<AppValue | null>(null);
@@ -134,45 +116,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [sync]);
 
-  // Read & Listen: on once its passphrase is saved, at the address beside the sync server. The
-  // reader's own settings are read with the passphrase, so it opens with them.
-  const [readerPassphrase, setReaderPassphrase] = useState<string | null>();
-  const [readerNotice, setReaderNotice] = useState<string | null>(null);
-  useEffect(() => {
-    Promise.all([loadPassphrase(), loadPrefs()]).then(([saved]) => setReaderPassphrase(saved), () => setReaderPassphrase(null));
-  }, []);
-  const readerServer = syncSettings?.enabled ? syncSettings.server : undefined;
-  const readerApi = useMemo(() => (readerServer && readerPassphrase
-    ? createApi(readerAddress(readerServer), readerPassphrase, fetch, () => {
-      // The passphrase was changed on the server: forget it and ask again, rather than fail every call.
-      clearPassphrase().catch(() => undefined);
-      setReaderPassphrase(null);
-      setReaderNotice('The passphrase changed on the server. Enter the new one.');
-      router.dismissAll();
-      router.push('/read-settings');
-    })
-    : null), [readerServer, readerPassphrase, router]);
-  const signedInToReader = useCallback((passphrase: string) => { setReaderNotice(null); setReaderPassphrase(passphrase); }, []);
-  const signOutOfReader = useCallback(() => {
-    clearPassphrase().catch(() => undefined);
-    setReaderPassphrase(null);
-  }, []);
-
-  const [readerSettings, setReaderSettings] = useState<ReaderSettings | null>(null);
-  useEffect(() => {
-    setReaderSettings(null);
-    readerApi?.settings().then(setReaderSettings, () => undefined);
-  }, [readerApi]);
-  const [mined, setMined] = useState<MiningCount | null>(null);
-  useEffect(() => { loadMined().then(setMined); }, []);
-  const today = studyDayKey(new Date(), dayStartsAtHour);
-  const recordMined = useCallback(() => {
-    setMined((before) => {
-      const next = minedOne(before, studyDayKey(new Date(), dayStartsAtHour));
-      saveMined(next);
-      return next;
-    });
-  }, [dayStartsAtHour]);
+  const reader = useReader(syncSettings?.enabled ? syncSettings.server : undefined, dayStartsAtHour);
 
   const editorClose = useRef<((result?: NoteEditorResult) => void) | null>(null);
   const openNoteEditor = useCallback((target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => {
@@ -192,11 +136,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AppValue | null>(() => repo && {
     repo, decks, backup, ankiUnsent, syncSettings, syncing,
-    sync, reloadSync, refresh, collapse, openNoteEditor, finishNoteEditor,
-    readerApi, readerServer, readerNotice, signedInToReader, signOutOfReader,
-    readerSettings, setReaderSettings, miningLeft: miningLeft(mined, today), recordMined,
-  }, [repo, decks, backup, ankiUnsent, syncSettings, syncing, sync, reloadSync, refresh, collapse, openNoteEditor, finishNoteEditor,
-    readerApi, readerServer, readerNotice, signedInToReader, signOutOfReader, readerSettings, mined, today, recordMined]);
+    sync, reloadSync, refresh, collapse, openNoteEditor, finishNoteEditor, reader,
+  }, [repo, decks, backup, ankiUnsent, syncSettings, syncing, sync, reloadSync, refresh, collapse, openNoteEditor, finishNoteEditor, reader]);
 
   if (!value) {
     return (

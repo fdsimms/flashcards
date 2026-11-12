@@ -71,13 +71,14 @@ Each Claude app asks for the password once; after that it stays signed in (it's 
 
 The same server can run Read & Listen's server (`reader/`): it writes short Thai and Spanish dialogues and stories from the words in your deck, checks they're mostly words you know, and records them with Azure's voices. It's one more Anki client of your sync server, and it only reads: it never answers, adds or changes cards. Its design is in `docs/read-and-listen/` at the top of this repository.
 
-It needs more memory than the rest (up to about 350 MB with both languages), so the server may need **2 GB**. After the first texts are written, `docker stats --no-stream` shows how much each part uses.
+It needs more memory than the rest (up to about 350 MB with both languages), so the server may need **2 GB**. After the first texts are written, `docker stats --no-stream` shows how much each part uses. If it stops answering, `docker compose ps` shows it as unhealthy, and the update timer (above, `install-auto-update.sh`) restarts it within about 15 minutes.
 
 **Turn it on.** In `.env`, add `reader` to `COMPOSE_PROFILES` (for example `COMPOSE_PROFILES=mcp,reader`) and set:
 
 - `READER_PASSPHRASE`: a long passphrase of its own, typed once in the app
 - `ANTHROPIC_API_KEY`: a Claude API key, for writing the texts
-- `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`: the same ones as the MCP's audio (above). Both use the same Azure client (`speech/`).
+- `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`: the same ones as the MCP's audio (above). Both use the same Azure client (`speech/`). `AZURE_SPEECH_ENDPOINT` (optional, for both) replaces the region's own address, for a custom domain.
+- `AZURE_VOICE_A` and `AZURE_VOICE_B` (optional): Thai's two voices, when not `th-TH-NiwatNeural` and `th-TH-PremwadeeNeural`.
 - `READER_BUCKET_*` (optional, recommended): an S3-compatible bucket that the database is backed up to continuously. When the database is missing (a new server, a lost volume), it's restored from there.
 
 Then run `docker compose up -d --build`. Check `https://<your domain>/reader/health` shows `{"status":"ok"}`. Then in Franki, open **Settings**, **Read & Listen**, and enter the passphrase. Franki finds the server at `https://<your domain>/reader` by itself, from the sync settings.

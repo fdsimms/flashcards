@@ -26,7 +26,7 @@ There is no lint config. Run `npm run verify` before declaring any task done.
 
 - Navigation is **Expo Router** (a native stack): `src/app/_layout.tsx` is the root, and each route file in `src/app/` is a thin wrapper (Read & Listen's screens included) that hands one screen from `src/ui` its props (`router.push`, `useLocalSearchParams` for a deck's name). The note editor is the `note-editor` route, presented as a modal. Code that isn't a route stays outside `src/app/`. Docs: https://docs.expo.dev/router/introduction.md
 - The back button, large title, search bar and header buttons are the stack's native ones: a screen sets them through `Screen` in `src/ui/kit.tsx` (`title`, `toolbar` with `Stack.Toolbar`), never by drawing its own header.
-- The state screens share (the open repo, the deck list's rows, sync) lives in `src/ui/AppContext.tsx`, above the router. Each piece of it is a hook in its own file (`useSync`, `useCollapsedDecks`) that AppContext calls in one line, so features added at once don't edit the same lines.
+- The state screens share (the open repo, the deck list's rows, sync) lives in `src/ui/AppContext.tsx`, above the router. Each piece of it is a hook in its own file (`useSync`, `useCollapsedDecks`, `useReader`) that AppContext calls in one line, so features added at once don't edit the same lines.
 
 ## Building with EAS
 

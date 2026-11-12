@@ -186,7 +186,7 @@ export function Review({ repo, deck, practice, onDone, onEditNote, onPracticeFor
    * Present when the deck is a Read & Listen language's (src/reader/practice.ts): once the session
    * ends, it offers a text that practices the words just studied.
    */
-  practice?: { languageDeck: string; onRead: (words: string[]) => void };
+  practice?: { languageDeck: string; onRead: (words: string[]) => Promise<void> };
   /** Leaves the screen: the deck is done. */
   onDone: () => void;
   /** Opens the note editor over this screen, calling `onClose` with what happened. */
@@ -200,6 +200,8 @@ export function Review({ repo, deck, practice, onDone, onEditNote, onPracticeFor
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
+  // While "Read a text with these words" waits for the sync that sends today's answers first.
+  const [openingText, setOpeningText] = useState(false);
   // The Anki collection's day start, learn-ahead limit and v3 options.
   const [collection, setCollection] = useState<CollectionSettings>(DEFAULT_COLLECTION_SETTINGS);
   const H = collection.dayStartsAtHour;
@@ -515,7 +517,12 @@ export function Review({ repo, deck, practice, onDone, onEditNote, onPracticeFor
             onPress={() => onPracticeForms(forms.drillFor(forms.toCheck.map((x) => x.note.id), deck))}
           />
         ) : null}
-        {reading ? <Button label="Read a text with these words" variant={checking ? 'secondary' : 'primary'} onPress={() => practice!.onRead(studiedWords)} /> : null}
+        {reading ? (
+          <Button
+            label="Read a text with these words" variant={checking ? 'secondary' : 'primary'} busy={openingText}
+            onPress={() => { setOpeningText(true); practice!.onRead(studiedWords).finally(() => setOpeningText(false)); }}
+          />
+        ) : null}
         <Button label="Back to decks" variant={reading || checking ? 'secondary' : 'primary'} onPress={onDone} />
       </>
     );

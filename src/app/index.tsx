@@ -8,7 +8,7 @@ import { DeckList } from '../ui/DeckList';
 /** The deck list: the first screen, and where every other one leads back to. */
 export default function DecksRoute() {
   const router = useRouter();
-  const { decks, backup, ankiUnsent, syncSettings, syncing, sync, refresh, readerApi, collapse } = useApp();
+  const { decks, backup, ankiUnsent, syncSettings, syncing, sync, refresh, reader, collapse } = useApp();
   // Counts change while studying, so load them again each time this screen comes back into view.
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
   return (
@@ -24,7 +24,8 @@ export default function DecksRoute() {
       onOptions={(deck) => router.push({ pathname: '/deck-options', params: { deck } })}
       collapsed={collapse.collapsed}
       onToggleCollapsed={collapse.toggle}
-      onRead={readerApi ? () => router.push('/read') : undefined}
+      // Kept while the passphrase needs entering again, so the way back in (and the reason) is still here.
+      onRead={reader.api || reader.notice ? () => router.push('/read') : undefined}
       sync={syncSettings?.enabled ? {
         syncing,
         status: syncStatusText(syncSettings, new Date()),

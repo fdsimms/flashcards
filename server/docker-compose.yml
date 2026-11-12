@@ -53,6 +53,9 @@ services:
       AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
       AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}
       AZURE_SPEECH_ENDPOINT: ${AZURE_SPEECH_ENDPOINT:-}
+      # Thai's two voices, when not the defaults (Spanish's are set in reader/.../languages.py).
+      AZURE_VOICE_A: ${AZURE_VOICE_A:-}
+      AZURE_VOICE_B: ${AZURE_VOICE_B:-}
       # Backups (optional): an S3-compatible bucket Litestream streams the database to.
       BUCKET_NAME: ${READER_BUCKET_NAME:-}
       AWS_ENDPOINT_URL_S3: ${READER_BUCKET_ENDPOINT:-}
@@ -61,6 +64,13 @@ services:
       AWS_SECRET_ACCESS_KEY: ${READER_BUCKET_SECRET:-}
     volumes:
       - reader-data:/data
+    # A server that stops answering shows as unhealthy, and update.sh's timer restarts it.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 2m
     depends_on:
       - anki
   caddy:
