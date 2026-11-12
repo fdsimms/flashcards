@@ -46,7 +46,7 @@ function CardSurface({ children }: { children: React.ReactNode }) {
   return (
     <View
       style={{
-        flex: 1, marginHorizontal: space.l, marginTop: space.s, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
+        flex: 1, marginHorizontal: space.l, marginTop: space.xxl, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
         backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, ...lift(c),
       }}
     >
