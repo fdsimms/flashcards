@@ -130,9 +130,12 @@ def test_empty_text_does_not_pass() -> None:
         ("ฉันบอกว่าไม่ไป", ["ฉัน", "บอก", "ว่า", "ไม่", "ไป"]),
         ("เขาออกว่าจะมา", ["เขา", "ออก", "ว่า", "จะ", "มา"]),
         ("เขามาจากว่า", ["เขา", "มาจาก", "ว่า"]),
+        ("ฉันต้องไปประตูไหนคะ", ["ฉัน", "ต้อง", "ไป", "ประตู", "ไหน", "คะ"]),
+        ("แล้วจะไป", ["แล้ว", "จะ", "ไป"]),
+        ("ตามมากไป", ["ตาม", "มาก", "ไป"]),
     ],
 )
-def test_a_word_ending_in_k_keeps_it_before_wa(
+def test_a_letter_glued_to_a_particle_goes_back_to_its_word(
     lexicon: Lexicon, line: str, expected: list[str]
 ) -> None:
     assert lexicon.segment(line) == expected

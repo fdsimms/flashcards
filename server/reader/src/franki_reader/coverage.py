@@ -99,6 +99,19 @@ class Checker(Protocol):
         ...
 
 
+# Dictionary entries newmm reads in place of "a letter, then this particle" (กว่า for ก + ว่า, and the
+# rare words นคะ, มสิ, วจะ, มมาก). The key's first letter belongs to the word before it.
+_GLUED = {
+    "กว่า": "ว่า",
+    "นคะ": "คะ",
+    "ภคะ": "คะ",
+    "มสิ": "สิ",
+    "อสิ": "สิ",
+    "วจะ": "จะ",
+    "มมาก": "มาก",
+}
+
+
 class Lexicon:
     """Thai: the deck's entries are the dictionary, and only they count as known."""
 
@@ -126,19 +139,20 @@ class Lexicon:
 
     def segment(self, text: str) -> list[str]:
         tokens = list(word_tokenize(text, custom_dict=self._segmenter, engine="newmm"))
-        return self._fix_kwa(tokens)
+        return self._fix_ties(tokens)
 
-    def _fix_kwa(self, tokens: list[str]) -> list[str]:
+    def _fix_ties(self, tokens: list[str]) -> list[str]:
         """newmm prefers the fewest words and breaks a tie toward the shorter first word, so
-        บอกว่า (said that) comes out as บอ + กว่า, and likewise จากว่า, ออกว่า, อีกว่า. Both splits
-        are two words. When a word followed by กว่า would be a word with the ก moved over, take
-        that reading: it's the common one for these verbs and particles. A genuine X + กว่า with
-        Xก also a word (ปีกว่า, just over a year) loses, which is the rarer case."""
+        บอกว่า (said that) comes out as บอ + กว่า and ไหนคะ as ไห + นคะ. Both splits are two words.
+        When a token in _GLUED is the first letter of a word glued to a common particle, and the
+        word before it plus that letter is itself a word, take that reading. A genuine X + กว่า
+        with Xก also a word (ปีกว่า, just over a year) loses, which is the rarer case."""
         out: list[str] = []
         for token in tokens:
-            if token == "กว่า" and out and out[-1] + "ก" in self._segmenter:
-                out[-1] += "ก"
-                out.append("ว่า")
+            particle = _GLUED.get(token)
+            if particle and out and out[-1] + token[0] in self._segmenter:
+                out[-1] += token[0]
+                out.append(particle)
             else:
                 out.append(token)
         return out
