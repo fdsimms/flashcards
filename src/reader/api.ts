@@ -60,6 +60,8 @@ export type Form = 'dialogue' | 'story';
 
 // One thing worth knowing about a line: the part of it, and what to know.
 export type ExplainPoint = { phrase: string; note: string };
+/** A phrase selected in a line, explained: what it means there, and what to know about its parts. */
+export type PhraseExplanation = { meaning: string; points: ExplainPoint[] };
 
 export type ReaderText = {
   id: number;
@@ -298,6 +300,9 @@ export function createApi(
     // line there. `simple` is a second, plainer version.
     explainLine: async (textId: number, line: number, simple: boolean) =>
       (await call<{ points: ExplainPoint[] }>('POST', `/api/texts/${textId}/lines/${line}/explain`, { simple })).points,
+    // A phrase selected in a line (as it appears there), explained the same way and kept per phrase.
+    explainPhrase: (textId: number, line: number, phrase: string, simple: boolean) =>
+      call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple }),
     // For the audio player, which fetches the file itself and so needs the passphrase too.
     audioSource: (textId: number, line: number) => ({
       uri: `${root}/api/texts/${textId}/lines/${line}/audio`,

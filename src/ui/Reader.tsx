@@ -13,10 +13,12 @@ import { firstLine, nextLine, paragraphs, previousLine, rangeOf } from '../reade
 import { RATES } from '../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, type LengthStep } from '../reader/shelf';
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
+import { locate, phrasePart, phraseText, pickEnd, type PhrasePick } from '../reader/phrase';
 import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
 import { LineExplanation } from './ReaderExplain';
+import { PhraseExplanation, PhrasePickBanner, type PhraseMining } from './ReaderPhrase';
 import { ReadGrammarNote } from './ReadGrammarNote';
 import { Button, Card, Chip, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './theme';
@@ -84,9 +86,11 @@ export type ReaderSource =
 
 type UpNext = { id: number; title: string; lines: number; order: number[] };
 
-export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, onDone }: {
+export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, onDone, mining }: {
   api: Api;
   source: ReaderSource;
+  /** Adding a selected phrase to the deck through the note editor; missing when there's no deck to add to. */
+  mining?: PhraseMining;
   /** Plays a tapped word: its deck recording, else the phone's voice (useWordAudio). */
   onPlayWord: (word: string, language: Language) => void;
   /** Read & Listen's settings, for the length new texts are written at; null until loaded. */
@@ -112,6 +116,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const [paragraphMode, setParagraphMode] = useState(prefs().paragraphs);
   const [thaiFont, setThaiFont] = useState(prefs().thaiFont);
   const [tapped, setTapped] = useState<Tapped | null>(null);
+  // A phrase being selected (its last word not tapped yet) or selected, explained under its line.
+  const [phrase, setPhrase] = useState<PhrasePick | null>(null);
   // Grammar points marked from the popover while reading, by id (ReadGrammarNote).
   const [grammarChosen, setGrammarChosen] = useState<Record<string, GrammarChoice>>({});
   const [ended, setEnded] = useState(false);
@@ -240,6 +246,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     setRating(null);
     setWriting(false);
     setLineEnglish([]);
+    setPhrase(null);
     setListenOnly(false);
     setUpNext(null);
     setLengthStep('same');
@@ -392,9 +399,34 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const stopGuarding = usePreventRemove(needsLog || leaving, ({ repeat }) => { finish('back', repeat); });
 
   const tap = (word: Word, x: number, y: number) => {
-    if (!session) return;
+    if (!session || !text) return;
+    if (phrase && phrase.end === null) {
+      // Choosing the phrase's last word: the tap ends the phrase, not a lookup.
+      const at = locate(text.lines, word);
+      if (at) setPhrase(pickEnd(phrase, at.line, at.index));
+      return;
+    }
     setSession(lookUp(session, word.text));
     setTapped({ word, x, y });
+  };
+
+  const startPhrase = () => {
+    const at = tapped && text ? locate(text.lines, tapped.word) : null;
+    if (!at) return;
+    setPhrase({ line: at.line, start: at.index, end: null });
+    setTapped(null);
+  };
+
+  // A word's part in the phrase: where it sits in the selected phrase, whether it's the first word
+  // while the last is being chosen, and whether it's in a line the phrase can't reach.
+  const phraseLook = (line: number, word: Word, words: Word[]) => {
+    const here = phrase?.line === line ? words.indexOf(word) : -1;
+    const picking = !!phrase && phrase.end === null;
+    return {
+      phrasePart: here >= 0 ? phrasePart(phrase, line, here) : null,
+      phraseStart: picking && here === phrase.start,
+      dimmed: picking && phrase.line !== line,
+    };
   };
 
   const toggleLineEnglish = (i: number) => {
@@ -409,6 +441,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     if (!text) return;
     setSession((s) => (s ? listenedOnly(s) : s));
     setListenOnly(true);
+    setPhrase(null);
     setEnded(false);
     scrollY.current = 0; // the lines' scroll view is mounted fresh
     const start = firstLine(text.lines);
@@ -433,6 +466,24 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const turnOnMarkNames = (on: boolean) => {
     savePrefs({ markNames: on });
     setMarkNames(on);
+  };
+
+  // The selected phrase's explanation, keyed by the phrase so a new one asks again.
+  const phraseCard = (pick: PhrasePick) => {
+    if (!text) return null;
+    const said = phraseText(text.lines[pick.line].words, pick);
+    return (
+      <PhraseExplanation
+        key={`${pick.line}:${said}`}
+        api={api}
+        textId={text.id}
+        line={pick.line}
+        phrase={said}
+        // Only into the deck of the language being read.
+        mining={mining?.language === text.language ? mining : undefined}
+        onClose={() => setPhrase(null)}
+      />
+    );
   };
 
   const seconds = session ? Math.round((Date.now() - session.startedAt) / 1000) : 0;
@@ -462,10 +513,15 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
         </Stack.Toolbar>
       ) : undefined}
       footer={text && !ended ? (
-        hasAudio ? (
-          <PlayerBar playing={status.playing} current={current} total={text.lines.length} what={text.form === 'story' ? 'story' : 'dialogue'} skippable={paras !== null} onSkip={skip}
-            rate={rate} repeat={repeat} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={() => setRepeat((r) => !r)} />
-        ) : <Help>No audio for this text.</Help>
+        <>
+          {phrase && phrase.end === null && !listenOnly ? (
+            <PhrasePickBanner first={text.lines[phrase.line]?.words[phrase.start]?.text ?? ''} onCancel={() => setPhrase(null)} />
+          ) : null}
+          {hasAudio ? (
+            <PlayerBar playing={status.playing} current={current} total={text.lines.length} what={text.form === 'story' ? 'story' : 'dialogue'} skippable={paras !== null} onSkip={skip}
+              rate={rate} repeat={repeat} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={() => setRepeat((r) => !r)} />
+          ) : <Help>No audio for this text.</Help>}
+        </>
       ) : undefined}
     >
       {/* A ScrollView with the automatic inset, not a bare View: a bare one draws under the native
@@ -572,6 +628,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                                 highlighted={highlight && isOutsideDeck(word)}
                                 named={markNames && isName(word)}
                                 selected={tapped?.word === word}
+                                {...phraseLook(range.start + k, word, l.words)}
                                 playing={current === range.start + k}
                                 onPress={tap}
                               />
@@ -585,6 +642,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                 {!listenOnly && english ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: space.xs }}>{lines.map((l) => l.english).join(' ')}</Text>
                 ) : null}
+                {!listenOnly && phrase && phrase.end !== null && phrase.line >= range.start && phrase.line <= range.end
+                  ? phraseCard(phrase) : null}
               </View>
             );
           }) : text.lines.map((line, i) => (
@@ -621,6 +680,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                             highlighted={highlight && isOutsideDeck(word)}
                             named={markNames && isName(word)}
                             selected={tapped?.word === word}
+                            {...phraseLook(i, word, line.words)}
                             onPress={tap}
                           />
                         ))}
@@ -632,6 +692,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: 2 }}>{line.english}</Text>
                 ) : null}
                 {!listenOnly && explained.includes(i) ? <LineExplanation api={api} textId={text.id} line={i} /> : null}
+                {!listenOnly && phrase && phrase.end !== null && phrase.line === i ? phraseCard(phrase) : null}
               </View>
               <View style={{ gap: space.xs }}>
                 {line.audio ? (
@@ -767,6 +828,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           player.pause();
           onPlayWord(tapped.word.text, text.language);
         }}
+        onSelectPhrase={listenOnly ? null : startPhrase}
         onClose={() => setTapped(null)}
       />
     </Screen>
@@ -867,7 +929,37 @@ function RoundButton({ icon, label, accessibilityLabel, on, onPress }: {
   );
 }
 
-function WordView({ word, grammar, textStyle, flagged, highlighted, named, selected, playing = false, onPress }: {
+type PhrasePart = 'only' | 'first' | 'middle' | 'last';
+
+/**
+ * A selected phrase is drawn as one band across its pieces, spaces and punctuation included: each
+ * piece fills its own box and draws its share of the outline, the ends closing it off. Like the
+ * selection ring, the outline is an overlay, so the band moves nothing.
+ */
+function phraseCorners(part: PhrasePart) {
+  const r = radius.s - 2;
+  const left = part === 'only' || part === 'first' ? r : 0;
+  const right = part === 'only' || part === 'last' ? r : 0;
+  return { borderTopLeftRadius: left, borderBottomLeftRadius: left, borderTopRightRadius: right, borderBottomRightRadius: right };
+}
+
+function PhraseOutline({ part }: { part: PhrasePart }) {
+  const c = useTheme();
+  const opens = part === 'only' || part === 'first';
+  const closes = part === 'only' || part === 'last';
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderColor: c.accent,
+        borderTopWidth: 1.5, borderBottomWidth: 1.5, borderLeftWidth: opens ? 1.5 : 0, borderRightWidth: closes ? 1.5 : 0,
+        ...phraseCorners(part),
+      }}
+    />
+  );
+}
+
+function WordView({ word, grammar, textStyle, flagged, highlighted, named, selected, phrasePart = null, phraseStart = false, dimmed = false, playing = false, onPress }: {
   word: Word;
   grammar: TextGrammar | null;
   textStyle: { fontSize: number; lineHeight: number; font: ReadFont };
@@ -876,17 +968,33 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, named, selec
   /** A name the model marked, with names marked on. */
   named: boolean;
   selected: boolean;
+  /** Where it sits in the selected phrase, if it's in one. */
+  phrasePart?: PhrasePart | null;
+  /** The phrase's first word, while its last is being chosen: ringed like a tapped word. */
+  phraseStart?: boolean;
+  /** In a line the phrase being selected can't reach. */
+  dimmed?: boolean;
   /** In the line being played, in a story read as continuous text (a line row is shaded as a whole). */
   playing?: boolean;
   onPress: (word: Word, x: number, y: number) => void;
 }) {
   const c = useTheme();
   if (word.status === null) {
-    // A space becomes a gap; punctuation is shown but can't be tapped.
-    return word.text.trim()
+    // A space becomes a gap; punctuation is shown but can't be tapped. Inside a selected phrase
+    // either one takes a tapped word's height (padding, plus the underline's border), so the band
+    // runs through it unbroken.
+    const piece = word.text.trim()
       ? <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: c.text }}>{word.text}</Text>
       : <View style={{ width: textStyle.fontSize * 0.3 }} />;
+    if (!phrasePart && !dimmed) return piece;
+    return (
+      <View style={[{ opacity: dimmed ? 0.35 : 1 }, phrasePart ? { backgroundColor: c.accentFill, height: textStyle.lineHeight + 4.5, justifyContent: 'center' } : null]}>
+        {piece}
+        {phrasePart ? <PhraseOutline part={phrasePart} /> : null}
+      </View>
+    );
   }
+  const ringed = selected || phraseStart;
   return (
     <Pressable
       onPress={(e) => onPress(word, e.nativeEvent.pageX, e.nativeEvent.pageY)}
@@ -898,11 +1006,13 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, named, selec
         // Thai has no spaces between words, so tappable words sit flush and only real spaces in the
         // text show as gaps. The selection ring is an overlay inside the word's own box: a border
         // cancelled by a negative margin pushed each box past its slot and overlapped its neighbors.
-        borderRadius: radius.s - 2, paddingVertical: 1.5,
-        backgroundColor: selected ? c.accentFill : highlighted ? c.highlight : named ? c.nameFill : playing ? c.fill : undefined,
+        borderRadius: radius.s - 2, paddingVertical: 1.5, opacity: dimmed ? 0.35 : 1,
+        backgroundColor: ringed || phrasePart ? c.accentFill : highlighted ? c.highlight : named ? c.nameFill : playing ? c.fill : undefined,
+        ...(phrasePart && !ringed ? phraseCorners(phrasePart) : null),
       }}
     >
-      {selected ? (
+      {phrasePart && !ringed ? <PhraseOutline part={phrasePart} /> : null}
+      {ringed ? (
         <View
           pointerEvents="none"
           style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.s - 2, borderWidth: 1.5, borderColor: c.accent }}
@@ -940,7 +1050,7 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onClose }: {
+function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onClose }: {
   tapped: Tapped | null;
   grammar: TextGrammar | null;
   api: Api;
@@ -950,6 +1060,8 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
   onPlay: () => void;
   /** null when marking isn't recorded (reading a past text). */
   onToggleFlag: (() => void) | null;
+  /** Starts selecting a phrase from this word, to have it explained. */
+  onSelectPhrase: (() => void) | null;
   onClose: () => void;
 }) {
   const c = useTheme();
@@ -994,6 +1106,11 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
         ) : null}
         <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
         {grammar ? <ReadGrammarNote grammar={grammar} api={api} chosen={grammarChosen[grammar.id]} onChosen={onGrammarChosen} /> : null}
+        {onSelectPhrase ? (
+          <View style={{ alignItems: 'flex-start' }}>
+            <HeaderAction label="Select a phrase" accessibilityLabel={`Select a phrase starting from ${tapped.word.text}`} onPress={onSelectPhrase} />
+          </View>
+        ) : null}
         {onToggleFlag ? (
           <View style={{ alignItems: 'flex-start' }}>
             <HeaderAction label={flagged ? 'Unmark' : 'Mark as unknown'} onPress={onToggleFlag} />
