@@ -1,14 +1,16 @@
 import * as SecureStore from 'expo-secure-store';
+import { parseMiningCount, type MiningCount } from './mining';
 import { DEFAULT_PREFS, parsePrefs, type Prefs } from './prefs';
 
 /**
- * Read & Listen's passphrase and the reader's own settings (speed, highlight), kept in the
- * Keychain. The passphrase is never stored anywhere else; the settings sit beside it so they're
+ * Read & Listen's passphrase, the reader's own settings (speed, highlight) and how many marked
+ * words were added to the deck today, kept in the Keychain. The passphrase is never stored anywhere else; the settings sit beside it so they're
  * read before the reader opens. Both are this phone's own, like the sync key.
  */
 
 const PASSPHRASE_KEY = 'reader.passphrase';
 const PREFS_KEY = 'reader.prefs';
+const MINED_KEY = 'reader.mined';
 
 export const loadPassphrase = () => SecureStore.getItemAsync(PASSPHRASE_KEY);
 export const savePassphrase = (value: string) => SecureStore.setItemAsync(PASSPHRASE_KEY, value);
@@ -30,4 +32,17 @@ export const prefs = (): Prefs => current;
 export function savePrefs(change: Partial<Prefs>): void {
   current = { ...current, ...change };
   SecureStore.setItemAsync(PREFS_KEY, JSON.stringify(current)).catch(() => undefined);
+}
+
+/** How many marked words were added to the deck, and on which study day (mining.ts). */
+export async function loadMined(): Promise<MiningCount | null> {
+  try {
+    return parseMiningCount(await SecureStore.getItemAsync(MINED_KEY));
+  } catch {
+    return null;
+  }
+}
+
+export function saveMined(count: MiningCount): void {
+  SecureStore.setItemAsync(MINED_KEY, JSON.stringify(count)).catch(() => undefined);
 }

@@ -29,8 +29,8 @@ npm test             # vitest, the whole suite in under a second
 npx vitest run tests/core/queue.test.ts   # one file, while iterating
 npm run test:tz      # the suite in UTC+14, UTC-11 and Newfoundland (half-hour offset, DST)
 npm run verify       # the whole verification loop, below
-cd server/reader && uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest -q
-                     # Read & Listen's server: its loop, after any change under server/reader
+cd server/reader && uv run ruff check . ../speech && uv run ruff format --check . ../speech && uv run mypy && uv run mypy ../speech && uv run pytest -q && uv run pytest -q ../speech/tests
+                     # Read & Listen's server and the shared Azure client: their loop, after any change under server/reader or server/speech
 ```
 
 **The verification loop is `npm run verify`** (`tsc --noEmit && vitest run && git status --short`).
@@ -144,7 +144,7 @@ src/reader   Read & Listen's side of the app: its server's API, the reading sess
 src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested);
              sync/ syncs with an Anki sync server (pure, tested; syncService.ts is the phone's side)
 server/      a ready-to-run Anki sync server (Docker, Caddy); server/mcp is the MCP for Claude (Python);
-             server/reader is Read & Listen's server (Python)
+             server/reader is Read & Listen's server (Python); server/speech is the Azure client both use
 docs/read-and-listen/   Read & Listen's spec (brief.md) and the decisions since (architecture.md)
 tests/       vitest, mirroring src/ (src/core/queue.ts -> tests/core/queue.test.ts)
 ```
@@ -407,8 +407,11 @@ and never the server's files, so searches, note adds, scheduling and sync behave
   stored hashed.
 - **Tests run against a real `anki.syncserver`** with Anki itself as the other device
   (`tests/conftest.py`), and Azure faked (`FakeAzure`): `cd server/mcp && python -m pytest`, after
-  `pip install -r requirements-dev.txt`. CI runs them in their own job. Azure's request shapes are
-  unverified against a live key (`speech.py` says so).
+  `pip install -r requirements-dev.txt ../speech`. CI runs them in their own job.
+- **Azure is called through one client shared with Read & Listen** (`server/speech`, the
+  `franki_speech` package), so a fix to how Azure is called reaches both. Both images are built from
+  `server/` to copy it (`server/.dockerignore` keeps `.env` out of the build). Azure's request
+  shapes are unverified against a live key (its docstring says which parts were checked).
 - Keep `anki` in `requirements.txt` at the version the sync server runs (`ANKI_VERSION`;
   `tests/test_anki_version.py` checks).
 - **A merge to `main` that touches `server/` deploys itself** (`server/update.sh`, on a timer, within
@@ -426,7 +429,9 @@ they win and this is stale. The rules that must not break:
 - **Never grade FSRS from exposure, and never create Anki cards or reviews without an explicit
   approval step.** The server only reads the collection (`collection.py`; `test_collection.py`
   checks a read leaves nothing to send), and the app's side imports nothing that schedules or
-  writes cards (`tests/reader/noGrading.test.ts` fails the build on it).
+  writes cards (`tests/reader/noGrading.test.ts` fails the build on it). Adding a marked word to the
+  deck goes through the note editor, opened by the `read-words` route, where saving is the approval, and at most
+  `MINING_PER_DAY` a study day (`src/reader/mining.ts`).
 - **Generate, then verify in code.** The model writes lines as `|`-split strings with stretch words
   in `*asterisks*`; the server re-segments every line itself (lexicon-first for Thai, by lemma for
   Spanish) and sends drafts under the floor back with the unknown words named. Never trust the
@@ -446,8 +451,9 @@ they win and this is stale. The rules that must not break:
   server's domain, with its own passphrase. Its keys (Claude, Azure) stay on the server, never in
   the app.
 - **In the app, the server holds Read & Listen's data** (topics, texts, the reading log, marked
-  words, grammar choices); the screens fetch and show it, and keep nothing but the passphrase and
-  the reader's speed and highlight (`src/reader/storage.ts`). The address is the sync server's plus
+  words, grammar choices, each language's deck); the screens fetch and show it, and keep nothing but
+  the passphrase, the reader's speed and highlight, and today's count of words added to the deck
+  (`src/reader/storage.ts`). The address is the sync server's plus
   `/reader` (`readerAddress`), so it's on only while sync is.
 
 ### Backup

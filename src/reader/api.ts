@@ -62,7 +62,11 @@ export type StretchWords = 'topic' | 'any';
 // How many lines a dialogue has: short, medium or long.
 export type Length = 6 | 8 | 12;
 
-export type Settings = { stretch_words: StretchWords; lines: Length; form: Form; language: Language };
+// `decks`: the deck each language's words come from (the default when none was chosen).
+export type Settings = { stretch_words: StretchWords; lines: Length; form: Form; language: Language; decks: Record<Language, string> };
+
+// A change to the settings. A deck named '' goes back to the default.
+export type SettingsChange = Partial<Omit<Settings, 'decks'>> & { decks?: Partial<Record<Language, string>> };
 
 export type Rating = 'too_easy' | 'about_right' | 'too_hard';
 
@@ -167,10 +171,11 @@ export function createApi(
       call<{ max_practice: number; points: GrammarPoint[] }>('PUT', `/api/grammar/${id}`, { state }),
     clearWord: (word: string) => call<void>('POST', '/api/words/clear', { word }),
     settings: () => call<Settings>('GET', '/api/settings'),
-    updateSettings: (settings: Partial<Settings>) => call<Settings>('PATCH', '/api/settings', settings),
-    // null while the server is still writing the text (202): ask again in a few seconds.
-    nextText: async (topicId: number) =>
-      (await call<ReaderText | undefined>('POST', `/api/topics/${topicId}/next`)) ?? null,
+    updateSettings: (settings: SettingsChange) => call<Settings>('PATCH', '/api/settings', settings),
+    // null while the server is still writing the text (202): ask again in a few seconds. With
+    // `words` (the cards just studied), a text written to practice them.
+    nextText: async (topicId: number, words?: string[]) =>
+      (await call<ReaderText | undefined>('POST', `/api/topics/${topicId}/next`, words?.length ? { words } : undefined)) ?? null,
     pastTexts: () => call<PastText[]>('GET', '/api/texts'),
     // A past text, to read again. Reading it again isn't logged.
     text: (textId: number) => call<ReaderText>('GET', `/api/texts/${textId}`),

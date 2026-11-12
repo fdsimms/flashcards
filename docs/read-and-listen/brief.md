@@ -238,6 +238,10 @@ lemma matching for inflected forms.
 > **Changed on 26 October 2026 by the owner.** Spanish Read & Listen was built early, before the
 > Milestone 1 exit check; mining wasn't. See `architecture.md`, Languages.
 
+> **Changed on 12 November 2026 by the owner.** Mining was built early too, in Franki: a marked
+> word opens Franki's note editor, saving it is the approval, and at most 10 are added a day. See
+> `architecture.md`, Client.
+
 **Out of scope for milestone 1:** grade write-back, adding anything to Anki, languages other than
 Thai, offline mode, and any reimplementation of FSRS.
 

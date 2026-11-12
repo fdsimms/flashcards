@@ -70,6 +70,8 @@ Tap a deck to study it with its subdecks. **Undo** in the top right takes back t
 
 Short dialogues and stories in Thai or Spanish, written from the words in your decks so that nearly every word is one you know, with a few you're learning mixed in. Tap any word for its meaning, play the text line by line at 0.7x to 1.0x (it keeps playing with the screen locked), and rate it at the end so the next one is easier or harder. Reading never answers or adds cards.
 
+**Practice what you just studied:** when you finish a Thai or Spanish deck, **Read a text with these words** opens Read & Listen; pick a topic and the text uses the words you just reviewed. **Add words to your deck:** words you mark as unknown while reading are listed under **Marked words**, where **Add to deck** opens a new note with the word and its meaning filled in. Nothing is added until you save it, and at most 10 a day, so your reviews stay manageable. Which deck each language's words come from is a setting on the Read & Listen screen.
+
 The texts are written by Read & Listen's server, which runs beside your Anki sync server (`server/README.md`, Read & Listen) and uses Claude and Azure's voices. Once it's running, turn it on in **Settings**, **Read & Listen**, with its passphrase; the deck list then shows a Read & Listen row. Sync has to be set up first, since the server is at the same address.
 
 ## Installing on your iPhone
