@@ -21,13 +21,14 @@ import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTAN
 import { durationText } from '../core/stats';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
 import type { TtsTag } from '../core/tts';
-import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
+import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType } from '../core/types';
 import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardWebView } from './CardWebView';
+import { Side } from './CardSide';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
 import { headword, type DrillRequest } from '../core/forms';
@@ -37,45 +38,6 @@ import { usePhoneSpeech } from './usePhoneSpeech';
 import { Button, Count, Icon, Screen, Tappable } from './kit';
 import { Reveal, useReduceMotion } from './motion';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
-
-/**
- * One side of a natively rendered card: the word or question large and centered, the details
- * under it in smaller text with their labels.
- */
-function Side({ side, which }: { side: RenderedSide; which: 'front' | 'back' }) {
-  const c = useTheme();
-  // Blocks with a tapLabel (Anki's {{hint:Field}}) stay hidden until tapped; each Side is keyed by card.
-  const [shownHints, setShownHints] = useState<ReadonlySet<number>>(new Set());
-  return (
-    <View style={{ gap: space.m }}>
-      {side.blocks.map((b, i) => (
-        b.tapLabel && !shownHints.has(i) ? (
-          <Tappable
-            key={i}
-            accessibilityRole="button"
-            onPress={() => { haptic.select(); setShownHints((prev) => new Set(prev).add(i)); }}
-            style={{ alignSelf: 'center', minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.m }}
-          >
-            <Text style={{ ...type.callout, color: c.accent }}>{b.tapLabel}</Text>
-          </Tappable>
-        ) : (
-        <View key={i} style={{ gap: space.xs }}>
-          {b.label ? (
-            <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text>
-          ) : null}
-          <Text
-            style={b.emphasis
-              ? { ...(which === 'front' ? type.cardFront : type.cardBack), color: c.text, textAlign: 'center' }
-              : { ...type.body, color: c.textSecondary, lineHeight: 24 }}
-          >
-            {b.text}
-          </Text>
-        </View>
-        )
-      ))}
-    </View>
-  );
-}
 
 /** The card itself: a raised sheet that fills the space between the header and the buttons. */
 function CardSurface({ children }: { children: React.ReactNode }) {
@@ -233,6 +195,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
   const H = collection.dayStartsAtHour;
   const [answerButtons, setAnswerButtons] = useState<AnswerButtons>('all');
   const [swipeOn, setSwipeOn] = useState(false);
+  const [showHints, setShowHints] = useState(false);
   // Bumped after the note editor saves or deletes, to load the cards and notes again.
   const [reloads, setReloads] = useState(0);
   const [noteTypes, setNoteTypes] = useState<Map<string, NoteType>>(new Map());
@@ -252,15 +215,16 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
       const now = new Date();
       const cs = await repo.collectionSettings();
       const dayStart = studyDayStart(now, cs.dayStartsAtHour);
-      const [c, n, reviews, revlog, params, types, settings, buttons, swipe] = await Promise.all([
+      const [c, n, reviews, revlog, params, types, settings, buttons, swipe, hints] = await Promise.all([
         // Every card, not only this deck's: a gate on a deck above this one counts its whole subtree.
         repo.listCards(), repo.listNotes(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
-        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(), repo.swipeToRate(),
+        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(), repo.swipeToRate(), repo.showCardHints(),
       ]);
       const today = studiedToday({ notes: n, cards: c, reviews, revlog, now, dayStartsAtHour: cs.dayStartsAtHour });
       setCollection(cs);
       setAnswerButtons(buttons);
       setSwipeOn(swipe);
+      setShowHints(hints);
       setDeckSettings(settings);
       setAllParams(params);
       setNoteTypes(types);
@@ -796,7 +760,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
           <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the card, so each new one fades in rather than swapping. */}
             <Reveal key={current.id} rise={10} style={{ gap: space.xl }}>
-              <Side key={current.id} side={rendered.front} which="front" />
+              <Side key={current.id} side={rendered.front} which="front" showHints={showHints} />
               {playbackFor(rendered, revealed) ? (
                 <Tappable
                   onPress={() => { haptic.tap(); speak(playbackFor(rendered, revealed)); }}
@@ -816,7 +780,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
             {revealed ? (
               <Reveal rise={8} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
-                <Side key={current.id} side={rendered.back} which="back" />
+                <Side key={current.id} side={rendered.back} which="back" showHints={showHints} />
                 {extras}
               </Reveal>
             ) : null}

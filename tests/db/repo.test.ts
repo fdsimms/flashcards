@@ -14,6 +14,13 @@ describe('repo', () => {
     expect(await repo.swipeToRate()).toBe(true);
   });
 
+  it('shows a card\'s romanization and translation only on a tap until the setting is turned on', async () => {
+    const repo = new MemoryRepo();
+    expect(await repo.showCardHints()).toBe(false);
+    await repo.saveShowCardHints(true);
+    expect(await repo.showCardHints()).toBe(true);
+  });
+
   it('keeps the voices chosen for each language', async () => {
     const repo = new MemoryRepo();
     expect(await repo.voiceSettings()).toEqual({});

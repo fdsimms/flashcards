@@ -85,11 +85,31 @@ _FRENCH_ELISIONS = {
     "quoiqu": "quoique",
 }
 
+
+def _es_subjunctive() -> tuple[tuple[str, str], ...]:
+    guesses = []
+    for person in ("emos", "éis", "en", "es", "e"):  # -ar verbs
+        for stem, spelled, infinitive in (("qu", "c", "ar"), ("c", "z", "ar"), ("gu", "g", "ar")):
+            guesses.append((stem + person, spelled + infinitive))
+        guesses.append((person, "ar"))
+    for person in ("amos", "áis", "an", "as", "a"):  # -er and -ir verbs
+        for stem, spelled in (("j", "g"),):
+            guesses += [(stem + person, spelled + "er"), (stem + person, spelled + "ir")]
+        guesses += [(person, "er"), (person, "ir")]
+    return tuple(sorted(guesses, key=lambda g: -len(g[0])))
+
+
+_ES_SUBJUNCTIVE_GUESSES = _es_subjunctive()
+
 RULES: dict[str, Rules] = {
     "es": Rules(
         prefixes=frozenset({"el", "la", "los", "las", "un", "una", "unos", "unas", "lo"}),
         clitics=("nos", "les", "los", "las", "me", "te", "se", "le", "lo", "la", "os"),
         reflexive="se",
+        # simplemma takes the present subjunctive to the noun or the first-person form (abras,
+        # saque, alcance, escriba), not the infinitive. -ar verbs take -e, -er and -ir verbs take -a,
+        # and the stem's spelling follows its sound (sacar saque, alcanzar alcance).
+        guesses=_ES_SUBJUNCTIVE_GUESSES,
     ),
     "de": Rules(
         prefixes=frozenset(
@@ -142,11 +162,39 @@ def _common(code: str, count: int) -> frozenset[str]:
     return frozenset(common_words(code)[:count])
 
 
+# Forms simplemma takes back to the wrong verb. It reads vengo and the present subjunctive of venir
+# as forms of vengar (to avenge), so "Ya vengo" showed up as a deck word glossed "to avenge". Only
+# forms that belong to one verb are listed: a form two verbs share (creas, di, fuera) can't be
+# settled without the sentence.
+_LEMMA_FIXES: dict[str, dict[str, str]] = {
+    "es": {
+        w: verb
+        for verb, forms in {
+            "venir": "vengo venga vengas vengamos vengáis vengan vendría",
+            "salir": "salgo salga salgas salgamos salgáis salgan",
+            "entrar": "entraba entrabas entrábamos entrabais entraban",
+            "empezar": "empecemos empeces empecéis",
+            "recibir": "recibís",
+            "morir": "muera mueras mueran muramos",
+            "correr": "correría correrías",
+        }.items()
+        for w in forms.split()
+    },
+}
+
+
 @cache
 def lemma(word: str, code: str) -> str:
     import simplemma  # loaded on first use; see the module docstring
 
-    return fold(str(simplemma.lemmatize(word, lang=code, low_memory=True)), code)
+    word = fold(word, code)
+    if fixed := _LEMMA_FIXES.get(code, {}).get(word):
+        return fixed
+    found = fold(str(simplemma.lemmatize(word, lang=code, low_memory=True)), code)
+    if code == "es" and found.endswith("rse") and not word.endswith("se"):
+        # volverías and utilizaréis come back as volverse and utilizarse
+        return found[:-2]
+    return found
 
 
 def fold(word: str, code: str) -> str:

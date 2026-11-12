@@ -343,6 +343,14 @@ answer is already in the server's history (`undoAnkiAnswer` refuses it, under `l
   `radius`, `type`). `tests/noRawColors.test.ts` fails the build on a hex color in a screen; add a
   token with a light and a dark value instead. Text grows with the system text size, so a box
   holding text gets padding or a `minHeight`, never a fixed `height`.
+- **Mock up a proposed UI change before building it, so the owner can see it.** There are no
+  screen tests and no renderer, so a description in prose isn't something they can react to. For a
+  new screen, a layout change or a change to how a card or row is presented, publish a small HTML
+  mock as an Artifact (dark and light, at phone width, with the real strings from the screenshot or
+  the code) and ask which direction to take. Use the values from `src/ui/theme.ts` so the mock
+  looks like the app, and for a choice between layouts show the options side by side. Build in
+  the app only after they've picked. Skip it for a change too small to need one (a label, a
+  spacing value, a color token).
 
 ### The Anki collection (`src/anki/`, `src/db/ankiLink.ts`)
 

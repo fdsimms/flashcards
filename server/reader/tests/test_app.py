@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from scripted import BAD, ENTRIES, GOOD, ScriptedModel
+from scripted import BAD, ENTRIES, IN_RANGE, ScriptedModel
 
 from franki_reader import store
 from franki_reader.app import create_app
@@ -40,7 +40,7 @@ def client(
 ) -> TestClient:
     conn = store.connect(":memory:")
     store.save_snapshot(conn, ENTRIES, NOW)
-    model = model or ScriptedModel(GOOD)
+    model = model or ScriptedModel(IN_RANGE)
     engine = Engine(conn, model.ask_for, None, lambda: NOW, random.Random(1))
     return started(create_app(engine, passphrase))
 
@@ -78,7 +78,7 @@ def test_no_passphrase_configured_refuses_everything() -> None:
 
 
 def test_adding_a_topic_tops_it_up_in_the_background() -> None:
-    model = ScriptedModel(GOOD)
+    model = ScriptedModel(IN_RANGE)
     c = client(model)
 
     added = c.post("/api/topics", json={"name": "  Food   stall "}, headers=AUTH).json()
@@ -166,7 +166,7 @@ def speaking_client(tmp_path: Path) -> TestClient:
     store.save_snapshot(conn, ENTRIES, NOW)
     engine = Engine(
         conn,
-        ScriptedModel(GOOD).ask_for,
+        ScriptedModel(IN_RANGE).ask_for,
         None,
         lambda: NOW,
         random.Random(1),
@@ -328,7 +328,7 @@ def test_progress_counts_finished_texts_and_says_how_hard_the_next_is() -> None:
     empty = c.get("/api/progress", headers=AUTH).json()
     assert empty["finished"] == 0
     assert empty["median_coverage"] is None
-    assert empty["next"] == {"floor": 0.95, "stretch": 2}
+    assert empty["next"] == {"floor": 0.92, "stretch": 2}
 
     read(c, "about_right", [])
     read(c, "too_hard", [])
@@ -337,9 +337,9 @@ def test_progress_counts_finished_texts_and_says_how_hard_the_next_is() -> None:
     progress = c.get("/api/progress", headers=AUTH).json()
     assert progress["days"] == 14
     assert progress["finished"] == 2
-    assert progress["median_coverage"] == 1.0
+    assert progress["median_coverage"] == 0.95
     assert progress["ratings"] == {"too_easy": 0, "about_right": 1, "too_hard": 1, "none": 0}
-    assert progress["next"] == {"floor": 0.96, "stretch": 1}
+    assert progress["next"] == {"floor": 0.93, "stretch": 1}
     assert c.get("/api/progress").status_code == 401
 
 
@@ -436,7 +436,7 @@ def test_a_languages_deck_can_be_chosen_and_is_read_again_at_once() -> None:
 
     conn = store.connect(":memory:")
     store.save_snapshot(conn, ENTRIES, NOW)
-    engine = Engine(conn, ScriptedModel(GOOD).ask_for, read, lambda: NOW, random.Random(1))
+    engine = Engine(conn, ScriptedModel(IN_RANGE).ask_for, read, lambda: NOW, random.Random(1))
     c = started(create_app(engine, "open sesame"))
 
     changed = c.patch("/api/settings", headers=AUTH, json={"decks": {"th": "Thai::Words"}}).json()
@@ -454,7 +454,7 @@ def test_a_languages_deck_can_be_chosen_and_is_read_again_at_once() -> None:
 
 def test_how_many_common_words_count_can_be_chosen_for_each_language_but_thai() -> None:
     conn = store.connect(":memory:")
-    engine = Engine(conn, ScriptedModel(GOOD).ask_for, None, lambda: NOW, random.Random(1))
+    engine = Engine(conn, ScriptedModel(IN_RANGE).ask_for, None, lambda: NOW, random.Random(1))
     c = started(create_app(engine, "open sesame"))
     changed = c.patch("/api/settings", headers=AUTH, json={"common": {"de": 5000, "pl": 1000}})
     assert changed.json()["common"] == {**COMMON, "de": 5000, "pl": 1000}
@@ -470,7 +470,7 @@ def test_how_many_common_words_count_can_be_chosen_for_each_language_but_thai() 
 def test_changing_a_deck_forgets_the_old_decks_words_until_the_new_one_is_read() -> None:
     conn = store.connect(":memory:")
     store.save_snapshot(conn, ENTRIES, NOW)
-    engine = Engine(conn, ScriptedModel(GOOD).ask_for, None, lambda: NOW, random.Random(1))
+    engine = Engine(conn, ScriptedModel(IN_RANGE).ask_for, None, lambda: NOW, random.Random(1))
     c = started(create_app(engine, "open sesame"))
     c.patch("/api/settings", headers=AUTH, json={"decks": {"th": "Thai::Words"}})
     assert store.load_snapshot(conn) == ([], None)
@@ -481,7 +481,7 @@ def test_changing_a_deck_forgets_the_old_decks_words_until_the_new_one_is_read()
 
 
 def test_next_takes_the_words_to_practice() -> None:
-    c = client(ScriptedModel(GOOD, GOOD))
+    c = client(ScriptedModel(IN_RANGE, IN_RANGE))
     topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
     deadline = time.time() + 10
     while True:
@@ -517,7 +517,7 @@ class FakeSpeech:
 def voice_client(speech: FakeSpeech | None) -> TestClient:
     conn = store.connect(":memory:")
     store.save_snapshot(conn, ENTRIES, NOW)
-    engine = Engine(conn, ScriptedModel(GOOD).ask_for, None, lambda: NOW, random.Random(1))
+    engine = Engine(conn, ScriptedModel(IN_RANGE).ask_for, None, lambda: NOW, random.Random(1))
     return started(create_app(engine, "open sesame", speech))
 
 
@@ -590,7 +590,7 @@ def test_texts_waiting_to_be_read_are_spoken_again_in_new_voices(tmp_path: Path)
     store.save_snapshot(conn, ENTRIES, NOW)
     engine = Engine(
         conn,
-        ScriptedModel(GOOD).ask_for,
+        ScriptedModel(IN_RANGE).ask_for,
         None,
         lambda: NOW,
         random.Random(1),
