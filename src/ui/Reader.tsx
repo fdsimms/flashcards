@@ -295,6 +295,7 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
       {text && session && !ended ? (
         <ScrollView
           ref={scroller}
+          contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={{ paddingBottom: space.l }}
           onLayout={(e) => { viewHeight.current = e.nativeEvent.layout.height; }}
           onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
