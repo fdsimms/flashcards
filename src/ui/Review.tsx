@@ -44,6 +44,7 @@ import { usePhoneSpeech } from './usePhoneSpeech';
 import { Button, Count, Icon, Screen, Tappable } from './kit';
 import { Reveal, useReduceMotion } from './motion';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { useHeaderInset } from './useHeaderInset';
 
 /** The card itself: a raised sheet that fills the space between the header and the buttons. */
 export function CardSurface({ children }: { children: React.ReactNode }) {
@@ -273,6 +274,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   // The box sits in the footer, so the screen is padded by the keyboard's height while it's up. The
   // keyboard covers the home indicator area the footer already leaves, so that much isn't added twice.
   const insets = useSafeAreaInsets();
+  const header = useHeaderInset();
   const [keyboard, setKeyboard] = useState(0);
   useEffect(() => {
     const show = Keyboard.addListener('keyboardWillShow', (e) => setKeyboard(e.endCoordinates.height));
@@ -776,7 +778,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   };
 
   return (
-    <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
+    <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
     {leechSheet}
     <Screen
       title={title}
