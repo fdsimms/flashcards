@@ -3,6 +3,7 @@ import * as SQLite from 'expo-sqlite';
 import { registerUnicase } from '../../modules/anki-unicase';
 import { parseAnswerButtons } from '../core/answerButtons';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
+import { parseThaiTextSize } from '../core/script';
 import { parseVoiceSettings } from '../core/voices';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } from '../core/types';
 import { clearMedia, listMedia, writeMedia } from '../media/mediaFiles';
@@ -322,6 +323,13 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async saveShowCardHints(on) {
       await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('show_card_hints', ?)", on ? '1' : '0');
+    },
+    async thaiTextSize() {
+      const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'thai_text_size'");
+      return parseThaiTextSize(r?.value);
+    },
+    async saveThaiTextSize(size) {
+      await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('thai_text_size', ?)", size);
     },
     async listReviews(since) {
       // ISO strings are all UTC, so comparing them as text compares the instants.
