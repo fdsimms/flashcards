@@ -18,7 +18,7 @@ import { radius, space, type, useTheme } from './theme';
  * ongoing story, the themes the shelf writes from, practice words, and how reading is going.
  * Opened from the shelf's sliders button; the language is the one the shelf is showing.
  */
-export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, onEpisodes }: {
+export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, onVocabCheck, onEpisodes }: {
   api: Api;
   /** Franki's decks, to choose the language's deck from. */
   deckNames: string[];
@@ -26,6 +26,8 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
   onSettings: (settings: Settings) => void;
   onVoices: () => void;
   onGrammar: () => void;
+  /** The vocabulary check, which suggests the common-words setting. */
+  onVocabCheck: () => void;
   /** Lists the story's episodes, to read again from the first. */
   onEpisodes: (storyId: number) => void;
 }) {
@@ -141,7 +143,11 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
               <CommonWords settings={settings} onChange={(count) => change({ common: { [language]: count } })} />
             </Card>
             <Group>
-              <NavRow first label="Voices" detail={voicesSummary(voices) ?? 'The voices texts are read in'} onPress={onVoices} />
+              {/* Thai counts only its deck, so it has no common words to check. */}
+              {settings.common?.[language] !== undefined ? (
+                <NavRow first label="Vocabulary check" detail="20 questions to find how many common words to count" onPress={onVocabCheck} />
+              ) : null}
+              <NavRow first={settings.common?.[language] === undefined} label="Voices" detail={voicesSummary(voices) ?? 'The voices texts are read in'} onPress={onVoices} />
               <NavRow label="Grammar" detail={grammar ?? 'Practice or avoid'} onPress={onGrammar} />
             </Group>
 

@@ -151,10 +151,17 @@ RULES: dict[str, Rules] = {
 
 
 @cache
-def common_words(code: str) -> tuple[str, ...]:
-    """The language's most common word families, most common first, as they're compared."""
+def common_lemmas(code: str) -> tuple[str, ...]:
+    """The language's most common word families, most common first, as written (Russian keeps its
+    ё), for showing a word to the learner."""
     lines = (_DATA / f"{code}_common.txt").read_text(encoding="utf-8").splitlines()
-    return tuple(fold(w, code) for w in lines if w and not w.startswith("#"))
+    return tuple(w for w in lines if w and not w.startswith("#"))
+
+
+@cache
+def common_words(code: str) -> tuple[str, ...]:
+    """The same list as it's compared."""
+    return tuple(fold(w, code) for w in common_lemmas(code))
 
 
 @cache

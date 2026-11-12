@@ -131,6 +131,25 @@ CREATE TABLE IF NOT EXISTS drill_questions (
     served_at TEXT
 );
 CREATE INDEX IF NOT EXISTS drill_questions_point ON drill_questions(point_id);
+-- The vocabulary check's questions (vocab_check.py): each batch Claude glossed for a language, for its
+-- cost, and the words from it that passed the checks. A word is written once and kept.
+CREATE TABLE IF NOT EXISTS vocab_batches (
+    id INTEGER PRIMARY KEY,
+    language TEXT NOT NULL,
+    asked INTEGER NOT NULL,
+    kept INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    cost_usd REAL NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS vocab_items (
+    language TEXT NOT NULL,
+    lemma TEXT NOT NULL,
+    rank INTEGER NOT NULL,
+    meaning TEXT NOT NULL,
+    wrong TEXT NOT NULL,
+    batch_id INTEGER NOT NULL REFERENCES vocab_batches(id),
+    PRIMARY KEY (language, lemma)
+);
 CREATE TABLE IF NOT EXISTS stories (
     id INTEGER PRIMARY KEY,
     language TEXT NOT NULL,
@@ -1223,6 +1242,65 @@ def drill_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tupl
         language: (count, cost)
         for language, count, cost in conn.execute(
             "SELECT language, COUNT(*), SUM(cost_usd) FROM drill_batches WHERE created_at >= ?"
+            " GROUP BY language ORDER BY SUM(cost_usd) DESC",
+            (since.isoformat(),),
+        )
+    }
+
+
+# ==== The vocabulary check ====
+
+
+def save_vocab_batch(
+    conn: sqlite3.Connection,
+    language: Code,
+    items: list[Any],
+    asked: int,
+    now: datetime,
+    cost_usd: float,
+) -> None:
+    """A batch Claude glossed for a language: its cost, and the words that passed
+    (vocab_check.VocabItem)."""
+    with conn:
+        batch = conn.execute(
+            "INSERT INTO vocab_batches (language, asked, kept, created_at, cost_usd)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (language, asked, len(items), now.isoformat(), cost_usd),
+        ).lastrowid
+        conn.executemany(
+            "INSERT OR REPLACE INTO vocab_items (language, lemma, rank, meaning, wrong, batch_id)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    language,
+                    i.lemma,
+                    i.rank,
+                    i.meaning,
+                    json.dumps(list(i.wrong), ensure_ascii=False),
+                    batch,
+                )
+                for i in items
+            ],
+        )
+
+
+def vocab_items(conn: sqlite3.Connection, language: Code) -> list[tuple[str, int, str, list[str]]]:
+    """A language's glossed words as (lemma, rank, meaning, wrong choices), most common first."""
+    return [
+        (lemma, rank, meaning, json.loads(wrong))
+        for lemma, rank, meaning, wrong in conn.execute(
+            "SELECT lemma, rank, meaning, wrong FROM vocab_items WHERE language = ? ORDER BY rank",
+            (language,),
+        )
+    ]
+
+
+def vocab_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
+    """Each language with vocabulary check words written since `since`: batches and their cost."""
+    return {
+        language: (count, cost)
+        for language, count, cost in conn.execute(
+            "SELECT language, COUNT(*), SUM(cost_usd) FROM vocab_batches WHERE created_at >= ?"
             " GROUP BY language ORDER BY SUM(cost_usd) DESC",
             (since.isoformat(),),
         )

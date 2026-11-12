@@ -168,6 +168,13 @@ export type Speakers = Record<VoiceSlot, string>;
 // older than voices by gender sends {A, B} instead, which hasVoiceSlots tells apart.
 // `common`: how many of each language's most common words count as known (not Thai: deck only);
 // missing from a server older than the setting.
+// The vocabulary check's questions for a language (reader/vocabCheck.ts). "preparing": the server is
+// writing them, ask again in a few seconds.
+export type VocabBank = {
+  state: 'ready' | 'preparing' | 'failed' | 'unavailable';
+  items: { word: string; rank: number; meaning: string; wrong: string[] }[];
+};
+
 export type Settings = {
   stretch_words: StretchWords; lines: Length; form: Form; language: Language;
   decks: Record<Language, string>; voices: Record<Language, Speakers>;
@@ -289,6 +296,7 @@ export function createApi(
     markedWords: () => call<MarkedWord[]>('GET', '/api/words'),
     grammar: () => call<GrammarList>('GET', '/api/grammar'),
     drills: (points: string[], count: number) => call<DrillSet>('POST', '/api/drills', { points, count }),
+    vocabCheck: (language: Language) => call<VocabBank>('GET', `/api/vocab-check?language=${language}`),
     grammarPoint: (id: string) => call<GrammarPointPage>('GET', `/api/grammar/${encodeURIComponent(id)}`),
     // Every language's choices by point id (a point not set isn't listed), for Forms practice.
     grammarChoices: () => call<{ choices: Record<string, GrammarChoice> }>('GET', '/api/grammar/choices'),
