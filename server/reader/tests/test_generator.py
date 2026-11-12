@@ -35,6 +35,7 @@ def draft(*texts: str, glosses: dict[str, str] | None = None) -> dict[str, Any]:
     return {
         "title": "At the stall",
         "roles": {"A": "Vendor", "B": "Customer"},
+        "genders": {"A": "male", "B": "male"},
         "lines": [
             {"speaker": "AB"[i % 2], "text": t, "english": f"line {i}"} for i, t in enumerate(texts)
         ],
@@ -410,3 +411,35 @@ def test_a_story_episode_asks_to_carry_the_story_on() -> None:
     )
     assert 'episode 3 of an ongoing story, "Noi\'s stall"' in later
     assert "Noi sells noodles." in later and "- One.\n- Two." in later
+
+
+def test_a_draft_with_a_line_that_does_not_fit_its_speaker_is_sent_back() -> None:
+    wrong = draft("ฉัน|อยาก|กิน|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ")
+    wrong["genders"] = {"A": "male", "B": "female"}  # B says ครับ
+    model = ScriptedModel(wrong, GOOD)
+    result = run(model, TextRequest("food", (MANGO,)))
+    assert result.passed and result.attempts == 2
+    assert result.genders == {"A": "male", "B": "male"} and result.gender_ok
+    assert "Speaker B is a woman" in model.sent[-1][-1]["content"]
+
+
+def test_a_draft_that_never_fits_is_not_kept_however_good_its_coverage() -> None:
+    wrong = dict(GOOD, genders={"A": "male", "B": "female"})
+    result = run(ScriptedModel(wrong, wrong, wrong), TextRequest("food", (MANGO,)))
+    assert not result.passed and not result.gender_ok
+    assert result.coverage.ratio == 1.0
+
+
+def test_a_dialogue_has_to_say_who_is_a_man_or_a_woman() -> None:
+    unsaid = dict(GOOD, genders={"A": "none", "B": "none"})
+    model = ScriptedModel(unsaid, GOOD)
+    result = run(model, TextRequest("food", (MANGO,)))
+    assert result.passed and result.attempts == 2
+    assert 'Say in "genders"' in model.sent[-1][-1]["content"]
+
+
+def test_a_story_has_no_genders() -> None:
+    story = dict(GOOD, genders={"A": "female", "B": "female"})
+    story["lines"] = [dict(line, speaker="N") for line in GOOD["lines"]]
+    result = run(ScriptedModel(story), TextRequest("food", (MANGO,), form="story"))
+    assert result.genders == {} and result.gender_ok

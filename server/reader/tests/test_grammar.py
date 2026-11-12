@@ -146,6 +146,7 @@ def draft(*lines: str) -> dict[str, Any]:
     return {
         "title": "t",
         "roles": {"A": "A", "B": "B"},
+        "genders": {"A": "male", "B": "female"},
         "lines": [{"speaker": "AB"[i % 2], "text": t, "english": "."} for i, t in enumerate(lines)],
         "glosses": [],
     }

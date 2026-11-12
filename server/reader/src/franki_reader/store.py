@@ -5,7 +5,7 @@ import json
 import logging
 import sqlite3
 import statistics
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
@@ -13,7 +13,7 @@ from typing import Any, Literal
 from franki_reader.difficulty import Difficulty
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Form, Generated, Line
-from franki_reader.languages import LANGUAGES, Code, with_deck
+from franki_reader.languages import LANGUAGES, VOICE_SLOTS, Code, with_deck
 from franki_reader.lexicon import Entry, ReadDeck
 
 SNAPSHOT_MAX_AGE = timedelta(hours=24)
@@ -134,6 +134,9 @@ class StoredText:
     stretch: tuple[str, ...]
     coverage: float
     roles: dict[str, str] = field(default_factory=dict)
+    # speaker -> "male" or "female" for a dialogue; empty for a story and for a text written
+    # before genders were recorded, which is read with A as a man and B as a woman (gender.py).
+    genders: dict[str, str] = field(default_factory=dict)
     form: Form = "dialogue"
     language: Code = "th"
     # {"practice": [point ids], "avoid": [point ids]}, as asked for when it was written
@@ -164,7 +167,8 @@ class Settings:
     language: Code = "th"  # the language new texts are written and served in
     # The deck each language's word list comes from, where it isn't the default (languages.py).
     decks: dict[str, str] = field(default_factory=dict)
-    # The Azure voice for each speaker (A, B) by language, where one was chosen in the app.
+    # The Azure voice for each voice slot (male, male2, female, female2: languages.VOICE_SLOTS) by
+    # language, where one was chosen in the app.
     voices: dict[str, dict[str, str]] = field(default_factory=dict)
     # How many of each language's most common words count as known, where it isn't the default
     # (languages.py). Thai has none: only its deck counts.
@@ -198,6 +202,10 @@ def connect(path: Path | str) -> sqlite3.Connection:
         if "language" not in {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}:
             # Everything from before Spanish is Thai.
             conn.execute(f"ALTER TABLE {table} ADD COLUMN language TEXT NOT NULL DEFAULT 'th'")
+    if "genders" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
+        # Who is a man or a woman in a dialogue; none before it was asked, and those texts are
+        # read with A as a man and B as a woman.
+        conn.execute("ALTER TABLE texts ADD COLUMN genders TEXT NOT NULL DEFAULT '{}'")
     if "grammar" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
         # The grammar a text was written to practice and avoid; none before grammar choices.
         conn.execute("ALTER TABLE texts ADD COLUMN grammar TEXT NOT NULL DEFAULT '{}'")
@@ -435,9 +443,9 @@ def save_text(
             """INSERT INTO texts (topic_id, created_at, status, title, lines, glosses, stretch,
                    coverage, token_count, floor, attempts, model, input_tokens, output_tokens,
                    cache_read_tokens, cache_write_tokens, cost_usd, roles, form, language, grammar,
-                   focus, translits, reason, story_id, episode, recap)
+                   focus, translits, reason, story_id, episode, recap, genders)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                   ?, ?)""",
+                   ?, ?, ?)""",
             (
                 topic_id,
                 now.isoformat(),
@@ -466,6 +474,7 @@ def save_text(
                 story_id,
                 episode,
                 generated.recap,
+                json.dumps(generated.genders),
             ),
         )
     assert cur.lastrowid is not None
@@ -510,7 +519,7 @@ def get_text(conn: sqlite3.Connection, text_id: int) -> StoredText | None:
 
 _TEXT_COLUMNS = (
     "id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar,"
-    " translits, reason, story_id, episode, recap"
+    " translits, reason, story_id, episode, recap, genders"
 )
 
 
@@ -532,6 +541,7 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         story_id,
         episode,
         recap,
+        genders,
     ) = row
     return StoredText(
         id=text_id,
@@ -550,6 +560,7 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         story_id=story_id,
         episode=episode,
         recap=recap,
+        genders=json.loads(genders),
     )
 
 
@@ -977,7 +988,16 @@ def load_settings(conn: sqlite3.Connection) -> Settings:
     raw = _get_meta(conn, "settings")
     saved = json.loads(raw) if raw else {}
     # Only known keys, so a setting removed later doesn't break loading.
-    return Settings(**{k: v for k, v in saved.items() if k in Settings.__dataclass_fields__})
+    settings = Settings(**{k: v for k, v in saved.items() if k in Settings.__dataclass_fields__})
+    # Voices were chosen for speakers A and B before they were chosen by gender; those choices
+    # aren't carried over, as nothing says which gender a chosen voice is.
+    slots: frozenset[str] = frozenset(VOICE_SLOTS)
+    voices: dict[str, dict[str, str]] = {}
+    for code, chosen in settings.voices.items():
+        kept = {slot: name for slot, name in chosen.items() if slot in slots}
+        if kept:
+            voices[code] = kept
+    return replace(settings, voices=voices)
 
 
 def save_settings(conn: sqlite3.Connection, settings: Settings) -> None:

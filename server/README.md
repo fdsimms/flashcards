@@ -78,7 +78,7 @@ It needs more memory than the rest (up to about 350 MB with both languages), so 
 - `READER_PASSPHRASE`: a long passphrase of its own, typed once in the app. The MCP uses it too, to tell Claude what Read & Listen costs (`read_and_listen_costs`)
 - `ANTHROPIC_API_KEY`: a Claude API key, for writing the texts
 - `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`: the same ones as the MCP's audio (above). Both use the same Azure client (`speech/`). `AZURE_SPEECH_ENDPOINT` (optional, for both) replaces the region's own address, for a custom domain.
-- `AZURE_VOICE_A` and `AZURE_VOICE_B` (optional): Thai's two voices, when not `th-TH-NiwatNeural` and `th-TH-PremwadeeNeural`.
+- `AZURE_VOICE_MALE` and `AZURE_VOICE_FEMALE` (optional): Thai's man's and woman's voices, when not `th-TH-NiwatNeural` and `th-TH-PremwadeeNeural` (renamed from `AZURE_VOICE_A` and `AZURE_VOICE_B`; a text now says which speaker is a man or a woman).
 - `READER_BUCKET_*` (optional, recommended): an S3-compatible bucket that the database is backed up to continuously. When the database is missing (a new server, a lost volume), it's restored from there.
 
 Then run `docker compose up -d --build`. Check `https://<your domain>/reader/health` shows `{"status":"ok"}`. Then in Franki, open **Settings**, **Read & Listen**, and enter the passphrase. Franki finds the server at `https://<your domain>/reader` by itself, from the sync settings.

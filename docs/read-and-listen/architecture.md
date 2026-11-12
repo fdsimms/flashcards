@@ -248,14 +248,15 @@ Thai letters, so none of them is a language here. Each new language works as Spa
   most common German words in all their forms", or "only the list" when the setting is none). A
   language's variety is named where it matters: Mexican Spanish (ustedes, never vosotros), Bokmål,
   Modern Greek with accents, Russian with ё. Each language has its own cached system prompt.
-- **Voices**: a male voice for A (and the narrator) and a female one for B, Azure's standard
-  neural voices for the country, checked to exist with the MCP's `list_voices`: Mexican Spanish
-  `es-MX-JorgeNeural` and `es-MX-DaliaNeural` (the owner's choice), German `de-DE-ConradNeural`
-  and `de-DE-KatjaNeural`, French `fr-FR-HenriNeural` and `fr-FR-DeniseNeural`, Russian
-  `ru-RU-DmitryNeural` and `ru-RU-SvetlanaNeural`, Greek `el-GR-NestorasNeural` and
-  `el-GR-AthinaNeural`, Polish `pl-PL-MarekNeural` and `pl-PL-ZofiaNeural`, Norwegian
-  `nb-NO-FinnNeural` and `nb-NO-PernilleNeural`. The speech request's language comes from the
-  voice's name.
+- **Voices**: a man's voice and a woman's, Azure's standard neural voices for the country,
+  checked to exist with the MCP's `list_voices`: Mexican Spanish `es-MX-JorgeNeural` and
+  `es-MX-DaliaNeural` (the owner's choice), German `de-DE-ConradNeural` and `de-DE-KatjaNeural`,
+  French `fr-FR-HenriNeural` and `fr-FR-DeniseNeural`, Russian `ru-RU-DmitryNeural` and
+  `ru-RU-SvetlanaNeural`, Greek `el-GR-NestorasNeural` and `el-GR-AthinaNeural`, Polish
+  `pl-PL-MarekNeural` and `pl-PL-ZofiaNeural`, Norwegian `nb-NO-FinnNeural` and
+  `nb-NO-PernilleNeural`. Each language also has a second voice of each gender where Azure's
+  standard voices have one, for a dialogue between two men or two women (Audio). The speech
+  request's language comes from the voice's name.
 - **In the app**, a word known for being common rather than from the deck says "A common word" in
   its gloss, and outside Thai the highlight switch is "Highlight words you might not know". Every
   language but Thai is set a little smaller than Thai.
@@ -500,12 +501,32 @@ are listed at the top of `server/reader/src/franki_reader/app.py`.
 
 ## Audio
 
-- Azure neural voices, one per speaker: `th-TH-NiwatNeural` (male) for A and `th-TH-PremwadeeNeural`
-  (female) for B. `AZURE_VOICE_A` and `AZURE_VOICE_B` in `server/.env` override them without a code
-  change (the other languages' are set in `languages.py`). Since 12 November 2026 each speaker's voice can be
-  chosen in the app (Read & Listen's settings, from `GET /api/voices`), stored in the `voices`
-  setting over those defaults; a change re-records the texts waiting to be read, and a text already
-  read keeps its audio. The same server also speaks a card's word for the app (`POST /api/speech`,
+- **Speakers are read in a voice of their gender.** The model says in `genders` whether A and B are
+  a man or a woman (`male` or `female`; `none` in a story), and varies it from text to text: a man
+  and a woman, two men or two women. The text is stored with it (`texts.genders`), and
+  `gender.voice_for` picks each speaker's voice: A uses the first voice of their gender, and B the
+  same unless A is the same gender, when B uses the second. A story's narrator is read in the
+  man's voice. A text from before this has no genders and is read as it was recorded, A a man and
+  B a woman.
+- **Thai's lines are checked against it in code** (`gender.gender_problems`): a man's line with
+  ค่ะ, คะ or ดิฉัน, or a woman's with ครับ or ผม, goes back to the model with the line named, like the
+  vocabulary check. ฉัน isn't checked (men say it too), and ผม counts only as a whole word, since it
+  also means "hair". A draft that fails is never kept, however good its coverage: if every attempt
+  fails, the text is stored as dropped. The other languages mark gender in verb endings and
+  adjectives, which code can't check reliably, so they rest on the prompt.
+- **Voices**: four slots per language (`male`, `male2`, `female`, `female2`), defaults in
+  `languages.py`. Thai's man's and woman's defaults can be set with `AZURE_VOICE_MALE` and
+  `AZURE_VOICE_FEMALE` in `server/.env`. A language with no second voice of a gender (no second
+  man in Thai, Russian, Greek, Polish or Norwegian; no second woman in Greek) reads two speakers
+  of that gender in the same voice until one is chosen. Azure's newer Dragon and MAI voices are
+  offered in the picker, but none is a default, as they haven't been tried through this client.
+  Since 12 November 2026 each slot can be chosen in the app (Read & Listen's settings, from
+  `GET /api/voices`, filtered to the slot's gender by `voiceSlots.ts`; `PATCH /api/settings`
+  refuses a voice of the other gender), stored in the `voices` setting over those defaults. A
+  change re-records the texts waiting to be read, and a text already read keeps its audio. Voices
+  chosen for speakers A and B before genders were recorded aren't carried over: nothing said which
+  gender they were.
+- The same server also speaks a card's word for the app (`POST /api/speech`,
   Settings > Voices in Franki), which keeps the MP3 in the note, so each recording is asked for
   once. Azure is
   called through the client shared with the MCP (`server/speech`, `franki_speech`, since 12 November

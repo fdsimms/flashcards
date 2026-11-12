@@ -4,7 +4,7 @@ import type { Language } from '../reader/api';
 import { useApp } from '../ui/AppContext';
 import { ReadVoices } from '../ui/ReadVoices';
 
-/** One language's speaker voices in Read & Listen (`language`: its code, th, es, de...). */
+/** One language's voices in Read & Listen (`language`: its code, th, es, de...). */
 export default function ReadVoicesRoute() {
   const router = useRouter();
   const { reader } = useApp();
@@ -12,5 +12,13 @@ export default function ReadVoicesRoute() {
   // Read & Listen was turned off (or its passphrase changed): back to its settings.
   useEffect(() => { if (!reader.api) router.back(); }, [reader.api, router]);
   if (!reader.api) return null;
-  return <ReadVoices api={reader.api} language={language} onSettings={reader.setSettings} />;
+  return (
+    <ReadVoices
+      api={reader.api}
+      language={language}
+      voices={reader.settings?.voices?.[language]}
+      onSettings={reader.setSettings}
+      onPick={(slot) => router.push({ pathname: '/read-voice', params: { language, slot } })}
+    />
+  );
 }
