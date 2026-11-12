@@ -9,7 +9,7 @@ import { NoteEditor } from '../ui/NoteEditor';
  */
 export default function NoteEditorRoute() {
   const router = useRouter();
-  const { repo, finishNoteEditor } = useApp();
+  const { repo, decks, finishNoteEditor } = useApp();
   const { noteId, deck, model, fields } = useLocalSearchParams<{ noteId?: string; deck?: string; model?: string; fields?: string }>();
   const filled = useMemo(() => {
     try { return fields ? (JSON.parse(fields) as Record<string, string>) : undefined; } catch { return undefined; }
@@ -22,6 +22,7 @@ export default function NoteEditorRoute() {
     <NoteEditor
       repo={repo}
       target={noteId ? { noteId } : { deck: deck ?? null, model, fields: filled }}
+      decks={decks.map((d) => d.deck)}
       onCardsChanged={() => { result.current ??= { cardsChanged: true }; }}
       onClose={(r) => { if (r) result.current = r; router.back(); }}
     />
