@@ -151,8 +151,8 @@ owner's request for "all my other languages" but English. Japanese is held back 
 decision, to be tried with WaniKani's data instead; it would also need a word splitter like Thai's.
 The Backlog decks (Portuguese, Italian, Esperanto, Chinese) were empty, and Loopless Letters is
 Thai letters, so none of them is a language here. Each new language works as Spanish does
-(`spaced.py`, below), with its own deck, voices and list of common words; none has grammar points
-yet, and the Grammar screen says so.
+(`spaced.py`, below), with its own deck, voices, list of common words and grammar points
+(Grammar). A language with no grammar points would say so on the Grammar screen.
 
 - **Each language's deck is a setting** (12 November 2026, by the owner's decision): `decks` in
   `/api/settings`, chosen on the topics screen from Franki's decks, defaulting to the owner's. A
@@ -257,7 +257,15 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
 - **Points** (`server/reader/src/franki_reader/grammar.py`). Spanish: preterite, imperfect, present perfect,
   pluperfect, future, conditional, progressive, present subjunctive, imperfect subjunctive (the
   present is always allowed). Thai: เคย, กำลัง, จะ, แล้ว, ต้อง, กว่า, ที่สุด, ถ้า, เพราะ, and yes or no
-  questions (ไหม, หรือเปล่า). Each is **practice** (used at least twice in each text), **avoid**
+  questions (ไหม, หรือเปล่า). Since 12 November 2026, at the owner's request, the other languages
+  have theirs (`grammar_europe.py`): German perfect, simple past, pluperfect, future, subjunctive
+  II, passive, modal verbs, and verb-last after weil, dass, obwohl; French passé composé,
+  imperfect, future, near future (aller + infinitive), conditional and subjunctive; Russian past,
+  future with буду, conditional (бы), imperative, verbal adverbs and comparatives; Greek θα, να,
+  past, perfect and pluperfect; Polish past, future with będę, conditional (by), questions with
+  czy, and want, must or can + infinitive; Norwegian past, present perfect, past perfect, future
+  (skal, kommer til å) and passive. Each was picked to be found from the words alone, without a
+  parser, like Spanish's; aspect and case, which need one, aren't points. Each is **practice** (used at least twice in each text), **avoid**
   (left out, for grammar not learned yet) or **normal**. At most 2 are practiced at once, so texts
   stay natural; avoiding has no limit. The choices are stored together for every language and
   apply from the next text written (`GET /api/grammar`, `PUT /api/grammar/{id}`).
@@ -271,10 +279,20 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   sometimes joins one onto the next word (กำลังกิน), so a word starting with the point counts, with
   listed look-alikes left out (ต้องการ, "want", isn't ต้อง, "must"). Spanish points are verb forms,
   found from their endings, with simplemma confirming the word is a form of a verb, plus lists of
-  irregular forms. That's close but not perfect, on purpose: a form shared by two tenses counts as
+  irregular forms (the other spaced languages the same way, with auxiliaries and particles matched
+  as words). That's close but not perfect, on purpose: a form shared by two tenses counts as
   neither (hablamos is "we speak" and "we spoke"), words that are also nouns are left out (vino is
   "wine", fuera is also "outside"), and a rare irregular form can be missed. A full parser (spaCy)
   would be more exact but adds about 100 MB to a process already near 334 MB.
+- **What the other languages' finders can't tell apart**, so they leave it out: French regular
+  subjunctives look like the present (qu'il parle), so only irregular ones count (soit, fasse);
+  Russian говорите after вы is "you speak", not a command; a Norwegian -et past (snakket) counts
+  only straight after a subject, since eplet is a noun with its article; and a lowercased German
+  word simplemma knows as a noun (Garten) isn't taken for a past form. German marks the
+  participle, not its auxiliary, since it's at the end of the clause, and for the future marks
+  werden, as "morgen" also ends like an infinitive. Each finder is checked on present-tense texts
+  that must find nothing (`tests/test_grammar_europe.py`), since a false find under "avoid" sends
+  a good draft back.
 - **In the reader**, a text's practiced points show as chips under its practice words, and their
   words are underlined solid; a word using an avoided point that slipped in is underlined dashed.
   Tapping either explains the grammar.

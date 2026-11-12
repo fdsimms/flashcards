@@ -11,12 +11,16 @@ Each point has a finder: given a line's words, it returns the spans that use the
   a form of a verb, plus lists of irregular forms. This is close but not perfect: forms shared
   with another tense aren't counted (hablamos is "we speak" and "we spoke", so it counts as
   neither), and a rare irregular form can be missed.
+- German, French, Russian, Greek, Polish and Norwegian are found the same way, in
+  grammar_europe.py.
 """
 
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import cast
 
+from franki_reader import grammar_europe
 from franki_reader.coverage import Checker, is_word, parse_line
 from franki_reader.languages import Code
 
@@ -25,8 +29,6 @@ Finder = Callable[[list[str]], list[Span]]
 
 PRACTICE_USES = 2  # a practiced point appears at least this many times
 MAX_PRACTICE = 2  # points practiced at once, so texts stay natural
-
-_WORD = re.compile(r"\w+(?:['-]\w+)*", re.UNICODE)
 
 
 @dataclass(frozen=True)
@@ -39,16 +41,18 @@ class Point:
 
 
 def words(plain: str, lexicon: Checker) -> list[str]:
-    """A parsed line's words, in order, as the finders see them: Thai as segmented, Spanish
-    lowercased and split on spaces and punctuation (a deck phrase's words are separate here)."""
+    """A parsed line's words, in order, as the finders see them: Thai as segmented; a spaced
+    language as the checker splits it (French l'homme as l', homme), lowercased, with a deck
+    phrase's words separate here."""
+    tokens = [t for t in lexicon.segment(plain) if is_word(t)]
     if lexicon.spaced:
-        return [w.lower() for w in _WORD.findall(plain)]
-    return [t for t in lexicon.segment(plain) if is_word(t)]
+        return [w.lower() for t in tokens for w in t.split()]
+    return tokens
 
 
 def count_words(token: str, spaced: bool) -> int:
-    """How many of `words`' words a rendered token covers: a Spanish deck phrase covers several."""
-    return len(_WORD.findall(token)) if spaced else 1
+    """How many of `words`' words a rendered token covers: a deck phrase covers several."""
+    return len(token.split()) if spaced else 1
 
 
 def find_in_lines(
@@ -361,7 +365,7 @@ def _present_subjunctive(ws: list[str], i: int) -> bool:
 
 # ==== The points ====
 
-_ALL = (
+_ALL: tuple[Point, ...] = (
     Point(
         "es.preterite",
         "es",
@@ -447,6 +451,12 @@ _ALL = (
         "ไปไหม, are you going?",
         _thai_any("ไหม", "มั้ย", "หรือเปล่า"),
     ),
+)
+
+# German, French, Russian, Greek, Polish and Norwegian (grammar_europe.py).
+_ALL += tuple(
+    Point(pid, cast(Code, language), name, note, find)
+    for pid, language, name, note, find in grammar_europe.POINTS
 )
 
 POINTS: dict[str, Point] = {p.id: p for p in _ALL}
