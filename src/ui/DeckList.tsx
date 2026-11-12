@@ -148,8 +148,6 @@ export function DeckList(props: {
   /** Decks whose subdecks are hidden: Anki's own collapsed state, shared through sync. */
   collapsed?: Set<string>;
   onToggleCollapsed?: (deck: string) => void;
-  /** Present when Read & Listen is on. */
-  onRead?: () => void;
 }) {
   const c = useTheme();
   const groups = useMemo(() => groupByTopLevel(shownDeckRows(props.decks, props.collapsed ?? new Set())), [props.decks, props.collapsed]);
@@ -242,11 +240,6 @@ export function DeckList(props: {
             </Group>
           ))
         )}
-        {props.onRead ? (
-          <Group>
-            <NavRow first icon={{ name: 'book.fill', color: c.again }} label="Read & Listen" detail="Texts written from the words in your decks" onPress={props.onRead} />
-          </Group>
-        ) : null}
         {props.sync ? (
           <Pressable onPress={props.sync.onSync} accessibilityRole="button" accessibilityHint="Syncs now"
             style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
