@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardKindsFor, renderCard } from '../../src/core/cards';
+import { autoplayFor, cardKindsFor, playbackFor, renderCard } from '../../src/core/cards';
 import type { Note } from '../../src/core/types';
 import { omniNote } from '../support/fixtures';
 
@@ -34,5 +34,36 @@ describe('cards', () => {
       expect(renderCard(withAudio, kind).audioFile).toBe('hypertts-cbb27612.mp3');
     }
     expect(renderCard(omniNote(), 'forward').audioFile).toBeUndefined();
+  });
+
+  describe('where the recording plays, as the Omnilanguage templates put {{Audio}}', () => {
+    const note = omniNote({ Audio: '[sound:a.mp3]', GenerateReverse: 'y', GenerateAudioCard: 'y' });
+    const FILE = 'a.mp3';
+
+    it('plays nothing by itself on the front of a forward or reverse card, and the recording when the answer is shown', () => {
+      for (const kind of ['forward', 'reverse'] as const) {
+        const r = renderCard(note, kind);
+        expect(autoplayFor(r, false)).toBeUndefined();
+        expect(autoplayFor(r, true)?.file).toBe(FILE);
+      }
+    });
+
+    it('plays the recording on the front of the audio card', () => {
+      expect(autoplayFor(renderCard(note, 'audio'), false)?.file).toBe(FILE);
+    });
+
+    it('keeps the recording off the Play button until the answer is shown', () => {
+      const r = renderCard(note, 'forward');
+      expect(playbackFor(r, false)?.file).toBeUndefined();
+      expect(playbackFor(r, true)?.file).toBe(FILE);
+      expect(playbackFor(renderCard(note, 'reverse'), false)).toBeUndefined();
+    });
+
+    it('speaks the front aloud when there is no recording, and the reverse word when its answer is shown', () => {
+      const plain = omniNote({ Entry: 'kot', GenerateReverse: 'y' });
+      expect(autoplayFor(renderCard(plain, 'forward'), false)?.text).toBe('kot');
+      expect(autoplayFor(renderCard(plain, 'forward'), true)).toBeUndefined();
+      expect(autoplayFor(renderCard(plain, 'reverse'), true)?.text).toBe('kot');
+    });
   });
 });

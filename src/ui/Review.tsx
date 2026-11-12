@@ -4,7 +4,7 @@ import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, Animated, Easing, Keyboard, PanResponder, Pressable, ScrollView, Text, TextInput, useColorScheme, useWindowDimensions, View } from 'react-native';
 import { FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
-import { isOmnilanguage, renderCard } from '../core/cards';
+import { autoplayFor, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
 import { nextStudyDayStart, studyDayStart } from '../core/day';
@@ -317,22 +317,28 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
   useEffect(() => () => { player.current?.remove(); player.current = null; Speech.stop(); }, []);
 
   /**
-   * Says a side's word: the note's recording when it has one and the file is here, as Anki
-   * plays it, else the phone's text-to-speech voice.
+   * Plays what `playbackFor` / `autoplayFor` chose: the note's recording when it's allowed and the
+   * file is here, as Anki plays it, else the phone's text-to-speech voice.
    */
+  const ttsRunning = useRef(false);
   const speak = useCallback(
-    (text?: string) => {
-      if (!text || !rendered) return;
-      Speech.stop();
+    (what: Playback | undefined) => {
+      if (!what || !rendered) return;
+      // Stopping speech that isn't running can pull the audio session out from under the
+      // recording that starts right after, cutting it off.
+      if (ttsRunning.current) { Speech.stop(); ttsRunning.current = false; }
       player.current?.pause();
-      const uri = rendered.audioFile ? mediaFileUri(rendered.audioFile) : undefined;
+      const uri = what.file ? mediaFileUri(what.file) : undefined;
       if (uri) {
-        player.current ??= createAudioPlayer();
+        // Keep the session active between clips: reactivating it for each one sometimes stalled the next.
+        player.current ??= createAudioPlayer(null, { keepAudioSessionActive: true });
         player.current.replace({ uri });
         player.current.play();
         return;
       }
-      phoneSpeech.sayWord(text, rendered.speechLang);
+      if (!what.text) return;
+      ttsRunning.current = true;
+      phoneSpeech.sayWord(what.text, rendered.speechLang);
     },
     [rendered, phoneSpeech],
   );
@@ -367,7 +373,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
 
   // Auto-speak the front when a card with audio appears.
   useEffect(() => {
-    if (rendered?.front.speak) speak(rendered.front.speak);
+    if (rendered) speak(autoplayFor(rendered, false));
   }, [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const answer = async (rating: RatingValue) => {
@@ -558,7 +564,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
     );
   }
 
-  const reveal = () => { Keyboard.dismiss(); setRevealed(true); if (rendered?.back.speak) speak(rendered.back.speak); };
+  const reveal = () => { Keyboard.dismiss(); setRevealed(true); if (rendered) speak(autoplayFor(rendered, true)); };
   // Under the answer: the offer to show the card sooner, and the suggestion to practice its forms.
   const extras = revealed ? (
     <AnswerExtras
@@ -771,9 +777,9 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
             {/* Keyed to the card, so each new one fades in rather than swapping. */}
             <Reveal key={current.id} rise={10} style={{ gap: space.xl }}>
               <Side side={rendered.front} which="front" />
-              {rendered.front.speak || rendered.back.speak ? (
+              {playbackFor(rendered, revealed) ? (
                 <Tappable
-                  onPress={() => { haptic.tap(); speak(rendered.back.speak ?? rendered.front.speak); }}
+                  onPress={() => { haptic.tap(); speak(playbackFor(rendered, revealed)); }}
                   accessibilityRole="button"
                   accessibilityLabel="Play the word"
                   scaleTo={0.94}
