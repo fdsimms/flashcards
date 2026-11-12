@@ -609,14 +609,17 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, selected, on
         style={[
           { ...textStyle, color: word.stretch ? c.accent : c.text },
           word.stretch ? { fontWeight: '700' } : null,
+          // The underline is a bottom border, not textDecoration: iOS draws a text underline through
+          // Thai's below-the-line vowels and consonant feet. The border is always there (transparent
+          // when unused) so every word is the same height and a row stays aligned.
           // Grammar is underlined solid when practiced, dashed when it slipped in while avoided; a
           // practice word's or a marked word's dotted underline takes its place.
+          { borderBottomWidth: 1.5, borderBottomColor: 'transparent' },
           grammar ? {
-            textDecorationLine: 'underline',
-            textDecorationStyle: grammar.role === 'practice' ? 'solid' : 'dashed',
-            textDecorationColor: grammar.role === 'practice' ? c.onSpeakerB : c.textTertiary,
+            borderStyle: grammar.role === 'practice' ? 'solid' : 'dashed',
+            borderBottomColor: grammar.role === 'practice' ? c.onSpeakerB : c.textTertiary,
           } : null,
-          word.stretch || flagged ? { textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: flagged ? c.danger : c.accent } : null,
+          word.stretch || flagged ? { borderStyle: 'dotted', borderBottomColor: flagged ? c.danger : c.accent } : null,
         ]}
       >
         {word.text}
