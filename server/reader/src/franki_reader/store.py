@@ -13,7 +13,7 @@ from typing import Any, Literal
 from franki_reader.difficulty import Difficulty
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Form, Generated, Line
-from franki_reader.languages import LANGUAGES, Code
+from franki_reader.languages import LANGUAGES, Code, with_deck
 from franki_reader.lexicon import Entry, ReadDeck
 
 SNAPSHOT_MAX_AGE = timedelta(hours=24)
@@ -121,6 +121,8 @@ class Settings:
     lines: Length = 8
     form: Form = "dialogue"
     language: Code = "th"  # the language new texts are written and served in
+    # The deck each language's word list comes from, where it isn't the default (languages.py).
+    decks: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -153,6 +155,10 @@ def connect(path: Path | str) -> sqlite3.Connection:
     if "form" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
         # Every text written before stories was a dialogue.
         conn.execute("ALTER TABLE texts ADD COLUMN form TEXT NOT NULL DEFAULT 'dialogue'")
+    if "focus" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
+        # The words a text was asked to practice (the app's "Read a text with these words"),
+        # sorted and joined by newlines; empty for the texts the queue writes on its own.
+        conn.execute("ALTER TABLE texts ADD COLUMN focus TEXT NOT NULL DEFAULT ''")
     if "removed" not in {r[1] for r in conn.execute("PRAGMA table_info(topics)")}:
         # A removed topic is hidden, not deleted, since its texts and readings point at it.
         conn.execute("ALTER TABLE topics ADD COLUMN removed INTEGER NOT NULL DEFAULT 0")
@@ -200,22 +206,36 @@ def load_snapshot(
     return entries, datetime.fromisoformat(taken_at) if taken_at else None
 
 
+def clear_snapshot(conn: sqlite3.Connection, language: Code) -> None:
+    """Forgets one language's snapshot, when its deck changes: the old deck's words mustn't be
+    written with until the new deck has been read."""
+    with conn:
+        conn.execute("DELETE FROM lexicon WHERE language = ?", (language,))
+        conn.execute(
+            "DELETE FROM meta WHERE key = ?", (_per_language("snapshot_taken_at", language),)
+        )
+
+
 def is_stale(taken_at: datetime | None, now: datetime) -> bool:
     return taken_at is None or now - taken_at >= SNAPSHOT_MAX_AGE
 
 
 async def refresh_if_stale(
-    conn: sqlite3.Connection, read: ReadDeck, now: datetime, language: Code = "th"
+    conn: sqlite3.Connection,
+    read: ReadDeck,
+    now: datetime,
+    language: Code = "th",
+    force: bool = False,
 ) -> bool:
-    """Takes a new snapshot of one language's deck when the last one is a day old. If Anki can't
-    be reached, the old snapshot stays in place and the app keeps running on it. Returns whether
-    it refreshed."""
+    """Takes a new snapshot of one language's deck when the last one is a day old, or now with
+    `force`. If Anki can't be reached, the old snapshot stays in place and the app keeps running on
+    it. Returns whether it refreshed."""
     _, taken_at = load_snapshot(conn, language)
-    if not is_stale(taken_at, now):
+    if not force and not is_stale(taken_at, now):
         return False
     name = LANGUAGES[language].name
     try:
-        entries = await read(LANGUAGES[language])
+        entries = await read(with_deck(language, load_settings(conn).decks.get(language)))
     except AnkiUnavailable as e:
         log.warning("%s lexicon not refreshed, using the snapshot from %s: %s", name, taken_at, e)
         return False
@@ -259,7 +279,7 @@ def list_topics(conn: sqlite3.Connection, language: Code = "th") -> list[Topic]:
     rows = conn.execute(
         """SELECT t.id, t.name, t.favorite,
                   (SELECT COUNT(*) FROM texts x WHERE x.topic_id = t.id AND x.status = 'ready'
-                   AND x.language = ?)
+                   AND x.language = ? AND x.focus = '')
            FROM topics t WHERE t.removed = 0 ORDER BY t.favorite DESC, t.name""",
         (language,),
     )
@@ -302,6 +322,7 @@ def save_text(
     form: Form = "dialogue",
     language: Code = "th",
     grammar: dict[str, list[str]] | None = None,
+    focus: str = "",
 ) -> int:
     """Stores a generated text. `status` is "pending" while its audio is made, "ready" once it can
     be served, or "dropped" for a text that missed the floor (kept only for its cost)."""
@@ -310,8 +331,9 @@ def save_text(
         cur = conn.execute(
             """INSERT INTO texts (topic_id, created_at, status, title, lines, glosses, stretch,
                    coverage, token_count, floor, attempts, model, input_tokens, output_tokens,
-                   cache_read_tokens, cache_write_tokens, cost_usd, roles, form, language, grammar)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   cache_read_tokens, cache_write_tokens, cost_usd, roles, form, language, grammar,
+                   focus)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 topic_id,
                 now.isoformat(),
@@ -334,6 +356,7 @@ def save_text(
                 form,
                 language,
                 json.dumps(grammar or {}),
+                focus,
             ),
         )
     assert cur.lastrowid is not None
@@ -351,12 +374,13 @@ def text_status(conn: sqlite3.Connection, text_id: int) -> str | None:
 
 
 def next_ready_text(
-    conn: sqlite3.Connection, topic_id: int, language: Code = "th"
+    conn: sqlite3.Connection, topic_id: int, language: Code = "th", focus: str = ""
 ) -> StoredText | None:
+    """The oldest ready text, written for `focus` (the queue's own when it's empty)."""
     row = conn.execute(
         f"SELECT {_TEXT_COLUMNS} FROM texts WHERE topic_id = ? AND status = 'ready' "
-        "AND language = ? ORDER BY id LIMIT 1",
-        (topic_id, language),
+        "AND language = ? AND focus = ? ORDER BY id LIMIT 1",
+        (topic_id, language, focus),
     ).fetchone()
     return _text(row) if row else None
 

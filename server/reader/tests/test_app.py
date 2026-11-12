@@ -239,6 +239,10 @@ def test_a_repeated_reading_is_accepted_but_counted_once() -> None:
     assert c.post(f"/api/texts/{text['id']}/reading", json=body, headers=AUTH).status_code == 204
 
 
+# Each language's deck, as the settings report it when none was chosen.
+DECKS = {"th": "👅 Languages::🐘 ภาษาไทย", "es": "👅 Languages::🌮 Español"}
+
+
 def test_the_stretch_setting_can_be_read_and_changed() -> None:
     c = client()
     assert c.get("/api/settings", headers=AUTH).json() == {
@@ -246,6 +250,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "lines": 8,
         "form": "dialogue",
         "language": "th",
+        "decks": DECKS,
     }
     changed = c.patch("/api/settings", headers=AUTH, json={"stretch_words": "any"})
     assert changed.json() == {
@@ -253,12 +258,14 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "lines": 8,
         "form": "dialogue",
         "language": "th",
+        "decks": DECKS,
     }
     assert c.get("/api/settings", headers=AUTH).json() == {
         "stretch_words": "any",
         "lines": 8,
         "form": "dialogue",
         "language": "th",
+        "decks": DECKS,
     }
     assert (
         c.patch("/api/settings", headers=AUTH, json={"stretch_words": "loose"}).status_code == 422
@@ -334,6 +341,7 @@ def test_the_length_setting_can_be_changed_to_a_length_offered() -> None:
         "lines": 12,
         "form": "dialogue",
         "language": "th",
+        "decks": DECKS,
     }
     assert c.patch("/api/settings", headers=AUTH, json={"lines": 30}).status_code == 422
 
@@ -387,3 +395,56 @@ def test_a_text_says_what_form_it_is() -> None:
     [past] = c.get("/api/texts", headers=AUTH).json()
     assert past["form"] == "dialogue"
     assert c.get(f"/api/texts/{past['id']}", headers=AUTH).json()["form"] == "dialogue"
+
+
+def test_a_languages_deck_can_be_chosen_and_is_read_again_at_once() -> None:
+    reads: list[str] = []
+
+    async def read(language: Any) -> list[Any]:
+        reads.append(language.notes_query)
+        return list(ENTRIES)
+
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, ENTRIES, NOW)
+    engine = Engine(conn, ScriptedModel(GOOD).ask_for, read, lambda: NOW, random.Random(1))
+    c = started(create_app(engine, "open sesame"))
+
+    changed = c.patch("/api/settings", headers=AUTH, json={"decks": {"th": "Thai::Words"}}).json()
+
+    assert changed["decks"] == {**DECKS, "th": "Thai::Words"}
+    assert c.get("/api/settings", headers=AUTH).json()["decks"]["th"] == "Thai::Words"
+    # Read again straight away from the new deck, its consonant subdeck still left out.
+    assert reads == ['"deck:Thai::Words" -"deck:Thai::Words::🏛 Consonant Classes"']
+
+    # An empty name goes back to the default deck.
+    back = c.patch("/api/settings", headers=AUTH, json={"decks": {"th": ""}}).json()
+    assert back["decks"] == DECKS
+    assert store.load_settings(conn).decks == {}
+
+
+def test_changing_a_deck_forgets_the_old_decks_words_until_the_new_one_is_read() -> None:
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, ENTRIES, NOW)
+    engine = Engine(conn, ScriptedModel(GOOD).ask_for, None, lambda: NOW, random.Random(1))
+    c = started(create_app(engine, "open sesame"))
+    c.patch("/api/settings", headers=AUTH, json={"decks": {"th": "Thai::Words"}})
+    assert store.load_snapshot(conn) == ([], None)
+    topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
+    refused = c.post(f"/api/topics/{topic['id']}/next", headers=AUTH)
+    assert refused.status_code == 503
+    assert "no Thai word list" in refused.json()["detail"]
+
+
+def test_next_takes_the_words_to_practice() -> None:
+    c = client(ScriptedModel(GOOD, GOOD))
+    topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
+    deadline = time.time() + 10
+    while True:
+        r = c.post(
+            f"/api/topics/{topic['id']}/next", headers=AUTH, json={"words": ["ข้าวเหนียวมะม่วง"]}
+        )
+        if r.status_code != 202 or time.time() > deadline:
+            break
+        time.sleep(0.02)
+    assert r.status_code == 200
+    assert r.json()["stretch"] == ["ข้าวเหนียวมะม่วง"]
