@@ -67,13 +67,21 @@ export function useAnswer(repo: Repo, language: Language) {
   }, [shown, speech, language]);
 }
 
-export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onToggle, children }: {
+/** The footer's two buttons when a tool needs other than Randomize and Show answer (a quiz's Check, Try again, Next). No `secondary` leaves the primary button the whole width. */
+export interface ToolActions {
+  secondary?: { label: string; onPress: () => void };
+  primary: { label: string; onPress: () => void };
+}
+
+export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onToggle, actions, children }: {
   tool: ToolInfo;
   language: Language;
   onLanguage: (l: Language) => void;
   shown: boolean;
   onRandomize: () => void;
   onToggle: () => void;
+  /** Replaces the footer's Randomize and Show answer. */
+  actions?: ToolActions;
   children: React.ReactNode;
 }) {
   const name = LANGUAGES[language].name;
@@ -93,12 +101,21 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onT
       ) : undefined}
       footer={(
         <View style={{ flexDirection: 'row', gap: space.s }}>
-          <Button variant="secondary" label="Randomize" style={{ flex: 1 }} onPress={onRandomize} />
-          <Button label={shown ? 'Hide answer' : 'Show answer'} style={{ flex: 1 }} onPress={onToggle} />
+          {actions ? (
+            <>
+              {actions.secondary ? <Button variant="secondary" label={actions.secondary.label} style={{ flex: 1 }} onPress={actions.secondary.onPress} /> : null}
+              <Button label={actions.primary.label} style={{ flex: 1 }} onPress={actions.primary.onPress} />
+            </>
+          ) : (
+            <>
+              <Button variant="secondary" label="Randomize" style={{ flex: 1 }} onPress={onRandomize} />
+              <Button label={shown ? 'Hide answer' : 'Show answer'} style={{ flex: 1 }} onPress={onToggle} />
+            </>
+          )}
         </View>
       )}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.l }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.l }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         {children}
       </ScrollView>
     </Screen>
@@ -132,15 +149,7 @@ export function AnswerCard({ shown, prompt, answer, onPlay }: { shown: boolean; 
               <Text selectable style={{ ...type.cardBack, color: c.text }}>{answer.everyday.text}</Text>
               {answer.everyday.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{answer.everyday.roman}</Text> : null}
             </View>
-            <Tappable
-              onPress={() => { haptic.tap(); onPlay(answer.everyday); }}
-              accessibilityRole="button"
-              accessibilityLabel="Play"
-              hitSlop={6}
-              style={{ width: 40, height: 40, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Icon name="speaker.wave.2.fill" size={18} color={c.accent} />
-            </Tappable>
+            <PlayButton onPress={() => onPlay(answer.everyday)} />
           </View>
           {answer.also.length ? <Ways title="Also said" phrases={answer.also} onPlay={onPlay} /> : null}
           {answer.last ? <Ways title={answer.last.title} phrases={[answer.last.phrase]} onPlay={onPlay} /> : null}
@@ -150,8 +159,24 @@ export function AnswerCard({ shown, prompt, answer, onPlay }: { shown: boolean; 
   );
 }
 
+/** The round speaker button beside a phrase. */
+export function PlayButton({ onPress }: { onPress: () => void }) {
+  const c = useTheme();
+  return (
+    <Tappable
+      onPress={() => { haptic.tap(); onPress(); }}
+      accessibilityRole="button"
+      accessibilityLabel="Play"
+      hitSlop={6}
+      style={{ width: 40, height: 40, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <Icon name="speaker.wave.2.fill" size={18} color={c.accent} />
+    </Tappable>
+  );
+}
+
 /** Other ways to say it, under a small heading: each tappable to hear it. */
-function Ways({ title, phrases, onPlay }: { title: string; phrases: Phrase[]; onPlay: (p: Phrase) => void }) {
+export function Ways({ title, phrases, onPlay }: { title: string; phrases: Phrase[]; onPlay: (p: Phrase) => void }) {
   const c = useTheme();
   return (
     <View style={{ gap: space.s, borderTopWidth: 0.5, borderTopColor: c.border, paddingTop: space.m }}>
