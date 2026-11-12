@@ -23,6 +23,7 @@ chained with "+" as separate arguments:
     integrity                   prints SQLite's integrity check, run with Anki's collation
     add-media <name> <text>     writes a media file and refers to it from a new note
     media-sync                  syncs media
+    read-media <name>           prints a media file's text (null when it isn't there)
     dump                        prints the collection's rows as JSON
 """
 
@@ -150,6 +151,9 @@ def main():
             time.sleep(0.2)
             while col.media_sync_status().active:
                 time.sleep(0.1)
+        elif cmd == "read-media":
+            p = os.path.join(col.media.dir(), args[0])
+            out["read"] = open(p, encoding="utf8").read() if os.path.exists(p) else None
         elif cmd == "dump":
             db = col.db
             b64 = lambda v: base64.b64encode(bytes(v)).decode()

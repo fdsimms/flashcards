@@ -73,6 +73,13 @@ export class SyncClient {
     return r.data as T;
   }
 
+  /** A media request whose body is raw bytes (an upload's zip), answered with `{ data, err }`. */
+  async mediaBytes<T>(path: string, body: Uint8Array): Promise<T> {
+    const r = parseJson(utf8Decode(await this.callBytes(`msync/${path}`, body))) as { data?: T; err?: string };
+    if (r.err) throw new SyncError('server', r.err);
+    return r.data as T;
+  }
+
   /** Raw bytes in, raw bytes out (both decompressed). */
   async callBytes(path: string, body: Uint8Array): Promise<Uint8Array> {
     const r = await this.request(path, body);

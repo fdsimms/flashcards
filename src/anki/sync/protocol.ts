@@ -14,6 +14,8 @@ export const CLIENT_VERSION = 'franki,1.0,ios';
 export const CHUNK_SIZE = 250;
 /** Media files per download request, as Anki (`MAX_MEDIA_FILES_IN_ZIP`). */
 export const MEDIA_FILES_PER_REQUEST = 25;
+/** About how many bytes of media one upload holds, as Anki (`MEDIA_SYNC_TARGET_ZIP_BYTES`): it stops adding files once past it. */
+export const MEDIA_UPLOAD_TARGET_BYTES = 2.5 * 1024 * 1024;
 
 /** `SyncMeta`. Times are milliseconds except `ts`, the server's clock in seconds. */
 export interface SyncMeta {

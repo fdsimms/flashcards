@@ -327,6 +327,11 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
           if (sha1) await db.runAsync('INSERT OR REPLACE INTO anki_media (name, sha1) VALUES (?, ?)', name, sha1);
           else await db.runAsync('DELETE FROM anki_media WHERE name = ?', name);
         },
+        pending: async () => new Map((await db.getAllAsync<{ name: string; sha1: string }>('SELECT name, sha1 FROM anki_media_pending')).map((r) => [r.name, r.sha1])),
+        setPending: async (name, sha1) => {
+          if (sha1) await db.runAsync('INSERT OR REPLACE INTO anki_media_pending (name, sha1) VALUES (?, ?)', name, sha1);
+          else await db.runAsync('DELETE FROM anki_media_pending WHERE name = ?', name);
+        },
       };
     },
 

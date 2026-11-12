@@ -5,11 +5,11 @@ import * as SecureStore from 'expo-secure-store';
 import type { AnkiLink } from '../db/ankiLink';
 import { fileUriToPath } from '../db/backup';
 import type { Repo } from '../db/repo';
-import { hasMedia, removeMedia, writeMedia } from '../media/mediaFiles';
+import { hasMedia, readMedia, removeMedia, writeMedia } from '../media/mediaFiles';
 import { fileSink, keptCollectionFile, workFolder } from './files';
 import { normalizeEndpoint, SyncClient, type HttpPost } from './sync/client';
 import { downloadCollection, markDownloaded, prepareForUpload, uploadCollection } from './sync/collectionSync';
-import { pullMedia } from './sync/mediaSync';
+import { syncMedia } from './sync/mediaSync';
 import { SyncError } from './sync/protocol';
 import { runSync, syncErrorText, type FullSyncQuestion, type SyncReport } from './sync/runSync';
 import { adoptDownloadedCollection, refreshFromKeptCollection } from './transfer';
@@ -138,7 +138,7 @@ export async function syncNow(
         await uploadCollection(client, new Uint8Array(await keptCollectionFile().arrayBuffer()));
       },
       refresh: () => refreshFromKeptCollection(repo),
-      pullMedia: (usn) => pullMedia(client, repo.mediaSyncState(), { exists: hasMedia, write: writeMedia, remove: removeMedia }, usn),
+      syncMedia: (usn) => syncMedia(client, repo.mediaSyncState(), { exists: hasMedia, write: writeMedia, remove: removeMedia, read: readMedia }, usn),
       choose,
     });
     await repo.saveSyncSettings({
