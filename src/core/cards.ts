@@ -1,7 +1,7 @@
 import { htmlToText, isTruthyField, soundFiles } from './html';
 import { newSchedState } from './scheduler';
 import { templateOrdinals } from './template';
-import type { Card, CardKind, Note, NoteType, RenderedCard } from './types';
+import type { Card, CardKind, Note, NoteType, RenderedCard, RenderedSide } from './types';
 
 const LANG_TAGS: Record<string, string> = {
   thai: 'th-TH', ภาษาไทย: 'th-TH',
@@ -65,14 +65,14 @@ export function makeCards(note: Note, now: Date = new Date(), noteType?: NoteTyp
   }));
 }
 
-type Block = { label?: string; text: string; emphasis?: boolean; tapLabel?: string };
+type Block = RenderedSide['blocks'][number];
 
 function t(note: Note, name: string): string {
   return htmlToText(note.fields[name] ?? '');
 }
 
-function pushIf(blocks: Block[], text: string, label?: string, emphasis?: boolean, tapLabel?: string) {
-  if (text) blocks.push({ label, text, emphasis, tapLabel });
+function pushIf(blocks: Block[], text: string, label?: string, emphasis?: boolean, tapLabel?: string, extra?: Partial<Block>) {
+  if (text) blocks.push({ label, text, emphasis, tapLabel, ...extra });
 }
 
 export function renderCard(note: Note, kind: CardKind): RenderedCard {
@@ -125,14 +125,15 @@ function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
 
   const detail = (): Block[] => {
     const b: Block[] = [];
-    pushIf(b, t(note, 'Context'), 'Context');
-    // The Anki template wraps these three in {{hint:...}}: a tap-to-show link, not text.
-    pushIf(b, t(note, 'ContextRomanized'), undefined, undefined, 'Show romanization');
-    pushIf(b, t(note, 'ContextTranslation'), undefined, undefined, 'Show translation');
-    const meta = [t(note, 'PartOfSpeech'), t(note, 'Gender'), t(note, 'Register')].filter(Boolean).join(' · ');
-    pushIf(b, meta, undefined);
+    const meta = [t(note, 'PartOfSpeech'), t(note, 'Gender'), t(note, 'Register')].filter(Boolean);
+    pushIf(b, meta.join(' · '), undefined, undefined, undefined, { role: 'chips', chips: meta });
+    // The example sentence, its word highlighted. Anki's template wraps the romanization and the
+    // translation in {{hint:...}}: a tap-to-show link, not text.
+    pushIf(b, t(note, 'Context'), undefined, undefined, undefined, { role: 'example', mark: entry });
+    pushIf(b, t(note, 'ContextRomanized'), undefined, undefined, 'Show romanization', { role: 'exampleRomanized', mark: translit });
+    pushIf(b, t(note, 'ContextTranslation'), undefined, undefined, 'Show translation', { role: 'exampleTranslation' });
     pushIf(b, t(note, 'KeyForms'), 'Forms');
-    pushIf(b, t(note, 'Notes'), 'Notes');
+    pushIf(b, t(note, 'Notes'), 'Notes', undefined, undefined, { role: 'note' });
     pushIf(b, t(note, 'Etymology'), 'Etymology');
     pushIf(b, t(note, 'Mnemonic'), 'Mnemonic');
     return b;

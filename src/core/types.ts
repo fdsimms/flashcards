@@ -169,6 +169,15 @@ export interface RenderedSide {
     emphasis?: boolean;
     /** Anki's `{{hint:Field}}`: the text stays hidden behind a tap-to-show link with this label. */
     tapLabel?: string;
+    /**
+     * What the block is, for layout: `chips` are small tags (`chips` holds them), the `example*`
+     * blocks are one example sentence's lines (set tight together), and a `note` is set off in a
+     * callout. A block with no role is plain labeled text.
+     */
+    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note';
+    chips?: string[];
+    /** A word to highlight inside the text: the card's word, in its example sentence. */
+    mark?: string;
   }[];
   /** Text to speak aloud for this side, if any. */
   speak?: string;
