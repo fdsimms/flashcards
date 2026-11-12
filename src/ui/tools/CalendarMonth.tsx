@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { daysInMonth, shiftMonth, weekdayOf, type CalendarDate } from '../../tools/date';
+import { sameDate } from '../../tools/dateQuiz';
 import { haptic } from '../haptics';
 import { Icon, Tappable } from '../kit';
 import { MIN_TAP, radius, space, type, useTheme } from '../theme';
@@ -18,15 +19,32 @@ export function dateLabel(d: CalendarDate): string {
  * A month as a calendar: tap a day to choose it, the arrows go back or forward a month, the double
  * arrows a year. The week starts on `weekStartsOn` (0 Sunday, 1 Monday), as calendars do where the
  * language is spoken.
+ *
+ * The quiz that has you tap the date drives it differently: `selected` is the day tapped (null for
+ * none, where it defaults to `date`'s own), `onNavigate` takes the arrows so a tap and a move are
+ * told apart, `right` and `wrong` color the answer, and `locked` stops taps once it's answered.
  */
-export function CalendarMonth({ date, onChange, weekStartsOn }: { date: CalendarDate; onChange: (d: CalendarDate) => void; weekStartsOn: 0 | 1 }) {
+export function CalendarMonth({ date, onChange, weekStartsOn, selected, onNavigate, right, wrong, locked }: {
+  date: CalendarDate;
+  onChange: (d: CalendarDate) => void;
+  weekStartsOn: 0 | 1;
+  selected?: CalendarDate | null;
+  onNavigate?: (d: CalendarDate) => void;
+  right?: CalendarDate;
+  wrong?: CalendarDate;
+  locked?: boolean;
+}) {
   const c = useTheme();
+  const chosen = selected === undefined ? date : selected;
+  const is = (d: CalendarDate | null | undefined, day: number) => !!d && sameDate(d, { ...date, day });
   const lead = (weekdayOf({ ...date, day: 1 }) - weekStartsOn + 7) % 7;
   const days = daysInMonth(date.year, date.month);
   const cells: (number | null)[] = [...Array(lead).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
   while (cells.length % 7) cells.push(null);
+  // Rows of seven, not one wrapping row of cells each 1/7 wide: seven of those can add up to a hair over the width and wrap after six, putting every day under the wrong weekday.
+  const weeks = Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, w * 7 + 7));
   const arrow = (icon: SFSymbol, label: string, by: number) => (
-    <Tappable onPress={() => { haptic.select(); onChange(shiftMonth(date, by)); }} accessibilityRole="button" accessibilityLabel={label} hitSlop={4}
+    <Tappable onPress={() => { haptic.select(); (onNavigate ?? onChange)(shiftMonth(date, by)); }} accessibilityRole="button" accessibilityLabel={label} hitSlop={4}
       style={{ minWidth: 36, minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}>
       <Icon name={icon} size={16} color={c.accent} weight="semibold" />
     </Tappable>
@@ -45,27 +63,32 @@ export function CalendarMonth({ date, onChange, weekStartsOn }: { date: Calendar
           <Text key={i} style={{ ...type.caption, fontWeight: '600', color: c.textTertiary, flex: 1, textAlign: 'center' }}>{WEEKDAYS[(i + weekStartsOn) % 7][0]}</Text>
         ))}
       </View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        {cells.map((day, i) => {
-          if (day === null) return <View key={`blank${i}`} style={{ width: `${100 / 7}%` }} />;
-          const selected = day === date.day;
-          const d = { ...date, day };
-          return (
-            <Pressable
-              key={day}
-              onPress={() => { if (!selected) { haptic.select(); onChange(d); } }}
-              accessibilityRole="button"
-              accessibilityLabel={dateLabel(d)}
-              accessibilityState={{ selected }}
-              style={{ width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 2 }}
-            >
-              <View style={{ minWidth: 38, minHeight: 38, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? c.accent : 'transparent' }}>
-                <Text style={{ ...type.callout, fontVariant: ['tabular-nums'], fontWeight: selected ? '700' : '400', color: selected ? c.onAccent : c.text }}>{day}</Text>
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
+      {weeks.map((week, w) => (
+        <View key={w} style={{ flexDirection: 'row' }}>
+          {week.map((day, i) => {
+            if (day === null) return <View key={`blank${i}`} style={{ flex: 1 }} />;
+            const d = { ...date, day };
+            const isChosen = is(chosen, day);
+            const isRight = is(right, day);
+            const isWrong = is(wrong, day);
+            const filled = isRight || isWrong || isChosen;
+            return (
+              <Pressable
+                key={day}
+                onPress={() => { if (!locked && !isChosen) { haptic.select(); onChange(d); } }}
+                accessibilityRole="button"
+                accessibilityLabel={`${dateLabel(d)}${isRight ? ', the right date' : isWrong ? ', the date you tapped' : ''}`}
+                accessibilityState={{ selected: isChosen, disabled: !!locked }}
+                style={{ flex: 1, alignItems: 'center', paddingVertical: 2 }}
+              >
+                <View style={{ minWidth: 38, minHeight: 38, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: isRight ? c.good : isWrong ? c.again : isChosen ? c.accent : 'transparent' }}>
+                  <Text style={{ ...type.callout, fontVariant: ['tabular-nums'], fontWeight: filled ? '700' : '400', color: isRight || isWrong ? c.onRating : isChosen ? c.onAccent : c.text }}>{day}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      ))}
     </View>
   );
 }

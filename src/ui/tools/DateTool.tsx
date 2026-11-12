@@ -2,27 +2,34 @@ import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { LANGUAGES } from '../../reader/languages';
 import { randomDate, type CalendarDate } from '../../tools/date';
+import { sameDate } from '../../tools/dateQuiz';
 import { DATE_SAYERS, WEEK_STARTS_ON } from '../../tools/tools';
 import { Card, Chip } from '../kit';
 import { space } from '../theme';
 import { CalendarMonth } from './CalendarMonth';
 import type { ToolScreenProps } from './index';
+import { ModeChips, PickAnswer, TapQuestion, TapResult, TypeAnswer, useDateQuiz } from './DateQuiz';
 import { AnswerCard, ControlLabel, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
 
 /**
  * Saying dates: a month calendar to pick a day on, or a date at random, then the date said in the
- * chosen language, with the weekday and the year when they're turned on. Changing the date or what
- * is said hides the answer again.
+ * chosen language, with the weekday and the year when they're turned on. It's answered by saying
+ * it and showing the answer, or (DateQuiz.tsx) by picking the phrase, typing it, or reading the
+ * phrase and tapping the date. Changing the date or what is said hides the answer again.
  */
 export function DateTool({ tool, repo }: ToolScreenProps) {
   const [language, setLanguage] = useToolLanguage(tool);
   const answer = useAnswer(repo, language);
   const [weekday, setWeekday] = useToolPref('dateWeekday');
   const [year, setYear] = useToolPref('dateYear');
+  const [mode, setMode] = useToolPref('dateMode');
   const [date, setDate] = useState<CalendarDate>(() => randomDate());
 
   const saying = useMemo(() => DATE_SAYERS[language]?.(date, { weekday, year }), [language, date, weekday, year]);
   const change = (next: CalendarDate) => { answer.hide(); setDate(next); };
+  const parts = { weekday, year };
+  const quiz = useDateQuiz({ mode, language, date, parts, saying, sayer: DATE_SAYERS[language], speak: answer.speak, next: () => change(randomDate(date)) });
+  const tapping = mode === 'tap';
 
   return (
     <ToolScreen
@@ -32,9 +39,24 @@ export function DateTool({ tool, repo }: ToolScreenProps) {
       shown={answer.shown}
       onRandomize={() => change(randomDate(date))}
       onToggle={() => answer.toggle(saying?.everyday)}
+      actions={quiz.actions}
     >
+      {tapping ? <TapQuestion quiz={quiz} saying={saying} onPlay={answer.speak} /> : null}
       <Card>
-        <CalendarMonth date={date} onChange={change} weekStartsOn={WEEK_STARTS_ON[language]} />
+        {tapping ? (
+          <CalendarMonth
+            date={quiz.view}
+            weekStartsOn={WEEK_STARTS_ON[language]}
+            selected={quiz.tapped}
+            onChange={quiz.tap}
+            onNavigate={quiz.setView}
+            right={quiz.tapped || quiz.revealed ? date : undefined}
+            wrong={quiz.tapped && !sameDate(quiz.tapped, date) ? quiz.tapped : undefined}
+            locked={!!quiz.tapped || quiz.revealed}
+          />
+        ) : (
+          <CalendarMonth date={date} onChange={change} weekStartsOn={WEEK_STARTS_ON[language]} />
+        )}
       </Card>
 
       <View style={{ gap: space.s }}>
@@ -45,12 +67,22 @@ export function DateTool({ tool, repo }: ToolScreenProps) {
         </View>
       </View>
 
-      <AnswerCard
-        shown={answer.shown}
-        prompt={`Say the date in ${LANGUAGES[language].name} out loud, then show the answer.`}
-        answer={saying && { everyday: saying.everyday, also: saying.also, last: { title: 'As written', phrase: saying.written } }}
-        onPlay={answer.speak}
-      />
+      <ModeChips mode={mode} onChange={(m) => { answer.hide(); setMode(m); }} />
+
+      {mode === 'say' ? (
+        <AnswerCard
+          shown={answer.shown}
+          prompt={`Say the date in ${LANGUAGES[language].name} out loud, then show the answer.`}
+          answer={saying && { everyday: saying.everyday, also: saying.also, last: { title: 'As written', phrase: saying.written } }}
+          onPlay={answer.speak}
+        />
+      ) : mode === 'type' ? (
+        <TypeAnswer quiz={quiz} saying={saying} language={language} onPlay={answer.speak} />
+      ) : mode === 'pick' ? (
+        <PickAnswer quiz={quiz} />
+      ) : (
+        <TapResult quiz={quiz} date={date} />
+      )}
     </ToolScreen>
   );
 }

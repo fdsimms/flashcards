@@ -1,5 +1,6 @@
 import type { Language } from '../reader/api';
 import { LANGUAGE_ORDER } from '../reader/languages';
+import { DATE_MODES, type DateMode } from './dateQuiz';
 import { MONEY_MAXES, type MoneyMax } from './money';
 import { MINUTE_STEPS, type MinuteStep } from './time';
 
@@ -15,6 +16,8 @@ export interface ToolPrefs {
   /** Saying dates: whether the weekday and the year are said. */
   dateWeekday: boolean;
   dateYear: boolean;
+  /** Saying dates: how it's answered (said aloud, picked, typed, or the date tapped). */
+  dateMode: DateMode;
   /** Counting money: notes and coins to count, or a price to read; and how big an amount gets. */
   moneyMode: MoneyMode;
   moneyMax: MoneyMax;
@@ -22,7 +25,7 @@ export interface ToolPrefs {
 
 export type MoneyMode = 'count' | 'price';
 
-export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, dateWeekday: true, dateYear: false, moneyMode: 'count', moneyMax: 1000 };
+export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, dateWeekday: true, dateYear: false, dateMode: 'say', moneyMode: 'count', moneyMax: 1000 };
 
 /** Anything unreadable or out of range falls back to the default for that setting. */
 export function parseToolPrefs(raw: string | null): ToolPrefs {
@@ -39,6 +42,7 @@ export function parseToolPrefs(raw: string | null): ToolPrefs {
     minuteStep: MINUTE_STEPS.find((s) => s === saved.minuteStep) ?? DEFAULT_TOOL_PREFS.minuteStep,
     dateWeekday: typeof saved.dateWeekday === 'boolean' ? saved.dateWeekday : DEFAULT_TOOL_PREFS.dateWeekday,
     dateYear: typeof saved.dateYear === 'boolean' ? saved.dateYear : DEFAULT_TOOL_PREFS.dateYear,
+    dateMode: DATE_MODES.find((m) => m === saved.dateMode) ?? DEFAULT_TOOL_PREFS.dateMode,
     moneyMode: saved.moneyMode === 'count' || saved.moneyMode === 'price' ? saved.moneyMode : DEFAULT_TOOL_PREFS.moneyMode,
     moneyMax: MONEY_MAXES.find((m) => m === saved.moneyMax) ?? DEFAULT_TOOL_PREFS.moneyMax,
   };
