@@ -65,6 +65,9 @@ class Token:
 class Coverage:
     tokens: tuple[Token, ...]
     stretch_words: tuple[str, ...]
+    # The names the model marked, each once, in order. They aren't tokens: a name is not a word the
+    # learner is expected to know, so it counts neither for nor against the text.
+    names: tuple[str, ...] = ()
 
     @property
     def counted(self) -> int:
@@ -185,33 +188,86 @@ class Lexicon:
         return token if token in self.known else None
 
 
+def _join(text: str, spaced: bool) -> str:
+    text = text.replace("*", "").replace("~", "")
+    if not spaced:
+        return " ".join(_BESIDE_BAR.sub("", text).split())
+    text = " ".join(text.replace("|", " ").split())
+    return _SPACE_AFTER_OPENING.sub("", _SPACE_BEFORE_CLOSING.sub("", text))
+
+
 def parse_line(line: str, spaced: bool = False) -> tuple[str, list[str]]:
     """A model line (`ฉัน|ต้องการ|*น้ำ*`) as plain text plus its stretch words. Thai is written
     without spaces between words, so `|` is dropped, and a space only marks a clause break
     (`สวัสดี|ครับ ไป|ไหน`): kept as one space, unless it's beside a `|`. In a spaced language
-    (`¿Qué|quieres|*tomar*?`) each `|` stands for a space, and punctuation stays on its word."""
+    (`¿Qué|quieres|*tomar*?`) each `|` stands for a space, and punctuation stays on its word.
+    A name is wrapped in tildes (`~มะลิ~|เป็น|สาว`); the tildes are dropped here (`segment_line`
+    reads them)."""
+    stretch = [_join(s, spaced).strip() for s in re.findall(r"\*([^*]+)\*", line)]
+    return _join(line, spaced), [s for s in stretch if s]
 
-    def join(text: str) -> str:
-        text = text.replace("*", "")
-        if not spaced:
-            return " ".join(_BESIDE_BAR.sub("", text).split())
-        text = " ".join(text.replace("|", " ").split())
-        return _SPACE_AFTER_OPENING.sub("", _SPACE_BEFORE_CLOSING.sub("", text))
 
-    stretch = [join(s).strip() for s in re.findall(r"\*([^*]+)\*", line)]
-    return join(line), [s for s in stretch if s]
+_NAME = re.compile(r"~([^~]+)~")
+
+
+def segment_line(line: str, lexicon: Checker) -> list[tuple[str, bool]]:
+    """A model line's pieces as `lexicon.segment` splits its plain text, each with whether the
+    model marked it as part of a name. A piece counts as a name only when it lies wholly inside a
+    marked name, so a segmenter that joins a name's last syllable to the next word marks neither,
+    and a word that is spelled like the name elsewhere in the line (มะลิ, jasmine) is left alone.
+    The pieces of one name (สม, ชาย) come back as a single piece."""
+    plain, _ = parse_line(line, lexicon.spaced)
+    pieces = lexicon.segment(plain)
+    spans: list[tuple[int, int]] = []
+    unstarred = line.replace("*", "")
+    if "".join(pieces) == plain:
+        for m in _NAME.finditer(unstarred):
+            name = _join(m.group(1), lexicon.spaced).strip()
+            if not name:
+                continue
+            before = len(_join(unstarred[: m.start()], lexicon.spaced))
+            at = plain.find(name, max(0, before - 1))
+            if at >= 0:
+                spans.append((at, at + len(name)))
+    out: list[tuple[str, bool]] = []
+    last: int | None = None  # the span the previous piece was in, so a name stays one piece
+    pos = 0
+    for piece in pieces:
+        end = pos + len(piece)
+        span = next((i for i, (s, e) in enumerate(spans) if s <= pos and end <= e), None)
+        if span is not None and span == last:
+            out[-1] = (out[-1][0] + piece, True)
+        else:
+            out.append((piece, span is not None))
+        last = span
+        pos = end
+    return out
+
+
+def line_names(line: str, spaced: bool) -> list[str]:
+    """The names a model line marks, as plain text."""
+    names = (_join(m, spaced).strip() for m in _NAME.findall(line.replace("*", "")))
+    return [n for n in names if n]
 
 
 def check(lines: Iterable[str], lexicon: Checker) -> Coverage:
     tokens: list[Token] = []
     stretch: list[str] = []
+    names: list[str] = []
     for line in lines:
-        text, line_stretch = parse_line(line, lexicon.spaced)
+        _, line_stretch = parse_line(line, lexicon.spaced)
         stretch.extend(line_stretch)
+        names.extend(line_names(line, lexicon.spaced))
         tokens.extend(
-            Token(piece, lexicon.status(piece)) for piece in lexicon.segment(text) if _counts(piece)
+            Token(piece, lexicon.status(piece))
+            for piece, is_name in segment_line(line, lexicon)
+            if _counts(piece) and not is_name
         )
-    return Coverage(tuple(tokens), tuple(dict.fromkeys(stretch)))
+    return Coverage(
+        tokens=tuple(tokens),
+        stretch_words=tuple(dict.fromkeys(stretch)),
+        names=tuple(dict.fromkeys(names)),
+    )
 
 
 def is_word(token: str) -> bool:
