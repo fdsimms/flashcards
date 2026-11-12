@@ -773,6 +773,16 @@ def log_reading(conn: sqlite3.Connection, text_id: int, reading: Reading, now: d
         conn.execute("UPDATE texts SET status = 'read' WHERE id = ?", (text_id,))
 
 
+def last_finished_reading(conn: sqlite3.Connection, language: Code) -> datetime | None:
+    """When a text in the language was last read to the end (naive UTC, the engine's clock), or None."""
+    row = conn.execute(
+        """SELECT MAX(r.logged_at) FROM readings r JOIN texts x ON x.id = r.text_id
+           WHERE r.finished = 1 AND x.language = ?""",
+        (language,),
+    ).fetchone()
+    return datetime.fromisoformat(row[0]) if row and row[0] else None
+
+
 @dataclass(frozen=True)
 class Progress:
     """Finished readings since a date: what the Milestone 1 exit check reads (docs/read-and-listen/brief.md)."""

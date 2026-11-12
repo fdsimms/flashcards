@@ -19,7 +19,7 @@ curl -fsSL https://get.docker.com | sh                  # installs Docker
 git clone https://github.com/fdsimms/flashcards.git     # or copy just this server/ folder over
 cd flashcards/server
 cp .env.example .env
-nano .env                                               # set DOMAIN, ANKI_USER and ANKI_PASSWORD
+nano .env                                               # set DOMAIN, ANKI_USER, ANKI_PASSWORD and TZ
 docker compose up -d --build
 ```
 
@@ -82,6 +82,8 @@ It needs more memory than the rest (up to about 350 MB with both languages), so 
 - `READER_BUCKET_*` (optional, recommended): an S3-compatible bucket that the database is backed up to continuously. When the database is missing (a new server, a lost volume), it's restored from there.
 
 Then run `docker compose up -d --build`. Check `https://<your domain>/reader/health` shows `{"status":"ok"}`. Then in Franki, open **Settings**, **Read & Listen**, and enter the passphrase. Franki finds the server at `https://<your domain>/reader` by itself, from the sync settings.
+
+**Show what's due in dundundun.** dundundun can add a "Franki" task when reviews are waiting, and a Read & Listen task when a text is waiting and none was read today. It reads `https://<your domain>/reader/api/status`, which says what's due (Anki's own counts) and nothing else. Set `READER_STATUS_TOKEN` in `.env` to a long key of its own and run `docker compose up -d` again, then enter that address and key in dundundun. The key opens that one route only, so dundundun never holds the passphrase. Set `TZ` too (above): the counts are for the study day in that time zone.
 
 ### Moving it from Fly
 

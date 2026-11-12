@@ -23,7 +23,7 @@ import random
 import sqlite3
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -117,13 +117,20 @@ def _grammar_record(request: TextRequest) -> dict[str, list[str]]:
     }
 
 
+def utc_now() -> datetime:
+    """The engine's clock: naive, in UTC, whatever the process's time zone. Every time the reader
+    stores is in this form, as it was when the container ran in UTC. `TZ` (server/.env) is there for
+    Anki, which decides the study day from the process's zone, and must not shift these."""
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 class Engine:
     def __init__(
         self,
         conn: sqlite3.Connection,
         ask_for: Callable[[list[Entry], Code], Ask] | None,
         read_deck: ReadDeck | None,
-        clock: Callable[[], datetime] = datetime.now,
+        clock: Callable[[], datetime] = utc_now,
         rng: random.Random | None = None,
         synthesize: Synthesize | None = None,
         audio: AudioCache | None = None,

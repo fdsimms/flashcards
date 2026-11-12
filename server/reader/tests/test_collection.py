@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -100,6 +101,20 @@ class Desktop:
             card.due = self.col.sched.today + (0 if due else ivl)
             self.col.update_card(card)
         return note.id
+
+    def learning(self, deck: str, entry: str, due_in: int, interday: bool = False) -> None:
+        """A note whose card is on a learning step: due `due_in` seconds from now within the day
+        (queue 1), or today after a step that crossed into a later day (queue 3)."""
+        assert self.model is not None
+        note = self.col.new_note(self.model)
+        note["Entry"], note["Meaning"] = entry, entry
+        self.col.add_note(note, self.deck_id(deck))
+        card = note.cards()[0]
+        card.type = 1  # type: ignore[assignment]
+        card.queue = 3 if interday else 1  # type: ignore[assignment]
+        card.due = self.col.sched.today if interday else int(time.time()) + due_in
+        card.left = 1001
+        self.col.update_card(card)
 
     def deck_id(self, name: str) -> DeckId:
         did = self.col.decks.id(name)
@@ -238,3 +253,47 @@ def test_a_wrong_password_says_it_could_not_sign_in(
             read(wrong)
     finally:
         wrong.close()
+
+
+def test_due_counts_reviews_and_learning_as_ankis_deck_list_does(
+    desktop: Desktop, deck: AnkiDeck
+) -> None:
+    desktop.add(THAI, "ฉัน", "I; me", ivl=40, due=True)
+    desktop.add(f"{THAI}::Phrases", "ไป", "go", ivl=3, due=True)
+    desktop.add(THAI, "ดี", "good", ivl=5)  # not due until later
+    desktop.add(SPANISH, "el blindaje", "armor plating", ivl=30, due=True)
+    desktop.learning(SPANISH, "la mesa", due_in=-60)
+    desktop.learning(SPANISH, "la silla", due_in=0, interday=True)
+    desktop.learning(SPANISH, "el vaso", due_in=3 * 3600)
+    desktop.learning(SPANISH, "la taza", due_in=3 * 3600)
+    desktop.add(THAI, "ใหม่", "new")  # new cards aren't counted
+    desktop.sync()
+    tree = desktop.col.sched.deck_due_tree()
+    cutoff = desktop.col.sched.day_cutoff
+
+    due = asyncio.run(deck.due())
+
+    names = {d.name: (d.reviews, d.learning) for d in due.decks}
+    assert names[THAI] == (2, 0)
+    assert names[f"{THAI}::Phrases"] == (1, 0)
+    assert names[SPANISH] == (1, 2)
+    assert names[THAI.split("::")[0]] == (3, 2)  # the parent both language decks are in
+    assert (due.reviews, due.learning) == (
+        sum(c.review_count for c in tree.children),
+        sum(c.learn_count for c in tree.children),
+    )
+    assert (due.reviews, due.learning) == (3, 2)
+    assert [x.count for x in due.learning_later] in ([2], [1, 1])  # same second, or a tick apart
+    assert due.day_ends_at == datetime.fromtimestamp(cutoff, UTC)
+
+
+def test_reading_whats_due_leaves_nothing_to_send(desktop: Desktop, deck: AnkiDeck) -> None:
+    desktop.add(THAI, "ฉัน", "I; me", ivl=40, due=True)
+    desktop.learning(THAI, "ดี", due_in=600)
+    desktop.sync()
+    asyncio.run(deck.due())
+    asyncio.run(deck.due())
+    db = deck.col.db
+    assert db is not None
+    for table in ("notes", "cards", "revlog", "graves"):
+        assert not db.scalar(f"select count() from {table} where usn = -1"), table
