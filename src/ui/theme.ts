@@ -51,6 +51,8 @@ const light = {
   onSpeakerB: '#24563f',
   /** Behind a word that isn't in the deck, when Read & Listen highlights them. */
   highlight: '#fbe2b0',
+  /** Behind a name in a Read & Listen text (Mali, Kasia), when names are marked. */
+  nameFill: '#cfe3f2',
   /** A soft drop shadow under a raised surface (the review card). Near-invisible on dark, so it's heavier there. */
   shadow: '#2a2113',
   shadowOpacity: 0.08,
@@ -86,6 +88,7 @@ const dark: typeof light = {
   speakerB: '#22392f',
   onSpeakerB: '#9fd6bb',
   highlight: '#4d3a14',
+  nameFill: '#1f3a4f',
   shadow: '#000000',
   shadowOpacity: 0.45,
   flags: ['', '#ee6b63', '#f0984f', '#62bd7b', '#6ba2ec', '#e486cb', '#4cc4c4', '#a989e6'],
