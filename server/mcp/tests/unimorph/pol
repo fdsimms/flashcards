@@ -1,0 +1,123 @@
+czekać	będą czekali	V;FUT;3;PL;MASC;HUM
+czekać	będą czekały	V;FUT;3;PL
+czekać	będę czekała	V;FUT;1;SG;FEM
+czekać	będę czekał	V;FUT;1;SG;MASC
+czekać	będziecie czekali	V;FUT;2;PL;MASC;HUM
+czekać	będziecie czekały	V;FUT;2;PL
+czekać	będzie czekała	V;FUT;3;SG;FEM
+czekać	będzie czekało	V;FUT;3;SG;NEUT
+czekać	będzie czekał	V;FUT;3;SG;MASC
+czekać	będziemy czekali	V;FUT;1;PL;MASC;HUM
+czekać	będziemy czekały	V;FUT;1;PL
+czekać	będziesz czekała	V;FUT;2;SG;FEM
+czekać	będziesz czekał	V;FUT;2;SG;MASC
+czekać	czekacie	V;PRS;2;PL
+czekać	czekać	V;NFIN
+czekać	czekająca	V.PTCP;PST;ACT;SG;FEM
+czekać	czekające	V.PTCP;PST;ACT;PL
+czekać	czekające	V.PTCP;PST;ACT;SG;NEUT
+czekać	czekając	V.CVB
+czekać	czekający	V.PTCP;PST;ACT;PL;MASC;HUM
+czekać	czekający	V.PTCP;PST;ACT;SG;MASC
+czekać	czekają	V;PRS;3;PL
+czekać	czekajcie	V;IMP;2;PL
+czekać	czekajmy	V;IMP;1;PL
+czekać	czekaj	V;IMP;2;SG
+czekać	czekałabym	V;COND;1;SG;FEM
+czekać	czekałabyś	V;COND;2;SG;FEM
+czekać	czekałaby	V;COND;3;SG;FEM
+czekać	czekałam	V;PST;1;SG;FEM
+czekać	czekałaś	V;PST;2;SG;FEM
+czekać	czekała	V;PST;3;SG;FEM
+czekać	czekałbym	V;COND;1;SG;MASC
+czekać	czekałbyś	V;COND;2;SG;MASC
+czekać	czekałby	V;COND;3;SG;MASC
+czekać	czekałem	V;PST;1;SG;MASC
+czekać	czekałeś	V;PST;2;SG;MASC
+czekać	czekalibyście	V;COND;2;PL;MASC;HUM
+czekać	czekalibyśmy	V;COND;1;PL;MASC;HUM
+czekać	czekaliby	V;COND;3;PL;MASC;HUM
+czekać	czekaliście	V;PST;2;PL;MASC;HUM
+czekać	czekaliśmy	V;PST;1;PL;MASC;HUM
+czekać	czekali	V;PST;3;PL;MASC;HUM
+czekać	czekałoby	V;COND;3;SG;NEUT
+czekać	czekało	V;PST;3;SG;NEUT
+czekać	czekał	V;PST;3;SG;MASC
+czekać	czekałybyście	V;COND;2;PL
+czekać	czekałybyśmy	V;COND;1;PL
+czekać	czekałyby	V;COND;3;PL
+czekać	czekałyście	V;PST;2;PL
+czekać	czekałyśmy	V;PST;1;PL
+czekać	czekały	V;PST;3;PL
+czekać	czekam	V;PRS;1;SG
+czekać	czekamy	V;PRS;1;PL
+czekać	czekanie	V.MSDR
+czekać	czekano	V.PTCP;PST;PASS
+czekać	czekasz	V;PRS;2;SG
+czekać	czeka	V;PRS;3;SG
+czekać	niech czekają	V;IMP;3;PL
+czekać	niech czeka	V;IMP;3;SG
+uczyć	będą uczyli	V;FUT;3;PL;MASC;HUM
+uczyć	będą uczyły	V;FUT;3;PL
+uczyć	będę uczyła	V;FUT;1;SG;FEM
+uczyć	będę uczył	V;FUT;1;SG;MASC
+uczyć	będziecie uczyli	V;FUT;2;PL;MASC;HUM
+uczyć	będziecie uczyły	V;FUT;2;PL
+uczyć	będziemy uczyli	V;FUT;1;PL;MASC;HUM
+uczyć	będziemy uczyły	V;FUT;1;PL
+uczyć	będziesz uczyła	V;FUT;2;SG;FEM
+uczyć	będziesz uczył	V;FUT;2;SG;MASC
+uczyć	będzie uczyła	V;FUT;3;SG;FEM
+uczyć	będzie uczyło	V;FUT;3;SG;NEUT
+uczyć	będzie uczył	V;FUT;3;SG;MASC
+uczyć	niech uczą	V;IMP;3;PL
+uczyć	niech uczy	V;IMP;3;SG
+uczyć	ucząca	V.PTCP;PST;ACT;SG;FEM
+uczyć	uczące	V.PTCP;PST;ACT;PL
+uczyć	uczące	V.PTCP;PST;ACT;SG;NEUT
+uczyć	ucząc	V.CVB
+uczyć	uczący	V.PTCP;PST;ACT;PL;MASC;HUM
+uczyć	uczący	V.PTCP;PST;ACT;SG;MASC
+uczyć	uczą	V;PRS;3;PL
+uczyć	uczcie	V;IMP;2;PL
+uczyć	uczenie	V.MSDR
+uczyć	uczeni	V.PTCP;PST;PASS;PL;MASC;HUM
+uczyć	uczę	V;PRS;1;SG
+uczyć	uczmy	V;IMP;1;PL
+uczyć	uczona	V.PTCP;PST;PASS;SG;FEM
+uczyć	uczone	V.PTCP;PST;PASS;PL
+uczyć	uczone	V.PTCP;PST;PASS;SG;NEUT
+uczyć	uczono	V.PTCP;PST;PASS
+uczyć	uczony	V.PTCP;PST;PASS;SG;MASC
+uczyć	ucz	V;IMP;2;SG
+uczyć	uczycie	V;PRS;2;PL
+uczyć	uczyć	V;NFIN
+uczyć	uczyłabym	V;COND;1;SG;FEM
+uczyć	uczyłabyś	V;COND;2;SG;FEM
+uczyć	uczyłaby	V;COND;3;SG;FEM
+uczyć	uczyłam	V;PST;1;SG;FEM
+uczyć	uczyłaś	V;PST;2;SG;FEM
+uczyć	uczyła	V;PST;3;SG;FEM
+uczyć	uczyłbym	V;COND;1;SG;MASC
+uczyć	uczyłbyś	V;COND;2;SG;MASC
+uczyć	uczyłby	V;COND;3;SG;MASC
+uczyć	uczyłem	V;PST;1;SG;MASC
+uczyć	uczyłeś	V;PST;2;SG;MASC
+uczyć	uczylibyście	V;COND;2;PL;MASC;HUM
+uczyć	uczylibyśmy	V;COND;1;PL;MASC;HUM
+uczyć	uczyliby	V;COND;3;PL;MASC;HUM
+uczyć	uczyliście	V;PST;2;PL;MASC;HUM
+uczyć	uczyliśmy	V;PST;1;PL;MASC;HUM
+uczyć	uczyli	V;PST;3;PL;MASC;HUM
+uczyć	uczyłoby	V;COND;3;SG;NEUT
+uczyć	uczyło	V;PST;3;SG;NEUT
+uczyć	uczył	V;PST;3;SG;MASC
+uczyć	uczyłybyście	V;COND;2;PL
+uczyć	uczyłybyśmy	V;COND;1;PL
+uczyć	uczyłyby	V;COND;3;PL
+uczyć	uczyłyście	V;PST;2;PL
+uczyć	uczyłyśmy	V;PST;1;PL
+uczyć	uczyły	V;PST;3;PL
+uczyć	uczymy	V;PRS;1;PL
+uczyć	uczysz	V;PRS;2;SG
+uczyć	uczy	V;PRS;3;SG

@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import logging
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlparse
 
+import anyio
 import uvicorn
 from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions, RevocationOptions
 from mcp.server.transport_security import TransportSecuritySettings
@@ -24,6 +26,7 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
+from . import forms
 from .auth import SingleUserAuth
 from .collection import CollectionManager, SyncSettings
 from .server import build_server
@@ -77,6 +80,17 @@ def build_app(environ=os.environ) -> tuple[Starlette, CollectionManager]:
         transport_security=TransportSecuritySettings(allowed_hosts=[urlparse(public).netloc], allowed_origins=[public]),
         host="0.0.0.0",
     )
+    # The daily Forms fill (forms.py) runs beside the server for as long as it's up.
+    serve = app.router.lifespan_context
+
+    @asynccontextmanager
+    async def lifespan(a):
+        async with serve(a) as state, anyio.create_task_group() as tg:
+            tg.start_soon(forms.auto_fill_loop, cm, forms.UniMorph(data / "unimorph"))
+            yield state
+            tg.cancel_scope.cancel()
+
+    app.router.lifespan_context = lifespan
     return app, cm
 
 

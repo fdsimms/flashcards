@@ -103,6 +103,29 @@ def main():
             nt = col.models.by_name(args[0])
             nt["tmpls"][0]["afmt"] += args[1]
             col.models.update_dict(nt)
+        elif cmd == "add-notetype":
+            # A note type with these fields (comma-separated) and one card showing the first two.
+            name, fields = args[0], args[1].split(",")
+            nt = col.models.new(name)
+            for f in fields:
+                col.models.add_field(nt, col.models.new_field(f))
+            t = col.models.new_template("Card 1")
+            t["qfmt"], t["afmt"] = "{{" + fields[0] + "}}", "{{FrontSide}}<hr id=answer>{{" + fields[1] + "}}"
+            col.models.add_template(nt, t)
+            col.models.add(nt)
+        elif cmd == "add-fields-note":
+            # A note of any type: its fields as JSON, then tags (space-separated) if given.
+            notetype, deck, fields, *tags = args
+            note = col.new_note(col.models.by_name(notetype))
+            for k, v in json.loads(fields).items():
+                note[k] = v
+            if tags:
+                note.tags = tags[0].split()
+            col.add_note(note, col.decks.id(deck))
+            out.setdefault("notes", []).append(note.id)
+        elif cmd == "fields":
+            # Every field of the notes a search finds, by note id.
+            out["fields"] = {str(nid): dict(col.get_note(nid).items()) for nid in col.find_notes(args[0])}
         elif cmd == "add-field":
             nt = col.models.by_name(args[0])
             col.models.add_field(nt, col.models.new_field(args[1]))
