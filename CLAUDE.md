@@ -159,6 +159,7 @@ src/anki     Anki collection packages: reading, writing answers back, packing (p
 server/      a ready-to-run Anki sync server (Docker, Caddy); server/mcp is the MCP for Claude (Python);
              server/reader is Read & Listen's server (Python); server/speech is the Azure client both use
 docs/read-and-listen/   Read & Listen's spec (brief.md) and the decisions since (architecture.md)
+docs/grammar.md        the grammar catalog Read & Listen and the app share, and its plan
 tests/       vitest, mirroring src/ (src/core/queue.ts -> tests/core/queue.test.ts)
 ```
 
