@@ -30,6 +30,7 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
   const [index, setIndex] = useState(0);
   const [answered, setAnswered] = useState<Answered[]>([]);
   const [typed, setTyped] = useState('');
+  const [topHeight, setTopHeight] = useState(0);
   // "In a sentence" is always typed; otherwise the last choice made, on any drill.
   const typeOnly = request.kind === 'pattern' && request.sentence;
   const [mode, setMode] = useState<AnswerMode>('pick');
@@ -38,10 +39,10 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
 
   useEffect(() => {
     (async () => {
-      const [notes, cards, practice, collection, saved] = await Promise.all([
-        repo.listNotes(), repo.listCards(), repo.listPractice(), repo.collectionSettings(), repo.formsAnswerMode(),
+      const [notes, cards, practice, saved] = await Promise.all([
+        repo.listNotes(), repo.listCards(), repo.listPractice(), repo.formsAnswerMode(),
       ]);
-      const built = drillPrompts(request, { notes, cards, practice, dayStartsAtHour: collection.dayStartsAtHour });
+      const built = drillPrompts(request, { notes, cards, practice });
       setMode(typeOnly ? 'type' : saved);
       setNotice(built.notice);
       setPrompts(built.prompts);
@@ -55,8 +56,8 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
   const current = answered.length > index ? answered[index] : undefined;
   const picking = mode === 'pick' && !!prompt?.choices;
 
-  const log = async (p: FormPrompt, correct: boolean) => {
-    const record: PracticeRecord = { noteId: p.noteId, key: p.key, correct, practicedAt: new Date().toISOString() };
+  const log = async (p: FormPrompt, correct: boolean, given: string) => {
+    const record: PracticeRecord = { noteId: p.noteId, key: p.key, correct, practicedAt: new Date().toISOString(), given };
     await repo.addPractice(record);
   };
 
@@ -66,7 +67,7 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
     try {
       // A pick is the form or it isn't: a choice one accent away is another form, not a typo.
       const verdict: Verdict = picked ? (prompt.answers.includes(given) ? 'right' : 'wrong') : checkAnswer(given, prompt.answers);
-      await log(prompt, verdict === 'right');
+      await log(prompt, verdict === 'right', given);
       if (verdict === 'right') haptic.success(); else haptic.select();
       setAnswered((a) => [...a, { prompt, given, verdict, counted: false }]);
     } finally {
@@ -79,7 +80,7 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
     if (!current || current.verdict !== 'almost' || current.counted || busy.current) return;
     busy.current = true;
     try {
-      await log(current.prompt, true);
+      await log(current.prompt, true, current.given);
       setAnswered((a) => a.map((x, i) => (i === index ? { ...x, counted: true } : x)));
     } finally {
       busy.current = false;
@@ -140,22 +141,25 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
       >
-        <View
-          accessibilityRole="progressbar"
-          accessibilityLabel="Progress through this practice"
-          accessibilityValue={{ min: 0, max: prompts.length, now: index }}
-          style={{ height: 4, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }}
-        >
-          <View style={{ width: `${(index / prompts.length) * 100}%`, height: 4, borderRadius: 2, backgroundColor: c.accent }} />
+        <View style={{ gap: space.xl }} onLayout={(e) => setTopHeight(e.nativeEvent.layout.height + space.xl)}>
+          <View
+            accessibilityRole="progressbar"
+            accessibilityLabel="Progress through this practice"
+            accessibilityValue={{ min: 0, max: prompts.length, now: index }}
+            style={{ height: 4, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }}
+          >
+            <View style={{ width: `${(index / prompts.length) * 100}%`, height: 4, borderRadius: 2, backgroundColor: c.accent }} />
+          </View>
+          {typeOnly ? null : (
+            <Segments<AnswerMode>
+              options={[{ value: 'pick', label: 'Pick' }, { value: 'type', label: 'Type' }]}
+              value={mode}
+              onChange={switchMode}
+            />
+          )}
         </View>
-        {typeOnly ? null : (
-          <Segments<AnswerMode>
-            options={[{ value: 'pick', label: 'Pick' }, { value: 'type', label: 'Type' }]}
-            value={mode}
-            onChange={switchMode}
-          />
-        )}
-        <View style={{ flex: 1, justifyContent: 'center', gap: space.xl }}>
+        {/* Padded at the bottom by the height of the controls above, so the question sits in the middle of the screen rather than of what's left under them. */}
+        <View style={{ flex: 1, justifyContent: 'center', gap: space.xl, paddingBottom: topHeight }}>
           <Question prompt={prompt} reveal={current ? prompt.answers[0] : undefined} />
           {picking ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
@@ -187,20 +191,17 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
   );
 }
 
-/** The word, what's asked, and the example sentence with a gap where the answer goes. */
+/** The word (the focus), what's asked about it (small, as context), and the example sentence with a gap where the answer goes. */
 function Question({ prompt, reveal }: { prompt: FormPrompt; reveal?: string }) {
   const c = useTheme();
+  const asked = [prompt.group, prompt.label].filter(Boolean).join(' · ');
   return (
     <View style={{ alignItems: 'center', gap: space.s }}>
-      <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
-        {prompt.meaning ? `${prompt.headword} · ${prompt.meaning}` : prompt.headword}
-      </Text>
-      <Text style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>{prompt.label}</Text>
-      {prompt.group ? (
-        <View style={{ paddingHorizontal: space.m, paddingVertical: space.xs, borderRadius: radius.pill, backgroundColor: c.fill }}>
-          <Text style={{ ...type.subhead, color: c.textSecondary }}>{prompt.group}</Text>
-        </View>
-      ) : null}
+      <Text style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>{prompt.headword}</Text>
+      {prompt.meaning ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{prompt.meaning}</Text> : null}
+      <View style={{ paddingHorizontal: space.m, paddingVertical: space.xs, borderRadius: radius.pill, backgroundColor: c.fill }}>
+        <Text style={{ ...type.subhead, color: c.textSecondary }}>{asked}</Text>
+      </View>
       {prompt.sentence ? (
         <View style={{ alignItems: 'center', gap: space.xs, marginTop: space.s }}>
           <Text style={{ ...type.title, fontWeight: '600', color: c.text, textAlign: 'center' }}>
@@ -287,7 +288,7 @@ function Summary({ answered, notice }: { answered: Answered[]; notice?: string }
           <View
             key={i}
             accessible
-            accessibilityLabel={`${[a.prompt.headword, a.prompt.label, a.prompt.group].filter(Boolean).join(', ')}: ${a.prompt.answers[0]}. ${isRight(a) ? 'Right' : `Wrong, you answered ${a.given}`}`}
+            accessibilityLabel={`${[a.prompt.headword, a.prompt.label, a.prompt.group].filter(Boolean).join(', ')}: ${a.prompt.answers[0]}. ${isRight(a) ? 'Right' : `Wrong, you answered “${a.given}”`}`}
             style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingVertical: space.s, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}
           >
             <Text style={{ ...type.subhead, color: c.textSecondary, width: 130 }}>
@@ -296,7 +297,7 @@ function Summary({ answered, notice }: { answered: Answered[]; notice?: string }
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={{ ...type.headline, color: c.text }}>{a.prompt.answers[0]}</Text>
               {a.verdict === 'almost' && a.counted ? <Text style={{ ...type.footnote, color: c.warning }}>Accent missed, counted as right</Text> : null}
-              {!isRight(a) ? <Text style={{ ...type.footnote, color: c.danger }}>{`You answered ${a.given}`}</Text> : null}
+              {!isRight(a) ? <Text style={{ ...type.footnote, color: c.danger }}>{`You answered “${a.given}”`}</Text> : null}
             </View>
             <Icon name={isRight(a) ? 'checkmark' : 'xmark'} size={18} color={isRight(a) ? c.countDue : c.danger} weight="bold" />
           </View>

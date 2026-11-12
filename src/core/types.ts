@@ -249,4 +249,14 @@ export interface DeckSettings {
   lookalikeDays?: number;
   /** Offer to show a card sooner when a lookalike may have given it away (default on). */
   offerSooner?: boolean;
+  /** Tagged cards first (`prioritySettings`): the switch. Set on a subdeck, it overrides the deck above. */
+  priorityFirst?: boolean;
+  /** The tag whose notes' new cards come first. */
+  priorityTag?: string;
+  /** Days after Franki first saw the tag on a note that its new cards still come first (default 14). */
+  priorityDays?: number;
+  /** The most that may come first, as a percent of the day's new cards (default 50). */
+  priorityPercent?: number;
+  /** Note id to when Franki first saw the tag on it, kept on the deck whose switch is on. */
+  priorityStamps?: Record<string, string>;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ShelfText } from '../../src/reader/api';
-import { cardDetail, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, stepLength } from '../../src/reader/shelf';
+import { cardDetail, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, stepLength, surprisePick } from '../../src/reader/shelf';
 
 const text = (over: Partial<ShelfText> = {}): ShelfText => ({
   id: 1, title: 'At the stall', topic: 'Food stall', topic_id: 1, liked: false, form: 'dialogue', lines: 8,
@@ -45,5 +45,19 @@ describe('the shelf', () => {
     expect(stepLength(6, 'shorter')).toBe(6);
     expect(stepLength(12, 'longer')).toBe(12);
     expect(stepLength(8, 'same')).toBe(8);
+  });
+});
+
+describe('Surprise me', () => {
+  const ideas = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((name) => ({ name, fit: 1 }));
+
+  it('picks from the five best-fitting ideas and either form', () => {
+    expect(surprisePick(ideas, () => 0)).toEqual({ name: 'a', form: 'dialogue' });
+    expect(surprisePick(ideas, () => 0.999)).toEqual({ name: 'e', form: 'story' });
+  });
+
+  it('takes the only idea left, and nothing when there are none', () => {
+    expect(surprisePick([{ name: 'a', fit: 0.5 }], () => 0.7)?.name).toBe('a');
+    expect(surprisePick([], () => 0.5)).toBeNull();
   });
 });
