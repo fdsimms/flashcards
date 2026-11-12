@@ -298,7 +298,8 @@ export function cardDocument(
   return `<!doctype html><html><head><meta charset="utf-8">${base}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-body { margin: 0; padding: 16px; font-family: -apple-system, system-ui, sans-serif; font-size: 20px; text-align: center;
+html { height: 100%; }
+body { margin: 0; padding: 16px; min-height: 100%; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; font-family: -apple-system, system-ui, sans-serif; font-size: 20px; text-align: center;
   background: ${colors.background}; color: ${colors.text}; }
 img { max-width: 100%; height: auto; }
 .cloze { font-weight: bold; color: ${colors.cloze}; }
@@ -310,7 +311,7 @@ code#typeans { display: inline-block; white-space: pre-wrap; font-family: ui-mon
 .typeMissed { color: black; background: #ccc; }
 ${opts.css}
 </style></head>
-<body class="card card${opts.ord + 1}${night}"><div id="qa">${ttsButtons(soundButtons(html))}</div>
+<body class="card card${opts.ord + 1}${night}"><div id="qa" style="width:100%">${ttsButtons(soundButtons(html))}</div>
 <script>
 var player = null;
 function playSound(file) { if (player) player.pause(); player = new Audio(file); player.play(); }

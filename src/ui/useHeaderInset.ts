@@ -1,5 +1,5 @@
 import { useHeaderHeight } from 'expo-router/react-navigation';
-import { useCallback, useRef, useState, type ComponentRef } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
 import { View } from 'react-native';
 
 /**
@@ -17,5 +17,8 @@ export function useHeaderInset() {
   const onLayout = useCallback(() => {
     ref.current?.measureInWindow((_x, y) => setTop(Math.max(0, headerHeight - y)));
   }, [headerHeight]);
+  // onLayout alone isn't enough: the header's height is often 0 when the screen first lays out and
+  // only settles afterward, with no new layout to trigger onLayout, so the inset stayed 0.
+  useEffect(onLayout, [onLayout]);
   return { ref, onLayout, top };
 }
