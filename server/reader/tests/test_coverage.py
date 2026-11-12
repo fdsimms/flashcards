@@ -1,6 +1,6 @@
 import pytest
 
-from franki_reader.coverage import FLOOR, Lexicon, check, parse_line
+from franki_reader.coverage import FLOOR, Lexicon, check, parse_line, segment_line
 
 # The four phrases are real entries in the Thai deck, and the brief's feasibility test called out the
 # words inside them (ข้าวเหนียว, รับ, เก็บ, ตุ๊กตุ๊ก) as false misses: the deck has them only inside
@@ -125,3 +125,28 @@ def test_empty_text_does_not_pass() -> None:
 
 def test_ik_wa_is_not_split_as_i_and_kwa(lexicon: Lexicon) -> None:
     assert lexicon.segment("ฉันถามอีกว่า") == ["ฉัน", "ถาม", "อีก", "ว่า"]
+
+
+def test_a_marked_name_is_not_counted_for_or_against_coverage(lexicon: Lexicon) -> None:
+    # สมชาย isn't in the deck: unmarked, its two syllables are unknown words and lower coverage.
+    assert check(["สมชาย|กิน|ครับ"], lexicon).words("unknown") == ["สม", "ชาย"]
+    marked = check(["~สมชาย~|กิน|ครับ"], lexicon)
+    assert [t.text for t in marked.tokens] == ["กิน", "ครับ"]
+    assert marked.names == ("สมชาย",)
+    assert marked.meets()
+
+
+def test_the_name_marks_are_dropped_from_the_plain_text() -> None:
+    assert parse_line("~สมชาย~|*กิน*|ครับ") == ("สมชายกินครับ", ["กิน"])
+    assert parse_line("~Kasia~|mieszka|*tu*.", True) == ("Kasia mieszka tu.", ["tu"])
+
+
+def test_only_the_marked_occurrence_is_a_name(lexicon: Lexicon) -> None:
+    # มะม่วง is a deck word (mango) that is also used here as a name, once.
+    pieces = segment_line("มะม่วง|กิน|~มะม่วง~", lexicon)
+    assert [(p, n) for p, n in pieces if p == "มะม่วง"] == [("มะม่วง", False), ("มะม่วง", True)]
+
+
+def test_names_are_listed_once_in_order(lexicon: Lexicon) -> None:
+    result = check(["~สมชาย~|ไป", "~มาลี~|กับ|~สมชาย~"], lexicon)
+    assert result.names == ("สมชาย", "มาลี")

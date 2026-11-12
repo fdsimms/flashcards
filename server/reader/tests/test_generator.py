@@ -7,6 +7,7 @@ import pytest
 from franki_reader.coverage import Lexicon
 from franki_reader.generator import (
     MAX_ATTEMPTS,
+    MAX_NAMES,
     MODEL,
     GenerationFailed,
     TextRequest,
@@ -443,3 +444,23 @@ def test_a_story_has_no_genders() -> None:
     story["lines"] = [dict(line, speaker="N") for line in GOOD["lines"]]
     result = run(ScriptedModel(story), TextRequest("food", (MANGO,), form="story"))
     assert result.genders == {} and result.gender_ok
+
+
+def test_a_marked_name_does_not_lower_coverage() -> None:
+    named = draft("~สมชาย~|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ")
+    result = run(ScriptedModel(named), TextRequest("food", (MANGO,)))
+    assert result.passed and result.coverage.names == ("สมชาย",)
+
+
+def test_too_many_names_go_back_to_the_model() -> None:
+    names = "|".join(f"~ชื่อ{i}~" for i in range(MAX_NAMES + 1))
+    too_many = draft(f"{names}|กิน|*ข้าวเหนียวมะม่วง*|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ")
+    model = ScriptedModel(too_many, GOOD)
+    result = run(model, TextRequest("food", (MANGO,)))
+    assert result.attempts == 2
+    assert f"Mark at most {MAX_NAMES} different names" in str(model.sent[1][-1])
+
+
+def test_the_prompts_state_the_name_limit() -> None:
+    for language in ("th", "es"):
+        assert f"at most {MAX_NAMES} different names" in system_prompt(ENTRIES, language)

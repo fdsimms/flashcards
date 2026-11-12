@@ -19,6 +19,7 @@ import { ankiToday, fnvHash } from '../core/order';
 import { saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { forgetCards, RescheduleRefused, setDueDates } from '../anki/rescheduleService';
 import { parseDueDate } from '../core/reschedule';
+import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
 import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../core/session';
 import { durationText } from '../core/stats';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
@@ -205,6 +206,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   const [answerButtons, setAnswerButtons] = useState<AnswerButtons>('all');
   const [swipeOn, setSwipeOn] = useState(false);
   const [showHints, setShowHints] = useState(false);
+  const [thaiSize, setThaiSize] = useState<ThaiTextSize>(DEFAULT_THAI_TEXT_SIZE);
   // Bumped after the note editor saves or deletes, to load the cards and notes again.
   const [reloads, setReloads] = useState(0);
   const [noteTypes, setNoteTypes] = useState<Map<string, NoteType>>(new Map());
@@ -224,16 +226,17 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       const now = new Date();
       const cs = await repo.collectionSettings();
       const dayStart = studyDayStart(now, cs.dayStartsAtHour);
-      const [c, n, reviews, revlog, params, types, settings, buttons, swipe, hints] = await Promise.all([
+      const [c, n, reviews, revlog, params, types, settings, buttons, swipe, hints, thai] = await Promise.all([
         // Every card, not only this deck's: a gate on a deck above this one counts its whole subtree.
         repo.listCards(), repo.listNotes(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
-        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(), repo.swipeToRate(), repo.showCardHints(),
+        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(), repo.swipeToRate(), repo.showCardHints(), repo.thaiTextSize(),
       ]);
       const today = studiedToday({ notes: n, cards: c, reviews, revlog, now, dayStartsAtHour: cs.dayStartsAtHour });
       setCollection(cs);
       setAnswerButtons(buttons);
       setSwipeOn(swipe);
       setShowHints(hints);
+      setThaiSize(thai);
       setDeckSettings(settings);
       setAllParams(params);
       setNoteTypes(types);
@@ -824,7 +827,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
           <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the card, so each new one fades in rather than swapping. */}
             <Reveal key={current.id} rise={10} style={{ gap: space.xl }}>
-              <Side key={current.id} side={rendered.front} which="front" showHints={showHints} />
+              <Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} />
               {playbackFor(rendered, revealed) ? (
                 <Tappable
                   onPress={() => { haptic.tap(); speak(playbackFor(rendered, revealed)); }}
@@ -844,7 +847,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
             {revealed ? (
               <Reveal rise={8} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
-                <Side key={current.id} side={rendered.back} which="back" showHints={showHints} />
+                <Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} />
                 {extras}
               </Reveal>
             ) : null}

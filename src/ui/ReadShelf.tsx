@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Keyboard, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type Form, type Language, type Shelf, type ShelfText } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { cardDetail, playMinutes, playOrder, reasonLabel, surprisePick } from '../reader/shelf';
@@ -287,6 +287,8 @@ function StoryCard({ api, shelf, onOpen, onStarted }: { api: Api; shelf: Shelf; 
 
   const start = async () => {
     if (starting) return;
+    // A field left focused makes the scroll view scroll to it again whenever the shelf re-renders or the app returns.
+    Keyboard.dismiss();
     setStarting(true);
     setError(null);
     try {
@@ -358,6 +360,7 @@ function WriteCard({ api, onWriting }: { api: Api; onWriting: () => void }) {
   const write = async () => {
     const topic = name.trim();
     if (!topic || busy) return;
+    Keyboard.dismiss();
     setBusy(true);
     setError(null);
     try {
@@ -374,6 +377,7 @@ function WriteCard({ api, onWriting }: { api: Api; onWriting: () => void }) {
   // A topic idea the deck fits, in a random form, written like a typed topic.
   const surprise = async () => {
     if (busy) return;
+    Keyboard.dismiss();
     setBusy(true);
     setError(null);
     try {
