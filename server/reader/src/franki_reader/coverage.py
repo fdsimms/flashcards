@@ -122,7 +122,8 @@ class Lexicon:
         return dict_trie(self.known)
 
     def segment(self, text: str) -> list[str]:
-        return list(word_tokenize(text, custom_dict=self._segmenter, engine="newmm"))
+        tokens = list(word_tokenize(text, custom_dict=self._segmenter, engine="newmm"))
+        return _fix_ties(tokens)
 
     def status(self, token: str) -> Status:
         if token in self.known or _is_number(token):
@@ -146,6 +147,25 @@ class Lexicon:
 
     def entry_of(self, token: str) -> str | None:
         return token if token in self.known else None
+
+
+# newmm prefers the fewest words and breaks a tie toward the shorter first word, so อีกว่า (again,
+# that...) comes out as อี + กว่า. Both splits are two words; this one is always the wrong one.
+_TIES = {("อี", "กว่า"): ("อีก", "ว่า")}
+
+
+def _fix_ties(tokens: list[str]) -> list[str]:
+    out: list[str] = []
+    i = 0
+    while i < len(tokens):
+        pair = tuple(tokens[i : i + 2])
+        if pair in _TIES:
+            out.extend(_TIES[pair])
+            i += 2
+        else:
+            out.append(tokens[i])
+            i += 1
+    return out
 
 
 def parse_line(line: str, spaced: bool = False) -> tuple[str, list[str]]:
