@@ -98,8 +98,8 @@ const SPIKY: Shape = {
   head: true,
 };
 const CAP: Shape[] = [
-  { d: 'M15 19.5C15 10.2 19.6 8 24 8C28.4 8 33 10.2 33 19.5Z', tone: 'hair', head: true },
-  { d: 'M13.6 19H36.6C36.6 20.6 35.4 21.4 33.6 21.4H15C14.2 21.4 13.6 20.4 13.6 19Z', tone: 'body', head: true },
+  { d: 'M15 16.2C15 7.8 19.6 6 24 6C28.4 6 33 7.8 33 16.2Z', tone: 'hair', head: true },
+  { d: 'M13.6 15.8H36.6C36.6 17.4 35.4 18.2 33.6 18.2H15C14.2 18.2 13.6 17.2 13.6 15.8Z', tone: 'body', head: true },
 ];
 const PONYTAIL: Shape = { d: 'M32 14C37 13 38.5 20 35.5 26C34.6 23.6 34 21 32.6 19Z', tone: 'hair' };
 
@@ -127,8 +127,9 @@ const HAIR_FRONT: Record<Hair, Shape[]> = {
   ponytail: [SHORT],
   spiky: [SPIKY],
   sides: [
-    { ellipse: [15.3, 24, 2.1, 4.2], tone: 'hair', head: true },
-    { ellipse: [32.7, 24, 2.1, 4.2], tone: 'hair', head: true },
+    // Thin crescents along the temples, inside the head's edge: a bald top with hair at the sides.
+    { d: 'M17.2 15C15.2 17 14.7 21 15.1 24.4C15.3 25.6 15.7 26.6 16.3 27.2C16.9 24.8 17 21 19 16.2C18.4 15.6 17.8 15.2 17.2 15Z', tone: 'hair', head: true },
+    { d: 'M30.8 15C32.8 17 33.3 21 32.9 24.4C32.7 25.6 32.3 26.6 31.7 27.2C31.1 24.8 31 21 29 16.2C29.6 15.6 30.2 15.2 30.8 15Z', tone: 'hair', head: true },
   ],
   cap: CAP,
   capPony: CAP,
