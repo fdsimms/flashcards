@@ -73,6 +73,18 @@ def test_a_table_less_than_half_full_counts_as_not_found():
     assert forms.lines_for(spanish(), "querer", {"querer": rows("spa", "querer")}) == []
 
 
+def test_every_group_a_grammar_point_links_to_is_one_the_fill_writes():
+    # The app finds a form's grammar point by its group's name (src/core/grammar.ts), so a group
+    # renamed here would quietly unlink it. Languages the fill doesn't cover are written by hand.
+    catalog = Path(__file__).resolve().parents[2] / "reader" / "src" / "franki_reader" / "grammar_points.json"
+    tables = {"es": forms.TABLES["spanish"], "pl": forms.TABLES["polish"], "ru": forms.TABLES["russian"]}
+    linked = [(p["language"], g) for p in json.loads(catalog.read_text(encoding="utf-8"))["points"] for g in p.get("forms", [])]
+    assert linked
+    for language, group in linked:
+        if language in tables:
+            assert group in {t.group for t in tables[language].tables}, (language, group)
+
+
 def test_downloads_each_file_once(tmp_path):
     files = Files()
     u = forms.UniMorph(tmp_path, fetch=files)

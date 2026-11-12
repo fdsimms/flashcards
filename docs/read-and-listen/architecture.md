@@ -283,7 +283,8 @@ Thai letters, so none of them is a language here. Each new language works as Spa
 
 Added on 26 October 2026 at the owner's request: grammar to practice or avoid, for each language.
 
-- **Points** (`server/reader/src/franki_reader/grammar.py`). Spanish: preterite, imperfect, present perfect,
+- **Points** (listed in `server/reader/src/franki_reader/grammar_points.json`, the catalog the app
+  shares, docs/grammar.md; each one's finder in `grammar.py`). Spanish: preterite, imperfect, present perfect,
   pluperfect, future, conditional, progressive, present subjunctive, imperfect subjunctive (the
   present is always allowed). Thai: เคย, กำลัง, จะ, แล้ว, ต้อง, กว่า, ที่สุด, ถ้า, เพราะ, and yes or no
   questions (ไหม, หรือเปล่า). Since 12 November 2026, at the owner's request, the other languages

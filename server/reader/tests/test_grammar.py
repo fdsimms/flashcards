@@ -1,8 +1,11 @@
 """Grammar points: finding them, asking for them, sending drafts back over them, and showing them."""
 
 import asyncio
+import json
 import random
+import re
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -13,7 +16,7 @@ from franki_reader import store
 from franki_reader.app import create_app
 from franki_reader.engine import Engine
 from franki_reader.generator import Line, TextRequest, Usage, generate, request_message
-from franki_reader.grammar import POINTS, points_for, words
+from franki_reader.grammar import _FINDERS, CATALOG, POINTS, _load, points_for, words
 from franki_reader.languages import Code
 from franki_reader.lexicon import lexicon_from
 from franki_reader.reader import render
@@ -127,6 +130,48 @@ def test_want_is_not_must() -> None:
 def test_every_point_has_a_name_and_a_note() -> None:
     assert len(points_for("es")) == 9 and len(points_for("th")) == 10
     assert all(p.name and p.note and p.id.startswith(p.language + ".") for p in POINTS.values())
+
+
+def _catalog(tmp_path: Path, *points: dict[str, Any]) -> Path:
+    path = tmp_path / "grammar_points.json"
+    path.write_text(json.dumps({"points": list(points)}), encoding="utf-8")
+    return path
+
+
+def _point(pid: str, language: str = "es") -> dict[str, Any]:
+    return {"id": pid, "language": language, "name": pid, "note": "a note"}
+
+
+def test_points_come_from_the_catalog_in_its_order(tmp_path: Path) -> None:
+    def find(ws: list[str]) -> list[tuple[int, int]]:
+        return []
+
+    path = _catalog(tmp_path, _point("es.b"), {**_point("es.a"), "forms": ["preterite"]})
+    points = _load(path, {"es.a": find, "es.b": find})
+    assert [p.id for p in points] == ["es.b", "es.a"]
+    assert points[1].find is find
+
+
+@pytest.mark.parametrize(
+    ("points", "finders", "problem"),
+    [
+        ([_point("es.a")], [], "es.a has no finder"),
+        ([], ["es.a"], "es.a has a finder but isn't in the catalog"),
+        ([_point("es.a"), _point("es.a")], ["es.a"], "es.a is listed twice"),
+        ([_point("it.a", "it")], ["it.a"], "it.a is in it, which isn't a language here"),
+    ],
+)
+def test_a_catalog_that_doesnt_match_the_finders_stops_the_server(
+    tmp_path: Path, points: list[dict[str, Any]], finders: list[str], problem: str
+) -> None:
+    with pytest.raises(ValueError, match=re.escape(problem)):
+        _load(_catalog(tmp_path, *points), {pid: lambda ws: [] for pid in finders})
+
+
+def test_the_real_catalog_has_a_finder_for_every_point() -> None:
+    entries = json.loads(CATALOG.read_text(encoding="utf-8"))["points"]
+    assert [e["id"] for e in entries] == list(POINTS)
+    assert len(POINTS) == len(_FINDERS)
 
 
 # ==== Asking for grammar and checking the draft ====
