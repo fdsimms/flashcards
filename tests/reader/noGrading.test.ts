@@ -12,6 +12,7 @@ const ROOT = join(__dirname, '..', '..');
 const READER = join(ROOT, 'src', 'reader');
 const UI = join(ROOT, 'src', 'ui');
 const ROUTES = join(ROOT, 'src', 'app');
+const READ_TAB = join(ROUTES, '(tabs)', '(read)');
 // Anything that answers, schedules or writes cards and notes.
 const FORBIDDEN = /from '[^']*(core\/scheduler|core\/session|anki\/writeback|anki\/noteWrites|anki\/noteService|db\/[a-zA-Z]+)'/;
 
@@ -21,6 +22,8 @@ describe('Read & Listen', () => {
     ...readdirSync(UI).filter((f) => /^(Read[A-Z]?.*\.tsx|useReader\.ts)$/.test(f)).map((f) => join(UI, f)),
     // read-words opens the note editor for a marked word: saving there is the approval step.
     ...readdirSync(ROUTES).filter((f) => /^read(er|-.*)?\.tsx$/.test(f)).map((f) => join(ROUTES, f)),
+    // The Read & Listen tab's home (and its stack layout) lives in its own route group.
+    ...readdirSync(READ_TAB).filter((f) => /\.tsx$/.test(f)).map((f) => join(READ_TAB, f)),
   ];
 
   it('scans its logic, its screens and its routes', () => {
@@ -30,7 +33,7 @@ describe('Read & Listen', () => {
     expect(files.some((f) => f.endsWith('useReader.ts'))).toBe(true);
     expect(files.some((f) => f.endsWith(join('app', 'read-words.tsx')))).toBe(true);
     expect(files.some((f) => f.endsWith(join('app', 'reader.tsx')))).toBe(true);
-    expect(files.some((f) => f.endsWith(join('app', 'read.tsx')))).toBe(true);
+    expect(files.some((f) => f.endsWith(join('(read)', 'read.tsx')))).toBe(true);
   });
 
   it('matches what it is meant to catch', () => {
