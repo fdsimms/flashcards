@@ -119,6 +119,8 @@ function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
 
   const entry = t(note, 'Entry');
   const translit = t(note, 'Transliteration');
+  // A Japanese word's kana, shown on the back after the word as Anki's template does ({{hint:KanaReading}}).
+  const kana = t(note, 'KanaReading');
   const meaning = t(note, 'Meaning');
   const front: Block[] = [];
   const back: Block[] = [];
@@ -143,6 +145,7 @@ function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
     pushIf(front, entry, undefined, true);
     pushIf(front, t(note, 'LeechHint'), undefined);
     pushIf(back, translit, undefined, undefined, 'Show transliteration');
+    pushIf(back, kana, undefined, undefined, 'Show reading');
     pushIf(back, meaning, undefined, true);
     back.push(...detail());
     return { front: { blocks: front, speak: entry }, back: { blocks: back }, speechLang };
@@ -153,6 +156,7 @@ function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
     pushIf(front, t(note, 'LeechHint'), undefined);
     pushIf(back, entry, undefined, true);
     pushIf(back, translit, undefined, undefined, 'Show transliteration');
+    pushIf(back, kana, undefined, undefined, 'Show reading');
     back.push(...detail());
     return { front: { blocks: front }, back: { blocks: back, speak: entry }, speechLang };
   }
@@ -161,6 +165,7 @@ function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
   front.push({ text: 'Listen', emphasis: true, icon: 'speaker.wave.2.fill' });
   pushIf(back, entry, undefined, true);
   pushIf(back, translit, undefined, undefined, 'Show transliteration');
+  pushIf(back, kana, undefined, undefined, 'Show reading');
   pushIf(back, meaning, undefined, true);
   back.push(...detail());
   return { front: { blocks: front, speak: entry }, back: { blocks: back }, speechLang };

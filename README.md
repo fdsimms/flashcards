@@ -95,6 +95,16 @@ Short dialogues and stories in Thai or Spanish, written from the words in your d
 
 The texts are written by Read & Listen's server, which runs beside your Anki sync server (`server/README.md`, Read & Listen) and uses Claude and Azure's voices. Once it's running, turn it on in **Settings**, **Read & Listen**, with its passphrase; the deck list then shows a Read & Listen row. Sync has to be set up first, since the server is at the same address.
 
+## WaniKani
+
+Your WaniKani reviews and lessons as one more deck, after the Anki decks: reviews up now count as due and today's lessons as new, in the deck list's totals too. Answers go to WaniKani, which does the scheduling, so your progress is the same on wanikani.com. Turn it on in **Settings**, **WaniKani**, with an API token from wanikani.com (Settings, API Tokens) that has **reviews:create** and **assignments:start** checked.
+
+**Answers** are typed as on WaniKani (romaji turns into kana for a reading; small typos in a meaning are allowed, and your own synonyms count), or shown and rated Again or Good. Meaning and reading can be asked as two questions or one. A missed question comes back later in the session, and the item goes to WaniKani once both are right, with how many times each was missed. **Undo** takes back answers until the next item is sent; the latest finished item is held until you answer the next card or leave. Answers given offline are kept and sent once WaniKani can be reached.
+
+**Lessons** come after the reviews, up to the lessons per day in WaniKani's options (lessons done on wanikani.com that day count too). A lesson shows the item with its mnemonics, and **Got it** starts it on WaniKani.
+
+**Production cards:** when a WaniKani word reaches Guru, Franki adds an English to Japanese card for it to your Anki deck (an Omnilanguage note with only the Reverse card, with WaniKani's recording and an example sentence, tagged `wanikani`). These are ordinary Anki cards, scheduled by FSRS and synced like the rest; WaniKani never sees them. The deck is chosen in WaniKani's options (the deck named 日本語 to start).
+
 ## Installing on your iPhone
 
 Everything builds on your Mac; nothing is built on Expo's servers. You need a Mac with **Xcode** (open it once so it installs the iOS components, then add your Apple ID under **Settings > Accounts**), **CocoaPods** and **fastlane** (`brew install cocoapods fastlane`), and a paid Apple Developer account. The app doesn't use Expo Go. The bundle identifier is `com.fdsimms.franki` (`app.json`); once the first build is on App Store Connect it can't change without starting over as a new app.
@@ -144,6 +154,7 @@ src/media    the images and sounds folder
 src/app      the routes (Expo Router)
 src/ui       deck list, review, import, backup and Read & Listen screens, the card WebView
 src/reader   Read & Listen: its server's API, the reading session, playback
+src/wanikani WaniKani: its API, the study session, answer checking, kana input, production cards
 src/anki     Anki collection packages: reading, writing answers back, packing; sync/ talks to an Anki sync server
 modules/     anki-unicase: Anki's text ordering for the phone's SQLite, so sync can write Anki's decks and note types
 server/      a ready-to-run Anki sync server (Docker, with HTTPS from Caddy), the MCP for Claude, and

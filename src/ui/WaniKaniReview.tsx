@@ -1,0 +1,330 @@
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
+import { Stack } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActionSheetIOS, ActivityIndicator, Keyboard, Linking, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { studyDayStart } from '../core/day';
+import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
+import { problemText, WaniKaniError } from '../wanikani/api';
+import { toKana } from '../wanikani/kana';
+import { lessonsToday } from '../wanikani/prefs';
+import {
+  buildSession, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
+  studyAnswer, studyFlush, studyUndo, wrongSoFar, type Study,
+} from '../wanikani/session';
+import { nextStage, outcomeText } from '../wanikani/srs';
+import { SUBJECT_TYPE_NAMES, type Subject } from '../wanikani/subjects';
+import { haptic } from './haptics';
+import { Button, Count, ErrorNote, Icon, Screen, Tappable } from './kit';
+import { Reveal } from './motion';
+import { CardSurface, ProgressBar } from './Review';
+import type { WaniKaniState } from './useWaniKani';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { SubjectDetails, SubjectFront } from './WaniKaniCard';
+
+/**
+ * Studies WaniKani: today's reviews, then today's lessons, as a deck. Answers are typed or rated
+ * (WaniKani's options), checked here, and sent to WaniKani as each item finishes, the latest held
+ * back so it can be undone (src/wanikani/session.ts). WaniKani does the scheduling.
+ */
+export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: WaniKaniState; onDone: () => void; onOptions: () => void }) {
+  const c = useTheme();
+  const dark = useColorScheme() === 'dark';
+  const { api, prefs, srs, send } = wanikani;
+  const [subjects, setSubjects] = useState<Map<number, Subject>>(new Map());
+  const [synonyms, setSynonyms] = useState<Map<number, string[]>>(new Map());
+  const [study, setStudy] = useState<Study | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loads, setLoads] = useState(0);
+  // The current question's state: the answer shown, what was typed, and how it was judged.
+  const [revealed, setRevealed] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [verdict, setVerdict] = useState<Verdict | null>(null);
+  const [retry, setRetry] = useState<string | null>(null);
+  // How answers are given is fixed for the session when it's built: its questions were made for it.
+  const [typing, setTyping] = useState(prefs.answer === 'type');
+
+  // Whatever is held when the screen closes goes to WaniKani then, and the deck list's counts are read again.
+  const studyRef = useRef(study);
+  studyRef.current = study;
+  useEffect(() => () => {
+    if (studyRef.current) send(studyFlush(studyRef.current).send);
+    wanikani.refresh(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!api) return;
+    let gone = false;
+    setError(null);
+    (async () => {
+      try {
+        const user = wanikani.user ?? await api.user();
+        const [reviews, lessons, started] = await Promise.all([
+          api.reviewsAvailable(user.maxLevel), api.lessonsAvailable(user.maxLevel),
+          api.lessonsStartedSince(studyDayStart(new Date(), wanikani.dayStartsAtHour)),
+        ]);
+        const read = new Map((await api.subjects([...reviews, ...lessons].map((a) => a.subjectId))).map((s) => [s.id, s]));
+        const items = sessionItems(reviews, lessons, read, lessonsToday(lessons.length, prefs.newPerDay, started));
+        // The user's own synonyms count as right answers when typing; without them, only WaniKani's do.
+        const typed = prefs.answer === 'type';
+        const syn = typed ? await api.synonyms(items.map((i) => i.subjectId)).catch(() => new Map<number, string[]>()) : new Map<number, string[]>();
+        if (gone) return;
+        setSubjects(read);
+        setSynonyms(syn);
+        setTyping(typed);
+        setStudy(startStudy(buildSession(items, { mode: questionMode(prefs.answer, prefs.separate) })));
+      } catch (e) {
+        if (!gone) setError(problemText(e instanceof WaniKaniError ? e.problem : 'unavailable'));
+      }
+    })();
+    return () => { gone = true; };
+  }, [api, loads]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The typing box sits in the footer, so the screen is padded by the keyboard, as in Review.
+  const insets = useSafeAreaInsets();
+  const [keyboard, setKeyboard] = useState(0);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', (e) => setKeyboard(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setKeyboard(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
+  // One player for WaniKani's recordings, released when the screen closes.
+  const player = useRef<AudioPlayer | null>(null);
+  useEffect(() => () => { player.current?.remove(); player.current = null; }, []);
+  const audioUrl = (s: Subject | undefined) => s?.audio.find((a) => a.contentType === 'audio/mpeg')?.url;
+  const play = useCallback((url: string | undefined) => {
+    if (!url) return;
+    player.current ??= createAudioPlayer(null, { keepAudioSessionActive: true });
+    player.current.replace({ uri: url });
+    player.current.play();
+  }, []);
+
+  const session = study?.session;
+  const question = session ? currentQuestion(session) : undefined;
+  const item = question && session ? session.items[question.assignmentId] : undefined;
+  const subject = item ? subjects.get(item.subjectId) : undefined;
+  const progress = question && session ? session.progress[question.assignmentId] : undefined;
+  const left = session ? remaining(session) : { reviews: 0, lessons: 0 };
+  const lesson = question?.kind === 'lesson';
+  const asksMeaning = question?.kind === 'meaning' || question?.kind === 'both';
+  const asksReading = question?.kind === 'reading' || question?.kind === 'both';
+  // The answer side shows what's been asked, and what this item has already had right, never what's still to come.
+  const showMeaning = lesson || (revealed && (asksMeaning || !!progress?.meaning));
+  const showReading = lesson || (revealed && (asksReading || !!progress?.reading));
+
+  const resetQuestion = () => {
+    setRevealed(false);
+    setTyped('');
+    setVerdict(null);
+    setRetry(null);
+  };
+
+  const answer = (correct: boolean) => {
+    if (!study) return;
+    haptic.answer();
+    const r = studyAnswer(study, correct, new Date());
+    send(r.send);
+    setStudy(r.study);
+    resetQuestion();
+    if (!currentQuestion(r.study.session)) haptic.success();
+  };
+
+  const undo = () => {
+    const back = study && studyUndo(study);
+    if (!back) return;
+    setStudy(back);
+    resetQuestion();
+  };
+
+  const reveal = () => {
+    Keyboard.dismiss();
+    setRevealed(true);
+    if (prefs.autoplay && asksReading) play(audioUrl(subject));
+  };
+
+  const check = () => {
+    if (!subject || !question) return;
+    if (verdict) return answer(verdict.result === 'correct');
+    const v = question.kind === 'reading' ? checkReading(subject, typed) : checkMeaning(subject, synonyms.get(subject.id) ?? [], typed);
+    if (v.result === 'retry') {
+      setRetry(v.message);
+      return;
+    }
+    setRetry(null);
+    setVerdict(v);
+    setRevealed(true);
+    if (v.result === 'correct') haptic.select();
+    if (prefs.autoplay && question.kind === 'reading') play(audioUrl(subject));
+  };
+
+  const title = 'WaniKani';
+  const menu = useMemo(() => (subject ? () => {
+    const options = ['Open on wanikani.com', 'WaniKani options', 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 2 }, (i) => {
+      if (i === 0 && subject.url) Linking.openURL(subject.url).catch(() => undefined);
+      if (i === 1) onOptions();
+    });
+  } : undefined), [subject, onOptions]);
+  const toolbar = (
+    <Stack.Toolbar placement="right">
+      {study && canUndo(study) ? <Stack.Toolbar.Button icon="arrow.uturn.backward" accessibilityLabel="Undo the last answer" onPress={undo} /> : null}
+      {menu ? <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="More: open on wanikani.com or WaniKani's options" onPress={menu} /> : null}
+    </Stack.Toolbar>
+  );
+
+  if (!api) {
+    return (
+      <Screen title={title} largeTitle={false} footer={<Button label="WaniKani options" onPress={onOptions} />}>
+        <View style={{ flex: 1, justifyContent: 'center', padding: space.xl }}>
+          <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>WaniKani is off. Enter a token in its options to study it here.</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (!study || error) {
+    return (
+      <Screen title={title} largeTitle={false} footer={error ? <Button label="Back to decks" variant="secondary" onPress={onDone} /> : undefined}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: space.xl, gap: space.m }}>
+          {error ? <ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /> : <ActivityIndicator color={c.accent} />}
+        </View>
+      </Screen>
+    );
+  }
+
+  if (!question || !item || !subject) {
+    const done = study.session.finished.length;
+    return (
+      <Screen title={title} largeTitle={false} toolbar={toolbar} footer={<Button label="Back to decks" onPress={onDone} />}>
+        <Reveal style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
+          <Icon name="checkmark.circle.fill" size={56} color={c.countDue} weight="regular" />
+          <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>All done for now</Text>
+          <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>
+            {done ? `${done} ${done === 1 ? 'item' : 'items'} this session. ` : ''}Nothing else is up on WaniKani right now.
+          </Text>
+        </Reveal>
+      </Screen>
+    );
+  }
+
+  const label = lesson
+    ? `New ${SUBJECT_TYPE_NAMES[subject.type].toLowerCase()} · Level ${subject.level}`
+    : `${SUBJECT_TYPE_NAMES[subject.type]}${question.kind === 'meaning' && item.asksReading ? ' meaning' : question.kind === 'reading' ? ' reading' : ''} · Level ${subject.level}`;
+  const system = srs.get(subject.srsId);
+  const wrong = wrongSoFar(study.session, item.assignmentId);
+  // Whether a right answer now finishes the item (and so what Good does to it).
+  const finishes = question.kind === 'both' || question.kind === 'lesson' || (question.kind === 'meaning' ? progress?.reading : progress?.meaning);
+
+  let footer: React.ReactNode;
+  if (lesson) {
+    footer = (
+      <RateButton label="Got it" detail={outcomeText(1, system)} color={c.good} onPress={() => answer(true)} />
+    );
+  } else if (typing) {
+    const result = verdict?.result;
+    footer = (
+      <>
+        {retry ? <Text style={{ ...type.subhead, color: c.warning, textAlign: 'center' }}>{retry}</Text> : null}
+        {verdict?.result === 'correct' && verdict.close ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>Close enough: check the spelling.</Text> : null}
+        <TextInput
+          key={`${item.assignmentId}:${question.kind}:${session!.finished.length}`}
+          value={typed}
+          onChangeText={(t) => { if (!verdict) setTyped(question.kind === 'reading' ? toKana(t) : t); }}
+          onSubmitEditing={check}
+          submitBehavior="submit"
+          autoFocus
+          autoCapitalize="none"
+          autoCorrect={false}
+          spellCheck={false}
+          returnKeyType={verdict ? 'next' : 'done'}
+          placeholder={question.kind === 'reading' ? 'Reading' : 'Meaning'}
+          accessibilityLabel={question.kind === 'reading' ? 'Type the reading' : 'Type the meaning'}
+          placeholderTextColor={result ? c.onRating : c.textTertiary}
+          selectionColor={c.accent}
+          keyboardAppearance={dark ? 'dark' : 'light'}
+          style={{
+            ...type.body, textAlign: 'center', ...smooth, borderRadius: radius.m, borderWidth: hairline, minHeight: MIN_TAP,
+            paddingHorizontal: space.m, paddingVertical: space.s,
+            color: result ? c.onRating : c.text,
+            backgroundColor: result === 'correct' ? c.good : result === 'wrong' ? c.again : c.surface,
+            borderColor: result ? 'transparent' : c.border,
+          }}
+        />
+        <Button
+          label={!verdict ? 'Check' : finishes || result === 'wrong' ? 'Next' : 'Next question'}
+          onPress={check}
+          disabled={!verdict && !typed.trim()}
+        />
+      </>
+    );
+  } else if (!revealed) {
+    footer = <Button label="Show answer" onPress={reveal} />;
+  } else {
+    footer = (
+      <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
+        <RateButton label="Again" detail={outcomeText(nextStage(item.srsStage, wrong + 1, system), system)} color={c.again} onPress={() => answer(false)} />
+        <RateButton
+          label="Good"
+          detail={finishes ? outcomeText(nextStage(item.srsStage, wrong, system), system) : question.kind === 'meaning' ? 'Reading to come' : 'Meaning to come'}
+          color={c.good}
+          onPress={() => answer(true)}
+        />
+      </Reveal>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
+      <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
+          <Count value={left.reviews} label="due" color={c.countDue} />
+          <Count value={left.lessons} label="new" color={c.countNew} />
+        </View>
+        <ProgressBar value={sessionProgress(study.session)} />
+        <CardSurface>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
+          >
+            <Reveal key={`${item.assignmentId}:${question.kind}:${study.session.finished.length}:${study.session.queue.length}`} rise={10} style={{ gap: space.xl }}>
+              <SubjectFront subject={subject} label={label} />
+              {showMeaning || showReading ? (
+                <>
+                  <View style={{ height: hairline, backgroundColor: c.border }} />
+                  <SubjectDetails
+                    key={`${subject.id}:${question.kind}`}
+                    subject={subject}
+                    showMeaning={showMeaning}
+                    showReading={showReading}
+                    synonyms={synonyms.get(subject.id) ?? []}
+                    lesson={lesson}
+                    onPlay={audioUrl(subject) ? () => { haptic.tap(); play(audioUrl(subject)); } : undefined}
+                  />
+                </>
+              ) : null}
+            </Reveal>
+          </ScrollView>
+        </CardSurface>
+      </Screen>
+    </View>
+  );
+}
+
+/** An answer button, with what it does over its label, as on the other decks. */
+function RateButton({ label, detail, color, onPress }: { label: string; detail: string; color: string; onPress: () => void }) {
+  const c = useTheme();
+  return (
+    <Tappable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}. ${detail}`}
+      scaleTo={0.95}
+      dimTo={0.85}
+      style={{ flex: 1, minHeight: 60, borderRadius: radius.m + 2, ...smooth, paddingVertical: space.s, alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: color }}
+    >
+      <Text style={{ ...type.caption, color: c.onRating }}>{detail}</Text>
+      <Text style={{ ...type.headline, color: c.onRating }}>{label}</Text>
+    </Tappable>
+  );
+}

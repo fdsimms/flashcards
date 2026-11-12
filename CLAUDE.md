@@ -154,6 +154,8 @@ src/ui       screens, the shared pieces they're built from (kit.tsx), the theme,
              Read & Listen's screens are Read*.tsx and Reader.tsx
 src/reader   Read & Listen's side of the app: its server's API, the reading session, playback (pure,
              tested; storage.ts keeps the passphrase in the Keychain)
+src/wanikani WaniKani as a deck: its API, the study session (undo holds the latest answer), answer
+             checking, kana input, production notes (pure, tested; storage.ts keeps the token in the Keychain)
 src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested);
              sync/ syncs with an Anki sync server (pure, tested; syncService.ts is the phone's side)
 server/      a ready-to-run Anki sync server (Docker, Caddy); server/mcp is the MCP for Claude (Python);
@@ -163,7 +165,7 @@ tests/       vitest, mirroring src/ (src/core/queue.ts -> tests/core/queue.test.
 ```
 
 **Tests mirror source 1:1**, and only pure logic is tested (`src/core`, `src/import`, `src/db`'s
-MemoryRepo and backup planning, `src/anki` except files.ts, `src/reader` except storage.ts). Vitest runs in `node` with no React renderer, so there are no
+MemoryRepo and backup planning, `src/anki` except files.ts, `src/reader` and `src/wanikani` except storage.ts). Vitest runs in `node` with no React renderer, so there are no
 screen tests. Don't add a renderer to cover a UI change: verify by reasoning about the code and say
 so plainly rather than implying you ran it. Keep logic out of screens so it can be tested: if a
 screen grows a decision worth testing, move it into `src/core`.
@@ -187,11 +189,13 @@ play button look broken. `expo-audio`'s config plugin adds no microphone permiss
 records) but does allow background audio, which only Read & Listen's reader turns on, while it's
 open (`shouldPlayInBackground`), so listening goes on with the screen locked.
 
-**Everything stays on the device, except sync and Read & Listen.** TTS is `expo-speech` (on-device
+**Everything stays on the device, except sync, Read & Listen and WaniKani.** TTS is `expo-speech` (on-device
 voices, chosen per language in Settings, Voices) and storage is local SQLite. The network calls are
 sync with the user's own Anki sync server (`src/anki/sync/`), off until they sign in, and Read &
 Listen, which talks to its server beside the sync server and is off until its passphrase is entered
-(Settings, Read & Listen). Recording a card with an Azure voice (`src/core/recording.ts`) goes
+(Settings, Read & Listen). WaniKani talks to api.wanikani.com only once its token is entered
+(Settings, WaniKani); its answers go to WaniKani, which schedules them, and only its production
+notes enter the collection. Recording a card with an Azure voice (`src/core/recording.ts`) goes
 through Read & Listen's server, so it's off while Read & Listen is. A
 future feature that needs the network (a dictionary lookup, an AI hint) ships behind its own setting
 that defaults to off.
