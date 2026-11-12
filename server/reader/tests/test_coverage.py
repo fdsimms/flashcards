@@ -92,9 +92,19 @@ def test_stretch_words_are_read_from_asterisks() -> None:
     assert parse_line("ฉัน|ต้องการ|*น้ำ*") == ("ฉันต้องการน้ำ", ["น้ำ"])
 
 
-def test_spaces_between_thai_characters_are_dropped() -> None:
-    assert parse_line("สวัสดี ค่ะ|รับอะไรดี คะ?")[0] == "สวัสดีค่ะรับอะไรดีคะ?"
+def test_a_thai_space_marks_a_clause_break_and_is_kept() -> None:
+    assert parse_line("สวัสดี|ค่ะ รับ|อะไร|ดี|คะ?")[0] == "สวัสดีค่ะ รับอะไรดีคะ?"
+    assert parse_line("ครับ   *ไป*|ไหน")[0] == "ครับ ไปไหน"
     assert parse_line("OK ค่ะ")[0] == "OK ค่ะ"
+
+
+def test_a_space_beside_a_bar_is_dropped() -> None:
+    assert parse_line("ฉัน | ต้องการ| *น้ำ* ") == ("ฉันต้องการน้ำ", ["น้ำ"])
+
+
+def test_a_clause_break_is_not_counted_as_a_word(lexicon: Lexicon) -> None:
+    result = check(["ฉัน|อยาก|กิน ไป|ไหน|ครับ"], lexicon)
+    assert [t.text for t in result.tokens] == ["ฉัน", "อยาก", "กิน", "ไป", "ไหน", "ครับ"]
 
 
 def test_stretch_words_are_listed_once_in_order(lexicon: Lexicon) -> None:
