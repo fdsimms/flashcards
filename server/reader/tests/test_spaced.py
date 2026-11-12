@@ -443,3 +443,36 @@ def test_the_engine_writes_with_the_chosen_common_count() -> None:
     )
     assert e._request("t", ENTRIES, Difficulty(), "es").common == 2000
     assert e._request("t", [], Difficulty(), "th").common == 0
+
+
+def test_vengo_is_venir_not_vengar() -> None:
+    # simplemma takes vengo to vengar (to avenge), so a deck with vengar made "Ya vengo" a deck word
+    lexicon = lexicon_from([Entry(8, "vengar", "to avenge", "mature")], "es")
+    assert lexicon.entry_of("vengo") is None
+    assert lexicon.entry_of("vengaré") == "vengar"
+
+
+def test_forms_simplemma_takes_to_the_wrong_verb() -> None:
+    from franki_reader.spaced import lemma
+
+    assert lemma("salgo", "es") == "salir"
+    assert lemma("entraba", "es") == "entrar"
+    assert lemma("recibís", "es") == "recibir"
+    # the future and conditional of a verb come back as its reflexive
+    assert lemma("volverías", "es") == "volver"
+    assert lemma("utilizaréis", "es") == "utilizar"
+    assert lemma("verse", "es") == "verse"
+
+
+def test_spanish_subjunctives_match_a_deck_infinitive() -> None:
+    deck = SpacedLexicon("es", ["abrir", "sacar", "alcanzar", "escoger"])  # no common words
+    for form, entry in [
+        ("abras", "abrir"),
+        ("saque", "sacar"),
+        ("saquemos", "sacar"),
+        ("alcance", "alcanzar"),
+        ("escojan", "escoger"),
+    ]:
+        assert deck.entry_of(form) == entry, form
+    # a guess only matches a deck entry, so a word that merely looks like one isn't made known
+    assert deck.status("elogie") == "unknown"

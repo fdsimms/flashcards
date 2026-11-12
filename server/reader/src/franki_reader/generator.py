@@ -238,7 +238,8 @@ wrap each stretch word or phrase in asterisks every time it appears, like {examp
 word can be inflected.
 - Give "english", a natural English translation of each line.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
-is neither an allowed common word nor on the list.
+is neither an allowed common word nor on the list. Also gloss any word whose form matches a listed \
+word but is used here as a different word, such as a verb form that two verbs share.
 
 The learner's flashcard words, one per line as: word | meaning | M (well known) or Y (still being \
 learned)
