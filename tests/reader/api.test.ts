@@ -149,3 +149,13 @@ test("asks for every language's grammar choices", async () => {
   expect(calls[0].init.method).toBe('GET');
   expect(got.choices['es.preterite']).toBe('practice');
 });
+
+test("an explanation comes with the line's grammar, and none from an older server", async () => {
+  const grammar = [{ id: 'es.preterite', name: 'Preterite', note: 'Finished past events', state: 'practice' }];
+  const { impl, calls } = fakeFetch(json({ points: [{ phrase: 'fuimos', note: 'we went' }], grammar }));
+  const got = await createApi('https://x/reader', 'p', impl).explainLine(3, 1, false);
+  expect(calls[0].url).toBe('https://x/reader/api/texts/3/lines/1/explain');
+  expect(got).toEqual({ points: [{ phrase: 'fuimos', note: 'we went' }], grammar });
+  const older = fakeFetch(json({ points: [] }));
+  expect((await createApi('https://x', 'p', older.impl).explainLine(3, 1, false)).grammar).toEqual([]);
+});

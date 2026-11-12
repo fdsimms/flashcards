@@ -114,6 +114,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const [tapped, setTapped] = useState<Tapped | null>(null);
   // Grammar points marked from the popover while reading, by id (ReadGrammarNote).
   const [grammarChosen, setGrammarChosen] = useState<Record<string, GrammarChoice>>({});
+  const chooseGrammar = (id: string, state: GrammarChoice) => setGrammarChosen((prev) => ({ ...prev, [id]: state }));
   const [ended, setEnded] = useState(false);
   const [rating, setRating] = useState<Rating | null>(null);
   const [leaving, setLeaving] = useState(false);
@@ -631,7 +632,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                 {!listenOnly && (english || lineEnglish.includes(i)) ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: 2 }}>{line.english}</Text>
                 ) : null}
-                {!listenOnly && explained.includes(i) ? <LineExplanation api={api} textId={text.id} line={i} /> : null}
+                {!listenOnly && explained.includes(i) ? <LineExplanation api={api} textId={text.id} line={i} grammarChosen={grammarChosen} onGrammarChosen={chooseGrammar} /> : null}
               </View>
               <View style={{ gap: space.xs }}>
                 {line.audio ? (
@@ -758,7 +759,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
         grammar={tapped && text ? grammarOf(text, tapped.word) : null}
         api={api}
         grammarChosen={grammarChosen}
-        onGrammarChosen={(id, state) => setGrammarChosen((prev) => ({ ...prev, [id]: state }))}
+        onGrammarChosen={chooseGrammar}
         flagged={tapped && session ? isFlagged(session, tapped.word.text) : false}
         onToggleFlag={review ? null : () => { if (tapped && session) setSession(toggleFlag(session, tapped.word.text)); }}
         onPlay={() => {

@@ -16,7 +16,7 @@ from franki_reader import store
 from franki_reader.app import create_app
 from franki_reader.engine import Engine
 from franki_reader.generator import Line, TextRequest, Usage, generate, request_message
-from franki_reader.grammar import _FINDERS, CATALOG, POINTS, _load, points_for, words
+from franki_reader.grammar import _FINDERS, CATALOG, POINTS, _load, points_for, points_in, words
 from franki_reader.languages import Code
 from franki_reader.lexicon import lexicon_from
 from franki_reader.reader import render
@@ -130,6 +130,12 @@ def test_want_is_not_must() -> None:
 def test_every_point_has_a_name_and_a_note() -> None:
     assert len(points_for("es")) == 9 and len(points_for("th")) == 10
     assert all(p.name and p.note and p.id.startswith(p.language + ".") for p in POINTS.values())
+
+
+def test_the_points_a_line_uses_in_catalog_order() -> None:
+    line = "Ayer|fuimos|al|mercado|y|*compramos*|fruta|porque|*había*|*llovido*"
+    assert [p.id for p in points_in(line, ES, "es")] == ["es.preterite", "es.pluperfect"]
+    assert points_in("Hoy|como|fruta", ES, "es") == []
 
 
 def _catalog(tmp_path: Path, *points: dict[str, Any]) -> Path:

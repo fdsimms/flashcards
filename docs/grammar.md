@@ -59,9 +59,14 @@ step is its own PR, and each that changes a screen is mocked up for the owner fi
    their kinds of form selected, saying why (`practicedGroups`, `practicedGroupsLine`) while that is
    still the selection. With Read & Listen off, unreachable, or slower than `CHOICES_WAIT_MS`
    (3 seconds), practice goes on as before; the grammar line still shows, from the bundled catalog.
-3. **Explain.** The request for a line's explanation (`explain.py`) carries the language's points by
-   id and name, and the answer says which it used; the reader shows those as chips that open the
-   point.
+3. **Explain** (built 12 November 2026; the owner chose from a mock). Under a line's explanation,
+   "Grammar in this line" has a chip for each point the finders find in it (`points_in`), with its
+   choice ("Preterite · Practicing"). Tapping one shows the point's note and the three choices, as on
+   the Grammar screen. The points come with each explain answer (`grammar`), found when it's asked
+   and read with the choices as they stand, so explanations kept from before show them too, and
+   Claude is asked nothing new. Only points a finder can spot get a chip: a form shared with another
+   tense (compramos) gets none. Tagging each of Claude's notes with its point, checked by the
+   finder, was the other option and was set aside.
 4. **A page for each point.** Adds `explanation` (a longer note with examples, written per point and
    checked by the owner) and `related` (ids to compare, like the preterite and the imperfect) to the
    catalog. The page shows those, examples from texts already read (the finders find them, as

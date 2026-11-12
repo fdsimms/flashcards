@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import type { GrammarPoint } from '../../src/reader/api';
-import { grammarSummary, practicingPoints, seenLine } from '../../src/reader/grammar';
+import { GRAMMAR_CHOICES, grammarStateWord, grammarSummary, practicingPoints, seenLine } from '../../src/reader/grammar';
 
 const point = (id: string, state: GrammarPoint['state']): GrammarPoint => ({ id, name: id, note: '', state });
 
@@ -58,4 +58,12 @@ test('without Read & Listen, or with its server down or slow, practice goes on w
   expect((await practicingPoints(down)).size).toBe(0);
   const slow = { grammarChoices: () => new Promise<never>(() => undefined) };
   expect((await practicingPoints(slow, 5)).size).toBe(0);
+});
+
+test("a point's choice reads in a word or two beside its name, as Explain's chips show it", () => {
+  expect(grammarStateWord('practice')).toBe('Practicing');
+  expect(grammarStateWord('normal')).toBe('Know it');
+  expect(grammarStateWord('avoid')).toBe("Don't know it");
+  expect(grammarStateWord('unset')).toBe('Not set');
+  expect(GRAMMAR_CHOICES.map((c) => c.label)).toEqual(['Practice', 'Know it', "Don't know it"]);
 });

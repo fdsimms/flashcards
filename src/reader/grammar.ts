@@ -1,7 +1,19 @@
 // The grammar row on the topics screen, each point's line on the Grammar screen, in words, and the
 // points practiced in Read & Listen that Forms practice asks first (docs/grammar.md).
 import { studyDayStart } from '../core/day';
-import type { Api, GrammarPoint, GrammarSeen, GrammarState } from './api';
+import type { Api, GrammarChoice, GrammarPoint, GrammarSeen, GrammarState } from './api';
+
+/** The three choices, as the Grammar screen and Explain offer them. */
+export const GRAMMAR_CHOICES: { value: GrammarChoice; label: string }[] = [
+  { value: 'practice', label: 'Practice' },
+  { value: 'normal', label: 'Know it' },
+  { value: 'avoid', label: "Don't know it" },
+];
+
+/** A point's choice in a word or two, beside its name: "Preterite · Practicing". */
+export function grammarStateWord(state: GrammarState): string {
+  return { practice: 'Practicing', normal: 'Know it', avoid: "Don't know it", unset: 'Not set' }[state];
+}
 
 const plural = (n: number) => (n === 1 ? 'point' : 'points');
 const times = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;

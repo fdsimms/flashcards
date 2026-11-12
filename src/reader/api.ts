@@ -61,6 +61,9 @@ export type Form = 'dialogue' | 'story';
 // One thing worth knowing about a line: the part of it, and what to know.
 export type ExplainPoint = { phrase: string; note: string };
 
+// A grammar point found in an explained line, with the owner's choice as it stands (docs/grammar.md, step 3).
+export type LineGrammar = { id: string; name: string; note: string; state: GrammarState };
+
 export type ReaderText = {
   id: number;
   topicId: number;
@@ -298,8 +301,11 @@ export function createApi(
       (await call<{ hints: string[] }>('POST', '/api/mnemonics', question)).hints,
     // A line's grammar and vocabulary explained by Claude on the server: asked on the owner's tap, kept per
     // line there. `simple` is a second, plainer version.
-    explainLine: async (textId: number, line: number, simple: boolean) =>
-      (await call<{ points: ExplainPoint[] }>('POST', `/api/texts/${textId}/lines/${line}/explain`, { simple })).points,
+    explainLine: async (textId: number, line: number, simple: boolean) => {
+      const answer = await call<{ points: ExplainPoint[]; grammar?: LineGrammar[] }>('POST', `/api/texts/${textId}/lines/${line}/explain`, { simple });
+      // A server older than step 3 sends no grammar.
+      return { points: answer.points, grammar: answer.grammar ?? [] };
+    },
     // For the audio player, which fetches the file itself and so needs the passphrase too.
     audioSource: (textId: number, line: number) => ({
       uri: `${root}/api/texts/${textId}/lines/${line}/audio`,

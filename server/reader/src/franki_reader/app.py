@@ -64,7 +64,9 @@ marked words, ideas) is in the current language, the `language` setting.
                                       each recording is asked for once
     POST  /api/texts/{id}/lines/{n}/explain   {simple?} the line's grammar and vocabulary explained in
                                       English by Claude: {points: [{phrase, note}]}. Asked on the
-                                      owner's tap and kept per line (and per simple version)
+                                      owner's tap and kept per line (and per simple version).
+                                      With `grammar`: the points the finders find in the line,
+                                      each {id, name, note, state}, as the choices stand now
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
                                       memory hints for a word the owner keeps forgetting: {hints: [...]}
 """
@@ -373,13 +375,23 @@ def create_app(
             raise HTTPException(404, "No audio for this line.")
         return FileResponse(path, media_type="audio/mpeg")
 
+    def line_grammar(text: StoredText, line: int) -> list[dict[str, str]]:
+        # Found by the finders, not asked of Claude, and read with the choices as they stand now,
+        # so every explanation, kept or new, shows them (docs/grammar.md, step 3).
+        _, lexicon = engine.snapshot(text.language)
+        choices = store.load_grammar(engine.conn)
+        return [
+            {"id": p.id, "name": p.name, "note": p.note, "state": choices.get(p.id, "unset")}
+            for p in grammar.points_in(text.lines[line].text, lexicon, text.language)
+        ]
+
     @app.post("/api/texts/{text_id}/lines/{line}/explain", dependencies=authed)
     async def explain_line(text_id: int, line: int, body: ExplainIn) -> dict[str, Any]:
         text = store.get_text(engine.conn, text_id)
         if text is None or not 0 <= line < len(text.lines):
             raise HTTPException(404, "No such line.")
         if (kept := store.get_explanation(engine.conn, text_id, line, body.simple)) is not None:
-            return {"points": kept}
+            return {"points": kept, "grammar": line_grammar(text, line)}
         if explain is None:
             raise HTTPException(
                 503,
@@ -404,7 +416,7 @@ def create_app(
         store.save_explanation(
             engine.conn, text_id, line, body.simple, points, engine.clock(), used.cost_usd()
         )
-        return {"points": points}
+        return {"points": points, "grammar": line_grammar(text, line)}
 
     def settings_out(current: Settings) -> dict[str, Any]:
         # Every language's deck and voices, the default where none was chosen, so the app shows

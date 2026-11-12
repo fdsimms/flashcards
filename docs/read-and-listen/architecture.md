@@ -60,6 +60,8 @@ Franki's (Client, below).
   line again or rereading a past text costs nothing. It only shows text: nothing is graded or added
   to the deck. Each call's cost is kept with it and reported under `explanations` in `/api/costs`,
   apart from the texts' figures. A free-form "Ask a question" and a per-word explanation were left out for now.
+  Under the explanation, the grammar points the finders find in the line show as chips that can be
+  set to Practice, Know it or Don't know it there (docs/grammar.md, step 3).
 - **Listen only** (brief, design principle 6). Once a text is rated "About right", the end view
   offers to play it again with the Thai hidden; the lines show who's speaking instead, and "Show the
   text" brings the words back. The reading is then logged with `listen_only` true. The brief's

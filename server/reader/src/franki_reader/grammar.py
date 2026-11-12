@@ -75,6 +75,13 @@ def find_in_lines(
     return found
 
 
+def points_in(line: str, lexicon: Checker, language: Code) -> list[Point]:
+    """The language's points a model line (`|` and asterisks) uses, in the catalog's order, for
+    Explain's "Grammar in this line" (docs/grammar.md, step 3)."""
+    found = find_in_lines([line], lexicon, tuple(p.id for p in points_for(language)))
+    return [POINTS[pid] for pid, matches in found.items() if matches]
+
+
 def marks(plain: str, lexicon: Checker, point_ids: tuple[str, ...]) -> dict[int, str]:
     """Which words of a line (by index in `words`) belong to which point, for the reader."""
     out: dict[int, str] = {}
