@@ -45,8 +45,8 @@ Franki's (Client, below).
 - **Background audio** (`UIBackgroundModes: audio`, from `expo-audio`'s plugin), so listening keeps
   going with the screen locked or in another app. The reader turns it on while it's open and off on
   the way out, so card audio in Review is unchanged. Turning it on needed a new build of the app.
-- Screens (topics, reader, past texts, marked words, grammar, settings) are switched by state in
-  `App.tsx`, like the rest of Franki. The reader shows the server's word split as tappable words: a tap shows the
+- Screens (topics, reader, past texts, marked words, grammar, settings) are routes in `src/app/`
+  (Expo Router), like the rest of Franki, and their sign-in state lives in `src/ui/AppContext.tsx`. The reader shows the server's word split as tappable words: a tap shows the
   gloss, and marking a word unknown is a second tap inside the gloss, so looking up a half-known
   word doesn't also flag it.
 - Each line has an EN button that shows that line's English alone, so checking one line doesn't

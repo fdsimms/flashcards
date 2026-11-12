@@ -26,7 +26,7 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe('UTC day keys', () => {
-  const files = [...sourceFiles(SRC), join(ROOT, 'App.tsx')];
+  const files = sourceFiles(SRC);
 
   it('scans the source tree', () => {
     expect(files.length).toBeGreaterThan(10);

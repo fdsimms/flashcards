@@ -10,7 +10,7 @@ import { space, type, useTheme } from './theme';
  * together. Nothing here writes to Anki (CLAUDE.md, Read & Listen). Clear takes a word off the list
  * until it's marked again.
  */
-export function ReadWords({ api, onDone }: { api: Api; onDone: () => void }) {
+export function ReadWords({ api }: { api: Api }) {
   const c = useTheme();
   const [words, setWords] = useState<MarkedWord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +38,9 @@ export function ReadWords({ api, onDone }: { api: Api; onDone: () => void }) {
   };
 
   return (
-    <Screen onBack={onDone} backLabel="Read & Listen" title="Marked words">
+    <Screen title="Marked words">
       <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
       >

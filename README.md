@@ -118,6 +118,7 @@ src/core     types, FSRS wrapper, queue, deck tree, study day, card rendering, A
 src/import   TSV + Anki JSON importers, re-import matching
 src/db       Repo interface, in-memory repo (tests), SQLite repo (app), backup planning
 src/media    the images and sounds folder
+src/app      the routes (Expo Router)
 src/ui       deck list, review, import, backup and Read & Listen screens, the card WebView
 src/reader   Read & Listen: its server's API, the reading session, playback
 src/anki     Anki collection packages: reading, writing answers back, packing; sync/ talks to an Anki sync server

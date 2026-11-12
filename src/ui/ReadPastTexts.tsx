@@ -17,7 +17,7 @@ function shortDate(iso: string): string {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export function ReadPastTexts({ api, onOpen, onDone }: { api: Api; onOpen: (text: PastText) => void; onDone: () => void }) {
+export function ReadPastTexts({ api, onOpen }: { api: Api; onOpen: (text: PastText) => void }) {
   const c = useTheme();
   const [texts, setTexts] = useState<PastText[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,8 +34,9 @@ export function ReadPastTexts({ api, onOpen, onDone }: { api: Api; onOpen: (text
   useEffect(() => { load(); }, [load]);
 
   return (
-    <Screen onBack={onDone} backLabel="Read & Listen" title="Past texts">
+    <Screen title="Past texts">
       <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
       >

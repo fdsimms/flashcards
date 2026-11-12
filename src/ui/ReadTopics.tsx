@@ -20,13 +20,12 @@ import { MIN_TAP, radius, space, type, useTheme } from './theme';
 // While a text is being written, check back this often.
 const WRITING_POLL_MS = 10_000;
 
-export function ReadTopics({ api, onOpen, onWords, onPast, onGrammar, onDone }: {
+export function ReadTopics({ api, onOpen, onWords, onPast, onGrammar }: {
   api: Api;
   onOpen: (topic: Topic) => void;
   onWords: () => void;
   onPast: () => void;
   onGrammar: () => void;
-  onDone: () => void;
 }) {
   const c = useTheme();
   const [topics, setTopics] = useState<Topic[] | null>(null);
@@ -159,8 +158,9 @@ export function ReadTopics({ api, onOpen, onWords, onPast, onGrammar, onDone }: 
   const language = settings?.language ?? 'th';
 
   return (
-    <Screen onBack={onDone} title="Read & Listen">
+    <Screen title="Read & Listen">
       <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets

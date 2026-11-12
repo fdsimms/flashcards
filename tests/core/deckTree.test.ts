@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { deckLimits, deckLineage, deckRows, deckTree, isInDeck, treeQueue, type TreeQueueInput } from '../../src/core/deckTree';
+import { deckLimits, deckLineage, deckListTotals, deckRows, deckTree, isInDeck, treeQueue, type TreeQueueInput } from '../../src/core/deckTree';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -214,5 +214,20 @@ describe("Anki's v3 limits and gathering", () => {
     const q = (params?: typeof bury) => treeQueue('D', { ...input({ D: [front, back] }), paramsFor: () => params });
     expect(q(bury).fresh.map((c) => c.id)).toEqual([front.id]);
     expect(q(undefined).fresh).toHaveLength(2);
+  });
+});
+
+describe('deckListTotals', () => {
+  it('sums the top-level decks, which already count their subdecks', () => {
+    const rows = deckRows(input({
+      'Languages::Thai': newCards(2),
+      'Languages::Polski': reviewCards(3, 10),
+      Trivia: newCards(4),
+    }));
+    // Languages' row is 3 due and 2 new, and its two subdeck rows repeat those: only top rows count.
+    expect(deckListTotals(rows)).toEqual({ due: 3, fresh: 6 });
+  });
+  it('is zero for no decks', () => {
+    expect(deckListTotals([])).toEqual({ due: 0, fresh: 0 });
   });
 });
