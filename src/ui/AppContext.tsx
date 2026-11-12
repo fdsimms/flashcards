@@ -97,7 +97,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Every answer given today, here or in Anki on another device (synced), counts toward the limits.
     const studied = studiedToday({ notes, cards, reviews, revlog, now, dayStartsAtHour: collection.dayStartsAtHour });
     const held = await loadHeld(repo, { notes, cards, settings, now, dayStartsAtHour: collection.dayStartsAtHour });
-    setDecks(deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now, held }), listedDecks(ankiDecks, settings)));
+    setDecks(deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now, held }), listedDecks(ankiDecks, settings), (d) => settings.get(d)?.position));
     setBackup(backupStatus(lastBackup, now, cards.length > 0));
     setAnkiUnsent((await repo.ankiStatus()).unsent);
     collapse.load();

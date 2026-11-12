@@ -300,13 +300,13 @@ export function percent(r: Rate): number | null {
 }
 
 /**
- * Time spent, as the Stats screen says it: "under a minute", "12 min", "4 h 10 min". Joined with
+ * Time spent, as the Stats screen says it: "< 1 min", "12 min", "4 h 10 min". Joined with
  * no-break spaces, so a sentence never wraps it in the middle.
  */
 export function durationText(ms: number): string {
   const minutes = Math.round(ms / 60000);
   const nb = (s: string) => s.replace(/ /g, '\u00a0');
-  if (minutes < 1) return ms > 0 ? 'under a minute' : nb('0 min');
+  if (minutes < 1) return ms > 0 ? nb('< 1 min') : nb('0 min');
   if (minutes < 60) return nb(`${minutes} min`);
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;

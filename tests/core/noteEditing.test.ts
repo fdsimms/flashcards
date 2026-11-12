@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { duplicateOf, editTextToField, fieldToEditText, notePreview, parseTags, searchNotes } from '../../src/core/noteEditing';
+import { deckChipRows, duplicateOf, editTextToField, fieldToEditText, notePreview, parseTags, searchNotes } from '../../src/core/noteEditing';
 import type { Note } from '../../src/core/types';
 import { omniNote } from '../support/fixtures';
 
@@ -43,6 +43,22 @@ describe('finding notes', () => {
   it('keeps to a deck and its subdecks when one is picked', () => {
     expect(searchNotes(notes, '', 'Trivia').map((n) => n.id)).toEqual(['2', '1']);
     expect(searchNotes(notes, 'capital', 'Trivia::South America').map((n) => n.id)).toEqual(['2']);
+  });
+
+  it('offers a row of chips per level of the picked deck', () => {
+    const more = [...notes, basic('4', 'x', 'y', 'Trivia::South America::Peru'), basic('5', 'z', 'w', 'Polski::Odmiana')];
+    const labels = (rows: ReturnType<typeof deckChipRows>) => rows.map((r) => r.map((c) => c.label + (c.selected ? '*' : '')));
+    expect(labels(deckChipRows(more, null))).toEqual([expect.arrayContaining(['All decks*', 'Polski', 'Trivia'])]);
+    expect(labels(deckChipRows(more, 'Trivia'))).toEqual([
+      expect.arrayContaining(['All decks', 'Trivia*']),
+      ['All Trivia*', 'South America'],
+    ]);
+    expect(deckChipRows(more, 'Trivia::South America').map((r) => r.map((c) => c.deck))).toEqual([
+      expect.arrayContaining([null, 'Trivia']),
+      ['Trivia', 'Trivia::South America'],
+      ['Trivia::South America', 'Trivia::South America::Peru'],
+    ]);
+    expect(deckChipRows([basic('1', 'a', 'b', 'Trivia')], null)).toEqual([]);
   });
 
   it('warns of another note of the same type with the same first field', () => {

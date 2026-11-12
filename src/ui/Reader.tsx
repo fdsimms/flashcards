@@ -12,6 +12,7 @@ import { firstLine, nextLine } from '../reader/playback';
 import { RATES } from '../reader/playbackRate';
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
 import { prefs, savePrefs } from '../reader/storage';
+import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
 import { Button, Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './theme';
@@ -282,14 +283,21 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
         ) : <Help>No audio for this text.</Help>
       ) : undefined}
     >
-      {error ? <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={load} /></View> : null}
-      {!text && !error ? (
-        <View style={{ padding: space.xxl, alignItems: 'center', gap: space.m }}>
-          <ActivityIndicator color={c.accent} />
-          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
-            {writing ? 'Writing a text. This takes about half a minute.' : 'Opening the text'}
-          </Text>
-        </View>
+      {/* A ScrollView with the automatic inset, not a bare View: a bare one draws under the native
+          header, so the spinner and message sat behind the Back button and the screen looked blank. */}
+      {!text ? (
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+          {error ? (
+            <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={load} /></View>
+          ) : (
+            <View style={{ padding: space.xxl, alignItems: 'center', gap: space.m }}>
+              <ActivityIndicator color={c.accent} />
+              <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
+                {writing ? 'Writing a text. This takes about half a minute.' : 'Opening the text'}
+              </Text>
+            </View>
+          )}
+        </ScrollView>
       ) : null}
 
       {text && session && !ended ? (
@@ -374,17 +382,22 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
                   </Text>
                 ) : (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
-                    {line.words.map((word, j) => (
-                      <WordView
-                        key={j}
-                        word={word}
-                        textStyle={readStyle(text)}
-                        grammar={grammarOf(text, word)}
-                        flagged={isFlagged(session, word.text)}
-                        highlighted={highlight && isOutsideDeck(word)}
-                        selected={tapped?.word === word}
-                        onPress={tap}
-                      />
+                    {wrapGroups(line.words).map((group, j) => (
+                      // A line breaks only between groups, so punctuation never wraps away from its word.
+                      <View key={j} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {group.map((word, k) => (
+                          <WordView
+                            key={k}
+                            word={word}
+                            textStyle={readStyle(text)}
+                            grammar={grammarOf(text, word)}
+                            flagged={isFlagged(session, word.text)}
+                            highlighted={highlight && isOutsideDeck(word)}
+                            selected={tapped?.word === word}
+                            onPress={tap}
+                          />
+                        ))}
+                      </View>
                     ))}
                   </View>
                 )}

@@ -33,25 +33,37 @@ export interface DeckNode {
 
 /**
  * Every deck in display order, parents before children, including parents that hold no cards of
- * their own ("👅 Languages" when every card is in a language's subdeck).
+ * their own ("👅 Languages" when every card is in a language's subdeck). `position` is the place
+ * a deck was dragged to among its siblings (`DeckSettings.position`, `compareDecks`).
  */
-export function deckTree(decks: Iterable<string>): DeckNode[] {
+export function deckTree(decks: Iterable<string>, position?: (deck: string) => number | undefined): DeckNode[] {
   const all = new Set<string>();
   for (const d of decks) for (const p of deckLineage(d)) all.add(p);
-  // Sort by path segments, so "A::B" sits under "A" and before "A B".
-  const sorted = [...all].sort((a, b) => {
-    const pa = a.split('::');
-    const pb = b.split('::');
-    for (let i = 0; i < Math.min(pa.length, pb.length); i++) {
-      const c = pa[i].localeCompare(pb[i]);
-      if (c !== 0) return c;
-    }
-    return pa.length - pb.length;
-  });
-  return sorted.map((deck) => {
+  return [...all].sort((a, b) => compareDecks(a, b, position)).map((deck) => {
     const parts = deck.split('::');
     return { deck, name: parts[parts.length - 1], depth: parts.length - 1 };
   });
+}
+
+/**
+ * The order of two decks on the deck list, part by part from the top, so a subdeck sits under its
+ * parent: at each level a deck given a place (`position`, its `DeckSettings.position`) comes
+ * before one with none, and decks without one are in Anki's order, by name.
+ */
+export function compareDecks(a: string, b: string, position?: (deck: string) => number | undefined): number {
+  const pa = a.split('::');
+  const pb = b.split('::');
+  for (let i = 0; i < Math.min(pa.length, pb.length); i++) {
+    if (pa[i] === pb[i]) continue;
+    const x = position?.(pa.slice(0, i + 1).join('::'));
+    const y = position?.(pb.slice(0, i + 1).join('::'));
+    if (x !== undefined && y !== undefined && x !== y) return x - y;
+    if (x !== undefined && y === undefined) return -1;
+    if (x === undefined && y !== undefined) return 1;
+    const c = pa[i].localeCompare(pb[i]);
+    if (c !== 0) return c;
+  }
+  return pa.length - pb.length;
 }
 
 export interface DeckLimits {
@@ -354,10 +366,10 @@ export function deckListTotals(rows: DeckRow[]): { due: number; fresh: number } 
 
 /**
  * The deck list: every deck, nested, with what studying it would show. `listed` adds decks that
- * hold no cards (`listedDecks`): Anki lists an empty deck too.
+ * hold no cards (`listedDecks`): Anki lists an empty deck too. `position` orders siblings (`deckTree`).
  */
-export function deckRows(input: TreeQueueInput, listed: Iterable<string> = []): DeckRow[] {
-  return deckTree([...input.cardsByDeck.keys(), ...listed]).map((node) => {
+export function deckRows(input: TreeQueueInput, listed: Iterable<string> = [], position?: (deck: string) => number | undefined): DeckRow[] {
+  return deckTree([...input.cardsByDeck.keys(), ...listed], position).map((node) => {
     const q = treeQueue(node.deck, input);
     let total = 0;
     for (const [deck, cards] of input.cardsByDeck) {

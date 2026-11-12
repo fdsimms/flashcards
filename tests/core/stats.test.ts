@@ -101,7 +101,7 @@ describe('time spent', async () => {
   it('reads as people say it', () => {
     const sp = (s: string) => s.replace(/\u00a0/g, ' ');
     expect(sp(durationText(0))).toBe('0 min');
-    expect(durationText(20_000)).toBe('under a minute');
+    expect(durationText(20_000)).toBe('<\u00a01\u00a0min');
     expect(sp(durationText(12 * 60_000))).toBe('12 min');
     expect(durationText(250 * 60_000)).toBe('4\u00a0h\u00a010\u00a0min');
     expect(sp(durationText(120 * 60_000))).toBe('2 h');
