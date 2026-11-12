@@ -70,6 +70,7 @@ export function ReadWords({ api, mining }: {
                 <View key={w.word} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: c.border }}>
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={{ ...type.title, fontWeight: '400', color: c.text }}>{w.word}</Text>
+                    {w.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {w.lemma}</Text> : null}
                     <Text style={{ ...type.body, color: c.text }}>{w.gloss ?? 'No meaning available'}</Text>
                     <Text style={{ ...type.footnote, color: c.textSecondary }}>
                       {wordStatus(w)}{w.times > 1 ? `. Marked ${w.times} times.` : ''}

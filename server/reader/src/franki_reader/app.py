@@ -123,7 +123,7 @@ from franki_reader.mnemonics import (
     MnemonicsFailed,
     claude_mnemonics,
 )
-from franki_reader.reader import gloss_for, render
+from franki_reader.reader import gloss_for, lemma_for, render
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
 from franki_reader.suggestions import suggest
 from franki_reader.tts import AudioCache, Speech, azure_synthesize
@@ -769,6 +769,7 @@ def create_app(
             {
                 "word": w.word,
                 "gloss": gloss_for(w.word, w.glosses, lexicon, meanings),
+                "lemma": lemma_for(w.word, lexicon),
                 "status": lexicon.status(w.word),
                 "deck": lexicon.entry_of(w.word) is not None,
                 "times": w.times,
