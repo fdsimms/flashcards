@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { deckLimits, deckLineage, deckListTotals, deckRows, deckTree, isInDeck, shownDeckRows, treeQueue, type TreeQueueInput } from '../../src/core/deckTree';
+import { deckLimits, deckLineage, deckListTotals, deckRows, deckTree, isInDeck, nextDeckToStudy, shownDeckRows, treeQueue, type TreeQueueInput } from '../../src/core/deckTree';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -284,5 +284,27 @@ describe('inheritedSetting', () => {
     expect(inheritedSetting('A::B::C', all, 'offerSooner')).toBe(true);
     expect(inheritedSetting('A::D', all, 'offerSooner')).toBe(false);
     expect(inheritedSetting('E', all, 'offerSooner')).toBeUndefined();
+  });
+});
+
+describe('the next deck to study', () => {
+  const row = (deck: string, due: number, fresh = 0) => ({ deck, name: deck.split('::').pop()!, depth: deck.split('::').length - 1, due, fresh, total: due + fresh });
+  const rows = [row('A', 3), row('A::B', 3), row('C', 0), row('D', 0, 2), row('D::E', 0, 2), row('F', 4)];
+
+  it('skips the deck\'s own subdecks and decks with nothing to study', () => {
+    expect(nextDeckToStudy(rows, new Set(), 'A')).toBe('D');
+    expect(nextDeckToStudy(rows, new Set(), 'A::B')).toBe('D');
+  });
+
+  it('steps into a subdeck when the deck above it is done', () => {
+    expect(nextDeckToStudy(rows, new Set(), 'D')).toBe('F');
+    expect(nextDeckToStudy([row('D', 0), row('D::E', 0, 2)], new Set(), 'D')).toBeUndefined();
+  });
+
+  it("doesn't offer a deck hidden under a collapsed one, or anything after the last deck", () => {
+    expect(nextDeckToStudy(rows, new Set(['D']), 'A')).toBe('D');
+    expect(nextDeckToStudy([row('A', 1), row('B', 0, 1), row('B::C', 0, 1)], new Set(['B']), 'A')).toBe('B');
+    expect(nextDeckToStudy(rows, new Set(), 'F')).toBeUndefined();
+    expect(nextDeckToStudy(rows, new Set(), 'Missing')).toBeUndefined();
   });
 });

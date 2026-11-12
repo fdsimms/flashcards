@@ -1,5 +1,6 @@
-"""Spanish: parsing, the checker, stretch words and rendering. The deck entries are real ones from
-the Spanish deck (advanced words; everyday ones come from the common-words list)."""
+"""Spaced languages (every one but Thai): parsing, the checker, stretch words and rendering. Spanish
+is tested most, as it was first; the deck entries are real ones from each deck (mostly advanced
+words; everyday ones come from the common-words list)."""
 
 import asyncio
 import random
@@ -15,7 +16,7 @@ from franki_reader.generator import Line, TextRequest, generate
 from franki_reader.languages import LANGUAGES
 from franki_reader.lexicon import Entry, lexicon_from
 from franki_reader.reader import render
-from franki_reader.spanish import common_words
+from franki_reader.spaced import SpacedLexicon, common_words
 from franki_reader.store import StoredText
 
 ENTRIES = [
@@ -56,7 +57,7 @@ def test_thai_lines_are_parsed_as_before() -> None:
 
 
 def test_common_words_count_as_known_in_any_form() -> None:
-    assert "de" in common_words() and len(common_words()) == 10_000
+    assert "de" in common_words("es") and len(common_words("es")) == 10_000
     assert set(statuses("Hablaríamos con los niños mañana.").values()) == {"known"}
 
 
@@ -315,4 +316,130 @@ def test_switching_language_through_the_api_keeps_topics_and_separates_everythin
         assert [t["name"] for t in c.get("/api/topics", headers=auth).json()] == ["Guard duty"]
         assert c.get("/api/progress", headers=auth).json()["finished"] == 0
         assert c.get("/api/texts", headers=auth).json() == []
-        assert c.patch("/api/settings", json={"language": "fr"}, headers=auth).status_code == 422
+        assert c.patch("/api/settings", json={"language": "ja"}, headers=auth).status_code == 422
+
+
+# ==== The other languages (12 November 2026) ====
+
+
+def lexicon_of(code: str, entries: list[str], common: int | None = None) -> Any:
+    deck = [Entry(i, e, "meaning", "mature") for i, e in enumerate(entries, start=1)]
+    return lexicon_from(deck, code, common)  # type: ignore[arg-type]
+
+
+def word_statuses(lexicon: Any, text: str) -> dict[str, str]:
+    return {t: lexicon.status(t) for t in lexicon.segment(text) if any(c.isalnum() for c in t)}
+
+
+def test_every_language_but_thai_has_a_list_of_10000_common_words_and_voices() -> None:
+    for code, language in LANGUAGES.items():
+        assert language.voices["A"] and language.voices["B"]
+        if code != "th":
+            assert language.spaced and len(common_words(code)) == 10_000
+
+
+def test_greek_final_sigma_and_russian_yo_match_the_common_words() -> None:
+    assert "όλος" in common_words("el")
+    assert not [w for w in common_words("el") if len(w) > 1 and w.endswith("σ")]
+    assert word_statuses(lexicon_of("ru", ["костёр"], 3000), "Они сидели у костра, ещё.") == {
+        "Они": "known",
+        "сидели": "known",
+        "у": "known",
+        "костра": "known",
+        "ещё": "known",
+    }
+
+
+def test_how_many_common_words_count_is_the_setting() -> None:
+    assert lexicon_of("de", [], 3000).status("Gipfel") == "unknown"
+    assert lexicon_of("de", [], 10000).status("Gipfel") == "known"
+    assert lexicon_of("de", [], 0).status("und") == "unknown"
+    # Without a setting, the language's default.
+    assert lexicon_of("de", []).common == lexicon_of("de", [], 3000).common
+
+
+def test_german_entries_match_without_article_or_sich_and_by_each_alternative() -> None:
+    lexicon = lexicon_of(
+        "de",
+        ["sich verlieben", "der/die Mitwirkende", "der Verräter / die Verräterin", "zweifeln (an)"],
+    )
+    assert lexicon.entry_of("verliebte") == "sich verlieben"
+    assert lexicon.entry_of("Mitwirkenden") == "der/die Mitwirkende"
+    assert lexicon.entry_of("Verräterin") == "der Verräter / die Verräterin"
+    assert lexicon.entry_of("Verräter") == "der Verräter / die Verräterin"
+    assert lexicon.entry_of("zweifelte") == "zweifeln (an)"
+    # "der" in der/die is an article, not the entry.
+    assert lexicon.entry_of("der") is None
+
+
+def test_french_elisions_are_words_of_their_own_and_participles_find_their_verb() -> None:
+    lexicon = lexicon_of("fr", ["l'amertume", "se balader", "cracher le morceau", "d'où"], 3000)
+    assert lexicon.segment("L'amertume, c'est") == ["L'", "amertume", ",", " ", "c'", "est"]
+    assert set(word_statuses(lexicon, "L'amertume de l'homme, c'est fini.").values()) == {"known"}
+    assert lexicon.entry_of("amertume") == "l'amertume"
+    assert lexicon.entry_of("balade") == "se balader"
+    assert "craché le morceau" in lexicon.segment("Il a craché le morceau.")
+    assert lexicon.entry_of("d'où") == "d'où"
+    # A guess counts only against the deck: craché alone isn't a common word.
+    assert lexicon_of("fr", [], 3000).status("craché") == "unknown"
+
+
+def test_a_hyphenated_word_is_known_when_each_part_is() -> None:
+    assert lexicon_of("ru", [], 3000).status("что-то") == "known"
+    assert lexicon_of("fr", [], 3000).status("peut-être") == "known"
+
+
+def test_greek_alternatives_are_each_an_entry() -> None:
+    lexicon = lexicon_of("el", ["ποιος/ποια/ποιο", "φοβάμαι"], 3000)
+    assert lexicon.entry_of("Ποια") == "ποιος/ποια/ποιο"
+    assert lexicon.entry_of("φοβάται") == "φοβάμαι"
+    assert lexicon.status("της") == "known"
+
+
+def test_polish_counts_only_its_deck_with_the_gender_marker_known_from_the_entry() -> None:
+    lexicon = lexicon_of("pl", ["ta kobieta", "to dziecko", "pić / wypić", "i", "nie", "mały"])
+    assert word_statuses(lexicon, "Ta kobieta i małe dziecko nie piją.") == {
+        "Ta": "known",
+        "kobieta": "known",
+        "i": "known",
+        "małe": "known",
+        "dziecko": "known",
+        "nie": "known",
+        "piją": "known",
+    }
+    assert lexicon.status("dom") == "unknown"  # common, but Polish counts only its deck
+
+
+def test_norwegian_entries_match_without_their_article_or_infinitive_marker() -> None:
+    lexicon = lexicon_of("nb", ["å vente", "en butikk", "å skynde seg"], 1000)
+    assert set(word_statuses(lexicon, "Vi venter i butikken.").values()) == {"known"}
+    assert lexicon.entry_of("skynder") == "å skynde seg"
+
+
+def test_the_request_says_how_many_common_words_count() -> None:
+    from franki_reader.generator import request_message, system_prompt
+
+    german = request_message(TextRequest("t", language="de", common=3000))
+    assert "the 3,000 most common German words" in german
+    assert "common or from the list" in german
+    polish = request_message(TextRequest("t", language="pl", common=0))
+    assert "only the list" in polish and "words from the list." in polish
+    thai = request_message(TextRequest("t"))
+    assert "Known words" not in thai
+
+    prompt = system_prompt(ENTRIES, "nb")
+    assert prompt.startswith("You write short Norwegian texts") and "Write Bokmål." in prompt
+    assert "Jeg|må|*skynde|meg*!" in prompt
+    assert system_prompt(ENTRIES, "es").startswith("You write short Spanish texts")
+    assert "Mexican Spanish" in system_prompt(ENTRIES, "es")
+
+
+def test_the_engine_writes_with_the_chosen_common_count() -> None:
+    e, _ = spanish_engine()
+    store.save_settings(e.conn, store.Settings(language="es", common={"es": 2000}))
+    lexicon = e.snapshot("es")[1]
+    assert (
+        isinstance(lexicon, SpacedLexicon) and lexicon.common == lexicon_of("es", [], 2000).common
+    )
+    assert e._request("t", ENTRIES, Difficulty(), "es").common == 2000
+    assert e._request("t", [], Difficulty(), "th").common == 0

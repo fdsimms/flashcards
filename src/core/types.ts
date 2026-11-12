@@ -176,8 +176,12 @@ export interface RenderedCard {
   /**
    * The note's recorded audio (the media file named in its Audio field), played in place of TTS
    * wherever a side would speak, as Anki plays it. TTS is the fallback when there's none.
+   * It plays only on `audioSide`: the Omnilanguage templates put {{Audio}} on the back of the
+   * Front and Reverse cards and on the front of the Audio card. On a drill note it's the
+   * recording of the answer, so playing it on the front would give the answer away.
    */
   audioFile?: string;
+  audioSide?: 'front' | 'back';
 }
 
 /** A note type's Anki templates and styling, for rendering cards the way Anki does. */

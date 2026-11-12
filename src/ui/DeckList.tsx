@@ -214,8 +214,10 @@ export function DeckList(props: {
       <ScrollView
         {...drag.scrollProps}
         contentInsetAdjustmentBehavior="automatic"
-        // Pull down to sync, when sync is on.
-        refreshControl={props.sync ? (
+        // Pull down to sync, when sync is on. Always mounted: sync's settings load a moment after
+        // the screen opens, and a refresh control added then moved the content down and showed the
+        // large title that had been scrolled out of view at launch. Without sync a pull does nothing.
+        refreshControl={(
           <RefreshControl
             refreshing={pulling}
             onRefresh={async () => {
@@ -224,7 +226,7 @@ export function DeckList(props: {
             }}
             tintColor={c.textSecondary}
           />
-        ) : undefined}
+        )}
       >
         {/* Everything in one view, which a drag measures the rows against and draws its card in. */}
         <View {...drag.contentProps} style={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
