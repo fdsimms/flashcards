@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View, type TextStyle } from 'react-native';
-import { markSegments } from '../core/highlight';
+import type { Segment } from '../core/highlight';
 import { DEFAULT_THAI_TEXT_SIZE, hasThai, thaiTextStyle, type ThaiTextSize } from '../core/script';
 import type { RenderedSide } from '../core/types';
 import { haptic } from './haptics';
@@ -12,12 +12,11 @@ type Item = { b: Block; i: number };
 
 const isExample = (b: Block) => b.role === 'example' || b.role === 'exampleRomanized' || b.role === 'exampleTranslation';
 
-/** Text with `mark` picked out inside it, as a card's word is in its example sentence. */
-function MarkedText({ text, mark, style, c }: { text: string; mark?: string; style: TextStyle; c: Colors }) {
-  const segments = mark ? markSegments(text, mark) : [{ text, marked: false }];
+/** Text with its marked segments picked out, as a card's word is in its example sentence. */
+function MarkedText({ text, segments, style, c }: { text: string; segments?: Segment[]; style: TextStyle; c: Colors }) {
   return (
     <Text style={style}>
-      {segments.map((s, k) => (
+      {(segments ?? [{ text, marked: false }]).map((s, k) => (
         s.marked
           ? <Text key={k} style={{ color: c.accent, backgroundColor: c.accentFill, fontWeight: '600' }}>{s.text}</Text>
           : s.text
@@ -28,8 +27,9 @@ function MarkedText({ text, mark, style, c }: { text: string; mark?: string; sty
 
 /**
  * One side of a natively rendered card: the word or question large and centered, the details
- * under it in smaller text with their labels. On the back, the tags are chips, an example
- * sentence's lines sit close together with the word highlighted, and a note is set off in a box.
+ * under it in smaller text with their labels. On the back, the tags are chips, the word's forms
+ * are a labeled list, an example sentence's lines sit close together with the word highlighted,
+ * and a note is set off in a box.
  * `showHints` shows the lines Anki hides behind a tap (romanization, translation) without one.
  */
 export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE }: {
@@ -68,10 +68,10 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
 
   const line = ({ b, i }: Item) => {
     if (b.role === 'example') {
-      return <MarkedText key={i} text={b.text} mark={b.mark} c={c} style={{ ...(hasThai(b.text) ? thai : { fontSize: type.title.fontSize, lineHeight: 34 }), color: c.text }} />;
+      return <MarkedText key={i} text={b.text} segments={b.segments} c={c} style={{ ...(hasThai(b.text) ? thai : { fontSize: type.title.fontSize, lineHeight: 34 }), color: c.text }} />;
     }
     if (b.role === 'exampleRomanized' || b.role === 'exampleTranslation') {
-      return <MarkedText key={i} text={b.text} mark={b.mark} c={c} style={{ ...type.subhead, lineHeight: 21, color: c.textSecondary }} />;
+      return <MarkedText key={i} text={b.text} segments={b.segments} c={c} style={{ ...type.subhead, lineHeight: 21, color: c.textSecondary }} />;
     }
     return null;
   };
@@ -103,6 +103,19 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
             </View>
           );
         }
+        if (b.role === 'forms') {
+          return (
+            <View key={i} style={{ gap: space.xs }}>
+              {b.label ? <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text> : null}
+              {(b.rows ?? []).map((r) => (
+                <View key={r.label} style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.m }}>
+                  <Text style={{ ...type.footnote, color: c.textTertiary, minWidth: 104 }}>{r.label}</Text>
+                  <Text style={{ ...(hasThai(r.value) ? thai : { ...type.body, lineHeight: 24 }), color: c.text, flex: 1 }}>{r.value}</Text>
+                </View>
+              ))}
+            </View>
+          );
+        }
         if (b.role === 'note') {
           return (
             <View key={i} style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.xs }}>
@@ -117,7 +130,10 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
             <View style={b.icon ? { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s } : undefined}>
               {b.icon ? <Icon name={b.icon} size={28} color={c.text} /> : null}
               {b.emphasis ? (
-                <Text style={{ ...(which === 'front' ? type.cardFront : type.cardBack), color: c.text, textAlign: 'center' }}>{b.text}</Text>
+                <Text style={{ ...(which === 'front' ? type.cardFront : type.cardBack), color: c.text, textAlign: 'center' }}>
+                  {b.prefix ? <Text style={{ color: c.textTertiary, fontWeight: '400' }}>{b.prefix} </Text> : null}
+                  {b.text}
+                </Text>
               ) : (
                 // A field can hold Thai and its romanization on separate lines; the Thai lines get the
                 // size of an example sentence, since Thai is hard to read at body size (the size is a setting).

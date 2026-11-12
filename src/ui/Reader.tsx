@@ -535,10 +535,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
         </>
       ) : undefined}
     >
-      {/* A ScrollView with the automatic inset, not a bare View: a bare one draws under the native
-          header, so the spinner and message sat behind the Back button and the screen looked blank. */}
+      {/* Centered in the whole screen frame, which runs under the native header. The automatic inset
+          would add the header's height on top of that centering and push the spinner below the middle. */}
       {!text ? (
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+        <ScrollView contentInsetAdjustmentBehavior="never" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
           {error ? (
             <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={load} /></View>
           ) : (
@@ -564,20 +564,26 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={100}
         >
-          <View style={{ paddingHorizontal: space.l, gap: space.s }}>
-            <Text style={{ ...type.title, color: c.text }}>{text.title}</Text>
-            <Text style={{ ...type.footnote, color: c.textSecondary }}>
-              {text.episode ? `${text.topic} · Episode ${text.episode}` : (text.topic ?? (source.kind === 'topic' ? source.topic.name : source.kind === 'past' ? source.text.topic : ''))}
-            </Text>
-            {text.stretch.length > 0 ? (
-              <ChipRow label="Practice words:">
-                {text.stretch.map((w) => <Pill key={w} text={w} bg={c.accentFill} fg={c.accent} />)}
-              </ChipRow>
-            ) : null}
-            {practicedGrammar(text).length > 0 ? (
-              <ChipRow label="Grammar:">
-                {practicedGrammar(text).map((g) => <Pill key={g.id} text={g.name} bg={c.speakerB} fg={c.onSpeakerB} />)}
-              </ChipRow>
+          <View style={{ paddingHorizontal: space.l, gap: space.l }}>
+            <View style={{ gap: space.xs }}>
+              <Text style={{ ...type.title, color: c.text }}>{text.title}</Text>
+              <Text style={{ ...type.footnote, color: c.textSecondary }}>
+                {text.episode ? `${text.topic} · Episode ${text.episode}` : (text.topic ?? (source.kind === 'topic' ? source.topic.name : source.kind === 'past' ? source.text.topic : ''))}
+              </Text>
+            </View>
+            {text.stretch.length > 0 || practicedGrammar(text).length > 0 ? (
+              <Card style={{ padding: space.m, gap: space.m }}>
+                {text.stretch.length > 0 ? (
+                  <ChipRow label="Practice words">
+                    {text.stretch.map((w) => <Pill key={w} text={w} bg={c.accentFill} fg={c.accent} />)}
+                  </ChipRow>
+                ) : null}
+                {practicedGrammar(text).length > 0 ? (
+                  <ChipRow label="Grammar">
+                    {practicedGrammar(text).map((g) => <Pill key={g.id} text={g.name} bg={c.speakerB} fg={c.onSpeakerB} />)}
+                  </ChipRow>
+                ) : null}
+              </Card>
             ) : null}
             {text.roles.A || text.roles.B ? (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.l }}>
@@ -708,32 +714,33 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                     ))}
                   </View>
                 )}
+                {/* Under the words, above anything they reveal, so a button doesn't move when English or an explanation opens. */}
+                <View style={{ flexDirection: 'row', gap: space.xs, marginTop: space.xs }}>
+                  {line.audio ? (
+                    <RoundButton icon="play.fill" accessibilityLabel={`Play line ${i + 1}`} on onPress={() => playLine(i, false)} />
+                  ) : null}
+                  {!english && !listenOnly ? (
+                    <RoundButton
+                      label="EN"
+                      accessibilityLabel={lineEnglish.includes(i) ? `Hide English for line ${i + 1}` : `Show English for line ${i + 1}`}
+                      on={lineEnglish.includes(i)}
+                      onPress={() => toggleLineEnglish(i)}
+                    />
+                  ) : null}
+                  {!listenOnly ? (
+                    <RoundButton
+                      icon="sparkles"
+                      accessibilityLabel={explained.includes(i) ? `Hide explanation for line ${i + 1}` : `Explain line ${i + 1}`}
+                      on={explained.includes(i)}
+                      onPress={() => toggleExplained(i)}
+                    />
+                  ) : null}
+                </View>
                 {!listenOnly && (english || lineEnglish.includes(i)) ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: 2 }}>{line.english}</Text>
                 ) : null}
                 {!listenOnly && explained.includes(i) ? <LineExplanation api={api} textId={text.id} line={i} grammarChosen={grammarChosen} onGrammarChosen={chooseGrammar} onOpenGrammar={onOpenGrammar} /> : null}
                 {!listenOnly && phrase && phrase.end !== null && phrase.line === i ? phraseCard(phrase) : null}
-              </View>
-              <View style={{ gap: space.xs }}>
-                {line.audio ? (
-                  <RoundButton icon="play.fill" accessibilityLabel={`Play line ${i + 1}`} on onPress={() => playLine(i, false)} />
-                ) : null}
-                {!english && !listenOnly ? (
-                  <RoundButton
-                    label="EN"
-                    accessibilityLabel={lineEnglish.includes(i) ? `Hide English for line ${i + 1}` : `Show English for line ${i + 1}`}
-                    on={lineEnglish.includes(i)}
-                    onPress={() => toggleLineEnglish(i)}
-                  />
-                ) : null}
-                {!listenOnly ? (
-                  <RoundButton
-                    icon="sparkles"
-                    accessibilityLabel={explained.includes(i) ? `Hide explanation for line ${i + 1}` : `Explain line ${i + 1}`}
-                    on={explained.includes(i)}
-                    onPress={() => toggleExplained(i)}
-                  />
-                ) : null}
               </View>
             </View>
           ))}
@@ -893,7 +900,7 @@ function glossFor(text: ReaderText, word: string): string | null {
 
 function Pill({ text, bg, fg }: { text: string; bg: string; fg: string }) {
   return (
-    <Text style={{ ...type.subhead, fontWeight: '700', color: fg, backgroundColor: bg, paddingHorizontal: space.s, paddingVertical: 2, borderRadius: radius.pill, overflow: 'hidden' }}>
+    <Text style={{ ...type.subhead, fontWeight: '700', color: fg, backgroundColor: bg, paddingHorizontal: 10, paddingVertical: space.xs, borderRadius: radius.pill, overflow: 'hidden' }}>
       {text}
     </Text>
   );
@@ -902,9 +909,9 @@ function Pill({ text, bg, fg }: { text: string; bg: string; fg: string }) {
 function ChipRow({ label, children }: { label: string; children: React.ReactNode }) {
   const c = useTheme();
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
-      <Text style={{ ...type.footnote, color: c.textSecondary }}>{label}</Text>
-      {children}
+    <View style={{ gap: 6 }}>
+      <Text style={{ ...type.footnote, fontWeight: '600', color: c.textSecondary }}>{label}</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>{children}</View>
     </View>
   );
 }
@@ -1111,6 +1118,7 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
         }}
       >
         <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
+        {tapped.word.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {tapped.word.lemma}</Text> : null}
         <Text style={{ ...type.body, color: c.text }}>{tapped.word.gloss ?? 'No meaning available'}</Text>
         <View style={{ alignItems: 'flex-start' }}>
           <HeaderAction label="Play word" onPress={onPlay} />

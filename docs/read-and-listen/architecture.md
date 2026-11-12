@@ -311,7 +311,9 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   stay natural; avoiding has no limit. The choices are stored together for every language and
   apply from the next text written (`GET /api/grammar`, `PUT /api/grammar/{id}`). Forms practice in
   the app reads every language's (`GET /api/grammar/choices`; docs/grammar.md, step 2). Each point has a
-  page (`GET /api/grammar/{id}`; docs/grammar.md, step 4), opened from its name here.
+  page (`GET /api/grammar/{id}`; docs/grammar.md, step 4), opened from its name here. Points set to
+  Practice or Know it are drilled from the Practice tab, with questions from texts read and ones
+  Claude writes ahead (`POST /api/drills`, `drills.py`; docs/grammar.md, step 5).
 - **Generate, then verify, as for coverage.** The request names the points to practice and avoid,
   and the server finds them in the draft. A practiced point used fewer than twice, or an avoided one
   used at all, sends the draft back with the words named ("Don't use the Preterite; this draft has:
@@ -581,6 +583,15 @@ in the current language, with when one was last read to the end. Nothing else le
   later in the study day are listed by when, so the other app can place a task ahead without asking
   again. **New cards are left out**: Franki's progress gate is Franki's own, so Anki's new count can
   differ from the one Franki shows. Reviews and learning cards count the same in both.
+- **Study time** (`study_days`): the last 7 study days, each with the cards answered on it on every
+  device and the time Anki logged for them (the review log's `time`, capped by each preset's
+  maximum answer seconds), and the seconds spent in Read & Listen (`readings.seconds`), every
+  language. A study day is the 24 hours before a cutoff, as Anki's own statistics count them.
+- **Franki's own counts** (`franki`): Anki can't count new cards the way Franki does, so the app
+  sends its deck list's totals (`deckListTotals`, the header's numbers) after each recount while
+  its "Share today's counts" setting is on (`useCountsReport`, off by default), to
+  `PUT /api/franki-counts` with the passphrase. Status shows the last report only when it was
+  made since today's study day began; an older one says nothing about today.
 - **It only reads**, under the same lock and the same 45-second limit as the lexicon
   (`due_with_timeout`), and a read leaves nothing to send (`tests/test_collection.py`). It writes no
   texts: a shelf that's empty says `waiting: 0`.

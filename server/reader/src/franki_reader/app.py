@@ -8,7 +8,14 @@ serves all of it under /reader (../../Caddyfile), so the app's address ends in /
                                       passphrase or STATUS_TOKEN, a key for this route alone:
                                       {reviews, learning, learning_later: [{at, count}],
                                       decks: [{name, reviews, learning}], day_ends_at,
-                                      read_and_listen: {language, name, waiting, last_read_at}}
+                                      read_and_listen: {language, name, waiting, last_read_at},
+                                      study_days: [{starts_at, cards, answer_seconds,
+                                      reading_seconds}] (the last 7 study days, today last),
+                                      franki: {due, new, reported_at} or null (Franki's own deck
+                                      list counts, progress gates included, when it reported
+                                      them since today's study day began)}
+    PUT   /api/franki-counts          {due, new} the app's deck list totals, sent after each sync
+                                      while the app's "Share today's counts" setting is on
     GET   /api/topics                 topics with their state and ready count; tops up in the background
     POST  /api/topics                 {name, favorite?} adds a topic (or returns the existing one)
     PATCH /api/topics/{id}            {favorite}
@@ -59,6 +66,11 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/grammar/choices        {choices}: every language's choices by point id (practice,
                                       avoid or normal; a point not set isn't listed), for the
                                       app's Forms practice (docs/grammar.md)
+    POST  /api/drills                 {points, count?} a grammar drill's questions (drills.py), each
+                                      {kind: "which", point, line, words, english, title, choices}
+                                      or {kind: "gap", id, point, before, answer, after, english,
+                                      wrong, hint}; `missing` names points that got none. Writes
+                                      more gap questions in the background when Claude is set up
     GET   /api/grammar/{id}           one point's page: {id, state, seen, choices (its language's,
                                       for the related points), examples: [{text_id, title, line,
                                       english, words}]}, lines from texts read, the latest first
@@ -95,7 +107,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from franki_speech import SpeechClient, SpeechError, locale_of
 from pydantic import BaseModel, Field
 
-from franki_reader import config, exposure, grammar, store
+from franki_reader import config, drills, exposure, grammar, store
 from franki_reader.collection import AnkiDeck, SyncSettings
 from franki_reader.coverage import parse_line
 from franki_reader.engine import Engine, NotAvailable, NotFound
@@ -118,7 +130,7 @@ from franki_reader.mnemonics import (
     MnemonicsFailed,
     claude_mnemonics,
 )
-from franki_reader.reader import gloss_for, render
+from franki_reader.reader import gloss_for, lemma_for, render
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
 from franki_reader.suggestions import suggest
 from franki_reader.tts import AudioCache, Speech, azure_synthesize
@@ -175,6 +187,11 @@ class MnemonicIn(BaseModel):
     context: str = Field(default="", max_length=500)
 
 
+class DrillsIn(BaseModel):
+    points: list[str]
+    count: int = Field(default=10, ge=1, le=drills.MAX_DRILL)
+
+
 class ExplainIn(BaseModel):
     # A second, plainer explanation of a line already explained.
     simple: bool = False
@@ -200,6 +217,12 @@ class NextIn(BaseModel):
     # The cards just studied, to write a text that practices them (the app's "Read a text with
     # these words"). Each is a note's Entry, as the deck has it.
     words: list[Annotated[str, Field(max_length=200)]] = Field(default_factory=list, max_length=500)
+
+
+class FrankiCountsIn(BaseModel):
+    # The deck list's totals across the top-level decks: due (reviews and learning) and new.
+    due: int = Field(ge=0, le=1_000_000)
+    new: int = Field(ge=0, le=1_000_000)
 
 
 class ReadingIn(BaseModel):
@@ -270,8 +293,11 @@ def create_app(
     explain_phrase: ExplainPhrase | None = None,
     status_token: str | None = None,
     read_due: ReadDue | None = None,
+    write_drills: drills.WriteDrills | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
+    # Points whose drill questions are being written, shared by every request (drills.top_up).
+    drills_writing: set[str] = set()
 
     def given_key(authorization: str | None) -> bytes:
         # Header values arrive decoded as latin-1, so turn them back into the bytes that were sent
@@ -318,6 +344,15 @@ def create_app(
             raise HTTPException(503, f"Couldn't read Anki. {e}") from e
         language = engine.language()
         last_read = store.last_finished_reading(engine.conn, language)
+        day_starts_at = due.day_ends_at - timedelta(days=1)
+        reported = store.load_franki_counts(engine.conn)
+        # Only today's: yesterday's new cards left say nothing about today's.
+        if reported and reported.reported_at.replace(tzinfo=UTC) < day_starts_at:
+            reported = None
+
+        def naive_utc(at: datetime) -> datetime:
+            return at.astimezone(UTC).replace(tzinfo=None)
+
         return {
             "reviews": due.reviews,
             "learning": due.learning,
@@ -332,7 +367,36 @@ def create_app(
                 "waiting": store.ready_counts(engine.conn).get(language, 0),
                 "last_read_at": instant(last_read) if last_read else None,
             },
+            "study_days": [
+                {
+                    "starts_at": instant(d.starts_at),
+                    "cards": d.cards,
+                    "answer_seconds": d.answer_seconds,
+                    "reading_seconds": store.reading_seconds(
+                        engine.conn,
+                        naive_utc(d.starts_at),
+                        naive_utc(d.starts_at + timedelta(days=1)),
+                    ),
+                }
+                for d in due.study_days
+            ],
+            "franki": (
+                {
+                    "due": reported.due,
+                    "new": reported.new,
+                    "reported_at": instant(reported.reported_at),
+                }
+                if reported
+                else None
+            ),
         }
+
+    @app.put("/api/franki-counts", status_code=204, dependencies=authed)
+    async def franki_counts(body: FrankiCountsIn) -> Response:
+        store.save_franki_counts(
+            engine.conn, store.FrankiCounts(body.due, body.new, engine.clock())
+        )
+        return Response(status_code=204)
 
     @app.get("/api/topics", dependencies=authed)
     async def topics(background: BackgroundTasks) -> list[dict[str, Any]]:
@@ -699,6 +763,7 @@ def create_app(
         since = engine.clock() - timedelta(days=days)
         by_language = store.spending(engine.conn, since)
         explained = store.explanation_spending(engine.conn, since)
+        drilled = store.drill_spending(engine.conn, since)
         rows = by_language.values()
         total = store.Spending(
             sum(r.read for r in rows),
@@ -730,6 +795,20 @@ def create_app(
                     for code, (n, c) in explained.items()
                 ],
             },
+            # Grammar drills' questions, written a batch at a time (drills.py).
+            "drills": {
+                "batches": sum(n for n, _ in drilled.values()),
+                "cost_usd": round(sum(c for _, c in drilled.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "batches": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in drilled.items()
+                ],
+            },
         }
 
     @app.get("/api/words", dependencies=authed)
@@ -741,6 +820,7 @@ def create_app(
             {
                 "word": w.word,
                 "gloss": gloss_for(w.word, w.glosses, lexicon, meanings),
+                "lemma": lemma_for(w.word, lexicon),
                 "status": lexicon.status(w.word),
                 "deck": lexicon.entry_of(w.word) is not None,
                 "times": w.times,
@@ -779,6 +859,28 @@ def create_app(
         choices = store.load_grammar(engine.conn)
         return {"choices": {pid: state for pid, state in choices.items() if pid in grammar.POINTS}}
 
+    async def top_up_drills(point_ids: tuple[str, ...]) -> None:
+        if write_drills is not None:
+            await drills.top_up(
+                engine.conn, engine.snapshot, write_drills, point_ids, engine.clock, drills_writing
+            )
+
+    @app.post("/api/drills", dependencies=authed)
+    async def drill(body: DrillsIn, background: BackgroundTasks) -> dict[str, Any]:
+        points = tuple(dict.fromkeys(body.points))
+        questions = drills.serve(
+            engine.conn, engine.snapshot, points, body.count, engine.clock(), engine.rng
+        )
+        background.add_task(top_up_drills, points)
+        asked = {q["point"] for q in questions}
+        return {
+            "questions": questions,
+            # Points that got no question: not in this server's catalog, or nothing read and no
+            # questions written yet (being written now when Claude is set up).
+            "missing": [p for p in points if p not in asked],
+            "writing": write_drills is not None,
+        }
+
     @app.get("/api/grammar/{point_id}", dependencies=authed)
     async def get_grammar_point(point_id: str) -> dict[str, Any]:
         # After /api/grammar/choices, so "choices" isn't taken for a point's id.
@@ -807,7 +909,9 @@ def create_app(
         }
 
     @app.put("/api/grammar/{point_id}", dependencies=authed)
-    async def choose_grammar(point_id: str, body: GrammarChoice) -> dict[str, Any]:
+    async def choose_grammar(
+        point_id: str, body: GrammarChoice, background: BackgroundTasks
+    ) -> dict[str, Any]:
         point = grammar.POINTS.get(point_id)
         if point is None:
             raise HTTPException(404, "No such grammar point.")
@@ -826,6 +930,9 @@ def create_app(
                 f"Practice at most {grammar.MAX_PRACTICE} at a time. Set one to Know it first.",
             )
         store.set_grammar(engine.conn, point_id, body.state)
+        if body.state in ("practice", "normal"):
+            # Drilled from now on (docs/grammar.md, step 5): its questions are written ahead.
+            background.add_task(top_up_drills, (point_id,))
         return grammar_points()
 
     @app.post("/api/words/clear", status_code=204, dependencies=authed)
@@ -954,11 +1061,13 @@ def production_app() -> FastAPI:
     mnemonics: MakeMnemonics | None = None
     explain: Explain | None = None
     explain_phrase: ExplainPhrase | None = None
+    write_drills: drills.WriteDrills | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
         explain = claude_explain(client)
         explain_phrase = claude_explain_phrase(client)
+        write_drills = drills.claude_drills(client)
 
         def ask_for(entries: list[Entry], language: Code) -> Ask:
             return claude_ask(client, entries, language)
@@ -1013,4 +1122,5 @@ def production_app() -> FastAPI:
         explain_phrase,
         status_token=settings.secrets.get("STATUS_TOKEN"),
         read_due=due_with_timeout(anki.due) if anki else None,
+        write_drills=write_drills,
     )

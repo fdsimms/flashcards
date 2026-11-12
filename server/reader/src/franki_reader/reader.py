@@ -6,6 +6,7 @@ from typing import Any
 
 from franki_reader import grammar
 from franki_reader.coverage import Checker, is_word, parse_line, segment_line
+from franki_reader.spaced import fold, lemma
 from franki_reader.store import StoredText
 
 
@@ -21,6 +22,20 @@ def gloss_for(
     pieces = lexicon.known_pieces(word)
     parts = [meanings[p] for p in pieces or [] if p in meanings]
     return " + ".join(parts) if pieces and len(parts) == len(pieces) else None
+
+
+def lemma_for(word: str, lexicon: Checker) -> str | None:
+    """The dictionary form of a word (rozumiem to rozumieć): the deck entry it's a form of, else
+    simplemma's lemma. None for Thai, which has no inflection, and when the word is its own lemma."""
+    if not lexicon.spaced or not is_word(word):
+        return None
+    code: str = getattr(lexicon, "code", "")
+    entry = lexicon.entry_of(word)
+    if entry is None and (not code or " " in word.strip()):
+        return None
+    found = entry or lemma(word, code)
+    # The entry as written may carry an article (la ojiva): the word on its own is its form already.
+    return None if fold(word, code) in fold(found, code).split() else found
 
 
 def translit_for(
@@ -67,6 +82,7 @@ def render(
                         "text": piece,
                         "status": None,
                         "gloss": None,
+                        "lemma": None,
                         "translit": None,
                         "stretch": False,
                         "deck": False,
@@ -83,6 +99,7 @@ def render(
                     "text": piece,
                     "status": "name" if is_name else lexicon.status(piece),
                     "gloss": gloss_for(piece, text.glosses, lexicon, meanings),
+                    "lemma": lemma_for(piece, lexicon),
                     "translit": translit_for(piece, text.translits, lexicon, deck_translits or {}),
                     "stretch": (entry or piece) in stretch,
                     # A deck word, as against one known for being common (every language but Thai).
