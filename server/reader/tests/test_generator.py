@@ -334,3 +334,13 @@ def test_a_text_under_90_still_fails() -> None:
     # NEAR is 92.3%, under the 99% asked for but over 90%, so it's the one kept.
     assert result.passed and not result.floor_met
     assert not run(ScriptedModel(bad, bad, bad), TextRequest("food")).passed
+
+
+def test_the_models_transliterations_are_kept_for_the_words_it_gave_them_for() -> None:
+    d = draft(*["ฉัน|อยาก|กิน|ครับ"] * 6, "ทอน")
+    d["glosses"] = [
+        {"word": "ทอน", "english": "change", "translit": " thɔɔn "},
+        {"word": "ฉัน", "english": "I", "translit": ""},
+    ]
+    result = run(ScriptedModel(d), TextRequest("food"))
+    assert result.translits == {"ทอน": "thɔɔn"}

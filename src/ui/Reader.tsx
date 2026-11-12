@@ -646,7 +646,9 @@ function GlossPopover({ tapped, grammar, flagged, onToggleFlag, onClose }: {
   const insets = useSafeAreaInsets();
   // Measured on first layout (drawn invisible until then), since a long gloss wraps.
   const [popHeight, setPopHeight] = useState(0);
-  useEffect(() => setPopHeight(0), [tapped]);
+  // The transliteration stays hidden until asked for, and hides again for the next word.
+  const [showTranslit, setShowTranslit] = useState(false);
+  useEffect(() => { setPopHeight(0); setShowTranslit(false); }, [tapped]);
   if (!tapped) return null;
   const popWidth = Math.min(POPOVER_WIDTH, width - 2 * space.l);
   const left = Math.min(Math.max(tapped.x - 40, space.l), width - popWidth - space.l);
@@ -667,6 +669,15 @@ function GlossPopover({ tapped, grammar, flagged, onToggleFlag, onClose }: {
       >
         <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
         <Text style={{ ...type.body, color: c.text }}>{tapped.word.gloss ?? 'No meaning available'}</Text>
+        {tapped.word.translit ? (
+          showTranslit ? (
+            <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text>
+          ) : (
+            <View style={{ alignItems: 'flex-start' }}>
+              <HeaderAction label="Show transliteration" onPress={() => setShowTranslit(true)} />
+            </View>
+          )
+        ) : null}
         <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
         {grammar ? (
           <Text style={{ ...type.footnote, color: c.textSecondary }}>

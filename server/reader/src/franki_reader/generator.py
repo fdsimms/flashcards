@@ -131,6 +131,9 @@ class Generated:
     # Uses of a practiced point short of the 2 asked for, plus uses of an avoided one. The
     # closest attempt kept under the rules can have some.
     grammar_problems: int = 0
+    # The model's transliteration of the words it glossed (Thai only), by word. Absent for a word
+    # it gave none for; the reader then shows none rather than a guess.
+    translits: dict[str, str] = field(default_factory=dict)
 
 
 DRAFT_SCHEMA: dict[str, Any] = {
@@ -160,7 +163,12 @@ DRAFT_SCHEMA: dict[str, Any] = {
             "type": "array",
             "items": {
                 "type": "object",
-                "properties": {"word": {"type": "string"}, "english": {"type": "string"}},
+                "properties": {
+                    "word": {"type": "string"},
+                    "english": {"type": "string"},
+                    # Optional, and only asked for in Thai's instructions.
+                    "translit": {"type": "string"},
+                },
                 "required": ["word", "english"],
                 "additionalProperties": False,
             },
@@ -195,7 +203,9 @@ break and nowhere else: never between words of the same clause, and never before
 ครับ, ค่ะ or นะ.
 - Give "english", a natural English translation of each line.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
-is not in the list.
+is not in the list. For each of those words also give "translit", its pronunciation in Latin letters \
+with tone marks and a hyphen between syllables, as the learner's own cards write it: \
+nǎng-sǔue (หนังสือ), kâao (ข้าว), mâi-pen-rai (ไม่เป็นไร).
 
 Known words, one per line as: word | meaning | M or Y
 """
@@ -396,6 +406,11 @@ def _assess(
     try:
         lines = tuple(Line(ln["speaker"], ln["text"], ln["english"]) for ln in draft["lines"])
         glosses = {g["word"]: g["english"] for g in draft["glosses"]}
+        translits = {
+            g["word"]: g["translit"].strip()
+            for g in draft["glosses"]
+            if isinstance(g.get("translit"), str) and g["translit"].strip()
+        }
         title = draft["title"]
         roles = {k: str(v).strip() for k, v in draft.get("roles", {}).items() if str(v).strip()}
     except (KeyError, TypeError) as e:
@@ -426,6 +441,7 @@ def _assess(
         stretch=stretch,
         roles=roles,
         grammar_problems=grammar_misses,
+        translits=translits,
     )
     return generated, problems
 

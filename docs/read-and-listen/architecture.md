@@ -139,6 +139,12 @@ Franki's (Client, below).
 - **Partial:** a word that only appears inside a longer deck entry (รับ inside รับอะไรดี). It counts as
   unknown for coverage, and its gloss can point at the entry it came from.
 - Only the latest snapshot is kept. No history.
+- **Transliteration** (Thai): a word's popover hides it behind "Show transliteration". A deck word shows
+  its note's `Transliteration` field, kept in the snapshot. A word off the list shows the one the model
+  writes beside its gloss, in the style of the deck's (tone marks, syllables joined by hyphens), stored
+  with the text (`texts.translits`). It can't be checked in code the way coverage is, so it's the model's
+  word for it, and a word it gave none for shows no reveal rather than a guess. Texts written before
+  this have none for their off-list words. Only Thai's prompt asks for it.
 
 ## Languages
 
