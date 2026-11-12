@@ -17,8 +17,8 @@ function fakeFetch(routes: (url: string, init?: RequestInit) => { status?: numbe
 
 describe('requests', () => {
   it('sends the token and the API revision', async () => {
-    const { fn, calls } = fakeFetch(() => ({ body: { data: { username: 'me', level: 14, subscription: { max_level_granted: 60 }, current_vacation_started_at: null } } }));
-    expect(await createWaniKaniApi('tok', fn).user()).toEqual({ username: 'me', level: 14, maxLevel: 60, onVacation: false });
+    const { fn, calls } = fakeFetch(() => ({ body: { data: { username: 'me', level: 14, subscription: { max_level_granted: 60 }, current_vacation_started_at: null, preferences: { lessons_batch_size: 7 } } } }));
+    expect(await createWaniKaniApi('tok', fn).user()).toEqual({ username: 'me', level: 14, maxLevel: 60, onVacation: false, lessonBatch: 7 });
     expect(calls[0].url).toBe('https://api.wanikani.com/v2/user');
     expect(calls[0].init?.headers).toMatchObject({ Authorization: 'Bearer tok', 'Wanikani-Revision': '20170710' });
   });
@@ -99,7 +99,7 @@ describe('sending answers', () => {
 describe('reading the account', () => {
   it("says a free account's level cap", () => {
     expect(parseUser({ data: { username: 'x', level: 2, subscription: { max_level_granted: 3 }, current_vacation_started_at: '2026-11-01T00:00:00Z' } }))
-      .toEqual({ username: 'x', level: 2, maxLevel: 3, onVacation: true });
+      .toEqual({ username: 'x', level: 2, maxLevel: 3, onVacation: true, lessonBatch: 5 });
     expect(parseUser({ data: {} })).toBeNull();
   });
 

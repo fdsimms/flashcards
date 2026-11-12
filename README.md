@@ -101,7 +101,9 @@ Your WaniKani reviews and lessons as one more deck, after the Anki decks: review
 
 **Answers** are typed as on WaniKani (romaji turns into kana for a reading; small typos in a meaning are allowed, and your own synonyms count), or shown and rated Again or Good. Meaning and reading can be asked as two questions or one. A missed question comes back later in the session, and the item goes to WaniKani once both are right, with how many times each was missed. **Undo** takes back answers until the next item is sent; the latest finished item is held until you answer the next card or leave. Answers given offline are kept and sent once WaniKani can be reached.
 
-**Lessons** come after the reviews, up to the lessons per day in WaniKani's options (lessons done on wanikani.com that day count too). A lesson shows the item with its mnemonics, and **Got it** starts it on WaniKani.
+**Lessons** come after the reviews, up to the lessons per day in WaniKani's options (lessons done on wanikani.com that day count too), in batches the size of your WaniKani lesson batch setting. Each item of a batch is shown with its mnemonics, then the batch is quizzed, and an item starts on WaniKani once its quiz answers are right. Quiz misses are asked again but don't count against it, as on WaniKani.
+
+**Stats** counts WaniKani answers given in Franki with the rest, and the **WaniKani** chip shows them alone (answers given on wanikani.com aren't included).
 
 **Production cards:** when a WaniKani word reaches Guru, Franki adds an English to Japanese card for it to your Anki deck (an Omnilanguage note with only the Reverse card, with WaniKani's recording and an example sentence, tagged `wanikani`). These are ordinary Anki cards, scheduled by FSRS and synced like the rest; WaniKani never sees them. The deck is chosen in WaniKani's options (the deck named 日本語 to start).
 

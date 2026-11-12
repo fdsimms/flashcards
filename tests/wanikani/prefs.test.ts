@@ -28,8 +28,10 @@ describe('options', () => {
 
 describe('answers waiting to be sent', () => {
   it('reads back what was saved, dropping anything malformed', () => {
-    expect(parseState(JSON.stringify({ outbox: [review(1), { kind: 'x' }], made: [1, 'a'] }))).toEqual({ outbox: [review(1)], made: [1] });
-    expect(parseState(null)).toEqual({ outbox: [], made: [] });
+    const entry = { at: '2026-11-12T12:00:00.000Z', assignmentId: 1, kind: 'review', wrong: 0, takenMs: 5000 };
+    expect(parseState(JSON.stringify({ outbox: [review(1), { kind: 'x' }], made: [1, 'a'], log: [entry, { at: 1 }] })))
+      .toEqual({ outbox: [review(1)], made: [1], log: [entry] });
+    expect(parseState(null)).toEqual({ outbox: [], made: [], log: [] });
   });
 
   it('sends in order, drops what WaniKani refuses, and stops when it cannot reach it', async () => {

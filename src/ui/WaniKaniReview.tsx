@@ -72,7 +72,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         setSubjects(read);
         setSynonyms(syn);
         setTyping(typed);
-        setStudy(startStudy(buildSession(items, { mode: questionMode(prefs.answer, prefs.separate) })));
+        setStudy(startStudy(buildSession(items, { mode: questionMode(prefs.answer, prefs.separate), lessonBatch: user.lessonBatch })));
       } catch (e) {
         if (!gone) setError(problemText(e instanceof WaniKaniError ? e.problem : 'unavailable'));
       }
@@ -120,12 +120,22 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     setRetry(null);
   };
 
+  // Time on each item, for Stats: from when each question came up to its answer, at most a minute
+  // a question (as Anki caps an answer's time), added up over the item's questions.
+  const shownAt = useRef(Date.now());
+  const itemMs = useRef(new Map<number, number>());
+  useEffect(() => { shownAt.current = Date.now(); }, [question, study?.session.queue.length]);
+
   const answer = (correct: boolean) => {
-    if (!study) return;
+    if (!study || !question) return;
     haptic.answer();
+    const ms = (itemMs.current.get(question.assignmentId) ?? 0) + Math.min(60_000, Date.now() - shownAt.current);
+    itemMs.current.set(question.assignmentId, ms);
     const r = studyAnswer(study, correct, new Date());
+    // The outcome this answer made (if it finished an item) is the one now held: it gets the item's time.
+    const held = r.study.held ? { ...r.study.held, takenMs: ms } : null;
     send(r.send);
-    setStudy(r.study);
+    setStudy({ ...r.study, held });
     resetQuestion();
     if (!currentQuestion(r.study.session)) haptic.success();
   };
@@ -210,17 +220,18 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
 
   const label = lesson
     ? `New ${SUBJECT_TYPE_NAMES[subject.type].toLowerCase()} · Level ${subject.level}`
-    : `${SUBJECT_TYPE_NAMES[subject.type]}${question.kind === 'meaning' && item.asksReading ? ' meaning' : question.kind === 'reading' ? ' reading' : ''} · Level ${subject.level}`;
+    : `${item.lesson ? 'Lesson quiz · ' : ''}${SUBJECT_TYPE_NAMES[subject.type]}${question.kind === 'meaning' && item.asksReading ? ' meaning' : question.kind === 'reading' ? ' reading' : ''}${item.lesson ? '' : ` · Level ${subject.level}`}`;
   const system = srs.get(subject.srsId);
   const wrong = wrongSoFar(study.session, item.assignmentId);
   // Whether a right answer now finishes the item (and so what Good does to it).
-  const finishes = question.kind === 'both' || question.kind === 'lesson' || (question.kind === 'meaning' ? progress?.reading : progress?.meaning);
+  const finishes = question.kind === 'both' || (question.kind === 'meaning' ? progress?.reading : progress?.meaning);
+  // A lesson quiz's miss only asks again; a review's moves the item down.
+  const againDetail = item.lesson ? 'Asked again' : outcomeText(nextStage(item.srsStage, wrong + 1, system), system);
 
   let footer: React.ReactNode;
   if (lesson) {
-    footer = (
-      <RateButton label="Got it" detail={outcomeText(1, system)} color={c.good} onPress={() => answer(true)} />
-    );
+    // The last lesson of a batch leads into its quiz.
+    footer = <Button label={study.session.queue[1]?.kind === 'lesson' ? 'Next' : 'Start the quiz'} onPress={() => answer(true)} />;
   } else if (typing) {
     const result = verdict?.result;
     footer = (
@@ -263,7 +274,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   } else {
     footer = (
       <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
-        <RateButton label="Again" detail={outcomeText(nextStage(item.srsStage, wrong + 1, system), system)} color={c.again} onPress={() => answer(false)} />
+        <RateButton label="Again" detail={againDetail} color={c.again} onPress={() => answer(false)} />
         <RateButton
           label="Good"
           detail={finishes ? outcomeText(nextStage(item.srsStage, wrong, system), system) : question.kind === 'meaning' ? 'Reading to come' : 'Meaning to come'}

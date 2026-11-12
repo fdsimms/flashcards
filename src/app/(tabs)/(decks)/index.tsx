@@ -38,13 +38,14 @@ export default function DecksRoute() {
       extra={wanikani.on ? {
         due: wanikani.counts?.reviews ?? 0,
         fresh: wanikani.counts?.lessons ?? 0,
+        refresh: () => wanikani.refresh(true),
         node: <WaniKaniDeck wanikani={wanikani} onOpen={() => router.push('/wanikani')} onOptions={() => router.push('/wanikani-settings')} />,
       } : undefined}
       sync={syncSettings?.enabled ? {
         syncing,
         status: syncStatusText(syncSettings, new Date()),
         failed: !!syncSettings.lastError,
-        onSync: () => { wanikani.refresh(true); return sync(); },
+        onSync: () => sync(),
       } : undefined}
     />
   );

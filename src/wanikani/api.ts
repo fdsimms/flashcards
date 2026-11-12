@@ -62,17 +62,21 @@ export interface WaniKaniUser {
   /** Levels the subscription opens: 3 on a free account. Items above it must not be studied. */
   maxLevel: number;
   onVacation: boolean;
+  /** Lessons shown before each quiz (the account's lesson batch size). */
+  lessonBatch: number;
 }
 
 export function parseUser(body: unknown): WaniKaniUser | null {
   const d = (body as { data?: Record<string, unknown> })?.data;
   if (!d || typeof d.username !== 'string' || typeof d.level !== 'number') return null;
   const sub = d.subscription as { max_level_granted?: unknown } | undefined;
+  const batch = (d.preferences as { lessons_batch_size?: unknown } | undefined)?.lessons_batch_size;
   return {
     username: d.username,
     level: d.level,
     maxLevel: typeof sub?.max_level_granted === 'number' ? sub.max_level_granted : 60,
     onVacation: typeof d.current_vacation_started_at === 'string',
+    lessonBatch: typeof batch === 'number' && batch >= 1 ? Math.min(Math.floor(batch), 10) : 5,
   };
 }
 

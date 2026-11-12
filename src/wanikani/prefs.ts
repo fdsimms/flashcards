@@ -1,4 +1,5 @@
 import { WaniKaniError, type WaniKaniProblem } from './api';
+import { parseLog, type LogEntry } from './log';
 import type { Outcome } from './session';
 
 /** WaniKani's options in Franki: this phone's own, kept beside the token (storage.ts). */
@@ -45,12 +46,14 @@ export function lessonsToday(available: number, newPerDay: number, startedToday:
 }
 
 /**
- * Answers waiting to reach WaniKani (kept in a file, so one given offline isn't lost), and the
- * production notes already made. Both survive closing the app.
+ * Answers waiting to reach WaniKani (kept in a file, so one given offline isn't lost), the
+ * production notes already made, and the answers given here (for Stats). All survive closing the app.
  */
 export interface WaniKaniState {
   outbox: Outcome[];
   made: number[];
+  /** Answers given here, for Stats. */
+  log: LogEntry[];
 }
 
 export function parseState(raw: string | null | undefined): WaniKaniState {
@@ -59,9 +62,10 @@ export function parseState(raw: string | null | undefined): WaniKaniState {
     return {
       outbox: Array.isArray(o?.outbox) ? o.outbox.filter(isOutcome) : [],
       made: Array.isArray(o?.made) ? o.made.filter((x: unknown) => typeof x === 'number') : [],
+      log: parseLog(o?.log),
     };
   } catch {
-    return { outbox: [], made: [] };
+    return { outbox: [], made: [], log: [] };
   }
 }
 

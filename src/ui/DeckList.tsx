@@ -178,8 +178,11 @@ export function DeckList(props: {
   /** Decks whose subdecks are hidden: Anki's own collapsed state, shared through sync. */
   collapsed?: Set<string>;
   onToggleCollapsed?: (deck: string) => void;
-  /** A deck that isn't Anki's (WaniKani, WaniKaniDeck.tsx), shown after the Anki decks and counted in today's totals. */
-  extra?: { node: React.ReactNode; due: number; fresh: number };
+  /**
+   * A deck that isn't Anki's (WaniKani, WaniKaniDeck.tsx), shown after the Anki decks and counted
+   * in today's totals. `refresh` reads its counts again: on a pull, and with the sync button.
+   */
+  extra?: { node: React.ReactNode; due: number; fresh: number; refresh: () => Promise<unknown> };
 }) {
   const c = useTheme();
   const shown = useMemo(() => shownDeckRows(props.decks, props.collapsed ?? new Set()), [props.decks, props.collapsed]);
@@ -214,7 +217,7 @@ export function DeckList(props: {
       toolbar={
         <Stack.Toolbar placement="right">
           {props.sync ? (
-            <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={props.sync.syncing} accessibilityLabel={props.sync.syncing ? 'Syncing' : 'Sync now'} onPress={props.sync.onSync} />
+            <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={props.sync.syncing} accessibilityLabel={props.sync.syncing ? 'Syncing' : 'Sync now'} onPress={() => { props.extra?.refresh(); props.sync?.onSync(); }} />
           ) : null}
           <Stack.Toolbar.Button icon="rectangle.stack.badge.plus" accessibilityLabel="New deck" onPress={props.onNewDeck} />
           <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} />
@@ -225,15 +228,16 @@ export function DeckList(props: {
       <ScrollView
         {...drag.scrollProps}
         contentInsetAdjustmentBehavior="automatic"
-        // Pull down to sync, when sync is on. Always mounted: sync's settings load a moment after
-        // the screen opens, and a refresh control added then moved the content down and showed the
-        // large title that had been scrolled out of view at launch. Without sync a pull does nothing.
+        // Pull down to sync, when sync is on, and to read WaniKani's counts again. Always mounted:
+        // sync's settings load a moment after the screen opens, and a refresh control added then
+        // moved the content down and showed the large title that had been scrolled out of view at
+        // launch. With neither, a pull does nothing.
         refreshControl={(
           <RefreshControl
             refreshing={pulling}
             onRefresh={async () => {
               setPulling(true);
-              try { await props.sync?.onSync(); } finally { setPulling(false); }
+              try { await Promise.all([props.sync?.onSync(), props.extra?.refresh()]); } finally { setPulling(false); }
             }}
             tintColor={c.textSecondary}
           />

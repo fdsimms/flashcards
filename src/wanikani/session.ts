@@ -3,8 +3,11 @@ import { asksReading, type Assignment, type Subject } from './subjects';
 /**
  * A WaniKani study session, as WaniKani runs one: each item is asked until it's answered right,
  * a wrong answer puts the question back a few cards later, and the item's review goes to WaniKani
- * once both its meaning and reading are right, with how many times each was missed. A lesson is
- * shown once and started.
+ * once both its meaning and reading are right, with how many times each was missed.
+ *
+ * Lessons come after the reviews in batches (WaniKani's lesson batch size): each item of a batch
+ * is shown (a `lesson` question), then the batch is quizzed like a review, and an item starts on
+ * WaniKani once its quiz answers are right. Quiz misses don't count against it, as on WaniKani.
  *
  * How an item with a reading is asked (`QuestionMode`): `together`, one question covers meaning and
  * reading (flip mode; Again counts as one wrong meaning); `apart`, two questions anywhere in the
@@ -49,10 +52,13 @@ export interface Session {
   finished: number[];
 }
 
-/** What WaniKani is told once an item is finished. `at` is when, for the request's timestamp. */
+/**
+ * What WaniKani is told once an item is finished. `at` is when, for the request's timestamp;
+ * `takenMs`, the time spent on it, is only for Stats (log.ts) and isn't sent.
+ */
 export type Outcome =
-  | { kind: 'review'; assignmentId: number; subjectId: number; srsStage: number; wrongMeaning: number; wrongReading: number; at: string }
-  | { kind: 'start'; assignmentId: number; subjectId: number; at: string };
+  | { kind: 'review'; assignmentId: number; subjectId: number; srsStage: number; wrongMeaning: number; wrongReading: number; at: string; takenMs?: number }
+  | { kind: 'start'; assignmentId: number; subjectId: number; at: string; takenMs?: number };
 
 /** A shuffled copy of `items` (Fisher-Yates), with the random source given so tests can pin it. */
 export function shuffled<T>(items: readonly T[], random: () => number): T[] {
@@ -96,7 +102,10 @@ export function questionMode(answer: 'type' | 'flip', separate: boolean): Questi
  * A session over `items`: reviews first, shuffled (WaniKani's default order), then lessons in the
  * order given. Asked apart, an item's meaning and reading are shuffled in with everything else.
  */
-export function buildSession(items: SessionItem[], opts: { mode: QuestionMode }, random: () => number = Math.random): Session {
+/** Lessons shown before each quiz when WaniKani's own batch size isn't known. */
+export const LESSON_BATCH = 5;
+
+export function buildSession(items: SessionItem[], opts: { mode: QuestionMode; lessonBatch?: number }, random: () => number = Math.random): Session {
   const reviews = items.filter((i) => !i.lesson);
   const lessons = items.filter((i) => i.lesson);
   const questionsOf = (i: SessionItem): Question[] => {
@@ -104,12 +113,18 @@ export function buildSession(items: SessionItem[], opts: { mode: QuestionMode },
     if (opts.mode === 'together') return [{ assignmentId: i.assignmentId, kind: 'both' }];
     return [{ assignmentId: i.assignmentId, kind: 'meaning' }, { assignmentId: i.assignmentId, kind: 'reading' }];
   };
-  const reviewQuestions = opts.mode === 'apart'
-    ? shuffled(reviews.flatMap(questionsOf), random)
-    : shuffled(reviews, random).flatMap(questionsOf);
+  const quiz = (group: SessionItem[]) => (opts.mode === 'apart'
+    ? shuffled(group.flatMap(questionsOf), random)
+    : shuffled(group, random).flatMap(questionsOf));
+  const batch = Math.max(1, opts.lessonBatch ?? LESSON_BATCH);
+  const lessonQuestions: Question[] = [];
+  for (let i = 0; i < lessons.length; i += batch) {
+    const group = lessons.slice(i, i + batch);
+    lessonQuestions.push(...group.map((l): Question => ({ assignmentId: l.assignmentId, kind: 'lesson' })), ...quiz(group));
+  }
   return {
     items: Object.fromEntries(items.map((i) => [i.assignmentId, i])),
-    queue: [...reviewQuestions, ...lessons.map((i): Question => ({ assignmentId: i.assignmentId, kind: 'lesson' }))],
+    queue: [...quiz(reviews), ...lessonQuestions],
     progress: Object.fromEntries(items.map((i) => [i.assignmentId, { meaning: false, reading: !i.asksReading, wrongMeaning: 0, wrongReading: 0, finished: false }])),
     finished: [],
   };
@@ -119,9 +134,14 @@ export function currentQuestion(s: Session): Question | undefined {
   return s.queue[0];
 }
 
-/** How far back a missed question goes: a few cards later, as WaniKani does, or last when few are left. */
-function requeueAt(remaining: number, random: () => number): number {
-  return Math.min(remaining, 3 + Math.floor(random() * 8));
+/**
+ * How far back a missed question goes: a few cards later, as WaniKani does, but never past the
+ * next lesson shown, so a missed review is asked again before the lessons, and a lesson quiz's
+ * question within its own batch.
+ */
+function requeueAt(rest: Question[], random: () => number): number {
+  const nextLesson = rest.findIndex((q) => q.kind === 'lesson');
+  return Math.min(nextLesson === -1 ? rest.length : nextLesson, 3 + Math.floor(random() * 8));
 }
 
 /**
@@ -134,16 +154,12 @@ export function answerQuestion(s: Session, correct: boolean, at: Date, random: (
   const item = s.items[q.assignmentId];
   const before = s.progress[q.assignmentId];
   const rest = s.queue.slice(1);
-  if (q.kind === 'lesson') {
-    return {
-      session: { ...s, queue: rest, progress: { ...s.progress, [q.assignmentId]: { ...before, meaning: true, reading: true, finished: true } }, finished: [...s.finished, q.assignmentId] },
-      outcome: { kind: 'start', assignmentId: item.assignmentId, subjectId: item.subjectId, at: at.toISOString() },
-    };
-  }
+  // Seeing a lesson is the lesson; its quiz comes after the batch.
+  if (q.kind === 'lesson') return { session: { ...s, queue: rest } };
   if (!correct) {
     const p = q.kind === 'reading' ? { ...before, wrongReading: before.wrongReading + 1 } : { ...before, wrongMeaning: before.wrongMeaning + 1 };
     const queue = [...rest];
-    queue.splice(requeueAt(rest.length, random), 0, q);
+    queue.splice(requeueAt(rest, random), 0, q);
     return { session: { ...s, queue, progress: { ...s.progress, [q.assignmentId]: p } } };
   }
   const p: Progress = {
@@ -152,8 +168,10 @@ export function answerQuestion(s: Session, correct: boolean, at: Date, random: (
     reading: before.reading || q.kind !== 'meaning',
   };
   if (!(p.meaning && p.reading)) return { session: { ...s, queue: rest, progress: { ...s.progress, [q.assignmentId]: p } } };
+  const session = { ...s, queue: rest, progress: { ...s.progress, [q.assignmentId]: { ...p, finished: true } }, finished: [...s.finished, q.assignmentId] };
+  if (item.lesson) return { session, outcome: { kind: 'start', assignmentId: item.assignmentId, subjectId: item.subjectId, at: at.toISOString() } };
   return {
-    session: { ...s, queue: rest, progress: { ...s.progress, [q.assignmentId]: { ...p, finished: true } }, finished: [...s.finished, q.assignmentId] },
+    session,
     outcome: {
       kind: 'review', assignmentId: item.assignmentId, subjectId: item.subjectId, srsStage: item.srsStage,
       wrongMeaning: p.wrongMeaning, wrongReading: p.wrongReading, at: at.toISOString(),

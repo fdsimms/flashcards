@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { studyDayStart } from '../core/day';
 import { hasMedia, readMedia, writeMedia } from '../media/mediaFiles';
 import { createWaniKaniApi, WaniKaniError, type WaniKaniApi, type WaniKaniProblem, type WaniKaniUser } from '../wanikani/api';
+import { logOutcomes, type LogEntry } from '../wanikani/log';
 import { DEFAULT_PREFS, flushOutbox, lessonsToday, type WaniKaniPrefs } from '../wanikani/prefs';
 import { suggestedDeck } from '../wanikani/production';
 import { makeProductionNotes } from '../wanikani/productionService';
@@ -37,6 +38,8 @@ export interface WaniKaniState {
   send: (outcomes: Outcome[]) => void;
   /** Answers given here that haven't reached WaniKani yet. */
   unsent: number;
+  /** Answers given here over the last year, for Stats (log.ts). */
+  log: LogEntry[];
   /** The deck production cards go in: the one chosen, or the Japanese deck. */
   productionDeck?: string;
   /** Production notes: how many words still wait for one, and why none could be made. */
@@ -62,8 +65,9 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   const [unsent, setUnsent] = useState(0);
   const [production, setProduction] = useState<{ waiting: number; refused?: string }>({ waiting: 0 });
   const [decks, setDecks] = useState<string[]>([]);
+  const [log, setLog] = useState<LogEntry[]>([]);
   // What's kept in the state file, read once; written back on every change.
-  const stored = useRef<{ outbox: Outcome[]; made: Set<number> } | null>(null);
+  const stored = useRef<{ outbox: Outcome[]; made: Set<number>; log: LogEntry[] } | null>(null);
   const lastCounts = useRef(0);
   const lastProduction = useRef(0);
   const flushing = useRef<Promise<void> | null>(null);
@@ -71,8 +75,9 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
 
   useEffect(() => {
     Promise.all([loadToken(), loadPrefs(), loadState()]).then(([t, p, s]) => {
-      stored.current = { outbox: s.outbox, made: new Set(s.made) };
+      stored.current = { outbox: s.outbox, made: new Set(s.made), log: s.log };
       setUnsent(s.outbox.length);
+      setLog(s.log);
       setPrefsState(p);
       setToken(t ?? null);
     }, () => setToken(null));
@@ -81,7 +86,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   const api = useMemo(() => (token ? createWaniKaniApi(token) : null), [token]);
   const persist = () => {
     const s = stored.current;
-    if (s) saveState({ outbox: s.outbox, made: [...s.made] });
+    if (s) saveState({ outbox: s.outbox, made: [...s.made], log: s.log });
   };
 
   const setPrefs = useCallback((change: Partial<WaniKaniPrefs>) => {
@@ -117,6 +122,9 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   const send = useCallback((outcomes: Outcome[]) => {
     if (!outcomes.length || !stored.current) return;
     stored.current.outbox.push(...outcomes);
+    // Logged once final (handed over to send), so an answer taken back with Undo never counts.
+    stored.current.log = logOutcomes(stored.current.log, outcomes, new Date());
+    setLog(stored.current.log);
     persist();
     setUnsent(stored.current.outbox.length);
     flush();
@@ -205,6 +213,6 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     on: token === undefined ? null : !!token,
     api, user,
     counts: counts ? { reviews: counts.reviews, lessons: lessonsToday(counts.available, prefs.newPerDay, startedToday) } : null,
-    problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, productionDeck, production, startedToday, dayStartsAtHour,
-  }), [token, api, user, counts, problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, productionDeck, production, startedToday, dayStartsAtHour]);
+    problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, log, productionDeck, production, startedToday, dayStartsAtHour,
+  }), [token, api, user, counts, problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, log, productionDeck, production, startedToday, dayStartsAtHour]);
 }

@@ -40,10 +40,15 @@ describe('building a session', () => {
     expect(questionMode('flip', true)).toBe('apart');
   });
 
-  it('puts lessons after the reviews', () => {
+  it('puts lessons after the reviews, each batch shown and then quizzed', () => {
     const s = buildSession([lesson, vocab], { mode: 'together' }, first);
-    expect(s.queue.map((q) => q.kind)).toEqual(['both', 'lesson']);
+    expect(s.queue.map((q) => q.kind)).toEqual(['both', 'lesson', 'both']);
     expect(remaining(s)).toEqual({ reviews: 1, lessons: 1 });
+    const lessons = [3, 4, 5].map((n): SessionItem => ({ ...lesson, assignmentId: n, subjectId: n }));
+    const batched = buildSession(lessons, { mode: 'apart', lessonBatch: 2 }, first).queue;
+    expect(batched.map((q) => (q.kind === 'lesson' ? `show ${q.assignmentId}` : q.assignmentId))).toEqual([
+      'show 3', 'show 4', 3, 4, 4, 3, 'show 5', 5, 5,
+    ]);
   });
 
   it('shuffles every item into the result exactly once', () => {
@@ -100,10 +105,33 @@ describe('answering', () => {
     expect(r.outcome).toMatchObject({ kind: 'review', wrongMeaning: 1, wrongReading: 0 });
   });
 
-  it('starts a lesson when it is seen', () => {
-    const r = answerQuestion(buildSession([lesson], { mode: 'apart' }, first), true, at, first);
+  it('starts a lesson once its quiz is answered right, whatever was missed on the way', () => {
+    let r = answerQuestion(buildSession([lesson], { mode: 'together' }, first), true, at, first);
+    expect(r.outcome).toBeUndefined();
+    expect(currentQuestion(r.session)).toEqual({ assignmentId: 3, kind: 'both' });
+    r = answerQuestion(r.session, false, at, first);
+    expect(r.outcome).toBeUndefined();
+    expect(remaining(r.session)).toEqual({ reviews: 0, lessons: 1 });
+    r = answerQuestion(r.session, true, at, first);
     expect(r.outcome).toEqual({ kind: 'start', assignmentId: 3, subjectId: 103, at: at.toISOString() });
     expect(remaining(r.session)).toEqual({ reviews: 0, lessons: 0 });
+  });
+
+  it('asks a missed review again before the lessons, and a missed quiz question within its batch', () => {
+    const items = [1, 2].map((n): SessionItem => ({ assignmentId: n, subjectId: n, srsStage: 1, asksReading: false, lesson: false }));
+    const lessons = [3, 4].map((n): SessionItem => ({ ...lesson, assignmentId: n, subjectId: n, asksReading: false }));
+    let s = buildSession([...items, ...lessons], { mode: 'apart', lessonBatch: 1 }, first);
+    const missed = s.queue[0];
+    ({ session: s } = answerQuestion(s, false, at, first));
+    expect(s.queue.indexOf(missed)).toBe(1);
+    expect(s.queue[2].kind).toBe('lesson');
+    // Through to the first lesson's quiz question, then miss it.
+    ({ session: s } = answerQuestion(s, true, at, first));
+    ({ session: s } = answerQuestion(s, true, at, first));
+    ({ session: s } = answerQuestion(s, true, at, first));
+    expect(currentQuestion(s)).toEqual({ assignmentId: 3, kind: 'meaning' });
+    ({ session: s } = answerQuestion(s, false, at, first));
+    expect(s.queue.map((q) => [q.assignmentId, q.kind])).toEqual([[3, 'meaning'], [4, 'lesson'], [4, 'meaning']]);
   });
 
   it('puts a missed question a few places back', () => {
