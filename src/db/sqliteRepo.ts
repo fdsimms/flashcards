@@ -289,6 +289,18 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     async saveFormsAnswerMode(mode) {
       await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('forms_answer_mode', ?)", mode);
     },
+    async grammarHintsDismissed() {
+      const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'grammar_hints_dismissed'");
+      try {
+        const parsed: unknown = r ? JSON.parse(r.value) : {};
+        return parsed && typeof parsed === 'object' ? (parsed as Record<string, string>) : {};
+      } catch {
+        return {};
+      }
+    },
+    async saveGrammarHintsDismissed(dismissed) {
+      await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('grammar_hints_dismissed', ?)", JSON.stringify(dismissed));
+    },
     async voiceSettings() {
       const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'voices'");
       return parseVoiceSettings(r?.value);

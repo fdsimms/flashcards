@@ -343,7 +343,7 @@ describe('grammar points in forms practice (docs/grammar.md)', () => {
 
   it('names the grammar point on the prompt, for after the answer', () => {
     const p = promptFor(esperar(), forms[4], [], seeded());
-    expect(p.grammar).toEqual({ name: 'Preterite', note: 'Finished past events: hablé, comió, fueron' });
+    expect(p.grammar).toEqual({ id: 'es.preterite', name: 'Preterite', note: 'Finished past events: hablé, comió, fueron' });
     expect(promptFor(esperar(), forms[0], [], seeded()).grammar).toBeUndefined();
   });
 

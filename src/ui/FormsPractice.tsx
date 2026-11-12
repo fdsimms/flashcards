@@ -20,9 +20,16 @@ const NAMED_WORDS = 7;
  * Practicing forms across a deck: one pattern (a VerbClass, or nouns) and some kinds of form at a
  * time, with words already studied, so the practice is about the forms rather than new words.
  * `onStart` opens the drill (`FormsDrill`) for the choices made. It starts with the kinds of form
- * of grammar practiced in Read & Listen (`readerApi`, null while it's off), and says so.
+ * of grammar practiced in Read & Listen (`readerApi`, null while it's off), and says so, or, opened
+ * from a grammar point's page, with that point's (`startGroups`) and every pattern.
  */
-export function FormsPractice({ repo, readerApi, deck, onStart }: { repo: Repo; readerApi: Api | null; deck: string; onStart: (request: DrillRequest) => void }) {
+export function FormsPractice({ repo, readerApi, deck, startGroups, onStart }: {
+  repo: Repo;
+  readerApi: Api | null;
+  deck: string;
+  startGroups?: string[];
+  onStart: (request: DrillRequest) => void;
+}) {
   const c = useTheme();
   const [words, setWords] = useState<PracticeWord[] | null>(null);
   const [patterns, setPatterns] = useState<string[]>([]);
@@ -45,6 +52,12 @@ export function FormsPractice({ repo, readerApi, deck, onStart }: { repo: Repo; 
       const line = practicedGroupsLine(practiced.points);
       setWords(mine);
       setAnswering(mode);
+      const asked = startGroups ? choices.groups.filter((g) => startGroups.some((s) => s.toLocaleLowerCase() === g.toLocaleLowerCase())) : [];
+      if (asked.length) {
+        setPatterns(choices.patterns);
+        setGroups(asked);
+        return;
+      }
       setPatterns(choices.patterns.slice(0, 1));
       setGroups(practiced.groups.length ? practiced.groups : choices.groups.slice(0, 1));
       setPreselected(line ? { groups: practiced.groups, line } : undefined);

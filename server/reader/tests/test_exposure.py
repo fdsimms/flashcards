@@ -8,7 +8,7 @@ from test_grammar import ES, Model, draft
 from franki_reader import store
 from franki_reader.difficulty import Difficulty
 from franki_reader.engine import Engine
-from franki_reader.exposure import Exposure, exposure, review_points, unset_points
+from franki_reader.exposure import Exposure, examples, exposure, review_points, unset_points
 from franki_reader.generator import TextRequest, generate
 from franki_reader.store import Reading
 
@@ -103,3 +103,43 @@ def test_the_request_works_in_known_points_and_caps_unmarked_ones() -> None:
     # A text written to work them in counts as their latest turn, read or not.
     write(conn, "Hoy|hablo.", at=NOW + timedelta(hours=1), review=request.review)
     assert e._request("t", [], Difficulty(), "es").review == ("es.preterite", "es.imperfect")
+
+
+def test_a_points_examples_are_lines_from_texts_read_the_latest_first() -> None:
+    conn = connect()
+    old = write(conn, "Hoy|hablo.", "Ayer|hablé|con|Ana.", "Y|ella|dijo|algo.")
+    new = write(conn, "Fuimos|al|mercado.")
+    read(conn, old, NOW - timedelta(days=3))
+    read(conn, new, NOW)
+    read(conn, write(conn, "Ayer|comí|mucho."), NOW, finished=False)  # stopped partway
+    found = examples(conn, ES, "es.preterite")
+    assert [(e.text_id, e.line, e.words) for e in found] == [
+        (new, "Fuimos al mercado.", ("fuimos",)),
+        (old, "Ayer hablé con Ana.", ("hablé",)),  # one line a text: its first with the point
+    ]
+    assert found[0].english and found[0].title
+    assert examples(conn, ES, "es.future") == []
+    assert len(examples(conn, ES, "es.preterite", limit=1)) == 1
+
+
+def test_a_points_page_from_the_api() -> None:
+    from fastapi.testclient import TestClient
+
+    from franki_reader.app import create_app
+
+    conn = connect()
+    read(conn, write(conn, "Ayer|hablé|con|Ana."), NOW)
+    store.set_grammar(conn, "es.imperfect", "normal")
+    c = TestClient(create_app(Engine(conn, None, None, lambda: NOW, random.Random(1)), "p"))
+    auth = {"Authorization": "Bearer p"}
+    body = c.get("/api/grammar/es.preterite", headers=auth).json()
+    assert body["id"] == "es.preterite" and body["state"] == "unset"
+    assert body["seen"]["texts"] == 1 and body["seen"]["uses"] == 1
+    assert body["choices"]["es.imperfect"] == "normal" and "th.ever" not in body["choices"]
+    assert [(e["line"], e["words"]) for e in body["examples"]] == [
+        ("Ayer hablé con Ana.", ["hablé"])
+    ]
+    assert c.get("/api/grammar/es.nope", headers=auth).status_code == 404
+    assert c.get("/api/grammar/es.preterite").status_code == 401
+    # The route for every choice still answers, not taken for a point's id.
+    assert "choices" in c.get("/api/grammar/choices", headers=auth).json()

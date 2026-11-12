@@ -35,6 +35,17 @@ export type GrammarChoice = Exclude<GrammarState, 'unset'>;
 // How often a point came up in texts read to the end. Absent from a server older than it.
 export type GrammarSeen = { texts: number; uses: number; last: string | null };
 
+// A grammar point's page (docs/grammar.md, step 4): its choice, how often it came up, its language's
+// choices (for the related points), and lines using it from texts read, the latest first.
+export type GrammarExample = { text_id: number; title: string; line: string; english: string; words: string[] };
+export type GrammarPointPage = {
+  id: string;
+  state: GrammarState;
+  seen: GrammarSeen;
+  choices: Record<string, GrammarState>;
+  examples: GrammarExample[];
+};
+
 export type GrammarPoint = { id: string; name: string; note: string; state: GrammarState; seen?: GrammarSeen };
 
 // `least`: the known points the next texts are asked to work in, least seen first.
@@ -267,6 +278,7 @@ export function createApi(
     progress: () => call<Progress>('GET', '/api/progress'),
     markedWords: () => call<MarkedWord[]>('GET', '/api/words'),
     grammar: () => call<GrammarList>('GET', '/api/grammar'),
+    grammarPoint: (id: string) => call<GrammarPointPage>('GET', `/api/grammar/${encodeURIComponent(id)}`),
     // Every language's choices by point id (a point not set isn't listed), for Forms practice.
     grammarChoices: () => call<{ choices: Record<string, GrammarChoice> }>('GET', '/api/grammar/choices'),
     setGrammar: (id: string, state: GrammarChoice) =>

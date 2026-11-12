@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { ApiError, type Api, type ExplainPoint, type GrammarChoice, type GrammarState, type LineGrammar } from '../reader/api';
 import { GRAMMAR_CHOICES, grammarStateWord } from '../reader/grammar';
-import { Tappable, ErrorNote, Segments } from './kit';
+import { HeaderAction, Tappable, ErrorNote, Segments } from './kit';
 import { haptic } from './haptics';
 import { radius, space, type, useTheme } from './theme';
 
@@ -13,12 +13,14 @@ import { radius, space, type, useTheme } from './theme';
  * in the line (docs/grammar.md, step 3). Nothing here grades a word or touches a card.
  * `grammarChosen` is what the reader has seen chosen this session, here or in a word's popover.
  */
-export function LineExplanation({ api, textId, line, grammarChosen, onGrammarChosen }: {
+export function LineExplanation({ api, textId, line, grammarChosen, onGrammarChosen, onOpenGrammar }: {
   api: Api;
   textId: number;
   line: number;
   grammarChosen: Record<string, GrammarChoice>;
   onGrammarChosen: (id: string, state: GrammarChoice) => void;
+  /** Opens a grammar point's page. */
+  onOpenGrammar: (id: string) => void;
 }) {
   const c = useTheme();
   const [simple, setSimple] = useState(false);
@@ -76,7 +78,7 @@ export function LineExplanation({ api, textId, line, grammarChosen, onGrammarCho
               <Text style={{ ...type.footnote, color: c.text }}>Explain more simply</Text>
             </Tappable>
           )}
-          <GrammarInLine api={api} grammar={grammar} chosen={grammarChosen} onChosen={onGrammarChosen} />
+          <GrammarInLine api={api} grammar={grammar} chosen={grammarChosen} onChosen={onGrammarChosen} onOpen={onOpenGrammar} />
         </>
       )}
     </View>
@@ -87,11 +89,12 @@ export function LineExplanation({ api, textId, line, grammarChosen, onGrammarCho
  * "Grammar in this line": a chip for each point the server's finders found in it, with its choice.
  * Tapping one shows the point's note and the choice to change it there, as on the Grammar screen.
  */
-function GrammarInLine({ api, grammar, chosen, onChosen }: {
+function GrammarInLine({ api, grammar, chosen, onChosen, onOpen }: {
   api: Api;
   grammar: LineGrammar[];
   chosen: Record<string, GrammarChoice>;
   onChosen: (id: string, state: GrammarChoice) => void;
+  onOpen: (id: string) => void;
 }) {
   const c = useTheme();
   const [open, setOpen] = useState<string | null>(null);
@@ -154,6 +157,9 @@ function GrammarInLine({ api, grammar, chosen, onChosen }: {
             onChange={(state) => { if (state !== 'unset') choose(shown, state); }}
           />
           <Text style={{ ...type.footnote, color: c.textSecondary }}>Applies from the next text written.</Text>
+          <View style={{ alignSelf: 'flex-start' }}>
+            <HeaderAction label={`More about ${shown.name}`} onPress={() => onOpen(shown.id)} />
+          </View>
         </View>
       ) : null}
       {error ? <ErrorNote message={error} /> : null}

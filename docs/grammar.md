@@ -28,6 +28,12 @@ Each point has:
   (`grammarPointForForms`). A group links to one point at most in a language. Groups the MCP's
   Forms fill writes are checked against it (`server/mcp/tests/test_forms.py`); a hand-written group
   in another language just needs the same spelling.
+- **`explanation`**: the point's page text: when to use it, how it's formed and what it's confused
+  with, with examples and their English. Paragraphs are split by a blank line, and `**...**` marks
+  words in the language (`explanationParagraphs`). User-facing, so the same copy rules; the test
+  checks every point has one, with marked words, closed `**` and no em dashes. Written for the
+  owner to check, each a few short paragraphs; keep a new one in the same style.
+- **`related`**: points worth comparing it with, by id, in the same language (the test checks).
 
 Each point's **finder** stays code, in `grammar.py` and `grammar_europe.py`, keyed by id. The server
 won't start if a point has no finder or a finder has no point (`_load`), so a point can't be offered
@@ -67,11 +73,19 @@ step is its own PR, and each that changes a screen is mocked up for the owner fi
    Claude is asked nothing new. Only points a finder can spot get a chip: a form shared with another
    tense (compramos) gets none. Tagging each of Claude's notes with its point, checked by the
    finder, was the other option and was set aside.
-4. **A page for each point.** Adds `explanation` (a longer note with examples, written per point and
-   checked by the owner) and `related` (ids to compare, like the preterite and the imperfect) to the
-   catalog. The page shows those, examples from texts already read (the finders find them, as
-   `exposure.py` does), Forms practice results for the point's groups, and its choice. Those results
-   may suggest Know it; the owner still sets it.
+4. **A page for each point** (built 12 November 2026; the owner chose from a mock and checked three
+   sample explanations first). `read-grammar-point` (`ReadGrammarPoint.tsx`) shows the point's
+   choice, its explanation and related points from the catalog, how often it came up in texts read
+   with up to `EXAMPLES` (3) lines using it, the latest read first and one per text (`exposure.examples`,
+   `GET /api/grammar/{id}`, the matched words underlined by `markedParts`), and Forms practice on
+   its forms over the last 30 study days with the forms missed most (`pointPractice`) and a button
+   to practice them (Practice forms opened on the language's deck with the point's groups and every
+   pattern). It opens from the Grammar screen (a point's name), an Explain chip and the Forms drill's
+   grammar line ("More about ..."; the drill's link shows only while Read & Listen is on, as the
+   page needs its server). **Know it is suggested, never set**: at least `KNOW_IT_ANSWERS` (20)
+   answers at `KNOW_IT_SHARE` (90%) or more, for a point not already Know it (`suggestKnowIt`).
+   "Not yet" is kept on the phone (`grammarHintsDismissed`, beside Forms practice's own results),
+   and from then only answers given since count, so it comes back once 20 new ones clear the bar.
 5. **Spaced grammar drills**, if wanted, designed on their own: no Anki cards, results kept like
    Forms practice's, never graded from reading.
 

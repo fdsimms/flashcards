@@ -16,12 +16,14 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from franki_reader import grammar, store
-from franki_reader.coverage import Checker
-from franki_reader.languages import Code
+from franki_reader.coverage import Checker, parse_line
+from franki_reader.languages import LANGUAGES, Code
 from franki_reader.store import GrammarState
 
 # Known points worked into each text for review.
 REVIEW_POINTS = 2
+# Lines a point's page shows from texts read (docs/grammar.md, step 4).
+EXAMPLES = 3
 
 
 @dataclass(frozen=True)
@@ -74,6 +76,35 @@ def review_points(
 
     known = [p.id for p in grammar.points_for(language) if choices.get(p.id) == "normal"]
     return tuple(sorted(known, key=key)[:REVIEW_POINTS])
+
+
+@dataclass(frozen=True)
+class Example:
+    text_id: int
+    title: str
+    line: str  # plain, as shown
+    english: str
+    words: tuple[str, ...]  # what the finder matched, as `grammar.words` gives them
+
+
+def examples(
+    conn: sqlite3.Connection, lexicon: Checker, point_id: str, limit: int = EXAMPLES
+) -> list[Example]:
+    """Lines using the point from texts read to the end, the latest read first, one per text."""
+    point = grammar.POINTS[point_id]
+    spaced = LANGUAGES[point.language].spaced
+    out: list[Example] = []
+    read = sorted(store.finished_texts(conn, point.language), key=lambda t: t[1], reverse=True)
+    for text, _ in read:
+        for ln in text.lines:
+            words = grammar.find_in_lines([ln.text], lexicon, (point_id,))[point_id]
+            if words:
+                plain = parse_line(ln.text, spaced)[0]
+                out.append(Example(text.id, text.title, plain, ln.english, tuple(words)))
+                break
+        if len(out) >= limit:
+            break
+    return out
 
 
 def unset_points(choices: Mapping[str, GrammarState], language: Code) -> tuple[str, ...]:

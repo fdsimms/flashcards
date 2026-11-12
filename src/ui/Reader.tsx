@@ -86,9 +86,11 @@ export type ReaderSource =
 
 type UpNext = { id: number; title: string; lines: number; order: number[] };
 
-export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, onDone, mining }: {
+export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, onDone, onOpenGrammar, mining }: {
   api: Api;
   source: ReaderSource;
+  /** Opens a grammar point's page, from a line's explanation. */
+  onOpenGrammar: (id: string) => void;
   /** Adding a selected phrase to the deck through the note editor; missing when there's no deck to add to. */
   mining?: PhraseMining;
   /** Plays a tapped word: its deck recording, else the phone's voice (useWordAudio). */
@@ -692,7 +694,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                 {!listenOnly && (english || lineEnglish.includes(i)) ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: 2 }}>{line.english}</Text>
                 ) : null}
-                {!listenOnly && explained.includes(i) ? <LineExplanation api={api} textId={text.id} line={i} grammarChosen={grammarChosen} onGrammarChosen={chooseGrammar} /> : null}
+                {!listenOnly && explained.includes(i) ? <LineExplanation api={api} textId={text.id} line={i} grammarChosen={grammarChosen} onGrammarChosen={chooseGrammar} onOpenGrammar={onOpenGrammar} /> : null}
                 {!listenOnly && phrase && phrase.end !== null && phrase.line === i ? phraseCard(phrase) : null}
               </View>
               <View style={{ gap: space.xs }}>
