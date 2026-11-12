@@ -95,7 +95,8 @@ export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWor
   const changeSetting = async (change: SettingsChange): Promise<boolean> => {
     const before = settings;
     const mine = ++settingSeq.current;
-    setSettings((s) => (s ? { ...s, ...change, decks: { ...s.decks, ...change.decks } } : s));
+    // Voices are chosen on Read & Listen's settings screen, not here; the server's answer brings them.
+    setSettings((s) => (s ? { ...s, ...change, decks: { ...s.decks, ...change.decks }, voices: s.voices } : s));
     setSettingError(null);
     try {
       const saved = await api.updateSettings(change);

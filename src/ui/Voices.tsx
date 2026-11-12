@@ -3,11 +3,13 @@ import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, ScrollView } from 'react-native';
 import {
-  chosenVoice, deckLanguages, defaultRate, voiceQuality, voicesIn, VOICE_RATES,
+  azureVoiceName, chosenVoice, deckLanguages, defaultRate, voiceQuality, voicesIn, VOICE_RATES,
   type DeckLanguage, type PhoneVoice, type VoiceChoice, type VoiceSettings,
 } from '../core/voices';
 import type { Repo } from '../db/repo';
-import { CheckRow, Group, Help, NavRow, Screen, SectionTitle, Segments } from './kit';
+import type { Api } from '../reader/api';
+import { AzureVoiceRows, useAzureSample, useAzureVoices } from './AzureVoices';
+import { CheckRow, ErrorNote, Group, Help, NavRow, Screen, SectionTitle, Segments } from './kit';
 import { space } from './theme';
 
 const DOWNLOAD_HELP =
@@ -55,14 +57,15 @@ function useVoiceChoices(repo: Repo) {
   return { languages, voices, settings, choose };
 }
 
-/** What a language's row says: the voice and speed it's read with. */
+/** What a language's row says: the voice cards are recorded with, and the iPhone's voice and speed. */
 function summary(lang: DeckLanguage, voices: PhoneVoice[], settings: VoiceSettings): string {
   const choice = settings[lang.key];
   const id = chosenVoice(voices, settings, lang.key);
   const rate = `${(choice?.rate ?? defaultRate(lang)).toFixed(1)}×`;
-  if (id) return `${voices.find((v) => v.identifier === id)?.name ?? id}, ${rate}`;
-  if (choice?.voice) return `${choice.voiceName ?? 'The chosen voice'} isn't on this iPhone. Automatic, ${rate}`;
-  return `Automatic, ${rate}`;
+  const recorded = choice?.azureVoice ? `Recorded with ${azureVoiceName(choice.azureVoice)}. ` : '';
+  if (id) return `${recorded}iPhone: ${voices.find((v) => v.identifier === id)?.name ?? id}, ${rate}`;
+  if (choice?.voice) return `${recorded}iPhone: ${choice.voiceName ?? 'the chosen voice'} isn't on this iPhone. Automatic, ${rate}`;
+  return `${recorded}iPhone: Automatic, ${rate}`;
 }
 
 /** Settings > Voices: each language the decks are read aloud in, with its voice and speed. */
@@ -81,8 +84,9 @@ export function Voices({ repo, onLanguage }: { repo: Repo; onLanguage: (key: str
           <Help>None of your decks are read aloud yet. Omnilanguage notes with a Language, and note types whose templates use Anki's tts filter, show up here.</Help>
         ) : null}
         <Help>
-          The voice and speed the phone reads each language with, when a card has no recording. A card with a
-          recording plays it instead. A voice or speed named in an Anki template's tts filter is used before these.
+          For each language: the Azure voice cards without a recording are recorded with, and the iPhone voice and
+          speed that read a card until it has one. A card with a recording plays it instead. A voice or speed named
+          in an Anki template's tts filter is used before the iPhone's.
         </Help>
         <Help>{DOWNLOAD_HELP}</Help>
       </ScrollView>
@@ -90,10 +94,16 @@ export function Voices({ repo, onLanguage }: { repo: Repo; onLanguage: (key: str
   );
 }
 
-/** One language's voice and speed. Choosing either reads a word from the decks with it. */
-export function VoiceLanguage({ repo, languageKey }: { repo: Repo; languageKey: string }) {
+/**
+ * One language's voices: the Azure voice its cards are recorded with (while Read & Listen is on,
+ * since its server holds the Azure key), and the iPhone voice and speed. Choosing any of them
+ * reads a word from the decks with it.
+ */
+export function VoiceLanguage({ repo, api, languageKey }: { repo: Repo; api: Api | null; languageKey: string }) {
   const { languages, voices, settings, choose } = useVoiceChoices(repo);
   const lang = languages?.find((l) => l.key === languageKey);
+  const azure = useAzureVoices(api, lang?.key);
+  const sample = useAzureSample(api);
   if (!lang) return <Screen title="">{null}</Screen>;
 
   const choice = settings[lang.key];
@@ -110,13 +120,37 @@ export function VoiceLanguage({ repo, languageKey }: { repo: Repo; languageKey: 
   return (
     <Screen title={lang.name}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
-        <SectionTitle>Speed</SectionTitle>
+        <SectionTitle>Recordings</SectionTitle>
+        {!api ? (
+          <Help>Recording cards with Azure's voices needs Read & Listen turned on (Settings, Read & Listen), since its server holds the Azure key.</Help>
+        ) : azure.error ? (
+          <ErrorNote message={azure.error} onRetry={azure.retry} />
+        ) : azure.voices ? (
+          <>
+            <Group accessibilityRole="radiogroup">
+              <AzureVoiceRows
+                voices={azure.voices}
+                selected={choice?.azureVoice}
+                none={{ label: 'Don\'t record', hint: 'Cards without a recording are read with the iPhone voice below' }}
+                onChoose={(v) => {
+                  if (v) sample.play(lang.sample ?? lang.name, v.voice);
+                  choose(lang.key, { azureVoice: v?.voice });
+                }}
+              />
+            </Group>
+            {sample.error ? <ErrorNote message={sample.error} /> : null}
+            <Help>
+              {`${lang.name} notes without a recording get one in this voice: when a note is added, from Record audio in the note editor, and for a whole deck from its options. Read & Listen's server records it, and it goes to Anki with the note at the next sync. Only Omnilanguage notes are recorded, from their Entry.`}
+            </Help>
+          </>
+        ) : null}
+        <SectionTitle>iPhone voice speed</SectionTitle>
         <Segments
           options={VOICE_RATES.map((r) => ({ value: r, label: `${r.toFixed(1)}×`, accessibilityLabel: `Speed ${r}` }))}
           value={rate}
           onChange={(r) => { listen(current, r); choose(lang.key, { rate: r }); }}
         />
-        <SectionTitle>Voice</SectionTitle>
+        <SectionTitle>iPhone voice</SectionTitle>
         {choice?.voice && !current ? (
           <Help>{`${choice.voiceName ?? 'The voice chosen before'} isn't on this iPhone any more, so iOS picks one. Download it again or choose another.`}</Help>
         ) : null}

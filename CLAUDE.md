@@ -188,9 +188,11 @@ records) but does allow background audio, which only Read & Listen's reader turn
 open (`shouldPlayInBackground`), so listening goes on with the screen locked.
 
 **Everything stays on the device, except sync and Read & Listen.** TTS is `expo-speech` (on-device
-voices) and storage is local SQLite. The network calls are sync with the user's own Anki sync
-server (`src/anki/sync/`), off until they sign in, and Read & Listen, which talks to its server
-beside the sync server and is off until its passphrase is entered (Settings, Read & Listen). A
+voices, chosen per language in Settings, Voices) and storage is local SQLite. The network calls are
+sync with the user's own Anki sync server (`src/anki/sync/`), off until they sign in, and Read &
+Listen, which talks to its server beside the sync server and is off until its passphrase is entered
+(Settings, Read & Listen). Recording a card with an Azure voice (`src/core/recording.ts`) goes
+through Read & Listen's server, so it's off while Read & Listen is. A
 future feature that needs the network (a dictionary lookup, an AI hint) ships behind its own setting
 that defaults to off.
 
@@ -398,6 +400,10 @@ Anki's sync protocol (v11), as an Anki client speaks it, against the user's own 
   when the collation is registered. Without it (a build made before the module) a sync still updates
   an existing deck in place and otherwise finishes, so Franki's answers reach the server, then
   downloads the whole collection (`downloadNeeded`). The live test runs both ways.
+- **Media made in Franki (a recording) is sent by the upload half of Anki's media sync**
+  (`pushMedia` in `mediaSync.ts`). A file joins the pending list only once a note is saved with it,
+  and a pending file the server also changed is settled by Anki's rules (`mediaAction`). The live
+  test checks it with Anki's own client reading the file back.
 - **Sync JSON keeps 64-bit integers exact** (`sync/json.ts`): note type fields and templates carry
   random 64-bit ids that `JSON.parse` would round. Read and write sync JSON only through it.
 - **A sync runs on its own connection to the kept collection, in one transaction, inside

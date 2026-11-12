@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useApp, type NoteEditorResult } from '../ui/AppContext';
 import { NoteEditor } from '../ui/NoteEditor';
+import { useRecorder } from '../ui/useRecorder';
 
 /**
  * Adding a note (`deck` parameter, optional; `model` and `fields`, as JSON, to fill it in) or
@@ -10,6 +11,7 @@ import { NoteEditor } from '../ui/NoteEditor';
 export default function NoteEditorRoute() {
   const router = useRouter();
   const { repo, decks, finishNoteEditor } = useApp();
+  const recorder = useRecorder();
   const { noteId, deck, model, fields } = useLocalSearchParams<{ noteId?: string; deck?: string; model?: string; fields?: string }>();
   const filled = useMemo(() => {
     try { return fields ? (JSON.parse(fields) as Record<string, string>) : undefined; } catch { return undefined; }
@@ -23,6 +25,7 @@ export default function NoteEditorRoute() {
       repo={repo}
       target={noteId ? { noteId } : { deck: deck ?? null, model, fields: filled }}
       decks={decks.map((d) => d.deck)}
+      recorder={recorder}
       onCardsChanged={() => { result.current ??= { cardsChanged: true }; }}
       onClose={(r) => { if (r) result.current = r; router.back(); }}
     />

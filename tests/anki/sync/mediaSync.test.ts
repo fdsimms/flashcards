@@ -1,7 +1,8 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { SyncClient, type HttpPost } from '../../../src/anki/sync/client';
-import { mediaAction, pullMedia, pushMedia, sha1Hex, syncMedia, type MediaState } from '../../../src/anki/sync/mediaSync';
+import { mediaAction, pullMedia, pushMedia, syncMedia, type MediaState } from '../../../src/anki/sync/mediaSync';
+import { sha1Hex } from '../../../src/anki/sha1';
 import type { MediaChange } from '../../../src/anki/sync/protocol';
 import { zstdUnwrap, zstdWrap } from '../../../src/anki/zstd';
 

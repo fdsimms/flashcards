@@ -7,7 +7,8 @@ import { SyncClient } from '../../../src/anki/sync/client';
 import {
   downloadCollection, markDownloaded, prepareForUpload, syncCollection, uploadCollection,
 } from '../../../src/anki/sync/collectionSync';
-import { pullMedia, sha1Hex, syncMedia, type MediaState } from '../../../src/anki/sync/mediaSync';
+import { pullMedia, syncMedia, type MediaState } from '../../../src/anki/sync/mediaSync';
+import { sha1Hex } from '../../../src/anki/sha1';
 import { addAnkiNote, ankiDeckId, ankiNoteType, deleteAnkiNotes, editAnkiNote, moveAnkiNote } from '../../../src/anki/noteWrites';
 import {
   CARD_ROW_SQL, CARD_STATE_SQL, CARD_STATE_UPDATE_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams,

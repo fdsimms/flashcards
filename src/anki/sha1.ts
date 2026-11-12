@@ -61,3 +61,8 @@ export class Sha1 {
 export function sha1(data: Uint8Array): Uint8Array {
   return new Sha1().update(data).digest();
 }
+
+/** A SHA-1 as lowercase hex, as Anki writes it in media changes. */
+export function sha1Hex(data: Uint8Array): string {
+  return Array.from(sha1(data), (b) => b.toString(16).padStart(2, '0')).join('');
+}

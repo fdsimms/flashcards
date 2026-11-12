@@ -7,13 +7,15 @@ import { GURU_INTERVAL_DAYS, parseGateCap } from '../core/progress';
 import { paramsForDeck } from '../core/scheduler';
 import type { DeckSettings } from '../core/types';
 import type { Repo } from '../db/repo';
+import type { RecordDeps } from '../anki/recordService';
 import { DeckFormsOptions } from './DeckFormsOptions';
+import { DeckRecordings } from './DeckRecordings';
 import { haptic } from './haptics';
 import { Card, Group, Help, NavRow, Screen } from './kit';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
 
-/** Settings made in the app for one deck: the progress gate, forms practice and lookalike words. */
-export function DeckOptions({ repo, deck, onCustomStudy }: { repo: Repo; deck: string; onCustomStudy: () => void }) {
+/** Settings made in the app for one deck: the progress gate, forms practice, lookalike words and recordings. */
+export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Repo; deck: string; onCustomStudy: () => void; recorder: RecordDeps | null }) {
   const c = useTheme();
   const [settings, setSettings] = useState<DeckSettings | null>(null);
   const [capText, setCapText] = useState('');
@@ -118,6 +120,7 @@ export function DeckOptions({ repo, deck, onCustomStudy }: { repo: Repo; deck: s
           </Group>
         )}
         {settings ? <DeckFormsOptions deck={deck} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
+        {filtered ? null : <DeckRecordings repo={repo} deck={deck} recorder={recorder} />}
       </ScrollView>
     </Screen>
   );

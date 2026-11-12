@@ -1,6 +1,6 @@
 import { unzipSync, zipSync } from 'fflate';
 import { utf8Decode, utf8Encode } from '../protobuf';
-import { sha1 } from '../sha1';
+import { sha1Hex } from '../sha1';
 import type { SyncClient } from './client';
 import { MEDIA_FILES_PER_REQUEST, MEDIA_UPLOAD_TARGET_BYTES, SyncError, type MediaChange } from './protocol';
 
@@ -48,10 +48,6 @@ export interface MediaPushResult {
 
 export type MediaSyncResult = MediaPullResult & MediaPushResult;
 
-/** A SHA-1 as Anki writes it in media changes: lowercase hex. */
-export function sha1Hex(bytes: Uint8Array): string {
-  return Array.from(sha1(bytes), (b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 export interface MediaPullResult {
   downloaded: number;

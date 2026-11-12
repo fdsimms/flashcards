@@ -56,7 +56,7 @@ export function Settings({ repo, backupText, readerOn, onAnki, onStats, onBackup
             value={!!swipe}
             onValueChange={chooseSwipe}
           />
-          <NavRow label="Voices" detail="The voice and speed each language is read aloud with" onPress={onVoices} />
+          <NavRow label="Voices" detail="The voices each language is recorded and read aloud with" onPress={onVoices} />
         </Group>
         <SectionTitle>Answer buttons</SectionTitle>
         <Group accessibilityRole="radiogroup">

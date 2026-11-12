@@ -18,6 +18,8 @@ export interface VoiceChoice {
   voiceName?: string;
   /** 1 is normal speed. None keeps each kind of card's own default (`OMNI_RATE`, or 1). */
   rate?: number;
+  /** The Azure voice cards without a recording are recorded with (`src/core/recording.ts`); none records nothing. */
+  azureVoice?: string;
 }
 
 /** A voice as `Speech.getAvailableVoicesAsync()` lists it. */
@@ -175,7 +177,13 @@ export function parseVoiceSettings(json: string | null | undefined): VoiceSettin
     if (typeof o.voice === 'string') choice.voice = o.voice;
     if (typeof o.voiceName === 'string') choice.voiceName = o.voiceName;
     if (typeof o.rate === 'number' && Number.isFinite(o.rate) && o.rate > 0) choice.rate = o.rate;
+    if (typeof o.azureVoice === 'string' && o.azureVoice) choice.azureVoice = o.azureVoice;
     out[key] = choice;
   }
   return out;
+}
+
+/** An Azure voice's own name, from its id: th-TH-PremwadeeNeural is Premwadee. */
+export function azureVoiceName(voice: string): string {
+  return voice.replace(/^[a-z]{2,3}-[A-Z]{2}-/, '').replace(/(Multilingual)?Neural$/, '') || voice;
 }

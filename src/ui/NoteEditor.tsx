@@ -9,7 +9,9 @@ import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, t
 import { duplicateOf, editTextToField, fieldToEditText, parseTags } from '../core/noteEditing';
 import type { Note, NoteType } from '../core/types';
 import type { NoteEditorResult } from './AppContext';
+import type { RecordDeps, Recording } from '../anki/recordService';
 import { Button, Card, Chip, Field, Help, Screen, Select } from './kit';
+import { afterSave, RecordAudio, useVoiceSettings } from './RecordAudio';
 import { space, type, useTheme } from './theme';
 
 const OMNI_CARD_NAMES: Record<string, string> = { forward: 'Front', reverse: 'Reverse', audio: 'Audio' };
@@ -33,6 +35,8 @@ export function NoteEditor(props: {
   onCardsChanged?: () => void;
   /** Every deck on the deck list, empty ones included, so a deck just made can be picked. */
   decks?: string[];
+  /** Recording audio with an Azure voice (useRecorder); null while Read & Listen is off. */
+  recorder?: RecordDeps | null;
 }) {
   const c = useTheme();
   const [notes, setNotes] = useState<Note[]>([]);
@@ -53,6 +57,9 @@ export function NoteEditor(props: {
   const [focused, setFocused] = useState<string | null>(null);
   const selections = useRef(new Map<string, Selection>());
   const inputs = useRef(new Map<string, TextInputInstance | null>());
+  const voiceSettings = useVoiceSettings(props.repo);
+  // A recording made here (Record audio), sent once the note is saved with it.
+  const [recording, setRecording] = useState<Recording>();
 
   const format = (name: string, apply: (text: string, sel: Selection) => { text: string; selection: Selection }) => {
     const text = fields[name] ?? '';
@@ -128,6 +135,7 @@ export function NoteEditor(props: {
     setError(undefined);
     try {
       const saved = await saveNote(props.repo, { id: original?.id, deck, model, fields: stored, tags: parseTags(tags) });
+      afterSave(props.recorder ?? null, saved, { added: !editing, recording, settings: voiceSettings });
       stopAsking();
       props.onClose({ saved });
     } catch (e) {
@@ -225,6 +233,12 @@ export function NoteEditor(props: {
               </View>
             ))}
             <Field label="Tags" value={tags} onChangeText={setTags} autoCapitalize="none" autoCorrect={false} placeholder="Separated by spaces" />
+            <RecordAudio
+              recorder={props.recorder ?? null}
+              note={draftNote}
+              settings={voiceSettings}
+              onRecorded={(r) => { setRecording(r); setFields((f) => ({ ...f, Audio: [f.Audio?.trim(), `[sound:${r.name}]`].filter(Boolean).join(' ') })); }}
+            />
           </Card>
           {error ? <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text> : null}
           {duplicate ? (

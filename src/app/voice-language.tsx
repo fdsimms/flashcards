@@ -3,9 +3,9 @@ import React from 'react';
 import { useApp } from '../ui/AppContext';
 import { VoiceLanguage } from '../ui/Voices';
 
-/** One language's voice and speed (`lang` is its code, e.g. th). */
+/** One language's voices: Azure's for recordings, the iPhone's and its speed (`lang` is its code, e.g. th). */
 export default function VoiceLanguageRoute() {
-  const { repo } = useApp();
+  const { repo, reader } = useApp();
   const { lang } = useLocalSearchParams<{ lang: string }>();
-  return <VoiceLanguage repo={repo} languageKey={lang} />;
+  return <VoiceLanguage repo={repo} api={reader.api} languageKey={lang} />;
 }
