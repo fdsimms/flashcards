@@ -23,6 +23,7 @@ from franki_reader.vocab_check import (
     VocabFailed,
     band_of,
     check,
+    is_giveaway,
     request_message,
     sample,
     write_bank,
@@ -188,6 +189,38 @@ def test_thai_and_unknown_languages_are_refused() -> None:
     assert get(c, "th").status_code == 422
     assert get(c, "xx").status_code == 422
     assert c.get("/api/vocab-check?language=pl").status_code == 401
+
+
+def test_proper_nouns_and_obvious_cognates_are_giveaways() -> None:
+    assert is_giveaway("po", "Po")  # a river
+    assert is_giveaway("támesis", "Thames")
+    assert is_giveaway("legislador", "legislator")
+    assert is_giveaway("persona", "person")
+    assert is_giveaway("importante", "important")
+    assert is_giveaway("aceptar", "to accept")
+    assert is_giveaway("comunicación", "communication")
+    assert is_giveaway("no", "no")
+    assert is_giveaway("sí", "si")  # accents don't hide a match
+
+
+def test_words_that_need_studying_are_not_giveaways() -> None:
+    assert not is_giveaway("alcalde", "mayor")
+    assert not is_giveaway("ver", "to see")
+    assert not is_giveaway("se", "see")  # shared letters in a short word aren't a cognate
+    assert not is_giveaway("tiempo", "time")
+    assert not is_giveaway("casa", "house")
+    assert not is_giveaway("yo", "I")  # "I" is capitalized but isn't a proper noun
+    assert not is_giveaway("работа", "work")
+
+
+def test_giveaways_in_a_stored_bank_are_left_out_when_served() -> None:
+    bank = whole_bank()
+    bank[0]["meaning"] = "Thames"
+    bank[1]["meaning"] = bank[1]["word"]  # a word that is its own meaning
+    c = vocab_client(Writer(bank))
+    get(c)
+    words = [i["word"] for i in get(c).json()["items"]]
+    assert bank[0]["word"] not in words and bank[1]["word"] not in words
 
 
 def test_the_cost_shows_in_the_costs() -> None:

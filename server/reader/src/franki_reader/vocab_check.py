@@ -7,16 +7,18 @@ ranks, and Claude writes each one's meaning and three wrong choices in one call,
 never waits on Claude and never asks for a word twice. Generate, then verify: a word is kept only if
 it's one that was asked for and its choices pass the checks below. Anything else is dropped, never
 repaired. Words already in the learner's deck are left out when the bank is served, since they count
-as known anyway.
+as known anyway, and so are proper nouns and obvious cognates, which test nothing.
 """
 
 import json
 import logging
 import random
 import sqlite3
+import unicodedata
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
+from difflib import SequenceMatcher
 from typing import Any, cast
 
 import anthropic
@@ -41,6 +43,8 @@ MIN_PER_BAND = 5  # kept words a band needs for the bank to be used
 WRONG = 3  # wrong choices a word carries
 MAX_MEANING = 40  # characters
 MAX_TOKENS = 8000
+# Share of letters a word and its English meaning must have in common to be a giveaway.
+COGNATE_RATIO = 0.8
 
 _SYSTEM = """\
 You write multiple-choice vocabulary questions for an English-speaking learner of {language}. You \
@@ -174,14 +178,49 @@ async def write_bank(
     return enough
 
 
+def _fold(text: str) -> str:
+    """Lowercase without accents, so "legislador" and "legislator" compare on their letters."""
+    decomposed = unicodedata.normalize("NFD", text.casefold())
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+def is_giveaway(lemma: str, meaning: str) -> bool:
+    """A word that tests nothing: a proper noun (its meaning is capitalized, "Thames") or a cognate an
+    English speaker reads without studying (the word and its meaning share most of their letters,
+    "legislador" and "legislator"). Checked here rather than left to Claude, and on what's stored, so a
+    bank written before this check is cleaned when it's served. Languages not written in Latin letters
+    share none with English, so only their proper nouns are caught."""
+    if meaning[:1].isupper() and meaning != "I":
+        return True
+    folded = _fold(lemma)
+    text = _fold(meaning)
+    pieces = text.removeprefix("to ").split()
+    candidates = [" ".join(pieces), *pieces]
+    # A verb's ending is its own ("aceptar", "to accept"), so a verb is also compared without it.
+    words = [folded, folded[:-2]] if text.startswith("to ") else [folded]
+    # Short words only match when identical: "se" and "see" share letters, not a meaning.
+    return any(
+        word == c
+        or (min(len(word), len(c)) >= 4 and SequenceMatcher(None, word, c).ratio() >= COGNATE_RATIO)
+        for word in words
+        for c in candidates
+        if c
+    )
+
+
 def serve(conn: sqlite3.Connection, lexicon: Checker, language: Code) -> list[dict[str, Any]]:
     """The language's bank for the quiz, up to `PER_BAND` words a band, without words already in the
-    deck (they count as known), most common first. Empty until the bank is written."""
+    deck (they count as known) and without proper nouns and obvious cognates (`is_giveaway`), most
+    common first. Empty until the bank is written."""
     out: list[dict[str, Any]] = []
     per_band: dict[int | None, int] = {}
     for lemma, rank, meaning, wrong in store.vocab_items(conn, language):
         band = band_of(rank)
-        if lexicon.entry_of(lemma) is not None or per_band.get(band, 0) >= PER_BAND:
+        if (
+            lexicon.entry_of(lemma) is not None
+            or per_band.get(band, 0) >= PER_BAND
+            or is_giveaway(lemma, meaning)
+        ):
             continue
         per_band[band] = per_band.get(band, 0) + 1
         out.append({"word": lemma, "rank": rank, "meaning": meaning, "wrong": wrong})

@@ -693,7 +693,11 @@ in the current language, with when one was last read to the end. Nothing else le
   and checked in code (a word it didn't ask for, or a wrong choice that could also be right, is
   dropped). It is written in the background the first time (`GET /api/vocab-check` answers
   "preparing" until then), its cost is in `/api/costs` as `vocab_checks`, and words already in the
-  deck are left out when it's served. **The quiz and its scoring run in the app** (`src/reader/
+  deck are left out when it's served, and so are proper nouns (a capitalized meaning, "Thames") and
+  obvious cognates (a word sharing 80% of its letters with its meaning, "legislador" and "legislator";
+  `is_giveaway`), since they test nothing. That runs on what's stored, so a bank written earlier is
+  cleaned without being written again. Cognates in Russian and Greek aren't caught, as they share no
+  letters with English. **The quiz and its scoring run in the app** (`src/reader/
   vocabCheck.ts`, pure and tested): it starts at the 251 to 500 band, goes up a band after a right
   answer and down after a wrong one or "I don't know", and scores each band with a wrong answer
   taking a third of a right one (a guess among four). It suggests the largest setting at which at
