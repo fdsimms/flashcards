@@ -41,6 +41,7 @@ export default function ReviewRoute() {
     <Review
       repo={repo} deck={deck} practice={practice} reloadKey={reloadKey} onDone={() => router.back()} onEditNote={openNoteEditor}
       onCustomStudy={() => router.push({ pathname: '/custom-study', params: { deck } })}
+      onCardInfo={(card) => router.push({ pathname: '/card-info', params: { card } })}
       onPracticeForms={(request) => router.push({ pathname: '/forms-drill', params: { request: JSON.stringify(request) } })}
     />
   );

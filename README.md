@@ -62,6 +62,14 @@ Everything lives on the phone. **Backup** (in Settings) makes one file with the 
 
 Tap a deck to study it with its subdecks. **Undo** in the top right takes back the last answer (and the one before, and so on) and shows that card again.
 
+The button with three dots in the top right flags, buries or suspends the card on screen, as in Anki, and has three more:
+
+- **Set due date** makes the card a review due that many days from today (0 is today; a range like 3-7 picks a day in it at random). It keeps the card's FSRS memory.
+- **Forget card** makes it a new card again, back in the place it had among the new cards, with its memory cleared. **Forget and reset counts** also sets its review and lapse counts to zero.
+- **Card info** shows when the card was added, first and last studied, when it's due, its interval, its FSRS stability, difficulty and retrievability, its review and lapse counts, how long it takes you, and every answer in its history, including those given in Anki.
+
+Both changes go into your Anki collection the way Anki makes them, so sync and Send to Anki carry them. Undo doesn't take them back.
+
 **Limit cards in progress** (a deck's **Options**) works like WaniKani's Apprentice limit. A card is in progress from when you first learn it until its next review is a week or more away, which is what Guru means on WaniKani. If you forget it, or its next review comes back under a week, it counts again. With the limit on, a deck shows new cards only while fewer than the cap (100 to start) of its cards, subdecks included, are in progress, and its daily new card limit no longer applies.
 
 **Answer buttons** (**Settings** on the deck list) chooses which buttons Review shows for every deck: all four as in Anki, Again, Good and Easy, or just Again and Good. Whether you remembered a card matters most to FSRS; Hard and Easy only nudge the next interval. Always press Again for a card you didn't remember. After changing how you use the buttons, run Optimize in Anki's deck options after a few weeks so the schedule learns the new habit.
@@ -135,4 +143,4 @@ The study day starts at 4 AM, as in Anki, so a late-night session counts toward 
 
 ## Not built yet
 
-Typing the answer (`{{type:}}` shows the answer on the back instead), Anki's own TTS tags (`{{tts:}}`), collapsing decks, and changing a note's type.
+Changing a note's type, and editing a note type's fields, card templates or styling (do these in Anki and sync). Image Occlusion notes, and LaTeX and MathJax in cards. Optimizing FSRS parameters (Optimize is in Anki's deck options). Anki's full search syntax in Browse.
