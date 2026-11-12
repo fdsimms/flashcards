@@ -203,6 +203,11 @@ export interface DeckSettings {
    * keeps this in Anki's own `study_collapsed` instead (src/anki/deckWrites.ts).
    */
   collapsed?: boolean;
+  /**
+   * A deck made on the deck list without an Anki collection: listed even while it holds no cards
+   * (`listedDecks`). A deck made with one is Anki's, and listed from it.
+   */
+  created?: boolean;
   /*
    * The settings below apply to the deck and its subdecks, unless a subdeck sets its own
    * (`inheritedSetting`). Undefined means the default.

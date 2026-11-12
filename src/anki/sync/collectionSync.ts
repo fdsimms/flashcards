@@ -77,8 +77,9 @@ export async function localMeta(db: SyncDb): Promise<Local & { empty: boolean }>
 
 /**
  * Rows of the collated tables marked as changed here that only a full upload can send. Decks
- * changed here (collapsed on the deck list) are sent in applyChanges; nothing Franki does changes
- * a note type or a preset. (Tags can't be read at all without the collation.)
+ * changed here (made, renamed or collapsed on the deck list) are sent in applyChanges, deleted
+ * ones as graves; nothing Franki does changes a note type or a preset. (Tags can't be read at
+ * all without the collation.)
  */
 async function localUnsendable(db: SyncDb): Promise<number> {
   let n = 0;

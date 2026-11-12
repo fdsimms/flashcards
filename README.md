@@ -50,6 +50,17 @@ Franki also imports Anki's "Notes in Plain Text" export (.txt or .tsv). Those ca
 
 Changes to an Anki note go into your Anki collection as Anki would make them, so the next sync (or Send to Anki) brings them to Anki. An edit keeps every card's schedule and adds any card the note now makes; a card it no longer makes stays in Anki, as Anki keeps it. A note added to a deck Anki doesn't have stays in Franki only.
 
+## Decks
+
+The deck list shows every deck in your Anki collection, empty ones too (all but Anki's Default deck when it has nothing in it). **New deck** in the top right makes one; "::" puts it inside another, as in `Polski::Verbs`, and makes any deck above it that's missing. The **…** button on a deck's row opens its menu:
+
+- **Add note** opens the note editor in that deck, which is how to fill a deck you just made.
+- **Rename** renames it and every deck inside it. "::" moves it inside another deck. A name another deck has (in any capitalization) is refused, as is one inside the deck itself.
+- **Deck options** opens its options, as swiping the row left does.
+- **Delete** says how many cards will go, then deletes the deck, every deck inside it, their cards, and any note left with no cards. Anki keeps its Default deck: deleting it deletes what's in it and leaves it empty.
+
+These changes go into your Anki collection as Anki would make them, so the next sync (or Send to Anki) brings them to Anki. Without an Anki collection in Franki, a deck you make or change stays in Franki. An app built before Franki could register Anki's collation can't change Anki's decks and says so.
+
 ## Stats
 
 **Stats** (in Settings) shows today's answers, time spent, new cards and Agains; what comes due over the next 30 days; answers over the last 30; a calendar of the last year's answers, a square per study day, darker for more (like Anki's Calendar); cards by stage (new, learning, young, mature, suspended); review cards by interval, from a day to over two years (like Anki's Card Intervals); and how often reviews were remembered, against the deck's desired retention. Pick a top-level deck at the top, or all of them. It counts your whole history from Anki, not just answers given in Franki. Tap a bar or a square to see its count.

@@ -84,6 +84,8 @@ export interface AnkiLink {
   markSentToAnki(): Promise<void>;
   /** The kept collection's review log from `since` on: Anki's whole history plus Franki's answers (for stats). */
   ankiReviewLog(since: Date): Promise<RevlogRow[]>;
+  /** Every deck in the kept collection, named as Franki names them ("A::B"); none without one. */
+  ankiDecks(): Promise<{ id: number; name: string }[]>;
   /** For backup and restore, which carry the kept collection: let go of the file, and take it back. */
   detachAnki(): Promise<void>;
   attachAnki(): Promise<void>;
@@ -282,6 +284,13 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
       await attach();
       if (!attached) return [];
       return db.getAllAsync<RevlogRow>(SQL.revlogSince, since.getTime());
+    },
+
+    async ankiDecks() {
+      await attach();
+      if (!attached) return [];
+      const rows = await db.getAllAsync<{ id: number; name: string }>(SQL.decks);
+      return rows.map((r) => ({ id: Number(r.id), name: r.name.split('\x1f').join('::') }));
     },
 
     detachAnki: detach,

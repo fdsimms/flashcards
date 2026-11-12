@@ -1,0 +1,2984 @@
+[
+ {
+  "name": "create with missing parents",
+  "steps": [
+   [
+    "create",
+    "Polski::Odmiana::Verbs"
+   ]
+  ],
+  "after": {
+   "decks": [
+    {
+     "id": 1,
+     "name": "Default",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": 0,
+     "changed": false
+    },
+    {
+     "id": 1794408857989,
+     "name": "👅 Languages",
+     "common": "0801100120033801",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857990,
+     "name": "👅 Languages::🐘 ภาษาไทย",
+     "common": "0801100120033801",
+     "kind": "0a07088983e9d89c34",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857991,
+     "name": "🧠 Trivia",
+     "common": "080110012001",
+     "kind": "0a0408013803",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858039,
+     "name": "Filtered Deck 1",
+     "common": "08011001",
+     "kind": "1229080112200a1c226465636b3af09fa7a020547269766961222069733a726576696577106428d804383c",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": "new 0",
+     "name": "Polski::Odmiana",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": true
+    },
+    {
+     "id": "new 1",
+     "name": "Polski",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": true
+    },
+    {
+     "id": "new 2",
+     "name": "Polski::Odmiana::Verbs",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": true
+    }
+   ],
+   "graves": [],
+   "cards": [
+    {
+     "id": 1794408858014,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 3,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858015,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858016,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 1,
+     "due": 1794408924,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858017,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 0,
+     "due": 2,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858018,
+     "deck": "Filtered Deck 1",
+     "home": "🧠 Trivia",
+     "queue": 2,
+     "due": -100000,
+     "odue": 10,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858019,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": -1,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858020,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 5,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858030,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 6,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858031,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858032,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "notes": [
+    {
+     "id": 1794408858013,
+     "usn": -1
+    },
+    {
+     "id": 1794408858015,
+     "usn": -1
+    },
+    {
+     "id": 1794408858016,
+     "usn": -1
+    },
+    {
+     "id": 1794408858017,
+     "usn": -1
+    },
+    {
+     "id": 1794408858018,
+     "usn": -1
+    },
+    {
+     "id": 1794408858030,
+     "usn": -1
+    },
+    {
+     "id": 1794408858031,
+     "usn": -1
+    }
+   ],
+   "config": [
+    "_deck_1794408857990_lastNotetype",
+    "_deck_1794408857991_lastNotetype",
+    "_nt_1794408857890_lastDeck",
+    "_nt_1794408857891_lastDeck",
+    "_nt_1794408857894_lastDeck",
+    "activeDecks",
+    "addToCur",
+    "collapseTime",
+    "creationOffset",
+    "curDeck",
+    "curModel",
+    "dayLearnFirst",
+    "dueCounts",
+    "estTimes",
+    "fsrs",
+    "newSpread",
+    "nextPos",
+    "rollover",
+    "sched2021",
+    "schedVer",
+    "sortBackwards",
+    "sortType",
+    "timeLim"
+   ],
+   "modified": true
+  }
+ },
+ {
+  "name": "create under a parent spelled differently",
+  "steps": [
+   [
+    "create",
+    "👅 languages::Polski"
+   ]
+  ],
+  "after": {
+   "decks": [
+    {
+     "id": 1,
+     "name": "Default",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": 0,
+     "changed": false
+    },
+    {
+     "id": 1794408857989,
+     "name": "👅 Languages",
+     "common": "0801100120033801",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857990,
+     "name": "👅 Languages::🐘 ภาษาไทย",
+     "common": "0801100120033801",
+     "kind": "0a07088983e9d89c34",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857991,
+     "name": "🧠 Trivia",
+     "common": "080110012001",
+     "kind": "0a0408013803",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858039,
+     "name": "Filtered Deck 1",
+     "common": "08011001",
+     "kind": "1229080112200a1c226465636b3af09fa7a020547269766961222069733a726576696577106428d804383c",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": "new 0",
+     "name": "👅 Languages::Polski",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": true
+    }
+   ],
+   "graves": [],
+   "cards": [
+    {
+     "id": 1794408858014,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 3,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858015,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858016,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 1,
+     "due": 1794408924,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858017,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 0,
+     "due": 2,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858018,
+     "deck": "Filtered Deck 1",
+     "home": "🧠 Trivia",
+     "queue": 2,
+     "due": -100000,
+     "odue": 10,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858019,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": -1,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858020,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 5,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858030,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 6,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858031,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858032,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "notes": [
+    {
+     "id": 1794408858013,
+     "usn": -1
+    },
+    {
+     "id": 1794408858015,
+     "usn": -1
+    },
+    {
+     "id": 1794408858016,
+     "usn": -1
+    },
+    {
+     "id": 1794408858017,
+     "usn": -1
+    },
+    {
+     "id": 1794408858018,
+     "usn": -1
+    },
+    {
+     "id": 1794408858030,
+     "usn": -1
+    },
+    {
+     "id": 1794408858031,
+     "usn": -1
+    }
+   ],
+   "config": [
+    "_deck_1794408857990_lastNotetype",
+    "_deck_1794408857991_lastNotetype",
+    "_nt_1794408857890_lastDeck",
+    "_nt_1794408857891_lastDeck",
+    "_nt_1794408857894_lastDeck",
+    "activeDecks",
+    "addToCur",
+    "collapseTime",
+    "creationOffset",
+    "curDeck",
+    "curModel",
+    "dayLearnFirst",
+    "dueCounts",
+    "estTimes",
+    "fsrs",
+    "newSpread",
+    "nextPos",
+    "rollover",
+    "sched2021",
+    "schedVer",
+    "sortBackwards",
+    "sortType",
+    "timeLim"
+   ],
+   "modified": true
+  }
+ },
+ {
+  "name": "create, trimmed",
+  "steps": [
+   [
+    "create",
+    "  Nowy  ::  Deck "
+   ]
+  ],
+  "after": {
+   "decks": [
+    {
+     "id": 1,
+     "name": "Default",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": 0,
+     "changed": false
+    },
+    {
+     "id": 1794408857989,
+     "name": "👅 Languages",
+     "common": "0801100120033801",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857990,
+     "name": "👅 Languages::🐘 ภาษาไทย",
+     "common": "0801100120033801",
+     "kind": "0a07088983e9d89c34",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857991,
+     "name": "🧠 Trivia",
+     "common": "080110012001",
+     "kind": "0a0408013803",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858039,
+     "name": "Filtered Deck 1",
+     "common": "08011001",
+     "kind": "1229080112200a1c226465636b3af09fa7a020547269766961222069733a726576696577106428d804383c",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": "new 0",
+     "name": "Nowy",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": true
+    },
+    {
+     "id": "new 1",
+     "name": "Nowy::Deck",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": true
+    }
+   ],
+   "graves": [],
+   "cards": [
+    {
+     "id": 1794408858014,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 3,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858015,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858016,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 1,
+     "due": 1794408924,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858017,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 0,
+     "due": 2,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858018,
+     "deck": "Filtered Deck 1",
+     "home": "🧠 Trivia",
+     "queue": 2,
+     "due": -100000,
+     "odue": 10,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858019,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": -1,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858020,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 5,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858030,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 6,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858031,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858032,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "notes": [
+    {
+     "id": 1794408858013,
+     "usn": -1
+    },
+    {
+     "id": 1794408858015,
+     "usn": -1
+    },
+    {
+     "id": 1794408858016,
+     "usn": -1
+    },
+    {
+     "id": 1794408858017,
+     "usn": -1
+    },
+    {
+     "id": 1794408858018,
+     "usn": -1
+    },
+    {
+     "id": 1794408858030,
+     "usn": -1
+    },
+    {
+     "id": 1794408858031,
+     "usn": -1
+    }
+   ],
+   "config": [
+    "_deck_1794408857990_lastNotetype",
+    "_deck_1794408857991_lastNotetype",
+    "_nt_1794408857890_lastDeck",
+    "_nt_1794408857891_lastDeck",
+    "_nt_1794408857894_lastDeck",
+    "activeDecks",
+    "addToCur",
+    "collapseTime",
+    "creationOffset",
+    "curDeck",
+    "curModel",
+    "dayLearnFirst",
+    "dueCounts",
+    "estTimes",
+    "fsrs",
+    "newSpread",
+    "nextPos",
+    "rollover",
+    "sched2021",
+    "schedVer",
+    "sortBackwards",
+    "sortType",
+    "timeLim"
+   ],
+   "modified": true
+  }
+ },
+ {
+  "name": "rename into a new parent",
+  "steps": [
+   [
+    "rename",
+    "🧠 Trivia",
+    "Quiz::Trivia"
+   ]
+  ],
+  "after": {
+   "decks": [
+    {
+     "id": 1,
+     "name": "Default",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": 0,
+     "changed": false
+    },
+    {
+     "id": 1794408857989,
+     "name": "👅 Languages",
+     "common": "0801100120033801",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857990,
+     "name": "👅 Languages::🐘 ภาษาไทย",
+     "common": "0801100120033801",
+     "kind": "0a07088983e9d89c34",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857991,
+     "name": "Quiz::Trivia",
+     "common": "080110012001",
+     "kind": "0a0408013803",
+     "usn": -1,
+     "changed": true
+    },
+    {
+     "id": 1794408858039,
+     "name": "Filtered Deck 1",
+     "common": "08011001",
+     "kind": "1229080112200a1c226465636b3af09fa7a020547269766961222069733a726576696577106428d804383c",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": "new 0",
+     "name": "Quiz",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": true
+    }
+   ],
+   "graves": [],
+   "cards": [
+    {
+     "id": 1794408858014,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 3,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858015,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858016,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 1,
+     "due": 1794408924,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858017,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 0,
+     "due": 2,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858018,
+     "deck": "Filtered Deck 1",
+     "home": "Quiz::Trivia",
+     "queue": 2,
+     "due": -100000,
+     "odue": 10,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858019,
+     "deck": "Quiz::Trivia",
+     "home": null,
+     "queue": -1,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858020,
+     "deck": "Quiz::Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 5,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858030,
+     "deck": "Quiz::Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 6,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858031,
+     "deck": "Quiz::Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858032,
+     "deck": "Quiz::Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "notes": [
+    {
+     "id": 1794408858013,
+     "usn": -1
+    },
+    {
+     "id": 1794408858015,
+     "usn": -1
+    },
+    {
+     "id": 1794408858016,
+     "usn": -1
+    },
+    {
+     "id": 1794408858017,
+     "usn": -1
+    },
+    {
+     "id": 1794408858018,
+     "usn": -1
+    },
+    {
+     "id": 1794408858030,
+     "usn": -1
+    },
+    {
+     "id": 1794408858031,
+     "usn": -1
+    }
+   ],
+   "config": [
+    "_deck_1794408857990_lastNotetype",
+    "_deck_1794408857991_lastNotetype",
+    "_nt_1794408857890_lastDeck",
+    "_nt_1794408857891_lastDeck",
+    "_nt_1794408857894_lastDeck",
+    "activeDecks",
+    "addToCur",
+    "collapseTime",
+    "creationOffset",
+    "curDeck",
+    "curModel",
+    "dayLearnFirst",
+    "dueCounts",
+    "estTimes",
+    "fsrs",
+    "newSpread",
+    "nextPos",
+    "rollover",
+    "sched2021",
+    "schedVer",
+    "sortBackwards",
+    "sortType",
+    "timeLim"
+   ],
+   "modified": true
+  }
+ },
+ {
+  "name": "rename a deck with a subdeck",
+  "steps": [
+   [
+    "rename",
+    "👅 Languages",
+    "Języki"
+   ]
+  ],
+  "after": {
+   "decks": [
+    {
+     "id": 1,
+     "name": "Default",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": 0,
+     "changed": false
+    },
+    {
+     "id": 1794408857989,
+     "name": "Języki",
+     "common": "0801100120033801",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": true
+    },
+    {
+     "id": 1794408857990,
+     "name": "Języki::🐘 ภาษาไทย",
+     "common": "0801100120033801",
+     "kind": "0a07088983e9d89c34",
+     "usn": -1,
+     "changed": true
+    },
+    {
+     "id": 1794408857991,
+     "name": "🧠 Trivia",
+     "common": "080110012001",
+     "kind": "0a0408013803",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858039,
+     "name": "Filtered Deck 1",
+     "common": "08011001",
+     "kind": "1229080112200a1c226465636b3af09fa7a020547269766961222069733a726576696577106428d804383c",
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "graves": [],
+   "cards": [
+    {
+     "id": 1794408858014,
+     "deck": "Języki::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 3,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858015,
+     "deck": "Języki::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858016,
+     "deck": "Języki::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 1,
+     "due": 1794408924,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858017,
+     "deck": "Języki::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 0,
+     "due": 2,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858018,
+     "deck": "Filtered Deck 1",
+     "home": "🧠 Trivia",
+     "queue": 2,
+     "due": -100000,
+     "odue": 10,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858019,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": -1,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858020,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 5,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858030,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 6,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858031,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858032,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "notes": [
+    {
+     "id": 1794408858013,
+     "usn": -1
+    },
+    {
+     "id": 1794408858015,
+     "usn": -1
+    },
+    {
+     "id": 1794408858016,
+     "usn": -1
+    },
+    {
+     "id": 1794408858017,
+     "usn": -1
+    },
+    {
+     "id": 1794408858018,
+     "usn": -1
+    },
+    {
+     "id": 1794408858030,
+     "usn": -1
+    },
+    {
+     "id": 1794408858031,
+     "usn": -1
+    }
+   ],
+   "config": [
+    "_deck_1794408857990_lastNotetype",
+    "_deck_1794408857991_lastNotetype",
+    "_nt_1794408857890_lastDeck",
+    "_nt_1794408857891_lastDeck",
+    "_nt_1794408857894_lastDeck",
+    "activeDecks",
+    "addToCur",
+    "collapseTime",
+    "creationOffset",
+    "curDeck",
+    "curModel",
+    "dayLearnFirst",
+    "dueCounts",
+    "estTimes",
+    "fsrs",
+    "newSpread",
+    "nextPos",
+    "rollover",
+    "sched2021",
+    "schedVer",
+    "sortBackwards",
+    "sortType",
+    "timeLim"
+   ],
+   "modified": true
+  }
+ },
+ {
+  "name": "rename into a parent spelled differently",
+  "steps": [
+   [
+    "rename",
+    "👅 Languages::🐘 ภาษาไทย",
+    "🧠 trivia::Thai"
+   ]
+  ],
+  "after": {
+   "decks": [
+    {
+     "id": 1,
+     "name": "Default",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": 0,
+     "changed": false
+    },
+    {
+     "id": 1794408857989,
+     "name": "👅 Languages",
+     "common": "0801100120033801",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857990,
+     "name": "🧠 Trivia::Thai",
+     "common": "0801100120033801",
+     "kind": "0a07088983e9d89c34",
+     "usn": -1,
+     "changed": true
+    },
+    {
+     "id": 1794408857991,
+     "name": "🧠 Trivia",
+     "common": "080110012001",
+     "kind": "0a0408013803",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858039,
+     "name": "Filtered Deck 1",
+     "common": "08011001",
+     "kind": "1229080112200a1c226465636b3af09fa7a020547269766961222069733a726576696577106428d804383c",
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "graves": [],
+   "cards": [
+    {
+     "id": 1794408858014,
+     "deck": "🧠 Trivia::Thai",
+     "home": null,
+     "queue": 2,
+     "due": 3,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858015,
+     "deck": "🧠 Trivia::Thai",
+     "home": null,
+     "queue": 2,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858016,
+     "deck": "🧠 Trivia::Thai",
+     "home": null,
+     "queue": 1,
+     "due": 1794408924,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858017,
+     "deck": "🧠 Trivia::Thai",
+     "home": null,
+     "queue": 0,
+     "due": 2,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858018,
+     "deck": "Filtered Deck 1",
+     "home": "🧠 Trivia",
+     "queue": 2,
+     "due": -100000,
+     "odue": 10,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858019,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": -1,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858020,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 5,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858030,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 6,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858031,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858032,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "notes": [
+    {
+     "id": 1794408858013,
+     "usn": -1
+    },
+    {
+     "id": 1794408858015,
+     "usn": -1
+    },
+    {
+     "id": 1794408858016,
+     "usn": -1
+    },
+    {
+     "id": 1794408858017,
+     "usn": -1
+    },
+    {
+     "id": 1794408858018,
+     "usn": -1
+    },
+    {
+     "id": 1794408858030,
+     "usn": -1
+    },
+    {
+     "id": 1794408858031,
+     "usn": -1
+    }
+   ],
+   "config": [
+    "_deck_1794408857990_lastNotetype",
+    "_deck_1794408857991_lastNotetype",
+    "_nt_1794408857890_lastDeck",
+    "_nt_1794408857891_lastDeck",
+    "_nt_1794408857894_lastDeck",
+    "activeDecks",
+    "addToCur",
+    "collapseTime",
+    "creationOffset",
+    "curDeck",
+    "curModel",
+    "dayLearnFirst",
+    "dueCounts",
+    "estTimes",
+    "fsrs",
+    "newSpread",
+    "nextPos",
+    "rollover",
+    "sched2021",
+    "schedVer",
+    "sortBackwards",
+    "sortType",
+    "timeLim"
+   ],
+   "modified": true
+  }
+ },
+ {
+  "name": "rename, case only",
+  "steps": [
+   [
+    "rename",
+    "🧠 Trivia",
+    "🧠 TRIVIA"
+   ]
+  ],
+  "after": {
+   "decks": [
+    {
+     "id": 1,
+     "name": "Default",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": 0,
+     "changed": false
+    },
+    {
+     "id": 1794408857989,
+     "name": "👅 Languages",
+     "common": "0801100120033801",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857990,
+     "name": "👅 Languages::🐘 ภาษาไทย",
+     "common": "0801100120033801",
+     "kind": "0a07088983e9d89c34",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857991,
+     "name": "🧠 TRIVIA",
+     "common": "080110012001",
+     "kind": "0a0408013803",
+     "usn": -1,
+     "changed": true
+    },
+    {
+     "id": 1794408858039,
+     "name": "Filtered Deck 1",
+     "common": "08011001",
+     "kind": "1229080112200a1c226465636b3af09fa7a020547269766961222069733a726576696577106428d804383c",
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "graves": [],
+   "cards": [
+    {
+     "id": 1794408858014,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 3,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858015,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858016,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 1,
+     "due": 1794408924,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858017,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 0,
+     "due": 2,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858018,
+     "deck": "Filtered Deck 1",
+     "home": "🧠 TRIVIA",
+     "queue": 2,
+     "due": -100000,
+     "odue": 10,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858019,
+     "deck": "🧠 TRIVIA",
+     "home": null,
+     "queue": -1,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858020,
+     "deck": "🧠 TRIVIA",
+     "home": null,
+     "queue": 0,
+     "due": 5,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858030,
+     "deck": "🧠 TRIVIA",
+     "home": null,
+     "queue": 0,
+     "due": 6,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858031,
+     "deck": "🧠 TRIVIA",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858032,
+     "deck": "🧠 TRIVIA",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "notes": [
+    {
+     "id": 1794408858013,
+     "usn": -1
+    },
+    {
+     "id": 1794408858015,
+     "usn": -1
+    },
+    {
+     "id": 1794408858016,
+     "usn": -1
+    },
+    {
+     "id": 1794408858017,
+     "usn": -1
+    },
+    {
+     "id": 1794408858018,
+     "usn": -1
+    },
+    {
+     "id": 1794408858030,
+     "usn": -1
+    },
+    {
+     "id": 1794408858031,
+     "usn": -1
+    }
+   ],
+   "config": [
+    "_deck_1794408857990_lastNotetype",
+    "_deck_1794408857991_lastNotetype",
+    "_nt_1794408857890_lastDeck",
+    "_nt_1794408857891_lastDeck",
+    "_nt_1794408857894_lastDeck",
+    "activeDecks",
+    "addToCur",
+    "collapseTime",
+    "creationOffset",
+    "curDeck",
+    "curModel",
+    "dayLearnFirst",
+    "dueCounts",
+    "estTimes",
+    "fsrs",
+    "newSpread",
+    "nextPos",
+    "rollover",
+    "sched2021",
+    "schedVer",
+    "sortBackwards",
+    "sortType",
+    "timeLim"
+   ],
+   "modified": true
+  }
+ },
+ {
+  "name": "rename a filtered deck",
+  "steps": [
+   [
+    "rename",
+    "Filtered Deck 1",
+    "Nowy::Filtered"
+   ]
+  ],
+  "after": {
+   "decks": [
+    {
+     "id": 1,
+     "name": "Default",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": 0,
+     "changed": false
+    },
+    {
+     "id": 1794408857989,
+     "name": "👅 Languages",
+     "common": "0801100120033801",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857990,
+     "name": "👅 Languages::🐘 ภาษาไทย",
+     "common": "0801100120033801",
+     "kind": "0a07088983e9d89c34",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857991,
+     "name": "🧠 Trivia",
+     "common": "080110012001",
+     "kind": "0a0408013803",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858039,
+     "name": "Nowy::Filtered",
+     "common": "08011001",
+     "kind": "1229080112200a1c226465636b3af09fa7a020547269766961222069733a726576696577106428d804383c",
+     "usn": -1,
+     "changed": true
+    },
+    {
+     "id": "new 0",
+     "name": "Nowy",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": true
+    }
+   ],
+   "graves": [],
+   "cards": [
+    {
+     "id": 1794408858014,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 3,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858015,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858016,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 1,
+     "due": 1794408924,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858017,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 0,
+     "due": 2,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858018,
+     "deck": "Nowy::Filtered",
+     "home": "🧠 Trivia",
+     "queue": 2,
+     "due": -100000,
+     "odue": 10,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858019,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": -1,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858020,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 5,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858030,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 6,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858031,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858032,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "notes": [
+    {
+     "id": 1794408858013,
+     "usn": -1
+    },
+    {
+     "id": 1794408858015,
+     "usn": -1
+    },
+    {
+     "id": 1794408858016,
+     "usn": -1
+    },
+    {
+     "id": 1794408858017,
+     "usn": -1
+    },
+    {
+     "id": 1794408858018,
+     "usn": -1
+    },
+    {
+     "id": 1794408858030,
+     "usn": -1
+    },
+    {
+     "id": 1794408858031,
+     "usn": -1
+    }
+   ],
+   "config": [
+    "_deck_1794408857990_lastNotetype",
+    "_deck_1794408857991_lastNotetype",
+    "_nt_1794408857890_lastDeck",
+    "_nt_1794408857891_lastDeck",
+    "_nt_1794408857894_lastDeck",
+    "activeDecks",
+    "addToCur",
+    "collapseTime",
+    "creationOffset",
+    "curDeck",
+    "curModel",
+    "dayLearnFirst",
+    "dueCounts",
+    "estTimes",
+    "fsrs",
+    "newSpread",
+    "nextPos",
+    "rollover",
+    "sched2021",
+    "schedVer",
+    "sortBackwards",
+    "sortType",
+    "timeLim"
+   ],
+   "modified": true
+  }
+ },
+ {
+  "name": "delete a deck with a subdeck",
+  "steps": [
+   [
+    "remove",
+    "👅 Languages"
+   ]
+  ],
+  "after": {
+   "decks": [
+    {
+     "id": 1,
+     "name": "Default",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": 0,
+     "changed": false
+    },
+    {
+     "id": 1794408857991,
+     "name": "🧠 Trivia",
+     "common": "080110012001",
+     "kind": "0a0408013803",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858039,
+     "name": "Filtered Deck 1",
+     "common": "08011001",
+     "kind": "1229080112200a1c226465636b3af09fa7a020547269766961222069733a726576696577106428d804383c",
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "graves": [
+    {
+     "oid": 1794408858014,
+     "type": 0,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858015,
+     "type": 0,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858016,
+     "type": 0,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858017,
+     "type": 0,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858013,
+     "type": 1,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858015,
+     "type": 1,
+     "usn": -1
+    },
+    {
+     "oid": 1794408857989,
+     "type": 2,
+     "usn": -1
+    },
+    {
+     "oid": 1794408857990,
+     "type": 2,
+     "usn": -1
+    }
+   ],
+   "cards": [
+    {
+     "id": 1794408858018,
+     "deck": "Filtered Deck 1",
+     "home": "🧠 Trivia",
+     "queue": 2,
+     "due": -100000,
+     "odue": 10,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858019,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": -1,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858020,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 5,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858030,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 6,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858031,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858032,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "notes": [
+    {
+     "id": 1794408858016,
+     "usn": -1
+    },
+    {
+     "id": 1794408858017,
+     "usn": -1
+    },
+    {
+     "id": 1794408858018,
+     "usn": -1
+    },
+    {
+     "id": 1794408858030,
+     "usn": -1
+    },
+    {
+     "id": 1794408858031,
+     "usn": -1
+    }
+   ],
+   "config": [
+    "_deck_1794408857991_lastNotetype",
+    "_nt_1794408857890_lastDeck",
+    "_nt_1794408857891_lastDeck",
+    "_nt_1794408857894_lastDeck",
+    "activeDecks",
+    "addToCur",
+    "collapseTime",
+    "creationOffset",
+    "curDeck",
+    "curModel",
+    "dayLearnFirst",
+    "dueCounts",
+    "estTimes",
+    "fsrs",
+    "newSpread",
+    "nextPos",
+    "rollover",
+    "sched2021",
+    "schedVer",
+    "sortBackwards",
+    "sortType",
+    "timeLim"
+   ],
+   "modified": true
+  }
+ },
+ {
+  "name": "delete a deck whose cards are in a filtered deck",
+  "steps": [
+   [
+    "remove",
+    "🧠 Trivia"
+   ]
+  ],
+  "after": {
+   "decks": [
+    {
+     "id": 1,
+     "name": "Default",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": 0,
+     "changed": false
+    },
+    {
+     "id": 1794408857989,
+     "name": "👅 Languages",
+     "common": "0801100120033801",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857990,
+     "name": "👅 Languages::🐘 ภาษาไทย",
+     "common": "0801100120033801",
+     "kind": "0a07088983e9d89c34",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858039,
+     "name": "Filtered Deck 1",
+     "common": "08011001",
+     "kind": "1229080112200a1c226465636b3af09fa7a020547269766961222069733a726576696577106428d804383c",
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "graves": [
+    {
+     "oid": 1794408858018,
+     "type": 0,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858019,
+     "type": 0,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858020,
+     "type": 0,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858030,
+     "type": 0,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858031,
+     "type": 0,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858032,
+     "type": 0,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858016,
+     "type": 1,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858017,
+     "type": 1,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858018,
+     "type": 1,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858030,
+     "type": 1,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858031,
+     "type": 1,
+     "usn": -1
+    },
+    {
+     "oid": 1794408857991,
+     "type": 2,
+     "usn": -1
+    }
+   ],
+   "cards": [
+    {
+     "id": 1794408858014,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 3,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858015,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858016,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 1,
+     "due": 1794408924,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858017,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 0,
+     "due": 2,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "notes": [
+    {
+     "id": 1794408858013,
+     "usn": -1
+    },
+    {
+     "id": 1794408858015,
+     "usn": -1
+    }
+   ],
+   "config": [
+    "_deck_1794408857990_lastNotetype",
+    "_nt_1794408857890_lastDeck",
+    "_nt_1794408857891_lastDeck",
+    "_nt_1794408857894_lastDeck",
+    "activeDecks",
+    "addToCur",
+    "collapseTime",
+    "creationOffset",
+    "curDeck",
+    "curModel",
+    "dayLearnFirst",
+    "dueCounts",
+    "estTimes",
+    "fsrs",
+    "newSpread",
+    "nextPos",
+    "rollover",
+    "sched2021",
+    "schedVer",
+    "sortBackwards",
+    "sortType",
+    "timeLim"
+   ],
+   "modified": true
+  }
+ },
+ {
+  "name": "delete a filtered deck",
+  "steps": [
+   [
+    "remove",
+    "Filtered Deck 1"
+   ]
+  ],
+  "after": {
+   "decks": [
+    {
+     "id": 1,
+     "name": "Default",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": 0,
+     "changed": false
+    },
+    {
+     "id": 1794408857989,
+     "name": "👅 Languages",
+     "common": "0801100120033801",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857990,
+     "name": "👅 Languages::🐘 ภาษาไทย",
+     "common": "0801100120033801",
+     "kind": "0a07088983e9d89c34",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857991,
+     "name": "🧠 Trivia",
+     "common": "080110012001",
+     "kind": "0a0408013803",
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "graves": [
+    {
+     "oid": 1794408858039,
+     "type": 2,
+     "usn": -1
+    }
+   ],
+   "cards": [
+    {
+     "id": 1794408858014,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 3,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858015,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858016,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 1,
+     "due": 1794408924,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858017,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 0,
+     "due": 2,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858018,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 2,
+     "due": 10,
+     "odue": 0,
+     "usn": -1,
+     "changed": true
+    },
+    {
+     "id": 1794408858019,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": -1,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858020,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 5,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858030,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 6,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858031,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858032,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "notes": [
+    {
+     "id": 1794408858013,
+     "usn": -1
+    },
+    {
+     "id": 1794408858015,
+     "usn": -1
+    },
+    {
+     "id": 1794408858016,
+     "usn": -1
+    },
+    {
+     "id": 1794408858017,
+     "usn": -1
+    },
+    {
+     "id": 1794408858018,
+     "usn": -1
+    },
+    {
+     "id": 1794408858030,
+     "usn": -1
+    },
+    {
+     "id": 1794408858031,
+     "usn": -1
+    }
+   ],
+   "config": [
+    "_deck_1794408857990_lastNotetype",
+    "_deck_1794408857991_lastNotetype",
+    "_nt_1794408857890_lastDeck",
+    "_nt_1794408857891_lastDeck",
+    "_nt_1794408857894_lastDeck",
+    "activeDecks",
+    "addToCur",
+    "collapseTime",
+    "creationOffset",
+    "curDeck",
+    "curModel",
+    "dayLearnFirst",
+    "dueCounts",
+    "estTimes",
+    "fsrs",
+    "newSpread",
+    "nextPos",
+    "rollover",
+    "sched2021",
+    "schedVer",
+    "sortBackwards",
+    "sortType",
+    "timeLim"
+   ],
+   "modified": true
+  }
+ },
+ {
+  "name": "delete the Default deck",
+  "steps": [
+   [
+    "remove",
+    "Default"
+   ]
+  ],
+  "after": {
+   "decks": [
+    {
+     "id": 1,
+     "name": "Default",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": true
+    },
+    {
+     "id": 1794408857989,
+     "name": "👅 Languages",
+     "common": "0801100120033801",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857990,
+     "name": "👅 Languages::🐘 ภาษาไทย",
+     "common": "0801100120033801",
+     "kind": "0a07088983e9d89c34",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857991,
+     "name": "🧠 Trivia",
+     "common": "080110012001",
+     "kind": "0a0408013803",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858039,
+     "name": "Filtered Deck 1",
+     "common": "08011001",
+     "kind": "1229080112200a1c226465636b3af09fa7a020547269766961222069733a726576696577106428d804383c",
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "graves": [],
+   "cards": [
+    {
+     "id": 1794408858014,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 3,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858015,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858016,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 1,
+     "due": 1794408924,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858017,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 0,
+     "due": 2,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858018,
+     "deck": "Filtered Deck 1",
+     "home": "🧠 Trivia",
+     "queue": 2,
+     "due": -100000,
+     "odue": 10,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858019,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": -1,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858020,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 5,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858030,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 6,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858031,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858032,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "notes": [
+    {
+     "id": 1794408858013,
+     "usn": -1
+    },
+    {
+     "id": 1794408858015,
+     "usn": -1
+    },
+    {
+     "id": 1794408858016,
+     "usn": -1
+    },
+    {
+     "id": 1794408858017,
+     "usn": -1
+    },
+    {
+     "id": 1794408858018,
+     "usn": -1
+    },
+    {
+     "id": 1794408858030,
+     "usn": -1
+    },
+    {
+     "id": 1794408858031,
+     "usn": -1
+    }
+   ],
+   "config": [
+    "_deck_1794408857990_lastNotetype",
+    "_deck_1794408857991_lastNotetype",
+    "_nt_1794408857890_lastDeck",
+    "_nt_1794408857891_lastDeck",
+    "_nt_1794408857894_lastDeck",
+    "activeDecks",
+    "addToCur",
+    "collapseTime",
+    "creationOffset",
+    "curDeck",
+    "curModel",
+    "dayLearnFirst",
+    "dueCounts",
+    "estTimes",
+    "fsrs",
+    "newSpread",
+    "nextPos",
+    "rollover",
+    "sched2021",
+    "schedVer",
+    "sortBackwards",
+    "sortType",
+    "timeLim"
+   ],
+   "modified": true
+  }
+ },
+ {
+  "name": "delete a subdeck, leaving its parent",
+  "steps": [
+   [
+    "remove",
+    "👅 Languages::🐘 ภาษาไทย"
+   ]
+  ],
+  "after": {
+   "decks": [
+    {
+     "id": 1,
+     "name": "Default",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": 0,
+     "changed": false
+    },
+    {
+     "id": 1794408857989,
+     "name": "👅 Languages",
+     "common": "0801100120033801",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857991,
+     "name": "🧠 Trivia",
+     "common": "080110012001",
+     "kind": "0a0408013803",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858039,
+     "name": "Filtered Deck 1",
+     "common": "08011001",
+     "kind": "1229080112200a1c226465636b3af09fa7a020547269766961222069733a726576696577106428d804383c",
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "graves": [
+    {
+     "oid": 1794408858014,
+     "type": 0,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858015,
+     "type": 0,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858016,
+     "type": 0,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858017,
+     "type": 0,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858013,
+     "type": 1,
+     "usn": -1
+    },
+    {
+     "oid": 1794408858015,
+     "type": 1,
+     "usn": -1
+    },
+    {
+     "oid": 1794408857990,
+     "type": 2,
+     "usn": -1
+    }
+   ],
+   "cards": [
+    {
+     "id": 1794408858018,
+     "deck": "Filtered Deck 1",
+     "home": "🧠 Trivia",
+     "queue": 2,
+     "due": -100000,
+     "odue": 10,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858019,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": -1,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858020,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 5,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858030,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 6,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858031,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858032,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "notes": [
+    {
+     "id": 1794408858016,
+     "usn": -1
+    },
+    {
+     "id": 1794408858017,
+     "usn": -1
+    },
+    {
+     "id": 1794408858018,
+     "usn": -1
+    },
+    {
+     "id": 1794408858030,
+     "usn": -1
+    },
+    {
+     "id": 1794408858031,
+     "usn": -1
+    }
+   ],
+   "config": [
+    "_deck_1794408857991_lastNotetype",
+    "_nt_1794408857890_lastDeck",
+    "_nt_1794408857891_lastDeck",
+    "_nt_1794408857894_lastDeck",
+    "activeDecks",
+    "addToCur",
+    "collapseTime",
+    "creationOffset",
+    "curDeck",
+    "curModel",
+    "dayLearnFirst",
+    "dueCounts",
+    "estTimes",
+    "fsrs",
+    "newSpread",
+    "nextPos",
+    "rollover",
+    "sched2021",
+    "schedVer",
+    "sortBackwards",
+    "sortType",
+    "timeLim"
+   ],
+   "modified": true
+  }
+ },
+ {
+  "name": "create, rename, delete",
+  "steps": [
+   [
+    "create",
+    "A::B"
+   ],
+   [
+    "rename",
+    "A",
+    "C"
+   ],
+   [
+    "remove",
+    "C"
+   ]
+  ],
+  "after": {
+   "decks": [
+    {
+     "id": 1,
+     "name": "Default",
+     "common": "08011001",
+     "kind": "0a020801",
+     "usn": 0,
+     "changed": false
+    },
+    {
+     "id": 1794408857989,
+     "name": "👅 Languages",
+     "common": "0801100120033801",
+     "kind": "0a020801",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857990,
+     "name": "👅 Languages::🐘 ภาษาไทย",
+     "common": "0801100120033801",
+     "kind": "0a07088983e9d89c34",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408857991,
+     "name": "🧠 Trivia",
+     "common": "080110012001",
+     "kind": "0a0408013803",
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858039,
+     "name": "Filtered Deck 1",
+     "common": "08011001",
+     "kind": "1229080112200a1c226465636b3af09fa7a020547269766961222069733a726576696577106428d804383c",
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "graves": [
+    {
+     "oid": "new 0",
+     "type": 2,
+     "usn": -1
+    },
+    {
+     "oid": "new 1",
+     "type": 2,
+     "usn": -1
+    }
+   ],
+   "cards": [
+    {
+     "id": 1794408858014,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 3,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858015,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 2,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858016,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 1,
+     "due": 1794408924,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858017,
+     "deck": "👅 Languages::🐘 ภาษาไทย",
+     "home": null,
+     "queue": 0,
+     "due": 2,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858018,
+     "deck": "Filtered Deck 1",
+     "home": "🧠 Trivia",
+     "queue": 2,
+     "due": -100000,
+     "odue": 10,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858019,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": -1,
+     "due": 4,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858020,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 5,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858030,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 6,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858031,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    },
+    {
+     "id": 1794408858032,
+     "deck": "🧠 Trivia",
+     "home": null,
+     "queue": 0,
+     "due": 7,
+     "odue": 0,
+     "usn": -1,
+     "changed": false
+    }
+   ],
+   "notes": [
+    {
+     "id": 1794408858013,
+     "usn": -1
+    },
+    {
+     "id": 1794408858015,
+     "usn": -1
+    },
+    {
+     "id": 1794408858016,
+     "usn": -1
+    },
+    {
+     "id": 1794408858017,
+     "usn": -1
+    },
+    {
+     "id": 1794408858018,
+     "usn": -1
+    },
+    {
+     "id": 1794408858030,
+     "usn": -1
+    },
+    {
+     "id": 1794408858031,
+     "usn": -1
+    }
+   ],
+   "config": [
+    "_deck_1794408857990_lastNotetype",
+    "_deck_1794408857991_lastNotetype",
+    "_nt_1794408857890_lastDeck",
+    "_nt_1794408857891_lastDeck",
+    "_nt_1794408857894_lastDeck",
+    "activeDecks",
+    "addToCur",
+    "collapseTime",
+    "creationOffset",
+    "curDeck",
+    "curModel",
+    "dayLearnFirst",
+    "dueCounts",
+    "estTimes",
+    "fsrs",
+    "newSpread",
+    "nextPos",
+    "rollover",
+    "sched2021",
+    "schedVer",
+    "sortBackwards",
+    "sortType",
+    "timeLim"
+   ],
+   "modified": true
+  }
+ }
+]
