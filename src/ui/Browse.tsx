@@ -2,14 +2,14 @@ import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../anki/noteService';
-import { notePreview, searchNotes } from '../core/noteEditing';
+import { deckChipRows, notePreview, searchNotes } from '../core/noteEditing';
 import type { Note } from '../core/types';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { Chip, Screen } from './kit';
 import { hairline, space, type, useTheme } from './theme';
 
 /**
- * Every note, searchable and narrowed to a top-level deck; tap one to edit it, or Add a new one.
+ * Every note, searchable and narrowed to a deck or any of its subdecks; tap one to edit it, or Add a new one.
  * Search matches every word in any field, a tag or the deck name (src/core/noteEditing.ts).
  */
 export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void }) {
@@ -21,7 +21,7 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
   const load = useCallback(async () => setNotes(await repo.listNotes()), [repo]);
   useEffect(() => { load(); }, [load]);
 
-  const tops = useMemo(() => [...new Set((notes ?? []).map((n) => n.deck.split('::')[0]))].sort((a, b) => a.localeCompare(b)), [notes]);
+  const chipRows = useMemo(() => deckChipRows(notes ?? [], scope), [notes, scope]);
   const found = useMemo(() => (notes ? searchNotes(notes, query, scope) : []), [notes, query, scope]);
   // The editor is a sheet over this screen; a saved or deleted note means the list is out of date.
   const edit = (target: NoteEditorTarget) => onEditNote(target, (result) => { if (result) load(); });
@@ -47,11 +47,11 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
         ItemSeparatorComponent={() => <View style={{ height: hairline, backgroundColor: c.border }} />}
         ListHeaderComponent={
           <View style={{ gap: space.s, paddingBottom: space.s }}>
-            {tops.length > 1 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.s }} keyboardShouldPersistTaps="handled">
-                {[null, ...tops].map((d) => <Chip key={d ?? '*'} label={d ?? 'All decks'} selected={scope === d} onPress={() => setScope(d)} />)}
+            {chipRows.map((row, i) => (
+              <ScrollView key={i} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.s }} keyboardShouldPersistTaps="handled">
+                {row.map((chip) => <Chip key={chip.deck ?? '*'} label={chip.label} selected={chip.selected} onPress={() => setScope(chip.deck)} />)}
               </ScrollView>
-            ) : null}
+            ))}
             {notes ? (
               <Text style={{ ...type.footnote, color: c.textSecondary }}>
                 {found.length.toLocaleString()} {found.length === 1 ? 'note' : 'notes'}
