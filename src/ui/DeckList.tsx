@@ -1,8 +1,8 @@
 import { Stack } from 'expo-router';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { deckListTotals, type DeckRow } from '../core/deckTree';
-import { Button, Card, Group, Icon, NavRow, Screen } from './kit';
+import { Button, Card, Group, Icon, NavRow, Screen, SwipeToReveal } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /** Rows grouped under their top-level deck, so each family of decks sits in one card. */
@@ -129,6 +129,8 @@ export function DeckList(props: {
 }) {
   const c = useTheme();
   const groups = useMemo(() => groupByTopLevel(props.decks), [props.decks]);
+  // The deck whose row is slid open on its Options action; one at a time.
+  const [openDeck, setOpenDeck] = useState<string | null>(null);
   const totals = useMemo(() => deckListTotals(props.decks), [props.decks]);
   const backup = props.sync ? undefined : props.backup;
   return (
@@ -175,13 +177,30 @@ export function DeckList(props: {
           groups.map((g) => (
             <Group key={g[0].deck}>
               {g.map((row, i) => (
-                <DeckRowView
+                <SwipeToReveal
                   key={row.deck}
-                  row={row}
-                  first={i === 0}
-                  onOpen={() => props.onOpen(row.deck)}
-                  onOptions={() => props.onOptions(row.deck)}
-                />
+                  open={openDeck === row.deck}
+                  onOpenChange={(open) => setOpenDeck(open ? row.deck : null)}
+                  action={
+                    <Pressable
+                      onPress={() => { setOpenDeck(null); props.onOptions(row.deck); }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Options for ${row.name}`}
+                      style={({ pressed }) => ({ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.xs, backgroundColor: c.accent, opacity: pressed ? 0.8 : 1 })}
+                    >
+                      <Icon name="gearshape" size={22} color={c.onAccent} />
+                      <Text style={{ ...type.footnote, color: c.onAccent, fontWeight: '600' }}>Options</Text>
+                    </Pressable>
+                  }
+                >
+                  <DeckRowView
+                    row={row}
+                    first={i === 0}
+                    // Tapping a row that's slid open closes it, rather than opening the deck.
+                    onOpen={() => (openDeck === row.deck ? setOpenDeck(null) : props.onOpen(row.deck))}
+                    onOptions={() => props.onOptions(row.deck)}
+                  />
+                </SwipeToReveal>
               ))}
             </Group>
           ))
