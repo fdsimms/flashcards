@@ -1,0 +1,11 @@
+# The build context for every image is this folder (docker-compose.yml), so that the MCP and Read &
+# Listen can both copy the shared speech/ package. Keep secrets and local build leftovers out of it.
+.env
+**/.venv
+**/__pycache__
+**/.mypy_cache
+**/.ruff_cache
+**/.pytest_cache
+**/tests
+**/*.sqlite
+**/*.db

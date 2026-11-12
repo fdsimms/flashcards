@@ -107,7 +107,8 @@ def azure():
 
 @pytest.fixture
 async def client(cm, azure):
-    speech = SpeechClient("key", "westeurope", http=httpx.AsyncClient(transport=httpx.MockTransport(azure)))
+    speech = SpeechClient("key", "westeurope", http=httpx.AsyncClient(transport=httpx.MockTransport(azure)),
+                          user_agent="franki-mcp", voice_help="Check the voice name with list_voices.")
     async with Client(build_server(cm, speech)) as c:
         yield c
 

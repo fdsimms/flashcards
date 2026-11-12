@@ -18,8 +18,11 @@ const MARK_LABELS: Record<Mark, string> = { b: 'Bold', i: 'Italic', u: 'Underlin
  */
 export function NoteEditor(props: {
   repo: NoteStore;
-  /** Edit this note, or add one (starting in `deck`). */
-  target: { noteId: string } | { deck: string | null };
+  /**
+   * Edit this note, or add one (starting in `deck`, and with `model` and `fields` filled in when
+   * given, as Read & Listen's marked words do).
+   */
+  target: { noteId: string } | { deck: string | null; model?: string; fields?: Record<string, string> };
   onClose: (result?: { saved: Note } | { deleted: string }) => void;
 }) {
   const c = useTheme();
@@ -69,7 +72,9 @@ export function NoteEditor(props: {
         for (const n of inDeck.length ? inDeck : all) counts.set(n.model, (counts.get(n.model) ?? 0) + 1);
         const startModel = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? [...types.keys()][0] ?? '';
         setDeck(startDeck);
-        setModel(startModel);
+        const asked = props.target.model;
+        setModel(asked && (types.has(asked) || all.some((n) => n.model === asked)) ? asked : startModel);
+        if (props.target.fields) setFields(props.target.fields);
       }
     })();
   }, [props.repo]); // eslint-disable-line react-hooks/exhaustive-deps

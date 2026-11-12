@@ -16,7 +16,10 @@ services:
     volumes:
       - anki-data:/data
   mcp:
-    build: ./mcp
+    # From this folder, so the MCP and Read & Listen can both copy the shared speech/ package.
+    build:
+      context: .
+      dockerfile: mcp/Dockerfile
     profiles: [mcp]
     restart: unless-stopped
     environment:
@@ -33,7 +36,9 @@ services:
     depends_on:
       - anki
   reader:
-    build: ./reader
+    build:
+      context: .
+      dockerfile: reader/Dockerfile
     profiles: [reader]
     restart: unless-stopped
     environment:
@@ -47,6 +52,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
       AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}
+      AZURE_SPEECH_ENDPOINT: ${AZURE_SPEECH_ENDPOINT:-}
       # Backups (optional): an S3-compatible bucket Litestream streams the database to.
       BUCKET_NAME: ${READER_BUCKET_NAME:-}
       AWS_ENDPOINT_URL_S3: ${READER_BUCKET_ENDPOINT:-}

@@ -12,6 +12,7 @@ from franki_reader import store
 from franki_reader.difficulty import Difficulty
 from franki_reader.engine import FAILURE_COOLDOWN, MISSED_FLOOR, Engine, NotAvailable, NotFound
 from franki_reader.generator import GenerationFailed
+from franki_reader.lexicon import Entry
 from franki_reader.store import Reading, StoredText
 
 NOW = datetime(2026, 10, 19, 9, 0)
@@ -439,3 +440,63 @@ def test_the_form_setting_asks_for_a_story_and_the_text_keeps_it() -> None:
     text = run(lambda: fetch(e, topic.id))
     assert text.form == "story"
     assert {line.speaker for line in text.lines} == {"N"}
+
+
+# ==== Texts written to practice chosen words (the app's "Read a text with these words") ====
+
+
+def test_chosen_words_are_offered_as_the_stretch_words() -> None:
+    e = engine(ScriptedModel(GOOD))
+    request = e._request("Food stall", ENTRIES, Difficulty(stretch=2), "th", "กิน\nครับ")
+    assert sorted(w.text for w in request.stretch) == ["กิน", "ครับ"]
+    assert request.choose == 2
+
+
+def test_chosen_words_not_yet_studied_are_left_out_and_none_says_so() -> None:
+    e = engine(ScriptedModel(GOOD))
+    request = e._request("Food stall", ENTRIES, Difficulty(stretch=3), "th", "กิน\nทอน\nไม่มี")
+    assert [w.text for w in request.stretch] == ["กิน"]
+    assert request.choose == 1
+    with pytest.raises(NotAvailable, match="None of those words are in the Thai word list yet"):
+        e._request("Food stall", ENTRIES, Difficulty(), "th", "ทอน")
+
+
+def test_a_text_for_chosen_words_is_its_own_and_not_the_queues() -> None:
+    model = ScriptedModel(GOOD, GOOD)
+    e = engine(model)
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+
+    async def scenario() -> tuple[StoredText, int, StoredText]:
+        queued = await fetch(e, topic.id)  # the queue's own text, still unread
+        for _ in range(5):
+            chosen = await e.next_text(topic.id, ["<b>ข้าวเหนียวมะม่วง</b>", "ครับ"])
+            if chosen is not None:
+                break
+            await settle(e)
+        assert chosen is not None
+        ready = store.list_topics(e.conn)[0].ready
+        return queued, ready, chosen
+
+    queued, ready, chosen = run(scenario)
+
+    assert chosen.id != queued.id
+    assert model.calls == 2
+    # The queue's text is still the one waiting; the chosen-words text isn't counted or served there.
+    assert ready == 1
+    assert store.next_ready_text(e.conn, topic.id).id == queued.id  # type: ignore[union-attr]
+
+
+def test_chosen_words_read_the_deck_again_first() -> None:
+    reads: list[str] = []
+    fresh = [*ENTRIES[:6], Entry(7, "ทอน", "give change", "young")]
+
+    async def read(language: Any) -> list[Entry]:
+        reads.append(language.deck)
+        return fresh
+
+    e = engine(ScriptedModel(GOOD))
+    e.read_deck = read
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    text = run(lambda: e.make_text(topic.id, "th", "ทอน"))
+    assert text is not None
+    assert reads == ["👅 Languages::🐘 ภาษาไทย"]  # though today's snapshot wasn't a day old

@@ -75,6 +75,7 @@ jobs:
           filters: |
             mcp:
               - 'server/mcp/**'
+              - 'server/speech/**'
               - 'tests/fixtures/anki/**'
               - '.github/workflows/test.yml'
       - if: github.event_name != 'pull_request' || steps.paths.outputs.mcp == 'true'
@@ -84,15 +85,17 @@ jobs:
           cache: pip
           cache-dependency-path: server/mcp/requirements*.txt
       - if: github.event_name != 'pull_request' || steps.paths.outputs.mcp == 'true'
-        run: pip install -r server/mcp/requirements-dev.txt
+        # The shared Azure client (server/speech) is a package of its own.
+        run: pip install -r server/mcp/requirements-dev.txt ./server/speech
       - if: github.event_name != 'pull_request' || steps.paths.outputs.mcp == 'true'
         run: python -m pytest -q
         working-directory: server/mcp
         env:
           TZ: Pacific/Kiritimati
 
-  # Read & Listen's server (server/reader): lint, types and tests, the sync tests against a real
-  # Anki sync server from the same `anki` package. Only when something it reads changed.
+  # Read & Listen's server (server/reader), and the Azure client it shares with the MCP
+  # (server/speech): lint, types and tests, the sync tests against a real Anki sync server from the
+  # same `anki` package. Only when something it reads changed.
   reader:
     runs-on: ubuntu-latest
     defaults:
@@ -108,6 +111,7 @@ jobs:
           filters: |
             reader:
               - 'server/reader/**'
+              - 'server/speech/**'
               - '.github/workflows/test.yml'
       - if: github.event_name != 'pull_request' || steps.paths.outputs.reader == 'true'
         uses: astral-sh/setup-uv@v6
@@ -118,8 +122,8 @@ jobs:
       - if: github.event_name != 'pull_request' || steps.paths.outputs.reader == 'true'
         run: uv sync --frozen
       - if: github.event_name != 'pull_request' || steps.paths.outputs.reader == 'true'
-        run: uv run ruff check . && uv run ruff format --check . && uv run mypy
+        run: uv run ruff check . ../speech && uv run ruff format --check . ../speech && uv run mypy && uv run mypy ../speech
       - if: github.event_name != 'pull_request' || steps.paths.outputs.reader == 'true'
-        run: uv run pytest -q
+        run: uv run pytest -q && uv run pytest -q ../speech/tests
         env:
           TZ: Pacific/Kiritimati

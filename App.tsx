@@ -3,7 +3,8 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { studyDayStart } from './src/core/day';
+import { DAY_STARTS_AT_HOUR } from './src/core/config';
+import { studyDayKey, studyDayStart } from './src/core/day';
 import { deckRows, queueInput, type DeckRow } from './src/core/deckTree';
 import { studiedToday } from './src/core/queue';
 import { backupStatus } from './src/db/backup';
@@ -23,8 +24,11 @@ import { ScreenTransition } from './src/ui/motion';
 import { useTheme } from './src/ui/theme';
 import { useSync } from './src/ui/useSync';
 import { syncStatusText } from './src/anki/sync/runSync';
-import { createApi, readerAddress } from './src/reader/api';
-import { clearPassphrase, loadPassphrase, loadPrefs } from './src/reader/storage';
+import { createApi, readerAddress, type Language, type MarkedWord, type Settings as ReaderSettings } from './src/reader/api';
+import { minedNote, minedOne, miningLeft, type MiningCount } from './src/reader/mining';
+import { languageOfDeck } from './src/reader/practice';
+import { clearPassphrase, loadMined, loadPassphrase, loadPrefs, saveMined } from './src/reader/storage';
+import { NoteEditor } from './src/ui/NoteEditor';
 import { Reader, type ReaderSource } from './src/ui/Reader';
 import { ReadGrammar } from './src/ui/ReadGrammar';
 import { ReadPastTexts } from './src/ui/ReadPastTexts';
@@ -39,7 +43,8 @@ type Screen =
   | { name: 'review'; deck: string } | { name: 'deckOptions'; deck: string }
   // Read & Listen: its home (topics), the reader, and the lists it opens; its settings open from
   // Settings, or from the deck list when the server stops accepting the passphrase.
-  | { name: 'read' } | { name: 'reader'; source: ReaderSource } | { name: 'readPast' } | { name: 'readWords' } | { name: 'readGrammar' }
+  // `practice`: opened from Review's "Read a text with these words", with the words just studied.
+  | { name: 'read'; practice?: { language: Language; words: string[] } } | { name: 'reader'; source: ReaderSource } | { name: 'readPast' } | { name: 'readWords' } | { name: 'readGrammar' }
   | { name: 'readSettings'; from: 'decks' | 'settings' };
 
 const READ_SCREENS = new Set<Screen['name']>(['read', 'reader', 'readPast', 'readWords', 'readGrammar']);
@@ -129,6 +134,32 @@ export default function App() {
       setScreen({ name: 'readSettings', from: 'decks' });
     })
     : null), [readerServer, readerPassphrase]);
+  // Read & Listen's settings as its server has them: which deck is each language's, for Review's
+  // "Read a text with these words" and for adding marked words to the deck.
+  const [readerSettings, setReaderSettings] = useState<ReaderSettings | null>(null);
+  useEffect(() => {
+    setReaderSettings(null);
+    readerApi?.settings().then(setReaderSettings, () => undefined);
+  }, [readerApi]);
+  // Marked words added to the deck today (src/reader/mining.ts), and the one being added now.
+  const [mined, setMined] = useState<MiningCount | null>(null);
+  useEffect(() => { loadMined().then(setMined); }, []);
+  const [mining, setMining] = useState<MarkedWord | null>(null);
+  // Bumped after a word is added, so the marked words list loads again without it.
+  const [wordsVersion, setWordsVersion] = useState(0);
+  // `decks` is missing from a server older than the deck setting.
+  const miningDeck = readerSettings?.decks ? readerSettings.decks[readerSettings.language] : null;
+  const finishMining = (word: string, saved: boolean) => {
+    setMining(null);
+    if (!saved) return;
+    const next = minedOne(mined, studyDayKey(new Date(), DAY_STARTS_AT_HOUR));
+    setMined(next);
+    saveMined(next);
+    // Off the list once it's in the deck, as Clear does.
+    readerApi?.clearWord(word).catch(() => undefined).finally(() => setWordsVersion((v) => v + 1));
+  };
+  const reviewLanguage = screen.name === 'review' && readerSettings?.decks ? languageOfDeck(screen.deck, readerSettings.decks) : null;
+
   const turnOffReader = () => {
     clearPassphrase().catch(() => undefined);
     setReaderPassphrase(null);
@@ -183,7 +214,14 @@ export default function App() {
         <Backup store={repo} backLabel={screen.from === 'settings' ? 'Settings' : 'Decks'} onDone={() => setScreen(screen.from === 'settings' ? { name: 'settings' } : { name: 'decks' })} />
       )}
       {screen.name === 'deckOptions' && <DeckOptions repo={repo} deck={screen.deck} onDone={() => setScreen({ name: 'decks' })} />}
-      {screen.name === 'review' && <Review repo={repo} deck={screen.deck} onDone={() => { setScreen({ name: 'decks' }); sync(); }} />}
+      {screen.name === 'review' && (
+        <Review repo={repo} deck={screen.deck} onDone={() => { setScreen({ name: 'decks' }); sync(); }}
+          practice={readerSettings && reviewLanguage ? {
+            languageDeck: readerSettings.decks[reviewLanguage],
+            // Synced first, so the server reads the answers just given before it writes the text.
+            onRead: (words) => { setScreen({ name: 'read', practice: { language: reviewLanguage, words } }); sync(); },
+          } : undefined} />
+      )}
       {(screen.name === 'readSettings' || (READ_SCREENS.has(screen.name) && !readerApi)) && (
         <ReadSettings
           syncServer={readerServer}
@@ -198,7 +236,10 @@ export default function App() {
       )}
       {readerApi && screen.name === 'read' && (
         <ReadTopics api={readerApi} onDone={() => setScreen({ name: 'decks' })}
-          onOpen={(topic) => setScreen({ name: 'reader', source: { kind: 'topic', topic } })}
+          deckNames={decks.map((d) => d.deck)}
+          onSettings={setReaderSettings}
+          practice={screen.practice ? { language: screen.practice.language, count: screen.practice.words.length, onCancel: () => setScreen({ name: 'read' }) } : undefined}
+          onOpen={(topic) => setScreen({ name: 'reader', source: { kind: 'topic', topic, words: screen.practice?.words } })}
           onPast={() => setScreen({ name: 'readPast' })}
           onWords={() => setScreen({ name: 'readWords' })}
           onGrammar={() => setScreen({ name: 'readGrammar' })} />
@@ -210,7 +251,14 @@ export default function App() {
       {readerApi && screen.name === 'readPast' && (
         <ReadPastTexts api={readerApi} onDone={() => setScreen({ name: 'read' })} onOpen={(text) => setScreen({ name: 'reader', source: { kind: 'past', text } })} />
       )}
-      {readerApi && screen.name === 'readWords' && <ReadWords api={readerApi} onDone={() => setScreen({ name: 'read' })} />}
+      {readerApi && screen.name === 'readWords' && (
+        <ReadWords key={wordsVersion} api={readerApi} onDone={() => setScreen({ name: 'read' })}
+          mining={miningDeck ? { deck: miningDeck, left: miningLeft(mined, studyDayKey(new Date(), DAY_STARTS_AT_HOUR)), onAdd: setMining } : undefined} />
+      )}
+      {readerApi && screen.name === 'readWords' && mining && miningDeck ? (
+        // Saving here is the approval: nothing reaches the deck otherwise (CLAUDE.md, Read & Listen).
+        <NoteEditor repo={repo} target={minedNote(mining.word, mining.gloss, miningDeck)} onClose={(result) => finishMining(mining.word, !!result && 'saved' in result)} />
+      ) : null}
       {readerApi && screen.name === 'readGrammar' && <ReadGrammar api={readerApi} onDone={() => setScreen({ name: 'read' })} />}
       </ScreenTransition>
       </View>

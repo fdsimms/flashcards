@@ -16,7 +16,7 @@ import asyncio
 import logging
 import random
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -27,7 +27,7 @@ from franki_reader.coverage import Checker, parse_line
 from franki_reader.difficulty import Difficulty, adapt
 from franki_reader.generator import Ask, GenerationFailed, TextRequest, generate
 from franki_reader.languages import LANGUAGES, Code
-from franki_reader.lexicon import Entry, ReadDeck, lexicon_from
+from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.store import Reading, StoredText, Topic
 from franki_reader.stretch import pick_stretch
 from franki_reader.tts import DEFAULT_VOICES, AudioCache, Synthesize, TtsFailed
@@ -62,7 +62,13 @@ class _Failure:
     reported: bool = False
 
 
-_Key = tuple[int, Code]  # a topic and a language
+# A topic, a language, and the words a text was asked to practice ("" for the queue's own texts).
+_Key = tuple[int, Code, str]
+
+
+def focus_of(words: Iterable[str]) -> str:
+    """The words a text is asked to practice, as one key: cleaned, without repeats, sorted."""
+    return "\n".join(sorted({w for w in (clean(x) for x in words) if w}))
 
 
 def _grammar_record(request: TextRequest) -> dict[str, list[str]]:
@@ -90,7 +96,7 @@ class Engine:
         self.audio = audio
         self.voices = voices or DEFAULT_VOICES
         # All by topic and language: a topic can be writing in one language and failed in another.
-        self._topic_locks: dict[_Key, asyncio.Lock] = {}
+        self._topic_locks: dict[tuple[int, Code], asyncio.Lock] = {}
         self._topping_up = asyncio.Lock()
         self._writing: set[_Key] = set()
         self._failures: dict[_Key, _Failure] = {}
@@ -111,16 +117,16 @@ class Engine:
     def entries(self, language: Code | None = None) -> list[Entry]:
         return self.snapshot(language)[0]
 
-    async def refresh_lexicon(self, language: Code | None = None) -> None:
+    async def refresh_lexicon(self, language: Code | None = None, force: bool = False) -> None:
         if self.read_deck is not None:
             language = language or self.language()
-            await store.refresh_if_stale(self.conn, self.read_deck, self.clock(), language)
+            await store.refresh_if_stale(self.conn, self.read_deck, self.clock(), language, force)
 
     # ==== Serving ====
 
     def topic_state(self, topic: Topic, language: Code | None = None) -> TopicState:
         """`topic` is as listed for this language, so its ready count is this language's."""
-        key = (topic.id, language or self.language())
+        key = (topic.id, language or self.language(), "")
         if topic.ready > 0:
             return "ready"
         if key in self._writing:
@@ -129,15 +135,19 @@ class Engine:
             return "failed"
         return "idle"
 
-    async def next_text(self, topic_id: int) -> StoredText | None:
+    async def next_text(self, topic_id: int, words: Iterable[str] = ()) -> StoredText | None:
         """A ready text in the current language, or None while one is being written in the
         background (started here if nothing is writing). A failed write is raised once as
-        NotAvailable; asking again after that is a deliberate retry and starts a new write."""
+        NotAvailable; asking again after that is a deliberate retry and starts a new write.
+
+        With `words` (the cards just studied, from the app's "Read a text with these words"), the
+        text is one written to practice them, never one from the queue."""
         language = self.language()
-        key = (topic_id, language)
+        focus = focus_of(words)
+        key = (topic_id, language, focus)
         if store.get_topic(self.conn, topic_id, language) is None:
             raise NotFound(topic_id)
-        ready = store.next_ready_text(self.conn, topic_id, language)
+        ready = store.next_ready_text(self.conn, topic_id, language, focus)
         if ready is not None:
             return ready
         if key in self._writing:
@@ -166,10 +176,10 @@ class Engine:
 
     async def _write(self, key: _Key) -> None:
         """Writes one text and records how it went. Never raises: this runs unattended."""
-        topic_id, language = key
+        topic_id, language, focus = key
         self._writing.add(key)
         try:
-            if await self.make_text(topic_id, language) is None:
+            if await self.make_text(topic_id, language, focus) is None:
                 self._fail(key, MISSED_FLOOR)
         except NotAvailable as e:
             self._fail(key, str(e))
@@ -190,24 +200,30 @@ class Engine:
 
     # ==== Writing ====
 
-    async def make_text(self, topic_id: int, language: Code | None = None) -> StoredText | None:
+    async def make_text(
+        self, topic_id: int, language: Code | None = None, focus: str = ""
+    ) -> StoredText | None:
         """Generates and stores one text, or returns None when every attempt was too far under
         the floor to show. One generation per topic and language at a time; a caller that waited
         on the lock gets the text the one before it just wrote instead of writing another."""
         language = language or self.language()
         lock = self._topic_locks.setdefault((topic_id, language), asyncio.Lock())
         async with lock:
-            ready = store.next_ready_text(self.conn, topic_id, language)
+            ready = store.next_ready_text(self.conn, topic_id, language, focus)
             if ready is not None:
                 return ready
             topic = store.get_topic(self.conn, topic_id, language)
             if topic is None:
                 raise NotFound(topic_id)
+            if focus:
+                # The words were just studied: read the deck now, so a card first learned today
+                # counts as known rather than waiting for tomorrow's snapshot.
+                await self.refresh_lexicon(language, force=True)
             self._check_setup(language)
             assert self.ask_for is not None
             entries, lexicon = self.snapshot(language)
             difficulty = store.load_difficulty(self.conn, language)
-            request = self._request(topic.name, entries, difficulty, language)
+            request = self._request(topic.name, entries, difficulty, language, focus)
             result = await generate(self.ask_for(entries, language), lexicon, request)
             words = list(result.stretch)
             if not result.passed:
@@ -223,6 +239,7 @@ class Engine:
                     request.form,
                     language,
                     _grammar_record(request),
+                    focus,
                 )
                 log.warning(
                     "Dropped a %s %r text at %.1f%% after %d attempts ($%.4f)",
@@ -253,6 +270,7 @@ class Engine:
                 request.form,
                 language,
                 _grammar_record(request),
+                focus,
             )
             text = store.get_text(self.conn, text_id)
             assert text is not None
@@ -266,6 +284,7 @@ class Engine:
         entries: list[Entry],
         difficulty: Difficulty,
         language: Code | None = None,
+        focus: str = "",
     ) -> TextRequest:
         language = language or self.language()
         settings = store.load_settings(self.conn)
@@ -289,6 +308,19 @@ class Engine:
                 avoid=avoid,
             )
 
+        if focus:
+            # Words just studied: the model uses as many of them as fit the topic, up to the usual
+            # count. Only words the deck has studied can be practiced; the rest are left out.
+            wanted = set(focus.split("\n"))
+            studied = [e for e in entries if e.text in wanted and e.tier != "unreviewed"]
+            if not studied:
+                name = LANGUAGES[language].name
+                raise NotAvailable(
+                    f"None of those words are in the {name} word list yet. Sync Franki, then try again."
+                )
+            self.rng.shuffle(studied)
+            picked = studied[:STRETCH_CHOICES]
+            return request(picked, min(difficulty.stretch, len(picked)))
         if settings.stretch_words == "any":
             return request(pick_stretch(entries, difficulty.stretch, self.rng, practiced))
         choices = pick_stretch(entries, STRETCH_CHOICES, self.rng, practiced)
@@ -347,7 +379,7 @@ class Engine:
                 log.info("Not topping up: %s", e)
                 return
             for topic in store.list_topics(self.conn, language):
-                key = (topic.id, language)
+                key = (topic.id, language, "")
                 if not topic.favorite or topic.ready >= READY_PER_FAVORITE:
                     continue
                 if key in self._writing or self._cooling_down(key):

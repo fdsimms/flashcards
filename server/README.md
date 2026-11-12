@@ -77,7 +77,7 @@ It needs more memory than the rest (up to about 350 MB with both languages), so 
 
 - `READER_PASSPHRASE`: a long passphrase of its own, typed once in the app
 - `ANTHROPIC_API_KEY`: a Claude API key, for writing the texts
-- `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`: the same ones as the MCP's audio (above)
+- `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`: the same ones as the MCP's audio (above). Both use the same Azure client (`speech/`).
 - `READER_BUCKET_*` (optional, recommended): an S3-compatible bucket that the database is backed up to continuously. When the database is missing (a new server, a lost volume), it's restored from there.
 
 Then run `docker compose up -d --build`. Check `https://<your domain>/reader/health` shows `{"status":"ok"}`. Then in Franki, open **Settings**, **Read & Listen**, and enter the passphrase. Franki finds the server at `https://<your domain>/reader` by itself, from the sync settings.

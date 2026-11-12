@@ -51,8 +51,8 @@ const WRITE_WAIT_MS = 4 * 60_000;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** A new text on a topic, or a past text to read again. */
-export type ReaderSource = { kind: 'topic'; topic: Topic } | { kind: 'past'; text: PastText };
+/** A new text on a topic (practicing `words` when given, the cards just studied), or a past text to read again. */
+export type ReaderSource = { kind: 'topic'; topic: Topic; words?: string[] } | { kind: 'past'; text: PastText };
 
 export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource; onDone: () => void }) {
   const review = source.kind === 'past';
@@ -181,14 +181,15 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
       }
       const topicId = source.topic.id;
       const deadline = Date.now() + WRITE_WAIT_MS;
-      let next = await api.nextText(topicId);
+      const words = source.words;
+      let next = await api.nextText(topicId, words);
       while (next === null) {
         if (!stillWanted()) return;
         setWriting(true);
         if (Date.now() > deadline) throw new ApiError('Writing this text is taking longer than usual. Try again in a minute.', 0);
         await wait(POLL_MS);
         if (!stillWanted()) return;
-        next = await api.nextText(topicId);
+        next = await api.nextText(topicId, words);
       }
       if (!stillWanted()) return;
       setText(next);

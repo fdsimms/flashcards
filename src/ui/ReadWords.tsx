@@ -2,15 +2,23 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type MarkedWord } from '../reader/api';
 import { wordStatus } from '../reader/languages';
+import { MINING_PER_DAY } from '../reader/mining';
 import { Button, Card, ErrorNote, Help, Screen } from './kit';
 import { space, type, useTheme } from './theme';
 
 /**
  * Every word marked unknown while reading, newest first, with its meaning, so they can be looked at
- * together. Nothing here writes to Anki (CLAUDE.md, Read & Listen). Clear takes a word off the list
- * until it's marked again.
+ * together. Clear takes a word off the list until it's marked again. Add to deck opens Franki's
+ * note editor with the word filled in (App does): nothing reaches the deck unless it's saved there,
+ * and at most MINING_PER_DAY a study day (src/reader/mining.ts). This screen writes nothing itself
+ * (CLAUDE.md, Read & Listen).
  */
-export function ReadWords({ api, onDone }: { api: Api; onDone: () => void }) {
+export function ReadWords({ api, mining, onDone }: {
+  api: Api;
+  /** Present when words can be added to the deck: its name, how many more today, and what opens the editor. */
+  mining?: { deck: string; left: number; onAdd: (word: MarkedWord) => void };
+  onDone: () => void;
+}) {
   const c = useTheme();
   const [words, setWords] = useState<MarkedWord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,11 +66,23 @@ export function ReadWords({ api, onDone }: { api: Api; onDone: () => void }) {
                       {wordStatus(w)}{w.times > 1 ? `. Marked ${w.times} times.` : ''}
                     </Text>
                   </View>
-                  <Button label="Clear" variant="secondary" onPress={() => clear(w.word)} />
+                  <View style={{ gap: space.s }}>
+                    {mining && !w.deck ? (
+                      <Button label="Add to deck" onPress={() => mining.onAdd(w)} disabled={mining.left === 0} />
+                    ) : null}
+                    <Button label="Clear" variant="secondary" onPress={() => clear(w.word)} />
+                  </View>
                 </View>
               ))}
             </Card>
-            <Help>Only saved here. Nothing is added to Anki. Clear a word once you've dealt with it.</Help>
+            {mining ? (
+              <Help>
+                {mining.left === 0
+                  ? `You've added ${MINING_PER_DAY} words today, the most for one day, so your reviews stay manageable. Add more tomorrow.`
+                  : `Add to deck opens a new note in ${mining.deck} with the word and its meaning, to check before saving. Up to ${MINING_PER_DAY} a day; ${mining.left} left today.`}
+              </Help>
+            ) : null}
+            <Help>Clear a word once you've dealt with it. Adding one to the deck clears it too.</Help>
           </>
         ) : null}
       </ScrollView>

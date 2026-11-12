@@ -23,6 +23,7 @@ import type { Repo } from '../db/repo';
 import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
 import { CardWebView } from './CardWebView';
 import { NoteEditor } from './NoteEditor';
+import { practiceWords } from '../reader/practice';
 import { haptic } from './haptics';
 import { Button, Count, Icon, IconAction, Screen, Tappable } from './kit';
 import { Reveal, useReduceMotion } from './motion';
@@ -172,7 +173,16 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: string; onDone: () => void }) {
+export function Review({ repo, deck, practice, onDone }: {
+  repo: Repo & AnkiLink;
+  deck: string;
+  /**
+   * Present when the deck is a Read & Listen language's (src/reader/practice.ts): once the session
+   * ends, it offers a text that practices the words just studied.
+   */
+  practice?: { languageDeck: string; onRead: (words: string[]) => void };
+  onDone: () => void;
+}) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
   const [cards, setCards] = useState<Card[] | null>(null);
@@ -439,8 +449,15 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
 
   if (!current || !note || (!rendered && !page)) {
     const minutes = waitingFor ? Math.max(1, Math.ceil((waitingFor.getTime() - Date.now()) / 60000) - collection.learnAheadMinutes) : 0;
+    const studiedWords = practice ? practiceWords(history.map((h) => ({ noteId: h.before.noteId, deck: h.deck })), notes, practice.languageDeck) : [];
+    const footer = studiedWords.length && practice ? (
+      <>
+        <Button label="Read a text with these words" onPress={() => practice.onRead(studiedWords)} />
+        <Button label="Back to decks" variant="secondary" onPress={onDone} />
+      </>
+    ) : <Button label="Back to decks" onPress={onDone} />;
     return (
-      <Screen onBack={onDone} right={undoAction} footer={<Button label="Back to decks" onPress={onDone} />}>
+      <Screen onBack={onDone} right={undoAction} footer={footer}>
         <Reveal style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
           <Icon name={waitingFor ? 'clock' : 'checkmark.circle.fill'} size={56} color={waitingFor ? c.textTertiary : c.countDue} weight="regular" />
           <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>
