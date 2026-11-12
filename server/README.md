@@ -75,7 +75,7 @@ It needs more memory than the rest (up to about 350 MB with both languages), so 
 
 **Turn it on.** In `.env`, add `reader` to `COMPOSE_PROFILES` (for example `COMPOSE_PROFILES=mcp,reader`) and set:
 
-- `READER_PASSPHRASE`: a long passphrase of its own, typed once in the app
+- `READER_PASSPHRASE`: a long passphrase of its own, typed once in the app. The MCP uses it too, to tell Claude what Read & Listen costs (`read_and_listen_costs`)
 - `ANTHROPIC_API_KEY`: a Claude API key, for writing the texts
 - `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`: the same ones as the MCP's audio (above). Both use the same Azure client (`speech/`). `AZURE_SPEECH_ENDPOINT` (optional, for both) replaces the region's own address, for a custom domain.
 - `AZURE_VOICE_A` and `AZURE_VOICE_B` (optional): Thai's two voices, when not `th-TH-NiwatNeural` and `th-TH-PremwadeeNeural`.

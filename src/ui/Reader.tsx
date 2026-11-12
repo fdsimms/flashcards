@@ -4,17 +4,18 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ApiError, type Api, type PastText, type Rating, type ReaderText, type TextGrammar, type Topic, type Word } from '../reader/api';
+import { ApiError, type Api, type Length, type PastText, type Rating, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
 import { countOutsideDeck, isOutsideDeck, underFloor } from '../reader/deckWords';
 import { scrollTarget, type Box } from '../reader/follow';
 import { LANGUAGES, wordStatus } from '../reader/languages';
 import { firstLine, nextLine, paragraphs, previousLine, rangeOf } from '../reader/playback';
 import { RATES } from '../reader/playbackRate';
+import { minutesFor, nextInOrder, playOrder, stepLength, type LengthStep } from '../reader/shelf';
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
 import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
-import { Button, Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
+import { Button, Card, Chip, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './theme';
 
 /**
@@ -26,6 +27,10 @@ import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './the
  * the player pinned under the scroll view. Done swaps the lines for the end view (rating, stats,
  * words marked unknown). The gloss popover is a transparent Modal, so a tap's page coordinates
  * place it directly.
+ *
+ * From the shelf: a text already written opens straight away, and the end view steers the next
+ * ones (length, more or fewer like this) and offers the next text on the shelf. Play all plays the
+ * shelf's texts one after another, logging each as read once its last line has played.
  *
  * Reading again: a past text opens here with nothing logged (no Done, no rating, no marking words
  * unknown), since a second reading isn't recorded. One rated About right can be played with the
@@ -60,10 +65,28 @@ const WRITE_WAIT_MS = 4 * 60_000;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** A new text on a topic (practicing `words` when given, the cards just studied), or a past text to read again. */
-export type ReaderSource = { kind: 'topic'; topic: Topic; words?: string[] } | { kind: 'past'; text: PastText };
+/**
+ * A text from the shelf (`order`: the shelf's texts as they were listed, for Next; `playAll`: play
+ * them one after another), a new text on a topic (practicing `words` when given, the cards just
+ * studied), or a past text to read again.
+ */
+export type ReaderSource =
+  | { kind: 'shelf'; textId: number; order: number[]; playAll?: boolean }
+  | { kind: 'topic'; topic: { id: number; name: string }; words?: string[] }
+  | { kind: 'past'; text: PastText };
 
-export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource; onDone: () => void }) {
+type UpNext = { id: number; title: string; lines: number; order: number[] };
+
+export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
+  api: Api;
+  source: ReaderSource;
+  /** Read & Listen's settings, for the length new texts are written at; null until loaded. */
+  settings: Settings | null;
+  onSettings: (settings: Settings) => void;
+  /** Opens another shelf text in this reader (Next, and Play all moving on). */
+  onNext: (source: ReaderSource) => void;
+  onDone: () => void;
+}) {
   const review = source.kind === 'past';
   const c = useTheme();
   const [text, setText] = useState<ReaderText | null>(null);
@@ -80,6 +103,13 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
   const [rating, setRating] = useState<Rating | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [writing, setWriting] = useState(false);
+  const [upNext, setUpNext] = useState<UpNext | null>(null);
+  const [lengthStep, setLengthStep] = useState<LengthStep>('same');
+  const [liked, setLiked] = useState<boolean | null>(null);
+  const [steerError, setSteerError] = useState<string | null>(null);
+  // The length new texts were written at when this text opened, so Shorter and Longer step from it.
+  const baseLength = useRef<Length>(settings?.lines ?? 8);
+  const autoPlayed = useRef(false);
   const logged = useRef(false);
   const mounted = useRef(true);
   const loadId = useRef(0);
@@ -166,7 +196,11 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
       return;
     }
     if (next !== null) playLine(next, true);
-    else setPlayingAll(false);
+    else {
+      setPlayingAll(false);
+      // Play all: the whole text has played, so it counts as read; on to the next one.
+      if (playingAll && source.kind === 'shelf' && source.playAll && !listenOnly) playNext();
+    }
   }, [status.didJustFinish]); // eslint-disable-line react-hooks/exhaustive-deps -- reacts to a line ending only
 
   // A line whose audio didn't load (the server had none for it): note it and move on.
@@ -192,15 +226,22 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
     setWriting(false);
     setLineEnglish([]);
     setListenOnly(false);
+    setUpNext(null);
+    setLengthStep('same');
+    setLiked(null);
+    setSteerError(null);
+    autoPlayed.current = false;
+    baseLength.current = settings?.lines ?? 8;
     lineBoxes.current = [];
     scrollY.current = 0;
     logged.current = false;
     try {
-      if (source.kind === 'past') {
-        const past = await api.text(source.text.id);
+      if (source.kind === 'past' || source.kind === 'shelf') {
+        const opened = await api.text(source.kind === 'past' ? source.text.id : source.textId);
         if (!stillWanted()) return;
-        setText(past);
-        setSession(startSession(past, Date.now()));
+        setText(opened);
+        setLiked(opened.liked ?? null);
+        setSession(startSession(opened, Date.now()));
         return;
       }
       const topicId = source.topic.id;
@@ -224,6 +265,74 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
   };
 
   useEffect(() => { load(); }, [source]); // eslint-disable-line react-hooks/exhaustive-deps -- loads once per source
+
+  // Play all starts each text playing as soon as it's open.
+  useEffect(() => {
+    if (!text || autoPlayed.current || source.kind !== 'shelf' || !source.playAll) return;
+    autoPlayed.current = true;
+    const start = firstLine(text.lines);
+    if (start !== null) playLine(start, true);
+  }, [text]); // eslint-disable-line react-hooks/exhaustive-deps -- once per text
+
+  // What Next opens: the next text in the shelf's order, else whatever the shelf has now (a text
+  // written since). Looked up when the end view shows, and when Play all moves on.
+  const findNext = async (): Promise<UpNext | null> => {
+    if (source.kind !== 'shelf' || !text) return null;
+    try {
+      const shelf = await api.shelf();
+      const order = playOrder(shelf).filter((id) => id !== text.id);
+      const listed = nextInOrder(source.order, text.id);
+      const id = listed !== null && order.includes(listed) ? listed : (order[0] ?? null);
+      const card = [...(shelf.story?.next ? [shelf.story.next] : []), ...shelf.texts].find((t) => t.id === id);
+      return card ? { id: card.id, title: card.title, lines: card.lines, order } : null;
+    } catch {
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    if (!ended || source.kind !== 'shelf') return;
+    let live = true;
+    findNext().then((n) => { if (live && mounted.current) setUpNext(n); });
+    return () => { live = false; };
+  }, [ended]); // eslint-disable-line react-hooks/exhaustive-deps -- once per end view
+
+  const playNext = async () => {
+    if (!text || !session || logged.current || source.kind !== 'shelf') return;
+    logged.current = true;
+    try {
+      await api.logReading(text.id, toLog(session, Date.now(), null, true));
+    } catch {
+      // The reading is lost, not your place: carry on either way.
+    }
+    const next = await findNext();
+    if (!mounted.current) return;
+    if (next) onNext({ kind: 'shelf', textId: next.id, order: next.order, playAll: true });
+    else setEnded(true);
+  };
+
+  const chooseLength = async (step: LengthStep) => {
+    setLengthStep(step);
+    setSteerError(null);
+    try {
+      onSettings(await api.updateSettings({ lines: stepLength(baseLength.current, step) }));
+    } catch (e) {
+      setSteerError(e instanceof ApiError ? e.message : "Couldn't change that. Try again.");
+    }
+  };
+
+  const chooseLiked = async (like: boolean) => {
+    if (!text) return;
+    const before = liked;
+    setLiked(like);
+    setSteerError(null);
+    try {
+      await api.setFavorite(text.topicId, like);
+    } catch (e) {
+      setLiked(before);
+      setSteerError(e instanceof ApiError ? e.message : "Couldn't change that. Try again.");
+    }
+  };
 
   // Finishing a text (Done) logs it once, which also takes it off the ready queue. Backing out
   // before Done logs nothing, so the same text is waiting next time instead of a new one.
@@ -255,8 +364,11 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
       }
     }
     if (!mounted.current) return;
-    if (then === 'next') load();
-    else leave();
+    if (then === 'back') leave();
+    else if (source.kind === 'shelf') {
+      if (upNext) onNext({ kind: 'shelf', textId: upNext.id, order: upNext.order });
+      else leave();
+    } else load();
   };
 
   // A finished text is logged before the screen goes, however it goes: the Back button, the swipe,
@@ -336,7 +448,9 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
         >
           <View style={{ paddingHorizontal: space.l, gap: space.s }}>
             <Text style={{ ...type.title, color: c.text }}>{text.title}</Text>
-            <Text style={{ ...type.footnote, color: c.textSecondary }}>{source.kind === 'topic' ? source.topic.name : source.text.topic}</Text>
+            <Text style={{ ...type.footnote, color: c.textSecondary }}>
+              {text.episode ? `${text.topic} · Episode ${text.episode}` : (text.topic ?? (source.kind === 'topic' ? source.topic.name : source.kind === 'past' ? source.text.topic : ''))}
+            </Text>
             {text.stretch.length > 0 ? (
               <ChipRow label="Practice words:">
                 {text.stretch.map((w) => <Pill key={w} text={w} bg={c.accentFill} fg={c.accent} />)}
@@ -357,7 +471,7 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
                 ) : null)}
               </View>
             ) : null}
-            {review && !listenOnly && source.text.rating === 'about_right' && hasAudio ? (
+            {source.kind === 'past' && !listenOnly && source.text.rating === 'about_right' && hasAudio ? (
               <ToggleRow label="You rated this about right">
                 <HeaderAction label="Listen without the text" onPress={listenWithoutText} />
               </ToggleRow>
@@ -547,14 +661,47 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
               <View style={{ paddingTop: space.s }}><Help>These are kept in Marked words, where the ones not in your deck can be added to it.</Help></View>
             </Card>
           ) : null}
+          {source.kind === 'shelf' ? (
+            <Card style={{ gap: space.m }}>
+              <View style={{ gap: 2 }}>
+                <Text style={{ ...type.headline, color: c.text }}>For the next ones</Text>
+                <Help>Changes the texts written from now on. Texts already on the shelf stay as they are.</Help>
+              </View>
+              <View style={{ gap: space.xs }}>
+                <Text style={{ ...type.footnote, color: c.textSecondary }}>Length</Text>
+                <Segments<LengthStep>
+                  options={[{ value: 'shorter', label: 'Shorter' }, { value: 'same', label: 'Same' }, { value: 'longer', label: 'Longer' }]}
+                  value={lengthStep}
+                  onChange={chooseLength}
+                />
+              </View>
+              {liked !== null && !text.episode ? (
+                <View style={{ gap: space.xs }}>
+                  <Text style={{ ...type.footnote, color: c.textSecondary }}>{`This theme: ${text.topic}`}</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
+                    <Chip label="More like this" selected={liked} onPress={() => chooseLiked(true)} />
+                    <Chip label="Fewer like this" selected={!liked} onPress={() => chooseLiked(false)} />
+                  </View>
+                </View>
+              ) : null}
+              {steerError ? <ErrorNote message={steerError} /> : null}
+            </Card>
+          ) : null}
           {rating === 'about_right' && hasAudio ? (
             <View style={{ gap: space.xs }}>
               <Button label="Listen without the text" variant="secondary" onPress={listenWithoutText} />
               <Help>Plays it again with the text hidden.</Help>
             </View>
           ) : null}
-          <Button label="Next text" onPress={() => finish('next')} busy={leaving} />
-          <Button label="Back to topics" variant="secondary" onPress={() => finish('back')} />
+          {source.kind === 'shelf' ? (
+            upNext ? (
+              <View style={{ gap: space.xs }}>
+                <Button label={`Next: ${upNext.title}`} onPress={() => finish('next')} busy={leaving} />
+                <Help>{`About ${minutesFor(upNext.lines)} min.`}</Help>
+              </View>
+            ) : null
+          ) : <Button label="Next text" onPress={() => finish('next')} busy={leaving} />}
+          <Button label="Back to the shelf" variant={source.kind === 'shelf' && !upNext ? 'primary' : 'secondary'} onPress={() => finish('back')} />
         </ScrollView>
       ) : null}
 

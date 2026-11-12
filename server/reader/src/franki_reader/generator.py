@@ -84,6 +84,18 @@ Form = Literal["dialogue", "story"]
 
 
 @dataclass(frozen=True)
+class StoryContext:
+    """An episode of an ongoing story (docs/read-and-listen/architecture.md, Stories): the same
+    characters and setting from one text to the next, carried by a sentence about each episode."""
+
+    episode: int  # 1 starts the story
+    about: str = ""  # what the owner asked it to be about; empty lets the model choose
+    title: str = ""  # the story's name, from the first episode on
+    cast: str = ""  # its characters and setting, from the first episode
+    recaps: tuple[str, ...] = ()  # one sentence for each earlier episode, oldest first
+
+
+@dataclass(frozen=True)
 class TextRequest:
     topic: str
     # The stretch words to use, or with `choose` set, the words to choose them from: the model
@@ -102,6 +114,7 @@ class TextRequest:
     # Grammar point ids (grammar.py): used at least twice each, or kept out.
     practice: tuple[str, ...] = ()
     avoid: tuple[str, ...] = ()
+    story: StoryContext | None = None
 
     def __post_init__(self) -> None:
         used = len(self.stretch) if self.choose is None else self.choose
@@ -139,6 +152,11 @@ class Generated:
     # The model's transliteration of the words it glossed (Thai only), by word. Absent for a word
     # it gave none for; the reader then shows none rather than a guess.
     translits: dict[str, str] = field(default_factory=dict)
+    # A story episode's own sentence about what happened in it, and on the first episode the
+    # story's name and cast (StoryContext). Empty for any other text.
+    recap: str = ""
+    series: str = ""
+    cast: str = ""
 
 
 DRAFT_SCHEMA: dict[str, Any] = {
@@ -179,6 +197,10 @@ DRAFT_SCHEMA: dict[str, Any] = {
                 "additionalProperties": False,
             },
         },
+        # Optional, and only asked for in a story episode's request (StoryContext).
+        "recap": {"type": "string"},
+        "series": {"type": "string"},
+        "cast": {"type": "string"},
     },
     "required": ["title", "roles", "lines", "glosses"],
     "additionalProperties": False,
@@ -319,6 +341,8 @@ def request_message(request: TextRequest) -> str:
         )
     else:
         parts.append("No stretch words this time.")
+    if request.story is not None:
+        parts.append(_story_part(request.story))
     if request.practice:
         parts.append(
             f"Grammar to practice: use each of these at least {grammar.PRACTICE_USES} times, "
@@ -330,6 +354,35 @@ def request_message(request: TextRequest) -> str:
             "say it another way:\n" + _grammar_list(request.avoid)
         )
     return "\n".join(parts)
+
+
+# Earlier episodes beyond this many are left out of the request: the cast and the latest ones
+# carry the story, and the request stays short.
+STORY_RECAPS = 12
+
+
+def _story_part(story: StoryContext) -> str:
+    if story.episode == 1:
+        about = f"It's about: {story.about}" if story.about else "Choose what it's about yourself."
+        return (
+            "This is the first episode of an ongoing story that will run for many episodes, one "
+            f"text at a time. {about} Invent two to four characters with names and a place they "
+            "keep coming back to, and end the episode with something that can carry on next time. "
+            'In "series", give the story a short English name. In "cast", describe the characters '
+            'and the setting in one or two English sentences. In "recap", say in one English '
+            "sentence what happens in this episode, naming the characters."
+        )
+    recent = story.recaps[-STORY_RECAPS:]
+    so_far = "\n".join(f"- {r}" for r in recent) if recent else "- (no summary)"
+    return (
+        f'This is episode {story.episode} of an ongoing story, "{story.title}". Keep the same '
+        "characters and setting, and pick up where the last episode ended; something new happens "
+        "in this one.\n"
+        f"Characters and setting: {story.cast or 'as in the earlier episodes'}\n"
+        f"The story so far, one sentence an episode:\n{so_far}\n"
+        'In "recap", say in one English sentence what happens in this episode, naming the '
+        'characters. Leave "series" and "cast" empty.'
+    )
 
 
 def _grammar_list(point_ids: tuple[str, ...]) -> str:
@@ -478,6 +531,9 @@ def _assess(
         }
         title = draft["title"]
         roles = {k: str(v).strip() for k, v in draft.get("roles", {}).items() if str(v).strip()}
+        recap, series, cast_ = (
+            str(draft.get(k) or "").strip() for k in ("recap", "series", "cast")
+        )
     except (KeyError, TypeError) as e:
         raise GenerationFailed(f"The draft is missing a field: {e}") from e
     if not lines:
@@ -508,6 +564,9 @@ def _assess(
         roles=roles,
         grammar_problems=grammar_misses,
         translits=translits,
+        recap=recap,
+        series=series,
+        cast=cast_,
     )
     return generated, problems
 

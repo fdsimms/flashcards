@@ -31,6 +31,9 @@ services:
       AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
       AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}
       AZURE_SPEECH_ENDPOINT: ${AZURE_SPEECH_ENDPOINT:-}
+      # Read & Listen's server, for its costs (read_and_listen_costs); unused while it's off.
+      READER_URL: "http://reader:8080"
+      READER_PASSPHRASE: ${READER_PASSPHRASE:-}
     volumes:
       - mcp-data:/data
     depends_on:

@@ -8,6 +8,7 @@ through docker-compose.yml):
     ANKI_USER, ANKI_PASSWORD   its sign-in, the same as Anki's
     AZURE_SPEECH_KEY, AZURE_SPEECH_REGION   for audio (optional; AZURE_SPEECH_ENDPOINT overrides the host)
     MCP_DATA              where the collection copy and sign-ins are kept (default /data)
+    READER_URL, READER_PASSPHRASE   Read & Listen's server and its passphrase, for its costs (optional)
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from starlette.responses import JSONResponse, Response
 from . import forms
 from .auth import SingleUserAuth
 from .collection import CollectionManager, SyncSettings
+from .reader import ReaderSettings
 from .server import build_server
 from .speech import SpeechClient
 
@@ -51,6 +53,9 @@ def build_app(environ=os.environ) -> tuple[Starlette, CollectionManager]:
     if environ.get("AZURE_SPEECH_KEY"):
         speech = SpeechClient(environ["AZURE_SPEECH_KEY"], e("AZURE_SPEECH_REGION"), environ.get("AZURE_SPEECH_ENDPOINT") or None,
                               user_agent="franki-mcp", voice_help="Check the voice name with list_voices.")
+    reader_settings = None
+    if environ.get("READER_URL") and environ.get("READER_PASSPHRASE"):
+        reader_settings = ReaderSettings(environ["READER_URL"], environ["READER_PASSPHRASE"])
     extra = tuple(u for u in environ.get("MCP_EXTRA_REDIRECT_URIS", "").split() if u)
     try:
         auth = SingleUserAuth(data / "signins.sqlite", public, e("MCP_PASSWORD"), extra)
@@ -59,6 +64,7 @@ def build_app(environ=os.environ) -> tuple[Starlette, CollectionManager]:
 
     server = build_server(
         cm, speech,
+        reader_settings=reader_settings,
         auth_server_provider=auth,
         auth=AuthSettings(
             issuer_url=public,

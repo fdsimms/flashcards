@@ -13,6 +13,7 @@ from franki_reader.generator import (
     Usage,
     claude_ask,
     generate,
+    request_message,
     system_prompt,
 )
 from franki_reader.lexicon import Entry
@@ -392,3 +393,20 @@ def test_the_models_transliterations_are_kept_for_the_words_it_gave_them_for() -
     ]
     result = run(ScriptedModel(d), TextRequest("food"))
     assert result.translits == {"ทอน": "thɔɔn"}
+
+
+def test_a_story_episode_asks_to_carry_the_story_on() -> None:
+    from franki_reader.generator import StoryContext
+
+    first = request_message(TextRequest("a noodle stall", story=StoryContext(1, "a noodle stall")))
+    assert "first episode of an ongoing story" in first and "It's about: a noodle stall" in first
+    assert '"series"' in first and '"cast"' in first
+
+    later = request_message(
+        TextRequest(
+            "a noodle stall",
+            story=StoryContext(3, "", "Noi's stall", "Noi sells noodles.", ("One.", "Two.")),
+        )
+    )
+    assert 'episode 3 of an ongoing story, "Noi\'s stall"' in later
+    assert "Noi sells noodles." in later and "- One.\n- Two." in later

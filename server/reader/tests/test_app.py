@@ -11,7 +11,7 @@ from scripted import BAD, ENTRIES, IN_RANGE, ScriptedModel
 
 from franki_reader import store
 from franki_reader.app import create_app
-from franki_reader.engine import Engine
+from franki_reader.engine import SHELF_SIZE, Engine
 
 NOW = datetime(2026, 10, 19, 9, 0)
 AUTH = {"Authorization": "Bearer open sesame"}
@@ -86,7 +86,8 @@ def test_adding_a_topic_tops_it_up_in_the_background() -> None:
     assert added["name"] == "Food stall"
     assert added["favorite"] is True
     assert c.get("/api/topics", headers=AUTH).json()[0]["ready"] == 1
-    assert model.calls == 1
+    # The shelf is filled too: the liked topic, and ideas for the rest.
+    assert model.calls == SHELF_SIZE
 
 
 def test_adding_the_same_topic_twice_returns_the_first() -> None:
@@ -343,6 +344,27 @@ def test_progress_counts_finished_texts_and_says_how_hard_the_next_is() -> None:
     assert c.get("/api/progress").status_code == 401
 
 
+def test_costs_count_every_text_written_and_what_each_read_one_cost() -> None:
+    c = client()
+    empty = c.get("/api/costs", headers=AUTH).json()
+    assert empty["days"] == 30 and empty["languages"] == []
+    assert empty["total"]["texts"] == 0 and empty["total"]["per_read_text_usd"] is None
+
+    read(c, "about_right", [])
+    read(c, None, [])
+    costs = c.get("/api/costs", params={"days": 7}, headers=AUTH).json()
+    assert costs["days"] == 7
+    [thai] = costs["languages"]
+    assert (thai["language"], thai["name"], thai["read"]) == ("th", "Thai", 2)
+    # Texts written for the favorite in the background count too, read or not.
+    assert thai["texts"] == thai["read"] + thai["waiting"] + thai["dropped"] >= 2
+    assert thai["cost_usd"] > 0
+    assert thai["per_read_text_usd"] == pytest.approx(thai["cost_usd"] / 2, abs=1e-4)
+    assert costs["total"]["cost_usd"] == thai["cost_usd"]
+    assert c.get("/api/costs", params={"days": 0}, headers=AUTH).status_code == 422
+    assert c.get("/api/costs").status_code == 401
+
+
 def test_marked_words_are_listed_with_glosses_until_cleared() -> None:
     c = client()
     read(c, None, ["ครับ"])
@@ -408,7 +430,8 @@ def test_suggestions_leave_out_topics_already_added_or_removed() -> None:
     names = [s["name"] for s in c.get("/api/suggestions", headers=AUTH).json()]
     assert taken["name"] not in names
     assert removed["name"] not in names
-    assert len(names) == len(first) - 2
+    # The shelf, filled in the background, takes ideas of its own as well.
+    assert set(names) <= {s["name"] for s in first} - {taken["name"], removed["name"]}
     assert c.get("/api/suggestions").status_code == 401
 
 
@@ -615,3 +638,90 @@ def test_texts_waiting_to_be_read_are_spoken_again_in_new_voices(tmp_path: Path)
     c.patch("/api/settings", headers=AUTH, json={"voices": {"th": {"A": "th-TH-AcharaNeural"}}})
     wait_for(lambda: recorded() == {b"ID3th-TH-AcharaNeural", b"ID3th-TH-PremwadeeNeural"})
     assert recorded() == {b"ID3th-TH-AcharaNeural", b"ID3th-TH-PremwadeeNeural"}
+
+
+def shelf_settled(c: TestClient, want: int) -> Any:
+    """The shelf, asked for again until `want` texts are on it (it fills in the background)."""
+    deadline = time.time() + 10
+    while True:
+        shelf = c.get("/api/shelf", headers=AUTH).json()
+        if len(shelf["texts"]) >= want or time.time() > deadline:
+            return shelf
+        time.sleep(0.02)
+
+
+def test_the_shelf_fills_in_the_background_and_says_why_each_text_is_there() -> None:
+    c = client()
+    c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH)
+    first = c.get("/api/shelf", headers=AUTH).json()
+    assert first["language"] == "th" and first["story"] is None
+    assert first["themes"] == [{"id": 1, "name": "Food stall"}]
+    assert [lang["code"] for lang in first["languages"]][:2] == ["th", "es"]
+
+    shelf = shelf_settled(c, SHELF_SIZE)
+    # The one liked theme is taken by the due-words text, so ideas fill the rest.
+    assert [t["reason"] for t in shelf["texts"]] == ["due", "new", "new"]
+    card = shelf["texts"][0]
+    assert {
+        "id",
+        "title",
+        "topic",
+        "topic_id",
+        "liked",
+        "form",
+        "lines",
+        "stretch",
+        "coverage",
+    } <= set(card)
+    assert card["lines"] == 2 and card["topic"] == "Food stall" and card["liked"] is True
+    thai = next(lang for lang in shelf["languages"] if lang["code"] == "th")
+    assert thai["ready"] == len(shelf["texts"])
+
+    # Opened from the shelf, a text says its topic and whether it's liked.
+    text = c.get(f"/api/texts/{card['id']}", headers=AUTH).json()
+    assert (text["topic"], text["liked"], text["reason"]) == ("Food stall", True, "due")
+    assert c.get("/api/shelf").status_code == 401
+
+
+def test_a_text_can_be_taken_off_the_shelf_once() -> None:
+    c = client()
+    card = shelf_settled(c, SHELF_SIZE)["texts"][0]
+    assert c.post(f"/api/texts/{card['id']}/skip", headers=AUTH).status_code == 204
+    assert c.post(f"/api/texts/{card['id']}/skip", headers=AUTH).status_code == 404
+    assert c.get("/api/costs", headers=AUTH).json()["total"]["skipped"] == 1
+
+
+def test_a_typed_topic_is_written_and_joins_the_shelf() -> None:
+    c = client()
+    shelf_settled(c, SHELF_SIZE)
+    answer = c.post("/api/shelf/write", json={"name": "Haggling", "form": "story"}, headers=AUTH)
+    assert answer.status_code == 202 and answer.json() == {"writing": True, "topic": "Haggling"}
+    shelf = shelf_settled(c, SHELF_SIZE + 1)
+    asked = shelf["texts"][-1]
+    assert (asked["topic"], asked["reason"], asked["form"]) == ("Haggling", "asked", "story")
+    assert c.post("/api/shelf/write", json={"name": ""}, headers=AUTH).status_code == 422
+
+
+def test_a_story_is_started_and_its_episodes_are_listed_once_read() -> None:
+    model = ScriptedModel(
+        {**IN_RANGE, "series": "Noi's stall", "cast": "Noi.", "recap": "Noi opens."}
+    )
+    c = client(model)
+    started_story = c.post("/api/story", json={"about": "a noodle stall"}, headers=AUTH)
+    assert started_story.status_code == 202
+
+    deadline = time.time() + 10
+    while (story := c.get("/api/shelf", headers=AUTH).json()["story"])["next"] is None:
+        assert time.time() < deadline
+        time.sleep(0.02)
+    assert (story["title"], story["about"], story["read"]) == ("Noi's stall", "a noodle stall", 0)
+    episode = story["next"]
+    assert episode["episode"] == 1 and episode["reason"] == "story"
+    assert c.get(f"/api/texts/{episode['id']}", headers=AUTH).json()["topic"] == "Noi's stall"
+
+    body = {"rating": None, "finished": True}
+    c.post(f"/api/texts/{episode['id']}/reading", json=body, headers=AUTH)
+    story = c.get("/api/shelf", headers=AUTH).json()["story"]
+    assert (story["read"], story["last_recap"]) == (1, "Noi opens.")
+    past = c.get("/api/texts", params={"story": story["id"]}, headers=AUTH).json()
+    assert [(t["topic"], t["episode"]) for t in past] == [("Noi's stall", 1)]

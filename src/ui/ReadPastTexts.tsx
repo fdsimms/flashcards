@@ -5,8 +5,8 @@ import { ErrorNote, Group, Help, NavRow, Screen } from './kit';
 import { space, useTheme } from './theme';
 
 /**
- * Texts read to the end, newest first. Opening one reads it again in the reader, with nothing
- * logged (docs/read-and-listen/architecture.md, Client).
+ * Texts read to the end, newest first; with `story`, that story's episodes from the first. Opening
+ * one reads it again in the reader, with nothing logged (docs/read-and-listen/architecture.md, Client).
  */
 
 const RATING_TEXT: Record<Rating, string> = { too_easy: 'Too easy', about_right: 'About right', too_hard: 'Too hard' };
@@ -17,7 +17,7 @@ function shortDate(iso: string): string {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export function ReadPastTexts({ api, onOpen }: { api: Api; onOpen: (text: PastText) => void }) {
+export function ReadPastTexts({ api, story, onOpen }: { api: Api; story?: number; onOpen: (text: PastText) => void }) {
   const c = useTheme();
   const [texts, setTexts] = useState<PastText[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,16 +25,16 @@ export function ReadPastTexts({ api, onOpen }: { api: Api; onOpen: (text: PastTe
 
   const load = useCallback(async () => {
     try {
-      setTexts(await api.pastTexts());
+      setTexts(await api.pastTexts(story));
       setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't load your past texts.");
     }
-  }, [api]);
+  }, [api, story]);
   useEffect(() => { load(); }, [load]);
 
   return (
-    <Screen title="Past texts">
+    <Screen title={story === undefined ? 'Past texts' : 'Your story'}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
@@ -42,7 +42,9 @@ export function ReadPastTexts({ api, onOpen }: { api: Api; onOpen: (text: PastTe
       >
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {texts === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
-        {texts !== null && texts.length === 0 ? <Help>No past texts yet. Texts you finish show up here, to read or listen to again.</Help> : null}
+        {texts !== null && texts.length === 0 ? (
+          <Help>{story === undefined ? 'No past texts yet. Texts you finish show up here, to read or listen to again.' : 'No episodes read yet. Each one shows up here once you finish it.'}</Help>
+        ) : null}
         {texts !== null && texts.length > 0 ? (
           <>
             <Group>
@@ -51,7 +53,7 @@ export function ReadPastTexts({ api, onOpen }: { api: Api; onOpen: (text: PastTe
                   key={t.id}
                   first={i === 0}
                   label={t.title}
-                  detail={[t.topic, t.form === 'story' ? 'Story' : null, shortDate(t.read_at), t.rating ? RATING_TEXT[t.rating] : null].filter(Boolean).join(' · ')}
+                  detail={[story === undefined ? t.topic : null, t.episode ? `Episode ${t.episode}` : null, t.form === 'story' && !t.episode ? 'Story' : null, shortDate(t.read_at), t.rating ? RATING_TEXT[t.rating] : null].filter(Boolean).join(' · ')}
                   onPress={() => onOpen(t)}
                 />
               ))}
