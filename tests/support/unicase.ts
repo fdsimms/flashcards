@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -22,10 +22,15 @@ export function unicaseExtension(): string | null {
   for (const f of SOURCES) hash.update(readFileSync(f));
   const out = join(tmpdir(), `franki-unicase-${hash.digest('hex').slice(0, 12)}.so`);
   if (existsSync(out)) return (built = out);
+  // Test files run in parallel workers, each building it if it isn't there yet. Built under a name
+  // of its own and renamed into place (which is atomic), so no worker ever loads a half-written file.
+  const partial = `${out}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
   try {
-    execFileSync('cc', ['-O2', '-fPIC', '-shared', SOURCES[0], '-o', out], { stdio: 'pipe' });
+    execFileSync('cc', ['-O2', '-fPIC', '-shared', SOURCES[0], '-o', partial], { stdio: 'pipe' });
+    renameSync(partial, out);
     return (built = out);
   } catch (e) {
+    rmSync(partial, { force: true });
     if (process.env.CI) throw new Error(`Couldn't build the unicase extension: ${(e as Error).message}`);
     return (built = null);
   }
