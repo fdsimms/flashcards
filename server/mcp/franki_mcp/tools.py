@@ -33,6 +33,9 @@ MAX_AUDIO_NOTES_PER_CALL = 10
 FILTER_ORDERS = {name.lower(): value for name, value in DeckProto.Filtered.SearchTerm.Order.items()}
 SOUND = re.compile(r"\[sound:[^\]]*\]")
 MATURE_DAYS = 21
+# Franki's "Flag for an agent" (src/core/agentFlag.ts): the purple flag on a card, and a flag::<reason> tag on its note.
+AGENT_FLAG = 7
+FLAG_TAG_PREFIX = "flag::"
 READ = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False)
 DESTRUCTIVE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=False)
@@ -200,6 +203,11 @@ reaches their devices at their next sync.
   show the answer (present_card with show_answer=true), suggest a rating (1 Again, 2 Hard, 3 Good,
   4 Easy) and wait for them to confirm or change it. Only then call rate_card. Never rate a card
   the user hasn't seen the answer to, or with a rating they didn't agree to.
+- Flagged cards: the user flags a card in Franki for you to check (a typo, audio that sounds wrong).
+  flagged_cards lists them with their note's fields and the reason. Work out the fix and show the
+  user what you'd change (the old and new text, or the voice and text for a re-record) before
+  calling update_notes or add_tts_audio. Only after they approve, and once the fix is made, call
+  resolve_flag to clear the flag. Leave a flag in place when the user declines or you're unsure.
 - Audio: add_tts_audio records a field's text with an Azure voice into another field (list_voices
   names them). Try preview=true first when the text needs cleaning up (replacements, text_overrides).
 - FSRS settings and limits belong to a deck's options preset, which several decks can share:
@@ -461,6 +469,59 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if action == "reposition":
                 return {"changed": s.reposition_new_cards(ids, starting_from, 1, randomize, False).count}
             raise ToolError(f"Unknown action {action}.")
+
+        return await cm.write(run)
+
+    @server.tool(annotations=READ)
+    async def flagged_cards(deck: str | None = None, limit: int = 20) -> dict[str, Any]:
+        """Cards the user flagged in Franki for an agent to check (the purple flag), oldest note
+        first, with the reason they gave (typo, audio, translation, other), the note's fields as
+        HTML and its tags. `deck` narrows it to one deck and its subdecks. Fix a card with
+        update_notes or add_tts_audio after the user approves, then clear it with resolve_flag."""
+
+        def run(col: Collection) -> dict[str, Any]:
+            query = f"flag:{AGENT_FLAG}"
+            if deck:
+                query += f' "deck:{_deck_name(col, _deck_id(col, deck))}"'
+            ids = list(col.find_cards(query))
+            page = ids[: max(1, min(limit, 100))]
+            out = []
+            for cid in page:
+                card = col.get_card(cid)
+                note = card.note()
+                reasons = [t[len(FLAG_TAG_PREFIX):] for t in note.tags if t.lower().startswith(FLAG_TAG_PREFIX)]
+                out.append({
+                    "card_id": cid, "card_type": card.template()["name"], "reason": reasons[0] if reasons else None,
+                    **_note_dict(col, note, full=False), "fields": dict(note.items()),
+                })
+            return {"total": len(ids), "cards": out}
+
+        return await cm.read(run)
+
+    @server.tool(annotations=WRITE)
+    async def resolve_flag(card_ids: list[int]) -> dict[str, Any]:
+        """Clears the agent flag on `card_ids` once the user has approved the fix (or decided
+        there's nothing to fix). A note's flag:: reason tag goes too when none of its cards is
+        still flagged."""
+
+        def run(col: Collection) -> dict[str, Any]:
+            cards = [_get_card(col, cid) for cid in card_ids]
+            not_flagged = [c.id for c in cards if c.user_flag() != AGENT_FLAG]
+            if not_flagged:
+                raise ToolError(f"Card {', '.join(map(str, not_flagged))} isn't flagged for an agent. flagged_cards lists the ones that are. Nothing was changed.")
+            col.set_user_flag_for_cards(0, [c.id for c in cards])
+            cleared = []
+            for nid in {c.nid for c in cards}:
+                if col.find_cards(f"nid:{nid} flag:{AGENT_FLAG}"):
+                    continue
+                note = col.get_note(nid)
+                stale = [t for t in note.tags if t.lower().startswith(FLAG_TAG_PREFIX)]
+                if stale:
+                    for t in stale:
+                        note.remove_tag(t)
+                    col.update_note(note)
+                    cleared.append(nid)
+            return {"resolved": len(cards), "notes_untagged": cleared}
 
         return await cm.write(run)
 
