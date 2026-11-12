@@ -8,7 +8,7 @@ import { ApiError, type Api, type PastText, type Rating, type ReaderText, type T
 import { countOutsideDeck, isOutsideDeck, underFloor } from '../reader/deckWords';
 import { scrollTarget, type Box } from '../reader/follow';
 import { LANGUAGES, wordStatus } from '../reader/languages';
-import { firstLine, nextLine } from '../reader/playback';
+import { firstLine, nextLine, paragraphs, previousLine, rangeOf } from '../reader/playback';
 import { RATES } from '../reader/playbackRate';
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
 import { prefs, savePrefs } from '../reader/storage';
@@ -34,6 +34,11 @@ import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './the
  * Listen only: once a text is rated About right, the end view offers to play it again with the
  * text hidden (brief, design principle 6). The lines show who's speaking instead, and Show the text
  * brings the words back. The reading is logged as listen-only.
+ *
+ * A story written with paragraph marks reads as continuous text (`paragraphs`): a gap between
+ * paragraphs, no per-line rows or buttons, the playing line shaded, and previous/next line in the
+ * player. English then comes only from Show English. The Paragraphs switch (shown only for such a
+ * story, kept in prefs) turns it off for a row per line, as for every other text.
  *
  * Audio: one player is reused for every line. Play runs the text from the current line to the end
  * (`nextLine`); a line's replay button plays that line alone. Speed is the player's rate, with
@@ -69,6 +74,7 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
   const [lineEnglish, setLineEnglish] = useState<number[]>([]);
   const [listenOnly, setListenOnly] = useState(false);
   const [highlight, setHighlight] = useState(prefs().highlight);
+  const [paragraphMode, setParagraphMode] = useState(prefs().paragraphs);
   const [tapped, setTapped] = useState<Tapped | null>(null);
   const [ended, setEnded] = useState(false);
   const [rating, setRating] = useState<Rating | null>(null);
@@ -94,13 +100,20 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
   const [silentLine, setSilentLine] = useState<number | null>(null);
   const [repeat, setRepeat] = useState(false);
 
+  // A story's paragraphs (`marked` is null for a dialogue, or a story written before paragraphs):
+  // read as continuous text with no buttons of their own, while the Paragraphs switch is on.
+  // Everything else is a row per line.
+  const marked = text ? paragraphs(text.lines) : null;
+  const paras = paragraphMode ? marked : null;
+
   const scroller = useRef<ScrollViewInstance>(null);
   const lineBoxes = useRef<Box[]>([]);
   const scrollY = useRef(0);
   const viewHeight = useRef(0);
 
   useEffect(() => {
-    const box = current === null ? undefined : lineBoxes.current[current];
+    const at = current === null ? -1 : paras ? rangeOf(paras, current) : current;
+    const box = at < 0 ? undefined : lineBoxes.current[at];
     if (!box || !viewHeight.current) return;
     const y = scrollTarget(box, scrollY.current, viewHeight.current);
     if (y !== null) scroller.current?.scrollTo({ y, animated: true });
@@ -115,6 +128,13 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
     setCurrent(i);
     setPlayingAll(all);
     setSession((s) => (s ? heard(s, rate) : s));
+  };
+
+  // Previous and next line, for a story with no play button on each line. Plays on from there.
+  const skip = (step: -1 | 1) => {
+    if (!text) return;
+    const to = current === null ? firstLine(text.lines) : step < 0 ? previousLine(text.lines, current) : firstLine(text.lines, current + 1);
+    if (to !== null) playLine(to, true);
   };
 
   const togglePlay = () => {
@@ -264,6 +284,11 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
     if (start !== null) playLine(start, true);
   };
 
+  const turnOnParagraphs = (on: boolean) => {
+    savePrefs({ paragraphs: on });
+    setParagraphMode(on);
+  };
+
   const turnOnHighlight = (on: boolean) => {
     savePrefs({ highlight: on });
     setHighlight(on);
@@ -278,7 +303,7 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
       largeTitle={false}
       footer={text && !ended ? (
         hasAudio ? (
-          <PlayerBar playing={status.playing} current={current} total={text.lines.length} what={text.form === 'story' ? 'story' : 'dialogue'}
+          <PlayerBar playing={status.playing} current={current} total={text.lines.length} what={text.form === 'story' ? 'story' : 'dialogue'} skippable={paras !== null} onSkip={skip}
             rate={rate} repeat={repeat} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={() => setRepeat((r) => !r)} />
         ) : <Help>No audio for this text.</Help>
       ) : undefined}
@@ -346,6 +371,11 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
                 <ToggleRow label="Show English">
                   <Switch value={english} onValueChange={setEnglish} trackColor={{ true: c.accent }} accessibilityLabel="Show English" />
                 </ToggleRow>
+                {marked ? (
+                  <ToggleRow label="Paragraphs">
+                    <Switch value={paragraphMode} onValueChange={turnOnParagraphs} trackColor={{ true: c.accent }} accessibilityLabel="Paragraphs" />
+                  </ToggleRow>
+                ) : null}
                 <ToggleRow label={language.highlightLabel}>
                   <Switch value={highlight} onValueChange={turnOnHighlight} trackColor={{ true: c.accent }} accessibilityLabel={language.highlightLabel} />
                 </ToggleRow>
@@ -361,7 +391,51 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
               </>
             )}
           </View>
-          {text.lines.map((line, i) => (
+          {paras ? paras.map((range, g) => {
+            const lines = text.lines.slice(range.start, range.end + 1);
+            return (
+              <View
+                key={g}
+                onLayout={(e) => {
+                  const { y, height } = e.nativeEvent.layout;
+                  lineBoxes.current[g] = { y, height };
+                }}
+                style={{ paddingHorizontal: space.l, paddingBottom: space.l }}
+              >
+                {listenOnly ? (
+                  <Text style={{ ...type.subhead, color: c.textSecondary, paddingVertical: space.s }}>{`Paragraph ${g + 1}`}</Text>
+                ) : (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {lines.map((l, k) => (
+                      <React.Fragment key={k}>
+                        {k > 0 ? <View style={{ width: readStyle(text).fontSize * 0.5 }} /> : null}
+                        {wrapGroups(l.words).map((chunk, j) => (
+                          <View key={j} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            {chunk.map((word, m) => (
+                              <WordView
+                                key={m}
+                                word={word}
+                                textStyle={readStyle(text)}
+                                grammar={grammarOf(text, word)}
+                                flagged={isFlagged(session, word.text)}
+                                highlighted={highlight && isOutsideDeck(word)}
+                                selected={tapped?.word === word}
+                                playing={current === range.start + k}
+                                onPress={tap}
+                              />
+                            ))}
+                          </View>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </View>
+                )}
+                {!listenOnly && english ? (
+                  <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: space.xs }}>{lines.map((l) => l.english).join(' ')}</Text>
+                ) : null}
+              </View>
+            );
+          }) : text.lines.map((line, i) => (
             <View
               key={i}
               onLayout={(e) => {
@@ -588,13 +662,15 @@ function RoundButton({ icon, label, accessibilityLabel, on, onPress }: {
   );
 }
 
-function WordView({ word, grammar, textStyle, flagged, highlighted, selected, onPress }: {
+function WordView({ word, grammar, textStyle, flagged, highlighted, selected, playing = false, onPress }: {
   word: Word;
   grammar: TextGrammar | null;
   textStyle: { fontSize: number; lineHeight: number };
   flagged: boolean;
   highlighted: boolean;
   selected: boolean;
+  /** In the line being played, in a story read as continuous text (a line row is shaded as a whole). */
+  playing?: boolean;
   onPress: (word: Word, x: number, y: number) => void;
 }) {
   const c = useTheme();
@@ -616,7 +692,7 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, selected, on
         // words sit flush and only real spaces in the text show as gaps.
         borderRadius: radius.s - 2, borderWidth: 1.5, marginHorizontal: -1.5,
         borderColor: selected ? c.accent : 'transparent',
-        backgroundColor: selected ? c.accentFill : highlighted ? c.highlight : undefined,
+        backgroundColor: selected ? c.accentFill : highlighted ? c.highlight : playing ? c.fill : undefined,
       }}
     >
       <Text
@@ -709,11 +785,14 @@ function GlossPopover({ tapped, grammar, flagged, onToggleFlag, onClose }: {
   );
 }
 
-function PlayerBar({ playing, current, total, what, rate, repeat, silentLine, onToggle, onRate, onRepeat }: {
+function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, repeat, silentLine, onToggle, onRate, onRepeat }: {
   playing: boolean;
   current: number | null;
   total: number;
   what: 'dialogue' | 'story';
+  /** Previous and next line buttons, for a story with no play button on each line. */
+  skippable: boolean;
+  onSkip: (step: -1 | 1) => void;
   rate: number;
   repeat: boolean;
   silentLine: number | null;
@@ -725,6 +804,7 @@ function PlayerBar({ playing, current, total, what, rate, repeat, silentLine, on
   return (
     <View style={{ gap: space.m }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
+        {skippable ? <SkipButton icon="backward.end.fill" label="Previous line" onPress={() => onSkip(-1)} /> : null}
         <Tappable
           onPress={() => { haptic.tap(); onToggle(); }}
           accessibilityRole="button"
@@ -734,10 +814,11 @@ function PlayerBar({ playing, current, total, what, rate, repeat, silentLine, on
         >
           <Icon name={playing ? 'pause.fill' : 'play.fill'} size={22} color={c.onAccent} weight="semibold" />
         </Tappable>
+        {skippable ? <SkipButton icon="forward.end.fill" label="Next line" onPress={() => onSkip(1)} /> : null}
         <View style={{ flex: 1 }}>
           <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{current === null ? `Play the ${what}` : `Line ${current + 1} of ${total}`}</Text>
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
-            {silentLine !== null ? `Line ${silentLine + 1} has no audio.` : repeat ? 'Repeating this line' : "Tap a line's play button to replay it"}
+            {silentLine !== null ? `Line ${silentLine + 1} has no audio.` : repeat ? 'Repeating this line' : skippable ? 'Tap a word for its meaning' : "Tap a line's play button to replay it"}
           </Text>
         </View>
         <Tappable
@@ -756,6 +837,22 @@ function PlayerBar({ playing, current, total, what, rate, repeat, silentLine, on
       </View>
       <Segments options={RATES.map((r) => ({ value: r, label: `${r.toFixed(1)}×`, accessibilityLabel: `Speed ${r}` }))} value={rate} onChange={onRate} />
     </View>
+  );
+}
+
+/** Previous or next line in the player bar. */
+function SkipButton({ icon, label, onPress }: { icon: SFSymbol; label: string; onPress: () => void }) {
+  const c = useTheme();
+  return (
+    <Tappable
+      onPress={() => { haptic.tap(); onPress(); }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      scaleTo={0.92}
+      style={{ minWidth: MIN_TAP, minHeight: MIN_TAP, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: c.fill }}
+    >
+      <Icon name={icon} size={16} color={c.textSecondary} weight="semibold" />
+    </Tappable>
   );
 }
 

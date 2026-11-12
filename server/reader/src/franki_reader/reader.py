@@ -83,7 +83,14 @@ def render(
                     "grammar": point,
                 }
             )
-        lines.append({"speaker": line.speaker, "english": line.english, "words": words})
+        lines.append(
+            {
+                "speaker": line.speaker,
+                "english": line.english,
+                "paragraph": line.paragraph,
+                "words": words,
+            }
+        )
     return {
         "id": text.id,
         "topicId": text.topic_id,

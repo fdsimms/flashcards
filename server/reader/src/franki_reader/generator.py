@@ -116,6 +116,8 @@ class Line:
     speaker: str
     text: str  # as the model wrote it: `|` between words, stretch words in asterisks
     english: str
+    # A story's line that opens a paragraph. Older texts and dialogues have none.
+    paragraph: bool = False
 
 
 @dataclass(frozen=True)
@@ -157,8 +159,9 @@ DRAFT_SCHEMA: dict[str, Any] = {
                     "speaker": {"type": "string", "enum": ["A", "B", "N"]},
                     "text": {"type": "string"},
                     "english": {"type": "string"},
+                    "paragraph": {"type": "boolean"},
                 },
-                "required": ["speaker", "text", "english"],
+                "required": ["speaker", "text", "english", "paragraph"],
                 "additionalProperties": False,
             },
         },
@@ -201,6 +204,9 @@ A and B are in this situation, in one to three English words each, like "Waiter"
 - A story is told by a narrator: every line's speaker is N, each line is one or two simple \
 sentences, and the story has a beginning, something that happens, and an end. Keep the language \
 plain, since description pulls in words the learner may not know. Leave both roles empty.
+- "paragraph" is true on a story line that opens a paragraph: the first line always, then a new \
+one at a change of scene, time or subject, usually every two to four lines. It is false on every \
+other line, and on every line of a dialogue.
 - In each line's text, put | between every word, and wrap each stretch word in asterisks every \
 time it appears, like ฉัน|ต้องการ|*น้ำ*.
 - Where a clause or sentence ends, put a space instead of |, as Thai is written: \
@@ -243,6 +249,9 @@ who A and B are in this situation, in one to three English words each, like "Wai
 - A story is told by a narrator: every line's speaker is N, each line is one or two simple \
 sentences, and the story has a beginning, something that happens, and an end. Leave both roles \
 empty.
+- "paragraph" is true on a story line that opens a paragraph: the first line always, then a new \
+one at a change of scene, time or subject, usually every two to four lines. It is false on every \
+other line, and on every line of a dialogue.
 - In each line's text, put | between words instead of spaces, keep punctuation on its word, and \
 wrap each stretch word or phrase in asterisks every time it appears, like {example} A stretch \
 word can be inflected.
@@ -434,6 +443,14 @@ async def generate(ask: Ask, lexicon: Checker, request: TextRequest) -> Generate
     return result
 
 
+def _paragraphs(lines: tuple[Line, ...], form: Form) -> tuple[Line, ...]:
+    """A story's paragraph marks, made consistent: the first line opens a paragraph whenever any
+    line does, and a dialogue has none."""
+    if form != "story" or not any(ln.paragraph for ln in lines):
+        return tuple(replace(ln, paragraph=False) for ln in lines)
+    return (replace(lines[0], paragraph=True), *lines[1:])
+
+
 def _closeness(ratio: float, request: TextRequest) -> float:
     """How good a draft's coverage is for choosing the closest attempt: the ratio itself with no
     ceiling, else minus how far it is outside the target range (0 inside it)."""
@@ -446,7 +463,13 @@ def _assess(
     draft: dict[str, Any], lexicon: Checker, request: TextRequest, attempt: int
 ) -> tuple[Generated, list[str]]:
     try:
-        lines = tuple(Line(ln["speaker"], ln["text"], ln["english"]) for ln in draft["lines"])
+        lines = _paragraphs(
+            tuple(
+                Line(ln["speaker"], ln["text"], ln["english"], bool(ln.get("paragraph")))
+                for ln in draft["lines"]
+            ),
+            request.form,
+        )
         glosses = {g["word"]: g["english"] for g in draft["glosses"]}
         translits = {
             g["word"]: g["translit"].strip()
