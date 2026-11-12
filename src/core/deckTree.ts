@@ -326,6 +326,18 @@ export function shownDeckRows<R extends DeckNode>(rows: R[], collapsed: Set<stri
 }
 
 /**
+ * The deck to open after finishing `deck`: the next one down the deck list (as shown, so a
+ * collapsed deck's subdecks are skipped) that has something to study. A deck's own subdecks are
+ * already part of studying it, so the search starts after them. Undefined when nothing is left.
+ */
+export function nextDeckToStudy(rows: DeckRow[], collapsed: Set<string>, deck: string): string | undefined {
+  const shown = shownDeckRows(rows, collapsed);
+  const at = shown.findIndex((r) => r.deck === deck);
+  if (at < 0) return undefined;
+  return shown.slice(at + 1).find((r) => !isInDeck(r.deck, deck) && r.due + r.fresh > 0)?.deck;
+}
+
+/**
  * What's waiting across the whole deck list. A top-level row's counts already include its
  * subdecks, so adding every row would count a subdeck's cards twice: only the top ones are summed.
  */

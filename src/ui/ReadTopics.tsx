@@ -7,15 +7,16 @@ import {
 } from '../reader/api';
 import { grammarSummary } from '../reader/grammar';
 import { ideaPage } from '../reader/ideas';
-import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
+import { LANGUAGE_ORDER, LANGUAGES, languageNamed } from '../reader/languages';
 import { describeProgress } from '../reader/progress';
 import { Button, Card, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Select, Tappable } from './kit';
 import { MIN_TAP, radius, space, type, useTheme } from './theme';
+import { CommonWords } from './ReadCommonWords';
 
 /**
  * Read & Listen's home: the language, your topics (favorites keep a text ready), topic ideas, past
  * texts, marked words, grammar, and the settings new texts are written with
- * (docs/read-and-listen/architecture.md, Topics). Topics are shared by both languages; everything
+ * (docs/read-and-listen/architecture.md, Topics). Topics are shared by every language; everything
  * else here is the chosen language's.
  */
 
@@ -96,7 +97,7 @@ export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWor
     const before = settings;
     const mine = ++settingSeq.current;
     // Voices are chosen on Read & Listen's settings screen, not here; the server's answer brings them.
-    setSettings((s) => (s ? { ...s, ...change, decks: { ...s.decks, ...change.decks }, voices: s.voices } : s));
+    setSettings((s) => (s ? { ...s, ...change, decks: { ...s.decks, ...change.decks }, voices: s.voices, common: { ...s.common, ...change.common } } : s));
     setSettingError(null);
     try {
       const saved = await api.updateSettings(change);
@@ -218,10 +219,14 @@ export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWor
         ) : null}
         <Help>{`Pick a topic. Texts use words from your ${LANGUAGES[language].name} deck.`}</Help>
         {settings ? (
-          <Segments<Language>
-            options={LANGUAGE_ORDER.map((code) => ({ value: code, label: LANGUAGES[code].name }))}
-            value={settings.language}
-            onChange={changeLanguage}
+          <Select
+            label="Language"
+            options={LANGUAGE_ORDER.map((code) => LANGUAGES[code].name)}
+            value={LANGUAGES[settings.language].name}
+            onChange={(name) => {
+              const code = languageNamed(name);
+              if (code && code !== settings.language) changeLanguage(code);
+            }}
           />
         ) : null}
 
@@ -269,7 +274,7 @@ export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWor
               </View>
             ) : null}
             <Help>
-              {`${language === 'es' ? '' : 'Ideas that use more of your deck come first. '}Tap one to read about it, and star it to keep texts coming.`}
+              {`${language === 'th' ? 'Ideas that use more of your deck come first. ' : ''}Tap one to read about it, and star it to keep texts coming.`}
             </Help>
           </Card>
         ) : null}
@@ -301,6 +306,7 @@ export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWor
                 <Help>Words come from this deck and its subdecks. A new deck is read right away; texts already waiting were written from the old one.</Help>
               </>
             ) : null}
+            <CommonWords settings={settings} onChange={(count) => changeSetting({ common: { [settings.language]: count } })} />
             <Text style={{ ...type.headline, color: c.text }}>Text type</Text>
             <Segments<Form>
               options={[{ value: 'dialogue', label: 'Dialogue' }, { value: 'story', label: 'Short story' }]}

@@ -54,6 +54,7 @@ export function ReadGrammar({ api }: { api: Api }) {
         </Help>
         {error ? <ErrorNote message={error} onRetry={points === null ? load : undefined} /> : null}
         {points === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+        {points && points.length === 0 ? <Help>There are no grammar points for this language yet.</Help> : null}
         {points && points.length > 0 ? (
           <Card style={{ paddingVertical: 0, gap: 0 }}>
             {points.map((p, i) => (

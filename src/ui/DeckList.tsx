@@ -182,8 +182,10 @@ export function DeckList(props: {
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}
-        // Pull down to sync, when sync is on.
-        refreshControl={props.sync ? (
+        // Pull down to sync, when sync is on. Always mounted: sync's settings load a moment after
+        // the screen opens, and a refresh control added then moved the content down and showed the
+        // large title that had been scrolled out of view at launch. Without sync a pull does nothing.
+        refreshControl={(
           <RefreshControl
             refreshing={pulling}
             onRefresh={async () => {
@@ -192,7 +194,7 @@ export function DeckList(props: {
             }}
             tintColor={c.textSecondary}
           />
-        ) : undefined}
+        )}
       >
         {backup?.overdue ? (
           <Pressable onPress={props.onBackup} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>

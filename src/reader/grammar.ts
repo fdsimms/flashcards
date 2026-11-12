@@ -4,6 +4,7 @@ import type { GrammarPoint } from './api';
 const plural = (n: number) => (n === 1 ? 'point' : 'points');
 
 export function grammarSummary(points: GrammarPoint[]): string {
+  if (points.length === 0) return 'None for this language yet';
   const practicing = points.filter((p) => p.state === 'practice').length;
   const avoiding = points.filter((p) => p.state === 'avoid').length;
   const parts = [

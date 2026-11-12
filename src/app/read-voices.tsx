@@ -4,7 +4,7 @@ import type { Language } from '../reader/api';
 import { useApp } from '../ui/AppContext';
 import { ReadVoices } from '../ui/ReadVoices';
 
-/** One language's speaker voices in Read & Listen (`language`: th or es). */
+/** One language's speaker voices in Read & Listen (`language`: its code, th, es, de...). */
 export default function ReadVoicesRoute() {
   const router = useRouter();
   const { reader } = useApp();

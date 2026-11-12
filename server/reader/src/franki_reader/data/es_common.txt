@@ -1,9 +1,10 @@
-# The 10,000 most common Spanish word families, most common first. Built from wordfreq 3.1.1:
-# each of the 50,000 most common forms (top_n_list("es", 50000)) was lemmatized with simplemma 2.0.0
-# and its frequency added to its lemma's, so sentamos and sentaron count toward sentar. A word
-# counts as known for coverage when its lemma is listed (docs/read-and-listen/architecture.md, Languages). Rebuild
-# this if simplemma is upgraded, so the lemmas here match the ones it gives at runtime.
-# wordfreq's data is CC BY-SA 4.0: https://github.com/rspeer/wordfreq
+# The 10,000 most common Spanish word families, most common first. Built by
+# scripts/build_common.py from wordfreq 3.1.1: each of the 50,000 most common forms
+# (top_n_list("es", 50000)) was lemmatized with simplemma 2.0.0 and its frequency added to
+# its lemma's. A word counts as known for coverage when its lemma is listed within the
+# language's common-words setting (docs/read-and-listen/architecture.md, Languages).
+# Rebuild this if simplemma is upgraded, so the lemmas here match the ones it gives at
+# runtime. wordfreq's data is CC BY-SA 4.0: https://github.com/rspeer/wordfreq
 el
 de
 que

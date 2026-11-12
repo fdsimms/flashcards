@@ -12,3 +12,7 @@ test('the summary says how many points are practiced and avoided', () => {
     'Practicing 2 points, avoiding 1',
   );
 });
+
+test('a language with no grammar points says so', () => {
+  expect(grammarSummary([])).toBe('None for this language yet');
+});

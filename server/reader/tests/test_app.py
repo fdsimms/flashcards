@@ -240,11 +240,28 @@ def test_a_repeated_reading_is_accepted_but_counted_once() -> None:
 
 
 # Each language's deck, as the settings report it when none was chosen.
-DECKS = {"th": "👅 Languages::🐘 ภาษาไทย", "es": "👅 Languages::🌮 Español"}
+DECKS = {
+    "th": "👅 Languages::🐘 ภาษาไทย",
+    "es": "👅 Languages::🌮 Español",
+    "de": "👅 Languages::🥨 Deutsch",
+    "fr": "👅 Languages::🥐 Français",
+    "ru": "👅 Languages::🐻 Русский",
+    "el": "👅 Languages::🏝️ Ελληνικά",
+    "pl": "👅 Languages::💈 Polski",
+    "nb": "👅 Languages::🐟 Norsk",
+}
+# How many common words each language counts as known when none was chosen (not Thai: deck only).
+COMMON = {"es": 10000, "de": 3000, "fr": 3000, "ru": 3000, "el": 3000, "pl": 0, "nb": 1000}
 # Each language's speaker voices, the same.
 VOICES = {
     "th": {"A": "th-TH-NiwatNeural", "B": "th-TH-PremwadeeNeural"},
     "es": {"A": "es-MX-JorgeNeural", "B": "es-MX-DaliaNeural"},
+    "de": {"A": "de-DE-ConradNeural", "B": "de-DE-KatjaNeural"},
+    "fr": {"A": "fr-FR-HenriNeural", "B": "fr-FR-DeniseNeural"},
+    "ru": {"A": "ru-RU-DmitryNeural", "B": "ru-RU-SvetlanaNeural"},
+    "el": {"A": "el-GR-NestorasNeural", "B": "el-GR-AthinaNeural"},
+    "pl": {"A": "pl-PL-MarekNeural", "B": "pl-PL-ZofiaNeural"},
+    "nb": {"A": "nb-NO-FinnNeural", "B": "nb-NO-PernilleNeural"},
 }
 
 
@@ -257,6 +274,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "language": "th",
         "decks": DECKS,
         "voices": VOICES,
+        "common": COMMON,
     }
     changed = c.patch("/api/settings", headers=AUTH, json={"stretch_words": "any"})
     assert changed.json() == {
@@ -266,6 +284,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "language": "th",
         "decks": DECKS,
         "voices": VOICES,
+        "common": COMMON,
     }
     assert c.get("/api/settings", headers=AUTH).json() == {
         "stretch_words": "any",
@@ -274,6 +293,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "language": "th",
         "decks": DECKS,
         "voices": VOICES,
+        "common": COMMON,
     }
     assert (
         c.patch("/api/settings", headers=AUTH, json={"stretch_words": "loose"}).status_code == 422
@@ -351,6 +371,7 @@ def test_the_length_setting_can_be_changed_to_a_length_offered() -> None:
         "language": "th",
         "decks": DECKS,
         "voices": VOICES,
+        "common": COMMON,
     }
     assert c.patch("/api/settings", headers=AUTH, json={"lines": 30}).status_code == 422
 
@@ -429,6 +450,21 @@ def test_a_languages_deck_can_be_chosen_and_is_read_again_at_once() -> None:
     back = c.patch("/api/settings", headers=AUTH, json={"decks": {"th": ""}}).json()
     assert back["decks"] == DECKS
     assert store.load_settings(conn).decks == {}
+
+
+def test_how_many_common_words_count_can_be_chosen_for_each_language_but_thai() -> None:
+    conn = store.connect(":memory:")
+    engine = Engine(conn, ScriptedModel(GOOD).ask_for, None, lambda: NOW, random.Random(1))
+    c = started(create_app(engine, "open sesame"))
+    changed = c.patch("/api/settings", headers=AUTH, json={"common": {"de": 5000, "pl": 1000}})
+    assert changed.json()["common"] == {**COMMON, "de": 5000, "pl": 1000}
+    assert c.get("/api/settings", headers=AUTH).json()["common"]["de"] == 5000
+    # Choosing the default again stores nothing.
+    c.patch("/api/settings", headers=AUTH, json={"common": {"de": 3000}})
+    assert store.load_settings(conn).common == {"pl": 1000}
+    # Only the counts offered, and never Thai's: only its deck counts.
+    assert c.patch("/api/settings", headers=AUTH, json={"common": {"de": 4000}}).status_code == 422
+    assert c.patch("/api/settings", headers=AUTH, json={"common": {"th": 1000}}).status_code == 422
 
 
 def test_changing_a_deck_forgets_the_old_decks_words_until_the_new_one_is_read() -> None:
