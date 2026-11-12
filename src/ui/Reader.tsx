@@ -1,8 +1,8 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { usePreventRemove } from 'expo-router';
+import { Stack, usePreventRemove } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, type Api, type Language, type Length, type PastText, type Rating, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../reader/deckWords';
@@ -24,12 +24,15 @@ import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './the
  * The reader: a text split into words by the server, a gloss on tap, audio line by line, and a
  * rating at the end (docs/read-and-listen/architecture.md, Client). Nothing here answers a card.
  *
- * Layout: the title, practice words, the Show English, highlight and Thai letters controls, the lines (each with
+ * Layout: the title, practice words, the lines (each with
  * its own replay button, an EN button that shows that line's English alone, and an explain button
  * that opens Claude's note on its grammar and vocabulary under it), then Done, with
  * the player pinned under the scroll view. Done swaps the lines for the end view (rating, stats,
  * words marked unknown). The gloss popover is a transparent Modal, so a tap's page coordinates
  * place it directly.
+ *
+ * Reading options (Show English, Paragraphs, highlight, Thai letters) are one header menu, so the text
+ * starts right under the practice words.
  *
  * From the shelf: a text already written opens straight away, and the end view steers the next
  * ones (length, more or fewer like this) and offers the next text on the shelf. Play all plays the
@@ -45,7 +48,7 @@ import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './the
  *
  * A story written with paragraph marks reads as continuous text (`paragraphs`): a gap between
  * paragraphs, no per-line rows or buttons, the playing line shaded, and previous/next line in the
- * player. English then comes only from Show English. The Paragraphs switch (shown only for such a
+ * player. English then comes only from Show English. The Paragraphs option (shown only for such a
  * story, kept in prefs) turns it off for a row per line, as for every other text.
  *
  * Audio: one player is reused for every line. Play runs the text from the current line to the end
@@ -436,6 +439,25 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   return (
     <Screen
       largeTitle={false}
+      toolbar={text && !ended && !listenOnly ? (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Menu icon="slider.horizontal.3" accessibilityLabel="Reading options">
+            <Stack.Toolbar.MenuAction isOn={english} onPress={() => setEnglish(!english)}>Show English</Stack.Toolbar.MenuAction>
+            {marked ? (
+              <Stack.Toolbar.MenuAction isOn={paragraphMode} onPress={() => turnOnParagraphs(!paragraphMode)}>Paragraphs</Stack.Toolbar.MenuAction>
+            ) : null}
+            <Stack.Toolbar.MenuAction isOn={highlight} onPress={() => turnOnHighlight(!highlight)}>{language.highlightLabel}</Stack.Toolbar.MenuAction>
+            <Stack.Toolbar.MenuAction isOn={markNames} onPress={() => turnOnMarkNames(!markNames)}>Mark names</Stack.Toolbar.MenuAction>
+            {text.language === 'th' || text.language === undefined ? (
+              <Stack.Toolbar.Menu inline title="Thai letters">
+                {THAI_FONTS.map((f) => (
+                  <Stack.Toolbar.MenuAction key={f} isOn={thaiFont === f} onPress={() => chooseThaiFont(f)}>{THAI_FONT_LABELS[f]}</Stack.Toolbar.MenuAction>
+                ))}
+              </Stack.Toolbar.Menu>
+            ) : null}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      ) : undefined}
       footer={text && !ended ? (
         hasAudio ? (
           <PlayerBar playing={status.playing} current={current} total={text.lines.length} what={text.form === 'story' ? 'story' : 'dialogue'} skippable={paras !== null} onSkip={skip}
@@ -505,30 +527,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
               </ToggleRow>
             ) : (
               <>
-                <ToggleRow label="Show English">
-                  <Switch value={english} onValueChange={setEnglish} trackColor={{ true: c.accent }} accessibilityLabel="Show English" />
-                </ToggleRow>
-                {marked ? (
-                  <ToggleRow label="Paragraphs">
-                    <Switch value={paragraphMode} onValueChange={turnOnParagraphs} trackColor={{ true: c.accent }} accessibilityLabel="Paragraphs" />
-                  </ToggleRow>
-                ) : null}
-                <ToggleRow label={language.highlightLabel}>
-                  <Switch value={highlight} onValueChange={turnOnHighlight} trackColor={{ true: c.accent }} accessibilityLabel={language.highlightLabel} />
-                </ToggleRow>
-                <ToggleRow label="Mark names">
-                  <Switch value={markNames} onValueChange={turnOnMarkNames} trackColor={{ true: c.accent }} accessibilityLabel="Mark names" />
-                </ToggleRow>
-                {text.language === 'th' || text.language === undefined ? (
-                  <ToggleRow label="Thai letters">
-                    <Segments
-                      options={THAI_FONTS.map((f) => ({ value: f, label: THAI_FONT_LABELS[f] }))}
-                      value={thaiFont}
-                      onChange={chooseThaiFont}
-                      style={{ width: 180 }}
-                    />
-                  </ToggleRow>
-                ) : null}
                 {highlight && countOutsideDeck(text) === 0 ? (
                   <Text style={{ ...type.footnote, color: c.textSecondary }}>Every word in this text is in your deck.</Text>
                 ) : null}
