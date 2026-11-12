@@ -282,14 +282,21 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
         ) : <Help>No audio for this text.</Help>
       ) : undefined}
     >
-      {error ? <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={load} /></View> : null}
-      {!text && !error ? (
-        <View style={{ padding: space.xxl, alignItems: 'center', gap: space.m }}>
-          <ActivityIndicator color={c.accent} />
-          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
-            {writing ? 'Writing a text. This takes about half a minute.' : 'Opening the text'}
-          </Text>
-        </View>
+      {/* A ScrollView with the automatic inset, not a bare View: a bare one draws under the native
+          header, so the spinner and message sat behind the Back button and the screen looked blank. */}
+      {!text ? (
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+          {error ? (
+            <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={load} /></View>
+          ) : (
+            <View style={{ padding: space.xxl, alignItems: 'center', gap: space.m }}>
+              <ActivityIndicator color={c.accent} />
+              <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
+                {writing ? 'Writing a text. This takes about half a minute.' : 'Opening the text'}
+              </Text>
+            </View>
+          )}
+        </ScrollView>
       ) : null}
 
       {text && session && !ended ? (
