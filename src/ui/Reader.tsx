@@ -842,6 +842,16 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           onPlayWord(tapped.word.text, text.language);
         }}
         onSelectPhrase={listenOnly ? null : startPhrase}
+        onAddToDeck={mining?.language === text?.language && mining && tapped && !tapped.word.deck && tapped.word.status !== 'name' ? () => {
+          // The popover is a modal, so it closes before the note editor opens over the reader.
+          const word = tapped.word.text;
+          setTapped(null);
+          void mining.onAdd(word, tapped.word.gloss ?? "").then((saved) => {
+            // In the deck now, so no longer marked unknown.
+            if (saved) setSession((s) => (s && isFlagged(s, word) ? toggleFlag(s, word) : s));
+          });
+        } : null}
+        addsLeft={mining?.left ?? 0}
         onClose={() => setTapped(null)}
       />
     </Screen>
@@ -1063,7 +1073,7 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onClose }: {
+function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, addsLeft, onClose }: {
   tapped: Tapped | null;
   grammar: TextGrammar | null;
   api: Api;
@@ -1075,6 +1085,10 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
   onToggleFlag: (() => void) | null;
   /** Starts selecting a phrase from this word, to have it explained. */
   onSelectPhrase: (() => void) | null;
+  /** Opens the note editor on this word; null when the word is in the deck or isn't in the language being read. */
+  onAddToDeck: (() => void) | null;
+  /** How many more words can be added to the deck today. */
+  addsLeft: number;
   onClose: () => void;
 }) {
   const c = useTheme();
@@ -1122,6 +1136,11 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
         {onSelectPhrase ? (
           <View style={{ alignItems: 'flex-start' }}>
             <HeaderAction label="Select a phrase" accessibilityLabel={`Select a phrase starting from ${tapped.word.text}`} onPress={onSelectPhrase} />
+          </View>
+        ) : null}
+        {onAddToDeck && addsLeft > 0 ? (
+          <View style={{ alignItems: 'flex-start' }}>
+            <HeaderAction label="Add to deck" accessibilityLabel={`Add ${tapped.word.text} to your deck`} onPress={onAddToDeck} />
           </View>
         ) : null}
         {onToggleFlag ? (
