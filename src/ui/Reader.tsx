@@ -564,15 +564,15 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={100}
         >
-          <View style={{ paddingHorizontal: space.l, gap: space.l }}>
-            <View style={{ gap: space.xs }}>
+          <View style={{ paddingHorizontal: space.l, paddingTop: space.s, paddingBottom: space.s, gap: space.xl }}>
+            <View style={{ gap: space.s }}>
               <Text style={{ ...type.title, color: c.text }}>{text.title}</Text>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>
                 {text.episode ? `${text.topic} · Episode ${text.episode}` : (text.topic ?? (source.kind === 'topic' ? source.topic.name : source.kind === 'past' ? source.text.topic : ''))}
               </Text>
             </View>
             {text.stretch.length > 0 || practicedGrammar(text).length > 0 ? (
-              <Card style={{ padding: space.m, gap: space.m }}>
+              <Card style={{ padding: space.l, gap: space.l }}>
                 {text.stretch.length > 0 ? (
                   <ChipRow label="Practice words">
                     {text.stretch.map((w) => <Pill key={w} text={w} bg={c.accentFill} fg={c.accent} />)}
@@ -900,7 +900,7 @@ function glossFor(text: ReaderText, word: string): string | null {
 
 function Pill({ text, bg, fg }: { text: string; bg: string; fg: string }) {
   return (
-    <Text style={{ ...type.subhead, fontWeight: '700', color: fg, backgroundColor: bg, paddingHorizontal: 10, paddingVertical: space.xs, borderRadius: radius.pill, overflow: 'hidden' }}>
+    <Text style={{ ...type.subhead, fontWeight: '700', color: fg, backgroundColor: bg, paddingHorizontal: space.m, paddingVertical: 6, borderRadius: radius.pill, overflow: 'hidden' }}>
       {text}
     </Text>
   );
@@ -909,7 +909,7 @@ function Pill({ text, bg, fg }: { text: string; bg: string; fg: string }) {
 function ChipRow({ label, children }: { label: string; children: React.ReactNode }) {
   const c = useTheme();
   return (
-    <View style={{ gap: 6 }}>
+    <View style={{ gap: space.s }}>
       <Text style={{ ...type.footnote, fontWeight: '600', color: c.textSecondary }}>{label}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>{children}</View>
     </View>
