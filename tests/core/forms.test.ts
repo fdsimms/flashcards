@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  checkAnswer, chooseForms, confusedAnswers, confusions, weakForms, formsOf, formsSettings, formsSuggestion, headword, introductions, patternOf, patternPrompts,
-  practiceChoices, practicePool, promptFor, drillPrompts, studiedWords, sentenceGap, unreadableNotice, withoutArticle, wordPrompts, type PracticeRecord,
+  checkAnswer, chooseForms, formGrammar, practicedGroups, practicedGroupsLine, confusedAnswers, confusions, weakForms, formsOf, formsSettings, formsSuggestion, headword, introductions, patternOf, patternPrompts,
+  practiceChoices, practicePool, promptFor, drillPrompts, studiedWords, sentenceGap, unreadableNotice, withoutArticle, wordPrompts, type PracticeRecord, type WordForm,
 } from '../../src/core/forms';
 import { newSchedState } from '../../src/core/scheduler';
 import type { Note } from '../../src/core/types';
@@ -327,5 +327,57 @@ describe('drillPrompts', () => {
   it('lists studied words in a deck and its subdecks', () => {
     expect(studiedWords('👅 Languages', notes, [studied('hablar')]).map((w) => w.note.id)).toEqual(['hablar']);
     expect(studiedWords('Other', notes, [studied('hablar')])).toEqual([]);
+  });
+});
+
+describe('grammar points in forms practice (docs/grammar.md)', () => {
+  const preterite = new Set(['es.preterite']);
+  const { forms } = formsOf(esperar());
+
+  it("knows a form's grammar point from its group in the note's language", () => {
+    expect(formGrammar(esperar(), forms[4])?.id).toBe('es.preterite');
+    expect(formGrammar(esperar(), forms[0])).toBeUndefined(); // the present has no point
+    const tisch = omniNote({ Entry: 'der Tisch', Language: 'german', Plural: 'die Tische' });
+    expect(formGrammar(tisch, formsOf(tisch).forms[0])).toBeUndefined(); // a field, not a group
+  });
+
+  it('names the grammar point on the prompt, for after the answer', () => {
+    const p = promptFor(esperar(), forms[4], [], seeded());
+    expect(p.grammar).toEqual({ name: 'Preterite', note: 'Finished past events: hablé, comió, fueron' });
+    expect(promptFor(esperar(), forms[0], [], seeded()).grammar).toBeUndefined();
+  });
+
+  it("asks a practiced point's forms after the ones still owed, before the rest", () => {
+    const practiced = (f: WordForm) => f.group === 'preterite';
+    expect(chooseForms(forms, [], 2, seeded(), new Set(), practiced).map((f) => f.group)).toEqual(['preterite', 'preterite']);
+    // A form still owed right answers comes first all the same.
+    const keys = chooseForms(forms, [rec('present · él', false, at(5))], 3, seeded(), new Set(), practiced).map((f) => f.key);
+    expect(keys).toEqual(['present · él', expect.stringMatching(/^preterite/), expect.stringMatching(/^preterite/)]);
+  });
+
+  it("asks a drill's practiced forms first, by the choices passed in, and not without them", () => {
+    const data = { notes: [esperar()], cards: [], practice: [] };
+    const request = { kind: 'words' as const, noteIds: ['esperar'], perWord: 2 };
+    const groups = (practicing?: Set<string>) => drillPrompts(request, { ...data, practicing }, seeded()).prompts.map((p) => p.key.split(' · ')[0]);
+    expect(groups(preterite)).toEqual(['preterite', 'preterite']);
+    expect(groups(new Set(['es.future', 'pl.past']))).not.toEqual(['preterite', 'preterite']);
+  });
+
+  it('starts the practice screen with the practiced kinds of form, and says why', () => {
+    const words = practicePool([esperar()]);
+    expect(practicedGroups(words, new Set())).toEqual({ groups: [], points: [] });
+    const chosen = practicedGroups(words, new Set(['es.preterite', 'es.future']));
+    expect(chosen.groups).toEqual(['preterite']); // esperar lists no future forms
+    expect(practicedGroupsLine(chosen.points)).toBe("Chosen because you're practicing the preterite in Read & Listen.");
+  });
+
+  it('names several points in one line, each once across languages', () => {
+    const czekac = { ...omniNote({ Entry: 'czekać', Language: 'polish', Forms: 'past · on: czekał' }), id: 'czekac' };
+    const ждать = { ...omniNote({ Entry: 'ждать', Language: 'russian', Forms: 'past · он: ждал' }), id: 'zhdat' };
+    const words = practicePool([esperar(), czekac, ждать]);
+    const chosen = practicedGroups(words, new Set(['es.preterite', 'pl.past', 'ru.past']));
+    expect(chosen.groups).toEqual(['preterite', 'past']);
+    expect(practicedGroupsLine(chosen.points)).toBe("Chosen because you're practicing the preterite and the past tense in Read & Listen.");
+    expect(practicedGroupsLine([])).toBeUndefined();
   });
 });

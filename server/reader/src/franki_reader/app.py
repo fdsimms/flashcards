@@ -50,6 +50,9 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/grammar                the current language's grammar points, each practice, avoid,
                                       normal ("Know it") or unset, with how often each came up in
                                       texts read; `least`, the known ones worked in next
+    GET   /api/grammar/choices        {choices}: every language's choices by point id (practice,
+                                      avoid or normal; a point not set isn't listed), for the
+                                      app's Forms practice (docs/grammar.md)
     PUT   /api/grammar/{id}           {state}; at most 2 practiced at once; from the next text
     GET   /api/words                  words marked unknown and not cleared, newest first
     POST  /api/words/clear            {word} takes a word off that list until it's marked again
@@ -645,6 +648,12 @@ def create_app(
     @app.get("/api/grammar", dependencies=authed)
     async def get_grammar() -> dict[str, Any]:
         return grammar_points()
+
+    @app.get("/api/grammar/choices", dependencies=authed)
+    async def get_grammar_choices() -> dict[str, Any]:
+        # Every language's, not just the one being read: Forms practice asks for the deck's.
+        choices = store.load_grammar(engine.conn)
+        return {"choices": {pid: state for pid, state in choices.items() if pid in grammar.POINTS}}
 
     @app.put("/api/grammar/{point_id}", dependencies=authed)
     async def choose_grammar(point_id: str, body: GrammarChoice) -> dict[str, Any]:

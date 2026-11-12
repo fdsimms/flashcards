@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import type { GrammarPoint } from '../../src/reader/api';
-import { grammarSummary, seenLine } from '../../src/reader/grammar';
+import { grammarSummary, practicingPoints, seenLine } from '../../src/reader/grammar';
 
 const point = (id: string, state: GrammarPoint['state']): GrammarPoint => ({ id, name: id, note: '', state });
 
@@ -45,4 +45,17 @@ test('a time the server sends with its offset is read as that instant, on the ri
   // The server sends UTC with "+00:00"; noon local yesterday is yesterday in every zone.
   const yesterdayNoon = new Date(2026, 10, 11, 12).toISOString().replace('Z', '+00:00');
   expect(seenLine(seen(1, 1, yesterdayNoon), 'normal', NOW, 4)).toBe('In 1 text you read (1 time), last yesterday');
+});
+
+test('the points practiced in any language are the ones Forms practice asks first', async () => {
+  const api = { grammarChoices: async () => ({ choices: { 'es.preterite': 'practice', 'es.future': 'avoid', 'pl.past': 'practice', 'th.ever': 'normal' } as const }) };
+  expect([...await practicingPoints(api)].sort()).toEqual(['es.preterite', 'pl.past']);
+});
+
+test('without Read & Listen, or with its server down or slow, practice goes on without the choices', async () => {
+  expect((await practicingPoints(null)).size).toBe(0);
+  const down = { grammarChoices: async () => { throw new Error('offline'); } };
+  expect((await practicingPoints(down)).size).toBe(0);
+  const slow = { grammarChoices: () => new Promise<never>(() => undefined) };
+  expect((await practicingPoints(slow, 5)).size).toBe(0);
 });

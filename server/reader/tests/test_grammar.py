@@ -380,6 +380,17 @@ def test_at_most_two_points_are_practiced_at_once() -> None:
     assert c.put("/api/grammar/es.future", json={"state": "maybe"}, headers=AUTH).status_code == 422
 
 
+def test_every_languages_choices_are_listed_for_forms_practice() -> None:
+    c, engine = client("th")
+    assert c.get("/api/grammar/choices", headers=AUTH).json() == {"choices": {}}
+    c.put("/api/grammar/es.preterite", json={"state": "practice"}, headers=AUTH)
+    c.put("/api/grammar/th.ever", json={"state": "avoid"}, headers=AUTH)
+    store.set_grammar(engine.conn, "es.gone", "practice")  # a point since taken out of the catalog
+    body = c.get("/api/grammar/choices", headers=AUTH).json()
+    assert body == {"choices": {"es.preterite": "practice", "th.ever": "avoid"}}
+    assert c.get("/api/grammar/choices").status_code == 401
+
+
 def test_choices_reach_the_request_for_their_own_language_only() -> None:
     c, engine = client("es")
     c.put("/api/grammar/es.pluperfect", json={"state": "practice"}, headers=AUTH)

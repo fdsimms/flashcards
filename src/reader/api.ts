@@ -262,6 +262,8 @@ export function createApi(
     progress: () => call<Progress>('GET', '/api/progress'),
     markedWords: () => call<MarkedWord[]>('GET', '/api/words'),
     grammar: () => call<GrammarList>('GET', '/api/grammar'),
+    // Every language's choices by point id (a point not set isn't listed), for Forms practice.
+    grammarChoices: () => call<{ choices: Record<string, GrammarChoice> }>('GET', '/api/grammar/choices'),
     setGrammar: (id: string, state: GrammarChoice) =>
       call<GrammarList>('PUT', `/api/grammar/${id}`, { state }),
     clearWord: (word: string) => call<void>('POST', '/api/words/clear', { word }),

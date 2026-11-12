@@ -50,9 +50,15 @@ Step 1 (this file's first version) is the catalog itself, with nothing on screen
 step is its own PR, and each that changes a screen is mocked up for the owner first (CLAUDE.md,
 "Mock up a proposed UI change").
 
-2. **Forms practice.** A drill on a form whose group links to a point names the point and opens its
-   note. A point set to Practice in that language gets its forms asked more often. The choices come
-   from Read & Listen's server, so with it off the link still shows and the weighting doesn't apply.
+2. **Forms practice** (built 12 November 2026; the owner chose from a mock). Each prompt carries its
+   form's point (`formGrammar`, by the note's language and the form's group), and the drill's result
+   card names it under a rule once the answer is shown, never before: a point's examples can give a
+   common verb's form away (fueron is ser's and ir's). Points set to Practice in any language
+   (`GET /api/grammar/choices`, read by `practicingPoints`) steer it: a drill asks their forms after
+   the ones still owed right answers and before the rest (`askRank`), and Practice forms starts with
+   their kinds of form selected, saying why (`practicedGroups`, `practicedGroupsLine`) while that is
+   still the selection. With Read & Listen off, unreachable, or slower than `CHOICES_WAIT_MS`
+   (3 seconds), practice goes on as before; the grammar line still shows, from the bundled catalog.
 3. **Explain.** The request for a line's explanation (`explain.py`) carries the language's points by
    id and name, and the answer says which it used; the reader shows those as chips that open the
    point.

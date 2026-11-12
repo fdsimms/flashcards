@@ -1,6 +1,7 @@
 import { speechLangFor, isOmnilanguage } from './cards';
 import { studyDayKey, studyDayStart } from './day';
 import { inheritedSetting, isInDeck } from './deckTree';
+import { grammarPointForForms, type GrammarPointInfo } from './grammar';
 import { htmlToText } from './html';
 import type { Card, DeckSettings, Note, ReviewLogEntry } from './types';
 
@@ -268,10 +269,23 @@ export function confusions(history: PracticeRecord[], words: PracticeWord[]): Co
 export const confusedAnswers = (list: Confusion[]): Set<string> => new Set(list.map((c) => clean(c.expected)));
 
 /** Ask order: still owed a run of right answers, then a form whose answer is often confused, then never asked, then asked. */
-function askRank(f: WordForm, weak: Map<string, number>, asked: boolean, confused: Set<string>): number {
+function askRank(f: WordForm, weak: Map<string, number>, asked: boolean, confused: Set<string>, practiced: boolean): number {
   if (weak.has(f.key)) return 0;
   if (confused.has(clean(f.answers[0]))) return 1;
-  return asked ? 3 : 2;
+  if (practiced) return 2;
+  return asked ? 4 : 3;
+}
+
+/** The grammar point a note's form is (its Forms group's, in the note's language), if any. */
+export function formGrammar(note: Note, form: WordForm): GrammarPointInfo | undefined {
+  const lang = langOf(note);
+  return lang && form.group && !form.key.startsWith('field:') ? grammarPointForForms(lang, form.group) : undefined;
+}
+
+/** Whether a form is of a grammar point practiced in Read & Listen (`practicing`, by point id). */
+function isPracticed(note: Note, form: WordForm, practicing: Set<string>): boolean {
+  const point = practicing.size ? formGrammar(note, form) : undefined;
+  return !!point && practicing.has(point.id);
 }
 
 function shuffle<T>(xs: T[], random: () => number): T[] {
@@ -285,8 +299,9 @@ function shuffle<T>(xs: T[], random: () => number): T[] {
 
 /**
  * Which of a note's forms to ask, `count` at most: those still owed right answers (`weakForms`, the
- * most owed first), then those whose answer is often confused, then those never asked, then the
- * ones asked longest ago. Ties are shuffled.
+ * most owed first), then those whose answer is often confused, then those of grammar practiced in
+ * Read & Listen (`practiced`), then those never asked, then the ones asked longest ago. Ties are
+ * shuffled.
  */
 export function chooseForms(
   forms: WordForm[],
@@ -294,11 +309,12 @@ export function chooseForms(
   count: number,
   random: () => number = Math.random,
   confused: Set<string> = new Set(),
+  practiced: (f: WordForm) => boolean = () => false,
 ): WordForm[] {
   const weak = weakForms(history);
   const lastAsked = new Map<string, string>();
   for (const r of history) if ((lastAsked.get(r.key) ?? '') < r.practicedAt) lastAsked.set(r.key, r.practicedAt);
-  const rank = (f: WordForm) => askRank(f, weak, lastAsked.has(f.key), confused);
+  const rank = (f: WordForm) => askRank(f, weak, lastAsked.has(f.key), confused, practiced(f));
   return shuffle(forms, random)
     .sort((a, b) => rank(a) - rank(b) || (weak.get(b.key) ?? 0) - (weak.get(a.key) ?? 0) || (lastAsked.get(a.key) ?? '').localeCompare(lastAsked.get(b.key) ?? ''))
     .slice(0, count);
@@ -322,6 +338,8 @@ export interface FormPrompt {
   choices?: string[];
   /** The note's example sentence with the answer blanked out, when it holds the answer. */
   sentence?: { before: string; after: string; translation?: string };
+  /** The grammar point the form is (docs/grammar.md), shown once the answer is. */
+  grammar?: { name: string; note: string };
 }
 
 const isLetter = (ch: string | undefined) => !!ch && /[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]/.test(ch);
@@ -377,6 +395,7 @@ export function promptFor(
   }
   const picked = wrong.slice(0, 3);
   const word = headword(note);
+  const point = formGrammar(note, form);
   return {
     noteId: note.id,
     key: form.key,
@@ -387,6 +406,7 @@ export function promptFor(
     answers: form.answers,
     ...(picked.length ? { choices: shuffle([form.answers[0], ...picked], random) } : {}),
     ...(form.key === 'field:Gender' ? {} : { sentence: sentenceGap(note, form.answers) }),
+    ...(point ? { grammar: { name: point.name, note: point.note } } : {}),
   };
 }
 
@@ -488,8 +508,11 @@ export function wordPrompts(
   perWord: number,
   random: () => number = Math.random,
   confused: Set<string> = new Set(),
+  practicing: Set<string> = new Set(),
 ): FormPrompt[] {
-  const lists = notes.map((n) => chooseForms(formsOf(n).forms, history.filter((r) => r.noteId === n.id), perWord, random, confused).map((f) => promptFor(n, f, pool, random)));
+  const lists = notes.map((n) => chooseForms(
+    formsOf(n).forms, history.filter((r) => r.noteId === n.id), perWord, random, confused, (f) => isPracticed(n, f, practicing),
+  ).map((f) => promptFor(n, f, pool, random)));
   const out: FormPrompt[] = [];
   for (let i = 0; lists.some((l) => i < l.length); i++) for (const l of lists) if (i < l.length) out.push(l[i]);
   return out;
@@ -542,6 +565,36 @@ export function practiceChoices(words: PracticeWord[]): { patterns: string[]; gr
 }
 
 /**
+ * The kinds of form the practice screen starts with: those of grammar practiced in Read & Listen
+ * (`practicing`, by point id) among these words, in the screen's order, and the points they are,
+ * for saying why. Empty when none is practiced: the screen starts with its first kind, as before.
+ */
+export function practicedGroups(words: PracticeWord[], practicing: Set<string>): { groups: string[]; points: GrammarPointInfo[] } {
+  const groups: string[] = [];
+  const points: GrammarPointInfo[] = [];
+  if (!practicing.size) return { groups, points };
+  for (const g of practiceChoices(words).groups) {
+    for (const w of words) {
+      const form = w.forms.find((f) => f.group === g);
+      const point = form && formGrammar(w.note, form);
+      if (!point || !practicing.has(point.id)) continue;
+      groups.push(g);
+      if (!points.some((p) => p.name === point.name)) points.push(point);
+      break;
+    }
+  }
+  return { groups, points };
+}
+
+/** "Chosen because you're practicing the preterite and the present subjunctive in Read & Listen." */
+export function practicedGroupsLine(points: GrammarPointInfo[]): string | undefined {
+  const names = points.map((p) => `the ${p.name.toLocaleLowerCase()}`);
+  if (!names.length) return undefined;
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return `Chosen because you're practicing ${list} in Read & Listen.`;
+}
+
+/**
  * Prompts for practicing patterns across words already studied: `count` of them, among the forms
  * in `groups`, forms still owed right answers first, never the same word twice in a row when there's a choice.
  */
@@ -554,6 +607,7 @@ export function patternPrompts(
   /** Where wrong choices are taken from: every word with forms, not only these. */
   pool: PracticeWord[] = words,
   confused: Set<string> = new Set(),
+  practicing: Set<string> = new Set(),
 ): FormPrompt[] {
   const chosen = words.filter((w) => choice.patterns.includes(patternOf(w.note)));
   const byNote = new Map<string, PracticeRecord[]>();
@@ -565,7 +619,7 @@ export function patternPrompts(
     const asked = new Set(mine.map((r) => r.key));
     for (const f of w.forms) {
       if (!choice.groups.includes(f.group)) continue;
-      candidates.push({ word: w, form: f, rank: askRank(f, weak, asked.has(f.key), confused), owed: weak.get(f.key) ?? 0 });
+      candidates.push({ word: w, form: f, rank: askRank(f, weak, asked.has(f.key), confused, isPracticed(w.note, f, practicing)), owed: weak.get(f.key) ?? 0 });
     }
   }
   const ordered = shuffle(candidates, random).sort((a, b) => a.rank - b.rank || b.owed - a.owed).slice(0, count);
@@ -603,21 +657,22 @@ export function studiedWords(deck: string, notes: Iterable<Note>, cards: Card[])
  */
 export function drillPrompts(
   request: DrillRequest,
-  data: { notes: Note[]; cards: Card[]; practice: PracticeRecord[] },
+  data: { notes: Note[]; cards: Card[]; practice: PracticeRecord[]; /** Grammar point ids practiced in Read & Listen, asked first. */ practicing?: Set<string> },
   random: () => number = Math.random,
 ): { prompts: FormPrompt[]; notice?: string } {
+  const practicing = data.practicing ?? new Set<string>();
   const pool = practicePool(data.notes);
   const confused = confusedAnswers(confusions(data.practice, pool));
   if (request.kind === 'words') {
     const byId = new Map(data.notes.map((n) => [n.id, n]));
     const targets = request.noteIds.map((id) => byId.get(id)).filter((n): n is Note => !!n);
-    return { prompts: wordPrompts(targets, pool, data.practice, request.perWord, random, confused), notice: unreadableNotice(targets) };
+    return { prompts: wordPrompts(targets, pool, data.practice, request.perWord, random, confused, practicing), notice: unreadableNotice(targets) };
   }
   const words = studiedWords(request.deck, data.notes, data.cards);
   const choice = { patterns: request.patterns, groups: request.groups };
   const limit = request.limit ?? Number.POSITIVE_INFINITY;
   // "In a sentence" filters after choosing, so it picks from every form rather than the first few.
-  const all = patternPrompts(words, choice, data.practice, request.sentence ? Number.POSITIVE_INFINITY : limit, random, pool, confused);
+  const all = patternPrompts(words, choice, data.practice, request.sentence ? Number.POSITIVE_INFINITY : limit, random, pool, confused, practicing);
   const prompts = request.sentence ? all.filter((p) => p.sentence).slice(0, limit) : all;
   const chosen = words.filter((w) => choice.patterns.includes(patternOf(w.note))).map((w) => w.note);
   return { prompts, notice: unreadableNotice(chosen) };

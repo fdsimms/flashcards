@@ -141,3 +141,11 @@ test('asks for memory hints for a word and returns the list', async () => {
   expect(calls[0].init.method).toBe('POST');
   expect(JSON.parse(calls[0].init.body as string)).toEqual({ language: 'th', entry: 'ทุก', meaning: 'every; all' });
 });
+
+test("asks for every language's grammar choices", async () => {
+  const { impl, calls } = fakeFetch(json({ choices: { 'es.preterite': 'practice' } }));
+  const got = await createApi('https://x/reader', 'p', impl).grammarChoices();
+  expect(calls[0].url).toBe('https://x/reader/api/grammar/choices');
+  expect(calls[0].init.method).toBe('GET');
+  expect(got.choices['es.preterite']).toBe('practice');
+});
