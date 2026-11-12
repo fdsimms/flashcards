@@ -1,6 +1,7 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { usePreventRemove } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
+import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, type Api, type PastText, type Rating, type ReaderText, type TextGrammar, type Topic, type Word } from '../reader/api';
@@ -11,7 +12,8 @@ import { firstLine, nextLine } from '../reader/playback';
 import { RATES } from '../reader/playbackRate';
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
 import { prefs, savePrefs } from '../reader/storage';
-import { Button, Card, ErrorNote, HeaderAction, Help, Screen, Segments } from './kit';
+import { haptic } from './haptics';
+import { Button, Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './theme';
 
 /**
@@ -391,7 +393,7 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
               </View>
               <View style={{ gap: space.xs }}>
                 {line.audio ? (
-                  <RoundButton label="▶︎" accessibilityLabel={`Play line ${i + 1}`} on onPress={() => playLine(i, false)} />
+                  <RoundButton icon="play.fill" accessibilityLabel={`Play line ${i + 1}`} on onPress={() => playLine(i, false)} />
                 ) : null}
                 {!english && !listenOnly ? (
                   <RoundButton
@@ -413,7 +415,7 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
       ) : null}
 
       {text && session && ended ? (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
           <Card style={{ gap: space.s }}>
             <Text style={{ ...type.title, color: c.text }}>How was this one?</Text>
             <Help>Your answer sets how hard the next text is.</Help>
@@ -421,20 +423,21 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
               {RATINGS.map((r) => {
                 const selected = rating === r.value;
                 return (
-                  <Pressable
+                  <Tappable
                     key={r.value}
-                    onPress={() => setRating(selected ? null : r.value)}
+                    onPress={() => { haptic.select(); setRating(selected ? null : r.value); }}
                     accessibilityRole="radio"
                     accessibilityState={{ selected }}
                     accessibilityLabel={`${r.label}. ${r.hint}`}
-                    style={({ pressed }) => ({
+                    scaleTo={0.98}
+                    style={{
                       borderWidth: 1, borderRadius: radius.m, paddingHorizontal: space.l, paddingVertical: space.m, gap: 2,
-                      borderColor: selected ? c.accent : c.border, backgroundColor: selected ? c.accentFill : undefined, opacity: pressed ? 0.75 : 1,
-                    })}
+                      borderColor: selected ? c.accent : c.border, backgroundColor: selected ? c.accentFill : undefined,
+                    }}
                   >
                     <Text style={{ ...type.headline, color: selected ? c.accent : c.text }}>{r.label}</Text>
                     <Text style={{ ...type.footnote, color: selected ? c.accent : c.textSecondary }}>{r.hint}</Text>
-                  </Pressable>
+                  </Tappable>
                 );
               })}
             </View>
@@ -453,7 +456,7 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
                   <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>{glossFor(text, w) ?? ''}</Text>
                 </View>
               ))}
-              <View style={{ paddingTop: space.s }}><Help>Marked words are only saved for now. Nothing is added to Anki.</Help></View>
+              <View style={{ paddingTop: space.s }}><Help>These are kept in Marked words, where the ones not in your deck can be added to it.</Help></View>
             </Card>
           ) : null}
           {rating === 'about_right' && hasAudio ? (
@@ -545,21 +548,29 @@ function ToggleRow({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-/** A line's replay and EN buttons: a full tap target, filled when on. */
-function RoundButton({ label, accessibilityLabel, on, onPress }: { label: string; accessibilityLabel: string; on: boolean; onPress: () => void }) {
+/** A line's replay and EN buttons: a full tap target, filled when on. One of `icon` or `label`. */
+function RoundButton({ icon, label, accessibilityLabel, on, onPress }: {
+  icon?: SFSymbol;
+  label?: string;
+  accessibilityLabel: string;
+  on: boolean;
+  onPress: () => void;
+}) {
   const c = useTheme();
+  const fg = on ? c.accent : c.textSecondary;
   return (
-    <Pressable
-      onPress={onPress}
+    <Tappable
+      onPress={() => { haptic.tap(); onPress(); }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => ({
+      scaleTo={0.92}
+      style={{
         minWidth: MIN_TAP, minHeight: MIN_TAP, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center',
-        backgroundColor: on ? c.accentFill : c.fill, opacity: pressed ? 0.6 : 1,
-      })}
+        backgroundColor: on ? c.accentFill : c.fill,
+      }}
     >
-      <Text style={{ ...type.footnote, fontWeight: '700', color: on ? c.accent : c.textSecondary }}>{label}</Text>
-    </Pressable>
+      {icon ? <Icon name={icon} size={16} color={fg} weight="semibold" /> : <Text style={{ ...type.footnote, fontWeight: '700', color: fg }}>{label}</Text>}
+    </Tappable>
   );
 }
 
@@ -589,7 +600,7 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, selected, on
       style={{
         // Thai has no spaces between words. The negative margin cancels the border, so tappable
         // words sit flush and only real spaces in the text show as gaps.
-        borderRadius: 6, borderWidth: 1.5, marginHorizontal: -1.5,
+        borderRadius: radius.s - 2, borderWidth: 1.5, marginHorizontal: -1.5,
         borderColor: selected ? c.accent : 'transparent',
         backgroundColor: selected ? c.accentFill : highlighted ? c.highlight : undefined,
       }}
@@ -686,32 +697,34 @@ function PlayerBar({ playing, current, total, what, rate, repeat, silentLine, on
   return (
     <View style={{ gap: space.m }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
-        <Pressable
-          onPress={onToggle}
+        <Tappable
+          onPress={() => { haptic.tap(); onToggle(); }}
           accessibilityRole="button"
           accessibilityLabel={playing ? 'Pause' : 'Play'}
-          style={({ pressed }) => ({ width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent, opacity: pressed ? 0.7 : 1 })}
+          scaleTo={0.92}
+          style={{ width: 52, height: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent }}
         >
-          <Text style={{ ...type.title, color: c.onAccent }}>{playing ? '❚❚' : '▶︎'}</Text>
-        </Pressable>
+          <Icon name={playing ? 'pause.fill' : 'play.fill'} size={22} color={c.onAccent} weight="semibold" />
+        </Tappable>
         <View style={{ flex: 1 }}>
           <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{current === null ? `Play the ${what}` : `Line ${current + 1} of ${total}`}</Text>
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
-            {silentLine !== null ? `Line ${silentLine + 1} has no audio.` : repeat ? 'Repeating this line' : "Tap a line's ▶︎ to replay it"}
+            {silentLine !== null ? `Line ${silentLine + 1} has no audio.` : repeat ? 'Repeating this line' : "Tap a line's play button to replay it"}
           </Text>
         </View>
-        <Pressable
-          onPress={onRepeat}
+        <Tappable
+          onPress={() => { haptic.select(); onRepeat(); }}
           accessibilityRole="switch"
           accessibilityLabel="Repeat line"
           accessibilityState={{ checked: repeat }}
-          style={({ pressed }) => ({
+          scaleTo={0.95}
+          style={{
             minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.m, borderRadius: radius.pill,
-            backgroundColor: repeat ? c.accentFill : c.fill, opacity: pressed ? 0.7 : 1,
-          })}
+            backgroundColor: repeat ? c.accentFill : c.fill,
+          }}
         >
           <Text style={{ ...type.footnote, fontWeight: '600', color: repeat ? c.accent : c.textSecondary }}>Repeat line</Text>
-        </Pressable>
+        </Tappable>
       </View>
       <Segments options={RATES.map((r) => ({ value: r, label: `${r.toFixed(1)}×`, accessibilityLabel: `Speed ${r}` }))} value={rate} onChange={onRate} />
     </View>

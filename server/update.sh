@@ -7,6 +7,14 @@ set -eu
 cd "$(dirname "$0")"
 repo=$(git rev-parse --show-toplevel)
 
+# Read & Listen's server, if it has stopped answering /health (its compose healthcheck): Docker
+# only marks it unhealthy, and nothing else would restart it.
+reader=$(docker compose ps -q reader 2>/dev/null || true)
+if [ -n "$reader" ] && [ "$(docker inspect -f '{{.State.Health.Status}}' "$reader" 2>/dev/null || true)" = unhealthy ]; then
+  echo "Restarting Read & Listen: it stopped answering."
+  docker compose restart reader
+fi
+
 git -C "$repo" fetch --quiet origin main
 if git -C "$repo" diff --quiet HEAD origin/main -- server/; then
   exit 0

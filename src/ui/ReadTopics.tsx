@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { haptic } from './haptics';
 import {
   ApiError, type Api, type Form, type Language, type Length, type Progress, type Settings, type SettingsChange, type StretchWords, type Suggestion,
   type Topic,
@@ -8,7 +9,7 @@ import { grammarSummary } from '../reader/grammar';
 import { ideaPage } from '../reader/ideas';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import { describeProgress } from '../reader/progress';
-import { Button, Card, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Select } from './kit';
+import { Button, Card, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Select, Tappable } from './kit';
 import { MIN_TAP, radius, space, type, useTheme } from './theme';
 
 /**
@@ -50,11 +51,18 @@ export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWor
   const [ideaPageIndex, setIdeaPageIndex] = useState(0);
   const [opening, setOpening] = useState<string | null>(null);
 
+  // Bumped when the language changes: a load started before it is the other language's, and is
+  // dropped rather than shown (a quick Thai, Spanish, Thai could otherwise end on Spanish's).
+  const loadSeq = useRef(0);
   const load = useCallback(async () => {
+    const started = loadSeq.current;
     try {
-      setTopics(await api.topics());
+      const loaded = await api.topics();
+      if (started !== loadSeq.current) return;
+      setTopics(loaded);
       setError(null);
     } catch (e) {
+      if (started !== loadSeq.current) return;
       setError(e instanceof ApiError ? e.message : "Couldn't load your topics.");
     }
   }, [api]);
@@ -62,29 +70,39 @@ export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWor
 
   // Loaded apart from the topics, and left out quietly if they fail.
   const loadExtras = useCallback(async () => {
+    const started = loadSeq.current;
+    const current = <T,>(set: (value: T) => void) => (value: T) => { if (started === loadSeq.current) set(value); };
     await Promise.all([
-      api.progress().then(setProgress, () => undefined),
-      api.markedWords().then((ws) => setMarkedCount(ws.length), () => undefined),
-      api.suggestions().then(setIdeas, () => undefined),
-      api.grammar().then((g) => setGrammar(grammarSummary(g.points)), () => undefined),
+      api.progress().then(current(setProgress), () => undefined),
+      api.markedWords().then((ws) => current(setMarkedCount)(ws.length), () => undefined),
+      api.suggestions().then(current(setIdeas), () => undefined),
+      api.grammar().then((g) => current(setGrammar)(grammarSummary(g.points)), () => undefined),
     ]);
   }, [api]);
   useEffect(() => { loadExtras(); }, [loadExtras]);
 
   // Loaded on its own, so the topics still show if this fails.
-  useEffect(() => { api.settings().then(setSettings, () => undefined); }, [api]);
+  // Each change is numbered, so only the latest one's answer (or failure) is shown.
+  const settingSeq = useRef(0);
+  useEffect(() => {
+    const started = settingSeq.current;
+    api.settings().then((loaded) => { if (started === settingSeq.current) setSettings(loaded); }, () => undefined);
+  }, [api]);
 
   useEffect(() => { if (settings) onSettings?.(settings); }, [settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Whether the server took the change. */
   const changeSetting = async (change: SettingsChange): Promise<boolean> => {
     const before = settings;
+    const mine = ++settingSeq.current;
     setSettings((s) => (s ? { ...s, ...change, decks: { ...s.decks, ...change.decks } } : s));
     setSettingError(null);
     try {
-      setSettings(await api.updateSettings(change));
+      const saved = await api.updateSettings(change);
+      if (mine === settingSeq.current) setSettings(saved);
       return true;
     } catch (e) {
+      if (mine !== settingSeq.current) return false;
       setSettings(before);
       setSettingError(e instanceof ApiError ? e.message : "Couldn't change that setting. Try again.");
       return false;
@@ -92,6 +110,7 @@ export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWor
   };
 
   const changeLanguage = async (language: Language) => {
+    loadSeq.current++;
     if (await changeSetting({ language })) {
       setIdeaPageIndex(0);
       await Promise.all([load(), loadExtras()]);
@@ -224,21 +243,23 @@ export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWor
             <Text style={{ ...type.headline, color: c.text }}>Ideas</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
               {ideaPage(ideas, ideaPageIndex).map((idea) => (
-                <Pressable
+                <Tappable
                   key={idea.name}
-                  onPress={() => openIdea(idea.name)}
+                  onPress={() => { haptic.tap(); openIdea(idea.name); }}
                   disabled={opening !== null}
                   accessibilityRole="button"
                   accessibilityHint="Opens a text on this topic"
                   hitSlop={{ top: 4, bottom: 4 }}
-                  style={({ pressed }) => ({
+                  scaleTo={0.95}
+                  restOpacity={opening && opening !== idea.name ? 0.6 : 1}
+                  style={{
                     flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 36, paddingHorizontal: space.m,
-                    borderRadius: radius.pill, backgroundColor: c.fill, opacity: pressed || (opening && opening !== idea.name) ? 0.6 : 1,
-                  })}
+                    borderRadius: radius.pill, backgroundColor: c.fill,
+                  }}
                 >
                   {opening === idea.name ? <ActivityIndicator size="small" color={c.accent} /> : null}
                   <Text style={{ ...type.subhead, color: c.text }}>{idea.name}</Text>
-                </Pressable>
+                </Tappable>
               ))}
             </View>
             {ideas.length > ideaPage(ideas, 0).length ? (

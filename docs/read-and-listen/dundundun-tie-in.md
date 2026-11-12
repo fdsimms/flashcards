@@ -4,8 +4,8 @@
 > is `server/reader/`, served under `/reader` on the sync server's domain; the plan below is
 > otherwise unchanged.
 
-dundundun is the owner's task app (Expo/React Native, repo `fdsimms/todo`). This engine stays a
-separate app. The two connect in two optional, independent ways. Neither changes the engine's core
+dundundun is the owner's task app (Expo/React Native, repo `fdsimms/todo`). It stays separate from
+Franki. The two connect in two optional, independent ways. Neither changes the engine's core
 rules: Anki and FSRS stay the scheduler, and nothing here creates Anki cards or reviews.
 
 ## 1. The engine completes a dundundun task (engine as an MCP client)

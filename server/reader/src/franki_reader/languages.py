@@ -7,6 +7,7 @@ Spanish counts the 10,000 most common Spanish words plus deck words, matched by 
 because the Spanish deck holds advanced words, not everyday ones.
 """
 
+import re
 from dataclasses import dataclass, field, replace
 from typing import Literal
 
@@ -29,7 +30,15 @@ class Language:
     @property
     def notes_query(self) -> str:
         """Anki's search for the word list: the deck and its subdecks, less the ones skipped."""
-        return " ".join([f'"deck:{self.deck}"', *(f'-"deck:{self.deck}::{s}"' for s in self.skip)])
+        deck = _escape(self.deck)
+        return " ".join([f'"deck:{deck}"', *(f'-"deck:{deck}::{_escape(s)}"' for s in self.skip)])
+
+
+def _escape(name: str) -> str:
+    """A deck name as Anki's search reads it literally: `*` and `_` are wildcards there, and `"` and
+    `\\` would end or escape the quoted term. Matches what Anki's own `build_search_string` writes
+    for a deck (checked in test_lexicon.py), so a chosen deck named a_b doesn't also read axb."""
+    return re.sub(r'([\\*_"])', r"\\\1", name)
 
 
 _THAI_DECK = "👅 Languages::🐘 ภาษาไทย"

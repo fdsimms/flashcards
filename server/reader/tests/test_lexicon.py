@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fake_anki import card, note
 
 from franki_reader.lexicon import THAI_NOTES_QUERY, build_entries, clean, lexicon_from
@@ -58,3 +60,29 @@ def test_a_chosen_deck_keeps_the_languages_skipped_subdecks() -> None:
     assert with_deck("th", None).notes_query == THAI_NOTES_QUERY
     assert with_deck("th", "Mine").notes_query == '"deck:Mine" -"deck:Mine::🏛 Consonant Classes"'
     assert with_deck("es", "Mío").notes_query == '"deck:Mío"'
+
+
+def test_a_chosen_decks_name_is_searched_literally(tmp_path: Path) -> None:
+    """Wildcards and quotes in a deck name match only that deck, as Anki's own search string does."""
+    from anki.collection import Collection, SearchNode
+
+    from franki_reader.languages import with_deck
+
+    col = Collection(str(tmp_path / "collection.anki2"))
+    try:
+        names = ["W::a_b", "W::axb", "W::st*r", "W::stXr", 'W::q"uote', "W::back\\slash"]
+        basic = col.models.by_name("Basic")
+        assert basic
+        for name in names:
+            note = col.new_note(basic)
+            note["Front"] = name
+            deck = col.decks.id(name)
+            assert deck
+            col.add_note(note, deck)
+        for name in names:
+            query = with_deck("es", name).notes_query
+            # Anki quotes a term only when it holds a space, and none of these do.
+            assert query == f'"{col.build_search_string(SearchNode(deck=name))}"'
+            assert [col.get_note(n)["Front"] for n in col.find_notes(query)] == [name]
+    finally:
+        col.close()

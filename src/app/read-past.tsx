@@ -5,7 +5,7 @@ import { ReadPastTexts } from '../ui/ReadPastTexts';
 
 export default function ReadPastRoute() {
   const router = useRouter();
-  const { readerApi } = useApp();
+  const { reader: { api: readerApi } } = useApp();
   if (!readerApi) return <Redirect href="/read-settings" />;
   return (
     <ReadPastTexts

@@ -6,14 +6,14 @@ import { ReadSettings } from '../ui/ReadSettings';
 /** Turning Read & Listen on (its passphrase) or off. */
 export default function ReadSettingsRoute() {
   const router = useRouter();
-  const { readerApi, readerServer, readerNotice, signedInToReader, signOutOfReader } = useApp();
+  const { reader } = useApp();
   return (
     <ReadSettings
-      syncServer={readerServer}
-      signedIn={!!readerApi}
-      notice={readerNotice}
-      onSignedIn={signedInToReader}
-      onSignOut={signOutOfReader}
+      syncServer={reader.server}
+      signedIn={!!reader.api}
+      notice={reader.notice}
+      onSignedIn={reader.signedIn}
+      onSignOut={reader.signOut}
       onSyncSetup={() => router.push('/sync')}
     />
   );
