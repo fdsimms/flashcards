@@ -1,15 +1,15 @@
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback } from 'react';
-import { syncStatusText } from '../anki/sync/runSync';
-import { useApp } from '../ui/AppContext';
-import { useDeckActions } from '../ui/DeckActions';
-import { DeckList } from '../ui/DeckList';
+import { syncStatusText } from '../../../anki/sync/runSync';
+import { useApp } from '../../../ui/AppContext';
+import { useDeckActions } from '../../../ui/DeckActions';
+import { DeckList } from '../../../ui/DeckList';
 
 /** The deck list: the first screen, and where every other one leads back to. */
 export default function DecksRoute() {
   const router = useRouter();
-  const { decks, backup, ankiUnsent, syncSettings, syncing, sync, refresh, reader, collapse } = useApp();
+  const { decks, backup, ankiUnsent, syncSettings, syncing, sync, refresh, collapse } = useApp();
   // Counts change while studying, so load them again each time this screen comes back into view.
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
   const openOptions = useCallback((deck: string) => router.push({ pathname: '/deck-options', params: { deck } }), [router]);
@@ -29,8 +29,6 @@ export default function DecksRoute() {
       onDeckMenu={deckActions.menu}
       collapsed={collapse.collapsed}
       onToggleCollapsed={collapse.toggle}
-      // Kept while the passphrase needs entering again, so the way back in (and the reason) is still here.
-      onRead={reader.api || reader.notice ? () => router.push('/read') : undefined}
       sync={syncSettings?.enabled ? {
         syncing,
         status: syncStatusText(syncSettings, new Date()),

@@ -27,7 +27,7 @@ export default function ReviewRoute() {
       // this screen was left while it ran: then the replace would land on whatever is in front.
       await sync();
       if (left.current) return;
-      router.replace({ pathname: '/read', params: { practice: JSON.stringify({ language, words }) } });
+      router.dismissTo({ pathname: '/read', params: { practice: JSON.stringify({ language, words }) } });
     },
   } : undefined;
   // Custom study raises limits from a screen over this one: the deck is loaded again when it closes.
