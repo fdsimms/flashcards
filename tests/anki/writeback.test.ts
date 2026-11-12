@@ -6,7 +6,7 @@ import { buildExport } from '../../src/anki/collection';
 import { readPackage, writePackage } from '../../src/anki/package';
 import {
   CARD_ROW_SQL, CARD_UPDATE_SQL, REVLOG_INSERT_SQL, ankiDayNumber, cardUpdate, cardUpdateParams, nextRevlogId,
-  previewAgain, previewReturn, revlogDifficulty, revlogEntry, revlogParams, type AnkiCardRow,
+  cardStateParams, previewAgain, previewReturn, queueForType, revlogDifficulty, revlogEntry, revlogParams, type AnkiCardRow,
 } from '../../src/anki/writeback';
 import { makeCards } from '../../src/core/cards';
 import { review } from '../../src/core/scheduler';
@@ -108,6 +108,37 @@ describe('mapping an answer to Anki', () => {
     expect(nextRevlogId(1000, null)).toBe(1000);
     expect(nextRevlogId(1000, 1000)).toBe(1001);
     expect(nextRevlogId(1000, 400)).toBe(1000);
+  });
+});
+
+describe("writing a card's state the way Anki does", () => {
+  const now = new Date(2026, 10, 11, 12);
+  const mod = Math.floor(now.getTime() / 1000);
+  const none = { suspended: false, buried: false, flag: 0 };
+
+  it("puts a card back in the queue its type and due say, as Anki's restore_queue_after_bury_or_suspend does", () => {
+    expect(queueForType(0, 5)).toBe(0);
+    expect(queueForType(2, 812)).toBe(2);
+    expect(queueForType(1, 1_800_000_000)).toBe(1); // learning, due a timestamp
+    expect(queueForType(3, 812)).toBe(3); // relearning across days, due a day number
+    expect(queueForType(1, 812)).toBe(3);
+  });
+
+  it('suspends as queue -1 and buries by hand as -3, suspending winning', () => {
+    const row = { type: 2, queue: 2, due: 812, flags: 0 };
+    expect(cardStateParams(row, { ...none, suspended: true, buried: true }, now, 9)).toEqual([-1, 0, mod, 9]);
+    expect(cardStateParams(row, { ...none, buried: true }, now, 9)).toEqual([-3, 0, mod, 9]);
+  });
+
+  it("restores a suspended or buried card's queue, and leaves an unmarked card's queue alone", () => {
+    expect(cardStateParams({ type: 2, queue: -1, due: 812, flags: 0 }, none, now, 9)[0]).toBe(2);
+    expect(cardStateParams({ type: 0, queue: -2, due: 5, flags: 0 }, none, now, 9)[0]).toBe(0);
+    expect(cardStateParams({ type: 1, queue: 4, due: 1_800_000_000, flags: 0 }, none, now, 9)[0]).toBe(4); // previewing
+  });
+
+  it("sets the flag in the low three bits, keeping Anki's other bits", () => {
+    expect(cardStateParams({ type: 2, queue: 2, due: 812, flags: 0b1000_0001 }, { ...none, flag: 5 }, now, 9)[1]).toBe(0b1000_0101);
+    expect(cardStateParams({ type: 2, queue: 2, due: 812, flags: 3 }, none, now, 9)[1]).toBe(0);
   });
 });
 

@@ -1,13 +1,16 @@
 import { Stack } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { deckListTotals, type DeckRow } from '../core/deckTree';
-import { Button, Card, Group, Icon, NavRow, Screen, SwipeToReveal } from './kit';
+import { deckListTotals, shownDeckRows, type DeckRow } from '../core/deckTree';
+import { haptic } from './haptics';
+import { Button, Card, Group, Icon, NavRow, Screen, SwipeToReveal, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
+type ShownRow = DeckRow & { hasSubdecks: boolean; collapsed: boolean };
+
 /** Rows grouped under their top-level deck, so each family of decks sits in one card. */
-function groupByTopLevel(rows: DeckRow[]): DeckRow[][] {
-  const groups: DeckRow[][] = [];
+function groupByTopLevel(rows: ShownRow[]): ShownRow[][] {
+  const groups: ShownRow[][] = [];
   for (const r of rows) {
     if (r.depth === 0 || !groups.length) groups.push([r]);
     else groups[groups.length - 1].push(r);
@@ -63,7 +66,7 @@ function Stat({ value, label, color }: { value: number; label: string; color: st
   );
 }
 
-function DeckRowView({ row, first, onOpen, onOptions }: { row: DeckRow; first: boolean; onOpen: () => void; onOptions: () => void }) {
+function DeckRowView({ row, first, onOpen, onOptions, onToggle }: { row: ShownRow; first: boolean; onOpen: () => void; onOptions: () => void; onToggle?: () => void }) {
   const c = useTheme();
   const atCap = row.gate && row.gate.inProgress >= row.gate.cap;
   return (
@@ -82,6 +85,23 @@ function DeckRowView({ row, first, onOpen, onOptions }: { row: DeckRow; first: b
       {first ? null : <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: space.l + row.depth * space.l, right: 0, height: hairline, backgroundColor: c.border }} />}
       {row.depth > 0 ? (
         <View style={{ position: 'absolute', left: space.l + (row.depth - 1) * space.l + space.xs, top: 0, bottom: 0, width: 2, borderRadius: 1, backgroundColor: c.fill }} />
+      ) : null}
+      {row.hasSubdecks && onToggle ? (
+        // In the indent before the name, so a deck's name stays where it is whether or not it has subdecks.
+        <Tappable
+          onPress={() => { haptic.select(); onToggle(); }}
+          accessibilityRole="button"
+          accessibilityLabel={`${row.collapsed ? 'Show' : 'Hide'} the subdecks of ${row.name}`}
+          hitSlop={{ left: space.s, right: space.l }}
+          scaleTo={0.85}
+          dimTo={0.5}
+          style={{
+            position: 'absolute', left: row.depth * space.l, top: 0, bottom: 0, width: space.l + space.xs,
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <Icon name={row.collapsed ? 'chevron.right' : 'chevron.down'} size={11} color={c.textTertiary} weight="semibold" />
+        </Tappable>
       ) : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{row.name}</Text>
@@ -124,11 +144,14 @@ export function DeckList(props: {
   onSettings: () => void;
   onBrowse: () => void;
   onOptions: (deck: string) => void;
+  /** Decks whose subdecks are hidden: Anki's own collapsed state, shared through sync. */
+  collapsed?: Set<string>;
+  onToggleCollapsed?: (deck: string) => void;
   /** Present when Read & Listen is on. */
   onRead?: () => void;
 }) {
   const c = useTheme();
-  const groups = useMemo(() => groupByTopLevel(props.decks), [props.decks]);
+  const groups = useMemo(() => groupByTopLevel(shownDeckRows(props.decks, props.collapsed ?? new Set())), [props.decks, props.collapsed]);
   // The deck whose row is slid open on its Options action; one at a time.
   const [openDeck, setOpenDeck] = useState<string | null>(null);
   const totals = useMemo(() => deckListTotals(props.decks), [props.decks]);
@@ -199,6 +222,7 @@ export function DeckList(props: {
                     // Tapping a row that's slid open closes it, rather than opening the deck.
                     onOpen={() => (openDeck === row.deck ? setOpenDeck(null) : props.onOpen(row.deck))}
                     onOptions={() => props.onOptions(row.deck)}
+                    onToggle={props.onToggleCollapsed ? () => props.onToggleCollapsed!(row.deck) : undefined}
                   />
                 </SwipeToReveal>
               ))}

@@ -15,6 +15,7 @@ import { minedOne, miningLeft, type MiningCount } from '../reader/mining';
 import { clearPassphrase, loadMined, loadPassphrase, loadPrefs, saveMined } from '../reader/storage';
 import { openRepo, type BackupStore } from '../db/sqliteRepo';
 import { useTheme } from './theme';
+import { useCollapsedDecks, type CollapsedDecks } from './useCollapsedDecks';
 import { useSync } from './useSync';
 
 /**
@@ -26,7 +27,8 @@ import { useSync } from './useSync';
 export type AppRepo = Repo & BackupStore & AnkiLink;
 
 /** What the note editor hands back when it closes; none when it was closed without saving. */
-export type NoteEditorResult = { saved: Note } | { deleted: string };
+/** `cardsChanged`: the note wasn't saved, but a card was unsuspended, unburied or unflagged in it. */
+export type NoteEditorResult = { saved: Note } | { deleted: string } | { cardsChanged: true };
 /** A note to edit, or a new one in `deck`, with `model` and `fields` filled in when given (Read & Listen's marked words). */
 export type NoteEditorTarget = { noteId: string } | { deck: string | null; model?: string; fields?: Record<string, string> };
 
@@ -42,6 +44,8 @@ interface AppValue {
   reloadSync: () => Promise<void>;
   /** Loads the deck list's rows again. */
   refresh: () => Promise<void>;
+  /** The deck list's collapsed decks (useCollapsedDecks). */
+  collapse: CollapsedDecks;
   /**
    * Opens the note editor over the current screen. `onClose` is called once, with what happened:
    * nothing when it was closed without saving.
@@ -85,6 +89,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [decks, setDecks] = useState<DeckRow[]>([]);
   const [backup, setBackup] = useState<{ text: string; overdue: boolean }>();
   const [ankiUnsent, setAnkiUnsent] = useState(0);
+  const collapse = useCollapsedDecks(repo);
   // The collection's "Next day starts at", for counting marked words added per study day.
   const [dayStartsAtHour, setDayStartsAtHour] = useState(DAY_STARTS_AT_HOUR);
 
@@ -110,7 +115,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setDecks(deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now })));
     setBackup(backupStatus(lastBackup, now, cards.length > 0));
     setAnkiUnsent((await repo.ankiStatus()).unsent);
-  }, [repo]);
+    collapse.load();
+  }, [repo, collapse.load]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync, when it's on: at launch, on coming back to the app (from the deck list, so a deck being
   // studied isn't changed under it), after studying a deck (Review's screen asks), and on leaving the app.
@@ -184,10 +190,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AppValue | null>(() => repo && {
     repo, decks, backup, ankiUnsent, syncSettings, syncing,
-    sync, reloadSync, refresh, openNoteEditor, finishNoteEditor,
+    sync, reloadSync, refresh, collapse, openNoteEditor, finishNoteEditor,
     readerApi, readerServer, readerNotice, signedInToReader, signOutOfReader,
     readerSettings, setReaderSettings, miningLeft: miningLeft(mined, today), recordMined,
-  }, [repo, decks, backup, ankiUnsent, syncSettings, syncing, sync, reloadSync, refresh, openNoteEditor, finishNoteEditor,
+  }, [repo, decks, backup, ankiUnsent, syncSettings, syncing, sync, reloadSync, refresh, collapse, openNoteEditor, finishNoteEditor,
     readerApi, readerServer, readerNotice, signedInToReader, signOutOfReader, readerSettings, mined, today, recordMined]);
 
   if (!value) {

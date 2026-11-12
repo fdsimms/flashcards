@@ -302,6 +302,22 @@ export interface DeckRow extends DeckNode {
 }
 
 /**
+ * The rows the deck list shows: a collapsed deck's subdecks hidden (at every depth), and each row
+ * saying whether it has subdecks to show or hide. `rows` are in tree order, parents first.
+ */
+export function shownDeckRows<R extends DeckNode>(rows: R[], collapsed: Set<string>): (R & { hasSubdecks: boolean; collapsed: boolean })[] {
+  const out: (R & { hasSubdecks: boolean; collapsed: boolean })[] = [];
+  rows.forEach((row, i) => {
+    const hidden = [...collapsed].some((c) => c !== row.deck && isInDeck(row.deck, c));
+    if (hidden) return;
+    const next = rows[i + 1];
+    const hasSubdecks = !!next && next.deck !== row.deck && isInDeck(next.deck, row.deck);
+    out.push({ ...row, hasSubdecks, collapsed: hasSubdecks && collapsed.has(row.deck) });
+  });
+  return out;
+}
+
+/**
  * What's waiting across the whole deck list. A top-level row's counts already include its
  * subdecks, so adding every row would count a subdeck's cards twice: only the top ones are summed.
  */

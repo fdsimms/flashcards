@@ -2,7 +2,8 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Stack } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Easing, PanResponder, Pressable, ScrollView, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
+import { ActionSheetIOS, Alert, Animated, Easing, Keyboard, PanResponder, Pressable, ScrollView, Text, TextInput, useColorScheme, useWindowDimensions, View } from 'react-native';
+import { FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
 import { isOmnilanguage, renderCard } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
@@ -13,15 +14,17 @@ import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS,
 import { fuzzSeed } from '../core/ankiFuzz';
 import { balancerFor, buildLoadSnapshot, forgetCard, loadDayIndex, recordAnswer, type LoadSnapshot } from '../core/loadBalance';
 import { ankiToday, fnvHash } from '../core/order';
-import { saveNote, type NoteStore } from '../anki/noteService';
+import { saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../core/session';
 import { durationText } from '../core/stats';
-import { cardDocument, renderTemplateCard } from '../core/template';
+import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
+import { pickVoice, speechLanguage, type TtsTag } from '../core/tts';
 import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
 import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardWebView } from './CardWebView';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
@@ -254,16 +257,28 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
   // The card's own deck decides its FSRS settings, not the deck being studied.
   const cardParams = note && current ? paramsForDeck(cardHomeDeck(current, note.deck), allParams) : undefined;
   const noteType = note && current?.kind.startsWith('t') && !isOmnilanguage(note) ? noteTypes.get(note.model) : undefined;
+  // What's typed into a {{type:}} card's box, compared on the back once the answer is shown.
+  const [typed, setTyped] = useState('');
+  // The box sits in the footer, so the screen is padded by the keyboard's height while it's up. The
+  // keyboard covers the home indicator area the footer already leaves, so that much isn't added twice.
+  const insets = useSafeAreaInsets();
+  const [keyboard, setKeyboard] = useState(0);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', (e) => setKeyboard(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setKeyboard(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  const typedShown = revealed ? typed : '';
   const page = useMemo(() => {
     if (!note || !noteType || !current) return undefined;
     const ord = Number(current.kind.slice(1));
-    const { front, back } = renderTemplateCard(note, noteType, ord);
+    const { front, back, typeAnswer } = renderTemplateCard(note, noteType, ord, typedShown);
     const opts = {
       css: noteType.css, ord, dark, autoplay: true, mediaBase: mediaBaseUri(),
       colors: { background: c.surface, text: c.text, cloze: c.countNew },
     };
-    return { front: cardDocument(front, opts), back: cardDocument(back, opts) };
-  }, [note, noteType, current?.id, current?.kind, dark, c]); // eslint-disable-line react-hooks/exhaustive-deps
+    return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer, frontAudio: sideAudio(front), backAudio: sideAudio(back) };
+  }, [note, noteType, current?.id, current?.kind, dark, c, typedShown]); // eslint-disable-line react-hooks/exhaustive-deps
   const rendered = current && note && !page ? renderCard(note, current.kind) : undefined;
   // The fuzz seed and load balancer for answering the current card, as Anki has them: the buttons show what an answer does.
   const answerContext = (card: Card, when: Date): AnswerContext => {
@@ -302,11 +317,35 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
     [rendered],
   );
 
+  // Anki's {{tts:}} tags, read with the phone's voices: on their own when a side without a
+  // recording is shown (a recording plays instead, in the page), and from each play button.
+  const voices = useRef<Speech.Voice[]>([]);
+  useEffect(() => { Speech.getAvailableVoicesAsync().then((v) => { voices.current = v; }).catch(() => {}); }, []);
+  const readAloud = useCallback((tags: TtsTag[]) => {
+    Speech.stop();
+    for (const t of tags) Speech.speak(t.text, { language: speechLanguage(t.lang), voice: pickVoice(voices.current, t), rate: t.speed });
+  }, []);
+  const pageAudio = page && (revealed ? page.backAudio : page.frontAudio);
+  useEffect(() => {
+    if (!pageAudio) return;
+    if (pageAudio.hasSound || !pageAudio.tts.length) Speech.stop();
+    else readAloud(pageAudio.tts);
+  }, [current?.id, revealed]); // eslint-disable-line react-hooks/exhaustive-deps
+  const onPageMessage = (data: string) => {
+    try {
+      const i = JSON.parse(data)?.tts;
+      const tag = typeof i === 'number' ? pageAudio?.tts[i] : undefined;
+      if (tag) readAloud([tag]);
+    } catch { /* not a message of ours */ }
+  };
+
   // When the card came up, for the time Anki records against each answer.
   const shownAt = useRef(Date.now());
   // One warning per session if answers can't be written into the Anki collection.
   const warnedAnki = useRef(false);
   useEffect(() => { shownAt.current = Date.now(); }, [current?.id]);
+  // Each card, and each time a card comes back, starts with an empty box.
+  useEffect(() => { if (!revealed) setTyped(''); }, [current?.id, revealed]);
 
   // Auto-speak the front when a card with audio appears.
   useEffect(() => {
@@ -483,7 +522,7 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
     );
   }
 
-  const reveal = () => { setRevealed(true); if (rendered?.back.speak) speak(rendered.back.speak); };
+  const reveal = () => { Keyboard.dismiss(); setRevealed(true); if (rendered?.back.speak) speak(rendered.back.speak); };
   const shown = ratingsShown(answerButtons);
   const buttons = ([
     { r: 1, label: 'Again', color: c.again },
@@ -514,15 +553,81 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
       ))}
     </Reveal>
   ) : (
-    <Button label="Show answer" onPress={reveal} />
+    <>
+      {page?.typeAnswer ? (
+        <TextInput
+          key={current.id}
+          value={typed}
+          onChangeText={setTyped}
+          onSubmitEditing={reveal}
+          autoFocus
+          autoCapitalize="none"
+          autoCorrect={false}
+          spellCheck={false}
+          returnKeyType="done"
+          placeholder="Type the answer"
+          accessibilityLabel="Type the answer"
+          placeholderTextColor={c.textTertiary}
+          selectionColor={c.accent}
+          keyboardAppearance={dark ? 'dark' : 'light'}
+          style={{
+            ...type.body, color: c.text, backgroundColor: c.surface, ...smooth, borderRadius: radius.m,
+            borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP,
+          }}
+        />
+      ) : null}
+      <Button label="Show answer" onPress={reveal} />
+    </>
   );
 
+  // Suspend, bury or flag cards from the menu: in Franki first, then in the kept collection, as Anki writes it.
+  const setStates = async (targets: Card[], change: (s: CardState) => CardState) => {
+    if (busy.current || !targets.length) return;
+    busy.current = true;
+    try {
+      const when = new Date();
+      const { cards: updated, ankiError } = await setCardStates(repo, targets, change, when, H);
+      if (ankiError) {
+        Alert.alert("Couldn't save this change for Anki", `It's made in Franki, but it won't reach Anki. ${(ankiError as any)?.message ?? ankiError}`);
+      }
+      const byId = new Map(updated.map((u) => [u.id, u]));
+      setCards((prev) => prev && prev.map((c) => byId.get(c.id) ?? c));
+      setRevealed(false);
+      setNow(when);
+    } finally {
+      busy.current = false;
+    }
+  };
+  const chooseFlag = () => {
+    const names = FLAG_NAMES.slice(1);
+    const options = [...names, ...(current.flag ? ['Remove flag'] : []), 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({ title: 'Flag this card', options, cancelButtonIndex: options.length - 1 }, (i) => {
+      if (i === options.length - 1) return;
+      const flag = i < names.length ? i + 1 : 0;
+      setStates([current], (s) => ({ ...s, flag }));
+    });
+  };
+  const openMenu = () => {
+    const options = ['Flag', 'Bury card', 'Bury note', 'Suspend card', 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 4, destructiveButtonIndex: 3 }, (i) => {
+      // Bury holds a card back until the next study day; Bury note does it to every card of the note; Suspend until it's unsuspended.
+      if (i === 0) chooseFlag();
+      if (i === 1) setStates([current], (s) => ({ ...s, buried: true }));
+      if (i === 2) setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }));
+      if (i === 3) setStates([current], (s) => ({ ...s, suspended: true }));
+    });
+  };
+
   return (
+    <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
     <Screen
       title={title}
       largeTitle={false}
       toolbar={
         <Stack.Toolbar placement="right">
+          {current.flag ? (
+            <Stack.Toolbar.Button icon="flag.fill" tintColor={c.flags[current.flag]} accessibilityLabel={`Flagged ${FLAG_NAMES[current.flag]}. Change the flag`} onPress={chooseFlag} />
+          ) : null}
           {undoButton}
           <Stack.Toolbar.Button
             icon="pencil"
@@ -535,6 +640,7 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
               setReloads((n) => n + 1);
             })}
           />
+          <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="Flag, bury or suspend this card" onPress={openMenu} />
         </Stack.Toolbar>
       }
       footer={footer}
@@ -548,7 +654,7 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} /> : null}
       {page ? (
         <CardSurface>
-          <CardWebView key={`${current.id}:${revealed ? 'back' : 'front'}`} html={revealed ? page.back : page.front} />
+          <CardWebView key={`${current.id}:${revealed ? 'back' : 'front'}`} html={revealed ? page.back : page.front} onMessage={onPageMessage} />
         </CardSurface>
       ) : rendered ? (
         <SwipeCard enabled={swipeOn && revealed} shown={shown} onRate={answer}>
@@ -588,5 +694,6 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
         <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Swipe right for Good, left for Again</Text>
       ) : null}
     </Screen>
+    </View>
   );
 }

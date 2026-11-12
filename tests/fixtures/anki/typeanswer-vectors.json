@@ -1,0 +1,299 @@
+{
+ "compare": [
+  {
+   "expected": "kot",
+   "typed": "kot",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>kot</span></code>"
+  },
+  {
+   "expected": "kot",
+   "typed": "kto",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>k</span><span class=typeMissed>-</span><span class=typeGood>t</span><span class=typeBad>o</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>k</span><span class=typeMissed>o</span><span class=typeGood>t</span></code>"
+  },
+  {
+   "expected": "123",
+   "typed": "1123",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeBad>1</span><span class=typeGood>123</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>123</span></code>"
+  },
+  {
+   "expected": "¿Y ahora qué vamos a hacer?",
+   "typed": "y ahora qe vamosa hacer",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeBad>y</span><span class=typeGood> ahora q</span><span class=typeBad>e</span><span class=typeGood> vamos</span><span class=typeMissed>-</span><span class=typeGood>a hacer</span><span class=typeMissed>-</span><br><span id=typearrow>&darr;</span><br><span class=typeMissed>¿Y</span><span class=typeGood> ahora q</span><span class=typeMissed>ué</span><span class=typeGood> vamos</span><span class=typeMissed> </span><span class=typeGood>a hacer</span><span class=typeMissed>?</span></code>"
+  },
+  {
+   "expected": "нос",
+   "typed": "нс",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>н</span><span class=typeMissed>-</span><span class=typeGood>с</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>н</span><span class=typeMissed>о</span><span class=typeGood>с</span></code>"
+  },
+  {
+   "expected": "쓰다듬다",
+   "typed": "스다뜸다",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeBad>스</span><span class=typeGood>다</span><span class=typeBad>뜸</span><span class=typeGood>다</span><br><span id=typearrow>&darr;</span><br><span class=typeMissed>쓰</span><span class=typeGood>다</span><span class=typeMissed>듬</span><span class=typeGood>다</span></code>"
+  },
+  {
+   "expected": "1",
+   "typed": "23",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeBad>23</span><br><span id=typearrow>&darr;</span><br><span class=typeMissed>1</span></code>"
+  },
+  {
+   "expected": "12",
+   "typed": "1",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>1</span><span class=typeMissed>-</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>1</span><span class=typeMissed>2</span></code>"
+  },
+  {
+   "expected": "<div>123</div>",
+   "typed": "",
+   "combining": true,
+   "html": "<code id=typeans>123</code>"
+  },
+  {
+   "expected": "<div>123</div>",
+   "typed": "123",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>123</span></code>"
+  },
+  {
+   "expected": "[sound:foo.mp3]<b>1</b> &nbsp;2",
+   "typed": "1  2",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>1  2</span></code>"
+  },
+  {
+   "expected": "source <dir>/bin/activate",
+   "typed": "source <dir>/bin/activate",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>source </span><span class=typeBad>&lt;dir&gt;</span><span class=typeGood>/bin/activate</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>source </span><span class=typeGood>/bin/activate</span></code>"
+  },
+  {
+   "expected": "Paris",
+   "typed": "paris",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeBad>p</span><span class=typeGood>aris</span><br><span id=typearrow>&darr;</span><br><span class=typeMissed>P</span><span class=typeGood>aris</span></code>"
+  },
+  {
+   "expected": "  spaced  ",
+   "typed": "spaced",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>spaced</span></code>"
+  },
+  {
+   "expected": "line one<br>line two",
+   "typed": "line one line two",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>line one line two</span></code>"
+  },
+  {
+   "expected": "a<div>b</div><div>c</div>",
+   "typed": "a b c",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>a b c</span></code>"
+  },
+  {
+   "expected": "Tom &amp; Jerry",
+   "typed": "Tom & Jerry",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>Tom &amp; Jerry</span></code>"
+  },
+  {
+   "expected": "x &lt; y",
+   "typed": "x < y",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>x &lt; y</span></code>"
+  },
+  {
+   "expected": "Straße",
+   "typed": "Strasse",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>Stra</span><span class=typeBad>ss</span><span class=typeGood>e</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>Stra</span><span class=typeMissed>ß</span><span class=typeGood>e</span></code>"
+  },
+  {
+   "expected": "język",
+   "typed": "jezyk",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>j</span><span class=typeBad>e</span><span class=typeGood>zyk</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>j</span><span class=typeMissed>ę</span><span class=typeGood>zyk</span></code>"
+  },
+  {
+   "expected": "język",
+   "typed": "jezyk",
+   "combining": false,
+   "html": "<code id=typeans><span class=typeGood>język</span></code>"
+  },
+  {
+   "expected": "język",
+   "typed": "jzyk",
+   "combining": false,
+   "html": "<code id=typeans><span class=typeGood>j</span><span class=typeMissed>-</span><span class=typeGood>zyk</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>j</span><span class=typeMissed>ę</span><span class=typeGood>zyk</span></code>"
+  },
+  {
+   "expected": "ภาษาไทย",
+   "typed": "ภาษาไทย",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>ภาษาไทย</span></code>"
+  },
+  {
+   "expected": "ภาษาไทย",
+   "typed": "ภาษไทย",
+   "combining": false,
+   "html": "<code id=typeans><span class=typeGood>ภาษ</span><span class=typeMissed>-</span><span class=typeGood>ไทย</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>ภาษ</span><span class=typeMissed>า</span><span class=typeGood>ไทย</span></code>"
+  },
+  {
+   "expected": "café",
+   "typed": "cafe",
+   "combining": false,
+   "html": "<code id=typeans><span class=typeGood>café</span></code>"
+  },
+  {
+   "expected": "café",
+   "typed": "café",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>café</span></code>"
+  },
+  {
+   "expected": "Grüße",
+   "typed": "Grusse",
+   "combining": false,
+   "html": "<code id=typeans><span class=typeGood>Gru</span><span class=typeBad>ss</span><span class=typeGood>e</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>Grü</span><span class=typeMissed>ß</span><span class=typeGood>e</span></code>"
+  },
+  {
+   "expected": "привет",
+   "typed": "превед",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>пр</span><span class=typeBad>е</span><span class=typeGood>ве</span><span class=typeBad>д</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>пр</span><span class=typeMissed>и</span><span class=typeGood>ве</span><span class=typeMissed>т</span></code>"
+  },
+  {
+   "expected": "Ich gehe nach Hause",
+   "typed": "Ich gehe nach hause",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>Ich gehe nach </span><span class=typeBad>h</span><span class=typeGood>ause</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>Ich gehe nach </span><span class=typeMissed>H</span><span class=typeGood>ause</span></code>"
+  },
+  {
+   "expected": "Ich gehe nach Hause",
+   "typed": "Ich gehe zu Hause",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>Ich gehe </span><span class=typeBad>zu</span><span class=typeGood> Hause</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>Ich gehe </span><span class=typeMissed>nach</span><span class=typeGood> Hause</span></code>"
+  },
+  {
+   "expected": "abc",
+   "typed": "xyz",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeBad>xyz</span><br><span id=typearrow>&darr;</span><br><span class=typeMissed>abc</span></code>"
+  },
+  {
+   "expected": "abc",
+   "typed": "abcdef",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>abc</span><span class=typeBad>def</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>abc</span></code>"
+  },
+  {
+   "expected": "<!-- c -->ok<script>x()</script>",
+   "typed": "ok",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>ok</span></code>"
+  },
+  {
+   "expected": "it's \"x\"",
+   "typed": "its 'x'",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>it</span><span class=typeMissed>-</span><span class=typeGood>s </span><span class=typeBad>&#x27;</span><span class=typeGood>x</span><span class=typeBad>&#x27;</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>it</span><span class=typeMissed>&#x27;</span><span class=typeGood>s </span><span class=typeMissed>&quot;</span><span class=typeGood>x</span><span class=typeMissed>&quot;</span></code>"
+  },
+  {
+   "expected": "Tom & Jerry &amp; co",
+   "typed": "Tom & Jerry & co",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>Tom &amp; Jerry &amp;</span><span class=typeMissed>----</span><span class=typeGood> co</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>Tom &amp; Jerry &amp;</span><span class=typeMissed>amp;</span><span class=typeGood> co</span></code>"
+  },
+  {
+   "expected": "a &bogus; b &amp;",
+   "typed": "a b &",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>a</span><span class=typeMissed>--------</span><span class=typeGood> b &amp;</span><span class=typeMissed>----</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>a</span><span class=typeMissed> &amp;bogus;</span><span class=typeGood> b &amp;</span><span class=typeMissed>amp;</span></code>"
+  },
+  {
+   "expected": "&#233;t&eacute; &#x41;",
+   "typed": "été A",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>été A</span></code>"
+  },
+  {
+   "expected": "x&nbsp;y",
+   "typed": "x y",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>x y</span></code>"
+  },
+  {
+   "expected": "[sound:a.mp3]word[anki:tts lang=pl_PL]słowo[/anki:tts]",
+   "typed": "word",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>word</span></code>"
+  },
+  {
+   "expected": "<style>.a{}</style>Hi<br/>there\n",
+   "typed": "Hi there",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>Hi there</span></code>"
+  },
+  {
+   "expected": "ę́x",
+   "typed": "́x",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeMissed>-</span><span class=typeGood> ́x</span><br><span id=typearrow>&darr;</span><br><span class=typeMissed>ę</span><span class=typeGood> ́x</span></code>"
+  },
+  {
+   "expected": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+   "typed": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ulamco laboris nisi ut aliquip ex ea comodo consequat",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ul</span><span class=typeMissed>-</span><span class=typeGood>amco laboris nisi ut aliquip ex ea com</span><span class=typeMissed>-</span><span class=typeGood>odo consequat</span><span class=typeMissed>-</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ul</span><span class=typeMissed>l</span><span class=typeGood>amco laboris nisi ut aliquip ex ea com</span><span class=typeMissed>m</span><span class=typeGood>odo consequat</span><span class=typeMissed>.</span></code>"
+  },
+  {
+   "expected": "aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb x",
+   "typed": "aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb y",
+   "combining": true,
+   "html": "<code id=typeans><span class=typeGood>aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb </span><span class=typeBad>y</span><br><span id=typearrow>&darr;</span><br><span class=typeGood>aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb aaaa bbbb </span><span class=typeMissed>x</span></code>"
+  }
+ ],
+ "cloze": [
+  {
+   "text": "{{c1::Warsaw}} is the capital of {{c2::Poland}}",
+   "ord": 1,
+   "expected": "Warsaw"
+  },
+  {
+   "text": "{{c1::Warsaw}} is the capital of {{c2::Poland}}",
+   "ord": 2,
+   "expected": "Poland"
+  },
+  {
+   "text": "{{c1::a}} and {{c1::b}}",
+   "ord": 1,
+   "expected": "a, b"
+  },
+  {
+   "text": "{{c1::same}} and {{c1::same}}",
+   "ord": 1,
+   "expected": "same"
+  },
+  {
+   "text": "{{c1::Berlin::city}} in Germany",
+   "ord": 1,
+   "expected": "Berlin"
+  },
+  {
+   "text": "no clozes here",
+   "ord": 1,
+   "expected": ""
+  },
+  {
+   "text": "{{c1::one}} {{c3::three}}",
+   "ord": 2,
+   "expected": ""
+  }
+ ]
+}

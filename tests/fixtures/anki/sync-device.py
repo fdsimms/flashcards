@@ -93,6 +93,10 @@ def main():
             col.decks.rename(d, args[1])
         elif cmd == "add-deck":
             out["deck"] = col.decks.id(args[0])
+        elif cmd == "collapse-deck":
+            # The deck list's collapsed state, as Anki's deck browser sets it.
+            from anki.decks import DeckCollapseScope
+            col.decks.set_collapsed(col.decks.id(args[0], create=False), args[1] == "1", DeckCollapseScope.REVIEWER)
         elif cmd == "delete-deck":
             col.decks.remove([col.decks.id(args[0], create=False)])
         elif cmd == "edit-template":

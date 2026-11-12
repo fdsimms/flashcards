@@ -64,6 +64,8 @@ export interface Card {
   filteredDue?: number;
   /** In a preview filtered deck (Anki's queue 4): when it's shown again, ISO. */
   previewDue?: string;
+  /** Anki's flag: 1 red, 2 orange, 3 green, 4 blue, 5 pink, 6 turquoise, 7 purple; none when missing or 0. */
+  flag?: number;
   sched: SchedState;
 }
 
@@ -196,4 +198,9 @@ export interface NoteType {
 export interface DeckSettings {
   /** Progress gate: new cards only while fewer than this many cards here are below Guru. */
   gateCap?: number;
+  /**
+   * Subdecks hidden on the deck list, for a deck Anki doesn't have. A deck in the kept collection
+   * keeps this in Anki's own `study_collapsed` instead (src/anki/deckWrites.ts).
+   */
+  collapsed?: boolean;
 }

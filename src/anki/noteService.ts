@@ -1,5 +1,8 @@
 import { isOmnilanguage, makeCards } from '../core/cards';
+import { cardStateOf, withCardState, type CardState } from '../core/cardState';
 import type { Card, Note, NoteType } from '../core/types';
+import type { AnkiLink } from '../db/ankiLink';
+import { ankiCollapsedDecks, setAnkiDeckCollapsed } from './deckWrites';
 import type { Repo } from '../db/repo';
 import { omnilanguageKindByOrd } from '../import/models';
 import { addAnkiNote, ankiDeckId, ankiNoteType, deleteAnkiNotes, editAnkiNote, moveAnkiNote } from './noteWrites';
@@ -123,4 +126,44 @@ export async function deleteNote(store: NoteStore, noteId: string, now: Date = n
     await store.lockAnki(() => store.withSyncConnection((db) => deleteAnkiNotes(db, [Number(noteId)], now)));
   }
   await store.deleteNote(noteId);
+}
+
+/**
+ * Suspends, buries or flags cards: in Franki's tables first, then in the kept collection as Anki
+ * writes it (`setAnkiCardStates`), so sync and Send to Anki carry it. The cards come back as saved;
+ * `ankiError` says why the collection didn't take the change, which stays made in Franki.
+ */
+export async function setCardStates(
+  store: Pick<Repo, 'saveCard'> & Pick<AnkiLink, 'setAnkiCardStates'>,
+  targets: Card[], change: (s: CardState) => CardState, now: Date, dayStartsAtHour: number,
+): Promise<{ cards: Card[]; ankiError?: unknown }> {
+  const cards = targets.map((t) => withCardState(t, change(cardStateOf(t, now, dayStartsAtHour)), now));
+  for (const c of cards) await store.saveCard(c);
+  try {
+    await store.setAnkiCardStates(cards.filter((c) => c.ankiId).map((c) => ({ ankiId: c.ankiId!, state: cardStateOf(c, now, dayStartsAtHour) })), now);
+  } catch (e) {
+    return { cards, ankiError: e };
+  }
+  return { cards };
+}
+
+/**
+ * The decks collapsed on the deck list: Anki's own flag for each deck in the kept collection
+ * (`ankiCollapsedDecks`), else Franki's for a deck Anki doesn't have. Waits while a sync holds the
+ * collection, so the deck list loads this on its own.
+ */
+export async function collapsedDecks(store: NoteStore): Promise<Set<string>> {
+  const local = [...(await store.listDeckSettings())].filter(([, s]) => s.collapsed).map(([d]) => d);
+  const anki = (await store.keptCollection()) ? await store.lockAnki(() => store.withSyncConnection(ankiCollapsedDecks)) : new Set<string>();
+  return new Set([...anki, ...local]);
+}
+
+/** Collapses or expands a deck: in Anki's collection when it has the deck (sync carries it), else in Franki's settings. */
+export async function setDeckCollapsed(store: NoteStore, deck: string, collapsed: boolean, now: Date = new Date()): Promise<void> {
+  const inAnki = (await store.keptCollection())
+    ? await store.lockAnki(() => store.withSyncConnection((db) => setAnkiDeckCollapsed(db, deck, collapsed, now)))
+    : false;
+  const settings = (await store.listDeckSettings()).get(deck) ?? {};
+  const local = !inAnki && collapsed ? true : undefined;
+  if (settings.collapsed !== local) await store.saveDeckSettings(deck, { ...settings, collapsed: local });
 }

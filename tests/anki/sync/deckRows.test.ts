@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseJson } from '../../../src/anki/sync/json';
-import { deckCommon, deckKind, deckRow, nativeDeckName } from '../../../src/anki/sync/deckRows';
+import { deckCommon, deckJson, deckKind, deckRow, nativeDeckName } from '../../../src/anki/sync/deckRows';
 import type { DeckJson } from '../../../src/anki/sync/protocol';
 import { decodeMessage, int, MessageWriter } from '../../../src/anki/protobuf';
 
@@ -40,5 +40,23 @@ describe('a deck from sync, as the row Anki stores', () => {
   it('stores the name with \\x1f between levels', () => {
     expect(nativeDeckName('Polski::Odmiana')).toBe('Polski\x1fOdmiana');
     expect(deckRow({ id: '5', name: 'A::B', mod: '9', usn: 3, dyn: 0, conf: 1 })).toMatchObject({ id: 5, name: 'A\x1fB', mtime: 9, usn: 3 });
+  });
+});
+
+describe('a deck row, as the JSON sync sends (to send a deck changed here)', () => {
+  const fromB64 = (s: string) => new Uint8Array(Buffer.from(s, 'base64'));
+  const rowOf = (d: { json: DeckJson; common: string; kind: string }) => ({
+    id: Number(d.json.id), name: nativeDeckName(d.json.name), mtime: Number(d.json.mod), usn: d.json.usn, common: fromB64(d.common), kind: fromB64(d.kind),
+  });
+
+  it.each(fixtures.decks.map((d) => [d.json.name, d] as const))('%s: exactly the JSON Anki makes of its row', (_name, d) => {
+    expect(deckJson(rowOf(d))).toEqual(d.json);
+  });
+
+  it('carries the collapsed flag both ways', () => {
+    const d = fixtures.decks.find((x) => !x.json.dyn)!;
+    const collapsed = deckRow({ ...d.json, collapsed: true });
+    expect(deckJson(collapsed).collapsed).toBe(true);
+    expect(deckRow(deckJson(collapsed))).toEqual(collapsed);
   });
 });

@@ -3,12 +3,13 @@ import { inSchema, keptSql, stripUnicaseIn } from '../anki/attachedSql';
 import { COLLECTION_QUERIES, type CollectionRows } from '../anki/collection';
 import { ankiFolder, keptCollectionFile, pathOf, workFolder } from '../anki/files';
 import {
-  cardRestoreParams, cardUpdate, cardUpdateParams, nextRevlogId, previewAgain, previewReturn, revlogEntry, revlogParams, type AnkiCardRow, type AnkiUndo,
+  cardRestoreParams, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, previewAgain, previewReturn, revlogEntry, revlogParams, type AnkiCardRow, type AnkiUndo,
 } from '../anki/writeback';
 import type { SqlValue, SyncDb } from '../anki/sync/collectionSync';
 import type { MediaState } from '../anki/sync/mediaSync';
 import type { RatingValue } from '../core/scheduler';
 import type { RevlogRow } from '../core/stats';
+import type { CardState } from '../core/cardState';
 import type { Card } from '../core/types';
 import { File } from 'expo-file-system';
 import { fileUriToPath } from './backup';
@@ -70,6 +71,8 @@ export interface AnkiLink {
    * undo stops at the last sync.
    */
   undoAnkiAnswer(u: AnkiUndo): Promise<boolean>;
+  /** Suspends, buries or flags cards in the kept collection, as Anki writes it (`cardStateParams`). */
+  setAnkiCardStates(changes: { ankiId: string; state: CardState }[], now: Date): Promise<void>;
   /** The kept collection's file, ready to pack, or null without one. */
   keptCollection(): Promise<File | null>;
   markSentToAnki(): Promise<void>;
@@ -236,6 +239,18 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
         await db.runAsync(SQL.colModified, Date.now());
       });
       return true;
+    }),
+
+    setAnkiCardStates: (changes, now) => lockAnki(async () => {
+      await attach();
+      if (!attached || !changes.length) return;
+      await db.withTransactionAsync(async () => {
+        for (const { ankiId, state } of changes) {
+          const row = await db.getFirstAsync<{ type: number; queue: number; due: number; flags: number }>(SQL.cardState, Number(ankiId));
+          if (row) await db.runAsync(SQL.cardStateUpdate, ...cardStateParams(row, state, now, Number(ankiId)));
+        }
+        await db.runAsync(SQL.colModified, now.getTime());
+      });
     }),
 
     async keptCollection() {

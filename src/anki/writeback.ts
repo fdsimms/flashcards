@@ -1,4 +1,5 @@
 import type { RatingValue } from '../core/scheduler';
+import type { CardState } from '../core/cardState';
 import type { Card } from '../core/types';
 
 /**
@@ -199,8 +200,7 @@ function learningStepIvl(before: Card, crt?: number): number {
  */
 export function previewReturn(current: AnkiCardRow, now: Date): AnkiCardUpdate {
   const due = current.odid ? current.odue : current.due;
-  // The queue its type and due put it in: a learning card due as a timestamp is queue 1, as a day number queue 3.
-  const queue = current.type === 0 ? 0 : current.type === 2 ? 2 : due > 1_000_000_000 ? 1 : 3;
+  const queue = queueForType(current.type, due);
   return {
     did: current.odid || current.did, odid: 0, odue: 0,
     type: current.type, queue, due, ivl: current.ivl, factor: current.factor, reps: current.reps, lapses: current.lapses,
@@ -218,6 +218,27 @@ export function previewAgain(current: AnkiCardRow, dueSecs: number, now: Date): 
     type: current.type, queue: 4, due: dueSecs, ivl: current.ivl, factor: current.factor, reps: current.reps, lapses: current.lapses,
     left: current.left, data: current.data ?? '', mod: Math.floor(now.getTime() / 1000), usn: -1,
   };
+}
+
+/** The queue a card's type and due put it in: a learning card due as a timestamp is queue 1, as a day number queue 3. */
+export function queueForType(type: number, due: number): number {
+  return type === 0 ? 0 : type === 2 ? 2 : due > 1_000_000_000 ? 1 : 3;
+}
+
+
+/** Reads what `cardStateParams` needs. One parameter: the Anki card id. */
+export const CARD_STATE_SQL = 'SELECT type, queue, due, flags FROM cards WHERE id = ?';
+/** Writes a card's queue and flags as Anki does, with its modified time, and usn -1 so a sync sends it. */
+export const CARD_STATE_UPDATE_SQL = 'UPDATE cards SET queue = ?, flags = ?, mod = ?, usn = -1 WHERE id = ?';
+
+/**
+ * A card's queue and flags with `state` applied, as Anki sets them (rslib's bury_and_suspend.rs,
+ * set_user_flag): suspended is queue -1, buried by hand -3, and back from either, the queue its
+ * type and due put it in. The flag is the low 3 bits of `flags`; the rest is kept.
+ */
+export function cardStateParams(row: { type: number; queue: number; due: number; flags: number }, state: CardState, now: Date, cid: number): number[] {
+  const queue = state.suspended ? -1 : state.buried ? -3 : row.queue < 0 ? queueForType(row.type, row.due) : row.queue;
+  return [queue, (row.flags & ~7) | (state.flag & 7), Math.floor(now.getTime() / 1000), cid];
 }
 
 /** Reads the columns `cardUpdate` needs. One parameter: the Anki card id. */
