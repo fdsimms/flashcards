@@ -204,6 +204,8 @@ reaches their devices at their next sync.
   names them). Try preview=true first when the text needs cleaning up (replacements, text_overrides).
 - FSRS settings and limits belong to a deck's options preset, which several decks can share:
   say which decks a change affects before making it.
+- add_field makes every device download the whole collection: ask the user to sync every device
+  first, and only then pass every_device_synced=true.
 - Forms: fill_forms fills Omnilanguage verbs' Forms field (for Franki's forms practice) from
   Wiktionary's tables. Preview first (dry_run) and show the user; turn on the daily fill
   (set_forms_auto_fill) only once they've checked a batch. Write a not_found word's forms yourself
@@ -704,8 +706,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
     ) -> dict[str, Any]:
         """Changes a note type's card templates (by card type name: a new front, back or both) or
         its styling. Every note of the type shows the change; Anki refuses a template that's
-        broken (say, a field that doesn't exist) and nothing changes. Adding or removing fields or
-        card types isn't offered: in Anki that forces every device to a full sync."""
+        broken (say, a field that doesn't exist) and nothing changes. To add a field, use add_field;
+        removing or renaming fields, and card types, isn't offered (do it in Anki)."""
         if not card_types and css is None:
             raise ToolError("Pass card_types, css or both.")
 
@@ -729,6 +731,42 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             return {"note_type": nt["name"], "updated": True}
 
         return await cm.write(run)
+
+    @server.tool(annotations=DESTRUCTIVE)
+    async def add_field(note_type: str, field: str, every_device_synced: bool = False) -> dict[str, Any]:
+        """Adds a field at the end of a note type. This changes the note type's structure, so the
+        whole collection is uploaded to the sync server, replacing its copy, and every other device
+        (Anki on a computer, AnkiMobile, Franki) has to download it at its next sync. Anything a
+        device hadn't synced yet is lost in that download. So before calling: ask the user to sync
+        every device, and pass every_device_synced=true only once they say they have. Afterwards,
+        tell them to sync each device and choose Download when asked."""
+        name = field.strip()
+        if not every_device_synced:
+            raise ToolError(
+                "Adding a field makes every device download the whole collection, losing anything it hasn't synced. "
+                "Ask the user to sync Anki on their computer, AnkiMobile and Franki first, then call again with "
+                "every_device_synced=true."
+            )
+        if not name or name[0] in "#/^" or any(ch in name for ch in ':"{}'):
+            raise ToolError('A field name can\'t be empty, start with #, / or ^, or hold :, ", { or }.')
+
+        def run(col: Collection) -> dict[str, Any]:
+            nt = _note_type(col, note_type)
+            existing = col.models.field_names(nt)
+            same = next((n for n in existing if n.lower() == name.lower()), None)
+            if same:
+                raise ToolError(f'"{nt["name"]}" already has a field called "{same}".')
+            col.models.add_field(nt, col.models.new_field(name))
+            col.models.update_dict(nt)
+            return {"note_type": nt["name"], "fields": col.models.field_names(nt)}
+
+        out = await cm.change_schema(run)
+        out["next"] = (
+            "The collection was uploaded to the sync server. Sync each other device now and choose Download "
+            "when it asks: Anki on the computer, AnkiMobile and Franki (Franki downloads on its own unless it "
+            "has changes the server lacks, and then asks)."
+        )
+        return out
 
     # ---- filtered decks ----
 
