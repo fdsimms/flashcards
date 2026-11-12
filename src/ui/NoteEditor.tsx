@@ -31,9 +31,12 @@ export function NoteEditor(props: {
   onClose: (result?: NoteEditorResult) => void;
   /** A card was unsuspended, unburied or unflagged here, which stands whether or not the note is saved. */
   onCardsChanged?: () => void;
+  /** Every deck on the deck list, empty ones included, so a deck just made can be picked. */
+  decks?: string[];
 }) {
   const c = useTheme();
   const [notes, setNotes] = useState<Note[]>([]);
+  const [filteredDecks, setFilteredDecks] = useState<Set<string>>(new Set());
   const [noteTypes, setNoteTypes] = useState<Map<string, NoteType>>(new Map());
   const [original, setOriginal] = useState<Note>();
   const [deck, setDeck] = useState<string>('');
@@ -63,9 +66,11 @@ export function NoteEditor(props: {
 
   useEffect(() => {
     (async () => {
-      const [all, types] = await Promise.all([props.repo.listNotes(), props.repo.listNoteTypes()]);
+      const [all, types, params] = await Promise.all([props.repo.listNotes(), props.repo.listNoteTypes(), props.repo.listDeckParams()]);
       setNotes(all);
       setNoteTypes(types);
+      // A filtered deck borrows cards and holds no notes of its own, so a note can't go in one.
+      setFilteredDecks(new Set([...params].filter(([, p]) => p.filtered).map(([d]) => d)));
       if ('noteId' in props.target) {
         const n = all.find((x) => x.id === (props.target as { noteId: string }).noteId);
         if (!n) return;
@@ -92,7 +97,10 @@ export function NoteEditor(props: {
     })();
   }, [props.repo]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const decks = useMemo(() => [...new Set(notes.map((n) => n.deck))].sort((a, b) => a.localeCompare(b)), [notes]);
+  const decks = useMemo(
+    () => [...new Set([...notes.map((n) => n.deck), ...(props.decks ?? []).filter((d) => !filteredDecks.has(d))])].sort((a, b) => a.localeCompare(b)),
+    [notes, props.decks, filteredDecks],
+  );
   const models = useMemo(() => [...new Set([...noteTypes.keys(), ...notes.map((n) => n.model)])].sort((a, b) => a.localeCompare(b)), [noteTypes, notes]);
   // The fields of the note type, in Anki's order; for a note type Franki holds no copy of, those of a note of it.
   const fieldNames = useMemo(() => {

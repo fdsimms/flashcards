@@ -41,6 +41,37 @@ describe('repo', () => {
     expect((await repo.listCards('Polski')).map((c) => c.noteId).sort()).toEqual(['a', 'b']);
   });
 
+  it('renames a deck and those under it everywhere it is named, and forgets a deleted one', async () => {
+    const repo = new MemoryRepo();
+    const notes = [['a', 'Polski'], ['b', 'Polski::Odmiana'], ['c', 'Polski Extra']].map(([id, deck]) => ({ ...omniNote(), id, deck }));
+    const cards = notes.flatMap((n) => makeCards(n, NOW));
+    cards[0] = { ...cards[0], deck: 'Polski::Odmiana', filteredDeck: 'Polski::Filtered' };
+    await repo.upsertNotesAndCards(notes, cards);
+    for (const d of ['Polski', 'Polski::Odmiana', 'Polski Extra']) await repo.saveDeckSettings(d, { gateCap: d.length });
+    await repo.saveDeckParams(new Map([['Polski::Odmiana', { weights: [], desiredRetention: 0.9, maxInterval: 365 }]]));
+    await repo.renameDeck('Polski', 'Język::Polski');
+    expect((await repo.listNotes()).map((n) => n.deck)).toEqual(['Język::Polski', 'Język::Polski::Odmiana', 'Polski Extra']);
+    expect((await repo.listCards())[0]).toMatchObject({ deck: 'Język::Polski::Odmiana', filteredDeck: 'Język::Polski::Filtered' });
+    expect([...(await repo.listDeckSettings()).keys()].sort()).toEqual(['Język::Polski', 'Język::Polski::Odmiana', 'Polski Extra']);
+    expect([...(await repo.listDeckParams()).keys()]).toEqual(['Język::Polski::Odmiana']);
+    await repo.forgetDeck('Język::Polski');
+    expect([...(await repo.listDeckSettings()).keys()]).toEqual(['Polski Extra']);
+    expect((await repo.listDeckParams()).size).toBe(0);
+  });
+
+  it('deletes notes with their cards, and single cards, with their answers', async () => {
+    const repo = new MemoryRepo();
+    const notes = [['a', 'Polski'], ['b', 'Polski']].map(([id, deck]) => ({ ...omniNote(), id, deck }));
+    const cards = notes.flatMap((n) => makeCards(n, NOW));
+    await repo.upsertNotesAndCards(notes, cards);
+    const kept = cards.filter((c) => c.noteId === 'b');
+    for (const c of cards) await repo.addReview({ cardId: c.id, ...review(c.sched, 3, NOW).log });
+    await repo.deleteNotesAndCards(['a'], [kept[0].id]);
+    expect((await repo.listNotes()).map((n) => n.id)).toEqual(['b']);
+    expect((await repo.listCards()).map((c) => c.id)).toEqual(kept.slice(1).map((c) => c.id));
+    expect((await repo.listReviews(new Date(0))).map((r) => r.cardId)).toEqual(kept.slice(1).map((c) => c.id));
+  });
+
   it('never resets a studied card on re-import', async () => {
     const repo = new MemoryRepo();
     const note = omniNote();

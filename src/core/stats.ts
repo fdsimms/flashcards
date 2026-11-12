@@ -3,8 +3,9 @@ import type { Card, ReviewLogEntry } from './types';
 
 /**
  * Study statistics for a deck (with its subdecks) or the whole collection, as the Stats screen
- * shows them: today, the next days' workload, the past days' answers, cards by stage, and how
- * often reviews were remembered. Pure: the screen gathers the inputs.
+ * shows them: today, the next days' workload, the past days' answers, a year's calendar of answers,
+ * cards by stage and by interval, and how often reviews were remembered. Pure: the screen gathers
+ * the inputs.
  *
  * Answers come from two places. For a card from Anki, the kept collection's review log, which
  * holds its whole Anki history plus every answer given here (writeback.ts writes each one there).
@@ -157,6 +158,140 @@ export function computeStats(input: { cards: Card[]; answers: Answer[]; now: Dat
   }
 
   return { today, past, overdue, forecast, counts, retention };
+}
+
+/** How many study days the calendar covers, ending today: a year, as Anki's Calendar shows. */
+export const CALENDAR_DAYS = 365;
+
+export interface CalendarDay {
+  key: string;
+  start: Date;
+  answers: number;
+  /** How dark the day is drawn: 0 for no answers, else 1 (fewest) to 4 (most). */
+  level: 0 | 1 | 2 | 3 | 4;
+}
+
+export interface Calendar {
+  /**
+   * Weeks, oldest first, each Sunday to Saturday by the weekday of the study day's date. A slot
+   * before the first day or after today is null.
+   */
+  weeks: (CalendarDay | null)[][];
+  /** Study days covered, today included. */
+  days: number;
+  /** Days with at least one answer. */
+  studied: number;
+  total: number;
+  /** The day with the most answers (the latest of a tie), or null with none. */
+  busiest: CalendarDay | null;
+}
+
+/** The first study day the calendar shows: answers before it don't need loading. */
+export function calendarStart(now: Date, dayStartsAtHour: number, days = CALENDAR_DAYS): Date {
+  const start = studyDayStart(now, dayStartsAtHour);
+  // setDate rather than subtracting hours, so a DST change doesn't shift the hour.
+  start.setDate(start.getDate() - (days - 1));
+  return start;
+}
+
+/**
+ * Answers per study day over the last `days` study days, laid out as Anki's Calendar draws them:
+ * a column per week. Every kind of answer counts (learning, review, relearning). A day's shade is
+ * its rank among the days studied, in quarters, so one very long day doesn't wash out the rest.
+ */
+export function answerCalendar(input: { answers: Answer[]; now: Date; dayStartsAtHour: number; days?: number }): Calendar {
+  const { now, dayStartsAtHour: h, days = CALENDAR_DAYS } = input;
+  const all: CalendarDay[] = [];
+  for (let d = calendarStart(now, h, days), i = 0; i < days; i++, d = nextStudyDayStart(d, h)) {
+    all.push({ key: dayKeyOf(d), start: d, answers: 0, level: 0 });
+  }
+  const index = new Map(all.map((d, i) => [d.key, i]));
+  for (const a of input.answers) {
+    const i = index.get(dayKeyOf(studyDayStart(a.at, h)));
+    if (i !== undefined) all[i].answers++;
+  }
+
+  // Rank each count among the studied days; a tie takes its highest rank, so a run of equal days
+  // all draw at the same shade.
+  const counts = all.map((d) => d.answers).filter((n) => n > 0).sort((a, b) => a - b);
+  const rank = new Map<number, number>();
+  counts.forEach((n, i) => rank.set(n, i + 1));
+  let total = 0;
+  let busiest: CalendarDay | null = null;
+  for (const d of all) {
+    if (!d.answers) continue;
+    d.level = Math.max(1, Math.ceil((4 * rank.get(d.answers)!) / counts.length)) as CalendarDay['level'];
+    total += d.answers;
+    if (!busiest || d.answers >= busiest.answers) busiest = d;
+  }
+
+  const weeks: (CalendarDay | null)[][] = [];
+  let week: (CalendarDay | null)[] = Array.from({ length: all[0].start.getDay() }, () => null);
+  for (const d of all) {
+    week.push(d);
+    if (week.length === 7) { weeks.push(week); week = []; }
+  }
+  if (week.length) weeks.push([...week, ...Array.from({ length: 7 - week.length }, () => null)]);
+  return { weeks, days, studied: counts.length, total, busiest };
+}
+
+/**
+ * Review intervals in groups a phone's width can show: a day at a time for the first few days, as
+ * Anki's Card Intervals graph does, then weeks, months and years. `max` is inclusive. Mature
+ * (MATURE_DAYS) starts a group, so the young and mature cards never share a bar.
+ */
+export const INTERVAL_GROUPS: readonly { label: string; max: number }[] = [
+  { label: '1 day', max: 1 },
+  { label: '2 days', max: 2 },
+  { label: '3 days', max: 3 },
+  { label: '4 to 6 days', max: 6 },
+  { label: '1 to 2 weeks', max: 13 },
+  { label: '2 to 3 weeks', max: MATURE_DAYS - 1 },
+  { label: '3 weeks to a month', max: 30 },
+  { label: '1 to 2 months', max: 60 },
+  { label: '2 to 3 months', max: 91 },
+  { label: '3 to 6 months', max: 182 },
+  { label: '6 months to a year', max: 365 },
+  { label: '1 to 2 years', max: 730 },
+  { label: 'Over 2 years', max: Infinity },
+];
+
+export interface Intervals {
+  groups: { label: string; cards: number }[];
+  /** Cards counted: in review, not suspended or retired (the young and mature counts together). */
+  total: number;
+  /** In days; 0 with no cards. */
+  average: number;
+  longest: number;
+}
+
+/** How many review cards have each interval: the gap in days their last answer set. */
+export function intervalGroups(cards: Card[]): Intervals {
+  const groups = INTERVAL_GROUPS.map((g) => ({ label: g.label, cards: 0 }));
+  let total = 0;
+  let sum = 0;
+  let longest = 0;
+  for (const c of cards) {
+    if (c.retired || c.suspended || c.sched.state !== 2) continue;
+    const days = Math.max(1, Math.round(c.sched.scheduledDays));
+    groups[INTERVAL_GROUPS.findIndex((g) => days <= g.max)].cards++;
+    total++;
+    sum += days;
+    longest = Math.max(longest, days);
+  }
+  return { groups, total, average: total ? sum / total : 0, longest };
+}
+
+/** An interval as people say it: "12 days", "3 months", "1.5 years". */
+export function intervalText(days: number): string {
+  const d = Math.round(days);
+  if (d < 31) return d === 1 ? '1 day' : `${d} days`;
+  if (d < 365) {
+    const m = Math.round(d / 30.44);
+    return m === 1 ? '1 month' : `${m} months`;
+  }
+  const y = Math.round(d / 36.525) / 10;
+  return y === 1 ? '1 year' : `${y} years`;
 }
 
 /** A share as a whole percent, or null with nothing to go on. */

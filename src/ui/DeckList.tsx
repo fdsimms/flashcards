@@ -66,7 +66,7 @@ function Stat({ value, label, color }: { value: number; label: string; color: st
   );
 }
 
-function DeckRowView({ row, first, onOpen, onOptions, onToggle }: { row: ShownRow; first: boolean; onOpen: () => void; onOptions: () => void; onToggle?: () => void }) {
+function DeckRowView({ row, first, onOpen, onMenu, onToggle }: { row: ShownRow; first: boolean; onOpen: () => void; onMenu: () => void; onToggle?: () => void }) {
   const c = useTheme();
   const atCap = row.gate && row.gate.inProgress >= row.gate.cap;
   return (
@@ -99,9 +99,10 @@ function DeckRowView({ row, first, onOpen, onOptions, onToggle }: { row: ShownRo
       <Stat value={row.due} label="due" color={c.countDue} />
       <Stat value={row.fresh} label="new" color={c.countNew} />
       <Pressable
-        onPress={onOptions}
+        onPress={onMenu}
         accessibilityRole="button"
-        accessibilityLabel={`Options for ${row.name}`}
+        accessibilityLabel={`More for ${row.name}`}
+        accessibilityHint="Add a note, rename, options or delete"
         style={({ pressed }) => ({ width: MIN_TAP - 4, height: MIN_TAP, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.4 : 1 })}
       >
         <Icon name="ellipsis" size={18} color={c.textTertiary} weight="semibold" />
@@ -145,6 +146,10 @@ export function DeckList(props: {
   onSettings: () => void;
   onBrowse: () => void;
   onOptions: (deck: string) => void;
+  /** Makes a deck (DeckActions.tsx). */
+  onNewDeck: () => void;
+  /** The menu on a deck's row: add a note, rename, options, delete (DeckActions.tsx). */
+  onDeckMenu: (deck: string) => void;
   /** Decks whose subdecks are hidden: Anki's own collapsed state, shared through sync. */
   collapsed?: Set<string>;
   onToggleCollapsed?: (deck: string) => void;
@@ -166,6 +171,7 @@ export function DeckList(props: {
           {props.sync ? (
             <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={props.sync.syncing} accessibilityLabel={props.sync.syncing ? 'Syncing' : 'Sync now'} onPress={props.sync.onSync} />
           ) : null}
+          <Stack.Toolbar.Button icon="folder.badge.plus" accessibilityLabel="New deck" onPress={props.onNewDeck} />
           <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} />
           <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={props.onSettings} />
         </Stack.Toolbar>
@@ -232,7 +238,7 @@ export function DeckList(props: {
                     first={i === 0}
                     // Tapping a row that's slid open closes it, rather than opening the deck.
                     onOpen={() => (openDeck === row.deck ? setOpenDeck(null) : props.onOpen(row.deck))}
-                    onOptions={() => props.onOptions(row.deck)}
+                    onMenu={() => props.onDeckMenu(row.deck)}
                     onToggle={props.onToggleCollapsed ? () => props.onToggleCollapsed!(row.deck) : undefined}
                   />
                 </SwipeToReveal>

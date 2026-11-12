@@ -15,6 +15,8 @@ import { fuzzSeed } from '../core/ankiFuzz';
 import { balancerFor, buildLoadSnapshot, forgetCard, loadDayIndex, recordAnswer, type LoadSnapshot } from '../core/loadBalance';
 import { ankiToday, fnvHash } from '../core/order';
 import { saveNote, setCardStates, type NoteStore } from '../anki/noteService';
+import { forgetCards, RescheduleRefused, setDueDates } from '../anki/rescheduleService';
+import { parseDueDate } from '../core/reschedule';
 import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../core/session';
 import { durationText } from '../core/stats';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
@@ -179,7 +181,7 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, onPracticeForms, onCustomStudy }: {
+export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, onPracticeForms, onCustomStudy, onCardInfo }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -197,6 +199,8 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
   onPracticeForms: (request: DrillRequest) => void;
   /** Opens Custom Study for this deck (src/ui/CustomStudy.tsx), which can raise today's limits or pick more cards to study. */
   onCustomStudy: () => void;
+  /** Opens Card Info (src/ui/CardInfo.tsx) for a card. */
+  onCardInfo: (cardId: string) => void;
 }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
@@ -650,14 +654,70 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
       setStates([current], (s) => ({ ...s, flag }));
     });
   };
+  // Forget and Set Due Date: in the kept collection as Anki does them, then in Franki (rescheduleService.ts).
+  const reschedule = async (run: (when: Date) => Promise<Card[]>, failure: string) => {
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      const when = new Date();
+      const updated = await run(when);
+      const byId = new Map(updated.map((u) => [u.id, u]));
+      setCards((prev) => prev && prev.map((c) => byId.get(c.id) ?? c));
+      setRevealed(false);
+      setNow(when);
+      haptic.success();
+    } catch (e) {
+      Alert.alert(failure, e instanceof RescheduleRefused ? e.message : `Nothing was changed. ${(e as any)?.message ?? e}`);
+    } finally {
+      busy.current = false;
+    }
+  };
+  const chooseForget = () => {
+    const options = ['Forget', 'Forget and reset counts', 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({
+      title: 'Forget this card?',
+      message: "It becomes a new card again, back in its place among the new cards, and its memory is cleared. Reset counts also sets its review and lapse counts to zero.",
+      options, cancelButtonIndex: 2, destructiveButtonIndex: 0,
+    }, (i) => {
+      if (i === 2) return;
+      const target = current;
+      reschedule((when) => forgetCards(repo as NoteStore, [target], { resetCounts: i === 1 }, when), "Couldn't forget this card");
+    });
+  };
+  const chooseDueDate = () => {
+    const target = current;
+    Alert.prompt(
+      'Set due date',
+      'Days from today: 0 for today, 1 for tomorrow. A range like 3-7 picks a day in it at random.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Set',
+          onPress: (text?: string) => {
+            const spec = parseDueDate(text ?? '');
+            if (!spec) {
+              Alert.alert("That isn't a number of days", 'Enter a whole number of days, like 3, or a range like 3-7.');
+              return;
+            }
+            reschedule((when) => setDueDates(repo as NoteStore, [target], spec, when), "Couldn't set the due date");
+          },
+        },
+      ],
+      'plain-text', '', 'numbers-and-punctuation',
+    );
+  };
   const openMenu = () => {
-    const options = ['Flag', 'Bury card', 'Bury note', 'Suspend card', 'Cancel'];
-    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 4, destructiveButtonIndex: 3 }, (i) => {
+    const options = ['Flag', 'Bury card', 'Bury note', 'Suspend card', 'Set due date', 'Forget card', 'Card info', 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 7, destructiveButtonIndex: 3 }, (i) => {
       // Bury holds a card back until the next study day; Bury note does it to every card of the note; Suspend until it's unsuspended.
       if (i === 0) chooseFlag();
       if (i === 1) setStates([current], (s) => ({ ...s, buried: true }));
       if (i === 2) setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }));
       if (i === 3) setStates([current], (s) => ({ ...s, suspended: true }));
+      if (i === 4) chooseDueDate();
+      if (i === 5) chooseForget();
+      // The deck is loaded again when Card Info closes: the same card stays on screen.
+      if (i === 6) { setPreferId(current.id); onCardInfo(current.id); }
     });
   };
 
@@ -683,7 +743,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
               setReloads((n) => n + 1);
             })}
           />
-          <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="Flag, bury or suspend this card" onPress={openMenu} />
+          <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="More for this card: flag, bury, suspend, reschedule or card info" onPress={openMenu} />
         </Stack.Toolbar>
       }
       footer={footer}

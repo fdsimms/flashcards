@@ -65,6 +65,10 @@ describe('the app\'s SQL against attached Anki collections', () => {
     db.exec('PRAGMA anki.journal_mode = DELETE');
     const SQL = keptSql('anki');
     const crt = (db.prepare(SQL.crt).get() as any).crt as number;
+    // Every deck, the deck list's empty ones included, read without Anki's collation.
+    expect((db.prepare(SQL.decks).all() as any[]).map((d) => d.name).sort()).toEqual(
+      ['Default', 'Filtered Deck 1', '👅 Languages', '👅 Languages\x1f🐘 ภาษาไทย', '🧠 Trivia'].sort(),
+    );
     const now = new Date();
     const answer = (before: Card, rating: 1 | 2 | 3 | 4) => {
       const after: Card = { ...before, sched: review(before.sched, rating, now).sched };

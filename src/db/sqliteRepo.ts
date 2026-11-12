@@ -195,12 +195,50 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
       const r = await db.getFirstAsync('SELECT * FROM notes WHERE id = ?', id);
       return r ? rowToNote(r) : undefined;
     },
+    async deleteNotesAndCards(noteIds, cardIds) {
+      await db.withTransactionAsync(async () => {
+        for (const id of noteIds) {
+          await db.runAsync('DELETE FROM reviews WHERE card_id IN (SELECT id FROM cards WHERE note_id = ?)', id);
+          await db.runAsync('DELETE FROM form_practice WHERE note_id = ?', id);
+          await db.runAsync('DELETE FROM cards WHERE note_id = ?', id);
+          await db.runAsync('DELETE FROM notes WHERE id = ?', id);
+        }
+        for (const id of cardIds) {
+          await db.runAsync('DELETE FROM reviews WHERE card_id = ?', id);
+          await db.runAsync('DELETE FROM cards WHERE id = ?', id);
+        }
+      });
+    },
+    async renameDeck(from, to) {
+      // The deck and those under it, in each column: "A" takes "A" and "A::...", not "AB".
+      const under = (col: string) => `(${col} = ? OR substr(${col}, 1, length(?)) = ?)`;
+      const args = [from, `${from}::`, `${from}::`];
+      const renamed = (col: string) => `? || substr(${col}, length(?) + 1)`;
+      await db.withTransactionAsync(async () => {
+        await db.runAsync(`UPDATE notes SET deck = ${renamed('deck')} WHERE ${under('deck')}`, to, from, ...args);
+        await db.runAsync(`UPDATE cards SET deck = ${renamed('deck')} WHERE ${under('deck')}`, to, from, ...args);
+        await db.runAsync(`UPDATE cards SET filtered_deck = ${renamed('filtered_deck')} WHERE ${under('filtered_deck')}`, to, from, ...args);
+        // Settings kept by deck: any left under the new name by a deck deleted in Anki give way.
+        for (const table of ['deck_params', 'deck_settings']) {
+          await db.runAsync(`UPDATE OR REPLACE ${table} SET deck = ${renamed('deck')} WHERE ${under('deck')}`, to, from, ...args);
+        }
+      });
+    },
+    async forgetDeck(deck) {
+      await db.withTransactionAsync(async () => {
+        for (const table of ['deck_params', 'deck_settings']) {
+          await db.runAsync(`DELETE FROM ${table} WHERE deck = ? OR substr(deck, 1, length(?)) = ?`, deck, `${deck}::`, `${deck}::`);
+        }
+      });
+    },
     async listCards(deck) {
-      // The deck and its subdecks: "A" takes "A" and "A::...", not "AB".
+      // The deck and its subdecks: "A" takes "A" and "A::...", not "AB". length() counts
+      // characters, as substr() does; a JS string's length counts UTF-16 units, so with an emoji
+      // in the name ("👅 Languages") the prefix came out short and every subdeck was missed.
       const rows = deck
         ? await db.getAllAsync(
-            'SELECT c.* FROM cards c JOIN notes n ON n.id = c.note_id WHERE n.deck = ? OR substr(n.deck, 1, ?) = ?',
-            deck, deck.length + 2, `${deck}::`,
+            'SELECT c.* FROM cards c JOIN notes n ON n.id = c.note_id WHERE n.deck = ? OR substr(n.deck, 1, length(?)) = ?',
+            deck, `${deck}::`, `${deck}::`,
           )
         : await db.getAllAsync('SELECT * FROM cards');
       return rows.map(rowToCard);
