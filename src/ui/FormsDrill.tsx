@@ -287,7 +287,7 @@ function Summary({ answered, notice }: { answered: Answered[]; notice?: string }
           <View
             key={i}
             accessible
-            accessibilityLabel={`${[a.prompt.headword, a.prompt.label, a.prompt.group].filter(Boolean).join(', ')}: ${a.prompt.answers[0]}. ${isRight(a) ? 'Right' : `Wrong, you answered ${a.given}`}`}
+            accessibilityLabel={`${[a.prompt.headword, a.prompt.label, a.prompt.group].filter(Boolean).join(', ')}: ${a.prompt.answers[0]}. ${isRight(a) ? 'Right' : `Wrong, you answered “${a.given}”`}`}
             style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingVertical: space.s, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}
           >
             <Text style={{ ...type.subhead, color: c.textSecondary, width: 130 }}>
@@ -296,7 +296,7 @@ function Summary({ answered, notice }: { answered: Answered[]; notice?: string }
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={{ ...type.headline, color: c.text }}>{a.prompt.answers[0]}</Text>
               {a.verdict === 'almost' && a.counted ? <Text style={{ ...type.footnote, color: c.warning }}>Accent missed, counted as right</Text> : null}
-              {!isRight(a) ? <Text style={{ ...type.footnote, color: c.danger }}>{`You answered ${a.given}`}</Text> : null}
+              {!isRight(a) ? <Text style={{ ...type.footnote, color: c.danger }}>{`You answered “${a.given}”`}</Text> : null}
             </View>
             <Icon name={isRight(a) ? 'checkmark' : 'xmark'} size={18} color={isRight(a) ? c.countDue : c.danger} weight="bold" />
           </View>
