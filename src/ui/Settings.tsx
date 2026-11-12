@@ -6,10 +6,10 @@ import { CheckRow, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from '
 import { space, useTheme } from './theme';
 
 /**
- * App-wide settings: the screens that aren't about studying (Anki, Stats, Backup, Read & Listen), and which
- * answer buttons Review shows.
+ * App-wide settings: the screens that aren't about studying (Anki, Stats, Backup, Read & Listen), the
+ * voices cards are read aloud with, and which answer buttons Review shows.
  */
-export function Settings({ repo, backupText, readerOn, onAnki, onStats, onBackup, onRead }: {
+export function Settings({ repo, backupText, readerOn, onAnki, onStats, onBackup, onRead, onVoices }: {
   repo: Repo;
   /** When the last backup was made (`backupStatus`). */
   backupText?: string;
@@ -19,6 +19,7 @@ export function Settings({ repo, backupText, readerOn, onAnki, onStats, onBackup
   onAnki: () => void;
   onStats: () => void;
   onBackup: () => void;
+  onVoices: () => void;
 }) {
   const c = useTheme();
   const [buttons, setButtons] = useState<AnswerButtons>();
@@ -55,6 +56,7 @@ export function Settings({ repo, backupText, readerOn, onAnki, onStats, onBackup
             value={!!swipe}
             onValueChange={chooseSwipe}
           />
+          <NavRow label="Voices" detail="The voice and speed each language is read aloud with" onPress={onVoices} />
         </Group>
         <SectionTitle>Answer buttons</SectionTitle>
         <Group accessibilityRole="radiogroup">

@@ -14,6 +14,13 @@ describe('repo', () => {
     expect(await repo.swipeToRate()).toBe(true);
   });
 
+  it('keeps the voices chosen for each language', async () => {
+    const repo = new MemoryRepo();
+    expect(await repo.voiceSettings()).toEqual({});
+    await repo.saveVoiceSettings({ th: { voice: 'com.apple.voice.enhanced.th-TH.Narisa', voiceName: 'Narisa', rate: 0.8 } });
+    expect(await repo.voiceSettings()).toEqual({ th: { voice: 'com.apple.voice.enhanced.th-TH.Narisa', voiceName: 'Narisa', rate: 0.8 } });
+  });
+
   it('takes an answer back with deleteReview', async () => {
     const repo = new MemoryRepo();
     const note = omniNote();

@@ -3,6 +3,7 @@ import * as SQLite from 'expo-sqlite';
 import { registerUnicase } from '../../modules/anki-unicase';
 import { parseAnswerButtons } from '../core/answerButtons';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
+import { parseVoiceSettings } from '../core/voices';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } from '../core/types';
 import { clearMedia, listMedia, writeMedia } from '../media/mediaFiles';
 import { ankiFolder, fileSink, fileSource, keptCollectionFile } from '../anki/files';
@@ -282,6 +283,13 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async saveFormsAnswerMode(mode) {
       await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('forms_answer_mode', ?)", mode);
+    },
+    async voiceSettings() {
+      const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'voices'");
+      return parseVoiceSettings(r?.value);
+    },
+    async saveVoiceSettings(settings) {
+      await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('voices', ?)", JSON.stringify(settings));
     },
     async answerButtons() {
       const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'answer_buttons'");
