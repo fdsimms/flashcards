@@ -203,4 +203,18 @@ export interface DeckSettings {
    * keeps this in Anki's own `study_collapsed` instead (src/anki/deckWrites.ts).
    */
   collapsed?: boolean;
+  /*
+   * The settings below apply to the deck and its subdecks, unless a subdeck sets its own
+   * (`inheritedSetting`). Undefined means the default.
+   */
+  /** Suggest forms practice on the answer side (default on). */
+  suggestForms?: boolean;
+  /** Prompts in one practice of a word's forms (default `DEFAULT_FORM_PROMPTS`). */
+  formPrompts?: number;
+  /** Hold back lookalikes of a word just seen (default on). */
+  keepLookalikesApart?: boolean;
+  /** Study days a lookalike is held back: 1 is until tomorrow (default 1). */
+  lookalikeDays?: number;
+  /** Offer to show a card sooner when a lookalike may have given it away (default on). */
+  offerSooner?: boolean;
 }

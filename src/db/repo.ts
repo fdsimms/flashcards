@@ -1,6 +1,7 @@
 import { isInDeck } from '../core/deckTree';
 import { parseAnswerButtons, type AnswerButtons } from '../core/answerButtons';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
+import type { PracticeRecord } from '../core/forms';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry, CollectionSettings } from '../core/types';
 
 export interface Repo {
@@ -18,7 +19,7 @@ export interface Repo {
    */
   applyAnkiCollection(notes: Note[], cards: Card[]): Promise<void>;
   listNotes(): Promise<Note[]>;
-  /** Removes a note with its cards and their logged answers. */
+  /** Removes a note with its cards, their logged answers and its forms practice. */
   deleteNote(id: string): Promise<void>;
   getNote(id: string): Promise<Note | undefined>;
   /** Every card, or the cards of `deck` and all its subdecks. */
@@ -47,6 +48,13 @@ export interface Repo {
   /** Whether a revealed card can be swiped to answer it (right Good, left Again). Off by default; this phone's own. */
   swipeToRate(): Promise<boolean>;
   saveSwipeToRate(on: boolean): Promise<void>;
+  /** Logs one answered forms practice prompt. Franki's own: never written to Anki. */
+  addPractice(record: PracticeRecord): Promise<void>;
+  /** Forms practice logged at or after `since` (all of it without), oldest first. */
+  listPractice(since?: Date): Promise<PracticeRecord[]>;
+  /** Whether forms practice is answered by picking or typing: the last choice made. This phone's own. */
+  formsAnswerMode(): Promise<'pick' | 'type'>;
+  saveFormsAnswerMode(mode: 'pick' | 'type'): Promise<void>;
 }
 
 /** Simple in-memory repo, used by tests and as a reference implementation. */
@@ -60,6 +68,8 @@ export class MemoryRepo implements Repo {
   deckSettings = new Map<string, DeckSettings>();
   answerButtonsSetting: string | null = null;
   swipeToRateSetting = false;
+  practice: PracticeRecord[] = [];
+  formsAnswerModeSetting: 'pick' | 'type' = 'pick';
 
   async upsertNotesAndCards(notes: Note[], cards: Card[]) {
     for (const n of notes) this.notes.set(n.id, n);
@@ -95,6 +105,7 @@ export class MemoryRepo implements Repo {
     const cardIds = new Set([...this.cards.values()].filter((c) => c.noteId === id).map((c) => c.id));
     for (const cid of cardIds) this.cards.delete(cid);
     for (const [rid, r] of this.reviews) if (cardIds.has(r.cardId)) this.reviews.delete(rid);
+    this.practice = this.practice.filter((p) => p.noteId !== id);
   }
   async getNote(id: string) { return this.notes.get(id); }
   async listCards(deck?: string) {
@@ -115,6 +126,14 @@ export class MemoryRepo implements Repo {
   async saveCollectionSettings(settings: CollectionSettings) { this.collectionSettingsValue = settings; }
   async swipeToRate() { return this.swipeToRateSetting; }
   async saveSwipeToRate(on: boolean) { this.swipeToRateSetting = on; }
+  async addPractice(record: PracticeRecord) { this.practice.push({ ...record }); }
+  async listPractice(since?: Date) {
+    return this.practice
+      .filter((p) => !since || new Date(p.practicedAt) >= since)
+      .sort((a, b) => a.practicedAt.localeCompare(b.practicedAt));
+  }
+  async formsAnswerMode() { return this.formsAnswerModeSetting; }
+  async saveFormsAnswerMode(mode: 'pick' | 'type') { this.formsAnswerModeSetting = mode; }
   async listReviews(since: Date) {
     return [...this.reviews.values()]
       .filter((r) => new Date(r.reviewedAt) >= since)

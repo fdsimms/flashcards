@@ -47,6 +47,26 @@ describe('scheduler', () => {
     expect(paramsForDeck('Languages::Polish', all)).toBe(langs);
     expect(paramsForDeck('Trivia', all)).toBeUndefined();
   });
+  it('schedules from countFrom when a lookalike was seen since the last review: a smaller step than the whole interval', () => {
+    const [card] = makeCards(omniNote(), NOW);
+    let s = review(card.sched, 3, NOW).sched;
+    s = review(s, 3, new Date(2026, 10, 12, 12)).sched;
+    s = review(s, 3, new Date(2026, 10, 20, 12)).sched;
+    const at = new Date(2026, 11, 20, 12);
+    const plain = review(s, 3, at).sched;
+    const reminded = review(s, 3, at, undefined, { countFrom: new Date(2026, 11, 19, 12) }).sched;
+    expect(reminded.stability).toBeLessThan(plain.stability);
+    expect(new Date(reminded.due).getTime()).toBeLessThan(new Date(plain.due).getTime());
+    // The card still records the real review time as its last review.
+    expect(reminded.lastReview).toBe(at.toISOString());
+    expect(previewIntervals(s, at, undefined, { countFrom: new Date(2026, 11, 19, 12) })[3]).not.toBe(previewIntervals(s, at)[3]);
+  });
+  it('ignores a countFrom before the last review', () => {
+    const [card] = makeCards(omniNote(), NOW);
+    const s = review(card.sched, 3, NOW).sched;
+    const at = new Date(2026, 10, 14, 12);
+    expect(review(s, 3, at, undefined, { countFrom: new Date(2026, 10, 1) }).sched.stability).toBe(review(s, 3, at).sched.stability);
+  });
 });
 
 describe("Anki's learning steps", () => {

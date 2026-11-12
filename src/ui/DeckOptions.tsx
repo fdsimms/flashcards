@@ -6,23 +6,27 @@ import { groupByDeck, inProgressCount } from '../core/deckTree';
 import { GURU_INTERVAL_DAYS, parseGateCap } from '../core/progress';
 import type { DeckSettings } from '../core/types';
 import type { Repo } from '../db/repo';
+import { DeckFormsOptions } from './DeckFormsOptions';
 import { haptic } from './haptics';
 import { Card, Help, Screen } from './kit';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
 
-/** Settings made in the app for one deck: so far, the progress gate. */
+/** Settings made in the app for one deck: the progress gate, forms practice and lookalike words. */
 export function DeckOptions({ repo, deck }: { repo: Repo; deck: string }) {
   const c = useTheme();
   const [settings, setSettings] = useState<DeckSettings | null>(null);
   const [capText, setCapText] = useState('');
   const [error, setError] = useState<string>();
   const [inProgress, setInProgress] = useState<number>();
+  // Every deck's settings, for what this deck inherits from the decks above it.
+  const [all, setAll] = useState<Map<string, DeckSettings>>(new Map());
   const saving = useRef(Promise.resolve());
 
   useEffect(() => {
     (async () => {
       const [all, cards, notes] = await Promise.all([repo.listDeckSettings(), repo.listCards(deck), repo.listNotes()]);
       const s = all.get(deck) ?? {};
+      setAll(all);
       setSettings(s);
       setCapText(String(s.gateCap ?? DEFAULT_GATE_CAP));
       setInProgress(inProgressCount(deck, groupByDeck(cards, new Map(notes.map((n) => [n.id, n.deck])))));
@@ -104,6 +108,7 @@ export function DeckOptions({ repo, deck }: { repo: Repo; deck: string }) {
         {inProgress !== undefined ? (
           <Help>{inProgress === 1 ? '1 card is' : `${inProgress} cards are`} in progress in this deck and its subdecks now.</Help>
         ) : null}
+        {settings ? <DeckFormsOptions deck={deck} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
       </ScrollView>
     </Screen>
   );

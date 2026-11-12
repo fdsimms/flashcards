@@ -22,6 +22,10 @@ describe('restorePlan', () => {
     const withExtra = new Map([...current, ['sqlite_sequence', ['name', 'seq']]]);
     expect(restorePlan(withExtra, withExtra).map((p) => p.table)).toEqual(['notes', 'cards', 'reviews', 'deck_params']);
   });
+  it('restores forms practice, which is the user\'s own data', async () => {
+    const { RESTORED_TABLES } = await import('../../src/db/backup');
+    expect(RESTORED_TABLES).toContain('form_practice');
+  });
   it('refuses a file that is not one of our backups', () => {
     expect(() => restorePlan(current, new Map([['notes', ['id']]]))).toThrow(NotABackupError);
     expect(() => restorePlan(current, new Map())).toThrow(/isn't a backup from this app/);

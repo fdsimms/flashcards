@@ -4,7 +4,7 @@ import { ankiToday, DEFAULT_ORDER, gatherNew, inFilteredOrder, mix, sortNew, sor
 import { isInProgress } from './progress';
 import { isBuried, isDue, isInterdayLearning, isLearning, studiable, type Queue, type StudiedToday } from './queue';
 import { paramsForDeck } from './scheduler';
-import type { BurySettings, Card, CollectionSettings, DeckParams, Note, StudyOrder } from './types';
+import type { BurySettings, Card, CollectionSettings, DeckParams, DeckSettings, Note, StudyOrder } from './types';
 
 /**
  * Decks as Anki nests them: "A::B::C" is C inside B inside A. Studying a deck studies its
@@ -102,6 +102,11 @@ export interface TreeQueueInput {
   newCardsIgnoreReviewLimit?: boolean;
   applyAllParentLimits?: boolean;
   now?: Date;
+  /**
+   * Cards held back today because a lookalike was just seen (`heldCards`, lookalikes.ts). Only New
+   * and Review cards are ever held; learning cards keep their steps.
+   */
+  held?: Set<string>;
 }
 
 const dueMs = (c: Card) => new Date(c.sched.due).getTime();
@@ -216,7 +221,7 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
     now, dayStartsAtHour: h, ankiToday: input.ankiToday, deckOf: (c) => deckOfCard.get(c.id)!, noteOf: (c) => c.noteId,
     weightsOf: (c) => paramsFor(homeDeckOf(c))?.weights ?? [],
   };
-  const all = active.flatMap((d) => studiable(input.cardsByDeck.get(d)!)).filter((c) => !isBuried(c, now, h));
+  const all = active.flatMap((d) => studiable(input.cardsByDeck.get(d)!)).filter((c) => !isBuried(c, now, h) && !input.held?.has(c.id));
   const nextDay = nextStudyDayStart(now, h).getTime();
   // Siblings: a card is held back when one gathered before it has a preset burying its kind.
   const buryFlags = new Map<string, BurySettings>();
@@ -273,6 +278,8 @@ export function queueInput(a: {
   gateFor?: (deck: string) => number | undefined;
   collection: CollectionSettings;
   now: Date;
+  /** Lookalikes held back (`heldCards`). */
+  held?: Set<string>;
 }): TreeQueueInput {
   const deckOfNote = new Map([...a.notes].map((n) => [n.id, n.deck]));
   const todayKey = studyDayKey(a.now, a.collection.dayStartsAtHour);
@@ -289,6 +296,7 @@ export function queueInput(a: {
     applyAllParentLimits: a.collection.applyAllParentLimits,
     ankiToday: ankiToday(a.now, a.collection.dayStartsAtHour, a.collection.collectionCreated, a.collection.creationOffset),
     now: a.now,
+    held: a.held,
   };
 }
 
@@ -354,4 +362,16 @@ export function groupByDeck(cards: Card[], deckOfNote: Map<string, string>): Map
     (out.get(deck) ?? out.set(deck, []).get(deck)!).push(c);
   }
   return out;
+}
+
+/**
+ * A deck setting that its subdecks share: the deck's own, else its nearest ancestor's ("A::B::C"
+ * falls back to "A::B", then "A"), else undefined for the caller's default.
+ */
+export function inheritedSetting<K extends keyof DeckSettings>(deck: string, all: Map<string, DeckSettings>, key: K): DeckSettings[K] | undefined {
+  for (const d of deckLineage(deck).reverse()) {
+    const v = all.get(d)?.[key];
+    if (v !== undefined) return v;
+  }
+  return undefined;
 }

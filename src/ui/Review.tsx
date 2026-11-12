@@ -28,6 +28,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardWebView } from './CardWebView';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
+import { headword, type DrillRequest } from '../core/forms';
+import { AnswerExtras, FormsCheck, useReviewForms } from './ReviewForms';
 import { haptic } from './haptics';
 import { Button, Count, Icon, Screen, Tappable } from './kit';
 import { Reveal, useReduceMotion } from './motion';
@@ -177,7 +179,7 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, onDone, onEditNote }: {
+export function Review({ repo, deck, practice, onDone, onEditNote, onPracticeForms }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -189,6 +191,8 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
   onDone: () => void;
   /** Opens the note editor over this screen, calling `onClose` with what happened. */
   onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void;
+  /** Opens a forms drill (src/ui/FormsDrill.tsx) over this screen. */
+  onPracticeForms: (request: DrillRequest) => void;
 }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
@@ -244,16 +248,19 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
     })();
   }, [repo, deck, reloads]);
 
+  // Forms practice and lookalikes (src/ui/ReviewForms.tsx): held lookalikes, the offer to show a card sooner, suggestions.
+  const forms = useReviewForms(repo, { cards, notes, deckSettings, now, dayStartsAtHour: H });
   const deckOf = useMemo(() => new Map([...notes.values()].map((n) => [n.id, n.deck])), [notes]);
   const queue = useMemo(() => {
     if (!cards) return null;
     return treeQueue(deck, queueInput({
-      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, collection, now,
+      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, collection, now, held: forms.held,
     }));
-  }, [cards, notes, allParams, studied, deckSettings, collection, deck, now]);
+  }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held]);
 
   const current = queue ? currentCard(queue, preferId) : undefined;
   const note = current ? notes.get(current.noteId) : undefined;
+  useEffect(() => { forms.showing({ card: current, note, revealed }); }, [current, note, revealed, forms.showing]); // eslint-disable-line react-hooks/exhaustive-deps
   // The card's own deck decides its FSRS settings, not the deck being studied.
   const cardParams = note && current ? paramsForDeck(cardHomeDeck(current, note.deck), allParams) : undefined;
   const noteType = note && current?.kind.startsWith('t') && !isOmnilanguage(note) ? noteTypes.get(note.model) : undefined;
@@ -288,7 +295,8 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
       preset: cardParams?.presetId, seed, easyDays: cardParams?.easyDays, buryReviews: !!cardParams?.bury?.reviews,
       nextDayAt: nextStudyDayStart(when, H),
     });
-    return { seed, dayStartsAtHour: H, balance };
+    // A lookalike may have given the answer away: counted from when it was seen, unless turned off.
+    return { seed, dayStartsAtHour: H, balance, countFrom: card.id === current?.id ? forms.countFrom : undefined };
   };
   const intervals = current && revealed ? previewIntervals(current.sched, now, cardParams, answerContext(current, now)) : undefined;
 
@@ -422,6 +430,7 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
       if (updated.sched.state === 2) recordAnswer(loadSnapshot.current, updated, cardParams?.presetId, updated.sched.scheduledDays);
       setStudied((s) => bumpStudied(s, record.deck, studiedKind(record.before, H), 1));
       setHistory((h) => [...h, record]);
+      forms.answered({ cardId: current.id, ...res.log });
       // Functional update: `cards` from this render's closure is stale once the awaits return.
       const changed = new Map([updated, ...buried].map((c) => [c.id, c]));
       setCards((prev) => prev && prev.map((c) => changed.get(c.id) ?? c));
@@ -458,6 +467,7 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
       await repo.deleteReview(last.reviewId);
       forgetCard(loadSnapshot.current, last.before.id);
       setHistory((h) => h.slice(0, -1));
+      forms.undone(last.before.id);
       setStudied((s) => bumpStudied(s, last.deck, studiedKind(last.before, H), -1));
       const restored = new Map([last.before, ...last.buried].map((c) => [c.id, c]));
       setCards((prev) => prev && prev.map((c) => restored.get(c.id) ?? c));
@@ -495,12 +505,20 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
   if (!current || !note || (!rendered && !page)) {
     const minutes = waitingFor ? Math.max(1, Math.ceil((waitingFor.getTime() - Date.now()) / 60000) - collection.learnAheadMinutes) : 0;
     const studiedWords = practice ? practiceWords(history.map((h) => ({ noteId: h.before.noteId, deck: h.deck })), notes, practice.languageDeck) : [];
-    const footer = studiedWords.length && practice ? (
+    const reading = !!(studiedWords.length && practice);
+    const checking = forms.toCheck.length;
+    const footer = (
       <>
-        <Button label="Read a text with these words" onPress={() => practice.onRead(studiedWords)} />
-        <Button label="Back to decks" variant="secondary" onPress={onDone} />
+        {checking ? (
+          <Button
+            label={checking === 1 ? 'Practice its forms' : `Practice these ${checking}`}
+            onPress={() => onPracticeForms(forms.drillFor(forms.toCheck.map((x) => x.note.id), deck))}
+          />
+        ) : null}
+        {reading ? <Button label="Read a text with these words" variant={checking ? 'secondary' : 'primary'} onPress={() => practice!.onRead(studiedWords)} /> : null}
+        <Button label="Back to decks" variant={reading || checking ? 'secondary' : 'primary'} onPress={onDone} />
       </>
-    ) : <Button label="Back to decks" onPress={onDone} />;
+    );
     return (
       <Screen
         title={title}
@@ -517,12 +535,24 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
             {waitingFor ? `The next card comes back in about ${minutes} min.` : 'Nothing else is due in this deck today.'}
           </Text>
           {history.length ? <SessionSummary history={history} /> : null}
+          <FormsCheck items={forms.toCheck} />
         </Reveal>
       </Screen>
     );
   }
 
   const reveal = () => { Keyboard.dismiss(); setRevealed(true); if (rendered?.back.speak) speak(rendered.back.speak); };
+  // Under the answer: the offer to show the card sooner, and the suggestion to practice its forms.
+  const extras = revealed ? (
+    <AnswerExtras
+      word={headword(note)}
+      offer={forms.offerView((from) => previewIntervals(current.sched, now, cardParams, { ...answerContext(current, now), countFrom: from })[3])}
+      onSooner={forms.setSooner}
+      suggestion={forms.suggestion}
+      onPractice={() => onPracticeForms(forms.drillFor([note.id], note.deck))}
+      onLater={() => forms.putOff(note.id)}
+    />
+  ) : null;
   const shown = ratingsShown(answerButtons);
   const buttons = ([
     { r: 1, label: 'Again', color: c.again },
@@ -656,7 +686,11 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
         <CardSurface>
           <CardWebView key={`${current.id}:${revealed ? 'back' : 'front'}`} html={revealed ? page.back : page.front} onMessage={onPageMessage} />
         </CardSurface>
-      ) : rendered ? (
+      ) : null}
+      {page && extras ? (
+        <ScrollView style={{ flexGrow: 0, maxHeight: '45%' }} contentContainerStyle={{ paddingHorizontal: space.l, paddingVertical: space.s }}>{extras}</ScrollView>
+      ) : null}
+      {page ? null : rendered ? (
         <SwipeCard enabled={swipeOn && revealed} shown={shown} onRate={answer}>
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
@@ -684,6 +718,7 @@ export function Review({ repo, deck, practice, onDone, onEditNote }: {
               <Reveal rise={8} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
                 <Side side={rendered.back} which="back" />
+                {extras}
               </Reveal>
             ) : null}
           </ScrollView>

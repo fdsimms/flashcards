@@ -103,4 +103,15 @@ describe('repo', () => {
     expect(cards.get(gone.id)!.retired).toBe(true);
     expect(cards.get(localCard.id)!.retired).toBe(false);
   });
+  it('keeps forms practice, lists it from a time on, and deletes it with its note', async () => {
+    const repo = new MemoryRepo();
+    const note = omniNote();
+    await repo.upsertNotesAndCards([note], makeCards(note, NOW));
+    await repo.addPractice({ noteId: note.id, key: 'present · yo', correct: true, practicedAt: new Date(2026, 10, 11, 9).toISOString() });
+    await repo.addPractice({ noteId: note.id, key: 'present · tú', correct: false, practicedAt: new Date(2026, 10, 10, 9).toISOString() });
+    expect((await repo.listPractice()).map((p) => p.key)).toEqual(['present · tú', 'present · yo']);
+    expect((await repo.listPractice(new Date(2026, 10, 11))).map((p) => p.key)).toEqual(['present · yo']);
+    await repo.deleteNote(note.id);
+    expect(await repo.listPractice()).toEqual([]);
+  });
 });

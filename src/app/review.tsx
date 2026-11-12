@@ -24,5 +24,10 @@ export default function ReviewRoute() {
       router.replace({ pathname: '/read', params: { practice: JSON.stringify({ language, words }) } });
     },
   } : undefined;
-  return <Review repo={repo} deck={deck} practice={practice} onDone={() => router.back()} onEditNote={openNoteEditor} />;
+  return (
+    <Review
+      repo={repo} deck={deck} practice={practice} onDone={() => router.back()} onEditNote={openNoteEditor}
+      onPracticeForms={(request) => router.push({ pathname: '/forms-drill', params: { request: JSON.stringify(request) } })}
+    />
+  );
 }

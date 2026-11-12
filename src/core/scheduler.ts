@@ -49,7 +49,8 @@ function engineFor(params?: DeckParams): Engine {
 
 export type RatingValue = 1 | 2 | 3 | 4;
 
-function toFsrs(s: SchedState): FsrsCard {
+function toFsrs(s: SchedState, countFrom?: Date): FsrsCard {
+  const last = s.lastReview ? new Date(s.lastReview) : undefined;
   return {
     due: new Date(s.due),
     stability: s.stability,
@@ -60,7 +61,7 @@ function toFsrs(s: SchedState): FsrsCard {
     reps: s.reps,
     lapses: s.lapses,
     state: s.state,
-    last_review: s.lastReview ? new Date(s.lastReview) : undefined,
+    last_review: countFrom && last && countFrom > last ? countFrom : last,
   };
 }
 
@@ -146,6 +147,13 @@ export interface AnswerContext {
   dayStartsAtHour?: number;
   /** The load balancer for the card's preset, when the collection has it on. */
   balance?: Balancer;
+  /**
+   * Schedule the answer as if the card had last been reviewed then, rather than at its real last
+   * review. A lookalike seen yesterday reminded you of this card, so remembering it today should
+   * count like remembering it a day after a review (a small gain), not after its whole interval.
+   * ts-fsrs works out the elapsed time from `last_review`. Ignored unless later than the real one.
+   */
+  countFrom?: Date;
 }
 
 /**
@@ -170,7 +178,7 @@ export function rawInterval(stability: number, desiredRetention: number, weights
  */
 export function review(sched: SchedState, rating: RatingValue, now: Date = new Date(), params?: DeckParams, ctx: AnswerContext = {}): ReviewResult {
   const engine = engineFor(params);
-  const outcomes = engine.repeat(toFsrs(sched), now);
+  const outcomes = engine.repeat(toFsrs(sched, ctx.countFrom), now);
   const { card, log } = outcomes[rating as Grade];
   let next = fromFsrs(card);
   const learn = params?.learnSteps ?? DEFAULT_LEARN_STEPS;

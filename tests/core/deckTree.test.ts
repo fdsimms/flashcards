@@ -247,3 +247,27 @@ describe('deckListTotals', () => {
     expect(deckListTotals([])).toEqual({ due: 0, fresh: 0 });
   });
 });
+
+describe('held cards', () => {
+  it('leaves held cards out of the deck list and the review queue alike', () => {
+    const fresh = newCards(2);
+    const due = reviewCards(1, 10);
+    const held = { ...input({ 'Languages::Es': [...fresh, ...due] }), held: new Set([fresh[0].id, due[0].id]) };
+    const q = treeQueue('Languages', held);
+    expect([q.due, q.fresh]).toEqual([[], [fresh[1]]]);
+    expect(deckRows(held).map((r) => [r.deck, r.due, r.fresh])).toEqual([
+      ['Languages', 0, 1],
+      ['Languages::Es', 0, 1],
+    ]);
+  });
+});
+
+describe('inheritedSetting', () => {
+  it("takes the deck's own value, else the nearest ancestor's", async () => {
+    const { inheritedSetting } = await import('../../src/core/deckTree');
+    const all = new Map([['A', { offerSooner: false }], ['A::B', { offerSooner: true }]]);
+    expect(inheritedSetting('A::B::C', all, 'offerSooner')).toBe(true);
+    expect(inheritedSetting('A::D', all, 'offerSooner')).toBe(false);
+    expect(inheritedSetting('E', all, 'offerSooner')).toBeUndefined();
+  });
+});

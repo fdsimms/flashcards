@@ -15,6 +15,7 @@ import { minedOne, miningLeft, type MiningCount } from '../reader/mining';
 import { clearPassphrase, loadMined, loadPassphrase, loadPrefs, saveMined } from '../reader/storage';
 import { openRepo, type BackupStore } from '../db/sqliteRepo';
 import { useTheme } from './theme';
+import { loadHeld } from './lookalikeHold';
 import { useCollapsedDecks, type CollapsedDecks } from './useCollapsedDecks';
 import { useSync } from './useSync';
 
@@ -112,7 +113,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     ]);
     // Every answer given today, here or in Anki on another device (synced), counts toward the limits.
     const studied = studiedToday({ notes, cards, reviews, revlog, now, dayStartsAtHour: collection.dayStartsAtHour });
-    setDecks(deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now })));
+    const held = await loadHeld(repo, { notes, cards, settings, now, dayStartsAtHour: collection.dayStartsAtHour });
+    setDecks(deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now, held })));
     setBackup(backupStatus(lastBackup, now, cards.length > 0));
     setAnkiUnsent((await repo.ankiStatus()).unsent);
     collapse.load();
