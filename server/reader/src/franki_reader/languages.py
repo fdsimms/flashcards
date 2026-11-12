@@ -15,7 +15,7 @@ from typing import Literal
 Code = Literal["th", "es", "de", "fr", "ru", "el", "pl", "nb"]
 
 # How many of a language's most common words can be counted as known (the `common` setting).
-CommonCount = Literal[0, 1000, 2000, 3000, 5000, 10000]
+CommonCount = Literal[0, 250, 500, 1000, 2000, 3000, 5000, 10000]
 
 # A speaker is a man or a woman. Each language has a voice for each, and a second of each for a
 # dialogue between two men or two women (gender.py picks which one speaks).
@@ -95,8 +95,8 @@ LANGUAGES: dict[Code, Language] = {
     ),
     # Added on 12 November 2026, by the owner's decision. Each default `common` is a first guess at
     # the owner's level from the deck, to be moved on the topics screen: Polish's deck is a
-    # beginner's (deck only, as the owner chose); German, French, Russian and Greek hold advanced
-    # words; Norwegian's are everyday ones.
+    # beginner's (its 250 most common words, mostly the small ones); German, French, Russian and
+    # Greek hold advanced words; Norwegian's are everyday ones.
     "de": Language(
         code="de",
         name="German",
@@ -161,6 +161,7 @@ LANGUAGES: dict[Code, Language] = {
         spaced=True,
         example="Ta|kobieta|*je*|zupę.",
         # Its subdecks drill verb endings, cases and verb government, not words.
+        common=250,
         skip=("🔤 Odmiana Polski", "🔤 Przypadki Polski", "🔤 Rekcja Polski"),
     ),
     "nb": Language(

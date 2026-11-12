@@ -289,9 +289,14 @@ forms. Every other word makes the text harder; the server measures this and send
 outside the learner's coverage target, too hard or too easy. When the request allows no common words, use only words from \
 the list. A word that appears only inside a longer list phrase is not known on its own.
 - Prefer entries marked M (well known) over Y (still being learned).
+- Every line must make sense where it is: something a person would really say in that situation, \
+following from the line before it. Sense comes before coverage. With few words to work with, choose \
+a simple, ordinary situation (greeting, asking, buying, saying what you have or want) rather than \
+joining unrelated words into a scene. Never write a line only because its words are allowed.
 - Before you answer, go through your draft word by word and check each one is either an allowed \
-common word or on the list. Replace any that isn't with an allowed word or a simpler way of saying \
-it. Getting this right first time matters more than a clever text.
+common word or on the list, then read each line as a native speaker would and rewrite any that \
+doesn't make sense. Replace a word that isn't allowed with an allowed word or a simpler way of \
+saying it.
 - Write natural {name}, the way a native speaker would say it, never a word-for-word translation \
 of an English phrase or idiom. If an English idea has no plain {name} equivalent, say something else.
 - A dialogue is natural, everyday spoken {name} between two speakers, A and B. In "roles", say \
@@ -370,7 +375,8 @@ def request_message(request: TextRequest) -> str:
         how_many = "1" if request.choose == 1 else f"1 to {request.choose}"
         parts.append(
             f"Stretch words: pick {how_many} of these that fit the topic naturally, and use each "
-            "one you pick 2 or 3 times, wrapped in asterisks. Leave the rest out:\n" + listed
+            "one you pick 2 or 3 times, wrapped in asterisks. Leave the rest out. If none of them fits "
+            "a sensible situation with the known words, use fewer, or none:\n" + listed
         )
     elif request.stretch:
         parts.append(

@@ -32,7 +32,7 @@ export function languageNamed(name: string): Language | undefined {
   return LANGUAGE_ORDER.find((code) => LANGUAGES[code].name === name);
 }
 
-export const COMMON_COUNTS: CommonCount[] = [0, 1000, 2000, 3000, 5000, 10000];
+export const COMMON_COUNTS: CommonCount[] = [0, 250, 500, 1000, 2000, 3000, 5000, 10000];
 
 // How a common-words count is shown, and back.
 export function commonLabel(count: CommonCount): string {

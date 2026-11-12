@@ -16,6 +16,6 @@ test('every language is offered once and found again by its name', () => {
 });
 
 test('a common-words count is shown with a thousands separator, and none as None', () => {
-  expect(COMMON_COUNTS.map(commonLabel)).toEqual(['None', '1,000', '2,000', '3,000', '5,000', '10,000']);
+  expect(COMMON_COUNTS.map(commonLabel)).toEqual(['None', '250', '500', '1,000', '2,000', '3,000', '5,000', '10,000']);
   for (const count of COMMON_COUNTS) expect(commonNamed(commonLabel(count))).toBe(count);
 });

@@ -60,7 +60,7 @@ export type TextGrammar = { id: string; name: string; note: string; role: TextGr
 export type Language = 'th' | 'es' | 'de' | 'fr' | 'ru' | 'el' | 'pl' | 'nb';
 
 // Every language but Thai counts this many of its most common words as known, as well as its deck.
-export type CommonCount = 0 | 1000 | 2000 | 3000 | 5000 | 10000;
+export type CommonCount = 0 | 250 | 500 | 1000 | 2000 | 3000 | 5000 | 10000;
 
 // A and B are a dialogue's two speakers; N is a story's narrator. `paragraph`: this line opens a
 // paragraph of a story (missing from a server older than paragraphs).
