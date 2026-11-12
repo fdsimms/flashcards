@@ -1,23 +1,30 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, useColorScheme, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Switch, Text, useColorScheme, View } from 'react-native';
 import { isOmnilanguage, renderCard } from '../core/cards';
 import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from '../core/config';
+import { studyDayStart } from '../core/day';
 import { deckLimits, groupByDeck, isInDeck, treeQueue } from '../core/deckTree';
 import { nextLearningDue, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { paramsForDeck, previewIntervals, review, type RatingValue } from '../core/scheduler';
 import { bumpStudied, currentCard, type AnswerRecord } from '../core/session';
 import { cardDocument, renderTemplateCard } from '../core/template';
-import type { Card, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
+import {
+  formsOf, formsSettings, formsSuggestion, headword, introductions, practicePool, unreadableNotice, wordPrompts,
+  type FormPrompt, type FormsSuggestion, type PracticeRecord,
+} from '../core/forms';
+import { heldCards, lookalikeIndex, lookalikeSettings, seenEvents, soonerOffer, whenSeen } from '../core/lookalikes';
+import type { Card, DeckParams, DeckSettings, Note, NoteType, RenderedSide, ReviewLogEntry } from '../core/types';
 import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
 import { CardWebView } from './CardWebView';
+import { FormsDrill, type AnswerMode } from './FormsDrill';
 import { NoteEditor } from './NoteEditor';
-import { Button, Count, HeaderAction, Screen } from './kit';
+import { Button, Card as Box, Count, Help, HeaderAction, Screen } from './kit';
 import { MIN_TAP, radius, space, type, useTheme } from './theme';
 
 /**
@@ -47,6 +54,10 @@ function Side({ side, which }: { side: RenderedSide; which: 'front' | 'back' }) 
 }
 
 const DEFAULT_LIMITS = { newPerDay: NEW_PER_DAY, reviewsPerDay: REVIEWS_PER_DAY };
+/** Days of answers read at the start: enough to tell a word met this week, and to cover every lookalike window. */
+const RECENT_DAYS = 7;
+/** Prompts per word when practicing the words gathered at the end of a session. */
+const SESSION_END_PROMPTS = 3;
 
 /**
  * Studies `deck` and its subdecks. Each card is scheduled with its own deck's FSRS settings, and
@@ -70,17 +81,33 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   const [now, setNow] = useState(() => new Date());
   const [history, setHistory] = useState<AnswerRecord[]>([]);
   const [preferId, setPreferId] = useState<string>();
+  // Forms practice and lookalikes: practice logged, answers of the last few days, the words
+  // suggested this session and not practiced yet, the ones put off with "Later today", the drill
+  // when open, and whether a primed answer is counted from when its lookalike was seen.
+  const [practice, setPractice] = useState<PracticeRecord[]>([]);
+  const [recent, setRecent] = useState<ReviewLogEntry[]>([]);
+  const [answerMode, setAnswerMode] = useState<AnswerMode>('pick');
+  const [suggested, setSuggested] = useState<Map<string, FormsSuggestion>>(new Map());
+  const [later, setLater] = useState<Set<string>>(new Set());
+  const [drill, setDrill] = useState<{ prompts: FormPrompt[]; notice?: string; back: string } | null>(null);
+  const [sooner, setSooner] = useState(true);
   // Set while an answer or an undo is being written. A second tap during the await would
   // otherwise act on the same card again from its old state.
   const busy = useRef(false);
 
   useEffect(() => {
     (async () => {
-      const [c, n, today, params, types, settings, buttons] = await Promise.all([
+      const since = studyDayStart(new Date(), DAY_STARTS_AT_HOUR);
+      since.setDate(since.getDate() - RECENT_DAYS);
+      const [c, n, today, params, types, settings, buttons, logged, recentAnswers, mode] = await Promise.all([
         // Every card, not only this deck's: a gate on a deck above this one counts its whole subtree.
         repo.listCards(), repo.listNotes(), repo.studiedToday(new Date(), DAY_STARTS_AT_HOUR),
         repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(),
+        repo.listPractice(), repo.listReviews(since), repo.formsAnswerMode(),
       ]);
+      setPractice(logged);
+      setRecent(recentAnswers);
+      setAnswerMode(mode);
       setAnswerButtons(buttons);
       setDeckSettings(settings);
       setAllParams(params);
@@ -92,6 +119,15 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   }, [repo, deck, reloads]);
 
   const deckOf = useMemo(() => new Map([...notes.values()].map((n) => [n.id, n.deck])), [notes]);
+  const noteOfCard = useMemo(() => new Map((cards ?? []).map((c) => [c.id, c.noteId])), [cards]);
+  const lookalikes = useMemo(() => lookalikeIndex([...notes.values()]), [notes]);
+  const seen = useMemo(() => seenEvents(recent, noteOfCard, practice), [recent, noteOfCard, practice]);
+  const introduced = useMemo(() => introductions(recent, noteOfCard), [recent, noteOfCard]);
+  // The deck list holds back the same cards (App.tsx), so its counts match what opens here.
+  const held = useMemo(
+    () => cards ? heldCards({ cards, deckOf, index: lookalikes, events: seen, settings: deckSettings, now, dayStartsAtHour: DAY_STARTS_AT_HOUR }) : undefined,
+    [cards, deckOf, lookalikes, seen, deckSettings, now],
+  );
   const queue = useMemo(() => {
     if (!cards) return null;
     return treeQueue(deck, {
@@ -102,8 +138,9 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       dayStartsAtHour: DAY_STARTS_AT_HOUR,
       learnAheadMinutes: LEARN_AHEAD_MINUTES,
       now,
+      held,
     });
-  }, [cards, deckOf, allParams, studied, deckSettings, deck, now]);
+  }, [cards, deckOf, allParams, studied, deckSettings, deck, now, held]);
 
   const current = queue ? currentCard(queue, preferId) : undefined;
   const note = current ? notes.get(current.noteId) : undefined;
@@ -121,7 +158,43 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
     return { front: cardDocument(front, opts), back: cardDocument(back, opts) };
   }, [note, noteType, current?.id, current?.kind, dark, c]); // eslint-disable-line react-hooks/exhaustive-deps
   const rendered = current && note && !page ? renderCard(note, current.kind) : undefined;
-  const intervals = current && revealed ? previewIntervals(current.sched, now, cardParams) : undefined;
+
+  // A lookalike seen since this card's last review may have given its answer away: offer to
+  // schedule the answer from when it was seen (`soonerOffer`).
+  const offer = current && note && revealed && lookalikeSettings(note.deck, deckSettings).offerSooner
+    ? soonerOffer({ card: current, index: lookalikes, events: seen, now, dayStartsAtHour: DAY_STARTS_AT_HOUR })
+    : undefined;
+  const countFrom = offer && sooner ? offer.at : undefined;
+  const intervals = current && revealed ? previewIntervals(current.sched, now, cardParams, countFrom) : undefined;
+  const plainIntervals = offer && current ? previewIntervals(current.sched, now, cardParams) : undefined;
+  const soonerIntervals = offer && current ? previewIntervals(current.sched, now, cardParams, offer.at) : undefined;
+  useEffect(() => { setSooner(true); }, [current?.id]);
+
+  // Suggesting forms practice, only for a reason it can name (`formsSuggestion`).
+  const suggestion = useMemo(() => {
+    if (!note || !revealed || later.has(note.id) || !formsSettings(note.deck, deckSettings).suggest) return undefined;
+    return formsSuggestion({
+      note, forms: formsOf(note).forms, history: practice.filter((p) => p.noteId === note.id),
+      introducedAt: introduced.get(note.id), now, dayStartsAtHour: DAY_STARTS_AT_HOUR,
+    });
+  }, [note, revealed, later, deckSettings, practice, introduced, now]);
+  // Gathered for the end of the session, whether it's practiced now, put off, or passed by.
+  useEffect(() => {
+    if (note && suggestion) setSuggested((m) => (m.get(note.id) === suggestion ? m : new Map(m).set(note.id, suggestion)));
+  }, [note?.id, suggestion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openDrill = (targets: Note[], perWord: number, back: string) => {
+    const prompts = wordPrompts(targets, practicePool(notes.values()), practice, perWord, DAY_STARTS_AT_HOUR);
+    if (prompts.length) setDrill({ prompts, notice: unreadableNotice(targets), back });
+  };
+
+  /** One drill answer: written first, then counted here, so a crash loses the screen's copy, not the answer. */
+  const practiced = async (prompt: FormPrompt, correct: boolean) => {
+    const record: PracticeRecord = { noteId: prompt.noteId, key: prompt.key, correct, practicedAt: new Date().toISOString() };
+    await repo.addPractice(record);
+    setPractice((p) => [...p, record]);
+    setSuggested((m) => { if (!m.has(prompt.noteId)) return m; const out = new Map(m); out.delete(prompt.noteId); return out; });
+  };
 
   // One player for the session's recorded audio, released when the screen closes.
   const player = useRef<AudioPlayer | null>(null);
@@ -164,7 +237,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
     busy.current = true;
     try {
       const when = new Date();
-      const res = review(current.sched, rating, when, cardParams);
+      const res = review(current.sched, rating, when, cardParams, countFrom);
       const updated: Card = { ...current, sched: res.sched };
       await repo.saveCard(updated);
       const reviewId = await repo.addReview({ cardId: current.id, ...res.log });
@@ -188,6 +261,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       const record: AnswerRecord = { before: current, reviewId, deck: note.deck, anki };
       setStudied((s) => bumpStudied(s, record.deck, record.before.sched.state, 1));
       setHistory((h) => [...h, record]);
+      setRecent((r) => [...r, { cardId: current.id, ...res.log }]);
       // Functional update: `cards` from this render's closure is stale once the awaits return.
       setCards((prev) => prev && prev.map((c) => (c.id === updated.id ? updated : c)));
       setPreferId(undefined);
@@ -213,6 +287,11 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       await repo.saveCard(last.before);
       await repo.deleteReview(last.reviewId);
       setHistory((h) => h.slice(0, -1));
+      // Its answer no longer counts as seeing the word, so its lookalikes aren't held for it.
+      setRecent((r) => {
+        const i = r.map((x) => x.cardId).lastIndexOf(last.before.id);
+        return i < 0 ? r : [...r.slice(0, i), ...r.slice(i + 1)];
+      });
       setStudied((s) => bumpStudied(s, last.deck, last.before.sched.state, -1));
       setCards((prev) => prev && prev.map((c) => (c.id === last.before.id ? last.before : c)));
       setPreferId(last.before.id);
@@ -239,18 +318,64 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
 
   const undoAction = history.length ? <HeaderAction label="Undo" onPress={undo} accessibilityLabel="Undo the last answer" /> : undefined;
 
+  const drillModal = drill ? (
+    <FormsDrill
+      prompts={drill.prompts}
+      backLabel={drill.back}
+      mode={answerMode}
+      onModeChange={(m) => { setAnswerMode(m); repo.saveFormsAnswerMode(m); }}
+      onAnswer={practiced}
+      notice={drill.notice}
+      onClose={() => { setDrill(null); setNow(new Date()); }}
+    />
+  ) : null;
+
   if (!current || !note || (!rendered && !page)) {
     const minutes = waitingFor ? Math.max(1, Math.ceil((waitingFor.getTime() - Date.now()) / 60000) - LEARN_AHEAD_MINUTES) : 0;
+    // Words suggested for forms practice this session and not practiced yet, gathered here, where
+    // a few minutes of practice is an easier yes than in the middle of reviewing.
+    const toCheck = [...suggested.entries()].map(([id, s]) => ({ note: notes.get(id), s })).filter((x): x is { note: Note; s: FormsSuggestion } => !!x.note);
     return (
-      <Screen onBack={onDone} right={undoAction} footer={<Button label="Back to decks" onPress={onDone} />}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
-          <Text style={{ ...type.title, color: c.text, textAlign: 'center' }}>
-            {waitingFor ? 'Nothing due right now' : 'All done for now'}
-          </Text>
-          <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>
-            {waitingFor ? `The next card comes back in about ${minutes} min.` : 'Nothing else is due in this deck today.'}
-          </Text>
-        </View>
+      <Screen
+        onBack={onDone}
+        right={undoAction}
+        footer={
+          <>
+            {toCheck.length ? (
+              <Button
+                label={toCheck.length === 1 ? 'Practice it' : `Practice these ${toCheck.length}`}
+                onPress={() => openDrill(toCheck.map((x) => x.note), SESSION_END_PROMPTS, 'Back to review')}
+              />
+            ) : null}
+            <Button label="Back to decks" variant={toCheck.length ? 'secondary' : 'primary'} onPress={onDone} />
+          </>
+        }
+      >
+        {drillModal}
+        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', gap: space.xl, padding: space.l, width: '100%', maxWidth: 640, alignSelf: 'center' }}>
+          <View style={{ alignItems: 'center', gap: space.s }}>
+            <Text style={{ ...type.title, color: c.text, textAlign: 'center' }}>
+              {waitingFor ? 'Nothing due right now' : 'All done for now'}
+            </Text>
+            <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>
+              {waitingFor ? `The next card comes back in about ${minutes} min.` : 'Nothing else is due in this deck today.'}
+            </Text>
+          </View>
+          {toCheck.length ? (
+            <Box style={{ gap: space.s }}>
+              <Text style={{ ...type.headline, color: c.text }}>
+                {toCheck.length === 1 ? '1 word from today could use a forms check' : `${toCheck.length} words from today could use a forms check`}
+              </Text>
+              <Help>{`About ${toCheck.length === 1 ? 'a minute' : `${toCheck.length} minutes`}. It doesn't change when any card is due.`}</Help>
+              {toCheck.map(({ note: n, s: why }) => (
+                <View key={n.id} style={{ gap: 2, paddingTop: space.s, borderTopWidth: 1, borderTopColor: c.border }}>
+                  <Text style={{ ...type.headline, color: c.text }}>{headword(n)}</Text>
+                  <Text style={{ ...type.footnote, color: c.textSecondary }}>{why.detail}</Text>
+                </View>
+              ))}
+            </Box>
+          ) : null}
+        </ScrollView>
       </Screen>
     );
   }
@@ -287,6 +412,46 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
     <Button label="Show answer" onPress={() => { setRevealed(true); if (rendered?.back.speak) speak(rendered.back.speak); }} />
   );
 
+  // Under the answer: the offer to show the card sooner, and the forms practice suggestion.
+  const lookalike = offer ? notes.get(offer.noteId) : undefined;
+  const extras = revealed && (offer || suggestion) ? (
+    <View style={{ gap: space.m }}>
+      {offer && lookalike && plainIntervals && soonerIntervals ? (
+        <Box>
+          <View style={{ gap: space.xs }}>
+            <Text style={{ ...type.headline, color: c.text }}>
+              {offer.how === 'practice'
+                ? `You practiced ${headword(lookalike)}'s forms ${whenSeen(offer.at, now, DAY_STARTS_AT_HOUR)}`
+                : `You saw ${headword(lookalike)} ${whenSeen(offer.at, now, DAY_STARTS_AT_HOUR)}`}
+            </Text>
+            <Help>
+              {`It looks a lot like ${headword(note)}, so it may have reminded you of this answer. If so, you may not know this word as well as it seemed.`}
+            </Help>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, borderTopWidth: 1, borderTopColor: c.border, paddingTop: space.m }}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={{ ...type.body, color: c.text }}>Show this card again sooner</Text>
+              <Text style={{ ...type.footnote, color: c.textSecondary }}>{`Good brings it back in ${soonerIntervals[3]}, not ${plainIntervals[3]}`}</Text>
+            </View>
+            <Switch value={sooner} onValueChange={setSooner} trackColor={{ true: c.accent }} accessibilityLabel="Show this card again sooner" />
+          </View>
+        </Box>
+      ) : null}
+      {suggestion ? (
+        <Box>
+          <View style={{ gap: space.xs }}>
+            <Text style={{ ...type.headline, color: c.text }}>{suggestion.title}</Text>
+            <Help>{suggestion.detail}</Help>
+          </View>
+          <View style={{ flexDirection: 'row', gap: space.s }}>
+            <Button label="Practice (1 min)" style={{ flex: 1, minHeight: MIN_TAP }} onPress={() => openDrill([note], formsSettings(note.deck, deckSettings).prompts, 'Back to card')} />
+            <Button label="Later today" variant="secondary" style={{ flex: 1, minHeight: MIN_TAP }} onPress={() => setLater((l) => new Set(l).add(note.id))} />
+          </View>
+        </Box>
+      ) : null}
+    </View>
+  ) : null;
+
   return (
     <Screen
       onBack={onDone}
@@ -304,6 +469,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       }
       footer={footer}
     >
+      {drillModal}
       {editingNote ? (
         <NoteEditor
           repo={repo}
@@ -344,7 +510,11 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
               <Side side={rendered.back} which="back" />
             </>
           ) : null}
+          {extras}
         </ScrollView>
+      ) : null}
+      {page && extras ? (
+        <ScrollView style={{ flexGrow: 0, maxHeight: '45%' }} contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.m }}>{extras}</ScrollView>
       ) : null}
     </Screen>
   );

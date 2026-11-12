@@ -28,6 +28,12 @@ CREATE TABLE IF NOT EXISTS deck_params (deck TEXT PRIMARY KEY, params TEXT NOT N
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS note_types (name TEXT PRIMARY KEY, data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS deck_settings (deck TEXT PRIMARY KEY, data TEXT NOT NULL);
+-- Forms practice (src/core/forms.ts): one row per answered prompt. Franki's own, never sent to Anki.
+CREATE TABLE IF NOT EXISTS form_practice (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, note_id TEXT NOT NULL, form_key TEXT NOT NULL,
+  correct INTEGER NOT NULL, practiced_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS form_practice_at ON form_practice(practiced_at);
 -- Each media file's SHA-1 as of the last sync (src/anki/sync/mediaSync.ts). Not in a backup:
 -- a restore clears it, so the next sync checks the restored files again.
 CREATE TABLE IF NOT EXISTS anki_media (name TEXT PRIMARY KEY, sha1 TEXT NOT NULL);
@@ -160,6 +166,7 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     async deleteNote(id) {
       await db.withTransactionAsync(async () => {
         await db.runAsync('DELETE FROM reviews WHERE card_id IN (SELECT id FROM cards WHERE note_id = ?)', id);
+        await db.runAsync('DELETE FROM form_practice WHERE note_id = ?', id);
         await db.runAsync('DELETE FROM cards WHERE note_id = ?', id);
         await db.runAsync('DELETE FROM notes WHERE id = ?', id);
       });
@@ -193,6 +200,27 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async deleteReview(id) {
       await db.runAsync('DELETE FROM reviews WHERE id = ?', id);
+    },
+    async addPractice(p) {
+      await db.runAsync(
+        'INSERT INTO form_practice (note_id, form_key, correct, practiced_at) VALUES (?, ?, ?, ?)',
+        p.noteId, p.key, p.correct ? 1 : 0, p.practicedAt,
+      );
+    },
+    async listPractice(since) {
+      // ISO strings are all UTC, so comparing them as text compares the instants.
+      const rows = await db.getAllAsync<{ note_id: string; form_key: string; correct: number; practiced_at: string }>(
+        'SELECT note_id, form_key, correct, practiced_at FROM form_practice WHERE practiced_at >= ? ORDER BY practiced_at',
+        since ? since.toISOString() : '',
+      );
+      return rows.map((r) => ({ noteId: r.note_id, key: r.form_key, correct: !!r.correct, practicedAt: r.practiced_at }));
+    },
+    async formsAnswerMode() {
+      const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'forms_answer_mode'");
+      return r?.value === 'type' ? 'type' : 'pick';
+    },
+    async saveFormsAnswerMode(mode) {
+      await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('forms_answer_mode', ?)", mode);
     },
     async answerButtons() {
       const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'answer_buttons'");

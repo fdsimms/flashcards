@@ -6,12 +6,14 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from './src/core/config';
 import { deckLimits, deckRows, groupByDeck, type DeckRow } from './src/core/deckTree';
 import { paramsForDeck } from './src/core/scheduler';
+import { heldCards, lookalikeIndex, seenEvents, seenSince } from './src/core/lookalikes';
 import { backupStatus } from './src/db/backup';
 import type { Repo } from './src/db/repo';
 import type { AnkiLink } from './src/db/ankiLink';
 import { openRepo, type BackupStore } from './src/db/sqliteRepo';
 import { Backup } from './src/ui/Backup';
 import { DeckOptions } from './src/ui/DeckOptions';
+import { FormsPractice } from './src/ui/FormsPractice';
 import { DeckList } from './src/ui/DeckList';
 import { AnkiTransfer } from './src/ui/AnkiTransfer';
 import { Review } from './src/ui/Review';
@@ -27,7 +29,7 @@ type Screen =
   | { name: 'decks' } | { name: 'stats' } | { name: 'settings' } | { name: 'browse' }
   // Opened from Settings, or from the deck list (its first-run card and its reminders): back goes there.
   | { name: 'anki'; from: 'decks' | 'settings' } | { name: 'backup'; from: 'decks' | 'settings' } | { name: 'sync'; from: 'decks' | 'settings' }
-  | { name: 'review'; deck: string } | { name: 'deckOptions'; deck: string };
+  | { name: 'review'; deck: string } | { name: 'deckOptions'; deck: string } | { name: 'practice'; deck: string };
 
 export default function App() {
   const c = useTheme();
@@ -46,11 +48,17 @@ export default function App() {
   const refresh = useCallback(async () => {
     if (!repo) return;
     const now = new Date();
-    const [notes, cards, allParams, studiedByDeck, lastBackup, settings] = await Promise.all([
+    const since = seenSince(now, DAY_STARTS_AT_HOUR);
+    const [notes, cards, allParams, studiedByDeck, lastBackup, settings, recent, practice] = await Promise.all([
       repo.listNotes(), repo.listCards(), repo.listDeckParams(), repo.studiedToday(now, DAY_STARTS_AT_HOUR), repo.lastBackupAt(),
-      repo.listDeckSettings(),
+      repo.listDeckSettings(), repo.listReviews(since), repo.listPractice(since),
     ]);
     const deckOf = new Map(notes.map((n) => [n.id, n.deck]));
+    // Lookalikes of words just seen wait, here as in Review, so a deck's counts match what it opens with.
+    const held = heldCards({
+      cards, deckOf, index: lookalikeIndex(notes), settings, now, dayStartsAtHour: DAY_STARTS_AT_HOUR,
+      events: seenEvents(recent, new Map(cards.map((c) => [c.id, c.noteId])), practice),
+    });
     setDecks(deckRows({
       cardsByDeck: groupByDeck(cards, deckOf),
       limitsFor: (d) => deckLimits(paramsForDeck(d, allParams), { newPerDay: NEW_PER_DAY, reviewsPerDay: REVIEWS_PER_DAY }),
@@ -59,6 +67,7 @@ export default function App() {
       dayStartsAtHour: DAY_STARTS_AT_HOUR,
       learnAheadMinutes: LEARN_AHEAD_MINUTES,
       now,
+      held,
     }));
     setBackup(backupStatus(lastBackup, now, cards.length > 0));
     setAnkiUnsent((await repo.ankiStatus()).unsent);
@@ -122,7 +131,10 @@ export default function App() {
       {screen.name === 'backup' && (
         <Backup store={repo} backLabel={screen.from === 'settings' ? 'Settings' : 'Decks'} onDone={() => setScreen(screen.from === 'settings' ? { name: 'settings' } : { name: 'decks' })} />
       )}
-      {screen.name === 'deckOptions' && <DeckOptions repo={repo} deck={screen.deck} onDone={() => setScreen({ name: 'decks' })} />}
+      {screen.name === 'deckOptions' && (
+        <DeckOptions repo={repo} deck={screen.deck} onDone={() => setScreen({ name: 'decks' })} onPractice={() => setScreen({ name: 'practice', deck: screen.deck })} />
+      )}
+      {screen.name === 'practice' && <FormsPractice repo={repo} deck={screen.deck} onDone={() => setScreen({ name: 'deckOptions', deck: screen.deck })} />}
       {screen.name === 'review' && <Review repo={repo} deck={screen.deck} onDone={() => { setScreen({ name: 'decks' }); sync(); }} />}
       <StatusBar style="auto" />
     </SafeAreaProvider>

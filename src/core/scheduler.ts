@@ -37,7 +37,15 @@ function engineFor(params?: DeckParams): Engine {
 
 export type RatingValue = 1 | 2 | 3 | 4;
 
-function toFsrs(s: SchedState): FsrsCard {
+/**
+ * `countFrom`: schedule the answer as if the card had last been reviewed then, rather than at its
+ * real last review. A lookalike seen yesterday reminded you of this card, so FSRS should treat
+ * remembering it today like remembering it a day after a review (a small gain), not like
+ * remembering it after its whole interval. ts-fsrs works out the elapsed time from `last_review`.
+ * Ignored unless it's later than the real last review.
+ */
+function toFsrs(s: SchedState, countFrom?: Date): FsrsCard {
+  const last = s.lastReview ? new Date(s.lastReview) : undefined;
   return {
     due: new Date(s.due),
     stability: s.stability,
@@ -48,7 +56,7 @@ function toFsrs(s: SchedState): FsrsCard {
     reps: s.reps,
     lapses: s.lapses,
     state: s.state,
-    last_review: s.lastReview ? new Date(s.lastReview) : undefined,
+    last_review: countFrom && last && countFrom > last ? countFrom : last,
   };
 }
 
@@ -76,8 +84,8 @@ export interface ReviewResult {
   log: Omit<ReviewLogEntry, 'cardId'>;
 }
 
-export function review(sched: SchedState, rating: RatingValue, now: Date = new Date(), params?: DeckParams): ReviewResult {
-  const { card, log } = engineFor(params).next(toFsrs(sched), now, rating as Grade);
+export function review(sched: SchedState, rating: RatingValue, now: Date = new Date(), params?: DeckParams, countFrom?: Date): ReviewResult {
+  const { card, log } = engineFor(params).next(toFsrs(sched, countFrom), now, rating as Grade);
   return {
     sched: fromFsrs(card),
     log: {
@@ -92,8 +100,8 @@ export function review(sched: SchedState, rating: RatingValue, now: Date = new D
 }
 
 /** Human-readable next interval for each rating, e.g. { 1: '1m', 2: '6m', 3: '10m', 4: '4d' }. */
-export function previewIntervals(sched: SchedState, now: Date = new Date(), params?: DeckParams): Record<RatingValue, string> {
-  const rec = engineFor(params).repeat(toFsrs(sched), now);
+export function previewIntervals(sched: SchedState, now: Date = new Date(), params?: DeckParams, countFrom?: Date): Record<RatingValue, string> {
+  const rec = engineFor(params).repeat(toFsrs(sched, countFrom), now);
   const out = {} as Record<RatingValue, string>;
   for (const r of [Rating.Again, Rating.Hard, Rating.Good, Rating.Easy] as const) {
     out[r as RatingValue] = formatInterval(rec[r].card.due.getTime() - now.getTime());

@@ -1,6 +1,6 @@
 import { isInProgress } from './progress';
 import { buildQueue, isLearning, studiable, type Queue, type StudiedToday } from './queue';
-import type { Card, DeckParams } from './types';
+import type { Card, DeckParams, DeckSettings } from './types';
 
 /**
  * Decks as Anki nests them: "A::B::C" is C inside B inside A. Studying a deck studies its
@@ -74,6 +74,11 @@ export interface TreeQueueInput {
   dayStartsAtHour: number;
   learnAheadMinutes?: number;
   now?: Date;
+  /**
+   * Cards held back today because a lookalike was just seen (`heldCards`, lookalikes.ts). Only New
+   * and Review cards are ever held; learning cards keep their steps.
+   */
+  held?: Set<string>;
 }
 
 const dueMs = (c: Card) => new Date(c.sched.due).getTime();
@@ -124,7 +129,8 @@ function gateBudget(deck: string, input: TreeQueueInput): number | undefined {
 function limitedQueue(deck: string, input: TreeQueueInput, gatedAbove: boolean): Queue {
   const gate = gateBudget(deck, input);
   const underGate = gatedAbove || gate !== undefined;
-  const own = buildQueue(input.cardsByDeck.get(deck) ?? [], { dayStartsAtHour: input.dayStartsAtHour, now: input.now });
+  const mine = input.cardsByDeck.get(deck) ?? [];
+  const own = buildQueue(input.held?.size ? mine.filter((c) => !input.held!.has(c.id)) : mine, { dayStartsAtHour: input.dayStartsAtHour, now: input.now });
   const children = childrenOf(deck, input.cardsByDeck.keys()).map((c) => limitedQueue(c, input, underGate));
   const due = [own.due, ...children.map((c) => c.due)].flat().sort((a, b) => dueMs(a) - dueMs(b));
   const fresh = [own.fresh, ...children.map((c) => c.fresh)].flat();
@@ -192,4 +198,16 @@ export function groupByDeck(cards: Card[], deckOfNote: Map<string, string>): Map
     (out.get(deck) ?? out.set(deck, []).get(deck)!).push(c);
   }
   return out;
+}
+
+/**
+ * A deck setting that its subdecks share: the deck's own, else its nearest ancestor's ("A::B::C"
+ * falls back to "A::B", then "A"), else undefined for the caller's default.
+ */
+export function inheritedSetting<K extends keyof DeckSettings>(deck: string, all: Map<string, DeckSettings>, key: K): DeckSettings[K] | undefined {
+  for (const d of deckLineage(deck).reverse()) {
+    const v = all.get(d)?.[key];
+    if (v !== undefined) return v;
+  }
+  return undefined;
 }
