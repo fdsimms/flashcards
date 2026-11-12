@@ -30,6 +30,7 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
   const [index, setIndex] = useState(0);
   const [answered, setAnswered] = useState<Answered[]>([]);
   const [typed, setTyped] = useState('');
+  const [topHeight, setTopHeight] = useState(0);
   // "In a sentence" is always typed; otherwise the last choice made, on any drill.
   const typeOnly = request.kind === 'pattern' && request.sentence;
   const [mode, setMode] = useState<AnswerMode>('pick');
@@ -140,22 +141,25 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
       >
-        <View
-          accessibilityRole="progressbar"
-          accessibilityLabel="Progress through this practice"
-          accessibilityValue={{ min: 0, max: prompts.length, now: index }}
-          style={{ height: 4, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }}
-        >
-          <View style={{ width: `${(index / prompts.length) * 100}%`, height: 4, borderRadius: 2, backgroundColor: c.accent }} />
+        <View style={{ gap: space.xl }} onLayout={(e) => setTopHeight(e.nativeEvent.layout.height + space.xl)}>
+          <View
+            accessibilityRole="progressbar"
+            accessibilityLabel="Progress through this practice"
+            accessibilityValue={{ min: 0, max: prompts.length, now: index }}
+            style={{ height: 4, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }}
+          >
+            <View style={{ width: `${(index / prompts.length) * 100}%`, height: 4, borderRadius: 2, backgroundColor: c.accent }} />
+          </View>
+          {typeOnly ? null : (
+            <Segments<AnswerMode>
+              options={[{ value: 'pick', label: 'Pick' }, { value: 'type', label: 'Type' }]}
+              value={mode}
+              onChange={switchMode}
+            />
+          )}
         </View>
-        {typeOnly ? null : (
-          <Segments<AnswerMode>
-            options={[{ value: 'pick', label: 'Pick' }, { value: 'type', label: 'Type' }]}
-            value={mode}
-            onChange={switchMode}
-          />
-        )}
-        <View style={{ flex: 1, justifyContent: 'center', gap: space.xl }}>
+        {/* Padded at the bottom by the height of the controls above, so the question sits in the middle of the screen rather than of what's left under them. */}
+        <View style={{ flex: 1, justifyContent: 'center', gap: space.xl, paddingBottom: topHeight }}>
           <Question prompt={prompt} reveal={current ? prompt.answers[0] : undefined} />
           {picking ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
@@ -187,20 +191,17 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
   );
 }
 
-/** The word, what's asked, and the example sentence with a gap where the answer goes. */
+/** The word (the focus), what's asked about it (small, as context), and the example sentence with a gap where the answer goes. */
 function Question({ prompt, reveal }: { prompt: FormPrompt; reveal?: string }) {
   const c = useTheme();
+  const asked = [prompt.group, prompt.label].filter(Boolean).join(' · ');
   return (
     <View style={{ alignItems: 'center', gap: space.s }}>
-      <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
-        {prompt.meaning ? `${prompt.headword} · ${prompt.meaning}` : prompt.headword}
-      </Text>
-      <Text style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>{prompt.label}</Text>
-      {prompt.group ? (
-        <View style={{ paddingHorizontal: space.m, paddingVertical: space.xs, borderRadius: radius.pill, backgroundColor: c.fill }}>
-          <Text style={{ ...type.subhead, color: c.textSecondary }}>{prompt.group}</Text>
-        </View>
-      ) : null}
+      <Text style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>{prompt.headword}</Text>
+      {prompt.meaning ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{prompt.meaning}</Text> : null}
+      <View style={{ paddingHorizontal: space.m, paddingVertical: space.xs, borderRadius: radius.pill, backgroundColor: c.fill }}>
+        <Text style={{ ...type.subhead, color: c.textSecondary }}>{asked}</Text>
+      </View>
       {prompt.sentence ? (
         <View style={{ alignItems: 'center', gap: space.xs, marginTop: space.s }}>
           <Text style={{ ...type.title, fontWeight: '600', color: c.text, textAlign: 'center' }}>
