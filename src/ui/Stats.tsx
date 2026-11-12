@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { studyDayStart } from '../core/day';
 import { cardHomeDeck, isInDeck } from '../core/deckTree';
 import { paramsForDeck } from '../core/scheduler';
-import { answersFrom, computeStats, durationText, MATURE_DAYS, percent, type Answer, type Rate } from '../core/stats';
+import {
+  answerCalendar, answersFrom, calendarStart, computeStats, durationText, intervalGroups, intervalText, MATURE_DAYS, percent,
+  type Answer, type Rate,
+} from '../core/stats';
 import type { Card, DeckParams, Note } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { Card as Box, Chip, Help, Screen } from './kit';
 import { haptic } from './haptics';
+import { AnswerCalendar } from './StatsCalendar';
 import { hairline, space, type, useTheme } from './theme';
 
 /** How many study days the charts cover, back and ahead. */
@@ -19,8 +22,9 @@ const dayLabel = (d: Date) => d.toLocaleDateString(undefined, { weekday: 'short'
 
 /**
  * Study statistics for the whole collection or one top-level deck with its subdecks: today, the
- * next 30 days' reviews, the last 30 days' answers, cards by stage, and retention. The numbers
- * come from src/core/stats.ts; this screen only gathers and shows them.
+ * next 30 days' reviews, the last 30 days' answers, a year's calendar of answers, cards by stage
+ * and by interval, and retention. The numbers come from src/core/stats.ts; this screen only
+ * gathers and shows them.
  */
 export function Stats({ repo }: { repo: Repo & AnkiLink }) {
   const c = useTheme();
@@ -31,9 +35,9 @@ export function Stats({ repo }: { repo: Repo & AnkiLink }) {
     (async () => {
       const now = new Date();
       const { dayStartsAtHour } = await repo.collectionSettings();
-      // A day before the first one shown, so a card first answered then isn't counted new today.
-      const since = studyDayStart(now, dayStartsAtHour);
-      since.setDate(since.getDate() - DAYS);
+      // The calendar's year, which also reaches back past the first day the 30-day charts show,
+      // so a card first answered before then isn't counted new today.
+      const since = calendarStart(now, dayStartsAtHour);
       const [notes, cards, reviews, revlog, params] = await Promise.all([
         repo.listNotes(), repo.listCards(), repo.listReviews(since), repo.ankiReviewLog(since), repo.listDeckParams(),
       ]);
@@ -49,7 +53,12 @@ export function Stats({ repo }: { repo: Repo & AnkiLink }) {
     const cards = scope === null ? data.cards : data.cards.filter((card) => isInDeck(cardHomeDeck(card, deckOf.get(card.noteId) ?? ''), scope));
     const ids = new Set(cards.map((card) => card.id));
     const answers = scope === null ? data.answers : data.answers.filter((a) => ids.has(a.cardId));
-    return computeStats({ cards, answers, now: data.now, dayStartsAtHour: data.dayStartsAtHour, days: DAYS });
+    const { now, dayStartsAtHour } = data;
+    return {
+      ...computeStats({ cards, answers, now, dayStartsAtHour, days: DAYS }),
+      calendar: answerCalendar({ answers, now, dayStartsAtHour }),
+      intervals: intervalGroups(cards),
+    };
   }, [data, scope]);
 
   const target = scope !== null && data ? paramsForDeck(scope, data.params)?.desiredRetention : undefined;
@@ -79,7 +88,7 @@ export function Stats({ repo }: { repo: Repo & AnkiLink }) {
           <Box>
             <Text style={{ ...type.headline, color: c.text }}>Due in the next {DAYS} days</Text>
             <Bars
-              days={stats.forecast.map((d) => ({ start: d.start, value: d.due }))}
+              bars={stats.forecast.map((d) => ({ start: d.start, value: d.due }))}
               describe={(d, i) => [i === 0 ? 'Today' : dayLabel(d.start), `${plural(d.value, 'card', 'cards')} due`]}
               first="Today" last={`In ${DAYS - 1} days`}
             />
@@ -93,12 +102,14 @@ export function Stats({ repo }: { repo: Repo & AnkiLink }) {
           <Box>
             <Text style={{ ...type.headline, color: c.text }}>Answers in the last {DAYS} days</Text>
             <Bars
-              days={stats.past.map((d) => ({ start: d.start, value: d.learn + d.review + d.relearn, takenMs: d.takenMs }))}
+              bars={stats.past.map((d) => ({ start: d.start, value: d.learn + d.review + d.relearn, takenMs: d.takenMs }))}
               describe={(d, i, all) => [i === all - 1 ? 'Today' : dayLabel(d.start), `${plural(d.value, 'answer', 'answers')}${d.takenMs ? `, ${durationText(d.takenMs)}` : ''}`]}
               first={`${DAYS - 1} days ago`} last="Today"
             />
             <Help>{pastSummary(stats.past)}</Help>
           </Box>
+
+          <AnswerCalendar calendar={stats.calendar} />
 
           <Box>
             <Text style={{ ...type.headline, color: c.text }}>Cards</Text>
@@ -107,6 +118,21 @@ export function Stats({ repo }: { repo: Repo & AnkiLink }) {
             <Row label="Young" hint={`Reviews less than ${MATURE_DAYS} days apart`} value={stats.counts.young} />
             <Row label="Mature" hint={`Reviews ${MATURE_DAYS} days or more apart`} value={stats.counts.mature} />
             <Row label="Suspended" value={stats.counts.suspended} />
+          </Box>
+
+          <Box>
+            <Text style={{ ...type.headline, color: c.text }}>Review intervals</Text>
+            <Bars
+              bars={stats.intervals.groups.map((g) => ({ label: g.label, value: g.cards }))}
+              describe={(g) => [g.label, plural(g.value, 'card', 'cards')]}
+              first="1 day" last="Over 2 years" peak="Most cards"
+            />
+            <Help>
+              {stats.intervals.total
+                ? `Cards in review, by the time from their last review to their next. On average ${intervalText(stats.intervals.average)}; `
+                  + `the longest is ${intervalText(stats.intervals.longest)}. Suspended cards aren't counted.`
+                : 'No cards in review yet.'}
+            </Help>
           </Box>
 
           <Box>
@@ -123,10 +149,10 @@ export function Stats({ repo }: { repo: Repo & AnkiLink }) {
   );
 }
 
-/** Under a chart: the day tapped, or else the busiest one. */
-function caption(picked: number | null, peakValue: number, [when, what]: [string, string]): string {
+/** Under a chart: the bar tapped, or else the highest one. */
+function caption(picked: number | null, peakValue: number, [when, what]: [string, string], peak: string): string {
   if (picked !== null) return `${when}: ${what}`;
-  return peakValue === 0 ? 'Nothing yet.' : `Busiest day: ${when} (${what})`;
+  return peakValue === 0 ? 'Nothing yet.' : `${peak}: ${when} (${what})`;
 }
 
 function pastSummary(past: { learn: number; review: number; relearn: number; takenMs: number }[]): string {
@@ -180,31 +206,33 @@ function Rated({ label, rate }: { label: string; rate: Rate }) {
 const CHART_HEIGHT = 120;
 
 /**
- * One value per day as columns from a shared baseline. Tap a column (or move VoiceOver to it)
- * to read its day and value; until then the line under the chart reads the peak.
+ * One value per day (or per group) as columns from a shared baseline. Tap a column (or move
+ * VoiceOver to it) to read its day and value; until then the line under the chart reads the peak.
  */
-function Bars<T extends { start: Date; value: number }>({ days, describe, first, last }: {
-  days: T[];
-  /** The day, and what it holds. */
+function Bars<T extends { value: number }>({ bars, describe, first, last, peak: peakLabel = 'Busiest day' }: {
+  bars: T[];
+  /** The day (or group), and what it holds. */
   describe: (d: T, index: number, count: number) => [when: string, what: string];
   first: string;
   last: string;
+  /** What the line under the chart calls the highest column. */
+  peak?: string;
 }) {
   const c = useTheme();
   const [picked, setPicked] = useState<number | null>(null);
-  const max = Math.max(1, ...days.map((d) => d.value));
-  const peak = days.reduce((best, d, i) => (d.value > days[best].value ? i : best), 0);
+  const max = Math.max(1, ...bars.map((d) => d.value));
+  const peak = bars.reduce((best, d, i) => (d.value > bars[best].value ? i : best), 0);
   const shown = picked ?? peak;
   return (
     <View style={{ gap: space.xs }}>
       <Text style={{ ...type.footnote, color: c.textSecondary }}>{max.toLocaleString()}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: CHART_HEIGHT, gap: 2, borderBottomWidth: hairline, borderColor: c.border }}>
-        {days.map((d, i) => (
+        {bars.map((d, i) => (
           <Pressable
             key={i}
             onPress={() => { haptic.select(); setPicked(i === picked ? null : i); }}
             accessibilityRole="button"
-            accessibilityLabel={describe(d, i, days.length).join(': ')}
+            accessibilityLabel={describe(d, i, bars.length).join(': ')}
             style={{ flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' }}
           >
             {d.value > 0 ? (
@@ -221,7 +249,7 @@ function Bars<T extends { start: Date; value: number }>({ days, describe, first,
         <Text style={{ ...type.caption, color: c.textSecondary }}>{first}</Text>
         <Text style={{ ...type.caption, color: c.textSecondary }}>{last}</Text>
       </View>
-      <Text style={{ ...type.subhead, color: c.text }}>{caption(picked, days[peak].value, describe(days[shown], shown, days.length))}</Text>
+      <Text style={{ ...type.subhead, color: c.text }}>{caption(picked, bars[peak].value, describe(bars[shown], shown, bars.length), peakLabel)}</Text>
     </View>
   );
 }

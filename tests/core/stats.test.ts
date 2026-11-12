@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { answersFrom, computeStats, MATURE_DAYS, percent, type Answer } from '../../src/core/stats';
+import {
+  answerCalendar, answersFrom, CALENDAR_DAYS, calendarStart, computeStats, INTERVAL_GROUPS, intervalGroups, intervalText,
+  MATURE_DAYS, percent, type Answer, type Calendar,
+} from '../../src/core/stats';
 import type { Card, ReviewLogEntry } from '../../src/core/types';
 import { NOW } from '../support/fixtures';
 
@@ -102,5 +105,100 @@ describe('time spent', async () => {
     expect(sp(durationText(12 * 60_000))).toBe('12 min');
     expect(durationText(250 * 60_000)).toBe('4\u00a0h\u00a010\u00a0min');
     expect(sp(durationText(120 * 60_000))).toBe('2 h');
+  });
+});
+
+describe('calendar', () => {
+  const flat = (weeks: Calendar['weeks']) => weeks.flat().filter((d) => d !== null);
+
+  it('lays out a year of study days in weeks from Sunday, ending today', () => {
+    const cal = answerCalendar({ answers: [], now: NOW, dayStartsAtHour: H });
+    const days = flat(cal.weeks);
+    expect(days).toHaveLength(CALENDAR_DAYS);
+    expect(days[0].key).toBe('2025-11-12');
+    expect(days[0].start).toEqual(calendarStart(NOW, H));
+    expect(days.at(-1)!.key).toBe('2026-11-11');
+    expect(cal.weeks.every((w) => w.length === 7)).toBe(true);
+    // 2025-11-12 was a Wednesday, and 2026-11-11 is one too.
+    expect(cal.weeks[0].slice(0, 4).map((d) => d?.key ?? null)).toEqual([null, null, null, '2025-11-12']);
+    expect(cal.weeks.at(-1)!.map((d) => d?.key ?? null)).toEqual(['2026-11-08', '2026-11-09', '2026-11-10', '2026-11-11', null, null, null]);
+    expect(cal).toMatchObject({ days: CALENDAR_DAYS, studied: 0, total: 0, busiest: null });
+  });
+
+  it('counts every answer on its study day, not its calendar day', () => {
+    const answers = [
+      answer('a', new Date(2026, 10, 11, 2), { kind: 'learn' }), // 2 AM: the 10th's study day
+      answer('a', new Date(2026, 10, 11, 9), { kind: 'relearn' }),
+      answer('b', new Date(2026, 10, 11, 10)),
+      answer('c', new Date(2025, 10, 12, 3)), // 3 AM: the day before the first one shown
+      answer('c', new Date(2025, 10, 12, 5)),
+    ];
+    const cal = answerCalendar({ answers, now: NOW, dayStartsAtHour: H });
+    const byKey = new Map(flat(cal.weeks).map((d) => [d.key, d.answers]));
+    expect(byKey.get('2026-11-11')).toBe(2);
+    expect(byKey.get('2026-11-10')).toBe(1);
+    expect(byKey.get('2025-11-12')).toBe(1);
+    expect(cal).toMatchObject({ studied: 3, total: 4 });
+    expect(cal.busiest?.key).toBe('2026-11-11');
+  });
+
+  it('shades a day by its rank among the days studied', () => {
+    const answers: Answer[] = [];
+    // Eight days, with 1 to 8 answers.
+    for (let n = 1; n <= 8; n++) for (let i = 0; i < n; i++) answers.push(answer(`c${n}`, new Date(2026, 10, n, 12)));
+    const cal = answerCalendar({ answers, now: NOW, dayStartsAtHour: H });
+    expect(flat(cal.weeks).filter((d) => d.key >= '2026-11-01').map((d) => d.level)).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 0, 0, 0]);
+  });
+
+  it('draws days that tie at the same shade', () => {
+    const answers = [1, 2, 3].map((d) => answer('a', new Date(2026, 10, d, 12)));
+    const cal = answerCalendar({ answers, now: NOW, dayStartsAtHour: H });
+    expect(flat(cal.weeks).filter((d) => d.answers).map((d) => d.level)).toEqual([4, 4, 4]);
+  });
+});
+
+describe('intervals', () => {
+  it('groups review cards by interval, leaving out the rest', () => {
+    const cards = [
+      ...[1, 2, 3, 4, 6, 7, 13, 20, MATURE_DAYS, 30, 31, 365, 366, 731, 2000].map((d, i) => card(`r${i}`, { state: 2, scheduledDays: d })),
+      card('new'),
+      card('learning', { state: 1, scheduledDays: 0 }),
+      card('relearning', { state: 3, scheduledDays: 0 }),
+      card('suspended', { state: 2, scheduledDays: 5, suspended: true }),
+      card('retired', { state: 2, scheduledDays: 5, retired: true }),
+    ];
+    const out = intervalGroups(cards);
+    expect(out.groups.map((g) => g.label)).toEqual(INTERVAL_GROUPS.map((g) => g.label));
+    expect(Object.fromEntries(out.groups.map((g) => [g.label, g.cards]))).toEqual({
+      '1 day': 1, '2 days': 1, '3 days': 1, '4 to 6 days': 2, '1 to 2 weeks': 2, '2 to 3 weeks': 1,
+      '3 weeks to a month': 2, '1 to 2 months': 1, '2 to 3 months': 0, '3 to 6 months': 0,
+      '6 months to a year': 1, '1 to 2 years': 1, 'Over 2 years': 2,
+    });
+    expect(out.total).toBe(15);
+    expect(out.longest).toBe(2000);
+  });
+
+  it('agrees with the young and mature counts', () => {
+    const cards = [3, 20, MATURE_DAYS, 100].map((d, i) => card(`r${i}`, { state: 2, scheduledDays: d }));
+    const { counts } = computeStats({ cards, answers: [], now: NOW, dayStartsAtHour: H, days: 7 });
+    const out = intervalGroups(cards);
+    const matureFrom = INTERVAL_GROUPS.findIndex((g) => g.max >= MATURE_DAYS);
+    expect(out.groups.slice(0, matureFrom).reduce((n, g) => n + g.cards, 0)).toBe(counts.young);
+    expect(out.groups.slice(matureFrom).reduce((n, g) => n + g.cards, 0)).toBe(counts.mature);
+    expect(out.average).toBe((3 + 20 + MATURE_DAYS + 100) / 4);
+  });
+
+  it('has nothing to average with no review cards', () => {
+    expect(intervalGroups([card('new')])).toMatchObject({ total: 0, average: 0, longest: 0 });
+  });
+
+  it('says an interval as people do', () => {
+    expect(intervalText(1)).toBe('1 day');
+    expect(intervalText(12.4)).toBe('12 days');
+    expect(intervalText(30)).toBe('30 days');
+    expect(intervalText(31)).toBe('1 month');
+    expect(intervalText(95)).toBe('3 months');
+    expect(intervalText(365)).toBe('1 year');
+    expect(intervalText(548)).toBe('1.5 years');
   });
 });

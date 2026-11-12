@@ -52,7 +52,7 @@ Changes to an Anki note go into your Anki collection as Anki would make them, so
 
 ## Stats
 
-**Stats** (in Settings) shows today's answers, time spent, new cards and Agains; what comes due over the next 30 days; answers over the last 30; cards by stage (new, learning, young, mature, suspended); and how often reviews were remembered, against the deck's desired retention. Pick a top-level deck at the top, or all of them. It counts your whole history from Anki, not just answers given in Franki. Tap a bar to see that day.
+**Stats** (in Settings) shows today's answers, time spent, new cards and Agains; what comes due over the next 30 days; answers over the last 30; a calendar of the last year's answers, a square per study day, darker for more (like Anki's Calendar); cards by stage (new, learning, young, mature, suspended); review cards by interval, from a day to over two years (like Anki's Card Intervals); and how often reviews were remembered, against the deck's desired retention. Pick a top-level deck at the top, or all of them. It counts your whole history from Anki, not just answers given in Franki. Tap a bar or a square to see its count.
 
 ## Backing up
 
