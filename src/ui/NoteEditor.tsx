@@ -1,5 +1,6 @@
+import { Stack, usePreventRemove } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Modal, ScrollView, Text, View, type TextInputInstance } from 'react-native';
+import { Alert, ScrollView, Text, View, type TextInputInstance } from 'react-native';
 import { cardsFor, deleteNote, NoteRefused, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { cardStateOf, FLAG_NAMES, type CardState } from '../core/cardState';
 import type { AnkiLink } from '../db/ankiLink';
@@ -7,23 +8,26 @@ import { isOmnilanguage } from '../core/cards';
 import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, type Selection } from '../core/formatting';
 import { duplicateOf, editTextToField, fieldToEditText, parseTags } from '../core/noteEditing';
 import type { Note, NoteType } from '../core/types';
-import { Button, Card, Chip, Field, Help, HeaderAction, Screen, Select } from './kit';
+import type { NoteEditorResult } from './AppContext';
+import { Button, Card, Chip, Field, Help, Screen, Select } from './kit';
 import { space, type, useTheme } from './theme';
 
 const OMNI_CARD_NAMES: Record<string, string> = { forward: 'Front', reverse: 'Reverse', audio: 'Audio' };
 const MARK_LABELS: Record<Mark, string> = { b: 'Bold', i: 'Italic', u: 'Underline' };
 
 /**
- * Adding or editing a note, full screen over whatever opened it (Review, Browse), so that screen
+ * Adding or editing a note, as a sheet over whatever opened it (Review, Browse), so that screen
  * keeps its place. Saving goes through the note service, which also writes the change into the
- * Anki collection; Delete removes the note there too.
+ * Anki collection; Delete removes the note there too. With changes made, leaving any way (Cancel
+ * or a swipe down) asks first.
  */
 export function NoteEditor(props: {
   repo: NoteStore & Pick<AnkiLink, 'setAnkiCardStates'>;
   /** Edit this note, or add one (starting in `deck`). */
   target: { noteId: string } | { deck: string | null };
-  /** `cardsChanged`: a card was unsuspended, unburied or unflagged here, though the note wasn't saved. */
-  onClose: (result?: { saved: Note } | { deleted: string } | { cardsChanged: true }) => void;
+  onClose: (result?: NoteEditorResult) => void;
+  /** A card was unsuspended, unburied or unflagged here, which stands whether or not the note is saved. */
+  onCardsChanged?: () => void;
 }) {
   const c = useTheme();
   const [notes, setNotes] = useState<Note[]>([]);
@@ -38,8 +42,6 @@ export function NoteEditor(props: {
   // The note's cards, for undoing a suspend, bury or flag set while studying.
   const [noteCardList, setNoteCardList] = useState<CardRow[]>([]);
   const [dayStartsAtHour, setDayStartsAtHour] = useState(4);
-  const cardsChanged = useRef(false);
-  const close = () => props.onClose(cardsChanged.current ? { cardsChanged: true } : undefined);
   const editing = 'noteId' in props.target;
   // The field being typed in, its selection, and each field's input, for the formatting buttons.
   const [focused, setFocused] = useState<string | null>(null);
@@ -113,6 +115,7 @@ export function NoteEditor(props: {
     setError(undefined);
     try {
       const saved = await saveNote(props.repo, { id: original?.id, deck, model, fields: stored, tags: parseTags(tags) });
+      stopAsking();
       props.onClose({ saved });
     } catch (e) {
       setError(e instanceof NoteRefused ? e.message : `Couldn't save the note. ${e instanceof Error ? e.message : String(e)}`);
@@ -121,13 +124,15 @@ export function NoteEditor(props: {
     }
   };
 
-  const cancel = () => {
-    if (!changed) { close(); return; }
+  // Leaving with changes asks first, whether by Cancel or by swiping the sheet down. Saving and
+  // deleting turn the question off (`stopAsking`) before they close it themselves.
+  const stopAsking = usePreventRemove(changed, ({ repeat }) => {
     Alert.alert('Discard changes?', "If you leave now, they'll be lost.", [
       { text: 'Keep editing', style: 'cancel' },
-      { text: 'Discard', style: 'destructive', onPress: close },
+      { text: 'Discard', style: 'destructive', onPress: repeat },
     ]);
-  };
+  });
+  const cancel = () => props.onClose();
 
   const remove = () => {
     if (!original) return;
@@ -141,6 +146,7 @@ export function NoteEditor(props: {
             setBusy(true);
             try {
               await deleteNote(props.repo, original.id);
+              stopAsking();
               props.onClose({ deleted: original.id });
             } catch (e) {
               setError(`Couldn't delete the note. ${e instanceof Error ? e.message : String(e)}`);
@@ -153,15 +159,22 @@ export function NoteEditor(props: {
   };
 
   return (
-    <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={cancel}>
-      <Screen
-        onBack={cancel}
-        backLabel="Cancel"
-        noBackChevron
-        title={editing ? 'Edit note' : 'Add note'}
-        right={<HeaderAction label={busy ? 'Saving…' : 'Save'} onPress={save} accessibilityLabel="Save the note" />}
-      >
-        <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+    <Screen
+      title={editing ? 'Edit note' : 'Add note'}
+      largeTitle={false}
+      lockGesture={changed}
+      toolbar={
+        <>
+          <Stack.Toolbar placement="left">
+            <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={cancel}>Cancel</Stack.Toolbar.Button>
+          </Stack.Toolbar>
+          <Stack.Toolbar placement="right">
+            <Stack.Toolbar.Button accessibilityLabel="Save the note" disabled={busy} onPress={save}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button>
+          </Stack.Toolbar>
+        </>
+      }
+    >
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
           <Card>
             <Select label="Deck" options={decks} value={deck} onChange={(d) => { setDeck(d); setError(undefined); }} />
             {editing ? (
@@ -220,7 +233,7 @@ export function NoteEditor(props: {
               dayStartsAtHour={dayStartsAtHour}
               onChange={async (card, change) => {
                 const { cards, ankiError } = await setCardStates(props.repo, [card], change, new Date(), dayStartsAtHour);
-                cardsChanged.current = true;
+                props.onCardsChanged?.();
                 setNoteCardList((list) => list.map((x) => (x.id === card.id ? cards[0] : x)));
                 if (ankiError) setError(`Changed in Franki, but it won't reach Anki. ${(ankiError as any)?.message ?? ankiError}`);
               }}
@@ -228,8 +241,7 @@ export function NoteEditor(props: {
           ) : null}
           {editing ? <Button label="Delete note" variant="destructive" onPress={remove} disabled={busy} /> : null}
         </ScrollView>
-      </Screen>
-    </Modal>
+    </Screen>
   );
 }
 

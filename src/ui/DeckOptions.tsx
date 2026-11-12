@@ -1,3 +1,4 @@
+import { usePreventRemove } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { DEFAULT_GATE_CAP } from '../core/config';
@@ -10,7 +11,7 @@ import { Card, Help, Screen } from './kit';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
 
 /** Settings made in the app for one deck: so far, the progress gate. */
-export function DeckOptions({ repo, deck, onDone }: { repo: Repo; deck: string; onDone: () => void }) {
+export function DeckOptions({ repo, deck }: { repo: Repo; deck: string }) {
   const c = useTheme();
   const [settings, setSettings] = useState<DeckSettings | null>(null);
   const [capText, setCapText] = useState('');
@@ -52,18 +53,22 @@ export function DeckOptions({ repo, deck, onDone }: { repo: Repo; deck: string; 
     if (parsed.cap !== settings.gateCap) save({ ...settings, gateCap: parsed.cap });
   };
 
-  // A cap that can't be used keeps the screen open with its reason, rather than being dropped.
-  const back = () => {
-    if (settings?.gateCap !== undefined && 'error' in parseGateCap(capText)) { commitCap(); return; }
-    commitCap();
-    saving.current.then(onDone);
-  };
+  // Leaving with a cap still being typed saves it first, once the save has landed so the deck list
+  // reads it. A cap that can't be used keeps the screen open with its reason, rather than being dropped.
+  const typing = settings?.gateCap !== undefined && capText !== String(settings.gateCap);
+  usePreventRemove(typing, ({ repeat }) => {
+    const parsed = parseGateCap(capText);
+    if ('error' in parsed) { setError(parsed.error); return; }
+    setError(undefined);
+    if (settings) save({ ...settings, gateCap: parsed.cap });
+    saving.current.then(repeat);
+  });
 
   const on = settings?.gateCap !== undefined;
   const name = deck.split('::').pop();
   return (
-    <Screen onBack={back} title={name}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+    <Screen title={name}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
             <Text style={{ ...type.headline, color: c.text, flex: 1 }}>Limit cards in progress</Text>

@@ -24,12 +24,10 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
  * with Franki's answers written into it. With sync on, sending a file back is hidden: it would
  * replace AnkiMobile's collection behind the server's back.
  */
-export function AnkiTransfer({ repo, syncOn, onSyncSettings, onDone, backLabel }: {
+export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
   repo: Repo & BackupStore & AnkiLink;
   syncOn: boolean;
   onSyncSettings: () => void;
-  onDone: () => void;
-  backLabel?: string;
 }) {
   const c = useTheme();
   const [log, setLog] = useState<string[]>([]);
@@ -145,8 +143,8 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings, onDone, backLabel }
 
   const sentLine = status?.lastSentAt ? ` Last sent ${new Date(status.lastSentAt).toLocaleDateString()}.` : '';
   return (
-    <Screen onBack={onDone} backLabel={backLabel} title="Anki">
-      <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+    <Screen title="Anki">
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Sync with your Anki server</Text>
           <Help>

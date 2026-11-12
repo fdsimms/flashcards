@@ -24,8 +24,9 @@ There is no lint config. Run `npm run verify` before declaring any task done.
 
 ## Navigation & Routing
 
-- There is no router yet: `App.tsx` switches between its screens (decks, review, Anki, sync, stats, settings, browse, backup, deck options, and Read & Listen's topics, reader, past texts, marked words, grammar and settings; the note editor opens over Review and Browse as a modal) with a `Screen` union. Don't assume `src/app/` routes exist.
-- If navigation outgrows that (stack history, deep links, tabs), **Expo Router** is the one to adopt, with routes in `src/app/` and non-route code outside it. Docs: https://docs.expo.dev/router/introduction.md
+- Navigation is **Expo Router** (a native stack): `src/app/_layout.tsx` is the root, and each route file in `src/app/` is a thin wrapper (Read & Listen's screens included) that hands one screen from `src/ui` its props (`router.push`, `useLocalSearchParams` for a deck's name). The note editor is the `note-editor` route, presented as a modal. Code that isn't a route stays outside `src/app/`. Docs: https://docs.expo.dev/router/introduction.md
+- The back button, large title, search bar and header buttons are the stack's native ones: a screen sets them through `Screen` in `src/ui/kit.tsx` (`title`, `toolbar` with `Stack.Toolbar`), never by drawing its own header.
+- The state screens share (the open repo, the deck list's rows, sync) lives in `src/ui/AppContext.tsx`, above the router.
 
 ## Building with EAS
 

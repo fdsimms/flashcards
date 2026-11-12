@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { deckLimits, deckLineage, deckRows, deckTree, isInDeck, shownDeckRows, treeQueue, type TreeQueueInput } from '../../src/core/deckTree';
+import { deckLimits, deckLineage, deckListTotals, deckRows, deckTree, isInDeck, shownDeckRows, treeQueue, type TreeQueueInput } from '../../src/core/deckTree';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -230,5 +230,20 @@ describe('collapsed decks on the deck list', () => {
 
   it("ignores a collapsed flag on a deck with no subdecks to hide", () => {
     expect(shown(['E', 'A::D'])).toEqual(['A-', 'A::B-', 'A::B::C', 'A::D', 'E']);
+  });
+});
+
+describe('deckListTotals', () => {
+  it('sums the top-level decks, which already count their subdecks', () => {
+    const rows = deckRows(input({
+      'Languages::Thai': newCards(2),
+      'Languages::Polski': reviewCards(3, 10),
+      Trivia: newCards(4),
+    }));
+    // Languages' row is 3 due and 2 new, and its two subdeck rows repeat those: only top rows count.
+    expect(deckListTotals(rows)).toEqual({ due: 3, fresh: 6 });
+  });
+  it('is zero for no decks', () => {
+    expect(deckListTotals([])).toEqual({ due: 0, fresh: 0 });
   });
 });

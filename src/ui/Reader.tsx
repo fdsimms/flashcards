@@ -1,4 +1,5 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { usePreventRemove } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -202,13 +203,16 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
 
   // Finishing a text (Done) logs it once, which also takes it off the ready queue. Backing out
   // before Done logs nothing, so the same text is waiting next time instead of a new one.
-  const finish = async (then: 'next' | 'back') => {
+  const finish = async (then: 'next' | 'back', leaveWith?: () => void) => {
+    // How the screen is left: the router's own continuation when the swipe or Back button asked
+    // (it also turns the guard off), else turning the guard off and going back.
+    const leave = leaveWith ?? (() => { stopGuarding(); onDone(); });
     player.pause();
     if (leaving) {
       // Back while Next text is still logging: drop the load that would follow it.
       if (then === 'back') {
         loadId.current++;
-        onDone();
+        leave();
       }
       return;
     }
@@ -228,8 +232,13 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
     }
     if (!mounted.current) return;
     if (then === 'next') load();
-    else onDone();
+    else leave();
   };
+
+  // A finished text is logged before the screen goes, however it goes: the Back button, the swipe,
+  // or Back to topics. Without this a swipe skipped the log and the text stayed queued.
+  const needsLog = !!text && !!session && (ended || session.listenOnly) && !review && !logged.current;
+  const stopGuarding = usePreventRemove(needsLog || leaving, ({ repeat }) => { finish('back', repeat); });
 
   const tap = (word: Word, x: number, y: number) => {
     if (!session) return;
@@ -262,8 +271,7 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
 
   return (
     <Screen
-      onBack={() => finish('back')}
-      backLabel={review ? 'Past texts' : 'Read & Listen'}
+      largeTitle={false}
       footer={text && !ended ? (
         hasAudio ? (
           <PlayerBar playing={status.playing} current={current} total={text.lines.length} what={text.form === 'story' ? 'story' : 'dialogue'}

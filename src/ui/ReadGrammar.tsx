@@ -16,7 +16,7 @@ const STATES: { value: GrammarState; label: string }[] = [
   { value: 'avoid', label: 'Avoid' },
 ];
 
-export function ReadGrammar({ api, onDone }: { api: Api; onDone: () => void }) {
+export function ReadGrammar({ api }: { api: Api }) {
   const c = useTheme();
   const [points, setPoints] = useState<GrammarPoint[] | null>(null);
   const [maxPractice, setMaxPractice] = useState(2);
@@ -47,8 +47,8 @@ export function ReadGrammar({ api, onDone }: { api: Api; onDone: () => void }) {
   };
 
   return (
-    <Screen onBack={onDone} backLabel="Read & Listen" title="Grammar">
-      <ScrollView contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+    <Screen title="Grammar">
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         <Help>
           {`Practice: used at least twice in every text, at most ${maxPractice} at a time. Avoid: left out, for grammar you haven't learned yet. Applies from the next text written.`}
         </Help>
