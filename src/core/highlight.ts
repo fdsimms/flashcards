@@ -1,3 +1,5 @@
+import { htmlToText } from './html';
+
 /** A piece of a line of text, and whether it is the word being highlighted. */
 export interface Segment {
   text: string;
@@ -36,4 +38,34 @@ export function markSegments(text: string, target: string): Segment[] {
     }
   }
   return [{ text, marked: false }];
+}
+
+// Stand-ins for a bold span's ends while the rest of the field's HTML is turned into text.
+const OPEN = '\u0001';
+const CLOSE = '\u0002';
+
+/**
+ * An example sentence's field split for highlighting. Words the note marks in bold (`<b>` or
+ * `<strong>`) are the highlight, so an inflected form ("Einstellungen" for "die Einstellung") or
+ * a split verb ("warf … ab") is picked out exactly as written. A field with nothing in bold falls
+ * back to finding `target` in it (`markSegments`).
+ */
+export function fieldSegments(html: string | undefined, target: string): Segment[] {
+  const tagged = (html ?? '')
+    .replace(/<\s*(b|strong)(\s[^>]*)?>/gi, OPEN)
+    .replace(/<\s*\/\s*(b|strong)\s*>/gi, CLOSE);
+  const text = htmlToText(tagged);
+  if (!text.includes(OPEN)) return markSegments(text, target);
+  const out: Segment[] = [];
+  let marked = false;
+  for (const piece of text.split(/([\u0001\u0002])/)) {
+    if (piece === OPEN) marked = true;
+    else if (piece === CLOSE) marked = false;
+    else if (piece) {
+      const last = out[out.length - 1];
+      if (last && last.marked === marked) last.text += piece;
+      else out.push({ text: piece, marked });
+    }
+  }
+  return out;
 }
