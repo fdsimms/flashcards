@@ -5,7 +5,15 @@ import asyncio
 import httpx
 import pytest
 
-from franki_speech import OUTPUT_FORMAT, THAI_PAUSE, SpeechClient, SpeechError, locale_of, ssml
+from franki_speech import (
+    OUTPUT_FORMAT,
+    THAI_PAUSE,
+    THAI_PRONUNCIATIONS,
+    SpeechClient,
+    SpeechError,
+    locale_of,
+    ssml,
+)
 
 VOICE = "th-TH-NiwatNeural"
 
@@ -25,8 +33,13 @@ def test_ssml_pauses_at_a_thai_clause_break() -> None:
 
 def test_ssml_respells_a_thai_word_the_voice_misreads() -> None:
     out = ssml("มะม่วงราคาห้าสิบบาทค่ะ", VOICE)
-    assert "<sub alias='มะ ม่วง'>มะม่วง</sub>ราคา" in out
+    assert "<sub alias='มะ\u200bม่วง'>มะม่วง</sub>ราคา" in out
     assert "<sub" not in ssml("มะม่วง", "es-MX-JorgeNeural")
+
+
+def test_a_thai_respelling_has_no_space_the_voice_would_pause_at() -> None:
+    for alias in THAI_PRONUNCIATIONS.values():
+        assert not any(c.isspace() and c != "\u200b" for c in alias)
 
 
 def test_ssml_sets_the_speed() -> None:
@@ -38,12 +51,19 @@ def test_a_name_that_isnt_a_voice_says_so() -> None:
         locale_of("Niwat")
 
 
+async def no_sleep(seconds: float) -> None:
+    waits.append(seconds)
+
+
+waits: list[float] = []
+
+
 def run(handler: httpx.MockTransport, text: str = "สวัสดีครับ") -> bytes:
     async def go() -> bytes:
         async with httpx.AsyncClient(transport=handler) as http:
-            return await SpeechClient("k", "eastus", http=http, user_agent="test").synthesize(
-                text, VOICE
-            )
+            return await SpeechClient(
+                "k", "eastus", http=http, user_agent="test", sleep=no_sleep
+            ).synthesize(text, VOICE)
 
     return asyncio.run(go())
 
@@ -90,3 +110,25 @@ def test_a_network_error_says_azure_couldnt_be_reached() -> None:
 
     with pytest.raises(SpeechError, match="Couldn't reach Azure"):
         run(httpx.MockTransport(handler))
+
+
+def test_a_rate_limit_is_retried_after_retry_after_then_succeeds() -> None:
+    waits.clear()
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls < 3:
+            return httpx.Response(429, headers={"Retry-After": "3"})
+        return httpx.Response(200, content=b"ID3mp3")
+
+    assert run(httpx.MockTransport(handler)) == b"ID3mp3"
+    assert calls == 3 and waits == [3.0, 3.0]
+
+
+def test_a_rate_limit_that_never_clears_gives_up_with_the_message() -> None:
+    waits.clear()
+    with pytest.raises(SpeechError, match="limiting requests"):
+        run(httpx.MockTransport(lambda r: httpx.Response(429)))
+    assert waits == [2.0, 4.0, 6.0]

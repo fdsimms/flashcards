@@ -106,6 +106,19 @@ class Checker(Protocol):
         ...
 
 
+# Dictionary entries newmm reads in place of "a letter, then this particle" (กว่า for ก + ว่า, and the
+# rare words นคะ, มสิ, วจะ, มมาก). The key's first letter belongs to the word before it.
+_GLUED = {
+    "กว่า": "ว่า",
+    "นคะ": "คะ",
+    "ภคะ": "คะ",
+    "มสิ": "สิ",
+    "อสิ": "สิ",
+    "วจะ": "จะ",
+    "มมาก": "มาก",
+}
+
+
 class Lexicon:
     """Thai: the deck's entries are the dictionary, and only they count as known."""
 
@@ -133,7 +146,23 @@ class Lexicon:
 
     def segment(self, text: str) -> list[str]:
         tokens = list(word_tokenize(text, custom_dict=self._segmenter, engine="newmm"))
-        return _fix_ties(tokens)
+        return self._fix_ties(tokens)
+
+    def _fix_ties(self, tokens: list[str]) -> list[str]:
+        """newmm prefers the fewest words and breaks a tie toward the shorter first word, so
+        บอกว่า (said that) comes out as บอ + กว่า and ไหนคะ as ไห + นคะ. Both splits are two words.
+        When a token in _GLUED is the first letter of a word glued to a common particle, and the
+        word before it plus that letter is itself a word, take that reading. A genuine X + กว่า
+        with Xก also a word (ปีกว่า, just over a year) loses, which is the rarer case."""
+        out: list[str] = []
+        for token in tokens:
+            particle = _GLUED.get(token)
+            if particle and out and out[-1] + token[0] in self._segmenter:
+                out[-1] += token[0]
+                out.append(particle)
+            else:
+                out.append(token)
+        return out
 
     def status(self, token: str) -> Status:
         if token in self.known or _is_number(token):
@@ -157,25 +186,6 @@ class Lexicon:
 
     def entry_of(self, token: str) -> str | None:
         return token if token in self.known else None
-
-
-# newmm prefers the fewest words and breaks a tie toward the shorter first word, so อีกว่า (again,
-# that...) comes out as อี + กว่า. Both splits are two words; this one is always the wrong one.
-_TIES = {("อี", "กว่า"): ("อีก", "ว่า")}
-
-
-def _fix_ties(tokens: list[str]) -> list[str]:
-    out: list[str] = []
-    i = 0
-    while i < len(tokens):
-        pair = tuple(tokens[i : i + 2])
-        if pair in _TIES:
-            out.extend(_TIES[pair])
-            i += 2
-        else:
-            out.append(tokens[i])
-            i += 1
-    return out
 
 
 def _join(text: str, spaced: bool) -> str:

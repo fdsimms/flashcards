@@ -205,7 +205,7 @@ export function DeckList(props: {
           {props.sync ? (
             <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={props.sync.syncing} accessibilityLabel={props.sync.syncing ? 'Syncing' : 'Sync now'} onPress={props.sync.onSync} />
           ) : null}
-          <Stack.Toolbar.Button icon="folder.badge.plus" accessibilityLabel="New deck" onPress={props.onNewDeck} />
+          <Stack.Toolbar.Button icon="rectangle.stack.badge.plus" accessibilityLabel="New deck" onPress={props.onNewDeck} />
           <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} />
           <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={props.onSettings} />
         </Stack.Toolbar>

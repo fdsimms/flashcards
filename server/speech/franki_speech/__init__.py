@@ -14,7 +14,9 @@ needs another host.
 
 from __future__ import annotations
 
+import asyncio
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 from xml.sax.saxutils import escape
@@ -23,6 +25,10 @@ import httpx
 
 OUTPUT_FORMAT = "audio-24khz-48kbitrate-mono-mp3"
 TIMEOUT_SECONDS = 30.0
+# Azure answers 429 when requests come too fast (a burst of re-recorded lines, or tapping through
+# voices). A request is retried this many times, after Retry-After seconds (capped) or a growing wait.
+RATE_LIMIT_RETRIES = 3
+MAX_RETRY_WAIT = 10.0
 LOCALE = re.compile(r"^([a-z]{2,3}-[A-Z]{2})-")
 # Thai has no commas or periods: a space after Thai text (or its ? or !) and before more Thai ends a
 # clause or sentence. Each becomes an explicit pause, since a voice may run straight through a bare
@@ -33,9 +39,11 @@ _THAI_BREAK = re.compile(r"(?<=[\u0e00-\u0e7f?!])\s+(?=[\u0e00-\u0e7f])")
 # Thai words Azure's voices misread, each with a respelling it reads correctly, spoken in the word's
 # place with SSML's <sub alias>. Add a word here when a recording gets it wrong. The respellings are
 # unverified against a live key: listen to the re-recorded line and adjust the alias if it's still off.
+# Never put a space in an alias: in Thai the voice reads a space as the end of a clause and pauses
+# (the "long gap" in มะ ม่วง). Split a word with a zero-width space, Thai's invisible word boundary.
 THAI_PRONUNCIATIONS = {
     # Was read "ma mor" instead of "ma muang".
-    "มะม่วง": "มะ ม่วง",
+    "มะม่วง": "มะ\u200bม่วง",
 }
 
 __all__ = [
@@ -65,6 +73,8 @@ class SpeechClient:
     user_agent: str = "franki"
     # What a refused request (usually a wrong voice name) tells the caller to check.
     voice_help: str = "Check the voice name."
+    # Waits between rate-limit retries; tests pass a no-op.
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep
     _voices: list[dict[str, Any]] | None = None
 
     @property
@@ -108,10 +118,14 @@ class SpeechClient:
         return r.content
 
     async def _send(self, method: str, path: str, **kw: Any) -> httpx.Response:
-        try:
-            r = await self.http.request(method, self.base + path, timeout=TIMEOUT_SECONDS, **kw)
-        except httpx.HTTPError as e:
-            raise SpeechError(f"Couldn't reach Azure Speech at {self.base}: {e}") from e
+        for attempt in range(RATE_LIMIT_RETRIES + 1):
+            try:
+                r = await self.http.request(method, self.base + path, timeout=TIMEOUT_SECONDS, **kw)
+            except httpx.HTTPError as e:
+                raise SpeechError(f"Couldn't reach Azure Speech at {self.base}: {e}") from e
+            if r.status_code != 429 or attempt == RATE_LIMIT_RETRIES:
+                break
+            await self.sleep(_retry_wait(r, attempt))
         if r.status_code in (401, 403):
             raise SpeechError(
                 "Azure Speech refused the key. Check AZURE_SPEECH_KEY and AZURE_SPEECH_REGION in server/.env."
@@ -123,6 +137,14 @@ class SpeechClient:
         if r.status_code >= 300:
             raise SpeechError(f"Azure Speech answered {r.status_code}: {r.text[:200]}")
         return r
+
+
+def _retry_wait(r: httpx.Response, attempt: int) -> float:
+    try:
+        asked = float(r.headers["Retry-After"])
+    except (KeyError, ValueError):
+        asked = 2.0 * (attempt + 1)
+    return min(max(asked, 0.0), MAX_RETRY_WAIT)
 
 
 def locale_of(voice: str) -> str:

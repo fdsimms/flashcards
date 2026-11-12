@@ -1,10 +1,10 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { usePreventRemove } from 'expo-router';
+import { Stack, usePreventRemove } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ApiError, type Api, type GrammarChoice, type Length, type PastText, type Rating, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
+import { ApiError, type Api, type GrammarChoice, type Language, type Length, type PastText, type Rating, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../reader/deckWords';
 import { scrollTarget, type Box } from '../reader/follow';
 import { THAI_FONTS, THAI_FONT_LABELS, readFont, type ReadFont, type ThaiFont } from '../reader/fonts';
@@ -25,12 +25,15 @@ import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './the
  * The reader: a text split into words by the server, a gloss on tap, audio line by line, and a
  * rating at the end (docs/read-and-listen/architecture.md, Client). Nothing here answers a card.
  *
- * Layout: the title, practice words, the Show English, highlight and Thai letters controls, the lines (each with
+ * Layout: the title, practice words, the lines (each with
  * its own replay button, an EN button that shows that line's English alone, and an explain button
  * that opens Claude's note on its grammar and vocabulary under it), then Done, with
  * the player pinned under the scroll view. Done swaps the lines for the end view (rating, stats,
  * words marked unknown). The gloss popover is a transparent Modal, so a tap's page coordinates
  * place it directly.
+ *
+ * Reading options (Show English, Paragraphs, highlight, Thai letters) are one header menu, so the text
+ * starts right under the practice words.
  *
  * From the shelf: a text already written opens straight away, and the end view steers the next
  * ones (length, more or fewer like this) and offers the next text on the shelf. Play all plays the
@@ -46,7 +49,7 @@ import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './the
  *
  * A story written with paragraph marks reads as continuous text (`paragraphs`): a gap between
  * paragraphs, no per-line rows or buttons, the playing line shaded, and previous/next line in the
- * player. English then comes only from Show English. The Paragraphs switch (shown only for such a
+ * player. English then comes only from Show English. The Paragraphs option (shown only for such a
  * story, kept in prefs) turns it off for a row per line, as for every other text.
  *
  * Audio: one player is reused for every line. Play runs the text from the current line to the end
@@ -81,9 +84,11 @@ export type ReaderSource =
 
 type UpNext = { id: number; title: string; lines: number; order: number[] };
 
-export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
+export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, onDone }: {
   api: Api;
   source: ReaderSource;
+  /** Plays a tapped word: its deck recording, else the phone's voice (useWordAudio). */
+  onPlayWord: (word: string, language: Language) => void;
   /** Read & Listen's settings, for the length new texts are written at; null until loaded. */
   settings: Settings | null;
   onSettings: (settings: Settings) => void;
@@ -437,6 +442,25 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
   return (
     <Screen
       largeTitle={false}
+      toolbar={text && !ended && !listenOnly ? (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Menu icon="slider.horizontal.3" accessibilityLabel="Reading options">
+            <Stack.Toolbar.MenuAction isOn={english} onPress={() => setEnglish(!english)}>Show English</Stack.Toolbar.MenuAction>
+            {marked ? (
+              <Stack.Toolbar.MenuAction isOn={paragraphMode} onPress={() => turnOnParagraphs(!paragraphMode)}>Paragraphs</Stack.Toolbar.MenuAction>
+            ) : null}
+            <Stack.Toolbar.MenuAction isOn={highlight} onPress={() => turnOnHighlight(!highlight)}>{language.highlightLabel}</Stack.Toolbar.MenuAction>
+            <Stack.Toolbar.MenuAction isOn={markNames} onPress={() => turnOnMarkNames(!markNames)}>Mark names</Stack.Toolbar.MenuAction>
+            {text.language === 'th' || text.language === undefined ? (
+              <Stack.Toolbar.Menu inline title="Thai letters">
+                {THAI_FONTS.map((f) => (
+                  <Stack.Toolbar.MenuAction key={f} isOn={thaiFont === f} onPress={() => chooseThaiFont(f)}>{THAI_FONT_LABELS[f]}</Stack.Toolbar.MenuAction>
+                ))}
+              </Stack.Toolbar.Menu>
+            ) : null}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      ) : undefined}
       footer={text && !ended ? (
         hasAudio ? (
           <PlayerBar playing={status.playing} current={current} total={text.lines.length} what={text.form === 'story' ? 'story' : 'dialogue'} skippable={paras !== null} onSkip={skip}
@@ -506,30 +530,6 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
               </ToggleRow>
             ) : (
               <>
-                <ToggleRow label="Show English">
-                  <Switch value={english} onValueChange={setEnglish} trackColor={{ true: c.accent }} accessibilityLabel="Show English" />
-                </ToggleRow>
-                {marked ? (
-                  <ToggleRow label="Paragraphs">
-                    <Switch value={paragraphMode} onValueChange={turnOnParagraphs} trackColor={{ true: c.accent }} accessibilityLabel="Paragraphs" />
-                  </ToggleRow>
-                ) : null}
-                <ToggleRow label={language.highlightLabel}>
-                  <Switch value={highlight} onValueChange={turnOnHighlight} trackColor={{ true: c.accent }} accessibilityLabel={language.highlightLabel} />
-                </ToggleRow>
-                <ToggleRow label="Mark names">
-                  <Switch value={markNames} onValueChange={turnOnMarkNames} trackColor={{ true: c.accent }} accessibilityLabel="Mark names" />
-                </ToggleRow>
-                {text.language === 'th' || text.language === undefined ? (
-                  <ToggleRow label="Thai letters">
-                    <Segments
-                      options={THAI_FONTS.map((f) => ({ value: f, label: THAI_FONT_LABELS[f] }))}
-                      value={thaiFont}
-                      onChange={chooseThaiFont}
-                      style={{ width: 180 }}
-                    />
-                  </ToggleRow>
-                ) : null}
                 {highlight && countOutsideDeck(text) === 0 ? (
                   <Text style={{ ...type.footnote, color: c.textSecondary }}>Every word in this text is in your deck.</Text>
                 ) : null}
@@ -749,7 +749,7 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
               </View>
             ) : null
           ) : <Button label="Next text" onPress={() => finish('next')} busy={leaving} />}
-          <Button label="Back to the shelf" variant={source.kind === 'shelf' && !upNext ? 'primary' : 'secondary'} onPress={() => finish('back')} />
+          <Button label={review ? 'Back to the list' : 'Save and back to the shelf'} variant={source.kind === 'shelf' && !upNext ? 'primary' : 'secondary'} onPress={() => finish('back')} />
         </ScrollView>
       ) : null}
 
@@ -761,6 +761,12 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
         onGrammarChosen={(id, state) => setGrammarChosen((prev) => ({ ...prev, [id]: state }))}
         flagged={tapped && session ? isFlagged(session, tapped.word.text) : false}
         onToggleFlag={review ? null : () => { if (tapped && session) setSession(toggleFlag(session, tapped.word.text)); }}
+        onPlay={() => {
+          if (!tapped || !text) return;
+          // The word and the line would talk over each other.
+          player.pause();
+          onPlayWord(tapped.word.text, text.language);
+        }}
         onClose={() => setTapped(null)}
       />
     </Screen>
@@ -889,13 +895,19 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, named, selec
         .filter(Boolean).join(', ')}
       accessibilityHint="Shows what this word means"
       style={{
-        // Thai has no spaces between words. The negative margin cancels the border, so tappable
-        // words sit flush and only real spaces in the text show as gaps.
-        borderRadius: radius.s - 2, borderWidth: 1.5, marginHorizontal: -1.5,
-        borderColor: selected ? c.accent : 'transparent',
+        // Thai has no spaces between words, so tappable words sit flush and only real spaces in the
+        // text show as gaps. The selection ring is an overlay inside the word's own box: a border
+        // cancelled by a negative margin pushed each box past its slot and overlapped its neighbors.
+        borderRadius: radius.s - 2, paddingVertical: 1.5,
         backgroundColor: selected ? c.accentFill : highlighted ? c.highlight : named ? c.nameFill : playing ? c.fill : undefined,
       }}
     >
+      {selected ? (
+        <View
+          pointerEvents="none"
+          style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.s - 2, borderWidth: 1.5, borderColor: c.accent }}
+        />
+      ) : null}
       <Text
         style={[
           { fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: word.stretch ? c.accent : c.text },
@@ -928,13 +940,14 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onClose }: {
+function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onClose }: {
   tapped: Tapped | null;
   grammar: TextGrammar | null;
   api: Api;
   grammarChosen: Record<string, GrammarChoice>;
   onGrammarChosen: (id: string, state: GrammarChoice) => void;
   flagged: boolean;
+  onPlay: () => void;
   /** null when marking isn't recorded (reading a past text). */
   onToggleFlag: (() => void) | null;
   onClose: () => void;
@@ -967,6 +980,9 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
       >
         <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
         <Text style={{ ...type.body, color: c.text }}>{tapped.word.gloss ?? 'No meaning available'}</Text>
+        <View style={{ alignItems: 'flex-start' }}>
+          <HeaderAction label="Play word" onPress={onPlay} />
+        </View>
         {tapped.word.translit ? (
           showTranslit ? (
             <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text>
