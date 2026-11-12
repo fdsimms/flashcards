@@ -91,4 +91,28 @@ describe("taking in Anki's collection: only the rows that change", () => {
     expect(dump(planned)).toEqual(dump(full));
     expect(back.cards.map((r) => r[0])).toEqual([gone.id]);
   });
+
+  it("keeps a new card's stored due, the time it was first taken in, so a later refresh doesn't rewrite it", async () => {
+    const data = buildExport(await readCollectionRows(FIXTURE));
+    const first = importAnkiJson(data, { now: NOW });
+    const db = frankiTables();
+    applyPlan(db, first.notes, first.cards);
+    const before = dump(db);
+
+    // A day later, unchanged in Anki: the import restamps every new card, and nothing is written.
+    const later = importAnkiJson(data, { now: new Date(2026, 10, 12, 12) });
+    expect(later.cards.some((c) => c.sched.state === 0 && c.sched.due !== NOW.toISOString())).toBe(true);
+    expect(applyPlan(db, later.notes, later.cards)).toEqual({ notes: [], cards: [], retire: [] });
+    expect(dump(db)).toEqual(before);
+
+    // A new card changed in Anki is written, keeping its due; one studied there takes Anki's.
+    const [flagged, studied] = later.cards.filter((c) => c.sched.state === 0);
+    const changed = later.cards.map((c) => (c.id === flagged.id ? { ...c, flag: 1 }
+      : c.id === studied.id ? { ...c, sched: { ...c.sched, state: 2, due: '2026-11-20T12:00:00.000Z' } } : c));
+    applyPlan(db, later.notes, changed);
+    const row = (id: string) => db.prepare('SELECT flag, state, due FROM cards WHERE id = ?').get(id) as any;
+    expect(row(flagged.id)).toEqual({ flag: 1, state: 0, due: NOW.toISOString() });
+    expect(row(studied.id)).toEqual({ flag: 0, state: 2, due: '2026-11-20T12:00:00.000Z' });
+    expect(JSON.parse((db.prepare('SELECT sched FROM cards WHERE id = ?').get(flagged.id) as any).sched).due).toBe(NOW.toISOString());
+  });
 });
