@@ -29,6 +29,22 @@
       "expo-router",
       "expo-sharing",
       [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Prompt_300Light.ttf",
+            "./assets/fonts/Prompt_400Regular.ttf",
+            "./assets/fonts/Prompt_500Medium.ttf",
+            "./assets/fonts/NotoSerifThai_300Light.ttf",
+            "./assets/fonts/NotoSerifThai_400Regular.ttf",
+            "./assets/fonts/NotoSerifThai_600SemiBold.ttf",
+            "./assets/fonts/CormorantGaramond_300Light.ttf",
+            "./assets/fonts/CormorantGaramond_400Regular.ttf",
+            "./assets/fonts/CormorantGaramond_300Light_Italic.ttf"
+          ]
+        }
+      ],
+      [
         "expo-audio",
         {
           "microphonePermission": false,
