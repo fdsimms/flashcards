@@ -24,8 +24,9 @@ export function Settings({ repo, backupText, readerOn, onAnki, onStats, onBackup
   const c = useTheme();
   const [buttons, setButtons] = useState<AnswerButtons>();
   const [swipe, setSwipe] = useState<boolean>();
+  const [hints, setHints] = useState<boolean>();
 
-  useEffect(() => { repo.answerButtons().then(setButtons); repo.swipeToRate().then(setSwipe); }, [repo]);
+  useEffect(() => { repo.answerButtons().then(setButtons); repo.swipeToRate().then(setSwipe); repo.showCardHints().then(setHints); }, [repo]);
 
   const choose = async (value: AnswerButtons) => {
     setButtons(value);
@@ -35,6 +36,11 @@ export function Settings({ repo, backupText, readerOn, onAnki, onStats, onBackup
   const chooseSwipe = async (on: boolean) => {
     setSwipe(on);
     await repo.saveSwipeToRate(on);
+  };
+
+  const chooseHints = async (on: boolean) => {
+    setHints(on);
+    await repo.saveShowCardHints(on);
   };
 
   return (
@@ -55,6 +61,12 @@ export function Settings({ repo, backupText, readerOn, onAnki, onStats, onBackup
             hint="After the answer is shown, drag the card right for Good or left for Again. Only for Omnilanguage cards; other note types use the buttons."
             value={!!swipe}
             onValueChange={chooseSwipe}
+          />
+          <SwitchRow
+            label="Show romanization and translation"
+            hint="On the answer, show a word's romanization and its example sentence's romanization and translation without tapping. Off, each one waits for a tap on every card. Only for Omnilanguage cards."
+            value={!!hints}
+            onValueChange={chooseHints}
           />
           <NavRow label="Voices" detail="The voices each language is recorded and read aloud with" onPress={onVoices} />
         </Group>
