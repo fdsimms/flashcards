@@ -20,6 +20,7 @@ export type Word = {
   text: string;
   status: 'known' | 'partial' | 'unknown' | 'name' | null; // 'name': a name the model marked; null for spaces and punctuation
   gloss: string | null;
+  lemma?: string | null; // the dictionary form, when it differs from the word (every language but Thai)
   translit?: string | null; // the pronunciation in Latin letters, when there is one (Thai)
   stretch: boolean;
   deck: boolean; // a deck word, as against one known for being common (every language but Thai)
@@ -206,6 +207,7 @@ export type PastText = {
 export type MarkedWord = {
   word: string;
   gloss: string | null;
+  lemma?: string | null; // the dictionary form, when it differs from the word (absent from a server older than it)
   status: 'known' | 'partial' | 'unknown';
   deck: boolean;
   times: number;

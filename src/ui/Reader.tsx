@@ -1094,6 +1094,7 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
         }}
       >
         <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
+        {tapped.word.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {tapped.word.lemma}</Text> : null}
         <Text style={{ ...type.body, color: c.text }}>{tapped.word.gloss ?? 'No meaning available'}</Text>
         <View style={{ alignItems: 'flex-start' }}>
           <HeaderAction label="Play word" onPress={onPlay} />
