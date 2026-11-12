@@ -870,13 +870,19 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, selected, pl
         .filter(Boolean).join(', ')}
       accessibilityHint="Shows what this word means"
       style={{
-        // Thai has no spaces between words. The negative margin cancels the border, so tappable
-        // words sit flush and only real spaces in the text show as gaps.
-        borderRadius: radius.s - 2, borderWidth: 1.5, marginHorizontal: -1.5,
-        borderColor: selected ? c.accent : 'transparent',
+        // Thai has no spaces between words, so tappable words sit flush and only real spaces in the
+        // text show as gaps. The selection ring is an overlay inside the word's own box: a border
+        // cancelled by a negative margin pushed each box past its slot and overlapped its neighbors.
+        borderRadius: radius.s - 2, paddingVertical: 1.5,
         backgroundColor: selected ? c.accentFill : highlighted ? c.highlight : playing ? c.fill : undefined,
       }}
     >
+      {selected ? (
+        <View
+          pointerEvents="none"
+          style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.s - 2, borderWidth: 1.5, borderColor: c.accent }}
+        />
+      ) : null}
       <Text
         style={[
           { fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: word.stretch ? c.accent : c.text },
