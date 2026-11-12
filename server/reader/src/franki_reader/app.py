@@ -12,13 +12,17 @@ serves all of it under /reader (../../Caddyfile), so the app's address ends in /
                                       being written in the background, so ask again shortly. With
                                       {words: [...]}, a text written to practice those words
     GET   /api/settings               {stretch_words: "topic" | "any", lines: 6 | 8 | 12,
-                                      form: "dialogue" | "story", language: "th" | "es",
-                                      decks: {th: <deck>, es: <deck>}}
+                                      form: "dialogue" | "story", language: "th" | "es" | ...,
+                                      decks: {th: <deck>, es: <deck>, ...},
+                                      voices: {th: {A: <voice>, B: <voice>}, es: {...}, ...},
+                                      common: {es: 10000, de: 3000, ...}} (every language but
+                                      Thai: how many of its most common words count as known)
 
-Topics are shared by both languages. Everything else (ready texts, /next, progress, past texts,
+Topics are shared by every language. Everything else (ready texts, /next, progress, past texts,
 marked words, ideas) is in the current language, the `language` setting.
     PATCH /api/settings               the same fields; takes effect from the next text written. A
-                                      changed deck is read again at once
+                                      changed deck is read again at once; texts waiting to be read
+                                      are spoken again in changed voices
     GET   /api/texts                  texts read to the end, newest first, to read again
     GET   /api/texts/{id}             one text, in the same shape as /next; reading it again isn't logged
     POST  /api/texts/{id}/reading     logs a session with a text and adjusts difficulty
@@ -30,6 +34,11 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/words                  words marked unknown and not cleared, newest first
     POST  /api/words/clear            {word} takes a word off that list until it's marked again
     GET   /api/texts/{id}/lines/{n}/audio   one line's MP3, made now if it isn't cached yet
+    GET   /api/voices?language=th     Azure's voices in a language (any code: th, pl, es-MX), for
+                                      the speakers here and for recording cards in the app
+    POST  /api/speech                 {text, voice, rate?} the text spoken by an Azure voice, as MP3:
+                                      the app records a card's audio with it and keeps the file, so
+                                      each recording is asked for once
 """
 
 import hmac
@@ -38,9 +47,9 @@ from datetime import timedelta
 from typing import Annotated, Any, Literal
 
 import anthropic
-from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Response
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import FileResponse, JSONResponse
-from franki_speech import SpeechClient
+from franki_speech import SpeechClient, SpeechError, locale_of
 from pydantic import BaseModel, Field
 
 from franki_reader import config, grammar, store
@@ -48,17 +57,19 @@ from franki_reader.collection import AnkiDeck, SyncSettings
 from franki_reader.engine import Engine, NotAvailable, NotFound
 from franki_reader.gateway import with_timeout
 from franki_reader.generator import Ask, Form, claude_ask
-from franki_reader.languages import LANGUAGES, Code, with_deck
+from franki_reader.languages import LANGUAGES, Code, CommonCount, with_deck
 from franki_reader.lexicon import Entry
 from franki_reader.reader import gloss_for, render
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
 from franki_reader.suggestions import suggest
-from franki_reader.tts import AudioCache, azure_synthesize
+from franki_reader.tts import AudioCache, Speech, azure_synthesize
 
 # The window the progress summary covers: the Milestone 1 exit check's two weeks.
 PROGRESS_DAYS = 14
 # How many past texts the list shows.
 PAST_TEXTS = 50
+# The longest text /api/speech speaks: a card's word or sentence, never a whole text.
+MAX_SPEECH_CHARS = 500
 
 
 class NewTopic(BaseModel):
@@ -85,6 +96,16 @@ class SettingsUpdate(BaseModel):
     language: Code | None = None
     # A language's deck by its full Anki name; an empty name goes back to the default.
     decks: dict[Code, Annotated[str, Field(max_length=500)]] | None = None
+    # How many of a language's most common words count as known. Not Thai's: only its deck counts.
+    common: dict[Code, CommonCount] | None = None
+    # A speaker's Azure voice by language; an empty name goes back to the default.
+    voices: dict[Code, dict[Literal["A", "B"], Annotated[str, Field(max_length=100)]]] | None = None
+
+
+class SpeechIn(BaseModel):
+    text: str = Field(min_length=1, max_length=MAX_SPEECH_CHARS)
+    voice: str = Field(min_length=1, max_length=100)
+    rate: float = Field(default=1.0, ge=0.5, le=2.0)
 
 
 class NextIn(BaseModel):
@@ -103,7 +124,20 @@ class ReadingIn(BaseModel):
     seconds: int = Field(default=0, ge=0)
 
 
-def create_app(engine: Engine, passphrase: str | None) -> FastAPI:
+def _check_voice(name: str, code: Code) -> None:
+    """Refuses a voice that isn't Azure's shape or doesn't speak the language it's chosen for."""
+    try:
+        locale = locale_of(name)
+    except SpeechError as e:
+        raise HTTPException(400, str(e)) from e
+    if locale.split("-")[0].lower() != code:
+        raise HTTPException(
+            400,
+            f"{name} speaks {locale}, not {LANGUAGES[code].name}. Choose a {LANGUAGES[code].name} voice.",
+        )
+
+
+def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = None) -> FastAPI:
     app = FastAPI(title="franki-reader")
 
     def require_passphrase(authorization: Annotated[str | None, Header()] = None) -> None:
@@ -208,9 +242,12 @@ def create_app(engine: Engine, passphrase: str | None) -> FastAPI:
         return FileResponse(path, media_type="audio/mpeg")
 
     def settings_out(current: Settings) -> dict[str, Any]:
-        # Every language's deck, the default where none was chosen, so the app shows what's used.
+        # Every language's deck and voices, the default where none was chosen, so the app shows
+        # what's used.
         decks = {code: with_deck(code, current.decks.get(code)).deck for code in LANGUAGES}
-        return {**current.__dict__, "decks": decks}
+        common = {code: current.common_for(code) for code, info in LANGUAGES.items() if info.spaced}
+        voices = {code: engine.voices_for(code) for code in LANGUAGES}
+        return {**current.__dict__, "decks": decks, "voices": voices, "common": common}
 
     @app.get("/api/settings", dependencies=authed)
     async def settings() -> dict[str, Any]:
@@ -219,6 +256,14 @@ def create_app(engine: Engine, passphrase: str | None) -> FastAPI:
     @app.patch("/api/settings", dependencies=authed)
     async def update_settings(body: SettingsUpdate, background: BackgroundTasks) -> dict[str, Any]:
         current = store.load_settings(engine.conn)
+        if body.common and any(not LANGUAGES[code].spaced for code in body.common):
+            raise HTTPException(422, "Thai counts only the words in its deck.")
+        common = dict(current.common)
+        for code, count in (body.common or {}).items():
+            if count == LANGUAGES[code].common:
+                common.pop(code, None)
+            else:
+                common[code] = count
         decks = dict(current.decks)
         changed_decks: list[Code] = []
         for code, name in (body.decks or {}).items():
@@ -230,19 +275,77 @@ def create_app(engine: Engine, passphrase: str | None) -> FastAPI:
                 decks.pop(code, None)
             if with_deck(code, decks.get(code)).deck != before:
                 changed_decks.append(code)
+        voices = {code: dict(v) for code, v in current.voices.items()}
+        voices_before = {code: engine.voices_for(code) for code in body.voices or {}}
+        for code, chosen in (body.voices or {}).items():
+            mine = voices.setdefault(code, {})
+            for speaker, name in chosen.items():
+                name = name.strip()
+                if name:
+                    _check_voice(name, code)
+                    mine[speaker] = name
+                else:
+                    mine.pop(speaker, None)
+            if not mine:
+                voices.pop(code)
         updated = Settings(
             stretch_words=body.stretch_words or current.stretch_words,
             lines=body.lines or current.lines,
             form=body.form or current.form,
             language=body.language or current.language,
             decks=decks,
+            voices=voices,
+            common=common,
         )
         store.save_settings(engine.conn, updated)
         for code in changed_decks:
             # The old deck's words mustn't be written with: read the new deck now.
             store.clear_snapshot(engine.conn, code)
             background.add_task(engine.refresh_lexicon, code)
+        for code, then in voices_before.items():
+            if engine.voices_for(code) != then:
+                # The texts waiting to be read get the new voices too.
+                background.add_task(engine.rerecord, code)
         return settings_out(updated)
+
+    def need_speech() -> Speech:
+        if speech is None:
+            raise HTTPException(
+                503,
+                "Read & Listen's server has no Azure key. Set AZURE_SPEECH_KEY and"
+                " AZURE_SPEECH_REGION in server/.env.",
+            )
+        return speech
+
+    @app.get("/api/voices", dependencies=authed)
+    async def voices(
+        language: Annotated[str, Query(min_length=2, max_length=20)],
+    ) -> dict[str, Any]:
+        want = language.replace("_", "-").lower()
+        try:
+            found = await need_speech().voices()
+        except SpeechError as e:
+            raise HTTPException(503, str(e)) from e
+        matching = [
+            v
+            for v in found
+            if (loc := (v.get("locale") or "").lower()) == want or loc.startswith(want + "-")
+        ]
+        matching.sort(key=lambda v: (v.get("locale") or "", v.get("name") or ""))
+        return {"voices": matching}
+
+    @app.post("/api/speech", dependencies=authed)
+    async def speak(body: SpeechIn) -> Response:
+        try:
+            locale_of(body.voice)
+        except SpeechError as e:
+            raise HTTPException(400, str(e)) from e
+        try:
+            mp3 = await need_speech().synthesize(body.text.strip(), body.voice, body.rate)
+        except SpeechError as e:
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        return Response(mp3, media_type="audio/mpeg")
 
     @app.post("/api/texts/{text_id}/reading", status_code=204, dependencies=authed)
     async def reading(text_id: int, body: ReadingIn, background: BackgroundTasks) -> Response:
@@ -374,6 +477,7 @@ def production_app() -> FastAPI:
             return claude_ask(client, entries, language)
 
     synthesize = None
+    speech: SpeechClient | None = None
     key, region = (
         settings.secrets.get("AZURE_SPEECH_KEY"),
         settings.secrets.get("AZURE_SPEECH_REGION"),
@@ -385,8 +489,8 @@ def production_app() -> FastAPI:
             settings.speech_endpoint,
             user_agent="franki-reader",
             voice_help=(
-                "Check the voice names: Thai's are AZURE_VOICE_A and AZURE_VOICE_B in server/.env,"
-                " Spanish's are in server/reader/src/franki_reader/languages.py."
+                "Check the voice names chosen in Read & Listen's settings in the app (Thai's"
+                " defaults are AZURE_VOICE_A and AZURE_VOICE_B in server/.env)."
             ),
         )
         synthesize = azure_synthesize(speech)
@@ -412,4 +516,4 @@ def production_app() -> FastAPI:
         audio=AudioCache(settings.audio_dir),
         voices=settings.voices,
     )
-    return create_app(engine, settings.secrets.get("APP_PASSPHRASE"))
+    return create_app(engine, settings.secrets.get("APP_PASSPHRASE"), speech)

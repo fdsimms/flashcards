@@ -3,6 +3,7 @@ import { renamedDeck } from '../core/deckNames';
 import { parseAnswerButtons, type AnswerButtons } from '../core/answerButtons';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import type { PracticeRecord } from '../core/forms';
+import { parseVoiceSettings, type VoiceSettings } from '../core/voices';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry, CollectionSettings } from '../core/types';
 
 export interface Repo {
@@ -65,6 +66,9 @@ export interface Repo {
   /** Whether forms practice is answered by picking or typing: the last choice made. This phone's own. */
   formsAnswerMode(): Promise<'pick' | 'type'>;
   saveFormsAnswerMode(mode: 'pick' | 'type'): Promise<void>;
+  /** The text-to-speech voice and speed chosen for each language. This phone's own: a backup doesn't carry it. */
+  voiceSettings(): Promise<VoiceSettings>;
+  saveVoiceSettings(settings: VoiceSettings): Promise<void>;
 }
 
 /** Simple in-memory repo, used by tests and as a reference implementation. */
@@ -80,6 +84,7 @@ export class MemoryRepo implements Repo {
   swipeToRateSetting = false;
   practice: PracticeRecord[] = [];
   formsAnswerModeSetting: 'pick' | 'type' = 'pick';
+  voiceSettingsValue = '{}';
 
   async upsertNotesAndCards(notes: Note[], cards: Card[]) {
     for (const n of notes) this.notes.set(n.id, n);
@@ -165,6 +170,9 @@ export class MemoryRepo implements Repo {
   }
   async formsAnswerMode() { return this.formsAnswerModeSetting; }
   async saveFormsAnswerMode(mode: 'pick' | 'type') { this.formsAnswerModeSetting = mode; }
+  // Kept as JSON text, as the SQLite repo keeps it, so a read never hands back the saved object itself.
+  async voiceSettings() { return parseVoiceSettings(this.voiceSettingsValue); }
+  async saveVoiceSettings(settings: VoiceSettings) { this.voiceSettingsValue = JSON.stringify(settings); }
   async listReviews(since: Date) {
     return [...this.reviews.values()]
       .filter((r) => new Date(r.reviewedAt) >= since)

@@ -20,7 +20,7 @@ function deps(outcome: SyncOutcome | null, over: Partial<SyncDeps> = {}) {
     download: async () => { calls.push('download'); },
     upload: async () => { calls.push('upload'); },
     refresh: async () => { calls.push('refresh'); },
-    pullMedia: async (usn) => { calls.push(`media ${usn}`); return { downloaded: 1, deleted: 0, skipped: [] }; },
+    syncMedia: async (usn) => { calls.push(`media ${usn}`); return { downloaded: 1, deleted: 0, skipped: [], uploaded: 0 }; },
     choose: async () => { calls.push('ask'); return null; },
     ...over,
   };
@@ -81,8 +81,8 @@ describe('one sync, start to finish', () => {
     expect(a.calls).toEqual(['lock', 'ask', 'unlock']);
   });
 
-  it('keeps the collection\'s sync when only the media pull fails', async () => {
-    const a = deps({ kind: 'noChanges', mediaUsn: 7 }, { pullMedia: async () => { throw new SyncError('network', 'offline'); } });
+  it('keeps the collection\'s sync when only the media sync fails', async () => {
+    const a = deps({ kind: 'noChanges', mediaUsn: 7 }, { syncMedia: async () => { throw new SyncError('network', 'offline'); } });
     expect(await runSync(a.d)).toEqual({ collection: 'unchanged', sent: 0, mediaError: 'offline' });
   });
 
@@ -96,8 +96,10 @@ describe('what a sync says', async () => {
   const { reportText, syncStatusText, fullSyncPrompt } = await import('../../../src/anki/sync/runSync');
 
   it('sums up a sync in a line', () => {
-    expect(reportText({ collection: 'synced', sent: 3, media: { downloaded: 1, deleted: 0, skipped: [] } }))
+    expect(reportText({ collection: 'synced', sent: 3, media: { downloaded: 1, deleted: 0, skipped: [], uploaded: 0 } }))
       .toBe('Synced. Sent 3 answers. Downloaded 1 image or sound.');
+    expect(reportText({ collection: 'unchanged', sent: 0, media: { downloaded: 0, deleted: 0, skipped: [], uploaded: 2 } }))
+      .toBe('Already up to date. Sent 2 recordings and images.');
     expect(reportText({ collection: 'unchanged', sent: 0 })).toBe('Already up to date.');
     expect(reportText({ collection: 'synced', sent: 0, mediaError: 'offline' })).toBe("Synced. Images and sounds didn't finish syncing: offline");
   });

@@ -1,5 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { nextDeckToStudy } from '../core/deckTree';
 import { languageOfDeck } from '../reader/practice';
 import { useApp } from '../ui/AppContext';
 import { Review } from '../ui/Review';
@@ -7,7 +8,7 @@ import { Review } from '../ui/Review';
 /** Studies the deck named by the `deck` parameter, and its subdecks. */
 export default function ReviewRoute() {
   const router = useRouter();
-  const { repo, sync, openNoteEditor, reader: { settings: readerSettings } } = useApp();
+  const { repo, sync, decks, collapse, openNoteEditor, reader: { settings: readerSettings } } = useApp();
   const { deck } = useLocalSearchParams<{ deck: string }>();
   // Sync when leaving, however it's left: the Back button, the swipe, or "Back to decks".
   const syncRef = useRef(sync);
@@ -37,9 +38,13 @@ export default function ReviewRoute() {
     if (firstFocus.current) { firstFocus.current = false; return; }
     setReloadKey((k) => k + 1);
   }, []));
+  // The deck list's counts are from when it was last shown, which is current for every other deck.
+  const nextDeck = nextDeckToStudy(decks, collapse.collapsed, deck);
   return (
     <Review
       repo={repo} deck={deck} practice={practice} reloadKey={reloadKey} onDone={() => router.back()} onEditNote={openNoteEditor}
+      nextDeck={nextDeck?.split('::').pop()}
+      onNextDeck={nextDeck ? () => router.replace({ pathname: '/review', params: { deck: nextDeck } }) : undefined}
       onCustomStudy={() => router.push({ pathname: '/custom-study', params: { deck } })}
       onCardInfo={(card) => router.push({ pathname: '/card-info', params: { card } })}
       onPracticeForms={(request) => router.push({ pathname: '/forms-drill', params: { request: JSON.stringify(request) } })}

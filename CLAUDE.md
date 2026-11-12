@@ -188,9 +188,11 @@ records) but does allow background audio, which only Read & Listen's reader turn
 open (`shouldPlayInBackground`), so listening goes on with the screen locked.
 
 **Everything stays on the device, except sync and Read & Listen.** TTS is `expo-speech` (on-device
-voices) and storage is local SQLite. The network calls are sync with the user's own Anki sync
-server (`src/anki/sync/`), off until they sign in, and Read & Listen, which talks to its server
-beside the sync server and is off until its passphrase is entered (Settings, Read & Listen). A
+voices, chosen per language in Settings, Voices) and storage is local SQLite. The network calls are
+sync with the user's own Anki sync server (`src/anki/sync/`), off until they sign in, and Read &
+Listen, which talks to its server beside the sync server and is off until its passphrase is entered
+(Settings, Read & Listen). Recording a card with an Azure voice (`src/core/recording.ts`) goes
+through Read & Listen's server, so it's off while Read & Listen is. A
 future feature that needs the network (a dictionary lookup, an AI hint) ships behind its own setting
 that defaults to off.
 
@@ -398,6 +400,10 @@ Anki's sync protocol (v11), as an Anki client speaks it, against the user's own 
   when the collation is registered. Without it (a build made before the module) a sync still updates
   an existing deck in place and otherwise finishes, so Franki's answers reach the server, then
   downloads the whole collection (`downloadNeeded`). The live test runs both ways.
+- **Media made in Franki (a recording) is sent by the upload half of Anki's media sync**
+  (`pushMedia` in `mediaSync.ts`). A file joins the pending list only once a note is saved with it,
+  and a pending file the server also changed is settled by Anki's rules (`mediaAction`). The live
+  test checks it with Anki's own client reading the file back.
 - **Sync JSON keeps 64-bit integers exact** (`sync/json.ts`): note type fields and templates carry
   random 64-bit ids that `JSON.parse` would round. Read and write sync JSON only through it.
 - **A sync runs on its own connection to the kept collection, in one transaction, inside
@@ -439,8 +445,8 @@ and never the server's files, so searches, note adds, scheduling and sync behave
 
 ### Read & Listen (`server/reader/`, `src/reader/`)
 
-Texts (dialogues, short stories) written by Claude from the words already in the Thai and Spanish
-decks, checked in code to be 95-98% known words, recorded with Azure's voices, read in the app with
+Texts (dialogues, short stories) written by Claude from the words already in the language decks
+(Thai, Spanish, German, French, Russian, Greek, Polish, Norwegian), checked in code to be 95-98% known words, recorded with Azure's voices, read in the app with
 a gloss on every word. **`docs/read-and-listen/brief.md` is the spec, with the evidence behind each
 rule; `architecture.md` beside it has every decision since.** Where they and this file disagree,
 they win and this is stale. The rules that must not break:
@@ -453,11 +459,11 @@ they win and this is stale. The rules that must not break:
   `MINING_PER_DAY` a study day (`src/reader/mining.ts`).
 - **Generate, then verify in code.** The model writes lines as `|`-split strings with stretch words
   in `*asterisks*`; the server re-segments every line itself (lexicon-first for Thai, by lemma for
-  Spanish) and sends drafts under the floor back with the unknown words named. Never trust the
+  the rest, `spaced.py`) and sends drafts under the floor back with the unknown words named. Never trust the
   model to stay in vocabulary.
 - **A word counts as known only when its note is studied** (young or mature); a word found only
-  inside a studied phrase is partial and counts as unknown. Spanish also counts the 10,000 most
-  common word families.
+  inside a studied phrase is partial and counts as unknown. Every language but Thai also counts as
+  many of its most common word families as its `common` setting says.
 - **Batch and cache.** Texts are written in the background and queued, never inside a request, and
   never one API call per word or page view.
 - **The owner picks the topic.** Already rejected, don't revisit: cloze cards, saving generated

@@ -4,7 +4,7 @@ import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, Animated, Easing, Keyboard, PanResponder, Pressable, ScrollView, Text, TextInput, useColorScheme, useWindowDimensions, View } from 'react-native';
 import { FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
-import { isOmnilanguage, renderCard } from '../core/cards';
+import { autoplayFor, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
 import { nextStudyDayStart, studyDayStart } from '../core/day';
@@ -20,7 +20,7 @@ import { parseDueDate } from '../core/reschedule';
 import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../core/session';
 import { durationText } from '../core/stats';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
-import { pickVoice, speechLanguage, type TtsTag } from '../core/tts';
+import type { TtsTag } from '../core/tts';
 import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
 import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
@@ -33,6 +33,7 @@ import { practiceWords } from '../reader/practice';
 import { headword, type DrillRequest } from '../core/forms';
 import { AnswerExtras, FormsCheck, useReviewForms } from './ReviewForms';
 import { haptic } from './haptics';
+import { usePhoneSpeech } from './usePhoneSpeech';
 import { Button, Count, Icon, Screen, Tappable } from './kit';
 import { Reveal, useReduceMotion } from './motion';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
@@ -181,7 +182,7 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, onPracticeForms, onCustomStudy, onCardInfo }: {
+export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, onPracticeForms, onNextDeck, nextDeck, onCustomStudy, onCardInfo }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -197,6 +198,10 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
   onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void;
   /** Opens a forms drill (src/ui/FormsDrill.tsx) over this screen. */
   onPracticeForms: (request: DrillRequest) => void;
+  /** Replaces this screen with the next deck in the list that has cards to study; absent when there is none. */
+  onNextDeck?: () => void;
+  /** That deck's name, for the button. */
+  nextDeck?: string;
   /** Opens Custom Study for this deck (src/ui/CustomStudy.tsx), which can raise today's limits or pick more cards to study. */
   onCustomStudy: () => void;
   /** Opens Card Info (src/ui/CardInfo.tsx) for a card. */
@@ -312,37 +317,42 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
 
   // One player for the session's recorded audio, released when the screen closes.
   const player = useRef<AudioPlayer | null>(null);
+  const phoneSpeech = usePhoneSpeech(repo);
   useEffect(() => () => { player.current?.remove(); player.current = null; Speech.stop(); }, []);
 
   /**
-   * Says a side's word: the note's recording when it has one and the file is here, as Anki
-   * plays it, else the phone's text-to-speech voice.
+   * Plays what `playbackFor` / `autoplayFor` chose: the note's recording when it's allowed and the
+   * file is here, as Anki plays it, else the phone's text-to-speech voice.
    */
+  const ttsRunning = useRef(false);
   const speak = useCallback(
-    (text?: string) => {
-      if (!text || !rendered) return;
-      Speech.stop();
+    (what: Playback | undefined) => {
+      if (!what || !rendered) return;
+      // Stopping speech that isn't running can pull the audio session out from under the
+      // recording that starts right after, cutting it off.
+      if (ttsRunning.current) { Speech.stop(); ttsRunning.current = false; }
       player.current?.pause();
-      const uri = rendered.audioFile ? mediaFileUri(rendered.audioFile) : undefined;
+      const uri = what.file ? mediaFileUri(what.file) : undefined;
       if (uri) {
-        player.current ??= createAudioPlayer();
+        // Keep the session active between clips: reactivating it for each one sometimes stalled the next.
+        player.current ??= createAudioPlayer(null, { keepAudioSessionActive: true });
         player.current.replace({ uri });
         player.current.play();
         return;
       }
-      Speech.speak(text, { language: rendered.speechLang, rate: 0.9 });
+      if (!what.text) return;
+      ttsRunning.current = true;
+      phoneSpeech.sayWord(what.text, rendered.speechLang);
     },
-    [rendered],
+    [rendered, phoneSpeech],
   );
 
   // Anki's {{tts:}} tags, read with the phone's voices: on their own when a side without a
   // recording is shown (a recording plays instead, in the page), and from each play button.
-  const voices = useRef<Speech.Voice[]>([]);
-  useEffect(() => { Speech.getAvailableVoicesAsync().then((v) => { voices.current = v; }).catch(() => {}); }, []);
   const readAloud = useCallback((tags: TtsTag[]) => {
     Speech.stop();
-    for (const t of tags) Speech.speak(t.text, { language: speechLanguage(t.lang), voice: pickVoice(voices.current, t), rate: t.speed });
-  }, []);
+    phoneSpeech.readTags(tags);
+  }, [phoneSpeech]);
   const pageAudio = page && (revealed ? page.backAudio : page.frontAudio);
   useEffect(() => {
     if (!pageAudio) return;
@@ -367,7 +377,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
 
   // Auto-speak the front when a card with audio appears.
   useEffect(() => {
-    if (rendered?.front.speak) speak(rendered.front.speak);
+    if (rendered) speak(autoplayFor(rendered, false));
   }, [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const answer = async (rating: RatingValue) => {
@@ -531,9 +541,10 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
             onPress={() => { setOpeningText(true); practice!.onRead(studiedWords).finally(() => setOpeningText(false)); }}
           />
         ) : null}
+        {onNextDeck ? <Button label={`Study ${nextDeck}`} variant={reading || checking ? 'secondary' : 'primary'} onPress={onNextDeck} /> : null}
         {/* An Anki filtered deck has no limits or cards of its own to add to. */}
         {paramsForDeck(deck, allParams)?.filtered ? null : <Button label="Custom study" variant="secondary" onPress={onCustomStudy} />}
-        <Button label="Back to decks" variant={reading || checking ? 'secondary' : 'primary'} onPress={onDone} />
+        <Button label="Back to decks" variant={reading || checking || onNextDeck ? 'secondary' : 'primary'} onPress={onDone} />
       </>
     );
     return (
@@ -558,7 +569,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
     );
   }
 
-  const reveal = () => { Keyboard.dismiss(); setRevealed(true); if (rendered?.back.speak) speak(rendered.back.speak); };
+  const reveal = () => { Keyboard.dismiss(); setRevealed(true); if (rendered) speak(autoplayFor(rendered, true)); };
   // Under the answer: the offer to show the card sooner, and the suggestion to practice its forms.
   const extras = revealed ? (
     <AnswerExtras
@@ -726,6 +737,8 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
     <Screen
       title={title}
       largeTitle={false}
+      // The stack's swipe-back would take a rightward drag before the card's own swipe sees it.
+      lockGesture={swipeOn && revealed && !page && !!rendered}
       toolbar={
         <Stack.Toolbar placement="right">
           {current.flag ? (
@@ -771,9 +784,9 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
             {/* Keyed to the card, so each new one fades in rather than swapping. */}
             <Reveal key={current.id} rise={10} style={{ gap: space.xl }}>
               <Side side={rendered.front} which="front" />
-              {rendered.front.speak || rendered.back.speak ? (
+              {playbackFor(rendered, revealed) ? (
                 <Tappable
-                  onPress={() => { haptic.tap(); speak(rendered.back.speak ?? rendered.front.speak); }}
+                  onPress={() => { haptic.tap(); speak(playbackFor(rendered, revealed)); }}
                   accessibilityRole="button"
                   accessibilityLabel="Play the word"
                   scaleTo={0.94}

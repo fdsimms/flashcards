@@ -3,9 +3,9 @@
 
 Each idea is an everyday situation with a handful of Thai words it's likely to need. For Thai,
 ideas are ordered by how many of those words the deck already knows, so the ones most likely to
-clear the coverage floor on the first try come first. Spanish counts the 10,000 most common words as
-known, so everyday words fit every idea equally and Spanish keeps the order below. Ideas already
-added as topics (or added and removed) aren't offered again; topics are shared by both languages.
+clear the coverage floor on the first try come first. The idea's words are Thai, so every other
+language keeps the order below. Ideas already added as topics (or added and removed) aren't
+offered again; topics are shared by every language.
 """
 
 from dataclasses import dataclass

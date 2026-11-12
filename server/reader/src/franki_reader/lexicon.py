@@ -1,5 +1,5 @@
-"""The daily lexicon snapshot: every note's entry, meaning and tier in one language's deck. Both
-decks use the Omnilanguage note type, so Entry and Meaning are read the same way.
+"""The daily lexicon snapshot: every note's entry, meaning and tier in one language's deck. Every
+language's deck uses the Omnilanguage note type, so Entry and Meaning are read the same way.
 
 The deck is read by `ReadDeck`: the real one is `AnkiDeck.read` (collection.py), which reads the
 reader's own copy of the collection, kept in step with the sync server; tests pass fakes. Cards are
@@ -15,7 +15,7 @@ from functools import lru_cache
 
 from franki_reader.coverage import Checker, Lexicon
 from franki_reader.languages import LANGUAGES, Code, Language
-from franki_reader.spanish import SpanishLexicon
+from franki_reader.spaced import SpacedLexicon
 from franki_reader.tiers import Tier, note_tier
 
 THAI_NOTES_QUERY = LANGUAGES["th"].notes_query
@@ -82,16 +82,20 @@ def build_entries(notes: Iterable[NoteRow], cards: Iterable[CardRow]) -> list[En
     return entries
 
 
-def lexicon_from(entries: list[Entry], language: Code = "th") -> Checker:
-    """Mature and young both count as known for coverage; unreviewed notes don't."""
-    return _lexicon(language, frozenset(e.text for e in entries if e.tier != "unreviewed"))
+def lexicon_from(entries: list[Entry], language: Code = "th", common: int | None = None) -> Checker:
+    """Mature and young both count as known for coverage; unreviewed notes don't. `common` is how
+    many of the language's most common words count too (the setting), its default if None."""
+    known = frozenset(e.text for e in entries if e.tier != "unreviewed")
+    return _lexicon(language, known, LANGUAGES[language].common if common is None else common)
 
 
 @lru_cache(maxsize=4)
-def _lexicon(language: Code, known: frozenset[str]) -> Checker:
+def _lexicon(language: Code, known: frozenset[str], common: int) -> Checker:
     # Building one costs about a second (the segmenter's dictionary), so the same set of known
     # words reuses it: once per snapshot in production, once per test module in tests.
-    return SpanishLexicon(known) if language == "es" else Lexicon(known)
+    if LANGUAGES[language].spaced:
+        return SpacedLexicon(language, known, common)
+    return Lexicon(known)
 
 
 def clean(value: str) -> str:
