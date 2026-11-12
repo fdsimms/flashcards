@@ -93,6 +93,10 @@ export type ReaderText = {
   coverage: number;
   stretch: string[];
   roles: Partial<Record<'A' | 'B', string>>; // who each speaker is; empty for older texts and stories
+  // Each speaker's drawn character and gender (reader/characters.ts); missing from a server older
+  // than characters, and empty for older texts and stories, which show the A and B badges.
+  characters?: Partial<Record<'A' | 'B', string>>;
+  genders?: Partial<Record<'A' | 'B', string>>;
   form: Form;
   language: Language;
   grammar: TextGrammar[];

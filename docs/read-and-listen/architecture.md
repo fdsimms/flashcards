@@ -542,6 +542,16 @@ next episode is the top of the shelf.
   same name brings it back, with any text it still had ready. The shelf's own ideas are filed the
   same way from the start, so they're never listed; More like this lists one again, as a theme.
 
+## Characters
+
+A dialogue's speakers are shown as small drawn characters instead of the A and B badges (12 November 2026).
+
+- **The model picks, the app draws.** Each text's draft has `characters` beside `genders`: for A and B, one of the keys in `server/reader/src/franki_reader/characters.py` (parent, grandparent, child, friend, waiter, shopkeeper, doctor, teacher, traveler, person), or "none" in a story. The key is stored with the text (`texts.characters`) and sent with its `genders`. An unknown key is dropped, not retried: the speaker shows the badge.
+- **The gender picks the version.** A parent is a father or a mother, from `genders`, so there are 20 drawings from 10 keys and no key says a gender.
+- **Two alike.** When A and B share a character and a gender, B is drawn with other hair (or glasses, under a cap), in B's own color.
+- **Drawn in code, from the theme.** `src/reader/characters.ts` is a list of shapes naming tones; `ReadSpeaker.tsx` paints them in the speaker's colors (gold for A, green for B) with `react-native-svg`, so dark mode needs no second set. `test_characters.py` checks the app draws every key the server can pick.
+- **Older texts keep the badges.** A text with no characters, or a speaker with no gender, shows A or B as before. Texts already written are not redrawn.
+
 ## Server API
 
 Every `/api` route needs the passphrase as `Authorization: Bearer <passphrase>`; with no

@@ -155,6 +155,29 @@ def test_a_text_keeps_its_speakers_roles(conn) -> None:  # type: ignore[no-untyp
     assert stored is not None and stored.roles == {"A": "Vendor", "B": "Customer"}
 
 
+def test_a_text_keeps_its_speakers_characters(conn) -> None:  # type: ignore[no-untyped-def]
+    from test_generator import GOOD, MANGO, ScriptedModel, run
+
+    from franki_reader.generator import TextRequest
+
+    generated = run(ScriptedModel(GOOD), TextRequest("food", (MANGO,)))
+    topic = add_topic(conn, "food", True, NOW)
+    stored = get_text(conn, save_text(conn, topic.id, generated, [], 0.95, NOW))
+    assert stored is not None
+    assert stored.characters == {"A": "shopkeeper", "B": "friend"}
+    assert stored.genders == {"A": "male", "B": "male"}
+
+
+def test_a_database_from_before_characters_gains_the_column(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    path = tmp_path / "old.db"
+    first = connect(path)
+    first.execute("ALTER TABLE texts DROP COLUMN characters")
+    first.commit()
+    first.close()
+    columns = {r[1] for r in connect(path).execute("PRAGMA table_info(texts)")}
+    assert "characters" in columns
+
+
 def test_a_database_from_before_roles_gains_the_column(tmp_path) -> None:  # type: ignore[no-untyped-def]
     path = tmp_path / "old.db"
     first = connect(path)

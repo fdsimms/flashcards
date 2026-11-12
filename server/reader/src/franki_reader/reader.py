@@ -122,6 +122,8 @@ def render(
         "coverage": text.coverage,
         "stretch": list(text.stretch),
         "roles": text.roles,
+        "genders": text.genders,
+        "characters": text.characters,
         "form": text.form,
         "language": text.language,
         # The grammar this text was written to practice or avoid, for the reader's notes, then the

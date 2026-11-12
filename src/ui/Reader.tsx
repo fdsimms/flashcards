@@ -21,8 +21,9 @@ import { haptic } from './haptics';
 import { LineExplanation } from './ReaderExplain';
 import { PhraseExplanation, PhrasePickBanner, type PhraseMining } from './ReaderPhrase';
 import { ReadGrammarNote } from './ReadGrammarNote';
+import { Speaker, speakerSize } from './ReadSpeaker';
 import { Button, Card, Chip, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
-import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './theme';
+import { lift, MIN_TAP, radius, space, type, useTheme } from './theme';
 
 /**
  * The reader: a text split into words by the server, a gloss on tap, audio line by line, and a
@@ -588,7 +589,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.l }}>
                 {(['A', 'B'] as const).map((who) => text.roles[who] ? (
                   <View key={who} style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                    <SpeakerBadge who={who} />
+                    <Speaker text={text} who={who} size={speakerSize(text, who, true)} />
                     <Text style={{ ...type.subhead, color: c.textSecondary }}>{text.roles[who]}</Text>
                   </View>
                 ) : null)}
@@ -680,9 +681,9 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
             >
               {line.speaker === 'N' ? null : (
                 // Centered on the first line of words, which is a word's line height plus its
-                // padding and underline border (4.5) tall; the badge is 26 tall.
-                <View style={{ paddingTop: listenOnly ? space.s : Math.max(0, (readStyle(text, thaiFont).lineHeight + 4.5 - 26) / 2) }}>
-                  <SpeakerBadge who={line.speaker} />
+                // padding and underline border (4.5) tall; the speaker's mark is `speakerSize` tall.
+                <View style={{ paddingTop: listenOnly ? space.s : Math.max(0, (readStyle(text, thaiFont).lineHeight + 4.5 - speakerSize(text, line.speaker)) / 2) }}>
+                  <Speaker text={text} who={line.speaker} />
                 </View>
               )}
               <View style={{ flex: 1 }}>
@@ -895,20 +896,6 @@ function grammarOf(text: ReaderText, word: Word): TextGrammar | null {
 function glossFor(text: ReaderText, word: string): string | null {
   for (const line of text.lines) for (const w of line.words) if (w.text === word && w.gloss) return w.gloss;
   return null;
-}
-
-function speakerColors(c: Colors, who: 'A' | 'B') {
-  return who === 'A' ? { bg: c.accentFill, fg: c.accent } : { bg: c.speakerB, fg: c.onSpeakerB };
-}
-
-function SpeakerBadge({ who }: { who: 'A' | 'B' }) {
-  const c = useTheme();
-  const { bg, fg } = speakerColors(c, who);
-  return (
-    <View style={{ minWidth: 26, minHeight: 26, borderRadius: radius.pill, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.xs }}>
-      <Text style={{ ...type.footnote, fontWeight: '700', color: fg }}>{who}</Text>
-    </View>
-  );
 }
 
 function Pill({ text, bg, fg }: { text: string; bg: string; fg: string }) {

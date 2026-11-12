@@ -37,6 +37,7 @@ def draft(*texts: str, glosses: dict[str, str] | None = None) -> dict[str, Any]:
         "title": "At the stall",
         "roles": {"A": "Vendor", "B": "Customer"},
         "genders": {"A": "male", "B": "male"},
+        "characters": {"A": "shopkeeper", "B": "friend"},
         "lines": [
             {"speaker": "AB"[i % 2], "text": t, "english": f"line {i}"} for i, t in enumerate(texts)
         ],
@@ -444,6 +445,24 @@ def test_a_story_has_no_genders() -> None:
     story["lines"] = [dict(line, speaker="N") for line in GOOD["lines"]]
     result = run(ScriptedModel(story), TextRequest("food", (MANGO,), form="story"))
     assert result.genders == {} and result.gender_ok
+
+
+def test_each_speaker_is_given_a_character() -> None:
+    result = run(ScriptedModel(GOOD), TextRequest("food", (MANGO,)))
+    assert result.characters == {"A": "shopkeeper", "B": "friend"}
+
+
+def test_a_character_that_is_not_in_the_set_is_dropped() -> None:
+    odd = dict(GOOD, characters={"A": "wizard", "B": "doctor"})
+    result = run(ScriptedModel(odd), TextRequest("food", (MANGO,)))
+    assert result.characters == {"B": "doctor"}
+
+
+def test_a_story_has_no_characters() -> None:
+    story = dict(GOOD, characters={"A": "doctor", "B": "friend"})
+    story["lines"] = [dict(line, speaker="N") for line in GOOD["lines"]]
+    result = run(ScriptedModel(story), TextRequest("food", (MANGO,), form="story"))
+    assert result.characters == {}
 
 
 def test_a_marked_name_does_not_lower_coverage() -> None:
