@@ -12,7 +12,7 @@ from typing import Any, cast
 import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
-from franki_reader.generator import MODEL
+from franki_reader.generator import MODEL, Usage
 from franki_reader.languages import LANGUAGES, Code
 
 MAX_POINTS = 6
@@ -68,7 +68,8 @@ class ExplainRequest:
     simple: bool = False
 
 
-Explain = Callable[[ExplainRequest], Awaitable[list[dict[str, str]]]]
+# The points, and what asking for them cost.
+Explain = Callable[[ExplainRequest], Awaitable[tuple[list[dict[str, str]], Usage]]]
 
 
 def request_message(request: ExplainRequest) -> str:
@@ -100,7 +101,7 @@ def claude_explain(client: anthropic.AsyncAnthropic) -> Explain:
         "format": {"type": "json_schema", "schema": SCHEMA},
     }
 
-    async def explain(request: ExplainRequest) -> list[dict[str, str]]:
+    async def explain(request: ExplainRequest) -> tuple[list[dict[str, str]], Usage]:
         messages = [{"role": "user", "content": request_message(request)}]
         try:
             response = await client.beta.messages.create(
@@ -125,6 +126,14 @@ def claude_explain(client: anthropic.AsyncAnthropic) -> Explain:
             raise ExplainFailed("Claude's answer couldn't be read. Try again.") from e
         if not points:
             raise ExplainFailed("Claude didn't explain this line. Try again in a moment.")
-        return points
+        u = response.usage
+        used = Usage(
+            u.input_tokens,
+            u.output_tokens,
+            u.cache_read_input_tokens or 0,
+            u.cache_creation_input_tokens or 0,
+            response.model,
+        )
+        return points, used
 
     return explain

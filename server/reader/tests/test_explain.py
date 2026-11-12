@@ -12,7 +12,7 @@ from franki_reader import store
 from franki_reader.app import create_app
 from franki_reader.engine import Engine
 from franki_reader.explain import ExplainFailed, ExplainRequest, clean, request_message
-from franki_reader.generator import TextRequest
+from franki_reader.generator import TextRequest, Usage
 
 POINTS = [{"phrase": "ฉัน", "note": "I, said by anyone."}]
 
@@ -41,9 +41,9 @@ def url(text_id: int, line: int = 0) -> str:
 def test_explains_the_line_with_its_neighbours_as_context() -> None:
     seen: list[ExplainRequest] = []
 
-    async def explain(request: ExplainRequest) -> list[dict[str, str]]:
+    async def explain(request: ExplainRequest) -> tuple[list[dict[str, str]], Usage]:
         seen.append(request)
-        return POINTS
+        return POINTS, Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")
 
     c, text_id = client(explain)
     response = c.post(url(text_id, 1), json={}, headers=AUTH)
@@ -56,9 +56,9 @@ def test_explains_the_line_with_its_neighbours_as_context() -> None:
 def test_asks_once_per_line_and_per_version() -> None:
     calls: list[bool] = []
 
-    async def explain(request: ExplainRequest) -> list[dict[str, str]]:
+    async def explain(request: ExplainRequest) -> tuple[list[dict[str, str]], Usage]:
         calls.append(request.simple)
-        return POINTS
+        return POINTS, Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")
 
     c, text_id = client(explain)
     for body in ({}, {}, {"simple": True}, {"simple": True}):
@@ -66,13 +66,26 @@ def test_asks_once_per_line_and_per_version() -> None:
     assert calls == [False, True]
 
 
+def test_costs_count_each_explanation_asked_for() -> None:
+    async def explain(request: ExplainRequest) -> tuple[list[dict[str, str]], Usage]:
+        return POINTS, Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")
+
+    c, text_id = client(explain)
+    assert c.get("/api/costs", headers=AUTH).json()["explanations"]["asked"] == 0
+    for body in ({}, {}, {"simple": True}):
+        c.post(url(text_id), json=body, headers=AUTH)
+    spent = c.get("/api/costs", headers=AUTH).json()["explanations"]
+    assert spent["asked"] == 2 and spent["cost_usd"] == 4.0
+    assert [r["language"] for r in spent["languages"]] == ["th"]
+
+
 def test_a_failure_is_not_kept() -> None:
     results: list[Any] = [ExplainFailed("Claude didn't answer (APIError). Try again in a moment.")]
 
-    async def explain(request: ExplainRequest) -> list[dict[str, str]]:
+    async def explain(request: ExplainRequest) -> tuple[list[dict[str, str]], Usage]:
         if results:
             raise results.pop()
-        return POINTS
+        return POINTS, Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")
 
     c, text_id = client(explain)
     failed = c.post(url(text_id), json={}, headers=AUTH)
@@ -81,8 +94,8 @@ def test_a_failure_is_not_kept() -> None:
 
 
 def test_needs_the_passphrase_and_a_real_line() -> None:
-    async def explain(request: ExplainRequest) -> list[dict[str, str]]:
-        return POINTS
+    async def explain(request: ExplainRequest) -> tuple[list[dict[str, str]], Usage]:
+        return POINTS, Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")
 
     c, text_id = client(explain)
     assert c.post(url(text_id), json={}).status_code == 401

@@ -42,7 +42,8 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/costs?days=30          what Claude cost over the last `days` days, per language:
                                       texts read, waiting, dropped and skipped, attempts and dollars (every
                                       language, not just the current one; the MCP's
-                                      read_and_listen_costs reads it)
+                                      read_and_listen_costs reads it), and `explanations`: what
+                                      Explain's calls cost over the same days
     GET   /api/grammar                the current language's grammar points, each practice, avoid
                                       or normal
     PUT   /api/grammar/{id}           {state}; at most 2 practiced at once; from the next text
@@ -361,7 +362,7 @@ def create_app(
         spaced = LANGUAGES[text.language].spaced
         plain = [parse_line(ln.text, spaced)[0] for ln in text.lines]
         try:
-            points = await explain(
+            points, used = await explain(
                 ExplainRequest(
                     text.language,
                     plain[line],
@@ -373,7 +374,9 @@ def create_app(
         except ExplainFailed as e:
             # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
             raise HTTPException(503, str(e)) from e
-        store.save_explanation(engine.conn, text_id, line, body.simple, points, engine.clock())
+        store.save_explanation(
+            engine.conn, text_id, line, body.simple, points, engine.clock(), used.cost_usd()
+        )
         return {"points": points}
 
     def settings_out(current: Settings) -> dict[str, Any]:
@@ -543,6 +546,7 @@ def create_app(
     async def costs(days: Annotated[int, Query(ge=1, le=3650)] = 30) -> dict[str, Any]:
         since = engine.clock() - timedelta(days=days)
         by_language = store.spending(engine.conn, since)
+        explained = store.explanation_spending(engine.conn, since)
         rows = by_language.values()
         total = store.Spending(
             sum(r.read for r in rows),
@@ -560,6 +564,20 @@ def create_app(
                 for code, r in by_language.items()
             ],
             "total": _spent(total),
+            # Explain's calls, apart from the texts above (they aren't in per_text_usd).
+            "explanations": {
+                "asked": sum(n for n, _ in explained.values()),
+                "cost_usd": round(sum(c for _, c in explained.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "asked": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in explained.items()
+                ],
+            },
         }
 
     @app.get("/api/words", dependencies=authed)

@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS explanations (
     simple INTEGER NOT NULL,
     points TEXT NOT NULL,
     created_at TEXT NOT NULL,
+    cost_usd REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (text_id, line, simple)
 );
 CREATE TABLE IF NOT EXISTS stories (
@@ -572,12 +573,20 @@ def save_explanation(
     simple: bool,
     points: list[dict[str, str]],
     now: datetime,
+    cost_usd: float = 0.0,
 ) -> None:
     with conn:
         conn.execute(
-            "INSERT OR REPLACE INTO explanations (text_id, line, simple, points, created_at)"
-            " VALUES (?, ?, ?, ?, ?)",
-            (text_id, line, int(simple), json.dumps(points, ensure_ascii=False), now.isoformat()),
+            "INSERT OR REPLACE INTO explanations (text_id, line, simple, points, created_at, cost_usd)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                text_id,
+                line,
+                int(simple),
+                json.dumps(points, ensure_ascii=False),
+                now.isoformat(),
+                cost_usd,
+            ),
         )
 
 
@@ -805,6 +814,22 @@ def spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, Spending]:
         for language, r in by_language.items()
     }
     return dict(sorted(out.items(), key=lambda item: -item[1].cost_usd))
+
+
+def explanation_spending(
+    conn: sqlite3.Connection, since: datetime
+) -> dict[Code, tuple[int, float]]:
+    """Each language with a line explained since `since`: how many explanations were asked for
+    (a plainer version counts again) and what they cost Claude."""
+    return {
+        language: (count, cost)
+        for language, count, cost in conn.execute(
+            """SELECT t.language, COUNT(*), SUM(e.cost_usd) FROM explanations e
+               JOIN texts t ON t.id = e.text_id WHERE e.created_at >= ? GROUP BY t.language
+               ORDER BY SUM(e.cost_usd) DESC""",
+            (since.isoformat(),),
+        )
+    }
 
 
 def practiced_days(

@@ -58,7 +58,8 @@ Franki's (Client, below).
   version. Asked only on the tap (`POST /api/texts/{id}/lines/{n}/explain`, `explain.py`), with the
   line and the lines around it, and kept per line and per version in `explanations`, so opening a
   line again or rereading a past text costs nothing. It only shows text: nothing is graded or added
-  to the deck. A free-form "Ask a question" and a per-word explanation were left out for now.
+  to the deck. Each call's cost is kept with it and reported under `explanations` in `/api/costs`,
+  apart from the texts' figures. A free-form "Ask a question" and a per-word explanation were left out for now.
 - **Listen only** (brief, design principle 6). Once a text is rated "About right", the end view
   offers to play it again with the Thai hidden; the lines show who's speaking instead, and "Show the
   text" brings the words back. The reading is then logged with `listen_only` true. The brief's
