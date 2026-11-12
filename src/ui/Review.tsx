@@ -1,7 +1,7 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Animated, Easing, PanResponder, Pressable, ScrollView, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
+import { ActionSheetIOS, Alert, Animated, Easing, Keyboard, KeyboardAvoidingView, PanResponder, Pressable, ScrollView, Text, TextInput, useColorScheme, useWindowDimensions, View } from 'react-native';
 import { FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
 import { isOmnilanguage, renderCard } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
@@ -242,16 +242,19 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   // The card's own deck decides its FSRS settings, not the deck being studied.
   const cardParams = note && current ? paramsForDeck(cardHomeDeck(current, note.deck), allParams) : undefined;
   const noteType = note && current?.kind.startsWith('t') && !isOmnilanguage(note) ? noteTypes.get(note.model) : undefined;
+  // What's typed into a {{type:}} card's box, compared on the back once the answer is shown.
+  const [typed, setTyped] = useState('');
+  const typedShown = revealed ? typed : '';
   const page = useMemo(() => {
     if (!note || !noteType || !current) return undefined;
     const ord = Number(current.kind.slice(1));
-    const { front, back } = renderTemplateCard(note, noteType, ord);
+    const { front, back, typeAnswer } = renderTemplateCard(note, noteType, ord, typedShown);
     const opts = {
       css: noteType.css, ord, dark, autoplay: true, mediaBase: mediaBaseUri(),
       colors: { background: c.surface, text: c.text, cloze: c.countNew },
     };
-    return { front: cardDocument(front, opts), back: cardDocument(back, opts) };
-  }, [note, noteType, current?.id, current?.kind, dark, c]); // eslint-disable-line react-hooks/exhaustive-deps
+    return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer };
+  }, [note, noteType, current?.id, current?.kind, dark, c, typedShown]); // eslint-disable-line react-hooks/exhaustive-deps
   const rendered = current && note && !page ? renderCard(note, current.kind) : undefined;
   // The fuzz seed and load balancer for answering the current card, as Anki has them: the buttons show what an answer does.
   const answerContext = (card: Card, when: Date): AnswerContext => {
@@ -295,6 +298,8 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   // One warning per session if answers can't be written into the Anki collection.
   const warnedAnki = useRef(false);
   useEffect(() => { shownAt.current = Date.now(); }, [current?.id]);
+  // Each card, and each time a card comes back, starts with an empty box.
+  useEffect(() => { if (!revealed) setTyped(''); }, [current?.id, revealed]);
 
   // Auto-speak the front when a card with audio appears.
   useEffect(() => {
@@ -456,7 +461,7 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
     );
   }
 
-  const reveal = () => { setRevealed(true); if (rendered?.back.speak) speak(rendered.back.speak); };
+  const reveal = () => { Keyboard.dismiss(); setRevealed(true); if (rendered?.back.speak) speak(rendered.back.speak); };
   const shown = ratingsShown(answerButtons);
   const buttons = ([
     { r: 1, label: 'Again', color: c.again },
@@ -487,7 +492,31 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
       ))}
     </Reveal>
   ) : (
-    <Button label="Show answer" onPress={reveal} />
+    <>
+      {page?.typeAnswer ? (
+        <TextInput
+          key={current.id}
+          value={typed}
+          onChangeText={setTyped}
+          onSubmitEditing={reveal}
+          autoFocus
+          autoCapitalize="none"
+          autoCorrect={false}
+          spellCheck={false}
+          returnKeyType="done"
+          placeholder="Type the answer"
+          accessibilityLabel="Type the answer"
+          placeholderTextColor={c.textTertiary}
+          selectionColor={c.accent}
+          keyboardAppearance={dark ? 'dark' : 'light'}
+          style={{
+            ...type.body, color: c.text, backgroundColor: c.surface, ...smooth, borderRadius: radius.m,
+            borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP,
+          }}
+        />
+      ) : null}
+      <Button label="Show answer" onPress={reveal} />
+    </>
   );
 
   // Suspend, bury or flag cards from the menu: in Franki first, then in the kept collection, as Anki writes it.
@@ -529,6 +558,8 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
   };
 
   return (
+    // A {{type:}} card's box sits in the footer, so the screen makes room for the keyboard.
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
     <Screen
       onBack={onDone}
       right={
@@ -608,5 +639,6 @@ export function Review({ repo, deck, onDone }: { repo: Repo & AnkiLink; deck: st
         <Text style={{ ...type.footnote, color: c.textTertiary, textAlign: 'center' }}>Swipe right for Good, left for Again</Text>
       ) : null}
     </Screen>
+    </KeyboardAvoidingView>
   );
 }
