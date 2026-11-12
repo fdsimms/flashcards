@@ -1,8 +1,8 @@
 import { Stack } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
-  ActivityIndicator, Animated, LayoutAnimation, Pressable, Switch, Text, TextInput, useColorScheme, View,
+  ActivityIndicator, Animated, LayoutAnimation, PanResponder, Pressable, Switch, Text, TextInput, useColorScheme, View,
   type PressableProps, type StyleProp, type TextInputInstance, type TextInputProps, type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -204,6 +204,61 @@ export function SwitchRow({ label, hint, value, onValueChange, first }: { label:
         {hint ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{hint}</Text> : null}
       </View>
       <Switch value={value} onValueChange={(on) => { haptic.select(); onValueChange(on); }} trackColor={{ true: c.accent, false: c.border }} ios_backgroundColor={c.border} />
+    </View>
+  );
+}
+
+/**
+ * A row that slides left under the finger to show an action behind it, as a table row does in
+ * iOS: dragged past halfway (or flicked) it stays open on `action`, which fills `width`. Whether
+ * it's open is the parent's (`open`), so only one row in a list is open at a time. The action
+ * must also be reachable another way (a visible button), since a swipe can't be found by
+ * VoiceOver or by someone who never tries it.
+ */
+export function SwipeToReveal({ open, onOpenChange, action, width = 92, children }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  action: React.ReactNode;
+  width?: number;
+  children: React.ReactNode;
+}) {
+  const c = useTheme();
+  const x = useRef(new Animated.Value(0)).current;
+  // The responder is made once, so it reads the latest props from here.
+  const latest = useRef({ open, onOpenChange, width });
+  latest.current = { open, onOpenChange, width };
+  const settle = (to: boolean) => Animated.spring(x, { toValue: to ? -latest.current.width : 0, useNativeDriver: true, speed: 24, bounciness: 0 }).start();
+  useEffect(() => { settle(open); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const responder = useRef(
+    PanResponder.create({
+      // Claim only a clearly horizontal drag, so the list still scrolls vertically.
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+      onPanResponderMove: (_, g) => {
+        const { open: isOpen, width: w } = latest.current;
+        x.setValue(Math.max(-w * 1.15, Math.min(0, (isOpen ? -w : 0) + g.dx)));
+      },
+      onPanResponderRelease: (_, g) => {
+        const { open: isOpen, width: w, onOpenChange: change } = latest.current;
+        const end = Math.max(-w, Math.min(0, (isOpen ? -w : 0) + g.dx));
+        const next = g.vx < -0.5 ? true : g.vx > 0.5 ? false : end < -w / 2;
+        if (next !== isOpen) change(next);
+        else settle(isOpen);
+      },
+      onPanResponderTerminate: () => settle(latest.current.open),
+    }),
+  ).current;
+  return (
+    <View style={{ overflow: 'hidden' }}>
+      <View
+        style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width }}
+        accessibilityElementsHidden={!open}
+        importantForAccessibility={open ? 'auto' : 'no-hide-descendants'}
+      >
+        {action}
+      </View>
+      <Animated.View {...responder.panHandlers} style={{ backgroundColor: c.surface, transform: [{ translateX: x }] }}>
+        {children}
+      </Animated.View>
     </View>
   );
 }

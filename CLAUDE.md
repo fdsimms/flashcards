@@ -313,7 +313,10 @@ answer is already in the server's history (`undoAnkiAnswer` refuses it, under `l
 
 - **Build screens from `src/ui/kit.tsx`** (`Screen`, `Group`, `NavRow`, `Button`, `Card`, `Help`,
   `Count`, `MessageList`) before styling a `Pressable` or a box by hand, so a row or a button
-  looks the same everywhere. Icons are SF Symbols (`Icon`), and a tap gives back a haptic (`haptic`).
+  looks the same everywhere. Icons are SF Symbols (`Icon`), never a text glyph or an emoji (`›`, `✓`,
+  `🔊`), which draw at the wrong weight and size next to the system's. A button or chip is a
+  `Tappable`, not a hand-styled `Pressable`, so it gives under the finger, and a tap gives back a
+  haptic (`haptic`).
 - **The header is the native stack's, never drawn by a screen.** `Screen` sets the title and
   header buttons; a ScrollView directly inside it takes `contentInsetAdjustmentBehavior="automatic"`
   so the large title collapses. Never pad a screen's top or bottom by a fixed number: the status

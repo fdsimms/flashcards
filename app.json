@@ -41,6 +41,18 @@
         {
           "faceIDPermission": false
         }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#f6f4ef",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "dark": {
+            "backgroundColor": "#0f1115",
+            "image": "./assets/splash-icon.png"
+          }
+        }
       ]
     ],
     "extra": {
