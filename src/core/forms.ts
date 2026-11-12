@@ -396,8 +396,8 @@ export function promptFor(
 /** Prompts in one practice of a word's forms, unless Deck options says otherwise. */
 export const DEFAULT_FORM_PROMPTS = 6;
 export const FORM_PROMPT_CHOICES = [4, 6, 8, 10] as const;
-/** Prompts in one practice of a pattern. */
-export const PATTERN_PROMPTS = 10;
+/** The caps offered for one practice of a pattern; 0 is no cap. */
+export const PATTERN_PROMPT_LIMITS = [10, 25, 0] as const;
 
 /** A deck's forms practice settings: its own, else its nearest ancestor's, else the defaults. */
 export function formsSettings(deck: string, all: Map<string, DeckSettings>): { suggest: boolean; prompts: number } {
@@ -589,7 +589,7 @@ export function patternPrompts(
  */
 export type DrillRequest =
   | { kind: 'words'; noteIds: string[]; perWord: number }
-  | { kind: 'pattern'; deck: string; patterns: string[]; groups: string[]; sentence: boolean };
+  | { kind: 'pattern'; deck: string; patterns: string[]; groups: string[]; sentence: boolean; /** Most prompts to ask; absent means every one. */ limit?: number };
 
 /** Words in `deck` (and its subdecks) with forms, that have a card answered at least once. */
 export function studiedWords(deck: string, notes: Iterable<Note>, cards: Card[]): PracticeWord[] {
@@ -615,8 +615,10 @@ export function drillPrompts(
   }
   const words = studiedWords(request.deck, data.notes, data.cards);
   const choice = { patterns: request.patterns, groups: request.groups };
-  const all = patternPrompts(words, choice, data.practice, request.sentence ? Number.POSITIVE_INFINITY : PATTERN_PROMPTS, random, pool, confused);
-  const prompts = request.sentence ? all.filter((p) => p.sentence).slice(0, PATTERN_PROMPTS) : all;
+  const limit = request.limit ?? Number.POSITIVE_INFINITY;
+  // "In a sentence" filters after choosing, so it picks from every form rather than the first few.
+  const all = patternPrompts(words, choice, data.practice, request.sentence ? Number.POSITIVE_INFINITY : limit, random, pool, confused);
+  const prompts = request.sentence ? all.filter((p) => p.sentence).slice(0, limit) : all;
   const chosen = words.filter((w) => choice.patterns.includes(patternOf(w.note))).map((w) => w.note);
   return { prompts, notice: unreadableNotice(chosen) };
 }
