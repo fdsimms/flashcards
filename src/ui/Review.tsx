@@ -46,7 +46,7 @@ function CardSurface({ children }: { children: React.ReactNode }) {
   return (
     <View
       style={{
-        flex: 1, marginHorizontal: space.l, marginTop: space.s, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
+        flex: 1, marginHorizontal: space.l, marginTop: space.xxl, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
         backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, ...lift(c),
       }}
     >
@@ -816,9 +816,6 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
           </ScrollView>
           </Pressable>
         </SwipeCard>
-      ) : null}
-      {swipeOn && revealed && rendered ? (
-        <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Swipe right for Good, left for Again</Text>
       ) : null}
     </Screen>
     </View>
