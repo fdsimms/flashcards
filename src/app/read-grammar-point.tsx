@@ -12,8 +12,10 @@ export default function ReadGrammarPointRoute() {
   // What the page reads from the phone: notes and Forms practice, and when Not yet was chosen.
   const practice = useMemo(() => ({
     load: async () => {
-      const [notes, records, dismissed] = await Promise.all([repo.listNotes(), repo.listPractice(), repo.grammarHintsDismissed()]);
-      return { notes, practice: records, dismissed };
+      const [notes, records, dismissed, drills] = await Promise.all([
+        repo.listNotes(), repo.listPractice(), repo.grammarHintsDismissed(), repo.listGrammarAnswers(),
+      ]);
+      return { notes, practice: records, dismissed, drills };
     },
     saveDismissed: (dismissed: Record<string, string>) => repo.saveGrammarHintsDismissed(dismissed),
   }), [repo]);
@@ -30,6 +32,7 @@ export default function ReadGrammarPointRoute() {
       practiceDeck={deck}
       onOpenPoint={(next) => router.push({ pathname: '/read-grammar-point', params: { id: next } })}
       onPracticeForms={(practiceDeck, groups) => router.push({ pathname: '/forms-practice', params: { deck: practiceDeck, groups: JSON.stringify(groups) } })}
+      onDrill={(point) => router.push({ pathname: '/tool', params: { id: 'grammar', points: JSON.stringify([point]) } })}
     />
   );
 }

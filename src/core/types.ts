@@ -1,3 +1,5 @@
+import type { Segment } from './highlight';
+
 /**
  * forward / reverse / audio are Omnilanguage's cards (native renderer). `t<ord>` is a card of any
  * other note type, rendered from its Anki template with that ordinal (cloze number - 1 for cloze).
@@ -171,13 +173,21 @@ export interface RenderedSide {
     tapLabel?: string;
     /**
      * What the block is, for layout: `chips` are small tags (`chips` holds them), the `example*`
-     * blocks are one example sentence's lines (set tight together), and a `note` is set off in a
-     * callout. A block with no role is plain labeled text.
+     * blocks are one example sentence's lines (set tight together), a `note` is set off in a
+     * callout, and `forms` is a labeled list of the word's forms (`rows`). A block with no role is
+     * plain labeled text.
      */
-    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note';
+    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'forms';
     chips?: string[];
-    /** A word to highlight inside the text: the card's word, in its example sentence. */
-    mark?: string;
+    /** A `forms` block's lines: one of the word's forms each, under its label ("plural", "genitive"). */
+    rows?: { label: string; value: string }[];
+    /** Shown dimmed before an emphasized word: мой / моя / моё before a Russian noun, as Anki's template does. */
+    prefix?: string;
+    /**
+     * The text split around the words to highlight: the card's word in its example sentence, as
+     * the note marks it in bold or else found by searching (`fieldSegments`).
+     */
+    segments?: Segment[];
     /** An SF Symbol drawn before the text (the screen draws it, so no emoji goes in `text`). */
     icon?: 'speaker.wave.2.fill';
   }[];

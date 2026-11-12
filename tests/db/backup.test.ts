@@ -25,6 +25,7 @@ describe('restorePlan', () => {
   it('restores forms practice, which is the user\'s own data', async () => {
     const { RESTORED_TABLES } = await import('../../src/db/backup');
     expect(RESTORED_TABLES).toContain('form_practice');
+    expect(RESTORED_TABLES).toContain('grammar_answers');
   });
   it('refuses a file that is not one of our backups', () => {
     expect(() => restorePlan(current, new Map([['notes', ['id']]]))).toThrow(NotABackupError);

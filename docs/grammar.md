@@ -86,9 +86,27 @@ step is its own PR, and each that changes a screen is mocked up for the owner fi
    answers at `KNOW_IT_SHARE` (90%) or more, for a point not already Know it (`suggestKnowIt`).
    "Not yet" is kept on the phone (`grammarHintsDismissed`, beside Forms practice's own results),
    and from then only answers given since count, so it comes back once 20 new ones clear the bar.
-5. **Spaced grammar drills**, if wanted, designed on their own: no Anki cards, results kept like
-   Forms practice's, never graded from reading.
-
+5. **Spaced grammar drills** (built 12 November 2026; the owner chose from a mock). The Practice
+   tab's Grammar tool (`src/ui/tools/GrammarTool.tsx`), and "Drill this point" on a point's page.
+   No Anki cards, and reading never counts as an answer.
+   - **Two kinds of question** (`POST /api/drills`, `drills.py`). "Which is this?": a line from a
+     text read to the end, the point's words underlined, to name from the point and its `related`
+     ones. Free, and its answer is the finder's; a line where a related point's finder matches the
+     same words is left out. "Fill the gap": a short sentence Claude writes from the known words
+     (the texts' own cached word list), with three wrong choices, kept only if the point's finder
+     finds the point in the answer and in none of the wrong choices, with at most one word outside
+     the known ones. Written in the background, `BATCH` (12) at a time up to `STOCK` (24) a point,
+     at most `BATCHES_PER_DAY` (2) calls a point a day, starting when a point is set to Practice or
+     Know it, and served never-served first. Their cost is reported under `drills` in `/api/costs`.
+     A drill takes half of each point's questions from lines read where it can, and the rest from
+     the stock. A Thai gap question doesn't name its point, since the word is the answer.
+   - **Spaced by point, worked out from the answers, never stored** (`src/core/grammarDrills.ts`):
+     the phone keeps each answer (`grammar_answers`, restored with a backup), and a point's next
+     drill is read from them every time. Practice points come back after 1, 3, 7, 14, then 30 days
+     with each drill where 80% or more of its questions were right, Know it ones after 7, 14, 30,
+     then 60; a drill under 80% brings it back the next day. Not set and Don't know it aren't
+     drilled. A drill is 10 questions over at most 3 due points, Practice ones first.
+   - **The Know it suggestion counts drills too**, with Forms practice (`suggestKnowIt`).
 **Points no finder can find** (case, verb aspect) join the catalog with `findable: false` in the
 step that first gives them a use. The server leaves them out of text requests, exposure and marks,
 and the Grammar screen shows them without the choices that only apply to texts, saying why.

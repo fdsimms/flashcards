@@ -27,6 +27,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "text": "ข้าวเหนียวมะม่วง",
         "status": "known",
         "gloss": "mango sticky rice",
+        "lemma": None,
         "translit": None,
         "stretch": True,
         "deck": True,
@@ -36,6 +37,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "text": "!",
         "status": None,
         "gloss": None,
+        "lemma": None,
         "translit": None,
         "stretch": False,
         "deck": False,
@@ -75,6 +77,7 @@ def test_a_word_off_the_list_takes_the_models_gloss() -> None:
         "text": "ทอน",
         "status": "unknown",
         "gloss": "give change",
+        "lemma": None,
         "translit": None,
         "stretch": False,
         "deck": False,  # unreviewed, so not counted as a deck word
@@ -142,3 +145,13 @@ def test_a_marked_name_is_sent_with_the_name_status() -> None:
     words = render(text, lexicon_from(ENTRIES), MEANINGS)["lines"][0]["words"]
     assert [(w["text"], w["status"]) for w in words][:1] == [("สมชาย", "name")]
     assert words[0]["gloss"] == "a man's name"
+
+
+def test_a_form_is_sent_with_its_dictionary_form_and_thai_has_none() -> None:
+    from franki_reader.reader import lemma_for
+
+    polish = lexicon_from([Entry(1, "rozumieć", "to understand", "mature")], "pl")
+    assert lemma_for("Rozumiem", polish) == "rozumieć"
+    assert lemma_for("rozumieć", polish) is None  # already the dictionary form
+    assert lemma_for("ptak", polish) is None
+    assert lemma_for("ฉัน", lexicon_from(ENTRIES)) is None

@@ -1,5 +1,6 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Stack, usePreventRemove } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import React, { useEffect, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
@@ -162,14 +163,20 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
 
   const scroller = useRef<ScrollViewInstance>(null);
   const lineBoxes = useRef<Box[]>([]);
-  const scrollY = useRef(0);
+  // Null until the first scroll: the view opens at the top, which is at minus the header's overlap.
+  const scrollY = useRef<number | null>(null);
   const viewHeight = useRef(0);
+  // How far down the window the scroll view's frame starts. The header covers the part of the frame
+  // above `headerHeight`, which iOS insets the content by, so a line followed to has to land below it.
+  const viewTop = useRef(0);
+  const headerHeight = useHeaderHeight();
 
   useEffect(() => {
     const at = current === null ? -1 : paras ? rangeOf(paras, current) : current;
     const box = at < 0 ? undefined : lineBoxes.current[at];
     if (!box || !viewHeight.current) return;
-    const y = scrollTarget(box, scrollY.current, viewHeight.current);
+    const insetTop = Math.max(0, headerHeight - viewTop.current);
+    const y = scrollTarget(box, scrollY.current ?? -insetTop, { height: viewHeight.current, insetTop });
     if (y !== null) scroller.current?.scrollTo({ y, animated: true });
   }, [current]);
 
@@ -527,10 +534,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
         </>
       ) : undefined}
     >
-      {/* A ScrollView with the automatic inset, not a bare View: a bare one draws under the native
-          header, so the spinner and message sat behind the Back button and the screen looked blank. */}
+      {/* Centered in the whole screen frame, which runs under the native header. The automatic inset
+          would add the header's height on top of that centering and push the spinner below the middle. */}
       {!text ? (
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+        <ScrollView contentInsetAdjustmentBehavior="never" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
           {error ? (
             <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={load} /></View>
           ) : (
@@ -549,7 +556,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           ref={scroller}
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={{ paddingBottom: space.l }}
-          onLayout={(e) => { viewHeight.current = e.nativeEvent.layout.height; }}
+          onLayout={(e) => {
+            viewHeight.current = e.nativeEvent.layout.height;
+            scroller.current?.measureInWindow((_x, y) => { viewTop.current = y; });
+          }}
           onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={100}
         >
@@ -668,7 +678,13 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                 backgroundColor: current === i ? c.surface : undefined,
               }}
             >
-              {line.speaker === 'N' ? null : <View style={{ paddingTop: space.s }}><SpeakerBadge who={line.speaker} /></View>}
+              {line.speaker === 'N' ? null : (
+                // Centered on the first line of words, which is a word's line height plus its
+                // padding and underline border (4.5) tall; the badge is 26 tall.
+                <View style={{ paddingTop: listenOnly ? space.s : Math.max(0, (readStyle(text, thaiFont).lineHeight + 4.5 - 26) / 2) }}>
+                  <SpeakerBadge who={line.speaker} />
+                </View>
+              )}
               <View style={{ flex: 1 }}>
                 {listenOnly ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, paddingVertical: space.s }}>
@@ -697,32 +713,33 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                     ))}
                   </View>
                 )}
+                {/* Under the words, above anything they reveal, so a button doesn't move when English or an explanation opens. */}
+                <View style={{ flexDirection: 'row', gap: space.xs, marginTop: space.xs }}>
+                  {line.audio ? (
+                    <RoundButton icon="play.fill" accessibilityLabel={`Play line ${i + 1}`} on onPress={() => playLine(i, false)} />
+                  ) : null}
+                  {!english && !listenOnly ? (
+                    <RoundButton
+                      label="EN"
+                      accessibilityLabel={lineEnglish.includes(i) ? `Hide English for line ${i + 1}` : `Show English for line ${i + 1}`}
+                      on={lineEnglish.includes(i)}
+                      onPress={() => toggleLineEnglish(i)}
+                    />
+                  ) : null}
+                  {!listenOnly ? (
+                    <RoundButton
+                      icon="sparkles"
+                      accessibilityLabel={explained.includes(i) ? `Hide explanation for line ${i + 1}` : `Explain line ${i + 1}`}
+                      on={explained.includes(i)}
+                      onPress={() => toggleExplained(i)}
+                    />
+                  ) : null}
+                </View>
                 {!listenOnly && (english || lineEnglish.includes(i)) ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: 2 }}>{line.english}</Text>
                 ) : null}
                 {!listenOnly && explained.includes(i) ? <LineExplanation api={api} textId={text.id} line={i} grammarChosen={grammarChosen} onGrammarChosen={chooseGrammar} onOpenGrammar={onOpenGrammar} /> : null}
                 {!listenOnly && phrase && phrase.end !== null && phrase.line === i ? phraseCard(phrase) : null}
-              </View>
-              <View style={{ gap: space.xs }}>
-                {line.audio ? (
-                  <RoundButton icon="play.fill" accessibilityLabel={`Play line ${i + 1}`} on onPress={() => playLine(i, false)} />
-                ) : null}
-                {!english && !listenOnly ? (
-                  <RoundButton
-                    label="EN"
-                    accessibilityLabel={lineEnglish.includes(i) ? `Hide English for line ${i + 1}` : `Show English for line ${i + 1}`}
-                    on={lineEnglish.includes(i)}
-                    onPress={() => toggleLineEnglish(i)}
-                  />
-                ) : null}
-                {!listenOnly ? (
-                  <RoundButton
-                    icon="sparkles"
-                    accessibilityLabel={explained.includes(i) ? `Hide explanation for line ${i + 1}` : `Explain line ${i + 1}`}
-                    on={explained.includes(i)}
-                    onPress={() => toggleExplained(i)}
-                  />
-                ) : null}
               </View>
             </View>
           ))}
@@ -838,6 +855,16 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           onPlayWord(tapped.word.text, text.language);
         }}
         onSelectPhrase={listenOnly ? null : startPhrase}
+        onAddToDeck={mining?.language === text?.language && mining && tapped && !tapped.word.deck && tapped.word.status !== 'name' ? () => {
+          // The popover is a modal, so it closes before the note editor opens over the reader.
+          const word = tapped.word.text;
+          setTapped(null);
+          void mining.onAdd(word, tapped.word.gloss ?? "").then((saved) => {
+            // In the deck now, so no longer marked unknown.
+            if (saved) setSession((s) => (s && isFlagged(s, word) ? toggleFlag(s, word) : s));
+          });
+        } : null}
+        addsLeft={mining?.left ?? 0}
         onClose={() => setTapped(null)}
       />
     </Screen>
@@ -1059,7 +1086,7 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onClose }: {
+function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, addsLeft, onClose }: {
   tapped: Tapped | null;
   grammar: TextGrammar | null;
   api: Api;
@@ -1071,6 +1098,10 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
   onToggleFlag: (() => void) | null;
   /** Starts selecting a phrase from this word, to have it explained. */
   onSelectPhrase: (() => void) | null;
+  /** Opens the note editor on this word; null when the word is in the deck or isn't in the language being read. */
+  onAddToDeck: (() => void) | null;
+  /** How many more words can be added to the deck today. */
+  addsLeft: number;
   onClose: () => void;
 }) {
   const c = useTheme();
@@ -1100,6 +1131,7 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
         }}
       >
         <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
+        {tapped.word.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {tapped.word.lemma}</Text> : null}
         <Text style={{ ...type.body, color: c.text }}>{tapped.word.gloss ?? 'No meaning available'}</Text>
         <View style={{ alignItems: 'flex-start' }}>
           <HeaderAction label="Play word" onPress={onPlay} />
@@ -1118,6 +1150,11 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
         {onSelectPhrase ? (
           <View style={{ alignItems: 'flex-start' }}>
             <HeaderAction label="Select a phrase" accessibilityLabel={`Select a phrase starting from ${tapped.word.text}`} onPress={onSelectPhrase} />
+          </View>
+        ) : null}
+        {onAddToDeck && addsLeft > 0 ? (
+          <View style={{ alignItems: 'flex-start' }}>
+            <HeaderAction label="Add to deck" accessibilityLabel={`Add ${tapped.word.text} to your deck`} onPress={onAddToDeck} />
           </View>
         ) : null}
         {onToggleFlag ? (

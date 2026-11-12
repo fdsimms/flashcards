@@ -43,6 +43,7 @@ class Point:
     name: str
     note: str  # what it means, with examples
     find: Finder
+    related: tuple[str, ...] = ()  # points to compare it with, from the catalog (drills.py)
 
 
 def words(plain: str, lexicon: Checker) -> list[str]:
@@ -426,7 +427,14 @@ def _load(catalog: Path, finders: dict[str, Finder]) -> tuple[Point, ...]:
     if problems:
         raise ValueError(f"{catalog.name}: " + "; ".join(problems))
     return tuple(
-        Point(e["id"], cast(Code, e["language"]), e["name"], e["note"], finders[e["id"]])
+        Point(
+            e["id"],
+            cast(Code, e["language"]),
+            e["name"],
+            e["note"],
+            finders[e["id"]],
+            tuple(e.get("related", ())),
+        )
         for e in entries
     )
 

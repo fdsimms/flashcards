@@ -167,4 +167,13 @@ describe('repo', () => {
     await repo.deleteNote(note.id);
     expect(await repo.listPractice()).toEqual([]);
   });
+  it("keeps grammar drills' answers in the order they were given, and Not yet dates", async () => {
+    const repo = new MemoryRepo();
+    const answer = (correct: boolean, d: number) => ({ pointId: 'es.preterite', drillId: 'd1', kind: 'gap' as const, correct, answeredAt: new Date(2026, 10, d, 9).toISOString() });
+    await repo.addGrammarAnswer(answer(true, 11));
+    await repo.addGrammarAnswer(answer(false, 10));
+    expect((await repo.listGrammarAnswers()).map((a) => a.correct)).toEqual([false, true]);
+    await repo.saveGrammarHintsDismissed({ 'es.preterite': '2026-11-11T09:00' });
+    expect(await repo.grammarHintsDismissed()).toEqual({ 'es.preterite': '2026-11-11T09:00' });
+  });
 });

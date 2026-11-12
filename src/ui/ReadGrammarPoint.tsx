@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import type { PracticeRecord } from '../core/forms';
 import { explanationParagraphs, grammarPoint } from '../core/grammar';
 import { knowItReason, pointPractice, POINT_PRACTICE_DAYS, practiceSince, suggestKnowIt } from '../core/grammarPage';
+import type { GrammarAnswer } from '../core/grammarDrills';
 import type { Note } from '../core/types';
 import { ApiError, type Api, type GrammarChoice, type GrammarPointPage } from '../reader/api';
 import { GRAMMAR_CHOICES, grammarStateWord, markedParts, seenLine } from '../reader/grammar';
@@ -18,10 +19,10 @@ import { radius, space, type, useTheme } from './theme';
  * comes through `practice` rather than the repo, which Read & Listen's code never imports
  * (tests/reader/noGrading.test.ts): it only reads, and keeps when Not yet was chosen.
  */
-export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, practiceDeck, onOpenPoint, onPracticeForms }: {
+export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, practiceDeck, onOpenPoint, onPracticeForms, onDrill }: {
   api: Api;
   practice: {
-    load: () => Promise<{ notes: Note[]; practice: PracticeRecord[]; dismissed: Record<string, string> }>;
+    load: () => Promise<{ notes: Note[]; practice: PracticeRecord[]; dismissed: Record<string, string>; drills: GrammarAnswer[] }>;
     saveDismissed: (dismissed: Record<string, string>) => Promise<void>;
   };
   id: string;
@@ -30,11 +31,13 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
   practiceDeck: string | null;
   onOpenPoint: (id: string) => void;
   onPracticeForms: (deck: string, groups: string[]) => void;
+  /** Opens a grammar drill on this point (the Practice tab's Grammar tool). */
+  onDrill: (id: string) => void;
 }) {
   const c = useTheme();
   const point = grammarPoint(id);
   const [page, setPage] = useState<GrammarPointPage | null>(null);
-  const [local, setLocal] = useState<{ notes: Note[]; practice: PracticeRecord[]; dismissed: Record<string, string> } | null>(null);
+  const [local, setLocal] = useState<{ notes: Note[]; practice: PracticeRecord[]; dismissed: Record<string, string>; drills: GrammarAnswer[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [choiceError, setChoiceError] = useState<string | null>(null);
   const choosing = useRef(false);
@@ -86,7 +89,7 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
   const now = new Date();
   const results = local && point.forms.length ? pointPractice(id, local.notes, local.practice, practiceSince(now, dayStartsAtHour)) : null;
   const suggestion = page && local
-    ? suggestKnowIt({ state: page.state, pointId: id, notes: local.notes, practice: local.practice, now, dayStartsAtHour, dismissedAt: local.dismissed[id] })
+    ? suggestKnowIt({ state: page.state, pointId: id, notes: local.notes, practice: local.practice, now, dayStartsAtHour, dismissedAt: local.dismissed[id], drillAnswers: local.drills })
     : undefined;
   const seen = page ? seenLine(page.seen, page.state, now, dayStartsAtHour) : null;
   const related = point.related.map((r) => grammarPoint(r)).filter((r) => r !== undefined);
@@ -107,6 +110,7 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
             />
             <Help>Applies from the next text written.</Help>
             {choiceError ? <ErrorNote message={choiceError} /> : null}
+            <Button label="Drill this point" variant="secondary" onPress={() => onDrill(id)} />
           </View>
         ) : null}
 
