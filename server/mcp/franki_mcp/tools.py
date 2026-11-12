@@ -204,6 +204,10 @@ reaches their devices at their next sync.
   names them). Try preview=true first when the text needs cleaning up (replacements, text_overrides).
 - FSRS settings and limits belong to a deck's options preset, which several decks can share:
   say which decks a change affects before making it.
+- Forms: fill_forms fills Omnilanguage verbs' Forms field (for Franki's forms practice) from
+  Wiktionary's tables. Preview first (dry_run) and show the user; turn on the daily fill
+  (set_forms_auto_fill) only once they've checked a batch. Write a not_found word's forms yourself
+  only when asked, in the same lines, tagged forms-unverified.
 """
 
 
