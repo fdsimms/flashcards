@@ -86,23 +86,6 @@ function DeckRowView({ row, first, onOpen, onOptions, onToggle }: { row: ShownRo
       {row.depth > 0 ? (
         <View style={{ position: 'absolute', left: space.l + (row.depth - 1) * space.l + space.xs, top: 0, bottom: 0, width: 2, borderRadius: 1, backgroundColor: c.fill }} />
       ) : null}
-      {row.hasSubdecks && onToggle ? (
-        // In the indent before the name, so a deck's name stays where it is whether or not it has subdecks.
-        <Tappable
-          onPress={() => { haptic.select(); onToggle(); }}
-          accessibilityRole="button"
-          accessibilityLabel={`${row.collapsed ? 'Show' : 'Hide'} the subdecks of ${row.name}`}
-          hitSlop={{ left: space.s, right: space.l }}
-          scaleTo={0.85}
-          dimTo={0.5}
-          style={{
-            position: 'absolute', left: row.depth * space.l, top: 0, bottom: 0, width: space.l + space.xs,
-            alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <Icon name={row.collapsed ? 'chevron.right' : 'chevron.down'} size={11} color={c.textTertiary} weight="semibold" />
-        </Tappable>
-      ) : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{row.name}</Text>
         <Text style={{ ...type.footnote, color: c.textSecondary }}>{row.total.toLocaleString()} {row.total === 1 ? 'card' : 'cards'}</Text>
@@ -123,6 +106,24 @@ function DeckRowView({ row, first, onOpen, onOptions, onToggle }: { row: ShownRo
       >
         <Icon name="ellipsis" size={18} color={c.textTertiary} weight="semibold" />
       </Pressable>
+      {row.hasSubdecks && onToggle ? (
+        // In the indent before the name, so a deck's name stays where it is whether or not it has subdecks.
+        // Last in the row: a later sibling is hit-tested first, so earlier it would hide the hit slop under the name.
+        <Tappable
+          onPress={() => { haptic.select(); onToggle(); }}
+          accessibilityRole="button"
+          accessibilityLabel={`${row.collapsed ? 'Show' : 'Hide'} the subdecks of ${row.name}`}
+          hitSlop={{ left: space.s, right: space.l }}
+          scaleTo={0.85}
+          dimTo={0.5}
+          style={{
+            position: 'absolute', left: row.depth * space.l, top: 0, bottom: 0, width: space.l + space.xs,
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <Icon name={row.collapsed ? 'chevron.right' : 'chevron.down'} size={11} color={c.textTertiary} weight="semibold" />
+        </Tappable>
+      ) : null}
     </Pressable>
   );
 }

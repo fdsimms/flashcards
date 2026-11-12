@@ -26,7 +26,7 @@ export function useSync(repo: (Repo & AnkiLink) | null, onSynced: () => void) {
     const { title, message } = fullSyncPrompt(q);
     const buttons: AlertButton[] = [{ text: 'Cancel', style: 'cancel', onPress: () => resolve(null) }];
     if (q.uploadOk) buttons.push({ text: "Upload Franki's", onPress: () => resolve('upload') });
-    if (q.downloadOk) buttons.push({ text: "Download the server's", style: q.unsent ? 'destructive' : 'default', onPress: () => resolve('download') });
+    if (q.downloadOk) buttons.push({ text: "Download the server's", style: q.unsent || q.edits ? 'destructive' : 'default', onPress: () => resolve('download') });
     Alert.alert(title, message, buttons);
   });
 

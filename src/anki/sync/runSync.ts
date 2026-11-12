@@ -9,8 +9,8 @@ import { SyncError } from './protocol';
  * passed in, so this runs in tests as it does in the app.
  *
  * A full sync replaces one side with the other. Franki only asks when it has to:
- * - Franki has no collection yet, or has nothing of its own the server lacks (no unsent answers):
- *   download, since nothing is lost. This is the first sync after setting the server up. Not when
+ * - Franki has no collection yet, or has nothing of its own the server lacks (no unsent answers,
+ *   and no notes or cards changed here and not sent): download, since nothing is lost. This is the first sync after setting the server up. Not when
  *   the kept collection has deck or note type changes of its own (`local`), which a download drops.
  * - The server has no collection yet: upload Franki's.
  * - Otherwise one side's changes will be lost, so the person chooses (or cancels).
@@ -21,6 +21,8 @@ export interface FullSyncQuestion {
   downloadOk: boolean;
   /** Answers given in Franki that aren't on the server yet: what a download would lose. */
   unsent: number;
+  /** Other changes made in Franki and not on the server yet (notes, deletions, card states), which a download loses too. */
+  edits: number;
   reason: 'schema' | 'sanity' | 'local';
 }
 
@@ -37,6 +39,8 @@ export interface SyncDeps {
   /** Runs `fn` on a connection of its own to the kept collection (inside `lock`). */
   withCollection<T>(fn: (db: SyncDb) => Promise<T>): Promise<T>;
   unsentAnswers(): Promise<number>;
+  /** Notes, deletions and card changes made here and not on the server yet. */
+  unsentEdits(): Promise<number>;
   /** Replaces the kept collection with the server's, then refreshes Franki's decks from it. */
   download(): Promise<void>;
   /** Replaces the server's collection with the kept one. */
@@ -94,11 +98,13 @@ async function syncTheCollection(deps: SyncDeps): Promise<{ report: SyncReport; 
       report.collection = 'downloaded';
       break;
     case 'fullSyncRequired': {
-      const unsent = await deps.hasCollection() ? await deps.unsentAnswers() : 0;
+      const has = await deps.hasCollection();
+      const unsent = has ? await deps.unsentAnswers() : 0;
+      const edits = has ? await deps.unsentEdits() : 0;
       let pick: 'download' | 'upload' | null;
       if (!outcome.downloadOk) pick = 'upload';
-      else if (!outcome.uploadOk || (unsent === 0 && outcome.reason !== 'local')) pick = 'download';
-      else pick = await deps.choose({ uploadOk: outcome.uploadOk, downloadOk: outcome.downloadOk, unsent, reason: outcome.reason });
+      else if (!outcome.uploadOk || (unsent === 0 && edits === 0 && outcome.reason !== 'local')) pick = 'download';
+      else pick = await deps.choose({ uploadOk: outcome.uploadOk, downloadOk: outcome.downloadOk, unsent, edits, reason: outcome.reason });
       if (!pick) return { report: { collection: 'cancelled', sent: 0 }, mediaUsn: outcome.mediaUsn };
       if (pick === 'download') { await deps.download(); report.collection = 'downloaded'; }
       else { await deps.upload(); report.collection = 'uploaded'; }
@@ -159,8 +165,12 @@ export function fullSyncPrompt(q: FullSyncQuestion): { title: string; message: s
     sanity: "After syncing, Franki and the server didn't hold the same cards, so one has to replace the other.",
     local: "Franki's collection has deck or note type changes that only a full upload can send, so one has to replace the other.",
   }[q.reason];
-  const loss = q.unsent
-    ? ` Downloading loses ${count(q.unsent, 'answer', 'answers')} given in Franki that ${q.unsent === 1 ? "isn't" : "aren't"} on the server yet. Uploading replaces what Anki on your other devices has.`
+  const lost = [
+    q.unsent ? count(q.unsent, 'answer', 'answers') : '',
+    q.edits ? count(q.edits, 'other change', 'other changes') + ' (notes added, edited or deleted, cards suspended, buried or flagged)' : '',
+  ].filter(Boolean);
+  const loss = lost.length
+    ? ` Downloading loses ${lost.join(' and ')} made in Franki that ${q.unsent + q.edits === 1 ? "isn't" : "aren't"} on the server yet. Uploading replaces what Anki on your other devices has.`
     : " Uploading replaces what Anki on your other devices has.";
   return { title: "Keep the server's collection or Franki's?", message: why + loss };
 }

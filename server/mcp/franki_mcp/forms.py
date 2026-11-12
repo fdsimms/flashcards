@@ -272,10 +272,9 @@ class MissingField(Exception):
     """The Omnilanguage note type has no Forms field yet."""
 
     MESSAGE = (
-        "The Omnilanguage note type has no Forms field yet. Adding a field changes the note type, which makes "
-        "every device do a full sync, so it's done in Anki on a computer: first sync every device (Franki, "
-        "AnkiMobile, Anki), then in Anki choose Tools, Manage Note Types, Omnilanguage, Fields, Add, name it "
-        "Forms, and sync, choosing Upload. Then sync the other devices, choosing Download."
+        "The Omnilanguage note type has no Forms field yet. Add it with add_field (note_type Omnilanguage, "
+        "field Forms). That makes every device download the whole collection, so ask the user to sync "
+        "Anki, AnkiMobile and Franki first."
     )
 
 

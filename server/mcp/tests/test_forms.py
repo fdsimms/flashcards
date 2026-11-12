@@ -145,7 +145,7 @@ async def test_never_overwrites_a_field_with_something_in_it(forms_client, deskt
 async def test_says_how_to_add_the_field_when_the_note_type_has_none(forms_client, desktop):
     omni(desktop, "Entry,Meaning,Language,PartOfSpeech")
     message = await call_error(forms_client, "fill_forms")
-    assert "no Forms field yet" in message and "Upload" in message
+    assert "no Forms field yet" in message and "add_field" in message
 
 
 async def test_the_daily_fill_runs_only_once_turned_on(cm, desktop, tmp_path):
