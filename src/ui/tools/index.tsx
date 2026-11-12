@@ -3,6 +3,8 @@ import type React from 'react';
 import type { Repo } from '../../db/repo';
 import type { ToolId, ToolInfo } from '../../tools/tools';
 import type { Colors } from '../theme';
+import { DateTool } from './DateTool';
+import { MoneyTool } from './MoneyTool';
 import { TimeTool } from './TimeTool';
 
 /** What every tool's screen is given. */
@@ -22,4 +24,6 @@ export const TOOL_SCREENS: Record<ToolId, {
   color: (c: Colors) => string;
 }> = {
   time: { Screen: TimeTool, icon: 'clock.fill', color: (c) => c.easy },
+  dates: { Screen: DateTool, icon: 'calendar', color: (c) => c.again },
+  money: { Screen: MoneyTool, icon: 'banknote.fill', color: (c) => c.good },
 };

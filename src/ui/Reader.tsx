@@ -1,5 +1,6 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Stack, usePreventRemove } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import React, { useEffect, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
@@ -162,14 +163,20 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
 
   const scroller = useRef<ScrollViewInstance>(null);
   const lineBoxes = useRef<Box[]>([]);
-  const scrollY = useRef(0);
+  // Null until the first scroll: the view opens at the top, which is at minus the header's overlap.
+  const scrollY = useRef<number | null>(null);
   const viewHeight = useRef(0);
+  // How far down the window the scroll view's frame starts. The header covers the part of the frame
+  // above `headerHeight`, which iOS insets the content by, so a line followed to has to land below it.
+  const viewTop = useRef(0);
+  const headerHeight = useHeaderHeight();
 
   useEffect(() => {
     const at = current === null ? -1 : paras ? rangeOf(paras, current) : current;
     const box = at < 0 ? undefined : lineBoxes.current[at];
     if (!box || !viewHeight.current) return;
-    const y = scrollTarget(box, scrollY.current, viewHeight.current);
+    const insetTop = Math.max(0, headerHeight - viewTop.current);
+    const y = scrollTarget(box, scrollY.current ?? -insetTop, { height: viewHeight.current, insetTop });
     if (y !== null) scroller.current?.scrollTo({ y, animated: true });
   }, [current]);
 
@@ -549,7 +556,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           ref={scroller}
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={{ paddingBottom: space.l }}
-          onLayout={(e) => { viewHeight.current = e.nativeEvent.layout.height; }}
+          onLayout={(e) => {
+            viewHeight.current = e.nativeEvent.layout.height;
+            scroller.current?.measureInWindow((_x, y) => { viewTop.current = y; });
+          }}
           onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={100}
         >
@@ -662,7 +672,13 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                 backgroundColor: current === i ? c.surface : undefined,
               }}
             >
-              {line.speaker === 'N' ? null : <View style={{ paddingTop: space.s }}><SpeakerBadge who={line.speaker} /></View>}
+              {line.speaker === 'N' ? null : (
+                // Centered on the first line of words, which is a word's line height plus its
+                // padding and underline border (4.5) tall; the badge is 26 tall.
+                <View style={{ paddingTop: listenOnly ? space.s : Math.max(0, (readStyle(text, thaiFont).lineHeight + 4.5 - 26) / 2) }}>
+                  <SpeakerBadge who={line.speaker} />
+                </View>
+              )}
               <View style={{ flex: 1 }}>
                 {listenOnly ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, paddingVertical: space.s }}>
@@ -832,6 +848,16 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           onPlayWord(tapped.word.text, text.language);
         }}
         onSelectPhrase={listenOnly ? null : startPhrase}
+        onAddToDeck={mining?.language === text?.language && mining && tapped && !tapped.word.deck && tapped.word.status !== 'name' ? () => {
+          // The popover is a modal, so it closes before the note editor opens over the reader.
+          const word = tapped.word.text;
+          setTapped(null);
+          void mining.onAdd(word, tapped.word.gloss ?? "").then((saved) => {
+            // In the deck now, so no longer marked unknown.
+            if (saved) setSession((s) => (s && isFlagged(s, word) ? toggleFlag(s, word) : s));
+          });
+        } : null}
+        addsLeft={mining?.left ?? 0}
         onClose={() => setTapped(null)}
       />
     </Screen>
@@ -1053,7 +1079,7 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onClose }: {
+function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, addsLeft, onClose }: {
   tapped: Tapped | null;
   grammar: TextGrammar | null;
   api: Api;
@@ -1065,6 +1091,10 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
   onToggleFlag: (() => void) | null;
   /** Starts selecting a phrase from this word, to have it explained. */
   onSelectPhrase: (() => void) | null;
+  /** Opens the note editor on this word; null when the word is in the deck or isn't in the language being read. */
+  onAddToDeck: (() => void) | null;
+  /** How many more words can be added to the deck today. */
+  addsLeft: number;
   onClose: () => void;
 }) {
   const c = useTheme();
@@ -1113,6 +1143,11 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
         {onSelectPhrase ? (
           <View style={{ alignItems: 'flex-start' }}>
             <HeaderAction label="Select a phrase" accessibilityLabel={`Select a phrase starting from ${tapped.word.text}`} onPress={onSelectPhrase} />
+          </View>
+        ) : null}
+        {onAddToDeck && addsLeft > 0 ? (
+          <View style={{ alignItems: 'flex-start' }}>
+            <HeaderAction label="Add to deck" accessibilityLabel={`Add ${tapped.word.text} to your deck`} onPress={onAddToDeck} />
           </View>
         ) : null}
         {onToggleFlag ? (
