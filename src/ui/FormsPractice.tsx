@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { headword, PATTERN_PROMPTS, patternOf, practiceChoices, studiedWords, type DrillRequest, type PracticeWord } from '../core/forms';
+import { drillPrompts, headword, PATTERN_PROMPTS, patternOf, practiceChoices, studiedWords, type DrillRequest, type PracticeRecord, type PracticeWord } from '../core/forms';
+import type { Card as StoredCard, Note } from '../core/types';
 import type { Repo } from '../db/repo';
 import { Button, Card, Chip, Help, Screen, SectionTitle, Segments } from './kit';
 import { space, type, useTheme } from './theme';
@@ -21,10 +22,14 @@ export function FormsPractice({ repo, deck, onStart }: { repo: Repo; deck: strin
   const [patterns, setPatterns] = useState<string[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
   const [answering, setAnswering] = useState<Answering>('pick');
+  const [data, setData] = useState<{ notes: Note[]; cards: StoredCard[]; practice: PracticeRecord[]; dayStartsAtHour: number }>();
 
   useEffect(() => {
     (async () => {
-      const [notes, cards, mode] = await Promise.all([repo.listNotes(), repo.listCards(deck), repo.formsAnswerMode()]);
+      const [notes, cards, mode, practice, collection] = await Promise.all([
+        repo.listNotes(), repo.listCards(deck), repo.formsAnswerMode(), repo.listPractice(), repo.collectionSettings(),
+      ]);
+      setData({ notes, cards, practice, dayStartsAtHour: collection.dayStartsAtHour });
       const mine = studiedWords(deck, notes, cards);
       const choices = practiceChoices(mine);
       setWords(mine);
@@ -40,6 +45,12 @@ export function FormsPractice({ repo, deck, onStart }: { repo: Repo; deck: strin
     [words, patterns, groups],
   );
   const forms = chosen.reduce((n, w) => n + w.forms.filter((f) => groups.includes(f.group)).length, 0);
+  // What the drill will ask, from the drill's own function, so Start is enabled only when it has prompts
+  // ("In a sentence" drops every form without an example sentence, which `forms` doesn't see).
+  const asked = useMemo(
+    () => (data && forms ? drillPrompts({ kind: 'pattern', deck, patterns, groups, sentence: answering === 'sentence' }, data).prompts.length : 0),
+    [data, forms, deck, patterns, groups, answering],
+  );
   const toggle = (list: string[], set: (l: string[]) => void, v: string) => set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const name = deck.split('::').pop() ?? deck;
 
@@ -52,7 +63,7 @@ export function FormsPractice({ repo, deck, onStart }: { repo: Repo; deck: strin
     <Screen
       title="Practice forms"
       footer={words?.length ? (
-        <Button label={forms ? `Start: up to ${Math.min(forms, PATTERN_PROMPTS)} prompts` : 'Nothing to practice'} onPress={start} disabled={!forms} />
+        <Button label={asked ? `Start: up to ${Math.min(asked, PATTERN_PROMPTS)} prompts` : 'Nothing to practice'} onPress={start} disabled={!asked} />
       ) : undefined}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.l }}>
@@ -75,6 +86,7 @@ export function FormsPractice({ repo, deck, onStart }: { repo: Repo; deck: strin
                 onChange={setAnswering}
               />
               {answering === 'sentence' ? <Help>Asks only the forms that appear in a word's example sentence, typed into the gap.</Help> : null}
+              {answering === 'sentence' && forms && !asked ? <Help>None of these words have an example sentence that contains one of these forms. Choose another way to answer.</Help> : null}
             </View>
             <Card style={{ gap: space.s }}>
               <Text style={{ ...type.headline, color: c.text }}>
