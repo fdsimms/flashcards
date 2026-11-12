@@ -57,6 +57,55 @@ export type ReaderText = {
   language: Language;
   grammar: TextGrammar[];
   lines: TextLine[];
+  // Missing from a server older than the shelf: the topic (a story's name for an episode), whether
+  // it's a liked theme, why it's on the shelf, and a story episode's number (0 otherwise).
+  topic?: string;
+  liked?: boolean;
+  reason?: ShelfReason;
+  episode?: number;
+};
+
+// Why a text is on the shelf: written around words due today, on a liked theme, an idea not
+// tried before, a topic typed in, or the ongoing story. '' for texts from before the shelf.
+export type ShelfReason = 'due' | 'liked' | 'new' | 'asked' | 'story' | '';
+
+// A text waiting on the shelf, as its card shows it; its words come with api.text(id).
+export type ShelfText = {
+  id: number;
+  title: string;
+  topic: string;
+  topic_id: number;
+  liked: boolean;
+  form: Form;
+  lines: number;
+  stretch: string[];
+  reason: ShelfReason;
+  coverage: number;
+  episode: number;
+};
+
+// The current language's ongoing story: how many episodes are read, what happened last time,
+// and the next episode once it's written. `failed` says why the last episode couldn't be written.
+export type ShelfStory = {
+  id: number;
+  title: string;
+  about: string;
+  read: number;
+  last_recap: string;
+  next: ShelfText | null;
+  writing: boolean;
+  failed: string | null;
+};
+
+export type Shelf = {
+  language: Language;
+  languages: { code: Language; name: string; ready: number }[];
+  texts: ShelfText[];
+  // Shelf texts being written now (a typed topic shows here until it's ready).
+  writing: { topic: string; reason: ShelfReason; form: Form }[];
+  story: ShelfStory | null;
+  // The liked themes the shelf writes from (shared by every language).
+  themes: { id: number; name: string }[];
 };
 
 // 'topic': the model picks stretch words that suit the topic from a list of due and newer words.
@@ -113,6 +162,7 @@ export type PastText = {
   read_at: string;
   coverage: number;
   form: Form;
+  episode?: number; // a story episode's number; 0 or missing otherwise
 };
 
 // A word marked unknown in a reading and not cleared since.
@@ -184,12 +234,10 @@ export function createApi(
 
   return {
     check: () => call<void>('GET', '/api/check'),
-    topics: () => call<Topic[]>('GET', '/api/topics'),
     addTopic: (name: string, favorite = true) => call<Topic>('POST', '/api/topics', { name, favorite }),
     suggestions: () => call<Suggestion[]>('GET', '/api/suggestions'),
     setFavorite: (id: number, favorite: boolean) =>
       call<Topic>('PATCH', `/api/topics/${id}`, { favorite }),
-    removeTopic: (id: number) => call<void>('DELETE', `/api/topics/${id}`),
     progress: () => call<Progress>('GET', '/api/progress'),
     markedWords: () => call<MarkedWord[]>('GET', '/api/words'),
     grammar: () => call<{ max_practice: number; points: GrammarPoint[] }>('GET', '/api/grammar'),
@@ -202,7 +250,16 @@ export function createApi(
     // `words` (the cards just studied), a text written to practice them.
     nextText: async (topicId: number, words?: string[]) =>
       (await call<ReaderText | undefined>('POST', `/api/topics/${topicId}/next`, words?.length ? { words } : undefined)) ?? null,
-    pastTexts: () => call<PastText[]>('GET', '/api/texts'),
+    // With `story`, that story's episodes, first to last.
+    pastTexts: (story?: number) => call<PastText[]>('GET', story === undefined ? '/api/texts' : `/api/texts?story=${story}`),
+    // The current language's shelf; asking also tops it up in the background.
+    shelf: () => call<Shelf>('GET', '/api/shelf'),
+    // Writes a text on a typed topic in the background; it joins the shelf when it's ready.
+    writeAbout: (name: string, form: Form) => call<void>('POST', '/api/shelf/write', { name, form }),
+    // Starts a new story in the current language ('' lets the server choose what it's about).
+    startStory: (about: string) => call<void>('POST', '/api/story', { about }),
+    // Takes a text off the shelf unread (Not this).
+    skip: (textId: number) => call<void>('POST', `/api/texts/${textId}/skip`),
     // A past text, to read again. Reading it again isn't logged.
     text: (textId: number) => call<ReaderText>('GET', `/api/texts/${textId}`),
     logReading: (textId: number, log: ReadingLog) =>

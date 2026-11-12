@@ -237,13 +237,13 @@ def test_a_failed_shelf_text_ends_the_pass_and_its_topic_cools_down() -> None:
     assert store.shelf_texts(e.conn, "th") == []
     assert e.failure(market.id, "th") == MISSED_FLOOR
 
-    run(e.top_up)  # the theme is cooling down, so ideas fill the shelf instead
-    shelf = store.shelf_texts(e.conn, "th")
-    assert len(shelf) == SHELF_SIZE
-    assert market.id not in {t.topic_id for t in shelf}
+    run(e.top_up)  # the shelf waits out the cooldown rather than trying another idea
+    assert model.calls == 3
 
     clock.now = NOW + FAILURE_COOLDOWN
     assert e.failure(market.id, "th") is None
+    run(e.top_up)
+    assert len(store.shelf_texts(e.conn, "th")) == SHELF_SIZE
 
 
 def test_a_text_asked_for_joins_the_shelf_beyond_its_size() -> None:

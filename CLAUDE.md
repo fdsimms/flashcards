@@ -476,8 +476,10 @@ they win and this is stale. The rules that must not break:
   many of its most common word families as its `common` setting says.
 - **Batch and cache.** Texts are written in the background and queued, never inside a request, and
   never one API call per word or page view.
-- **The owner picks the topic.** Already rejected, don't revisit: cloze cards, saving generated
-  sentences as Anki cards, rescheduling Thai cards.
+- **The owner steers the topics.** The shelf (`architecture.md`, Shelf) offers texts already
+  written on liked themes, due words and new ideas, writes ahead only for the language being read,
+  and never more than `SHELF_SIZE`; any topic can still be typed in. Already rejected, don't
+  revisit: cloze cards, saving generated sentences as Anki cards, rescheduling Thai cards.
 - **It reads Anki as a sync client of the sync server beside it**, through Anki's own `anki`
   package like the MCP, every read under `with_timeout` (45 seconds) so a server that stops
   answering leaves it on the last snapshot. Keep `anki` in `server/reader/pyproject.toml` at the

@@ -66,7 +66,7 @@ Franki's (Client, below).
   away, since that's when the brief unlocks it.
 - The reader's playback speed and the highlight switch are kept between launches, in the Keychain
   next to the passphrase (`src/reader/storage.ts`).
-- **Progress** on the topics screen: finished texts over the last 14 days against the Milestone 1
+- **Progress** on the language's settings page (on the topics screen before the shelf): finished texts over the last 14 days against the Milestone 1
   exit check (10 texts, median coverage 95% or more, most rated "about right"), and the coverage
   target and practice word count new texts are written at, so the effect of a rating is visible.
   Only finished readings count.
@@ -83,9 +83,9 @@ Franki's (Client, below).
   plays with the phone's voice until audio is recorded for it (the MCP's `add_tts_audio`).
 - **Practice words after studying** (12 November 2026, by the owner's decision). When a Review
   session in a Read & Listen language's deck ends, **Read a text with these words** opens the
-  topics screen with the words just studied (each note's Entry, `src/reader/practice.ts`); the
-  topic opened next is written to practice them, and topics are as usual after it. The owner still
-  picks the topic (principle 10). The app syncs before opening the topics screen, so the answers
+  shelf with the words just studied (each note's Entry, `src/reader/practice.ts`), which offers a
+  text written to practice them, on a liked theme or else the best-fitting idea (before the shelf,
+  the topic opened next was written for them). The app syncs before opening the shelf, so the answers
   just given are on the sync server. The server reads the deck again first, so a card first learned
   today counts as studied, offers the studied words as the stretch words to choose from (up to the
   usual count), and keeps the text apart from the topic's queue (`texts.focus`): it isn't served
@@ -161,7 +161,7 @@ Thai letters, so none of them is a language here. Each new language works as Spa
 (Grammar). A language with no grammar points would say so on the Grammar screen.
 
 - **Each language's deck is a setting** (12 November 2026, by the owner's decision): `decks` in
-  `/api/settings`, chosen on the topics screen from Franki's decks, defaulting to the owner's. A
+  `/api/settings`, chosen on the language's settings page from Franki's decks, defaulting to the owner's. A
   language's skipped subdecks (Thai's consonant classes) are skipped under whichever deck is chosen
   (`with_deck`). Changing the deck forgets the old snapshot and reads the new deck at once, so a
   text is never written from the old deck's words; texts already waiting stay as they are. Another
@@ -169,7 +169,7 @@ Thai letters, so none of them is a language here. Each new language works as Spa
   `spaced.py`) and a list of common words (`scripts/build_common.py`).
 
 - **One setting, `language`** (`th`, `es`, `de`, `fr`, `ru`, `el`, `pl` or `nb`), picks the
-  language new texts are written and served in. It's a menu at the top of the topics screen. **Topics are shared**: a topic like "At a
+  language new texts are written and served in. It's the menu in the shelf's header. **Topics are shared**: a topic like "At a
   coffee shop" has texts in each language. The lexicon snapshot, ready texts, difficulty, progress,
   past texts, marked words, practiced stretch words and failures are per language. Only the current
   language is topped up in the background, so a second language doesn't double the spending.
@@ -179,7 +179,7 @@ Thai letters, so none of them is a language here. Each new language works as Spa
 - **How many common words count as known is a setting for each language but Thai** (12 November
   2026, the owner's decision: they weren't sure of their level in each, and found 10,000 a stretch
   for every language, Spanish included): `common` in `/api/settings`, None, 1,000, 2,000, 3,000,
-  5,000 or 10,000, chosen on the topics screen under the deck. The defaults are first guesses from
+  5,000 or 10,000, chosen on the language's settings page under the deck. The defaults are first guesses from
   each deck, to be moved by feel: Spanish keeps 10,000, so nothing changed under it; German, French,
   Russian and Greek, whose decks hold advanced words, 3,000; Norwegian, whose deck holds everyday
   words, 1,000; Polish, a beginner's deck, none, as the owner chose (only the deck counts, as for
@@ -377,12 +377,67 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   text written. It's separate from difficulty on purpose: ratings decide how many stretch words and
   how much coverage; this decides only which words.
 
+## Shelf
+
+Changed on 12 November 2026 by the owner: Read & Listen opens on a shelf of texts already written,
+in place of a list of topics to pick from and settings to change between texts. The owner found the
+topics, favorites and constant setting changes awkward, though the texts themselves were good.
+
+- **The tab opens on the language read last** (`language`), and its header has a menu of every
+  language with how many texts each has waiting. Switching changes `language`, so only the language
+  being read is ever written for.
+- **The shelf keeps `SHELF_SIZE` (3) texts written ahead** in that language (`_next_shelf_job` in
+  `engine.py`), each for a reason stored on the text (`texts.reason`) and shown on its card: one
+  written around words due today (`due`: the due words are handed to the model, as "Any due word"
+  does), one on a liked theme (`liked`), and one on an idea not tried before (`new`, from the topic
+  ideas, best fit first, filed as a hidden topic so it's never offered again). With no liked theme
+  free, ideas fill the gap. Dialogues and stories alternate, so the shelf has both without a setting.
+- **Spending.** Texts are written only after the app asks for the shelf, only for the current
+  language, and never more than the shelf is short. A text left unread stays on the shelf rather
+  than being written again. A failed shelf text stops the pass and pauses that language's shelf for
+  `FAILURE_COOLDOWN`, or each refresh would try another idea and keep paying.
+- **Steering instead of settings.** Press and hold a card for More like this (its topic becomes a
+  liked theme) or Not this (the text is taken off unread: status `skipped`, counted in the costs).
+  The end of a text has the same theme choice and Shorter, Same or Longer, which sets the length
+  (`lines`) the next texts are written at. Starred topics from before the shelf are the liked
+  themes; themes are shared by every language and listed on the language's settings page, where one
+  can be removed.
+- **Write one about anything.** A typed topic is written in the background (`/api/shelf/write`,
+  with Dialogue or Story chosen there) and joins the shelf when it's ready, beyond the 3
+  (`asked`). The owner still picks whenever they want to (brief, principle 10); the shelf only means
+  they don't have to every time.
+- **Play all** plays the story's next episode and then the shelf, one text after another, with
+  background audio. A text whose last line has played is logged as read, unrated, and the next one
+  opens. Whether iOS keeps the app running across the gap between two texts with the screen locked
+  is unverified.
+- **The language's settings page** (the shelf's sliders button) holds what's set once: the deck,
+  common words, voices, grammar, the story, the liked themes, practice words, and the progress
+  summary (moved off the home screen). The `form` setting is no longer shown: the shelf varies it.
+
+## Stories
+
+Added on 12 November 2026 by the owner, with the shelf: an ongoing story in each language, whose
+next episode is the top of the shelf.
+
+- **One active story per language** (`stories`), started from the shelf or the settings page, with
+  an optional line about what it's about. Starting a new one retires the old one; its episodes stay
+  in Past texts, listed first to last by Read from the start.
+- **Continuity is carried in words, not in the conversation.** The first episode's request asks the
+  model to invent two to four named characters and a place, and to return the story's name
+  (`series`) and its cast and setting (`cast`) beside the text. Every episode returns one sentence
+  about what happened in it (`recap`, on the text). Each later episode's request names the story,
+  the cast, and the last 12 recaps (`STORY_RECAPS`), so the request stays short however long the
+  story runs. All three fields are optional in the reply's schema and asked for only in a story's
+  request.
+- **An episode is a story-form text like any other**: the same coverage target, revision loop and
+  stretch words, filed under the story's own hidden topic. The next one is written only once the
+  last has been read, so at most one waits.
+
 ## Topics
 
-- You keep a short list of favorite topics. The server keeps one ready text per favorite
-  (`READY_PER_FAVORITE` in `engine.py`), topped up in the background after each request, so reading
-  those never waits. A new topic, or a favorite whose text was just read, waits for one generation
-  (about half a minute).
+- Topics now sit behind the shelf: a liked theme is a favorite topic, and the old topic routes
+  (`/api/topics`, `/next`) stay for Review's "Read a text with these words", which asks for a text on
+  a liked theme (or the best-fitting idea) written to practice the words just studied.
 - **A text is written in the background, never inside a request.** Three attempts and the audio
   can take longer than an iPhone waits on one request, so `/next` answers 202 while a text is being
   written and the app asks again every few seconds. One write per topic at a time; a request that
@@ -399,14 +454,15 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   served twice.
 - **Topic ideas**, so topics don't all have to be thought up. About 30 everyday situations
   (`server/reader/src/franki_reader/suggestions.py`), each with six Thai words it's likely to need, offered on
-  the topics screen a few at a time, ordered by how many of those words the deck knows: the best fit
+  the topics screen a few at a time (until the shelf, which now writes from them itself), ordered by how many of those words the deck knows: the best fit
   is most likely to clear the floor on the first try. The owner still picks (brief, principle 10).
   A fixed list rather than generated ideas, so offering them costs nothing. Tapping one adds it as a
   topic that isn't a favorite and opens it, so trying an idea doesn't start a queue of texts for it;
   starring it does. Topics already added, or added and removed, aren't offered again.
 - **Removing a topic** (press and hold it) hides it from the list and the background top-up. It's
   a flag on the row, not a delete, since its texts and readings point at it. Adding a topic with the
-  same name brings it back, with any text it still had ready.
+  same name brings it back, with any text it still had ready. The shelf's own ideas are filed the
+  same way from the start, so they're never listed; More like this lists one again, as a theme.
 
 ## Server API
 
@@ -484,3 +540,4 @@ are listed at the top of `server/reader/src/franki_reader/app.py`.
 7. Move into Franki: the server beside the sync server, then the app's screens (done), then
    retire the ailing repo, its Fly app and the droplet's Anki proxy
 8. Mining, practice words after studying, a deck setting per language (done, 12 November 2026)
+9. The shelf and ongoing stories, in place of the topics screen (done, 12 November 2026)

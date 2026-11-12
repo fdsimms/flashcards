@@ -137,6 +137,9 @@ class Engine:
         self._topping_up = asyncio.Lock()
         self._writing: set[_Key] = set()
         self._jobs: dict[_Key, Job] = {}  # what's being written now, for the shelf to show
+        # When a shelf text last failed, by language: the shelf isn't filled again until the
+        # cooldown passes, or every refresh would try another idea and keep spending.
+        self._shelf_failed: dict[Code, datetime] = {}
         self._failures: dict[_Key, _Failure] = {}
         self._tasks: set[asyncio.Task[None]] = set()
 
@@ -459,7 +462,8 @@ class Engine:
         episode if it has none waiting, and fills the shelf to `SHELF_SIZE`. Only the current
         language, so having several doesn't multiply the spending. Runs after a response is sent; a
         second call while one is running does nothing. A topic that failed recently is skipped, and
-        a failed shelf text ends the pass; a missing key or word list stops it quietly."""
+        a failed shelf text ends the pass and pauses the shelf for `FAILURE_COOLDOWN`; a missing
+        key or word list stops it quietly."""
         if self._topping_up.locked():
             return
         async with self._topping_up:
@@ -475,9 +479,13 @@ class Engine:
                 episode = Job(story.topic_id, language, reason="story", story_id=story.id)
                 if self._idle(episode) and not self._episode_waiting(story):
                     await self._write(episode)
+            failed = self._shelf_failed.get(language)
+            if failed is not None and self.clock() - failed < FAILURE_COOLDOWN:
+                return
             while (job := self._next_shelf_job(language)) is not None:
                 await self._write(job)
                 if self._cooling_down(job.key):
+                    self._shelf_failed[language] = self.clock()
                     break
 
     def _idle(self, job: Job) -> bool:
