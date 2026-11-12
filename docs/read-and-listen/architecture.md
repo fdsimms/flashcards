@@ -46,9 +46,10 @@ Franki's (Client, below).
   going with the screen locked or in another app. The reader turns it on while it's open and off on
   the way out, so card audio in Review is unchanged. Turning it on needed a new build of the app.
 - Screens (topics, reader, past texts, marked words, grammar, settings) are routes in `src/app/`
-  (Expo Router), like the rest of Franki, and their sign-in state lives in `src/ui/AppContext.tsx`. The reader shows the server's word split as tappable words: a tap shows the
-  gloss, and marking a word unknown is a second tap inside the gloss, so looking up a half-known
-  word doesn't also flag it.
+  (Expo Router), like the rest of Franki, and their sign-in state is `useReader`
+  (`src/ui/useReader.ts`), which `src/ui/AppContext.tsx` calls in one line. The reader shows the
+  server's word split as tappable words: a tap shows the gloss, and marking a word unknown is a
+  second tap inside the gloss, so looking up a half-known word doesn't also flag it.
 - Each line has an EN button that shows that line's English alone, so checking one line doesn't
   give away the rest. "Show English" still shows them all.
 - **Listen only** (brief, design principle 6). Once a text is rated "About right", the end view
@@ -83,17 +84,22 @@ Franki's (Client, below).
 - **Practice words after studying** (12 November 2026, by the owner's decision). When a Review
   session in a Read & Listen language's deck ends, **Read a text with these words** opens the
   topics screen with the words just studied (each note's Entry, `src/reader/practice.ts`); the
-  topic opened next is written to practice them. The owner still picks the topic (principle 10).
-  The server reads the deck again first, so a card first learned today counts as studied, offers
-  the studied words as the stretch words to choose from (up to the usual count), and keeps the text
-  apart from the topic's queue (`texts.focus`): it isn't served to a plain request or counted as
-  ready. Words the deck hasn't studied are left out, and if none are left the request says so.
+  topic opened next is written to practice them, and topics are as usual after it. The owner still
+  picks the topic (principle 10). The app syncs before opening the topics screen, so the answers
+  just given are on the sync server. The server reads the deck again first, so a card first learned
+  today counts as studied, offers the studied words as the stretch words to choose from (up to the
+  usual count), and keeps the text apart from the topic's queue (`texts.focus`): it isn't served
+  to a plain request or counted as ready. Words the deck hasn't studied are left out, and if none
+  are left the request says so.
 - Finishing a text (tapping Done) logs the reading once, rated or not, which takes it off the ready
   queue. A text left before Done (Back, or closing the app) isn't logged, so it's served again next
   time instead of a new one being written. A listen-only pass comes after Done, so leaving it by
   any route still logs the reading as finished.
-- When the server rejects the saved passphrase (it was changed), the app forgets it and asks again.
-  Turning Read & Listen off in Settings forgets it too.
+- When the server rejects the saved passphrase (it was changed), the app forgets it and asks again:
+  the next Read & Listen screen opened goes to its settings, which say why. The rejection can come
+  from the settings read at launch, so it never takes you out of the deck list or a study session,
+  and the deck list keeps its Read & Listen row until the new passphrase is in. Turning Read &
+  Listen off in Settings forgets it too.
 - **Nothing in the app grades or writes cards.** Its code imports nothing that schedules or writes
   them (`tests/reader/noGrading.test.ts`).
 
@@ -106,7 +112,9 @@ Franki's (Client, below).
   (`server/update.sh`). The owner chose one place for everything over keeping the memory apart:
   the reader peaks near 334 MB with both languages, on top of sync and the MCP, so the server may
   need 2 GB; check `docker stats` after the first texts are written.
-- **Always on**, so background work isn't cut off.
+- **Always on**, so background work isn't cut off. A compose healthcheck reads `/health`; one that
+  stops answering shows as unhealthy and `server/update.sh`, on its 15-minute timer, restarts it
+  (Fly's own check did this before).
 - **No cron.** When the app is opened, the server refreshes the lexicon if the snapshot is over 24
   hours old, and tops up the queue of ready texts in the background.
 - **Backups.** SQLite on the `reader-data` volume, backed up continuously with Litestream (v0.5.17,
@@ -164,8 +172,8 @@ works as before.
   dialogues measured 100% with it; a sentence of rare words (ornitorrinco, escabulló, estuario)
   is flagged. `server/reader/src/franki_reader/spanish.py` is the checker:
   - Lemmas from simplemma (hablé, hablaríamos to hablar). It's loaded the first time Spanish is
-    used, about 100 MB: Thai alone peaks near 233 MB, both together near 334 MB, on the 512 MB
-    machine. If memory gets tight, the machine goes to 1 GB.
+    used, about 100 MB: Thai alone peaks near 233 MB, both together near 334 MB, measured on Fly's
+    512 MB machine. Beside sync and the MCP, the server may need 2 GB (Hosting).
   - Pronouns joined to a verb come off (dámelo to dar), a reflexive entry matches its forms
     (cerciorarse matches cercioramos and cerciorándonos), and an entry's article is ignored
     (el blindaje matches blindaje).
@@ -212,7 +220,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   irregular forms. That's close but not perfect, on purpose: a form shared by two tenses counts as
   neither (hablamos is "we speak" and "we spoke"), words that are also nouns are left out (vino is
   "wine", fuera is also "outside"), and a rare irregular form can be missed. A full parser (spaCy)
-  would be more exact but adds about 100 MB to a server already near 334 of its 512 MB.
+  would be more exact but adds about 100 MB to a process already near 334 MB.
 - **In the reader**, a text's practiced points show as chips under its practice words, and their
   words are underlined solid; a word using an avoided point that slipped in is underlined dashed.
   Tapping either explains the grammar.
@@ -309,9 +317,10 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
 ## Server API
 
 Every `/api` route needs the passphrase as `Authorization: Bearer <passphrase>`; with no
-`APP_PASSPHRASE` set, they all refuse. `/health` is open. Through Caddy, every route is under
-`/reader` (`/reader/api/topics`, `/reader/health`). The routes are listed at the top of
-`server/reader/src/franki_reader/app.py`.
+passphrase set, they all refuse. The server reads it as `APP_PASSPHRASE`, which
+`server/docker-compose.yml` fills from `READER_PASSPHRASE` in `server/.env`. `/health` is open.
+Through Caddy, every route is under `/reader` (`/reader/api/topics`, `/reader/health`). The routes
+are listed at the top of `server/reader/src/franki_reader/app.py`.
 
 - A text comes back already split into words by the server, each with its status (known, partial,
   unknown, or none for punctuation), its gloss and whether it's a stretch word. The app never
@@ -324,7 +333,8 @@ Every `/api` route needs the passphrase as `Authorization: Bearer <passphrase>`;
 ## Audio
 
 - Azure neural voices, one per speaker: `th-TH-NiwatNeural` (male) for A and `th-TH-PremwadeeNeural`
-  (female) for B. `AZURE_VOICE_A` and `AZURE_VOICE_B` override them without a code change. Azure is
+  (female) for B. `AZURE_VOICE_A` and `AZURE_VOICE_B` in `server/.env` override them without a code
+  change (Spanish's are set in `languages.py`). Azure is
   called through the client shared with the MCP (`server/speech`, `franki_speech`, since 12 November
   2026), whose docstring says which parts of the API were checked; the first real call is the check
   for the rest.

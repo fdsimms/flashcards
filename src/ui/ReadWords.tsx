@@ -9,14 +9,18 @@ import { space, type, useTheme } from './theme';
 /**
  * Every word marked unknown while reading, newest first, with its meaning, so they can be looked at
  * together. Clear takes a word off the list until it's marked again. Add to deck opens Franki's
- * note editor with the word filled in (the read-words route does): nothing reaches the deck unless it's saved there,
- * and at most MINING_PER_DAY a study day (src/reader/mining.ts). This screen writes nothing itself
- * (CLAUDE.md, Read & Listen).
+ * note editor with the word filled in (the read-words route opens it): nothing reaches the deck
+ * unless it's saved there, and at most MINING_PER_DAY a study day (src/reader/mining.ts). A word
+ * saved there is cleared from the list. This screen writes nothing to the deck itself (CLAUDE.md,
+ * Read & Listen).
  */
 export function ReadWords({ api, mining }: {
   api: Api;
-  /** Present when words can be added to the deck: its name, how many more today, and what opens the editor. */
-  mining?: { deck: string; left: number; onAdd: (word: MarkedWord) => void };
+  /**
+   * Present when words can be added to the deck: its name, how many more today, and what opens the
+   * editor, resolving true once the note is saved.
+   */
+  mining?: { deck: string; left: number; onAdd: (word: MarkedWord) => Promise<boolean> };
 }) {
   const c = useTheme();
   const [words, setWords] = useState<MarkedWord[] | null>(null);
@@ -44,6 +48,11 @@ export function ReadWords({ api, mining }: {
     }
   };
 
+  // Off the list once it's in the deck, as Clear does.
+  const add = async (word: MarkedWord) => {
+    if (mining && await mining.onAdd(word)) await clear(word.word);
+  };
+
   return (
     <Screen title="Marked words">
       <ScrollView
@@ -68,7 +77,7 @@ export function ReadWords({ api, mining }: {
                   </View>
                   <View style={{ gap: space.s }}>
                     {mining && !w.deck ? (
-                      <Button label="Add to deck" onPress={() => mining.onAdd(w)} disabled={mining.left === 0} />
+                      <Button label="Add to deck" onPress={() => add(w)} disabled={mining.left === 0} />
                     ) : null}
                     <Button label="Clear" variant="secondary" onPress={() => clear(w.word)} />
                   </View>

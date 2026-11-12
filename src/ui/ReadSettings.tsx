@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ScrollView, Text } from 'react-native';
 import { ApiError, createApi, readerAddress } from '../reader/api';
 import { savePassphrase } from '../reader/storage';
-import { Button, Card, Field, Help, Screen } from './kit';
+import { Button, Card, ErrorNote, Field, Help, Screen } from './kit';
 import { space, type, useTheme } from './theme';
 
 /**
@@ -14,7 +14,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   /** The sync server's address, or undefined while sync is off. */
   syncServer?: string;
   signedIn: boolean;
-  /** Why this screen opened, e.g. the passphrase was changed on the server. */
+  /** Why the passphrase is needed again, e.g. it was changed on the server. */
   notice?: string | null;
   onSignedIn: (passphrase: string) => void;
   onSignOut: () => void;
@@ -83,7 +83,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
               onSubmitEditing={signIn}
             />
             <Help>{`READER_PASSPHRASE in the server's .env. Franki checks it with ${address} and keeps it in the Keychain.`}</Help>
-            {error ? <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text> : null}
+            {error ? <ErrorNote message={error} /> : null}
             <Button label="Turn on" onPress={signIn} busy={busy} disabled={!value.trim()} />
           </Card>
         )}

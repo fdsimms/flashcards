@@ -6,7 +6,7 @@ import { Reader, type ReaderSource } from '../ui/Reader';
 /** The reader. Its `source` parameter is the topic to write a text for, or a past text, as JSON. */
 export default function ReaderRoute() {
   const router = useRouter();
-  const { readerApi } = useApp();
+  const { reader: { api: readerApi } } = useApp();
   const { source: raw } = useLocalSearchParams<{ source: string }>();
   const source = useMemo<ReaderSource | null>(() => {
     try { return JSON.parse(raw) as ReaderSource; } catch { return null; }

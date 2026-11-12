@@ -75,6 +75,8 @@ jobs:
             mcp:
               - 'server/mcp/**'
               - 'server/speech/**'
+              # tests/test_anki_version.py reads ANKI_VERSION from it.
+              - 'server/docker-compose.yml'
               - 'tests/fixtures/anki/**'
               - '.github/workflows/test.yml'
       - if: github.event_name != 'pull_request' || steps.paths.outputs.mcp == 'true'
@@ -111,6 +113,8 @@ jobs:
             reader:
               - 'server/reader/**'
               - 'server/speech/**'
+              # tests/test_anki_version.py reads ANKI_VERSION from it.
+              - 'server/docker-compose.yml'
               - '.github/workflows/test.yml'
       - if: github.event_name != 'pull_request' || steps.paths.outputs.reader == 'true'
         uses: astral-sh/setup-uv@v6
