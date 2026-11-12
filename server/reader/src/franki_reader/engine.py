@@ -30,6 +30,7 @@ from typing import Literal
 from franki_reader import grammar, store
 from franki_reader.coverage import Checker, parse_line
 from franki_reader.difficulty import Difficulty, adapt
+from franki_reader.gender import full_voices, voice_for
 from franki_reader.generator import (
     Ask,
     Form,
@@ -422,10 +423,11 @@ class Engine:
             await self.line_audio(text, i)
 
     def voices_for(self, language: Code) -> dict[str, str]:
-        """Each speaker's voice: the one chosen in the app, else the default (Thai's can be set
-        from the environment, config.py; the rest are in languages.py)."""
-        base = self.voices if language == "th" else LANGUAGES[language].voices
-        return {**base, **store.load_settings(self.conn).voices.get(language, {})}
+        """The language's voice for each slot (languages.VOICE_SLOTS): the one chosen in the app,
+        else the default (Thai's man and woman can be set from the environment, config.py; the
+        rest are in languages.py), and a second voice there isn't one for is the first."""
+        base = {**LANGUAGES[language].voices, **(self.voices if language == "th" else {})}
+        return full_voices({**base, **store.load_settings(self.conn).voices.get(language, {})})
 
     async def rerecord(self, language: Code) -> None:
         """Speaks the texts waiting to be read again, after their language's voices changed. A text
@@ -445,8 +447,7 @@ class Engine:
         if self.synthesize is None:
             return None
         spoken, _ = parse_line(text.lines[line].text, LANGUAGES[text.language].spaced)
-        voices = self.voices_for(text.language)
-        voice = voices.get(text.lines[line].speaker, voices["A"])
+        voice = voice_for(text.lines[line].speaker, text.genders, self.voices_for(text.language))
         try:
             mp3 = await self.synthesize(spoken, voice)
         except TtsFailed as e:

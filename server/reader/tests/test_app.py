@@ -12,6 +12,7 @@ from scripted import BAD, ENTRIES, IN_RANGE, ScriptedModel
 from franki_reader import store
 from franki_reader.app import create_app
 from franki_reader.engine import SHELF_SIZE, Engine
+from franki_reader.store import Settings
 
 NOW = datetime(2026, 10, 19, 9, 0)
 AUTH = {"Authorization": "Bearer open sesame"}
@@ -253,16 +254,56 @@ DECKS = {
 }
 # How many common words each language counts as known when none was chosen (not Thai: deck only).
 COMMON = {"es": 10000, "de": 3000, "fr": 3000, "ru": 3000, "el": 3000, "pl": 0, "nb": 1000}
-# Each language's speaker voices, the same.
+# Each language's voice for each slot (the first of a gender where it has no second), the same.
 VOICES = {
-    "th": {"A": "th-TH-NiwatNeural", "B": "th-TH-PremwadeeNeural"},
-    "es": {"A": "es-MX-JorgeNeural", "B": "es-MX-DaliaNeural"},
-    "de": {"A": "de-DE-ConradNeural", "B": "de-DE-KatjaNeural"},
-    "fr": {"A": "fr-FR-HenriNeural", "B": "fr-FR-DeniseNeural"},
-    "ru": {"A": "ru-RU-DmitryNeural", "B": "ru-RU-SvetlanaNeural"},
-    "el": {"A": "el-GR-NestorasNeural", "B": "el-GR-AthinaNeural"},
-    "pl": {"A": "pl-PL-MarekNeural", "B": "pl-PL-ZofiaNeural"},
-    "nb": {"A": "nb-NO-FinnNeural", "B": "nb-NO-PernilleNeural"},
+    "th": {
+        "male": "th-TH-NiwatNeural",
+        "male2": "th-TH-NiwatNeural",
+        "female": "th-TH-PremwadeeNeural",
+        "female2": "th-TH-AcharaNeural",
+    },
+    "es": {
+        "male": "es-MX-JorgeNeural",
+        "male2": "es-MX-CecilioNeural",
+        "female": "es-MX-DaliaNeural",
+        "female2": "es-MX-BeatrizNeural",
+    },
+    "de": {
+        "male": "de-DE-ConradNeural",
+        "male2": "de-DE-BerndNeural",
+        "female": "de-DE-KatjaNeural",
+        "female2": "de-DE-AmalaNeural",
+    },
+    "fr": {
+        "male": "fr-FR-HenriNeural",
+        "male2": "fr-FR-AlainNeural",
+        "female": "fr-FR-DeniseNeural",
+        "female2": "fr-FR-BrigitteNeural",
+    },
+    "ru": {
+        "male": "ru-RU-DmitryNeural",
+        "male2": "ru-RU-DmitryNeural",
+        "female": "ru-RU-SvetlanaNeural",
+        "female2": "ru-RU-DariyaNeural",
+    },
+    "el": {
+        "male": "el-GR-NestorasNeural",
+        "male2": "el-GR-NestorasNeural",
+        "female": "el-GR-AthinaNeural",
+        "female2": "el-GR-AthinaNeural",
+    },
+    "pl": {
+        "male": "pl-PL-MarekNeural",
+        "male2": "pl-PL-MarekNeural",
+        "female": "pl-PL-ZofiaNeural",
+        "female2": "pl-PL-AgnieszkaNeural",
+    },
+    "nb": {
+        "male": "nb-NO-FinnNeural",
+        "male2": "nb-NO-FinnNeural",
+        "female": "nb-NO-PernilleNeural",
+        "female2": "nb-NO-IselinNeural",
+    },
 }
 
 
@@ -526,10 +567,27 @@ class FakeSpeech:
 
     async def voices(self) -> list[dict[str, Any]]:
         return [
-            {"voice": "th-TH-PremwadeeNeural", "locale": "th-TH", "name": "Premwadee"},
-            {"voice": "pl-PL-ZofiaNeural", "locale": "pl-PL", "name": "Zofia"},
-            {"voice": "es-MX-DaliaNeural", "locale": "es-MX", "name": "Dalia"},
-            {"voice": "es-ES-ElviraNeural", "locale": "es-ES", "name": "Elvira"},
+            {
+                "voice": "th-TH-PremwadeeNeural",
+                "locale": "th-TH",
+                "name": "Premwadee",
+                "gender": "Female",
+            },
+            {"voice": "th-TH-NiwatNeural", "locale": "th-TH", "name": "Niwat", "gender": "Male"},
+            {
+                "voice": "th-TH-AcharaNeural",
+                "locale": "th-TH",
+                "name": "Achara",
+                "gender": "Female",
+            },
+            {"voice": "pl-PL-ZofiaNeural", "locale": "pl-PL", "name": "Zofia", "gender": "Female"},
+            {"voice": "es-MX-DaliaNeural", "locale": "es-MX", "name": "Dalia", "gender": "Female"},
+            {
+                "voice": "es-ES-ElviraNeural",
+                "locale": "es-ES",
+                "name": "Elvira",
+                "gender": "Female",
+            },
         ]
 
     async def synthesize(self, text: str, voice: str, rate: float = 1.0) -> bytes:
@@ -584,20 +642,56 @@ def test_says_what_to_set_when_there_is_no_azure_key() -> None:
     assert "AZURE_SPEECH_KEY" in r.json()["detail"]
 
 
-def test_a_speakers_voice_can_be_chosen_and_reset_and_only_in_its_language() -> None:
+def test_a_voice_can_be_chosen_and_reset_and_only_in_its_language() -> None:
     c = client()
     changed = c.patch(
-        "/api/settings", headers=AUTH, json={"voices": {"es": {"B": "es-ES-ElviraNeural"}}}
+        "/api/settings", headers=AUTH, json={"voices": {"es": {"female": "es-ES-ElviraNeural"}}}
     )
-    assert changed.json()["voices"]["es"] == {"A": "es-MX-JorgeNeural", "B": "es-ES-ElviraNeural"}
-    assert c.get("/api/settings", headers=AUTH).json()["voices"]["es"]["B"] == "es-ES-ElviraNeural"
+    assert changed.json()["voices"]["es"] == {**VOICES["es"], "female": "es-ES-ElviraNeural"}
+    assert (
+        c.get("/api/settings", headers=AUTH).json()["voices"]["es"]["female"]
+        == "es-ES-ElviraNeural"
+    )
     wrong = c.patch(
-        "/api/settings", headers=AUTH, json={"voices": {"th": {"A": "es-MX-DaliaNeural"}}}
+        "/api/settings", headers=AUTH, json={"voices": {"th": {"male": "es-MX-JorgeNeural"}}}
     )
     assert wrong.status_code == 400
     assert "not Thai" in wrong.json()["detail"]
-    back = c.patch("/api/settings", headers=AUTH, json={"voices": {"es": {"B": ""}}}).json()
+    back = c.patch("/api/settings", headers=AUTH, json={"voices": {"es": {"female": ""}}}).json()
     assert back["voices"] == VOICES
+
+
+def test_a_voice_for_speakers_a_and_b_is_no_longer_a_setting() -> None:
+    c = client()
+    refused = c.patch("/api/settings", headers=AUTH, json={"voices": {"th": {"A": "th-TH-X"}}})
+    assert refused.status_code == 422
+
+
+def test_voices_chosen_for_speakers_a_and_b_before_genders_are_dropped_on_load() -> None:
+    conn = store.connect(":memory:")
+    store.save_settings(
+        conn,
+        Settings(
+            voices={
+                "th": {"A": "th-TH-AcharaNeural", "female": "th-TH-AcharaNeural"},
+                "es": {"B": "x"},
+            }
+        ),
+    )
+    assert store.load_settings(conn).voices == {"th": {"female": "th-TH-AcharaNeural"}}
+
+
+def test_a_voice_of_the_other_gender_is_refused_for_a_slot() -> None:
+    c = voice_client(FakeSpeech())
+    refused = c.patch(
+        "/api/settings", headers=AUTH, json={"voices": {"th": {"female": "th-TH-NiwatNeural"}}}
+    )
+    assert refused.status_code == 400
+    assert "male voice" in refused.json()["detail"]
+    ok = c.patch(
+        "/api/settings", headers=AUTH, json={"voices": {"th": {"female2": "th-TH-AcharaNeural"}}}
+    )
+    assert ok.status_code == 200
 
 
 def test_texts_waiting_to_be_read_are_spoken_again_in_new_voices(tmp_path: Path) -> None:
@@ -632,12 +726,18 @@ def test_texts_waiting_to_be_read_are_spoken_again_in_new_voices(tmp_path: Path)
 
     c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH)
     c.get("/api/topics", headers=AUTH)  # tops up: a text is written and waits to be read
-    wait_for(lambda: recorded() == {b"ID3th-TH-NiwatNeural", b"ID3th-TH-PremwadeeNeural"})
-    assert recorded() == {b"ID3th-TH-NiwatNeural", b"ID3th-TH-PremwadeeNeural"}
+    # The scripted dialogues are two men, and Thai has one man's voice, so both read in it. The
+    # scripted story has lines from A and B and no genders, which read as a man and a woman.
+    both = {b"ID3th-TH-NiwatNeural", b"ID3th-TH-PremwadeeNeural"}
+    wait_for(lambda: recorded() == both)
+    assert recorded() == both
 
-    c.patch("/api/settings", headers=AUTH, json={"voices": {"th": {"A": "th-TH-AcharaNeural"}}})
-    wait_for(lambda: recorded() == {b"ID3th-TH-AcharaNeural", b"ID3th-TH-PremwadeeNeural"})
-    assert recorded() == {b"ID3th-TH-AcharaNeural", b"ID3th-TH-PremwadeeNeural"}
+    c.patch(
+        "/api/settings", headers=AUTH, json={"voices": {"th": {"female": "th-TH-AcharaNeural"}}}
+    )
+    changed = {b"ID3th-TH-NiwatNeural", b"ID3th-TH-AcharaNeural"}
+    wait_for(lambda: recorded() == changed)
+    assert recorded() == changed
 
 
 def shelf_settled(c: TestClient, want: int) -> Any:

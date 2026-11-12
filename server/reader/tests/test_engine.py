@@ -394,7 +394,7 @@ def speaking_engine(tmp_path: Path, voice: FakeVoice | None) -> Engine:
         random.Random(1),
         synthesize=voice,
         audio=AudioCache(tmp_path),
-        voices={"A": "voice-a", "B": "voice-b"},
+        voices={"male": "voice-a", "male2": "voice-b", "female": "voice-c"},
     )
 
 
@@ -406,6 +406,7 @@ def test_a_new_text_gets_audio_for_each_line_in_its_speakers_voice(tmp_path: Pat
     text = run(lambda: fetch(e, topic.id))
 
     assert voice.calls == [
+        # The scripted text is two men: the second speaker reads in the second man's voice.
         ("ฉันอยากกินข้าวเหนียวมะม่วงครับฉันอยากกินทอนครับ", "voice-a"),
         ("ข้าวเหนียวมะม่วงครับ!ฉันอยากกินครับฉันอยากกินครับ", "voice-b"),
     ]

@@ -14,7 +14,10 @@ serves all of it under /reader (../../Caddyfile), so the app's address ends in /
     GET   /api/settings               {stretch_words: "topic" | "any", lines: 6 | 8 | 12,
                                       form: "dialogue" | "story", language: "th" | "es" | ...,
                                       decks: {th: <deck>, es: <deck>, ...},
-                                      voices: {th: {A: <voice>, B: <voice>}, es: {...}, ...},
+                                      voices: {th: {male: <voice>, male2: <voice>, female: <voice>,
+                                      female2: <voice>}, es: {...}, ...}, a text's speakers are
+                                      read in the voice of their gender (second voices for a
+                                      dialogue between two men or two women),
                                       common: {es: 10000, de: 3000, ...}} (every language but
                                       Thai: how many of its most common words count as known)
 
@@ -74,7 +77,7 @@ from franki_reader.collection import AnkiDeck, SyncSettings
 from franki_reader.engine import Engine, NotAvailable, NotFound
 from franki_reader.gateway import with_timeout
 from franki_reader.generator import Ask, Form, claude_ask
-from franki_reader.languages import LANGUAGES, Code, CommonCount, with_deck
+from franki_reader.languages import LANGUAGES, Code, CommonCount, VoiceSlot, with_deck
 from franki_reader.lexicon import Entry
 from franki_reader.mnemonics import (
     MakeMnemonics,
@@ -121,8 +124,8 @@ class SettingsUpdate(BaseModel):
     decks: dict[Code, Annotated[str, Field(max_length=500)]] | None = None
     # How many of a language's most common words count as known. Not Thai's: only its deck counts.
     common: dict[Code, CommonCount] | None = None
-    # A speaker's Azure voice by language; an empty name goes back to the default.
-    voices: dict[Code, dict[Literal["A", "B"], Annotated[str, Field(max_length=100)]]] | None = None
+    # An Azure voice for each of a language's voice slots; an empty name goes back to the default.
+    voices: dict[Code, dict[VoiceSlot, Annotated[str, Field(max_length=100)]]] | None = None
 
 
 class SpeechIn(BaseModel):
@@ -176,6 +179,26 @@ def _check_voice(name: str, code: Code) -> None:
             400,
             f"{name} speaks {locale}, not {LANGUAGES[code].name}. Choose a {LANGUAGES[code].name} voice.",
         )
+
+
+async def _check_voice_gender(speech: Speech | None, name: str, slot: VoiceSlot) -> None:
+    """Refuses a voice of the other gender than its slot's, where Azure's list says what it is."""
+    if speech is None:
+        return
+    want = "male" if slot.startswith("male") else "female"
+    try:
+        found = await speech.voices()
+    except SpeechError:
+        return  # can't tell, and the voice's language was already checked
+    for v in found:
+        if v.get("voice") == name:
+            have = str(v.get("gender") or "").lower()
+            if have in ("male", "female") and have != want:
+                raise HTTPException(
+                    400,
+                    f"{v.get('name') or name} is a {have} voice. Choose a {want} voice for this one.",
+                )
+            return
 
 
 def _spent(s: store.Spending) -> dict[str, Any]:
@@ -376,6 +399,7 @@ def create_app(
                 name = name.strip()
                 if name:
                     _check_voice(name, code)
+                    await _check_voice_gender(speech, name, speaker)
                     mine[speaker] = name
                 else:
                     mine.pop(speaker, None)
@@ -702,7 +726,7 @@ def production_app() -> FastAPI:
             user_agent="franki-reader",
             voice_help=(
                 "Check the voice names chosen in Read & Listen's settings in the app (Thai's"
-                " defaults are AZURE_VOICE_A and AZURE_VOICE_B in server/.env)."
+                " defaults are AZURE_VOICE_MALE and AZURE_VOICE_FEMALE in server/.env)."
             ),
         )
         synthesize = azure_synthesize(speech)

@@ -3,9 +3,9 @@ playback is the player's rate on the phone (docs/read-and-listen/architecture.md
 line whatever speed is chosen.
 
 Azure is called through the server's shared client (server/speech, `franki_speech`, which the MCP
-uses too); its module docstring says which parts of Azure's API are confirmed. Each speaker's
-voice is chosen in the app (the `voices` setting); AZURE_VOICE_A and AZURE_VOICE_B still set
-Thai's defaults.
+uses too); its module docstring says which parts of Azure's API are confirmed. A speaker is read
+in a voice for their gender (gender.py), chosen in the app (the `voices` setting);
+AZURE_VOICE_MALE and AZURE_VOICE_FEMALE still set Thai's defaults.
 """
 
 import shutil
@@ -15,7 +15,7 @@ from typing import Any, Protocol
 
 from franki_speech import SpeechClient, SpeechError
 
-DEFAULT_VOICES = {"A": "th-TH-NiwatNeural", "B": "th-TH-PremwadeeNeural"}
+DEFAULT_VOICES = {"male": "th-TH-NiwatNeural", "female": "th-TH-PremwadeeNeural"}
 
 # Speaks one line in one voice and returns the MP3 bytes.
 Synthesize = Callable[[str, str], Coroutine[Any, Any, bytes]]

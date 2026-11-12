@@ -1,91 +1,67 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
+import { azureVoiceName } from '../core/voices';
 import { ApiError, type Api, type Language, type Settings, type Speakers } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
-import { AzureVoiceRows, useAzureSample, useAzureVoices } from './AzureVoices';
-import { ErrorNote, Group, Help, Screen, SectionTitle } from './kit';
+import { hasVoiceSlots, sharesVoice, VOICE_SLOTS } from '../reader/voiceSlots';
+import { ErrorNote, Group, Help, NavRow, Screen } from './kit';
 import { space } from './theme';
 
-// A line for each language to hear a voice with.
-const SAMPLES: Record<Language, string> = {
-  th: 'สวัสดีครับ วันนี้อากาศดีนะครับ',
-  es: 'Hola, ¿qué tal? Hoy hace muy buen día.',
-  de: 'Hallo, wie geht es dir? Heute ist ein schöner Tag.',
-  fr: 'Bonjour, comment ça va ? Il fait très beau aujourd’hui.',
-  ru: 'Привет, как дела? Сегодня очень хорошая погода.',
-  el: 'Γεια σου, τι κάνεις; Σήμερα έχει πολύ ωραίο καιρό.',
-  pl: 'Cześć, co słychać? Dzisiaj jest bardzo ładna pogoda.',
-  nb: 'Hei, hvordan går det? I dag er det veldig fint vær.',
-};
-
-const SPEAKERS: { key: keyof Speakers; title: string; hint: string }[] = [
-  { key: 'A', title: 'Speaker A', hint: 'The first speaker in a dialogue, and the narrator of a story.' },
-  { key: 'B', title: 'Speaker B', hint: 'The second speaker in a dialogue.' },
-];
-
 /**
- * The Azure voice each of a language's speakers is read in. The server keeps the choice; the texts
- * waiting to be read are recorded again in it, and a text already read keeps its audio.
+ * The Azure voices a language's texts are read in, by gender: a man's and a woman's, and a second
+ * of each for a dialogue between two men or two women. Each row opens its list (ReadVoicePick).
+ * The server keeps the choice; the texts waiting to be read are recorded again in it, and a text
+ * already read keeps its audio.
  */
-export function ReadVoices({ api, language, onSettings }: {
+export function ReadVoices({ api, language, voices, onSettings, onPick }: {
   api: Api;
   language: Language;
-  /** The settings as the server has them after a change, for the rest of the app. */
+  /** The language's voices as the app last had them from the server, if it has them yet. */
+  voices: Partial<Speakers> | undefined;
+  /** The settings as the server has them after a load, for the rest of the app. */
   onSettings: (settings: Settings) => void;
+  onPick: (slot: keyof Speakers) => void;
 }) {
   const name = LANGUAGES[language].name;
-  const [speakers, setSpeakers] = useState<Speakers>();
   const [error, setError] = useState<string>();
-  const azure = useAzureVoices(api, language);
-  const sample = useAzureSample(api);
+  const known = hasVoiceSlots(voices);
 
   useEffect(() => {
+    if (known) return;
     let live = true;
     api.settings().then(
-      (s) => {
-        if (!live) return;
-        // A server not yet updated sends no voices: say so rather than show an empty screen.
-        if (s.voices?.[language]) setSpeakers(s.voices[language]);
-        else setError("Read & Listen's server doesn't offer a choice of voices yet. It updates itself within about 15 minutes of an update; try again then.");
-      },
+      (s) => { if (live) onSettings(s); },
       (e) => { if (live) setError(e instanceof ApiError ? e.message : String(e)); },
     );
     return () => { live = false; };
-  }, [api, language]);
+  }, [api, known]); // eslint-disable-line react-hooks/exhaustive-deps -- onSettings is the app's setter
 
-  const choose = async (speaker: keyof Speakers, voice: string) => {
-    const before = speakers;
-    setSpeakers((s) => (s ? { ...s, [speaker]: voice } : s));
-    setError(undefined);
-    sample.play(SAMPLES[language], voice);
-    try {
-      const saved = await api.updateSettings({ voices: { [language]: { [speaker]: voice } } });
-      setSpeakers(saved.voices[language]);
-      onSettings(saved);
-    } catch (e) {
-      setSpeakers(before);
-      setError(e instanceof ApiError ? e.message : `Couldn't save the voice. ${e instanceof Error ? e.message : String(e)}`);
-    }
-  };
+  // The settings loaded, but the server sends voices by speaker: it hasn't been updated yet.
+  const outdated = !known && voices !== undefined;
 
   return (
     <Screen title={`${name} voices`}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {error ? <ErrorNote message={error} /> : null}
-        {azure.error ? <ErrorNote message={azure.error} onRetry={azure.retry} /> : null}
-        {sample.error ? <ErrorNote message={sample.error} /> : null}
-        {azure.voices && speakers ? SPEAKERS.map((s) => (
-          <React.Fragment key={s.key}>
-            <SectionTitle>{s.title}</SectionTitle>
-            <Group accessibilityRole="radiogroup">
-              <AzureVoiceRows voices={azure.voices!} selected={speakers[s.key]} onChoose={(v) => { if (v) choose(s.key, v.voice); }} />
+        {outdated ? <ErrorNote message="Read & Listen's server doesn't offer voices by gender yet. It updates itself within about 15 minutes of an update; try again then." /> : null}
+        {known ? (
+          <>
+            <Group>
+              {VOICE_SLOTS.map((s, i) => (
+                <NavRow key={s.slot} first={i === 0} label={s.label} detail={azureVoiceName(voices[s.slot])} onPress={() => onPick(s.slot)} />
+              ))}
             </Group>
-            <Help>{s.hint}</Help>
-          </React.Fragment>
-        )) : null}
-        <Help>
-          {`Choosing a voice plays a line in it. Texts waiting to be read are recorded again in the new voices; a text you've already read keeps its audio.`}
-        </Help>
+            <Help>
+              {`Each text says whether its speakers are men or women, and reads them in these voices. When both speakers are the same gender, the second one is read in the second voice. A story's narrator uses the man's voice.`}
+            </Help>
+            {sharesVoice(voices) ? (
+              <Help>{`A second voice that's the same as the first reads two men, or two women, in the same voice. Choose a different one to tell them apart.`}</Help>
+            ) : null}
+            <Help>
+              {`Texts waiting to be read are recorded again in the new voices; a text you've already read keeps its audio.`}
+            </Help>
+          </>
+        ) : null}
       </ScrollView>
     </Screen>
   );

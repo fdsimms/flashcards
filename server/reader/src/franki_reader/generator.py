@@ -7,6 +7,8 @@ The rules this enforces come from docs/read-and-listen/brief.md (design principl
   one and no more than it was asked for
 - at most 3 attempts while a draft is under the floor; then the closest attempt is kept if it's at
   least MINIMUM (85%), and only a text under that is returned as not passed, never shown
+- a dialogue says whether each speaker is a man or a woman, and in Thai no line may use a word of
+  the other gender (gender.py); a draft that does is never kept, whatever its coverage
 
 The revision loop is written against `Ask`, so it's tested without a key. `claude_ask` is the real
 call: the lexicon sits in a cached system prompt, and each revision is appended to the same
@@ -24,6 +26,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam, BetaTe
 from franki_reader import grammar
 from franki_reader.coverage import MINIMUM, Checker, Coverage, check
 from franki_reader.difficulty import DEFAULT_FLOOR
+from franki_reader.gender import GENDERS, gender_problems
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry
 
@@ -145,6 +148,11 @@ class Generated:
     usage: Usage = Usage()
     stretch: tuple[str, ...] = ()  # the stretch words the text actually uses
     roles: dict[str, str] = field(default_factory=dict)  # speaker -> who they are, e.g. "Waiter"
+    # speaker -> "male" or "female", for a dialogue (gender.py picks each one's voice)
+    genders: dict[str, str] = field(default_factory=dict)
+    # False when a Thai line uses a word of the other gender than its speaker's, or a dialogue
+    # doesn't say who is a man or a woman. Such a draft is never kept.
+    gender_ok: bool = True
     floor_met: bool = True  # False for a closest attempt kept under the floor
     # Uses of a practiced point short of the 2 asked for, plus uses of an avoided one. The
     # closest attempt kept under the rules can have some.
@@ -166,6 +174,15 @@ DRAFT_SCHEMA: dict[str, Any] = {
         "roles": {
             "type": "object",
             "properties": {"A": {"type": "string"}, "B": {"type": "string"}},
+            "required": ["A", "B"],
+            "additionalProperties": False,
+        },
+        "genders": {
+            "type": "object",
+            "properties": {
+                "A": {"type": "string", "enum": [*GENDERS, "none"]},
+                "B": {"type": "string", "enum": [*GENDERS, "none"]},
+            },
             "required": ["A", "B"],
             "additionalProperties": False,
         },
@@ -202,7 +219,7 @@ DRAFT_SCHEMA: dict[str, Any] = {
         "series": {"type": "string"},
         "cast": {"type": "string"},
     },
-    "required": ["title", "roles", "lines", "glosses"],
+    "required": ["title", "roles", "genders", "lines", "glosses"],
     "additionalProperties": False,
 }
 
@@ -223,6 +240,11 @@ matters more than a clever text.
 English phrase or idiom. If an English idea has no plain Thai equivalent, say something else.
 - A dialogue is natural, everyday spoken Thai between two speakers, A and B. In "roles", say who \
 A and B are in this situation, in one to three English words each, like "Waiter" and "Customer".
+- In "genders", say whether A and B are a man or a woman ("male" or "female"). The learner hears a \
+man's voice for a man and a woman's voice for a woman, so every line has to fit its speaker. A man \
+says ครับ and ผม; a woman says ค่ะ (statements) or คะ (questions) and ดิฉัน, never ครับ or ผม. \
+Choose each speaker's gender to suit the situation and vary it from text to text: a man and a \
+woman, two men or two women. In a story, set both to "none".
 - A story is told by a narrator: every line's speaker is N, each line is one or two simple \
 sentences, and the story has a beginning, something that happens, and an end. Keep the language \
 plain, since description pulls in words the learner may not know. Leave both roles empty.
@@ -268,6 +290,11 @@ of an English phrase or idiom. If an English idea has no plain {name} equivalent
 - A dialogue is natural, everyday spoken {name} between two speakers, A and B. In "roles", say \
 who A and B are in this situation, in one to three English words each, like "Waiter" and \
 "Customer".
+- In "genders", say whether A and B are a man or a woman ("male" or "female"). The learner hears a \
+man's voice for a man and a woman's voice for a woman, so every line has to fit its speaker: where \
+{name} shows the speaker's gender (verb endings, adjectives, participles, titles), use the form for \
+that gender. Choose each speaker's gender to suit the situation and vary it from text to text: a \
+man and a woman, two men or two women. In a story, set both to "none".
 - A story is told by a narrator: every line's speaker is N, each line is one or two simple \
 sentences, and the story has a beginning, something that happens, and an end. Leave both roles \
 empty.
@@ -468,9 +495,9 @@ async def generate(ask: Ask, lexicon: Checker, request: TextRequest) -> Generate
             return result
         # Fewer grammar problems first, then closer to the target; the later attempt on a tie.
         rank = (-result.grammar_problems, _closeness(result.coverage.ratio, request))
-        if best is None or rank >= (
-            -best.grammar_problems,
-            _closeness(best.coverage.ratio, request),
+        if result.gender_ok and (
+            best is None
+            or rank >= (-best.grammar_problems, _closeness(best.coverage.ratio, request))
         ):
             best = result
         if attempt < MAX_ATTEMPTS:
@@ -483,7 +510,11 @@ async def generate(ask: Ask, lexicon: Checker, request: TextRequest) -> Generate
                     ),
                 }
             )
-    assert result is not None and best is not None
+    assert result is not None
+    if best is None:
+        # Every attempt had a line that doesn't fit its speaker's gender: none is kept, whatever
+        # its coverage. It's returned as not passed, so it's stored as dropped and never served.
+        return replace(result, passed=False)
     if best.coverage.ratio >= MINIMUM:
         # Every attempt missed (the floor, or only a stretch word rule): keep the closest one.
         return replace(
@@ -531,6 +562,11 @@ def _assess(
         }
         title = draft["title"]
         roles = {k: str(v).strip() for k, v in draft.get("roles", {}).items() if str(v).strip()}
+        genders = {
+            k: v
+            for k, v in (draft.get("genders") or {}).items()
+            if k in ("A", "B") and v in GENDERS
+        }
         recap, series, cast_ = (
             str(draft.get(k) or "").strip() for k in ("recap", "series", "cast")
         )
@@ -541,6 +577,16 @@ def _assess(
 
     coverage = check([ln.text for ln in lines], lexicon)
     used, problems = _stretch_used(coverage, request, lexicon)
+    if request.form == "story":
+        genders = {}  # a story has only its narrator
+        gender_issues: list[str] = []
+    elif set(genders) != {"A", "B"}:
+        gender_issues = ['Say in "genders" whether A and B are a man or a woman.']
+    else:
+        gender_issues = gender_problems(
+            request.language, [(ln.speaker, ln.text) for ln in lines], genders
+        )
+    problems += gender_issues
     grammar_issues, grammar_misses = grammar_problems([ln.text for ln in lines], lexicon, request)
     problems += grammar_issues
     # Stretch words are glossed from the deck, so only off-list words need the model's gloss.
@@ -562,6 +608,8 @@ def _assess(
         missing,
         stretch=stretch,
         roles=roles,
+        genders=genders,
+        gender_ok=not gender_issues,
         grammar_problems=grammar_misses,
         translits=translits,
         recap=recap,

@@ -129,6 +129,7 @@ def draft(*lines: str) -> dict[str, Any]:
     return {
         "title": "La noche",
         "roles": {"A": "Soldado", "B": "Capitán"},
+        "genders": {"A": "male", "B": "female"},
         "lines": [
             {"speaker": "AB"[i % 2], "text": t, "english": "..."} for i, t in enumerate(lines)
         ],
@@ -334,7 +335,7 @@ def word_statuses(lexicon: Any, text: str) -> dict[str, str]:
 
 def test_every_language_but_thai_has_a_list_of_10000_common_words_and_voices() -> None:
     for code, language in LANGUAGES.items():
-        assert language.voices["A"] and language.voices["B"]
+        assert language.voices["male"] and language.voices["female"]
         if code != "th":
             assert language.spaced and len(common_words(code)) == 10_000
 

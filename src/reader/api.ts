@@ -116,11 +116,17 @@ export type StretchWords = 'topic' | 'any';
 // How many lines a dialogue has: short, medium or long.
 export type Length = 6 | 8 | 12;
 
-// The Azure voice each speaker is read in: A, and B (A also reads a story's narrator).
-export type Speakers = { A: string; B: string };
+// A speaker is a man or a woman, as each text says, and is read in a voice of that gender
+// (voiceSlots.ts). A dialogue between two men (or two women) uses the second voice of that gender
+// for its second speaker; a story's narrator is read in the man's voice.
+export type VoiceSlot = 'male' | 'male2' | 'female' | 'female2';
+
+// The Azure voice for each slot.
+export type Speakers = Record<VoiceSlot, string>;
 
 // `decks`: the deck each language's words come from (the default when none was chosen).
-// `voices`: each language's speakers' Azure voices (the defaults when none were chosen).
+// `voices`: each language's Azure voices by gender (the defaults when none were chosen). A server
+// older than voices by gender sends {A, B} instead, which hasVoiceSlots tells apart.
 // `common`: how many of each language's most common words count as known (not Thai: deck only);
 // missing from a server older than the setting.
 export type Settings = {

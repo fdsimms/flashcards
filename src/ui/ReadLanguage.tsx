@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
-import { azureVoiceName } from '../core/voices';
 import {
   ApiError, type Api, type Progress, type Settings, type SettingsChange, type Shelf, type StretchWords,
 } from '../reader/api';
 import { grammarSummary } from '../reader/grammar';
 import { LANGUAGES } from '../reader/languages';
 import { describeProgress } from '../reader/progress';
+import { voicesSummary } from '../reader/voiceSlots';
 import { haptic } from './haptics';
 import { Button, Card, ErrorNote, Field, Group, Help, Icon, NavRow, Screen, SectionTitle, Segments, Select, Tappable } from './kit';
 import { CommonWords } from './ReadCommonWords';
@@ -141,7 +141,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
               <CommonWords settings={settings} onChange={(count) => change({ common: { [language]: count } })} />
             </Card>
             <Group>
-              <NavRow first label="Voices" detail={voices ? `${azureVoiceName(voices.A)} and ${azureVoiceName(voices.B)}` : 'The voices texts are read in'} onPress={onVoices} />
+              <NavRow first label="Voices" detail={voicesSummary(voices) ?? 'The voices texts are read in'} onPress={onVoices} />
               <NavRow label="Grammar" detail={grammar ?? 'Practice or avoid'} onPress={onGrammar} />
             </Group>
 
