@@ -1,6 +1,6 @@
 // The shelf's cards in words, and the small decisions the shelf and the reader's end view make
 // (docs/read-and-listen/architecture.md, Shelf). Pure, so they're tested.
-import type { Form, Length, Shelf, ShelfText } from './api';
+import type { Form, Length, Shelf, ShelfText, Suggestion } from './api';
 
 // About how long a line takes to read and listen to, at a learner's pace with the audio.
 const SECONDS_PER_LINE = 20;
@@ -64,4 +64,16 @@ export function stepLength(current: Length, step: LengthStep): Length {
   const at = LENGTHS.indexOf(current);
   const to = step === 'shorter' ? at - 1 : step === 'longer' ? at + 1 : at;
   return LENGTHS[Math.min(LENGTHS.length - 1, Math.max(0, to))];
+}
+
+// Surprise me picks among this many of the best-fitting ideas, so it varies but stays readable.
+const SURPRISE_POOL = 5;
+
+/** What Surprise me writes: one of the best-fitting `ideas` and a form, chosen by `random` (0 up to
+ * 1). Null when no idea is left. */
+export function surprisePick(ideas: Suggestion[], random: () => number): { name: string; form: Form } | null {
+  const pool = ideas.slice(0, SURPRISE_POOL);
+  if (pool.length === 0) return null;
+  const idea = pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))];
+  return { name: idea.name, form: random() < 0.5 ? 'dialogue' : 'story' };
 }
