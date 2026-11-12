@@ -3,13 +3,15 @@ playback is the player's rate on the phone (docs/read-and-listen/architecture.md
 line whatever speed is chosen.
 
 Azure is called through the server's shared client (server/speech, `franki_speech`, which the MCP
-uses too); its module docstring says which parts of Azure's API are confirmed. The voices can be
-changed with AZURE_VOICE_A and AZURE_VOICE_B without a code change.
+uses too); its module docstring says which parts of Azure's API are confirmed. Each speaker's
+voice is chosen in the app (the `voices` setting); AZURE_VOICE_A and AZURE_VOICE_B still set
+Thai's defaults.
 """
 
+import shutil
 from collections.abc import Callable, Coroutine
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from franki_speech import SpeechClient, SpeechError
 
@@ -17,6 +19,14 @@ DEFAULT_VOICES = {"A": "th-TH-NiwatNeural", "B": "th-TH-PremwadeeNeural"}
 
 # Speaks one line in one voice and returns the MP3 bytes.
 Synthesize = Callable[[str, str], Coroutine[Any, Any, bytes]]
+
+
+class Speech(Protocol):
+    """What the app's voice routes need from Azure: `franki_speech.SpeechClient`, or a fake in tests."""
+
+    async def voices(self) -> list[dict[str, Any]]: ...
+
+    async def synthesize(self, text: str, voice: str, rate: float = 1.0) -> bytes: ...
 
 
 class TtsFailed(Exception):
@@ -44,6 +54,10 @@ class AudioCache:
 
     def has(self, text_id: int, line: int) -> bool:
         return self.path(text_id, line).is_file()
+
+    def drop(self, text_id: int) -> None:
+        """Forgets a text's audio, so each line is spoken again (in the voices chosen now)."""
+        shutil.rmtree(self.root / str(text_id), ignore_errors=True)
 
     def write(self, text_id: int, line: int, audio: bytes) -> None:
         path = self.path(text_id, line)

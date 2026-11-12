@@ -338,8 +338,19 @@ class Engine:
             await self.line_audio(text, i)
 
     def voices_for(self, language: Code) -> dict[str, str]:
-        # Thai's can be overridden from the environment (config.py); Spanish uses its defaults.
-        return self.voices if language == "th" else LANGUAGES[language].voices
+        """Each speaker's voice: the one chosen in the app, else the default (Thai's can be set
+        from the environment, config.py; Spanish's are in languages.py)."""
+        base = self.voices if language == "th" else LANGUAGES[language].voices
+        return {**base, **store.load_settings(self.conn).voices.get(language, {})}
+
+    async def rerecord(self, language: Code) -> None:
+        """Speaks the texts waiting to be read again, after their language's voices changed. A text
+        already read keeps its audio until it's opened again with none (`line_audio`)."""
+        if self.audio is None:
+            return
+        for text in store.ready_texts(self.conn, language):
+            self.audio.drop(text.id)
+            await self.make_audio(text)
 
     async def line_audio(self, text: StoredText, line: int) -> Path | None:
         """The cached MP3 for one line, made now if it's missing and text to speech is set up."""
