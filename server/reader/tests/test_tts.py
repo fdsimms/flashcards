@@ -3,61 +3,29 @@ from pathlib import Path
 
 import httpx
 import pytest
+from franki_speech import SpeechClient
 
-from franki_reader.tts import OUTPUT_FORMAT, AudioCache, TtsFailed, azure_synthesize, ssml
+from franki_reader.tts import AudioCache, TtsFailed, azure_synthesize
 
-
-def test_ssml_names_the_voice_and_escapes_the_text() -> None:
-    out = ssml("A & B <ok>", "th-TH-NiwatNeural")
-    assert '<voice name="th-TH-NiwatNeural">A &amp; B &lt;ok&gt;</voice>' in out
-    assert out.startswith("<speak version='1.0' xml:lang=\"th-TH\">")
+# How Azure is called is tested with the shared client (server/speech/tests); this is the reader's side.
 
 
-def test_ssml_takes_the_language_from_the_voice() -> None:
-    assert 'xml:lang="es-MX"' in ssml("¿Qué tal?", "es-MX-JorgeNeural")
-
-
-def run(handler: httpx.MockTransport, text: str = "สวัสดีครับ") -> bytes:
+def run(handler: httpx.MockTransport) -> bytes:
     async def go() -> bytes:
-        async with httpx.AsyncClient(transport=handler) as client:
-            return await azure_synthesize("k", "eastus", client)(text, "th-TH-NiwatNeural")
+        async with httpx.AsyncClient(transport=handler) as http:
+            client = SpeechClient("k", "eastus", http=http)
+            return await azure_synthesize(client)("สวัสดีครับ", "th-TH-NiwatNeural")
 
     return asyncio.run(go())
 
 
-def test_posts_ssml_to_the_regional_endpoint_with_the_key_and_format() -> None:
-    seen: list[httpx.Request] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        seen.append(request)
-        return httpx.Response(200, content=b"ID3mp3")
-
-    assert run(httpx.MockTransport(handler)) == b"ID3mp3"
-    request = seen[0]
-    assert str(request.url) == "https://eastus.tts.speech.microsoft.com/cognitiveservices/v1"
-    assert request.headers["Ocp-Apim-Subscription-Key"] == "k"
-    assert request.headers["X-Microsoft-OutputFormat"] == OUTPUT_FORMAT
-    assert request.headers["Content-Type"] == "application/ssml+xml"
-    assert "สวัสดีครับ" in request.content.decode()
+def test_speaks_a_line_through_the_shared_client() -> None:
+    assert run(httpx.MockTransport(lambda r: httpx.Response(200, content=b"ID3mp3"))) == b"ID3mp3"
 
 
-def test_an_error_status_is_tts_failed() -> None:
-    transport = httpx.MockTransport(lambda r: httpx.Response(401, text="bad key"))
-    with pytest.raises(TtsFailed, match="401"):
-        run(transport)
-
-
-def test_an_empty_body_is_tts_failed() -> None:
-    with pytest.raises(TtsFailed):
-        run(httpx.MockTransport(lambda r: httpx.Response(200, content=b"")))
-
-
-def test_a_network_error_is_tts_failed() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("down")
-
-    with pytest.raises(TtsFailed, match="Couldn't reach Azure"):
-        run(httpx.MockTransport(handler))
+def test_a_failure_is_tts_failed_with_azures_reason() -> None:
+    with pytest.raises(TtsFailed, match="refused the key"):
+        run(httpx.MockTransport(lambda r: httpx.Response(401, text="bad key")))
 
 
 def test_cache_writes_whole_files(tmp_path: Path) -> None:

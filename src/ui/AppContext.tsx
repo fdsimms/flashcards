@@ -2,15 +2,17 @@ import { setAudioModeAsync } from 'expo-audio';
 import { usePathname, useRouter } from 'expo-router';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';
-import { studyDayStart } from '../core/day';
+import { DAY_STARTS_AT_HOUR } from '../core/config';
+import { studyDayKey, studyDayStart } from '../core/day';
 import { deckRows, queueInput, type DeckRow } from '../core/deckTree';
 import { studiedToday } from '../core/queue';
 import type { Note } from '../core/types';
 import { backupStatus } from '../db/backup';
 import type { AnkiLink, SyncSettings } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
-import { createApi, readerAddress, type Api } from '../reader/api';
-import { clearPassphrase, loadPassphrase, loadPrefs } from '../reader/storage';
+import { createApi, readerAddress, type Api, type Settings as ReaderSettings } from '../reader/api';
+import { minedOne, miningLeft, type MiningCount } from '../reader/mining';
+import { clearPassphrase, loadMined, loadPassphrase, loadPrefs, saveMined } from '../reader/storage';
 import { openRepo, type BackupStore } from '../db/sqliteRepo';
 import { useTheme } from './theme';
 import { useSync } from './useSync';
@@ -25,7 +27,8 @@ export type AppRepo = Repo & BackupStore & AnkiLink;
 
 /** What the note editor hands back when it closes; none when it was closed without saving. */
 export type NoteEditorResult = { saved: Note } | { deleted: string };
-export type NoteEditorTarget = { noteId: string } | { deck: string | null };
+/** A note to edit, or a new one in `deck`, with `model` and `fields` filled in when given (Read & Listen's marked words). */
+export type NoteEditorTarget = { noteId: string } | { deck: string | null; model?: string; fields?: Record<string, string> };
 
 interface AppValue {
   repo: AppRepo;
@@ -54,6 +57,16 @@ interface AppValue {
   readerNotice: string | null;
   signedInToReader: (passphrase: string) => void;
   signOutOfReader: () => void;
+  /**
+   * Read & Listen's settings as its server has them (which deck is each language's), for Review's
+   * "Read a text with these words" and adding marked words to the deck; null until loaded.
+   */
+  readerSettings: ReaderSettings | null;
+  setReaderSettings: (settings: ReaderSettings) => void;
+  /** How many more marked words can be added to the deck today (src/reader/mining.ts). */
+  miningLeft: number;
+  /** Counts one more marked word added to the deck today. */
+  recordMined: () => void;
 }
 
 const Context = createContext<AppValue | null>(null);
@@ -72,6 +85,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [decks, setDecks] = useState<DeckRow[]>([]);
   const [backup, setBackup] = useState<{ text: string; overdue: boolean }>();
   const [ankiUnsent, setAnkiUnsent] = useState(0);
+  // The collection's "Next day starts at", for counting marked words added per study day.
+  const [dayStartsAtHour, setDayStartsAtHour] = useState(DAY_STARTS_AT_HOUR);
 
   useEffect(() => { openRepo().then(setRepo); }, []);
   // Card audio plays with the ring/silent switch on: it only ever plays because you opened a card
@@ -84,6 +99,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!repo) return;
     const now = new Date();
     const collection = await repo.collectionSettings();
+    setDayStartsAtHour(collection.dayStartsAtHour);
     const dayStart = studyDayStart(now, collection.dayStartsAtHour);
     const [notes, cards, allParams, reviews, revlog, lastBackup, settings] = await Promise.all([
       repo.listNotes(), repo.listCards(), repo.listDeckParams(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
@@ -134,13 +150,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setReaderPassphrase(null);
   }, []);
 
+  const [readerSettings, setReaderSettings] = useState<ReaderSettings | null>(null);
+  useEffect(() => {
+    setReaderSettings(null);
+    readerApi?.settings().then(setReaderSettings, () => undefined);
+  }, [readerApi]);
+  const [mined, setMined] = useState<MiningCount | null>(null);
+  useEffect(() => { loadMined().then(setMined); }, []);
+  const today = studyDayKey(new Date(), dayStartsAtHour);
+  const recordMined = useCallback(() => {
+    setMined((before) => {
+      const next = minedOne(before, studyDayKey(new Date(), dayStartsAtHour));
+      saveMined(next);
+      return next;
+    });
+  }, [dayStartsAtHour]);
+
   const editorClose = useRef<((result?: NoteEditorResult) => void) | null>(null);
   const openNoteEditor = useCallback((target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => {
     editorClose.current = onClose;
-    router.push({
-      pathname: '/note-editor',
-      params: 'noteId' in target ? { noteId: target.noteId } : target.deck ? { deck: target.deck } : {},
-    });
+    const params: Record<string, string> = 'noteId' in target ? { noteId: target.noteId } : target.deck ? { deck: target.deck } : {};
+    if (!('noteId' in target)) {
+      if (target.model) params.model = target.model;
+      if (target.fields) params.fields = JSON.stringify(target.fields);
+    }
+    router.push({ pathname: '/note-editor', params });
   }, [router]);
   const finishNoteEditor = useCallback((result?: NoteEditorResult) => {
     const close = editorClose.current;
@@ -152,8 +186,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     repo, decks, backup, ankiUnsent, syncSettings, syncing,
     sync, reloadSync, refresh, openNoteEditor, finishNoteEditor,
     readerApi, readerServer, readerNotice, signedInToReader, signOutOfReader,
+    readerSettings, setReaderSettings, miningLeft: miningLeft(mined, today), recordMined,
   }, [repo, decks, backup, ankiUnsent, syncSettings, syncing, sync, reloadSync, refresh, openNoteEditor, finishNoteEditor,
-    readerApi, readerServer, readerNotice, signedInToReader, signOutOfReader]);
+    readerApi, readerServer, readerNotice, signedInToReader, signOutOfReader, readerSettings, mined, today, recordMined]);
 
   if (!value) {
     return (

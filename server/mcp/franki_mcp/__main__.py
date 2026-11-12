@@ -46,7 +46,8 @@ def build_app(environ=os.environ) -> tuple[Starlette, CollectionManager]:
     cm = CollectionManager(data / "collection", SyncSettings(e("ANKI_SYNC_ENDPOINT"), e("ANKI_USER"), e("ANKI_PASSWORD")))
     speech = None
     if environ.get("AZURE_SPEECH_KEY"):
-        speech = SpeechClient(environ["AZURE_SPEECH_KEY"], e("AZURE_SPEECH_REGION"), environ.get("AZURE_SPEECH_ENDPOINT") or None)
+        speech = SpeechClient(environ["AZURE_SPEECH_KEY"], e("AZURE_SPEECH_REGION"), environ.get("AZURE_SPEECH_ENDPOINT") or None,
+                              user_agent="franki-mcp", voice_help="Check the voice name with list_voices.")
     extra = tuple(u for u in environ.get("MCP_EXTRA_REDIRECT_URIS", "").split() if u)
     try:
         auth = SingleUserAuth(data / "signins.sqlite", public, e("MCP_PASSWORD"), extra)

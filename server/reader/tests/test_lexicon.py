@@ -50,3 +50,11 @@ def test_an_empty_entry_is_skipped() -> None:
 
 def test_the_thai_query_leaves_out_the_consonant_cards() -> None:
     assert '-"deck:👅 Languages::🐘 ภาษาไทย::🏛 Consonant Classes"' in THAI_NOTES_QUERY
+
+
+def test_a_chosen_deck_keeps_the_languages_skipped_subdecks() -> None:
+    from franki_reader.languages import with_deck
+
+    assert with_deck("th", None).notes_query == THAI_NOTES_QUERY
+    assert with_deck("th", "Mine").notes_query == '"deck:Mine" -"deck:Mine::🏛 Consonant Classes"'
+    assert with_deck("es", "Mío").notes_query == '"deck:Mío"'

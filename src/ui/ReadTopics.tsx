@@ -1,13 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import {
-  ApiError, type Api, type Form, type Language, type Length, type Progress, type Settings, type StretchWords, type Suggestion, type Topic,
+  ApiError, type Api, type Form, type Language, type Length, type Progress, type Settings, type SettingsChange, type StretchWords, type Suggestion,
+  type Topic,
 } from '../reader/api';
 import { grammarSummary } from '../reader/grammar';
 import { ideaPage } from '../reader/ideas';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import { describeProgress } from '../reader/progress';
-import { Button, Card, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments } from './kit';
+import { Button, Card, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Select } from './kit';
 import { MIN_TAP, radius, space, type, useTheme } from './theme';
 
 /**
@@ -20,8 +21,14 @@ import { MIN_TAP, radius, space, type, useTheme } from './theme';
 // While a text is being written, check back this often.
 const WRITING_POLL_MS = 10_000;
 
-export function ReadTopics({ api, onOpen, onWords, onPast, onGrammar }: {
+export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWords, onPast, onGrammar }: {
   api: Api;
+  /** Franki's decks, to choose each language's deck from. */
+  deckNames: string[];
+  /** Opened from Review's "Read a text with these words": the next topic opened practices them. */
+  practice?: { language: Language; count: number; onCancel: () => void };
+  /** The settings as the server has them, each time they load or change. */
+  onSettings?: (settings: Settings) => void;
   onOpen: (topic: Topic) => void;
   onWords: () => void;
   onPast: () => void;
@@ -67,10 +74,12 @@ export function ReadTopics({ api, onOpen, onWords, onPast, onGrammar }: {
   // Loaded on its own, so the topics still show if this fails.
   useEffect(() => { api.settings().then(setSettings, () => undefined); }, [api]);
 
+  useEffect(() => { if (settings) onSettings?.(settings); }, [settings]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /** Whether the server took the change. */
-  const changeSetting = async (change: Partial<Settings>): Promise<boolean> => {
+  const changeSetting = async (change: SettingsChange): Promise<boolean> => {
     const before = settings;
-    setSettings((s) => (s ? { ...s, ...change } : s));
+    setSettings((s) => (s ? { ...s, ...change, decks: { ...s.decks, ...change.decks } } : s));
     setSettingError(null);
     try {
       setSettings(await api.updateSettings(change));
@@ -88,6 +97,14 @@ export function ReadTopics({ api, onOpen, onWords, onPast, onGrammar }: {
       await Promise.all([load(), loadExtras()]);
     }
   };
+
+  // Words just studied are in one language: switch to it, once, so the text is written in it.
+  const switched = useRef(false);
+  useEffect(() => {
+    if (!practice || !settings || switched.current) return;
+    switched.current = true;
+    if (settings.language !== practice.language) changeLanguage(practice.language);
+  }, [practice, settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Poll only while the server says a text is being written; a failed write stops it.
   const writing = topics?.some((t) => t.state === 'writing') ?? false;
@@ -172,6 +189,13 @@ export function ReadTopics({ api, onOpen, onWords, onPast, onGrammar }: {
           }} />
         }
       >
+        {practice ? (
+          <Card style={{ gap: space.s }}>
+            <Text style={{ ...type.headline, color: c.text }}>{`Practice the ${practice.count} ${practice.count === 1 ? 'word' : 'words'} you just studied`}</Text>
+            <Help>Pick a topic, or an idea below. The text uses as many of those words as fit it.</Help>
+            <View style={{ alignItems: 'flex-start' }}><HeaderAction label="Cancel" onPress={practice.onCancel} /></View>
+          </Card>
+        ) : null}
         <Help>{`Pick a topic. Texts use words from your ${LANGUAGES[language].name} deck.`}</Help>
         {settings ? (
           <Segments<Language>
@@ -243,6 +267,18 @@ export function ReadTopics({ api, onOpen, onWords, onPast, onGrammar }: {
 
         {settings ? (
           <Card>
+            {/* `decks` is missing from a server older than the deck setting. */}
+            {settings.decks ? (
+              <>
+                <Select
+                  label={`${LANGUAGES[settings.language].name} deck`}
+                  options={deckNames.includes(settings.decks[settings.language]) ? deckNames : [settings.decks[settings.language], ...deckNames]}
+                  value={settings.decks[settings.language]}
+                  onChange={(deck) => changeSetting({ decks: { [settings.language]: deck } })}
+                />
+                <Help>Words come from this deck and its subdecks. A new deck is read right away; texts already waiting were written from the old one.</Help>
+              </>
+            ) : null}
             <Text style={{ ...type.headline, color: c.text }}>Text type</Text>
             <Segments<Form>
               options={[{ value: 'dialogue', label: 'Dialogue' }, { value: 'story', label: 'Short story' }]}

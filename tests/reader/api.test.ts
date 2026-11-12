@@ -106,3 +106,14 @@ test("says so when the reader isn't running on the server", async () => {
   const { impl } = fakeFetch(new Response('', { status: 502 }));
   await expect(createApi('https://anki.example.com/reader', 'p', impl).topics()).rejects.toThrow("Read & Listen isn't running on your sync server");
 });
+
+test('asks for a text practicing chosen words, and sends no body without them', async () => {
+  const { impl, calls } = fakeFetch(new Response(null, { status: 202 }));
+  const api = createApi('https://anki.example.com/reader', 'p', impl);
+  expect(await api.nextText(3, ['กิน', 'ครับ'])).toBeNull();
+  expect(JSON.parse(calls[0].init.body as string)).toEqual({ words: ['กิน', 'ครับ'] });
+  await api.nextText(3);
+  await api.nextText(3, []);
+  expect(calls[1].init.body).toBeUndefined();
+  expect(calls[2].init.body).toBeUndefined();
+});

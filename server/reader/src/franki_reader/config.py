@@ -25,6 +25,7 @@ class Settings:
     db_path: Path
     audio_dir: Path
     anki_dir: Path  # the reader's own copy of the Anki collection, kept in step by sync
+    speech_endpoint: str | None  # another Azure host than the region's, rarely needed
     voices: dict[str, str]
     secrets: dict[str, str]
 
@@ -38,6 +39,7 @@ def load(env: dict[str, str] | None = None) -> Settings:
         db_path=Path(env.get("READER_DB_PATH", "reader.db")),
         audio_dir=Path(env.get("READER_AUDIO_DIR", "audio")),
         anki_dir=Path(env.get("READER_ANKI_DIR", "anki")),
+        speech_endpoint=env.get("AZURE_SPEECH_ENDPOINT") or None,
         voices={
             "A": env.get("AZURE_VOICE_A") or DEFAULT_VOICES["A"],
             "B": env.get("AZURE_VOICE_B") or DEFAULT_VOICES["B"],

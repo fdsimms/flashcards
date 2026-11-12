@@ -9,13 +9,16 @@ serves all of it under /reader (../../Caddyfile), so the app's address ends in /
     DELETE /api/topics/{id}           removes a topic from the list (adding it again brings it back)
     GET   /api/suggestions            topic ideas not yet added, the best fit for the deck first
     POST  /api/topics/{id}/next       the next text for a topic; 202 {"writing": true} while one is
-                                      being written in the background, so ask again shortly
+                                      being written in the background, so ask again shortly. With
+                                      {words: [...]}, a text written to practice those words
     GET   /api/settings               {stretch_words: "topic" | "any", lines: 6 | 8 | 12,
-                                      form: "dialogue" | "story", language: "th" | "es"}
+                                      form: "dialogue" | "story", language: "th" | "es",
+                                      decks: {th: <deck>, es: <deck>}}
 
 Topics are shared by both languages. Everything else (ready texts, /next, progress, past texts,
 marked words, ideas) is in the current language, the `language` setting.
-    PATCH /api/settings               the same fields; takes effect from the next text written
+    PATCH /api/settings               the same fields; takes effect from the next text written. A
+                                      changed deck is read again at once
     GET   /api/texts                  texts read to the end, newest first, to read again
     GET   /api/texts/{id}             one text, in the same shape as /next; reading it again isn't logged
     POST  /api/texts/{id}/reading     logs a session with a text and adjusts difficulty
@@ -35,9 +38,9 @@ from datetime import timedelta
 from typing import Annotated, Any, Literal
 
 import anthropic
-import httpx
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Response
 from fastapi.responses import FileResponse, JSONResponse
+from franki_speech import SpeechClient
 from pydantic import BaseModel, Field
 
 from franki_reader import config, grammar, store
@@ -45,7 +48,7 @@ from franki_reader.collection import AnkiDeck, SyncSettings
 from franki_reader.engine import Engine, NotAvailable, NotFound
 from franki_reader.gateway import with_timeout
 from franki_reader.generator import Ask, Form, claude_ask
-from franki_reader.languages import Code
+from franki_reader.languages import LANGUAGES, Code, with_deck
 from franki_reader.lexicon import Entry
 from franki_reader.reader import gloss_for, render
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
@@ -80,6 +83,14 @@ class SettingsUpdate(BaseModel):
     lines: Length | None = None
     form: Form | None = None
     language: Code | None = None
+    # A language's deck by its full Anki name; an empty name goes back to the default.
+    decks: dict[Code, Annotated[str, Field(max_length=500)]] | None = None
+
+
+class NextIn(BaseModel):
+    # The cards just studied, to write a text that practices them (the app's "Read a text with
+    # these words"). Each is a note's Entry, as the deck has it.
+    words: list[Annotated[str, Field(max_length=200)]] = Field(default_factory=list, max_length=500)
 
 
 class ReadingIn(BaseModel):
@@ -150,9 +161,11 @@ def create_app(engine: Engine, passphrase: str | None) -> FastAPI:
         return [{"name": s.name, "fit": s.fit} for s in suggest(lexicon, taken, language)]
 
     @app.post("/api/topics/{topic_id}/next", dependencies=authed)
-    async def next_text(topic_id: int, background: BackgroundTasks) -> Any:
+    async def next_text(
+        topic_id: int, background: BackgroundTasks, body: NextIn | None = None
+    ) -> Any:
         try:
-            text = await engine.next_text(topic_id)
+            text = await engine.next_text(topic_id, body.words if body else ())
         except NotFound as e:
             raise HTTPException(404, "No such topic.") from e
         except NotAvailable as e:
@@ -194,21 +207,42 @@ def create_app(engine: Engine, passphrase: str | None) -> FastAPI:
             raise HTTPException(404, "No audio for this line.")
         return FileResponse(path, media_type="audio/mpeg")
 
+    def settings_out(current: Settings) -> dict[str, Any]:
+        # Every language's deck, the default where none was chosen, so the app shows what's used.
+        decks = {code: with_deck(code, current.decks.get(code)).deck for code in LANGUAGES}
+        return {**current.__dict__, "decks": decks}
+
     @app.get("/api/settings", dependencies=authed)
     async def settings() -> dict[str, Any]:
-        return store.load_settings(engine.conn).__dict__
+        return settings_out(store.load_settings(engine.conn))
 
     @app.patch("/api/settings", dependencies=authed)
-    async def update_settings(body: SettingsUpdate) -> dict[str, Any]:
+    async def update_settings(body: SettingsUpdate, background: BackgroundTasks) -> dict[str, Any]:
         current = store.load_settings(engine.conn)
+        decks = dict(current.decks)
+        changed_decks: list[Code] = []
+        for code, name in (body.decks or {}).items():
+            name = name.strip()
+            before = with_deck(code, decks.get(code)).deck
+            if name and name != LANGUAGES[code].deck:
+                decks[code] = name
+            else:
+                decks.pop(code, None)
+            if with_deck(code, decks.get(code)).deck != before:
+                changed_decks.append(code)
         updated = Settings(
             stretch_words=body.stretch_words or current.stretch_words,
             lines=body.lines or current.lines,
             form=body.form or current.form,
             language=body.language or current.language,
+            decks=decks,
         )
         store.save_settings(engine.conn, updated)
-        return updated.__dict__
+        for code in changed_decks:
+            # The old deck's words mustn't be written with: read the new deck now.
+            store.clear_snapshot(engine.conn, code)
+            background.add_task(engine.refresh_lexicon, code)
+        return settings_out(updated)
 
     @app.post("/api/texts/{text_id}/reading", status_code=204, dependencies=authed)
     async def reading(text_id: int, body: ReadingIn, background: BackgroundTasks) -> Response:
@@ -345,7 +379,14 @@ def production_app() -> FastAPI:
         settings.secrets.get("AZURE_SPEECH_REGION"),
     )
     if key and region:
-        synthesize = azure_synthesize(key, region, httpx.AsyncClient())
+        speech = SpeechClient(
+            key,
+            region,
+            settings.speech_endpoint,
+            user_agent="franki-reader",
+            voice_help="Check AZURE_VOICE_A and AZURE_VOICE_B in server/.env.",
+        )
+        synthesize = azure_synthesize(speech)
 
     # Without the sync server's address and sign-in the lexicon is never refreshed, and the server
     # says it has no word list.

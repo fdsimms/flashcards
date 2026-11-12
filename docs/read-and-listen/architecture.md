@@ -70,9 +70,24 @@ Franki's (Client, below).
   target and practice word count new texts are written at, so the effect of a rating is visible.
   Only finished readings count.
 - **Marked words**: every word marked unknown in a reading, newest first, with its gloss and whether
-  it's in the deck, so they can be added to Anki by hand. Read-only toward Anki. "Clear" hides a
-  word until it's marked again (`cleared_words` table). This is the list Milestone 3's mining queue
-  would start from.
+  it's in the deck. "Clear" hides a word until it's marked again (`cleared_words` table).
+- **Mining** (12 November 2026, by the owner's decision, ahead of the Milestone 1 exit check where
+  the brief put it in Milestone 3). A marked word that isn't in the deck has **Add to deck**, which
+  opens Franki's note editor on a new Omnilanguage note in the current language's deck, with the
+  word and its gloss filled in. **Saving it is the approval** (brief, design principle 13): nothing
+  reaches the deck otherwise, and the note goes into the collection as every note added in Franki
+  does, reaching Anki at the next sync. At most `MINING_PER_DAY` (10) are added a study day
+  (`src/reader/mining.ts`, counted on the phone), to protect the ~300 reviews/day ceiling (principle
+  12). An added word is cleared from the list. The brief's "given audio" isn't done here: the note
+  plays with the phone's voice until audio is recorded for it (the MCP's `add_tts_audio`).
+- **Practice words after studying** (12 November 2026, by the owner's decision). When a Review
+  session in a Read & Listen language's deck ends, **Read a text with these words** opens the
+  topics screen with the words just studied (each note's Entry, `src/reader/practice.ts`); the
+  topic opened next is written to practice them. The owner still picks the topic (principle 10).
+  The server reads the deck again first, so a card first learned today counts as studied, offers
+  the studied words as the stretch words to choose from (up to the usual count), and keeps the text
+  apart from the topic's queue (`texts.focus`): it isn't served to a plain request or counted as
+  ready. Words the deck hasn't studied are left out, and if none are left the request says so.
 - Finishing a text (tapping Done) logs the reading once, rated or not, which takes it off the ready
   queue. A text left before Done (Back, or closing the app) isn't logged, so it's served again next
   time instead of a new one being written. A listen-only pass comes after Done, so leaving it by
@@ -118,7 +133,15 @@ Franki's (Client, below).
 ## Languages
 
 Spanish was added on 26 October 2026, by the owner's decision, ahead of the Milestone 1 exit check
-and of Milestone 3 where the brief put it. Mining is still not built. Thai works as before.
+and of Milestone 3 where the brief put it. Mining followed on 12 November 2026 (Client). Thai
+works as before.
+
+- **Each language's deck is a setting** (12 November 2026, by the owner's decision): `decks` in
+  `/api/settings`, chosen on the topics screen from Franki's decks, defaulting to the owner's. A
+  language's skipped subdecks (Thai's consonant classes) are skipped under whichever deck is chosen
+  (`with_deck`). Changing the deck forgets the old snapshot and reads the new deck at once, so a
+  text is never written from the old deck's words; texts already waiting stay as they are. Another
+  language still needs its own voices, prompt and known-word checker in code.
 
 - **One setting, `language`** (`th` or `es`), picks the language new texts are written and served
   in. It's a switch at the top of the topics screen. **Topics are shared**: a topic like "At a
@@ -301,11 +324,12 @@ Every `/api` route needs the passphrase as `Authorization: Bearer <passphrase>`;
 ## Audio
 
 - Azure neural voices, one per speaker: `th-TH-NiwatNeural` (male) for A and `th-TH-PremwadeeNeural`
-  (female) for B. `AZURE_VOICE_A` and `AZURE_VOICE_B` override them without a code change. The voice
-  names and the synthesis path weren't verifiable from the build sandbox (`server/reader/src/franki_reader/tts.py`
-  says which parts were), so the first real call is the check.
+  (female) for B. `AZURE_VOICE_A` and `AZURE_VOICE_B` override them without a code change. Azure is
+  called through the client shared with the MCP (`server/speech`, `franki_speech`, since 12 November
+  2026), whose docstring says which parts of the API were checked; the first real call is the check
+  for the rest.
 - Each line is spoken once at normal speed and cached as an MP3 on the volume
-  (`AILING_AUDIO_DIR/<text>/<line>.mp3`). A new text gets its audio before it counts as ready; a line
+  (`READER_AUDIO_DIR/<text>/<line>.mp3`). A new text gets its audio before it counts as ready; a line
   with no audio yet is made when it's first asked for, which covers texts written before the Azure
   key was set. An Azure failure leaves that line silent and never blocks the text.
 - The 0.7x to 1.0x speed control is the player's rate with pitch kept (`expo-audio`), so there's one
@@ -344,3 +368,4 @@ Every `/api` route needs the passphrase as `Authorization: Bearer <passphrase>`;
 6. Deploy to Fly.io (done; since moved)
 7. Move into Franki: the server beside the sync server, then the app's screens (done), then
    retire the ailing repo, its Fly app and the droplet's Anki proxy
+8. Mining, practice words after studying, a deck setting per language (done, 12 November 2026)
