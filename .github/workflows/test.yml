@@ -75,6 +75,8 @@ jobs:
             mcp:
               - 'server/mcp/**'
               - 'server/speech/**'
+              # tests/test_forms.py checks the grammar catalog's Forms groups against the fill.
+              - 'server/reader/src/franki_reader/grammar_points.json'
               # tests/test_anki_version.py reads ANKI_VERSION from it.
               - 'server/docker-compose.yml'
               - 'tests/fixtures/anki/**'

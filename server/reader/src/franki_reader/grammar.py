@@ -2,7 +2,9 @@
 is asked for 2 or 3 times in each text; an avoided one is asked to be left out. Like coverage, the
 server checks the draft rather than trusting the model, and a miss goes back for revision.
 
-Each point has a finder: given a line's words, it returns the spans that use the point.
+The points themselves (id, language, name, note, and the Forms groups the app links them to) are
+in grammar_points.json, which the app bundles too (docs/grammar.md). Each point has a finder here:
+given a line's words, it returns the spans that use the point.
 
 - Thai points are words (เคย, กำลัง, ที่สุด), matched on the checker's segmentation. The segmenter
   sometimes joins one onto the next word (กำลังกิน), so a word starting with the point counts too,
@@ -15,10 +17,12 @@ Each point has a finder: given a line's words, it returns the spans that use the
   grammar_europe.py.
 """
 
+import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import cast
+from pathlib import Path
+from typing import cast, get_args
 
 from franki_reader import grammar_europe
 from franki_reader.coverage import Checker, is_word, parse_line
@@ -366,99 +370,61 @@ def _present_subjunctive(ws: list[str], i: int) -> bool:
 
 # ==== The points ====
 
-_ALL: tuple[Point, ...] = (
-    Point(
-        "es.preterite",
-        "es",
-        "Preterite",
-        "Finished past events: hablé, comió, fueron",
-        _each(_preterite),
-    ),
-    Point(
-        "es.imperfect",
-        "es",
-        "Imperfect",
-        "Ongoing or habitual past: hablaba, comía, era",
-        _each(_imperfect),
-    ),
-    Point(
-        "es.present_perfect",
-        "es",
-        "Present perfect",
-        "Has done: he hablado, ha comido",
-        _after_aux(_HABER_PRESENT),
-    ),
-    Point(
-        "es.pluperfect",
-        "es",
-        "Pluperfect",
-        "Had done: había hablado, habían comido",
-        _after_aux(_HABER_IMPERFECT),
-    ),
-    Point("es.future", "es", "Future", "Will do: hablaré, tendrá, iremos", _each(_future)),
-    Point(
-        "es.conditional",
-        "es",
-        "Conditional",
-        "Would do: hablaría, tendría, iríamos",
-        _each(_conditional),
-    ),
-    Point(
-        "es.progressive",
-        "es",
-        "Progressive",
-        "Be doing: estoy hablando, estaba comiendo",
-        _progressive,
-    ),
-    Point(
-        "es.present_subjunctive",
-        "es",
-        "Present subjunctive",
-        "quiero que vengas, ojalá llueva",
-        _each(_present_subjunctive),
-    ),
-    Point(
-        "es.imperfect_subjunctive",
-        "es",
-        "Imperfect subjunctive",
-        "si tuviera tiempo, quería que vinieras",
-        _each(_imperfect_subjunctive),
-    ),
-    Point("th.ever", "th", "เคย (have ever)", "Experience: เคยไป, have been", _thai("เคย")),
-    Point(
-        "th.ongoing", "th", "กำลัง (in the middle of)", "Ongoing: กำลังกิน, is eating", _thai("กำลัง")
-    ),
-    Point("th.future", "th", "จะ (will)", "Future or intention: จะไป, will go", _thai("จะ")),
-    Point(
-        "th.already", "th", "แล้ว (already, now)", "Done or changed: กินแล้ว, have eaten", _thai("แล้ว")
-    ),
-    Point(
-        "th.must",
-        "th",
-        "ต้อง (must, have to)",
-        "Obligation: ต้องไป, have to go",
-        _thai("ต้อง", "ต้องการ"),
-    ),
-    Point(
-        "th.comparison", "th", "กว่า (more than)", "Comparing: แพงกว่า, more expensive", _thai("กว่า")
-    ),
-    Point("th.superlative", "th", "ที่สุด (the most)", "Superlative: ดีที่สุด, the best", _thai("ที่สุด")),
-    Point("th.if", "th", "ถ้า (if)", "Conditions: ถ้าฝนตก, if it rains", _thai("ถ้า")),
-    Point("th.because", "th", "เพราะ (because)", "Reasons: เพราะว่า, because", _thai("เพราะ")),
-    Point(
-        "th.yes_no",
-        "th",
-        "ไหม, หรือเปล่า (yes or no questions)",
-        "ไปไหม, are you going?",
-        _thai_any("ไหม", "มั้ย", "หรือเปล่า"),
-    ),
-)
+# Each point's finder, by id. Its name, note and the rest are in grammar_points.json.
+
+_FINDERS: dict[str, Finder] = {
+    "es.preterite": _each(_preterite),
+    "es.imperfect": _each(_imperfect),
+    "es.present_perfect": _after_aux(_HABER_PRESENT),
+    "es.pluperfect": _after_aux(_HABER_IMPERFECT),
+    "es.future": _each(_future),
+    "es.conditional": _each(_conditional),
+    "es.progressive": _progressive,
+    "es.present_subjunctive": _each(_present_subjunctive),
+    "es.imperfect_subjunctive": _each(_imperfect_subjunctive),
+    "th.ever": _thai("เคย"),
+    "th.ongoing": _thai("กำลัง"),
+    "th.future": _thai("จะ"),
+    "th.already": _thai("แล้ว"),
+    "th.must": _thai("ต้อง", "ต้องการ"),
+    "th.comparison": _thai("กว่า"),
+    "th.superlative": _thai("ที่สุด"),
+    "th.if": _thai("ถ้า"),
+    "th.because": _thai("เพราะ"),
+    "th.yes_no": _thai_any("ไหม", "มั้ย", "หรือเปล่า"),
+}
 
 # German, French, Russian, Greek, Polish and Norwegian (grammar_europe.py).
-_ALL += tuple(
-    Point(pid, cast(Code, language), name, note, find)
-    for pid, language, name, note, find in grammar_europe.POINTS
-)
+_FINDERS.update(grammar_europe.FINDERS)
+
+CATALOG = Path(__file__).with_name("grammar_points.json")
+
+
+def _load(catalog: Path, finders: dict[str, Finder]) -> tuple[Point, ...]:
+    """The catalog's points, in its order, each with its finder. A point without a finder, a finder
+    without a point, or a language Read & Listen doesn't have stops the server at startup rather
+    than leaving a point that can be chosen and then never found."""
+    entries = json.loads(catalog.read_text(encoding="utf-8"))["points"]
+    ids = [e["id"] for e in entries]
+    problems = [f"{pid} is listed twice" for pid in sorted({i for i in ids if ids.count(i) > 1})]
+    problems += [f"{pid} has no finder" for pid in ids if pid not in finders]
+    problems += [
+        f"{pid} has a finder but isn't in the catalog" for pid in finders if pid not in ids
+    ]
+    problems += [
+        f"{e['id']} is in {e['language']}, which isn't a language here"
+        for e in entries
+        if e["language"] not in get_args(Code)
+    ]
+    if problems:
+        raise ValueError(f"{catalog.name}: " + "; ".join(problems))
+    return tuple(
+        Point(e["id"], cast(Code, e["language"]), e["name"], e["note"], finders[e["id"]])
+        for e in entries
+    )
+
+
+_ALL = _load(CATALOG, _FINDERS)
 
 POINTS: dict[str, Point] = {p.id: p for p in _ALL}
 

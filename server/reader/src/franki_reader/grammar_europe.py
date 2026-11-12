@@ -14,8 +14,8 @@ close but not perfect, on purpose, as for Spanish:
 - A participle after an auxiliary is found within a few words, since the line's punctuation is gone
   by then: German puts it at the end of the clause (hat ihn gestern gesehen).
 
-`POINTS` is (id, language, name, note, finder) for grammar.py to make into its points; this module
-doesn't import grammar.py, so the two don't import each other.
+`FINDERS` is each point's finder by id, for grammar.py to join to the point's name and note in
+grammar_points.json; this module doesn't import grammar.py, so the two don't import each other.
 """
 
 import re
@@ -158,51 +158,16 @@ _DE_SUBJUNCTIVE = _words(
 _DE_MODALS = frozenset({"können", "müssen", "dürfen", "sollen", "wollen", "mögen"})
 _DE_CONJUNCTIONS = _words("weil dass obwohl ob nachdem bevor")
 
-_GERMAN = (
-    (
-        "de.perfect",
-        "Perfect",
-        "Has done: ich habe gesagt, sie ist gegangen",
-        _aux_then(_DE_HABEN_SEIN, _de_participle, 8, mark="target"),
-    ),
-    ("de.past", "Simple past", "Did: ich war, er ging, wir machten", _each(_de_past)),
-    (
-        "de.pluperfect",
-        "Pluperfect",
-        "Had done: ich hatte gesagt, sie war gegangen",
-        _aux_then(_DE_HATTE_WAR, _de_participle, 8, mark="target"),
-    ),
-    (
-        "de.future",
-        "Future",
-        "Will do: ich werde gehen, es wird regnen",
-        _aux_then(_DE_WERDEN, _de_infinitive, 8, mark="aux"),
-    ),
-    (
-        "de.subjunctive",
-        "Subjunctive II",
-        "Would, could: ich würde gehen, wenn ich Zeit hätte",
-        _marker(_DE_SUBJUNCTIVE),
-    ),
-    (
-        "de.passive",
-        "Passive",
-        "Is done: das Haus wird gebaut, er wurde gefragt",
-        _aux_then(_DE_PASSIVE, _de_participle, 8, mark="target"),
-    ),
-    (
-        "de.modals",
-        "Modal verbs",
-        "kann, muss, darf, soll, will, möchte + infinitive",
-        _each(lambda ws, i: _lemma(ws[i], "de") in _DE_MODALS),
-    ),
-    (
-        "de.subordinate",
-        "Verb last after weil, dass, obwohl",
-        "Subordinate clauses: weil ich müde bin, dass er kommt",
-        _marker(_DE_CONJUNCTIONS),
-    ),
-)
+_GERMAN: dict[str, Finder] = {
+    "de.perfect": _aux_then(_DE_HABEN_SEIN, _de_participle, 8, mark="target"),
+    "de.past": _each(_de_past),
+    "de.pluperfect": _aux_then(_DE_HATTE_WAR, _de_participle, 8, mark="target"),
+    "de.future": _aux_then(_DE_WERDEN, _de_infinitive, 8, mark="aux"),
+    "de.subjunctive": _marker(_DE_SUBJUNCTIVE),
+    "de.passive": _aux_then(_DE_PASSIVE, _de_participle, 8, mark="target"),
+    "de.modals": _each(lambda ws, i: _lemma(ws[i], "de") in _DE_MODALS),
+    "de.subordinate": _marker(_DE_CONJUNCTIONS),
+}
 
 
 # ==== French ====
@@ -297,34 +262,14 @@ def _fr_subjunctive(ws: list[str]) -> list[Span]:
     return out
 
 
-_FRENCH = (
-    (
-        "fr.passe_compose",
-        "Passé composé",
-        "Did, has done: j'ai parlé, elle est partie",
-        _aux_then(_FR_AUX, _fr_participle, 3, _FR_ADVERBS),
-    ),
-    ("fr.imperfect", "Imperfect", "Was doing, used to: je parlais, il était", _each(_fr_imperfect)),
-    ("fr.future", "Future", "Will do: je parlerai, il sera, nous irons", _each(_fr_future)),
-    (
-        "fr.near_future",
-        "Near future",
-        "Going to: je vais partir, on va manger",
-        _aux_then(_FR_ALLER, _fr_infinitive, 3, _FR_OBJECT_PRONOUNS),
-    ),
-    (
-        "fr.conditional",
-        "Conditional",
-        "Would do: je parlerais, il serait, nous pourrions",
-        _each(_fr_conditional),
-    ),
-    (
-        "fr.subjunctive",
-        "Subjunctive",
-        "After que: il faut que je sois, qu'il fasse",
-        _fr_subjunctive,
-    ),
-)
+_FRENCH: dict[str, Finder] = {
+    "fr.passe_compose": _aux_then(_FR_AUX, _fr_participle, 3, _FR_ADVERBS),
+    "fr.imperfect": _each(_fr_imperfect),
+    "fr.future": _each(_fr_future),
+    "fr.near_future": _aux_then(_FR_ALLER, _fr_infinitive, 3, _FR_OBJECT_PRONOUNS),
+    "fr.conditional": _each(_fr_conditional),
+    "fr.subjunctive": _fr_subjunctive,
+}
 
 
 # ==== Russian ====
@@ -399,34 +344,14 @@ def _ru_comparative(ws: list[str], i: int) -> bool:
     return w.endswith(("ее", "ей")) and lem.endswith(("ый", "ий", "ой")) and w[:-2] == lem[:-2]
 
 
-_RUSSIAN = (
-    ("ru.past", "Past tense", "Did, was doing: он читал, она пошла", _each(_ru_past)),
-    (
-        "ru.future",
-        "Future with буду",
-        "Will be doing: я буду читать, он будет работать",
-        _aux_then(_RU_BUDU, _ru_infinitive, 3),
-    ),
-    (
-        "ru.conditional",
-        "Conditional (бы)",
-        "Would: я бы пошёл, если бы знал",
-        _marker(_words("бы б")),
-    ),
-    ("ru.imperative", "Imperative", "Commands: читай, скажите, идите", _each(_ru_imperative)),
-    (
-        "ru.gerund",
-        "Verbal adverbs",
-        "While or after doing: читая, прочитав, улыбаясь",
-        _each(_ru_gerund),
-    ),
-    (
-        "ru.comparative",
-        "Comparatives",
-        "Than: быстрее, лучше, более интересный",
-        _each(_ru_comparative),
-    ),
-)
+_RUSSIAN: dict[str, Finder] = {
+    "ru.past": _each(_ru_past),
+    "ru.future": _aux_then(_RU_BUDU, _ru_infinitive, 3),
+    "ru.conditional": _marker(_words("бы б")),
+    "ru.imperative": _each(_ru_imperative),
+    "ru.gerund": _each(_ru_gerund),
+    "ru.comparative": _each(_ru_comparative),
+}
 
 
 # ==== Greek ====
@@ -460,27 +385,17 @@ def _el_perfect_form(word: str) -> bool:
 
 _EL_PRONOUNS = _words("το τα τον την τους μου σου του της μας σας")
 
-_GREEK = (
-    ("el.tha", "θα (will, would)", "θα πάω, I'll go; θα ήθελα, I'd like", _marker(_words("θα"))),
-    ("el.na", "να (to, so that)", "θέλω να πάω, πρέπει να φύγω", _marker(_words("να"))),
-    ("el.past", "Past tense", "Did, was doing: έγραψα, πήγαμε, ήταν", _each(_el_past)),
-    (
-        "el.perfect",
-        "Perfect",
-        "Have done: έχω γράψει, έχει πάει",
-        _aux_then(
-            _words("έχω έχεις έχει έχουμε έχετε έχουν έχουνε"), _el_perfect_form, 3, _EL_PRONOUNS
-        ),
+_GREEK: dict[str, Finder] = {
+    "el.tha": _marker(_words("θα")),
+    "el.na": _marker(_words("να")),
+    "el.past": _each(_el_past),
+    "el.perfect": _aux_then(
+        _words("έχω έχεις έχει έχουμε έχετε έχουν έχουνε"), _el_perfect_form, 3, _EL_PRONOUNS
     ),
-    (
-        "el.pluperfect",
-        "Pluperfect",
-        "Had done: είχα γράψει, είχαν φύγει",
-        _aux_then(
-            _words("είχα είχες είχε είχαμε είχατε είχαν είχανε"), _el_perfect_form, 3, _EL_PRONOUNS
-        ),
+    "el.pluperfect": _aux_then(
+        _words("είχα είχες είχε είχαμε είχατε είχαν είχανε"), _el_perfect_form, 3, _EL_PRONOUNS
     ),
-)
+}
 
 
 # ==== Polish ====
@@ -523,23 +438,13 @@ def _pl_modals(ws: list[str]) -> list[Span]:
     return out
 
 
-_POLISH = (
-    ("pl.past", "Past tense", "Did: byłem, poszła, czytaliśmy", _each(_pl_past)),
-    (
-        "pl.future",
-        "Future with będę",
-        "Will be doing: będę czytać, będzie padać",
-        _marker(_words("będę będziesz będzie będziemy będziecie będą")),
-    ),
-    ("pl.conditional", "Conditional (by)", "Would: chciałbym, gdyby", _each(_pl_conditional)),
-    ("pl.czy", "Questions with czy", "Yes or no questions: czy masz czas?", _marker(_words("czy"))),
-    (
-        "pl.modals",
-        "Want, must, can + infinitive",
-        "chcę iść, muszę pracować, mogę pomóc",
-        _pl_modals,
-    ),
-)
+_POLISH: dict[str, Finder] = {
+    "pl.past": _each(_pl_past),
+    "pl.future": _marker(_words("będę będziesz będzie będziemy będziecie będą")),
+    "pl.conditional": _each(_pl_conditional),
+    "pl.czy": _marker(_words("czy")),
+    "pl.modals": _pl_modals,
+}
 
 
 # ==== Norwegian ====
@@ -614,26 +519,13 @@ def _nb_passive(ws: list[str]) -> list[Span]:
     return sorted(set(found) | set(_each(_nb_s_passive)(ws)))
 
 
-_NORWEGIAN = (
-    ("nb.past", "Past tense", "Did: var, gikk, spiste, bodde", _each(_nb_past)),
-    (
-        "nb.perfect",
-        "Present perfect",
-        "Has done: har vært, har spist",
-        _aux_then(_words("har"), _nb_participle, 3, _NB_ADVERBS),
-    ),
-    (
-        "nb.pluperfect",
-        "Past perfect",
-        "Had done: hadde vært, hadde spist",
-        _aux_then(_words("hadde"), _nb_participle, 3, _NB_ADVERBS),
-    ),
-    ("nb.future", "Future", "skal reise, kommer til å regne", _nb_future),
-    ("nb.passive", "Passive", "Is done: blir solgt, selges", _nb_passive),
-)
+_NORWEGIAN: dict[str, Finder] = {
+    "nb.past": _each(_nb_past),
+    "nb.perfect": _aux_then(_words("har"), _nb_participle, 3, _NB_ADVERBS),
+    "nb.pluperfect": _aux_then(_words("hadde"), _nb_participle, 3, _NB_ADVERBS),
+    "nb.future": _nb_future,
+    "nb.passive": _nb_passive,
+}
 
 
-POINTS: tuple[tuple[str, str, str, str, Finder], ...] = tuple(
-    (pid, pid.split(".")[0], name, note, find)
-    for pid, name, note, find in (*_GERMAN, *_FRENCH, *_RUSSIAN, *_GREEK, *_POLISH, *_NORWEGIAN)
-)
+FINDERS: dict[str, Finder] = {**_GERMAN, **_FRENCH, **_RUSSIAN, **_GREEK, **_POLISH, **_NORWEGIAN}
