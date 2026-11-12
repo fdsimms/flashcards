@@ -85,11 +85,31 @@ _FRENCH_ELISIONS = {
     "quoiqu": "quoique",
 }
 
+
+def _es_subjunctive() -> tuple[tuple[str, str], ...]:
+    guesses = []
+    for person in ("emos", "éis", "en", "es", "e"):  # -ar verbs
+        for stem, spelled, infinitive in (("qu", "c", "ar"), ("c", "z", "ar"), ("gu", "g", "ar")):
+            guesses.append((stem + person, spelled + infinitive))
+        guesses.append((person, "ar"))
+    for person in ("amos", "áis", "an", "as", "a"):  # -er and -ir verbs
+        for stem, spelled in (("j", "g"),):
+            guesses += [(stem + person, spelled + "er"), (stem + person, spelled + "ir")]
+        guesses += [(person, "er"), (person, "ir")]
+    return tuple(sorted(guesses, key=lambda g: -len(g[0])))
+
+
+_ES_SUBJUNCTIVE_GUESSES = _es_subjunctive()
+
 RULES: dict[str, Rules] = {
     "es": Rules(
         prefixes=frozenset({"el", "la", "los", "las", "un", "una", "unos", "unas", "lo"}),
         clitics=("nos", "les", "los", "las", "me", "te", "se", "le", "lo", "la", "os"),
         reflexive="se",
+        # simplemma takes the present subjunctive to the noun or the first-person form (abras,
+        # saque, alcance, escriba), not the infinitive. -ar verbs take -e, -er and -ir verbs take -a,
+        # and the stem's spelling follows its sound (sacar saque, alcanzar alcance).
+        guesses=_ES_SUBJUNCTIVE_GUESSES,
     ),
     "de": Rules(
         prefixes=frozenset(
