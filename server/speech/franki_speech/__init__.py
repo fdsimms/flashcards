@@ -33,9 +33,11 @@ _THAI_BREAK = re.compile(r"(?<=[\u0e00-\u0e7f?!])\s+(?=[\u0e00-\u0e7f])")
 # Thai words Azure's voices misread, each with a respelling it reads correctly, spoken in the word's
 # place with SSML's <sub alias>. Add a word here when a recording gets it wrong. The respellings are
 # unverified against a live key: listen to the re-recorded line and adjust the alias if it's still off.
+# Never put a space in an alias: in Thai the voice reads a space as the end of a clause and pauses
+# (the "long gap" in มะ ม่วง). Split a word with a zero-width space, Thai's invisible word boundary.
 THAI_PRONUNCIATIONS = {
     # Was read "ma mor" instead of "ma muang".
-    "มะม่วง": "มะ ม่วง",
+    "มะม่วง": "มะ\u200bม่วง",
 }
 
 __all__ = [
