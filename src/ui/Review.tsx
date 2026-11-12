@@ -35,6 +35,9 @@ import { practiceWords } from '../reader/practice';
 import { headword, type DrillRequest } from '../core/forms';
 import { AnswerExtras, FormsCheck, useReviewForms } from './ReviewForms';
 import { haptic } from './haptics';
+import { htmlToText } from '../core/html';
+import { LeechHintSheet } from './LeechHintSheet';
+import { canAddMnemonic, mnemonicQuestion, withMnemonic, type MnemonicQuestion } from '../core/leechHint';
 import { usePhoneSpeech } from './usePhoneSpeech';
 import { Button, Count, Icon, Screen, Tappable } from './kit';
 import { Reveal, useReduceMotion } from './motion';
@@ -158,7 +161,7 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, onPracticeForms, onNextDeck, nextDeck, onCustomStudy, onCardInfo }: {
+export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, onEditNote, onPracticeForms, onNextDeck, nextDeck, onCustomStudy, onCardInfo }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -166,6 +169,8 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
    * ends, it offers a text that practices the words just studied.
    */
   practice?: { languageDeck: string; onRead: (words: string[]) => Promise<void> };
+  /** Present while Read & Listen is signed in: asks its server for memory hints, when a leech's hint sheet asks for them. */
+  suggestHints?: (question: MnemonicQuestion) => Promise<string[]>;
   /** Changes when something outside this screen may have changed the deck (custom study): loads the cards again. */
   reloadKey?: number;
   /** Leaves the screen: the deck is done. */
@@ -187,6 +192,8 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
   const dark = useColorScheme() === 'dark';
   const [cards, setCards] = useState<Card[] | null>(null);
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
+  // The answer that just made a card a leech asks for a hint to keep in its note's Mnemonic field.
+  const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses: number } | null>(null);
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
   // While "Read a text with these words" waits for the sync that sends today's answers first.
@@ -418,6 +425,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
           // The answer stands; the tag just isn't added.
         }
       }
+      if (isLeech && canAddMnemonic(note)) setLeechPrompt({ noteId: note.id, misses: res.sched.lapses });
       // Counted in the deck the card is studied in, as Anki counts it (a filtered deck's answers count there).
       // Time capped at a minute, as Anki's maximum answer time is, so a phone put down mid-card doesn't swell the summary.
       const record: AnswerRecord = {
@@ -494,6 +502,28 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
   useEffect(() => { if (cleared) haptic.success(); }, [cleared]);
 
   const title = deck.split('::').pop() ?? deck;
+  const leechNoteNow = leechPrompt ? notes.get(leechPrompt.noteId) : undefined;
+  const question = leechNoteNow ? mnemonicQuestion(leechNoteNow) : undefined;
+  const leechSheet = leechPrompt && leechNoteNow ? (
+    <LeechHintSheet
+      word={htmlToText(leechNoteNow.fields.Entry ?? '')}
+      misses={leechPrompt.misses}
+      suggest={suggestHints && question ? () => suggestHints(question) : undefined}
+      onSkip={() => setLeechPrompt(null)}
+      onSave={async (hint) => {
+        try {
+          const saved = await saveNote(repo as NoteStore, {
+            id: leechNoteNow.id, deck: leechNoteNow.deck, model: leechNoteNow.model,
+            fields: withMnemonic(leechNoteNow.fields, hint), tags: leechNoteNow.tags,
+          });
+          setNotes((prev) => new Map(prev).set(saved.id, saved));
+          setLeechPrompt(null);
+        } catch (e) {
+          throw new Error(`Couldn't save the hint. ${e instanceof Error ? e.message : String(e)} Try again, or skip it.`);
+        }
+      }}
+    />
+  ) : null;
   if (!cards) return <Screen title={title} largeTitle={false}><View /></Screen>;
 
   const undoButton = history.length
@@ -526,6 +556,8 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
       </>
     );
     return (
+      <>
+      {leechSheet}
       <Screen
         title={title}
         largeTitle={false}
@@ -544,6 +576,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
           <FormsCheck items={forms.toCheck} />
         </Reveal>
       </Screen>
+      </>
     );
   }
 
@@ -740,6 +773,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
 
   return (
     <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
+    {leechSheet}
     <Screen
       title={title}
       largeTitle={false}

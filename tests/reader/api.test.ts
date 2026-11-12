@@ -117,3 +117,13 @@ test('asks for a text practicing chosen words, and sends no body without them', 
   expect(calls[1].init.body).toBeUndefined();
   expect(calls[2].init.body).toBeUndefined();
 });
+
+test('asks for memory hints for a word and returns the list', async () => {
+  const { impl, calls } = fakeFetch(json({ hints: ['one', 'two', 'three'] }));
+  const api = createApi('https://x/reader', 'p', impl);
+  const hints = await api.mnemonics({ language: 'th', entry: 'ทุก', meaning: 'every; all' });
+  expect(hints).toEqual(['one', 'two', 'three']);
+  expect(calls[0].url).toBe('https://x/reader/api/mnemonics');
+  expect(calls[0].init.method).toBe('POST');
+  expect(JSON.parse(calls[0].init.body as string)).toEqual({ language: 'th', entry: 'ทุก', meaning: 'every; all' });
+});
