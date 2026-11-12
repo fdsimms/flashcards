@@ -23,13 +23,24 @@ marked words, ideas) is in the current language, the `language` setting.
     PATCH /api/settings               the same fields; takes effect from the next text written. A
                                       changed deck is read again at once; texts waiting to be read
                                       are spoken again in changed voices
-    GET   /api/texts                  texts read to the end, newest first, to read again
+    GET   /api/shelf                  the current language's shelf: the texts written ahead (each
+                                      with why it's there), the ongoing story and its next episode,
+                                      what's being written, the liked themes, and each language's
+                                      count of texts waiting; tops up in the background
+    POST  /api/shelf/write            {name, form} writes a text on a topic typed in; it joins the
+                                      shelf when it's ready (202)
+    POST  /api/story                  {about?} starts a new story in the current language, retiring
+                                      the one before it, and writes its first episode (202)
+    POST  /api/texts/{id}/skip        takes a text off the shelf unread (Not this); 404 if it isn't
+                                      waiting
+    GET   /api/texts                  texts read to the end, newest first, to read again; with
+                                      ?story=<id>, that story's episodes, first to last
     GET   /api/texts/{id}             one text, in the same shape as /next; reading it again isn't logged
     POST  /api/texts/{id}/reading     logs a session with a text and adjusts difficulty
     GET   /api/progress               finished texts, coverage and ratings over the last 14 days,
                                       and the difficulty the next text is written at
     GET   /api/costs?days=30          what Claude cost over the last `days` days, per language:
-                                      texts read, waiting and dropped, attempts and dollars (every
+                                      texts read, waiting, dropped and skipped, attempts and dollars (every
                                       language, not just the current one; the MCP's
                                       read_and_listen_costs reads it)
     GET   /api/grammar                the current language's grammar points, each practice, avoid
@@ -112,6 +123,16 @@ class SpeechIn(BaseModel):
     rate: float = Field(default=1.0, ge=0.5, le=2.0)
 
 
+class WriteIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    form: Form = "dialogue"
+
+
+class StoryIn(BaseModel):
+    # What the story is about; empty lets the model choose.
+    about: str = Field(default="", max_length=200)
+
+
 class NextIn(BaseModel):
     # The cards just studied, to write a text that practices them (the app's "Read a text with
     # these words"). Each is a note's Entry, as the deck has it.
@@ -149,6 +170,7 @@ def _spent(s: store.Spending) -> dict[str, Any]:
         "read": s.read,
         "waiting": s.waiting,
         "dropped": s.dropped,
+        "skipped": s.skipped,
         "attempts_per_text": round(s.attempts / s.texts, 2) if s.texts else None,
         "cost_usd": round(s.cost_usd, 4),
         "per_text_usd": round(s.cost_usd / s.texts, 4) if s.texts else None,
@@ -228,8 +250,38 @@ def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = N
         background.add_task(engine.top_up)
         return _rendered(text, engine)
 
+    @app.get("/api/shelf", dependencies=authed)
+    async def shelf(background: BackgroundTasks) -> dict[str, Any]:
+        background.add_task(engine.top_up)
+        return _shelf(engine)
+
+    @app.post("/api/shelf/write", status_code=202, dependencies=authed)
+    async def write(body: WriteIn) -> dict[str, Any]:
+        try:
+            topic = engine.write_about(body.name, body.form)
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from e
+        except NotAvailable as e:
+            raise HTTPException(503, str(e)) from e
+        return {"writing": True, "topic": topic.name}
+
+    @app.post("/api/story", status_code=202, dependencies=authed)
+    async def start_story(body: StoryIn) -> dict[str, Any]:
+        try:
+            story = engine.start_story(body.about)
+        except NotAvailable as e:
+            raise HTTPException(503, str(e)) from e
+        return {"writing": True, "id": story.id}
+
+    @app.post("/api/texts/{text_id}/skip", status_code=204, dependencies=authed)
+    async def skip(text_id: int, background: BackgroundTasks) -> Response:
+        if not store.skip_text(engine.conn, text_id):
+            raise HTTPException(404, "That text isn't on the shelf any more.")
+        background.add_task(engine.top_up)
+        return Response(status_code=204)
+
     @app.get("/api/texts", dependencies=authed)
-    async def past_texts() -> list[dict[str, Any]]:
+    async def past_texts(story: int | None = None) -> list[dict[str, Any]]:
         return [
             {
                 "id": t.id,
@@ -239,8 +291,9 @@ def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = N
                 "read_at": t.read_at.isoformat(),
                 "coverage": t.coverage,
                 "form": t.form,
+                "episode": t.episode,
             }
-            for t in store.past_texts(engine.conn, PAST_TEXTS, engine.language())
+            for t in store.past_texts(engine.conn, PAST_TEXTS, engine.language(), story)
         ]
 
     @app.get("/api/texts/{text_id}", dependencies=authed)
@@ -411,6 +464,7 @@ def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = N
             sum(r.dropped for r in rows),
             sum(r.attempts for r in rows),
             sum(r.cost_usd for r in rows),
+            sum(r.skipped for r in rows),
         )
         return {
             "days": days,
@@ -494,7 +548,73 @@ def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
     speaks = engine.audio is not None and engine.synthesize is not None
     for i, line in enumerate(out["lines"]):
         line["audio"] = speaks or engine.has_audio(text.id, i)
+    topic = store.get_topic(engine.conn, text.topic_id, text.language, include_removed=True)
+    story = store.get_story(engine.conn, text.story_id) if text.story_id else None
+    # What the reader shows under the title, and whether More like this is already on.
+    out["topic"] = (story.title or "Your story") if story else (topic.name if topic else "")
+    out["liked"] = bool(topic and topic.favorite)
+    out["reason"] = text.reason
+    out["episode"] = text.episode
     return out
+
+
+def _shelf_text(text: StoredText, engine: Engine) -> dict[str, Any]:
+    """A text on the shelf as a card shows it, without its words (they come with /api/texts/{id})."""
+    topic = store.get_topic(engine.conn, text.topic_id, text.language, include_removed=True)
+    return {
+        "id": text.id,
+        "title": text.title,
+        "topic": topic.name if topic else "",
+        "topic_id": text.topic_id,
+        "liked": bool(topic and topic.favorite),
+        "form": text.form,
+        "lines": len(text.lines),
+        "stretch": list(text.stretch),
+        "reason": text.reason,
+        "coverage": text.coverage,
+        "episode": text.episode,
+    }
+
+
+def _shelf(engine: Engine) -> dict[str, Any]:
+    language = engine.language()
+    writing = engine.writing(language)
+    story = store.active_story(engine.conn, language)
+    story_out = None
+    if story is not None:
+        told = store.episodes(engine.conn, story.id)
+        read = [t for t in told if store.text_status(engine.conn, t.id) == "read"]
+        waiting = store.waiting_episode(engine.conn, story.id)
+        story_out = {
+            "id": story.id,
+            "title": story.title,
+            "about": story.about,
+            "read": len(read),
+            "last_recap": read[-1].recap if read else "",
+            "next": _shelf_text(waiting, engine) if waiting else None,
+            "writing": any(j.story_id == story.id for j in writing),
+            "failed": engine.failure(story.topic_id, language),
+        }
+    counts = store.ready_counts(engine.conn)
+    return {
+        "language": language,
+        "languages": [
+            {"code": code, "name": info.name, "ready": counts.get(code, 0)}
+            for code, info in LANGUAGES.items()
+        ],
+        "texts": [_shelf_text(t, engine) for t in store.shelf_texts(engine.conn, language)],
+        "writing": [
+            {
+                "topic": store.topic_name(engine.conn, j.topic_id),
+                "reason": j.reason,
+                "form": j.form or "dialogue",
+            }
+            for j in writing
+            if j.story_id is None
+        ],
+        "story": story_out,
+        "themes": [{"id": t.id, "name": t.name} for t in store.liked_topics(engine.conn)],
+    }
 
 
 def _topic(t: Topic, engine: Engine, language: Code) -> dict[str, Any]:

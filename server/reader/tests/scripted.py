@@ -47,6 +47,7 @@ class ScriptedModel:
         self.calls = 0
         self.entries_seen: list[list[Entry]] = []
         self.languages_seen: list[str] = []
+        self.messages_seen: list[list[dict[str, Any]]] = []
 
     def ask_for(self, entries: list[Entry], language: str = "th") -> Any:
         self.entries_seen.append(entries)
@@ -54,6 +55,7 @@ class ScriptedModel:
 
         async def ask(messages: list[dict[str, Any]]) -> tuple[dict[str, Any], list[Any], Usage]:
             self.calls += 1
+            self.messages_seen.append(list(messages))
             d = self.drafts.pop(0) if len(self.drafts) > 1 else self.drafts[0]
             return d, [{"type": "text", "text": "draft"}], Usage(100, 500, 2000, 0)
 
