@@ -30,6 +30,15 @@ describe('cards', () => {
     expect(back.find((b) => b.text === 'Ctx')?.tapLabel).toBeUndefined();
     expect(back.find((b) => b.text === 'book')?.tapLabel).toBeUndefined();
   });
+  it("shows a Japanese word's kana after the word on every card's back, behind a tap as in Anki", () => {
+    const note = omniNote({ Entry: '大人', Meaning: 'adult', KanaReading: 'おとな', Language: 'Japanese' });
+    for (const kind of ['forward', 'reverse', 'audio'] as const) {
+      const back = renderCard(note, kind).back.blocks;
+      const at = back.findIndex((b) => b.text === 'おとな');
+      expect(back[at]?.tapLabel).toBe('Show reading');
+      expect(at).toBeGreaterThan(back.findIndex((b) => b.text === '大人'));
+    }
+  });
   it('lays out the back as the answer, tags, the example sentence, then the notes', () => {
     const note = omniNote({
       Entry: 'ดม', Transliteration: 'dom', Meaning: 'to smell', PartOfSpeech: 'verb', Register: 'neutral',

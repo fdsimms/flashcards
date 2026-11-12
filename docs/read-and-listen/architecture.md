@@ -62,6 +62,20 @@ Franki's (Client, below).
   apart from the texts' figures. A free-form "Ask a question" and a per-word explanation were left out for now.
   Under the explanation, the grammar points the finders find in the line show as chips that can be
   set to Practice, Know it or Don't know it there (docs/grammar.md, step 3).
+- **Explain a phrase** (12 November 2026, by the owner's decision, for idioms and set phrases like
+  "ya lo sé"). A word's gloss has "Select a phrase": the word becomes the phrase's first, the other
+  lines dim, and tapping another word in the same line ends it (either way round; Cancel in the bar
+  above the player). The phrase is drawn as one band and Claude's note on it opens under the line:
+  what it means there, then a few points on its parts (a set expression, how the words combine,
+  tone), with "Explain more simply". A phrase stays within one line, so it has the line's context
+  and the server can check it's there: the app sends it as it appears (the pieces joined, spaces
+  and punctuation included, `src/reader/phrase.ts`), and the server refuses one that isn't in the
+  line. Asked only on the tap (`POST /api/texts/{id}/lines/{n}/phrase`, `explain.py`) and kept per
+  phrase and version in `phrase_explanations`; its cost counts under `explanations` in
+  `/api/costs`. **Add to deck** on the note opens the note editor with the phrase and its meaning
+  in the language's deck, the same approval step and daily limit as a marked word (`mining.ts`),
+  and only for a text in the language being read. Hold-and-drag selection was considered and left
+  out: it's hidden, and dragging inside the scrolling text fights the scroll.
 - **Listen only** (brief, design principle 6). Once a text is rated "About right", the end view
   offers to play it again with the Thai hidden; the lines show who's speaking instead, and "Show the
   text" brings the words back. The reading is then logged with `listen_only` true. The brief's

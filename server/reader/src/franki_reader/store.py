@@ -97,6 +97,16 @@ CREATE TABLE IF NOT EXISTS explanations (
     cost_usd REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (text_id, line, simple)
 );
+CREATE TABLE IF NOT EXISTS phrase_explanations (
+    text_id INTEGER NOT NULL REFERENCES texts(id),
+    line INTEGER NOT NULL,
+    phrase TEXT NOT NULL,
+    simple INTEGER NOT NULL,
+    answer TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    cost_usd REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (text_id, line, phrase, simple)
+);
 CREATE TABLE IF NOT EXISTS stories (
     id INTEGER PRIMARY KEY,
     language TEXT NOT NULL,
@@ -828,15 +838,56 @@ def spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, Spending]:
     return dict(sorted(out.items(), key=lambda item: -item[1].cost_usd))
 
 
+def get_phrase_explanation(
+    conn: sqlite3.Connection, text_id: int, line: int, phrase: str, simple: bool
+) -> dict[str, Any] | None:
+    row = conn.execute(
+        "SELECT answer FROM phrase_explanations"
+        " WHERE text_id = ? AND line = ? AND phrase = ? AND simple = ?",
+        (text_id, line, phrase, int(simple)),
+    ).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def save_phrase_explanation(
+    conn: sqlite3.Connection,
+    text_id: int,
+    line: int,
+    phrase: str,
+    simple: bool,
+    answer: dict[str, Any],
+    now: datetime,
+    cost_usd: float = 0.0,
+) -> None:
+    with conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO phrase_explanations"
+            " (text_id, line, phrase, simple, answer, created_at, cost_usd)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                text_id,
+                line,
+                phrase,
+                int(simple),
+                json.dumps(answer, ensure_ascii=False),
+                now.isoformat(),
+                cost_usd,
+            ),
+        )
+
+
 def explanation_spending(
     conn: sqlite3.Connection, since: datetime
 ) -> dict[Code, tuple[int, float]]:
-    """Each language with a line explained since `since`: how many explanations were asked for
-    (a plainer version counts again) and what they cost Claude."""
+    """Each language with a line or a phrase explained since `since`: how many explanations were
+    asked for (a plainer version counts again) and what they cost Claude."""
     return {
         language: (count, cost)
         for language, count, cost in conn.execute(
-            """SELECT t.language, COUNT(*), SUM(e.cost_usd) FROM explanations e
+            """SELECT t.language, COUNT(*), SUM(e.cost_usd) FROM (
+                   SELECT text_id, created_at, cost_usd FROM explanations
+                   UNION ALL SELECT text_id, created_at, cost_usd FROM phrase_explanations
+               ) e
                JOIN texts t ON t.id = e.text_id WHERE e.created_at >= ? GROUP BY t.language
                ORDER BY SUM(e.cost_usd) DESC""",
             (since.isoformat(),),

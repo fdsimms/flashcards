@@ -19,6 +19,7 @@ import { loadHeld } from './lookalikeHold';
 import { useCollapsedDecks, type CollapsedDecks } from './useCollapsedDecks';
 import { useReader, type ReaderState } from './useReader';
 import { useSync } from './useSync';
+import { useWaniKani, type WaniKaniState } from './useWaniKani';
 
 /**
  * What the screens share, held above the router so it survives moving between them: the open
@@ -57,6 +58,8 @@ interface AppValue {
   finishNoteEditor: (result?: NoteEditorResult) => void;
   /** Read & Listen: its server, sign-in and settings (useReader). */
   reader: ReaderState;
+  /** WaniKani: its token, options, counts and answers waiting to be sent (useWaniKani). */
+  wanikani: WaniKaniState;
 }
 
 const Context = createContext<AppValue | null>(null);
@@ -121,6 +124,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [sync]);
 
   const reader = useReader(syncSettings?.enabled ? syncSettings.server : undefined, dayStartsAtHour);
+  const wanikani = useWaniKani(repo, dayStartsAtHour);
 
   const editorClose = useRef<((result?: NoteEditorResult) => void) | null>(null);
   const openNoteEditor = useCallback((target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => {
@@ -140,8 +144,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AppValue | null>(() => repo && {
     repo, decks, backup, ankiUnsent, syncSettings, syncing,
-    sync, reloadSync, refresh, collapse, openNoteEditor, finishNoteEditor, reader,
-  }, [repo, decks, backup, ankiUnsent, syncSettings, syncing, sync, reloadSync, refresh, collapse, openNoteEditor, finishNoteEditor, reader]);
+    sync, reloadSync, refresh, collapse, openNoteEditor, finishNoteEditor, reader, wanikani,
+  }, [repo, decks, backup, ankiUnsent, syncSettings, syncing, sync, reloadSync, refresh, collapse, openNoteEditor, finishNoteEditor, reader, wanikani]);
 
   if (!value) {
     return (

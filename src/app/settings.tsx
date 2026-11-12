@@ -5,13 +5,15 @@ import { Settings } from '../ui/Settings';
 
 export default function SettingsRoute() {
   const router = useRouter();
-  const { repo, backup, reader } = useApp();
+  const { repo, backup, reader, wanikani } = useApp();
   return (
     <Settings
       repo={repo}
       backupText={backup?.text}
       readerOn={!!reader.api}
       onRead={() => router.push('/read-settings')}
+      wanikaniOn={!!wanikani.on}
+      onWaniKani={() => router.push('/wanikani-settings')}
       onAnki={() => router.push('/anki')}
       onStats={() => router.push('/stats')}
       onBackup={() => router.push('/backup')}
