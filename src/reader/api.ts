@@ -2,6 +2,8 @@
 // passphrase; the server's own error sentences are passed through, since they're written to be
 // shown as they are.
 
+import type { DrillQuestionIn } from '../core/grammarDrills';
+
 /**
  * Where Read & Listen's server is: beside the Anki sync server, under /reader on the same domain
  * (server/Caddyfile), so the address comes from the sync settings rather than being typed in.
@@ -37,6 +39,12 @@ export type GrammarSeen = { texts: number; uses: number; last: string | null };
 
 // A grammar point's page (docs/grammar.md, step 4): its choice, how often it came up, its language's
 // choices (for the related points), and lines using it from texts read, the latest first.
+// A grammar drill's questions (docs/grammar.md, step 5): a line read with the point's words to name
+// ("which", choices are point ids), or a sentence with a gap for the point ("gap").
+export type DrillQuestion = DrillQuestionIn;
+// `missing`: points that got no question. `writing`: whether the server writes more (it has Claude).
+export type DrillSet = { questions: DrillQuestion[]; missing: string[]; writing: boolean };
+
 export type GrammarExample = { text_id: number; title: string; line: string; english: string; words: string[] };
 export type GrammarPointPage = {
   id: string;
@@ -278,6 +286,7 @@ export function createApi(
     progress: () => call<Progress>('GET', '/api/progress'),
     markedWords: () => call<MarkedWord[]>('GET', '/api/words'),
     grammar: () => call<GrammarList>('GET', '/api/grammar'),
+    drills: (points: string[], count: number) => call<DrillSet>('POST', '/api/drills', { points, count }),
     grammarPoint: (id: string) => call<GrammarPointPage>('GET', `/api/grammar/${encodeURIComponent(id)}`),
     // Every language's choices by point id (a point not set isn't listed), for Forms practice.
     grammarChoices: () => call<{ choices: Record<string, GrammarChoice> }>('GET', '/api/grammar/choices'),

@@ -37,6 +37,12 @@ CREATE TABLE IF NOT EXISTS form_practice (
   correct INTEGER NOT NULL, practiced_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS form_practice_at ON form_practice(practiced_at);
+-- Grammar drills (src/core/grammarDrills.ts): one row per answered question. Franki's own, never
+-- sent to Anki; each point's next drill is worked out from these, never stored.
+CREATE TABLE IF NOT EXISTS grammar_answers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, point_id TEXT NOT NULL, drill_id TEXT NOT NULL,
+  kind TEXT NOT NULL, correct INTEGER NOT NULL, answered_at TEXT NOT NULL
+);
 -- Each media file's SHA-1 as of the last sync (src/anki/sync/mediaSync.ts). Not in a backup:
 -- a restore clears it, so the next sync checks the restored files again.
 CREATE TABLE IF NOT EXISTS anki_media (name TEXT PRIMARY KEY, sha1 TEXT NOT NULL);
@@ -281,6 +287,18 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
         since ? since.toISOString() : '',
       );
       return rows.map((r) => ({ noteId: r.note_id, key: r.form_key, correct: !!r.correct, practicedAt: r.practiced_at, ...(r.given != null ? { given: r.given } : {}) }));
+    },
+    async addGrammarAnswer(a) {
+      await db.runAsync(
+        'INSERT INTO grammar_answers (point_id, drill_id, kind, correct, answered_at) VALUES (?, ?, ?, ?, ?)',
+        a.pointId, a.drillId, a.kind, a.correct ? 1 : 0, a.answeredAt,
+      );
+    },
+    async listGrammarAnswers() {
+      const rows = await db.getAllAsync<{ point_id: string; drill_id: string; kind: string; correct: number; answered_at: string }>(
+        'SELECT point_id, drill_id, kind, correct, answered_at FROM grammar_answers ORDER BY answered_at',
+      );
+      return rows.map((r) => ({ pointId: r.point_id, drillId: r.drill_id, kind: r.kind === 'which' ? 'which' : 'gap', correct: !!r.correct, answeredAt: r.answered_at }));
     },
     async formsAnswerMode() {
       const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'forms_answer_mode'");

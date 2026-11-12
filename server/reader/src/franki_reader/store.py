@@ -107,6 +107,30 @@ CREATE TABLE IF NOT EXISTS phrase_explanations (
     cost_usd REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (text_id, line, phrase, simple)
 );
+-- Grammar drills' fill-the-gap questions (drills.py): each batch Claude wrote, for its cost, and
+-- the questions from it that passed the checks, served oldest-served first.
+CREATE TABLE IF NOT EXISTS drill_batches (
+    id INTEGER PRIMARY KEY,
+    point_id TEXT NOT NULL,
+    language TEXT NOT NULL,
+    asked INTEGER NOT NULL,
+    kept INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    cost_usd REAL NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS drill_questions (
+    id INTEGER PRIMARY KEY,
+    batch_id INTEGER NOT NULL REFERENCES drill_batches(id),
+    point_id TEXT NOT NULL,
+    before TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    after TEXT NOT NULL,
+    english TEXT NOT NULL,
+    wrong TEXT NOT NULL,
+    hint TEXT NOT NULL,
+    served_at TEXT
+);
+CREATE INDEX IF NOT EXISTS drill_questions_point ON drill_questions(point_id);
 CREATE TABLE IF NOT EXISTS stories (
     id INTEGER PRIMARY KEY,
     language TEXT NOT NULL,
@@ -1103,3 +1127,103 @@ def _get_meta(conn: sqlite3.Connection, key: str) -> str | None:
 
 def _set_meta(conn: sqlite3.Connection, key: str, value: str) -> None:
     conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)", (key, value))
+
+
+# ==== Grammar drills ====
+
+
+@dataclass(frozen=True)
+class StoredGap:
+    id: int
+    point_id: str
+    before: str
+    answer: str
+    after: str
+    english: str
+    wrong: tuple[str, ...]
+    hint: str
+
+
+def save_drill_batch(
+    conn: sqlite3.Connection,
+    point_id: str,
+    language: Code,
+    questions: list[Any],
+    asked: int,
+    now: datetime,
+    cost_usd: float,
+) -> None:
+    """A batch Claude wrote for a point: its cost, and the questions that passed (drills.GapQuestion)."""
+    with conn:
+        batch = conn.execute(
+            "INSERT INTO drill_batches (point_id, language, asked, kept, created_at, cost_usd)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (point_id, language, asked, len(questions), now.isoformat(), cost_usd),
+        ).lastrowid
+        conn.executemany(
+            "INSERT INTO drill_questions"
+            " (batch_id, point_id, before, answer, after, english, wrong, hint)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    batch,
+                    point_id,
+                    q.before,
+                    q.answer,
+                    q.after,
+                    q.english,
+                    json.dumps(list(q.wrong), ensure_ascii=False),
+                    q.hint,
+                )
+                for q in questions
+            ],
+        )
+
+
+def drill_stock(conn: sqlite3.Connection, point_id: str) -> int:
+    return int(
+        conn.execute(
+            "SELECT COUNT(*) FROM drill_questions WHERE point_id = ?", (point_id,)
+        ).fetchone()[0]
+    )
+
+
+def drill_batches_since(conn: sqlite3.Connection, point_id: str, since: datetime) -> int:
+    return int(
+        conn.execute(
+            "SELECT COUNT(*) FROM drill_batches WHERE point_id = ? AND created_at >= ?",
+            (point_id, since.isoformat()),
+        ).fetchone()[0]
+    )
+
+
+def take_drill_questions(
+    conn: sqlite3.Connection, point_id: str, count: int, now: datetime
+) -> list[StoredGap]:
+    """Up to `count` of a point's questions, never served or served longest ago first, marked
+    served now, so a drill after it gets the next ones."""
+    rows = conn.execute(
+        "SELECT id, point_id, before, answer, after, english, wrong, hint FROM drill_questions"
+        " WHERE point_id = ? ORDER BY served_at IS NOT NULL, served_at, id LIMIT ?",
+        (point_id, count),
+    ).fetchall()
+    with conn:
+        conn.executemany(
+            "UPDATE drill_questions SET served_at = ? WHERE id = ?",
+            [(now.isoformat(), r[0]) for r in rows],
+        )
+    return [
+        StoredGap(r[0], r[1], r[2], r[3], r[4], r[5], tuple(json.loads(r[6])), r[7]) for r in rows
+    ]
+
+
+def drill_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
+    """Each language with drill questions written since `since`: how many batches, and their cost."""
+    return {
+        language: (count, cost)
+        for language, count, cost in conn.execute(
+            "SELECT language, COUNT(*), SUM(cost_usd) FROM drill_batches WHERE created_at >= ?"
+            " GROUP BY language ORDER BY SUM(cost_usd) DESC",
+            (since.isoformat(),),
+        )
+    }
