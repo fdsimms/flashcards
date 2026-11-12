@@ -23,6 +23,12 @@ def test_ssml_pauses_at_a_thai_clause_break() -> None:
     assert "<break" not in ssml("¿Qué tal? Bien.", "es-MX-JorgeNeural")
 
 
+def test_ssml_respells_a_thai_word_the_voice_misreads() -> None:
+    out = ssml("มะม่วงราคาห้าสิบบาทค่ะ", VOICE)
+    assert "<sub alias='มะ ม่วง'>มะม่วง</sub>ราคา" in out
+    assert "<sub" not in ssml("มะม่วง", "es-MX-JorgeNeural")
+
+
 def test_ssml_sets_the_speed() -> None:
     assert "<prosody rate='-20%'>" in ssml("x", VOICE, 0.8)
 
