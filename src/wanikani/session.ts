@@ -140,8 +140,13 @@ export function currentQuestion(s: Session): Question | undefined {
  * question within its own batch.
  */
 function requeueAt(rest: Question[], random: () => number): number {
+  return Math.min(endOfPile(rest), 3 + Math.floor(random() * 8));
+}
+
+/** The end of the pile the current question is in: the reviews, or one lesson batch's quiz (up to the next lesson shown). */
+function endOfPile(rest: Question[]): number {
   const nextLesson = rest.findIndex((q) => q.kind === 'lesson');
-  return Math.min(nextLesson === -1 ? rest.length : nextLesson, 3 + Math.floor(random() * 8));
+  return nextLesson === -1 ? rest.length : nextLesson;
 }
 
 /**
@@ -177,6 +182,24 @@ export function answerQuestion(s: Session, correct: boolean, at: Date, random: (
       wrongMeaning: p.wrongMeaning, wrongReading: p.wrongReading, at: at.toISOString(),
     },
   };
+}
+
+/**
+ * Whether the current question can be asked later: not a lesson being shown, and something else
+ * is left in its pile to be asked first.
+ */
+export function canAskLater(s: Session): boolean {
+  const q = s.queue[0];
+  return !!q && q.kind !== 'lesson' && endOfPile(s.queue.slice(1)) > 0;
+}
+
+/** The session with the current question moved to the back of its pile, as if it hadn't been seen: nothing is counted wrong. */
+export function askLater(s: Session): Session {
+  if (!canAskLater(s)) return s;
+  const rest = s.queue.slice(1);
+  const queue = [...rest];
+  queue.splice(endOfPile(rest), 0, s.queue[0]);
+  return { ...s, queue };
 }
 
 /** Wrong answers so far for an item, meaning and reading together: what decides how far it drops. */
@@ -225,6 +248,14 @@ export function studyAnswer(study: Study, correct: boolean, at: Date, random: ()
   const history = study.held ? [study.session] : [...study.history, study.session];
   const { session, outcome } = answerQuestion(study.session, correct, at, random);
   return { study: { session, held: outcome ?? null, history }, send };
+}
+
+/**
+ * Asks the current question later. It isn't an answer, so nothing is sent and it isn't kept for
+ * undo: undo goes back to before the last answer, which also puts the question back where it was.
+ */
+export function studyAskLater(study: Study): Study {
+  return { ...study, session: askLater(study.session) };
 }
 
 export function canUndo(study: Study): boolean {
