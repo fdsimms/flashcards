@@ -1,6 +1,19 @@
-// The grammar row on the topics screen, and each point's line on the Grammar screen, in words.
+// The grammar row on the topics screen, each point's line on the Grammar screen, in words, and the
+// points practiced in Read & Listen that Forms practice asks first (docs/grammar.md).
 import { studyDayStart } from '../core/day';
-import type { GrammarPoint, GrammarSeen, GrammarState } from './api';
+import type { Api, GrammarChoice, GrammarPoint, GrammarSeen, GrammarState } from './api';
+
+/** The three choices, as the Grammar screen and Explain offer them. */
+export const GRAMMAR_CHOICES: { value: GrammarChoice; label: string }[] = [
+  { value: 'practice', label: 'Practice' },
+  { value: 'normal', label: 'Know it' },
+  { value: 'avoid', label: "Don't know it" },
+];
+
+/** A point's choice in a word or two, beside its name: "Preterite · Practicing". */
+export function grammarStateWord(state: GrammarState): string {
+  return { practice: 'Practicing', normal: 'Know it', avoid: "Don't know it", unset: 'Not set' }[state];
+}
 
 const plural = (n: number) => (n === 1 ? 'point' : 'points');
 const times = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -45,4 +58,24 @@ export function seenLine(
     ? "Not in any text you've read yet"
     : `In ${times(seen.texts, 'text', 'texts')} you read${brief ? '' : ` (${times(seen.uses, 'time', 'times')})`}, last ${when}`;
   return state === 'unset' ? `Not set. ${line}` : line;
+}
+
+/** How long Forms practice waits for the choices before going on without them. */
+export const CHOICES_WAIT_MS = 3000;
+
+/**
+ * The ids of the points set to Practice, in every language, for Forms practice. Empty with Read &
+ * Listen off, when its server can't be reached, or after `waitMs`: practice then goes on as it
+ * would without them, rather than waiting on the network.
+ */
+export async function practicingPoints(api: Pick<Api, 'grammarChoices'> | null, waitMs = CHOICES_WAIT_MS): Promise<Set<string>> {
+  if (!api) return new Set();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), waitMs); });
+  try {
+    const got = await Promise.race([api.grammarChoices().catch(() => null), late]);
+    return new Set(Object.entries(got?.choices ?? {}).filter(([, state]) => state === 'practice').map(([id]) => id));
+  } finally {
+    clearTimeout(timer);
+  }
 }

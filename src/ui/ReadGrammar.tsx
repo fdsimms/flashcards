@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type GrammarChoice, type GrammarList } from '../reader/api';
-import { seenLine } from '../reader/grammar';
+import { GRAMMAR_CHOICES, seenLine } from '../reader/grammar';
 import { Card, ErrorNote, HeaderAction, Help, Screen, Segments } from './kit';
 import { space, type, useTheme } from './theme';
 
@@ -13,11 +13,6 @@ import { space, type, useTheme } from './theme';
  * texts are asked to work in (docs/read-and-listen/architecture.md, Grammar).
  */
 
-const STATES: { value: GrammarChoice; label: string }[] = [
-  { value: 'practice', label: 'Practice' },
-  { value: 'normal', label: 'Know it' },
-  { value: 'avoid', label: "Don't know it" },
-];
 
 export function ReadGrammar({ api, dayStartsAtHour }: { api: Api; dayStartsAtHour: number }) {
   const c = useTheme();
@@ -85,7 +80,7 @@ export function ReadGrammar({ api, dayStartsAtHour }: { api: Api; dayStartsAtHou
                   {/* A point not set yet has no segment selected. */}
                   <Segments<GrammarChoice | 'unset'>
                     style={{ marginTop: space.s }}
-                    options={STATES.map((s) => ({ ...s, accessibilityLabel: `${p.name}: ${s.label}` }))}
+                    options={GRAMMAR_CHOICES.map((s) => ({ ...s, accessibilityLabel: `${p.name}: ${s.label}` }))}
                     value={p.state}
                     onChange={(state) => { if (state !== 'unset') choose(p.id, state); }}
                   />

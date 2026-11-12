@@ -63,6 +63,9 @@ export type ExplainPoint = { phrase: string; note: string };
 /** A phrase selected in a line, explained: what it means there, and what to know about its parts. */
 export type PhraseExplanation = { meaning: string; points: ExplainPoint[] };
 
+// A grammar point found in an explained line, with the owner's choice as it stands (docs/grammar.md, step 3).
+export type LineGrammar = { id: string; name: string; note: string; state: GrammarState };
+
 export type ReaderText = {
   id: number;
   topicId: number;
@@ -264,6 +267,8 @@ export function createApi(
     progress: () => call<Progress>('GET', '/api/progress'),
     markedWords: () => call<MarkedWord[]>('GET', '/api/words'),
     grammar: () => call<GrammarList>('GET', '/api/grammar'),
+    // Every language's choices by point id (a point not set isn't listed), for Forms practice.
+    grammarChoices: () => call<{ choices: Record<string, GrammarChoice> }>('GET', '/api/grammar/choices'),
     setGrammar: (id: string, state: GrammarChoice) =>
       call<GrammarList>('PUT', `/api/grammar/${id}`, { state }),
     clearWord: (word: string) => call<void>('POST', '/api/words/clear', { word }),
@@ -298,8 +303,11 @@ export function createApi(
       (await call<{ hints: string[] }>('POST', '/api/mnemonics', question)).hints,
     // A line's grammar and vocabulary explained by Claude on the server: asked on the owner's tap, kept per
     // line there. `simple` is a second, plainer version.
-    explainLine: async (textId: number, line: number, simple: boolean) =>
-      (await call<{ points: ExplainPoint[] }>('POST', `/api/texts/${textId}/lines/${line}/explain`, { simple })).points,
+    explainLine: async (textId: number, line: number, simple: boolean) => {
+      const answer = await call<{ points: ExplainPoint[]; grammar?: LineGrammar[] }>('POST', `/api/texts/${textId}/lines/${line}/explain`, { simple });
+      // A server older than step 3 sends no grammar.
+      return { points: answer.points, grammar: answer.grammar ?? [] };
+    },
     // A phrase selected in a line (as it appears there), explained the same way and kept per phrase.
     explainPhrase: (textId: number, line: number, phrase: string, simple: boolean) =>
       call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple }),

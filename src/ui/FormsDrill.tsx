@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { checkAnswer, drillPrompts, type DrillRequest, type FormPrompt, type PracticeRecord, type Verdict } from '../core/forms';
 import type { Repo } from '../db/repo';
+import type { Api } from '../reader/api';
+import { practicingPoints } from '../reader/grammar';
 import { haptic } from './haptics';
 import { Button, Card, Field, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
@@ -21,9 +23,10 @@ const isRight = (a: Answered) => a.verdict === 'right' || a.counted;
 /**
  * Practicing forms: the prompts `request` asks for (`drillPrompts`), one at a time, then how it
  * went. Each answer is written as it's given (`addPractice`), before the drill moves on. Nothing
- * here touches a card's schedule or the Anki collection.
+ * here touches a card's schedule or the Anki collection. Grammar practiced in Read & Listen
+ * (`readerApi`, null while it's off) is asked first, and each answer names its grammar point.
  */
-export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: DrillRequest; onDone: () => void }) {
+export function FormsDrill({ repo, readerApi, request, onDone }: { repo: Repo; readerApi: Api | null; request: DrillRequest; onDone: () => void }) {
   const c = useTheme();
   const [prompts, setPrompts] = useState<FormPrompt[] | null>(null);
   const [notice, setNotice] = useState<string>();
@@ -39,10 +42,10 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
 
   useEffect(() => {
     (async () => {
-      const [notes, cards, practice, saved] = await Promise.all([
-        repo.listNotes(), repo.listCards(), repo.listPractice(), repo.formsAnswerMode(),
+      const [notes, cards, practice, saved, practicing] = await Promise.all([
+        repo.listNotes(), repo.listCards(), repo.listPractice(), repo.formsAnswerMode(), practicingPoints(readerApi),
       ]);
-      const built = drillPrompts(request, { notes, cards, practice });
+      const built = drillPrompts(request, { notes, cards, practice, practicing });
       setMode(typeOnly ? 'type' : saved);
       setNotice(built.notice);
       setPrompts(built.prompts);
@@ -255,6 +258,7 @@ function Feedback({ answered, onCount }: { answered: Answered; onCount: () => vo
     return (
       <Card style={{ gap: space.xs }}>
         <Text style={{ ...type.headline, color: c.countDue }}>Right</Text>
+        <GrammarLine grammar={answered.prompt.grammar} />
       </Card>
     );
   }
@@ -268,6 +272,7 @@ function Feedback({ answered, onCount }: { answered: Answered; onCount: () => vo
             <Text style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>Count it as right</Text>
           </Tappable>
         )}
+        <GrammarLine grammar={answered.prompt.grammar} />
       </Card>
     );
   }
@@ -275,7 +280,22 @@ function Feedback({ answered, onCount }: { answered: Answered; onCount: () => vo
     <Card style={{ gap: space.xs }}>
       <Text style={{ ...type.headline, color: c.danger }}>{`Not quite: ${answer}`}</Text>
       {answered.prompt.answers.length > 1 ? <Help>{`Also right: ${answered.prompt.answers.slice(1).join(', ')}`}</Help> : null}
+      <GrammarLine grammar={answered.prompt.grammar} />
     </Card>
+  );
+}
+
+/** The grammar point the form is (docs/grammar.md), under a rule at the foot of the result. Shown only once answered, as its examples can give a form away. */
+function GrammarLine({ grammar }: { grammar?: FormPrompt['grammar'] }) {
+  const c = useTheme();
+  if (!grammar) return null;
+  return (
+    <View style={{ borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.s, marginTop: space.xs }}>
+      <Text style={{ ...type.footnote, color: c.textSecondary }}>
+        <Text style={{ fontWeight: '600', color: c.text }}>{`${grammar.name}.`}</Text>
+        {` ${grammar.note}.`}
+      </Text>
+    </View>
   );
 }
 

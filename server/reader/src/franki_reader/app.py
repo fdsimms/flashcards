@@ -50,6 +50,9 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/grammar                the current language's grammar points, each practice, avoid,
                                       normal ("Know it") or unset, with how often each came up in
                                       texts read; `least`, the known ones worked in next
+    GET   /api/grammar/choices        {choices}: every language's choices by point id (practice,
+                                      avoid or normal; a point not set isn't listed), for the
+                                      app's Forms practice (docs/grammar.md)
     PUT   /api/grammar/{id}           {state}; at most 2 practiced at once; from the next text
     GET   /api/words                  words marked unknown and not cleared, newest first
     POST  /api/words/clear            {word} takes a word off that list until it's marked again
@@ -61,7 +64,9 @@ marked words, ideas) is in the current language, the `language` setting.
                                       each recording is asked for once
     POST  /api/texts/{id}/lines/{n}/explain   {simple?} the line's grammar and vocabulary explained in
                                       English by Claude: {points: [{phrase, note}]}. Asked on the
-                                      owner's tap and kept per line (and per simple version)
+                                      owner's tap and kept per line (and per simple version).
+                                      With `grammar`: the points the finders find in the line,
+                                      each {id, name, note, state}, as the choices stand now
     POST  /api/texts/{id}/lines/{n}/phrase    {phrase, simple?} a phrase the owner selected in the
                                       line, as it appears there, explained by Claude:
                                       {meaning, points: [{phrase, note}]}. Kept per phrase, like
@@ -389,13 +394,23 @@ def create_app(
             raise HTTPException(404, "No audio for this line.")
         return FileResponse(path, media_type="audio/mpeg")
 
+    def line_grammar(text: StoredText, line: int) -> list[dict[str, str]]:
+        # Found by the finders, not asked of Claude, and read with the choices as they stand now,
+        # so every explanation, kept or new, shows them (docs/grammar.md, step 3).
+        _, lexicon = engine.snapshot(text.language)
+        choices = store.load_grammar(engine.conn)
+        return [
+            {"id": p.id, "name": p.name, "note": p.note, "state": choices.get(p.id, "unset")}
+            for p in grammar.points_in(text.lines[line].text, lexicon, text.language)
+        ]
+
     @app.post("/api/texts/{text_id}/lines/{line}/explain", dependencies=authed)
     async def explain_line(text_id: int, line: int, body: ExplainIn) -> dict[str, Any]:
         text = store.get_text(engine.conn, text_id)
         if text is None or not 0 <= line < len(text.lines):
             raise HTTPException(404, "No such line.")
         if (kept := store.get_explanation(engine.conn, text_id, line, body.simple)) is not None:
-            return {"points": kept}
+            return {"points": kept, "grammar": line_grammar(text, line)}
         if explain is None:
             raise HTTPException(
                 503,
@@ -420,7 +435,7 @@ def create_app(
         store.save_explanation(
             engine.conn, text_id, line, body.simple, points, engine.clock(), used.cost_usd()
         )
-        return {"points": points}
+        return {"points": points, "grammar": line_grammar(text, line)}
 
     @app.post("/api/texts/{text_id}/lines/{line}/phrase", dependencies=authed)
     async def explain_phrase_in_line(text_id: int, line: int, body: PhraseIn) -> dict[str, Any]:
@@ -704,6 +719,12 @@ def create_app(
     @app.get("/api/grammar", dependencies=authed)
     async def get_grammar() -> dict[str, Any]:
         return grammar_points()
+
+    @app.get("/api/grammar/choices", dependencies=authed)
+    async def get_grammar_choices() -> dict[str, Any]:
+        # Every language's, not just the one being read: Forms practice asks for the deck's.
+        choices = store.load_grammar(engine.conn)
+        return {"choices": {pid: state for pid, state in choices.items() if pid in grammar.POINTS}}
 
     @app.put("/api/grammar/{point_id}", dependencies=authed)
     async def choose_grammar(point_id: str, body: GrammarChoice) -> dict[str, Any]:

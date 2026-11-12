@@ -60,6 +60,8 @@ Franki's (Client, below).
   line again or rereading a past text costs nothing. It only shows text: nothing is graded or added
   to the deck. Each call's cost is kept with it and reported under `explanations` in `/api/costs`,
   apart from the texts' figures. A free-form "Ask a question" and a per-word explanation were left out for now.
+  Under the explanation, the grammar points the finders find in the line show as chips that can be
+  set to Practice, Know it or Don't know it there (docs/grammar.md, step 3).
 - **Explain a phrase** (12 November 2026, by the owner's decision, for idioms and set phrases like
   "ya lo sé"). A word's gloss has "Select a phrase": the word becomes the phrase's first, the other
   lines dim, and tapping another word in the same line ends it (either way round; Cancel in the bar
@@ -303,7 +305,8 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   choice at all; before that day normal was too, so a point set to Know it then reads as not set
   until it's marked again. At most 2 are practiced at once, so texts
   stay natural; avoiding has no limit. The choices are stored together for every language and
-  apply from the next text written (`GET /api/grammar`, `PUT /api/grammar/{id}`).
+  apply from the next text written (`GET /api/grammar`, `PUT /api/grammar/{id}`). Forms practice in
+  the app reads every language's (`GET /api/grammar/choices`; docs/grammar.md, step 2).
 - **Generate, then verify, as for coverage.** The request names the points to practice and avoid,
   and the server finds them in the draft. A practiced point used fewer than twice, or an avoided one
   used at all, sends the draft back with the words named ("Don't use the Preterite; this draft has:

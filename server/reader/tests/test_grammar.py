@@ -16,7 +16,7 @@ from franki_reader import store
 from franki_reader.app import create_app
 from franki_reader.engine import Engine
 from franki_reader.generator import Line, TextRequest, Usage, generate, request_message
-from franki_reader.grammar import _FINDERS, CATALOG, POINTS, _load, points_for, words
+from franki_reader.grammar import _FINDERS, CATALOG, POINTS, _load, points_for, points_in, words
 from franki_reader.languages import Code
 from franki_reader.lexicon import lexicon_from
 from franki_reader.reader import render
@@ -130,6 +130,12 @@ def test_want_is_not_must() -> None:
 def test_every_point_has_a_name_and_a_note() -> None:
     assert len(points_for("es")) == 9 and len(points_for("th")) == 10
     assert all(p.name and p.note and p.id.startswith(p.language + ".") for p in POINTS.values())
+
+
+def test_the_points_a_line_uses_in_catalog_order() -> None:
+    line = "Ayer|fuimos|al|mercado|y|*compramos*|fruta|porque|*había*|*llovido*"
+    assert [p.id for p in points_in(line, ES, "es")] == ["es.preterite", "es.pluperfect"]
+    assert points_in("Hoy|como|fruta", ES, "es") == []
 
 
 def _catalog(tmp_path: Path, *points: dict[str, Any]) -> Path:
@@ -378,6 +384,17 @@ def test_at_most_two_points_are_practiced_at_once() -> None:
     assert states["es.preterite"] == "avoid"
     assert c.put("/api/grammar/es.nope", json={"state": "avoid"}, headers=AUTH).status_code == 404
     assert c.put("/api/grammar/es.future", json={"state": "maybe"}, headers=AUTH).status_code == 422
+
+
+def test_every_languages_choices_are_listed_for_forms_practice() -> None:
+    c, engine = client("th")
+    assert c.get("/api/grammar/choices", headers=AUTH).json() == {"choices": {}}
+    c.put("/api/grammar/es.preterite", json={"state": "practice"}, headers=AUTH)
+    c.put("/api/grammar/th.ever", json={"state": "avoid"}, headers=AUTH)
+    store.set_grammar(engine.conn, "es.gone", "practice")  # a point since taken out of the catalog
+    body = c.get("/api/grammar/choices", headers=AUTH).json()
+    assert body == {"choices": {"es.preterite": "practice", "th.ever": "avoid"}}
+    assert c.get("/api/grammar/choices").status_code == 401
 
 
 def test_choices_reach_the_request_for_their_own_language_only() -> None:
