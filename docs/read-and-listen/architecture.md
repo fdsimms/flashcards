@@ -281,17 +281,38 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   czy, and want, must or can + infinitive; Norwegian past, present perfect, past perfect, future
   (skal, kommer til å) and passive. Each was picked to be found from the words alone, without a
   parser, like Spanish's; aspect and case, which need one, aren't points. Each is **practice** (used at least twice in each text), **avoid**
-  (left out, for grammar not learned yet) or **normal** (allowed, not asked for). On the Grammar screen
-  these read "Practice", "Don't know it" and "Know it" (12 November 2026, the owner's wording; the
-  stored states are unchanged). At most 2 are practiced at once, so texts
+  (left out, for grammar not learned yet), **normal** (known: allowed, and the least seen worked
+  in, Exposure below) or **not set** (never marked: allowed at most twice a text). On the Grammar
+  screen these read "Practice", "Don't know it" and "Know it", and a point not set has none of
+  them selected (12 November 2026, the owner's wording and decision). Not set is stored as no
+  choice at all; before that day normal was too, so a point set to Know it then reads as not set
+  until it's marked again. At most 2 are practiced at once, so texts
   stay natural; avoiding has no limit. The choices are stored together for every language and
   apply from the next text written (`GET /api/grammar`, `PUT /api/grammar/{id}`).
 - **Generate, then verify, as for coverage.** The request names the points to practice and avoid,
   and the server finds them in the draft. A practiced point used fewer than twice, or an avoided one
   used at all, sends the draft back with the words named ("Don't use the Preterite; this draft has:
   hablé, dijo"). Among attempts that all miss, the closest kept is the one with the fewest grammar
-  misses (uses short of a practiced point, plus uses of an avoided one), then the highest coverage;
-  it's served if it's at 90% or more, like any closest attempt, so a slip is possible but rare.
+  misses (uses short of a practiced point, plus uses of an avoided one, plus uses of points not
+  set past 2 in all), then the highest coverage; it's served if it's at 90% or more, like any
+  closest attempt, so a slip is possible but rare.
+- **Not set is capped, not kept out** (owner's decision, 12 November 2026). Defaulting every point
+  to "Don't know it" would keep the basics (Thai's จะ and ไหม, every past tense) out of every text
+  until each was marked, and the owner didn't want the generator straining to avoid everything; nor
+  a lot of unknown grammar slipping in unexplained. So the request lists the points not set as
+  grammar the learner may not know, to use at most 2 times in the whole text (`UNSET_USES`,
+  `grammar.py`), and a draft over that goes back like any grammar miss.
+- **Exposure** (owner's request, 12 November 2026; `exposure.py`). How often each point came up is
+  counted with its finder in every text read to the end, written before this or not, and whether
+  or not the point was asked for: texts, uses, and when it was last read. Counts are a floor, as
+  the finders leave forms out on purpose. The 2 known points longest since they were last read or
+  last asked for (`REVIEW_POINTS`; never-met ones first) are named in each request as grammar to
+  work in where it fits, with no minimum and no check, and the text records them
+  (`texts.grammar`'s `review`). Counting the asking as well as the reading rotates the list when
+  the model passes a point over and when the shelf writes several texts ahead. The Grammar screen
+  shows each point's counts and the same 2 points ("Seen least of what you know", each with a
+  Practice button), from the same `review_points`, so it names what the next texts are asked for.
+  Seen is never learned: nothing here schedules or grades a card.
 - **Finding points.** Thai points are words, matched on the coverage segmentation; the segmenter
   sometimes joins one onto the next word (กำลังกิน), so a word starting with the point counts, with
   listed look-alikes left out (ต้องการ, "want", isn't ต้อง, "must"). Spanish points are verb forms,
@@ -311,8 +332,12 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   that must find nothing (`tests/test_grammar_europe.py`), since a false find under "avoid" sends
   a good draft back.
 - **In the reader**, a text's practiced points show as chips under its practice words, and their
-  words are underlined solid; a word using an avoided point that slipped in is underlined dashed.
-  Tapping either explains the grammar.
+  words are underlined solid; a word using an avoided point that slipped in is underlined dashed;
+  a known point worked in, or a point not set that turned up, gets a thin gray line (the owner
+  chose it over a dotted one, which already means a word). Tapping any of them explains the
+  grammar, and a point not set offers "I know it" and "I don't know it" to mark it there. Which
+  points are not set is read from the choices as they are when the text is opened, so one marked
+  since isn't still explained as unmarked.
 - Each text records the grammar it was asked for (`texts.grammar`), so the log shows what each
   text practiced.
 

@@ -47,8 +47,9 @@ marked words, ideas) is in the current language, the `language` setting.
                                       language, not just the current one; the MCP's
                                       read_and_listen_costs reads it), and `explanations`: what
                                       Explain's calls cost over the same days
-    GET   /api/grammar                the current language's grammar points, each practice, avoid
-                                      or normal
+    GET   /api/grammar                the current language's grammar points, each practice, avoid,
+                                      normal ("Know it") or unset, with how often each came up in
+                                      texts read; `least`, the known ones worked in next
     PUT   /api/grammar/{id}           {state}; at most 2 practiced at once; from the next text
     GET   /api/words                  words marked unknown and not cleared, newest first
     POST  /api/words/clear            {word} takes a word off that list until it's marked again
@@ -76,7 +77,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from franki_speech import SpeechClient, SpeechError, locale_of
 from pydantic import BaseModel, Field
 
-from franki_reader import config, grammar, store
+from franki_reader import config, exposure, grammar, store
 from franki_reader.collection import AnkiDeck, SyncSettings
 from franki_reader.coverage import parse_line
 from franki_reader.engine import Engine, NotAvailable, NotFound
@@ -622,12 +623,22 @@ def create_app(
         ]
 
     def grammar_points() -> dict[str, Any]:
+        language = engine.language()
         choices = store.load_grammar(engine.conn)
+        seen = engine.grammar_exposure(language)
         return {
             "max_practice": grammar.MAX_PRACTICE,
+            # The known points the next texts are asked to work in, least seen first.
+            "least": list(engine.review_points(language)),
             "points": [
-                {"id": p.id, "name": p.name, "note": p.note, "state": choices.get(p.id, "normal")}
-                for p in grammar.points_for(engine.language())
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "note": p.note,
+                    "state": choices.get(p.id, "unset"),
+                    "seen": _seen(seen[p.id]),
+                }
+                for p in grammar.points_for(language)
             ],
         }
 
@@ -652,7 +663,7 @@ def create_app(
         if body.state == "practice" and len(practiced) >= grammar.MAX_PRACTICE:
             raise HTTPException(
                 422,
-                f"Practice at most {grammar.MAX_PRACTICE} at a time. Set one back to Normal first.",
+                f"Practice at most {grammar.MAX_PRACTICE} at a time. Set one to Know it first.",
             )
         store.set_grammar(engine.conn, point_id, body.state)
         return grammar_points()
@@ -665,6 +676,11 @@ def create_app(
     return app
 
 
+def _seen(e: exposure.Exposure) -> dict[str, Any]:
+    last = e.last_seen.isoformat() if e.last_seen is not None else None
+    return {"texts": e.texts, "uses": e.uses, "last": last}
+
+
 def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
     entries, lexicon = engine.snapshot(text.language)
     out = render(
@@ -672,6 +688,9 @@ def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
         lexicon,
         {e.text: e.meaning for e in entries},
         {e.text: e.translit for e in entries if e.translit},
+        # Not set as the owner's choices stand now, so a point marked since isn't still explained
+        # as unmarked.
+        unset=exposure.unset_points(store.load_grammar(engine.conn), text.language),
     )
     speaks = engine.audio is not None and engine.synthesize is not None
     for i, line in enumerate(out["lines"]):

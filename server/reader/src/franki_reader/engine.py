@@ -27,7 +27,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
-from franki_reader import grammar, store
+from franki_reader import exposure, grammar, store
 from franki_reader.coverage import Checker, parse_line
 from franki_reader.difficulty import Difficulty, adapt
 from franki_reader.gender import full_voices, voice_for
@@ -110,7 +110,11 @@ def focus_of(words: Iterable[str]) -> str:
 
 
 def _grammar_record(request: TextRequest) -> dict[str, list[str]]:
-    return {"practice": list(request.practice), "avoid": list(request.avoid)}
+    return {
+        "practice": list(request.practice),
+        "avoid": list(request.avoid),
+        "review": list(request.review),
+    }
 
 
 class Engine:
@@ -130,6 +134,7 @@ class Engine:
         self.read_deck = read_deck
         self.clock = clock
         self.rng = rng or random.Random()
+        self.grammar_cache: exposure.Cache = {}
         self.synthesize = synthesize
         self.audio = audio
         self.voices = voices or DEFAULT_VOICES
@@ -376,6 +381,8 @@ class Engine:
         mine = [p.id for p in grammar.points_for(language)]
         practice = tuple(p for p in mine if chosen.get(p) == "practice")
         avoid = tuple(p for p in mine if chosen.get(p) == "avoid")
+        review = self.review_points(language)
+        unset = exposure.unset_points(chosen, language)
 
         def request(stretch: list[Entry], choose: int | None = None) -> TextRequest:
             return TextRequest(
@@ -390,6 +397,8 @@ class Engine:
                 common=settings.common_for(language) if LANGUAGES[language].spaced else 0,
                 practice=practice,
                 avoid=avoid,
+                review=review,
+                unset=unset,
                 story=story,
             )
 
@@ -410,6 +419,24 @@ class Engine:
             return request(pick_stretch(entries, difficulty.stretch, self.rng, practiced))
         choices = pick_stretch(entries, STRETCH_CHOICES, self.rng, practiced)
         return request(choices, difficulty.stretch) if choices else request([])
+
+    # ==== Grammar ====
+
+    def grammar_exposure(self, language: Code | None = None) -> dict[str, exposure.Exposure]:
+        language = language or self.language()
+        return exposure.exposure(
+            self.conn, self.snapshot(language)[1], language, self.grammar_cache
+        )
+
+    def review_points(self, language: Code | None = None) -> tuple[str, ...]:
+        """The known grammar points the next text is asked to work in (exposure.py)."""
+        language = language or self.language()
+        return exposure.review_points(
+            store.load_grammar(self.conn),
+            self.grammar_exposure(language),
+            store.grammar_offered(self.conn, language),
+            language,
+        )
 
     # ==== Audio ====
 
