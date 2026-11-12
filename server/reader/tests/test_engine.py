@@ -469,6 +469,31 @@ def test_missing_audio_is_made_on_request_and_then_cached(tmp_path: Path) -> Non
     assert run(lambda: e.line_audio(text, 9)) is None
 
 
+def test_a_newer_voice_change_supersedes_a_running_rerecord(tmp_path: Path) -> None:
+    voice = FakeVoice()
+    e = speaking_engine(tmp_path, voice)
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    other = store.add_topic(e.conn, "Bus stop", True, NOW)
+    run(lambda: e.make_text(topic.id))
+    run(lambda: e.make_text(other.id))  # two texts waiting
+    voice.calls.clear()
+
+    async def slow(text: str, name: str) -> bytes:
+        await asyncio.sleep(0)  # a real request yields
+        return await voice(text, name)
+
+    e.synthesize = slow
+
+    async def two_changes() -> None:
+        await asyncio.gather(e.rerecord("th"), e.rerecord("th"))
+
+    run(two_changes)
+
+    # The first run finishes the text it was on (2 lines), then stops; the second does both texts.
+    # Without superseding, two full runs would make 8 requests.
+    assert len(voice.calls) == 6
+
+
 # ==== Stretch words setting ====
 
 

@@ -136,6 +136,9 @@ class Engine:
         # All by topic and language: a topic can be writing in one language and failed in another.
         self._topic_locks: dict[tuple[int, Code], asyncio.Lock] = {}
         self._topping_up = asyncio.Lock()
+        # Per language: which voice change the running re-record belongs to, and its lock.
+        self._rerecord_gen: dict[Code, int] = {}
+        self._rerecord_locks: dict[Code, asyncio.Lock] = {}
         self._writing: set[_Key] = set()
         self._jobs: dict[_Key, Job] = {}  # what's being written now, for the shelf to show
         # When a shelf text last failed, by language: the shelf isn't filled again until the
@@ -434,9 +437,17 @@ class Engine:
         already read keeps its audio until it's opened again with none (`line_audio`)."""
         if self.audio is None:
             return
-        for text in store.ready_texts(self.conn, language):
-            self.audio.drop(text.id)
-            await self.make_audio(text)
+        # One run per language: a newer voice change supersedes an older run, which stops at its
+        # next text, so choosing voices in a row doesn't pile up requests on Azure's rate limit.
+        gen = self._rerecord_gen[language] = self._rerecord_gen.get(language, 0) + 1
+        async with self._rerecord_locks.setdefault(language, asyncio.Lock()):
+            if self._rerecord_gen[language] != gen:
+                return
+            for text in store.ready_texts(self.conn, language):
+                if self._rerecord_gen[language] != gen:
+                    return
+                self.audio.drop(text.id)
+                await self.make_audio(text)
 
     async def line_audio(self, text: StoredText, line: int) -> Path | None:
         """The cached MP3 for one line, made now if it's missing and text to speech is set up."""
