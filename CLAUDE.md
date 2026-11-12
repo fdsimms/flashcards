@@ -65,6 +65,18 @@ depends on an unmerged PR, branch from it but open against `main`, and say which
 **One session's work is one PR when the pieces are likely to conflict.** Split only when the pieces
 touch disjoint files and either can merge first. If unsure, combine them.
 
+**Other sessions merge into `main` while your PR is open, so keep the overlap small.** Several
+sessions work in parallel, mostly in the same few screens, and every PR that lands first turns
+yours into a conflict for the owner to see.
+- **Merge `origin/main` into your branch before every push**, then run `npm run verify`, not only
+  when GitHub reports a conflict.
+- **Don't widen a shared hub; give the feature a file of its own.** App-wide state is a hook in its
+  own file that `AppContext` calls in one line (`useSync`, `useCollapsedDecks`), never more lines
+  in AppContext's own body, its value or its dependency list. Likewise a route stays a thin wrapper,
+  and a screen's new part is a component beside it rather than more lines inside one big render.
+- **Keep a PR's life short:** open it once it's verified, and don't keep adding new issues to an
+  open one; the longer it's open, the more of `main` it has to catch up with.
+
 **Batch pushes.** Each push reruns CI, and Actions minutes are a fixed allowance. When several
 review comments or failures land together, fix them all locally, run the loop, and push once. Push
 and wait only when the next fix depends on seeing this one's CI result.

@@ -1,8 +1,7 @@
 import { setAudioModeAsync } from 'expo-audio';
 import { usePathname, useRouter } from 'expo-router';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, View } from 'react-native';
-import { collapsedDecks, setDeckCollapsed } from '../anki/noteService';
+import { ActivityIndicator, AppState, View } from 'react-native';
 import { DAY_STARTS_AT_HOUR } from '../core/config';
 import { studyDayKey, studyDayStart } from '../core/day';
 import { deckRows, queueInput, type DeckRow } from '../core/deckTree';
@@ -16,6 +15,7 @@ import { minedOne, miningLeft, type MiningCount } from '../reader/mining';
 import { clearPassphrase, loadMined, loadPassphrase, loadPrefs, saveMined } from '../reader/storage';
 import { openRepo, type BackupStore } from '../db/sqliteRepo';
 import { useTheme } from './theme';
+import { useCollapsedDecks, type CollapsedDecks } from './useCollapsedDecks';
 import { useSync } from './useSync';
 
 /**
@@ -44,9 +44,8 @@ interface AppValue {
   reloadSync: () => Promise<void>;
   /** Loads the deck list's rows again. */
   refresh: () => Promise<void>;
-  /** Decks whose subdecks the deck list hides: Anki's own collapsed state, shared through sync. */
-  collapsed: Set<string>;
-  toggleCollapsed: (deck: string) => void;
+  /** The deck list's collapsed decks (useCollapsedDecks). */
+  collapse: CollapsedDecks;
   /**
    * Opens the note editor over the current screen. `onClose` is called once, with what happened:
    * nothing when it was closed without saving.
@@ -90,25 +89,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [decks, setDecks] = useState<DeckRow[]>([]);
   const [backup, setBackup] = useState<{ text: string; overdue: boolean }>();
   const [ankiUnsent, setAnkiUnsent] = useState(0);
-  // Collapsed decks, read on their own: reading Anki's waits while a sync holds the collection, and
-  // the deck list shouldn't. A read started before the latest toggle is out of date and dropped.
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const collapseSeq = useRef(0);
-  const loadCollapsed = useCallback(() => {
-    if (!repo) return;
-    const seq = collapseSeq.current;
-    collapsedDecks(repo).then((s) => { if (seq === collapseSeq.current) setCollapsed(s); }).catch(() => undefined);
-  }, [repo]);
-  const toggleCollapsed = useCallback((deck: string) => {
-    if (!repo) return;
-    const next = !collapsed.has(deck);
-    collapseSeq.current++;
-    setCollapsed((prev) => { const s = new Set(prev); if (next) s.add(deck); else s.delete(deck); return s; });
-    setDeckCollapsed(repo, deck, next).catch((e) => {
-      Alert.alert(`Couldn't ${next ? 'collapse' : 'expand'} ${deck}`, `It's back as it was. ${e instanceof Error ? e.message : String(e)}`);
-      loadCollapsed();
-    });
-  }, [repo, collapsed, loadCollapsed]);
+  const collapse = useCollapsedDecks(repo);
   // The collection's "Next day starts at", for counting marked words added per study day.
   const [dayStartsAtHour, setDayStartsAtHour] = useState(DAY_STARTS_AT_HOUR);
 
@@ -134,8 +115,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setDecks(deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now })));
     setBackup(backupStatus(lastBackup, now, cards.length > 0));
     setAnkiUnsent((await repo.ankiStatus()).unsent);
-    loadCollapsed();
-  }, [repo, loadCollapsed]);
+    collapse.load();
+  }, [repo, collapse.load]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync, when it's on: at launch, on coming back to the app (from the deck list, so a deck being
   // studied isn't changed under it), after studying a deck (Review's screen asks), and on leaving the app.
@@ -209,10 +190,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AppValue | null>(() => repo && {
     repo, decks, backup, ankiUnsent, syncSettings, syncing,
-    sync, reloadSync, refresh, collapsed, toggleCollapsed, openNoteEditor, finishNoteEditor,
+    sync, reloadSync, refresh, collapse, openNoteEditor, finishNoteEditor,
     readerApi, readerServer, readerNotice, signedInToReader, signOutOfReader,
     readerSettings, setReaderSettings, miningLeft: miningLeft(mined, today), recordMined,
-  }, [repo, decks, backup, ankiUnsent, syncSettings, syncing, sync, reloadSync, refresh, collapsed, toggleCollapsed, openNoteEditor, finishNoteEditor,
+  }, [repo, decks, backup, ankiUnsent, syncSettings, syncing, sync, reloadSync, refresh, collapse, openNoteEditor, finishNoteEditor,
     readerApi, readerServer, readerNotice, signedInToReader, signOutOfReader, readerSettings, mined, today, recordMined]);
 
   if (!value) {
