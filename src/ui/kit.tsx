@@ -404,6 +404,7 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
       accessibilityRole="button"
       accessibilityState={{ selected }}
       scaleTo={0.95}
+      hitSlop={{ top: 4, bottom: 4 }}
       style={{
         minHeight: 36, justifyContent: 'center', paddingHorizontal: space.m + 2, borderRadius: radius.pill,
         backgroundColor: selected ? c.accent : c.surface, borderWidth: hairline, borderColor: selected ? c.accent : c.border,
@@ -433,6 +434,7 @@ export function Segments<T extends string | number>({ options, value, onChange, 
             accessibilityRole="radio"
             accessibilityState={{ selected }}
             accessibilityLabel={o.accessibilityLabel ?? o.label}
+            hitSlop={{ top: 4, bottom: 4 }}
             style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 36, borderRadius: radius.s - 2, backgroundColor: selected ? c.surface : 'transparent' }}
           >
             <Text style={{ ...type.subhead, fontWeight: '600', color: selected ? c.text : c.textSecondary }}>{o.label}</Text>

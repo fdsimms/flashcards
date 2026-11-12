@@ -299,7 +299,7 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
         >
           <View style={{ paddingHorizontal: space.l, gap: space.s }}>
             <Text style={{ ...type.title, color: c.text }}>{text.title}</Text>
-            <Text style={{ ...type.footnote, color: c.textTertiary }}>{source.kind === 'topic' ? source.topic.name : source.text.topic}</Text>
+            <Text style={{ ...type.footnote, color: c.textSecondary }}>{source.kind === 'topic' ? source.topic.name : source.text.topic}</Text>
             {text.stretch.length > 0 ? (
               <ChipRow label="Practice words:">
                 {text.stretch.map((w) => <Pill key={w} text={w} bg={c.accentFill} fg={c.accent} />)}
@@ -338,7 +338,7 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
                   <Switch value={highlight} onValueChange={turnOnHighlight} trackColor={{ true: c.accent }} accessibilityLabel={language.highlightLabel} />
                 </ToggleRow>
                 {highlight && countOutsideDeck(text) === 0 ? (
-                  <Text style={{ ...type.footnote, color: c.textTertiary }}>Every word in this text is in your deck.</Text>
+                  <Text style={{ ...type.footnote, color: c.textSecondary }}>Every word in this text is in your deck.</Text>
                 ) : null}
                 {underFloor(text) ? (
                   <Card style={{ padding: space.m, gap: space.s }}>
@@ -365,7 +365,7 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
               {line.speaker === 'N' ? null : <View style={{ paddingTop: space.s }}><SpeakerBadge who={line.speaker} /></View>}
               <View style={{ flex: 1 }}>
                 {listenOnly ? (
-                  <Text style={{ ...type.subhead, color: c.textTertiary, paddingVertical: space.s }}>
+                  <Text style={{ ...type.subhead, color: c.textSecondary, paddingVertical: space.s }}>
                     {(line.speaker !== 'N' && text.roles[line.speaker]) || `Line ${i + 1}`}
                   </Text>
                 ) : (
@@ -432,7 +432,7 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
                     })}
                   >
                     <Text style={{ ...type.headline, color: selected ? c.accent : c.text }}>{r.label}</Text>
-                    <Text style={{ ...type.footnote, color: selected ? c.accent : c.textTertiary }}>{r.hint}</Text>
+                    <Text style={{ ...type.footnote, color: selected ? c.accent : c.textSecondary }}>{r.hint}</Text>
                   </Pressable>
                 );
               })}

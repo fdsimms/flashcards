@@ -58,7 +58,7 @@ function Stat({ value, label, color }: { value: number; label: string; color: st
   return (
     <View style={{ minWidth: 40, alignItems: 'center' }}>
       <Text style={{ ...type.headline, color: value ? color : c.textTertiary, fontVariant: ['tabular-nums'] }}>{value}</Text>
-      <Text style={{ ...type.caption, color: c.textTertiary }}>{label}</Text>
+      <Text style={{ ...type.caption, color: c.textSecondary }}>{label}</Text>
     </View>
   );
 }
@@ -85,7 +85,7 @@ function DeckRowView({ row, first, onOpen, onOptions }: { row: DeckRow; first: b
       ) : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{row.name}</Text>
-        <Text style={{ ...type.footnote, color: c.textTertiary }}>{row.total.toLocaleString()} {row.total === 1 ? 'card' : 'cards'}</Text>
+        <Text style={{ ...type.footnote, color: c.textSecondary }}>{row.total.toLocaleString()} {row.total === 1 ? 'card' : 'cards'}</Text>
         {row.gate ? (
           // Under the cap, new cards come in; at it, they wait until cards are a week out.
           <Text style={{ ...type.footnote, color: atCap ? c.warning : c.textSecondary }}>
@@ -207,7 +207,7 @@ export function DeckList(props: {
           </Pressable>
         ) : null}
         {backup && !backup.overdue ? (
-          <Text style={{ ...type.footnote, color: c.textTertiary, textAlign: 'center' }}>{backup.text}</Text>
+          <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{backup.text}</Text>
         ) : null}
       </ScrollView>
     </Screen>
