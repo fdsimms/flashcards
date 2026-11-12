@@ -280,7 +280,9 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   czy, and want, must or can + infinitive; Norwegian past, present perfect, past perfect, future
   (skal, kommer til å) and passive. Each was picked to be found from the words alone, without a
   parser, like Spanish's; aspect and case, which need one, aren't points. Each is **practice** (used at least twice in each text), **avoid**
-  (left out, for grammar not learned yet) or **normal**. At most 2 are practiced at once, so texts
+  (left out, for grammar not learned yet) or **normal** (allowed, not asked for). On the Grammar screen
+  these read "Practice", "Don't know it" and "Know it" (12 November 2026, the owner's wording; the
+  stored states are unchanged). At most 2 are practiced at once, so texts
   stay natural; avoiding has no limit. The choices are stored together for every language and
   apply from the next text written (`GET /api/grammar`, `PUT /api/grammar/{id}`).
 - **Generate, then verify, as for coverage.** The request names the points to practice and avoid,
