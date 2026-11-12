@@ -182,7 +182,7 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, onPracticeForms, onCustomStudy, onCardInfo }: {
+export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, onPracticeForms, onNextDeck, nextDeck, onCustomStudy, onCardInfo }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -198,6 +198,10 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
   onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void;
   /** Opens a forms drill (src/ui/FormsDrill.tsx) over this screen. */
   onPracticeForms: (request: DrillRequest) => void;
+  /** Replaces this screen with the next deck in the list that has cards to study; absent when there is none. */
+  onNextDeck?: () => void;
+  /** That deck's name, for the button. */
+  nextDeck?: string;
   /** Opens Custom Study for this deck (src/ui/CustomStudy.tsx), which can raise today's limits or pick more cards to study. */
   onCustomStudy: () => void;
   /** Opens Card Info (src/ui/CardInfo.tsx) for a card. */
@@ -531,9 +535,10 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
             onPress={() => { setOpeningText(true); practice!.onRead(studiedWords).finally(() => setOpeningText(false)); }}
           />
         ) : null}
+        {onNextDeck ? <Button label={`Study ${nextDeck}`} variant={reading || checking ? 'secondary' : 'primary'} onPress={onNextDeck} /> : null}
         {/* An Anki filtered deck has no limits or cards of its own to add to. */}
         {paramsForDeck(deck, allParams)?.filtered ? null : <Button label="Custom study" variant="secondary" onPress={onCustomStudy} />}
-        <Button label="Back to decks" variant={reading || checking ? 'secondary' : 'primary'} onPress={onDone} />
+        <Button label="Back to decks" variant={reading || checking || onNextDeck ? 'secondary' : 'primary'} onPress={onDone} />
       </>
     );
     return (
