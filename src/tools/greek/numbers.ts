@@ -18,3 +18,34 @@ export function greekNumber(n: number, gender: Gender): string {
   const units = n % 10;
   return TENS[Math.floor(n / 10)] + (units ? ` ${word(units)}` : '');
 }
+
+/** The hundreds, neuter (the feminine ends in -ες: διακόσιες): εκατό alone, εκατόν before more. */
+const HUNDREDS = ['', 'εκατό', 'διακόσια', 'τριακόσια', 'τετρακόσια', 'πεντακόσια', 'εξακόσια', 'εφτακόσια', 'οχτακόσια', 'εννιακόσια'];
+
+/**
+ * `n` (0 to 999,999) in words, neuter, as euros, cents and years are counted: χίλια διακόσια
+ * εβδομήντα εφτά, εκατόν ένα. Thousands past one are χιλιάδες, counted in the feminine (τρεις
+ * χιλιάδες, διακόσιες χιλιάδες).
+ */
+export function greekCardinal(n: number): string {
+  if (!Number.isInteger(n) || n < 0 || n > 999_999) throw new RangeError(`Not a whole number from 0 to 999,999: ${n}`);
+  if (n < 100) return greekNumber(n, 'neuter');
+  const thousands = Math.floor(n / 1000);
+  const below = n % 1000;
+  const words: string[] = [];
+  if (thousands === 1) words.push('χίλια');
+  else if (thousands) words.push(`${hundredsFeminine(thousands)} χιλιάδες`);
+  if (below >= 100) words.push(Math.floor(below / 100) === 1 && below % 100 ? 'εκατόν' : HUNDREDS[Math.floor(below / 100)]);
+  if (below % 100) words.push(greekNumber(below % 100, 'neuter'));
+  return words.join(' ');
+}
+
+/** 1 to 999 in the feminine, for counting χιλιάδες. */
+function hundredsFeminine(n: number): string {
+  const h = Math.floor(n / 100);
+  const rest = n % 100;
+  const words: string[] = [];
+  if (h) words.push(h === 1 ? (rest ? 'εκατόν' : 'εκατό') : HUNDREDS[h].replace(/α$/, 'ες'));
+  if (rest) words.push(greekNumber(rest, 'feminine'));
+  return words.join(' ');
+}
