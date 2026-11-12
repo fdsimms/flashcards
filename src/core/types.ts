@@ -178,6 +178,8 @@ export interface RenderedSide {
     chips?: string[];
     /** A word to highlight inside the text: the card's word, in its example sentence. */
     mark?: string;
+    /** An SF Symbol drawn before the text (the screen draws it, so no emoji goes in `text`). */
+    icon?: 'speaker.wave.2.fill';
   }[];
   /** Text to speak aloud for this side, if any. */
   speak?: string;

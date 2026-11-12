@@ -3,7 +3,7 @@ import { Text, View, type TextStyle } from 'react-native';
 import { markSegments } from '../core/highlight';
 import type { RenderedSide } from '../core/types';
 import { haptic } from './haptics';
-import { Tappable } from './kit';
+import { Icon, Tappable } from './kit';
 import { MIN_TAP, radius, smooth, space, type, useTheme, type Colors } from './theme';
 
 type Block = RenderedSide['blocks'][number];
@@ -110,13 +110,16 @@ export function Side({ side, which, showHints }: { side: RenderedSide; which: 'f
         return (
           <View key={i} style={{ gap: space.xs }}>
             {b.label ? <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text> : null}
-            <Text
-              style={b.emphasis
-                ? { ...(which === 'front' ? type.cardFront : type.cardBack), color: c.text, textAlign: 'center' }
-                : { ...type.body, color: c.textSecondary, lineHeight: 24 }}
-            >
-              {b.text}
-            </Text>
+            <View style={b.icon ? { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s } : undefined}>
+              {b.icon ? <Icon name={b.icon} size={28} color={c.text} /> : null}
+              <Text
+                style={b.emphasis
+                  ? { ...(which === 'front' ? type.cardFront : type.cardBack), color: c.text, textAlign: 'center' }
+                  : { ...type.body, color: c.textSecondary, lineHeight: 24 }}
+              >
+                {b.text}
+              </Text>
+            </View>
           </View>
         );
       })}
