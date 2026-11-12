@@ -54,7 +54,7 @@ _PUNCTUATION = ".,!?…;:\"'“”‘’()-"
 
 def _thai_markers(text: str) -> dict[Gender, list[str]]:
     found: dict[Gender, list[str]] = {"male": [], "female": []}
-    for token in _SPLIT.split(text.replace("*", "")):
+    for token in _SPLIT.split(text.replace("*", "").replace("~", "")):
         token = token.strip(_PUNCTUATION)
         if not token:
             continue
