@@ -64,13 +64,16 @@ function Side({ side, which }: { side: RenderedSide; which: 'front' | 'back' }) 
           {b.label ? (
             <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text>
           ) : null}
-          <Text
-            style={b.emphasis
-              ? { ...(which === 'front' ? type.cardFront : type.cardBack), color: c.text, textAlign: 'center' }
-              : { ...type.body, color: c.textSecondary, lineHeight: 24 }}
-          >
-            {b.text}
-          </Text>
+          <View style={b.icon ? { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s } : undefined}>
+            {b.icon ? <Icon name={b.icon} size={28} color={c.text} /> : null}
+            <Text
+              style={b.emphasis
+                ? { ...(which === 'front' ? type.cardFront : type.cardBack), color: c.text, textAlign: 'center' }
+                : { ...type.body, color: c.textSecondary, lineHeight: 24 }}
+            >
+              {b.text}
+            </Text>
+          </View>
         </View>
         )
       ))}
