@@ -571,6 +571,15 @@ in the current language, with when one was last read to the end. Nothing else le
   later in the study day are listed by when, so the other app can place a task ahead without asking
   again. **New cards are left out**: Franki's progress gate is Franki's own, so Anki's new count can
   differ from the one Franki shows. Reviews and learning cards count the same in both.
+- **Study time** (`study_days`): the last 7 study days, each with the cards answered on it on every
+  device and the time Anki logged for them (the review log's `time`, capped by each preset's
+  maximum answer seconds), and the seconds spent in Read & Listen (`readings.seconds`), every
+  language. A study day is the 24 hours before a cutoff, as Anki's own statistics count them.
+- **Franki's own counts** (`franki`): Anki can't count new cards the way Franki does, so the app
+  sends its deck list's totals (`deckListTotals`, the header's numbers) after each recount while
+  its "Share today's counts" setting is on (`useCountsReport`, off by default), to
+  `PUT /api/franki-counts` with the passphrase. Status shows the last report only when it was
+  made since today's study day began; an older one says nothing about today.
 - **It only reads**, under the same lock and the same 45-second limit as the lexicon
   (`due_with_timeout`), and a read leaves nothing to send (`tests/test_collection.py`). It writes no
   texts: a shelf that's empty says `waiting: 0`.

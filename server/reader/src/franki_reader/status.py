@@ -21,6 +21,9 @@ from anki.decks import DeckTreeNode
 
 # Anki's default "Learn ahead limit" (collapseTime, in seconds), for a collection that never set it.
 LEARN_AHEAD_DEFAULT = 1200
+# How many study days `study_days` covers, today included.
+STUDY_DAYS = 7
+DAY_SECONDS = 86400
 
 
 @dataclass(frozen=True)
@@ -39,6 +42,17 @@ class LearningLater:
 
 
 @dataclass(frozen=True)
+class StudyDay:
+    """One of Anki's study days: the cards answered on it, on every device, and the time Anki logged
+    for those answers (its review log's `time`, which each preset caps at "Maximum answer seconds",
+    60 by default, so a card left on screen doesn't count for an hour)."""
+
+    starts_at: datetime  # aware, in UTC
+    cards: int
+    answer_seconds: int
+
+
+@dataclass(frozen=True)
 class DueStatus:
     reviews: int  # every top-level deck's, added up
     learning: int
@@ -48,6 +62,24 @@ class DueStatus:
     decks: list[DeckDue]
     learning_later: list[LearningLater]  # learning cards coming due later this study day, in order
     day_ends_at: datetime  # when Anki's next study day starts (aware, in UTC)
+    study_days: list[StudyDay]  # the last STUDY_DAYS study days, oldest first, today last
+
+
+def study_days(col: Collection, cutoff: int, days: int = STUDY_DAYS) -> list[StudyDay]:
+    """The answers logged on each of the last `days` study days, oldest first. A study day is the
+    24 hours before a cutoff, as Anki's own statistics count them. Manual reschedules (ease 0) are
+    not answers."""
+    assert col.db is not None
+    out = []
+    for back in range(days, 0, -1):
+        start = cutoff - back * DAY_SECONDS
+        cards, ms = col.db.first(
+            "select count(), coalesce(sum(time), 0) from revlog where id >= ? and id < ? and ease > 0",
+            start * 1000,
+            (start + DAY_SECONDS) * 1000,
+        ) or (0, 0)
+        out.append(StudyDay(datetime.fromtimestamp(start, UTC), cards, round(ms / 1000)))
+    return out
 
 
 def read_due(col: Collection, now: int) -> DueStatus:
@@ -81,4 +113,5 @@ def read_due(col: Collection, now: int) -> DueStatus:
         decks,
         later,
         datetime.fromtimestamp(cutoff, UTC),
+        study_days(col, cutoff),
     )

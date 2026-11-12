@@ -17,6 +17,8 @@ export default function ReadSettingsRoute() {
       onSyncSetup={() => router.push('/sync')}
       voices={reader.settings?.voices}
       onVoices={(language) => router.push({ pathname: '/read-voices', params: { language } })}
+      shareCounts={reader.shareCounts}
+      onShareCounts={reader.setShareCounts}
     />
   );
 }

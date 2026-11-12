@@ -4,7 +4,7 @@ import { ApiError, createApi, readerAddress, type Language, type Speakers } from
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import { savePassphrase } from '../reader/storage';
 import { voicesSummary } from '../reader/voiceSlots';
-import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle } from './kit';
+import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
 import { space, type, useTheme } from './theme';
 
 /**
@@ -12,7 +12,7 @@ import { space, type, useTheme } from './theme';
  * so it's off until you sign in here with its passphrase (CLAUDE.md, Read & Listen). Its server runs
  * beside the Anki sync server, so its address comes from the sync settings.
  */
-export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignOut, onSyncSetup, voices, onVoices }: {
+export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignOut, onSyncSetup, voices, onVoices, shareCounts, onShareCounts }: {
   /** The sync server's address, or undefined while sync is off. */
   syncServer?: string;
   signedIn: boolean;
@@ -24,6 +24,9 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   /** Each language's speaker voices, once the server's settings are loaded. */
   voices?: Record<Language, Speakers>;
   onVoices: (language: Language) => void;
+  /** Whether the deck list's counts are sent to the server for dundundun. */
+  shareCounts: boolean;
+  onShareCounts: (on: boolean) => void;
 }) {
   const c = useTheme();
   const [value, setValue] = useState('');
@@ -106,6 +109,14 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
                 />
               ))}
             </Group>
+            <SectionTitle>dundundun</SectionTitle>
+            <Group>
+              <SwitchRow first label="Share today's counts" value={shareCounts} onValueChange={onShareCounts} />
+            </Group>
+            <Help>
+              Sends how many cards are due and how many new cards are left today, as the deck list shows them, to your
+              server after each sync. dundundun's Franki task reads them there. Nothing else is sent.
+            </Help>
           </>
         ) : null}
       </ScrollView>

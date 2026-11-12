@@ -499,8 +499,9 @@ they win and this is stale. The rules that must not break:
   the app.
 - **In the app, the server holds Read & Listen's data** (topics, texts, the reading log, marked
   words, grammar choices, each language's deck); the screens fetch and show it, and keep nothing but
-  the passphrase, the reader's speed and highlight, and today's count of words added to the deck
-  (`src/reader/storage.ts`). The address is the sync server's plus
+  the passphrase, the reader's own settings (`src/reader/prefs.ts`, which include whether the deck
+  list's counts are shared for dundundun, off by default) and today's count of words added to the
+  deck (`src/reader/storage.ts`). The address is the sync server's plus
   `/reader` (`readerAddress`), so it's on only while sync is.
 
 ### Backup
