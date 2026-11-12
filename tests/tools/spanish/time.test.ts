@@ -12,7 +12,8 @@ describe('Spanish numbers', () => {
       'cero', 'uno', 'dieciséis', 'veintiuno', 'veintidós', 'treinta', 'treinta y uno', 'cuarenta y cinco', 'cincuenta y nueve',
     ]);
     expect([1, 21, 31].map((n) => spanishNumber(n, true))).toEqual(['una', 'veintiuna', 'treinta y una']);
-    expect(() => spanishNumber(60)).toThrow(RangeError);
+    expect(() => spanishNumber(-1)).toThrow(RangeError);
+    expect(() => spanishNumber(1_000_000)).toThrow(RangeError);
   });
 });
 
