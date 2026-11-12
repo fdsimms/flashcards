@@ -514,7 +514,7 @@ def test_speaks_a_cards_text_as_mp3() -> None:
     )
     assert (
         c.post("/api/speech", json={"text": "kot", "voice": "Zofia"}, headers=AUTH).status_code
-        == 502
+        == 400
     )
 
 

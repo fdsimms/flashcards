@@ -311,7 +311,7 @@ def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = N
         try:
             found = await need_speech().voices()
         except SpeechError as e:
-            raise HTTPException(502, str(e)) from e
+            raise HTTPException(503, str(e)) from e
         matching = [
             v
             for v in found
@@ -324,9 +324,13 @@ def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = N
     async def speak(body: SpeechIn) -> Response:
         try:
             locale_of(body.voice)
+        except SpeechError as e:
+            raise HTTPException(400, str(e)) from e
+        try:
             mp3 = await need_speech().synthesize(body.text.strip(), body.voice, body.rate)
         except SpeechError as e:
-            raise HTTPException(502, str(e)) from e
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
         return Response(mp3, media_type="audio/mpeg")
 
     @app.post("/api/texts/{text_id}/reading", status_code=204, dependencies=authed)
