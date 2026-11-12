@@ -121,7 +121,7 @@ npx eas-cli@latest init      # links the project and adds its id to app.json (co
 Each release:
 
 ```bash
-npm run build:ios            # eas build --local: the full release build, run on this Mac; writes a .ipa here
+npm run build:ios            # eas build --local: the full release build, run on this Mac; writes the .ipa to ~/Builds as <date>_<time>_franki.ipa
 ```
 
 The first time, it asks to sign in to your Apple account and creates the distribution certificate and provisioning profile. Answer that the app doesn't use non-exempt encryption. The build number goes up by itself on every build.
