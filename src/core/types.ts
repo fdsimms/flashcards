@@ -169,6 +169,8 @@ export interface RenderedSide {
     emphasis?: boolean;
     /** Anki's `{{hint:Field}}`: the text stays hidden behind a tap-to-show link with this label. */
     tapLabel?: string;
+    /** An SF Symbol drawn before the text (the screen draws it, so no emoji goes in `text`). */
+    icon?: 'speaker.wave.2.fill';
   }[];
   /** Text to speak aloud for this side, if any. */
   speak?: string;
