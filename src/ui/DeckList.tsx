@@ -91,7 +91,7 @@ function DeckRowView({ row, first, onOpen, onOptions, onToggle }: { row: ShownRo
           onPress={onToggle}
           accessibilityRole="button"
           accessibilityLabel={`${row.collapsed ? 'Show' : 'Hide'} the subdecks of ${row.name}`}
-          hitSlop={{ left: space.s, right: space.xs }}
+          hitSlop={{ left: space.s, right: space.l }}
           style={({ pressed }) => ({
             position: 'absolute', left: row.depth * space.l, top: 0, bottom: 0, width: space.l + space.xs,
             alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.4 : 1,
