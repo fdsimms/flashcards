@@ -12,6 +12,7 @@ import { firstLine, nextLine } from '../reader/playback';
 import { RATES } from '../reader/playbackRate';
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
 import { prefs, savePrefs } from '../reader/storage';
+import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
 import { Button, Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './theme';
@@ -374,17 +375,22 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
                   </Text>
                 ) : (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
-                    {line.words.map((word, j) => (
-                      <WordView
-                        key={j}
-                        word={word}
-                        textStyle={readStyle(text)}
-                        grammar={grammarOf(text, word)}
-                        flagged={isFlagged(session, word.text)}
-                        highlighted={highlight && isOutsideDeck(word)}
-                        selected={tapped?.word === word}
-                        onPress={tap}
-                      />
+                    {wrapGroups(line.words).map((group, j) => (
+                      // A line breaks only between groups, so punctuation never wraps away from its word.
+                      <View key={j} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {group.map((word, k) => (
+                          <WordView
+                            key={k}
+                            word={word}
+                            textStyle={readStyle(text)}
+                            grammar={grammarOf(text, word)}
+                            flagged={isFlagged(session, word.text)}
+                            highlighted={highlight && isOutsideDeck(word)}
+                            selected={tapped?.word === word}
+                            onPress={tap}
+                          />
+                        ))}
+                      </View>
                     ))}
                   </View>
                 )}
