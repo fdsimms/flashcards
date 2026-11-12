@@ -1,5 +1,5 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useRef } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { languageOfDeck } from '../reader/practice';
 import { useApp } from '../ui/AppContext';
 import { Review } from '../ui/Review';
@@ -30,9 +30,17 @@ export default function ReviewRoute() {
       router.replace({ pathname: '/read', params: { practice: JSON.stringify({ language, words }) } });
     },
   } : undefined;
+  // Custom study raises limits from a screen over this one: the deck is loaded again when it closes.
+  const [reloadKey, setReloadKey] = useState(0);
+  const firstFocus = useRef(true);
+  useFocusEffect(useCallback(() => {
+    if (firstFocus.current) { firstFocus.current = false; return; }
+    setReloadKey((k) => k + 1);
+  }, []));
   return (
     <Review
-      repo={repo} deck={deck} practice={practice} onDone={() => router.back()} onEditNote={openNoteEditor}
+      repo={repo} deck={deck} practice={practice} reloadKey={reloadKey} onDone={() => router.back()} onEditNote={openNoteEditor}
+      onCustomStudy={() => router.push({ pathname: '/custom-study', params: { deck } })}
       onPracticeForms={(request) => router.push({ pathname: '/forms-drill', params: { request: JSON.stringify(request) } })}
     />
   );

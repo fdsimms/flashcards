@@ -179,7 +179,7 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, onDone, onEditNote, onPracticeForms }: {
+export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, onPracticeForms, onCustomStudy }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -187,12 +187,16 @@ export function Review({ repo, deck, practice, onDone, onEditNote, onPracticeFor
    * ends, it offers a text that practices the words just studied.
    */
   practice?: { languageDeck: string; onRead: (words: string[]) => Promise<void> };
+  /** Changes when something outside this screen may have changed the deck (custom study): loads the cards again. */
+  reloadKey?: number;
   /** Leaves the screen: the deck is done. */
   onDone: () => void;
   /** Opens the note editor over this screen, calling `onClose` with what happened. */
   onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void;
   /** Opens a forms drill (src/ui/FormsDrill.tsx) over this screen. */
   onPracticeForms: (request: DrillRequest) => void;
+  /** Opens Custom Study for this deck (src/ui/CustomStudy.tsx), which can raise today's limits or pick more cards to study. */
+  onCustomStudy: () => void;
 }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
@@ -248,7 +252,7 @@ export function Review({ repo, deck, practice, onDone, onEditNote, onPracticeFor
       );
       setCards(c);
     })();
-  }, [repo, deck, reloads]);
+  }, [repo, deck, reloads, reloadKey]);
 
   // Forms practice and lookalikes (src/ui/ReviewForms.tsx): held lookalikes, the offer to show a card sooner, suggestions.
   const forms = useReviewForms(repo, { cards, notes, deckSettings, now, dayStartsAtHour: H });
@@ -523,6 +527,8 @@ export function Review({ repo, deck, practice, onDone, onEditNote, onPracticeFor
             onPress={() => { setOpeningText(true); practice!.onRead(studiedWords).finally(() => setOpeningText(false)); }}
           />
         ) : null}
+        {/* An Anki filtered deck has no limits or cards of its own to add to. */}
+        {paramsForDeck(deck, allParams)?.filtered ? null : <Button label="Custom study" variant="secondary" onPress={onCustomStudy} />}
         <Button label="Back to decks" variant={reading || checking ? 'secondary' : 'primary'} onPress={onDone} />
       </>
     );
