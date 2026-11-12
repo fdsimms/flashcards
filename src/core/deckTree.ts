@@ -1,10 +1,14 @@
+import { NEW_PER_DAY, REVIEWS_PER_DAY } from './config';
+import { nextStudyDayStart, studyDayKey } from './day';
+import { ankiToday, DEFAULT_ORDER, gatherNew, inFilteredOrder, mix, sortNew, sortReviews, type SortContext } from './order';
 import { isInProgress } from './progress';
-import { buildQueue, isLearning, studiable, type Queue, type StudiedToday } from './queue';
-import type { Card, DeckParams } from './types';
+import { isBuried, isDue, isInterdayLearning, isLearning, studiable, type Queue, type StudiedToday } from './queue';
+import { paramsForDeck } from './scheduler';
+import type { BurySettings, Card, CollectionSettings, DeckParams, Note, StudyOrder } from './types';
 
 /**
  * Decks as Anki nests them: "A::B::C" is C inside B inside A. Studying a deck studies its
- * subdecks too, and every deck on the way up applies its own daily limits, as in Anki: a card in
+ * subdecks too, within its limits and theirs (`treeQueue`): studying Polski, a card in
  * Polski::Odmiana counts against Odmiana's new-card limit and against Polski's.
  */
 
@@ -55,24 +59,48 @@ export interface DeckLimits {
   reviewsPerDay: number;
 }
 
-/** A deck's limits from its Anki settings, else the app's defaults (`NEW_PER_DAY`, `REVIEWS_PER_DAY`). */
-export function deckLimits(params: DeckParams | undefined, defaults: DeckLimits): DeckLimits {
+/**
+ * A deck's limits for the study day `todayKey`: a today-only limit set for that day (Anki's
+ * Custom Study), else its Anki settings, else the app's defaults (`NEW_PER_DAY`, `REVIEWS_PER_DAY`).
+ */
+export function deckLimits(params: DeckParams | undefined, defaults: DeckLimits, todayKey?: string): DeckLimits {
+  const today = (l?: { limit: number; day: string }) => (l && todayKey && l.day === todayKey ? l.limit : undefined);
   return {
-    newPerDay: params?.newPerDay ?? defaults.newPerDay,
-    reviewsPerDay: params?.reviewsPerDay ?? defaults.reviewsPerDay,
+    newPerDay: today(params?.newLimitToday) ?? params?.newPerDay ?? defaults.newPerDay,
+    reviewsPerDay: today(params?.reviewLimitToday) ?? params?.reviewsPerDay ?? defaults.reviewsPerDay,
   };
 }
 
+/** The deck a card belongs to (its own, else its note's), whose settings schedule it. */
+export function cardHomeDeck(card: Card, noteDeck: string): string {
+  return card.deck ?? noteDeck;
+}
+
+/** The deck a card is studied in: the Anki filtered deck it's in, else its home deck. */
+export function cardDeck(card: Card, noteDeck: string): string {
+  return card.filteredDeck ?? cardHomeDeck(card, noteDeck);
+}
+
 export interface TreeQueueInput {
-  /** Every card that might be in the deck or under it, keyed by its note's deck. */
+  /** Every card that might be in the deck or under it, keyed by the deck it's studied in (`cardDeck`). */
   cardsByDeck: Map<string, Card[]>;
+  /** A deck's limits today (`deckLimits`). */
   limitsFor: (deck: string) => DeckLimits;
+  /** A deck's Anki settings: its display order, burying, and whether it's a filtered deck. */
+  paramsFor?: (deck: string) => DeckParams | undefined;
+  /** A card's home deck (`cardHomeDeck`), whose burying options it follows. Defaults to the deck it's studied in. */
+  homeDeckOf?: (card: Card) => string;
   /** What each deck studied today, by its own cards only (not its subdecks'). */
   studiedByDeck: Map<string, StudiedToday>;
   /** A deck's progress gate: the most cards in progress it and its subdecks may hold. Undefined: no gate. */
   gateFor?: (deck: string) => number | undefined;
   dayStartsAtHour: number;
   learnAheadMinutes?: number;
+  /** Anki's day number (`ankiToday`), which seeds its shuffled orders. */
+  ankiToday?: number;
+  /** The collection's v3 options (`CollectionSettings`). */
+  newCardsIgnoreReviewLimit?: boolean;
+  applyAllParentLimits?: boolean;
   now?: Date;
 }
 
@@ -89,17 +117,6 @@ function sumStudied(root: string, studied: Map<string, StudiedToday>): StudiedTo
   return { introduced, reviewed };
 }
 
-function childrenOf(root: string, decks: Iterable<string>): string[] {
-  const depth = root.split('::').length;
-  const out = new Set<string>();
-  for (const d of decks) {
-    if (!d.startsWith(`${root}::`)) continue;
-    out.add(d.split('::').slice(0, depth + 1).join('::'));
-  }
-  return [...out].sort((a, b) => a.localeCompare(b));
-}
-
-/** The deck's queue with its own limits and every subdeck's applied, before learn-ahead. */
 /** Cards still in progress in the deck and its subdecks: what a progress gate counts. */
 export function inProgressCount(root: string, cardsByDeck: Map<string, Card[]>): number {
   let n = 0;
@@ -116,49 +133,163 @@ function gateBudget(deck: string, input: TreeQueueInput): number | undefined {
   return cap === undefined ? undefined : Math.max(0, cap - inProgressCount(deck, input.cardsByDeck));
 }
 
-/**
- * The deck's queue with its own limits and every subdeck's applied, before learn-ahead. Under a
- * progress gate (on this deck or one above it), daily new-card limits don't apply: the gate is
- * what holds new cards back.
- */
-function limitedQueue(deck: string, input: TreeQueueInput, gatedAbove: boolean): Queue {
-  const gate = gateBudget(deck, input);
-  const underGate = gatedAbove || gate !== undefined;
-  const own = buildQueue(input.cardsByDeck.get(deck) ?? [], { dayStartsAtHour: input.dayStartsAtHour, now: input.now });
-  const children = childrenOf(deck, input.cardsByDeck.keys()).map((c) => limitedQueue(c, input, underGate));
-  const due = [own.due, ...children.map((c) => c.due)].flat().sort((a, b) => dueMs(a) - dueMs(b));
-  const fresh = [own.fresh, ...children.map((c) => c.fresh)].flat();
+interface LimitNode { review: number; new: number; capNewToReview: boolean }
 
-  const limits = input.limitsFor(deck);
-  const studied = sumStudied(deck, input.studiedByDeck);
-  let reviewBudget = Math.max(0, limits.reviewsPerDay - studied.reviewed);
-  const newBudget = gate ?? (underGate ? Number.POSITIVE_INFINITY : Math.max(0, limits.newPerDay - studied.introduced));
+/**
+ * What studying `root` shows, in the order it comes up, as Anki's v3 scheduler builds it
+ * (rslib scheduler/queue/builder):
+ *
+ * - **Limits form a tree** rooted at `root`, or at its top-level deck when the collection's
+ *   "apply all parent limits" is on. Each deck's room is its limit less what it and its subdecks
+ *   studied today; unless "new cards ignore review limit" is on, new cards studied today also use
+ *   up review room, and new room never exceeds review room. A subdeck never has more room than
+ *   its parent. A card is taken only while every deck from its own up to the root has room, and
+ *   taking it uses room in each. A filtered deck has no limits.
+ * - **Gathering order:** learning cards on steps within the day (never limited), then day-long
+ *   learning cards and reviews (in the root's review order, using review room, day-long learning
+ *   first), then new cards (by the root's gather and sort order). A card whose sibling was
+ *   gathered first is held back when that sibling's preset buries its kind.
+ * - **Presentation:** learning cards due now, then reviews mixed with day-long learning and new
+ *   cards (by the root's mix options), then learning cards due within the learn-ahead limit.
+ *
+ * A progress gate (Franki's own) replaces the daily new limit on the gated deck and everything
+ * under it, and a gate on a deck above `root` still holds when a subdeck is opened. The deck
+ * list's counts and the review screen both come from this.
+ */
+export function treeQueue(root: string, input: TreeQueueInput): Queue {
+  const now = input.now ?? new Date();
+  const h = input.dayStartsAtHour;
+  const cap = !input.newCardsIgnoreReviewLimit;
+  const paramsFor = input.paramsFor ?? (() => undefined);
+
+  // ---- the limit tree ----
+  const top = input.applyAllParentLimits ? deckLineage(root)[0] : root;
+  const active = [...input.cardsByDeck.keys()].filter((d) => isInDeck(d, root));
+  const nodeDecks = new Set<string>();
+  for (const d of [root, ...active]) for (const l of deckLineage(d)) if (isInDeck(l, top)) nodeDecks.add(l);
+  const gatedAt = (d: string) => deckLineage(d).some((l) => input.gateFor?.(l) !== undefined);
+  const nodes = new Map<string, LimitNode>();
+  for (const d of [...nodeDecks].sort((a, b) => a.split('::').length - b.split('::').length)) {
+    let node: LimitNode;
+    if (paramsFor(d)?.filtered) {
+      node = { review: 9999, new: 9999, capNewToReview: false };
+    } else {
+      const limits = input.limitsFor(d);
+      const done = sumStudied(d, input.studiedByDeck);
+      let review = limits.reviewsPerDay - done.reviewed;
+      let fresh = limits.newPerDay - done.introduced;
+      // Under a progress gate, the gate (on the gated deck) or nothing (below it) replaces the daily new limit.
+      if (gatedAt(d)) fresh = gateBudget(d, input) ?? Number.POSITIVE_INFINITY;
+      if (cap) {
+        review -= done.introduced;
+        fresh = Math.min(fresh, review);
+      }
+      node = { review: Math.max(0, review), new: Math.max(0, fresh), capNewToReview: cap };
+    }
+    const parent = d === top ? undefined : nodes.get(deckLineage(d).at(-2)!);
+    if (parent) node = { ...node, review: Math.min(node.review, parent.review), new: Math.min(node.new, parent.new) };
+    nodes.set(d, node);
+  }
+  // A gate above the root still applies when the root's parents' limits don't.
+  const gatesAbove = deckLineage(root).slice(0, -1).filter((d) => !nodes.has(d)).map((d) => gateBudget(d, input)).filter((b): b is number => b !== undefined);
+  if (gatesAbove.length) nodes.get(root)!.new = Math.min(nodes.get(root)!.new, ...gatesAbove);
+  const pathOf = (deck: string) => deckLineage(deck).filter((d) => nodes.has(d)).reverse();
+  const deckOfCard = new Map<string, string>();
+  for (const d of active) for (const c of input.cardsByDeck.get(d)!) deckOfCard.set(c.id, d);
+  const admit = (card: Card, kind: 'review' | 'new'): boolean => {
+    const path = pathOf(deckOfCard.get(card.id)!);
+    if (path.some((d) => nodes.get(d)![kind] <= 0)) return false;
+    for (const d of path) {
+      const n = nodes.get(d)!;
+      n[kind]--;
+      if (kind === 'review' && n.capNewToReview) n.new = Math.min(n.new, n.review);
+    }
+    return true;
+  };
+
+  // ---- gathering ----
+  const rootFiltered = paramsFor(root)?.filtered;
+  // A filtered deck keeps its own order: Anki builds it with no sort, by its cards' places in it.
+  const order: StudyOrder = rootFiltered ? { ...DEFAULT_ORDER, newSortOrder: 1 } : paramsFor(root)?.order ?? DEFAULT_ORDER;
+  const homeDeckOf = input.homeDeckOf ?? ((c: Card) => deckOfCard.get(c.id)!);
+  const ctx: SortContext = {
+    now, dayStartsAtHour: h, ankiToday: input.ankiToday, deckOf: (c) => deckOfCard.get(c.id)!, noteOf: (c) => c.noteId,
+    weightsOf: (c) => paramsFor(homeDeckOf(c))?.weights ?? [],
+  };
+  const all = active.flatMap((d) => studiable(input.cardsByDeck.get(d)!)).filter((c) => !isBuried(c, now, h));
+  const nextDay = nextStudyDayStart(now, h).getTime();
+  // Siblings: a card is held back when one gathered before it has a preset burying its kind.
+  const buryFlags = new Map<string, BurySettings>();
+  const heldBack = (c: Card, kind: keyof BurySettings | null): boolean => {
+    const prev = buryFlags.get(c.noteId);
+    const own = paramsFor(homeDeckOf(c))?.bury;
+    if (own) buryFlags.set(c.noteId, { new: !!prev?.new || own.new, reviews: !!prev?.reviews || own.reviews, interdayLearning: !!prev?.interdayLearning || own.interdayLearning });
+    return kind !== null && !!prev?.[kind];
+  };
+  // A card being previewed in a filtered deck (Anki's queue 4) comes back like a learning step, when its preview time comes.
+  const shownAt = (c: Card) => (c.previewDue ? new Date(c.previewDue).getTime() : dueMs(c));
+  const previewing = all.filter((c) => c.previewDue);
+  const rest = all.filter((c) => !c.previewDue);
+  // A deck that only previews holds every card as a review, as Anki makes them when it fills one.
+  const previewDeck = rootFiltered && !rootFiltered.reschedule;
+  const intraday = [...previewing, ...(previewDeck ? [] : rest.filter((c) => isLearning(c) && !isInterdayLearning(c, h)))]
+    .filter((c) => shownAt(c) < nextDay);
+  for (const c of intraday) heldBack(c, null);
+  const gatherDue = (cards: Card[], kind: keyof BurySettings) =>
+    sortReviews(cards, order.reviewOrder, ctx).filter((c) => !heldBack(c, kind) && admit(c, 'review'));
+  // A review in a filtered deck is due whatever its own due date: its due there is its place in the deck.
+  const reviewDue = (c: Card) => c.sched.state === 2 && (inFilteredOrder(c) || isDue(c, now, h));
+  const interday = previewDeck ? [] : gatherDue(rest.filter((c) => isInterdayLearning(c, h) && dueMs(c) < nextDay), 'interdayLearning');
+  const reviews = gatherDue(previewDeck ? rest : rest.filter(reviewDue), 'reviews');
+  const fresh = previewDeck ? [] : sortNew(
+    gatherNew(rest.filter((c) => c.sched.state === 0), order.newGatherPriority, ctx, (c) => !heldBack(c, 'new') && admit(c, 'new')),
+    order.newSortOrder, ctx,
+  );
+
+  // ---- presentation ----
+  const learnOrder = (a: Card, b: Card) => Number(a.sched.reps === 0) - Number(b.sched.reps === 0) || shownAt(a) - shownAt(b);
+  const ahead = now.getTime() + (input.learnAheadMinutes ?? 0) * 60000;
+  const learnNow = intraday.filter((c) => shownAt(c) <= now.getTime()).sort(learnOrder);
+  const learnAhead = intraday.filter((c) => shownAt(c) > now.getTime() && shownAt(c) <= ahead).sort(learnOrder);
+  const main = mix(mix(reviews, interday, order.interdayLearningMix), fresh, order.newMix);
   return {
-    // Learning cards pass regardless; reviews fill the budget most overdue first.
-    due: due.filter((c) => c.sched.state !== 2 || reviewBudget-- > 0),
-    fresh: fresh.slice(0, newBudget),
+    due: [...learnNow, ...interday, ...reviews, ...learnAhead],
+    fresh,
+    order: [...learnNow, ...main, ...learnAhead],
   };
 }
 
 /**
- * What studying `root` shows: due cards and new cards from it and all its subdecks, within every
- * deck's limits. Once both are empty, learning cards anywhere under it come up to the learn-ahead
- * limit early. The deck list's counts and the review screen both come from this.
+ * The input to `treeQueue` and `deckRows` from what the screens load: every card in the deck it's
+ * studied in, each deck's limits for today and Anki settings, and the collection's settings. The
+ * deck list and the review screen both build it here, so a deck never shows one count on the list
+ * and another when opened.
  */
-export function treeQueue(root: string, input: TreeQueueInput): Queue {
-  // A gate on a deck above this one still applies: opening a subdeck must not get around it.
-  const above = deckLineage(root).slice(0, -1).map((d) => gateBudget(d, input)).filter((b): b is number => b !== undefined);
-  const limited = limitedQueue(root, input, above.length > 0);
-  const q = above.length ? { ...limited, fresh: limited.fresh.slice(0, Math.min(...above)) } : limited;
-  if (q.due.length || q.fresh.length || !input.learnAheadMinutes) return q;
-  const now = (input.now ?? new Date()).getTime();
-  const cutoff = now + input.learnAheadMinutes * 60000;
-  const ahead: Card[] = [];
-  for (const [deck, cards] of input.cardsByDeck) {
-    if (!isInDeck(deck, root)) continue;
-    for (const c of studiable(cards)) if (isLearning(c) && dueMs(c) <= cutoff) ahead.push(c);
-  }
-  return { due: ahead.sort((a, b) => dueMs(a) - dueMs(b)), fresh: [] };
+export function queueInput(a: {
+  notes: Iterable<Note>;
+  cards: Card[];
+  params: Map<string, DeckParams>;
+  studied: Map<string, StudiedToday>;
+  gateFor?: (deck: string) => number | undefined;
+  collection: CollectionSettings;
+  now: Date;
+}): TreeQueueInput {
+  const deckOfNote = new Map([...a.notes].map((n) => [n.id, n.deck]));
+  const todayKey = studyDayKey(a.now, a.collection.dayStartsAtHour);
+  return {
+    cardsByDeck: groupByDeck(a.cards, deckOfNote),
+    limitsFor: (d) => deckLimits(paramsForDeck(d, a.params), { newPerDay: NEW_PER_DAY, reviewsPerDay: REVIEWS_PER_DAY }, todayKey),
+    paramsFor: (d) => paramsForDeck(d, a.params),
+    homeDeckOf: (c) => cardHomeDeck(c, deckOfNote.get(c.noteId) ?? 'Imported'),
+    studiedByDeck: a.studied,
+    gateFor: a.gateFor,
+    dayStartsAtHour: a.collection.dayStartsAtHour,
+    learnAheadMinutes: a.collection.learnAheadMinutes,
+    newCardsIgnoreReviewLimit: a.collection.newCardsIgnoreReviewLimit,
+    applyAllParentLimits: a.collection.applyAllParentLimits,
+    ankiToday: ankiToday(a.now, a.collection.dayStartsAtHour, a.collection.collectionCreated, a.collection.creationOffset),
+    now: a.now,
+  };
 }
 
 export interface DeckRow extends DeckNode {
@@ -199,11 +330,11 @@ export function deckRows(input: TreeQueueInput): DeckRow[] {
   });
 }
 
-/** Cards grouped by their note's deck. */
+/** Cards grouped by the deck each is studied in (`cardDeck`): its filtered deck, its own, else its note's. */
 export function groupByDeck(cards: Card[], deckOfNote: Map<string, string>): Map<string, Card[]> {
   const out = new Map<string, Card[]>();
   for (const c of cards) {
-    const deck = deckOfNote.get(c.noteId) ?? 'Imported';
+    const deck = cardDeck(c, deckOfNote.get(c.noteId) ?? 'Imported');
     (out.get(deck) ?? out.set(deck, []).get(deck)!).push(c);
   }
   return out;

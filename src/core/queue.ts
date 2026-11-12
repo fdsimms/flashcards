@@ -1,4 +1,4 @@
-import { nextStudyDayStart, studyDayStart } from './day';
+import { nextStudyDayStart, studyDayKey, studyDayStart } from './day';
 import { answersFrom, type RevlogRow } from './stats';
 import type { BurySettings, Card, Note, ReviewLogEntry } from './types';
 
@@ -9,8 +9,12 @@ export interface QueueOptions {
 }
 
 export interface Queue {
+  /** Cards due: learning (including within the learn-ahead limit) and reviews. */
   due: Card[];
+  /** New cards. */
   fresh: Card[];
+  /** All of them, in the order they come up (`treeQueue`). */
+  order: Card[];
 }
 
 /**
@@ -29,6 +33,23 @@ export function isDue(card: Card, now: Date, dayStartsAtHour: number): boolean {
 }
 
 export const isLearning = (c: Card) => c.sched.state === 1 || c.sched.state === 3;
+
+/** A learning card on a step of a day or more (Anki's queue 3): it's due on a later study day than its last answer. */
+export function isInterdayLearning(card: Card, dayStartsAtHour: number): boolean {
+  if (!isLearning(card) || !card.sched.lastReview) return false;
+  return studyDayKey(new Date(card.sched.due), dayStartsAtHour) > studyDayKey(new Date(card.sched.lastReview), dayStartsAtHour);
+}
+
+/**
+ * What answering `card` uses of today's limits, as Anki counts it: a new card's first answer is a
+ * new card studied, and an answer to a review or a day-long learning card (Anki's queues 2 and 3)
+ * is a review. Learning steps within the day use nothing.
+ */
+export function studiedKind(card: Card, dayStartsAtHour: number): 'new' | 'review' | null {
+  if (card.sched.state === 0) return 'new';
+  if (card.sched.state === 2 || isInterdayLearning(card, dayStartsAtHour)) return 'review';
+  return null;
+}
 const dueMs = (c: Card) => new Date(c.sched.due).getTime();
 
 /**
@@ -67,21 +88,6 @@ export function isBuried(card: Card, now: Date, dayStartsAtHour: number): boolea
 }
 
 /**
- * One deck's own cards, before any limit: everything due (most overdue first) and every new card.
- * `treeQueue` (deckTree.ts) adds the subdecks, the daily limits and learn-ahead on top; study
- * through that, not this.
- */
-export function buildQueue(cards: Card[], opts: QueueOptions): Queue {
-  const now = opts.now ?? new Date();
-  const active = studiable(cards).filter((c) => !isBuried(c, now, opts.dayStartsAtHour));
-  const due = active
-    .filter((c) => isDue(c, now, opts.dayStartsAtHour))
-    .sort((a, b) => dueMs(a) - dueMs(b));
-  const fresh = active.filter((c) => c.sched.state === 0);
-  return { due, fresh };
-}
-
-/**
  * When the next learning card comes due, for a session that has run out of cards: the review
  * screen waits for it instead of declaring the deck done. Undefined when none is waiting.
  */
@@ -96,7 +102,7 @@ export function nextLearningDue(cards: Card[], opts: QueueOptions): Date | undef
 }
 
 export function nextCard(q: Queue): Card | undefined {
-  return q.due[0] ?? q.fresh[0];
+  return q.order[0];
 }
 
 /** What a deck has already used of today's limits. */
@@ -120,7 +126,8 @@ export function studiedToday(input: {
 }): Map<string, StudiedToday> {
   const start = studyDayStart(input.now, input.dayStartsAtHour).getTime();
   const deckOfNote = new Map(input.notes.map((n) => [n.id, n.deck]));
-  const deckOf = new Map(input.cards.map((c) => [c.id, deckOfNote.get(c.noteId)]));
+  // The deck each card is studied in (deckTree.ts's cardDeck): an answer in a filtered deck counts there, as in Anki.
+  const deckOf = new Map(input.cards.map((c) => [c.id, c.filteredDeck ?? c.deck ?? deckOfNote.get(c.noteId)]));
   const introduced = new Map<string, Set<string>>();
   const out = new Map<string, StudiedToday>();
   for (const a of answersFrom(input)) {
@@ -133,7 +140,8 @@ export function studiedToday(input: {
       seen.add(a.cardId);
       introduced.set(deck, seen);
       s.introduced = seen.size;
-    } else if (a.kind === 'review') {
+    } else if (a.kind === 'review' || (a.lastIntervalDays ?? 0) > 0) {
+      // A review, or an answer to a learning card on a day-long step (its last interval in days).
       s.reviewed++;
     } else {
       continue;

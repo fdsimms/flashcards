@@ -6,7 +6,7 @@ import { buildExport } from '../../src/anki/collection';
 import { readPackage, writePackage } from '../../src/anki/package';
 import {
   CARD_ROW_SQL, CARD_UPDATE_SQL, REVLOG_INSERT_SQL, ankiDayNumber, cardUpdate, cardUpdateParams, nextRevlogId,
-  revlogDifficulty, revlogEntry, revlogParams, type AnkiCardRow,
+  previewAgain, previewReturn, revlogDifficulty, revlogEntry, revlogParams, type AnkiCardRow,
 } from '../../src/anki/writeback';
 import { makeCards } from '../../src/core/cards';
 import { review } from '../../src/core/scheduler';
@@ -39,6 +39,37 @@ describe('mapping an answer to Anki', () => {
     expect(u.left).toBeGreaterThanOrEqual(1);
     expect(JSON.parse(u.data!)).toMatchObject({ pos: 12, dr: 0.85 });
     expect(JSON.parse(u.data!).s).toBeGreaterThan(0);
+  });
+
+  it("writes a step that crosses into another day as Anki's day-long learning (queue 3), with its steps left", () => {
+    const params = { weights: [], desiredRetention: 0.9, maxInterval: 36500, learnSteps: [10, 1440, 4320] };
+    // At 20:00, a Good on the first step waits a day: due tomorrow, on step 2 of 3.
+    const after: Card = { ...card, sched: review(card.sched, 3, now, params).sched };
+    const u = cardUpdate(after, row(), { crt: CRT, now, steps: { learn: 3, relearn: 1 } });
+    expect(u).toMatchObject({ type: 1, queue: 3, left: 2 });
+    expect(u.due).toBe(ankiDayNumber(Math.floor(now.getTime() / 1000), CRT) + 1);
+    // Anki logs a day-long step in days, and a step within the day in negative seconds.
+    expect(revlogEntry(card, after, 3, { id: 1, cid: 1, previousIvl: 0, now, takenMs: 0, crt: CRT }).ivl).toBe(1);
+    const short: Card = { ...card, sched: review(card.sched, 3, new Date(2026, 10, 11, 9, 0)).sched };
+    expect(revlogEntry(card, short, 3, { id: 1, cid: 1, previousIvl: 0, now: new Date(2026, 10, 11, 9, 0), takenMs: 0, crt: CRT }).ivl).toBe(-600);
+  });
+
+  it('keeps a card answered in a filtered deck there while it learns, and sends it home as a review', () => {
+    const learning: Card = { ...card, sched: review(card.sched, 3, now).sched };
+    expect(cardUpdate(learning, row({ did: 99, odid: 5, odue: 40 }), { crt: CRT, now })).toMatchObject({ did: 99, odid: 5, queue: 1 });
+    const graduated: Card = { ...card, sched: review(card.sched, 4, now).sched };
+    expect(cardUpdate(graduated, row({ did: 99, odid: 5, odue: 40 }), { crt: CRT, now })).toMatchObject({ did: 5, odid: 0, odue: 0, queue: 2 });
+  });
+
+  it("keeps a previewed card in its filtered deck, due again after the delay, when it isn't finished", () => {
+    const inPreview = row({ did: 99, odid: 5, odue: 812, type: 2, queue: 2, due: -100000, ivl: 30 });
+    expect(previewAgain(inPreview, 1794000060, now)).toMatchObject({ did: 99, odid: 5, odue: 812, type: 2, queue: 4, due: 1794000060, ivl: 30, usn: -1 });
+  });
+
+  it("sends a previewed card home with its schedule untouched", () => {
+    const inPreview = row({ did: 99, odid: 5, odue: 812, type: 2, queue: 2, due: -100000, ivl: 30, reps: 9 });
+    expect(previewReturn(inPreview, now)).toMatchObject({ did: 5, odid: 0, odue: 0, type: 2, queue: 2, due: 812, ivl: 30, reps: 9, usn: -1 });
+    expect(previewReturn(row({ did: 99, odid: 5, odue: 3, type: 0, queue: 2, due: -100000 }), now)).toMatchObject({ queue: 0, due: 3 });
   });
 
   it('writes a review as a day number counted from the collection\'s creation', () => {

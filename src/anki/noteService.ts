@@ -106,7 +106,8 @@ export async function saveNote(store: NoteStore, draft: NoteDraft, now: Date = n
   const byId = new Map(oldCards.map((c) => [c.id, c]));
   const cards = cardsFor(note, noteTypes, now).map((c) => {
     const old = byId.get(c.id);
-    if (old) return { ...old, retired: false };
+    // Moving the note moves every card of it, as in Anki, so none keeps a deck of its own.
+    if (old) return { ...old, retired: false, ...(existing && note.deck !== existing.deck ? { deck: undefined } : {}) };
     const ankiId = ankiIds.get(ordOf(note, c.kind));
     return ankiId ? { ...c, ankiId } : c;
   });

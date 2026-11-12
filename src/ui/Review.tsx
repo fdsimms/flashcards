@@ -4,16 +4,20 @@ import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Easing, PanResponder, Pressable, ScrollView, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
 import { isOmnilanguage, renderCard } from '../core/cards';
-import { DAY_STARTS_AT_HOUR, LEARN_AHEAD_MINUTES, NEW_PER_DAY, REVIEWS_PER_DAY } from '../core/config';
-import { deckLimits, groupByDeck, isInDeck, treeQueue } from '../core/deckTree';
-import { studyDayStart } from '../core/day';
-import { nextLearningDue, siblingsToBury, studiedToday, type StudiedToday } from '../core/queue';
+import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
+import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
+import { nextStudyDayStart, studyDayStart } from '../core/day';
+import { nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
-import { paramsForDeck, previewIntervals, review, type RatingValue } from '../core/scheduler';
+import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type AnswerContext, type RatingValue } from '../core/scheduler';
+import { fuzzSeed } from '../core/ankiFuzz';
+import { balancerFor, buildLoadSnapshot, forgetCard, loadDayIndex, recordAnswer, type LoadSnapshot } from '../core/loadBalance';
+import { ankiToday, fnvHash } from '../core/order';
+import { saveNote, type NoteStore } from '../anki/noteService';
 import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../core/session';
 import { durationText } from '../core/stats';
 import { cardDocument, renderTemplateCard } from '../core/template';
-import type { Card, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
+import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
 import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
@@ -164,8 +168,6 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
   );
 }
 
-const DEFAULT_LIMITS = { newPerDay: NEW_PER_DAY, reviewsPerDay: REVIEWS_PER_DAY };
-
 /**
  * Studies `deck` and its subdecks. Each card is scheduled with its own deck's FSRS settings, and
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
@@ -185,6 +187,9 @@ export function Review({ repo, deck, onDone, onEditNote }: {
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
+  // The Anki collection's day start, learn-ahead limit and v3 options.
+  const [collection, setCollection] = useState<CollectionSettings>(DEFAULT_COLLECTION_SETTINGS);
+  const H = collection.dayStartsAtHour;
   const [answerButtons, setAnswerButtons] = useState<AnswerButtons>('all');
   const [swipeOn, setSwipeOn] = useState(false);
   // Bumped after the note editor saves or deletes, to load the cards and notes again.
@@ -198,17 +203,21 @@ export function Review({ repo, deck, onDone, onEditNote }: {
   // Set while an answer or an undo is being written. A second tap during the await would
   // otherwise act on the same card again from its old state.
   const busy = useRef(false);
+  // Anki's load balancer works from a snapshot of the days ahead, taken when the session is built.
+  const loadSnapshot = useRef<LoadSnapshot>(new Map());
 
   useEffect(() => {
     (async () => {
       const now = new Date();
-      const dayStart = studyDayStart(now, DAY_STARTS_AT_HOUR);
+      const cs = await repo.collectionSettings();
+      const dayStart = studyDayStart(now, cs.dayStartsAtHour);
       const [c, n, reviews, revlog, params, types, settings, buttons, swipe] = await Promise.all([
         // Every card, not only this deck's: a gate on a deck above this one counts its whole subtree.
         repo.listCards(), repo.listNotes(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
         repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(), repo.swipeToRate(),
       ]);
-      const today = studiedToday({ notes: n, cards: c, reviews, revlog, now, dayStartsAtHour: DAY_STARTS_AT_HOUR });
+      const today = studiedToday({ notes: n, cards: c, reviews, revlog, now, dayStartsAtHour: cs.dayStartsAtHour });
+      setCollection(cs);
       setAnswerButtons(buttons);
       setSwipeOn(swipe);
       setDeckSettings(settings);
@@ -216,6 +225,12 @@ export function Review({ repo, deck, onDone, onEditNote }: {
       setNoteTypes(types);
       setStudied(today);
       setNotes(new Map(n.map((x) => [x.id, x])));
+      const deckOfNote = new Map(n.map((x) => [x.id, x.deck]));
+      const dayNumber = ankiToday(now, cs.dayStartsAtHour, cs.collectionCreated, cs.creationOffset);
+      loadSnapshot.current = buildLoadSnapshot(
+        c, (card) => paramsForDeck(cardHomeDeck(card, deckOfNote.get(card.noteId) ?? ''), params)?.presetId,
+        (card) => loadDayIndex(card, now, cs.dayStartsAtHour, dayNumber),
+      );
       setCards(c);
     })();
   }, [repo, deck, reloads]);
@@ -223,21 +238,15 @@ export function Review({ repo, deck, onDone, onEditNote }: {
   const deckOf = useMemo(() => new Map([...notes.values()].map((n) => [n.id, n.deck])), [notes]);
   const queue = useMemo(() => {
     if (!cards) return null;
-    return treeQueue(deck, {
-      cardsByDeck: groupByDeck(cards, deckOf),
-      limitsFor: (d) => deckLimits(paramsForDeck(d, allParams), DEFAULT_LIMITS),
-      studiedByDeck: studied,
-      gateFor: (d) => deckSettings.get(d)?.gateCap,
-      dayStartsAtHour: DAY_STARTS_AT_HOUR,
-      learnAheadMinutes: LEARN_AHEAD_MINUTES,
-      now,
-    });
-  }, [cards, deckOf, allParams, studied, deckSettings, deck, now]);
+    return treeQueue(deck, queueInput({
+      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, collection, now,
+    }));
+  }, [cards, notes, allParams, studied, deckSettings, collection, deck, now]);
 
   const current = queue ? currentCard(queue, preferId) : undefined;
   const note = current ? notes.get(current.noteId) : undefined;
   // The card's own deck decides its FSRS settings, not the deck being studied.
-  const cardParams = note ? paramsForDeck(note.deck, allParams) : undefined;
+  const cardParams = note && current ? paramsForDeck(cardHomeDeck(current, note.deck), allParams) : undefined;
   const noteType = note && current?.kind.startsWith('t') && !isOmnilanguage(note) ? noteTypes.get(note.model) : undefined;
   const page = useMemo(() => {
     if (!note || !noteType || !current) return undefined;
@@ -250,7 +259,17 @@ export function Review({ repo, deck, onDone, onEditNote }: {
     return { front: cardDocument(front, opts), back: cardDocument(back, opts) };
   }, [note, noteType, current?.id, current?.kind, dark, c]); // eslint-disable-line react-hooks/exhaustive-deps
   const rendered = current && note && !page ? renderCard(note, current.kind) : undefined;
-  const intervals = current && revealed ? previewIntervals(current.sched, now, cardParams) : undefined;
+  // The fuzz seed and load balancer for answering the current card, as Anki has them: the buttons show what an answer does.
+  const answerContext = (card: Card, when: Date): AnswerContext => {
+    const seed = fuzzSeed(card.ankiId, card.sched.reps) ?? BigInt.asUintN(64, fnvHash(card.id) + BigInt(card.sched.reps));
+    // A card in a filtered deck has no preset there, so Anki fuzzes it without balancing.
+    const balance = collection.loadBalancer === false || card.filteredDeck ? undefined : balancerFor(loadSnapshot.current, card, {
+      preset: cardParams?.presetId, seed, easyDays: cardParams?.easyDays, buryReviews: !!cardParams?.bury?.reviews,
+      nextDayAt: nextStudyDayStart(when, H),
+    });
+    return { seed, dayStartsAtHour: H, balance };
+  };
+  const intervals = current && revealed ? previewIntervals(current.sched, now, cardParams, answerContext(current, now)) : undefined;
 
   // One player for the session's recorded audio, released when the screen closes.
   const player = useRef<AudioPlayer | null>(null);
@@ -294,11 +313,28 @@ export function Review({ repo, deck, onDone, onEditNote }: {
     haptic.answer();
     try {
       const when = new Date();
-      const res = review(current.sched, rating, when, cardParams);
-      const updated: Card = { ...current, sched: res.sched, buriedAt: undefined };
+      // A filtered deck that doesn't reschedule only previews: the card's schedule stays as it
+      // was, and it goes home to its own deck (Anki would show it again after a short delay first).
+      const filtered = current.filteredDeck ? paramsForDeck(current.filteredDeck, allParams)?.filtered : undefined;
+      const preview = filtered?.reschedule === false;
+      // Again, Hard and Good show a previewed card again after the deck's delay; Easy, or a delay of 0, finishes it.
+      const delay = preview ? [0, filtered.previewSecs?.again ?? 0, filtered.previewSecs?.hard ?? 0, filtered.previewSecs?.good ?? 0, 0][rating] : 0;
+      const previewAgainAt = delay > 0 ? new Date(when.getTime() + delay * 1000) : undefined;
+      const res = preview ? { sched: current.sched, log: previewLog(current, rating, when) } : review(current.sched, rating, when, cardParams, answerContext(current, when));
+      // A forgotten review can make the card a leech: its note is tagged, and the card suspended if the preset says so, as in Anki.
+      const leech = cardParams?.leech ?? DEFAULT_LEECH;
+      const isLeech = !preview && becameLeech(current.sched, res.sched, leech);
+      const updated: Card = {
+        ...current, sched: res.sched, buriedAt: undefined, suspended: current.suspended || (isLeech && leech.suspend),
+        // Out of a filtered deck once it's a review (or a finished preview), as in Anki; still learning, it stays.
+        filteredDeck: previewAgainAt ? current.filteredDeck : preview || res.sched.state === 2 ? undefined : current.filteredDeck,
+        previewDue: previewAgainAt?.toISOString(),
+        // Write-back stamps the Anki card's mod, which seeds Anki's review order.
+        ankiMod: current.ankiId ? Math.floor(when.getTime() / 1000) : current.ankiMod,
+      };
       // The note's other cards that its preset holds back until tomorrow, as Anki does.
-      const siblings = siblingsToBury(current, cards ?? [], cardParams?.bury, when, DAY_STARTS_AT_HOUR);
-      const buried = siblings.map((s): Card => ({ ...s, buriedAt: when.toISOString() }));
+      const siblings = preview ? [] : siblingsToBury(current, cards ?? [], cardParams?.bury, when, H);
+      const buried = siblings.map((s): Card => ({ ...s, buriedAt: when.toISOString(), ankiMod: s.ankiId ? Math.floor(when.getTime() / 1000) : s.ankiMod }));
       await repo.saveCard(updated);
       for (const b of buried) await repo.saveCard(b);
       const reviewId = await repo.addReview({ cardId: current.id, ...res.log });
@@ -309,6 +345,8 @@ export function Review({ repo, deck, onDone, onEditNote }: {
         anki = await repo.writeAnkiAnswer({
           before: current, after: updated, rating, now: when,
           takenMs: when.getTime() - shownAt.current, desiredRetention: cardParams?.desiredRetention, bury: siblings,
+          preview: preview ? { again: previewAgainAt } : undefined,
+          steps: { learn: (cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS).length, relearn: (cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS).length },
         });
       } catch (e: any) {
         if (!warnedAnki.current) {
@@ -319,9 +357,25 @@ export function Review({ repo, deck, onDone, onEditNote }: {
           );
         }
       }
-      // Capped at a minute, as Anki's maximum answer time is, so a phone put down mid-card doesn't swell the summary.
-      const record: AnswerRecord = { before: current, reviewId, deck: note.deck, anki, buried: siblings, rating, takenMs: Math.min(when.getTime() - shownAt.current, 60000) };
-      setStudied((s) => bumpStudied(s, record.deck, record.before.sched.state, 1));
+      let leechNote: Note | undefined;
+      if (isLeech && !note.tags.includes('leech')) {
+        try {
+          const tagged = await saveNote(repo as NoteStore, { id: note.id, deck: note.deck, model: note.model, fields: note.fields, tags: [...note.tags, 'leech'] }, when);
+          leechNote = note;
+          setNotes((prev) => new Map(prev).set(tagged.id, tagged));
+        } catch {
+          // The answer stands; the tag just isn't added.
+        }
+      }
+      // Counted in the deck the card is studied in, as Anki counts it (a filtered deck's answers count there).
+      // Time capped at a minute, as Anki's maximum answer time is, so a phone put down mid-card doesn't swell the summary.
+      const record: AnswerRecord = {
+        before: current, reviewId, deck: cardDeck(current, note.deck), anki, buried: siblings, leechNote,
+        rating, takenMs: Math.min(when.getTime() - shownAt.current, 60000),
+      };
+      // Now a review, it weighs on the days the load balancer spreads later answers over, as in Anki.
+      if (updated.sched.state === 2) recordAnswer(loadSnapshot.current, updated, cardParams?.presetId, updated.sched.scheduledDays);
+      setStudied((s) => bumpStudied(s, record.deck, studiedKind(record.before, H), 1));
       setHistory((h) => [...h, record]);
       // Functional update: `cards` from this render's closure is stale once the awaits return.
       const changed = new Map([updated, ...buried].map((c) => [c.id, c]));
@@ -349,9 +403,17 @@ export function Review({ repo, deck, onDone, onEditNote }: {
       }
       await repo.saveCard(last.before);
       for (const s of last.buried) await repo.saveCard(s);
+      if (last.leechNote) {
+        const n = last.leechNote;
+        try {
+          const restored = await saveNote(repo as NoteStore, { id: n.id, deck: n.deck, model: n.model, fields: n.fields, tags: n.tags });
+          setNotes((prev) => new Map(prev).set(restored.id, restored));
+        } catch { /* the tag stays */ }
+      }
       await repo.deleteReview(last.reviewId);
+      forgetCard(loadSnapshot.current, last.before.id);
       setHistory((h) => h.slice(0, -1));
-      setStudied((s) => bumpStudied(s, last.deck, last.before.sched.state, -1));
+      setStudied((s) => bumpStudied(s, last.deck, studiedKind(last.before, H), -1));
       const restored = new Map([last.before, ...last.buried].map((c) => [c.id, c]));
       setCards((prev) => prev && prev.map((c) => restored.get(c.id) ?? c));
       setPreferId(last.before.id);
@@ -365,11 +427,11 @@ export function Review({ repo, deck, onDone, onEditNote }: {
   // Out of cards with a learning card still to come: wake when it's within the learn-ahead limit
   // instead of declaring the deck done, which left it waiting until the deck was reopened.
   const waitingFor = !current && cards
-    ? nextLearningDue(cards.filter((c) => isInDeck(deckOf.get(c.noteId) ?? '', deck)), { dayStartsAtHour: DAY_STARTS_AT_HOUR })
+    ? nextLearningDue(cards.filter((c) => isInDeck(cardDeck(c, deckOf.get(c.noteId) ?? ''), deck)), { dayStartsAtHour: H })
     : undefined;
   useEffect(() => {
     if (!waitingFor) return;
-    const wake = waitingFor.getTime() - LEARN_AHEAD_MINUTES * 60000 - Date.now();
+    const wake = waitingFor.getTime() - collection.learnAheadMinutes * 60000 - Date.now();
     const id = setTimeout(() => setNow(new Date()), Math.max(0, wake) + 1000);
     return () => clearTimeout(id);
   }, [waitingFor?.getTime()]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -386,7 +448,7 @@ export function Review({ repo, deck, onDone, onEditNote }: {
     : null;
 
   if (!current || !note || (!rendered && !page)) {
-    const minutes = waitingFor ? Math.max(1, Math.ceil((waitingFor.getTime() - Date.now()) / 60000) - LEARN_AHEAD_MINUTES) : 0;
+    const minutes = waitingFor ? Math.max(1, Math.ceil((waitingFor.getTime() - Date.now()) / 60000) - collection.learnAheadMinutes) : 0;
     return (
       <Screen
         title={title}

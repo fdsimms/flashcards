@@ -1,6 +1,7 @@
 import { isOmnilanguage, makeCards } from '../core/cards';
-import { newSchedState } from '../core/scheduler';
-import type { Card, CardKind, DeckParams, Note, NoteType, SchedState } from '../core/types';
+import { dayKeyOf } from '../core/day';
+import { newSchedState, paramsForDeck } from '../core/scheduler';
+import type { Card, CardKind, CollectionSettings, DeckParams, DayLimit, Note, NoteType, SchedState } from '../core/types';
 import { omnilanguageKindByOrd } from './models';
 import type { ImportResult } from './tsv';
 
@@ -27,6 +28,18 @@ export interface AnkiCardInfo {
   queue?: number;
   /** When Anki buried the card (unix seconds), when it's buried; `queue` then holds its ordinary queue. */
   buriedAt?: number;
+  /** A new card's position in the new-card order (its `due` while new). */
+  position?: number;
+  /** Learning steps left (Anki's `left % 1000`), for a learning or relearning card. */
+  stepsLeft?: number;
+  /** The filtered deck the card is in, if any; `deckName` stays its home deck. */
+  filteredDeckName?: string;
+  /** Its `due` in the filtered deck (its place there). */
+  filteredDue?: number;
+  /** In a preview filtered deck (queue 4): when it's shown again, unix seconds. */
+  previewDue?: number;
+  /** When Anki last changed the card (unix seconds). */
+  mod?: number;
   /**
    * Raw due value. A day number counted from `collectionCreated` for review and interday
    * learning cards; a unix timestamp in seconds for intraday learning cards (queue 1). For a new
@@ -66,6 +79,26 @@ export interface AnkiDeckConfig {
   buryNew?: boolean;
   buryReviews?: boolean;
   buryInterdayLearning?: boolean;
+  /** Learning and relearning steps, in minutes. */
+  learnSteps?: number[];
+  relearnSteps?: number[];
+  /** Anki's LeechAction: 0 suspend, 1 tag only. */
+  leechAction?: number;
+  leechThreshold?: number;
+  /** The preset's display order (Anki's enum values, see `StudyOrder`). */
+  newMix?: number;
+  interdayLearningMix?: number;
+  newSortOrder?: number;
+  reviewOrder?: number;
+  newGatherPriority?: number;
+  /** The preset's id, and its easy days (Monday to Sunday). */
+  presetId?: number;
+  easyDays?: number[];
+  /** Today-only limits: the limit, and the Anki day number it's for. */
+  newLimitToday?: { limit: number; today: number };
+  reviewLimitToday?: { limit: number; today: number };
+  /** Set for a filtered deck, which has no preset of its own. */
+  filtered?: { reschedule: boolean; previewSecs?: { again: number; hard: number; good: number } };
 }
 
 export interface AnkiExport {
@@ -77,14 +110,23 @@ export interface AnkiExport {
   fsrsParams?: { presets?: AnkiFsrsPreset[] };
   /** Each deck's settings, by full deck name (src/anki/collection.ts). Wins over `fsrsParams`. */
   deckConfigs?: Record<string, AnkiDeckConfig>;
+  /** The collection's own scheduling settings (src/anki/collection.ts). */
+  collectionSettings?: CollectionSettings;
   /** Note types' templates, fields and CSS (src/anki/collection.ts), so cards render as in Anki. */
   noteTypes?: NoteType[];
 }
 
 /** Each deck's settings from the exporter's `deckConfigs`. */
-export function deckParamsFromConfigs(configs: Record<string, AnkiDeckConfig>): Map<string, DeckParams> {
+export function deckParamsFromConfigs(configs: Record<string, AnkiDeckConfig>, collectionCreated?: number): Map<string, DeckParams> {
   const out = new Map<string, DeckParams>();
+  // An Anki day number counts days from the collection's creation, which Anki stamps at the start of a study day.
+  const dayLimit = (l?: { limit: number; today: number }): DayLimit | undefined =>
+    l && collectionCreated !== undefined ? { limit: l.limit, day: dayKeyOf(new Date((collectionCreated + l.today * 86400 + 43200) * 1000)) } : undefined;
   for (const [deck, c] of Object.entries(configs)) {
+    if (c.filtered) {
+      out.set(deck, { weights: [], desiredRetention: 0.9, maxInterval: 36500, filtered: c.filtered });
+      continue;
+    }
     out.set(deck, {
       weights: c.weights ?? [],
       desiredRetention: c.desiredRetention ?? 0.9,
@@ -92,6 +134,17 @@ export function deckParamsFromConfigs(configs: Record<string, AnkiDeckConfig>): 
       newPerDay: c.newPerDay,
       reviewsPerDay: c.reviewsPerDay,
       bury: { new: !!c.buryNew, reviews: !!c.buryReviews, interdayLearning: !!c.buryInterdayLearning },
+      learnSteps: c.learnSteps,
+      relearnSteps: c.relearnSteps,
+      leech: c.leechThreshold !== undefined ? { threshold: c.leechThreshold, suspend: (c.leechAction ?? 0) === 0 } : undefined,
+      order: c.newMix !== undefined ? {
+        newMix: c.newMix, interdayLearningMix: c.interdayLearningMix ?? 0, newSortOrder: c.newSortOrder ?? 0,
+        reviewOrder: c.reviewOrder ?? 0, newGatherPriority: c.newGatherPriority ?? 0,
+      } : undefined,
+      presetId: c.presetId,
+      easyDays: c.easyDays?.length ? c.easyDays : undefined,
+      newLimitToday: dayLimit(c.newLimitToday),
+      reviewLimitToday: dayLimit(c.reviewLimitToday),
     });
   }
   return out;
@@ -159,6 +212,9 @@ export function schedFromAnki(c: AnkiCardInfo, collectionCreated: number | undef
 
 export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): ImportResult {
   const now = opts.now ?? new Date();
+  const deckParams = data.deckConfigs
+    ? deckParamsFromConfigs(data.deckConfigs, data.collectionCreated)
+    : data.fsrsParams?.presets ? deckParamsFromPresets(data.fsrsParams.presets) : undefined;
   const warnings: string[] = [];
   const notes = new Map<string, Note>();
   const cardsByNote = new Map<string, AnkiCardInfo[]>();
@@ -175,7 +231,8 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
     const fields: Record<string, string> = {};
     for (const [name, v] of Object.entries(n.fields)) fields[name] = typeof v === 'string' ? v : v.value;
     const ankiCards = cardsByNote.get(id) ?? [];
-    const deck = ankiCards[0]?.deckName ?? 'Imported';
+    // A note's deck is its first card's (lowest template ordinal); a card elsewhere keeps its own (`Card.deck`).
+    const deck = [...ankiCards].sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0))[0]?.deckName ?? 'Imported';
     const note: Note = { id, deck, model: n.modelName, fields, tags: n.tags ?? [] };
     notes.set(id, note);
 
@@ -197,7 +254,22 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
         continue;
       }
       target.sched = schedFromAnki(ac, data.collectionCreated, now);
+      if (ac.stepsLeft !== undefined) {
+        // ts-fsrs counts the step a learning card is on from the first (0); Anki counts the steps
+        // left, the current one included. Without the preset's steps, ts-fsrs's own (1m 10m, 10m).
+        const p = deckParams ? paramsForDeck(ac.deckName, deckParams) : undefined;
+        const steps = (target.sched.state === 3 ? p?.relearnSteps ?? [10] : p?.learnSteps ?? [1, 10]).length;
+        target.sched = { ...target.sched, learningSteps: Math.max(0, Math.min(steps - 1, steps - ac.stepsLeft)) };
+      }
       target.suspended = ac.queue === -1;
+      if (ac.deckName !== deck) target.deck = ac.deckName;
+      if (ac.filteredDeckName) target.filteredDeck = ac.filteredDeckName;
+      if (ac.filteredDue !== undefined) target.filteredDue = ac.filteredDue;
+      if (ac.previewDue !== undefined) target.previewDue = new Date(ac.previewDue * 1000).toISOString();
+      if (ac.mod !== undefined) target.ankiMod = ac.mod;
+      // A new card's `due` is its position in the new-card order.
+      const position = ac.position ?? ((ac.type ?? 0) === 0 ? ac.due : undefined);
+      if (position !== undefined) target.position = position;
       target.buriedAt = ac.buriedAt !== undefined ? new Date(ac.buriedAt * 1000).toISOString() : undefined;
       target.ankiId = String(ac.cardId);
     }
@@ -210,8 +282,5 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
   if (data.collectionCreated === undefined && data.cards?.some((c) => c.type !== 0 && (c.due ?? 0) < TIMESTAMP_DUE)) {
     warnings.push('collectionCreated missing: review cards were set due now instead of their real due dates');
   }
-  const deckParams = data.deckConfigs
-    ? deckParamsFromConfigs(data.deckConfigs)
-    : data.fsrsParams?.presets ? deckParamsFromPresets(data.fsrsParams.presets) : undefined;
-  return { notes: [...notes.values()], cards, warnings, deckParams, noteTypes: data.noteTypes };
+  return { notes: [...notes.values()], cards, warnings, deckParams, noteTypes: data.noteTypes, collectionSettings: data.collectionSettings };
 }

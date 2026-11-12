@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { DAY_STARTS_AT_HOUR } from '../core/config';
 import { studyDayStart } from '../core/day';
-import { isInDeck } from '../core/deckTree';
+import { cardHomeDeck, isInDeck } from '../core/deckTree';
 import { paramsForDeck } from '../core/scheduler';
 import { answersFrom, computeStats, durationText, MATURE_DAYS, percent, type Answer, type Rate } from '../core/stats';
 import type { Card, DeckParams, Note } from '../core/types';
@@ -25,19 +24,20 @@ const dayLabel = (d: Date) => d.toLocaleDateString(undefined, { weekday: 'short'
  */
 export function Stats({ repo }: { repo: Repo & AnkiLink }) {
   const c = useTheme();
-  const [data, setData] = useState<{ notes: Note[]; cards: Card[]; answers: Answer[]; params: Map<string, DeckParams>; now: Date }>();
+  const [data, setData] = useState<{ notes: Note[]; cards: Card[]; answers: Answer[]; params: Map<string, DeckParams>; now: Date; dayStartsAtHour: number }>();
   const [scope, setScope] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       const now = new Date();
+      const { dayStartsAtHour } = await repo.collectionSettings();
       // A day before the first one shown, so a card first answered then isn't counted new today.
-      const since = studyDayStart(now, DAY_STARTS_AT_HOUR);
+      const since = studyDayStart(now, dayStartsAtHour);
       since.setDate(since.getDate() - DAYS);
       const [notes, cards, reviews, revlog, params] = await Promise.all([
         repo.listNotes(), repo.listCards(), repo.listReviews(since), repo.ankiReviewLog(since), repo.listDeckParams(),
       ]);
-      setData({ notes, cards, answers: answersFrom({ revlog, reviews, cards }), params, now });
+      setData({ notes, cards, answers: answersFrom({ revlog, reviews, cards }), params, now, dayStartsAtHour });
     })();
   }, [repo]);
 
@@ -46,10 +46,10 @@ export function Stats({ repo }: { repo: Repo & AnkiLink }) {
   const stats = useMemo(() => {
     if (!data) return undefined;
     const deckOf = new Map(data.notes.map((n) => [n.id, n.deck]));
-    const cards = scope === null ? data.cards : data.cards.filter((card) => isInDeck(deckOf.get(card.noteId) ?? '', scope));
+    const cards = scope === null ? data.cards : data.cards.filter((card) => isInDeck(cardHomeDeck(card, deckOf.get(card.noteId) ?? ''), scope));
     const ids = new Set(cards.map((card) => card.id));
     const answers = scope === null ? data.answers : data.answers.filter((a) => ids.has(a.cardId));
-    return computeStats({ cards, answers, now: data.now, dayStartsAtHour: DAY_STARTS_AT_HOUR, days: DAYS });
+    return computeStats({ cards, answers, now: data.now, dayStartsAtHour: data.dayStartsAtHour, days: DAYS });
   }, [data, scope]);
 
   const target = scope !== null && data ? paramsForDeck(scope, data.params)?.desiredRetention : undefined;

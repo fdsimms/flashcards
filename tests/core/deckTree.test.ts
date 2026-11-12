@@ -60,15 +60,18 @@ describe('treeQueue', () => {
     ));
     expect(q.fresh).toHaveLength(2);
   });
-  it("counts a subdeck's answers today against its parent's limits", () => {
+  it("counts a subdeck's answers today against its parent's limits, new ones against the review limit too", () => {
     const studied = new Map([['Polski::Odmiana', { introduced: 1, reviewed: 2 }]]);
-    const q = treeQueue('Polski', input(
-      { Polski: newCards(3), 'Polski::Odmiana': reviewCards(3, 10) },
-      { Polski: { newPerDay: 2, reviewsPerDay: 3 } },
-      studied,
-    ));
-    expect(q.fresh).toHaveLength(1);
-    expect(q.due).toHaveLength(1);
+    const build = (newCardsIgnoreReviewLimit: boolean) => treeQueue('Polski', {
+      ...input({ Polski: newCards(3), 'Polski::Odmiana': reviewCards(3, 10) }, { Polski: { newPerDay: 2, reviewsPerDay: 3 } }, studied),
+      newCardsIgnoreReviewLimit,
+    });
+    // As in Anki: 3 reviews less 2 reviewed and 1 new card studied leaves no review room, which caps new cards too.
+    expect(build(false).due).toHaveLength(0);
+    expect(build(false).fresh).toHaveLength(0);
+    // With "new cards ignore review limit": 1 review left, and 1 new.
+    expect(build(true).due).toHaveLength(1);
+    expect(build(true).fresh).toHaveLength(1);
   });
   it('mixes due cards from every subdeck, most overdue first', () => {
     const early = reviewCards(1, 1);
@@ -87,7 +90,8 @@ describe('treeQueue limits and learn-ahead', () => {
       { D: { newPerDay: 0, reviewsPerDay: 3 } },
       new Map([['D', { introduced: 0, reviewed: 1 }]]),
     ));
-    expect(q.due.map((c) => c.id)).toEqual([reviews[0].id, reviews[1].id, learning.id]);
+    // A learning card due now comes first, as in Anki; it uses none of the review limit.
+    expect(q.due.map((c) => c.id)).toEqual([learning.id, reviews[0].id, reviews[1].id]);
   });
   it('shows a learning card up to the learn-ahead limit early, once nothing else is left', () => {
     const soon = newCards(1).map((c) => ({ ...c, sched: { ...c.sched, state: 1, due: new Date(2026, 10, 11, 12, 5).toISOString() } }));
@@ -95,11 +99,19 @@ describe('treeQueue limits and learn-ahead', () => {
     expect(treeQueue('D', input({ D: [...soon, ...later] })).due).toHaveLength(0);
     expect(treeQueue('D', { ...input({ 'D::x': [...soon, ...later] }), learnAheadMinutes: 20 }).due.map((c) => c.id)).toEqual([soon[0].id]);
   });
+  it("doesn't learn ahead to a card Anki buried today", () => {
+    const soon = newCards(1).map((c) => ({
+      ...c, buriedAt: new Date(2026, 10, 11, 9, 0).toISOString(), sched: { ...c.sched, state: 1, due: new Date(2026, 10, 11, 12, 5).toISOString() },
+    }));
+    expect(treeQueue('D', { ...input({ D: soon }), learnAheadMinutes: 20 }).due).toHaveLength(0);
+  });
   it('does not learn ahead while new cards are still waiting', () => {
     const soon = newCards(1).map((c) => ({ ...c, sched: { ...c.sched, state: 1, due: new Date(2026, 10, 11, 12, 5).toISOString() } }));
-    const q = treeQueue('D', { ...input({ D: [...soon, ...newCards(1)] }), learnAheadMinutes: 20 });
-    expect(q.due).toHaveLength(0);
-    expect(q.fresh).toHaveLength(1);
+    const fresh = newCards(1);
+    const q = treeQueue('D', { ...input({ D: [...soon, ...fresh] }), learnAheadMinutes: 20 });
+    // Counted, as Anki counts it, but shown only once the new card is done.
+    expect(q.due).toHaveLength(1);
+    expect(q.order.map((c) => c.id)).toEqual([fresh[0].id, soon[0].id]);
   });
 });
 
@@ -145,6 +157,63 @@ describe('deckRows', () => {
       ['Languages::Polski', 1, 0, 1],
       ['Languages::Thai', 0, 2, 2],
     ]);
+  });
+});
+
+describe("Anki's v3 limits and gathering", () => {
+  const day = (d: number, h = 9) => new Date(2026, 10, d, h).toISOString();
+  /** A learning card on a day-long step: answered on the 10th, due on the 11th (NOW's day). */
+  const interday = (count: number) => newCards(count).map((c) => ({ ...c, sched: { ...c.sched, state: 1, due: day(11), lastReview: day(10) } }));
+
+  it('lets day-long learning cards use up the review limit, before reviews', () => {
+    const learning = interday(3);
+    const q = treeQueue('D', input({ D: [...learning, ...reviewCards(3, 10)] }, { D: { newPerDay: 0, reviewsPerDay: 2 } }));
+    // Two of the three (the same day, so Anki's shuffle picks which), and no reviews.
+    expect(q.due).toHaveLength(2);
+    expect(q.due.every((c) => learning.some((l) => l.id === c.id))).toBe(true);
+  });
+
+  it("applies the parents' limits to a subdeck only with 'apply all parent limits' on", () => {
+    const limits = { Polski: { newPerDay: 0, reviewsPerDay: 100 }, 'Polski::Odmiana': { newPerDay: 5, reviewsPerDay: 100 } };
+    const cards = { 'Polski::Odmiana': newCards(3) };
+    expect(treeQueue('Polski::Odmiana', input(cards, limits)).fresh).toHaveLength(3);
+    expect(treeQueue('Polski::Odmiana', { ...input(cards, limits), applyAllParentLimits: true }).fresh).toHaveLength(0);
+    expect(treeQueue('Polski', input(cards, limits)).fresh).toHaveLength(0);
+  });
+
+  it("uses a today-only limit on its own day, and the deck's usual limit on any other", () => {
+    const params = { weights: [], desiredRetention: 0.9, maxInterval: 36500, newPerDay: 1, newLimitToday: { limit: 4, day: '2026-11-11' } };
+    expect(deckLimits(params, { newPerDay: 20, reviewsPerDay: 200 }, '2026-11-11').newPerDay).toBe(4);
+    expect(deckLimits(params, { newPerDay: 20, reviewsPerDay: 200 }, '2026-11-12').newPerDay).toBe(1);
+  });
+
+  it('studies a filtered deck without limits, and leaves its cards out of their home deck', () => {
+    const borrowed = reviewCards(4, 10);
+    const cards = { Cram: borrowed, Thai: reviewCards(1, 10) };
+    const filtered = { weights: [], desiredRetention: 0.9, maxInterval: 36500, filtered: { reschedule: true } };
+    const base = { ...input(cards, { Cram: { newPerDay: 0, reviewsPerDay: 0 } }), paramsFor: (d: string) => (d === 'Cram' ? filtered : undefined) };
+    expect(treeQueue('Cram', base).due).toHaveLength(4);
+    expect(treeQueue('Thai', base).due).toHaveLength(1);
+  });
+
+  it('shows a previewed card again when its delay is up, ahead of the rest of the preview deck', () => {
+    const preview = { weights: [], desiredRetention: 0.9, maxInterval: 36500, filtered: { reschedule: false } };
+    const [waiting, other] = reviewCards(2, 20).map((c, i) => ({ ...c, filteredDeck: 'Peek', filteredDue: -100000 + i }));
+    const at = (m: number) => new Date(NOW.getTime() + m * 60000).toISOString();
+    const q = (c: Card) => treeQueue('Peek', { ...input({ Peek: [c, other] }), paramsFor: () => preview });
+    // Every card in a preview deck is a review, due now whatever its own due date.
+    expect(q(waiting).order.map((c) => c.id)).toEqual([waiting.id, other.id]);
+    expect(q({ ...waiting, previewDue: at(-1) }).order.map((c) => c.id)).toEqual([waiting.id, other.id]);
+    expect(q({ ...waiting, previewDue: at(10) }).order.map((c) => c.id)).toEqual([other.id]);
+  });
+
+  it("holds back a sibling of a card gathered before it, by the sibling's preset", () => {
+    const [front] = newCards(1);
+    const back = { ...front, id: `${front.noteId}:reverse`, kind: 'reverse' as const };
+    const bury = { weights: [], desiredRetention: 0.9, maxInterval: 36500, bury: { new: true, reviews: true, interdayLearning: true } };
+    const q = (params?: typeof bury) => treeQueue('D', { ...input({ D: [front, back] }), paramsFor: () => params });
+    expect(q(bury).fresh.map((c) => c.id)).toEqual([front.id]);
+    expect(q(undefined).fresh).toHaveLength(2);
   });
 });
 
