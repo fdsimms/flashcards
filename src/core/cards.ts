@@ -1,3 +1,4 @@
+import { fieldSegments } from './highlight';
 import { htmlToText, isTruthyField, soundFiles } from './html';
 import { newSchedState } from './scheduler';
 import { templateOrdinals } from './template';
@@ -114,6 +115,16 @@ export function autoplayFor(card: RenderedCard, revealed: boolean): Playback | u
   return card.back.speak || file ? { text: card.back.speak, file } : undefined;
 }
 
+/** Omnilanguage's fields that hold one of the word's forms, with the label each is shown under. */
+const FORM_ROWS: [field: string, label: string][] = [
+  ['KeyForms', 'key forms'], ['Plural', 'plural'], ['Genitive', 'genitive'], ['Classifier', 'counting word'],
+  ['Auxiliary', 'auxiliary'], ['AspectPartner', 'aspect pair'],
+];
+
+/** The Gender field's one-letter values, as words for a chip. Any other value is shown as written. */
+const GENDER_WORDS: Record<string, string> = { m: 'masculine', f: 'feminine', n: 'neuter' };
+const RUSSIAN_PRONOUNS: Record<string, string> = { m: 'мой', f: 'моя', n: 'моё' };
+
 function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
   const speechLang = speechLangFor(note);
 
@@ -127,22 +138,31 @@ function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
 
   const detail = (): Block[] => {
     const b: Block[] = [];
-    const meta = [t(note, 'PartOfSpeech'), t(note, 'Gender'), t(note, 'Register')].filter(Boolean);
+    const gender = t(note, 'Gender');
+    const meta = [t(note, 'PartOfSpeech'), GENDER_WORDS[gender.toLowerCase()] ?? gender, t(note, 'Register'), t(note, 'Dialect'), t(note, 'VerbClass')]
+      .filter(Boolean);
     pushIf(b, meta.join(' · '), undefined, undefined, undefined, { role: 'chips', chips: meta });
+    // The word's other forms, as Anki's template shows them in pills and its key forms line.
+    const rows = FORM_ROWS.map(([field, label]) => ({ label, value: t(note, field) })).filter((r) => r.value);
+    pushIf(b, rows.map((r) => `${r.label}: ${r.value}`).join('\n'), 'Forms', undefined, undefined, { role: 'forms', rows });
     // The example sentence, its word highlighted. Anki's template wraps the romanization and the
     // translation in {{hint:...}}: a tap-to-show link, not text.
-    pushIf(b, t(note, 'Context'), undefined, undefined, undefined, { role: 'example', mark: entry });
-    pushIf(b, t(note, 'ContextRomanized'), undefined, undefined, 'Show romanization', { role: 'exampleRomanized', mark: translit });
+    pushIf(b, t(note, 'Context'), undefined, undefined, undefined, { role: 'example', segments: fieldSegments(note.fields.Context, entry) });
+    pushIf(b, t(note, 'ContextRomanized'), undefined, undefined, 'Show romanization', { role: 'exampleRomanized', segments: fieldSegments(note.fields.ContextRomanized, translit) });
     pushIf(b, t(note, 'ContextTranslation'), undefined, undefined, 'Show translation', { role: 'exampleTranslation' });
-    pushIf(b, t(note, 'KeyForms'), 'Forms');
+    pushIf(b, t(note, 'Hanzi'), speechLang?.startsWith('ja') ? 'Kanji' : 'Hanzi');
     pushIf(b, t(note, 'Notes'), 'Notes', undefined, undefined, { role: 'note' });
     pushIf(b, t(note, 'Etymology'), 'Etymology');
     pushIf(b, t(note, 'Mnemonic'), 'Mnemonic');
     return b;
   };
 
+  // Anki's template puts мой / моя / моё before a Russian noun wherever the word is shown.
+  const prefix = speechLang?.startsWith('ru') ? RUSSIAN_PRONOUNS[t(note, 'Gender').toLowerCase()] : undefined;
+  const pushEntry = (blocks: Block[]) => pushIf(blocks, entry, undefined, true, undefined, prefix ? { prefix } : undefined);
+
   if (kind === 'forward') {
-    pushIf(front, entry, undefined, true);
+    pushEntry(front);
     pushIf(front, t(note, 'LeechHint'), undefined);
     pushIf(back, translit, undefined, undefined, 'Show transliteration');
     pushIf(back, kana, undefined, undefined, 'Show reading');
@@ -154,7 +174,7 @@ function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
   if (kind === 'reverse') {
     pushIf(front, meaning, undefined, true);
     pushIf(front, t(note, 'LeechHint'), undefined);
-    pushIf(back, entry, undefined, true);
+    pushEntry(back);
     pushIf(back, translit, undefined, undefined, 'Show transliteration');
     pushIf(back, kana, undefined, undefined, 'Show reading');
     back.push(...detail());
@@ -163,7 +183,7 @@ function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
 
   // audio: hear it, recall the meaning
   front.push({ text: 'Listen', emphasis: true, icon: 'speaker.wave.2.fill' });
-  pushIf(back, entry, undefined, true);
+  pushEntry(back);
   pushIf(back, translit, undefined, undefined, 'Show transliteration');
   pushIf(back, kana, undefined, undefined, 'Show reading');
   pushIf(back, meaning, undefined, true);

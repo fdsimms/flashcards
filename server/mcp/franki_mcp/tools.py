@@ -198,6 +198,9 @@ reaches their devices at their next sync.
   "or", "-" (not) and parentheses. Read them in full with get_notes.
 - Before adding notes, check the note type's field names with list_note_types. add_notes refuses a
   duplicate first field unless allow_duplicates is true; tell the user about any it refused.
+- In an Omnilanguage note's Context sentence, put the word in bold as the sentence spells it
+  ("Die <b>Einstellungen</b> sind im Menü.", both parts of a split verb: "Er <b>warf</b> seinen
+  Mantel <b>ab</b>."). Franki highlights what's bold, and only searches for the Entry when nothing is.
 - Only change or delete notes the user asked about. delete_notes can't be undone here.
 - Studying: call study_next for a deck, show the user the question, and wait for their answer. Then
   show the answer (present_card with show_answer=true), suggest a rating (1 Again, 2 Hard, 3 Good,
