@@ -142,11 +142,21 @@ def _common(code: str, count: int) -> frozenset[str]:
     return frozenset(common_words(code)[:count])
 
 
+# Forms simplemma takes back to the wrong verb. It reads vengo and the present subjunctive of venir
+# as forms of vengar (to avenge), so "Ya vengo" showed up as a deck word glossed "to avenge".
+_LEMMA_FIXES: dict[str, dict[str, str]] = {
+    "es": {
+        w: "venir" for w in ("vengo", "venga", "vengas", "vengamos", "vengáis", "vengan", "vendría")
+    },
+}
+
+
 @cache
 def lemma(word: str, code: str) -> str:
     import simplemma  # loaded on first use; see the module docstring
 
-    return fold(str(simplemma.lemmatize(word, lang=code, low_memory=True)), code)
+    fixed = _LEMMA_FIXES.get(code, {}).get(fold(word, code))
+    return fixed or fold(str(simplemma.lemmatize(word, lang=code, low_memory=True)), code)
 
 
 def fold(word: str, code: str) -> str:

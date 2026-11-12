@@ -443,3 +443,10 @@ def test_the_engine_writes_with_the_chosen_common_count() -> None:
     )
     assert e._request("t", ENTRIES, Difficulty(), "es").common == 2000
     assert e._request("t", [], Difficulty(), "th").common == 0
+
+
+def test_vengo_is_venir_not_vengar() -> None:
+    # simplemma takes vengo to vengar (to avenge), so a deck with vengar made "Ya vengo" a deck word
+    lexicon = lexicon_from([Entry(8, "vengar", "to avenge", "mature")], "es")
+    assert lexicon.entry_of("vengo") is None
+    assert lexicon.entry_of("vengaré") == "vengar"
