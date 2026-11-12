@@ -365,7 +365,8 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   between paragraphs and nothing else, no per-line rows, dividers or buttons. Audio stays one file per line;
   the player bar's previous and next line buttons replace the per-line play button, the line being played is
   shaded inside the text, and Show English puts a paragraph's translation under it. Stories written before
-  this have no marks and keep the line-by-line view; nothing is rewritten.
+  this have no marks and keep the line-by-line view; nothing is rewritten. A "Paragraphs" switch in the reader
+  (on by default, kept in the reader's prefs) turns paragraph mode off for a story, giving the line-by-line view.
 - **Dialogue length** is a setting: 6, 8 or 12 lines (`lines` in `/api/settings`), applying from the
   next text written. Longer dialogues have more room for unknown words before missing the floor.
 - **The model chooses stretch words to fit the topic** (the default). It gets 15 due or young

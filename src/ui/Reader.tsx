@@ -37,7 +37,8 @@ import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './the
  *
  * A story written with paragraph marks reads as continuous text (`paragraphs`): a gap between
  * paragraphs, no per-line rows or buttons, the playing line shaded, and previous/next line in the
- * player. English then comes only from Show English. Other texts keep a row per line.
+ * player. English then comes only from Show English. The Paragraphs switch (shown only for such a
+ * story, kept in prefs) turns it off for a row per line, as for every other text.
  *
  * Audio: one player is reused for every line. Play runs the text from the current line to the end
  * (`nextLine`); a line's replay button plays that line alone. Speed is the player's rate, with
@@ -73,6 +74,7 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
   const [lineEnglish, setLineEnglish] = useState<number[]>([]);
   const [listenOnly, setListenOnly] = useState(false);
   const [highlight, setHighlight] = useState(prefs().highlight);
+  const [paragraphMode, setParagraphMode] = useState(prefs().paragraphs);
   const [tapped, setTapped] = useState<Tapped | null>(null);
   const [ended, setEnded] = useState(false);
   const [rating, setRating] = useState<Rating | null>(null);
@@ -98,9 +100,11 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
   const [silentLine, setSilentLine] = useState<number | null>(null);
   const [repeat, setRepeat] = useState(false);
 
-  // A story's paragraphs (null for a dialogue, or a story written before paragraphs): read as
-  // continuous text, with no buttons of their own. Everything else is a row per line.
-  const paras = text ? paragraphs(text.lines) : null;
+  // A story's paragraphs (`marked` is null for a dialogue, or a story written before paragraphs):
+  // read as continuous text with no buttons of their own, while the Paragraphs switch is on.
+  // Everything else is a row per line.
+  const marked = text ? paragraphs(text.lines) : null;
+  const paras = paragraphMode ? marked : null;
 
   const scroller = useRef<ScrollViewInstance>(null);
   const lineBoxes = useRef<Box[]>([]);
@@ -280,6 +284,11 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
     if (start !== null) playLine(start, true);
   };
 
+  const turnOnParagraphs = (on: boolean) => {
+    savePrefs({ paragraphs: on });
+    setParagraphMode(on);
+  };
+
   const turnOnHighlight = (on: boolean) => {
     savePrefs({ highlight: on });
     setHighlight(on);
@@ -362,6 +371,11 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
                 <ToggleRow label="Show English">
                   <Switch value={english} onValueChange={setEnglish} trackColor={{ true: c.accent }} accessibilityLabel="Show English" />
                 </ToggleRow>
+                {marked ? (
+                  <ToggleRow label="Paragraphs">
+                    <Switch value={paragraphMode} onValueChange={turnOnParagraphs} trackColor={{ true: c.accent }} accessibilityLabel="Paragraphs" />
+                  </ToggleRow>
+                ) : null}
                 <ToggleRow label={language.highlightLabel}>
                   <Switch value={highlight} onValueChange={turnOnHighlight} trackColor={{ true: c.accent }} accessibilityLabel={language.highlightLabel} />
                 </ToggleRow>
