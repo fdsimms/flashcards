@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  answerQuestion, buildSession, canUndo, currentQuestion, questionMode, remaining, sessionProgress, shuffled, startStudy,
-  studyAnswer, studyFlush, studyUndo, type SessionItem,
+  answerQuestion, askLater, buildSession, canAskLater, canUndo, currentQuestion, questionMode, remaining, sessionProgress, shuffled, startStudy,
+  studyAnswer, studyAskLater, studyFlush, studyUndo, type SessionItem,
   sessionItems,
 } from '../../src/wanikani/session';
 import { parseAssignment, parseSubject } from '../../src/wanikani/subjects';
@@ -182,5 +182,51 @@ describe('undo', () => {
     expect(closed.send).toEqual([r.study.held]);
     expect(closed.study.held).toBeNull();
     expect(canUndo(closed.study)).toBe(false);
+  });
+});
+
+describe('asking later', () => {
+  const three = (n: number): SessionItem => ({ ...radical, assignmentId: n, subjectId: n });
+  const ids = (s: { queue: { assignmentId: number }[] }) => s.queue.map((q) => q.assignmentId);
+  // A session with its questions in the order given, since building one shuffles.
+  const inOrder = (items: SessionItem[], order: [number, 'meaning' | 'lesson'][]) => ({
+    ...buildSession(items, { mode: 'together' }, first),
+    queue: order.map(([assignmentId, kind]) => ({ assignmentId, kind })),
+  });
+
+  it('moves the question to the back of the reviews, counting nothing wrong', () => {
+    const s = inOrder([three(1), three(2), three(3)], [[1, 'meaning'], [2, 'meaning'], [3, 'meaning']]);
+    const later = askLater(s);
+    expect(ids(later)).toEqual([2, 3, 1]);
+    expect(later.progress).toEqual(s.progress);
+  });
+
+  it('keeps a review in front of the lessons, and a quiz question within its batch', () => {
+    const lessons = [10, 11, 12].map((n): SessionItem => ({ ...lesson, assignmentId: n, subjectId: n, asksReading: false }));
+    const items = [three(1), three(2), ...lessons];
+    const reviews = inOrder(items, [[1, 'meaning'], [2, 'meaning'], [10, 'lesson'], [11, 'lesson'], [10, 'meaning'], [11, 'meaning'], [12, 'lesson'], [12, 'meaning']]);
+    expect(ids(askLater(reviews))).toEqual([2, 1, 10, 11, 10, 11, 12, 12]);
+    const quiz = inOrder(items, [[10, 'meaning'], [11, 'meaning'], [12, 'lesson'], [12, 'meaning']]);
+    expect(askLater(quiz).queue.map((q) => `${q.kind}${q.assignmentId}`)).toEqual(['meaning11', 'meaning10', 'lesson12', 'meaning12']);
+  });
+
+  it('does nothing for a lesson being shown, or when nothing else is in the pile', () => {
+    const alone = inOrder([three(1)], [[1, 'meaning']]);
+    expect(canAskLater(alone)).toBe(false);
+    expect(askLater(alone)).toBe(alone);
+    const shown = inOrder([lesson, three(1)], [[3, 'lesson'], [1, 'meaning']]);
+    expect(canAskLater(shown)).toBe(false);
+    expect(askLater(shown)).toBe(shown);
+  });
+
+  it('is not an answer: the held outcome stays, and undo still goes back past it', () => {
+    let study = startStudy(inOrder([three(1), three(2), three(3)], [[1, 'meaning'], [2, 'meaning'], [3, 'meaning']]));
+    study = studyAnswer(study, true, at, first).study;
+    expect(study.held?.assignmentId).toBe(1);
+    const later = studyAskLater(study);
+    expect(later.held).toBe(study.held);
+    expect(later.history).toBe(study.history);
+    expect(ids(later.session)).toEqual([3, 2]);
+    expect(ids(studyUndo(later)!.session)).toEqual([1, 2, 3]);
   });
 });
