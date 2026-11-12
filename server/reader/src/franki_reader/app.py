@@ -3,6 +3,12 @@
 serves all of it under /reader (../../Caddyfile), so the app's address ends in /reader.
 
     GET   /api/check                  204 if the passphrase is right
+    GET   /api/status                 what's due in Anki now and whether a Read & Listen text is
+                                      waiting, for another app (dundundun). Opens with the
+                                      passphrase or STATUS_TOKEN, a key for this route alone:
+                                      {reviews, learning, learning_later: [{at, count}],
+                                      decks: [{name, reviews, learning}], day_ends_at,
+                                      read_and_listen: {language, name, waiting, last_read_at}}
     GET   /api/topics                 topics with their state and ready count; tops up in the background
     POST  /api/topics                 {name, favorite?} adds a topic (or returns the existing one)
     PATCH /api/topics/{id}            {favorite}
@@ -72,7 +78,7 @@ marked words, ideas) is in the current language, the `language` setting.
 
 import hmac
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 
 import anthropic
@@ -94,7 +100,7 @@ from franki_reader.explain import (
     claude_explain,
     claude_explain_phrase,
 )
-from franki_reader.gateway import with_timeout
+from franki_reader.gateway import AnkiUnavailable, ReadDue, due_with_timeout, with_timeout
 from franki_reader.generator import Ask, Form, claude_ask
 from franki_reader.languages import LANGUAGES, Code, CommonCount, VoiceSlot, with_deck
 from franki_reader.lexicon import Entry
@@ -254,17 +260,31 @@ def create_app(
     mnemonics: MakeMnemonics | None = None,
     explain: Explain | None = None,
     explain_phrase: ExplainPhrase | None = None,
+    status_token: str | None = None,
+    read_due: ReadDue | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
+
+    def given_key(authorization: str | None) -> bytes:
+        # Header values arrive decoded as latin-1, so turn them back into the bytes that were sent
+        # before comparing with the passphrase's UTF-8 bytes; otherwise "pässword" never matches.
+        return (authorization or "").removeprefix("Bearer ").strip().encode("latin-1")
 
     def require_passphrase(authorization: Annotated[str | None, Header()] = None) -> None:
         if not passphrase:
             raise HTTPException(503, "The server has no passphrase set.")
-        given = (authorization or "").removeprefix("Bearer ").strip()
-        # Header values arrive decoded as latin-1, so turn them back into the bytes that were sent
-        # before comparing with the passphrase's UTF-8 bytes; otherwise "pässword" never matches.
-        if not hmac.compare_digest(given.encode("latin-1"), passphrase.encode()):
+        if not hmac.compare_digest(given_key(authorization), passphrase.encode()):
             raise HTTPException(401, "Wrong passphrase.")
+
+    def require_status_key(authorization: Annotated[str | None, Header()] = None) -> None:
+        keys = [k for k in (passphrase, status_token) if k]
+        if not keys:
+            raise HTTPException(503, "The server has no passphrase set.")
+        given = given_key(authorization)
+        # Both compared every time, so the answer's timing doesn't say which one was close.
+        matches = [hmac.compare_digest(given, k.encode()) for k in keys]
+        if not any(matches):
+            raise HTTPException(401, "Wrong passphrase or status key.")
 
     authed = [Depends(require_passphrase)]
 
@@ -275,6 +295,36 @@ def create_app(
     @app.get("/api/check", status_code=204, dependencies=authed)
     async def check() -> Response:
         return Response(status_code=204)
+
+    @app.get("/api/status", dependencies=[Depends(require_status_key)])
+    async def status() -> dict[str, Any]:
+        if read_due is None:
+            raise HTTPException(
+                503,
+                "The server can't read Anki: ANKI_SYNC_ENDPOINT, ANKI_USER and ANKI_PASSWORD "
+                "aren't all set.",
+            )
+        try:
+            due = await read_due()
+        except AnkiUnavailable as e:
+            raise HTTPException(503, f"Couldn't read Anki. {e}") from e
+        language = engine.language()
+        last_read = store.last_finished_reading(engine.conn, language)
+        return {
+            "reviews": due.reviews,
+            "learning": due.learning,
+            "learning_later": [{"at": instant(x.at), "count": x.count} for x in due.learning_later],
+            "decks": [
+                {"name": d.name, "reviews": d.reviews, "learning": d.learning} for d in due.decks
+            ],
+            "day_ends_at": instant(due.day_ends_at),
+            "read_and_listen": {
+                "language": language,
+                "name": LANGUAGES[language].name,
+                "waiting": store.ready_counts(engine.conn).get(language, 0),
+                "last_read_at": instant(last_read) if last_read else None,
+            },
+        }
 
     @app.get("/api/topics", dependencies=authed)
     async def topics(background: BackgroundTasks) -> list[dict[str, Any]]:
@@ -736,11 +786,11 @@ def create_app(
 
 
 def instant(at: datetime) -> str:
-    """A time the app reads, with the server's UTC offset. The server's clock and its stored times
-    are naive, in the server's own zone (UTC in its container); without the offset the app read
-    them as the phone's local time, hours off, so "today" and a date could land on the wrong day.
-    Every time in a response goes through this."""
-    return at.astimezone().isoformat()
+    """A time the app reads, with its UTC offset. The server's clock and its stored times are naive
+    UTC (`engine.utc_now`, whatever `TZ` says); without the offset the app read them as the phone's
+    local time, hours off, so "today" and a date could land on the wrong day. An aware time keeps
+    its own offset. Every time in a response goes through this."""
+    return (at if at.tzinfo else at.replace(tzinfo=UTC)).isoformat()
 
 
 def _seen(e: exposure.Exposure) -> dict[str, Any]:
@@ -889,11 +939,12 @@ def production_app() -> FastAPI:
         secrets.get("ANKI_USER"),
         secrets.get("ANKI_PASSWORD"),
     )
-    read_deck = (
-        with_timeout(AnkiDeck(settings.anki_dir, SyncSettings(endpoint, user, password)).read)
+    anki = (
+        AnkiDeck(settings.anki_dir, SyncSettings(endpoint, user, password))
         if endpoint and user and password
         else None
     )
+    read_deck = with_timeout(anki.read) if anki else None
     engine = Engine(
         conn,
         ask_for,
@@ -903,5 +954,12 @@ def production_app() -> FastAPI:
         voices=settings.voices,
     )
     return create_app(
-        engine, settings.secrets.get("APP_PASSPHRASE"), speech, mnemonics, explain, explain_phrase
+        engine,
+        settings.secrets.get("APP_PASSPHRASE"),
+        speech,
+        mnemonics,
+        explain,
+        explain_phrase,
+        status_token=settings.secrets.get("STATUS_TOKEN"),
+        read_due=due_with_timeout(anki.due) if anki else None,
     )

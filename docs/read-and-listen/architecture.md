@@ -136,6 +136,10 @@ Franki's (Client, below).
   need 2 GB; check `docker stats` after the first texts are written. simplemma has run in its
   low-memory form since 12 November 2026 (Languages), which should bring that down; the whole
   process hasn't been measured again.
+- **The time zone (`TZ` in `server/.env`) is Anki's.** Anki decides which study day it is from the
+  process's zone, so without it the day started at 4 AM UTC. The reader's own clock and every time
+  it stores stay naive UTC whatever `TZ` says (`engine.utc_now`), as they were when the container
+  ran in UTC, and `instant()` sends them as UTC.
 - **Always on**, so background work isn't cut off. A compose healthcheck reads `/health`; one that
   stops answering shows as unhealthy and `server/update.sh`, on its 15-minute timer, restarts it
   (Fly's own check did this before).
@@ -547,6 +551,25 @@ are listed at the top of `server/reader/src/franki_reader/app.py`.
   the app can show as is.
 - The production app is built by `uvicorn --factory franki_reader.app:production_app`, so importing the
   module opens no database.
+
+## Status
+
+`GET /api/status` (12 November 2026) is for another app, not Franki: dundundun's "Franki" task
+(fdsimms/flashcards#79). It says what's due in Anki now and whether a Read & Listen text is waiting
+in the current language, with when one was last read to the end. Nothing else leaves the server.
+
+- **Its own key.** It opens with the passphrase or with `STATUS_TOKEN` (`READER_STATUS_TOKEN` in
+  `server/.env`), a key that opens this route and nothing else, so the other app never holds the
+  passphrase that writes texts and spends on Claude and Azure.
+- **Anki's own counts** (`status.py`): it syncs, then reads `deck_due_tree`, the numbers Anki's deck
+  list shows, review limits included, never a lookalike of the queue. Every deck with something due
+  is listed by its full name, and the totals are the top-level decks'. Learning cards coming due
+  later in the study day are listed by when, so the other app can place a task ahead without asking
+  again. **New cards are left out**: Franki's progress gate is Franki's own, so Anki's new count can
+  differ from the one Franki shows. Reviews and learning cards count the same in both.
+- **It only reads**, under the same lock and the same 45-second limit as the lexicon
+  (`due_with_timeout`), and a read leaves nothing to send (`tests/test_collection.py`). It writes no
+  texts: a shelf that's empty says `waiting: 0`.
 
 ## Audio
 

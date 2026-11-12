@@ -1,7 +1,7 @@
 import random
 import time
 from collections.abc import Iterator
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +12,8 @@ from scripted import BAD, ENTRIES, IN_RANGE, ScriptedModel
 from franki_reader import store
 from franki_reader.app import create_app
 from franki_reader.engine import SHELF_SIZE, Engine
+from franki_reader.gateway import AnkiUnavailable
+from franki_reader.status import DeckDue, DueStatus, LearningLater
 from franki_reader.store import Settings
 
 NOW = datetime(2026, 10, 19, 9, 0)
@@ -827,14 +829,18 @@ def test_a_story_is_started_and_its_episodes_are_listed_once_read() -> None:
     assert [(t["topic"], t["episode"]) for t in past] == [("Noi's stall", 1)]
 
 
-def test_a_time_sent_to_the_app_carries_the_servers_offset(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_time_sent_to_the_app_is_utc_whatever_the_servers_zone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from franki_reader.app import instant
+    from franki_reader.engine import utc_now
 
-    # The server's clock is naive, in its own zone; the app must be told which zone that is.
+    # The server's clock and stored times are naive UTC; TZ is there for Anki's study day alone.
     monkeypatch.setenv("TZ", "Asia/Bangkok")
     time.tzset()
     try:
-        assert instant(NOW) == "2026-10-19T09:00:00+07:00"
+        assert instant(NOW) == "2026-10-19T09:00:00+00:00"
+        assert abs(utc_now() - datetime.now(UTC).replace(tzinfo=None)) < timedelta(seconds=5)
     finally:
         monkeypatch.undo()
         time.tzset()
@@ -844,3 +850,94 @@ def test_every_time_in_a_response_goes_through_instant() -> None:
     # A bare isoformat() sends a naive time, which the app reads as the phone's own zone.
     source = (Path(__file__).parent.parent / "src" / "franki_reader" / "app.py").read_text()
     assert source.count(".isoformat()") == 1, "send times with instant(), not .isoformat()"
+
+
+# ---- /api/status ----
+
+DUE = DueStatus(
+    reviews=42,
+    learning=3,
+    decks=[DeckDue("Polski", 30, 1), DeckDue("Thai", 12, 2)],
+    learning_later=[LearningLater(datetime(2026, 10, 19, 9, 30, tzinfo=UTC), 2)],
+    day_ends_at=datetime(2026, 10, 20, 4, 0, tzinfo=UTC),
+)
+STATUS_KEY = {"Authorization": "Bearer status only"}
+
+
+def status_client(read_due: Any = None, status_token: str | None = "status only") -> TestClient:
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, ENTRIES, NOW)
+    engine = Engine(conn, ScriptedModel(IN_RANGE).ask_for, None, lambda: NOW, random.Random(1))
+
+    async def due() -> DueStatus:
+        return DUE
+
+    return started(
+        create_app(engine, "open sesame", status_token=status_token, read_due=read_due or due)
+    )
+
+
+def test_status_says_whats_due_and_whether_a_text_is_waiting() -> None:
+    body = status_client().get("/api/status", headers=STATUS_KEY).json()
+    assert body == {
+        "reviews": 42,
+        "learning": 3,
+        "learning_later": [{"at": "2026-10-19T09:30:00+00:00", "count": 2}],
+        "decks": [
+            {"name": "Polski", "reviews": 30, "learning": 1},
+            {"name": "Thai", "reviews": 12, "learning": 2},
+        ],
+        "day_ends_at": "2026-10-20T04:00:00+00:00",
+        "read_and_listen": {"language": "th", "name": "Thai", "waiting": 0, "last_read_at": None},
+    }
+
+
+def test_status_counts_texts_waiting_and_the_last_one_read() -> None:
+    c = status_client()
+    topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
+    text = next_text(c, topic["id"]).json()
+    c.post(f"/api/texts/{text['id']}/reading", json={"finished": True}, headers=AUTH)
+    deadline = time.time() + 10
+    while c.get("/api/topics", headers=AUTH).json()[0]["ready"] == 0 and time.time() < deadline:
+        time.sleep(0.02)  # the next one is written in the background
+
+    reading = c.get("/api/status", headers=STATUS_KEY).json()["read_and_listen"]
+
+    assert reading["last_read_at"] == "2026-10-19T09:00:00+00:00"
+    assert reading["waiting"] >= 1
+
+
+def test_the_status_key_opens_status_and_nothing_else() -> None:
+    c = status_client()
+    assert c.get("/api/status", headers=STATUS_KEY).status_code == 200
+    assert c.get("/api/status", headers=AUTH).status_code == 200
+    assert c.get("/api/check", headers=STATUS_KEY).status_code == 401
+    assert c.get("/api/topics", headers=STATUS_KEY).status_code == 401
+    wrong = c.get("/api/status", headers={"Authorization": "Bearer nope"})
+    assert wrong.status_code == 401
+    assert wrong.json()["detail"] == "Wrong passphrase or status key."
+
+
+def test_without_a_status_key_status_still_opens_with_the_passphrase() -> None:
+    c = status_client(status_token=None)
+    assert c.get("/api/status", headers=AUTH).status_code == 200
+    assert c.get("/api/status", headers={"Authorization": "Bearer "}).status_code == 401
+
+
+def test_status_says_when_anki_cant_be_read() -> None:
+    async def down() -> DueStatus:
+        raise AnkiUnavailable("Couldn't sync with the Anki sync server: refused")
+
+    response = status_client(down).get("/api/status", headers=STATUS_KEY)
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "Couldn't read Anki. Couldn't sync with the Anki sync server: refused"
+    )
+
+
+def test_status_without_anki_set_up_says_what_is_missing() -> None:
+    conn = store.connect(":memory:")
+    c = started(create_app(Engine(conn, None, None, lambda: NOW), "open sesame"))
+    response = c.get("/api/status", headers=AUTH)
+    assert response.status_code == 503
+    assert "ANKI_SYNC_ENDPOINT" in response.json()["detail"]

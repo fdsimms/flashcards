@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,7 @@ from anki.utils import ids2str
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.languages import Language
 from franki_reader.lexicon import CardRow, Entry, NoteRow, build_entries
+from franki_reader.status import DueStatus, read_due
 
 log = logging.getLogger(__name__)
 
@@ -76,6 +78,15 @@ class AnkiDeck:
         with self._lock:
             self._sync()
             return read_entries(self.col, language)
+
+    async def due(self) -> DueStatus:
+        """Syncs, then reads what's due now (status.py). This is gateway.ReadDue."""
+        return await asyncio.to_thread(self._due)
+
+    def _due(self) -> DueStatus:
+        with self._lock:
+            self._sync()
+            return read_due(self.col, int(time.time()))
 
     # ---- sync ----
 

@@ -23,6 +23,8 @@ services:
     profiles: [mcp]
     restart: unless-stopped
     environment:
+      # Anki decides which study day it is from the time zone (see .env.example).
+      TZ: ${TZ:-UTC}
       MCP_PUBLIC_URL: "https://${DOMAIN}"
       MCP_PASSWORD: ${MCP_PASSWORD:-}
       ANKI_SYNC_ENDPOINT: "http://anki:8080/"
@@ -45,6 +47,8 @@ services:
     profiles: [reader]
     restart: unless-stopped
     environment:
+      # Anki decides which study day it is from the time zone (see .env.example).
+      TZ: ${TZ:-UTC}
       READER_DB_PATH: /data/reader.db
       READER_AUDIO_DIR: /data/audio
       READER_ANKI_DIR: /data/anki
@@ -52,6 +56,8 @@ services:
       ANKI_USER: ${ANKI_USER}
       ANKI_PASSWORD: ${ANKI_PASSWORD}
       APP_PASSPHRASE: ${READER_PASSPHRASE:-}
+      # A key for GET /reader/api/status alone (what's due), for dundundun.
+      STATUS_TOKEN: ${READER_STATUS_TOKEN:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
       AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}

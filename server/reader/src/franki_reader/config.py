@@ -17,6 +17,9 @@ SECRET_NAMES = (
     "ANKI_USER",
     "ANKI_PASSWORD",
     "APP_PASSPHRASE",
+    # A second key that opens only `GET /api/status` (what's due), for another app such as
+    # dundundun: it can't write texts or spend anything, unlike the passphrase.
+    "STATUS_TOKEN",
 )
 
 
