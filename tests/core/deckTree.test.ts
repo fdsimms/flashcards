@@ -158,6 +158,15 @@ describe('deckRows', () => {
       ['Languages::Thai', 0, 2, 2],
     ]);
   });
+  it('lists a deck with no cards when asked to, in its place among the rest', () => {
+    const rows = deckRows(input({ 'Languages::Thai': newCards(2) }), ['Languages::Polski', 'Empty']);
+    expect(rows.map((r) => [r.deck, r.due, r.fresh, r.total])).toEqual([
+      ['Empty', 0, 0, 0],
+      ['Languages', 0, 2, 2],
+      ['Languages::Polski', 0, 0, 0],
+      ['Languages::Thai', 0, 2, 2],
+    ]);
+  });
 });
 
 describe("Anki's v3 limits and gathering", () => {

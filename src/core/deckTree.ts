@@ -340,9 +340,12 @@ export function deckListTotals(rows: DeckRow[]): { due: number; fresh: number } 
   return { due, fresh };
 }
 
-/** The deck list: every deck, nested, with what studying it would show. */
-export function deckRows(input: TreeQueueInput): DeckRow[] {
-  return deckTree(input.cardsByDeck.keys()).map((node) => {
+/**
+ * The deck list: every deck, nested, with what studying it would show. `listed` adds decks that
+ * hold no cards (`listedDecks`): Anki lists an empty deck too.
+ */
+export function deckRows(input: TreeQueueInput, listed: Iterable<string> = []): DeckRow[] {
+  return deckTree([...input.cardsByDeck.keys(), ...listed]).map((node) => {
     const q = treeQueue(node.deck, input);
     let total = 0;
     for (const [deck, cards] of input.cardsByDeck) {
