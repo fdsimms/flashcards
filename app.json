@@ -29,6 +29,16 @@
       "expo-router",
       "expo-sharing",
       [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Prompt_300Light.ttf",
+            "./assets/fonts/Prompt_400Regular.ttf",
+            "./assets/fonts/Prompt_500Medium.ttf"
+          ]
+        }
+      ],
+      [
         "expo-audio",
         {
           "microphonePermission": false,
