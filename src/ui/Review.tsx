@@ -817,9 +817,6 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
           </Pressable>
         </SwipeCard>
       ) : null}
-      {swipeOn && revealed && rendered ? (
-        <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Swipe right for Good, left for Again</Text>
-      ) : null}
     </Screen>
     </View>
   );
