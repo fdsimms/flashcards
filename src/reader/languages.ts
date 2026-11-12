@@ -8,19 +8,20 @@ type LanguageInfo = {
   fontSize: number; // Thai sits bigger than Latin text at the same size
   lineHeight: number; // Thai needs room for marks above and below
   highlightLabel: string;
+  speech: string; // the phone voice's language for a tapped word, the same as Review reads these decks in
 };
 
 const SPACED = { fontSize: 20, lineHeight: 1.5, highlightLabel: 'Highlight words you might not know' };
 
 export const LANGUAGES: Record<Language, LanguageInfo> = {
-  th: { name: 'Thai', fontSize: 23, lineHeight: 1.75, highlightLabel: 'Highlight words not in your deck' },
-  es: { name: 'Spanish', ...SPACED },
-  de: { name: 'German', ...SPACED },
-  fr: { name: 'French', ...SPACED },
-  ru: { name: 'Russian', ...SPACED },
-  el: { name: 'Greek', ...SPACED },
-  pl: { name: 'Polish', ...SPACED },
-  nb: { name: 'Norwegian', ...SPACED },
+  th: { name: 'Thai', fontSize: 23, lineHeight: 1.75, highlightLabel: 'Highlight words not in your deck', speech: 'th-TH' },
+  es: { name: 'Spanish', ...SPACED, speech: 'es-MX' },
+  de: { name: 'German', ...SPACED, speech: 'de-DE' },
+  fr: { name: 'French', ...SPACED, speech: 'fr-FR' },
+  ru: { name: 'Russian', ...SPACED, speech: 'ru-RU' },
+  el: { name: 'Greek', ...SPACED, speech: 'el-GR' },
+  pl: { name: 'Polish', ...SPACED, speech: 'pl-PL' },
+  nb: { name: 'Norwegian', ...SPACED, speech: 'nb-NO' },
 };
 
 // Thai and Spanish came first; the rest are in alphabetical order.
