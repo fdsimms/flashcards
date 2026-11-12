@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, PanResponder, View, type GestureResponderEvent, type HostInstance, type ScrollViewInstance, type ViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { deckDropTarget, deckMove, type DeckDropTarget, type DeckMove, type RowSlot } from '../core/deckOrder';
+import { deckRowX } from './deckLayout';
 import { haptic } from './haptics';
-import { lift, radius, smooth, space, useTheme } from './theme';
+import { lift, radius, smooth, useTheme } from './theme';
 
 /**
  * Dragging a deck on the deck list to reorder, nest or unnest it: hold a row, then move it up or
@@ -117,8 +118,8 @@ export function useDeckDrag(opts: {
     cardY.setValue(dy);
     cardX.setValue(Math.max(-DEPTH_STEP * 2, Math.min(DEPTH_STEP * 2, dx)));
     const target = deckDropTarget(d.rows, d.deck, d.card.y + dy + d.card.height / 2, d.depth + dx / DEPTH_STEP);
-    // The line starts where a deck's name would at that depth (DeckRowView's indent).
-    lineX.setValue(d.card.x + space.l + target.depth * space.l);
+    // The line starts where a row would at that depth (the wells' indent, deckLayout.ts).
+    lineX.setValue(d.card.x + deckRowX(target.depth));
     lineY.setValue(target.lineY);
     if (d.target && (d.target.after !== target.after || d.target.depth !== target.depth)) haptic.select();
     d.target = target;
