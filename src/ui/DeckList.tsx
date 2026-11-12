@@ -1,11 +1,13 @@
 import { Stack } from 'expo-router';
-import React, { useMemo, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
 import { siblingStep, type DeckMove } from '../core/deckOrder';
 import { deckListTotals, isInDeck, shownDeckRows, type DeckRow } from '../core/deckTree';
 import { useDeckDrag } from './DeckDrag';
+import { DISCLOSURE, ROW_PAD, WELL_EDGE, WELL_INSET } from './deckLayout';
 import { haptic } from './haptics';
 import { Button, Card, Group, Icon, NavRow, Screen, SwipeToReveal, Tappable } from './kit';
+import { useReduceMotion } from './motion';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 type ShownRow = DeckRow & { hasSubdecks: boolean; collapsed: boolean };
@@ -18,6 +20,63 @@ function groupByTopLevel(rows: ShownRow[]): ShownRow[][] {
     else groups[groups.length - 1].push(r);
   }
   return groups;
+}
+
+/** The deck a deck is inside, or null for a top-level one. */
+const parentOf = (deck: string) => { const i = deck.lastIndexOf('::'); return i < 0 ? null : deck.slice(0, i); };
+
+/**
+ * For each level of well a row is inside (1 to its depth), whether it opens or closes that well:
+ * the first row after the parent, the last before the next row that isn't inside it.
+ */
+function wellEnds(group: ShownRow[], i: number): { first: boolean; last: boolean }[] {
+  return Array.from({ length: group[i].depth }, (_, k) => ({
+    first: i === 0 || group[i - 1].depth < k + 1,
+    last: i === group.length - 1 || group[i + 1].depth < k + 1,
+  }));
+}
+
+/**
+ * The tinted panels a subdeck sits in, inside its parent's card. A drag and the swipe measure each
+ * row on its own, so rows can't share one panel: each row draws its own slice of every panel it's
+ * in, rounding the corners where one opens or closes.
+ */
+function Wells({ ends, children }: { ends: { first: boolean; last: boolean }[]; children: React.ReactNode }) {
+  const c = useTheme();
+  let node = children;
+  // From the innermost out. Odd levels are tinted and even ones are the card's own color, so a well in a well reads.
+  for (let level = ends.length; level >= 1; level--) {
+    const { first, last } = ends[level - 1];
+    node = (
+      <View
+        style={{
+          marginLeft: WELL_INSET, marginRight: WELL_EDGE, marginBottom: last ? WELL_EDGE : 0, overflow: 'hidden', ...smooth,
+          backgroundColor: level % 2 === 1 ? c.fill : c.surface,
+          borderTopLeftRadius: first ? radius.m : 0, borderTopRightRadius: first ? radius.m : 0,
+          borderBottomLeftRadius: last ? radius.m : 0, borderBottomRightRadius: last ? radius.m : 0,
+        }}
+      >
+        {node}
+      </View>
+    );
+  }
+  return <>{node}</>;
+}
+
+/** The round button that shows or hides subdecks: its chevron turns a quarter when they're hidden. */
+function Disclosure({ open, fill, color }: { open: boolean; fill: string; color: string }) {
+  const reduce = useReduceMotion();
+  const turn = useRef(new Animated.Value(open ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.timing(turn, { toValue: open ? 1 : 0, duration: reduce ? 0 : 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [open, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <View style={{ width: DISCLOSURE, height: DISCLOSURE, borderRadius: DISCLOSURE / 2, backgroundColor: fill, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View style={{ transform: [{ rotate: turn.interpolate({ inputRange: [0, 1], outputRange: ['-90deg', '0deg'] }) }] }}>
+        <Icon name="chevron.down" size={12} color={color} weight="semibold" />
+      </Animated.View>
+    </View>
+  );
 }
 
 /** What's waiting across every deck, or that nothing is: the first thing the deck list says. */
@@ -68,9 +127,13 @@ function Stat({ value, label, color }: { value: number; label: string; color: st
   );
 }
 
-export function DeckRowView({ row, first, detail, menuHint = 'Add a note, rename, options or delete', onOpen, onMenu, onToggle, onLift, onStep }: {
+export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, menuHint = 'Add a note, rename, options or delete', onOpen, onMenu, onToggle, onLift, onStep }: {
   row: ShownRow;
   first: boolean;
+  /** Room for the show/hide button before the name, so a deck's name lines up with its siblings'. */
+  gutter?: boolean;
+  /** How many subdecks it has directly, said under the name while they're hidden. */
+  subdecks?: number;
   /** The line under the name in place of the card count (WaniKani's level), and its color. */
   detail?: { text: string; warning?: boolean };
   /** What the ⋯ menu offers, for VoiceOver. */
@@ -85,6 +148,9 @@ export function DeckRowView({ row, first, detail, menuHint = 'Add a note, rename
 }) {
   const c = useTheme();
   const atCap = row.gate && row.gate.inProgress >= row.gate.cap;
+  // What the row sits on is the card's own color at even depths and a well's tint at odd ones; the
+  // pressed state and the show/hide button take the other one, so they show.
+  const onWell = row.depth % 2 === 1 ? c.surface : c.fill;
   return (
     <Pressable
       onPress={onOpen}
@@ -95,20 +161,16 @@ export function DeckRowView({ row, first, detail, menuHint = 'Add a note, rename
       onAccessibilityAction={(e) => onStep?.(e.nativeEvent.actionName === 'moveUp' ? -1 : 1)}
       style={({ pressed }) => ({
         flexDirection: 'row', alignItems: 'center', gap: space.s,
-        minHeight: MIN_TAP + space.xl, paddingVertical: space.m, paddingRight: space.xs,
-        // A subdeck sits under its parent, indented, with a guide line down its left.
-        paddingLeft: space.l + row.depth * space.l,
-        backgroundColor: pressed ? c.fill : 'transparent',
+        minHeight: MIN_TAP + space.xl, paddingVertical: space.m, paddingRight: space.xs, paddingLeft: ROW_PAD,
+        backgroundColor: pressed ? onWell : 'transparent',
       })}
     >
-      {first ? null : <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: space.l + row.depth * space.l, right: 0, height: hairline, backgroundColor: c.border }} />}
-      {row.depth > 0 ? (
-        <View style={{ position: 'absolute', left: space.l + (row.depth - 1) * space.l + space.xs, top: 0, bottom: 0, width: 2, borderRadius: 1, backgroundColor: c.fill }} />
-      ) : null}
+      {first ? null : <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: space.l, right: 0, height: hairline, backgroundColor: c.border }} />}
+      {gutter ? <View style={{ width: DISCLOSURE }} /> : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{row.name}</Text>
         <Text style={{ ...type.footnote, color: detail?.warning ? c.warning : c.textSecondary }}>
-          {detail ? detail.text : `${row.total.toLocaleString()} ${row.total === 1 ? 'card' : 'cards'}`}
+          {detail ? detail.text : `${row.total.toLocaleString()} ${row.total === 1 ? 'card' : 'cards'}${row.collapsed && subdecks ? ` · ${subdecks} ${subdecks === 1 ? 'subdeck' : 'subdecks'}` : ''}`}
         </Text>
         {row.gate ? (
           // Under the cap, new cards come in; at it, they wait until cards are a week out.
@@ -129,21 +191,19 @@ export function DeckRowView({ row, first, detail, menuHint = 'Add a note, rename
         <Icon name="ellipsis" size={18} color={c.textTertiary} weight="semibold" />
       </Pressable>
       {row.hasSubdecks && onToggle ? (
-        // In the indent before the name, so a deck's name stays where it is whether or not it has subdecks.
-        // Last in the row: a later sibling is hit-tested first, so earlier it would hide the hit slop under the name.
+        // Over the gutter before the name. Last in the row: a later sibling is hit-tested first, so
+        // earlier it would hide the hit slop under the name.
         <Tappable
           onPress={() => { haptic.select(); onToggle(); }}
           accessibilityRole="button"
           accessibilityLabel={`${row.collapsed ? 'Show' : 'Hide'} the subdecks of ${row.name}`}
-          hitSlop={{ left: space.s, right: space.l }}
-          scaleTo={0.85}
-          dimTo={0.5}
-          style={{
-            position: 'absolute', left: row.depth * space.l, top: 0, bottom: 0, width: space.l + space.xs,
-            alignItems: 'center', justifyContent: 'center',
-          }}
+          accessibilityState={{ expanded: !row.collapsed }}
+          hitSlop={{ left: space.xs, right: space.s }}
+          scaleTo={0.9}
+          dimTo={0.6}
+          style={{ position: 'absolute', left: ROW_PAD, top: 0, bottom: 0, width: DISCLOSURE, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Icon name={row.collapsed ? 'chevron.right' : 'chevron.down'} size={11} color={c.textTertiary} weight="semibold" />
+          <Disclosure open={!row.collapsed} fill={onWell} color={c.textSecondary} />
         </Tappable>
       ) : null}
     </Pressable>
@@ -191,6 +251,18 @@ export function DeckList(props: {
   const shown = useMemo(() => shownDeckRows(props.decks, props.collapsed ?? new Set()), [props.decks, props.collapsed]);
   const groups = useMemo(() => groupByTopLevel(shown), [shown]);
   const allDecks = useMemo(() => props.decks.map((r) => r.deck), [props.decks]);
+  // How many subdecks each deck has directly, and which decks have a child that can be hidden: all
+  // of that deck's children keep a column before their names, so the names line up.
+  const subdeckCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of props.decks) { const p = parentOf(r.deck); if (p !== null) m.set(p, (m.get(p) ?? 0) + 1); }
+    return m;
+  }, [props.decks]);
+  const gutterParents = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of shown) if (r.hasSubdecks) { const p = parentOf(r.deck); if (p !== null) set.add(p); }
+    return set;
+  }, [shown]);
   // The deck whose row is slid open on its Options action; one at a time.
   const [openDeck, setOpenDeck] = useState<string | null>(null);
   // The pull-down spinner is for a pull-down only. Tied to every sync, the one at launch scrolled
@@ -289,6 +361,7 @@ export function DeckList(props: {
                 {g.map((row, i) => (
                   // Measured by a drag, and dimmed while it, or a deck it's inside, is being dragged.
                   <View key={row.deck} ref={drag.rowRef(row.deck)} collapsable={false} style={{ opacity: drag.dragging !== null && isInDeck(row.deck, drag.dragging) ? 0.35 : 1 }}>
+                    <Wells ends={wellEnds(g, i)}>
                     <SwipeToReveal
                       open={openDeck === row.deck}
                       onOpenChange={(open) => setOpenDeck(open ? row.deck : null)}
@@ -306,7 +379,9 @@ export function DeckList(props: {
                     >
                       <DeckRowView
                         row={row}
-                        first={i === 0}
+                        first={i === 0 || wellEnds(g, i)[row.depth - 1]?.first === true}
+                        gutter={!!props.onToggleCollapsed && (row.hasSubdecks || (parentOf(row.deck) !== null && gutterParents.has(parentOf(row.deck)!)))}
+                        subdecks={subdeckCounts.get(row.deck) ?? 0}
                         // Tapping a row that's slid open closes it, rather than opening the deck.
                         onOpen={() => (openDeck === row.deck ? setOpenDeck(null) : props.onOpen(row.deck))}
                         onMenu={() => props.onDeckMenu(row.deck)}
@@ -315,6 +390,7 @@ export function DeckList(props: {
                         onStep={(by) => step(row.deck, by)}
                       />
                     </SwipeToReveal>
+                    </Wells>
                   </View>
                 ))}
               </Group>
