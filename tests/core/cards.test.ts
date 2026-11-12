@@ -48,9 +48,45 @@ describe('cards', () => {
     const back = renderCard(note, 'forward').back.blocks;
     expect(back.map((b) => b.role)).toEqual([undefined, undefined, 'chips', 'example', 'exampleRomanized', 'exampleTranslation', 'note']);
     expect(back.find((b) => b.role === 'chips')?.chips).toEqual(['verb', 'neutral']);
-    expect(back.find((b) => b.role === 'example')).toMatchObject({ mark: 'ดม', label: undefined, tapLabel: undefined });
-    expect(back.find((b) => b.role === 'exampleRomanized')).toMatchObject({ mark: 'dom', tapLabel: 'Show romanization' });
+    expect(back.find((b) => b.role === 'example')).toMatchObject({ segments: [{ text: 'ขอ', marked: false }, { text: 'ดม', marked: true }, { text: 'ดอกไม้หน่อยครับ', marked: false }], label: undefined, tapLabel: undefined });
+    expect(back.find((b) => b.role === 'exampleRomanized')).toMatchObject({ tapLabel: 'Show romanization' });
+    expect(back.find((b) => b.role === 'exampleRomanized')?.segments?.find((s) => s.marked)?.text).toBe('dom');
     expect(back.find((b) => b.role === 'note')?.label).toBe('Notes');
+  });
+  it("lists the word's forms under the tags and before the example, as Anki's pills show them", () => {
+    const note = omniNote({
+      Entry: 'die Einstellung', Meaning: 'settings', Language: 'german', Gender: 'f', Register: 'neutral',
+      Plural: 'Einstellungen', Genitive: 'der Einstellung', Context: 'Die <b>Einstellungen</b> sind im Menü.', Transliteration: '',
+    });
+    const back = renderCard(note, 'forward').back.blocks;
+    expect(back.map((b) => b.role)).toEqual([undefined, 'chips', 'forms', 'example']);
+    expect(back.find((b) => b.role === 'chips')?.chips).toEqual(['feminine', 'neutral']);
+    expect(back.find((b) => b.role === 'forms')).toMatchObject({
+      label: 'Forms', rows: [{ label: 'plural', value: 'Einstellungen' }, { label: 'genitive', value: 'der Einstellung' }],
+    });
+    expect(back.find((b) => b.role === 'example')?.segments?.find((s) => s.marked)?.text).toBe('Einstellungen');
+  });
+  it('shows key forms, the counting word, the auxiliary and the aspect pair as forms, and verb class and dialect as tags', () => {
+    const rows = (over: Record<string, string>) => renderCard(omniNote(over), 'forward').back.blocks.find((b) => b.role === 'forms')?.rows;
+    expect(rows({ KeyForms: 'warf ab', Auxiliary: 'haben' })).toEqual([{ label: 'key forms', value: 'warf ab' }, { label: 'auxiliary', value: 'haben' }]);
+    expect(rows({ Classifier: 'คน' })).toEqual([{ label: 'counting word', value: 'คน' }]);
+    expect(rows({ AspectPartner: 'добиться' })).toEqual([{ label: 'aspect pair', value: 'добиться' }]);
+    const chips = renderCard(omniNote({ PartOfSpeech: 'verb', VerbClass: 'strong', Dialect: 'Isan', Gender: 'common' }), 'forward')
+      .back.blocks.find((b) => b.role === 'chips')?.chips;
+    expect(chips).toEqual(['verb', 'common', 'Isan', 'strong']);
+  });
+  it('labels the Hanzi field Kanji on a Japanese note', () => {
+    const block = (over: Record<string, string>) => renderCard(omniNote(over), 'forward').back.blocks.find((b) => b.text.startsWith('劇'));
+    expect(block({ Entry: '劇団', Language: 'japanese', Hanzi: '劇(ゲキ) drama' })?.label).toBe('Kanji');
+    expect(block({ Entry: '剧团', Language: 'mandarin', Hanzi: '劇 drama' })?.label).toBe('Hanzi');
+  });
+  it('puts мой / моя / моё before a Russian noun wherever the word is shown, but never speaks it', () => {
+    const note = omniNote({ Entry: 'кошка', Meaning: 'cat', Language: 'russian', Gender: 'f', Transliteration: '' });
+    const forward = renderCard(note, 'forward');
+    expect(forward.front.blocks[0]).toMatchObject({ text: 'кошка', prefix: 'моя' });
+    expect(forward.front.speak).toBe('кошка');
+    expect(renderCard(note, 'reverse').back.blocks[0]).toMatchObject({ text: 'кошка', prefix: 'моя' });
+    expect(renderCard({ ...note, fields: { ...note.fields, Language: 'polish' } }, 'forward').front.blocks[0].prefix).toBeUndefined();
   });
   it('leaves out tags and the example when the note has none', () => {
     const back = renderCard(omniNote({ Meaning: 'book' }), 'forward').back.blocks;

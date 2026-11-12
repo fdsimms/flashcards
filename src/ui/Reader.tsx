@@ -534,10 +534,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
         </>
       ) : undefined}
     >
-      {/* A ScrollView with the automatic inset, not a bare View: a bare one draws under the native
-          header, so the spinner and message sat behind the Back button and the screen looked blank. */}
+      {/* Centered in the whole screen frame, which runs under the native header. The automatic inset
+          would add the header's height on top of that centering and push the spinner below the middle. */}
       {!text ? (
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+        <ScrollView contentInsetAdjustmentBehavior="never" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
           {error ? (
             <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={load} /></View>
           ) : (
@@ -707,32 +707,33 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                     ))}
                   </View>
                 )}
+                {/* Under the words, above anything they reveal, so a button doesn't move when English or an explanation opens. */}
+                <View style={{ flexDirection: 'row', gap: space.xs, marginTop: space.xs }}>
+                  {line.audio ? (
+                    <RoundButton icon="play.fill" accessibilityLabel={`Play line ${i + 1}`} on onPress={() => playLine(i, false)} />
+                  ) : null}
+                  {!english && !listenOnly ? (
+                    <RoundButton
+                      label="EN"
+                      accessibilityLabel={lineEnglish.includes(i) ? `Hide English for line ${i + 1}` : `Show English for line ${i + 1}`}
+                      on={lineEnglish.includes(i)}
+                      onPress={() => toggleLineEnglish(i)}
+                    />
+                  ) : null}
+                  {!listenOnly ? (
+                    <RoundButton
+                      icon="sparkles"
+                      accessibilityLabel={explained.includes(i) ? `Hide explanation for line ${i + 1}` : `Explain line ${i + 1}`}
+                      on={explained.includes(i)}
+                      onPress={() => toggleExplained(i)}
+                    />
+                  ) : null}
+                </View>
                 {!listenOnly && (english || lineEnglish.includes(i)) ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: 2 }}>{line.english}</Text>
                 ) : null}
                 {!listenOnly && explained.includes(i) ? <LineExplanation api={api} textId={text.id} line={i} grammarChosen={grammarChosen} onGrammarChosen={chooseGrammar} onOpenGrammar={onOpenGrammar} /> : null}
                 {!listenOnly && phrase && phrase.end !== null && phrase.line === i ? phraseCard(phrase) : null}
-              </View>
-              <View style={{ gap: space.xs }}>
-                {line.audio ? (
-                  <RoundButton icon="play.fill" accessibilityLabel={`Play line ${i + 1}`} on onPress={() => playLine(i, false)} />
-                ) : null}
-                {!english && !listenOnly ? (
-                  <RoundButton
-                    label="EN"
-                    accessibilityLabel={lineEnglish.includes(i) ? `Hide English for line ${i + 1}` : `Show English for line ${i + 1}`}
-                    on={lineEnglish.includes(i)}
-                    onPress={() => toggleLineEnglish(i)}
-                  />
-                ) : null}
-                {!listenOnly ? (
-                  <RoundButton
-                    icon="sparkles"
-                    accessibilityLabel={explained.includes(i) ? `Hide explanation for line ${i + 1}` : `Explain line ${i + 1}`}
-                    on={explained.includes(i)}
-                    onPress={() => toggleExplained(i)}
-                  />
-                ) : null}
               </View>
             </View>
           ))}
@@ -1124,6 +1125,7 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
         }}
       >
         <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
+        {tapped.word.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {tapped.word.lemma}</Text> : null}
         <Text style={{ ...type.body, color: c.text }}>{tapped.word.gloss ?? 'No meaning available'}</Text>
         <View style={{ alignItems: 'flex-start' }}>
           <HeaderAction label="Play word" onPress={onPlay} />

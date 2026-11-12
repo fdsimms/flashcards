@@ -313,7 +313,9 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   stay natural; avoiding has no limit. The choices are stored together for every language and
   apply from the next text written (`GET /api/grammar`, `PUT /api/grammar/{id}`). Forms practice in
   the app reads every language's (`GET /api/grammar/choices`; docs/grammar.md, step 2). Each point has a
-  page (`GET /api/grammar/{id}`; docs/grammar.md, step 4), opened from its name here.
+  page (`GET /api/grammar/{id}`; docs/grammar.md, step 4), opened from its name here. Points set to
+  Practice or Know it are drilled from the Practice tab, with questions from texts read and ones
+  Claude writes ahead (`POST /api/drills`, `drills.py`; docs/grammar.md, step 5).
 - **Generate, then verify, as for coverage.** The request names the points to practice and avoid,
   and the server finds them in the draft. A practiced point used fewer than twice, or an avoided one
   used at all, sends the draft back with the words named ("Don't use the Preterite; this draft has:

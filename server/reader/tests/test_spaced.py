@@ -171,6 +171,7 @@ def test_a_spanish_text_renders_with_spaces_deck_flags_and_glosses_from_the_entr
         "text": "ojivas",
         "status": "known",
         "gloss": "warhead",
+        "lemma": "la ojiva",
         "translit": None,
         "stretch": True,
         "deck": True,
