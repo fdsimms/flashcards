@@ -79,7 +79,7 @@ export function Screen(props: {
   toolbar?: React.ReactNode;
   /** Pinned to the bottom, above the home indicator: the screen's main buttons. */
   footer?: React.ReactNode;
-  /** Turns off swiping the screen away, for a sheet with changes that would be lost. */
+  /** Turns off swiping the screen away: a sheet with changes that would be lost, or a screen with its own sideways swipe. */
   lockGesture?: boolean;
   children: React.ReactNode;
 }) {

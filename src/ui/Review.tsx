@@ -726,6 +726,8 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
     <Screen
       title={title}
       largeTitle={false}
+      // The stack's swipe-back would take a rightward drag before the card's own swipe sees it.
+      lockGesture={swipeOn && revealed && !page && !!rendered}
       toolbar={
         <Stack.Toolbar placement="right">
           {current.flag ? (
