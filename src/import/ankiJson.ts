@@ -189,7 +189,9 @@ export function ankiDueDate(c: AnkiCardInfo, collectionCreated: number | undefin
 /** Convert Anki's scheduling fields into an FSRS state. Prefers a real FSRS memory state when given. */
 export function schedFromAnki(c: AnkiCardInfo, collectionCreated: number | undefined, now: Date): SchedState {
   const type = c.type ?? 0;
-  if (type === 0) return newSchedState(now);
+  // A forgotten card is new again but keeps its review and lapse counts in Anki (unless they were
+  // reset); Anki's fuzz is seeded by reps and leeches count lapses, so they're kept here too.
+  if (type === 0) return { ...newSchedState(now), reps: c.reps ?? 0, lapses: c.lapses ?? 0 };
 
   // A learning card's interval is 0, or negative seconds in AnkiConnect; neither is a day count.
   const interval = Math.max(1, c.interval ?? 1);

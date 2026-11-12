@@ -13,6 +13,7 @@ import {
   CARD_ROW_SQL, CARD_STATE_SQL, CARD_STATE_UPDATE_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams,
 } from '../../../src/anki/writeback';
 import { ankiCollapsedDecks, setAnkiDeckCollapsed } from '../../../src/anki/deckWrites';
+import { addAnkiDeck, removeAnkiDeck, renameAnkiDeck } from '../../../src/anki/deckEdits';
 import { review } from '../../../src/core/scheduler';
 import type { Card } from '../../../src/core/types';
 import { importAnkiJson } from '../../../src/import/ankiJson';
@@ -128,6 +129,20 @@ function franki(server: AnkiServer, collated: boolean) {
         const moved = (await db.first<{ id: number }>("SELECT id FROM notes WHERE flds LIKE 'Capital of Chile?%'"))!.id;
         await moveAnkiNote(db, moved, (await ankiDeckId(db, '👅 Languages'))!, now);
         return { added: added.nid, grown: grown.nid, deleted: victim };
+      });
+    },
+    /** Makes, renames and deletes decks as the deck list does (deckEdits.ts): one with a note in it, and one Anki had. */
+    async editDecks() {
+      return withDb(async (db) => {
+        const now = new Date();
+        await addAnkiDeck(db, 'Made::Here::Deck', now);
+        await addAnkiDeck(db, 'Doomed', now);
+        const reversed = (await ankiNoteType(db, 'Basic (and reversed card)', ['Front', 'Back']))!;
+        const doomed = await addAnkiNote(db, { noteType: reversed, deckId: (await ankiDeckId(db, 'Doomed'))!, fields: { Front: 'gone', Back: 'soon' }, tags: [], ords: [0, 1], now });
+        await renameAnkiDeck(db, 'Made', 'Remade::Inner', now);
+        await removeAnkiDeck(db, 'Doomed', now);
+        await removeAnkiDeck(db, '🧠 Trivia', now);
+        return { doomedNote: doomed.nid };
       });
     },
     /** The rows sync-device.py's dump returns, read with Node's SQLite and Anki's collation. */
@@ -353,6 +368,24 @@ for (const collated of [true, false]) {
       const pulled = await me.pullMedia(r.mediaUsn);
       expect(pulled.downloaded).toBeGreaterThan(0);
       expect(me.mediaFile(name)).toBe('hello from anki');
+    });
+
+    it(collated
+      ? 'sends decks made, renamed and deleted in Franki, which Anki then has exactly'
+      : 'refuses to make a deck without the collation', async () => {
+      if (!collated) {
+        await expect(me.editDecks()).rejects.toThrow(/can't add a deck/);
+        return;
+      }
+      const { doomedNote } = await me.editDecks();
+      expect(await me.sync()).toMatchObject({ kind: 'synced', sent: 0 });
+      desktop.run('sync');
+      await expectSame();
+      const theirs = phone.run('dump').dump as Dump;
+      const names = theirs.decks.map((d) => String(d[1]).split('\x1f').join('::'));
+      expect(names).toEqual(expect.arrayContaining(['Remade', 'Remade::Inner', 'Remade::Inner::Here', 'Remade::Inner::Here::Deck']));
+      expect(names.filter((n) => /Made|Doomed|Trivia/.test(n))).toEqual([]);
+      expect(theirs.notes.map((n) => n[0])).not.toContain(doomedNote);
     });
   });
 }

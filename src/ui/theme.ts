@@ -38,6 +38,12 @@ const light = {
    * (lightness band, chroma floor, 3:1 against the surface) in each mode.
    */
   chart: '#9a7210',
+  /**
+   * A heatmap's shades, fewest to most (the Stats calendar); a day with none is `fill`. One gold
+   * ramp, stepped light to dark here and dark to light in dark mode, each step at 2:1 or more
+   * against the surface (checked with the dataviz skill's ordinal ramp validator).
+   */
+  heat: ['#d2ae52', '#b8922c', '#8f6a0e', '#5f4504'],
   /** A quiet accent fill: a chosen word, a practice word's chip, speaker A in Read & Listen. */
   accentFill: 'rgba(138, 109, 31, 0.13)',
   /** Speaker B's badge in Read & Listen, and the text on it. */
@@ -75,6 +81,7 @@ const dark: typeof light = {
   onRating: '#ffffff',
   onHard: '#ffffff',
   chart: '#b88d32',
+  heat: ['#614e20', '#87692a', '#b38f3e', '#e6c270'],
   accentFill: 'rgba(212, 180, 106, 0.18)',
   speakerB: '#22392f',
   onSpeakerB: '#9fd6bb',

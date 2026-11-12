@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { ActivityIndicator, AppState, View } from 'react-native';
 import { DAY_STARTS_AT_HOUR } from '../core/config';
 import { studyDayStart } from '../core/day';
+import { listedDecks } from '../core/deckNames';
 import { deckRows, queueInput, type DeckRow } from '../core/deckTree';
 import { studiedToday } from '../core/queue';
 import type { Note } from '../core/types';
@@ -89,14 +90,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const collection = await repo.collectionSettings();
     setDayStartsAtHour(collection.dayStartsAtHour);
     const dayStart = studyDayStart(now, collection.dayStartsAtHour);
-    const [notes, cards, allParams, reviews, revlog, lastBackup, settings] = await Promise.all([
+    const [notes, cards, allParams, reviews, revlog, lastBackup, settings, ankiDecks] = await Promise.all([
       repo.listNotes(), repo.listCards(), repo.listDeckParams(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
-      repo.lastBackupAt(), repo.listDeckSettings(),
+      repo.lastBackupAt(), repo.listDeckSettings(), repo.ankiDecks(),
     ]);
     // Every answer given today, here or in Anki on another device (synced), counts toward the limits.
     const studied = studiedToday({ notes, cards, reviews, revlog, now, dayStartsAtHour: collection.dayStartsAtHour });
     const held = await loadHeld(repo, { notes, cards, settings, now, dayStartsAtHour: collection.dayStartsAtHour });
-    setDecks(deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now, held })));
+    setDecks(deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now, held }), listedDecks(ankiDecks, settings)));
     setBackup(backupStatus(lastBackup, now, cards.length > 0));
     setAnkiUnsent((await repo.ankiStatus()).unsent);
     collapse.load();

@@ -1,4 +1,5 @@
 import { isInDeck } from '../core/deckTree';
+import { renamedDeck } from '../core/deckNames';
 import { parseAnswerButtons, type AnswerButtons } from '../core/answerButtons';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import type { PracticeRecord } from '../core/forms';
@@ -22,6 +23,15 @@ export interface Repo {
   /** Removes a note with its cards, their logged answers and its forms practice. */
   deleteNote(id: string): Promise<void>;
   getNote(id: string): Promise<Note | undefined>;
+  /** Removes notes with their cards, and cards of other notes, with their logged answers (a deleted deck's, `deckDeletion`). */
+  deleteNotesAndCards(noteIds: string[], cardIds: string[]): Promise<void>;
+  /**
+   * Renames a deck and every deck under it ("A" to "C" makes "A::B" "C::B"): in notes, in cards
+   * (their own deck and filtered deck), and the deck settings and Anki settings kept by name.
+   */
+  renameDeck(from: string, to: string): Promise<void>;
+  /** Drops the settings and Anki settings kept for a deck and every deck under it, once it's deleted. */
+  forgetDeck(deck: string): Promise<void>;
   /** Every card, or the cards of `deck` and all its subdecks. */
   listCards(deck?: string): Promise<Card[]>;
   saveCard(card: Card): Promise<void>;
@@ -108,6 +118,27 @@ export class MemoryRepo implements Repo {
     this.practice = this.practice.filter((p) => p.noteId !== id);
   }
   async getNote(id: string) { return this.notes.get(id); }
+  async deleteNotesAndCards(noteIds: string[], cardIds: string[]) {
+    for (const id of noteIds) await this.deleteNote(id);
+    const gone = new Set(cardIds);
+    for (const id of gone) this.cards.delete(id);
+    for (const [rid, r] of this.reviews) if (gone.has(r.cardId)) this.reviews.delete(rid);
+  }
+  async renameDeck(from: string, to: string) {
+    const rename = (d: string) => renamedDeck(d, from, to) ?? d;
+    for (const [id, n] of this.notes) this.notes.set(id, { ...n, deck: rename(n.deck) });
+    for (const [id, c] of this.cards) {
+      this.cards.set(id, { ...c, deck: c.deck === undefined ? undefined : rename(c.deck), filteredDeck: c.filteredDeck === undefined ? undefined : rename(c.filteredDeck) });
+    }
+    for (const map of [this.deckParams, this.deckSettings] as Map<string, unknown>[]) {
+      for (const [d, v] of [...map].filter(([d]) => isInDeck(d, from))) { map.delete(d); map.set(rename(d), v); }
+    }
+  }
+  async forgetDeck(deck: string) {
+    for (const map of [this.deckParams, this.deckSettings] as Map<string, unknown>[]) {
+      for (const d of [...map.keys()]) if (isInDeck(d, deck)) map.delete(d);
+    }
+  }
   async listCards(deck?: string) {
     const all = [...this.cards.values()];
     return deck ? all.filter((c) => isInDeck(this.notes.get(c.noteId)?.deck ?? '', deck)) : all;

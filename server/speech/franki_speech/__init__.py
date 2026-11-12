@@ -24,8 +24,13 @@ import httpx
 OUTPUT_FORMAT = "audio-24khz-48kbitrate-mono-mp3"
 TIMEOUT_SECONDS = 30.0
 LOCALE = re.compile(r"^([a-z]{2,3}-[A-Z]{2})-")
+# Thai has no commas or periods: a space after Thai text (or its ? or !) and before more Thai ends a
+# clause or sentence. Each becomes an explicit pause, since a voice may run straight through a bare
+# space. A space beside a Latin word ("OK ค่ะ") isn't a break and is left alone.
+THAI_PAUSE = "<break time='300ms'/>"
+_THAI_BREAK = re.compile(r"(?<=[\u0e00-\u0e7f?!])\s+(?=[\u0e00-\u0e7f])")
 
-__all__ = ["OUTPUT_FORMAT", "SpeechClient", "SpeechError", "locale_of", "ssml"]
+__all__ = ["OUTPUT_FORMAT", "THAI_PAUSE", "SpeechClient", "SpeechError", "locale_of", "ssml"]
 
 
 class SpeechError(Exception):
@@ -114,7 +119,11 @@ def locale_of(voice: str) -> str:
 
 def ssml(text: str, voice: str, rate: float = 1.0) -> str:
     pct = round((rate - 1) * 100)
+    locale = locale_of(voice)
+    body = escape(text)
+    if locale.startswith("th-"):
+        body = _THAI_BREAK.sub(THAI_PAUSE, body)
     return (
-        f"<speak version='1.0' xml:lang='{locale_of(voice)}'><voice name='{escape(voice)}'>"
-        f"<prosody rate='{pct:+d}%'>{escape(text)}</prosody></voice></speak>"
+        f"<speak version='1.0' xml:lang='{locale}'><voice name='{escape(voice)}'>"
+        f"<prosody rate='{pct:+d}%'>{body}</prosody></voice></speak>"
     )

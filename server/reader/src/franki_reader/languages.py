@@ -22,7 +22,7 @@ class Language:
     # another; `with_deck` makes the language with it.
     deck: str
     voices: dict[str, str] = field(default_factory=dict)  # speaker -> Azure voice
-    # Written with spaces between words. Thai isn't, so spaces the model adds there are dropped.
+    # Written with spaces between words. Thai isn't: its spaces mark clause breaks (coverage.parse_line).
     spaced: bool = False
     # Subdecks of the deck whose notes aren't vocabulary, by their name under it.
     skip: tuple[str, ...] = ()
