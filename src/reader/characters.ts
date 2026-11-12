@@ -154,9 +154,11 @@ const BODY_EXTRAS: Partial<Record<Extra, Shape[]>> = {
 };
 const HEAD_EXTRAS: Partial<Record<Extra, Shape[]>> = {
   glasses: [
-    { circle: [20.6, 21, 3], tone: 'hair', stroke: 1, head: true },
-    { circle: [27.4, 21, 3], tone: 'hair', stroke: 1, head: true },
-    { d: 'M23.6 21H24.4', tone: 'hair', stroke: 1, head: true },
+    // Square frames wider than the eyes, a bridge and arms back to the head's edge: round rings with
+    // a dot inside read as big eyes, not glasses.
+    { rect: [16.9, 18.2, 6.6, 5.6, 1.8], tone: 'hair', stroke: 1.3, head: true },
+    { rect: [24.5, 18.2, 6.6, 5.6, 1.8], tone: 'hair', stroke: 1.3, head: true },
+    { d: 'M23.5 20.4H24.5M16.9 20.2L15.6 19.8M31.1 20.2L32.4 19.8', tone: 'hair', stroke: 1.1, head: true },
   ],
   beard: [{
     d: 'M15.7 24C15.9 33 20 34.4 24 34.4C28 34.4 32.1 33 32.3 24C30.8 28 27.4 29.2 24 29.2C20.6 29.2 17.2 28 15.7 24Z',
@@ -206,8 +208,8 @@ export function drawCharacter(key: CharacterKey, gender: CharacterGender, varian
     { ellipse: [24, 22, 8.6, 9.6], tone: 'face', head: true },
     ...HAIR_FRONT[look.hair],
     ...look.extras.flatMap((e) => HEAD_EXTRAS[e] ?? []),
-    { circle: [20.6, 21, 1], tone: 'hair', head: true },
-    { circle: [27.4, 21, 1], tone: 'hair', head: true },
+    { circle: [20.4, 21, 0.9], tone: 'hair', head: true },
+    { circle: [27.6, 21, 0.9], tone: 'hair', head: true },
   ];
   return { shapes, headScale: look.kid ? 1.1 : 1 };
 }
