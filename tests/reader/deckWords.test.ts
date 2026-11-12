@@ -30,7 +30,7 @@ test('counts every occurrence across the lines', () => {
   expect(countOutsideDeck(text)).toBe(3);
 });
 
-test("a text under 95% is flagged as under the usual floor; one at 95% isn't", () => {
+test("a text under 90% is flagged as under the usual floor; one at 90% isn't", () => {
   const text = (coverage: number): ReaderText => ({
     id: 1,
     topicId: 1,
@@ -43,7 +43,8 @@ test("a text under 95% is flagged as under the usual floor; one at 95% isn't", (
     grammar: [],
     lines: [],
   });
-  expect(underFloor(text(0.923))).toBe(true);
+  expect(underFloor(text(0.87))).toBe(true);
+  expect(underFloor(text(0.9))).toBe(false);
   expect(underFloor(text(0.95))).toBe(false);
   expect(underFloor(text(1))).toBe(false);
 });

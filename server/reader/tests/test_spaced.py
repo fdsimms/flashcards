@@ -255,7 +255,7 @@ def test_a_rating_moves_the_difficulty_of_the_texts_language_only() -> None:
     text = asyncio.run(e.make_text(topic.id))
     assert text is not None
     e.record_reading(text.id, store.Reading("too_hard", True, (), (), None, False, 60))
-    assert store.load_difficulty(e.conn, "es").floor == 0.96
+    assert store.load_difficulty(e.conn, "es").floor == 0.93
     assert store.load_difficulty(e.conn, "th") == Difficulty()
     row = e.conn.execute("SELECT language FROM readings").fetchone()
     assert row[0] == "spanish"
