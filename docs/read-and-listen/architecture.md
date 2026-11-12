@@ -566,7 +566,7 @@ are listed at the top of `server/reader/src/franki_reader/app.py`.
   called through the client shared with the MCP (`server/speech`, `franki_speech`, since 12 November
   2026), whose docstring says which parts of the API were checked; the first real call is the check
   for the rest.
-- In Thai, each space between clauses becomes a 300 ms SSML `<break>` (`THAI_PAUSE` in
+- In Thai, each space between clauses becomes a 200 ms SSML `<break>` (`THAI_PAUSE` in
   `franki_speech`), since a voice may not pause at a bare space. It applies to the MCP's
   `add_tts_audio` too. Audio already cached keeps no pauses.
 - Each line is spoken once at normal speed and cached as an MP3 on the volume
