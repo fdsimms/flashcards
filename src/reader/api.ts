@@ -26,7 +26,8 @@ export type Word = {
   grammar: string | null; // the grammar point this word uses, if the text practices or avoids it
 };
 
-// Practice: used at least twice in each text. Avoid: kept out. Normal: neither.
+// Practice: used at least twice in each text. Avoid ("Don't know it" on screen): kept out.
+// Normal ("Know it" on screen): allowed, not asked for.
 export type GrammarState = 'practice' | 'avoid' | 'normal';
 
 export type GrammarPoint = { id: string; name: string; note: string; state: GrammarState };
