@@ -79,7 +79,39 @@ export function renderCard(note: Note, kind: CardKind): RenderedCard {
   if (!isOmnilanguage(note)) return renderGeneric(note);
   const card = renderOmnilanguage(note, kind);
   const audioFile = soundFiles(note.fields.Audio)[0];
-  return audioFile ? { ...card, audioFile } : card;
+  return audioFile ? { ...card, audioFile, audioSide: kind === 'audio' ? 'front' : 'back' } : card;
+}
+
+/** What to play for a card: its recording when allowed, and the text to speak when there isn't one. */
+export interface Playback {
+  text?: string;
+  file?: string;
+}
+
+/**
+ * What the Play button says for the side shown. A recording belongs to `audioSide` and, once the
+ * answer is shown, is free to replay from either side; before then it stays quiet on the other
+ * side, so a recording of the answer isn't played over the question.
+ */
+export function playbackFor(card: RenderedCard, revealed: boolean): Playback | undefined {
+  const text = revealed ? card.back.speak ?? card.front.speak : card.front.speak;
+  const file = card.audioFile && (revealed || card.audioSide === 'front') ? card.audioFile : undefined;
+  return text || file ? { text, file } : undefined;
+}
+
+/**
+ * What plays by itself when a card comes up (`revealed` false) or its answer is shown (true).
+ * Showing the answer plays only what's new there: the recording, or the word a reverse card asks for.
+ * A card with no recording speaks its front text with the phone's voice, as before.
+ */
+export function autoplayFor(card: RenderedCard, revealed: boolean): Playback | undefined {
+  if (!revealed) {
+    // A card with a recording that belongs to its back stays quiet until the answer, as in Anki.
+    if (card.audioFile && card.audioSide !== 'front') return undefined;
+    return card.front.speak || card.audioFile ? { text: card.front.speak, file: card.audioFile } : undefined;
+  }
+  const file = card.audioSide === 'back' ? card.audioFile : undefined;
+  return card.back.speak || file ? { text: card.back.speak, file } : undefined;
 }
 
 function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
