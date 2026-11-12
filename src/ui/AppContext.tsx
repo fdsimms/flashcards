@@ -13,6 +13,8 @@ import type { AnkiLink, SyncSettings } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { openRepo, type BackupStore } from '../db/sqliteRepo';
 import { useTheme } from './theme';
+import { boostFor } from '../core/priority';
+import { applyPriorityStamps } from '../db/priorityStamps';
 import { loadHeld } from './lookalikeHold';
 import { useCollapsedDecks, type CollapsedDecks } from './useCollapsedDecks';
 import { useReader, type ReaderState } from './useReader';
@@ -90,14 +92,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const collection = await repo.collectionSettings();
     setDayStartsAtHour(collection.dayStartsAtHour);
     const dayStart = studyDayStart(now, collection.dayStartsAtHour);
-    const [notes, cards, allParams, reviews, revlog, lastBackup, settings, ankiDecks] = await Promise.all([
+    const [notes, cards, allParams, reviews, revlog, lastBackup, savedSettings, ankiDecks] = await Promise.all([
       repo.listNotes(), repo.listCards(), repo.listDeckParams(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
       repo.lastBackupAt(), repo.listDeckSettings(), repo.ankiDecks(),
     ]);
     // Every answer given today, here or in Anki on another device (synced), counts toward the limits.
     const studied = studiedToday({ notes, cards, reviews, revlog, now, dayStartsAtHour: collection.dayStartsAtHour });
+    const settings = await applyPriorityStamps(repo, notes, savedSettings, now);
     const held = await loadHeld(repo, { notes, cards, settings, now, dayStartsAtHour: collection.dayStartsAtHour });
-    setDecks(deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now, held }), listedDecks(ankiDecks, settings), (d) => settings.get(d)?.position));
+    setDecks(deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now, held, boostFor: boostFor({ notes, settings, now }) }), listedDecks(ankiDecks, settings), (d) => settings.get(d)?.position));
     setBackup(backupStatus(lastBackup, now, cards.length > 0));
     setAnkiUnsent((await repo.ankiStatus()).unsent);
     collapse.load();
