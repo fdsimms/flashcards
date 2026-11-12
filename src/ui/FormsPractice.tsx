@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { drillPrompts, headword, PATTERN_PROMPTS, patternOf, practiceChoices, studiedWords, type DrillRequest, type PracticeRecord, type PracticeWord } from '../core/forms';
+import { drillPrompts, headword, PATTERN_PROMPT_LIMITS, patternOf, practiceChoices, studiedWords, type DrillRequest, type PracticeRecord, type PracticeWord } from '../core/forms';
 import type { Card as StoredCard, Note } from '../core/types';
 import type { Repo } from '../db/repo';
 import { Button, Card, Chip, Help, Screen, SectionTitle, Segments } from './kit';
@@ -22,14 +22,15 @@ export function FormsPractice({ repo, deck, onStart }: { repo: Repo; deck: strin
   const [patterns, setPatterns] = useState<string[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
   const [answering, setAnswering] = useState<Answering>('pick');
-  const [data, setData] = useState<{ notes: Note[]; cards: StoredCard[]; practice: PracticeRecord[]; dayStartsAtHour: number }>();
+  const [limit, setLimit] = useState<number>(PATTERN_PROMPT_LIMITS[0]);
+  const [data, setData] = useState<{ notes: Note[]; cards: StoredCard[]; practice: PracticeRecord[] }>();
 
   useEffect(() => {
     (async () => {
-      const [notes, cards, mode, practice, collection] = await Promise.all([
-        repo.listNotes(), repo.listCards(deck), repo.formsAnswerMode(), repo.listPractice(), repo.collectionSettings(),
+      const [notes, cards, mode, practice] = await Promise.all([
+        repo.listNotes(), repo.listCards(deck), repo.formsAnswerMode(), repo.listPractice(),
       ]);
-      setData({ notes, cards, practice, dayStartsAtHour: collection.dayStartsAtHour });
+      setData({ notes, cards, practice });
       const mine = studiedWords(deck, notes, cards);
       const choices = practiceChoices(mine);
       setWords(mine);
@@ -56,14 +57,14 @@ export function FormsPractice({ repo, deck, onStart }: { repo: Repo; deck: strin
 
   const start = () => {
     if (answering !== 'sentence') repo.saveFormsAnswerMode(answering);
-    onStart({ kind: 'pattern', deck, patterns, groups, sentence: answering === 'sentence' });
+    onStart({ kind: 'pattern', deck, patterns, groups, sentence: answering === 'sentence', limit: limit || undefined });
   };
 
   return (
     <Screen
       title="Practice forms"
       footer={words?.length ? (
-        <Button label={asked ? `Start: up to ${Math.min(asked, PATTERN_PROMPTS)} prompts` : 'Nothing to practice'} onPress={start} disabled={!asked} />
+        <Button label={asked ? `Start: up to ${limit ? Math.min(asked, limit) : asked} prompts` : 'Nothing to practice'} onPress={start} disabled={!asked} />
       ) : undefined}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.l }}>
@@ -87,6 +88,14 @@ export function FormsPractice({ repo, deck, onStart }: { repo: Repo; deck: strin
               />
               {answering === 'sentence' ? <Help>Asks only the forms that appear in a word's example sentence, typed into the gap.</Help> : null}
               {answering === 'sentence' && forms && !asked ? <Help>None of these words have an example sentence that contains one of these forms. Choose another way to answer.</Help> : null}
+            </View>
+            <View style={{ gap: space.s }}>
+              <SectionTitle>Prompts</SectionTitle>
+              <Segments<number>
+                options={PATTERN_PROMPT_LIMITS.map((n) => (n ? { value: n, label: String(n), accessibilityLabel: `${n} prompts` } : { value: 0, label: 'No limit', accessibilityLabel: 'No limit on prompts' }))}
+                value={limit}
+                onChange={setLimit}
+              />
             </View>
             <Card style={{ gap: space.s }}>
               <Text style={{ ...type.headline, color: c.text }}>

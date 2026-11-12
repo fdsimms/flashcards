@@ -153,8 +153,9 @@ describe('repo', () => {
     const note = omniNote();
     await repo.upsertNotesAndCards([note], makeCards(note, NOW));
     await repo.addPractice({ noteId: note.id, key: 'present · yo', correct: true, practicedAt: new Date(2026, 10, 11, 9).toISOString() });
-    await repo.addPractice({ noteId: note.id, key: 'present · tú', correct: false, practicedAt: new Date(2026, 10, 10, 9).toISOString() });
+    await repo.addPractice({ noteId: note.id, key: 'present · tú', correct: false, practicedAt: new Date(2026, 10, 10, 9).toISOString(), given: 'tu' });
     expect((await repo.listPractice()).map((p) => p.key)).toEqual(['present · tú', 'present · yo']);
+    expect((await repo.listPractice())[0].given).toBe('tu');
     expect((await repo.listPractice(new Date(2026, 10, 11))).map((p) => p.key)).toEqual(['present · yo']);
     await repo.deleteNote(note.id);
     expect(await repo.listPractice()).toEqual([]);

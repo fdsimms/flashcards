@@ -189,6 +189,8 @@ export interface PracticeRecord {
   correct: boolean;
   /** ISO. */
   practicedAt: string;
+  /** What was typed or picked. Absent on practice logged before it was kept. */
+  given?: string;
 }
 
 /** Keys missed in a note's latest practice (its latest study day with any), most recent first. */
@@ -203,6 +205,75 @@ function missedLastTime(history: PracticeRecord[], dayStartsAtHour: number): str
   return [...last.values()].filter((r) => !r.correct).sort((a, b) => b.practicedAt.localeCompare(a.practicedAt)).map((r) => r.key);
 }
 
+/** Right answers in a row that put a missed form right again. A pick is one in three by luck, so one isn't enough. */
+export const FORM_CLEARED_AFTER = 2;
+/** The most a form can owe, so a run of misses doesn't take forever to clear. */
+const MAX_OWED = 6;
+
+/**
+ * Forms still owed a run of right answers, with how many: each miss adds FORM_CLEARED_AFTER, each
+ * right answer takes one off. A miss stays until it's put right, however long ago it was.
+ */
+export function weakForms(history: PracticeRecord[]): Map<string, number> {
+  const owed = new Map<string, number>();
+  for (const r of [...history].sort((a, b) => a.practicedAt.localeCompare(b.practicedAt))) {
+    const now = owed.get(r.key) ?? 0;
+    owed.set(r.key, r.correct ? Math.max(0, now - 1) : Math.min(MAX_OWED, now + FORM_CLEARED_AFTER));
+  }
+  for (const [k, n] of owed) if (!n) owed.delete(k);
+  return owed;
+}
+
+/** Misses of the same wrong answer for the same form before it's called a confusion, and how many words it takes. */
+export const CONFUSION_MISSES = 3;
+export const CONFUSION_WORDS = 2;
+
+export interface Confusion {
+  /** What the form's answer is ("ta"). */
+  expected: string;
+  /** What was answered instead ("ten"). */
+  given: string;
+  misses: number;
+  /** How many different words it happened on. */
+  words: number;
+  /** ISO: the latest miss. */
+  lastAt: string;
+}
+
+/**
+ * The same wrong answer given for the same right one across several words ("ten" for "ta"): a
+ * gap in the pattern, not in one word. Only practice that kept what was answered can show one.
+ */
+export function confusions(history: PracticeRecord[], words: PracticeWord[]): Confusion[] {
+  const expectedOf = new Map<string, string>();
+  for (const w of words) for (const f of w.forms) expectedOf.set(`${w.note.id}\u0000${f.key}`, f.answers[0]);
+  const found = new Map<string, Confusion & { notes: Set<string> }>();
+  for (const r of history) {
+    const expected = expectedOf.get(`${r.noteId}\u0000${r.key}`);
+    if (r.correct || !r.given || !expected || clean(r.given) === clean(expected)) continue;
+    const id = `${clean(expected)}\u0000${clean(r.given)}`;
+    const c = found.get(id) ?? { expected, given: r.given, misses: 0, words: 0, lastAt: r.practicedAt, notes: new Set<string>() };
+    c.misses++;
+    c.notes.add(r.noteId);
+    if (r.practicedAt > c.lastAt) c.lastAt = r.practicedAt;
+    found.set(id, c);
+  }
+  return [...found.values()]
+    .map(({ notes, ...c }) => ({ ...c, words: notes.size }))
+    .filter((c) => c.misses >= CONFUSION_MISSES && c.words >= CONFUSION_WORDS)
+    .sort((a, b) => b.misses - a.misses || b.lastAt.localeCompare(a.lastAt));
+}
+
+/** The right answers (cleaned) that practice keeps getting mixed up, for ranking forms whose answer is one of them. */
+export const confusedAnswers = (list: Confusion[]): Set<string> => new Set(list.map((c) => clean(c.expected)));
+
+/** Ask order: still owed a run of right answers, then a form whose answer is often confused, then never asked, then asked. */
+function askRank(f: WordForm, weak: Map<string, number>, asked: boolean, confused: Set<string>): number {
+  if (weak.has(f.key)) return 0;
+  if (confused.has(clean(f.answers[0]))) return 1;
+  return asked ? 3 : 2;
+}
+
 function shuffle<T>(xs: T[], random: () => number): T[] {
   const out = [...xs];
   for (let i = out.length - 1; i > 0; i--) {
@@ -213,16 +284,23 @@ function shuffle<T>(xs: T[], random: () => number): T[] {
 }
 
 /**
- * Which of a note's forms to ask, `count` at most: those missed last time first, then those never
- * asked, then the ones asked longest ago. Ties are shuffled.
+ * Which of a note's forms to ask, `count` at most: those still owed right answers (`weakForms`, the
+ * most owed first), then those whose answer is often confused, then those never asked, then the
+ * ones asked longest ago. Ties are shuffled.
  */
-export function chooseForms(forms: WordForm[], history: PracticeRecord[], count: number, dayStartsAtHour: number, random: () => number = Math.random): WordForm[] {
-  const missed = missedLastTime(history, dayStartsAtHour);
+export function chooseForms(
+  forms: WordForm[],
+  history: PracticeRecord[],
+  count: number,
+  random: () => number = Math.random,
+  confused: Set<string> = new Set(),
+): WordForm[] {
+  const weak = weakForms(history);
   const lastAsked = new Map<string, string>();
   for (const r of history) if ((lastAsked.get(r.key) ?? '') < r.practicedAt) lastAsked.set(r.key, r.practicedAt);
-  const rank = (f: WordForm) => (missed.includes(f.key) ? 0 : lastAsked.has(f.key) ? 2 : 1);
+  const rank = (f: WordForm) => askRank(f, weak, lastAsked.has(f.key), confused);
   return shuffle(forms, random)
-    .sort((a, b) => rank(a) - rank(b) || (lastAsked.get(a.key) ?? '').localeCompare(lastAsked.get(b.key) ?? ''))
+    .sort((a, b) => rank(a) - rank(b) || (weak.get(b.key) ?? 0) - (weak.get(a.key) ?? 0) || (lastAsked.get(a.key) ?? '').localeCompare(lastAsked.get(b.key) ?? ''))
     .slice(0, count);
 }
 
@@ -318,8 +396,8 @@ export function promptFor(
 /** Prompts in one practice of a word's forms, unless Deck options says otherwise. */
 export const DEFAULT_FORM_PROMPTS = 6;
 export const FORM_PROMPT_CHOICES = [4, 6, 8, 10] as const;
-/** Prompts in one practice of a pattern. */
-export const PATTERN_PROMPTS = 10;
+/** The caps offered for one practice of a pattern; 0 is no cap. */
+export const PATTERN_PROMPT_LIMITS = [10, 25, 0] as const;
 
 /** A deck's forms practice settings: its own, else its nearest ancestor's, else the defaults. */
 export function formsSettings(deck: string, all: Map<string, DeckSettings>): { suggest: boolean; prompts: number } {
@@ -408,10 +486,10 @@ export function wordPrompts(
   pool: PracticeWord[],
   history: PracticeRecord[],
   perWord: number,
-  dayStartsAtHour: number,
   random: () => number = Math.random,
+  confused: Set<string> = new Set(),
 ): FormPrompt[] {
-  const lists = notes.map((n) => chooseForms(formsOf(n).forms, history.filter((r) => r.noteId === n.id), perWord, dayStartsAtHour, random).map((f) => promptFor(n, f, pool, random)));
+  const lists = notes.map((n) => chooseForms(formsOf(n).forms, history.filter((r) => r.noteId === n.id), perWord, random, confused).map((f) => promptFor(n, f, pool, random)));
   const out: FormPrompt[] = [];
   for (let i = 0; lists.some((l) => i < l.length); i++) for (const l of lists) if (i < l.length) out.push(l[i]);
   return out;
@@ -465,32 +543,32 @@ export function practiceChoices(words: PracticeWord[]): { patterns: string[]; gr
 
 /**
  * Prompts for practicing patterns across words already studied: `count` of them, among the forms
- * in `groups`, missed forms first, never the same word twice in a row when there's a choice.
+ * in `groups`, forms still owed right answers first, never the same word twice in a row when there's a choice.
  */
 export function patternPrompts(
   words: PracticeWord[],
   choice: { patterns: string[]; groups: string[] },
   history: PracticeRecord[],
   count: number,
-  dayStartsAtHour: number,
   random: () => number = Math.random,
   /** Where wrong choices are taken from: every word with forms, not only these. */
   pool: PracticeWord[] = words,
+  confused: Set<string> = new Set(),
 ): FormPrompt[] {
   const chosen = words.filter((w) => choice.patterns.includes(patternOf(w.note)));
   const byNote = new Map<string, PracticeRecord[]>();
   for (const r of history) (byNote.get(r.noteId) ?? byNote.set(r.noteId, []).get(r.noteId)!).push(r);
-  const candidates: { word: PracticeWord; form: WordForm; rank: number }[] = [];
+  const candidates: { word: PracticeWord; form: WordForm; rank: number; owed: number }[] = [];
   for (const w of chosen) {
     const mine = byNote.get(w.note.id) ?? [];
-    const missed = missedLastTime(mine, dayStartsAtHour);
+    const weak = weakForms(mine);
     const asked = new Set(mine.map((r) => r.key));
     for (const f of w.forms) {
       if (!choice.groups.includes(f.group)) continue;
-      candidates.push({ word: w, form: f, rank: missed.includes(f.key) ? 0 : asked.has(f.key) ? 2 : 1 });
+      candidates.push({ word: w, form: f, rank: askRank(f, weak, asked.has(f.key), confused), owed: weak.get(f.key) ?? 0 });
     }
   }
-  const ordered = shuffle(candidates, random).sort((a, b) => a.rank - b.rank).slice(0, count);
+  const ordered = shuffle(candidates, random).sort((a, b) => a.rank - b.rank || b.owed - a.owed).slice(0, count);
   // Spread the words out: take the next candidate from a different word than the last one.
   const out: typeof ordered = [];
   const left = shuffle(ordered, random);
@@ -511,7 +589,7 @@ export function patternPrompts(
  */
 export type DrillRequest =
   | { kind: 'words'; noteIds: string[]; perWord: number }
-  | { kind: 'pattern'; deck: string; patterns: string[]; groups: string[]; sentence: boolean };
+  | { kind: 'pattern'; deck: string; patterns: string[]; groups: string[]; sentence: boolean; /** Most prompts to ask; absent means every one. */ limit?: number };
 
 /** Words in `deck` (and its subdecks) with forms, that have a card answered at least once. */
 export function studiedWords(deck: string, notes: Iterable<Note>, cards: Card[]): PracticeWord[] {
@@ -525,19 +603,22 @@ export function studiedWords(deck: string, notes: Iterable<Note>, cards: Card[])
  */
 export function drillPrompts(
   request: DrillRequest,
-  data: { notes: Note[]; cards: Card[]; practice: PracticeRecord[]; dayStartsAtHour: number },
+  data: { notes: Note[]; cards: Card[]; practice: PracticeRecord[] },
   random: () => number = Math.random,
 ): { prompts: FormPrompt[]; notice?: string } {
   const pool = practicePool(data.notes);
+  const confused = confusedAnswers(confusions(data.practice, pool));
   if (request.kind === 'words') {
     const byId = new Map(data.notes.map((n) => [n.id, n]));
     const targets = request.noteIds.map((id) => byId.get(id)).filter((n): n is Note => !!n);
-    return { prompts: wordPrompts(targets, pool, data.practice, request.perWord, data.dayStartsAtHour, random), notice: unreadableNotice(targets) };
+    return { prompts: wordPrompts(targets, pool, data.practice, request.perWord, random, confused), notice: unreadableNotice(targets) };
   }
   const words = studiedWords(request.deck, data.notes, data.cards);
   const choice = { patterns: request.patterns, groups: request.groups };
-  const all = patternPrompts(words, choice, data.practice, request.sentence ? Number.POSITIVE_INFINITY : PATTERN_PROMPTS, data.dayStartsAtHour, random, pool);
-  const prompts = request.sentence ? all.filter((p) => p.sentence).slice(0, PATTERN_PROMPTS) : all;
+  const limit = request.limit ?? Number.POSITIVE_INFINITY;
+  // "In a sentence" filters after choosing, so it picks from every form rather than the first few.
+  const all = patternPrompts(words, choice, data.practice, request.sentence ? Number.POSITIVE_INFINITY : limit, random, pool, confused);
+  const prompts = request.sentence ? all.filter((p) => p.sentence).slice(0, limit) : all;
   const chosen = words.filter((w) => choice.patterns.includes(patternOf(w.note))).map((w) => w.note);
   return { prompts, notice: unreadableNotice(chosen) };
 }

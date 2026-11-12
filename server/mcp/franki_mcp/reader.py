@@ -33,7 +33,9 @@ def register(server: MCPServer, settings: ReaderSettings | None, http: httpx.Asy
         3650), per language and in total: texts written, how many were read, are still waiting,
         were dropped (they missed the known-words floor and were never shown, but were paid
         for) or skipped (taken off the shelf unread), attempts per text, dollars in all, per text
-        written, and per text read (everything spent divided by the texts actually read). Azure's
+        written, and per text read (everything spent divided by the texts actually read), plus
+        `explanations`: how many line explanations were asked for and what they cost, apart from
+        the texts. Azure's
         audio isn't included: its cost isn't recorded per text."""
         if settings is None:
             raise ToolError(

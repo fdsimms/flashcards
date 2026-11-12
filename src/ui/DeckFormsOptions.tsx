@@ -27,6 +27,7 @@ export function DeckFormsOptions({ deck, all, onChange }: {
       <Group>
         <SwitchRow first label="Suggest forms practice" value={forms.suggest} onValueChange={(v) => onChange({ suggestForms: v })} />
         <NavRow label="Practice forms" detail="One pattern across the words you've studied" onPress={() => router.push({ pathname: '/forms-practice', params: { deck } })} />
+        <NavRow label="Practice history" detail="Forms you miss, and answers you mix up" onPress={() => router.push({ pathname: '/forms-history', params: { deck } })} />
       </Group>
       <Help>
         Suggested on a card's answer side only when there's a reason: a word new this week, one whose forms you missed last
