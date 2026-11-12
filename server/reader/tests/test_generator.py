@@ -310,9 +310,9 @@ NEAR = draft(*["ฉัน|อยาก|กิน|ครับ"] * 3, "ทอน"
 NEARER_MISS = draft(*["ฉัน|อยาก|กิน|ครับ"] * 2, "ฉัน|กิน", "ทอน")
 
 
-def test_when_every_attempt_misses_the_closest_one_over_90_is_kept() -> None:
+def test_when_every_attempt_misses_the_closest_one_over_the_minimum_is_kept() -> None:
     model = ScriptedModel(NEARER_MISS, NEAR, NEARER_MISS)
-    result = run(model, TextRequest("food"))
+    result = run(model, TextRequest("food", floor=0.95))
     assert result.passed
     assert not result.floor_met
     assert round(result.coverage.ratio, 3) == 0.923
@@ -334,3 +334,27 @@ def test_a_text_under_90_still_fails() -> None:
     # NEAR is 92.3%, under the 99% asked for but over 90%, so it's the one kept.
     assert result.passed and not result.floor_met
     assert not run(ScriptedModel(bad, bad, bad), TextRequest("food")).passed
+
+
+# 19 of 20 words known (95%): inside the range of a 92% target with its 96% ceiling.
+IN_BAND = draft(*["ฉัน|อยาก|กิน|ครับ"] * 4, "ฉัน|อยาก|กิน|ทอน")
+
+
+def test_a_draft_over_the_ceiling_is_too_easy_and_goes_back() -> None:
+    model = ScriptedModel(GOOD, IN_BAND)
+    result = run(model, TextRequest("food", floor=0.92, ceiling=0.96))
+    assert result.passed and result.attempts == 2
+    assert round(result.coverage.ratio, 2) == 0.95
+    assert "too easy" in model.sent[1][-1]["content"]
+    assert "between 92% and 96%" in model.sent[1][-1]["content"]
+
+
+def test_no_ceiling_leaves_an_easy_draft_alone() -> None:
+    assert run(ScriptedModel(GOOD), TextRequest("food")).attempts == 1
+
+
+def test_when_every_attempt_is_too_easy_the_text_is_still_kept() -> None:
+    model = ScriptedModel(GOOD, GOOD, GOOD)
+    result = run(model, TextRequest("food", (MANGO,), floor=0.92, ceiling=0.96))
+    assert result.passed and result.floor_met  # too easy is revised, never refused
+    assert result.attempts == MAX_ATTEMPTS

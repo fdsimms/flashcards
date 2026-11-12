@@ -6,7 +6,7 @@ The rules this enforces come from docs/read-and-listen/brief.md (design principl
 - 1-3 stretch words, each used 2-3 times; when the model chooses them from a longer list, at least
   one and no more than it was asked for
 - at most 3 attempts while a draft is under the floor; then the closest attempt is kept if it's at
-  least MINIMUM (90%), and only a text under that is returned as not passed, never shown
+  least MINIMUM (85%), and only a text under that is returned as not passed, never shown
 
 The revision loop is written against `Ask`, so it's tested without a key. `claude_ask` is the real
 call: the lexicon sits in a cached system prompt, and each revision is appended to the same
@@ -22,7 +22,8 @@ import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam, BetaTextBlockParam
 
 from franki_reader import grammar
-from franki_reader.coverage import FLOOR, MINIMUM, Checker, Coverage, check
+from franki_reader.coverage import MINIMUM, Checker, Coverage, check
+from franki_reader.difficulty import DEFAULT_FLOOR
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry
 
@@ -90,7 +91,9 @@ class TextRequest:
     # around "tiger" just because it's due.
     stretch: tuple[Entry, ...] = ()
     lines: int = 8
-    floor: float = FLOOR
+    floor: float = DEFAULT_FLOOR
+    # With a ceiling, a draft with more known words than this is too easy and goes back too.
+    ceiling: float | None = None
     choose: int | None = None
     form: Form = "dialogue"
     language: Code = "th"
@@ -177,11 +180,14 @@ They must be built almost entirely from words the learner already knows, which a
 Rules:
 - Use only words from the list. A word that appears only inside a longer list entry is not known \
 on its own: รับ is not known just because รับอะไรดี is. Every word outside the list makes the text \
-harder; the server measures this and sends back any text under the learner's coverage target.
+harder; the server measures this and sends back any text outside the learner's coverage target, \
+too hard or too easy.
 - Prefer entries marked M (well known) over Y (still being learned).
 - Before you answer, go through your draft word by word and check each one is on the list. Replace \
 any that isn't with a listed word or a simpler way of saying it. Getting this right first time \
 matters more than a clever text.
+- Write natural Thai, the way a Thai speaker would say it, never a word-for-word translation of an \
+English phrase or idiom. If an English idea has no plain Thai equivalent, say something else.
 - A dialogue is natural, everyday spoken Thai between two speakers, A and B. In "roles", say who \
 A and B are in this situation, in one to three English words each, like "Waiter" and "Customer".
 - A story is told by a narrator: every line's speaker is N, each line is one or two simple \
@@ -213,12 +219,14 @@ words as each request says, in all their forms.
 Rules:
 - Use the common words the request allows freely, along with words from the list, in any of their \
 forms. Every other word makes the text harder; the server measures this and sends back any text \
-under the learner's coverage target. When the request allows no common words, use only words from \
+outside the learner's coverage target, too hard or too easy. When the request allows no common words, use only words from \
 the list. A word that appears only inside a longer list phrase is not known on its own.
 - Prefer entries marked M (well known) over Y (still being learned).
 - Before you answer, go through your draft word by word and check each one is either an allowed \
 common word or on the list. Replace any that isn't with an allowed word or a simpler way of saying \
 it. Getting this right first time matters more than a clever text.
+- Write natural {name}, the way a native speaker would say it, never a word-for-word translation \
+of an English phrase or idiom. If an English idea has no plain {name} equivalent, say something else.
 - A dialogue is natural, everyday spoken {name} between two speakers, A and B. In "roles", say \
 who A and B are in this situation, in one to three English words each, like "Waiter" and \
 "Customer".
@@ -269,11 +277,15 @@ def request_message(request: TextRequest) -> str:
             if request.common
             else "Known words: only the list, in any of their forms. No common words this time."
         )
-    parts.append(
-        f"Coverage target: at least {request.floor:.0%} of words common or from the list."
-        if request.common
-        else f"Coverage target: at least {request.floor:.0%} of words from the list."
-    )
+    source = "common or from the list" if request.common else "from the list"
+    if request.ceiling is None:
+        parts.append(f"Coverage target: at least {request.floor:.0%} of words {source}.")
+    else:
+        parts.append(
+            f"Coverage target: between {request.floor:.0%} and {request.ceiling:.0%} of words "
+            f"{source}. A text with fewer unfamiliar words than that is too easy for the learner: "
+            "use natural words outside the list where the topic calls for them, and gloss each one."
+        )
     listed = "\n".join(f"- {e.text} ({e.meaning})" for e in request.stretch)
     if request.choose is not None:
         how_many = "1" if request.choose == 1 else f"1 to {request.choose}"
@@ -330,8 +342,24 @@ def grammar_problems(
     return problems, misses
 
 
-def revision_message(coverage: Coverage, problems: list[str], floor: float) -> str:
+def revision_message(
+    coverage: Coverage, problems: list[str], floor: float, ceiling: float | None = None
+) -> str:
     """`problems` are the stretch word and grammar problems, as sentences."""
+    if ceiling is not None and coverage.ratio > ceiling:
+        parts = [
+            (
+                f"This draft is {coverage.ratio:.1%} known words, which is too easy; the target is "
+                f"between {floor:.0%} and {ceiling:.0%}."
+            ),
+            *problems,
+            (
+                "Rewrite the whole text on the same topic with more natural words that aren't in the "
+                "list where the topic calls for them, and add a gloss for each. Return the full text "
+                "again in the same format."
+            ),
+        ]
+        return " ".join(parts)
     parts = [
         f"This draft is {coverage.ratio:.1%} known words; the target is at least {floor:.0%}."
         if coverage.ratio < floor
@@ -365,16 +393,21 @@ async def generate(ask: Ask, lexicon: Checker, request: TextRequest) -> Generate
         result = replace(result, usage=usage)
         if result.passed:
             return result
-        # Fewer grammar problems first, then higher coverage; the later attempt on a tie.
-        rank = (-result.grammar_problems, result.coverage.ratio)
-        if best is None or rank >= (-best.grammar_problems, best.coverage.ratio):
+        # Fewer grammar problems first, then closer to the target; the later attempt on a tie.
+        rank = (-result.grammar_problems, _closeness(result.coverage.ratio, request))
+        if best is None or rank >= (
+            -best.grammar_problems,
+            _closeness(best.coverage.ratio, request),
+        ):
             best = result
         if attempt < MAX_ATTEMPTS:
             messages.append({"role": "assistant", "content": content})
             messages.append(
                 {
                     "role": "user",
-                    "content": revision_message(result.coverage, problems, request.floor),
+                    "content": revision_message(
+                        result.coverage, problems, request.floor, request.ceiling
+                    ),
                 }
             )
     assert result is not None and best is not None
@@ -388,6 +421,14 @@ async def generate(ask: Ask, lexicon: Checker, request: TextRequest) -> Generate
             usage=usage,
         )
     return result
+
+
+def _closeness(ratio: float, request: TextRequest) -> float:
+    """How good a draft's coverage is for choosing the closest attempt: the ratio itself with no
+    ceiling, else minus how far it is outside the target range (0 inside it)."""
+    if request.ceiling is None:
+        return ratio
+    return -max(request.floor - ratio, ratio - request.ceiling, 0.0)
 
 
 def _assess(
@@ -413,7 +454,8 @@ def _assess(
     missing = tuple(
         w for w in coverage.words("unknown") + coverage.words("partial") if w not in glosses
     )
-    passed = coverage.meets(request.floor) and not problems
+    in_range = request.ceiling is None or coverage.ratio <= request.ceiling
+    passed = coverage.meets(request.floor) and in_range and not problems
     stretch = tuple(e.text for e in used)
     generated = Generated(
         title,

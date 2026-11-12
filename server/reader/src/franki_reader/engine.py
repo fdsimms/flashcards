@@ -36,7 +36,7 @@ READY_PER_FAVORITE = 1
 # How many due or young words the model chooses its stretch words from, when it's choosing.
 STRETCH_CHOICES = 15
 FAILURE_COOLDOWN = timedelta(minutes=30)
-# Every attempt was under 90% known words (coverage.MINIMUM), too far off to show.
+# Every attempt was under 85% known words (coverage.MINIMUM), too far off to show.
 MISSED_FLOOR = (
     "Couldn't write a text that fits your words this time. Try again or pick another topic."
 )
@@ -302,6 +302,7 @@ class Engine:
                 tuple(stretch),
                 lines=settings.lines,
                 floor=difficulty.floor,
+                ceiling=difficulty.ceiling,
                 choose=choose,
                 form=settings.form,
                 language=language,

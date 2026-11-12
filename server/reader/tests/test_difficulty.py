@@ -2,7 +2,7 @@ from franki_reader.difficulty import Difficulty, adapt
 
 
 def test_too_hard_raises_the_floor_and_cuts_a_stretch_word() -> None:
-    assert adapt(Difficulty(0.95, 2), "too_hard") == Difficulty(0.96, 1)
+    assert adapt(Difficulty(0.92, 2), "too_hard") == Difficulty(0.93, 1)
 
 
 def test_too_easy_does_the_reverse() -> None:
@@ -16,11 +16,16 @@ def test_about_right_and_no_rating_change_nothing() -> None:
 
 def test_limits_hold() -> None:
     assert adapt(Difficulty(0.99, 1), "too_hard") == Difficulty(0.99, 1)
-    assert adapt(Difficulty(0.95, 3), "too_easy") == Difficulty(0.95, 3)
+    assert adapt(Difficulty(0.90, 3), "too_easy") == Difficulty(0.90, 3)
 
 
 def test_repeated_steps_land_on_round_numbers() -> None:
     d = Difficulty()
     for _ in range(3):
         d = adapt(d, "too_hard")
-    assert d.floor == 0.98
+    assert d.floor == 0.95
+
+
+def test_the_ceiling_is_four_points_above_the_floor() -> None:
+    assert Difficulty(0.92, 2).ceiling == 0.96
+    assert Difficulty(0.99, 1).ceiling == 1.0
