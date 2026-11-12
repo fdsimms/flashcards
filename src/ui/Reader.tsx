@@ -1,5 +1,6 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Stack, usePreventRemove } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import React, { useEffect, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
@@ -162,14 +163,20 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
 
   const scroller = useRef<ScrollViewInstance>(null);
   const lineBoxes = useRef<Box[]>([]);
-  const scrollY = useRef(0);
+  // Null until the first scroll: the view opens at the top, which is at minus the header's overlap.
+  const scrollY = useRef<number | null>(null);
   const viewHeight = useRef(0);
+  // How far down the window the scroll view's frame starts. The header covers the part of the frame
+  // above `headerHeight`, which iOS insets the content by, so a line followed to has to land below it.
+  const viewTop = useRef(0);
+  const headerHeight = useHeaderHeight();
 
   useEffect(() => {
     const at = current === null ? -1 : paras ? rangeOf(paras, current) : current;
     const box = at < 0 ? undefined : lineBoxes.current[at];
     if (!box || !viewHeight.current) return;
-    const y = scrollTarget(box, scrollY.current, viewHeight.current);
+    const insetTop = Math.max(0, headerHeight - viewTop.current);
+    const y = scrollTarget(box, scrollY.current ?? -insetTop, { height: viewHeight.current, insetTop });
     if (y !== null) scroller.current?.scrollTo({ y, animated: true });
   }, [current]);
 
@@ -549,7 +556,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           ref={scroller}
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={{ paddingBottom: space.l }}
-          onLayout={(e) => { viewHeight.current = e.nativeEvent.layout.height; }}
+          onLayout={(e) => {
+            viewHeight.current = e.nativeEvent.layout.height;
+            scroller.current?.measureInWindow((_x, y) => { viewTop.current = y; });
+          }}
           onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={100}
         >

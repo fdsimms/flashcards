@@ -1,13 +1,31 @@
 import type { Language } from '../reader/api';
 import { LANGUAGE_ORDER } from '../reader/languages';
+import { sayFrenchDate } from './french/date';
+import { sayFrenchMoney } from './french/money';
 import { sayFrenchTime } from './french/time';
+import { sayGermanDate } from './german/date';
+import { sayGermanMoney } from './german/money';
 import { sayGermanTime } from './german/time';
+import { sayGreekDate } from './greek/date';
+import { sayGreekMoney } from './greek/money';
 import { sayGreekTime } from './greek/time';
+import { sayNorwegianDate } from './norwegian/date';
+import { sayNorwegianMoney } from './norwegian/money';
 import { sayNorwegianTime } from './norwegian/time';
+import { sayPolishDate } from './polish/date';
+import { sayPolishMoney } from './polish/money';
 import { sayPolishTime } from './polish/time';
+import { sayRussianDate } from './russian/date';
+import { sayRussianMoney } from './russian/money';
 import { sayRussianTime } from './russian/time';
+import { saySpanishDate } from './spanish/date';
+import { saySpanishMoney } from './spanish/money';
 import { saySpanishTime } from './spanish/time';
+import { sayThaiDate } from './thai/date';
+import { sayThaiMoney } from './thai/money';
 import { sayThaiTime } from './thai/time';
+import type { CalendarDate, DateParts, DateSaying } from './date';
+import type { CurrencyCode, MoneySaying } from './money';
 import type { ClockTime, TimeSaying } from './time';
 
 /**
@@ -19,7 +37,7 @@ import type { ClockTime, TimeSaying } from './time';
  * collection: a tool never grades a card or writes a review.
  */
 
-export type ToolId = 'time';
+export type ToolId = 'time' | 'dates' | 'money';
 
 export interface ToolInfo {
   id: ToolId;
@@ -42,6 +60,40 @@ export const TIME_SAYERS: Partial<Record<Language, (t: ClockTime) => TimeSaying>
   ru: sayRussianTime,
 };
 
+/** Each language Saying dates can say a date in. */
+export const DATE_SAYERS: Partial<Record<Language, (d: CalendarDate, parts: DateParts) => DateSaying>> = {
+  th: sayThaiDate,
+  es: saySpanishDate,
+  fr: sayFrenchDate,
+  de: sayGermanDate,
+  el: sayGreekDate,
+  nb: sayNorwegianDate,
+  pl: sayPolishDate,
+  ru: sayRussianDate,
+};
+
+/** Each language Counting money can say an amount in, in its currency (`CURRENCY_OF`). */
+export const MONEY_SAYERS: Partial<Record<Language, (amount: number) => MoneySaying>> = {
+  th: sayThaiMoney,
+  es: saySpanishMoney,
+  fr: sayFrenchMoney,
+  de: sayGermanMoney,
+  el: sayGreekMoney,
+  nb: sayNorwegianMoney,
+  pl: sayPolishMoney,
+  ru: sayRussianMoney,
+};
+
+/** The money each language is practiced with: Mexican pesos for Spanish, as its voice is Mexican. */
+export const CURRENCY_OF: Record<Language, CurrencyCode> = {
+  th: 'THB', es: 'MXN', fr: 'EUR', de: 'EUR', el: 'EUR', pl: 'PLN', ru: 'RUB', nb: 'NOK',
+};
+
+/** The weekday a calendar's week starts on where the language is spoken: 0 Sunday (Thailand, Mexico), 1 Monday. */
+export const WEEK_STARTS_ON: Record<Language, 0 | 1> = {
+  th: 0, es: 0, fr: 1, de: 1, el: 1, pl: 1, ru: 1, nb: 1,
+};
+
 const withSayer = (sayers: Partial<Record<Language, unknown>>) => LANGUAGE_ORDER.filter((l) => !!sayers[l]);
 
 export const TOOLS: ToolInfo[] = [
@@ -50,6 +102,18 @@ export const TOOLS: ToolInfo[] = [
     title: 'Telling the time',
     summary: 'Say a time out loud, then check it.',
     languages: withSayer(TIME_SAYERS),
+  },
+  {
+    id: 'dates',
+    title: 'Saying dates',
+    summary: 'Say a date out loud, then check it.',
+    languages: withSayer(DATE_SAYERS),
+  },
+  {
+    id: 'money',
+    title: 'Counting money',
+    summary: 'Count notes and coins, or read a price.',
+    languages: withSayer(MONEY_SAYERS),
   },
 ];
 

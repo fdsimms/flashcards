@@ -1,4 +1,5 @@
 import type { Phrase } from './phrase';
+import { pickOther } from './random';
 
 /** A time of day for the Telling the time tool, picking one at random, and how a language says one. */
 
@@ -20,11 +21,7 @@ export const MINUTE_STEPS: MinuteStep[] = [1, 5, 15, 30];
  */
 export function randomTime(step: MinuteStep, previous?: ClockTime, random: () => number = Math.random): ClockTime {
   const perHour = 60 / step;
-  const slots = 24 * perHour;
-  let slot = Math.floor(random() * slots);
-  const last = previous ? previous.hour * perHour + previous.minute / step : -1;
-  // Any other slot, evenly: the ones after the repeat, wrapping round.
-  if (slot === last) slot = (last + 1 + Math.floor(random() * (slots - 1))) % slots;
+  const slot = pickOther(24 * perHour, previous ? previous.hour * perHour + previous.minute / step : undefined, random);
   return { hour: Math.floor(slot / perHour), minute: (slot % perHour) * step };
 }
 

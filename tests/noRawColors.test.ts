@@ -13,10 +13,12 @@ const APP = join(ROOT, 'src', 'app');
 const HEX = /['"`]#[0-9a-fA-F]{3,8}['"`]/;
 
 describe('colors in screens', () => {
-  const files = [UI, APP].flatMap((dir) => readdirSync(dir).filter((f) => /\.tsx?$/.test(f) && f !== 'theme.ts').map((f) => join(dir, f)));
+  // Folders too: src/ui/tools/ holds screens, src/app/(tabs)/ routes.
+  const files = [UI, APP].flatMap((dir) => readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter((f) => /\.tsx?$/.test(f) && f !== 'theme.ts').map((f) => join(dir, f)));
 
   it('scans the screens', () => {
     expect(files.length).toBeGreaterThan(5);
+    expect(files.some((f) => f.endsWith(join('tools', 'TimeTool.tsx')))).toBe(true);
   });
 
   it('matches what it is meant to catch', () => {
