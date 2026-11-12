@@ -113,6 +113,9 @@ class StoredText:
     language: Code = "th"
     # {"practice": [point ids], "avoid": [point ids]}, as asked for when it was written
     grammar: dict[str, list[str]] = field(default_factory=dict)
+    # Transliterations the model wrote for the words it glossed, by word (the deck's own are
+    # read from the lexicon at render time).
+    translits: dict[str, str] = field(default_factory=dict)
 
 
 # "topic": the model chooses stretch words that fit the topic from a list of due and young words.
@@ -172,6 +175,14 @@ def connect(path: Path | str) -> sqlite3.Connection:
     if "form" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
         # Every text written before stories was a dialogue.
         conn.execute("ALTER TABLE texts ADD COLUMN form TEXT NOT NULL DEFAULT 'dialogue'")
+    if "translit" not in {r[1] for r in conn.execute("PRAGMA table_info(lexicon)")}:
+        # Transliterations were read from the deck after the first snapshots. The words stay as
+        # they are, but with no snapshot time the next refresh reads the deck again to fill them in.
+        conn.execute("ALTER TABLE lexicon ADD COLUMN translit TEXT NOT NULL DEFAULT ''")
+        conn.execute("DELETE FROM meta WHERE key LIKE 'snapshot_taken_at%'")
+    if "translits" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
+        # The model's transliteration of the words it glossed; none before they were asked for.
+        conn.execute("ALTER TABLE texts ADD COLUMN translits TEXT NOT NULL DEFAULT '{}'")
     if "focus" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
         # The words a text was asked to practice (the app's "Read a text with these words"),
         # sorted and joined by newlines; empty for the texts the queue writes on its own.
@@ -201,9 +212,12 @@ def save_snapshot(
         conn.execute("DELETE FROM lexicon WHERE language = ?", (language,))
         conn.executemany(
             # OR REPLACE: a note moved to the other language's deck belongs to the newer snapshot.
-            "INSERT OR REPLACE INTO lexicon (note_id, entry, meaning, tier, due, language)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            [(e.note_id, e.text, e.meaning, e.tier, int(e.due), language) for e in entries],
+            "INSERT OR REPLACE INTO lexicon (note_id, entry, meaning, tier, due, language, translit)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [
+                (e.note_id, e.text, e.meaning, e.tier, int(e.due), language, e.translit)
+                for e in entries
+            ],
         )
         _set_meta(conn, _per_language("snapshot_taken_at", language), taken_at.isoformat())
 
@@ -212,12 +226,13 @@ def load_snapshot(
     conn: sqlite3.Connection, language: Code = "th"
 ) -> tuple[list[Entry], datetime | None]:
     rows = conn.execute(
-        "SELECT note_id, entry, meaning, tier, due FROM lexicon WHERE language = ?"
+        "SELECT note_id, entry, meaning, tier, due, translit FROM lexicon WHERE language = ?"
         " ORDER BY note_id",
         (language,),
     )
     entries = [
-        Entry(nid, entry, meaning, tier, bool(due)) for nid, entry, meaning, tier, due in rows
+        Entry(nid, entry, meaning, tier, bool(due), translit)
+        for nid, entry, meaning, tier, due, translit in rows
     ]
     taken_at = _get_meta(conn, _per_language("snapshot_taken_at", language))
     return entries, datetime.fromisoformat(taken_at) if taken_at else None
@@ -349,8 +364,8 @@ def save_text(
             """INSERT INTO texts (topic_id, created_at, status, title, lines, glosses, stretch,
                    coverage, token_count, floor, attempts, model, input_tokens, output_tokens,
                    cache_read_tokens, cache_write_tokens, cost_usd, roles, form, language, grammar,
-                   focus)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   focus, translits)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 topic_id,
                 now.isoformat(),
@@ -374,6 +389,7 @@ def save_text(
                 language,
                 json.dumps(grammar or {}),
                 focus,
+                json.dumps(generated.translits, ensure_ascii=False),
             ),
         )
     assert cur.lastrowid is not None
@@ -417,14 +433,26 @@ def get_text(conn: sqlite3.Connection, text_id: int) -> StoredText | None:
 
 
 _TEXT_COLUMNS = (
-    "id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar"
+    "id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar,"
+    " translits"
 )
 
 
 def _text(row: tuple[Any, ...]) -> StoredText:
-    text_id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar = (
-        row
-    )
+    (
+        text_id,
+        topic_id,
+        title,
+        lines,
+        glosses,
+        stretch,
+        coverage,
+        roles,
+        form,
+        language,
+        grammar,
+        translits,
+    ) = row
     return StoredText(
         id=text_id,
         topic_id=topic_id,
@@ -437,6 +465,7 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         form=form,
         language=language,
         grammar=json.loads(grammar),
+        translits=json.loads(translits),
     )
 
 

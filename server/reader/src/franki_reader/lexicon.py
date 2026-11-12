@@ -1,4 +1,4 @@
-"""The daily lexicon snapshot: every note's entry, meaning and tier in one language's deck. Every
+"""The daily lexicon snapshot: every note's entry, meaning, transliteration and tier in one language's deck. Every
 language's deck uses the Omnilanguage note type, so Entry and Meaning are read the same way.
 
 The deck is read by `ReadDeck`: the real one is `AnkiDeck.read` (collection.py), which reads the
@@ -30,15 +30,17 @@ class Entry:
     meaning: str
     tier: Tier
     due: bool = False  # a card of this note is due in Anki today
+    translit: str = ""  # the note's Transliteration field (Thai), empty when it has none
 
 
 @dataclass(frozen=True)
 class NoteRow:
-    """A note as stored: its Entry and Meaning fields as HTML."""
+    """A note as stored: its Entry, Meaning and Transliteration fields as HTML."""
 
     note_id: int
     entry: str
     meaning: str
+    translit: str = ""
 
 
 @dataclass(frozen=True)
@@ -77,6 +79,7 @@ def build_entries(notes: Iterable[NoteRow], cards: Iterable[CardRow]) -> list[En
                 meaning=clean(note.meaning),
                 tier=note_tier(cards_by_note.get(note.note_id, [])),
                 due=note.note_id in due_notes,
+                translit=clean(note.translit),
             )
         )
     return entries

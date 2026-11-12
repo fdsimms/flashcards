@@ -139,8 +139,35 @@ async def test_sees_changes_made_in_anki_and_follows_a_full_sync(client, desktop
     assert types["Basic"]["fields"] == ["Front", "Back", "Extra"]
 
 
+async def test_flagged_cards_are_found_with_their_reason_and_resolved(client, desktop):
+    note = (await call(client, "get_notes", note_ids=[1794408858018]))["notes"][0]
+    cid = note["cards"][0]["card_id"]
+    assert (await call(client, "flagged_cards"))["total"] == 0
+    # What Franki's "Flag for an agent" writes: the purple flag and a reason tag.
+    await call(client, "manage_cards", action="set_flag", card_ids=[cid], flag=7)
+    await call(client, "manage_tags", action="add", note_ids=[note["note_id"]], tags=["flag::audio", "keep"])
+    out = await call(client, "flagged_cards")
+    assert out["total"] == 1
+    flagged = out["cards"][0]
+    assert flagged["card_id"] == cid and flagged["reason"] == "audio" and flagged["fields"] == note["fields"]
+    assert (await call(client, "flagged_cards", deck=THAI))["total"] == 0  # the flagged card is in another deck
+    assert "no deck called" in await call_error(client, "flagged_cards", deck="Nowhere")
+
+    # A card that isn't flagged is refused, and nothing is changed.
+    other_note = next(n for n in (await call(client, "find_notes", query="-flag:7", limit=5))["notes"] if n["note_id"] != note["note_id"])
+    other = (await call(client, "get_notes", note_ids=[other_note["note_id"]]))["notes"][0]["cards"][0]["card_id"]
+    assert "isn't flagged" in await call_error(client, "resolve_flag", card_ids=[other])
+    assert (await call(client, "flagged_cards"))["total"] == 1
+
+    assert (await call(client, "resolve_flag", card_ids=[cid]))["resolved"] == 1
+    assert (await call(client, "flagged_cards"))["total"] == 0
+    tags = (await call(client, "get_notes", note_ids=[note["note_id"]]))["notes"][0]["tags"]
+    assert "keep" in tags and not any(t.startswith("flag::") for t in tags)
+
+
 async def test_the_server_instructions_explain_studying(client):
     assert "Never rate a card" in client.instructions
+    assert "resolve_flag" in client.instructions
 
 
 async def test_changes_templates_and_styling_without_a_full_sync(client, desktop):

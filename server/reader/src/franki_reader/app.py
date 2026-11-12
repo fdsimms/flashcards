@@ -485,7 +485,12 @@ def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = N
 
 def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
     entries, lexicon = engine.snapshot(text.language)
-    out = render(text, lexicon, {e.text: e.meaning for e in entries})
+    out = render(
+        text,
+        lexicon,
+        {e.text: e.meaning for e in entries},
+        {e.text: e.translit for e in entries if e.translit},
+    )
     speaks = engine.audio is not None and engine.synthesize is not None
     for i, line in enumerate(out["lines"]):
         line["audio"] = speaks or engine.has_audio(text.id, i)

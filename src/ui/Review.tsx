@@ -4,6 +4,7 @@ import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, Animated, Easing, Keyboard, PanResponder, Pressable, ScrollView, Text, TextInput, useColorScheme, useWindowDimensions, View } from 'react-native';
 import { FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
+import { AGENT_FLAG, AGENT_FLAG_REASONS, withFlagReason } from '../core/agentFlag';
 import { autoplayFor, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
@@ -642,6 +643,33 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
       setStates([current], (s) => ({ ...s, flag }));
     });
   };
+  // Flag for an agent (through the Franki MCP): the purple flag on the card, a flag::<reason> tag on the note.
+  const chooseAgentFlag = () => {
+    const target = current;
+    const targetNote = note;
+    const options = [...AGENT_FLAG_REASONS.map((r) => r.label), ...(target.flag === AGENT_FLAG ? ['Remove flag'] : []), 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({
+      title: 'Flag for an agent',
+      message: 'An agent can find this card through the Franki MCP, check it and suggest a fix. It uses the purple flag.',
+      options, cancelButtonIndex: options.length - 1,
+    }, async (i) => {
+      if (i === options.length - 1) return;
+      if (i >= AGENT_FLAG_REASONS.length) {
+        setStates([target], (s) => ({ ...s, flag: 0 }));
+        return;
+      }
+      if (targetNote && !busy.current) {
+        try {
+          const tagged = await saveNote(repo as NoteStore, { id: targetNote.id, deck: targetNote.deck, model: targetNote.model, fields: targetNote.fields, tags: withFlagReason(targetNote.tags, AGENT_FLAG_REASONS[i].slug) });
+          setNotes((prev) => new Map(prev).set(tagged.id, tagged));
+        } catch (e) {
+          Alert.alert("Couldn't flag this card", `Nothing was changed. ${(e as any)?.message ?? e}`);
+          return;
+        }
+      }
+      setStates([target], (s) => ({ ...s, flag: AGENT_FLAG }));
+    });
+  };
   // Forget and Set Due Date: in the kept collection as Anki does them, then in Franki (rescheduleService.ts).
   const reschedule = async (run: (when: Date) => Promise<Card[]>, failure: string) => {
     if (busy.current) return;
@@ -695,17 +723,18 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
     );
   };
   const openMenu = () => {
-    const options = ['Flag', 'Bury card', 'Bury note', 'Suspend card', 'Set due date', 'Forget card', 'Card info', 'Cancel'];
-    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 7, destructiveButtonIndex: 3 }, (i) => {
+    const options = ['Flag', 'Flag for an agent', 'Bury card', 'Bury note', 'Suspend card', 'Set due date', 'Forget card', 'Card info', 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 8, destructiveButtonIndex: 4 }, (i) => {
       // Bury holds a card back until the next study day; Bury note does it to every card of the note; Suspend until it's unsuspended.
       if (i === 0) chooseFlag();
-      if (i === 1) setStates([current], (s) => ({ ...s, buried: true }));
-      if (i === 2) setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }));
-      if (i === 3) setStates([current], (s) => ({ ...s, suspended: true }));
-      if (i === 4) chooseDueDate();
-      if (i === 5) chooseForget();
+      if (i === 1) chooseAgentFlag();
+      if (i === 2) setStates([current], (s) => ({ ...s, buried: true }));
+      if (i === 3) setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }));
+      if (i === 4) setStates([current], (s) => ({ ...s, suspended: true }));
+      if (i === 5) chooseDueDate();
+      if (i === 6) chooseForget();
       // The deck is loaded again when Card Info closes: the same card stays on screen.
-      if (i === 6) { setPreferId(current.id); onCardInfo(current.id); }
+      if (i === 7) { setPreferId(current.id); onCardInfo(current.id); }
     });
   };
 

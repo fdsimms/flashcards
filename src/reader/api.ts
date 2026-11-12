@@ -20,6 +20,7 @@ export type Word = {
   text: string;
   status: 'known' | 'partial' | 'unknown' | null; // null for spaces and punctuation
   gloss: string | null;
+  translit?: string | null; // the pronunciation in Latin letters, when there is one (Thai)
   stretch: boolean;
   deck: boolean; // a deck word, as against one known for being common (every language but Thai)
   grammar: string | null; // the grammar point this word uses, if the text practices or avoids it
