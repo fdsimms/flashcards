@@ -7,7 +7,7 @@ import { grammarSummary } from '../reader/grammar';
 import { ideaPage } from '../reader/ideas';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import { describeProgress } from '../reader/progress';
-import { Button, Card, ErrorNote, Field, Group, HeaderAction, Help, NavRow, Screen, Segments } from './kit';
+import { Button, Card, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments } from './kit';
 import { MIN_TAP, radius, space, type, useTheme } from './theme';
 
 /**
@@ -321,7 +321,7 @@ function TopicRow({ topic, first, onOpen, onStar, onRemove }: {
         accessibilityLabel={topic.favorite ? `Remove ${topic.name} from favorites` : `Add ${topic.name} to favorites`}
         style={{ minHeight: MIN_TAP, justifyContent: 'center' }}
       >
-        <Text style={{ ...type.headline, color: topic.favorite ? c.accent : c.textTertiary }}>{topic.favorite ? '★' : '☆'}</Text>
+        <Icon name={topic.favorite ? 'star.fill' : 'star'} size={20} color={topic.favorite ? c.accent : c.textTertiary} />
       </Pressable>
       <Pressable
         onPress={() => onOpen(topic)}
@@ -344,7 +344,7 @@ function TopicRow({ topic, first, onOpen, onStar, onRemove }: {
         ) : topic.state === 'failed' ? (
           <Text style={{ ...type.footnote, color: c.textSecondary }}>Couldn't write one</Text>
         ) : null}
-        <Text style={{ ...type.body, color: c.textTertiary }}>›</Text>
+        <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
       </Pressable>
     </View>
   );
