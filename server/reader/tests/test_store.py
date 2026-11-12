@@ -35,6 +35,34 @@ def test_round_trip(conn) -> None:  # type: ignore[no-untyped-def]
     assert load_snapshot(conn) == (OLD, NOW)
 
 
+def test_transliterations_survive_a_round_trip(conn) -> None:  # type: ignore[no-untyped-def]
+    entries = [Entry(1, "หนังสือ", "book", "mature", translit="nǎng-sǔue")]
+    save_snapshot(conn, entries, NOW)
+    assert load_snapshot(conn)[0][0].translit == "nǎng-sǔue"
+
+
+def test_a_snapshot_from_before_transliterations_is_refreshed(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    import sqlite3
+
+    path = tmp_path / "old.db"
+    old = sqlite3.connect(path)
+    old.executescript(
+        "CREATE TABLE lexicon (note_id INTEGER PRIMARY KEY, entry TEXT NOT NULL,"
+        " meaning TEXT NOT NULL, tier TEXT NOT NULL, due INTEGER NOT NULL DEFAULT 0,"
+        " language TEXT NOT NULL DEFAULT 'th');"
+        "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);"
+        "INSERT INTO lexicon VALUES (1, 'ฉัน', 'I; me', 'mature', 0, 'th');"
+        "INSERT INTO meta VALUES ('snapshot_taken_at', '2026-10-19T09:00:00');"
+    )
+    old.commit()
+    old.close()
+    migrated = connect(path)
+    entries, taken_at = load_snapshot(migrated)
+    # The words still serve, but the missing time makes the next refresh read the deck again.
+    assert [e.text for e in entries] == ["ฉัน"]
+    assert is_stale(taken_at, NOW)
+
+
 def test_a_new_snapshot_replaces_the_old_one(conn) -> None:  # type: ignore[no-untyped-def]
     save_snapshot(conn, OLD, NOW)
     save_snapshot(conn, [Entry(2, "ดี", "good", "young")], NOW)

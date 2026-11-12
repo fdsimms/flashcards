@@ -70,7 +70,7 @@ class Desktop:
         self.auth: Any = None
         models = self.col.models
         model = models.new("Omnilanguage")
-        for name in ("Entry", "Meaning"):
+        for name in ("Entry", "Meaning", "Transliteration"):
             models.add_field(model, models.new_field(name))
         template = models.new_template("Recognition")
         template["qfmt"], template["afmt"] = "{{Entry}}", "{{Meaning}}"
@@ -79,13 +79,19 @@ class Desktop:
         self.model = models.by_name("Omnilanguage")
 
     def add(
-        self, deck: str, entry: str, meaning: str, ivl: int | None = None, due: bool = False
+        self,
+        deck: str,
+        entry: str,
+        meaning: str,
+        ivl: int | None = None,
+        due: bool = False,
+        translit: str = "",
     ) -> int:
         """A note, its card left new (ivl None) or made a Review card with that interval, due today
         or later."""
         assert self.model is not None
         note = self.col.new_note(self.model)
-        note["Entry"], note["Meaning"] = entry, meaning
+        note["Entry"], note["Meaning"], note["Transliteration"] = entry, meaning, translit
         self.col.add_note(note, self.deck_id(deck))
         if ivl is not None:
             card = note.cards()[0]
@@ -146,6 +152,17 @@ def test_reads_the_thai_deck_with_each_notes_tier(desktop: Desktop, deck: AnkiDe
         "ดี": ("good", "young", True),
         "ไป": ("go", "unreviewed", False),
     }
+
+
+def test_reads_each_notes_transliteration(desktop: Desktop, deck: AnkiDeck) -> None:
+    desktop.add(THAI, "หนังสือ", "book", ivl=40, translit="nǎng-sǔue")
+    desktop.add(THAI, "ไป", "go")
+    desktop.sync()
+
+    entries = read(deck)
+
+    assert entries["หนังสือ"].translit == "nǎng-sǔue"
+    assert entries["ไป"].translit == ""
 
 
 def test_reads_the_spanish_deck(desktop: Desktop, deck: AnkiDeck) -> None:

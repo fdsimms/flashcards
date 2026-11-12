@@ -358,3 +358,13 @@ def test_when_every_attempt_is_too_easy_the_text_is_still_kept() -> None:
     result = run(model, TextRequest("food", (MANGO,), floor=0.92, ceiling=0.96))
     assert result.passed and result.floor_met  # too easy is revised, never refused
     assert result.attempts == MAX_ATTEMPTS
+
+
+def test_the_models_transliterations_are_kept_for_the_words_it_gave_them_for() -> None:
+    d = draft(*["ฉัน|อยาก|กิน|ครับ"] * 6, "ทอน")
+    d["glosses"] = [
+        {"word": "ทอน", "english": "change", "translit": " thɔɔn "},
+        {"word": "ฉัน", "english": "I", "translit": ""},
+    ]
+    result = run(ScriptedModel(d), TextRequest("food"))
+    assert result.translits == {"ทอน": "thɔɔn"}
