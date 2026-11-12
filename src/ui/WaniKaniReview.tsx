@@ -20,6 +20,7 @@ import { Reveal } from './motion';
 import { CardSurface, ProgressBar } from './Review';
 import type { WaniKaniState } from './useWaniKani';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { useHeaderInset } from './useHeaderInset';
 import { SubjectDetails, SubjectFront } from './WaniKaniCard';
 
 /**
@@ -82,6 +83,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
 
   // The typing box sits in the footer, so the screen is padded by the keyboard, as in Review.
   const insets = useSafeAreaInsets();
+  const header = useHeaderInset();
   const [keyboard, setKeyboard] = useState(0);
   useEffect(() => {
     const show = Keyboard.addListener('keyboardWillShow', (e) => setKeyboard(e.endCoordinates.height));
@@ -298,7 +300,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   }
 
   return (
-    <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
+    <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
       <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
           <Count value={left.reviews} label="due" color={c.countDue} />
