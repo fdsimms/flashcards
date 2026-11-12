@@ -218,6 +218,12 @@ export interface DeckSettings {
    * (`listedDecks`). A deck made with one is Anki's, and listed from it.
    */
   created?: boolean;
+  /**
+   * Where the deck was dragged to among its siblings on the deck list (0 first; `compareDecks`).
+   * Franki's own: Anki lists decks by name and keeps no other order. Unset, a deck comes after
+   * those that have one, by name.
+   */
+  position?: number;
   /*
    * The settings below apply to the deck and its subdecks, unless a subdeck sets its own
    * (`inheritedSetting`). Undefined means the default.
