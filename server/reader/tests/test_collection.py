@@ -297,3 +297,44 @@ def test_reading_whats_due_leaves_nothing_to_send(desktop: Desktop, deck: AnkiDe
     assert db is not None
     for table in ("notes", "cards", "revlog", "graves"):
         assert not db.scalar(f"select count() from {table} where usn = -1"), table
+
+
+def test_due_counts_each_study_days_answers_and_their_time(
+    desktop: Desktop, deck: AnkiDeck
+) -> None:
+    desktop.add(THAI, "ฉัน", "I; me", ivl=40, due=True)
+    desktop.add(THAI, "ดี", "good", ivl=5, due=True)
+    desktop.sync()
+    col = desktop.col
+    cutoff = col.sched.day_cutoff
+    card_ids = col.find_cards(f'"deck:{THAI}"')
+    db = col.db
+    assert db is not None
+    # Two answers today (8 and 12 seconds) and one yesterday, as Anki logs them: id in ms.
+    today_ms = (cutoff - 3600) * 1000
+    rows = [
+        (today_ms, card_ids[0], 3, 8000),
+        (today_ms + 1, card_ids[1], 1, 12000),
+        (today_ms - 86400 * 1000, card_ids[0], 3, 5000),
+        (today_ms + 2, card_ids[1], 0, 0),  # a manual reschedule, not an answer
+    ]
+    for rid, cid, ease, ms in rows:
+        db.execute(
+            "insert into revlog (id, cid, usn, ease, ivl, lastIvl, factor, time, type)"
+            " values (?, ?, -1, ?, 1, 1, 2500, ?, 1)",
+            rid,
+            cid,
+            ease,
+            ms,
+        )
+    # Raw rows don't touch the collection's modified stamp, which is what a sync checks for changes.
+    db.execute("update col set mod = ?", int(time.time() * 1000))
+    desktop.sync()
+
+    days = asyncio.run(deck.due()).study_days
+
+    assert len(days) == 7
+    assert days[-1].starts_at == datetime.fromtimestamp(cutoff - 86400, UTC)
+    assert (days[-1].cards, days[-1].answer_seconds) == (2, 20)
+    assert (days[-2].cards, days[-2].answer_seconds) == (1, 5)
+    assert all(d.cards == 0 for d in days[:-2])

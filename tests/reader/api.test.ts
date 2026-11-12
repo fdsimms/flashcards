@@ -159,3 +159,11 @@ test("an explanation comes with the line's grammar, and none from an older serve
   const older = fakeFetch(json({ points: [] }));
   expect((await createApi('https://x', 'p', older.impl).explainLine(3, 1, false)).grammar).toEqual([]);
 });
+
+test('the deck list totals are put to the counts route', async () => {
+  const { impl, calls } = fakeFetch(new Response(null, { status: 204 }));
+  await createApi('https://x', 'p', impl).reportCounts({ due: 12, new: 8 });
+  expect(calls[0].url).toBe('https://x/api/franki-counts');
+  expect(calls[0].init.method).toBe('PUT');
+  expect(JSON.parse(calls[0].init.body as string)).toEqual({ due: 12, new: 8 });
+});

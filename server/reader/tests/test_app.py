@@ -13,7 +13,7 @@ from franki_reader import store
 from franki_reader.app import create_app
 from franki_reader.engine import SHELF_SIZE, Engine
 from franki_reader.gateway import AnkiUnavailable
-from franki_reader.status import DeckDue, DueStatus, LearningLater
+from franki_reader.status import DeckDue, DueStatus, LearningLater, StudyDay
 from franki_reader.store import Settings
 
 NOW = datetime(2026, 10, 19, 9, 0)
@@ -860,6 +860,10 @@ DUE = DueStatus(
     decks=[DeckDue("Polski", 30, 1), DeckDue("Thai", 12, 2)],
     learning_later=[LearningLater(datetime(2026, 10, 19, 9, 30, tzinfo=UTC), 2)],
     day_ends_at=datetime(2026, 10, 20, 4, 0, tzinfo=UTC),
+    study_days=[
+        StudyDay(datetime(2026, 10, 18, 4, 0, tzinfo=UTC), 120, 1500),
+        StudyDay(datetime(2026, 10, 19, 4, 0, tzinfo=UTC), 40, 600),
+    ],
 )
 STATUS_KEY = {"Authorization": "Bearer status only"}
 
@@ -889,6 +893,21 @@ def test_status_says_whats_due_and_whether_a_text_is_waiting() -> None:
         ],
         "day_ends_at": "2026-10-20T04:00:00+00:00",
         "read_and_listen": {"language": "th", "name": "Thai", "waiting": 0, "last_read_at": None},
+        "study_days": [
+            {
+                "starts_at": "2026-10-18T04:00:00+00:00",
+                "cards": 120,
+                "answer_seconds": 1500,
+                "reading_seconds": 0,
+            },
+            {
+                "starts_at": "2026-10-19T04:00:00+00:00",
+                "cards": 40,
+                "answer_seconds": 600,
+                "reading_seconds": 0,
+            },
+        ],
+        "franki": None,
     }
 
 
@@ -941,3 +960,44 @@ def test_status_without_anki_set_up_says_what_is_missing() -> None:
     response = c.get("/api/status", headers=AUTH)
     assert response.status_code == 503
     assert "ANKI_SYNC_ENDPOINT" in response.json()["detail"]
+
+
+def test_status_adds_reading_time_to_the_study_day_it_was_logged_on() -> None:
+    c = status_client()
+    topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
+    text = next_text(c, topic["id"]).json()
+    body = {"finished": True, "seconds": 300}
+    c.post(f"/api/texts/{text['id']}/reading", json=body, headers=AUTH)
+
+    days = c.get("/api/status", headers=STATUS_KEY).json()["study_days"]
+
+    # NOW is 09:00 on the 19th, in the study day that started at 04:00.
+    assert [d["reading_seconds"] for d in days] == [0, 300]
+
+
+def test_franki_reports_its_counts_and_status_shows_todays() -> None:
+    c = status_client()
+    assert c.put("/api/franki-counts", json={"due": 12, "new": 8}, headers=AUTH).status_code == 204
+
+    reported = c.get("/api/status", headers=STATUS_KEY).json()["franki"]
+
+    assert reported == {"due": 12, "new": 8, "reported_at": "2026-10-19T09:00:00+00:00"}
+
+
+def test_counts_reported_before_todays_study_day_are_not_shown() -> None:
+    conn = store.connect(":memory:")
+    store.save_franki_counts(conn, store.FrankiCounts(3, 5, datetime(2026, 10, 19, 3, 0)))
+    engine = Engine(conn, None, None, lambda: NOW)
+
+    async def due() -> DueStatus:
+        return DUE
+
+    c = started(create_app(engine, "open sesame", status_token="status only", read_due=due))
+    assert c.get("/api/status", headers=STATUS_KEY).json()["franki"] is None
+
+
+def test_only_the_passphrase_reports_counts() -> None:
+    c = status_client()
+    body = {"due": 1, "new": 1}
+    assert c.put("/api/franki-counts", json=body, headers=STATUS_KEY).status_code == 401
+    assert c.put("/api/franki-counts", json={"due": -1, "new": 0}, headers=AUTH).status_code == 422
