@@ -8,7 +8,7 @@ import { Review } from '../ui/Review';
 /** Studies the deck named by the `deck` parameter, and its subdecks. */
 export default function ReviewRoute() {
   const router = useRouter();
-  const { repo, sync, decks, collapse, openNoteEditor, reader: { settings: readerSettings } } = useApp();
+  const { repo, sync, decks, collapse, openNoteEditor, reader: { settings: readerSettings, api: readerApi } } = useApp();
   const { deck } = useLocalSearchParams<{ deck: string }>();
   // Sync when leaving, however it's left: the Back button, the swipe, or "Back to decks".
   const syncRef = useRef(sync);
@@ -42,7 +42,7 @@ export default function ReviewRoute() {
   const nextDeck = nextDeckToStudy(decks, collapse.collapsed, deck);
   return (
     <Review
-      repo={repo} deck={deck} practice={practice} reloadKey={reloadKey} onDone={() => router.back()} onEditNote={openNoteEditor}
+      repo={repo} deck={deck} practice={practice} suggestHints={readerApi ? (q) => readerApi.mnemonics(q) : undefined} reloadKey={reloadKey} onDone={() => router.back()} onEditNote={openNoteEditor}
       nextDeck={nextDeck?.split('::').pop()}
       onNextDeck={nextDeck ? () => router.replace({ pathname: '/review', params: { deck: nextDeck } }) : undefined}
       onCustomStudy={() => router.push({ pathname: '/custom-study', params: { deck } })}

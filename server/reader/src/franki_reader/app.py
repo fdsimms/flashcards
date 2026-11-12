@@ -54,6 +54,8 @@ marked words, ideas) is in the current language, the `language` setting.
     POST  /api/speech                 {text, voice, rate?} the text spoken by an Azure voice, as MP3:
                                       the app records a card's audio with it and keeps the file, so
                                       each recording is asked for once
+    POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
+                                      memory hints for a word the owner keeps forgetting: {hints: [...]}
 """
 
 import hmac
@@ -74,6 +76,12 @@ from franki_reader.gateway import with_timeout
 from franki_reader.generator import Ask, Form, claude_ask
 from franki_reader.languages import LANGUAGES, Code, CommonCount, with_deck
 from franki_reader.lexicon import Entry
+from franki_reader.mnemonics import (
+    MakeMnemonics,
+    MnemonicRequest,
+    MnemonicsFailed,
+    claude_mnemonics,
+)
 from franki_reader.reader import gloss_for, render
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
 from franki_reader.suggestions import suggest
@@ -121,6 +129,14 @@ class SpeechIn(BaseModel):
     text: str = Field(min_length=1, max_length=MAX_SPEECH_CHARS)
     voice: str = Field(min_length=1, max_length=100)
     rate: float = Field(default=1.0, ge=0.5, le=2.0)
+
+
+class MnemonicIn(BaseModel):
+    language: Code
+    entry: str = Field(min_length=1, max_length=200)
+    meaning: str = Field(min_length=1, max_length=300)
+    transliteration: str = Field(default="", max_length=200)
+    context: str = Field(default="", max_length=500)
 
 
 class WriteIn(BaseModel):
@@ -178,7 +194,12 @@ def _spent(s: store.Spending) -> dict[str, Any]:
     }
 
 
-def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = None) -> FastAPI:
+def create_app(
+    engine: Engine,
+    passphrase: str | None,
+    speech: Speech | None = None,
+    mnemonics: MakeMnemonics | None = None,
+) -> FastAPI:
     app = FastAPI(title="franki-reader")
 
     def require_passphrase(authorization: Annotated[str | None, Header()] = None) -> None:
@@ -419,6 +440,29 @@ def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = N
             raise HTTPException(503, str(e)) from e
         return Response(mp3, media_type="audio/mpeg")
 
+    @app.post("/api/mnemonics", dependencies=authed)
+    async def make_mnemonics(body: MnemonicIn) -> dict[str, list[str]]:
+        if mnemonics is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't suggest hints. Write your own"
+                " (ANTHROPIC_API_KEY in server/.env turns suggestions on).",
+            )
+        try:
+            hints = await mnemonics(
+                MnemonicRequest(
+                    body.language,
+                    body.entry.strip(),
+                    body.meaning.strip(),
+                    body.transliteration.strip(),
+                    body.context.strip(),
+                )
+            )
+        except MnemonicsFailed as e:
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        return {"hints": hints}
+
     @app.post("/api/texts/{text_id}/reading", status_code=204, dependencies=authed)
     async def reading(text_id: int, body: ReadingIn, background: BackgroundTasks) -> Response:
         try:
@@ -636,8 +680,10 @@ def production_app() -> FastAPI:
     settings.db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = store.connect(settings.db_path)
     ask_for: Callable[[list[Entry], Code], Ask] | None = None
+    mnemonics: MakeMnemonics | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
+        mnemonics = claude_mnemonics(client)
 
         def ask_for(entries: list[Entry], language: Code) -> Ask:
             return claude_ask(client, entries, language)
@@ -682,4 +728,4 @@ def production_app() -> FastAPI:
         audio=AudioCache(settings.audio_dir),
         voices=settings.voices,
     )
-    return create_app(engine, settings.secrets.get("APP_PASSPHRASE"), speech)
+    return create_app(engine, settings.secrets.get("APP_PASSPHRASE"), speech, mnemonics)

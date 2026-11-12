@@ -271,6 +271,9 @@ export function createApi(
     // `text` spoken by an Azure voice, as MP3 bytes: a card's recording, or a voice's sample.
     speech: async (text: string, voice: string, rate = 1) =>
       new Uint8Array(await (await send('POST', '/api/speech', { text, voice, rate })).arrayBuffer()),
+    // Memory hints for a word (a leech), written by Claude on the server: asked only when the owner taps for them.
+    mnemonics: async (question: { language: Language; entry: string; meaning: string; transliteration?: string; context?: string }) =>
+      (await call<{ hints: string[] }>('POST', '/api/mnemonics', question)).hints,
     // For the audio player, which fetches the file itself and so needs the passphrase too.
     audioSource: (textId: number, line: number) => ({
       uri: `${root}/api/texts/${textId}/lines/${line}/audio`,
