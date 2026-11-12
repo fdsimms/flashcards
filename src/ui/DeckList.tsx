@@ -150,6 +150,9 @@ export function DeckRowView({ row, first, detail, menuHint = 'Add a note, rename
   );
 }
 
+/** How long a tap on the sync button shows "Syncing" at least, however quickly the sync itself ends. */
+const MIN_SYNC_SHOWN_MS = 1200;
+
 export function DeckList(props: {
   decks: DeckRow[];
   /**
@@ -193,6 +196,20 @@ export function DeckList(props: {
   // The pull-down spinner is for a pull-down only. Tied to every sync, the one at launch scrolled
   // the list to show the spinner, and the large title flashed open and snapped shut.
   const [pulling, setPulling] = useState(false);
+  // A tap on the sync button shows "Syncing" for at least MIN_SYNC_SHOWN_MS, so a sync that has
+  // nothing to do or finishes at once still visibly did something.
+  const [tapped, setTapped] = useState(false);
+  const syncShown = !!props.sync && (props.sync.syncing || tapped);
+  const syncTapped = async () => {
+    if (!props.sync || syncShown) return;
+    setTapped(true);
+    props.extra?.refresh();
+    try {
+      await Promise.all([props.sync.onSync(), new Promise((resolve) => setTimeout(resolve, MIN_SYNC_SHOWN_MS))]);
+    } finally {
+      setTapped(false);
+    }
+  };
   const totals = useMemo(() => {
     const t = deckListTotals(props.decks);
     return props.extra ? { due: t.due + props.extra.due, fresh: t.fresh + props.extra.fresh } : t;
@@ -217,7 +234,7 @@ export function DeckList(props: {
       toolbar={
         <Stack.Toolbar placement="right">
           {props.sync ? (
-            <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={props.sync.syncing} accessibilityLabel={props.sync.syncing ? 'Syncing' : 'Sync now'} onPress={() => { props.extra?.refresh(); props.sync?.onSync(); }} />
+            <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={syncShown} accessibilityLabel={syncShown ? 'Syncing' : 'Sync now'} onPress={syncTapped} />
           ) : null}
           <Stack.Toolbar.Button icon="rectangle.stack.badge.plus" accessibilityLabel="New deck" onPress={props.onNewDeck} />
           <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} />
@@ -305,10 +322,10 @@ export function DeckList(props: {
           )}
           {props.extra?.node}
           {props.sync ? (
-            <Pressable onPress={props.sync.onSync} accessibilityRole="button" accessibilityHint="Syncs now"
+            <Pressable onPress={syncTapped} accessibilityRole="button" accessibilityHint="Syncs now"
               style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
               <Text style={{ ...type.footnote, color: props.sync.failed ? c.warning : c.textSecondary, textAlign: 'center' }}>
-                {props.sync.syncing ? 'Syncing…' : props.sync.status}
+                {syncShown ? 'Syncing…' : props.sync.status}
                 {props.ankiUnsent ? ` ${props.ankiUnsent} ${props.ankiUnsent === 1 ? "answer isn't" : "answers aren't"} synced yet.` : ''}
               </Text>
             </Pressable>
