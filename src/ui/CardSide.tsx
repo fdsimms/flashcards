@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View, type TextStyle } from 'react-native';
 import { markSegments } from '../core/highlight';
+import { hasThai } from '../core/script';
 import type { RenderedSide } from '../core/types';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
@@ -112,13 +113,17 @@ export function Side({ side, which, showHints }: { side: RenderedSide; which: 'f
             {b.label ? <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text> : null}
             <View style={b.icon ? { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s } : undefined}>
               {b.icon ? <Icon name={b.icon} size={28} color={c.text} /> : null}
-              <Text
-                style={b.emphasis
-                  ? { ...(which === 'front' ? type.cardFront : type.cardBack), color: c.text, textAlign: 'center' }
-                  : { ...type.body, color: c.textSecondary, lineHeight: 24 }}
-              >
-                {b.text}
-              </Text>
+              {b.emphasis ? (
+                <Text style={{ ...(which === 'front' ? type.cardFront : type.cardBack), color: c.text, textAlign: 'center' }}>{b.text}</Text>
+              ) : (
+                // A field can hold Thai and its romanization on separate lines; the Thai lines get the
+                // size of an example sentence, since Thai is hard to read at body size.
+                <View style={{ gap: space.xs }}>
+                  {b.text.split('\n').map((ln, k) => (hasThai(ln)
+                    ? <Text key={k} style={{ fontSize: type.title.fontSize, lineHeight: 34, color: c.text }}>{ln}</Text>
+                    : <Text key={k} style={{ ...type.body, color: c.textSecondary, lineHeight: 24 }}>{ln}</Text>))}
+                </View>
+              )}
             </View>
           </View>
         );
