@@ -145,9 +145,34 @@ export class MessageWriter {
   string(num: number, value: string): this {
     return this.bytes(num, utf8Encode(value));
   }
+  /** A fixed-width field (wire type 1 or 5) copied as read. */
+  fixed(num: number, wire: 1 | 5, value: Uint8Array): this {
+    this.parts.push(...varintBytes(num * 8 + wire));
+    for (let i = 0; i < value.length; i++) this.parts.push(value[i]);
+    return this;
+  }
   finish(): Uint8Array {
     return Uint8Array.from(this.parts);
   }
+}
+
+/**
+ * A message with one field replaced (or, with `value` null, removed) and every other field kept
+ * exactly as it was, so a setting Franki doesn't know about survives. Fields come back grouped by
+ * number, which protobuf doesn't mind.
+ */
+export function withField(bytes: Uint8Array, num: number, value: Uint8Array | null): Uint8Array {
+  const w = new MessageWriter();
+  for (const [n, fields] of decodeMessage(bytes)) {
+    if (n === num) continue;
+    for (const f of fields) {
+      if (f.wire === 0) w.uint(n, f.value);
+      else if (f.wire === 2) w.bytes(n, f.value);
+      else w.fixed(n, f.wire, f.value);
+    }
+  }
+  if (value) w.bytes(num, value);
+  return w.finish();
 }
 
 // fflate's pure-JS UTF-8 rather than TextDecoder, which Hermes may not have.
