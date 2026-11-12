@@ -28,6 +28,10 @@ marked words, ideas) is in the current language, the `language` setting.
     POST  /api/texts/{id}/reading     logs a session with a text and adjusts difficulty
     GET   /api/progress               finished texts, coverage and ratings over the last 14 days,
                                       and the difficulty the next text is written at
+    GET   /api/costs?days=30          what Claude cost over the last `days` days, per language:
+                                      texts read, waiting and dropped, attempts and dollars (every
+                                      language, not just the current one; the MCP's
+                                      read_and_listen_costs reads it)
     GET   /api/grammar                the current language's grammar points, each practice, avoid
                                       or normal
     PUT   /api/grammar/{id}           {state}; at most 2 practiced at once; from the next text
@@ -135,6 +139,21 @@ def _check_voice(name: str, code: Code) -> None:
             400,
             f"{name} speaks {locale}, not {LANGUAGES[code].name}. Choose a {LANGUAGES[code].name} voice.",
         )
+
+
+def _spent(s: store.Spending) -> dict[str, Any]:
+    """/api/costs's figures for one language or the total. Per read text divides everything spent
+    (dropped and unread texts too) by the texts actually read: what each one really cost."""
+    return {
+        "texts": s.texts,
+        "read": s.read,
+        "waiting": s.waiting,
+        "dropped": s.dropped,
+        "attempts_per_text": round(s.attempts / s.texts, 2) if s.texts else None,
+        "cost_usd": round(s.cost_usd, 4),
+        "per_text_usd": round(s.cost_usd / s.texts, 4) if s.texts else None,
+        "per_read_text_usd": round(s.cost_usd / s.read, 4) if s.read else None,
+    }
 
 
 def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = None) -> FastAPI:
@@ -379,6 +398,28 @@ def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = N
             "median_coverage": done.median_coverage,
             "ratings": done.ratings,
             "next": {"floor": difficulty.floor, "stretch": difficulty.stretch},
+        }
+
+    @app.get("/api/costs", dependencies=authed)
+    async def costs(days: Annotated[int, Query(ge=1, le=3650)] = 30) -> dict[str, Any]:
+        since = engine.clock() - timedelta(days=days)
+        by_language = store.spending(engine.conn, since)
+        rows = by_language.values()
+        total = store.Spending(
+            sum(r.read for r in rows),
+            sum(r.waiting for r in rows),
+            sum(r.dropped for r in rows),
+            sum(r.attempts for r in rows),
+            sum(r.cost_usd for r in rows),
+        )
+        return {
+            "days": days,
+            "since": since.isoformat(),
+            "languages": [
+                {"language": code, "name": LANGUAGES[code].name, **_spent(r)}
+                for code, r in by_language.items()
+            ],
+            "total": _spent(total),
         }
 
     @app.get("/api/words", dependencies=authed)

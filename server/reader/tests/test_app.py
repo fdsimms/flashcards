@@ -343,6 +343,27 @@ def test_progress_counts_finished_texts_and_says_how_hard_the_next_is() -> None:
     assert c.get("/api/progress").status_code == 401
 
 
+def test_costs_count_every_text_written_and_what_each_read_one_cost() -> None:
+    c = client()
+    empty = c.get("/api/costs", headers=AUTH).json()
+    assert empty["days"] == 30 and empty["languages"] == []
+    assert empty["total"]["texts"] == 0 and empty["total"]["per_read_text_usd"] is None
+
+    read(c, "about_right", [])
+    read(c, None, [])
+    costs = c.get("/api/costs", params={"days": 7}, headers=AUTH).json()
+    assert costs["days"] == 7
+    [thai] = costs["languages"]
+    assert (thai["language"], thai["name"], thai["read"]) == ("th", "Thai", 2)
+    # Texts written for the favorite in the background count too, read or not.
+    assert thai["texts"] == thai["read"] + thai["waiting"] + thai["dropped"] >= 2
+    assert thai["cost_usd"] > 0
+    assert thai["per_read_text_usd"] == pytest.approx(thai["cost_usd"] / 2, abs=1e-4)
+    assert costs["total"]["cost_usd"] == thai["cost_usd"]
+    assert c.get("/api/costs", params={"days": 0}, headers=AUTH).status_code == 422
+    assert c.get("/api/costs").status_code == 401
+
+
 def test_marked_words_are_listed_with_glosses_until_cleared() -> None:
     c = client()
     read(c, None, ["ครับ"])

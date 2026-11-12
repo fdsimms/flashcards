@@ -493,6 +493,44 @@ def progress(conn: sqlite3.Connection, since: datetime, language: Code = "th") -
     return Progress(len(rows), median, ratings)
 
 
+@dataclass(frozen=True)
+class Spending:
+    """What texts cost Claude since a date. Every text written counts: a dropped one (it missed the
+    floor and was never served) cost as much as any other."""
+
+    read: int
+    waiting: int  # written and not read yet ("pending" while its audio is made, or "ready")
+    dropped: int
+    attempts: int  # Claude conversations' answers, summed over the texts
+    cost_usd: float
+
+    @property
+    def texts(self) -> int:
+        return self.read + self.waiting + self.dropped
+
+
+def spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, Spending]:
+    """Each language with a text written since `since`, the most spent first. The cost is Claude's
+    alone: Azure's audio isn't recorded per text."""
+    by_language: dict[Code, dict[str, Any]] = {}
+    for language, status, count, attempts, cost in conn.execute(
+        """SELECT language, status, COUNT(*), SUM(attempts), SUM(cost_usd) FROM texts
+           WHERE created_at >= ? GROUP BY language, status""",
+        (since.isoformat(),),
+    ):
+        row = by_language.setdefault(
+            language, {"read": 0, "waiting": 0, "dropped": 0, "attempts": 0, "cost": 0.0}
+        )
+        row[status if status in ("read", "dropped") else "waiting"] += count
+        row["attempts"] += attempts
+        row["cost"] += cost
+    out = {
+        language: Spending(r["read"], r["waiting"], r["dropped"], r["attempts"], r["cost"])
+        for language, r in by_language.items()
+    }
+    return dict(sorted(out.items(), key=lambda item: -item[1].cost_usd))
+
+
 def practiced_days(
     conn: sqlite3.Connection, before: datetime, language: Code = "th"
 ) -> dict[str, int]:

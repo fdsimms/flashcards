@@ -459,7 +459,10 @@ are listed at the top of `server/reader/src/franki_reader/app.py`.
 - A reading posted twice for the same text (a retried request) is counted once.
 - Each text also records the model that actually answered (a refusal fallback can change it), its
   tokens and its cost in dollars, dropped texts included, so the real cost per text can be read
-  straight from the `texts` table.
+  straight from the `texts` table. `GET /api/costs` sums it per language over a number of days,
+  and the MCP's `read_and_listen_costs` asks that route (`server/mcp/franki_mcp/reader.py`, with
+  `READER_PASSPHRASE` over the compose network), so Claude can answer "what is this costing?".
+  Azure's audio isn't counted: its cost isn't recorded per text.
 - **Dropped:** the brief's randomized experiment (exposed versus held-back words, Anki outcome
   comparison, kill criterion). The owner decided on 19 October 2026 not to build it.
 

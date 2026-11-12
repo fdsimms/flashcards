@@ -441,6 +441,8 @@ and never the server's files, so searches, note adds, scheduling and sync behave
 - **Tests run against a real `anki.syncserver`** with Anki itself as the other device
   (`tests/conftest.py`), and Azure faked (`FakeAzure`): `cd server/mcp && python -m pytest`, after
   `pip install -r requirements-dev.txt ../speech`. CI runs them in their own job.
+- **Read & Listen's figures come from its server's API, never its database**
+  (`franki_mcp/reader.py`: `read_and_listen_costs` asks `/api/costs` with `READER_PASSPHRASE`).
 - **Azure is called through one client shared with Read & Listen** (`server/speech`, the
   `franki_speech` package), so a fix to how Azure is called reaches both. Both images are built from
   `server/` to copy it (`server/.dockerignore` keeps `.env` out of the build). Azure's request
