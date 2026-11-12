@@ -137,7 +137,7 @@ export function DeckList(props: {
   /** Answers given here and not yet in Anki: not synced, or (without sync) not sent back by file. */
   ankiUnsent?: number;
   /** Present when sync is on. */
-  sync?: { syncing: boolean; status: string; failed: boolean; onSync: () => void };
+  sync?: { syncing: boolean; status: string; failed: boolean; onSync: () => Promise<unknown> | void };
   onOpen: (deck: string) => void;
   onImport: () => void;
   onBackup: () => void;
@@ -154,6 +154,9 @@ export function DeckList(props: {
   const groups = useMemo(() => groupByTopLevel(shownDeckRows(props.decks, props.collapsed ?? new Set())), [props.decks, props.collapsed]);
   // The deck whose row is slid open on its Options action; one at a time.
   const [openDeck, setOpenDeck] = useState<string | null>(null);
+  // The pull-down spinner is for a pull-down only. Tied to every sync, the one at launch scrolled
+  // the list to show the spinner, and the large title flashed open and snapped shut.
+  const [pulling, setPulling] = useState(false);
   const totals = useMemo(() => deckListTotals(props.decks), [props.decks]);
   const backup = props.sync ? undefined : props.backup;
   return (
@@ -173,7 +176,16 @@ export function DeckList(props: {
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}
         // Pull down to sync, when sync is on.
-        refreshControl={props.sync ? <RefreshControl refreshing={props.sync.syncing} onRefresh={props.sync.onSync} tintColor={c.textSecondary} /> : undefined}
+        refreshControl={props.sync ? (
+          <RefreshControl
+            refreshing={pulling}
+            onRefresh={async () => {
+              setPulling(true);
+              try { await props.sync?.onSync(); } finally { setPulling(false); }
+            }}
+            tintColor={c.textSecondary}
+          />
+        ) : undefined}
       >
         {backup?.overdue ? (
           <Pressable onPress={props.onBackup} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
