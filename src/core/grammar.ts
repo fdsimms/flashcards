@@ -17,6 +17,10 @@ export interface GrammarPointInfo {
   note: string;
   /** The Forms field's groups this point is ("preterite"), as Forms practice reads them. */
   forms: string[];
+  /** When to use it, how it's formed and what it's confused with, for its page: paragraphs split by a blank line, `**words in the language**`. */
+  explanation: string;
+  /** Points worth comparing it with, in the same language, by id. */
+  related: string[];
 }
 
 type CatalogEntry = Omit<GrammarPointInfo, 'language' | 'forms'> & { language: string; forms?: string[] };
@@ -36,4 +40,19 @@ export function grammarPointsFor(language: string): GrammarPointInfo[] {
 export function grammarPointForForms(language: string, group: string): GrammarPointInfo | undefined {
   const wanted = group.trim().toLocaleLowerCase();
   return grammarPointsFor(language).find((p) => p.forms.some((f) => f.toLocaleLowerCase() === wanted));
+}
+
+/** A point by id, if the catalog has it. */
+export function grammarPoint(id: string): GrammarPointInfo | undefined {
+  return GRAMMAR_POINTS.find((p) => p.id === id);
+}
+
+/** One run of an explanation's text; `language` marks words in the language being learned, shown apart. */
+export interface ExplanationRun { text: string; language: boolean }
+
+/** An explanation as paragraphs of runs: blank lines split paragraphs, `**...**` marks the language's words. */
+export function explanationParagraphs(explanation: string): ExplanationRun[][] {
+  return explanation.split(/\n\s*\n/).map((para) => para.trim()).filter(Boolean).map((para) =>
+    para.split('**').map((text, i) => ({ text, language: i % 2 === 1 })).filter((run) => run.text),
+  );
 }

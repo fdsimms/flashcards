@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type GrammarChoice, type GrammarList } from '../reader/api';
 import { GRAMMAR_CHOICES, seenLine } from '../reader/grammar';
-import { Card, ErrorNote, HeaderAction, Help, Screen, Segments } from './kit';
+import { Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { space, type, useTheme } from './theme';
 
 /**
@@ -14,7 +14,7 @@ import { space, type, useTheme } from './theme';
  */
 
 
-export function ReadGrammar({ api, dayStartsAtHour }: { api: Api; dayStartsAtHour: number }) {
+export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; dayStartsAtHour: number; onOpenPoint: (id: string) => void }) {
   const c = useTheme();
   const [list, setList] = useState<GrammarList | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -74,8 +74,19 @@ export function ReadGrammar({ api, dayStartsAtHour }: { api: Api; dayStartsAtHou
               const seen = seenLine(p.seen, p.state, now, dayStartsAtHour);
               return (
                 <View key={p.id} style={{ paddingVertical: space.m, gap: space.xs, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: c.border }}>
-                  <Text style={{ ...type.headline, color: c.text }}>{p.name}</Text>
-                  <Text style={{ ...type.subhead, color: c.textSecondary }}>{p.note}</Text>
+                  {/* The name and note open the point's page (docs/grammar.md, step 4). */}
+                  <Tappable
+                    onPress={() => onOpenPoint(p.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${p.name}. ${p.note}. Opens its page`}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}
+                  >
+                    <View style={{ flex: 1, gap: space.xs }}>
+                      <Text style={{ ...type.headline, color: c.text }}>{p.name}</Text>
+                      <Text style={{ ...type.subhead, color: c.textSecondary }}>{p.note}</Text>
+                    </View>
+                    <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
+                  </Tappable>
                   {seen ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{seen}</Text> : null}
                   {/* A point not set yet has no segment selected. */}
                   <Segments<GrammarChoice | 'unset'>

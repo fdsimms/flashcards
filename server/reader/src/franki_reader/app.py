@@ -53,6 +53,9 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/grammar/choices        {choices}: every language's choices by point id (practice,
                                       avoid or normal; a point not set isn't listed), for the
                                       app's Forms practice (docs/grammar.md)
+    GET   /api/grammar/{id}           one point's page: {id, state, seen, choices (its language's,
+                                      for the related points), examples: [{text_id, title, line,
+                                      english, words}]}, lines from texts read, the latest first
     PUT   /api/grammar/{id}           {state}; at most 2 practiced at once; from the next text
     GET   /api/words                  words marked unknown and not cleared, newest first
     POST  /api/words/clear            {word} takes a word off that list until it's marked again
@@ -725,6 +728,33 @@ def create_app(
         # Every language's, not just the one being read: Forms practice asks for the deck's.
         choices = store.load_grammar(engine.conn)
         return {"choices": {pid: state for pid, state in choices.items() if pid in grammar.POINTS}}
+
+    @app.get("/api/grammar/{point_id}", dependencies=authed)
+    async def get_grammar_point(point_id: str) -> dict[str, Any]:
+        # After /api/grammar/choices, so "choices" isn't taken for a point's id.
+        point = grammar.POINTS.get(point_id)
+        if point is None:
+            raise HTTPException(404, "No such grammar point.")
+        choices = store.load_grammar(engine.conn)
+        _, lexicon = engine.snapshot(point.language)
+        return {
+            "id": point.id,
+            "state": choices.get(point.id, "unset"),
+            "seen": _seen(engine.grammar_exposure(point.language)[point.id]),
+            "choices": {
+                p.id: choices.get(p.id, "unset") for p in grammar.points_for(point.language)
+            },
+            "examples": [
+                {
+                    "text_id": e.text_id,
+                    "title": e.title,
+                    "line": e.line,
+                    "english": e.english,
+                    "words": list(e.words),
+                }
+                for e in exposure.examples(engine.conn, lexicon, point.id)
+            ],
+        }
 
     @app.put("/api/grammar/{point_id}", dependencies=authed)
     async def choose_grammar(point_id: str, body: GrammarChoice) -> dict[str, Any]:

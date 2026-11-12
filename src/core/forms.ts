@@ -339,7 +339,7 @@ export interface FormPrompt {
   /** The note's example sentence with the answer blanked out, when it holds the answer. */
   sentence?: { before: string; after: string; translation?: string };
   /** The grammar point the form is (docs/grammar.md), shown once the answer is. */
-  grammar?: { name: string; note: string };
+  grammar?: { id: string; name: string; note: string };
 }
 
 const isLetter = (ch: string | undefined) => !!ch && /[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]/.test(ch);
@@ -406,7 +406,7 @@ export function promptFor(
     answers: form.answers,
     ...(picked.length ? { choices: shuffle([form.answers[0], ...picked], random) } : {}),
     ...(form.key === 'field:Gender' ? {} : { sentence: sentenceGap(note, form.answers) }),
-    ...(point ? { grammar: { name: point.name, note: point.note } } : {}),
+    ...(point ? { grammar: { id: point.id, name: point.name, note: point.note } } : {}),
   };
 }
 

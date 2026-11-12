@@ -5,7 +5,7 @@ import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { practicingPoints } from '../reader/grammar';
 import { haptic } from './haptics';
-import { Button, Card, Field, Help, Icon, Screen, Segments, Tappable } from './kit';
+import { Button, Card, Field, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 export type AnswerMode = 'pick' | 'type';
@@ -26,7 +26,14 @@ const isRight = (a: Answered) => a.verdict === 'right' || a.counted;
  * here touches a card's schedule or the Anki collection. Grammar practiced in Read & Listen
  * (`readerApi`, null while it's off) is asked first, and each answer names its grammar point.
  */
-export function FormsDrill({ repo, readerApi, request, onDone }: { repo: Repo; readerApi: Api | null; request: DrillRequest; onDone: () => void }) {
+export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: {
+  repo: Repo;
+  readerApi: Api | null;
+  request: DrillRequest;
+  onDone: () => void;
+  /** Opens a grammar point's page; missing while Read & Listen is off, since the page needs it. */
+  onOpenGrammar?: (id: string) => void;
+}) {
   const c = useTheme();
   const [prompts, setPrompts] = useState<FormPrompt[] | null>(null);
   const [notice, setNotice] = useState<string>();
@@ -187,7 +194,7 @@ export function FormsDrill({ repo, readerApi, request, onDone }: { repo: Repo; r
             />
           )}
           {mode === 'pick' && !prompt.choices ? <Help>This one is typed: there are no other forms to pick from.</Help> : null}
-          {current ? <Feedback answered={current} onCount={countIt} /> : null}
+          {current ? <Feedback answered={current} onCount={countIt} onOpenGrammar={onOpenGrammar} /> : null}
         </View>
       </ScrollView>
     </Screen>
@@ -251,14 +258,14 @@ function ChoiceButton({ label, state, onPress }: { label: string; state: ChoiceS
   );
 }
 
-function Feedback({ answered, onCount }: { answered: Answered; onCount: () => void }) {
+function Feedback({ answered, onCount, onOpenGrammar }: { answered: Answered; onCount: () => void; onOpenGrammar?: (id: string) => void }) {
   const c = useTheme();
   const answer = answered.prompt.answers[0];
   if (answered.verdict === 'right') {
     return (
       <Card style={{ gap: space.xs }}>
         <Text style={{ ...type.headline, color: c.countDue }}>Right</Text>
-        <GrammarLine grammar={answered.prompt.grammar} />
+        <GrammarLine grammar={answered.prompt.grammar} onOpen={onOpenGrammar} />
       </Card>
     );
   }
@@ -272,7 +279,7 @@ function Feedback({ answered, onCount }: { answered: Answered; onCount: () => vo
             <Text style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>Count it as right</Text>
           </Tappable>
         )}
-        <GrammarLine grammar={answered.prompt.grammar} />
+        <GrammarLine grammar={answered.prompt.grammar} onOpen={onOpenGrammar} />
       </Card>
     );
   }
@@ -280,21 +287,26 @@ function Feedback({ answered, onCount }: { answered: Answered; onCount: () => vo
     <Card style={{ gap: space.xs }}>
       <Text style={{ ...type.headline, color: c.danger }}>{`Not quite: ${answer}`}</Text>
       {answered.prompt.answers.length > 1 ? <Help>{`Also right: ${answered.prompt.answers.slice(1).join(', ')}`}</Help> : null}
-      <GrammarLine grammar={answered.prompt.grammar} />
+      <GrammarLine grammar={answered.prompt.grammar} onOpen={onOpenGrammar} />
     </Card>
   );
 }
 
 /** The grammar point the form is (docs/grammar.md), under a rule at the foot of the result. Shown only once answered, as its examples can give a form away. */
-function GrammarLine({ grammar }: { grammar?: FormPrompt['grammar'] }) {
+function GrammarLine({ grammar, onOpen }: { grammar?: FormPrompt['grammar']; onOpen?: (id: string) => void }) {
   const c = useTheme();
   if (!grammar) return null;
   return (
-    <View style={{ borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.s, marginTop: space.xs }}>
+    <View style={{ borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.s, marginTop: space.xs, gap: space.xs }}>
       <Text style={{ ...type.footnote, color: c.textSecondary }}>
         <Text style={{ fontWeight: '600', color: c.text }}>{`${grammar.name}.`}</Text>
         {` ${grammar.note}.`}
       </Text>
+      {onOpen ? (
+        <View style={{ alignSelf: 'flex-start' }}>
+          <HeaderAction label={`More about ${grammar.name}`} onPress={() => onOpen(grammar.id)} />
+        </View>
+      ) : null}
     </View>
   );
 }

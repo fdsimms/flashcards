@@ -9,5 +9,13 @@ export default function FormsDrillRoute() {
   const router = useRouter();
   const { repo, reader } = useApp();
   const { request } = useLocalSearchParams<{ request: string }>();
-  return <FormsDrill repo={repo} readerApi={reader.api} request={JSON.parse(request) as DrillRequest} onDone={() => router.back()} />;
+  return (
+    <FormsDrill
+      repo={repo}
+      readerApi={reader.api}
+      request={JSON.parse(request) as DrillRequest}
+      onDone={() => router.back()}
+      onOpenGrammar={reader.api ? (id) => router.push({ pathname: '/read-grammar-point', params: { id } }) : undefined}
+    />
+  );
 }

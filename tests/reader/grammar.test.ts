@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import type { GrammarPoint } from '../../src/reader/api';
-import { GRAMMAR_CHOICES, grammarStateWord, grammarSummary, practicingPoints, seenLine } from '../../src/reader/grammar';
+import { GRAMMAR_CHOICES, grammarStateWord, grammarSummary, markedParts, practicingPoints, seenLine } from '../../src/reader/grammar';
 
 const point = (id: string, state: GrammarPoint['state']): GrammarPoint => ({ id, name: id, note: '', state });
 
@@ -66,4 +66,16 @@ test("a point's choice reads in a word or two beside its name, as Explain's chip
   expect(grammarStateWord('avoid')).toBe("Don't know it");
   expect(grammarStateWord('unset')).toBe('Not set');
   expect(GRAMMAR_CHOICES.map((c) => c.label)).toEqual(['Practice', 'Know it', "Don't know it"]);
+});
+
+test("an example line underlines the finder's words in turn, whatever their case", () => {
+  expect(markedParts('Fuimos al mercado y luego fuimos a casa.', ['fuimos', 'fuimos'])).toEqual([
+    { text: 'Fuimos', marked: true }, { text: ' al mercado y luego ', marked: false }, { text: 'fuimos', marked: true }, { text: ' a casa.', marked: false },
+  ]);
+  expect(markedParts('Ella había comido.', ['había comido'])).toEqual([
+    { text: 'Ella ', marked: false }, { text: 'había comido', marked: true }, { text: '.', marked: false },
+  ]);
+  expect(markedParts('เคยไปไหม', ['เคย'])).toEqual([{ text: 'เคย', marked: true }, { text: 'ไปไหม', marked: false }]);
+  // A match that isn't in the line is left out, not guessed at.
+  expect(markedParts('Hoy como.', ['comí'])).toEqual([{ text: 'Hoy como.', marked: false }]);
 });

@@ -79,3 +79,23 @@ export async function practicingPoints(api: Pick<Api, 'grammarChoices'> | null, 
     clearTimeout(timer);
   }
 }
+
+/**
+ * An example line split so the words the server's finder matched can be underlined: each match
+ * found in turn, ignoring case (the server lowercases a spaced language's words), from where the
+ * last one ended. A match it can't find is left out rather than guessed at.
+ */
+export function markedParts(line: string, words: string[]): { text: string; marked: boolean }[] {
+  const out: { text: string; marked: boolean }[] = [];
+  const lower = line.toLocaleLowerCase();
+  let at = 0;
+  for (const w of words) {
+    const i = w ? lower.indexOf(w.toLocaleLowerCase(), at) : -1;
+    if (i < 0 || w.toLocaleLowerCase().length !== w.length) continue;
+    if (i > at) out.push({ text: line.slice(at, i), marked: false });
+    out.push({ text: line.slice(i, i + w.length), marked: true });
+    at = i + w.length;
+  }
+  if (at < line.length) out.push({ text: line.slice(at), marked: false });
+  return out;
+}

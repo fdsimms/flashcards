@@ -32,6 +32,7 @@ export default function ReaderRoute() {
       onPlayWord={playWord}
       onNext={(next) => router.setParams({ source: JSON.stringify(next) })}
       onDone={() => router.back()}
+      onOpenGrammar={(id) => router.push({ pathname: '/read-grammar-point', params: { id } })}
       mining={language && deck ? {
         language,
         deck,

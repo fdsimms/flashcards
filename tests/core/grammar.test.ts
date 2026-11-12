@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GRAMMAR_POINTS, grammarPointForForms, grammarPointsFor, type GrammarLanguage } from '../../src/core/grammar';
+import { explanationParagraphs, GRAMMAR_POINTS, grammarPoint, grammarPointForForms, grammarPointsFor, type GrammarLanguage } from '../../src/core/grammar';
 import type { Language } from '../../src/reader/api';
 
 // The catalog's languages are Read & Listen's: tsc fails here if one list gains a language the other hasn't.
@@ -50,5 +50,34 @@ describe('grammarPointForForms', () => {
     expect(grammarPointForForms('es', 'present')).toBeUndefined();
     expect(grammarPointForForms('pl', 'preterite')).toBeUndefined();
     expect(grammarPointForForms('it', 'past')).toBeUndefined();
+  });
+});
+
+describe("each point's page", () => {
+  it('has an explanation for every point, with marked words and no em dashes, as it is shown', () => {
+    for (const p of GRAMMAR_POINTS) {
+      expect(p.explanation.trim(), p.id).not.toBe('');
+      expect(p.explanation, p.id).not.toContain('\u2014');
+      expect(p.explanation.split('**').length % 2, `${p.id} has an unclosed **`).toBe(1);
+      expect(explanationParagraphs(p.explanation).some((para) => para.some((run) => run.language)), p.id).toBe(true);
+    }
+  });
+
+  it('relates a point only to other points in its own language', () => {
+    for (const p of GRAMMAR_POINTS) {
+      for (const id of p.related) {
+        expect(id, p.id).not.toBe(p.id);
+        expect(grammarPoint(id)?.language, `${p.id} -> ${id}`).toBe(p.language);
+      }
+    }
+  });
+
+  it('splits an explanation into paragraphs and marks the words in the language', () => {
+    expect(explanationParagraphs('Say **hola**, "hello".\n\n**Adiós** is "bye".')).toEqual([
+      [{ text: 'Say ', language: false }, { text: 'hola', language: true }, { text: ', "hello".', language: false }],
+      [{ text: 'Adiós', language: true }, { text: ' is "bye".', language: false }],
+    ]);
+    expect(grammarPoint('es.preterite')?.related).toEqual(['es.imperfect', 'es.present_perfect']);
+    expect(grammarPoint('es.nope')).toBeUndefined();
   });
 });

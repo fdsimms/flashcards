@@ -73,6 +73,9 @@ export interface Repo {
   /** Whether forms practice is answered by picking or typing: the last choice made. This phone's own. */
   formsAnswerMode(): Promise<'pick' | 'type'>;
   saveFormsAnswerMode(mode: 'pick' | 'type'): Promise<void>;
+  /** When the owner chose Not yet on each grammar point's Know it suggestion, by point id (ISO). */
+  grammarHintsDismissed(): Promise<Record<string, string>>;
+  saveGrammarHintsDismissed(dismissed: Record<string, string>): Promise<void>;
   /** The text-to-speech voice and speed chosen for each language. This phone's own: a backup doesn't carry it. */
   voiceSettings(): Promise<VoiceSettings>;
   saveVoiceSettings(settings: VoiceSettings): Promise<void>;
@@ -93,6 +96,7 @@ export class MemoryRepo implements Repo {
   thaiTextSizeSetting: ThaiTextSize = DEFAULT_THAI_TEXT_SIZE;
   practice: PracticeRecord[] = [];
   formsAnswerModeSetting: 'pick' | 'type' = 'pick';
+  grammarHintsDismissedSetting: Record<string, string> = {};
   voiceSettingsValue = '{}';
 
   async upsertNotesAndCards(notes: Note[], cards: Card[]) {
@@ -183,6 +187,8 @@ export class MemoryRepo implements Repo {
   }
   async formsAnswerMode() { return this.formsAnswerModeSetting; }
   async saveFormsAnswerMode(mode: 'pick' | 'type') { this.formsAnswerModeSetting = mode; }
+  async grammarHintsDismissed() { return { ...this.grammarHintsDismissedSetting }; }
+  async saveGrammarHintsDismissed(dismissed: Record<string, string>) { this.grammarHintsDismissedSetting = { ...dismissed }; }
   // Kept as JSON text, as the SQLite repo keeps it, so a read never hands back the saved object itself.
   async voiceSettings() { return parseVoiceSettings(this.voiceSettingsValue); }
   async saveVoiceSettings(settings: VoiceSettings) { this.voiceSettingsValue = JSON.stringify(settings); }
