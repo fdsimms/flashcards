@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ApiError, type Api, type Length, type PastText, type Rating, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
+import { ApiError, type Api, type Language, type Length, type PastText, type Rating, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../reader/deckWords';
 import { scrollTarget, type Box } from '../reader/follow';
 import { THAI_FONTS, THAI_FONT_LABELS, readFont, type ReadFont, type ThaiFont } from '../reader/fonts';
@@ -80,9 +80,11 @@ export type ReaderSource =
 
 type UpNext = { id: number; title: string; lines: number; order: number[] };
 
-export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
+export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, onDone }: {
   api: Api;
   source: ReaderSource;
+  /** Plays a tapped word: its deck recording, else the phone's voice (useWordAudio). */
+  onPlayWord: (word: string, language: Language) => void;
   /** Read & Listen's settings, for the length new texts are written at; null until loaded. */
   settings: Settings | null;
   onSettings: (settings: Settings) => void;
@@ -755,6 +757,12 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
         grammar={tapped && text ? grammarOf(text, tapped.word) : null}
         flagged={tapped && session ? isFlagged(session, tapped.word.text) : false}
         onToggleFlag={review ? null : () => { if (tapped && session) setSession(toggleFlag(session, tapped.word.text)); }}
+        onPlay={() => {
+          if (!tapped || !text) return;
+          // The word and the line would talk over each other.
+          player.pause();
+          onPlayWord(tapped.word.text, text.language);
+        }}
         onClose={() => setTapped(null)}
       />
     </Screen>
@@ -917,10 +925,11 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-function GlossPopover({ tapped, grammar, flagged, onToggleFlag, onClose }: {
+function GlossPopover({ tapped, grammar, flagged, onToggleFlag, onPlay, onClose }: {
   tapped: Tapped | null;
   grammar: TextGrammar | null;
   flagged: boolean;
+  onPlay: () => void;
   /** null when marking isn't recorded (reading a past text). */
   onToggleFlag: (() => void) | null;
   onClose: () => void;
@@ -953,6 +962,9 @@ function GlossPopover({ tapped, grammar, flagged, onToggleFlag, onClose }: {
       >
         <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
         <Text style={{ ...type.body, color: c.text }}>{tapped.word.gloss ?? 'No meaning available'}</Text>
+        <View style={{ alignItems: 'flex-start' }}>
+          <HeaderAction label="Play word" onPress={onPlay} />
+        </View>
         {tapped.word.translit ? (
           showTranslit ? (
             <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text>
