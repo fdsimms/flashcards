@@ -127,23 +127,28 @@ function Divider({ inset }: { inset: number }) {
  * `icon`, a colored tile holds the symbol, as in iOS Settings; `icon.color` should be a theme
  * color that white reads on (the rating colors are).
  */
-export function NavRow({ label, detail, onPress, first, icon }: {
+export function NavRow({ label, detail, onPress, first, icon, disabled }: {
   label: string;
   detail?: string;
   onPress: () => void;
   first?: boolean;
   icon?: { name: SFSymbol; color: string };
+  /** Dimmed and not tappable; the detail should say why. */
+  disabled?: boolean;
 }) {
   const c = useTheme();
   const tile = 30;
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled }}
       accessibilityLabel={detail ? `${label}. ${detail}` : label}
       style={({ pressed }) => ({
         minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m,
         paddingVertical: space.m, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : 'transparent',
+        opacity: disabled ? 0.45 : 1,
       })}
     >
       {first ? null : <Divider inset={space.l + (icon ? tile + space.m : 0)} />}

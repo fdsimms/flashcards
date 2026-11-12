@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { drillPrompts, dueWhen, duePoints, drillResults, isDrilled, missingNote, pointSchedule, scheduledPoints, type GrammarAnswer } from '../../src/core/grammarDrills';
+import { anyDrilled, drillPrompts, dueWhen, duePoints, drillResults, isDrilled, missingNote, pointSchedule, scheduledPoints, type GrammarAnswer } from '../../src/core/grammarDrills';
 
 const H = 4;
 const NOW = new Date(2026, 10, 12, 12);
@@ -55,6 +55,14 @@ describe('which points are drilled', () => {
     expect(scheduledPoints('es', choices, done, NOW, H).map((s) => s.pointId)).toEqual(['es.preterite', 'es.imperfect']);
     expect(duePoints('th', choices, [], NOW, H).map((s) => s.pointId)).toEqual(['th.ever']);
     expect(duePoints('es', { 'es.gone': 'practice' }, [], NOW, H)).toEqual([]);
+  });
+
+  it('knows whether any language has a drilled point', () => {
+    expect(anyDrilled(['es', 'th'], choices)).toBe(true);
+    expect(anyDrilled(['de'], choices)).toBe(false);
+    expect(anyDrilled(['es'], { 'es.future': 'avoid', 'es.conditional': 'unset' })).toBe(false);
+    expect(anyDrilled(['es'], { 'es.gone': 'practice' })).toBe(false);
+    expect(anyDrilled(['es'], {})).toBe(false);
   });
 
   it('says when, in study days', () => {
