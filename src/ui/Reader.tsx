@@ -5,7 +5,7 @@ import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, type Api, type GrammarChoice, type Length, type PastText, type Rating, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
-import { countOutsideDeck, isOutsideDeck, underFloor } from '../reader/deckWords';
+import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../reader/deckWords';
 import { scrollTarget, type Box } from '../reader/follow';
 import { THAI_FONTS, THAI_FONT_LABELS, readFont, type ReadFont, type ThaiFont } from '../reader/fonts';
 import { LANGUAGES, wordStatus } from '../reader/languages';
@@ -103,6 +103,7 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
   const [explained, setExplained] = useState<number[]>([]);
   const [listenOnly, setListenOnly] = useState(false);
   const [highlight, setHighlight] = useState(prefs().highlight);
+  const [markNames, setMarkNames] = useState(prefs().markNames);
   const [paragraphMode, setParagraphMode] = useState(prefs().paragraphs);
   const [thaiFont, setThaiFont] = useState(prefs().thaiFont);
   const [tapped, setTapped] = useState<Tapped | null>(null);
@@ -424,6 +425,11 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
     setHighlight(on);
   };
 
+  const turnOnMarkNames = (on: boolean) => {
+    savePrefs({ markNames: on });
+    setMarkNames(on);
+  };
+
   const seconds = session ? Math.round((Date.now() - session.startedAt) / 1000) : 0;
   const hasAudio = text ? firstLine(text.lines) !== null : false;
   const language = LANGUAGES[text?.language ?? 'th'];
@@ -511,6 +517,9 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
                 <ToggleRow label={language.highlightLabel}>
                   <Switch value={highlight} onValueChange={turnOnHighlight} trackColor={{ true: c.accent }} accessibilityLabel={language.highlightLabel} />
                 </ToggleRow>
+                <ToggleRow label="Mark names">
+                  <Switch value={markNames} onValueChange={turnOnMarkNames} trackColor={{ true: c.accent }} accessibilityLabel="Mark names" />
+                </ToggleRow>
                 {text.language === 'th' || text.language === undefined ? (
                   <ToggleRow label="Thai letters">
                     <Segments
@@ -561,6 +570,7 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
                                 grammar={grammarOf(text, word)}
                                 flagged={isFlagged(session, word.text)}
                                 highlighted={highlight && isOutsideDeck(word)}
+                                named={markNames && isName(word)}
                                 selected={tapped?.word === word}
                                 playing={current === range.start + k}
                                 onPress={tap}
@@ -609,6 +619,7 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
                             grammar={grammarOf(text, word)}
                             flagged={isFlagged(session, word.text)}
                             highlighted={highlight && isOutsideDeck(word)}
+                            named={markNames && isName(word)}
                             selected={tapped?.word === word}
                             onPress={tap}
                           />
@@ -850,12 +861,14 @@ function RoundButton({ icon, label, accessibilityLabel, on, onPress }: {
   );
 }
 
-function WordView({ word, grammar, textStyle, flagged, highlighted, selected, playing = false, onPress }: {
+function WordView({ word, grammar, textStyle, flagged, highlighted, named, selected, playing = false, onPress }: {
   word: Word;
   grammar: TextGrammar | null;
   textStyle: { fontSize: number; lineHeight: number; font: ReadFont };
   flagged: boolean;
   highlighted: boolean;
+  /** A name the model marked, with names marked on. */
+  named: boolean;
   selected: boolean;
   /** In the line being played, in a story read as continuous text (a line row is shaded as a whole). */
   playing?: boolean;
@@ -872,7 +885,7 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, selected, pl
     <Pressable
       onPress={(e) => onPress(word, e.nativeEvent.pageX, e.nativeEvent.pageY)}
       accessibilityRole="button"
-      accessibilityLabel={[word.text, word.stretch && 'practice word', grammar && grammar.name, highlighted && 'not in your deck', flagged && 'marked unknown']
+      accessibilityLabel={[word.text, word.stretch && 'practice word', grammar && grammar.name, highlighted && 'not in your deck', named && 'name', flagged && 'marked unknown']
         .filter(Boolean).join(', ')}
       accessibilityHint="Shows what this word means"
       style={{
@@ -880,7 +893,7 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, selected, pl
         // words sit flush and only real spaces in the text show as gaps.
         borderRadius: radius.s - 2, borderWidth: 1.5, marginHorizontal: -1.5,
         borderColor: selected ? c.accent : 'transparent',
-        backgroundColor: selected ? c.accentFill : highlighted ? c.highlight : playing ? c.fill : undefined,
+        backgroundColor: selected ? c.accentFill : highlighted ? c.highlight : named ? c.nameFill : playing ? c.fill : undefined,
       }}
     >
       <Text

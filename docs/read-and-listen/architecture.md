@@ -420,6 +420,15 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   stored on the server so background writes follow it, and like ratings it applies from the next
   text written. It's separate from difficulty on purpose: ratings decide how many stretch words and
   how much coverage; this decides only which words.
+- **Names.** The model wraps a person's, pet's or place's name in tildes (`~Kasia~|mieszka`). A
+  name is left out of the coverage count, for and against, so it never sends a draft back for an
+  unknown word. The server limits it so the mark can't be used to get past the floor: at most
+  `MAX_NAMES` (4) different names, and in a spaced language each must start with a capital letter
+  (`name_problems`). Thai has no capitals, so the limit is all it has. `segment_line` finds a marked
+  name's pieces by position, so jasmine written as a word elsewhere in the line isn't a name, and
+  joins them into one piece. The app gets that word with status `"name"` and shades it with its own
+  color (the "Mark names" switch in the reader hides the shading; the name still isn't counted).
+  Nothing is migrated: a text written before this has no marks and shows as it did.
 
 ## Shelf
 

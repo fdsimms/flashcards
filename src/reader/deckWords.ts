@@ -7,6 +7,12 @@ export function isOutsideDeck(word: Word): boolean {
   return word.status === 'unknown' || word.status === 'partial';
 }
 
+// A name the model marked (Mali, Kasia): not a word to know, so it's never outside the deck and the
+// reader shades it with its own color.
+export function isName(word: Word): boolean {
+  return word.status === 'name';
+}
+
 export function countOutsideDeck(text: ReaderText): number {
   return text.lines.reduce((n, line) => n + line.words.filter(isOutsideDeck).length, 0);
 }

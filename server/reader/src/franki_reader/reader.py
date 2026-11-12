@@ -5,7 +5,7 @@ Generation and coverage)."""
 from typing import Any
 
 from franki_reader import grammar
-from franki_reader.coverage import Checker, is_word, parse_line
+from franki_reader.coverage import Checker, is_word, parse_line, segment_line
 from franki_reader.store import StoredText
 
 
@@ -60,7 +60,7 @@ def render(
         used.update(marked.values())
         at = 0
         words = []
-        for piece in lexicon.segment(plain):
+        for piece, is_name in segment_line(line.text, lexicon):
             if not is_word(piece):
                 words.append(
                     {
@@ -81,7 +81,7 @@ def render(
             words.append(
                 {
                     "text": piece,
-                    "status": lexicon.status(piece),
+                    "status": "name" if is_name else lexicon.status(piece),
                     "gloss": gloss_for(piece, text.glosses, lexicon, meanings),
                     "translit": translit_for(piece, text.translits, lexicon, deck_translits or {}),
                     "stretch": (entry or piece) in stretch,

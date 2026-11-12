@@ -18,7 +18,7 @@ export type Topic = { id: number; name: string; favorite: boolean; ready: number
 
 export type Word = {
   text: string;
-  status: 'known' | 'partial' | 'unknown' | null; // null for spaces and punctuation
+  status: 'known' | 'partial' | 'unknown' | 'name' | null; // 'name': a name the model marked; null for spaces and punctuation
   gloss: string | null;
   translit?: string | null; // the pronunciation in Latin letters, when there is one (Thai)
   stretch: boolean;
