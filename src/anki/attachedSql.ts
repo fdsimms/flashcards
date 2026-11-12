@@ -30,6 +30,11 @@ export const keptSql = (schema = 'anki') => ({
   crt: `SELECT crt FROM ${schema}.col`,
   colModified: COL_MODIFIED_SQL.replace('UPDATE col', `UPDATE ${schema}.col`),
   unsentSince: `SELECT COUNT(*) AS n FROM ${schema}.revlog WHERE id > ? AND usn = -1`,
+  // Changes made here and not on the server yet, besides answers: notes added, edited or deleted,
+  // cards suspended, buried, flagged or deleted. A sync sets their usn; only a full download drops them.
+  unsentEdits: `SELECT (SELECT COUNT(*) FROM ${schema}.notes WHERE usn = -1)`
+    + ` + (SELECT COUNT(*) FROM ${schema}.graves WHERE usn = -1)`
+    + ` + (SELECT COUNT(*) FROM ${schema}.cards WHERE usn = -1 AND id NOT IN (SELECT cid FROM ${schema}.revlog WHERE usn = -1)) AS n`,
   revlogUsn: `SELECT usn FROM ${schema}.revlog WHERE id = ?`,
   revlogSince: `SELECT id, cid, ease, lastIvl, time, type FROM ${schema}.revlog WHERE id >= ? ORDER BY id`,
 });

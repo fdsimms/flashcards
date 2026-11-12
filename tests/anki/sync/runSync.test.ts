@@ -16,6 +16,7 @@ function deps(outcome: SyncOutcome | null, over: Partial<SyncDeps> = {}) {
     hasCollection: async () => outcome !== null,
     withCollection: async (fn) => fn({} as never),
     unsentAnswers: async () => 0,
+    unsentEdits: async () => 0,
     download: async () => { calls.push('download'); },
     upload: async () => { calls.push('upload'); },
     refresh: async () => { calls.push('refresh'); },
@@ -60,10 +61,18 @@ describe('one sync, start to finish', () => {
     const asked: unknown[] = [];
     const a = deps(full(), { unsentAnswers: async () => 4, choose: async (q) => { asked.push(q); return 'upload'; } });
     expect((await runSync(a.d)).collection).toBe('uploaded');
-    expect(asked).toEqual([{ uploadOk: true, downloadOk: true, unsent: 4, reason: 'schema' }]);
+    expect(asked).toEqual([{ uploadOk: true, downloadOk: true, unsent: 4, edits: 0, reason: 'schema' }]);
     const b = deps(full(), { unsentAnswers: async () => 4 });
     expect(await runSync(b.d)).toEqual({ collection: 'cancelled', sent: 0 });
     expect(b.calls).toEqual(['lock', 'ask', 'unlock']);
+  });
+
+  it('asks when a download would lose notes or card changes made here, even with no answers unsent', async () => {
+    const asked: unknown[] = [];
+    const a = deps(full(), { unsentEdits: async () => 2, choose: async (q) => { asked.push(q); return null; } });
+    expect((await runSync(a.d)).collection).toBe('cancelled');
+    expect(asked).toEqual([{ uploadOk: true, downloadOk: true, unsent: 0, edits: 2, reason: 'schema' }]);
+    expect(a.calls).not.toContain('download');
   });
 
   it('asks when the kept collection has deck changes of its own, even with no answers unsent', async () => {
@@ -103,7 +112,9 @@ describe('what a sync says', async () => {
   });
 
   it('says what a download would lose', () => {
-    expect(fullSyncPrompt({ uploadOk: true, downloadOk: true, unsent: 2, reason: 'schema' }).message).toMatch(/loses 2 answers given in Franki that aren't on the server/);
-    expect(fullSyncPrompt({ uploadOk: true, downloadOk: true, unsent: 0, reason: 'local' }).message).not.toMatch(/loses/);
+    expect(fullSyncPrompt({ uploadOk: true, downloadOk: true, unsent: 2, edits: 0, reason: 'schema' }).message).toMatch(/loses 2 answers made in Franki that aren't on the server/);
+    expect(fullSyncPrompt({ uploadOk: true, downloadOk: true, unsent: 1, edits: 3, reason: 'schema' }).message)
+      .toMatch(/loses 1 answer and 3 other changes \(notes added, edited or deleted, cards suspended, buried or flagged\) made in Franki/);
+    expect(fullSyncPrompt({ uploadOk: true, downloadOk: true, unsent: 0, edits: 0, reason: 'local' }).message).not.toMatch(/loses/);
   });
 });

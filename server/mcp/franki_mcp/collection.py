@@ -90,6 +90,24 @@ class CollectionManager:
                 await anyio.to_thread.run_sync(self._start_media_sync)
             return result
 
+    async def change_schema(self, fn: Callable[[Collection], T]) -> T:
+        """
+        Runs `fn`, a change only a full upload can send (a field added to a note type), on an
+        up-to-date copy, then uploads the whole collection over the server's. Every other device
+        then downloads it. If the upload fails, this copy is thrown away and downloaded again at
+        the next call, so it never holds a change the server lacks.
+        """
+        async with self._lock:
+            await anyio.to_thread.run_sync(self._sync)
+            result = await anyio.to_thread.run_sync(fn, self.col)
+            try:
+                await anyio.to_thread.run_sync(self._full_upload)
+            except Exception as e:  # noqa: BLE001 - the server unreachable, or refusing the upload
+                await anyio.to_thread.run_sync(self._discard)
+                raise SyncProblem(f"Couldn't upload the collection to the sync server: {e}. Nothing changed there.") from e
+            await anyio.to_thread.run_sync(self._start_media_sync)
+            return result
+
     async def sync_now(self) -> str:
         async with self._lock:
             await anyio.to_thread.run_sync(self._sync)
@@ -149,6 +167,25 @@ class CollectionManager:
     def _has_local_changes(self) -> bool:
         db = self.col.db
         return any(db.scalar(f"select 1 from {t} where usn = -1 limit 1") for t in ("notes", "cards", "revlog", "graves"))
+
+    def _full_upload(self) -> None:
+        if self.sync_settings is None:
+            return
+        auth = self._login()
+        log.info("uploading the whole collection to the sync server (a schema change)")
+        self.col.close_for_full_sync()
+        self.col.full_upload_or_download(auth=auth, server_usn=None, upload=True)
+        self.col.reopen(after_full_sync=True)
+        self._unsent = False
+        self._synced_at = time.monotonic()
+
+    def _discard(self) -> None:
+        """Throws this copy away; the next sync downloads the server's."""
+        self.close()
+        for p in self.path.parent.glob(self.path.name + "*"):
+            p.unlink(missing_ok=True)
+        self._synced_at = 0.0
+        self._unsent = False
 
     def _full_download(self, auth) -> None:
         log.info("downloading the whole collection from the sync server")
