@@ -8,6 +8,7 @@ import { AGENT_FLAG, AGENT_FLAG_REASONS, withFlagReason } from '../core/agentFla
 import { autoplayFor, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
+import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayStart } from '../core/day';
 import { nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
@@ -254,7 +255,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   const queue = useMemo(() => {
     if (!cards) return null;
     return treeQueue(deck, queueInput({
-      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, collection, now, held: forms.held,
+      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, collection, now, held: forms.held, boostFor: boostFor({ notes: notes.values(), settings: deckSettings, now }),
     }));
   }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held]);
 
