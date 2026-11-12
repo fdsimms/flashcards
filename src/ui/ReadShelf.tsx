@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Keyboard, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type Form, type Language, type Shelf, type ShelfText } from '../reader/api';
@@ -64,7 +64,12 @@ export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, o
     }
     api.markedWords().then((ws) => { if (started === loadSeq.current) setMarkedCount(ws.length); }, () => undefined);
   }, [api]);
-  useEffect(() => { load(); }, [load]);
+  // Not only on mount: the reader opens on top of this screen, so what was just finished (the story's
+  // next episode, the texts left on the shelf) is only known to the server until this asks again.
+  useFocusEffect(useCallback(() => {
+    idlePolls.current = 0;
+    load();
+  }, [load]));
 
   const busy = !!shelf && (shelf.writing.length > 0 || !!shelf.story?.writing);
   const short = !!shelf && shelf.texts.length < SHELF_SIZE;
