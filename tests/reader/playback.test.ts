@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { firstLine, nextLine, paragraphs, rangeOf } from '../../src/reader/playback';
+import { firstLine, nextLine, paragraphs, previousLine, rangeOf } from '../../src/reader/playback';
 
 const lines = [{ audio: false }, { audio: true }, { audio: false }, { audio: true }];
 
@@ -24,17 +24,10 @@ test('with repeat on, the line that just finished plays again', () => {
   expect(nextLine(lines, 0, true, false)).toBe(1);
 });
 
-test('a paragraph plays to its last line and stops', () => {
-  const lines = [{ audio: true }, { audio: true }, { audio: true }, { audio: true }];
-  expect(nextLine(lines, 0, true, false, 1)).toBe(1);
-  expect(nextLine(lines, 1, true, false, 1)).toBeNull();
-  expect(nextLine(lines, 1, true, true, 1)).toBe(1); // repeat still repeats the line
-});
-
-test('a paragraph skips a silent line and still stops at its end', () => {
+test('previous line skips silent lines and stops at the start', () => {
   const lines = [{ audio: true }, { audio: false }, { audio: true }];
-  expect(nextLine(lines, 0, true, false, 1)).toBeNull();
-  expect(nextLine(lines, 0, true, false, 2)).toBe(2);
+  expect(previousLine(lines, 2)).toBe(0);
+  expect(previousLine(lines, 0)).toBeNull();
 });
 
 test('paragraphs start at each marked line, and the first line always starts one', () => {

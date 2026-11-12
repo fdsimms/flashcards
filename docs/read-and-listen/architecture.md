@@ -350,10 +350,11 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   whether stories rate differently.
 - **Story paragraphs.** The model marks the line that opens each paragraph (`paragraph` on a line, stored in
   the line's JSON); `_paragraphs` in `generator.py` makes the marks consistent (the first line opens one
-  whenever any line does; a dialogue has none). The reader shows a paragraph as one run-on block with one
-  play button and one EN button. Audio stays one file per line: a paragraph's play button plays its lines
-  in turn and stops at its end (`nextLine`'s `end`), and the player bar and Repeat line still work by line.
-  Stories written before this have no marks and keep the line-by-line view; nothing is rewritten.
+  whenever any line does; a dialogue has none). The reader shows such a story as continuous text: a gap
+  between paragraphs and nothing else, no per-line rows, dividers or buttons. Audio stays one file per line;
+  the player bar's previous and next line buttons replace the per-line play button, the line being played is
+  shaded inside the text, and Show English puts a paragraph's translation under it. Stories written before
+  this have no marks and keep the line-by-line view; nothing is rewritten.
 - **Dialogue length** is a setting: 6, 8 or 12 lines (`lines` in `/api/settings`), applying from the
   next text written. Longer dialogues have more room for unknown words before missing the floor.
 - **The model chooses stretch words to fit the topic** (the default). It gets 15 due or young

@@ -1,7 +1,6 @@
 // Which line plays next. 'Play' runs the dialogue from a line to the end, skipping lines with no
 // audio; a line's own replay button plays that line alone. With 'Repeat line' on, the line that
-// just finished plays again, until it's turned off. A paragraph's play button runs its lines and
-// stops at the paragraph's last one (`end`).
+// just finished plays again, until it's turned off.
 type HasAudio = { audio: boolean };
 
 /** A run of lines, by index, both ends included. */
@@ -37,10 +36,13 @@ export function nextLine(
   finished: number,
   playingAll: boolean,
   repeat = false,
-  end: number | null = null,
 ): number | null {
   if (repeat) return finished;
-  if (!playingAll) return null;
-  const next = firstLine(lines, finished + 1);
-  return next !== null && (end === null || next <= end) ? next : null;
+  return playingAll ? firstLine(lines, finished + 1) : null;
+}
+
+/** The nearest line before `from` that has audio (the previous-line button), else null. */
+export function previousLine(lines: HasAudio[], from: number): number | null {
+  for (let i = Math.min(from, lines.length) - 1; i >= 0; i--) if (lines[i].audio) return i;
+  return null;
 }
