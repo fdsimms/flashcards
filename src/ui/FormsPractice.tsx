@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { headword, PATTERN_PROMPTS, patternOf, practiceChoices, studiedWords, type DrillRequest, type PracticeWord } from '../core/forms';
+import { headword, PATTERN_PROMPT_LIMITS, patternOf, practiceChoices, studiedWords, type DrillRequest, type PracticeWord } from '../core/forms';
 import type { Repo } from '../db/repo';
 import { Button, Card, Chip, Help, Screen, SectionTitle, Segments } from './kit';
 import { space, type, useTheme } from './theme';
@@ -21,6 +21,7 @@ export function FormsPractice({ repo, deck, onStart }: { repo: Repo; deck: strin
   const [patterns, setPatterns] = useState<string[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
   const [answering, setAnswering] = useState<Answering>('pick');
+  const [limit, setLimit] = useState<number>(PATTERN_PROMPT_LIMITS[0]);
 
   useEffect(() => {
     (async () => {
@@ -45,14 +46,14 @@ export function FormsPractice({ repo, deck, onStart }: { repo: Repo; deck: strin
 
   const start = () => {
     if (answering !== 'sentence') repo.saveFormsAnswerMode(answering);
-    onStart({ kind: 'pattern', deck, patterns, groups, sentence: answering === 'sentence' });
+    onStart({ kind: 'pattern', deck, patterns, groups, sentence: answering === 'sentence', limit: limit || undefined });
   };
 
   return (
     <Screen
       title="Practice forms"
       footer={words?.length ? (
-        <Button label={forms ? `Start: up to ${Math.min(forms, PATTERN_PROMPTS)} prompts` : 'Nothing to practice'} onPress={start} disabled={!forms} />
+        <Button label={forms ? `Start: up to ${limit ? Math.min(forms, limit) : forms} prompts` : 'Nothing to practice'} onPress={start} disabled={!forms} />
       ) : undefined}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.l }}>
@@ -75,6 +76,14 @@ export function FormsPractice({ repo, deck, onStart }: { repo: Repo; deck: strin
                 onChange={setAnswering}
               />
               {answering === 'sentence' ? <Help>Asks only the forms that appear in a word's example sentence, typed into the gap.</Help> : null}
+            </View>
+            <View style={{ gap: space.s }}>
+              <SectionTitle>Prompts</SectionTitle>
+              <Segments<number>
+                options={PATTERN_PROMPT_LIMITS.map((n) => (n ? { value: n, label: String(n), accessibilityLabel: `${n} prompts` } : { value: 0, label: 'No limit', accessibilityLabel: 'No limit on prompts' }))}
+                value={limit}
+                onChange={setLimit}
+              />
             </View>
             <Card style={{ gap: space.s }}>
               <Text style={{ ...type.headline, color: c.text }}>

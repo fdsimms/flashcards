@@ -270,6 +270,13 @@ describe('drillPrompts', () => {
     expect(inSentence.map((p) => p.key).sort()).toEqual(['present · yo', 'present · yo']);
     expect(inSentence.every((p) => p.sentence)).toBe(true);
   });
+  it('caps a pattern drill only when asked to', () => {
+    const request = { kind: 'pattern' as const, deck: '👅 Languages', patterns: ['-ar, regular'], groups: ['present'], sentence: false };
+    const all = drillPrompts(request, data, seeded()).prompts.length;
+    expect(all).toBeGreaterThan(1);
+    expect(drillPrompts({ ...request, limit: 1 }, data, seeded()).prompts).toHaveLength(1);
+    expect(drillPrompts({ ...request, limit: 99 }, data, seeded()).prompts).toHaveLength(all);
+  });
   it('lists studied words in a deck and its subdecks', () => {
     expect(studiedWords('👅 Languages', notes, [studied('hablar')]).map((w) => w.note.id)).toEqual(['hablar']);
     expect(studiedWords('Other', notes, [studied('hablar')])).toEqual([]);
