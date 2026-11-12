@@ -28,7 +28,8 @@ describe('Read & Listen', () => {
 
   it('scans its logic, its screens and its routes', () => {
     expect(files.some((f) => f.endsWith('Reader.tsx'))).toBe(true);
-    expect(files.some((f) => f.endsWith('ReadTopics.tsx'))).toBe(true);
+    expect(files.some((f) => f.endsWith('ReadShelf.tsx'))).toBe(true);
+    expect(files.some((f) => f.endsWith('ReadLanguage.tsx'))).toBe(true);
     expect(files.some((f) => f.endsWith('session.ts'))).toBe(true);
     expect(files.some((f) => f.endsWith('useReader.ts'))).toBe(true);
     expect(files.some((f) => f.endsWith(join('app', 'read-words.tsx')))).toBe(true);

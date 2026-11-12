@@ -10,7 +10,14 @@ from scripted import BAD, ENTRIES, IN_RANGE, ScriptedModel
 
 from franki_reader import store
 from franki_reader.difficulty import Difficulty
-from franki_reader.engine import FAILURE_COOLDOWN, MISSED_FLOOR, Engine, NotAvailable, NotFound
+from franki_reader.engine import (
+    FAILURE_COOLDOWN,
+    MISSED_FLOOR,
+    SHELF_SIZE,
+    Engine,
+    NotAvailable,
+    NotFound,
+)
 from franki_reader.generator import GenerationFailed
 from franki_reader.lexicon import Entry
 from franki_reader.store import Reading, StoredText
@@ -185,41 +192,132 @@ def test_an_unknown_topic_is_not_found() -> None:
         run(lambda: engine(ScriptedModel(IN_RANGE)).next_text(99))
 
 
-def test_top_up_fills_each_favorite_once_and_skips_others() -> None:
+def test_top_up_fills_the_shelf_with_one_of_each_kind_in_both_forms() -> None:
     model = ScriptedModel(IN_RANGE)
     e = engine(model)
     store.add_topic(e.conn, "Food stall", True, NOW)
     store.add_topic(e.conn, "Taxi", True, NOW)
-    store.add_topic(e.conn, "Weather", False, NOW)
 
     run(e.top_up)
+    run(e.top_up)  # full: nothing more is written
+
+    shelf = store.shelf_texts(e.conn, "th")
+    assert model.calls == SHELF_SIZE == len(shelf)
+    assert [t.reason for t in shelf] == ["due", "liked", "new"]
+    assert [t.form for t in shelf] == ["dialogue", "story", "dialogue"]
+    # The idea is filed away: not listed as a topic, and not offered again.
+    new = store.topic_name(e.conn, shelf[2].topic_id)
+    assert [t.name for t in store.list_topics(e.conn)] == ["Food stall", "Taxi"]
+    assert new in store.topic_names(e.conn)
+
+
+def test_a_text_taken_off_the_shelf_is_replaced_and_counted_as_skipped() -> None:
+    model = ScriptedModel(IN_RANGE)
+    e = engine(model)
+    run(e.top_up)
+    first = store.shelf_texts(e.conn, "th")[0]
+
+    assert store.skip_text(e.conn, first.id)
+    assert not store.skip_text(e.conn, first.id)  # already off the shelf
     run(e.top_up)
 
-    ready = {t.name: t.ready for t in store.list_topics(e.conn)}
-    assert ready == {"Food stall": 1, "Taxi": 1, "Weather": 0}
-    assert model.calls == 2
+    assert len(store.shelf_texts(e.conn, "th")) == SHELF_SIZE
+    assert first.id not in {t.id for t in store.shelf_texts(e.conn, "th")}
+    assert store.spending(e.conn, NOW)["th"].skipped == 1
 
 
-def test_top_up_carries_on_past_a_failed_topic_and_cools_it_down() -> None:
+def test_a_failed_shelf_text_ends_the_pass_and_its_topic_cools_down() -> None:
     clock = Clock()
-    # The first topic in name order misses three times; the second gets a good text.
     model = ScriptedModel(BAD, BAD, BAD, IN_RANGE)
     e = engine(model, clock=clock)
-    store.add_topic(e.conn, "At the market", True, NOW)
-    store.add_topic(e.conn, "Taxi", True, NOW)
+    market = store.add_topic(e.conn, "At the market", True, NOW)
 
-    run(e.top_up)
-    assert {t.name: e.topic_state(t) for t in store.list_topics(e.conn)} == {
-        "At the market": "failed",
-        "Taxi": "ready",
-    }
+    run(e.top_up)  # the due-words text, on the only liked theme, misses three times
+    assert model.calls == 3
+    assert store.shelf_texts(e.conn, "th") == []
+    assert e.failure(market.id, "th") == MISSED_FLOOR
 
-    run(e.top_up)  # still cooling down: no new attempt
-    assert model.calls == 4
+    run(e.top_up)  # the shelf waits out the cooldown rather than trying another idea
+    assert model.calls == 3
 
     clock.now = NOW + FAILURE_COOLDOWN
+    assert e.failure(market.id, "th") is None
     run(e.top_up)
-    assert model.calls == 5
+    assert len(store.shelf_texts(e.conn, "th")) == SHELF_SIZE
+
+
+def test_a_text_asked_for_joins_the_shelf_beyond_its_size() -> None:
+    model = ScriptedModel(IN_RANGE)
+    e = engine(model)
+    run(e.top_up)
+
+    async def scenario() -> None:
+        e.write_about("Haggling at a market", "story")
+        await settle(e)
+
+    run(scenario)
+    shelf = store.shelf_texts(e.conn, "th")
+    assert len(shelf) == SHELF_SIZE + 1
+    asked = shelf[-1]
+    assert (asked.reason, asked.form) == ("asked", "story")
+    assert store.topic_name(e.conn, asked.topic_id) == "Haggling at a market"
+    with pytest.raises(ValueError):
+        e.write_about("   ", "dialogue")
+
+
+def test_a_story_keeps_its_cast_and_each_episode_hears_the_ones_before() -> None:
+    first = {
+        **IN_RANGE,
+        "series": "Noi's stall",
+        "cast": "Noi sells noodles.",
+        "recap": "Noi opens.",
+    }
+    second = {**IN_RANGE, "recap": "It rains on Noi."}
+    model = ScriptedModel(first, second)
+    e = engine(model)
+
+    async def start() -> int:
+        story = e.start_story("a noodle stall")
+        await settle(e)
+        return story.id
+
+    story_id = run(start)
+    story = store.get_story(e.conn, story_id)
+    assert story is not None and (story.title, story.cast) == ("Noi's stall", "Noi sells noodles.")
+    episode = store.waiting_episode(e.conn, story_id)
+    assert episode is not None and (episode.episode, episode.recap) == (1, "Noi opens.")
+    assert episode.reason == "story" and episode.form == "story"
+    assert "first episode" in model.messages_seen[0][0]["content"]
+    assert "a noodle stall" in model.messages_seen[0][0]["content"]
+    # Waiting episodes aren't on the shelf, and a second isn't written while one waits.
+    assert episode.id not in {t.id for t in store.shelf_texts(e.conn, "th")}
+
+    e.record_reading(episode.id, reading(None))
+    calls = model.calls
+    run(e.top_up)
+    nxt = store.waiting_episode(e.conn, story_id)
+    assert nxt is not None and (nxt.episode, nxt.recap) == (2, "It rains on Noi.")
+    asked = model.messages_seen[calls][0]["content"]
+    assert 'episode 2 of an ongoing story, "Noi\'s stall"' in asked
+    assert "Noi opens." in asked and "Noi sells noodles." in asked
+
+    run(e.top_up)  # episode 2 is waiting: no third
+    assert [t.episode for t in store.episodes(e.conn, story_id)] == [1, 2]
+
+
+def test_a_new_story_retires_the_old_one() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+
+    async def scenario() -> tuple[int, int]:
+        old = e.start_story("")
+        await settle(e)
+        new = e.start_story("a haunted house")
+        await settle(e)
+        return old.id, new.id
+
+    old, new = run(scenario)
+    active = store.active_story(e.conn, "th")
+    assert active is not None and active.id == new != old
 
 
 def test_top_up_stops_quietly_without_a_key() -> None:
