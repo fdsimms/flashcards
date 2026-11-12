@@ -3,6 +3,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
+let pageCount = 0;
+
 /**
  * Shows one side of an Anki-template card. The page is written to a file and loaded from it,
  * because iOS's WebView only reads local files (the card's images and sounds in the media folder)
@@ -20,9 +22,12 @@ export function CardWebView({ html, onMessage }: {
   useEffect(() => {
     const dir = new Directory(Paths.document, 'card-pages');
     dir.create({ idempotent: true, intermediates: true });
-    // A new name per page, so the WebView loads it fresh, and the previous one is removed.
+    // A new name per page, so the WebView loads it fresh, and the previous one is removed. The
+    // counter is shared by every CardWebView: Review mounts a new one for each card side, and a
+    // per-instance counter gave them all `page-1.html`, so one side's delayed delete below removed
+    // the next side's page before the WebView had loaded it (error -1100).
     const n = ++seq.current;
-    const file = new File(dir, `page-${n}.html`);
+    const file = new File(dir, `page-${++pageCount}.html`);
     let cancelled = false;
     (async () => {
       file.create({ overwrite: true });
