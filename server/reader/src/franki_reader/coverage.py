@@ -27,12 +27,16 @@ from pythainlp.corpus import thai_words
 from pythainlp.tokenize import word_tokenize
 from pythainlp.util import dict_trie
 
-FLOOR = 0.95
-TARGET = 0.98
+# The lowest coverage target a rating can reach (the default starts a little above, difficulty.py).
+# Lowered from 95% on 12 November 2026: at 95% to 98% every text came out too easy, with 12-line
+# dialogues holding almost no word the owner hadn't studied (docs/read-and-listen/architecture.md,
+# Generation and coverage).
+FLOOR = 0.90
 # Below the floor after every attempt, the closest attempt is still shown if it's at least this
-# (the owner's decision, 26 October 2026; docs/read-and-listen/architecture.md, Generation and coverage). At 90%,
-# listening comprehension already varied widely between people (docs/read-and-listen/brief.md, evidence table).
-MINIMUM = 0.90
+# (the owner's decision, 26 October 2026, lowered with the floor on 12 November 2026).
+MINIMUM = 0.85
+# A text more than this far above the target is too easy and goes back for revision too.
+CEILING_GAP = 0.04
 
 Status = Literal["known", "partial", "unknown"]
 

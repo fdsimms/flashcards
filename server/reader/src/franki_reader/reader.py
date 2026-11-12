@@ -23,7 +23,26 @@ def gloss_for(
     return " + ".join(parts) if pieces and len(parts) == len(pieces) else None
 
 
-def render(text: StoredText, lexicon: Checker, meanings: dict[str, str]) -> dict[str, Any]:
+def translit_for(
+    word: str, translits: dict[str, str], lexicon: Checker, deck: dict[str, str]
+) -> str | None:
+    """The deck note's transliteration (of the entry the word is a form of), else the one the model
+    wrote for the text, else the deck entries' joined when a known compound splits into them. None
+    when there's nothing to show, so the app offers no reveal rather than an empty one."""
+    entry = lexicon.entry_of(word)
+    if found := deck.get(word) or (deck.get(entry) if entry else None) or translits.get(word):
+        return found
+    pieces = lexicon.known_pieces(word)
+    parts = [deck[p] for p in pieces or [] if p in deck]
+    return " + ".join(parts) if pieces and len(parts) == len(pieces) else None
+
+
+def render(
+    text: StoredText,
+    lexicon: Checker,
+    meanings: dict[str, str],
+    deck_translits: dict[str, str] | None = None,
+) -> dict[str, Any]:
     stretch = set(text.stretch)
     practice = tuple(text.grammar.get("practice", []))
     avoid = tuple(text.grammar.get("avoid", []))
@@ -41,6 +60,7 @@ def render(text: StoredText, lexicon: Checker, meanings: dict[str, str]) -> dict
                         "text": piece,
                         "status": None,
                         "gloss": None,
+                        "translit": None,
                         "stretch": False,
                         "deck": False,
                         "grammar": None,
@@ -56,13 +76,21 @@ def render(text: StoredText, lexicon: Checker, meanings: dict[str, str]) -> dict
                     "text": piece,
                     "status": lexicon.status(piece),
                     "gloss": gloss_for(piece, text.glosses, lexicon, meanings),
+                    "translit": translit_for(piece, text.translits, lexicon, deck_translits or {}),
                     "stretch": (entry or piece) in stretch,
                     # A deck word, as against one known for being common (every language but Thai).
                     "deck": entry is not None,
                     "grammar": point,
                 }
             )
-        lines.append({"speaker": line.speaker, "english": line.english, "words": words})
+        lines.append(
+            {
+                "speaker": line.speaker,
+                "english": line.english,
+                "paragraph": line.paragraph,
+                "words": words,
+            }
+        )
     return {
         "id": text.id,
         "topicId": text.topic_id,

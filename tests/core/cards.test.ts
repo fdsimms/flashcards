@@ -21,6 +21,32 @@ describe('cards', () => {
     const r = renderCard(omniNote({ Meaning: 'a <b>book</b><br>(noun) [sound:x.mp3]' }), 'forward');
     expect(r.back.blocks.find((b) => b.text.startsWith('a book'))?.text).toBe('a book\n(noun)');
   });
+  it("hides what Anki's template wraps in {{hint:}} behind a tap-to-show label", () => {
+    const note = omniNote({ Transliteration: 'nang-suu', Context: 'Ctx', ContextRomanized: 'rom', ContextTranslation: 'He reads.' });
+    const back = renderCard(note, 'forward').back.blocks;
+    expect(back.find((b) => b.text === 'nang-suu')?.tapLabel).toBe('Show transliteration');
+    expect(back.find((b) => b.text === 'rom')?.tapLabel).toBe('Show romanization');
+    expect(back.find((b) => b.text === 'He reads.')?.tapLabel).toBe('Show translation');
+    expect(back.find((b) => b.text === 'Ctx')?.tapLabel).toBeUndefined();
+    expect(back.find((b) => b.text === 'book')?.tapLabel).toBeUndefined();
+  });
+  it('lays out the back as the answer, tags, the example sentence, then the notes', () => {
+    const note = omniNote({
+      Entry: 'ดม', Transliteration: 'dom', Meaning: 'to smell', PartOfSpeech: 'verb', Register: 'neutral',
+      Context: 'ขอดมดอกไม้หน่อยครับ', ContextRomanized: 'khǎaw dom dòk-máai nòi khráp', ContextTranslation: 'May I smell the flower?',
+      Notes: 'active smelling',
+    });
+    const back = renderCard(note, 'forward').back.blocks;
+    expect(back.map((b) => b.role)).toEqual([undefined, undefined, 'chips', 'example', 'exampleRomanized', 'exampleTranslation', 'note']);
+    expect(back.find((b) => b.role === 'chips')?.chips).toEqual(['verb', 'neutral']);
+    expect(back.find((b) => b.role === 'example')).toMatchObject({ mark: 'ดม', label: undefined, tapLabel: undefined });
+    expect(back.find((b) => b.role === 'exampleRomanized')).toMatchObject({ mark: 'dom', tapLabel: 'Show romanization' });
+    expect(back.find((b) => b.role === 'note')?.label).toBe('Notes');
+  });
+  it('leaves out tags and the example when the note has none', () => {
+    const back = renderCard(omniNote({ Meaning: 'book' }), 'forward').back.blocks;
+    expect(back.some((b) => b.role)).toBe(false);
+  });
   it('renders plain Front/Back notes for trivia', () => {
     const note: Note = { id: 't', deck: 'Trivia', model: 'Basic', fields: { Front: 'Capital of Peru?', Back: 'Lima' }, tags: [] };
     const r = renderCard(note, 'forward');

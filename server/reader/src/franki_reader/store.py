@@ -5,7 +5,7 @@ import json
 import logging
 import sqlite3
 import statistics
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
@@ -13,7 +13,7 @@ from typing import Any, Literal
 from franki_reader.difficulty import Difficulty
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Form, Generated, Line
-from franki_reader.languages import LANGUAGES, Code, with_deck
+from franki_reader.languages import LANGUAGES, VOICE_SLOTS, Code, with_deck
 from franki_reader.lexicon import Entry, ReadDeck
 
 SNAPSHOT_MAX_AGE = timedelta(hours=24)
@@ -88,6 +88,25 @@ CREATE TABLE IF NOT EXISTS cleared_words (
     word TEXT PRIMARY KEY,
     cleared_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS explanations (
+    text_id INTEGER NOT NULL REFERENCES texts(id),
+    line INTEGER NOT NULL,
+    simple INTEGER NOT NULL,
+    points TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    cost_usd REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (text_id, line, simple)
+);
+CREATE TABLE IF NOT EXISTS stories (
+    id INTEGER PRIMARY KEY,
+    language TEXT NOT NULL,
+    topic_id INTEGER NOT NULL REFERENCES topics(id),
+    about TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    cast_ TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1
+);
 """
 
 
@@ -97,6 +116,12 @@ class Topic:
     name: str
     favorite: bool
     ready: int  # texts waiting to be read
+
+
+# Why a text is on the shelf (docs/read-and-listen/architecture.md, Shelf): "liked", a theme the
+# owner likes; "due", written around words due today; "new", an idea not tried before; "asked",
+# a topic typed in; "story", an episode of the ongoing story. "" for texts from before the shelf.
+Reason = Literal["liked", "due", "new", "asked", "story", ""]
 
 
 @dataclass(frozen=True)
@@ -109,10 +134,20 @@ class StoredText:
     stretch: tuple[str, ...]
     coverage: float
     roles: dict[str, str] = field(default_factory=dict)
+    # speaker -> "male" or "female" for a dialogue; empty for a story and for a text written
+    # before genders were recorded, which is read with A as a man and B as a woman (gender.py).
+    genders: dict[str, str] = field(default_factory=dict)
     form: Form = "dialogue"
     language: Code = "th"
     # {"practice": [point ids], "avoid": [point ids]}, as asked for when it was written
     grammar: dict[str, list[str]] = field(default_factory=dict)
+    # Transliterations the model wrote for the words it glossed, by word (the deck's own are
+    # read from the lexicon at render time).
+    translits: dict[str, str] = field(default_factory=dict)
+    reason: Reason = ""
+    story_id: int | None = None
+    episode: int = 0
+    recap: str = ""  # a story episode's one sentence about what happened in it
 
 
 # "topic": the model chooses stretch words that fit the topic from a list of due and young words.
@@ -132,7 +167,8 @@ class Settings:
     language: Code = "th"  # the language new texts are written and served in
     # The deck each language's word list comes from, where it isn't the default (languages.py).
     decks: dict[str, str] = field(default_factory=dict)
-    # The Azure voice for each speaker (A, B) by language, where one was chosen in the app.
+    # The Azure voice for each voice slot (male, male2, female, female2: languages.VOICE_SLOTS) by
+    # language, where one was chosen in the app.
     voices: dict[str, dict[str, str]] = field(default_factory=dict)
     # How many of each language's most common words count as known, where it isn't the default
     # (languages.py). Thai has none: only its deck counts.
@@ -166,12 +202,24 @@ def connect(path: Path | str) -> sqlite3.Connection:
         if "language" not in {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}:
             # Everything from before Spanish is Thai.
             conn.execute(f"ALTER TABLE {table} ADD COLUMN language TEXT NOT NULL DEFAULT 'th'")
+    if "genders" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
+        # Who is a man or a woman in a dialogue; none before it was asked, and those texts are
+        # read with A as a man and B as a woman.
+        conn.execute("ALTER TABLE texts ADD COLUMN genders TEXT NOT NULL DEFAULT '{}'")
     if "grammar" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
         # The grammar a text was written to practice and avoid; none before grammar choices.
         conn.execute("ALTER TABLE texts ADD COLUMN grammar TEXT NOT NULL DEFAULT '{}'")
     if "form" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
         # Every text written before stories was a dialogue.
         conn.execute("ALTER TABLE texts ADD COLUMN form TEXT NOT NULL DEFAULT 'dialogue'")
+    if "translit" not in {r[1] for r in conn.execute("PRAGMA table_info(lexicon)")}:
+        # Transliterations were read from the deck after the first snapshots. The words stay as
+        # they are, but with no snapshot time the next refresh reads the deck again to fill them in.
+        conn.execute("ALTER TABLE lexicon ADD COLUMN translit TEXT NOT NULL DEFAULT ''")
+        conn.execute("DELETE FROM meta WHERE key LIKE 'snapshot_taken_at%'")
+    if "translits" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
+        # The model's transliteration of the words it glossed; none before they were asked for.
+        conn.execute("ALTER TABLE texts ADD COLUMN translits TEXT NOT NULL DEFAULT '{}'")
     if "focus" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
         # The words a text was asked to practice (the app's "Read a text with these words"),
         # sorted and joined by newlines; empty for the texts the queue writes on its own.
@@ -179,6 +227,17 @@ def connect(path: Path | str) -> sqlite3.Connection:
     if "removed" not in {r[1] for r in conn.execute("PRAGMA table_info(topics)")}:
         # A removed topic is hidden, not deleted, since its texts and readings point at it.
         conn.execute("ALTER TABLE topics ADD COLUMN removed INTEGER NOT NULL DEFAULT 0")
+    texts_columns = {r[1] for r in conn.execute("PRAGMA table_info(texts)")}
+    for column, sql in (
+        # Why a text is on the shelf (Reason); empty for texts written before it.
+        ("reason", "reason TEXT NOT NULL DEFAULT ''"),
+        # A story episode's story and number, and its one sentence about what happened.
+        ("story_id", "story_id INTEGER REFERENCES stories(id)"),
+        ("episode", "episode INTEGER NOT NULL DEFAULT 0"),
+        ("recap", "recap TEXT NOT NULL DEFAULT ''"),
+    ):
+        if column not in texts_columns:
+            conn.execute(f"ALTER TABLE texts ADD COLUMN {sql}")
     with conn:
         # A text left pending by a restart mid-audio: its missing lines are made on request.
         conn.execute("UPDATE texts SET status = 'ready' WHERE status = 'pending'")
@@ -201,9 +260,12 @@ def save_snapshot(
         conn.execute("DELETE FROM lexicon WHERE language = ?", (language,))
         conn.executemany(
             # OR REPLACE: a note moved to the other language's deck belongs to the newer snapshot.
-            "INSERT OR REPLACE INTO lexicon (note_id, entry, meaning, tier, due, language)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            [(e.note_id, e.text, e.meaning, e.tier, int(e.due), language) for e in entries],
+            "INSERT OR REPLACE INTO lexicon (note_id, entry, meaning, tier, due, language, translit)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [
+                (e.note_id, e.text, e.meaning, e.tier, int(e.due), language, e.translit)
+                for e in entries
+            ],
         )
         _set_meta(conn, _per_language("snapshot_taken_at", language), taken_at.isoformat())
 
@@ -212,12 +274,13 @@ def load_snapshot(
     conn: sqlite3.Connection, language: Code = "th"
 ) -> tuple[list[Entry], datetime | None]:
     rows = conn.execute(
-        "SELECT note_id, entry, meaning, tier, due FROM lexicon WHERE language = ?"
+        "SELECT note_id, entry, meaning, tier, due, translit FROM lexicon WHERE language = ?"
         " ORDER BY note_id",
         (language,),
     )
     entries = [
-        Entry(nid, entry, meaning, tier, bool(due)) for nid, entry, meaning, tier, due in rows
+        Entry(nid, entry, meaning, tier, bool(due), translit)
+        for nid, entry, meaning, tier, due, translit in rows
     ]
     taken_at = _get_meta(conn, _per_language("snapshot_taken_at", language))
     return entries, datetime.fromisoformat(taken_at) if taken_at else None
@@ -266,29 +329,47 @@ async def refresh_if_stale(
 # ==== Topics ====
 
 
-def add_topic(conn: sqlite3.Connection, name: str, favorite: bool, now: datetime) -> Topic:
+def add_topic(
+    conn: sqlite3.Connection, name: str, favorite: bool, now: datetime, hidden: bool = False
+) -> Topic:
     """Adds a topic, or returns the existing one with that name (ignoring case). A removed topic
-    with that name comes back, with any text it still had ready."""
+    with that name comes back, with any text it still had ready. A `hidden` one is added removed:
+    the shelf files its own ideas that way, so they're never listed or offered again, until More
+    like this makes one a liked theme (`set_favorite`)."""
     name = " ".join(name.split())
     if not name:
         raise ValueError("A topic needs a name")
     with conn:
         conn.execute(
-            "INSERT OR IGNORE INTO topics (name, favorite, created_at) VALUES (?, ?, ?)",
-            (name, int(favorite), now.isoformat()),
+            "INSERT OR IGNORE INTO topics (name, favorite, created_at, removed) VALUES (?, ?, ?, ?)",
+            (name, int(favorite), now.isoformat(), int(hidden)),
         )
-        conn.execute(
-            "UPDATE topics SET removed = 0, favorite = ? WHERE name = ? AND removed = 1",
-            (int(favorite), name),
-        )
+        if not hidden:
+            conn.execute(
+                "UPDATE topics SET removed = 0, favorite = ? WHERE name = ? AND removed = 1",
+                (int(favorite), name),
+            )
     row = conn.execute("SELECT id FROM topics WHERE name = ?", (name,)).fetchone()
-    topic = get_topic(conn, row[0])
+    topic = get_topic(conn, row[0], include_removed=True)
     assert topic is not None
     return topic
 
 
-def get_topic(conn: sqlite3.Connection, topic_id: int, language: Code = "th") -> Topic | None:
-    return next((t for t in list_topics(conn, language) if t.id == topic_id), None)
+def get_topic(
+    conn: sqlite3.Connection, topic_id: int, language: Code = "th", include_removed: bool = False
+) -> Topic | None:
+    """A listed topic, or with `include_removed` a removed one too (a story's own topic is)."""
+    found = next((t for t in list_topics(conn, language) if t.id == topic_id), None)
+    if found is not None or not include_removed:
+        return found
+    row = conn.execute(
+        """SELECT t.id, t.name, t.favorite,
+                  (SELECT COUNT(*) FROM texts x WHERE x.topic_id = t.id AND x.status = 'ready'
+                   AND x.language = ? AND x.focus = '')
+           FROM topics t WHERE t.id = ?""",
+        (language, topic_id),
+    ).fetchone()
+    return Topic(row[0], row[1], bool(row[2]), row[3]) if row else None
 
 
 def list_topics(conn: sqlite3.Connection, language: Code = "th") -> list[Topic]:
@@ -304,10 +385,19 @@ def list_topics(conn: sqlite3.Connection, language: Code = "th") -> list[Topic]:
 
 
 def set_favorite(conn: sqlite3.Connection, topic_id: int, favorite: bool) -> Topic | None:
+    """Likes a topic or stops liking it. Liking one the shelf filed away (hidden) lists it again,
+    since it's now a theme; a topic removed from the list stays removed either way."""
     with conn:
         conn.execute(
             "UPDATE topics SET favorite = ? WHERE id = ? AND removed = 0", (int(favorite), topic_id)
         )
+        if favorite:
+            # A shelf idea is hidden, never removed by hand: no reading of it was a removal.
+            conn.execute(
+                "UPDATE topics SET favorite = 1, removed = 0 WHERE id = ? AND removed = 1"
+                " AND id NOT IN (SELECT topic_id FROM stories)",
+                (topic_id,),
+            )
     return get_topic(conn, topic_id)
 
 
@@ -340,17 +430,22 @@ def save_text(
     language: Code = "th",
     grammar: dict[str, list[str]] | None = None,
     focus: str = "",
+    reason: Reason = "",
+    story_id: int | None = None,
+    episode: int = 0,
 ) -> int:
     """Stores a generated text. `status` is "pending" while its audio is made, "ready" once it can
-    be served, or "dropped" for a text that missed the floor (kept only for its cost)."""
+    be served, "dropped" for a text that missed the floor (kept only for its cost), "read" once
+    it's been read, or "skipped" for one taken off the shelf unread (Not this)."""
     u = generated.usage
     with conn:
         cur = conn.execute(
             """INSERT INTO texts (topic_id, created_at, status, title, lines, glosses, stretch,
                    coverage, token_count, floor, attempts, model, input_tokens, output_tokens,
                    cache_read_tokens, cache_write_tokens, cost_usd, roles, form, language, grammar,
-                   focus)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   focus, translits, reason, story_id, episode, recap, genders)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                   ?, ?, ?)""",
             (
                 topic_id,
                 now.isoformat(),
@@ -374,6 +469,12 @@ def save_text(
                 language,
                 json.dumps(grammar or {}),
                 focus,
+                json.dumps(generated.translits, ensure_ascii=False),
+                reason,
+                story_id,
+                episode,
+                generated.recap,
+                json.dumps(generated.genders),
             ),
         )
     assert cur.lastrowid is not None
@@ -417,14 +518,31 @@ def get_text(conn: sqlite3.Connection, text_id: int) -> StoredText | None:
 
 
 _TEXT_COLUMNS = (
-    "id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar"
+    "id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar,"
+    " translits, reason, story_id, episode, recap, genders"
 )
 
 
 def _text(row: tuple[Any, ...]) -> StoredText:
-    text_id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar = (
-        row
-    )
+    (
+        text_id,
+        topic_id,
+        title,
+        lines,
+        glosses,
+        stretch,
+        coverage,
+        roles,
+        form,
+        language,
+        grammar,
+        translits,
+        reason,
+        story_id,
+        episode,
+        recap,
+        genders,
+    ) = row
     return StoredText(
         id=text_id,
         topic_id=topic_id,
@@ -437,7 +555,181 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         form=form,
         language=language,
         grammar=json.loads(grammar),
+        translits=json.loads(translits),
+        reason=reason,
+        story_id=story_id,
+        episode=episode,
+        recap=recap,
+        genders=json.loads(genders),
     )
+
+
+# ==== Explanations ====
+
+
+def get_explanation(
+    conn: sqlite3.Connection, text_id: int, line: int, simple: bool
+) -> list[dict[str, str]] | None:
+    row = conn.execute(
+        "SELECT points FROM explanations WHERE text_id = ? AND line = ? AND simple = ?",
+        (text_id, line, int(simple)),
+    ).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def save_explanation(
+    conn: sqlite3.Connection,
+    text_id: int,
+    line: int,
+    simple: bool,
+    points: list[dict[str, str]],
+    now: datetime,
+    cost_usd: float = 0.0,
+) -> None:
+    with conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO explanations (text_id, line, simple, points, created_at, cost_usd)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                text_id,
+                line,
+                int(simple),
+                json.dumps(points, ensure_ascii=False),
+                now.isoformat(),
+                cost_usd,
+            ),
+        )
+
+
+# ==== Shelf ====
+
+
+def shelf_texts(conn: sqlite3.Connection, language: Code) -> list[StoredText]:
+    """The texts waiting on a language's shelf, oldest first: every ready one written for the shelf
+    or a topic, not one written to practice words just studied (focus) or a story episode."""
+    rows = conn.execute(
+        f"SELECT {_TEXT_COLUMNS} FROM texts WHERE status = 'ready' AND language = ? AND focus = ''"
+        " AND story_id IS NULL ORDER BY id",
+        (language,),
+    ).fetchall()
+    return [_text(r) for r in rows]
+
+
+def ready_counts(conn: sqlite3.Connection) -> dict[Code, int]:
+    """How many texts are waiting in each language: the shelf and the story's next episode."""
+    rows = conn.execute(
+        "SELECT language, COUNT(*) FROM texts WHERE status = 'ready' AND focus = '' GROUP BY language"
+    )
+    return {language: count for language, count in rows}
+
+
+def skip_text(conn: sqlite3.Connection, text_id: int) -> bool:
+    """Takes a text waiting on the shelf off it unread (Not this). Returns whether one was."""
+    with conn:
+        cur = conn.execute(
+            "UPDATE texts SET status = 'skipped' WHERE id = ? AND status = 'ready'", (text_id,)
+        )
+    return cur.rowcount > 0
+
+
+def topic_name(conn: sqlite3.Connection, topic_id: int) -> str:
+    row = conn.execute("SELECT name FROM topics WHERE id = ?", (topic_id,)).fetchone()
+    return row[0] if row else ""
+
+
+def liked_topics(conn: sqlite3.Connection) -> list[Topic]:
+    """The themes the owner likes (favorite topics), shared by every language, by name. Their
+    ready count isn't filled in."""
+    rows = conn.execute(
+        "SELECT id, name FROM topics WHERE favorite = 1 AND removed = 0 ORDER BY name"
+    )
+    return [Topic(i, name, True, 0) for i, name in rows]
+
+
+# ==== Stories ====
+
+
+@dataclass(frozen=True)
+class Story:
+    id: int
+    language: Code
+    topic_id: int  # a hidden topic of its own, which its episodes are filed under
+    about: str
+    title: str
+    cast: str
+
+
+def start_story(conn: sqlite3.Connection, language: Code, about: str, now: datetime) -> Story:
+    """Starts a new story in a language and retires the one before it (its episodes stay readable
+    in Past texts)."""
+    about = " ".join(about.split())
+    with conn:
+        conn.execute("UPDATE stories SET active = 0 WHERE language = ? AND active = 1", (language,))
+        # Episodes need a topic; the story's is removed, so it's never listed or offered. Its
+        # name only has to be unique: the next story's number.
+        (number,) = conn.execute("SELECT COALESCE(MAX(id), 0) + 1 FROM stories").fetchone()
+        cur = conn.execute(
+            "INSERT INTO topics (name, favorite, created_at, removed) VALUES (?, 0, ?, 1)",
+            (f"Ongoing story {number}", now.isoformat()),
+        )
+        topic_id = cur.lastrowid
+        cur = conn.execute(
+            "INSERT INTO stories (language, topic_id, about, created_at) VALUES (?, ?, ?, ?)",
+            (language, topic_id, about, now.isoformat()),
+        )
+    story = get_story(conn, cur.lastrowid or 0)
+    assert story is not None
+    return story
+
+
+def get_story(conn: sqlite3.Connection, story_id: int) -> Story | None:
+    row = conn.execute(
+        "SELECT id, language, topic_id, about, title, cast_ FROM stories WHERE id = ?",
+        (story_id,),
+    ).fetchone()
+    return Story(*row) if row else None
+
+
+def active_story(conn: sqlite3.Connection, language: Code) -> Story | None:
+    row = conn.execute(
+        "SELECT id FROM stories WHERE language = ? AND active = 1 ORDER BY id DESC LIMIT 1",
+        (language,),
+    ).fetchone()
+    return get_story(conn, row[0]) if row else None
+
+
+def name_story(conn: sqlite3.Connection, story_id: int, title: str, cast: str) -> None:
+    """Records the name and cast the first episode gave the story, where it has none yet."""
+    with conn:
+        conn.execute(
+            "UPDATE stories SET title = CASE WHEN title = '' THEN ? ELSE title END,"
+            " cast_ = CASE WHEN cast_ = '' THEN ? ELSE cast_ END WHERE id = ?",
+            (title, cast, story_id),
+        )
+
+
+def waiting_episode(
+    conn: sqlite3.Connection, story_id: int, pending: bool = False
+) -> StoredText | None:
+    """The story's episode waiting to be read, if there is one; with `pending`, one still having
+    its audio made counts too."""
+    statuses = "('pending', 'ready')" if pending else "('ready')"
+    row = conn.execute(
+        f"SELECT {_TEXT_COLUMNS} FROM texts WHERE story_id = ? AND status IN {statuses}"
+        " ORDER BY episode LIMIT 1",
+        (story_id,),
+    ).fetchone()
+    return _text(row) if row else None
+
+
+def episodes(conn: sqlite3.Connection, story_id: int) -> list[StoredText]:
+    """A story's episodes, first to last, leaving out drafts that were dropped."""
+    rows = conn.execute(
+        f"SELECT {_TEXT_COLUMNS} FROM texts WHERE story_id = ? AND status IN ('pending', 'ready',"
+        " 'read') ORDER BY episode, id",
+        (story_id,),
+    ).fetchall()
+    return [_text(r) for r in rows]
 
 
 # ==== Readings ====
@@ -493,6 +785,64 @@ def progress(conn: sqlite3.Connection, since: datetime, language: Code = "th") -
     return Progress(len(rows), median, ratings)
 
 
+@dataclass(frozen=True)
+class Spending:
+    """What texts cost Claude since a date. Every text written counts: a dropped one (it missed the
+    floor and was never served) cost as much as any other."""
+
+    read: int
+    waiting: int  # written and not read yet ("pending" while its audio is made, or "ready")
+    dropped: int
+    attempts: int  # Claude conversations' answers, summed over the texts
+    cost_usd: float
+    skipped: int = 0  # taken off the shelf unread (Not this)
+
+    @property
+    def texts(self) -> int:
+        return self.read + self.waiting + self.dropped + self.skipped
+
+
+def spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, Spending]:
+    """Each language with a text written since `since`, the most spent first. The cost is Claude's
+    alone: Azure's audio isn't recorded per text."""
+    by_language: dict[Code, dict[str, Any]] = {}
+    for language, status, count, attempts, cost in conn.execute(
+        """SELECT language, status, COUNT(*), SUM(attempts), SUM(cost_usd) FROM texts
+           WHERE created_at >= ? GROUP BY language, status""",
+        (since.isoformat(),),
+    ):
+        row = by_language.setdefault(
+            language,
+            {"read": 0, "waiting": 0, "dropped": 0, "skipped": 0, "attempts": 0, "cost": 0.0},
+        )
+        row[status if status in ("read", "dropped", "skipped") else "waiting"] += count
+        row["attempts"] += attempts
+        row["cost"] += cost
+    out = {
+        language: Spending(
+            r["read"], r["waiting"], r["dropped"], r["attempts"], r["cost"], r["skipped"]
+        )
+        for language, r in by_language.items()
+    }
+    return dict(sorted(out.items(), key=lambda item: -item[1].cost_usd))
+
+
+def explanation_spending(
+    conn: sqlite3.Connection, since: datetime
+) -> dict[Code, tuple[int, float]]:
+    """Each language with a line explained since `since`: how many explanations were asked for
+    (a plainer version counts again) and what they cost Claude."""
+    return {
+        language: (count, cost)
+        for language, count, cost in conn.execute(
+            """SELECT t.language, COUNT(*), SUM(e.cost_usd) FROM explanations e
+               JOIN texts t ON t.id = e.text_id WHERE e.created_at >= ? GROUP BY t.language
+               ORDER BY SUM(e.cost_usd) DESC""",
+            (since.isoformat(),),
+        )
+    }
+
+
 def practiced_days(
     conn: sqlite3.Connection, before: datetime, language: Code = "th"
 ) -> dict[str, int]:
@@ -519,19 +869,29 @@ class PastText:
     read_at: datetime
     coverage: float
     form: Form = "dialogue"
+    episode: int = 0  # a story episode's number, else 0
 
 
-def past_texts(conn: sqlite3.Connection, limit: int, language: Code = "th") -> list[PastText]:
-    """Texts in this language read to the end, most recent first."""
+def past_texts(
+    conn: sqlite3.Connection, limit: int, language: Code = "th", story_id: int | None = None
+) -> list[PastText]:
+    """Texts in this language read to the end, most recent first; with `story_id`, that story's
+    episodes, first to last. A story episode's topic is the story's name."""
+    where, order = "x.language = ?", "r.id DESC"
+    args: list[Any] = [language]
+    if story_id is not None:
+        where, order, args = "x.story_id = ?", "x.episode, r.id", [story_id]
     rows = conn.execute(
-        """SELECT x.id, t.name, x.title, r.rating, r.logged_at, x.coverage, x.form FROM readings r
-           JOIN texts x ON x.id = r.text_id JOIN topics t ON t.id = x.topic_id
-           WHERE r.finished = 1 AND x.language = ? ORDER BY r.id DESC LIMIT ?""",
-        (language, limit),
+        f"""SELECT x.id, COALESCE(NULLIF(s.title, ''), t.name), x.title, r.rating, r.logged_at,
+                   x.coverage, x.form, x.episode
+            FROM readings r JOIN texts x ON x.id = r.text_id JOIN topics t ON t.id = x.topic_id
+            LEFT JOIN stories s ON s.id = x.story_id
+            WHERE r.finished = 1 AND {where} ORDER BY {order} LIMIT ?""",
+        (*args, limit),
     )
     return [
-        PastText(i, topic, title, rating, datetime.fromisoformat(at), coverage, form)
-        for i, topic, title, rating, at, coverage, form in rows
+        PastText(i, topic, title, rating, datetime.fromisoformat(at), coverage, form, episode)
+        for i, topic, title, rating, at, coverage, form, episode in rows
     ]
 
 
@@ -581,9 +941,14 @@ def clear_word(conn: sqlite3.Connection, word: str, now: datetime) -> None:
 # ==== Difficulty ====
 
 
+# v2: the range moved down on 12 November 2026 (95% was the old lowest target), so a floor saved
+# before it, which can't go below 95%, starts again at the new default rather than staying there.
+_DIFFICULTY_KEY = "difficulty_v2"
+
+
 def load_difficulty(conn: sqlite3.Connection, language: Code = "th") -> Difficulty:
     """Each language has its own, moved by ratings of texts in that language."""
-    raw = _get_meta(conn, _per_language("difficulty", language))
+    raw = _get_meta(conn, _per_language(_DIFFICULTY_KEY, language))
     return Difficulty(**json.loads(raw)) if raw else Difficulty()
 
 
@@ -591,7 +956,7 @@ def save_difficulty(
     conn: sqlite3.Connection, difficulty: Difficulty, language: Code = "th"
 ) -> None:
     with conn:
-        _set_meta(conn, _per_language("difficulty", language), json.dumps(difficulty.__dict__))
+        _set_meta(conn, _per_language(_DIFFICULTY_KEY, language), json.dumps(difficulty.__dict__))
 
 
 # ==== Grammar ====
@@ -623,7 +988,16 @@ def load_settings(conn: sqlite3.Connection) -> Settings:
     raw = _get_meta(conn, "settings")
     saved = json.loads(raw) if raw else {}
     # Only known keys, so a setting removed later doesn't break loading.
-    return Settings(**{k: v for k, v in saved.items() if k in Settings.__dataclass_fields__})
+    settings = Settings(**{k: v for k, v in saved.items() if k in Settings.__dataclass_fields__})
+    # Voices were chosen for speakers A and B before they were chosen by gender; those choices
+    # aren't carried over, as nothing says which gender a chosen voice is.
+    slots: frozenset[str] = frozenset(VOICE_SLOTS)
+    voices: dict[str, dict[str, str]] = {}
+    for code, chosen in settings.voices.items():
+        kept = {slot: name for slot, name in chosen.items() if slot in slots}
+        if kept:
+            voices[code] = kept
+    return replace(settings, voices=voices)
 
 
 def save_settings(conn: sqlite3.Connection, settings: Settings) -> None:

@@ -4,9 +4,11 @@ import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, Animated, Easing, Keyboard, PanResponder, Pressable, ScrollView, Text, TextInput, useColorScheme, useWindowDimensions, View } from 'react-native';
 import { FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
+import { AGENT_FLAG, AGENT_FLAG_REASONS, withFlagReason } from '../core/agentFlag';
 import { autoplayFor, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
+import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayStart } from '../core/day';
 import { nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
@@ -21,48 +23,26 @@ import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTAN
 import { durationText } from '../core/stats';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
 import type { TtsTag } from '../core/tts';
-import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
+import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType } from '../core/types';
 import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardWebView } from './CardWebView';
+import { Side } from './CardSide';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
 import { headword, type DrillRequest } from '../core/forms';
 import { AnswerExtras, FormsCheck, useReviewForms } from './ReviewForms';
 import { haptic } from './haptics';
+import { htmlToText } from '../core/html';
+import { LeechHintSheet } from './LeechHintSheet';
+import { canAddMnemonic, mnemonicQuestion, withMnemonic, type MnemonicQuestion } from '../core/leechHint';
 import { usePhoneSpeech } from './usePhoneSpeech';
 import { Button, Count, Icon, Screen, Tappable } from './kit';
 import { Reveal, useReduceMotion } from './motion';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
-
-/**
- * One side of a natively rendered card: the word or question large and centered, the details
- * under it in smaller text with their labels.
- */
-function Side({ side, which }: { side: RenderedSide; which: 'front' | 'back' }) {
-  const c = useTheme();
-  return (
-    <View style={{ gap: space.m }}>
-      {side.blocks.map((b, i) => (
-        <View key={i} style={{ gap: space.xs }}>
-          {b.label ? (
-            <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text>
-          ) : null}
-          <Text
-            style={b.emphasis
-              ? { ...(which === 'front' ? type.cardFront : type.cardBack), color: c.text, textAlign: 'center' }
-              : { ...type.body, color: c.textSecondary, lineHeight: 24 }}
-          >
-            {b.text}
-          </Text>
-        </View>
-      ))}
-    </View>
-  );
-}
 
 /** The card itself: a raised sheet that fills the space between the header and the buttons. */
 function CardSurface({ children }: { children: React.ReactNode }) {
@@ -70,7 +50,7 @@ function CardSurface({ children }: { children: React.ReactNode }) {
   return (
     <View
       style={{
-        flex: 1, marginHorizontal: space.l, marginTop: space.s, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
+        flex: 1, marginHorizontal: space.l, marginTop: space.xxl, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
         backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, ...lift(c),
       }}
     >
@@ -182,7 +162,7 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, onPracticeForms, onNextDeck, nextDeck, onCustomStudy, onCardInfo }: {
+export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, onEditNote, onPracticeForms, onNextDeck, nextDeck, onCustomStudy, onCardInfo }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -190,6 +170,8 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
    * ends, it offers a text that practices the words just studied.
    */
   practice?: { languageDeck: string; onRead: (words: string[]) => Promise<void> };
+  /** Present while Read & Listen is signed in: asks its server for memory hints, when a leech's hint sheet asks for them. */
+  suggestHints?: (question: MnemonicQuestion) => Promise<string[]>;
   /** Changes when something outside this screen may have changed the deck (custom study): loads the cards again. */
   reloadKey?: number;
   /** Leaves the screen: the deck is done. */
@@ -211,6 +193,8 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
   const dark = useColorScheme() === 'dark';
   const [cards, setCards] = useState<Card[] | null>(null);
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
+  // The answer that just made a card a leech asks for a hint to keep in its note's Mnemonic field.
+  const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses: number } | null>(null);
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
   // While "Read a text with these words" waits for the sync that sends today's answers first.
@@ -220,6 +204,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
   const H = collection.dayStartsAtHour;
   const [answerButtons, setAnswerButtons] = useState<AnswerButtons>('all');
   const [swipeOn, setSwipeOn] = useState(false);
+  const [showHints, setShowHints] = useState(false);
   // Bumped after the note editor saves or deletes, to load the cards and notes again.
   const [reloads, setReloads] = useState(0);
   const [noteTypes, setNoteTypes] = useState<Map<string, NoteType>>(new Map());
@@ -239,15 +224,16 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
       const now = new Date();
       const cs = await repo.collectionSettings();
       const dayStart = studyDayStart(now, cs.dayStartsAtHour);
-      const [c, n, reviews, revlog, params, types, settings, buttons, swipe] = await Promise.all([
+      const [c, n, reviews, revlog, params, types, settings, buttons, swipe, hints] = await Promise.all([
         // Every card, not only this deck's: a gate on a deck above this one counts its whole subtree.
         repo.listCards(), repo.listNotes(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
-        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(), repo.swipeToRate(),
+        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(), repo.swipeToRate(), repo.showCardHints(),
       ]);
       const today = studiedToday({ notes: n, cards: c, reviews, revlog, now, dayStartsAtHour: cs.dayStartsAtHour });
       setCollection(cs);
       setAnswerButtons(buttons);
       setSwipeOn(swipe);
+      setShowHints(hints);
       setDeckSettings(settings);
       setAllParams(params);
       setNoteTypes(types);
@@ -269,7 +255,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
   const queue = useMemo(() => {
     if (!cards) return null;
     return treeQueue(deck, queueInput({
-      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, collection, now, held: forms.held,
+      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, collection, now, held: forms.held, boostFor: boostFor({ notes: notes.values(), settings: deckSettings, now }),
     }));
   }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held]);
 
@@ -440,6 +426,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
           // The answer stands; the tag just isn't added.
         }
       }
+      if (isLeech && canAddMnemonic(note)) setLeechPrompt({ noteId: note.id, misses: res.sched.lapses });
       // Counted in the deck the card is studied in, as Anki counts it (a filtered deck's answers count there).
       // Time capped at a minute, as Anki's maximum answer time is, so a phone put down mid-card doesn't swell the summary.
       const record: AnswerRecord = {
@@ -516,6 +503,28 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
   useEffect(() => { if (cleared) haptic.success(); }, [cleared]);
 
   const title = deck.split('::').pop() ?? deck;
+  const leechNoteNow = leechPrompt ? notes.get(leechPrompt.noteId) : undefined;
+  const question = leechNoteNow ? mnemonicQuestion(leechNoteNow) : undefined;
+  const leechSheet = leechPrompt && leechNoteNow ? (
+    <LeechHintSheet
+      word={htmlToText(leechNoteNow.fields.Entry ?? '')}
+      misses={leechPrompt.misses}
+      suggest={suggestHints && question ? () => suggestHints(question) : undefined}
+      onSkip={() => setLeechPrompt(null)}
+      onSave={async (hint) => {
+        try {
+          const saved = await saveNote(repo as NoteStore, {
+            id: leechNoteNow.id, deck: leechNoteNow.deck, model: leechNoteNow.model,
+            fields: withMnemonic(leechNoteNow.fields, hint), tags: leechNoteNow.tags,
+          });
+          setNotes((prev) => new Map(prev).set(saved.id, saved));
+          setLeechPrompt(null);
+        } catch (e) {
+          throw new Error(`Couldn't save the hint. ${e instanceof Error ? e.message : String(e)} Try again, or skip it.`);
+        }
+      }}
+    />
+  ) : null;
   if (!cards) return <Screen title={title} largeTitle={false}><View /></Screen>;
 
   const undoButton = history.length
@@ -548,6 +557,8 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
       </>
     );
     return (
+      <>
+      {leechSheet}
       <Screen
         title={title}
         largeTitle={false}
@@ -566,6 +577,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
           <FormsCheck items={forms.toCheck} />
         </Reveal>
       </Screen>
+      </>
     );
   }
 
@@ -665,6 +677,33 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
       setStates([current], (s) => ({ ...s, flag }));
     });
   };
+  // Flag for an agent (through the Franki MCP): the purple flag on the card, a flag::<reason> tag on the note.
+  const chooseAgentFlag = () => {
+    const target = current;
+    const targetNote = note;
+    const options = [...AGENT_FLAG_REASONS.map((r) => r.label), ...(target.flag === AGENT_FLAG ? ['Remove flag'] : []), 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({
+      title: 'Flag for an agent',
+      message: 'An agent can find this card through the Franki MCP, check it and suggest a fix. It uses the purple flag.',
+      options, cancelButtonIndex: options.length - 1,
+    }, async (i) => {
+      if (i === options.length - 1) return;
+      if (i >= AGENT_FLAG_REASONS.length) {
+        setStates([target], (s) => ({ ...s, flag: 0 }));
+        return;
+      }
+      if (targetNote && !busy.current) {
+        try {
+          const tagged = await saveNote(repo as NoteStore, { id: targetNote.id, deck: targetNote.deck, model: targetNote.model, fields: targetNote.fields, tags: withFlagReason(targetNote.tags, AGENT_FLAG_REASONS[i].slug) });
+          setNotes((prev) => new Map(prev).set(tagged.id, tagged));
+        } catch (e) {
+          Alert.alert("Couldn't flag this card", `Nothing was changed. ${(e as any)?.message ?? e}`);
+          return;
+        }
+      }
+      setStates([target], (s) => ({ ...s, flag: AGENT_FLAG }));
+    });
+  };
   // Forget and Set Due Date: in the kept collection as Anki does them, then in Franki (rescheduleService.ts).
   const reschedule = async (run: (when: Date) => Promise<Card[]>, failure: string) => {
     if (busy.current) return;
@@ -718,22 +757,24 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
     );
   };
   const openMenu = () => {
-    const options = ['Flag', 'Bury card', 'Bury note', 'Suspend card', 'Set due date', 'Forget card', 'Card info', 'Cancel'];
-    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 7, destructiveButtonIndex: 3 }, (i) => {
+    const options = ['Flag', 'Flag for an agent', 'Bury card', 'Bury note', 'Suspend card', 'Set due date', 'Forget card', 'Card info', 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 8, destructiveButtonIndex: 4 }, (i) => {
       // Bury holds a card back until the next study day; Bury note does it to every card of the note; Suspend until it's unsuspended.
       if (i === 0) chooseFlag();
-      if (i === 1) setStates([current], (s) => ({ ...s, buried: true }));
-      if (i === 2) setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }));
-      if (i === 3) setStates([current], (s) => ({ ...s, suspended: true }));
-      if (i === 4) chooseDueDate();
-      if (i === 5) chooseForget();
+      if (i === 1) chooseAgentFlag();
+      if (i === 2) setStates([current], (s) => ({ ...s, buried: true }));
+      if (i === 3) setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }));
+      if (i === 4) setStates([current], (s) => ({ ...s, suspended: true }));
+      if (i === 5) chooseDueDate();
+      if (i === 6) chooseForget();
       // The deck is loaded again when Card Info closes: the same card stays on screen.
-      if (i === 6) { setPreferId(current.id); onCardInfo(current.id); }
+      if (i === 7) { setPreferId(current.id); onCardInfo(current.id); }
     });
   };
 
   return (
     <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
+    {leechSheet}
     <Screen
       title={title}
       largeTitle={false}
@@ -783,7 +824,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
           <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the card, so each new one fades in rather than swapping. */}
             <Reveal key={current.id} rise={10} style={{ gap: space.xl }}>
-              <Side side={rendered.front} which="front" />
+              <Side key={current.id} side={rendered.front} which="front" showHints={showHints} />
               {playbackFor(rendered, revealed) ? (
                 <Tappable
                   onPress={() => { haptic.tap(); speak(playbackFor(rendered, revealed)); }}
@@ -803,16 +844,13 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
             {revealed ? (
               <Reveal rise={8} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
-                <Side side={rendered.back} which="back" />
+                <Side key={current.id} side={rendered.back} which="back" showHints={showHints} />
                 {extras}
               </Reveal>
             ) : null}
           </ScrollView>
           </Pressable>
         </SwipeCard>
-      ) : null}
-      {swipeOn && revealed && rendered ? (
-        <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Swipe right for Good, left for Again</Text>
       ) : null}
     </Screen>
     </View>

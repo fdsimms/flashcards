@@ -14,6 +14,13 @@ describe('repo', () => {
     expect(await repo.swipeToRate()).toBe(true);
   });
 
+  it('shows a card\'s romanization and translation only on a tap until the setting is turned on', async () => {
+    const repo = new MemoryRepo();
+    expect(await repo.showCardHints()).toBe(false);
+    await repo.saveShowCardHints(true);
+    expect(await repo.showCardHints()).toBe(true);
+  });
+
   it('keeps the voices chosen for each language', async () => {
     const repo = new MemoryRepo();
     expect(await repo.voiceSettings()).toEqual({});
@@ -146,8 +153,9 @@ describe('repo', () => {
     const note = omniNote();
     await repo.upsertNotesAndCards([note], makeCards(note, NOW));
     await repo.addPractice({ noteId: note.id, key: 'present · yo', correct: true, practicedAt: new Date(2026, 10, 11, 9).toISOString() });
-    await repo.addPractice({ noteId: note.id, key: 'present · tú', correct: false, practicedAt: new Date(2026, 10, 10, 9).toISOString() });
+    await repo.addPractice({ noteId: note.id, key: 'present · tú', correct: false, practicedAt: new Date(2026, 10, 10, 9).toISOString(), given: 'tu' });
     expect((await repo.listPractice()).map((p) => p.key)).toEqual(['present · tú', 'present · yo']);
+    expect((await repo.listPractice())[0].given).toBe('tu');
     expect((await repo.listPractice(new Date(2026, 10, 11))).map((p) => p.key)).toEqual(['present · yo']);
     await repo.deleteNote(note.id);
     expect(await repo.listPractice()).toEqual([]);

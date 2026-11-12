@@ -1,4 +1,5 @@
 import { cleanDeckName, deckDeletion, matchParents, renameProblem, sameDeckName } from '../core/deckNames';
+import type { DeckMove } from '../core/deckOrder';
 import { deckLineage, isInDeck } from '../core/deckTree';
 import { addAnkiDeck, ankiDeckDeletion, DeckRefused, removeAnkiDeck, renameAnkiDeck } from './deckEdits';
 import type { NoteStore } from './noteService';
@@ -6,7 +7,7 @@ import type { NoteStore } from './noteService';
 export { DeckRefused };
 
 /**
- * Making, renaming and deleting a deck from the deck list: in the kept Anki collection when
+ * Making, renaming, moving and deleting a deck from the deck list: in the kept Anki collection when
  * there is one (src/anki/deckEdits.ts), so sync and Send to Anki carry it back, and in Franki's
  * own tables either way. A deck Anki doesn't have (a TSV import's, or one made with no Anki
  * collection) lives in Franki's tables only.
@@ -67,6 +68,24 @@ export async function renameDeck(store: NoteStore, from: string, input: string, 
   const renamed = matchParents(to, known.filter((d) => !isInDeck(d, from)));
   await store.renameDeck(from, renamed);
   return renamed;
+}
+
+/**
+ * Moves a deck dragged on the deck list (`deckMove`): renamed under its new parent when that
+ * changed (`renameDeck`, so Anki follows and its subdecks go with it), then its new siblings'
+ * order saved as each one's `DeckSettings.position`. The order is Franki's own; Anki lists decks
+ * by name. Returns the deck's name as moved.
+ */
+export async function moveDeck(store: NoteStore, move: DeckMove, refresh: () => Promise<void>, now: Date = new Date()): Promise<string> {
+  const name = move.to === move.from ? move.from : await renameDeck(store, move.from, move.to, refresh, now);
+  const settings = await store.listDeckSettings();
+  for (const [i, listed] of move.order.entries()) {
+    // The rename keeps an existing parent's spelling, so the deck may not be called quite `to`.
+    const deck = listed === move.to ? name : listed;
+    const s = settings.get(deck) ?? {};
+    if (s.position !== i) await store.saveDeckSettings(deck, { ...s, position: i });
+  }
+  return name;
 }
 
 /** What deleting a deck deletes: its cards, whether the deck is Anki's, and whether it stays (Anki's Default). */

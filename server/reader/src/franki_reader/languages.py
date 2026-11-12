@@ -17,6 +17,12 @@ Code = Literal["th", "es", "de", "fr", "ru", "el", "pl", "nb"]
 # How many of a language's most common words can be counted as known (the `common` setting).
 CommonCount = Literal[0, 1000, 2000, 3000, 5000, 10000]
 
+# A speaker is a man or a woman. Each language has a voice for each, and a second of each for a
+# dialogue between two men or two women (gender.py picks which one speaks).
+Gender = Literal["male", "female"]
+VoiceSlot = Literal["male", "male2", "female", "female2"]
+VOICE_SLOTS: tuple[VoiceSlot, ...] = ("male", "male2", "female", "female2")
+
 
 @dataclass(frozen=True)
 class Language:
@@ -25,7 +31,9 @@ class Language:
     # The deck whose notes are the word list. A setting (`decks` in store.Settings) can name
     # another; `with_deck` makes the language with it.
     deck: str
-    voices: dict[str, str] = field(default_factory=dict)  # speaker -> Azure voice
+    # VoiceSlot -> Azure voice. A slot left out reads in the same gender's first voice, as a
+    # language with only one voice of a gender has to (gender.py).
+    voices: dict[str, str] = field(default_factory=dict)
     # Written with spaces between words. Thai isn't: its spaces mark clause breaks (coverage.parse_line).
     spaced: bool = False
     # Subdecks of the deck whose notes aren't vocabulary, by their name under it.
@@ -60,7 +68,12 @@ LANGUAGES: dict[Code, Language] = {
         code="th",
         name="Thai",
         deck=_THAI_DECK,
-        voices={"A": "th-TH-NiwatNeural", "B": "th-TH-PremwadeeNeural"},
+        # Azure's standard Thai voices have one man's and two women's.
+        voices={
+            "male": "th-TH-NiwatNeural",
+            "female": "th-TH-PremwadeeNeural",
+            "female2": "th-TH-AcharaNeural",
+        },
         # The Thai consonant classes: letters, not words.
         skip=("🏛 Consonant Classes",),
     ),
@@ -69,7 +82,12 @@ LANGUAGES: dict[Code, Language] = {
         name="Spanish",
         deck=_LANGUAGES + "🌮 Español",
         # Mexican Spanish, as the owner chose (26 October 2026).
-        voices={"A": "es-MX-JorgeNeural", "B": "es-MX-DaliaNeural"},
+        voices={
+            "male": "es-MX-JorgeNeural",
+            "male2": "es-MX-CecilioNeural",
+            "female": "es-MX-DaliaNeural",
+            "female2": "es-MX-BeatrizNeural",
+        },
         spaced=True,
         example="¿Lograron|*mantener|a|raya*|al|enemigo?",
         common=10000,
@@ -83,7 +101,12 @@ LANGUAGES: dict[Code, Language] = {
         code="de",
         name="German",
         deck=_LANGUAGES + "🥨 Deutsch",
-        voices={"A": "de-DE-ConradNeural", "B": "de-DE-KatjaNeural"},
+        voices={
+            "male": "de-DE-ConradNeural",
+            "male2": "de-DE-BerndNeural",
+            "female": "de-DE-KatjaNeural",
+            "female2": "de-DE-AmalaNeural",
+        },
         spaced=True,
         example="Hast|du|dich|in|sie|*verliebt*?",
         common=3000,
@@ -92,7 +115,12 @@ LANGUAGES: dict[Code, Language] = {
         code="fr",
         name="French",
         deck=_LANGUAGES + "🥐 Français",
-        voices={"A": "fr-FR-HenriNeural", "B": "fr-FR-DeniseNeural"},
+        voices={
+            "male": "fr-FR-HenriNeural",
+            "male2": "fr-FR-AlainNeural",
+            "female": "fr-FR-DeniseNeural",
+            "female2": "fr-FR-BrigitteNeural",
+        },
         spaced=True,
         example="Il|a|enfin|*craché|le|morceau*.",
         common=3000,
@@ -101,7 +129,11 @@ LANGUAGES: dict[Code, Language] = {
         code="ru",
         name="Russian",
         deck=_LANGUAGES + "🐻 Русский",
-        voices={"A": "ru-RU-DmitryNeural", "B": "ru-RU-SvetlanaNeural"},
+        voices={
+            "male": "ru-RU-DmitryNeural",
+            "female": "ru-RU-SvetlanaNeural",
+            "female2": "ru-RU-DariyaNeural",
+        },
         spaced=True,
         example="Он|*нехотя*|открыл|дверь.",
         common=3000,
@@ -111,7 +143,7 @@ LANGUAGES: dict[Code, Language] = {
         code="el",
         name="Greek",
         deck=_LANGUAGES + "🏝️ Ελληνικά",
-        voices={"A": "el-GR-NestorasNeural", "B": "el-GR-AthinaNeural"},
+        voices={"male": "el-GR-NestorasNeural", "female": "el-GR-AthinaNeural"},
         spaced=True,
         example="Γιατί|*φοβάσαι*|το|σκοτάδι;",
         common=3000,
@@ -121,7 +153,11 @@ LANGUAGES: dict[Code, Language] = {
         code="pl",
         name="Polish",
         deck=_LANGUAGES + "💈 Polski",
-        voices={"A": "pl-PL-MarekNeural", "B": "pl-PL-ZofiaNeural"},
+        voices={
+            "male": "pl-PL-MarekNeural",
+            "female": "pl-PL-ZofiaNeural",
+            "female2": "pl-PL-AgnieszkaNeural",
+        },
         spaced=True,
         example="Ta|kobieta|*je*|zupę.",
         # Its subdecks drill verb endings, cases and verb government, not words.
@@ -131,7 +167,11 @@ LANGUAGES: dict[Code, Language] = {
         code="nb",
         name="Norwegian",
         deck=_LANGUAGES + "🐟 Norsk",
-        voices={"A": "nb-NO-FinnNeural", "B": "nb-NO-PernilleNeural"},
+        voices={
+            "male": "nb-NO-FinnNeural",
+            "female": "nb-NO-PernilleNeural",
+            "female2": "nb-NO-IselinNeural",
+        },
         spaced=True,
         example="Jeg|må|*skynde|meg*!",
         common=1000,

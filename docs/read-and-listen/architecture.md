@@ -52,6 +52,14 @@ Franki's (Client, below).
   second tap inside the gloss, so looking up a half-known word doesn't also flag it.
 - Each line has an EN button that shows that line's English alone, so checking one line doesn't
   give away the rest. "Show English" still shows them all.
+- **Explain** (12 November 2026, by the owner's decision). Each line has a third round button that
+  opens Claude's note on that line's grammar and vocabulary under it: a few points, each a phrase
+  from the line and what to know about it, in plain English. "Explain more simply" asks for a plainer
+  version. Asked only on the tap (`POST /api/texts/{id}/lines/{n}/explain`, `explain.py`), with the
+  line and the lines around it, and kept per line and per version in `explanations`, so opening a
+  line again or rereading a past text costs nothing. It only shows text: nothing is graded or added
+  to the deck. Each call's cost is kept with it and reported under `explanations` in `/api/costs`,
+  apart from the texts' figures. A free-form "Ask a question" and a per-word explanation were left out for now.
 - **Listen only** (brief, design principle 6). Once a text is rated "About right", the end view
   offers to play it again with the Thai hidden; the lines show who's speaking instead, and "Show the
   text" brings the words back. The reading is then logged with `listen_only` true. The brief's
@@ -66,7 +74,7 @@ Franki's (Client, below).
   away, since that's when the brief unlocks it.
 - The reader's playback speed and the highlight switch are kept between launches, in the Keychain
   next to the passphrase (`src/reader/storage.ts`).
-- **Progress** on the topics screen: finished texts over the last 14 days against the Milestone 1
+- **Progress** on the language's settings page (on the topics screen before the shelf): finished texts over the last 14 days against the Milestone 1
   exit check (10 texts, median coverage 95% or more, most rated "about right"), and the coverage
   target and practice word count new texts are written at, so the effect of a rating is visible.
   Only finished readings count.
@@ -83,9 +91,9 @@ Franki's (Client, below).
   plays with the phone's voice until audio is recorded for it (the MCP's `add_tts_audio`).
 - **Practice words after studying** (12 November 2026, by the owner's decision). When a Review
   session in a Read & Listen language's deck ends, **Read a text with these words** opens the
-  topics screen with the words just studied (each note's Entry, `src/reader/practice.ts`); the
-  topic opened next is written to practice them, and topics are as usual after it. The owner still
-  picks the topic (principle 10). The app syncs before opening the topics screen, so the answers
+  shelf with the words just studied (each note's Entry, `src/reader/practice.ts`), which offers a
+  text written to practice them, on a liked theme or else the best-fitting idea (before the shelf,
+  the topic opened next was written for them). The app syncs before opening the shelf, so the answers
   just given are on the sync server. The server reads the deck again first, so a card first learned
   today counts as studied, offers the studied words as the stretch words to choose from (up to the
   usual count), and keeps the text apart from the topic's queue (`texts.focus`): it isn't served
@@ -139,6 +147,12 @@ Franki's (Client, below).
 - **Partial:** a word that only appears inside a longer deck entry (รับ inside รับอะไรดี). It counts as
   unknown for coverage, and its gloss can point at the entry it came from.
 - Only the latest snapshot is kept. No history.
+- **Transliteration** (Thai): a word's popover hides it behind "Show transliteration". A deck word shows
+  its note's `Transliteration` field, kept in the snapshot. A word off the list shows the one the model
+  writes beside its gloss, in the style of the deck's (tone marks, syllables joined by hyphens), stored
+  with the text (`texts.translits`). It can't be checked in code the way coverage is, so it's the model's
+  word for it, and a word it gave none for shows no reveal rather than a guess. Texts written before
+  this have none for their off-list words. Only Thai's prompt asks for it.
 
 ## Languages
 
@@ -155,7 +169,7 @@ Thai letters, so none of them is a language here. Each new language works as Spa
 (Grammar). A language with no grammar points would say so on the Grammar screen.
 
 - **Each language's deck is a setting** (12 November 2026, by the owner's decision): `decks` in
-  `/api/settings`, chosen on the topics screen from Franki's decks, defaulting to the owner's. A
+  `/api/settings`, chosen on the language's settings page from Franki's decks, defaulting to the owner's. A
   language's skipped subdecks (Thai's consonant classes) are skipped under whichever deck is chosen
   (`with_deck`). Changing the deck forgets the old snapshot and reads the new deck at once, so a
   text is never written from the old deck's words; texts already waiting stay as they are. Another
@@ -163,7 +177,7 @@ Thai letters, so none of them is a language here. Each new language works as Spa
   `spaced.py`) and a list of common words (`scripts/build_common.py`).
 
 - **One setting, `language`** (`th`, `es`, `de`, `fr`, `ru`, `el`, `pl` or `nb`), picks the
-  language new texts are written and served in. It's a menu at the top of the topics screen. **Topics are shared**: a topic like "At a
+  language new texts are written and served in. It's the menu in the shelf's header. **Topics are shared**: a topic like "At a
   coffee shop" has texts in each language. The lexicon snapshot, ready texts, difficulty, progress,
   past texts, marked words, practiced stretch words and failures are per language. Only the current
   language is topped up in the background, so a second language doesn't double the spending.
@@ -173,7 +187,7 @@ Thai letters, so none of them is a language here. Each new language works as Spa
 - **How many common words count as known is a setting for each language but Thai** (12 November
   2026, the owner's decision: they weren't sure of their level in each, and found 10,000 a stretch
   for every language, Spanish included): `common` in `/api/settings`, None, 1,000, 2,000, 3,000,
-  5,000 or 10,000, chosen on the topics screen under the deck. The defaults are first guesses from
+  5,000 or 10,000, chosen on the language's settings page under the deck. The defaults are first guesses from
   each deck, to be moved by feel: Spanish keeps 10,000, so nothing changed under it; German, French,
   Russian and Greek, whose decks hold advanced words, 3,000; Norwegian, whose deck holds everyday
   words, 1,000; Polish, a beginner's deck, none, as the owner chose (only the deck counts, as for
@@ -234,14 +248,15 @@ Thai letters, so none of them is a language here. Each new language works as Spa
   most common German words in all their forms", or "only the list" when the setting is none). A
   language's variety is named where it matters: Mexican Spanish (ustedes, never vosotros), Bokmål,
   Modern Greek with accents, Russian with ё. Each language has its own cached system prompt.
-- **Voices**: a male voice for A (and the narrator) and a female one for B, Azure's standard
-  neural voices for the country, checked to exist with the MCP's `list_voices`: Mexican Spanish
-  `es-MX-JorgeNeural` and `es-MX-DaliaNeural` (the owner's choice), German `de-DE-ConradNeural`
-  and `de-DE-KatjaNeural`, French `fr-FR-HenriNeural` and `fr-FR-DeniseNeural`, Russian
-  `ru-RU-DmitryNeural` and `ru-RU-SvetlanaNeural`, Greek `el-GR-NestorasNeural` and
-  `el-GR-AthinaNeural`, Polish `pl-PL-MarekNeural` and `pl-PL-ZofiaNeural`, Norwegian
-  `nb-NO-FinnNeural` and `nb-NO-PernilleNeural`. The speech request's language comes from the
-  voice's name.
+- **Voices**: a man's voice and a woman's, Azure's standard neural voices for the country,
+  checked to exist with the MCP's `list_voices`: Mexican Spanish `es-MX-JorgeNeural` and
+  `es-MX-DaliaNeural` (the owner's choice), German `de-DE-ConradNeural` and `de-DE-KatjaNeural`,
+  French `fr-FR-HenriNeural` and `fr-FR-DeniseNeural`, Russian `ru-RU-DmitryNeural` and
+  `ru-RU-SvetlanaNeural`, Greek `el-GR-NestorasNeural` and `el-GR-AthinaNeural`, Polish
+  `pl-PL-MarekNeural` and `pl-PL-ZofiaNeural`, Norwegian `nb-NO-FinnNeural` and
+  `nb-NO-PernilleNeural`. Each language also has a second voice of each gender where Azure's
+  standard voices have one, for a dialogue between two men or two women (Audio). The speech
+  request's language comes from the voice's name.
 - **In the app**, a word known for being common rather than from the deck says "A common word" in
   its gloss, and outside Thai the highlight switch is "Highlight words you might not know". Every
   language but Thai is set a little smaller than Thai.
@@ -266,7 +281,9 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   czy, and want, must or can + infinitive; Norwegian past, present perfect, past perfect, future
   (skal, kommer til å) and passive. Each was picked to be found from the words alone, without a
   parser, like Spanish's; aspect and case, which need one, aren't points. Each is **practice** (used at least twice in each text), **avoid**
-  (left out, for grammar not learned yet) or **normal**. At most 2 are practiced at once, so texts
+  (left out, for grammar not learned yet) or **normal** (allowed, not asked for). On the Grammar screen
+  these read "Practice", "Don't know it" and "Know it" (12 November 2026, the owner's wording; the
+  stored states are unchanged). At most 2 are practiced at once, so texts
   stay natural; avoiding has no limit. The choices are stored together for every language and
   apply from the next text written (`GET /api/grammar`, `PUT /api/grammar/{id}`).
 - **Generate, then verify, as for coverage.** The request names the points to practice and avoid,
@@ -310,15 +327,26 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   (`สวัสดี|ครับ ไป|ไหน`), the server keeps it (one beside a `|` is dropped as noise), the reader
   shows it as a gap, and the voice pauses there (Audio). Before this every Thai space was dropped,
   so a two-sentence line was spoken as one run with no pause; texts written then still are.
+- **A target range, not only a floor** (owner's decision, 12 November 2026). The 95% floor with a
+  98% aim gave texts that were nearly all known words, so every dialogue was too easy. The target
+  now starts at 92% (`DEFAULT_FLOOR`, `difficulty.py`) and "too easy" ratings lower it to 90%
+  (`FLOOR`, `coverage.py`), "too hard" raises it to 99%. A text also has a ceiling, `CEILING_GAP`
+  (4 points) above the target, and a draft over it goes back for revision with a message asking for
+  more natural words outside the list, each glossed. A text still over the ceiling after 3 attempts
+  is served anyway (too easy is never a reason to drop one), choosing the attempt closest to the
+  range. The request names the range, and the prompt tells the model to write natural target-language
+  speech rather than word-for-word English idioms. Difficulty is saved under a new key
+  (`difficulty_v2`), so every language restarts at 92% once, rather than staying at an old 95%.
+  The 95% below is the old floor; read it as the target.
 - **Revise rather than regenerate.** A text under the 95% floor goes back to the model with the
   unknown words named ("replace ทอน, กลิ่น"). At most 3 attempts in total.
 - **The closest attempt is kept** (owner's decision, 26 October 2026, so texts don't fail for
   being a little short). If none of the 3 attempts reaches the floor, the one with the highest
-  coverage is served, as long as it's at least 90% (`MINIMUM` in `coverage.py`); under 90% the text
+  coverage is served, as long as it's at least 85% (`MINIMUM` in `coverage.py`, 90% until 12 November 2026); under 85% the text
   is dropped as before. 90% is where the brief's evidence says listening comprehension already
   varied widely between people. All 3 attempts are still made first, and the prompt asks the model
   to check every word against the list before answering, so most texts meet the floor. The reader
-  notes a text under 95% ("fewer than usual") and offers to highlight the words outside the deck,
+  notes a text under 90% ("fewer than usual") and offers to highlight the words outside the deck,
   each of which has a gloss. Since the texts table records each text's coverage and floor, how
   often this happens can be read from it, and the exit check's median coverage still counts these
   texts as they are.
@@ -348,6 +376,14 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   served at its closest attempt if that's 90% or more, like any other text. The system prompt describes both forms, so its cached lexicon prefix is shared;
   the request names the form. Each text records its form (`texts.form`), so the log can show
   whether stories rate differently.
+- **Story paragraphs.** The model marks the line that opens each paragraph (`paragraph` on a line, stored in
+  the line's JSON); `_paragraphs` in `generator.py` makes the marks consistent (the first line opens one
+  whenever any line does; a dialogue has none). The reader shows such a story as continuous text: a gap
+  between paragraphs and nothing else, no per-line rows, dividers or buttons. Audio stays one file per line;
+  the player bar's previous and next line buttons replace the per-line play button, the line being played is
+  shaded inside the text, and Show English puts a paragraph's translation under it. Stories written before
+  this have no marks and keep the line-by-line view; nothing is rewritten. A "Paragraphs" switch in the reader
+  (on by default, kept in the reader's prefs) turns paragraph mode off for a story, giving the line-by-line view.
 - **Dialogue length** is a setting: 6, 8 or 12 lines (`lines` in `/api/settings`), applying from the
   next text written. Longer dialogues have more room for unknown words before missing the floor.
 - **The model chooses stretch words to fit the topic** (the default). It gets 15 due or young
@@ -360,12 +396,67 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   text written. It's separate from difficulty on purpose: ratings decide how many stretch words and
   how much coverage; this decides only which words.
 
+## Shelf
+
+Changed on 12 November 2026 by the owner: Read & Listen opens on a shelf of texts already written,
+in place of a list of topics to pick from and settings to change between texts. The owner found the
+topics, favorites and constant setting changes awkward, though the texts themselves were good.
+
+- **The tab opens on the language read last** (`language`), and its header has a menu of every
+  language with how many texts each has waiting. Switching changes `language`, so only the language
+  being read is ever written for.
+- **The shelf keeps `SHELF_SIZE` (3) texts written ahead** in that language (`_next_shelf_job` in
+  `engine.py`), each for a reason stored on the text (`texts.reason`) and shown on its card: one
+  written around words due today (`due`: the due words are handed to the model, as "Any due word"
+  does), one on a liked theme (`liked`), and one on an idea not tried before (`new`, from the topic
+  ideas, best fit first, filed as a hidden topic so it's never offered again). With no liked theme
+  free, ideas fill the gap. Dialogues and stories alternate, so the shelf has both without a setting.
+- **Spending.** Texts are written only after the app asks for the shelf, only for the current
+  language, and never more than the shelf is short. A text left unread stays on the shelf rather
+  than being written again. A failed shelf text stops the pass and pauses that language's shelf for
+  `FAILURE_COOLDOWN`, or each refresh would try another idea and keep paying.
+- **Steering instead of settings.** Press and hold a card for More like this (its topic becomes a
+  liked theme) or Not this (the text is taken off unread: status `skipped`, counted in the costs).
+  The end of a text has the same theme choice and Shorter, Same or Longer, which sets the length
+  (`lines`) the next texts are written at. Starred topics from before the shelf are the liked
+  themes; themes are shared by every language and listed on the language's settings page, where one
+  can be removed.
+- **Write one about anything.** A typed topic is written in the background (`/api/shelf/write`,
+  with Dialogue or Story chosen there) and joins the shelf when it's ready, beyond the 3
+  (`asked`). The owner still picks whenever they want to (brief, principle 10); the shelf only means
+  they don't have to every time.
+- **Play all** plays the story's next episode and then the shelf, one text after another, with
+  background audio. A text whose last line has played is logged as read, unrated, and the next one
+  opens. Whether iOS keeps the app running across the gap between two texts with the screen locked
+  is unverified.
+- **The language's settings page** (the shelf's sliders button) holds what's set once: the deck,
+  common words, voices, grammar, the story, the liked themes, practice words, and the progress
+  summary (moved off the home screen). The `form` setting is no longer shown: the shelf varies it.
+
+## Stories
+
+Added on 12 November 2026 by the owner, with the shelf: an ongoing story in each language, whose
+next episode is the top of the shelf.
+
+- **One active story per language** (`stories`), started from the shelf or the settings page, with
+  an optional line about what it's about. Starting a new one retires the old one; its episodes stay
+  in Past texts, listed first to last by Read from the start.
+- **Continuity is carried in words, not in the conversation.** The first episode's request asks the
+  model to invent two to four named characters and a place, and to return the story's name
+  (`series`) and its cast and setting (`cast`) beside the text. Every episode returns one sentence
+  about what happened in it (`recap`, on the text). Each later episode's request names the story,
+  the cast, and the last 12 recaps (`STORY_RECAPS`), so the request stays short however long the
+  story runs. All three fields are optional in the reply's schema and asked for only in a story's
+  request.
+- **An episode is a story-form text like any other**: the same coverage target, revision loop and
+  stretch words, filed under the story's own hidden topic. The next one is written only once the
+  last has been read, so at most one waits.
+
 ## Topics
 
-- You keep a short list of favorite topics. The server keeps one ready text per favorite
-  (`READY_PER_FAVORITE` in `engine.py`), topped up in the background after each request, so reading
-  those never waits. A new topic, or a favorite whose text was just read, waits for one generation
-  (about half a minute).
+- Topics now sit behind the shelf: a liked theme is a favorite topic, and the old topic routes
+  (`/api/topics`, `/next`) stay for Review's "Read a text with these words", which asks for a text on
+  a liked theme (or the best-fitting idea) written to practice the words just studied.
 - **A text is written in the background, never inside a request.** Three attempts and the audio
   can take longer than an iPhone waits on one request, so `/next` answers 202 while a text is being
   written and the app asks again every few seconds. One write per topic at a time; a request that
@@ -382,14 +473,15 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   served twice.
 - **Topic ideas**, so topics don't all have to be thought up. About 30 everyday situations
   (`server/reader/src/franki_reader/suggestions.py`), each with six Thai words it's likely to need, offered on
-  the topics screen a few at a time, ordered by how many of those words the deck knows: the best fit
+  the topics screen a few at a time (until the shelf, which now writes from them itself), ordered by how many of those words the deck knows: the best fit
   is most likely to clear the floor on the first try. The owner still picks (brief, principle 10).
   A fixed list rather than generated ideas, so offering them costs nothing. Tapping one adds it as a
   topic that isn't a favorite and opens it, so trying an idea doesn't start a queue of texts for it;
   starring it does. Topics already added, or added and removed, aren't offered again.
 - **Removing a topic** (press and hold it) hides it from the list and the background top-up. It's
   a flag on the row, not a delete, since its texts and readings point at it. Adding a topic with the
-  same name brings it back, with any text it still had ready.
+  same name brings it back, with any text it still had ready. The shelf's own ideas are filed the
+  same way from the start, so they're never listed; More like this lists one again, as a theme.
 
 ## Server API
 
@@ -409,12 +501,32 @@ are listed at the top of `server/reader/src/franki_reader/app.py`.
 
 ## Audio
 
-- Azure neural voices, one per speaker: `th-TH-NiwatNeural` (male) for A and `th-TH-PremwadeeNeural`
-  (female) for B. `AZURE_VOICE_A` and `AZURE_VOICE_B` in `server/.env` override them without a code
-  change (the other languages' are set in `languages.py`). Since 12 November 2026 each speaker's voice can be
-  chosen in the app (Read & Listen's settings, from `GET /api/voices`), stored in the `voices`
-  setting over those defaults; a change re-records the texts waiting to be read, and a text already
-  read keeps its audio. The same server also speaks a card's word for the app (`POST /api/speech`,
+- **Speakers are read in a voice of their gender.** The model says in `genders` whether A and B are
+  a man or a woman (`male` or `female`; `none` in a story), and varies it from text to text: a man
+  and a woman, two men or two women. The text is stored with it (`texts.genders`), and
+  `gender.voice_for` picks each speaker's voice: A uses the first voice of their gender, and B the
+  same unless A is the same gender, when B uses the second. A story's narrator is read in the
+  man's voice. A text from before this has no genders and is read as it was recorded, A a man and
+  B a woman.
+- **Thai's lines are checked against it in code** (`gender.gender_problems`): a man's line with
+  ค่ะ, คะ or ดิฉัน, or a woman's with ครับ or ผม, goes back to the model with the line named, like the
+  vocabulary check. ฉัน isn't checked (men say it too), and ผม counts only as a whole word, since it
+  also means "hair". A draft that fails is never kept, however good its coverage: if every attempt
+  fails, the text is stored as dropped. The other languages mark gender in verb endings and
+  adjectives, which code can't check reliably, so they rest on the prompt.
+- **Voices**: four slots per language (`male`, `male2`, `female`, `female2`), defaults in
+  `languages.py`. Thai's man's and woman's defaults can be set with `AZURE_VOICE_MALE` and
+  `AZURE_VOICE_FEMALE` in `server/.env`. A language with no second voice of a gender (no second
+  man in Thai, Russian, Greek, Polish or Norwegian; no second woman in Greek) reads two speakers
+  of that gender in the same voice until one is chosen. Azure's newer Dragon and MAI voices are
+  offered in the picker, but none is a default, as they haven't been tried through this client.
+  Since 12 November 2026 each slot can be chosen in the app (Read & Listen's settings, from
+  `GET /api/voices`, filtered to the slot's gender by `voiceSlots.ts`; `PATCH /api/settings`
+  refuses a voice of the other gender), stored in the `voices` setting over those defaults. A
+  change re-records the texts waiting to be read, and a text already read keeps its audio. Voices
+  chosen for speakers A and B before genders were recorded aren't carried over: nothing said which
+  gender they were.
+- The same server also speaks a card's word for the app (`POST /api/speech`,
   Settings > Voices in Franki), which keeps the MP3 in the note, so each recording is asked for
   once. Azure is
   called through the client shared with the MCP (`server/speech`, `franki_speech`, since 12 November
@@ -441,14 +553,17 @@ are listed at the top of `server/reader/src/franki_reader/app.py`.
 - Per text: date, language, mode, token count, verified coverage, stretch words, words glossed,
   words flagged unknown, rating, audio speed, listen-only or not, time spent.
 - The rating adjusts the difficulty of texts written after it (too hard: coverage target up 1
-  point, one fewer stretch word; too easy: the reverse), within a 95% to 99% target and 1 to 3
+  point, one fewer stretch word; too easy: the reverse), within a 90% to 99% target (92% to start) and 1 to 3
   stretch words (`server/reader/src/franki_reader/difficulty.py`). A text already waiting in a favorite's queue
   keeps the difficulty it was written at, so a rating shows up one text later; the owner chose that
   over discarding queued texts (19 October 2026). The Milestone 1 exit check reads the log.
 - A reading posted twice for the same text (a retried request) is counted once.
 - Each text also records the model that actually answered (a refusal fallback can change it), its
   tokens and its cost in dollars, dropped texts included, so the real cost per text can be read
-  straight from the `texts` table.
+  straight from the `texts` table. `GET /api/costs` sums it per language over a number of days,
+  and the MCP's `read_and_listen_costs` asks that route (`server/mcp/franki_mcp/reader.py`, with
+  `READER_PASSPHRASE` over the compose network), so Claude can answer "what is this costing?".
+  Azure's audio isn't counted: its cost isn't recorded per text.
 - **Dropped:** the brief's randomized experiment (exposed versus held-back words, Anki outcome
   comparison, kill criterion). The owner decided on 19 October 2026 not to build it.
 
@@ -464,3 +579,4 @@ are listed at the top of `server/reader/src/franki_reader/app.py`.
 7. Move into Franki: the server beside the sync server, then the app's screens (done), then
    retire the ailing repo, its Fly app and the droplet's Anki proxy
 8. Mining, practice words after studying, a deck setting per language (done, 12 November 2026)
+9. The shelf and ongoing stories, in place of the topics screen (done, 12 November 2026)

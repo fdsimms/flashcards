@@ -64,6 +64,7 @@ const MIGRATIONS: { table: string; column: string; sql: string }[] = [
   { table: 'cards', column: 'filtered_due', sql: 'ALTER TABLE cards ADD COLUMN filtered_due INTEGER' },
   { table: 'cards', column: 'preview_due', sql: 'ALTER TABLE cards ADD COLUMN preview_due TEXT' },
   { table: 'cards', column: 'flag', sql: 'ALTER TABLE cards ADD COLUMN flag INTEGER' },
+  { table: 'form_practice', column: 'given', sql: 'ALTER TABLE form_practice ADD COLUMN given TEXT' },
 ];
 
 async function migrate(db: SQLite.SQLiteDatabase) {
@@ -268,17 +269,17 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async addPractice(p) {
       await db.runAsync(
-        'INSERT INTO form_practice (note_id, form_key, correct, practiced_at) VALUES (?, ?, ?, ?)',
-        p.noteId, p.key, p.correct ? 1 : 0, p.practicedAt,
+        'INSERT INTO form_practice (note_id, form_key, correct, practiced_at, given) VALUES (?, ?, ?, ?, ?)',
+        p.noteId, p.key, p.correct ? 1 : 0, p.practicedAt, p.given ?? null,
       );
     },
     async listPractice(since) {
       // ISO strings are all UTC, so comparing them as text compares the instants.
-      const rows = await db.getAllAsync<{ note_id: string; form_key: string; correct: number; practiced_at: string }>(
-        'SELECT note_id, form_key, correct, practiced_at FROM form_practice WHERE practiced_at >= ? ORDER BY practiced_at',
+      const rows = await db.getAllAsync<{ note_id: string; form_key: string; correct: number; practiced_at: string; given: string | null }>(
+        'SELECT note_id, form_key, correct, practiced_at, given FROM form_practice WHERE practiced_at >= ? ORDER BY practiced_at',
         since ? since.toISOString() : '',
       );
-      return rows.map((r) => ({ noteId: r.note_id, key: r.form_key, correct: !!r.correct, practicedAt: r.practiced_at }));
+      return rows.map((r) => ({ noteId: r.note_id, key: r.form_key, correct: !!r.correct, practicedAt: r.practiced_at, ...(r.given != null ? { given: r.given } : {}) }));
     },
     async formsAnswerMode() {
       const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'forms_answer_mode'");
@@ -314,6 +315,13 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async saveSwipeToRate(on) {
       await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('swipe_to_rate', ?)", on ? '1' : '0');
+    },
+    async showCardHints() {
+      const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'show_card_hints'");
+      return r?.value === '1';
+    },
+    async saveShowCardHints(on) {
+      await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('show_card_hints', ?)", on ? '1' : '0');
     },
     async listReviews(since) {
       // ISO strings are all UTC, so comparing them as text compares the instants.

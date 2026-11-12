@@ -31,6 +31,7 @@ export default function DecksRoute() {
       onOptions={openOptions}
       onNewDeck={deckActions.create}
       onDeckMenu={deckActions.menu}
+      onMoveDeck={deckActions.move}
       collapsed={collapse.collapsed}
       onToggleCollapsed={collapse.toggle}
       sync={syncSettings?.enabled ? {

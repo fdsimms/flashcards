@@ -41,8 +41,8 @@ def load(env: dict[str, str] | None = None) -> Settings:
         anki_dir=Path(env.get("READER_ANKI_DIR", "anki")),
         speech_endpoint=env.get("AZURE_SPEECH_ENDPOINT") or None,
         voices={
-            "A": env.get("AZURE_VOICE_A") or DEFAULT_VOICES["A"],
-            "B": env.get("AZURE_VOICE_B") or DEFAULT_VOICES["B"],
+            "male": env.get("AZURE_VOICE_MALE") or DEFAULT_VOICES["male"],
+            "female": env.get("AZURE_VOICE_FEMALE") or DEFAULT_VOICES["female"],
         },
         secrets={name: env[name] for name in SECRET_NAMES if env.get(name)},
     )

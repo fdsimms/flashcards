@@ -1,6 +1,7 @@
 import { NEW_PER_DAY, REVIEWS_PER_DAY } from './config';
 import { nextStudyDayStart, studyDayKey } from './day';
 import { ankiToday, DEFAULT_ORDER, gatherNew, inFilteredOrder, mix, sortNew, sortReviews, type SortContext } from './order';
+import { boostCap, type Boost } from './priority';
 import { isInProgress } from './progress';
 import { isBuried, isDue, isInterdayLearning, isLearning, studiable, type Queue, type StudiedToday } from './queue';
 import { paramsForDeck } from './scheduler';
@@ -33,25 +34,37 @@ export interface DeckNode {
 
 /**
  * Every deck in display order, parents before children, including parents that hold no cards of
- * their own ("👅 Languages" when every card is in a language's subdeck).
+ * their own ("👅 Languages" when every card is in a language's subdeck). `position` is the place
+ * a deck was dragged to among its siblings (`DeckSettings.position`, `compareDecks`).
  */
-export function deckTree(decks: Iterable<string>): DeckNode[] {
+export function deckTree(decks: Iterable<string>, position?: (deck: string) => number | undefined): DeckNode[] {
   const all = new Set<string>();
   for (const d of decks) for (const p of deckLineage(d)) all.add(p);
-  // Sort by path segments, so "A::B" sits under "A" and before "A B".
-  const sorted = [...all].sort((a, b) => {
-    const pa = a.split('::');
-    const pb = b.split('::');
-    for (let i = 0; i < Math.min(pa.length, pb.length); i++) {
-      const c = pa[i].localeCompare(pb[i]);
-      if (c !== 0) return c;
-    }
-    return pa.length - pb.length;
-  });
-  return sorted.map((deck) => {
+  return [...all].sort((a, b) => compareDecks(a, b, position)).map((deck) => {
     const parts = deck.split('::');
     return { deck, name: parts[parts.length - 1], depth: parts.length - 1 };
   });
+}
+
+/**
+ * The order of two decks on the deck list, part by part from the top, so a subdeck sits under its
+ * parent: at each level a deck given a place (`position`, its `DeckSettings.position`) comes
+ * before one with none, and decks without one are in Anki's order, by name.
+ */
+export function compareDecks(a: string, b: string, position?: (deck: string) => number | undefined): number {
+  const pa = a.split('::');
+  const pb = b.split('::');
+  for (let i = 0; i < Math.min(pa.length, pb.length); i++) {
+    if (pa[i] === pb[i]) continue;
+    const x = position?.(pa.slice(0, i + 1).join('::'));
+    const y = position?.(pb.slice(0, i + 1).join('::'));
+    if (x !== undefined && y !== undefined && x !== y) return x - y;
+    if (x !== undefined && y === undefined) return -1;
+    if (x === undefined && y !== undefined) return 1;
+    const c = pa[i].localeCompare(pb[i]);
+    if (c !== 0) return c;
+  }
+  return pa.length - pb.length;
 }
 
 export interface DeckLimits {
@@ -107,6 +120,8 @@ export interface TreeQueueInput {
    * and Review cards are ever held; learning cards keep their steps.
    */
   held?: Set<string>;
+  /** Tagged cards that come first when `root` is studied (`boostFor`, priority.ts). */
+  boostFor?: (root: string) => Boost | undefined;
 }
 
 const dueMs = (c: Card) => new Date(c.sched.due).getTime();
@@ -246,10 +261,21 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const reviewDue = (c: Card) => c.sched.state === 2 && (inFilteredOrder(c) || isDue(c, now, h));
   const interday = previewDeck ? [] : gatherDue(rest.filter((c) => isInterdayLearning(c, h) && dueMs(c) < nextDay), 'interdayLearning');
   const reviews = gatherDue(previewDeck ? rest : rest.filter(reviewDue), 'reviews');
-  const fresh = previewDeck ? [] : sortNew(
-    gatherNew(rest.filter((c) => c.sched.state === 0), order.newGatherPriority, ctx, (c) => !heldBack(c, 'new') && admit(c, 'new')),
-    order.newSortOrder, ctx,
-  );
+  const newCards = rest.filter((c) => c.sched.state === 0);
+  const gatherFresh = (cards: Card[], limit = Number.POSITIVE_INFINITY) => {
+    let n = 0;
+    return sortNew(
+      gatherNew(cards, order.newGatherPriority, ctx, (c) => n < limit && !heldBack(c, 'new') && admit(c, 'new') && ++n > 0),
+      order.newSortOrder, ctx,
+    );
+  };
+  // Tagged cards first: gathered ahead of the rest, up to a share of the room the limits leave,
+  // so they use the same limits and a boosted card that doesn't fit waits in line like any other.
+  const boost = previewDeck ? undefined : input.boostFor?.(root);
+  const boosted = boost ? newCards.filter((c) => boost.noteIds.has(c.noteId)) : [];
+  const firstNew = boosted.length ? gatherFresh(boosted, boostCap(boost!.percent, nodes.get(root)!.new)) : [];
+  const firstIds = new Set(firstNew.map((c) => c.id));
+  const fresh = previewDeck ? [] : [...firstNew, ...gatherFresh(newCards.filter((c) => !firstIds.has(c.id)))];
 
   // ---- presentation ----
   const learnOrder = (a: Card, b: Card) => Number(a.sched.reps === 0) - Number(b.sched.reps === 0) || shownAt(a) - shownAt(b);
@@ -280,6 +306,8 @@ export function queueInput(a: {
   now: Date;
   /** Lookalikes held back (`heldCards`). */
   held?: Set<string>;
+  /** Tagged cards first (`boostFor`). */
+  boostFor?: (root: string) => Boost | undefined;
 }): TreeQueueInput {
   const deckOfNote = new Map([...a.notes].map((n) => [n.id, n.deck]));
   const todayKey = studyDayKey(a.now, a.collection.dayStartsAtHour);
@@ -297,6 +325,7 @@ export function queueInput(a: {
     ankiToday: ankiToday(a.now, a.collection.dayStartsAtHour, a.collection.collectionCreated, a.collection.creationOffset),
     now: a.now,
     held: a.held,
+    boostFor: a.boostFor,
   };
 }
 
@@ -354,10 +383,10 @@ export function deckListTotals(rows: DeckRow[]): { due: number; fresh: number } 
 
 /**
  * The deck list: every deck, nested, with what studying it would show. `listed` adds decks that
- * hold no cards (`listedDecks`): Anki lists an empty deck too.
+ * hold no cards (`listedDecks`): Anki lists an empty deck too. `position` orders siblings (`deckTree`).
  */
-export function deckRows(input: TreeQueueInput, listed: Iterable<string> = []): DeckRow[] {
-  return deckTree([...input.cardsByDeck.keys(), ...listed]).map((node) => {
+export function deckRows(input: TreeQueueInput, listed: Iterable<string> = [], position?: (deck: string) => number | undefined): DeckRow[] {
+  return deckTree([...input.cardsByDeck.keys(), ...listed], position).map((node) => {
     const q = treeQueue(node.deck, input);
     let total = 0;
     for (const [deck, cards] of input.cardsByDeck) {

@@ -6,11 +6,18 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from scripted import BAD, ENTRIES, GOOD, ScriptedModel
+from scripted import BAD, ENTRIES, IN_RANGE, ScriptedModel
 
 from franki_reader import store
 from franki_reader.difficulty import Difficulty
-from franki_reader.engine import FAILURE_COOLDOWN, MISSED_FLOOR, Engine, NotAvailable, NotFound
+from franki_reader.engine import (
+    FAILURE_COOLDOWN,
+    MISSED_FLOOR,
+    SHELF_SIZE,
+    Engine,
+    NotAvailable,
+    NotFound,
+)
 from franki_reader.generator import GenerationFailed
 from franki_reader.lexicon import Entry
 from franki_reader.store import Reading, StoredText
@@ -60,7 +67,7 @@ def reading(rating: str | None) -> Reading:
 
 
 def test_asking_for_a_topic_with_nothing_ready_writes_one_in_the_background() -> None:
-    model = ScriptedModel(GOOD)
+    model = ScriptedModel(IN_RANGE)
     e = engine(model)
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
 
@@ -79,7 +86,7 @@ def test_asking_for_a_topic_with_nothing_ready_writes_one_in_the_background() ->
 
 
 def test_asking_again_while_writing_does_not_start_a_second_write() -> None:
-    model = ScriptedModel(GOOD)
+    model = ScriptedModel(IN_RANGE)
     e = engine(model)
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
 
@@ -94,7 +101,7 @@ def test_asking_again_while_writing_does_not_start_a_second_write() -> None:
 
 
 def test_a_caller_waiting_on_the_lock_takes_the_text_just_written() -> None:
-    model = ScriptedModel(GOOD)
+    model = ScriptedModel(IN_RANGE)
     e = engine(model)
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
 
@@ -108,7 +115,7 @@ def test_a_caller_waiting_on_the_lock_takes_the_text_just_written() -> None:
 
 
 def test_a_ready_text_is_served_without_calling_the_model() -> None:
-    model = ScriptedModel(GOOD)
+    model = ScriptedModel(IN_RANGE)
     e = engine(model)
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
     made = run(lambda: e.make_text(topic.id))
@@ -148,7 +155,7 @@ def test_a_dropped_text_is_kept_for_its_cost_but_never_served() -> None:
 
 
 def test_a_claude_error_is_reported_to_the_next_request() -> None:
-    e = engine(ScriptedModel(GOOD))
+    e = engine(ScriptedModel(IN_RANGE))
 
     def failing(entries: Any, language: Any) -> Any:
         async def ask(messages: Any) -> Any:
@@ -174,7 +181,7 @@ def test_says_what_is_missing() -> None:
     with pytest.raises(NotAvailable, match="no Claude API key"):
         run(lambda: no_key.next_text(topic.id))
 
-    no_words = engine(ScriptedModel(GOOD), with_lexicon=False)
+    no_words = engine(ScriptedModel(IN_RANGE), with_lexicon=False)
     topic = store.add_topic(no_words.conn, "Food stall", True, NOW)
     with pytest.raises(NotAvailable, match="no Thai word list"):
         run(lambda: no_words.next_text(topic.id))
@@ -182,44 +189,135 @@ def test_says_what_is_missing() -> None:
 
 def test_an_unknown_topic_is_not_found() -> None:
     with pytest.raises(NotFound):
-        run(lambda: engine(ScriptedModel(GOOD)).next_text(99))
+        run(lambda: engine(ScriptedModel(IN_RANGE)).next_text(99))
 
 
-def test_top_up_fills_each_favorite_once_and_skips_others() -> None:
-    model = ScriptedModel(GOOD)
+def test_top_up_fills_the_shelf_with_one_of_each_kind_in_both_forms() -> None:
+    model = ScriptedModel(IN_RANGE)
     e = engine(model)
     store.add_topic(e.conn, "Food stall", True, NOW)
     store.add_topic(e.conn, "Taxi", True, NOW)
-    store.add_topic(e.conn, "Weather", False, NOW)
 
     run(e.top_up)
+    run(e.top_up)  # full: nothing more is written
+
+    shelf = store.shelf_texts(e.conn, "th")
+    assert model.calls == SHELF_SIZE == len(shelf)
+    assert [t.reason for t in shelf] == ["due", "liked", "new"]
+    assert [t.form for t in shelf] == ["dialogue", "story", "dialogue"]
+    # The idea is filed away: not listed as a topic, and not offered again.
+    new = store.topic_name(e.conn, shelf[2].topic_id)
+    assert [t.name for t in store.list_topics(e.conn)] == ["Food stall", "Taxi"]
+    assert new in store.topic_names(e.conn)
+
+
+def test_a_text_taken_off_the_shelf_is_replaced_and_counted_as_skipped() -> None:
+    model = ScriptedModel(IN_RANGE)
+    e = engine(model)
+    run(e.top_up)
+    first = store.shelf_texts(e.conn, "th")[0]
+
+    assert store.skip_text(e.conn, first.id)
+    assert not store.skip_text(e.conn, first.id)  # already off the shelf
     run(e.top_up)
 
-    ready = {t.name: t.ready for t in store.list_topics(e.conn)}
-    assert ready == {"Food stall": 1, "Taxi": 1, "Weather": 0}
-    assert model.calls == 2
+    assert len(store.shelf_texts(e.conn, "th")) == SHELF_SIZE
+    assert first.id not in {t.id for t in store.shelf_texts(e.conn, "th")}
+    assert store.spending(e.conn, NOW)["th"].skipped == 1
 
 
-def test_top_up_carries_on_past_a_failed_topic_and_cools_it_down() -> None:
+def test_a_failed_shelf_text_ends_the_pass_and_its_topic_cools_down() -> None:
     clock = Clock()
-    # The first topic in name order misses three times; the second gets a good text.
-    model = ScriptedModel(BAD, BAD, BAD, GOOD)
+    model = ScriptedModel(BAD, BAD, BAD, IN_RANGE)
     e = engine(model, clock=clock)
-    store.add_topic(e.conn, "At the market", True, NOW)
-    store.add_topic(e.conn, "Taxi", True, NOW)
+    market = store.add_topic(e.conn, "At the market", True, NOW)
 
-    run(e.top_up)
-    assert {t.name: e.topic_state(t) for t in store.list_topics(e.conn)} == {
-        "At the market": "failed",
-        "Taxi": "ready",
-    }
+    run(e.top_up)  # the due-words text, on the only liked theme, misses three times
+    assert model.calls == 3
+    assert store.shelf_texts(e.conn, "th") == []
+    assert e.failure(market.id, "th") == MISSED_FLOOR
 
-    run(e.top_up)  # still cooling down: no new attempt
-    assert model.calls == 4
+    run(e.top_up)  # the shelf waits out the cooldown rather than trying another idea
+    assert model.calls == 3
 
     clock.now = NOW + FAILURE_COOLDOWN
+    assert e.failure(market.id, "th") is None
     run(e.top_up)
-    assert model.calls == 5
+    assert len(store.shelf_texts(e.conn, "th")) == SHELF_SIZE
+
+
+def test_a_text_asked_for_joins_the_shelf_beyond_its_size() -> None:
+    model = ScriptedModel(IN_RANGE)
+    e = engine(model)
+    run(e.top_up)
+
+    async def scenario() -> None:
+        e.write_about("Haggling at a market", "story")
+        await settle(e)
+
+    run(scenario)
+    shelf = store.shelf_texts(e.conn, "th")
+    assert len(shelf) == SHELF_SIZE + 1
+    asked = shelf[-1]
+    assert (asked.reason, asked.form) == ("asked", "story")
+    assert store.topic_name(e.conn, asked.topic_id) == "Haggling at a market"
+    with pytest.raises(ValueError):
+        e.write_about("   ", "dialogue")
+
+
+def test_a_story_keeps_its_cast_and_each_episode_hears_the_ones_before() -> None:
+    first = {
+        **IN_RANGE,
+        "series": "Noi's stall",
+        "cast": "Noi sells noodles.",
+        "recap": "Noi opens.",
+    }
+    second = {**IN_RANGE, "recap": "It rains on Noi."}
+    model = ScriptedModel(first, second)
+    e = engine(model)
+
+    async def start() -> int:
+        story = e.start_story("a noodle stall")
+        await settle(e)
+        return story.id
+
+    story_id = run(start)
+    story = store.get_story(e.conn, story_id)
+    assert story is not None and (story.title, story.cast) == ("Noi's stall", "Noi sells noodles.")
+    episode = store.waiting_episode(e.conn, story_id)
+    assert episode is not None and (episode.episode, episode.recap) == (1, "Noi opens.")
+    assert episode.reason == "story" and episode.form == "story"
+    assert "first episode" in model.messages_seen[0][0]["content"]
+    assert "a noodle stall" in model.messages_seen[0][0]["content"]
+    # Waiting episodes aren't on the shelf, and a second isn't written while one waits.
+    assert episode.id not in {t.id for t in store.shelf_texts(e.conn, "th")}
+
+    e.record_reading(episode.id, reading(None))
+    calls = model.calls
+    run(e.top_up)
+    nxt = store.waiting_episode(e.conn, story_id)
+    assert nxt is not None and (nxt.episode, nxt.recap) == (2, "It rains on Noi.")
+    asked = model.messages_seen[calls][0]["content"]
+    assert 'episode 2 of an ongoing story, "Noi\'s stall"' in asked
+    assert "Noi opens." in asked and "Noi sells noodles." in asked
+
+    run(e.top_up)  # episode 2 is waiting: no third
+    assert [t.episode for t in store.episodes(e.conn, story_id)] == [1, 2]
+
+
+def test_a_new_story_retires_the_old_one() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+
+    async def scenario() -> tuple[int, int]:
+        old = e.start_story("")
+        await settle(e)
+        new = e.start_story("a haunted house")
+        await settle(e)
+        return old.id, new.id
+
+    old, new = run(scenario)
+    active = store.active_story(e.conn, "th")
+    assert active is not None and active.id == new != old
 
 
 def test_top_up_stops_quietly_without_a_key() -> None:
@@ -230,30 +328,30 @@ def test_top_up_stops_quietly_without_a_key() -> None:
 
 
 def test_the_difficulty_follows_the_rating() -> None:
-    e = engine(ScriptedModel(GOOD))
+    e = engine(ScriptedModel(IN_RANGE))
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
     text = run(lambda: fetch(e, topic.id))
 
     e.record_reading(text.id, reading("too_hard"))
 
-    assert store.load_difficulty(e.conn) == Difficulty(0.96, 1)
+    assert store.load_difficulty(e.conn) == Difficulty(0.93, 1)
     assert store.get_topic(e.conn, topic.id).ready == 0  # type: ignore[union-attr]
 
 
 def test_a_repeated_reading_is_ignored() -> None:
-    e = engine(ScriptedModel(GOOD))
+    e = engine(ScriptedModel(IN_RANGE))
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
     text = run(lambda: fetch(e, topic.id))
 
     e.record_reading(text.id, reading("too_hard"))
     e.record_reading(text.id, reading("too_hard"))
 
-    assert store.load_difficulty(e.conn) == Difficulty(0.96, 1)
+    assert store.load_difficulty(e.conn) == Difficulty(0.93, 1)
     assert e.conn.execute("SELECT COUNT(*) FROM readings").fetchone()[0] == 1
 
 
 def test_a_reading_without_a_rating_leaves_difficulty_alone() -> None:
-    e = engine(ScriptedModel(GOOD))
+    e = engine(ScriptedModel(IN_RANGE))
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
     text = run(lambda: fetch(e, topic.id))
     e.record_reading(text.id, reading(None))
@@ -262,7 +360,7 @@ def test_a_reading_without_a_rating_leaves_difficulty_alone() -> None:
 
 def test_reading_an_unknown_text_is_not_found() -> None:
     with pytest.raises(NotFound):
-        engine(ScriptedModel(GOOD)).record_reading(42, reading(None))
+        engine(ScriptedModel(IN_RANGE)).record_reading(42, reading(None))
 
 
 def test_the_missed_floor_message_is_plain() -> None:
@@ -290,13 +388,13 @@ def speaking_engine(tmp_path: Path, voice: FakeVoice | None) -> Engine:
     store.save_snapshot(conn, ENTRIES, NOW)
     return Engine(
         conn,
-        ScriptedModel(GOOD).ask_for,
+        ScriptedModel(IN_RANGE).ask_for,
         None,
         Clock(),
         random.Random(1),
         synthesize=voice,
         audio=AudioCache(tmp_path),
-        voices={"A": "voice-a", "B": "voice-b"},
+        voices={"male": "voice-a", "male2": "voice-b", "female": "voice-c"},
     )
 
 
@@ -308,8 +406,9 @@ def test_a_new_text_gets_audio_for_each_line_in_its_speakers_voice(tmp_path: Pat
     text = run(lambda: fetch(e, topic.id))
 
     assert voice.calls == [
-        ("ฉันอยากกินข้าวเหนียวมะม่วงครับ", "voice-a"),
-        ("ข้าวเหนียวมะม่วงครับ!", "voice-b"),
+        # The scripted text is two men: the second speaker reads in the second man's voice.
+        ("ฉันอยากกินข้าวเหนียวมะม่วงครับฉันอยากกินทอนครับ", "voice-a"),
+        ("ข้าวเหนียวมะม่วงครับ!ฉันอยากกินครับฉันอยากกินครับ", "voice-b"),
     ]
     assert e.has_audio(text.id, 0) and e.has_audio(text.id, 1)
 
@@ -332,7 +431,7 @@ def test_a_text_is_not_ready_until_its_audio_is_made(tmp_path: Path) -> None:
 
 def test_a_pending_text_left_by_a_restart_becomes_ready(tmp_path: Path) -> None:
     db = tmp_path / "t.db"
-    e = engine(ScriptedModel(GOOD))
+    e = engine(ScriptedModel(IN_RANGE))
     e.conn = store.connect(db)
     store.save_snapshot(e.conn, ENTRIES, NOW)
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
@@ -344,7 +443,7 @@ def test_a_pending_text_left_by_a_restart_becomes_ready(tmp_path: Path) -> None:
 
 
 def test_a_failed_line_stays_silent_and_the_text_is_still_served(tmp_path: Path) -> None:
-    e = speaking_engine(tmp_path, FakeVoice(fail_on="ข้าวเหนียวมะม่วงครับ!"))
+    e = speaking_engine(tmp_path, FakeVoice(fail_on="ข้าวเหนียวมะม่วงครับ!ฉันอยากกินครับฉันอยากกินครับ"))
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
 
     text = run(lambda: fetch(e, topic.id))
@@ -374,7 +473,7 @@ def test_missing_audio_is_made_on_request_and_then_cached(tmp_path: Path) -> Non
 
 
 def test_by_default_the_model_chooses_stretch_words_from_a_list() -> None:
-    e = engine(ScriptedModel(GOOD))
+    e = engine(ScriptedModel(IN_RANGE))
     store.save_difficulty(e.conn, Difficulty(stretch=1))
     request = e._request("Food stall", ENTRIES, store.load_difficulty(e.conn))
     assert request.choose == 1
@@ -383,7 +482,7 @@ def test_by_default_the_model_chooses_stretch_words_from_a_list() -> None:
 
 
 def test_set_to_any_the_stretch_words_are_given() -> None:
-    e = engine(ScriptedModel(GOOD))
+    e = engine(ScriptedModel(IN_RANGE))
     store.save_settings(e.conn, store.Settings(stretch_words="any"))
     request = e._request("Food stall", ENTRIES, Difficulty(stretch=2))
     assert request.choose is None
@@ -391,7 +490,7 @@ def test_set_to_any_the_stretch_words_are_given() -> None:
 
 
 def test_a_text_records_the_stretch_words_the_model_chose() -> None:
-    e = engine(ScriptedModel(GOOD))
+    e = engine(ScriptedModel(IN_RANGE))
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
     text = run(lambda: fetch(e, topic.id))
     assert text.stretch == ("ข้าวเหนียวมะม่วง",)
@@ -403,7 +502,7 @@ def test_a_stretch_word_from_a_text_read_yesterday_is_offered_again_today() -> N
     from franki_reader.lexicon import Entry
 
     clock = Clock()
-    e = engine(ScriptedModel(GOOD), clock=clock)
+    e = engine(ScriptedModel(IN_RANGE), clock=clock)
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
     text = run(lambda: fetch(e, topic.id))
     e.record_reading(text.id, reading("about_right"))
@@ -419,7 +518,7 @@ def test_a_stretch_word_from_a_text_read_yesterday_is_offered_again_today() -> N
 
 
 def test_the_length_setting_sets_the_number_of_lines_asked_for() -> None:
-    e = engine(ScriptedModel(GOOD))
+    e = engine(ScriptedModel(IN_RANGE))
     assert e._request("Food stall", ENTRIES, Difficulty()).lines == 8
     store.save_settings(e.conn, store.Settings(lines=12))
     assert e._request("Food stall", ENTRIES, Difficulty()).lines == 12
@@ -446,14 +545,14 @@ def test_the_form_setting_asks_for_a_story_and_the_text_keeps_it() -> None:
 
 
 def test_chosen_words_are_offered_as_the_stretch_words() -> None:
-    e = engine(ScriptedModel(GOOD))
+    e = engine(ScriptedModel(IN_RANGE))
     request = e._request("Food stall", ENTRIES, Difficulty(stretch=2), "th", "กิน\nครับ")
     assert sorted(w.text for w in request.stretch) == ["กิน", "ครับ"]
     assert request.choose == 2
 
 
 def test_chosen_words_not_yet_studied_are_left_out_and_none_says_so() -> None:
-    e = engine(ScriptedModel(GOOD))
+    e = engine(ScriptedModel(IN_RANGE))
     request = e._request("Food stall", ENTRIES, Difficulty(stretch=3), "th", "กิน\nทอน\nไม่มี")
     assert [w.text for w in request.stretch] == ["กิน"]
     assert request.choose == 1
@@ -462,7 +561,7 @@ def test_chosen_words_not_yet_studied_are_left_out_and_none_says_so() -> None:
 
 
 def test_a_text_for_chosen_words_is_its_own_and_not_the_queues() -> None:
-    model = ScriptedModel(GOOD, GOOD)
+    model = ScriptedModel(IN_RANGE, IN_RANGE)
     e = engine(model)
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
 
@@ -494,7 +593,7 @@ def test_chosen_words_read_the_deck_again_first() -> None:
         reads.append(language.deck)
         return fresh
 
-    e = engine(ScriptedModel(GOOD))
+    e = engine(ScriptedModel(IN_RANGE))
     e.read_deck = read
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
     text = run(lambda: e.make_text(topic.id, "th", "ทอน"))

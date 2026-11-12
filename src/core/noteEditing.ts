@@ -55,6 +55,38 @@ export function searchNotes(notes: Note[], query: string, deck?: string | null):
   return out.sort((a, b) => key.get(a.id)!.localeCompare(key.get(b.id)!));
 }
 
+export type DeckChip = { label: string; deck: string | null; selected: boolean };
+
+/**
+ * The deck chips Browse shows: one row per level of the picked deck, each with an "All" chip for
+ * the level above (null for every deck) and the decks that have notes at that level. A row for
+ * the top level needs more than one deck to be worth showing; a row of subdecks shows as soon as
+ * the picked deck has one.
+ */
+export function deckChipRows(notes: Note[], scope: string | null): DeckChip[][] {
+  const picked = scope ? scope.split('::') : [];
+  const rows: DeckChip[][] = [];
+  for (let level = 0; level <= picked.length; level++) {
+    const parent = level === 0 ? null : picked.slice(0, level).join('::');
+    const names = new Set<string>();
+    for (const n of notes) {
+      const parts = n.deck.split('::');
+      if (parts.length <= level) continue;
+      if (parent && parts.slice(0, level).join('::') !== parent) continue;
+      names.add(parts[level]);
+    }
+    if (level === 0 ? names.size < 2 : names.size < 1) break;
+    const all: DeckChip = { label: parent ? `All ${picked[level - 1]}` : 'All decks', deck: parent, selected: scope === parent };
+    const chips = [...names].sort((a, b) => a.localeCompare(b)).map((name) => {
+      const deck = parent ? `${parent}::${name}` : name;
+      return { label: name, deck, selected: scope === deck };
+    });
+    rows.push([all, ...chips]);
+    if (!names.has(picked[level] ?? '')) break;
+  }
+  return rows;
+}
+
 /**
  * Another note of the same type whose first field reads the same, as Anki's duplicate check
  * compares them (as text, case aside). The editor warns; it doesn't refuse.

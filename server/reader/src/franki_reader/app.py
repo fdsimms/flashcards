@@ -14,7 +14,10 @@ serves all of it under /reader (../../Caddyfile), so the app's address ends in /
     GET   /api/settings               {stretch_words: "topic" | "any", lines: 6 | 8 | 12,
                                       form: "dialogue" | "story", language: "th" | "es" | ...,
                                       decks: {th: <deck>, es: <deck>, ...},
-                                      voices: {th: {A: <voice>, B: <voice>}, es: {...}, ...},
+                                      voices: {th: {male: <voice>, male2: <voice>, female: <voice>,
+                                      female2: <voice>}, es: {...}, ...}, a text's speakers are
+                                      read in the voice of their gender (second voices for a
+                                      dialogue between two men or two women),
                                       common: {es: 10000, de: 3000, ...}} (every language but
                                       Thai: how many of its most common words count as known)
 
@@ -23,11 +26,27 @@ marked words, ideas) is in the current language, the `language` setting.
     PATCH /api/settings               the same fields; takes effect from the next text written. A
                                       changed deck is read again at once; texts waiting to be read
                                       are spoken again in changed voices
-    GET   /api/texts                  texts read to the end, newest first, to read again
+    GET   /api/shelf                  the current language's shelf: the texts written ahead (each
+                                      with why it's there), the ongoing story and its next episode,
+                                      what's being written, the liked themes, and each language's
+                                      count of texts waiting; tops up in the background
+    POST  /api/shelf/write            {name, form} writes a text on a topic typed in; it joins the
+                                      shelf when it's ready (202)
+    POST  /api/story                  {about?} starts a new story in the current language, retiring
+                                      the one before it, and writes its first episode (202)
+    POST  /api/texts/{id}/skip        takes a text off the shelf unread (Not this); 404 if it isn't
+                                      waiting
+    GET   /api/texts                  texts read to the end, newest first, to read again; with
+                                      ?story=<id>, that story's episodes, first to last
     GET   /api/texts/{id}             one text, in the same shape as /next; reading it again isn't logged
     POST  /api/texts/{id}/reading     logs a session with a text and adjusts difficulty
     GET   /api/progress               finished texts, coverage and ratings over the last 14 days,
                                       and the difficulty the next text is written at
+    GET   /api/costs?days=30          what Claude cost over the last `days` days, per language:
+                                      texts read, waiting, dropped and skipped, attempts and dollars (every
+                                      language, not just the current one; the MCP's
+                                      read_and_listen_costs reads it), and `explanations`: what
+                                      Explain's calls cost over the same days
     GET   /api/grammar                the current language's grammar points, each practice, avoid
                                       or normal
     PUT   /api/grammar/{id}           {state}; at most 2 practiced at once; from the next text
@@ -39,6 +58,11 @@ marked words, ideas) is in the current language, the `language` setting.
     POST  /api/speech                 {text, voice, rate?} the text spoken by an Azure voice, as MP3:
                                       the app records a card's audio with it and keeps the file, so
                                       each recording is asked for once
+    POST  /api/texts/{id}/lines/{n}/explain   {simple?} the line's grammar and vocabulary explained in
+                                      English by Claude: {points: [{phrase, note}]}. Asked on the
+                                      owner's tap and kept per line (and per simple version)
+    POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
+                                      memory hints for a word the owner keeps forgetting: {hints: [...]}
 """
 
 import hmac
@@ -54,11 +78,19 @@ from pydantic import BaseModel, Field
 
 from franki_reader import config, grammar, store
 from franki_reader.collection import AnkiDeck, SyncSettings
+from franki_reader.coverage import parse_line
 from franki_reader.engine import Engine, NotAvailable, NotFound
+from franki_reader.explain import Explain, ExplainFailed, ExplainRequest, claude_explain
 from franki_reader.gateway import with_timeout
 from franki_reader.generator import Ask, Form, claude_ask
-from franki_reader.languages import LANGUAGES, Code, CommonCount, with_deck
+from franki_reader.languages import LANGUAGES, Code, CommonCount, VoiceSlot, with_deck
 from franki_reader.lexicon import Entry
+from franki_reader.mnemonics import (
+    MakeMnemonics,
+    MnemonicRequest,
+    MnemonicsFailed,
+    claude_mnemonics,
+)
 from franki_reader.reader import gloss_for, render
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
 from franki_reader.suggestions import suggest
@@ -98,14 +130,37 @@ class SettingsUpdate(BaseModel):
     decks: dict[Code, Annotated[str, Field(max_length=500)]] | None = None
     # How many of a language's most common words count as known. Not Thai's: only its deck counts.
     common: dict[Code, CommonCount] | None = None
-    # A speaker's Azure voice by language; an empty name goes back to the default.
-    voices: dict[Code, dict[Literal["A", "B"], Annotated[str, Field(max_length=100)]]] | None = None
+    # An Azure voice for each of a language's voice slots; an empty name goes back to the default.
+    voices: dict[Code, dict[VoiceSlot, Annotated[str, Field(max_length=100)]]] | None = None
 
 
 class SpeechIn(BaseModel):
     text: str = Field(min_length=1, max_length=MAX_SPEECH_CHARS)
     voice: str = Field(min_length=1, max_length=100)
     rate: float = Field(default=1.0, ge=0.5, le=2.0)
+
+
+class MnemonicIn(BaseModel):
+    language: Code
+    entry: str = Field(min_length=1, max_length=200)
+    meaning: str = Field(min_length=1, max_length=300)
+    transliteration: str = Field(default="", max_length=200)
+    context: str = Field(default="", max_length=500)
+
+
+class ExplainIn(BaseModel):
+    # A second, plainer explanation of a line already explained.
+    simple: bool = False
+
+
+class WriteIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    form: Form = "dialogue"
+
+
+class StoryIn(BaseModel):
+    # What the story is about; empty lets the model choose.
+    about: str = Field(default="", max_length=200)
 
 
 class NextIn(BaseModel):
@@ -137,7 +192,49 @@ def _check_voice(name: str, code: Code) -> None:
         )
 
 
-def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = None) -> FastAPI:
+async def _check_voice_gender(speech: Speech | None, name: str, slot: VoiceSlot) -> None:
+    """Refuses a voice of the other gender than its slot's, where Azure's list says what it is."""
+    if speech is None:
+        return
+    want = "male" if slot.startswith("male") else "female"
+    try:
+        found = await speech.voices()
+    except SpeechError:
+        return  # can't tell, and the voice's language was already checked
+    for v in found:
+        if v.get("voice") == name:
+            have = str(v.get("gender") or "").lower()
+            if have in ("male", "female") and have != want:
+                raise HTTPException(
+                    400,
+                    f"{v.get('name') or name} is a {have} voice. Choose a {want} voice for this one.",
+                )
+            return
+
+
+def _spent(s: store.Spending) -> dict[str, Any]:
+    """/api/costs's figures for one language or the total. Per read text divides everything spent
+    (dropped and unread texts too) by the texts actually read: what each one really cost."""
+    return {
+        "texts": s.texts,
+        "read": s.read,
+        "waiting": s.waiting,
+        "dropped": s.dropped,
+        "skipped": s.skipped,
+        "attempts_per_text": round(s.attempts / s.texts, 2) if s.texts else None,
+        "cost_usd": round(s.cost_usd, 4),
+        "per_text_usd": round(s.cost_usd / s.texts, 4) if s.texts else None,
+        "per_read_text_usd": round(s.cost_usd / s.read, 4) if s.read else None,
+    }
+
+
+def create_app(
+    engine: Engine,
+    passphrase: str | None,
+    speech: Speech | None = None,
+    mnemonics: MakeMnemonics | None = None,
+    explain: Explain | None = None,
+) -> FastAPI:
     app = FastAPI(title="franki-reader")
 
     def require_passphrase(authorization: Annotated[str | None, Header()] = None) -> None:
@@ -209,8 +306,38 @@ def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = N
         background.add_task(engine.top_up)
         return _rendered(text, engine)
 
+    @app.get("/api/shelf", dependencies=authed)
+    async def shelf(background: BackgroundTasks) -> dict[str, Any]:
+        background.add_task(engine.top_up)
+        return _shelf(engine)
+
+    @app.post("/api/shelf/write", status_code=202, dependencies=authed)
+    async def write(body: WriteIn) -> dict[str, Any]:
+        try:
+            topic = engine.write_about(body.name, body.form)
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from e
+        except NotAvailable as e:
+            raise HTTPException(503, str(e)) from e
+        return {"writing": True, "topic": topic.name}
+
+    @app.post("/api/story", status_code=202, dependencies=authed)
+    async def start_story(body: StoryIn) -> dict[str, Any]:
+        try:
+            story = engine.start_story(body.about)
+        except NotAvailable as e:
+            raise HTTPException(503, str(e)) from e
+        return {"writing": True, "id": story.id}
+
+    @app.post("/api/texts/{text_id}/skip", status_code=204, dependencies=authed)
+    async def skip(text_id: int, background: BackgroundTasks) -> Response:
+        if not store.skip_text(engine.conn, text_id):
+            raise HTTPException(404, "That text isn't on the shelf any more.")
+        background.add_task(engine.top_up)
+        return Response(status_code=204)
+
     @app.get("/api/texts", dependencies=authed)
-    async def past_texts() -> list[dict[str, Any]]:
+    async def past_texts(story: int | None = None) -> list[dict[str, Any]]:
         return [
             {
                 "id": t.id,
@@ -220,8 +347,9 @@ def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = N
                 "read_at": t.read_at.isoformat(),
                 "coverage": t.coverage,
                 "form": t.form,
+                "episode": t.episode,
             }
-            for t in store.past_texts(engine.conn, PAST_TEXTS, engine.language())
+            for t in store.past_texts(engine.conn, PAST_TEXTS, engine.language(), story)
         ]
 
     @app.get("/api/texts/{text_id}", dependencies=authed)
@@ -240,6 +368,39 @@ def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = N
         if path is None:
             raise HTTPException(404, "No audio for this line.")
         return FileResponse(path, media_type="audio/mpeg")
+
+    @app.post("/api/texts/{text_id}/lines/{line}/explain", dependencies=authed)
+    async def explain_line(text_id: int, line: int, body: ExplainIn) -> dict[str, Any]:
+        text = store.get_text(engine.conn, text_id)
+        if text is None or not 0 <= line < len(text.lines):
+            raise HTTPException(404, "No such line.")
+        if (kept := store.get_explanation(engine.conn, text_id, line, body.simple)) is not None:
+            return {"points": kept}
+        if explain is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't explain lines"
+                " (ANTHROPIC_API_KEY in server/.env turns explanations on).",
+            )
+        spaced = LANGUAGES[text.language].spaced
+        plain = [parse_line(ln.text, spaced)[0] for ln in text.lines]
+        try:
+            points, used = await explain(
+                ExplainRequest(
+                    text.language,
+                    plain[line],
+                    text.lines[line].english,
+                    tuple(plain[max(0, line - 3) : line] + plain[line + 1 : line + 3]),
+                    body.simple,
+                )
+            )
+        except ExplainFailed as e:
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_explanation(
+            engine.conn, text_id, line, body.simple, points, engine.clock(), used.cost_usd()
+        )
+        return {"points": points}
 
     def settings_out(current: Settings) -> dict[str, Any]:
         # Every language's deck and voices, the default where none was chosen, so the app shows
@@ -283,6 +444,7 @@ def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = N
                 name = name.strip()
                 if name:
                     _check_voice(name, code)
+                    await _check_voice_gender(speech, name, speaker)
                     mine[speaker] = name
                 else:
                     mine.pop(speaker, None)
@@ -347,6 +509,29 @@ def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = N
             raise HTTPException(503, str(e)) from e
         return Response(mp3, media_type="audio/mpeg")
 
+    @app.post("/api/mnemonics", dependencies=authed)
+    async def make_mnemonics(body: MnemonicIn) -> dict[str, list[str]]:
+        if mnemonics is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't suggest hints. Write your own"
+                " (ANTHROPIC_API_KEY in server/.env turns suggestions on).",
+            )
+        try:
+            hints = await mnemonics(
+                MnemonicRequest(
+                    body.language,
+                    body.entry.strip(),
+                    body.meaning.strip(),
+                    body.transliteration.strip(),
+                    body.context.strip(),
+                )
+            )
+        except MnemonicsFailed as e:
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        return {"hints": hints}
+
     @app.post("/api/texts/{text_id}/reading", status_code=204, dependencies=authed)
     async def reading(text_id: int, body: ReadingIn, background: BackgroundTasks) -> Response:
         try:
@@ -379,6 +564,44 @@ def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = N
             "median_coverage": done.median_coverage,
             "ratings": done.ratings,
             "next": {"floor": difficulty.floor, "stretch": difficulty.stretch},
+        }
+
+    @app.get("/api/costs", dependencies=authed)
+    async def costs(days: Annotated[int, Query(ge=1, le=3650)] = 30) -> dict[str, Any]:
+        since = engine.clock() - timedelta(days=days)
+        by_language = store.spending(engine.conn, since)
+        explained = store.explanation_spending(engine.conn, since)
+        rows = by_language.values()
+        total = store.Spending(
+            sum(r.read for r in rows),
+            sum(r.waiting for r in rows),
+            sum(r.dropped for r in rows),
+            sum(r.attempts for r in rows),
+            sum(r.cost_usd for r in rows),
+            sum(r.skipped for r in rows),
+        )
+        return {
+            "days": days,
+            "since": since.isoformat(),
+            "languages": [
+                {"language": code, "name": LANGUAGES[code].name, **_spent(r)}
+                for code, r in by_language.items()
+            ],
+            "total": _spent(total),
+            # Explain's calls, apart from the texts above (they aren't in per_text_usd).
+            "explanations": {
+                "asked": sum(n for n, _ in explained.values()),
+                "cost_usd": round(sum(c for _, c in explained.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "asked": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in explained.items()
+                ],
+            },
         }
 
     @app.get("/api/words", dependencies=authed)
@@ -444,11 +667,82 @@ def create_app(engine: Engine, passphrase: str | None, speech: Speech | None = N
 
 def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
     entries, lexicon = engine.snapshot(text.language)
-    out = render(text, lexicon, {e.text: e.meaning for e in entries})
+    out = render(
+        text,
+        lexicon,
+        {e.text: e.meaning for e in entries},
+        {e.text: e.translit for e in entries if e.translit},
+    )
     speaks = engine.audio is not None and engine.synthesize is not None
     for i, line in enumerate(out["lines"]):
         line["audio"] = speaks or engine.has_audio(text.id, i)
+    topic = store.get_topic(engine.conn, text.topic_id, text.language, include_removed=True)
+    story = store.get_story(engine.conn, text.story_id) if text.story_id else None
+    # What the reader shows under the title, and whether More like this is already on.
+    out["topic"] = (story.title or "Your story") if story else (topic.name if topic else "")
+    out["liked"] = bool(topic and topic.favorite)
+    out["reason"] = text.reason
+    out["episode"] = text.episode
     return out
+
+
+def _shelf_text(text: StoredText, engine: Engine) -> dict[str, Any]:
+    """A text on the shelf as a card shows it, without its words (they come with /api/texts/{id})."""
+    topic = store.get_topic(engine.conn, text.topic_id, text.language, include_removed=True)
+    return {
+        "id": text.id,
+        "title": text.title,
+        "topic": topic.name if topic else "",
+        "topic_id": text.topic_id,
+        "liked": bool(topic and topic.favorite),
+        "form": text.form,
+        "lines": len(text.lines),
+        "stretch": list(text.stretch),
+        "reason": text.reason,
+        "coverage": text.coverage,
+        "episode": text.episode,
+    }
+
+
+def _shelf(engine: Engine) -> dict[str, Any]:
+    language = engine.language()
+    writing = engine.writing(language)
+    story = store.active_story(engine.conn, language)
+    story_out = None
+    if story is not None:
+        told = store.episodes(engine.conn, story.id)
+        read = [t for t in told if store.text_status(engine.conn, t.id) == "read"]
+        waiting = store.waiting_episode(engine.conn, story.id)
+        story_out = {
+            "id": story.id,
+            "title": story.title,
+            "about": story.about,
+            "read": len(read),
+            "last_recap": read[-1].recap if read else "",
+            "next": _shelf_text(waiting, engine) if waiting else None,
+            "writing": any(j.story_id == story.id for j in writing),
+            "failed": engine.failure(story.topic_id, language),
+        }
+    counts = store.ready_counts(engine.conn)
+    return {
+        "language": language,
+        "languages": [
+            {"code": code, "name": info.name, "ready": counts.get(code, 0)}
+            for code, info in LANGUAGES.items()
+        ],
+        "texts": [_shelf_text(t, engine) for t in store.shelf_texts(engine.conn, language)],
+        "writing": [
+            {
+                "topic": store.topic_name(engine.conn, j.topic_id),
+                "reason": j.reason,
+                "form": j.form or "dialogue",
+            }
+            for j in writing
+            if j.story_id is None
+        ],
+        "story": story_out,
+        "themes": [{"id": t.id, "name": t.name} for t in store.liked_topics(engine.conn)],
+    }
 
 
 def _topic(t: Topic, engine: Engine, language: Code) -> dict[str, Any]:
@@ -470,8 +764,12 @@ def production_app() -> FastAPI:
     settings.db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = store.connect(settings.db_path)
     ask_for: Callable[[list[Entry], Code], Ask] | None = None
+    mnemonics: MakeMnemonics | None = None
+    explain: Explain | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
+        mnemonics = claude_mnemonics(client)
+        explain = claude_explain(client)
 
         def ask_for(entries: list[Entry], language: Code) -> Ask:
             return claude_ask(client, entries, language)
@@ -490,7 +788,7 @@ def production_app() -> FastAPI:
             user_agent="franki-reader",
             voice_help=(
                 "Check the voice names chosen in Read & Listen's settings in the app (Thai's"
-                " defaults are AZURE_VOICE_A and AZURE_VOICE_B in server/.env)."
+                " defaults are AZURE_VOICE_MALE and AZURE_VOICE_FEMALE in server/.env)."
             ),
         )
         synthesize = azure_synthesize(speech)
@@ -516,4 +814,4 @@ def production_app() -> FastAPI:
         audio=AudioCache(settings.audio_dir),
         voices=settings.voices,
     )
-    return create_app(engine, settings.secrets.get("APP_PASSPHRASE"), speech)
+    return create_app(engine, settings.secrets.get("APP_PASSPHRASE"), speech, mnemonics, explain)

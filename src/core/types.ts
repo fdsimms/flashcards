@@ -163,7 +163,24 @@ export interface ReviewLogEntry {
 
 export interface RenderedSide {
   /** Labeled blocks shown in order. */
-  blocks: { label?: string; text: string; emphasis?: boolean }[];
+  blocks: {
+    label?: string;
+    text: string;
+    emphasis?: boolean;
+    /** Anki's `{{hint:Field}}`: the text stays hidden behind a tap-to-show link with this label. */
+    tapLabel?: string;
+    /**
+     * What the block is, for layout: `chips` are small tags (`chips` holds them), the `example*`
+     * blocks are one example sentence's lines (set tight together), and a `note` is set off in a
+     * callout. A block with no role is plain labeled text.
+     */
+    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note';
+    chips?: string[];
+    /** A word to highlight inside the text: the card's word, in its example sentence. */
+    mark?: string;
+    /** An SF Symbol drawn before the text (the screen draws it, so no emoji goes in `text`). */
+    icon?: 'speaker.wave.2.fill';
+  }[];
   /** Text to speak aloud for this side, if any. */
   speak?: string;
 }
@@ -212,6 +229,12 @@ export interface DeckSettings {
    * (`listedDecks`). A deck made with one is Anki's, and listed from it.
    */
   created?: boolean;
+  /**
+   * Where the deck was dragged to among its siblings on the deck list (0 first; `compareDecks`).
+   * Franki's own: Anki lists decks by name and keeps no other order. Unset, a deck comes after
+   * those that have one, by name.
+   */
+  position?: number;
   /*
    * The settings below apply to the deck and its subdecks, unless a subdeck sets its own
    * (`inheritedSetting`). Undefined means the default.
@@ -226,4 +249,14 @@ export interface DeckSettings {
   lookalikeDays?: number;
   /** Offer to show a card sooner when a lookalike may have given it away (default on). */
   offerSooner?: boolean;
+  /** Tagged cards first (`prioritySettings`): the switch. Set on a subdeck, it overrides the deck above. */
+  priorityFirst?: boolean;
+  /** The tag whose notes' new cards come first. */
+  priorityTag?: string;
+  /** Days after Franki first saw the tag on a note that its new cards still come first (default 14). */
+  priorityDays?: number;
+  /** The most that may come first, as a percent of the day's new cards (default 50). */
+  priorityPercent?: number;
+  /** Note id to when Franki first saw the tag on it, kept on the deck whose switch is on. */
+  priorityStamps?: Record<string, string>;
 }

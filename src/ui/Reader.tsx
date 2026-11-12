@@ -4,27 +4,36 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ApiError, type Api, type PastText, type Rating, type ReaderText, type TextGrammar, type Topic, type Word } from '../reader/api';
+import { ApiError, type Api, type Length, type PastText, type Rating, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
 import { countOutsideDeck, isOutsideDeck, underFloor } from '../reader/deckWords';
 import { scrollTarget, type Box } from '../reader/follow';
+import { THAI_FONTS, THAI_FONT_LABELS, readFont, type ReadFont, type ThaiFont } from '../reader/fonts';
 import { LANGUAGES, wordStatus } from '../reader/languages';
-import { firstLine, nextLine } from '../reader/playback';
+import { firstLine, nextLine, paragraphs, previousLine, rangeOf } from '../reader/playback';
 import { RATES } from '../reader/playbackRate';
+import { minutesFor, nextInOrder, playOrder, stepLength, type LengthStep } from '../reader/shelf';
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
 import { prefs, savePrefs } from '../reader/storage';
+import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
-import { Button, Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
+import { LineExplanation } from './ReaderExplain';
+import { Button, Card, Chip, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './theme';
 
 /**
  * The reader: a text split into words by the server, a gloss on tap, audio line by line, and a
  * rating at the end (docs/read-and-listen/architecture.md, Client). Nothing here answers a card.
  *
- * Layout: the title, practice words, the Show English and highlight switches, the lines (each with
- * its own replay button, and an EN button that shows that line's English alone), then Done, with
+ * Layout: the title, practice words, the Show English, highlight and Thai letters controls, the lines (each with
+ * its own replay button, an EN button that shows that line's English alone, and an explain button
+ * that opens Claude's note on its grammar and vocabulary under it), then Done, with
  * the player pinned under the scroll view. Done swaps the lines for the end view (rating, stats,
  * words marked unknown). The gloss popover is a transparent Modal, so a tap's page coordinates
  * place it directly.
+ *
+ * From the shelf: a text already written opens straight away, and the end view steers the next
+ * ones (length, more or fewer like this) and offers the next text on the shelf. Play all plays the
+ * shelf's texts one after another, logging each as read once its last line has played.
  *
  * Reading again: a past text opens here with nothing logged (no Done, no rating, no marking words
  * unknown), since a second reading isn't recorded. One rated About right can be played with the
@@ -33,6 +42,11 @@ import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './the
  * Listen only: once a text is rated About right, the end view offers to play it again with the
  * text hidden (brief, design principle 6). The lines show who's speaking instead, and Show the text
  * brings the words back. The reading is logged as listen-only.
+ *
+ * A story written with paragraph marks reads as continuous text (`paragraphs`): a gap between
+ * paragraphs, no per-line rows or buttons, the playing line shaded, and previous/next line in the
+ * player. English then comes only from Show English. The Paragraphs switch (shown only for such a
+ * story, kept in prefs) turns it off for a row per line, as for every other text.
  *
  * Audio: one player is reused for every line. Play runs the text from the current line to the end
  * (`nextLine`); a line's replay button plays that line alone. Speed is the player's rate, with
@@ -54,10 +68,28 @@ const WRITE_WAIT_MS = 4 * 60_000;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** A new text on a topic (practicing `words` when given, the cards just studied), or a past text to read again. */
-export type ReaderSource = { kind: 'topic'; topic: Topic; words?: string[] } | { kind: 'past'; text: PastText };
+/**
+ * A text from the shelf (`order`: the shelf's texts as they were listed, for Next; `playAll`: play
+ * them one after another), a new text on a topic (practicing `words` when given, the cards just
+ * studied), or a past text to read again.
+ */
+export type ReaderSource =
+  | { kind: 'shelf'; textId: number; order: number[]; playAll?: boolean }
+  | { kind: 'topic'; topic: { id: number; name: string }; words?: string[] }
+  | { kind: 'past'; text: PastText };
 
-export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource; onDone: () => void }) {
+type UpNext = { id: number; title: string; lines: number; order: number[] };
+
+export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
+  api: Api;
+  source: ReaderSource;
+  /** Read & Listen's settings, for the length new texts are written at; null until loaded. */
+  settings: Settings | null;
+  onSettings: (settings: Settings) => void;
+  /** Opens another shelf text in this reader (Next, and Play all moving on). */
+  onNext: (source: ReaderSource) => void;
+  onDone: () => void;
+}) {
   const review = source.kind === 'past';
   const c = useTheme();
   const [text, setText] = useState<ReaderText | null>(null);
@@ -66,13 +98,24 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
   const [english, setEnglish] = useState(false);
   // Lines whose English was shown on their own, while Show English is off.
   const [lineEnglish, setLineEnglish] = useState<number[]>([]);
+  // Lines whose explanation is open (each asks the server when it opens; the server keeps the answer).
+  const [explained, setExplained] = useState<number[]>([]);
   const [listenOnly, setListenOnly] = useState(false);
   const [highlight, setHighlight] = useState(prefs().highlight);
+  const [paragraphMode, setParagraphMode] = useState(prefs().paragraphs);
+  const [thaiFont, setThaiFont] = useState(prefs().thaiFont);
   const [tapped, setTapped] = useState<Tapped | null>(null);
   const [ended, setEnded] = useState(false);
   const [rating, setRating] = useState<Rating | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [writing, setWriting] = useState(false);
+  const [upNext, setUpNext] = useState<UpNext | null>(null);
+  const [lengthStep, setLengthStep] = useState<LengthStep>('same');
+  const [liked, setLiked] = useState<boolean | null>(null);
+  const [steerError, setSteerError] = useState<string | null>(null);
+  // The length new texts were written at when this text opened, so Shorter and Longer step from it.
+  const baseLength = useRef<Length>(settings?.lines ?? 8);
+  const autoPlayed = useRef(false);
   const logged = useRef(false);
   const mounted = useRef(true);
   const loadId = useRef(0);
@@ -93,13 +136,20 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
   const [silentLine, setSilentLine] = useState<number | null>(null);
   const [repeat, setRepeat] = useState(false);
 
+  // A story's paragraphs (`marked` is null for a dialogue, or a story written before paragraphs):
+  // read as continuous text with no buttons of their own, while the Paragraphs switch is on.
+  // Everything else is a row per line.
+  const marked = text ? paragraphs(text.lines) : null;
+  const paras = paragraphMode ? marked : null;
+
   const scroller = useRef<ScrollViewInstance>(null);
   const lineBoxes = useRef<Box[]>([]);
   const scrollY = useRef(0);
   const viewHeight = useRef(0);
 
   useEffect(() => {
-    const box = current === null ? undefined : lineBoxes.current[current];
+    const at = current === null ? -1 : paras ? rangeOf(paras, current) : current;
+    const box = at < 0 ? undefined : lineBoxes.current[at];
     if (!box || !viewHeight.current) return;
     const y = scrollTarget(box, scrollY.current, viewHeight.current);
     if (y !== null) scroller.current?.scrollTo({ y, animated: true });
@@ -114,6 +164,13 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
     setCurrent(i);
     setPlayingAll(all);
     setSession((s) => (s ? heard(s, rate) : s));
+  };
+
+  // Previous and next line, for a story with no play button on each line. Plays on from there.
+  const skip = (step: -1 | 1) => {
+    if (!text) return;
+    const to = current === null ? firstLine(text.lines) : step < 0 ? previousLine(text.lines, current) : firstLine(text.lines, current + 1);
+    if (to !== null) playLine(to, true);
   };
 
   const togglePlay = () => {
@@ -145,7 +202,11 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
       return;
     }
     if (next !== null) playLine(next, true);
-    else setPlayingAll(false);
+    else {
+      setPlayingAll(false);
+      // Play all: the whole text has played, so it counts as read; on to the next one.
+      if (playingAll && source.kind === 'shelf' && source.playAll && !listenOnly) playNext();
+    }
   }, [status.didJustFinish]); // eslint-disable-line react-hooks/exhaustive-deps -- reacts to a line ending only
 
   // A line whose audio didn't load (the server had none for it): note it and move on.
@@ -171,15 +232,22 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
     setWriting(false);
     setLineEnglish([]);
     setListenOnly(false);
+    setUpNext(null);
+    setLengthStep('same');
+    setLiked(null);
+    setSteerError(null);
+    autoPlayed.current = false;
+    baseLength.current = settings?.lines ?? 8;
     lineBoxes.current = [];
     scrollY.current = 0;
     logged.current = false;
     try {
-      if (source.kind === 'past') {
-        const past = await api.text(source.text.id);
+      if (source.kind === 'past' || source.kind === 'shelf') {
+        const opened = await api.text(source.kind === 'past' ? source.text.id : source.textId);
         if (!stillWanted()) return;
-        setText(past);
-        setSession(startSession(past, Date.now()));
+        setText(opened);
+        setLiked(opened.liked ?? null);
+        setSession(startSession(opened, Date.now()));
         return;
       }
       const topicId = source.topic.id;
@@ -203,6 +271,74 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
   };
 
   useEffect(() => { load(); }, [source]); // eslint-disable-line react-hooks/exhaustive-deps -- loads once per source
+
+  // Play all starts each text playing as soon as it's open.
+  useEffect(() => {
+    if (!text || autoPlayed.current || source.kind !== 'shelf' || !source.playAll) return;
+    autoPlayed.current = true;
+    const start = firstLine(text.lines);
+    if (start !== null) playLine(start, true);
+  }, [text]); // eslint-disable-line react-hooks/exhaustive-deps -- once per text
+
+  // What Next opens: the next text in the shelf's order, else whatever the shelf has now (a text
+  // written since). Looked up when the end view shows, and when Play all moves on.
+  const findNext = async (): Promise<UpNext | null> => {
+    if (source.kind !== 'shelf' || !text) return null;
+    try {
+      const shelf = await api.shelf();
+      const order = playOrder(shelf).filter((id) => id !== text.id);
+      const listed = nextInOrder(source.order, text.id);
+      const id = listed !== null && order.includes(listed) ? listed : (order[0] ?? null);
+      const card = [...(shelf.story?.next ? [shelf.story.next] : []), ...shelf.texts].find((t) => t.id === id);
+      return card ? { id: card.id, title: card.title, lines: card.lines, order } : null;
+    } catch {
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    if (!ended || source.kind !== 'shelf') return;
+    let live = true;
+    findNext().then((n) => { if (live && mounted.current) setUpNext(n); });
+    return () => { live = false; };
+  }, [ended]); // eslint-disable-line react-hooks/exhaustive-deps -- once per end view
+
+  const playNext = async () => {
+    if (!text || !session || logged.current || source.kind !== 'shelf') return;
+    logged.current = true;
+    try {
+      await api.logReading(text.id, toLog(session, Date.now(), null, true));
+    } catch {
+      // The reading is lost, not your place: carry on either way.
+    }
+    const next = await findNext();
+    if (!mounted.current) return;
+    if (next) onNext({ kind: 'shelf', textId: next.id, order: next.order, playAll: true });
+    else setEnded(true);
+  };
+
+  const chooseLength = async (step: LengthStep) => {
+    setLengthStep(step);
+    setSteerError(null);
+    try {
+      onSettings(await api.updateSettings({ lines: stepLength(baseLength.current, step) }));
+    } catch (e) {
+      setSteerError(e instanceof ApiError ? e.message : "Couldn't change that. Try again.");
+    }
+  };
+
+  const chooseLiked = async (like: boolean) => {
+    if (!text) return;
+    const before = liked;
+    setLiked(like);
+    setSteerError(null);
+    try {
+      await api.setFavorite(text.topicId, like);
+    } catch (e) {
+      setLiked(before);
+      setSteerError(e instanceof ApiError ? e.message : "Couldn't change that. Try again.");
+    }
+  };
 
   // Finishing a text (Done) logs it once, which also takes it off the ready queue. Backing out
   // before Done logs nothing, so the same text is waiting next time instead of a new one.
@@ -234,8 +370,11 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
       }
     }
     if (!mounted.current) return;
-    if (then === 'next') load();
-    else leave();
+    if (then === 'back') leave();
+    else if (source.kind === 'shelf') {
+      if (upNext) onNext({ kind: 'shelf', textId: upNext.id, order: upNext.order });
+      else leave();
+    } else load();
   };
 
   // A finished text is logged before the screen goes, however it goes: the Back button, the swipe,
@@ -253,6 +392,10 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
     setLineEnglish((shown) => (shown.includes(i) ? shown.filter((n) => n !== i) : [...shown, i]));
   };
 
+  const toggleExplained = (i: number) => {
+    setExplained((open) => (open.includes(i) ? open.filter((n) => n !== i) : [...open, i]));
+  };
+
   const listenWithoutText = () => {
     if (!text) return;
     setSession((s) => (s ? listenedOnly(s) : s));
@@ -261,6 +404,16 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
     scrollY.current = 0; // the lines' scroll view is mounted fresh
     const start = firstLine(text.lines);
     if (start !== null) playLine(start, true);
+  };
+
+  const turnOnParagraphs = (on: boolean) => {
+    savePrefs({ paragraphs: on });
+    setParagraphMode(on);
+  };
+
+  const chooseThaiFont = (font: ThaiFont) => {
+    savePrefs({ thaiFont: font });
+    setThaiFont(font);
   };
 
   const turnOnHighlight = (on: boolean) => {
@@ -277,19 +430,26 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
       largeTitle={false}
       footer={text && !ended ? (
         hasAudio ? (
-          <PlayerBar playing={status.playing} current={current} total={text.lines.length} what={text.form === 'story' ? 'story' : 'dialogue'}
+          <PlayerBar playing={status.playing} current={current} total={text.lines.length} what={text.form === 'story' ? 'story' : 'dialogue'} skippable={paras !== null} onSkip={skip}
             rate={rate} repeat={repeat} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={() => setRepeat((r) => !r)} />
         ) : <Help>No audio for this text.</Help>
       ) : undefined}
     >
-      {error ? <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={load} /></View> : null}
-      {!text && !error ? (
-        <View style={{ padding: space.xxl, alignItems: 'center', gap: space.m }}>
-          <ActivityIndicator color={c.accent} />
-          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
-            {writing ? 'Writing a text. This takes about half a minute.' : 'Opening the text'}
-          </Text>
-        </View>
+      {/* A ScrollView with the automatic inset, not a bare View: a bare one draws under the native
+          header, so the spinner and message sat behind the Back button and the screen looked blank. */}
+      {!text ? (
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+          {error ? (
+            <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={load} /></View>
+          ) : (
+            <View style={{ padding: space.xxl, alignItems: 'center', gap: space.m }}>
+              <ActivityIndicator color={c.accent} />
+              <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
+                {writing ? 'Writing a text. This takes about half a minute.' : 'Opening the text'}
+              </Text>
+            </View>
+          )}
+        </ScrollView>
       ) : null}
 
       {text && session && !ended ? (
@@ -303,7 +463,9 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
         >
           <View style={{ paddingHorizontal: space.l, gap: space.s }}>
             <Text style={{ ...type.title, color: c.text }}>{text.title}</Text>
-            <Text style={{ ...type.footnote, color: c.textSecondary }}>{source.kind === 'topic' ? source.topic.name : source.text.topic}</Text>
+            <Text style={{ ...type.footnote, color: c.textSecondary }}>
+              {text.episode ? `${text.topic} · Episode ${text.episode}` : (text.topic ?? (source.kind === 'topic' ? source.topic.name : source.kind === 'past' ? source.text.topic : ''))}
+            </Text>
             {text.stretch.length > 0 ? (
               <ChipRow label="Practice words:">
                 {text.stretch.map((w) => <Pill key={w} text={w} bg={c.accentFill} fg={c.accent} />)}
@@ -324,7 +486,7 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
                 ) : null)}
               </View>
             ) : null}
-            {review && !listenOnly && source.text.rating === 'about_right' && hasAudio ? (
+            {source.kind === 'past' && !listenOnly && source.text.rating === 'about_right' && hasAudio ? (
               <ToggleRow label="You rated this about right">
                 <HeaderAction label="Listen without the text" onPress={listenWithoutText} />
               </ToggleRow>
@@ -338,9 +500,24 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
                 <ToggleRow label="Show English">
                   <Switch value={english} onValueChange={setEnglish} trackColor={{ true: c.accent }} accessibilityLabel="Show English" />
                 </ToggleRow>
+                {marked ? (
+                  <ToggleRow label="Paragraphs">
+                    <Switch value={paragraphMode} onValueChange={turnOnParagraphs} trackColor={{ true: c.accent }} accessibilityLabel="Paragraphs" />
+                  </ToggleRow>
+                ) : null}
                 <ToggleRow label={language.highlightLabel}>
                   <Switch value={highlight} onValueChange={turnOnHighlight} trackColor={{ true: c.accent }} accessibilityLabel={language.highlightLabel} />
                 </ToggleRow>
+                {text.language === 'th' || text.language === undefined ? (
+                  <ToggleRow label="Thai letters">
+                    <Segments
+                      options={THAI_FONTS.map((f) => ({ value: f, label: THAI_FONT_LABELS[f] }))}
+                      value={thaiFont}
+                      onChange={chooseThaiFont}
+                      style={{ width: 180 }}
+                    />
+                  </ToggleRow>
+                ) : null}
                 {highlight && countOutsideDeck(text) === 0 ? (
                   <Text style={{ ...type.footnote, color: c.textSecondary }}>Every word in this text is in your deck.</Text>
                 ) : null}
@@ -353,7 +530,51 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
               </>
             )}
           </View>
-          {text.lines.map((line, i) => (
+          {paras ? paras.map((range, g) => {
+            const lines = text.lines.slice(range.start, range.end + 1);
+            return (
+              <View
+                key={g}
+                onLayout={(e) => {
+                  const { y, height } = e.nativeEvent.layout;
+                  lineBoxes.current[g] = { y, height };
+                }}
+                style={{ paddingHorizontal: space.l, paddingBottom: space.l }}
+              >
+                {listenOnly ? (
+                  <Text style={{ ...type.subhead, color: c.textSecondary, paddingVertical: space.s }}>{`Paragraph ${g + 1}`}</Text>
+                ) : (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {lines.map((l, k) => (
+                      <React.Fragment key={k}>
+                        {k > 0 ? <View style={{ width: readStyle(text, thaiFont).fontSize * 0.5 }} /> : null}
+                        {wrapGroups(l.words).map((chunk, j) => (
+                          <View key={j} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            {chunk.map((word, m) => (
+                              <WordView
+                                key={m}
+                                word={word}
+                                textStyle={readStyle(text, thaiFont)}
+                                grammar={grammarOf(text, word)}
+                                flagged={isFlagged(session, word.text)}
+                                highlighted={highlight && isOutsideDeck(word)}
+                                selected={tapped?.word === word}
+                                playing={current === range.start + k}
+                                onPress={tap}
+                              />
+                            ))}
+                          </View>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </View>
+                )}
+                {!listenOnly && english ? (
+                  <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: space.xs }}>{lines.map((l) => l.english).join(' ')}</Text>
+                ) : null}
+              </View>
+            );
+          }) : text.lines.map((line, i) => (
             <View
               key={i}
               onLayout={(e) => {
@@ -374,23 +595,29 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
                   </Text>
                 ) : (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
-                    {line.words.map((word, j) => (
-                      <WordView
-                        key={j}
-                        word={word}
-                        textStyle={readStyle(text)}
-                        grammar={grammarOf(text, word)}
-                        flagged={isFlagged(session, word.text)}
-                        highlighted={highlight && isOutsideDeck(word)}
-                        selected={tapped?.word === word}
-                        onPress={tap}
-                      />
+                    {wrapGroups(line.words).map((group, j) => (
+                      // A line breaks only between groups, so punctuation never wraps away from its word.
+                      <View key={j} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {group.map((word, k) => (
+                          <WordView
+                            key={k}
+                            word={word}
+                            textStyle={readStyle(text, thaiFont)}
+                            grammar={grammarOf(text, word)}
+                            flagged={isFlagged(session, word.text)}
+                            highlighted={highlight && isOutsideDeck(word)}
+                            selected={tapped?.word === word}
+                            onPress={tap}
+                          />
+                        ))}
+                      </View>
                     ))}
                   </View>
                 )}
                 {!listenOnly && (english || lineEnglish.includes(i)) ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: 2 }}>{line.english}</Text>
                 ) : null}
+                {!listenOnly && explained.includes(i) ? <LineExplanation api={api} textId={text.id} line={i} /> : null}
               </View>
               <View style={{ gap: space.xs }}>
                 {line.audio ? (
@@ -402,6 +629,14 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
                     accessibilityLabel={lineEnglish.includes(i) ? `Hide English for line ${i + 1}` : `Show English for line ${i + 1}`}
                     on={lineEnglish.includes(i)}
                     onPress={() => toggleLineEnglish(i)}
+                  />
+                ) : null}
+                {!listenOnly ? (
+                  <RoundButton
+                    icon="sparkles"
+                    accessibilityLabel={explained.includes(i) ? `Hide explanation for line ${i + 1}` : `Explain line ${i + 1}`}
+                    on={explained.includes(i)}
+                    onPress={() => toggleExplained(i)}
                   />
                 ) : null}
               </View>
@@ -460,14 +695,47 @@ export function Reader({ api, source, onDone }: { api: Api; source: ReaderSource
               <View style={{ paddingTop: space.s }}><Help>These are kept in Marked words, where the ones not in your deck can be added to it.</Help></View>
             </Card>
           ) : null}
+          {source.kind === 'shelf' ? (
+            <Card style={{ gap: space.m }}>
+              <View style={{ gap: 2 }}>
+                <Text style={{ ...type.headline, color: c.text }}>For the next ones</Text>
+                <Help>Changes the texts written from now on. Texts already on the shelf stay as they are.</Help>
+              </View>
+              <View style={{ gap: space.xs }}>
+                <Text style={{ ...type.footnote, color: c.textSecondary }}>Length</Text>
+                <Segments<LengthStep>
+                  options={[{ value: 'shorter', label: 'Shorter' }, { value: 'same', label: 'Same' }, { value: 'longer', label: 'Longer' }]}
+                  value={lengthStep}
+                  onChange={chooseLength}
+                />
+              </View>
+              {liked !== null && !text.episode ? (
+                <View style={{ gap: space.xs }}>
+                  <Text style={{ ...type.footnote, color: c.textSecondary }}>{`This theme: ${text.topic}`}</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
+                    <Chip label="More like this" selected={liked} onPress={() => chooseLiked(true)} />
+                    <Chip label="Fewer like this" selected={!liked} onPress={() => chooseLiked(false)} />
+                  </View>
+                </View>
+              ) : null}
+              {steerError ? <ErrorNote message={steerError} /> : null}
+            </Card>
+          ) : null}
           {rating === 'about_right' && hasAudio ? (
             <View style={{ gap: space.xs }}>
               <Button label="Listen without the text" variant="secondary" onPress={listenWithoutText} />
               <Help>Plays it again with the text hidden.</Help>
             </View>
           ) : null}
-          <Button label="Next text" onPress={() => finish('next')} busy={leaving} />
-          <Button label="Back to topics" variant="secondary" onPress={() => finish('back')} />
+          {source.kind === 'shelf' ? (
+            upNext ? (
+              <View style={{ gap: space.xs }}>
+                <Button label={`Next: ${upNext.title}`} onPress={() => finish('next')} busy={leaving} />
+                <Help>{`About ${minutesFor(upNext.lines)} min.`}</Help>
+              </View>
+            ) : null
+          ) : <Button label="Next text" onPress={() => finish('next')} busy={leaving} />}
+          <Button label="Back to the shelf" variant={source.kind === 'shelf' && !upNext ? 'primary' : 'secondary'} onPress={() => finish('back')} />
         </ScrollView>
       ) : null}
 
@@ -489,9 +757,10 @@ const RATINGS: { value: Rating; label: string; hint: string }[] = [
 ];
 
 /** The reading size for a text's language. */
-function readStyle(text: ReaderText) {
-  const info = LANGUAGES[text.language ?? 'th'];
-  return { fontSize: info.fontSize, lineHeight: info.fontSize * info.lineHeight };
+function readStyle(text: ReaderText, thaiFont: ThaiFont) {
+  const language = text.language ?? 'th';
+  const info = LANGUAGES[language];
+  return { fontSize: info.fontSize, lineHeight: info.fontSize * info.lineHeight, font: readFont(language, thaiFont) };
 }
 
 function practicedGrammar(text: ReaderText): TextGrammar[] {
@@ -575,20 +844,22 @@ function RoundButton({ icon, label, accessibilityLabel, on, onPress }: {
   );
 }
 
-function WordView({ word, grammar, textStyle, flagged, highlighted, selected, onPress }: {
+function WordView({ word, grammar, textStyle, flagged, highlighted, selected, playing = false, onPress }: {
   word: Word;
   grammar: TextGrammar | null;
-  textStyle: { fontSize: number; lineHeight: number };
+  textStyle: { fontSize: number; lineHeight: number; font: ReadFont };
   flagged: boolean;
   highlighted: boolean;
   selected: boolean;
+  /** In the line being played, in a story read as continuous text (a line row is shaded as a whole). */
+  playing?: boolean;
   onPress: (word: Word, x: number, y: number) => void;
 }) {
   const c = useTheme();
   if (word.status === null) {
     // A space becomes a gap; punctuation is shown but can't be tapped.
     return word.text.trim()
-      ? <Text style={{ ...textStyle, color: c.text }}>{word.text}</Text>
+      ? <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: c.text }}>{word.text}</Text>
       : <View style={{ width: textStyle.fontSize * 0.3 }} />;
   }
   return (
@@ -603,13 +874,13 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, selected, on
         // words sit flush and only real spaces in the text show as gaps.
         borderRadius: radius.s - 2, borderWidth: 1.5, marginHorizontal: -1.5,
         borderColor: selected ? c.accent : 'transparent',
-        backgroundColor: selected ? c.accentFill : highlighted ? c.highlight : undefined,
+        backgroundColor: selected ? c.accentFill : highlighted ? c.highlight : playing ? c.fill : undefined,
       }}
     >
       <Text
         style={[
-          { ...textStyle, color: word.stretch ? c.accent : c.text },
-          word.stretch ? { fontWeight: '700' } : null,
+          { fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: word.stretch ? c.accent : c.text },
+          word.stretch ? textStyle.font.emphasis : null,
           // The underline is a bottom border, not textDecoration: iOS draws a text underline through
           // Thai's below-the-line vowels and consonant feet. The border is always there (transparent
           // when unused) so every word is the same height and a row stays aligned.
@@ -646,7 +917,9 @@ function GlossPopover({ tapped, grammar, flagged, onToggleFlag, onClose }: {
   const insets = useSafeAreaInsets();
   // Measured on first layout (drawn invisible until then), since a long gloss wraps.
   const [popHeight, setPopHeight] = useState(0);
-  useEffect(() => setPopHeight(0), [tapped]);
+  // The transliteration stays hidden until asked for, and hides again for the next word.
+  const [showTranslit, setShowTranslit] = useState(false);
+  useEffect(() => { setPopHeight(0); setShowTranslit(false); }, [tapped]);
   if (!tapped) return null;
   const popWidth = Math.min(POPOVER_WIDTH, width - 2 * space.l);
   const left = Math.min(Math.max(tapped.x - 40, space.l), width - popWidth - space.l);
@@ -667,6 +940,15 @@ function GlossPopover({ tapped, grammar, flagged, onToggleFlag, onClose }: {
       >
         <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
         <Text style={{ ...type.body, color: c.text }}>{tapped.word.gloss ?? 'No meaning available'}</Text>
+        {tapped.word.translit ? (
+          showTranslit ? (
+            <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text>
+          ) : (
+            <View style={{ alignItems: 'flex-start' }}>
+              <HeaderAction label="Show transliteration" onPress={() => setShowTranslit(true)} />
+            </View>
+          )
+        ) : null}
         <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
         {grammar ? (
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
@@ -685,11 +967,14 @@ function GlossPopover({ tapped, grammar, flagged, onToggleFlag, onClose }: {
   );
 }
 
-function PlayerBar({ playing, current, total, what, rate, repeat, silentLine, onToggle, onRate, onRepeat }: {
+function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, repeat, silentLine, onToggle, onRate, onRepeat }: {
   playing: boolean;
   current: number | null;
   total: number;
   what: 'dialogue' | 'story';
+  /** Previous and next line buttons, for a story with no play button on each line. */
+  skippable: boolean;
+  onSkip: (step: -1 | 1) => void;
   rate: number;
   repeat: boolean;
   silentLine: number | null;
@@ -701,6 +986,7 @@ function PlayerBar({ playing, current, total, what, rate, repeat, silentLine, on
   return (
     <View style={{ gap: space.m }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
+        {skippable ? <SkipButton icon="backward.end.fill" label="Previous line" onPress={() => onSkip(-1)} /> : null}
         <Tappable
           onPress={() => { haptic.tap(); onToggle(); }}
           accessibilityRole="button"
@@ -710,10 +996,11 @@ function PlayerBar({ playing, current, total, what, rate, repeat, silentLine, on
         >
           <Icon name={playing ? 'pause.fill' : 'play.fill'} size={22} color={c.onAccent} weight="semibold" />
         </Tappable>
+        {skippable ? <SkipButton icon="forward.end.fill" label="Next line" onPress={() => onSkip(1)} /> : null}
         <View style={{ flex: 1 }}>
           <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{current === null ? `Play the ${what}` : `Line ${current + 1} of ${total}`}</Text>
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
-            {silentLine !== null ? `Line ${silentLine + 1} has no audio.` : repeat ? 'Repeating this line' : "Tap a line's play button to replay it"}
+            {silentLine !== null ? `Line ${silentLine + 1} has no audio.` : repeat ? 'Repeating this line' : skippable ? 'Tap a word for its meaning' : "Tap a line's play button to replay it"}
           </Text>
         </View>
         <Tappable
@@ -732,6 +1019,22 @@ function PlayerBar({ playing, current, total, what, rate, repeat, silentLine, on
       </View>
       <Segments options={RATES.map((r) => ({ value: r, label: `${r.toFixed(1)}×`, accessibilityLabel: `Speed ${r}` }))} value={rate} onChange={onRate} />
     </View>
+  );
+}
+
+/** Previous or next line in the player bar. */
+function SkipButton({ icon, label, onPress }: { icon: SFSymbol; label: string; onPress: () => void }) {
+  const c = useTheme();
+  return (
+    <Tappable
+      onPress={() => { haptic.tap(); onPress(); }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      scaleTo={0.92}
+      style={{ minWidth: MIN_TAP, minHeight: MIN_TAP, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: c.fill }}
+    >
+      <Icon name={icon} size={16} color={c.textSecondary} weight="semibold" />
+    </Tappable>
   );
 }
 

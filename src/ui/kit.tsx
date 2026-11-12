@@ -244,6 +244,10 @@ export function SwipeToReveal({ open, onOpenChange, action, width = 92, children
         if (next !== isOpen) change(next);
         else settle(isOpen);
       },
+      // Once the row has the drag it keeps it. By default the responder gives way whenever the
+      // list's ScrollView asks for it, which a little vertical drift in the finger does, so the
+      // row snapped back mid-swipe.
+      onPanResponderTerminationRequest: () => false,
       onPanResponderTerminate: () => settle(latest.current.open),
     }),
   ).current;

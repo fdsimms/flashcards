@@ -13,6 +13,7 @@ from franki_reader.generator import (
     Usage,
     claude_ask,
     generate,
+    request_message,
     system_prompt,
 )
 from franki_reader.lexicon import Entry
@@ -34,6 +35,7 @@ def draft(*texts: str, glosses: dict[str, str] | None = None) -> dict[str, Any]:
     return {
         "title": "At the stall",
         "roles": {"A": "Vendor", "B": "Customer"},
+        "genders": {"A": "male", "B": "male"},
         "lines": [
             {"speaker": "AB"[i % 2], "text": t, "english": f"line {i}"} for i, t in enumerate(texts)
         ],
@@ -298,6 +300,30 @@ def test_a_story_is_asked_for_by_name_and_a_dialogue_by_default() -> None:
     assert "Write a short story of 6 lines." in story
 
 
+def _marked(*marks: bool) -> dict[str, Any]:
+    d = draft(*["ฉัน|อยาก|กิน|ครับ"] * len(marks))
+    for line, mark in zip(d["lines"], marks, strict=True):
+        line["paragraph"] = mark
+    return d
+
+
+def test_a_story_keeps_its_paragraph_marks_and_the_first_line_opens_one() -> None:
+    story = run(
+        ScriptedModel(_marked(False, False, True, False)), TextRequest("food", form="story")
+    )
+    assert [ln.paragraph for ln in story.lines] == [True, False, True, False]
+
+
+def test_a_story_with_no_marks_has_no_paragraphs() -> None:
+    story = run(ScriptedModel(_marked(False, False)), TextRequest("food", form="story"))
+    assert [ln.paragraph for ln in story.lines] == [False, False]
+
+
+def test_a_dialogue_has_no_paragraphs_even_if_the_model_marks_them() -> None:
+    result = run(ScriptedModel(_marked(True, True)), TextRequest("food"))
+    assert [ln.paragraph for ln in result.lines] == [False, False]
+
+
 def test_the_system_prompt_is_the_same_for_stories_and_dialogues() -> None:
     # The form goes in the request, so the cached lexicon prefix is shared by both.
     prompt = system_prompt(ENTRIES)
@@ -310,9 +336,9 @@ NEAR = draft(*["ฉัน|อยาก|กิน|ครับ"] * 3, "ทอน"
 NEARER_MISS = draft(*["ฉัน|อยาก|กิน|ครับ"] * 2, "ฉัน|กิน", "ทอน")
 
 
-def test_when_every_attempt_misses_the_closest_one_over_90_is_kept() -> None:
+def test_when_every_attempt_misses_the_closest_one_over_the_minimum_is_kept() -> None:
     model = ScriptedModel(NEARER_MISS, NEAR, NEARER_MISS)
-    result = run(model, TextRequest("food"))
+    result = run(model, TextRequest("food", floor=0.95))
     assert result.passed
     assert not result.floor_met
     assert round(result.coverage.ratio, 3) == 0.923
@@ -334,3 +360,86 @@ def test_a_text_under_90_still_fails() -> None:
     # NEAR is 92.3%, under the 99% asked for but over 90%, so it's the one kept.
     assert result.passed and not result.floor_met
     assert not run(ScriptedModel(bad, bad, bad), TextRequest("food")).passed
+
+
+# 19 of 20 words known (95%): inside the range of a 92% target with its 96% ceiling.
+IN_BAND = draft(*["ฉัน|อยาก|กิน|ครับ"] * 4, "ฉัน|อยาก|กิน|ทอน")
+
+
+def test_a_draft_over_the_ceiling_is_too_easy_and_goes_back() -> None:
+    model = ScriptedModel(GOOD, IN_BAND)
+    result = run(model, TextRequest("food", floor=0.92, ceiling=0.96))
+    assert result.passed and result.attempts == 2
+    assert round(result.coverage.ratio, 2) == 0.95
+    assert "too easy" in model.sent[1][-1]["content"]
+    assert "between 92% and 96%" in model.sent[1][-1]["content"]
+
+
+def test_no_ceiling_leaves_an_easy_draft_alone() -> None:
+    assert run(ScriptedModel(GOOD), TextRequest("food")).attempts == 1
+
+
+def test_when_every_attempt_is_too_easy_the_text_is_still_kept() -> None:
+    model = ScriptedModel(GOOD, GOOD, GOOD)
+    result = run(model, TextRequest("food", (MANGO,), floor=0.92, ceiling=0.96))
+    assert result.passed and result.floor_met  # too easy is revised, never refused
+    assert result.attempts == MAX_ATTEMPTS
+
+
+def test_the_models_transliterations_are_kept_for_the_words_it_gave_them_for() -> None:
+    d = draft(*["ฉัน|อยาก|กิน|ครับ"] * 6, "ทอน")
+    d["glosses"] = [
+        {"word": "ทอน", "english": "change", "translit": " thɔɔn "},
+        {"word": "ฉัน", "english": "I", "translit": ""},
+    ]
+    result = run(ScriptedModel(d), TextRequest("food"))
+    assert result.translits == {"ทอน": "thɔɔn"}
+
+
+def test_a_story_episode_asks_to_carry_the_story_on() -> None:
+    from franki_reader.generator import StoryContext
+
+    first = request_message(TextRequest("a noodle stall", story=StoryContext(1, "a noodle stall")))
+    assert "first episode of an ongoing story" in first and "It's about: a noodle stall" in first
+    assert '"series"' in first and '"cast"' in first
+
+    later = request_message(
+        TextRequest(
+            "a noodle stall",
+            story=StoryContext(3, "", "Noi's stall", "Noi sells noodles.", ("One.", "Two.")),
+        )
+    )
+    assert 'episode 3 of an ongoing story, "Noi\'s stall"' in later
+    assert "Noi sells noodles." in later and "- One.\n- Two." in later
+
+
+def test_a_draft_with_a_line_that_does_not_fit_its_speaker_is_sent_back() -> None:
+    wrong = draft("ฉัน|อยาก|กิน|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ")
+    wrong["genders"] = {"A": "male", "B": "female"}  # B says ครับ
+    model = ScriptedModel(wrong, GOOD)
+    result = run(model, TextRequest("food", (MANGO,)))
+    assert result.passed and result.attempts == 2
+    assert result.genders == {"A": "male", "B": "male"} and result.gender_ok
+    assert "Speaker B is a woman" in model.sent[-1][-1]["content"]
+
+
+def test_a_draft_that_never_fits_is_not_kept_however_good_its_coverage() -> None:
+    wrong = dict(GOOD, genders={"A": "male", "B": "female"})
+    result = run(ScriptedModel(wrong, wrong, wrong), TextRequest("food", (MANGO,)))
+    assert not result.passed and not result.gender_ok
+    assert result.coverage.ratio == 1.0
+
+
+def test_a_dialogue_has_to_say_who_is_a_man_or_a_woman() -> None:
+    unsaid = dict(GOOD, genders={"A": "none", "B": "none"})
+    model = ScriptedModel(unsaid, GOOD)
+    result = run(model, TextRequest("food", (MANGO,)))
+    assert result.passed and result.attempts == 2
+    assert 'Say in "genders"' in model.sent[-1][-1]["content"]
+
+
+def test_a_story_has_no_genders() -> None:
+    story = dict(GOOD, genders={"A": "female", "B": "female"})
+    story["lines"] = [dict(line, speaker="N") for line in GOOD["lines"]]
+    result = run(ScriptedModel(story), TextRequest("food", (MANGO,), form="story"))
+    assert result.genders == {} and result.gender_ok

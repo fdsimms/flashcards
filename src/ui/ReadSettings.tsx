@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { ScrollView, Text } from 'react-native';
-import { azureVoiceName } from '../core/voices';
 import { ApiError, createApi, readerAddress, type Language, type Speakers } from '../reader/api';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import { savePassphrase } from '../reader/storage';
+import { voicesSummary } from '../reader/voiceSlots';
 import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle } from './kit';
 import { space, type, useTheme } from './theme';
 
@@ -101,7 +101,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
                   key={l}
                   first={i === 0}
                   label={LANGUAGES[l].name}
-                  detail={voices?.[l] ? `${azureVoiceName(voices[l].A)} and ${azureVoiceName(voices[l].B)}` : 'The voices its texts are read in'}
+                  detail={voicesSummary(voices?.[l]) ?? 'The voices its texts are read in'}
                   onPress={() => onVoices(l)}
                 />
               ))}

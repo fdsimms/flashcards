@@ -343,6 +343,14 @@ answer is already in the server's history (`undoAnkiAnswer` refuses it, under `l
   `radius`, `type`). `tests/noRawColors.test.ts` fails the build on a hex color in a screen; add a
   token with a light and a dark value instead. Text grows with the system text size, so a box
   holding text gets padding or a `minHeight`, never a fixed `height`.
+- **Mock up a proposed UI change before building it, so the owner can see it.** There are no
+  screen tests and no renderer, so a description in prose isn't something they can react to. For a
+  new screen, a layout change or a change to how a card or row is presented, publish a small HTML
+  mock as an Artifact (dark and light, at phone width, with the real strings from the screenshot or
+  the code) and ask which direction to take. Use the values from `src/ui/theme.ts` so the mock
+  looks like the app, and for a choice between layouts show the options side by side. Build in
+  the app only after they've picked. Skip it for a change too small to need one (a label, a
+  spacing value, a color token).
 
 ### The Anki collection (`src/anki/`, `src/db/ankiLink.ts`)
 
@@ -433,6 +441,8 @@ and never the server's files, so searches, note adds, scheduling and sync behave
 - **Tests run against a real `anki.syncserver`** with Anki itself as the other device
   (`tests/conftest.py`), and Azure faked (`FakeAzure`): `cd server/mcp && python -m pytest`, after
   `pip install -r requirements-dev.txt ../speech`. CI runs them in their own job.
+- **Read & Listen's figures come from its server's API, never its database**
+  (`franki_mcp/reader.py`: `read_and_listen_costs` asks `/api/costs` with `READER_PASSPHRASE`).
 - **Azure is called through one client shared with Read & Listen** (`server/speech`, the
   `franki_speech` package), so a fix to how Azure is called reaches both. Both images are built from
   `server/` to copy it (`server/.dockerignore` keeps `.env` out of the build). Azure's request
@@ -466,8 +476,10 @@ they win and this is stale. The rules that must not break:
   many of its most common word families as its `common` setting says.
 - **Batch and cache.** Texts are written in the background and queued, never inside a request, and
   never one API call per word or page view.
-- **The owner picks the topic.** Already rejected, don't revisit: cloze cards, saving generated
-  sentences as Anki cards, rescheduling Thai cards.
+- **The owner steers the topics.** The shelf (`architecture.md`, Shelf) offers texts already
+  written on liked themes, due words and new ideas, writes ahead only for the language being read,
+  and never more than `SHELF_SIZE`; any topic can still be typed in. Already rejected, don't
+  revisit: cloze cards, saving generated sentences as Anki cards, rescheduling Thai cards.
 - **It reads Anki as a sync client of the sync server beside it**, through Anki's own `anki`
   package like the MCP, every read under `with_timeout` (45 seconds) so a server that stops
   answering leaves it on the last snapshot. Keep `anki` in `server/reader/pyproject.toml` at the

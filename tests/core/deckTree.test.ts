@@ -38,6 +38,12 @@ describe('deck paths', () => {
       ['Trivia', 'Trivia', 0],
     ]);
   });
+  it('puts decks dragged into place first among their siblings, the rest by name after them', () => {
+    const position = new Map([['Trivia', 0], ['Languages::Thai', 0], ['Languages', 1]]);
+    expect(deckTree(['Languages::Polski', 'Languages::Thai', 'Trivia', 'Art'], (d) => position.get(d)).map((d) => d.deck)).toEqual([
+      'Trivia', 'Languages', 'Languages::Thai', 'Languages::Polski', 'Art',
+    ]);
+  });
   it('takes limits from deck settings, else the defaults', () => {
     const defaults = { newPerDay: 20, reviewsPerDay: 200 };
     expect(deckLimits(undefined, defaults)).toEqual(defaults);
@@ -300,5 +306,35 @@ describe('the next deck to study', () => {
     expect(nextDeckToStudy([row('A', 1), row('B', 0, 1), row('B::C', 0, 1)], new Set(['B']), 'A')).toBe('B');
     expect(nextDeckToStudy(rows, new Set(), 'F')).toBeUndefined();
     expect(nextDeckToStudy(rows, new Set(), 'Missing')).toBeUndefined();
+  });
+});
+
+describe('treeQueue, tagged cards first', () => {
+  // Cards in position order; the last `tagged` of them are the boosted ones.
+  const withBoost = (total: number, tagged: number, newPerDay: number, percent: number) => {
+    const cards = newCards(total).map((c, i) => ({ ...c, position: i }));
+    const boosted = new Set(cards.slice(total - tagged).map((c) => c.noteId));
+    const q = treeQueue('Thai', {
+      ...input({ Thai: cards }, { Thai: { newPerDay, reviewsPerDay: 200 } }),
+      boostFor: () => ({ noteIds: boosted, percent }),
+    });
+    return { q, cards, boosted };
+  };
+  it('puts tagged new cards ahead of the rest, within the same daily limit', () => {
+    const { q, cards } = withBoost(10, 2, 5, 50);
+    expect(q.fresh.map((c) => c.id).slice(0, 2).sort()).toEqual(cards.slice(8).map((c) => c.id).sort());
+    expect(q.fresh).toHaveLength(5);
+  });
+  it("takes no more than the percentage of the day's room, rounded up, and the rest wait in line", () => {
+    const { q, cards } = withBoost(10, 6, 5, 50);
+    const first = q.fresh.slice(0, 3).map((c) => c.id);
+    expect(first.every((id) => cards.slice(4).some((c) => c.id === id))).toBe(true);
+    // The other boosted cards come after, in their usual place among the rest, not ahead of position 0.
+    expect(q.fresh[3].id).toBe(cards[0].id);
+    expect(q.fresh).toHaveLength(5);
+  });
+  it('leaves the order alone with nothing tagged', () => {
+    const { q, cards } = withBoost(4, 0, 20, 50);
+    expect(q.fresh.map((c) => c.id)).toEqual(cards.map((c) => c.id));
   });
 });

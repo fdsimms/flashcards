@@ -6,7 +6,9 @@ The rules this enforces come from docs/read-and-listen/brief.md (design principl
 - 1-3 stretch words, each used 2-3 times; when the model chooses them from a longer list, at least
   one and no more than it was asked for
 - at most 3 attempts while a draft is under the floor; then the closest attempt is kept if it's at
-  least MINIMUM (90%), and only a text under that is returned as not passed, never shown
+  least MINIMUM (85%), and only a text under that is returned as not passed, never shown
+- a dialogue says whether each speaker is a man or a woman, and in Thai no line may use a word of
+  the other gender (gender.py); a draft that does is never kept, whatever its coverage
 
 The revision loop is written against `Ask`, so it's tested without a key. `claude_ask` is the real
 call: the lexicon sits in a cached system prompt, and each revision is appended to the same
@@ -22,7 +24,9 @@ import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam, BetaTextBlockParam
 
 from franki_reader import grammar
-from franki_reader.coverage import FLOOR, MINIMUM, Checker, Coverage, check
+from franki_reader.coverage import MINIMUM, Checker, Coverage, check
+from franki_reader.difficulty import DEFAULT_FLOOR
+from franki_reader.gender import GENDERS, gender_problems
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry
 
@@ -83,6 +87,18 @@ Form = Literal["dialogue", "story"]
 
 
 @dataclass(frozen=True)
+class StoryContext:
+    """An episode of an ongoing story (docs/read-and-listen/architecture.md, Stories): the same
+    characters and setting from one text to the next, carried by a sentence about each episode."""
+
+    episode: int  # 1 starts the story
+    about: str = ""  # what the owner asked it to be about; empty lets the model choose
+    title: str = ""  # the story's name, from the first episode on
+    cast: str = ""  # its characters and setting, from the first episode
+    recaps: tuple[str, ...] = ()  # one sentence for each earlier episode, oldest first
+
+
+@dataclass(frozen=True)
 class TextRequest:
     topic: str
     # The stretch words to use, or with `choose` set, the words to choose them from: the model
@@ -90,7 +106,9 @@ class TextRequest:
     # around "tiger" just because it's due.
     stretch: tuple[Entry, ...] = ()
     lines: int = 8
-    floor: float = FLOOR
+    floor: float = DEFAULT_FLOOR
+    # With a ceiling, a draft with more known words than this is too easy and goes back too.
+    ceiling: float | None = None
     choose: int | None = None
     form: Form = "dialogue"
     language: Code = "th"
@@ -99,6 +117,7 @@ class TextRequest:
     # Grammar point ids (grammar.py): used at least twice each, or kept out.
     practice: tuple[str, ...] = ()
     avoid: tuple[str, ...] = ()
+    story: StoryContext | None = None
 
     def __post_init__(self) -> None:
         used = len(self.stretch) if self.choose is None else self.choose
@@ -113,6 +132,8 @@ class Line:
     speaker: str
     text: str  # as the model wrote it: `|` between words, stretch words in asterisks
     english: str
+    # A story's line that opens a paragraph. Older texts and dialogues have none.
+    paragraph: bool = False
 
 
 @dataclass(frozen=True)
@@ -127,10 +148,23 @@ class Generated:
     usage: Usage = Usage()
     stretch: tuple[str, ...] = ()  # the stretch words the text actually uses
     roles: dict[str, str] = field(default_factory=dict)  # speaker -> who they are, e.g. "Waiter"
+    # speaker -> "male" or "female", for a dialogue (gender.py picks each one's voice)
+    genders: dict[str, str] = field(default_factory=dict)
+    # False when a Thai line uses a word of the other gender than its speaker's, or a dialogue
+    # doesn't say who is a man or a woman. Such a draft is never kept.
+    gender_ok: bool = True
     floor_met: bool = True  # False for a closest attempt kept under the floor
     # Uses of a practiced point short of the 2 asked for, plus uses of an avoided one. The
     # closest attempt kept under the rules can have some.
     grammar_problems: int = 0
+    # The model's transliteration of the words it glossed (Thai only), by word. Absent for a word
+    # it gave none for; the reader then shows none rather than a guess.
+    translits: dict[str, str] = field(default_factory=dict)
+    # A story episode's own sentence about what happened in it, and on the first episode the
+    # story's name and cast (StoryContext). Empty for any other text.
+    recap: str = ""
+    series: str = ""
+    cast: str = ""
 
 
 DRAFT_SCHEMA: dict[str, Any] = {
@@ -143,6 +177,15 @@ DRAFT_SCHEMA: dict[str, Any] = {
             "required": ["A", "B"],
             "additionalProperties": False,
         },
+        "genders": {
+            "type": "object",
+            "properties": {
+                "A": {"type": "string", "enum": [*GENDERS, "none"]},
+                "B": {"type": "string", "enum": [*GENDERS, "none"]},
+            },
+            "required": ["A", "B"],
+            "additionalProperties": False,
+        },
         "lines": {
             "type": "array",
             "items": {
@@ -151,8 +194,9 @@ DRAFT_SCHEMA: dict[str, Any] = {
                     "speaker": {"type": "string", "enum": ["A", "B", "N"]},
                     "text": {"type": "string"},
                     "english": {"type": "string"},
+                    "paragraph": {"type": "boolean"},
                 },
-                "required": ["speaker", "text", "english"],
+                "required": ["speaker", "text", "english", "paragraph"],
                 "additionalProperties": False,
             },
         },
@@ -160,13 +204,22 @@ DRAFT_SCHEMA: dict[str, Any] = {
             "type": "array",
             "items": {
                 "type": "object",
-                "properties": {"word": {"type": "string"}, "english": {"type": "string"}},
+                "properties": {
+                    "word": {"type": "string"},
+                    "english": {"type": "string"},
+                    # Optional, and only asked for in Thai's instructions.
+                    "translit": {"type": "string"},
+                },
                 "required": ["word", "english"],
                 "additionalProperties": False,
             },
         },
+        # Optional, and only asked for in a story episode's request (StoryContext).
+        "recap": {"type": "string"},
+        "series": {"type": "string"},
+        "cast": {"type": "string"},
     },
-    "required": ["title", "roles", "lines", "glosses"],
+    "required": ["title", "roles", "genders", "lines", "glosses"],
     "additionalProperties": False,
 }
 
@@ -177,16 +230,27 @@ They must be built almost entirely from words the learner already knows, which a
 Rules:
 - Use only words from the list. A word that appears only inside a longer list entry is not known \
 on its own: รับ is not known just because รับอะไรดี is. Every word outside the list makes the text \
-harder; the server measures this and sends back any text under the learner's coverage target.
+harder; the server measures this and sends back any text outside the learner's coverage target, \
+too hard or too easy.
 - Prefer entries marked M (well known) over Y (still being learned).
 - Before you answer, go through your draft word by word and check each one is on the list. Replace \
 any that isn't with a listed word or a simpler way of saying it. Getting this right first time \
 matters more than a clever text.
+- Write natural Thai, the way a Thai speaker would say it, never a word-for-word translation of an \
+English phrase or idiom. If an English idea has no plain Thai equivalent, say something else.
 - A dialogue is natural, everyday spoken Thai between two speakers, A and B. In "roles", say who \
 A and B are in this situation, in one to three English words each, like "Waiter" and "Customer".
+- In "genders", say whether A and B are a man or a woman ("male" or "female"). The learner hears a \
+man's voice for a man and a woman's voice for a woman, so every line has to fit its speaker. A man \
+says ครับ and ผม; a woman says ค่ะ (statements) or คะ (questions) and ดิฉัน, never ครับ or ผม. \
+Choose each speaker's gender to suit the situation and vary it from text to text: a man and a \
+woman, two men or two women. In a story, set both to "none".
 - A story is told by a narrator: every line's speaker is N, each line is one or two simple \
 sentences, and the story has a beginning, something that happens, and an end. Keep the language \
 plain, since description pulls in words the learner may not know. Leave both roles empty.
+- "paragraph" is true on a story line that opens a paragraph: the first line always, then a new \
+one at a change of scene, time or subject, usually every two to four lines. It is false on every \
+other line, and on every line of a dialogue.
 - In each line's text, put | between every word, and wrap each stretch word in asterisks every \
 time it appears, like ฉัน|ต้องการ|*น้ำ*.
 - Where a clause or sentence ends, put a space instead of |, as Thai is written: \
@@ -195,7 +259,9 @@ break and nowhere else: never between words of the same clause, and never before
 ครับ, ค่ะ or นะ.
 - Give "english", a natural English translation of each line.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
-is not in the list.
+is not in the list. For each of those words also give "translit", its pronunciation in Latin letters \
+with tone marks and a hyphen between syllables, as the learner's own cards write it: \
+nǎng-sǔue (หนังสือ), kâao (ข้าว), mâi-pen-rai (ไม่เป็นไร).
 
 Known words, one per line as: word | meaning | M or Y
 """
@@ -213,24 +279,35 @@ words as each request says, in all their forms.
 Rules:
 - Use the common words the request allows freely, along with words from the list, in any of their \
 forms. Every other word makes the text harder; the server measures this and sends back any text \
-under the learner's coverage target. When the request allows no common words, use only words from \
+outside the learner's coverage target, too hard or too easy. When the request allows no common words, use only words from \
 the list. A word that appears only inside a longer list phrase is not known on its own.
 - Prefer entries marked M (well known) over Y (still being learned).
 - Before you answer, go through your draft word by word and check each one is either an allowed \
 common word or on the list. Replace any that isn't with an allowed word or a simpler way of saying \
 it. Getting this right first time matters more than a clever text.
+- Write natural {name}, the way a native speaker would say it, never a word-for-word translation \
+of an English phrase or idiom. If an English idea has no plain {name} equivalent, say something else.
 - A dialogue is natural, everyday spoken {name} between two speakers, A and B. In "roles", say \
 who A and B are in this situation, in one to three English words each, like "Waiter" and \
 "Customer".
+- In "genders", say whether A and B are a man or a woman ("male" or "female"). The learner hears a \
+man's voice for a man and a woman's voice for a woman, so every line has to fit its speaker: where \
+{name} shows the speaker's gender (verb endings, adjectives, participles, titles), use the form for \
+that gender. Choose each speaker's gender to suit the situation and vary it from text to text: a \
+man and a woman, two men or two women. In a story, set both to "none".
 - A story is told by a narrator: every line's speaker is N, each line is one or two simple \
 sentences, and the story has a beginning, something that happens, and an end. Leave both roles \
 empty.
+- "paragraph" is true on a story line that opens a paragraph: the first line always, then a new \
+one at a change of scene, time or subject, usually every two to four lines. It is false on every \
+other line, and on every line of a dialogue.
 - In each line's text, put | between words instead of spaces, keep punctuation on its word, and \
 wrap each stretch word or phrase in asterisks every time it appears, like {example} A stretch \
 word can be inflected.
 - Give "english", a natural English translation of each line.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
-is neither an allowed common word nor on the list.
+is neither an allowed common word nor on the list. Also gloss any word whose form matches a listed \
+word but is used here as a different word, such as a verb form that two verbs share.
 
 The learner's flashcard words, one per line as: word | meaning | M (well known) or Y (still being \
 learned)
@@ -269,11 +346,15 @@ def request_message(request: TextRequest) -> str:
             if request.common
             else "Known words: only the list, in any of their forms. No common words this time."
         )
-    parts.append(
-        f"Coverage target: at least {request.floor:.0%} of words common or from the list."
-        if request.common
-        else f"Coverage target: at least {request.floor:.0%} of words from the list."
-    )
+    source = "common or from the list" if request.common else "from the list"
+    if request.ceiling is None:
+        parts.append(f"Coverage target: at least {request.floor:.0%} of words {source}.")
+    else:
+        parts.append(
+            f"Coverage target: between {request.floor:.0%} and {request.ceiling:.0%} of words "
+            f"{source}. A text with fewer unfamiliar words than that is too easy for the learner: "
+            "use natural words outside the list where the topic calls for them, and gloss each one."
+        )
     listed = "\n".join(f"- {e.text} ({e.meaning})" for e in request.stretch)
     if request.choose is not None:
         how_many = "1" if request.choose == 1 else f"1 to {request.choose}"
@@ -287,6 +368,8 @@ def request_message(request: TextRequest) -> str:
         )
     else:
         parts.append("No stretch words this time.")
+    if request.story is not None:
+        parts.append(_story_part(request.story))
     if request.practice:
         parts.append(
             f"Grammar to practice: use each of these at least {grammar.PRACTICE_USES} times, "
@@ -298,6 +381,35 @@ def request_message(request: TextRequest) -> str:
             "say it another way:\n" + _grammar_list(request.avoid)
         )
     return "\n".join(parts)
+
+
+# Earlier episodes beyond this many are left out of the request: the cast and the latest ones
+# carry the story, and the request stays short.
+STORY_RECAPS = 12
+
+
+def _story_part(story: StoryContext) -> str:
+    if story.episode == 1:
+        about = f"It's about: {story.about}" if story.about else "Choose what it's about yourself."
+        return (
+            "This is the first episode of an ongoing story that will run for many episodes, one "
+            f"text at a time. {about} Invent two to four characters with names and a place they "
+            "keep coming back to, and end the episode with something that can carry on next time. "
+            'In "series", give the story a short English name. In "cast", describe the characters '
+            'and the setting in one or two English sentences. In "recap", say in one English '
+            "sentence what happens in this episode, naming the characters."
+        )
+    recent = story.recaps[-STORY_RECAPS:]
+    so_far = "\n".join(f"- {r}" for r in recent) if recent else "- (no summary)"
+    return (
+        f'This is episode {story.episode} of an ongoing story, "{story.title}". Keep the same '
+        "characters and setting, and pick up where the last episode ended; something new happens "
+        "in this one.\n"
+        f"Characters and setting: {story.cast or 'as in the earlier episodes'}\n"
+        f"The story so far, one sentence an episode:\n{so_far}\n"
+        'In "recap", say in one English sentence what happens in this episode, naming the '
+        'characters. Leave "series" and "cast" empty.'
+    )
 
 
 def _grammar_list(point_ids: tuple[str, ...]) -> str:
@@ -330,8 +442,24 @@ def grammar_problems(
     return problems, misses
 
 
-def revision_message(coverage: Coverage, problems: list[str], floor: float) -> str:
+def revision_message(
+    coverage: Coverage, problems: list[str], floor: float, ceiling: float | None = None
+) -> str:
     """`problems` are the stretch word and grammar problems, as sentences."""
+    if ceiling is not None and coverage.ratio > ceiling:
+        parts = [
+            (
+                f"This draft is {coverage.ratio:.1%} known words, which is too easy; the target is "
+                f"between {floor:.0%} and {ceiling:.0%}."
+            ),
+            *problems,
+            (
+                "Rewrite the whole text on the same topic with more natural words that aren't in the "
+                "list where the topic calls for them, and add a gloss for each. Return the full text "
+                "again in the same format."
+            ),
+        ]
+        return " ".join(parts)
     parts = [
         f"This draft is {coverage.ratio:.1%} known words; the target is at least {floor:.0%}."
         if coverage.ratio < floor
@@ -365,19 +493,28 @@ async def generate(ask: Ask, lexicon: Checker, request: TextRequest) -> Generate
         result = replace(result, usage=usage)
         if result.passed:
             return result
-        # Fewer grammar problems first, then higher coverage; the later attempt on a tie.
-        rank = (-result.grammar_problems, result.coverage.ratio)
-        if best is None or rank >= (-best.grammar_problems, best.coverage.ratio):
+        # Fewer grammar problems first, then closer to the target; the later attempt on a tie.
+        rank = (-result.grammar_problems, _closeness(result.coverage.ratio, request))
+        if result.gender_ok and (
+            best is None
+            or rank >= (-best.grammar_problems, _closeness(best.coverage.ratio, request))
+        ):
             best = result
         if attempt < MAX_ATTEMPTS:
             messages.append({"role": "assistant", "content": content})
             messages.append(
                 {
                     "role": "user",
-                    "content": revision_message(result.coverage, problems, request.floor),
+                    "content": revision_message(
+                        result.coverage, problems, request.floor, request.ceiling
+                    ),
                 }
             )
-    assert result is not None and best is not None
+    assert result is not None
+    if best is None:
+        # Every attempt had a line that doesn't fit its speaker's gender: none is kept, whatever
+        # its coverage. It's returned as not passed, so it's stored as dropped and never served.
+        return replace(result, passed=False)
     if best.coverage.ratio >= MINIMUM:
         # Every attempt missed (the floor, or only a stretch word rule): keep the closest one.
         return replace(
@@ -390,14 +527,49 @@ async def generate(ask: Ask, lexicon: Checker, request: TextRequest) -> Generate
     return result
 
 
+def _paragraphs(lines: tuple[Line, ...], form: Form) -> tuple[Line, ...]:
+    """A story's paragraph marks, made consistent: the first line opens a paragraph whenever any
+    line does, and a dialogue has none."""
+    if form != "story" or not any(ln.paragraph for ln in lines):
+        return tuple(replace(ln, paragraph=False) for ln in lines)
+    return (replace(lines[0], paragraph=True), *lines[1:])
+
+
+def _closeness(ratio: float, request: TextRequest) -> float:
+    """How good a draft's coverage is for choosing the closest attempt: the ratio itself with no
+    ceiling, else minus how far it is outside the target range (0 inside it)."""
+    if request.ceiling is None:
+        return ratio
+    return -max(request.floor - ratio, ratio - request.ceiling, 0.0)
+
+
 def _assess(
     draft: dict[str, Any], lexicon: Checker, request: TextRequest, attempt: int
 ) -> tuple[Generated, list[str]]:
     try:
-        lines = tuple(Line(ln["speaker"], ln["text"], ln["english"]) for ln in draft["lines"])
+        lines = _paragraphs(
+            tuple(
+                Line(ln["speaker"], ln["text"], ln["english"], bool(ln.get("paragraph")))
+                for ln in draft["lines"]
+            ),
+            request.form,
+        )
         glosses = {g["word"]: g["english"] for g in draft["glosses"]}
+        translits = {
+            g["word"]: g["translit"].strip()
+            for g in draft["glosses"]
+            if isinstance(g.get("translit"), str) and g["translit"].strip()
+        }
         title = draft["title"]
         roles = {k: str(v).strip() for k, v in draft.get("roles", {}).items() if str(v).strip()}
+        genders = {
+            k: v
+            for k, v in (draft.get("genders") or {}).items()
+            if k in ("A", "B") and v in GENDERS
+        }
+        recap, series, cast_ = (
+            str(draft.get(k) or "").strip() for k in ("recap", "series", "cast")
+        )
     except (KeyError, TypeError) as e:
         raise GenerationFailed(f"The draft is missing a field: {e}") from e
     if not lines:
@@ -405,6 +577,16 @@ def _assess(
 
     coverage = check([ln.text for ln in lines], lexicon)
     used, problems = _stretch_used(coverage, request, lexicon)
+    if request.form == "story":
+        genders = {}  # a story has only its narrator
+        gender_issues: list[str] = []
+    elif set(genders) != {"A", "B"}:
+        gender_issues = ['Say in "genders" whether A and B are a man or a woman.']
+    else:
+        gender_issues = gender_problems(
+            request.language, [(ln.speaker, ln.text) for ln in lines], genders
+        )
+    problems += gender_issues
     grammar_issues, grammar_misses = grammar_problems([ln.text for ln in lines], lexicon, request)
     problems += grammar_issues
     # Stretch words are glossed from the deck, so only off-list words need the model's gloss.
@@ -413,7 +595,8 @@ def _assess(
     missing = tuple(
         w for w in coverage.words("unknown") + coverage.words("partial") if w not in glosses
     )
-    passed = coverage.meets(request.floor) and not problems
+    in_range = request.ceiling is None or coverage.ratio <= request.ceiling
+    passed = coverage.meets(request.floor) and in_range and not problems
     stretch = tuple(e.text for e in used)
     generated = Generated(
         title,
@@ -425,7 +608,13 @@ def _assess(
         missing,
         stretch=stretch,
         roles=roles,
+        genders=genders,
+        gender_ok=not gender_issues,
         grammar_problems=grammar_misses,
+        translits=translits,
+        recap=recap,
+        series=series,
+        cast=cast_,
     )
     return generated, problems
 

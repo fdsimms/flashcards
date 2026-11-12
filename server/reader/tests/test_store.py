@@ -35,6 +35,34 @@ def test_round_trip(conn) -> None:  # type: ignore[no-untyped-def]
     assert load_snapshot(conn) == (OLD, NOW)
 
 
+def test_transliterations_survive_a_round_trip(conn) -> None:  # type: ignore[no-untyped-def]
+    entries = [Entry(1, "หนังสือ", "book", "mature", translit="nǎng-sǔue")]
+    save_snapshot(conn, entries, NOW)
+    assert load_snapshot(conn)[0][0].translit == "nǎng-sǔue"
+
+
+def test_a_snapshot_from_before_transliterations_is_refreshed(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    import sqlite3
+
+    path = tmp_path / "old.db"
+    old = sqlite3.connect(path)
+    old.executescript(
+        "CREATE TABLE lexicon (note_id INTEGER PRIMARY KEY, entry TEXT NOT NULL,"
+        " meaning TEXT NOT NULL, tier TEXT NOT NULL, due INTEGER NOT NULL DEFAULT 0,"
+        " language TEXT NOT NULL DEFAULT 'th');"
+        "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);"
+        "INSERT INTO lexicon VALUES (1, 'ฉัน', 'I; me', 'mature', 0, 'th');"
+        "INSERT INTO meta VALUES ('snapshot_taken_at', '2026-10-19T09:00:00');"
+    )
+    old.commit()
+    old.close()
+    migrated = connect(path)
+    entries, taken_at = load_snapshot(migrated)
+    # The words still serve, but the missing time makes the next refresh read the deck again.
+    assert [e.text for e in entries] == ["ฉัน"]
+    assert is_stale(taken_at, NOW)
+
+
 def test_a_new_snapshot_replaces_the_old_one(conn) -> None:  # type: ignore[no-untyped-def]
     save_snapshot(conn, OLD, NOW)
     save_snapshot(conn, [Entry(2, "ดี", "good", "young")], NOW)
@@ -201,3 +229,44 @@ def test_a_database_from_before_stories_reads_its_texts_as_dialogues(tmp_path) -
 
     text = get_text(connect(path), 1)
     assert text is not None and text.form == "dialogue"
+
+
+def test_spending_counts_every_text_written_since_the_date_by_language(conn) -> None:  # type: ignore[no-untyped-def]
+    from dataclasses import replace
+
+    from scripted import GOOD
+
+    from franki_reader.coverage import check
+    from franki_reader.generator import Generated, Line, Usage
+    from franki_reader.lexicon import lexicon_from
+    from franki_reader.store import Reading, log_reading, spending
+
+    topic = add_topic(conn, "Food", True, NOW)
+    lines = tuple(Line(ln["speaker"], ln["text"], ln["english"]) for ln in GOOD["lines"])
+    base = Generated(
+        "t", lines, {}, check([ln.text for ln in lines], lexicon_from(OLD)), 1, True, ()
+    )
+    # $0.01 an attempt: 1,000 output tokens at Sonnet's $10 a million.
+    one = Usage(output_tokens=1000)
+
+    def write(attempts: int, at: datetime, status: str = "ready", language: str = "th") -> int:
+        generated = replace(base, attempts=attempts, usage=Usage(output_tokens=1000 * attempts))
+        return save_text(conn, topic.id, generated, [], 0.95, at, status=status, language=language)  # type: ignore[arg-type]
+
+    read_id = write(1, NOW)
+    log_reading(conn, read_id, Reading(None, True, (), (), None, False, 10), NOW)
+    write(3, NOW, status="dropped")
+    write(2, NOW, status="pending")
+    write(1, NOW - timedelta(days=40))  # before the date: left out
+    write(1, NOW, language="es")
+
+    assert one.cost_usd() == pytest.approx(0.01)
+    spent = spending(conn, NOW - timedelta(days=30))
+    assert list(spent) == ["th", "es"]  # the most spent first
+    th = spent["th"]
+    assert (th.read, th.waiting, th.dropped, th.texts, th.attempts) == (1, 1, 1, 3, 6)
+    assert th.cost_usd == pytest.approx(0.06)
+    es = spent["es"]
+    assert (es.read, es.waiting, es.dropped, es.attempts) == (0, 1, 0, 1)
+    assert es.cost_usd == pytest.approx(0.01)
+    assert spending(conn, NOW + timedelta(days=1)) == {}
