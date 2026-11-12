@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { deckLimits, deckLineage, deckRows, deckTree, isInDeck, treeQueue, type TreeQueueInput } from '../../src/core/deckTree';
+import { deckLimits, deckLineage, deckRows, deckTree, isInDeck, shownDeckRows, treeQueue, type TreeQueueInput } from '../../src/core/deckTree';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -214,5 +214,21 @@ describe("Anki's v3 limits and gathering", () => {
     const q = (params?: typeof bury) => treeQueue('D', { ...input({ D: [front, back] }), paramsFor: () => params });
     expect(q(bury).fresh.map((c) => c.id)).toEqual([front.id]);
     expect(q(undefined).fresh).toHaveLength(2);
+  });
+});
+
+describe('collapsed decks on the deck list', () => {
+  const rows = ['A', 'A::B', 'A::B::C', 'A::D', 'E'].map((deck) => ({ deck, name: deck.split('::').pop()!, depth: deck.split('::').length - 1 }));
+  const shown = (collapsed: string[]) => shownDeckRows(rows, new Set(collapsed)).map((r) => `${r.deck}${r.hasSubdecks ? (r.collapsed ? '+' : '-') : ''}`);
+
+  it('hides every deck under a collapsed one, and marks which decks have subdecks', () => {
+    expect(shown([])).toEqual(['A-', 'A::B-', 'A::B::C', 'A::D', 'E']);
+    expect(shown(['A::B'])).toEqual(['A-', 'A::B+', 'A::D', 'E']);
+    expect(shown(['A'])).toEqual(['A+', 'E']);
+    expect(shown(['A', 'A::B'])).toEqual(['A+', 'E']);
+  });
+
+  it("ignores a collapsed flag on a deck with no subdecks to hide", () => {
+    expect(shown(['E', 'A::D'])).toEqual(['A-', 'A::B-', 'A::B::C', 'A::D', 'E']);
   });
 });

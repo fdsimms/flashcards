@@ -1,7 +1,7 @@
 import { setAudioModeAsync } from 'expo-audio';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { studyDayStart } from './src/core/day';
 import { deckRows, queueInput, type DeckRow } from './src/core/deckTree';
@@ -23,6 +23,7 @@ import { ScreenTransition } from './src/ui/motion';
 import { useTheme } from './src/ui/theme';
 import { useSync } from './src/ui/useSync';
 import { syncStatusText } from './src/anki/sync/runSync';
+import { collapsedDecks, setDeckCollapsed } from './src/anki/noteService';
 import { createApi, readerAddress } from './src/reader/api';
 import { clearPassphrase, loadPassphrase, loadPrefs } from './src/reader/storage';
 import { Reader, type ReaderSource } from './src/ui/Reader';
@@ -69,6 +70,25 @@ export default function App() {
   const [decks, setDecks] = useState<DeckRow[]>([]);
   const [backup, setBackup] = useState<{ text: string; overdue: boolean }>();
   const [ankiUnsent, setAnkiUnsent] = useState(0);
+  // Collapsed decks, read on their own: reading Anki's waits while a sync holds the collection, and
+  // the deck list shouldn't. A read started before the latest toggle is out of date and dropped.
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const collapseSeq = useRef(0);
+  const loadCollapsed = useCallback(() => {
+    if (!repo) return;
+    const seq = collapseSeq.current;
+    collapsedDecks(repo).then((s) => { if (seq === collapseSeq.current) setCollapsed(s); }).catch(() => undefined);
+  }, [repo]);
+  const toggleCollapsed = (deck: string) => {
+    if (!repo) return;
+    const next = !collapsed.has(deck);
+    collapseSeq.current++;
+    setCollapsed((prev) => { const s = new Set(prev); if (next) s.add(deck); else s.delete(deck); return s; });
+    setDeckCollapsed(repo, deck, next).catch((e) => {
+      Alert.alert(`Couldn't ${next ? 'collapse' : 'expand'} ${deck}`, `It's back as it was. ${e instanceof Error ? e.message : String(e)}`);
+      loadCollapsed();
+    });
+  };
   const depth = depthOf(screen);
   const previousDepth = useRef(depth);
   const direction = Math.sign(depth - previousDepth.current) as -1 | 0 | 1;
@@ -95,7 +115,8 @@ export default function App() {
     setDecks(deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now })));
     setBackup(backupStatus(lastBackup, now, cards.length > 0));
     setAnkiUnsent((await repo.ankiStatus()).unsent);
-  }, [repo]);
+    loadCollapsed();
+  }, [repo, loadCollapsed]);
 
   useEffect(() => { if (screen.name === 'decks') refresh(); }, [screen, refresh]);
 
@@ -154,6 +175,8 @@ export default function App() {
           onSettings={() => setScreen({ name: 'settings' })}
           onBrowse={() => setScreen({ name: 'browse' })}
           onOptions={(deck) => setScreen({ name: 'deckOptions', deck })}
+          collapsed={collapsed}
+          onToggleCollapsed={toggleCollapsed}
           onRead={readerApi ? () => setScreen({ name: 'read' }) : undefined}
           sync={syncSettings?.enabled ? {
             syncing,

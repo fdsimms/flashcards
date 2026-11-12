@@ -12,6 +12,7 @@ import { addAnkiNote, ankiDeckId, ankiNoteType, deleteAnkiNotes, editAnkiNote, m
 import {
   CARD_ROW_SQL, CARD_STATE_SQL, CARD_STATE_UPDATE_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams,
 } from '../../../src/anki/writeback';
+import { ankiCollapsedDecks, setAnkiDeckCollapsed } from '../../../src/anki/deckWrites';
 import { review } from '../../../src/core/scheduler';
 import type { Card } from '../../../src/core/types';
 import { importAnkiJson } from '../../../src/import/ankiJson';
@@ -81,6 +82,9 @@ function franki(server: AnkiServer, collated: boolean) {
         return { cid, revlogId: id };
       });
     },
+    /** Collapses or expands a deck as the deck list does (setAnkiDeckCollapsed), and reads them back. */
+    collapse: (name: string, collapsed: boolean) => withDb((db) => setAnkiDeckCollapsed(db, name, collapsed, new Date())),
+    collapsed: () => withDb(ankiCollapsedDecks),
     /** Suspends, buries and flags cards as the review menu does (setAnkiCardStates). */
     async setStates(changes: { pick: (c: Card) => boolean; state: { suspended: boolean; buried: boolean; flag: number } }[], now = new Date()) {
       const cards = importAnkiJson(buildExport(await readCollectionRows(kept))).cards;
@@ -255,6 +259,20 @@ for (const collated of [true, false]) {
       await expectSame();
       const back = new Map((desktop.run('dump').dump.cards as number[][]).map((c) => [c[0], c]));
       expect([back.get(suspended)![7], back.get(buried)![7], back.get(flagged)![16]]).toEqual([2, 0, 0]);
+    });
+
+    it('shares collapsed decks with Anki both ways, without a full sync', async () => {
+      // Every deck Anki makes starts collapsed; expanding one here reaches Anki as a changed deck.
+      expect(await me.collapse('🧠 Trivia', false)).toBe(true);
+      expect(await me.sync()).toMatchObject({ kind: 'synced' });
+      desktop.run('sync');
+      await expectSame();
+      // And one Anki expands comes here, written in place whether or not the collation is there.
+      desktop.run('collapse-deck', '👅 Languages', '0', '+', 'sync');
+      expect(await me.sync()).toMatchObject({ kind: 'synced', received: true });
+      const mine = await me.collapsed();
+      expect([mine.has('🧠 Trivia'), mine.has('👅 Languages'), mine.has('Default')]).toEqual([false, false, true]);
+      await expectSame();
     });
 
     it('removes what Anki deleted', async () => {

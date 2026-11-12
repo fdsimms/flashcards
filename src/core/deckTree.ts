@@ -301,6 +301,22 @@ export interface DeckRow extends DeckNode {
   gate?: { inProgress: number; cap: number };
 }
 
+/**
+ * The rows the deck list shows: a collapsed deck's subdecks hidden (at every depth), and each row
+ * saying whether it has subdecks to show or hide. `rows` are in tree order, parents first.
+ */
+export function shownDeckRows<R extends DeckNode>(rows: R[], collapsed: Set<string>): (R & { hasSubdecks: boolean; collapsed: boolean })[] {
+  const out: (R & { hasSubdecks: boolean; collapsed: boolean })[] = [];
+  rows.forEach((row, i) => {
+    const hidden = [...collapsed].some((c) => c !== row.deck && isInDeck(row.deck, c));
+    if (hidden) return;
+    const next = rows[i + 1];
+    const hasSubdecks = !!next && next.deck !== row.deck && isInDeck(next.deck, row.deck);
+    out.push({ ...row, hasSubdecks, collapsed: hasSubdecks && collapsed.has(row.deck) });
+  });
+  return out;
+}
+
 /** The deck list: every deck, nested, with what studying it would show. */
 export function deckRows(input: TreeQueueInput): DeckRow[] {
   return deckTree(input.cardsByDeck.keys()).map((node) => {

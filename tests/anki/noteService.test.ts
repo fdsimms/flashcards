@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildExport } from '../../src/anki/collection';
-import { deleteNote, NoteRefused, saveNote, setCardStates, type NoteStore } from '../../src/anki/noteService';
+import { collapsedDecks, deleteNote, NoteRefused, saveNote, setCardStates, setDeckCollapsed, type NoteStore } from '../../src/anki/noteService';
 import { review } from '../../src/core/scheduler';
 import { MemoryRepo } from '../../src/db/repo';
 import { importAnkiJson } from '../../src/import/ankiJson';
@@ -156,5 +156,29 @@ describe('suspending, burying and flagging a card', () => {
     const { ankiError } = await setCardStates(store, [card], (s) => ({ ...s, suspended: true }), NOW, 4);
     expect((ankiError as Error).message).toBe('locked');
     expect((await repo.listCards()).find((c) => c.id === card.id)!.suspended).toBe(true);
+  });
+});
+
+describe('collapsing a deck on the deck list', () => {
+  it("writes Anki's flag for a deck Anki has, and Franki's own for one it doesn't", async () => {
+    const { store, anki } = await franki();
+    // Every deck Anki makes starts collapsed.
+    expect((await collapsedDecks(store)).has('👅 Languages')).toBe(true);
+    await setDeckCollapsed(store, '👅 Languages', false, NOW);
+    await setDeckCollapsed(store, 'TSV only', true, NOW);
+    const now = await collapsedDecks(store);
+    expect([now.has('👅 Languages'), now.has('TSV only'), now.has('🧠 Trivia')]).toEqual([false, true, true]);
+    expect((await store.listDeckSettings()).get('👅 Languages')?.collapsed).toBeUndefined();
+    const db = await anki();
+    expect((await db.first<{ usn: number }>("SELECT usn FROM decks NOT INDEXED WHERE id = 1794408857989"))!.usn).toBe(-1);
+    db.close();
+    await setDeckCollapsed(store, 'TSV only', false, NOW);
+    expect((await collapsedDecks(store)).has('TSV only')).toBe(false);
+  });
+
+  it("keeps it in Franki when there's no Anki collection", async () => {
+    const { store } = await franki({ kept: false });
+    await setDeckCollapsed(store, '👅 Languages', true, NOW);
+    expect(await collapsedDecks(store)).toEqual(new Set(['👅 Languages']));
   });
 });

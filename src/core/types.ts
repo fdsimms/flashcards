@@ -198,4 +198,9 @@ export interface NoteType {
 export interface DeckSettings {
   /** Progress gate: new cards only while fewer than this many cards here are below Guru. */
   gateCap?: number;
+  /**
+   * Subdecks hidden on the deck list, for a deck Anki doesn't have. A deck in the kept collection
+   * keeps this in Anki's own `study_collapsed` instead (src/anki/deckWrites.ts).
+   */
+  collapsed?: boolean;
 }
