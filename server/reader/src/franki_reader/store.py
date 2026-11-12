@@ -816,6 +816,46 @@ def log_reading(conn: sqlite3.Connection, text_id: int, reading: Reading, now: d
         conn.execute("UPDATE texts SET status = 'read' WHERE id = ?", (text_id,))
 
 
+def reading_seconds(conn: sqlite3.Connection, start: datetime, end: datetime) -> int:
+    """Seconds spent reading and listening between two times (naive UTC, the engine's clock), in
+    every language, as the app logged each session."""
+    row = conn.execute(
+        "SELECT COALESCE(SUM(seconds), 0) FROM readings WHERE logged_at >= ? AND logged_at < ?",
+        (start.isoformat(), end.isoformat()),
+    ).fetchone()
+    return int(row[0])
+
+
+FRANKI_COUNTS_KEY = "franki_counts"
+
+
+@dataclass(frozen=True)
+class FrankiCounts:
+    """What Franki's deck list said, the last time Franki reported it: the cards due (reviews and
+    learning) and the new cards still to come today, its progress gates included."""
+
+    due: int
+    new: int
+    reported_at: datetime  # naive UTC, the engine's clock
+
+
+def save_franki_counts(conn: sqlite3.Connection, counts: FrankiCounts) -> None:
+    value = {"due": counts.due, "new": counts.new, "reported_at": counts.reported_at.isoformat()}
+    with conn:
+        _set_meta(conn, FRANKI_COUNTS_KEY, json.dumps(value))
+
+
+def load_franki_counts(conn: sqlite3.Connection) -> FrankiCounts | None:
+    raw = _get_meta(conn, FRANKI_COUNTS_KEY)
+    if not raw:
+        return None
+    try:
+        v = json.loads(raw)
+        return FrankiCounts(int(v["due"]), int(v["new"]), datetime.fromisoformat(v["reported_at"]))
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
 def last_finished_reading(conn: sqlite3.Connection, language: Code) -> datetime | None:
     """When a text in the language was last read to the end (naive UTC, the engine's clock), or None."""
     row = conn.execute(

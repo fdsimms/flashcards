@@ -8,7 +8,14 @@ serves all of it under /reader (../../Caddyfile), so the app's address ends in /
                                       passphrase or STATUS_TOKEN, a key for this route alone:
                                       {reviews, learning, learning_later: [{at, count}],
                                       decks: [{name, reviews, learning}], day_ends_at,
-                                      read_and_listen: {language, name, waiting, last_read_at}}
+                                      read_and_listen: {language, name, waiting, last_read_at},
+                                      study_days: [{starts_at, cards, answer_seconds,
+                                      reading_seconds}] (the last 7 study days, today last),
+                                      franki: {due, new, reported_at} or null (Franki's own deck
+                                      list counts, progress gates included, when it reported
+                                      them since today's study day began)}
+    PUT   /api/franki-counts          {due, new} the app's deck list totals, sent after each sync
+                                      while the app's "Share today's counts" setting is on
     GET   /api/topics                 topics with their state and ready count; tops up in the background
     POST  /api/topics                 {name, favorite?} adds a topic (or returns the existing one)
     PATCH /api/topics/{id}            {favorite}
@@ -218,6 +225,12 @@ class NextIn(BaseModel):
     words: list[Annotated[str, Field(max_length=200)]] = Field(default_factory=list, max_length=500)
 
 
+class FrankiCountsIn(BaseModel):
+    # The deck list's totals across the top-level decks: due (reviews and learning) and new.
+    due: int = Field(ge=0, le=1_000_000)
+    new: int = Field(ge=0, le=1_000_000)
+
+
 class ReadingIn(BaseModel):
     rating: Literal["too_easy", "about_right", "too_hard"] | None = None
     finished: bool = False
@@ -342,6 +355,15 @@ def create_app(
             raise HTTPException(503, f"Couldn't read Anki. {e}") from e
         language = engine.language()
         last_read = store.last_finished_reading(engine.conn, language)
+        day_starts_at = due.day_ends_at - timedelta(days=1)
+        reported = store.load_franki_counts(engine.conn)
+        # Only today's: yesterday's new cards left say nothing about today's.
+        if reported and reported.reported_at.replace(tzinfo=UTC) < day_starts_at:
+            reported = None
+
+        def naive_utc(at: datetime) -> datetime:
+            return at.astimezone(UTC).replace(tzinfo=None)
+
         return {
             "reviews": due.reviews,
             "learning": due.learning,
@@ -356,7 +378,36 @@ def create_app(
                 "waiting": store.ready_counts(engine.conn).get(language, 0),
                 "last_read_at": instant(last_read) if last_read else None,
             },
+            "study_days": [
+                {
+                    "starts_at": instant(d.starts_at),
+                    "cards": d.cards,
+                    "answer_seconds": d.answer_seconds,
+                    "reading_seconds": store.reading_seconds(
+                        engine.conn,
+                        naive_utc(d.starts_at),
+                        naive_utc(d.starts_at + timedelta(days=1)),
+                    ),
+                }
+                for d in due.study_days
+            ],
+            "franki": (
+                {
+                    "due": reported.due,
+                    "new": reported.new,
+                    "reported_at": instant(reported.reported_at),
+                }
+                if reported
+                else None
+            ),
         }
+
+    @app.put("/api/franki-counts", status_code=204, dependencies=authed)
+    async def franki_counts(body: FrankiCountsIn) -> Response:
+        store.save_franki_counts(
+            engine.conn, store.FrankiCounts(body.due, body.new, engine.clock())
+        )
+        return Response(status_code=204)
 
     @app.get("/api/topics", dependencies=authed)
     async def topics(background: BackgroundTasks) -> list[dict[str, Any]]:

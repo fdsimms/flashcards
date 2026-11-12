@@ -83,7 +83,7 @@ It needs more memory than the rest (up to about 350 MB with both languages), so 
 
 Then run `docker compose up -d --build`. Check `https://<your domain>/reader/health` shows `{"status":"ok"}`. Then in Franki, open **Settings**, **Read & Listen**, and enter the passphrase. Franki finds the server at `https://<your domain>/reader` by itself, from the sync settings.
 
-**Show what's due in dundundun.** dundundun can add a "Franki" task when reviews are waiting, and a Read & Listen task when a text is waiting and none was read today. It reads `https://<your domain>/reader/api/status`, which says what's due (Anki's own counts) and nothing else. Set `READER_STATUS_TOKEN` in `.env` to a long key of its own and run `docker compose up -d` again, then enter that address and key in dundundun. The key opens that one route only, so dundundun never holds the passphrase. Set `TZ` too (above): the counts are for the study day in that time zone.
+**Show what's due in dundundun.** dundundun can add a "Franki" task when reviews are waiting, and a Read & Listen task when a text is waiting and none was read today. It reads `https://<your domain>/reader/api/status`, which says what's due (Anki's own counts) and nothing else. Set `READER_STATUS_TOKEN` in `.env` to a long key of its own and run `docker compose up -d` again, then enter that address and key in dundundun. The key opens that one route only, so dundundun never holds the passphrase. Set `TZ` too (above): the counts are for the study day in that time zone. For dundundun to count new cards the way Franki's deck list does (progress gates included), turn on **Share today's counts** in Franki's Settings, Read & Listen.
 
 ### Moving it from Fly
 

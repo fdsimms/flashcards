@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { studyDayKey } from '../core/day';
 import { createApi, readerAddress, type Api, type Settings as ReaderSettings } from '../reader/api';
 import { minedOne, miningLeft, type MiningCount } from '../reader/mining';
-import { clearPassphrase, loadMined, loadPassphrase, loadPrefs, saveMined } from '../reader/storage';
+import { clearPassphrase, loadMined, loadPassphrase, loadPrefs, prefs, saveMined, savePrefs } from '../reader/storage';
 
 export interface ReaderState {
   /** Read & Listen's server, once its passphrase is saved; null while it's off. */
@@ -28,6 +28,9 @@ export interface ReaderState {
   recordMined: () => void;
   /** The hour the study day starts, for saying "today" or "2 days ago" (the Grammar screen). */
   dayStartsAtHour: number;
+  /** Whether the deck list's counts are sent to the server for dundundun (useCountsReport). */
+  shareCounts: boolean;
+  setShareCounts: (on: boolean) => void;
 }
 
 /**
@@ -42,8 +45,16 @@ export interface ReaderState {
 export function useReader(server: string | undefined, dayStartsAtHour: number): ReaderState {
   const [passphrase, setPassphrase] = useState<string | null>();
   const [notice, setNotice] = useState<string | null>(null);
+  const [shareCounts, setShareCountsState] = useState(false);
   useEffect(() => {
-    Promise.all([loadPassphrase(), loadPrefs()]).then(([saved]) => setPassphrase(saved), () => setPassphrase(null));
+    Promise.all([loadPassphrase(), loadPrefs()]).then(([saved]) => {
+      setPassphrase(saved);
+      setShareCountsState(prefs().shareCounts);
+    }, () => setPassphrase(null));
+  }, []);
+  const setShareCounts = useCallback((on: boolean) => {
+    savePrefs({ shareCounts: on });
+    setShareCountsState(on);
   }, []);
   const api = useMemo(() => (server && passphrase
     ? createApi(readerAddress(server), passphrase, fetch, () => {
@@ -79,5 +90,6 @@ export function useReader(server: string | undefined, dayStartsAtHour: number): 
 
   return useMemo(() => ({
     api, server, notice, signedIn, signOut, settings, setSettings, miningLeft: miningLeft(mined, today), recordMined, dayStartsAtHour,
-  }), [api, server, notice, signedIn, signOut, settings, mined, today, recordMined, dayStartsAtHour]);
+    shareCounts, setShareCounts,
+  }), [api, server, notice, signedIn, signOut, settings, mined, today, recordMined, dayStartsAtHour, shareCounts, setShareCounts]);
 }

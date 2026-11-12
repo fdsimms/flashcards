@@ -304,6 +304,8 @@ export function createApi(
       call<GrammarList>('PUT', `/api/grammar/${id}`, { state }),
     clearWord: (word: string) => call<void>('POST', '/api/words/clear', { word }),
     settings: () => call<Settings>('GET', '/api/settings'),
+    // The deck list's totals, for dundundun's Franki task to read from /api/status (countsReport.ts).
+    reportCounts: (counts: { due: number; new: number }) => call<void>('PUT', '/api/franki-counts', counts),
     updateSettings: (settings: SettingsChange) => call<Settings>('PATCH', '/api/settings', settings),
     // null while the server is still writing the text (202): ask again in a few seconds. With
     // `words` (the cards just studied), a text written to practice them.

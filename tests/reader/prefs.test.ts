@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { DEFAULT_PREFS, parsePrefs } from '../../src/reader/prefs';
 
 test('saved settings come back', () => {
-  expect(parsePrefs(JSON.stringify({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless' }))).toEqual({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless' });
+  expect(parsePrefs(JSON.stringify({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', shareCounts: true }))).toEqual({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', shareCounts: true });
 });
 
 test('nothing saved, or something unreadable, gives the defaults', () => {
@@ -24,4 +24,10 @@ test('names are marked unless the reader turned that off', () => {
   expect(DEFAULT_PREFS.markNames).toBe(true);
   expect(parsePrefs(JSON.stringify({ markNames: false })).markNames).toBe(false);
   expect(parsePrefs(JSON.stringify({ markNames: 'no' })).markNames).toBe(true);
+});
+
+test('counts are sent to the server only once that is turned on', () => {
+  expect(DEFAULT_PREFS.shareCounts).toBe(false);
+  expect(parsePrefs(JSON.stringify({ shareCounts: 'yes' })).shareCounts).toBe(false);
+  expect(parsePrefs(JSON.stringify({ shareCounts: true })).shareCounts).toBe(true);
 });
