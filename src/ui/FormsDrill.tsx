@@ -39,10 +39,10 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
 
   useEffect(() => {
     (async () => {
-      const [notes, cards, practice, collection, saved] = await Promise.all([
-        repo.listNotes(), repo.listCards(), repo.listPractice(), repo.collectionSettings(), repo.formsAnswerMode(),
+      const [notes, cards, practice, saved] = await Promise.all([
+        repo.listNotes(), repo.listCards(), repo.listPractice(), repo.formsAnswerMode(),
       ]);
-      const built = drillPrompts(request, { notes, cards, practice, dayStartsAtHour: collection.dayStartsAtHour });
+      const built = drillPrompts(request, { notes, cards, practice });
       setMode(typeOnly ? 'type' : saved);
       setNotice(built.notice);
       setPrompts(built.prompts);
@@ -56,8 +56,8 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
   const current = answered.length > index ? answered[index] : undefined;
   const picking = mode === 'pick' && !!prompt?.choices;
 
-  const log = async (p: FormPrompt, correct: boolean) => {
-    const record: PracticeRecord = { noteId: p.noteId, key: p.key, correct, practicedAt: new Date().toISOString() };
+  const log = async (p: FormPrompt, correct: boolean, given: string) => {
+    const record: PracticeRecord = { noteId: p.noteId, key: p.key, correct, practicedAt: new Date().toISOString(), given };
     await repo.addPractice(record);
   };
 
@@ -67,7 +67,7 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
     try {
       // A pick is the form or it isn't: a choice one accent away is another form, not a typo.
       const verdict: Verdict = picked ? (prompt.answers.includes(given) ? 'right' : 'wrong') : checkAnswer(given, prompt.answers);
-      await log(prompt, verdict === 'right');
+      await log(prompt, verdict === 'right', given);
       if (verdict === 'right') haptic.success(); else haptic.select();
       setAnswered((a) => [...a, { prompt, given, verdict, counted: false }]);
     } finally {
@@ -80,7 +80,7 @@ export function FormsDrill({ repo, request, onDone }: { repo: Repo; request: Dri
     if (!current || current.verdict !== 'almost' || current.counted || busy.current) return;
     busy.current = true;
     try {
-      await log(current.prompt, true);
+      await log(current.prompt, true, current.given);
       setAnswered((a) => a.map((x, i) => (i === index ? { ...x, counted: true } : x)));
     } finally {
       busy.current = false;
@@ -288,7 +288,7 @@ function Summary({ answered, notice }: { answered: Answered[]; notice?: string }
           <View
             key={i}
             accessible
-            accessibilityLabel={`${[a.prompt.headword, a.prompt.label, a.prompt.group].filter(Boolean).join(', ')}: ${a.prompt.answers[0]}. ${isRight(a) ? 'Right' : `Wrong, you answered ${a.given}`}`}
+            accessibilityLabel={`${[a.prompt.headword, a.prompt.label, a.prompt.group].filter(Boolean).join(', ')}: ${a.prompt.answers[0]}. ${isRight(a) ? 'Right' : `Wrong, you answered “${a.given}”`}`}
             style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingVertical: space.s, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}
           >
             <Text style={{ ...type.subhead, color: c.textSecondary, width: 130 }}>
@@ -297,7 +297,7 @@ function Summary({ answered, notice }: { answered: Answered[]; notice?: string }
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={{ ...type.headline, color: c.text }}>{a.prompt.answers[0]}</Text>
               {a.verdict === 'almost' && a.counted ? <Text style={{ ...type.footnote, color: c.warning }}>Accent missed, counted as right</Text> : null}
-              {!isRight(a) ? <Text style={{ ...type.footnote, color: c.danger }}>{`You answered ${a.given}`}</Text> : null}
+              {!isRight(a) ? <Text style={{ ...type.footnote, color: c.danger }}>{`You answered “${a.given}”`}</Text> : null}
             </View>
             <Icon name={isRight(a) ? 'checkmark' : 'xmark'} size={18} color={isRight(a) ? c.countDue : c.danger} weight="bold" />
           </View>
