@@ -40,3 +40,9 @@ test('a point not set says so first, and one not known says it is kept out', () 
 test('a server without counts gives no line', () => {
   expect(seenLine(undefined, 'normal', NOW, 4)).toBeNull();
 });
+
+test('a time the server sends with its offset is read as that instant, on the right study day', () => {
+  // The server sends UTC with "+00:00"; noon local yesterday is yesterday in every zone.
+  const yesterdayNoon = new Date(2026, 10, 11, 12).toISOString().replace('Z', '+00:00');
+  expect(seenLine(seen(1, 1, yesterdayNoon), 'normal', NOW, 4)).toBe('In 1 text you read (1 time), last yesterday');
+});

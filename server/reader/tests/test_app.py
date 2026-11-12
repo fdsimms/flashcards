@@ -825,3 +825,22 @@ def test_a_story_is_started_and_its_episodes_are_listed_once_read() -> None:
     assert (story["read"], story["last_recap"]) == (1, "Noi opens.")
     past = c.get("/api/texts", params={"story": story["id"]}, headers=AUTH).json()
     assert [(t["topic"], t["episode"]) for t in past] == [("Noi's stall", 1)]
+
+
+def test_a_time_sent_to_the_app_carries_the_servers_offset(monkeypatch: pytest.MonkeyPatch) -> None:
+    from franki_reader.app import instant
+
+    # The server's clock is naive, in its own zone; the app must be told which zone that is.
+    monkeypatch.setenv("TZ", "Asia/Bangkok")
+    time.tzset()
+    try:
+        assert instant(NOW) == "2026-10-19T09:00:00+07:00"
+    finally:
+        monkeypatch.undo()
+        time.tzset()
+
+
+def test_every_time_in_a_response_goes_through_instant() -> None:
+    # A bare isoformat() sends a naive time, which the app reads as the phone's own zone.
+    source = (Path(__file__).parent.parent / "src" / "franki_reader" / "app.py").read_text()
+    assert source.count(".isoformat()") == 1, "send times with instant(), not .isoformat()"

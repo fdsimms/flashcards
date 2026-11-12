@@ -68,7 +68,7 @@ marked words, ideas) is in the current language, the `language` setting.
 
 import hmac
 from collections.abc import Callable
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Annotated, Any, Literal
 
 import anthropic
@@ -345,7 +345,7 @@ def create_app(
                 "topic": t.topic,
                 "title": t.title,
                 "rating": t.rating,
-                "read_at": t.read_at.isoformat(),
+                "read_at": instant(t.read_at),
                 "coverage": t.coverage,
                 "form": t.form,
                 "episode": t.episode,
@@ -583,7 +583,7 @@ def create_app(
         )
         return {
             "days": days,
-            "since": since.isoformat(),
+            "since": instant(since),
             "languages": [
                 {"language": code, "name": LANGUAGES[code].name, **_spent(r)}
                 for code, r in by_language.items()
@@ -617,7 +617,7 @@ def create_app(
                 "status": lexicon.status(w.word),
                 "deck": lexicon.entry_of(w.word) is not None,
                 "times": w.times,
-                "last_marked": w.last_marked.isoformat(),
+                "last_marked": instant(w.last_marked),
             }
             for w in store.marked_words(engine.conn, language)
         ]
@@ -676,8 +676,16 @@ def create_app(
     return app
 
 
+def instant(at: datetime) -> str:
+    """A time the app reads, with the server's UTC offset. The server's clock and its stored times
+    are naive, in the server's own zone (UTC in its container); without the offset the app read
+    them as the phone's local time, hours off, so "today" and a date could land on the wrong day.
+    Every time in a response goes through this."""
+    return at.astimezone().isoformat()
+
+
 def _seen(e: exposure.Exposure) -> dict[str, Any]:
-    last = e.last_seen.isoformat() if e.last_seen is not None else None
+    last = instant(e.last_seen) if e.last_seen is not None else None
     return {"texts": e.texts, "uses": e.uses, "last": last}
 
 
