@@ -27,7 +27,7 @@ export default function RootLayout() {
             headerTintColor: c.accent,
             headerTitleStyle: { color: c.text },
             headerLargeTitleStyle: { color: c.text },
-            headerLargeStyle: { backgroundColor: c.bg },
+            // No headerLargeStyle background: on iOS 26 a background on the large title hides its text.
             contentStyle: { backgroundColor: c.bg },
           }}
         >
