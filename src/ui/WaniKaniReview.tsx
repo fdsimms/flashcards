@@ -9,8 +9,8 @@ import { problemText, WaniKaniError } from '../wanikani/api';
 import { toKana } from '../wanikani/kana';
 import { lessonsToday } from '../wanikani/prefs';
 import {
-  buildSession, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
-  studyAnswer, studyFlush, studyUndo, wrongSoFar, type Study,
+  buildSession, canAskLater, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
+  studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
 import { nextStage, outcomeText } from '../wanikani/srs';
 import { SUBJECT_TYPE_NAMES, type Subject } from '../wanikani/subjects';
@@ -147,6 +147,13 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     resetQuestion();
   };
 
+  // Moves the question to the back of its pile without answering it, so nothing is counted wrong.
+  const later = () => {
+    if (!study) return;
+    setStudy(studyAskLater(study));
+    resetQuestion();
+  };
+
   const reveal = () => {
     Keyboard.dismiss();
     setRevealed(true);
@@ -169,17 +176,21 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   };
 
   const title = 'WaniKani';
+  // Only before the question is answered or its answer is shown, so it can't be used to dodge a miss.
+  const askable = !!session && canAskLater(session) && !verdict && !revealed;
   const menu = useMemo(() => (subject ? () => {
-    const options = ['Open on wanikani.com', 'WaniKani options', 'Cancel'];
-    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 2 }, (i) => {
-      if (i === 0 && subject.url) Linking.openURL(subject.url).catch(() => undefined);
-      if (i === 1) onOptions();
+    const options = [...(askable ? ['Ask later'] : []), 'Open on wanikani.com', 'WaniKani options', 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: options.length - 1 }, (i) => {
+      const picked = options[i];
+      if (picked === 'Ask later') later();
+      if (picked === 'Open on wanikani.com' && subject.url) Linking.openURL(subject.url).catch(() => undefined);
+      if (picked === 'WaniKani options') onOptions();
     });
-  } : undefined), [subject, onOptions]);
+  } : undefined), [subject, onOptions, askable, study]); // eslint-disable-line react-hooks/exhaustive-deps
   const toolbar = (
     <Stack.Toolbar placement="right">
       {study && canUndo(study) ? <Stack.Toolbar.Button icon="arrow.uturn.backward" accessibilityLabel="Undo the last answer" onPress={undo} /> : null}
-      {menu ? <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="More: open on wanikani.com or WaniKani's options" onPress={menu} /> : null}
+      {menu ? <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="More: ask later, open on wanikani.com or WaniKani's options" onPress={menu} /> : null}
     </Stack.Toolbar>
   );
 
@@ -262,6 +273,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             borderColor: result ? 'transparent' : c.border,
           }}
         />
+        {result === 'wrong' ? <Button label="Mark as correct" variant="secondary" onPress={() => answer(true)} /> : null}
         <Button
           label={!verdict ? 'Check' : finishes || result === 'wrong' ? 'Next' : 'Next question'}
           onPress={check}

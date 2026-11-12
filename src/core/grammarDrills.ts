@@ -86,6 +86,11 @@ export function duePoints(
     .sort((a, b) => Number(b.state === 'practice') - Number(a.state === 'practice') || a.due.getTime() - b.due.getTime());
 }
 
+/** Whether any of the languages has a point drilled, which is when the Grammar tool has something to show. */
+export function anyDrilled(languages: readonly string[], choices: Record<string, DrillState>): boolean {
+  return Object.entries(choices).some(([id, state]) => isDrilled(state) && languages.includes(grammarPoint(id)?.language ?? ''));
+}
+
 /** Every point drilled in a language, with when it's next due, soonest first. */
 export function scheduledPoints(
   language: string,
