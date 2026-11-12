@@ -27,6 +27,13 @@ export async function writeMedia(name: string, bytes: Uint8Array): Promise<void>
   await file.write(bytes);
 }
 
+/** A media file's bytes, or undefined when it isn't here. */
+export async function readMedia(name: string): Promise<Uint8Array | undefined> {
+  if (name.includes('/')) return undefined;
+  const f = new File(folder(), name);
+  return f.exists ? f.bytes() : undefined;
+}
+
 /** Every media file, for a backup. */
 export function listMedia(): File[] {
   return folder().list().filter((e): e is File => e instanceof File);

@@ -7,7 +7,8 @@ import { SyncClient } from '../../../src/anki/sync/client';
 import {
   downloadCollection, markDownloaded, prepareForUpload, syncCollection, uploadCollection,
 } from '../../../src/anki/sync/collectionSync';
-import { pullMedia, type MediaState } from '../../../src/anki/sync/mediaSync';
+import { pullMedia, syncMedia, type MediaState } from '../../../src/anki/sync/mediaSync';
+import { sha1Hex } from '../../../src/anki/sha1';
 import { addAnkiNote, ankiDeckId, ankiNoteType, deleteAnkiNotes, editAnkiNote, moveAnkiNote } from '../../../src/anki/noteWrites';
 import {
   CARD_ROW_SQL, CARD_STATE_SQL, CARD_STATE_UPDATE_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams,
@@ -45,6 +46,7 @@ function franki(server: AnkiServer, collated: boolean) {
   const mediaDir = join(dir, 'media');
   let hkey = '';
   const media = new Map<string, string>();
+  const pending = new Map<string, string>();
   let mediaUsn = 0;
   const client = () => new SyncClient(server.url, hkey, nodePost);
   const withDb = async <T,>(fn: (db: Awaited<ReturnType<typeof nodeSyncDb>>) => Promise<T>) => {
@@ -100,20 +102,38 @@ function franki(server: AnkiServer, collated: boolean) {
       }));
       return cids;
     },
-    async pullMedia(serverMediaUsn: number) {
-      mkdirSync(mediaDir, { recursive: true });
-      const state: MediaState = {
+    mediaState(): MediaState {
+      return {
         lastUsn: async () => mediaUsn,
         setLastUsn: async (u) => { mediaUsn = u; },
         recorded: async (n) => media.get(n),
         record: async (n, s) => { if (s) media.set(n, s); else media.delete(n); },
+        pending: async () => new Map(pending),
+        setPending: async (n, s) => { if (s) pending.set(n, s); else pending.delete(n); },
       };
-      return pullMedia(client(), state, {
-        exists: (n) => existsSync(join(mediaDir, n)),
-        write: async (n, b) => writeFileSync(join(mediaDir, n), b),
-        remove: (n) => rmSync(join(mediaDir, n)),
-      }, serverMediaUsn);
     },
+    mediaFolder() {
+      mkdirSync(mediaDir, { recursive: true });
+      return {
+        exists: (n: string) => existsSync(join(mediaDir, n)),
+        write: async (n: string, b: Uint8Array) => writeFileSync(join(mediaDir, n), b),
+        remove: (n: string) => rmSync(join(mediaDir, n)),
+        read: async (n: string) => (existsSync(join(mediaDir, n)) ? new Uint8Array(readFileSync(join(mediaDir, n))) : undefined),
+      };
+    },
+    async pullMedia(serverMediaUsn: number) {
+      return pullMedia(client(), this.mediaState(), this.mediaFolder(), serverMediaUsn);
+    },
+    async syncMedia(serverMediaUsn: number) {
+      return syncMedia(client(), this.mediaState(), this.mediaFolder(), serverMediaUsn);
+    },
+    /** A file made here, as a recording is: written, and waiting to be sent. */
+    async addMedia(name: string, text: string) {
+      const bytes = new TextEncoder().encode(text);
+      await this.mediaFolder().write(name, bytes);
+      pending.set(name, sha1Hex(bytes));
+    },
+    pendingMedia: () => [...pending.keys()],
     mediaFile: (n: string) => readFileSync(join(mediaDir, n), 'utf8'),
     /** Adds, edits and deletes notes as the note editor does (noteWrites.ts). */
     async editNotes() {
@@ -368,6 +388,22 @@ for (const collated of [true, false]) {
       const pulled = await me.pullMedia(r.mediaUsn);
       expect(pulled.downloaded).toBeGreaterThan(0);
       expect(me.mediaFile(name)).toBe('hello from anki');
+    });
+
+    it('sends media made in Franki, which Anki then has, and takes in what Anki added meanwhile', async () => {
+      await me.addMedia('franki-recording.txt', 'hello from franki');
+      const fromAnki = desktop.run('add-media', 'anki-meanwhile.txt', 'meanwhile', '+', 'sync', '+', 'media-sync').media;
+      const r = await me.sync();
+      if (r.kind === 'downloadNeeded') await me.download();
+      const synced = await me.syncMedia(r.mediaUsn);
+      expect(synced.uploaded).toBe(1);
+      expect(me.mediaFile(fromAnki)).toBe('meanwhile');
+      expect(me.pendingMedia()).toEqual([]);
+      expect(desktop.run('media-sync', '+', 'read-media', 'franki-recording.txt').read).toBe('hello from franki');
+      // Nothing left either way: Franki's own upload isn't pulled back as a change.
+      const again = await me.sync();
+      if (again.kind === 'downloadNeeded') await me.download();
+      expect(await me.syncMedia(again.mediaUsn)).toEqual({ downloaded: 0, deleted: 0, skipped: [], uploaded: 0 });
     });
 
     it(collated

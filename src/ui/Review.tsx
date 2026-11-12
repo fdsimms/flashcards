@@ -20,7 +20,7 @@ import { parseDueDate } from '../core/reschedule';
 import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../core/session';
 import { durationText } from '../core/stats';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
-import { pickVoice, speechLanguage, type TtsTag } from '../core/tts';
+import type { TtsTag } from '../core/tts';
 import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType, RenderedSide } from '../core/types';
 import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
@@ -33,6 +33,7 @@ import { practiceWords } from '../reader/practice';
 import { headword, type DrillRequest } from '../core/forms';
 import { AnswerExtras, FormsCheck, useReviewForms } from './ReviewForms';
 import { haptic } from './haptics';
+import { usePhoneSpeech } from './usePhoneSpeech';
 import { Button, Count, Icon, Screen, Tappable } from './kit';
 import { Reveal, useReduceMotion } from './motion';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
@@ -312,6 +313,7 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
 
   // One player for the session's recorded audio, released when the screen closes.
   const player = useRef<AudioPlayer | null>(null);
+  const phoneSpeech = usePhoneSpeech(repo);
   useEffect(() => () => { player.current?.remove(); player.current = null; Speech.stop(); }, []);
 
   /**
@@ -330,19 +332,17 @@ export function Review({ repo, deck, practice, reloadKey, onDone, onEditNote, on
         player.current.play();
         return;
       }
-      Speech.speak(text, { language: rendered.speechLang, rate: 0.9 });
+      phoneSpeech.sayWord(text, rendered.speechLang);
     },
-    [rendered],
+    [rendered, phoneSpeech],
   );
 
   // Anki's {{tts:}} tags, read with the phone's voices: on their own when a side without a
   // recording is shown (a recording plays instead, in the page), and from each play button.
-  const voices = useRef<Speech.Voice[]>([]);
-  useEffect(() => { Speech.getAvailableVoicesAsync().then((v) => { voices.current = v; }).catch(() => {}); }, []);
   const readAloud = useCallback((tags: TtsTag[]) => {
     Speech.stop();
-    for (const t of tags) Speech.speak(t.text, { language: speechLanguage(t.lang), voice: pickVoice(voices.current, t), rate: t.speed });
-  }, []);
+    phoneSpeech.readTags(tags);
+  }, [phoneSpeech]);
   const pageAudio = page && (revealed ? page.backAudio : page.frontAudio);
   useEffect(() => {
     if (!pageAudio) return;

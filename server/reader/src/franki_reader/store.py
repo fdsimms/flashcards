@@ -123,6 +123,8 @@ class Settings:
     language: Code = "th"  # the language new texts are written and served in
     # The deck each language's word list comes from, where it isn't the default (languages.py).
     decks: dict[str, str] = field(default_factory=dict)
+    # The Azure voice for each speaker (A, B) by language, where one was chosen in the app.
+    voices: dict[str, dict[str, str]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -383,6 +385,15 @@ def next_ready_text(
         (topic_id, language, focus),
     ).fetchone()
     return _text(row) if row else None
+
+
+def ready_texts(conn: sqlite3.Connection, language: Code) -> list[StoredText]:
+    """Every text written and not yet served in `language`, oldest first."""
+    rows = conn.execute(
+        f"SELECT {_TEXT_COLUMNS} FROM texts WHERE status = 'ready' AND language = ? ORDER BY id",
+        (language,),
+    ).fetchall()
+    return [_text(r) for r in rows]
 
 
 def get_text(conn: sqlite3.Connection, text_id: int) -> StoredText | None:
