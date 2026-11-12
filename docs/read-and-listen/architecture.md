@@ -411,7 +411,12 @@ are listed at the top of `server/reader/src/franki_reader/app.py`.
 
 - Azure neural voices, one per speaker: `th-TH-NiwatNeural` (male) for A and `th-TH-PremwadeeNeural`
   (female) for B. `AZURE_VOICE_A` and `AZURE_VOICE_B` in `server/.env` override them without a code
-  change (the other languages' are set in `languages.py`). Azure is
+  change (the other languages' are set in `languages.py`). Since 12 November 2026 each speaker's voice can be
+  chosen in the app (Read & Listen's settings, from `GET /api/voices`), stored in the `voices`
+  setting over those defaults; a change re-records the texts waiting to be read, and a text already
+  read keeps its audio. The same server also speaks a card's word for the app (`POST /api/speech`,
+  Settings > Voices in Franki), which keeps the MP3 in the note, so each recording is asked for
+  once. Azure is
   called through the client shared with the MCP (`server/speech`, `franki_speech`, since 12 November
   2026), whose docstring says which parts of the API were checked; the first real call is the check
   for the rest.

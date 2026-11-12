@@ -1,6 +1,6 @@
 import type { SyncClient } from './client';
 import { serverMeta, syncCollection, type SyncDb, type SyncOutcome } from './collectionSync';
-import type { MediaPullResult } from './mediaSync';
+import type { MediaSyncResult } from './mediaSync';
 import { SyncError } from './protocol';
 
 /**
@@ -47,7 +47,8 @@ export interface SyncDeps {
   upload(): Promise<void>;
   /** Re-reads the kept collection into Franki's decks after a sync changed it. */
   refresh(): Promise<void>;
-  pullMedia(serverUsn: number): Promise<MediaPullResult>;
+  /** Media both ways: the server's changes, then files made here (`syncMedia`). */
+  syncMedia(serverUsn: number): Promise<MediaSyncResult>;
   /** Asks which side to keep; null cancels. Automatic syncs that can't ask return null. */
   choose(q: FullSyncQuestion): Promise<'download' | 'upload' | null>;
 }
@@ -56,8 +57,8 @@ export interface SyncReport {
   collection: 'unchanged' | 'synced' | 'downloaded' | 'uploaded' | 'cancelled' | 'serverEmpty';
   /** Answers sent to the server. */
   sent: number;
-  media?: MediaPullResult;
-  /** The media pull failed after the collection synced: the collection's sync still stands. */
+  media?: MediaSyncResult;
+  /** The media sync failed after the collection synced: the collection's sync still stands. */
   mediaError?: string;
 }
 
@@ -66,7 +67,7 @@ export async function runSync(deps: SyncDeps): Promise<SyncReport> {
   const { report, mediaUsn } = phase;
   if (report.collection === 'cancelled' || report.collection === 'serverEmpty') return report;
   try {
-    report.media = await deps.pullMedia(mediaUsn);
+    report.media = await deps.syncMedia(mediaUsn);
   } catch (e) {
     report.mediaError = e instanceof Error ? e.message : String(e);
   }
@@ -133,7 +134,8 @@ const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : 
 /** What a sync did, as one line. */
 export function reportText(r: SyncReport): string {
   const sent = r.sent ? ` Sent ${count(r.sent, 'answer', 'answers')}.` : '';
-  const media = r.media?.downloaded ? ` Downloaded ${count(r.media.downloaded, 'image or sound', 'images and sounds')}.` : '';
+  const media = (r.media?.downloaded ? ` Downloaded ${count(r.media.downloaded, 'image or sound', 'images and sounds')}.` : '')
+    + (r.media?.uploaded ? ` Sent ${count(r.media.uploaded, 'recording or image', 'recordings and images')}.` : '');
   const mediaFailed = r.mediaError ? ` Images and sounds didn't finish syncing: ${r.mediaError}` : '';
   switch (r.collection) {
     case 'unchanged': return `Already up to date.${media}${mediaFailed}`;

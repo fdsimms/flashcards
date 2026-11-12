@@ -65,23 +65,28 @@ export type StretchWords = 'topic' | 'any';
 // How many lines a dialogue has: short, medium or long.
 export type Length = 6 | 8 | 12;
 
+// The Azure voice each speaker is read in: A, and B (A also reads a story's narrator).
+export type Speakers = { A: string; B: string };
+
 // `decks`: the deck each language's words come from (the default when none was chosen).
-// `common`: how many of each language's most common words count as known (not Thai: deck only).
-// Both are missing from a server older than the setting.
+// `voices`: each language's speakers' Azure voices (the defaults when none were chosen).
+// `common`: how many of each language's most common words count as known (not Thai: deck only);
+// missing from a server older than the setting.
 export type Settings = {
-  stretch_words: StretchWords;
-  lines: Length;
-  form: Form;
-  language: Language;
-  decks: Record<Language, string>;
+  stretch_words: StretchWords; lines: Length; form: Form; language: Language;
+  decks: Record<Language, string>; voices: Record<Language, Speakers>;
   common?: Partial<Record<Language, CommonCount>>;
 };
 
-// A change to the settings. A deck named '' goes back to the default.
-export type SettingsChange = Partial<Omit<Settings, 'decks' | 'common'>> & {
+// A change to the settings. A deck or voice named '' goes back to the default.
+export type SettingsChange = Partial<Omit<Settings, 'decks' | 'voices' | 'common'>> & {
   decks?: Partial<Record<Language, string>>;
+  voices?: Partial<Record<Language, Partial<Speakers>>>;
   common?: Partial<Record<Language, CommonCount>>;
 };
+
+// One of Azure's voices, as the server lists them.
+export type AzureVoice = { voice: string; locale: string; name: string; gender?: string; language?: string };
 
 export type Rating = 'too_easy' | 'about_right' | 'too_hard';
 
@@ -151,6 +156,13 @@ export function createApi(
   const root = baseUrl.replace(/\/+$/, '');
 
   async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const response = await send(method, path, body);
+    return response.status === 204 || response.status === 202
+      ? (undefined as T)
+      : ((await response.json()) as T);
+  }
+
+  async function send(method: string, path: string, body?: unknown): Promise<Response> {
     let response: Response;
     try {
       response = await fetchImpl(root + path, {
@@ -166,9 +178,7 @@ export function createApi(
     }
     if (response.status === 401) onUnauthorized?.();
     if (!response.ok) throw new ApiError(await errorMessage(response), response.status);
-    return response.status === 204 || response.status === 202
-      ? (undefined as T)
-      : ((await response.json()) as T);
+    return response;
   }
 
   return {
@@ -196,6 +206,12 @@ export function createApi(
     text: (textId: number) => call<ReaderText>('GET', `/api/texts/${textId}`),
     logReading: (textId: number, log: ReadingLog) =>
       call<void>('POST', `/api/texts/${textId}/reading`, log),
+    // Azure's voices in a language (any code: th, pl, es-MX), every region included.
+    azureVoices: async (language: string) =>
+      (await call<{ voices: AzureVoice[] }>('GET', `/api/voices?language=${encodeURIComponent(language)}`)).voices,
+    // `text` spoken by an Azure voice, as MP3 bytes: a card's recording, or a voice's sample.
+    speech: async (text: string, voice: string, rate = 1) =>
+      new Uint8Array(await (await send('POST', '/api/speech', { text, voice, rate })).arrayBuffer()),
     // For the audio player, which fetches the file itself and so needs the passphrase too.
     audioSource: (textId: number, line: number) => ({
       uri: `${root}/api/texts/${textId}/lines/${line}/audio`,

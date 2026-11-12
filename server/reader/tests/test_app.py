@@ -252,6 +252,17 @@ DECKS = {
 }
 # How many common words each language counts as known when none was chosen (not Thai: deck only).
 COMMON = {"es": 10000, "de": 3000, "fr": 3000, "ru": 3000, "el": 3000, "pl": 0, "nb": 1000}
+# Each language's speaker voices, the same.
+VOICES = {
+    "th": {"A": "th-TH-NiwatNeural", "B": "th-TH-PremwadeeNeural"},
+    "es": {"A": "es-MX-JorgeNeural", "B": "es-MX-DaliaNeural"},
+    "de": {"A": "de-DE-ConradNeural", "B": "de-DE-KatjaNeural"},
+    "fr": {"A": "fr-FR-HenriNeural", "B": "fr-FR-DeniseNeural"},
+    "ru": {"A": "ru-RU-DmitryNeural", "B": "ru-RU-SvetlanaNeural"},
+    "el": {"A": "el-GR-NestorasNeural", "B": "el-GR-AthinaNeural"},
+    "pl": {"A": "pl-PL-MarekNeural", "B": "pl-PL-ZofiaNeural"},
+    "nb": {"A": "nb-NO-FinnNeural", "B": "nb-NO-PernilleNeural"},
+}
 
 
 def test_the_stretch_setting_can_be_read_and_changed() -> None:
@@ -262,6 +273,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "form": "dialogue",
         "language": "th",
         "decks": DECKS,
+        "voices": VOICES,
         "common": COMMON,
     }
     changed = c.patch("/api/settings", headers=AUTH, json={"stretch_words": "any"})
@@ -271,6 +283,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "form": "dialogue",
         "language": "th",
         "decks": DECKS,
+        "voices": VOICES,
         "common": COMMON,
     }
     assert c.get("/api/settings", headers=AUTH).json() == {
@@ -279,6 +292,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "form": "dialogue",
         "language": "th",
         "decks": DECKS,
+        "voices": VOICES,
         "common": COMMON,
     }
     assert (
@@ -356,6 +370,7 @@ def test_the_length_setting_can_be_changed_to_a_length_offered() -> None:
         "form": "dialogue",
         "language": "th",
         "decks": DECKS,
+        "voices": VOICES,
         "common": COMMON,
     }
     assert c.patch("/api/settings", headers=AUTH, json={"lines": 30}).status_code == 422
@@ -478,3 +493,125 @@ def test_next_takes_the_words_to_practice() -> None:
         time.sleep(0.02)
     assert r.status_code == 200
     assert r.json()["stretch"] == ["ข้าวเหนียวมะม่วง"]
+
+
+class FakeSpeech:
+    """Azure, as the voice routes use it."""
+
+    def __init__(self) -> None:
+        self.spoken: list[tuple[str, str, float]] = []
+
+    async def voices(self) -> list[dict[str, Any]]:
+        return [
+            {"voice": "th-TH-PremwadeeNeural", "locale": "th-TH", "name": "Premwadee"},
+            {"voice": "pl-PL-ZofiaNeural", "locale": "pl-PL", "name": "Zofia"},
+            {"voice": "es-MX-DaliaNeural", "locale": "es-MX", "name": "Dalia"},
+            {"voice": "es-ES-ElviraNeural", "locale": "es-ES", "name": "Elvira"},
+        ]
+
+    async def synthesize(self, text: str, voice: str, rate: float = 1.0) -> bytes:
+        self.spoken.append((text, voice, rate))
+        return b"ID3" + text.encode()
+
+
+def voice_client(speech: FakeSpeech | None) -> TestClient:
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, ENTRIES, NOW)
+    engine = Engine(conn, ScriptedModel(GOOD).ask_for, None, lambda: NOW, random.Random(1))
+    return started(create_app(engine, "open sesame", speech))
+
+
+def test_lists_azures_voices_in_a_language_every_region_included() -> None:
+    c = voice_client(FakeSpeech())
+    es = c.get("/api/voices", params={"language": "es"}, headers=AUTH).json()["voices"]
+    assert [v["voice"] for v in es] == ["es-ES-ElviraNeural", "es-MX-DaliaNeural"]
+    pl = c.get("/api/voices", params={"language": "pl_PL"}, headers=AUTH).json()["voices"]
+    assert [v["voice"] for v in pl] == ["pl-PL-ZofiaNeural"]
+    assert c.get("/api/voices", params={"language": "es"}).status_code == 401
+
+
+def test_speaks_a_cards_text_as_mp3() -> None:
+    speech = FakeSpeech()
+    c = voice_client(speech)
+    r = c.post(
+        "/api/speech",
+        json={"text": " kot ", "voice": "pl-PL-ZofiaNeural", "rate": 0.9},
+        headers=AUTH,
+    )
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "audio/mpeg"
+    assert r.content == b"ID3kot"
+    assert speech.spoken == [("kot", "pl-PL-ZofiaNeural", 0.9)]
+    assert (
+        c.post(
+            "/api/speech", json={"text": "x" * 501, "voice": "pl-PL-ZofiaNeural"}, headers=AUTH
+        ).status_code
+        == 422
+    )
+    assert (
+        c.post("/api/speech", json={"text": "kot", "voice": "Zofia"}, headers=AUTH).status_code
+        == 400
+    )
+
+
+def test_says_what_to_set_when_there_is_no_azure_key() -> None:
+    c = voice_client(None)
+    r = c.get("/api/voices", params={"language": "th"}, headers=AUTH)
+    assert r.status_code == 503
+    assert "AZURE_SPEECH_KEY" in r.json()["detail"]
+
+
+def test_a_speakers_voice_can_be_chosen_and_reset_and_only_in_its_language() -> None:
+    c = client()
+    changed = c.patch(
+        "/api/settings", headers=AUTH, json={"voices": {"es": {"B": "es-ES-ElviraNeural"}}}
+    )
+    assert changed.json()["voices"]["es"] == {"A": "es-MX-JorgeNeural", "B": "es-ES-ElviraNeural"}
+    assert c.get("/api/settings", headers=AUTH).json()["voices"]["es"]["B"] == "es-ES-ElviraNeural"
+    wrong = c.patch(
+        "/api/settings", headers=AUTH, json={"voices": {"th": {"A": "es-MX-DaliaNeural"}}}
+    )
+    assert wrong.status_code == 400
+    assert "not Thai" in wrong.json()["detail"]
+    back = c.patch("/api/settings", headers=AUTH, json={"voices": {"es": {"B": ""}}}).json()
+    assert back["voices"] == VOICES
+
+
+def test_texts_waiting_to_be_read_are_spoken_again_in_new_voices(tmp_path: Path) -> None:
+    from franki_reader.tts import AudioCache
+
+    used: list[str] = []
+
+    async def voice(text: str, name: str) -> bytes:
+        used.append(name)
+        return b"ID3" + name.encode()
+
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, ENTRIES, NOW)
+    engine = Engine(
+        conn,
+        ScriptedModel(GOOD).ask_for,
+        None,
+        lambda: NOW,
+        random.Random(1),
+        synthesize=voice,
+        audio=AudioCache(tmp_path),
+    )
+    c = started(create_app(engine, "open sesame"))
+
+    def recorded() -> set[bytes]:
+        return {p.read_bytes() for p in tmp_path.glob("*/*.mp3")}
+
+    def wait_for(done: Any) -> None:
+        deadline = time.time() + 10
+        while not done() and time.time() < deadline:
+            time.sleep(0.02)
+
+    c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH)
+    c.get("/api/topics", headers=AUTH)  # tops up: a text is written and waits to be read
+    wait_for(lambda: recorded() == {b"ID3th-TH-NiwatNeural", b"ID3th-TH-PremwadeeNeural"})
+    assert recorded() == {b"ID3th-TH-NiwatNeural", b"ID3th-TH-PremwadeeNeural"}
+
+    c.patch("/api/settings", headers=AUTH, json={"voices": {"th": {"A": "th-TH-AcharaNeural"}}})
+    wait_for(lambda: recorded() == {b"ID3th-TH-AcharaNeural", b"ID3th-TH-PremwadeeNeural"})
+    assert recorded() == {b"ID3th-TH-AcharaNeural", b"ID3th-TH-PremwadeeNeural"}

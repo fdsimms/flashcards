@@ -16,7 +16,7 @@ import { CommonWords } from './ReadCommonWords';
 /**
  * Read & Listen's home: the language, your topics (favorites keep a text ready), topic ideas, past
  * texts, marked words, grammar, and the settings new texts are written with
- * (docs/read-and-listen/architecture.md, Topics). Topics are shared by both languages; everything
+ * (docs/read-and-listen/architecture.md, Topics). Topics are shared by every language; everything
  * else here is the chosen language's.
  */
 
@@ -96,7 +96,8 @@ export function ReadTopics({ api, deckNames, practice, onSettings, onOpen, onWor
   const changeSetting = async (change: SettingsChange): Promise<boolean> => {
     const before = settings;
     const mine = ++settingSeq.current;
-    setSettings((s) => (s ? { ...s, ...change, decks: { ...s.decks, ...change.decks }, common: { ...s.common, ...change.common } } : s));
+    // Voices are chosen on Read & Listen's settings screen, not here; the server's answer brings them.
+    setSettings((s) => (s ? { ...s, ...change, decks: { ...s.decks, ...change.decks }, voices: s.voices, common: { ...s.common, ...change.common } } : s));
     setSettingError(null);
     try {
       const saved = await api.updateSettings(change);

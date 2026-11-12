@@ -15,6 +15,8 @@ export default function ReadSettingsRoute() {
       onSignedIn={reader.signedIn}
       onSignOut={reader.signOut}
       onSyncSetup={() => router.push('/sync')}
+      voices={reader.settings?.voices}
+      onVoices={(language) => router.push({ pathname: '/read-voices', params: { language } })}
     />
   );
 }
