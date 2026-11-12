@@ -88,6 +88,14 @@ CREATE TABLE IF NOT EXISTS cleared_words (
     word TEXT PRIMARY KEY,
     cleared_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS explanations (
+    text_id INTEGER NOT NULL REFERENCES texts(id),
+    line INTEGER NOT NULL,
+    simple INTEGER NOT NULL,
+    points TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (text_id, line, simple)
+);
 CREATE TABLE IF NOT EXISTS stories (
     id INTEGER PRIMARY KEY,
     language TEXT NOT NULL,
@@ -542,6 +550,35 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         episode=episode,
         recap=recap,
     )
+
+
+# ==== Explanations ====
+
+
+def get_explanation(
+    conn: sqlite3.Connection, text_id: int, line: int, simple: bool
+) -> list[dict[str, str]] | None:
+    row = conn.execute(
+        "SELECT points FROM explanations WHERE text_id = ? AND line = ? AND simple = ?",
+        (text_id, line, int(simple)),
+    ).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def save_explanation(
+    conn: sqlite3.Connection,
+    text_id: int,
+    line: int,
+    simple: bool,
+    points: list[dict[str, str]],
+    now: datetime,
+) -> None:
+    with conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO explanations (text_id, line, simple, points, created_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (text_id, line, int(simple), json.dumps(points, ensure_ascii=False), now.isoformat()),
+        )
 
 
 # ==== Shelf ====

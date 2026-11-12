@@ -54,6 +54,9 @@ marked words, ideas) is in the current language, the `language` setting.
     POST  /api/speech                 {text, voice, rate?} the text spoken by an Azure voice, as MP3:
                                       the app records a card's audio with it and keeps the file, so
                                       each recording is asked for once
+    POST  /api/texts/{id}/lines/{n}/explain   {simple?} the line's grammar and vocabulary explained in
+                                      English by Claude: {points: [{phrase, note}]}. Asked on the
+                                      owner's tap and kept per line (and per simple version)
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
                                       memory hints for a word the owner keeps forgetting: {hints: [...]}
 """
@@ -71,7 +74,9 @@ from pydantic import BaseModel, Field
 
 from franki_reader import config, grammar, store
 from franki_reader.collection import AnkiDeck, SyncSettings
+from franki_reader.coverage import parse_line
 from franki_reader.engine import Engine, NotAvailable, NotFound
+from franki_reader.explain import Explain, ExplainFailed, ExplainRequest, claude_explain
 from franki_reader.gateway import with_timeout
 from franki_reader.generator import Ask, Form, claude_ask
 from franki_reader.languages import LANGUAGES, Code, CommonCount, with_deck
@@ -139,6 +144,11 @@ class MnemonicIn(BaseModel):
     context: str = Field(default="", max_length=500)
 
 
+class ExplainIn(BaseModel):
+    # A second, plainer explanation of a line already explained.
+    simple: bool = False
+
+
 class WriteIn(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     form: Form = "dialogue"
@@ -199,6 +209,7 @@ def create_app(
     passphrase: str | None,
     speech: Speech | None = None,
     mnemonics: MakeMnemonics | None = None,
+    explain: Explain | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
 
@@ -333,6 +344,37 @@ def create_app(
         if path is None:
             raise HTTPException(404, "No audio for this line.")
         return FileResponse(path, media_type="audio/mpeg")
+
+    @app.post("/api/texts/{text_id}/lines/{line}/explain", dependencies=authed)
+    async def explain_line(text_id: int, line: int, body: ExplainIn) -> dict[str, Any]:
+        text = store.get_text(engine.conn, text_id)
+        if text is None or not 0 <= line < len(text.lines):
+            raise HTTPException(404, "No such line.")
+        if (kept := store.get_explanation(engine.conn, text_id, line, body.simple)) is not None:
+            return {"points": kept}
+        if explain is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't explain lines"
+                " (ANTHROPIC_API_KEY in server/.env turns explanations on).",
+            )
+        spaced = LANGUAGES[text.language].spaced
+        plain = [parse_line(ln.text, spaced)[0] for ln in text.lines]
+        try:
+            points = await explain(
+                ExplainRequest(
+                    text.language,
+                    plain[line],
+                    text.lines[line].english,
+                    tuple(plain[max(0, line - 3) : line] + plain[line + 1 : line + 3]),
+                    body.simple,
+                )
+            )
+        except ExplainFailed as e:
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_explanation(engine.conn, text_id, line, body.simple, points, engine.clock())
+        return {"points": points}
 
     def settings_out(current: Settings) -> dict[str, Any]:
         # Every language's deck and voices, the default where none was chosen, so the app shows
@@ -681,9 +723,11 @@ def production_app() -> FastAPI:
     conn = store.connect(settings.db_path)
     ask_for: Callable[[list[Entry], Code], Ask] | None = None
     mnemonics: MakeMnemonics | None = None
+    explain: Explain | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
+        explain = claude_explain(client)
 
         def ask_for(entries: list[Entry], language: Code) -> Ask:
             return claude_ask(client, entries, language)
@@ -728,4 +772,4 @@ def production_app() -> FastAPI:
         audio=AudioCache(settings.audio_dir),
         voices=settings.voices,
     )
-    return create_app(engine, settings.secrets.get("APP_PASSPHRASE"), speech, mnemonics)
+    return create_app(engine, settings.secrets.get("APP_PASSPHRASE"), speech, mnemonics, explain)

@@ -47,6 +47,9 @@ export type TextLine = { speaker: 'A' | 'B' | 'N'; english: string; words: Word[
 // A dialogue between two speakers, or a short story told by a narrator.
 export type Form = 'dialogue' | 'story';
 
+// One thing worth knowing about a line: the part of it, and what to know.
+export type ExplainPoint = { phrase: string; note: string };
+
 export type ReaderText = {
   id: number;
   topicId: number;
@@ -274,6 +277,10 @@ export function createApi(
     // Memory hints for a word (a leech), written by Claude on the server: asked only when the owner taps for them.
     mnemonics: async (question: { language: Language; entry: string; meaning: string; transliteration?: string; context?: string }) =>
       (await call<{ hints: string[] }>('POST', '/api/mnemonics', question)).hints,
+    // A line's grammar and vocabulary explained by Claude on the server: asked on the owner's tap, kept per
+    // line there. `simple` is a second, plainer version.
+    explainLine: async (textId: number, line: number, simple: boolean) =>
+      (await call<{ points: ExplainPoint[] }>('POST', `/api/texts/${textId}/lines/${line}/explain`, { simple })).points,
     // For the audio player, which fetches the file itself and so needs the passphrase too.
     audioSource: (textId: number, line: number) => ({
       uri: `${root}/api/texts/${textId}/lines/${line}/audio`,

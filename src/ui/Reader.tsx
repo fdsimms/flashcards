@@ -15,6 +15,7 @@ import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, t
 import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
+import { LineExplanation } from './ReaderExplain';
 import { Button, Card, Chip, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './theme';
 
@@ -23,7 +24,8 @@ import { lift, MIN_TAP, radius, space, type, useTheme, type Colors } from './the
  * rating at the end (docs/read-and-listen/architecture.md, Client). Nothing here answers a card.
  *
  * Layout: the title, practice words, the Show English and highlight switches, the lines (each with
- * its own replay button, and an EN button that shows that line's English alone), then Done, with
+ * its own replay button, an EN button that shows that line's English alone, and an explain button
+ * that opens Claude's note on its grammar and vocabulary under it), then Done, with
  * the player pinned under the scroll view. Done swaps the lines for the end view (rating, stats,
  * words marked unknown). The gloss popover is a transparent Modal, so a tap's page coordinates
  * place it directly.
@@ -95,6 +97,8 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
   const [english, setEnglish] = useState(false);
   // Lines whose English was shown on their own, while Show English is off.
   const [lineEnglish, setLineEnglish] = useState<number[]>([]);
+  // Lines whose explanation is open (each asks the server when it opens; the server keeps the answer).
+  const [explained, setExplained] = useState<number[]>([]);
   const [listenOnly, setListenOnly] = useState(false);
   const [highlight, setHighlight] = useState(prefs().highlight);
   const [paragraphMode, setParagraphMode] = useState(prefs().paragraphs);
@@ -386,6 +390,10 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
     setLineEnglish((shown) => (shown.includes(i) ? shown.filter((n) => n !== i) : [...shown, i]));
   };
 
+  const toggleExplained = (i: number) => {
+    setExplained((open) => (open.includes(i) ? open.filter((n) => n !== i) : [...open, i]));
+  };
+
   const listenWithoutText = () => {
     if (!text) return;
     setSession((s) => (s ? listenedOnly(s) : s));
@@ -592,6 +600,7 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
                 {!listenOnly && (english || lineEnglish.includes(i)) ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: 2 }}>{line.english}</Text>
                 ) : null}
+                {!listenOnly && explained.includes(i) ? <LineExplanation api={api} textId={text.id} line={i} /> : null}
               </View>
               <View style={{ gap: space.xs }}>
                 {line.audio ? (
@@ -603,6 +612,14 @@ export function Reader({ api, source, settings, onSettings, onNext, onDone }: {
                     accessibilityLabel={lineEnglish.includes(i) ? `Hide English for line ${i + 1}` : `Show English for line ${i + 1}`}
                     on={lineEnglish.includes(i)}
                     onPress={() => toggleLineEnglish(i)}
+                  />
+                ) : null}
+                {!listenOnly ? (
+                  <RoundButton
+                    icon="sparkles"
+                    accessibilityLabel={explained.includes(i) ? `Hide explanation for line ${i + 1}` : `Explain line ${i + 1}`}
+                    on={explained.includes(i)}
+                    onPress={() => toggleExplained(i)}
                   />
                 ) : null}
               </View>
