@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 import { ANSWER_BUTTON_CHOICES, type AnswerButtons } from '../core/answerButtons';
+import { THAI_TEXT_CHOICES, thaiTextStyle, type ThaiTextSize } from '../core/script';
 import type { Repo } from '../db/repo';
 import { CheckRow, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
 import { space, useTheme } from './theme';
@@ -25,8 +26,9 @@ export function Settings({ repo, backupText, readerOn, onAnki, onStats, onBackup
   const [buttons, setButtons] = useState<AnswerButtons>();
   const [swipe, setSwipe] = useState<boolean>();
   const [hints, setHints] = useState<boolean>();
+  const [thaiSize, setThaiSize] = useState<ThaiTextSize>();
 
-  useEffect(() => { repo.answerButtons().then(setButtons); repo.swipeToRate().then(setSwipe); repo.showCardHints().then(setHints); }, [repo]);
+  useEffect(() => { repo.answerButtons().then(setButtons); repo.swipeToRate().then(setSwipe); repo.showCardHints().then(setHints); repo.thaiTextSize().then(setThaiSize); }, [repo]);
 
   const choose = async (value: AnswerButtons) => {
     setButtons(value);
@@ -41,6 +43,11 @@ export function Settings({ repo, backupText, readerOn, onAnki, onStats, onBackup
   const chooseHints = async (on: boolean) => {
     setHints(on);
     await repo.saveShowCardHints(on);
+  };
+
+  const chooseThai = async (value: ThaiTextSize) => {
+    setThaiSize(value);
+    await repo.saveThaiTextSize(value);
   };
 
   return (
@@ -70,6 +77,23 @@ export function Settings({ repo, backupText, readerOn, onAnki, onStats, onBackup
           />
           <NavRow label="Voices" detail="The voices each language is recorded and read aloud with" onPress={onVoices} />
         </Group>
+        <SectionTitle>Thai text size</SectionTitle>
+        <Group accessibilityRole="radiogroup">
+          {THAI_TEXT_CHOICES.map((choice, i) => (
+            <CheckRow
+              key={choice.value}
+              first={i === 0}
+              label={choice.label}
+              selected={thaiSize === choice.value}
+              onPress={() => chooseThai(choice.value)}
+            />
+          ))}
+        </Group>
+        <Text style={{ ...thaiTextStyle(thaiSize ?? 'large'), color: c.text, paddingHorizontal: space.l }}>วันแรกผมหลงทาง</Text>
+        <Help>
+          How large Thai is on a card: a word's example sentence and any field with Thai in it. The word itself
+          on the front and back of a card keeps its own size.
+        </Help>
         <SectionTitle>Answer buttons</SectionTitle>
         <Group accessibilityRole="radiogroup">
           {ANSWER_BUTTON_CHOICES.map((choice, i) => (
