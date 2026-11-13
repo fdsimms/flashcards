@@ -47,7 +47,7 @@ export function japaneseNumber(n: number): Word {
  * digit with the counter, where it isn't the plain digit plus `plain` (四時 よじ); `tens` the reading
  * of a number ending in 0 (十分 じゅっぷん) where it differs.
  */
-function counted(n: number, counter: string, plain: string, units: Record<number, string> = {}, tens?: string): Word {
+export function counted(n: number, counter: string, plain: string, units: Record<number, string> = {}, tens?: string): Word {
   const [text] = japaneseNumber(n);
   const u = n % 10;
   const rest = n - u;

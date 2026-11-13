@@ -3,7 +3,7 @@ import { LANGUAGE_ORDER } from '../../src/reader/languages';
 import { CURRENCIES } from '../../src/tools/money';
 import { FIRST_YEAR, LAST_YEAR } from '../../src/tools/date';
 import { MAX_AGE, MAX_NUMBER, MIN_AGE, NUMBER_KINDS, randomQuestion } from '../../src/tools/number';
-import { CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS, TOOL_LANGUAGES, toolById, toolLanguage, TOOLS } from '../../src/tools/tools';
+import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS, TOOL_LANGUAGES, toolById, toolLanguage, TOOLS } from '../../src/tools/tools';
 
 describe('the Practice tools', () => {
   it('offers Telling the time in every app language but English, in the app order', () => {
@@ -39,6 +39,24 @@ describe('the Practice tools', () => {
       for (const kind of NUMBER_KINDS) {
         for (let i = 0; i < 50; i++) expect(NUMBER_SAYERS[l]!(randomQuestion(kind, l)).everyday.text).not.toBe('');
       }
+    }
+  });
+
+  it('offers Counting things where a number changes how a noun is said, Spanish and French aside', () => {
+    expect(toolById('counting')!.languages).toEqual(TOOL_LANGUAGES.filter((l) => l !== 'es' && l !== 'fr'));
+  });
+
+  it('can count every noun up to 100, with at least two wrong choices for Pick', () => {
+    for (const [l, counting] of Object.entries(COUNTING)) {
+      counting!.nouns.forEach((_, noun) => {
+        for (let n = 1; n <= 100; n++) {
+          const answer = counting!.say(noun, n).everyday;
+          const shown = (p: { text: string; roman?: string }) => (counting!.pickByReading && p.roman ? p.roman : p.text);
+          const wrong = new Set(counting!.wrong(noun, n).map(shown).filter((t) => t !== shown(answer)));
+          expect(answer.text, `${l} ${noun} ${n}`).not.toBe('');
+          expect(wrong.size, `${l} ${noun} ${n}`).toBeGreaterThanOrEqual(2);
+        }
+      });
     }
   });
 

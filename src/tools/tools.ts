@@ -5,26 +5,32 @@ import { sayFrenchDate } from './french/date';
 import { sayFrenchMoney } from './french/money';
 import { sayFrenchNumber } from './french/number';
 import { sayFrenchTime } from './french/time';
+import { GERMAN_COUNTING } from './german/counting';
 import { sayGermanDate } from './german/date';
 import { sayGermanMoney } from './german/money';
 import { sayGermanNumber } from './german/number';
 import { sayGermanTime } from './german/time';
+import { GREEK_COUNTING } from './greek/counting';
 import { sayGreekDate } from './greek/date';
 import { sayGreekMoney } from './greek/money';
 import { sayGreekNumber } from './greek/number';
 import { sayGreekTime } from './greek/time';
+import { JAPANESE_COUNTING } from './japanese/counting';
 import { sayJapaneseDate } from './japanese/date';
 import { sayJapaneseMoney } from './japanese/money';
 import { sayJapaneseNumber } from './japanese/number';
 import { sayJapaneseTime } from './japanese/time';
+import { NORWEGIAN_COUNTING } from './norwegian/counting';
 import { sayNorwegianDate } from './norwegian/date';
 import { sayNorwegianMoney } from './norwegian/money';
 import { sayNorwegianNumber } from './norwegian/number';
 import { sayNorwegianTime } from './norwegian/time';
+import { POLISH_COUNTING } from './polish/counting';
 import { sayPolishDate } from './polish/date';
 import { sayPolishMoney } from './polish/money';
 import { sayPolishNumber } from './polish/number';
 import { sayPolishTime } from './polish/time';
+import { RUSSIAN_COUNTING } from './russian/counting';
 import { sayRussianDate } from './russian/date';
 import { sayRussianMoney } from './russian/money';
 import { sayRussianNumber } from './russian/number';
@@ -33,11 +39,13 @@ import { saySpanishDate } from './spanish/date';
 import { saySpanishMoney } from './spanish/money';
 import { saySpanishNumber } from './spanish/number';
 import { saySpanishTime } from './spanish/time';
+import { THAI_COUNTING } from './thai/counting';
 import { sayThaiDate } from './thai/date';
 import { sayThaiMoney } from './thai/money';
 import { sayThaiNumber } from './thai/number';
 import { sayThaiTime } from './thai/time';
 import type { CalendarDate, DateParts, DateSaying } from './date';
+import type { CountingLanguage } from './counting';
 import type { CurrencyCode, MoneySaying } from './money';
 import type { NumberQuestion, NumberSaying } from './number';
 import type { ClockTime, TimeSaying } from './time';
@@ -54,7 +62,7 @@ import type { ClockTime, TimeSaying } from './time';
 /** The languages the tools come in: every app language but English, which the app is already in. */
 export const TOOL_LANGUAGES: Language[] = LANGUAGE_ORDER.filter((l) => l !== 'en');
 
-export type ToolId = 'time' | 'dates' | 'money' | 'numbers' | 'grammar';
+export type ToolId = 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'grammar';
 
 export interface ToolInfo {
   id: ToolId;
@@ -117,6 +125,20 @@ export const NUMBER_SAYERS: Partial<Record<Language, (q: NumberQuestion) => Numb
   ru: sayRussianNumber,
 };
 
+/**
+ * Each language Counting things can count in. Spanish and French are left out: their plurals are
+ * regular, and the one thing a number changes (veintiuna, vingt et une) is already in Numbers.
+ */
+export const COUNTING: Partial<Record<Language, CountingLanguage>> = {
+  th: THAI_COUNTING,
+  de: GERMAN_COUNTING,
+  el: GREEK_COUNTING,
+  ja: JAPANESE_COUNTING,
+  nb: NORWEGIAN_COUNTING,
+  pl: POLISH_COUNTING,
+  ru: RUSSIAN_COUNTING,
+};
+
 /** The money each language is practiced with: Mexican pesos for Spanish, as its voice is Mexican. */
 export const CURRENCY_OF: Partial<Record<Language, CurrencyCode>> = {
   th: 'THB', es: 'MXN', fr: 'EUR', de: 'EUR', el: 'EUR', pl: 'PLN', ru: 'RUB', nb: 'NOK', ja: 'JPY',
@@ -153,6 +175,12 @@ export const TOOLS: ToolInfo[] = [
     title: 'Numbers',
     summary: 'Phone numbers, years and ages, said or heard.',
     languages: withSayer(NUMBER_SAYERS),
+  },
+  {
+    id: 'counting',
+    title: 'Counting things',
+    summary: 'A number with a noun: counters, classifiers and endings.',
+    languages: withSayer(COUNTING),
   },
   {
     // Spaced drills on the grammar points set to Practice or Know it (docs/grammar.md, step 5).

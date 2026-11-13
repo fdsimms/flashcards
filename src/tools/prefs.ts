@@ -2,6 +2,7 @@ import type { Language } from '../reader/api';
 import { LANGUAGE_ORDER } from '../reader/languages';
 import { DATE_MODES, type DateMode } from './dateQuiz';
 import { MONEY_MAXES, type MoneyMax } from './money';
+import { COUNT_MAXES, COUNT_MODES, type CountMax, type CountMode } from './counting';
 import { ANSWER_MODES, type AnswerMode } from './listen';
 import { NUMBER_KINDS, type NumberKind } from './number';
 import { MINUTE_STEPS, type MinuteStep } from './time';
@@ -29,11 +30,14 @@ export interface ToolPrefs {
   /** Numbers: what kind of number is asked, and whether it's said aloud or heard and typed. */
   numberKind: NumberKind;
   numberMode: AnswerMode;
+  /** Counting things: said aloud or picked, and how high the number goes. */
+  countMode: CountMode;
+  countMax: CountMax;
 }
 
 export type MoneyMode = 'count' | 'price';
 
-export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, timeMode: 'say', dateWeekday: true, dateYear: false, dateMode: 'say', moneyMode: 'count', moneyMax: 1000, moneyAnswer: 'say', numberKind: 'number', numberMode: 'say' };
+export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, timeMode: 'say', dateWeekday: true, dateYear: false, dateMode: 'say', moneyMode: 'count', moneyMax: 1000, moneyAnswer: 'say', numberKind: 'number', numberMode: 'say', countMode: 'say', countMax: 10 };
 
 /** Anything unreadable or out of range falls back to the default for that setting. */
 export function parseToolPrefs(raw: string | null): ToolPrefs {
@@ -57,5 +61,7 @@ export function parseToolPrefs(raw: string | null): ToolPrefs {
     moneyAnswer: ANSWER_MODES.find((m) => m === saved.moneyAnswer) ?? DEFAULT_TOOL_PREFS.moneyAnswer,
     numberKind: NUMBER_KINDS.find((k) => k === saved.numberKind) ?? DEFAULT_TOOL_PREFS.numberKind,
     numberMode: ANSWER_MODES.find((m) => m === saved.numberMode) ?? DEFAULT_TOOL_PREFS.numberMode,
+    countMode: COUNT_MODES.find((m) => m === saved.countMode) ?? DEFAULT_TOOL_PREFS.countMode,
+    countMax: COUNT_MAXES.find((m) => m === saved.countMax) ?? DEFAULT_TOOL_PREFS.countMax,
   };
 }
