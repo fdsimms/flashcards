@@ -22,6 +22,7 @@ import { LineExplanation } from './ReaderExplain';
 import { PhraseExplanation, PhrasePickBanner, type PhraseMining } from './ReaderPhrase';
 import { ReadGrammarNote } from './ReadGrammarNote';
 import { Speaker, speakerSize } from './ReadSpeaker';
+import { useSpokenWords } from './useSpokenWords';
 import { Button, Card, Chip, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { lift, MIN_TAP, radius, space, type, useTheme } from './theme';
 
@@ -155,6 +156,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const [rate, setRate] = useState(prefs().rate);
   const [silentLine, setSilentLine] = useState<number | null>(null);
   const [repeat, setRepeat] = useState(false);
+  // The words being spoken in the line playing, lit as the voice reaches them (useSpokenWords.ts).
+  const playingWords = text && current !== null ? text.lines[current]?.words ?? null : null;
+  const spokenNow = useSpokenWords(player, playingWords, status.playing);
+  const spoken = new Set(playingWords ? spokenNow.map((i) => playingWords[i]) : []);
 
   // A story's paragraphs (`marked` is null for a dialogue, or a story written before paragraphs):
   // read as continuous text with no buttons of their own, while the Paragraphs switch is on.
@@ -650,6 +655,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                                 selected={tapped?.word === word}
                                 {...phraseLook(range.start + k, word, l.words)}
                                 playing={current === range.start + k}
+                                spoken={spoken.has(word)}
                                 onPress={tap}
                               />
                             ))}
@@ -707,6 +713,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                             named={markNames && isName(word)}
                             selected={tapped?.word === word}
                             {...phraseLook(i, word, line.words)}
+                            spoken={spoken.has(word)}
                             onPress={tap}
                           />
                         ))}
@@ -982,7 +989,7 @@ function PhraseOutline({ part }: { part: PhrasePart }) {
   );
 }
 
-function WordView({ word, grammar, textStyle, flagged, highlighted, named, selected, phrasePart = null, phraseStart = false, dimmed = false, playing = false, onPress }: {
+function WordView({ word, grammar, textStyle, flagged, highlighted, named, selected, phrasePart = null, phraseStart = false, dimmed = false, playing = false, spoken = false, onPress }: {
   word: Word;
   grammar: TextGrammar | null;
   textStyle: { fontSize: number; lineHeight: number; font: ReadFont };
@@ -999,6 +1006,8 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, named, selec
   dimmed?: boolean;
   /** In the line being played, in a story read as continuous text (a line row is shaded as a whole). */
   playing?: boolean;
+  /** Being spoken now, as the line plays (useSpokenWords). */
+  spoken?: boolean;
   onPress: (word: Word, x: number, y: number) => void;
 }) {
   const c = useTheme();
@@ -1030,7 +1039,7 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, named, selec
         // text show as gaps. The selection ring is an overlay inside the word's own box: a border
         // cancelled by a negative margin pushed each box past its slot and overlapped its neighbors.
         borderRadius: radius.s - 2, paddingVertical: 1.5, opacity: dimmed ? 0.35 : 1,
-        backgroundColor: ringed || phrasePart ? c.accentFill : highlighted ? c.highlight : named ? c.nameFill : playing ? c.fill : undefined,
+        backgroundColor: ringed || phrasePart ? c.accentFill : spoken ? c.spoken : highlighted ? c.highlight : named ? c.nameFill : playing ? c.fill : undefined,
         ...(phrasePart && !ringed ? phraseCorners(phrasePart) : null),
       }}
     >

@@ -494,11 +494,11 @@ class Engine:
         spoken, _ = parse_line(text.lines[line].text, LANGUAGES[text.language].spaced)
         voice = voice_for(text.lines[line].speaker, text.genders, self.voices_for(text.language))
         try:
-            mp3 = await self.synthesize(spoken, voice)
+            recorded = await self.synthesize(spoken, voice)
         except TtsFailed as e:
             log.warning("No audio for text %d line %d: %s", text.id, line, e)
             return None
-        self.audio.write(text.id, line, mp3)
+        self.audio.write(text.id, line, recorded)
         return self.audio.path(text.id, line)
 
     # ==== Top-up and readings ====

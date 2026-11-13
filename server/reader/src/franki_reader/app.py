@@ -112,7 +112,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from franki_speech import SpeechClient, SpeechError, locale_of
 from pydantic import BaseModel, Field
 
-from franki_reader import config, drills, exposure, grammar, store, vocab_check
+from franki_reader import config, drills, exposure, grammar, store, timing, vocab_check
 from franki_reader.collection import AnkiDeck, SyncSettings
 from franki_reader.coverage import parse_line
 from franki_reader.engine import Engine, NotAvailable, NotFound
@@ -1039,6 +1039,7 @@ def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
     speaks = engine.audio is not None and engine.synthesize is not None
     for i, line in enumerate(out["lines"]):
         line["audio"] = speaks or engine.has_audio(text.id, i)
+        timing.add_times(line["words"], engine.audio.marks(text.id, i) if engine.audio else None)
     topic = store.get_topic(engine.conn, text.topic_id, text.language, include_removed=True)
     story = store.get_story(engine.conn, text.story_id) if text.story_id else None
     # What the reader shows under the title, and whether More like this is already on.

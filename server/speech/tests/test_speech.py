@@ -11,9 +11,11 @@ from franki_speech import (
     THAI_PRONUNCIATIONS,
     SpeechClient,
     SpeechError,
+    WordMark,
     locale_of,
     ssml,
 )
+from franki_speech.sdk import SdkMissing, SdkResult
 
 VOICE = "th-TH-NiwatNeural"
 
@@ -132,3 +134,89 @@ def test_a_rate_limit_that_never_clears_gives_up_with_the_message() -> None:
     with pytest.raises(SpeechError, match="limiting requests"):
         run(httpx.MockTransport(lambda r: httpx.Response(429)))
     assert waits == [2.0, 4.0, 6.0]
+
+
+# `speak`: the Speech SDK's call, with word timings, falling back to REST where it can't be made.
+
+MARKS = [WordMark("สวัสดี", 50, 600), WordMark("ครับ", 600, 900)]
+
+
+def speak(
+    sdk: list[SdkResult | Exception],
+    rest: httpx.MockTransport | None = None,
+    endpoint: str | None = None,
+) -> tuple[tuple[bytes, list[WordMark] | None], list[str]]:
+    """Speaks a line with the SDK's answers taken in turn from `sdk`; returns what `speak` gave and
+    the SSML the SDK was sent."""
+    sent: list[str] = []
+
+    async def fake(key: str, region: str, body: str) -> SdkResult:
+        assert (key, region) == ("k", "eastus")
+        sent.append(body)
+        answer = sdk.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    rest = rest or httpx.MockTransport(lambda r: httpx.Response(200, content=b"ID3rest"))
+
+    async def go() -> tuple[bytes, list[WordMark] | None]:
+        async with httpx.AsyncClient(transport=rest) as http:
+            client = SpeechClient(
+                "k", "eastus", endpoint=endpoint, http=http, sleep=no_sleep, sdk_speak=fake
+            )
+            return await client.speak("สวัสดีครับ", VOICE)
+
+    return asyncio.run(go()), sent
+
+
+def test_speak_gives_the_sdks_audio_and_word_timings_for_the_same_ssml() -> None:
+    (audio, marks), sent = speak([SdkResult(audio=b"ID3sdk", marks=MARKS)])
+    assert audio == b"ID3sdk" and marks == MARKS
+    assert sent == [ssml("สวัสดีครับ", VOICE)]
+
+
+def test_speak_falls_back_to_rest_without_timings_when_the_sdk_wont_load() -> None:
+    (audio, marks), _ = speak([SdkMissing("libMicrosoft.CognitiveServices.Speech.core.so")])
+    assert (audio, marks) == (b"ID3rest", None)
+
+
+@pytest.mark.parametrize("code", ["ConnectionFailure", "ServiceTimeout", "ServiceUnavailable"])
+def test_speak_tries_rest_when_the_sdk_cant_get_through(code: str) -> None:
+    (audio, marks), _ = speak([SdkResult(error=code, details="WS_OPEN_ERROR")])
+    assert (audio, marks) == (b"ID3rest", None)
+
+
+def test_speak_uses_rest_for_a_custom_endpoint() -> None:
+    (audio, marks), sent = speak([], endpoint="https://custom.example")
+    assert (audio, marks, sent) == (b"ID3rest", None, [])
+
+
+@pytest.mark.parametrize(
+    ("code", "match"),
+    [
+        ("AuthenticationFailure", "refused the key"),
+        ("Forbidden", "refused the key"),
+        ("BadRequest", "Check the voice name"),
+        ("ServiceError", "ServiceError: it broke"),
+    ],
+)
+def test_an_sdk_refusal_reads_as_the_rest_one_does(code: str, match: str) -> None:
+    with pytest.raises(SpeechError, match=match):
+        speak([SdkResult(error=code, details="it broke")])
+
+
+def test_an_sdk_rate_limit_is_retried_then_gives_up_with_the_message() -> None:
+    waits.clear()
+    limited = SdkResult(error="TooManyRequests")
+    (audio, _), _ = speak([limited, SdkResult(audio=b"ID3sdk", marks=MARKS)])
+    assert audio == b"ID3sdk" and waits == [2.0]
+    waits.clear()
+    with pytest.raises(SpeechError, match="limiting requests"):
+        speak([limited] * 4)
+    assert waits == [2.0, 4.0, 6.0]
+
+
+def test_an_sdk_answer_with_no_audio_is_an_error() -> None:
+    with pytest.raises(SpeechError, match="no audio"):
+        speak([SdkResult(audio=b"")])

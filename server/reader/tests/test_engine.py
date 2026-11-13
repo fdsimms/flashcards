@@ -21,6 +21,7 @@ from franki_reader.engine import (
 from franki_reader.generator import GenerationFailed
 from franki_reader.lexicon import Entry
 from franki_reader.store import Reading, StoredText
+from franki_reader.tts import Spoken
 
 NOW = datetime(2026, 10, 19, 9, 0)
 
@@ -372,13 +373,13 @@ class FakeVoice:
         self.calls: list[tuple[str, str]] = []
         self.fail_on = fail_on
 
-    async def __call__(self, text: str, voice: str) -> bytes:
+    async def __call__(self, text: str, voice: str) -> Spoken:
         from franki_reader.tts import TtsFailed
 
         self.calls.append((text, voice))
         if text == self.fail_on:
             raise TtsFailed("Azure answered 500")
-        return f"mp3:{text}".encode()
+        return Spoken(f"mp3:{text}".encode())
 
 
 def speaking_engine(tmp_path: Path, voice: FakeVoice | None) -> Engine:
@@ -417,9 +418,9 @@ def test_a_text_is_not_ready_until_its_audio_is_made(tmp_path: Path) -> None:
     seen: list[str | None] = []
     e = speaking_engine(tmp_path, None)
 
-    async def voice(text: str, name: str) -> bytes:
+    async def voice(text: str, name: str) -> Spoken:
         seen.append(store.text_status(e.conn, 1))
-        return b"mp3"
+        return Spoken(b"mp3")
 
     e.synthesize = voice
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
@@ -478,7 +479,7 @@ def test_a_newer_voice_change_supersedes_a_running_rerecord(tmp_path: Path) -> N
     run(lambda: e.make_text(other.id))  # two texts waiting
     voice.calls.clear()
 
-    async def slow(text: str, name: str) -> bytes:
+    async def slow(text: str, name: str) -> Spoken:
         await asyncio.sleep(0)  # a real request yields
         return await voice(text, name)
 
