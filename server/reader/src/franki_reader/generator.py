@@ -276,10 +276,14 @@ time it appears, like ฉัน|ต้องการ|*น้ำ*.
 - Wrap a person's, pet's or place's name in tildes every time it appears, like ~มะลิ~|เป็น|สาว. \
 Names don't count against the known-word target, so mark only real names, never ordinary words, \
 and use at most 4 different names in a text.
+- Introduce every name where it first appears, so the learner never meets one out of nowhere: say \
+who it is the first time (เด็ก|ผู้ชาย|ชื่อ|~ต้น~, "a boy named Ton"), and use the name for that same \
+person afterward. Never call someone "the boy" and then switch to a name with nothing linking them.
 - Where a clause or sentence ends, put a space instead of |, as Thai is written: \
 สวัสดี|ครับ ไป|ไหน|มา|ครับ. The voice pauses at each space, so put one at every clause or sentence \
-break and nowhere else: never between words of the same clause, and never before a particle like \
-ครับ, ค่ะ or นะ.
+break and nowhere else: never between words of the same clause, never before a particle like \
+ครับ, ค่ะ or นะ, and never right after a connective that opens a clause (แล้ว, และ, แต่, หรือ, \
+เพราะ, ถ้า, ก็, จึง): write เขา|ดู|เด็ก แล้ว|เดิน|มา, not เขา|ดู|เด็ก แล้ว เดิน|มา.
 - Give "english", a natural English translation of each line.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
 is not in the list, and for each name ("a girl's name"). For each of those words also give "translit", its pronunciation in Latin letters \
@@ -339,6 +343,9 @@ word can be inflected.
 - Wrap a person's, pet's or place's name in tildes every time it appears, like ~Kasia~|mieszka. \
 Names don't count against the known-word target, so mark only real names, never ordinary words, \
 and use at most 4 different names in a text.
+- Introduce every name where it first appears, so the learner never meets one out of nowhere: say \
+who it is the first time (a girl named Kasia, a dog called Burek), and use the name for that same \
+person afterward. Never call someone "the boy" and then switch to a name with nothing linking them.
 - Give "english", a natural English translation of each line.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
 is neither an allowed common word nor on the list. Also gloss any word whose form matches a listed \

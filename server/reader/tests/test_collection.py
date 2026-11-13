@@ -264,9 +264,13 @@ def test_due_counts_reviews_and_learning_as_ankis_deck_list_does(
     desktop.add(SPANISH, "el blindaje", "armor plating", ivl=30, due=True)
     desktop.learning(SPANISH, "la mesa", due_in=-60)
     desktop.learning(SPANISH, "la silla", due_in=0, interday=True)
-    # Later in this study day: three hours on, or halfway to the rollover when that is nearer
-    # (a fixed three hours falls in the next study day when the test runs just before it).
-    later = min(3 * 3600, (desktop.col.sched.day_cutoff - int(time.time())) // 2)
+    # Later today means after the learn-ahead limit and before the study day ends, so place these
+    # halfway: a fixed 3 hours falls past the cutoff when the test runs in the day's last hours.
+    learn_ahead = 20 * 60
+    room = int(desktop.col.sched.day_cutoff - time.time()) - learn_ahead
+    if room < 2 * 60:
+        pytest.skip("too close to the end of the study day to place a later learning card")
+    later = learn_ahead + room // 2
     desktop.learning(SPANISH, "el vaso", due_in=later)
     desktop.learning(SPANISH, "la taza", due_in=later)
     desktop.add(THAI, "ใหม่", "new")  # new cards aren't counted

@@ -2,7 +2,7 @@ import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Keyboard, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type Form, type Language, type Shelf, type ShelfText } from '../reader/api';
-import { LANGUAGES } from '../reader/languages';
+import { LANGUAGES, flaggedName } from '../reader/languages';
 import { cardDetail, playMinutes, playOrder, reasonLabel, surprisePick } from '../reader/shelf';
 import { haptic } from './haptics';
 import { Button, Card, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
@@ -164,10 +164,12 @@ export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, o
   return (
     <Screen
       title={name}
+      largeTitle={false}
       toolbar={(
         <>
           <Stack.Toolbar placement="left">
-            <Stack.Toolbar.Menu icon="globe" accessibilityLabel={`Language: ${name}. Change the language`}>
+            <Stack.Toolbar.Menu {...(language ? {} : { icon: 'globe' as const })} accessibilityLabel={`Language: ${name}. Change the language`}>
+              {language ? <Stack.Toolbar.Label>{LANGUAGES[language].flag}</Stack.Toolbar.Label> : null}
               {(shelf?.languages ?? []).map((l) => (
                 <Stack.Toolbar.MenuAction
                   key={l.code}
@@ -175,7 +177,7 @@ export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, o
                   subtitle={l.ready > 0 ? `${l.ready} ready` : undefined}
                   onPress={() => changeLanguage(l.code)}
                 >
-                  {l.name}
+                  {flaggedName(l.code)}
                 </Stack.Toolbar.MenuAction>
               ))}
             </Stack.Toolbar.Menu>

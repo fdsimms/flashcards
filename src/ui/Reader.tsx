@@ -153,6 +153,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const status = useAudioPlayerStatus(player);
   const [current, setCurrent] = useState<number | null>(null);
   const [playingAll, setPlayingAll] = useState(false);
+  // The line to shade: the one sounding now. `current` stays set after a pause or the end of a line
+  // (Play and the "Line n of m" label need it), so shading it would leave a stopped line lit. Between
+  // two lines of Play all the player is briefly not playing, so that gap keeps the shade too.
+  const shaded = status.playing || status.isBuffering || (playingAll && status.didJustFinish) ? current : null;
   const [rate, setRate] = useState(prefs().rate);
   const [silentLine, setSilentLine] = useState<number | null>(null);
   const [repeat, setRepeat] = useState(false);
@@ -565,7 +569,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={100}
         >
-          <View style={{ paddingHorizontal: space.l, gap: space.l }}>
+          <View style={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.l }}>
             <View style={{ gap: space.xs }}>
               <Text style={{ ...type.title, color: c.text }}>{text.title}</Text>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>
@@ -650,7 +654,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                                 named={markNames && isName(word)}
                                 selected={tapped?.word === word}
                                 {...phraseLook(range.start + k, word, l.words)}
-                                playing={current === range.start + k}
+                                playing={shaded === range.start + k}
                                 onPress={tap}
                               />
                             ))}
@@ -677,7 +681,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
               style={{
                 flexDirection: 'row', gap: space.m, paddingHorizontal: space.l, paddingVertical: space.m,
                 borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border,
-                backgroundColor: current === i ? c.surface : undefined,
+                backgroundColor: shaded === i ? c.surface : undefined,
               }}
             >
               {line.speaker === 'N' ? null : (
@@ -1009,9 +1013,13 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, named, selec
     const piece = word.text.trim()
       ? <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: c.text }}>{word.text}</Text>
       : <View style={{ width: textStyle.fontSize * 0.3 }} />;
-    if (!phrasePart && !dimmed) return piece;
+    if (!phrasePart && !dimmed && !playing) return piece;
     return (
-      <View style={[{ opacity: dimmed ? 0.35 : 1 }, phrasePart ? { backgroundColor: c.accentFill, height: textStyle.lineHeight + 4.5, justifyContent: 'center' } : null]}>
+      <View style={[
+        { opacity: dimmed ? 0.35 : 1 },
+        phrasePart ? { backgroundColor: c.accentFill, height: textStyle.lineHeight + 4.5, justifyContent: 'center' }
+          : playing ? { backgroundColor: c.fill, height: textStyle.lineHeight + 4.5, justifyContent: 'center' } : null,
+      ]}>
         {piece}
         {phrasePart ? <PhraseOutline part={phrasePart} /> : null}
       </View>
@@ -1029,7 +1037,8 @@ function WordView({ word, grammar, textStyle, flagged, highlighted, named, selec
         // Thai has no spaces between words, so tappable words sit flush and only real spaces in the
         // text show as gaps. The selection ring is an overlay inside the word's own box: a border
         // cancelled by a negative margin pushed each box past its slot and overlapped its neighbors.
-        borderRadius: radius.s - 2, paddingVertical: 1.5, opacity: dimmed ? 0.35 : 1,
+        // A playing line is one band, so its words are square and flush; a phrase or a highlight inside it keeps its own corners.
+        borderRadius: playing && !phrasePart && !ringed && !highlighted && !named ? 0 : radius.s - 2, paddingVertical: 1.5, opacity: dimmed ? 0.35 : 1,
         backgroundColor: ringed || phrasePart ? c.accentFill : highlighted ? c.highlight : named ? c.nameFill : playing ? c.fill : undefined,
         ...(phrasePart && !ringed ? phraseCorners(phrasePart) : null),
       }}
