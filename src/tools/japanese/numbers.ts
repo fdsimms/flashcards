@@ -68,6 +68,9 @@ export const enWord = (n: number): Word => counted(n, '円', 'えん', { 4: 'よ
 /** A year: 四年 よねん, 二千二十四年 にせんにじゅうよねん. */
 export const nenWord = (y: number): Word => counted(y, '年', 'ねん', { 4: 'よねん' });
 
+/** An age: 一歳 いっさい, 八歳 はっさい, 十歳 じゅっさい; 二十歳 is はたち (`japaneseAge`). */
+export const saiWord = (n: number): Word => counted(n, '歳', 'さい', { 1: 'いっさい', 8: 'はっさい' }, 'じゅっさい');
+
 /** A month, 1 to 12: 四月 しがつ, 七月 しちがつ, 九月 くがつ. */
 export const gatsuWord = (m: number): Word => counted(m, '月', 'がつ', { 4: 'しがつ', 7: 'しちがつ', 9: 'くがつ' });
 

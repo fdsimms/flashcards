@@ -1,6 +1,7 @@
 import type { Language } from '../reader/api';
 import type { CalendarDate, DateParts } from './date';
 import type { Currency } from './money';
+import type { NumberQuestion } from './number';
 import { thaiHourBand } from './patterns';
 import type { ClockTime } from './time';
 
@@ -284,6 +285,73 @@ export function dateRule(language: Language, d: CalendarDate, parts: DateParts):
       : undefined;
     case 'th':
     case 'nb':
+      return undefined;
+  }
+}
+
+// Numbers.
+
+/** 70 to 99 in French, whether as a number or inside a phone number's pair. */
+const FRENCH_SEVENTIES_UP = /soixante(-| et )(dix|onze|douze|treize|quatorze|quinze|seize)|quatre-vingt/;
+
+function frenchNumberRule(q: NumberQuestion, said: string): string | undefined {
+  return line([
+    q.kind === 'phone' && 'A phone number is read in pairs: 06 is zéro six, 42 quarante-deux.',
+    FRENCH_SEVENTIES_UP.test(said) && '70 to 79 are soixante and 10 to 19 (soixante-douze is 72); 80 is quatre-vingts, and 90 to 99 are quatre-vingt and 10 to 19 (quatre-vingt-treize is 93).',
+  ]);
+}
+
+function germanNumberRule(q: NumberQuestion): string | undefined {
+  if (q.kind === 'phone') return undefined;
+  const lastTwo = q.n % 100;
+  return lastTwo > 20 && lastTwo % 10 ? 'The ones come before the tens, joined by und: siebenundachtzig is 87.' : undefined;
+}
+
+function polishNumberRule(q: NumberQuestion): string | undefined {
+  if (q.kind === 'phone') return 'A phone number is read in its threes: 512 is pięćset dwanaście.';
+  if (q.kind === 'age') return "After 2, 3 and 4 it's lata, but not after 12 to 14; after the rest it's lat: dwadzieścia dwa lata, dwanaście lat, dwadzieścia pięć lat.";
+  if (q.kind === 'year' && q.n % 100) return 'In a year only the tens and ones are ordinals: tysiąc dziewięćset osiemdziesiąty siódmy. After w they end in -ym: w tysiąc dziewięćset osiemdziesiątym siódmym roku.';
+  return undefined;
+}
+
+function russianNumberRule(q: NumberQuestion): string | undefined {
+  if (q.kind === 'phone') return 'A phone number is read in its groups: 912 is девятьсот двенадцать, 67 шестьдесят семь.';
+  if (q.kind === 'age') return '1, 21, 31 take год; 2 to 4 take года; the rest take лет, 11 to 14 included: двадцать один год, двадцать два года, двадцать пять лет.';
+  if (q.kind === 'year' && q.n % 100) return 'In a year only the last word is an ordinal: тысяча девятьсот восемьдесят седьмой. After в it ends in -ом: в тысяча девятьсот восемьдесят седьмом году.';
+  return undefined;
+}
+
+function japaneseNumberRule(q: NumberQuestion): string | undefined {
+  if (q.kind === 'phone') return 'A phone number is read digit by digit, 0 as ゼロ, and each dash as の.';
+  if (q.kind === 'age') {
+    if (q.n === 20) return 'Twenty years old is はたち.';
+    if (q.n % 10 === 1 || q.n % 10 === 8 || q.n % 10 === 0) return '歳 changes the sound of 1, 8 and 10: いっさい, はっさい, じゅっさい.';
+    return undefined;
+  }
+  return q.kind === 'number' && q.n >= 10_000 ? 'Japanese counts in 万, ten thousands: 12,345 is 一万二千三百四十五, いちまんにせんさんびゃくよんじゅうご.' : undefined;
+}
+
+function greekNumberRule(q: NumberQuestion): string | undefined {
+  if (q.kind !== 'age') return undefined;
+  const last = q.n % 10;
+  return (last === 1 || last === 3 || last === 4) && q.n !== 11
+    ? 'An age is in the genitive: ένα, τρία and τέσσερα become ενός, τριών, τεσσάρων. The other numbers stay as they are: είμαι τριάντα τεσσάρων χρονών.'
+    : undefined;
+}
+
+/** The rule for saying `q` in `language`, if it has a short, certain one. `said` is the answer's usual form. */
+export function numberRule(language: Language, q: NumberQuestion, said: string): string | undefined {
+  switch (language) {
+    case 'fr': return frenchNumberRule(q, said);
+    case 'es': return q.kind === 'phone' ? 'A phone number is read in pairs: 55 is cincuenta y cinco, 05 cero cinco.' : undefined;
+    case 'de': return germanNumberRule(q);
+    case 'pl': return polishNumberRule(q);
+    case 'ru': return russianNumberRule(q);
+    case 'ja': return japaneseNumberRule(q);
+    case 'el': return greekNumberRule(q);
+    case 'th': return q.kind === 'year' ? 'Thai counts years from the Buddha, 543 more than the Christian year: พ.ศ. 2530 is 1987.' : undefined;
+    case 'nb':
+    case 'en':
       return undefined;
   }
 }

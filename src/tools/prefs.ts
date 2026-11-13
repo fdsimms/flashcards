@@ -2,6 +2,7 @@ import type { Language } from '../reader/api';
 import { LANGUAGE_ORDER } from '../reader/languages';
 import { DATE_MODES, type DateMode } from './dateQuiz';
 import { MONEY_MAXES, type MoneyMax } from './money';
+import { NUMBER_KINDS, NUMBER_MODES, type NumberKind, type NumberMode } from './number';
 import { MINUTE_STEPS, type MinuteStep } from './time';
 
 /**
@@ -21,11 +22,14 @@ export interface ToolPrefs {
   /** Counting money: notes and coins to count, or a price to read; and how big an amount gets. */
   moneyMode: MoneyMode;
   moneyMax: MoneyMax;
+  /** Numbers: what kind of number is asked, and whether it's said aloud or heard and typed. */
+  numberKind: NumberKind;
+  numberMode: NumberMode;
 }
 
 export type MoneyMode = 'count' | 'price';
 
-export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, dateWeekday: true, dateYear: false, dateMode: 'say', moneyMode: 'count', moneyMax: 1000 };
+export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, dateWeekday: true, dateYear: false, dateMode: 'say', moneyMode: 'count', moneyMax: 1000, numberKind: 'number', numberMode: 'say' };
 
 /** Anything unreadable or out of range falls back to the default for that setting. */
 export function parseToolPrefs(raw: string | null): ToolPrefs {
@@ -45,5 +49,7 @@ export function parseToolPrefs(raw: string | null): ToolPrefs {
     dateMode: DATE_MODES.find((m) => m === saved.dateMode) ?? DEFAULT_TOOL_PREFS.dateMode,
     moneyMode: saved.moneyMode === 'count' || saved.moneyMode === 'price' ? saved.moneyMode : DEFAULT_TOOL_PREFS.moneyMode,
     moneyMax: MONEY_MAXES.find((m) => m === saved.moneyMax) ?? DEFAULT_TOOL_PREFS.moneyMax,
+    numberKind: NUMBER_KINDS.find((k) => k === saved.numberKind) ?? DEFAULT_TOOL_PREFS.numberKind,
+    numberMode: NUMBER_MODES.find((m) => m === saved.numberMode) ?? DEFAULT_TOOL_PREFS.numberMode,
   };
 }

@@ -1,6 +1,7 @@
 import type { Language } from '../reader/api';
 import { weekdayOf, type CalendarDate, type DateParts } from './date';
 import type { Currency } from './money';
+import type { NumberQuestion } from './number';
 import type { ClockTime } from './time';
 
 /**
@@ -65,4 +66,21 @@ export function datePatterns(d: CalendarDate, parts: DateParts): string[] {
   if (parts.weekday) patterns.push(`weekday:${weekdayOf(d)}`);
   if (parts.year) patterns.push(`decade:${Math.floor(d.year / 10) * 10}`);
   return patterns;
+}
+
+/**
+ * A Numbers question: for a plain number, how many digits it has and how it ends; for a year, its
+ * decade and how it ends (the part said as an ordinal in Polish and Russian); for an age, its tens
+ * and how it ends (the noun's form in Polish and Russian, the counter's sound in Japanese). A
+ * phone number gives none: every one is made the same way, so there's nothing to lean toward.
+ * Each is kept apart by kind, since a Polish age ending in 2 to 4 is a different matter from a
+ * year ending so.
+ */
+export function numberPatterns(q: NumberQuestion): string[] {
+  switch (q.kind) {
+    case 'number': return [`number:digits:${String(q.n).length}`, `number:ends:${endingOf(q.n)}`];
+    case 'year': return [`year:decade:${Math.floor(q.n / 10) * 10}`, `year:ends:${endingOf(q.n)}`];
+    case 'age': return [`age:tens:${Math.floor(q.n / 10)}`, `age:ends:${endingOf(q.n)}`];
+    case 'phone': return [];
+  }
 }

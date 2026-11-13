@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CURRENCIES } from '../../src/tools/money';
-import { datePatterns, moneyPatterns, timePatterns } from '../../src/tools/patterns';
+import { datePatterns, moneyPatterns, numberPatterns, timePatterns } from '../../src/tools/patterns';
 
 describe('a time’s patterns', () => {
   it('gives Thai’s part of the day, so a miss at 19:55 leans toward every thûm hour', () => {
@@ -48,5 +48,21 @@ describe('a date’s patterns', () => {
 
   it('adds the weekday and the decade only when they’re said', () => {
     expect(datePatterns(d, { weekday: true, year: true })).toEqual(['month:11', 'day-tens:2', 'day-ones:3', 'weekday:1', 'decade:2020']);
+  });
+});
+
+describe('a number’s patterns', () => {
+  it('gives a plain number’s size and how it ends', () => {
+    expect(numberPatterns({ kind: 'number', n: 7 })).toEqual(['number:digits:1', 'number:ends:5-9']);
+    expect(numberPatterns({ kind: 'number', n: 482_312 })).toEqual(['number:digits:6', 'number:ends:teen']);
+  });
+
+  it('keeps each kind apart, so a Polish age ending in 2 to 4 leans only toward ages', () => {
+    expect(numberPatterns({ kind: 'age', n: 34 })).toEqual(['age:tens:3', 'age:ends:2-4']);
+    expect(numberPatterns({ kind: 'year', n: 1987 })).toEqual(['year:decade:1980', 'year:ends:5-9']);
+  });
+
+  it('gives a phone number none, since every one is made the same way', () => {
+    expect(numberPatterns({ kind: 'phone', written: '06 42 17 85 93' })).toEqual([]);
   });
 });

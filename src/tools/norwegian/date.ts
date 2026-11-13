@@ -26,7 +26,7 @@ export function norwegianYear(year: number): string {
 }
 
 /** The shorter year heard in speech, two numbers run together, when there is one: nittenfemti, tjuetjueseks. */
-function shortYear(year: number): string | undefined {
+export function shortYear(year: number): string | undefined {
   const rest = year % 100;
   if (year >= 1100 && year < 2000 && rest >= 10) return `${norwegianNumber(Math.floor(year / 100))}${norwegianNumber(rest)}`;
   if (year >= 2010 && year < 2100) return `tjue${norwegianNumber(rest)}`;

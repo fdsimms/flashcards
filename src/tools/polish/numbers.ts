@@ -113,18 +113,34 @@ export function dayOrdinalGenitive(day: number): string {
   return ordinalBelowHundred(day).map(genitive).join(' ');
 }
 
+/** The cases a year's ordinal is said in: on its own, before roku (genitive), after w (locative). */
+export type YearCase = 'nominative' | 'genitive' | 'locative';
+
+/** -y/-i to -ym/-im: pierwszy pierwszym, drugi drugim. */
+const locative = (ordinal: string) => `${ordinal}m`;
+const inflect = (ordinal: string, c: YearCase) => (c === 'nominative' ? ordinal : c === 'genitive' ? genitive(ordinal) : locative(ordinal));
+const ORD_HUNDREDS = ORD_HUNDREDS_GEN.map((g) => (g ? `${g.slice(0, -'ego'.length)}y` : ''));
+
 /**
- * A year (1 to 9999) as a genitive ordinal, as before roku: the thousands and hundreds stay
- * cardinal, the tens and units are ordinals. 2026 dwa tysiące dwudziestego szóstego, 1950 tysiąc
- * dziewięćset pięćdziesiątego, 2000 dwutysięcznego.
+ * A year (1 to 9999) as a masculine ordinal (rok is understood) in `c`: the thousands and hundreds
+ * stay cardinal, the tens and units are ordinals. 1987 tysiąc dziewięćset osiemdziesiąty siódmy,
+ * before roku osiemdziesiątego siódmego, after w osiemdziesiątym siódmym; 2000 dwutysięczny.
  */
-export function yearOrdinalGenitive(year: number): string {
+export function yearOrdinal(year: number, c: YearCase): string {
   if (!Number.isInteger(year) || year < 1 || year > 9999) throw new RangeError(`Not a year from 1 to 9999: ${year}`);
   const rest = year % 100;
   const head = year - rest;
-  if (rest) return [head ? polishCardinal(head) : '', ...ordinalBelowHundred(rest).map(genitive)].filter(Boolean).join(' ');
+  if (rest) return [head ? polishCardinal(head) : '', ...ordinalBelowHundred(rest).map((o) => inflect(o, c))].filter(Boolean).join(' ');
   const hundreds = (year % 1000) / 100;
   const thousands = Math.floor(year / 1000);
-  if (hundreds) return [thousands ? polishCardinal(thousands * 1000) : '', ORD_HUNDREDS_GEN[hundreds]].filter(Boolean).join(' ');
-  return `${['', '', 'dwu', 'trzy', 'cztero', 'pięcio', 'sześcio', 'siedmio', 'ośmio', 'dziewięcio'][thousands]}tysięcznego`;
+  if (hundreds) return [thousands ? polishCardinal(thousands * 1000) : '', inflect(ORD_HUNDREDS[hundreds], c)].filter(Boolean).join(' ');
+  return inflect(`${['', '', 'dwu', 'trzy', 'cztero', 'pięcio', 'sześcio', 'siedmio', 'ośmio', 'dziewięcio'][thousands]}tysięczny`, c);
+}
+
+/**
+ * A year as a genitive ordinal, as before roku: 2026 dwa tysiące dwudziestego szóstego, 1950
+ * tysiąc dziewięćset pięćdziesiątego, 2000 dwutysięcznego.
+ */
+export function yearOrdinalGenitive(year: number): string {
+  return yearOrdinal(year, 'genitive');
 }

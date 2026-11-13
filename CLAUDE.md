@@ -159,7 +159,7 @@ src/reader   Read & Listen's side of the app: its server's API, the reading sess
              tested; storage.ts keeps the passphrase in the Keychain)
 src/wanikani WaniKani as a deck: its API, the study session (undo holds the latest answer), answer
              checking, kana input, production notes (pure, tested; storage.ts keeps the token in the Keychain)
-src/tools    the Practice tab's tools (time, dates, money, grammar): the list (tools.ts), each tool's logic, and each
+src/tools    the Practice tab's tools (time, dates, money, numbers, grammar): the list (tools.ts), each tool's logic, and each
              language's under its own folder (thai/, spanish/...); pure, tested, except storage.ts. A tool
              comes in every app language unless it doesn't apply, and never schedules or writes a card
              (tests/tools/noGrading.test.ts). It may check an answer, or take Missed it / Got it, and keep only a

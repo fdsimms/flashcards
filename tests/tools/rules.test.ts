@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { CURRENCIES } from '../../src/tools/money';
 import type { Phrase } from '../../src/tools/phrase';
-import { dateRule, moneyRule, timeRule } from '../../src/tools/rules';
-import { DATE_SAYERS, MONEY_SAYERS, TIME_SAYERS } from '../../src/tools/tools';
+import { dateRule, moneyRule, numberRule, timeRule } from '../../src/tools/rules';
+import { DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS } from '../../src/tools/tools';
+import type { NumberQuestion } from '../../src/tools/number';
 import type { Language } from '../../src/reader/api';
 
 /**
@@ -369,5 +370,50 @@ describe('which date rule a date gets', () => {
     for (const d of [1, 3, 4, 13, 14, 21, 31]) expect(rule.date('el', 11, d)).toMatch(/^The first is πρώτη/);
     for (const d of [2, 11, 12, 25]) expect(rule.date('el', 11, d)).toBeUndefined();
     expect(rule.date('th', 11, 1)).toBeUndefined();
+  });
+});
+
+describe('the number rules', () => {
+  const said = (language: Language, q: NumberQuestion) => NUMBER_SAYERS[language]!(q).everyday.text;
+  const age = (n: number): NumberQuestion => ({ kind: 'age', n });
+  const year = (n: number): NumberQuestion => ({ kind: 'year', n });
+  const num = (n: number): NumberQuestion => ({ kind: 'number', n });
+  const ruleFor = (language: Language, q: NumberQuestion) => numberRule(language, q, said(language, q));
+
+  it('give examples each language says', () => {
+    expect(said('fr', { kind: 'phone', written: '06 42 00 00 00' }).startsWith('zéro six, quarante-deux')).toBe(true);
+    expect([72, 80, 93].map((n) => said('fr', num(n)))).toEqual(['soixante-douze', 'quatre-vingts', 'quatre-vingt-treize']);
+    expect(said('es', { kind: 'phone', written: '55 0500 0000' }).startsWith('cincuenta y cinco, cero cinco')).toBe(true);
+    expect(said('de', num(87))).toBe('siebenundachtzig');
+    expect(said('pl', { kind: 'phone', written: '512 000 000' }).startsWith('pięćset dwanaście')).toBe(true);
+    expect([22, 12, 25].map((n) => said('pl', age(n)))).toEqual(['mam dwadzieścia dwa lata', 'mam dwanaście lat', 'mam dwadzieścia pięć lat']);
+    expect(said('pl', year(1987))).toBe('tysiąc dziewięćset osiemdziesiąty siódmy');
+    expect(NUMBER_SAYERS.pl!(year(1987)).also[0].text).toBe('w tysiąc dziewięćset osiemdziesiątym siódmym roku');
+    expect(said('ru', { kind: 'phone', written: '8 912 345-67-00' })).toContain('девятьсот двенадцать, триста сорок пять, шестьдесят семь');
+    expect([21, 22, 25].map((n) => said('ru', age(n)))).toEqual(['мне двадцать один год', 'мне двадцать два года', 'мне двадцать пять лет']);
+    expect(said('ru', year(1987))).toBe('тысяча девятьсот восемьдесят седьмой');
+    expect(NUMBER_SAYERS.ru!(year(1987)).also[0].text).toBe('в тысяча девятьсот восемьдесят седьмом году');
+    expect([1, 8, 10].map((n) => NUMBER_SAYERS.ja!(age(n)).everyday.roman)).toEqual(['いっさいです', 'はっさいです', 'じゅっさいです']);
+    expect(NUMBER_SAYERS.ja!(age(20)).everyday.roman).toBe('はたちです');
+    expect(NUMBER_SAYERS.ja!(num(12_345)).everyday).toEqual({ text: '一万二千三百四十五', roman: 'いちまんにせんさんびゃくよんじゅうご' });
+    expect(said('el', age(34))).toBe('είμαι τριάντα τεσσάρων χρονών');
+    expect(said('th', year(1987))).toBe('พ.ศ. สองพันห้าร้อยสามสิบ');
+  });
+
+  it('come up only where they apply', () => {
+    expect(ruleFor('fr', num(1987))).toContain('quatre-vingts');
+    expect(ruleFor('fr', num(1965))).toBeUndefined();
+    expect(ruleFor('fr', { kind: 'phone', written: '06 42 17 85 93' })).toContain('in pairs');
+    expect(ruleFor('de', num(87))).toBeDefined();
+    expect(ruleFor('de', num(80))).toBeUndefined();
+    expect(ruleFor('de', num(1915))).toBeUndefined();
+    expect(ruleFor('pl', year(2000))).toBeUndefined();
+    expect(ruleFor('ru', num(500))).toBeUndefined();
+    expect(ruleFor('ja', age(34))).toBeUndefined();
+    expect(ruleFor('ja', age(18))).toContain('はっさい');
+    expect(ruleFor('el', age(11))).toBeUndefined();
+    expect(ruleFor('el', age(25))).toBeUndefined();
+    expect(ruleFor('el', age(23))).toBeDefined();
+    expect(ruleFor('nb', age(23))).toBeUndefined();
   });
 });

@@ -125,3 +125,32 @@ export function yearOrdinalGenitive(year: number): string {
   // A whole thousand: one word, from the genitive of the count (двух-, трёх-), 1000 тысячного.
   return `${thousands === 1 ? '' : UNITS_GEN[thousands]}тысячного`;
 }
+
+// Ordinals, masculine nominative, for a year said on its own (год is understood).
+const ORD_UNITS_MASC = ['', 'первый', 'второй', 'третий', 'четвёртый', 'пятый', 'шестой', 'седьмой', 'восьмой', 'девятый'];
+const ORD_TEENS_MASC = ['десятый', 'одиннадцатый', 'двенадцатый', 'тринадцатый', 'четырнадцатый', 'пятнадцатый', 'шестнадцатый', 'семнадцатый', 'восемнадцатый', 'девятнадцатый'];
+const ORD_TENS_MASC = ['', '', 'двадцатый', 'тридцатый', 'сороковой', 'пятидесятый', 'шестидесятый', 'семидесятый', 'восьмидесятый', 'девяностый'];
+const ORD_HUNDREDS_MASC = ['', 'сотый', 'двухсотый', 'трёхсотый', 'четырёхсотый', 'пятисотый', 'шестисотый', 'семисотый', 'восьмисотый', 'девятисотый'];
+
+/** The cases a year's ordinal is said in here: on its own (nominative), or after в (prepositional). */
+export type YearCase = 'nominative' | 'prepositional';
+
+/** -ый/-ой/-ий to -ом, третий to третьем: в первом, во втором, в третьем. */
+const prepositional = (ordinal: string) => (ordinal.endsWith('третий') ? `${ordinal.slice(0, -2)}ьем` : ordinal.replace(/(ый|ой)$/, 'ом'));
+
+/**
+ * A year (1 to 9999) as a masculine ordinal in `c`: only the last word is an ordinal, the rest
+ * cardinal. 1987 тысяча девятьсот восемьдесят седьмой, after в восемьдесят седьмом (году);
+ * 2000 двухтысячный, 1900 тысяча девятисотый.
+ */
+export function yearOrdinal(year: number, c: YearCase): string {
+  if (!Number.isInteger(year) || year < 1 || year > 9999) throw new RangeError(`Not a year from 1 to 9999: ${year}`);
+  const inflect = (o: string) => (c === 'nominative' ? o : prepositional(o));
+  const rest = year % 100;
+  const head = year - rest;
+  if (rest) return [head ? russianCardinal(head) : '', inflect(ordinalBelowHundred(rest, ORD_UNITS_MASC, ORD_TEENS_MASC, ORD_TENS_MASC))].filter(Boolean).join(' ');
+  const hundreds = (year % 1000) / 100;
+  const thousands = Math.floor(year / 1000);
+  if (hundreds) return [thousands ? russianCardinal(thousands * 1000) : '', inflect(ORD_HUNDREDS_MASC[hundreds])].filter(Boolean).join(' ');
+  return inflect(`${thousands === 1 ? '' : UNITS_GEN[thousands]}тысячный`);
+}
