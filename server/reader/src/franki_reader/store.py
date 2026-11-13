@@ -1344,6 +1344,14 @@ def vocab_items(conn: sqlite3.Connection, language: Code) -> list[tuple[str, int
     ]
 
 
+def vocab_asked(conn: sqlite3.Connection, language: Code) -> int:
+    """How many words Claude has been asked to gloss for a language, passed or not."""
+    row = conn.execute(
+        "SELECT SUM(asked) FROM vocab_batches WHERE language = ?", (language,)
+    ).fetchone()
+    return int(row[0] or 0)
+
+
 def vocab_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
     """Each language with vocabulary check words written since `since`: batches and their cost."""
     return {

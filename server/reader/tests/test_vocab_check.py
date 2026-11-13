@@ -21,6 +21,7 @@ from franki_reader.vocab_check import (
     MIN_PER_BAND,
     PER_BAND,
     VocabFailed,
+    VocabItem,
     band_of,
     check,
     is_giveaway,
@@ -142,6 +143,7 @@ def vocab_client(writer: Writer | None, deck: list[Entry] | None = None) -> Test
     engine = Engine(conn, None, None, lambda: now[0], random.Random(1))
     c = started(create_app(engine, "open sesame", write_vocab=writer))
     c.now = now  # type: ignore[attr-defined]
+    c.conn = conn  # type: ignore[attr-defined]
     return c
 
 
@@ -246,6 +248,22 @@ def test_giveaways_in_a_stored_bank_are_left_out_when_served() -> None:
     get(c)
     words = [i["word"] for i in get(c).json()["items"]]
     assert bank[0]["word"] not in words and bank[1]["word"] not in words
+
+
+def test_a_bank_written_with_fewer_words_is_topped_up_with_the_rest() -> None:
+    old = [
+        VocabItem(w["word"], r, "to see", ("to sleep", "to buy", "house"))
+        for (r, _), w in zip(sample("pl"), whole_bank(), strict=False)
+    ]
+    stored = [i for i in old if i.lemma in {w for _, w in sample("pl")}]
+    writer = Writer(whole_bank())
+    c = vocab_client(writer)
+    store.save_vocab_batch(c.conn, "pl", stored[:70], 70, NOW, 0.0)  # type: ignore[attr-defined]
+    before = len(store.vocab_items(c.conn, "pl"))  # type: ignore[attr-defined]
+    # The quiz is served at once, and the rest of the sample is written in the background.
+    assert get(c).json()["state"] == "ready" and writer.calls == 1
+    assert len(store.vocab_items(c.conn, "pl")) > before  # type: ignore[attr-defined]
+    assert get(c).json()["state"] == "ready" and writer.calls == 1  # not topped up twice
 
 
 def test_the_cost_shows_in_the_costs() -> None:

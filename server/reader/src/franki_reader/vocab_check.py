@@ -39,11 +39,13 @@ BANDS = ((1, 100), (101, 250), (251, 500), (501, 1000), (1001, 2000), (2001, 300
 PER_BAND = (
     8  # words kept for each band, so 20 questions never run out even with deck words left out
 )
-ASKED_PER_BAND = 10  # asked for, since some won't pass the checks
+# Asked for: more than a band serves, since some won't pass the checks and some are deck words or
+# giveaways (`is_giveaway`), and a band that runs short makes its neighbours carry its questions.
+ASKED_PER_BAND = 14
 MIN_PER_BAND = 5  # kept words a band needs for the bank to be used
 WRONG = 3  # wrong choices a word carries
 MAX_MEANING = 40  # characters
-MAX_TOKENS = 8000
+MAX_TOKENS = 12000
 # Share of letters a word and its English meaning must have in common to be a giveaway.
 COGNATE_RATIO = 0.8
 
@@ -161,9 +163,13 @@ async def write_bank(
     language: Code,
     now: Callable[[], datetime],
 ) -> bool:
-    """Has Claude gloss the language's sample and stores what passes. False when it couldn't, or
-    nothing passed, so the caller can try again later."""
-    asked = sample(language)
+    """Has Claude gloss the language's sample and stores what passes. A bank already there is topped
+    up: only sampled words not yet stored are asked for, and what passes is added. False when it
+    couldn't, or nothing passed on a first write, so the caller can try again later."""
+    stored = {lemma for lemma, *_ in store.vocab_items(conn, language)}
+    asked = [(rank, word) for rank, word in sample(language) if word not in stored]
+    if not asked:
+        return True
     try:
         raw, used = await write(language, asked)
     except VocabFailed as e:
@@ -171,11 +177,13 @@ async def write_bank(
         return False
     lookup = {word: rank for rank, word in asked}
     kept = [i for i in (check(r, lookup) for r in raw) if i is not None]
-    # Every band needs enough words for the quiz to reach it; otherwise none are kept, so the bank
-    # is written again whole later. The cost is recorded either way.
+    # A first write needs every band to have enough words for the quiz to reach it; otherwise none are
+    # kept, so the bank is written again whole later. The cost is recorded either way.
     per_band = [sum(1 for i in kept if band_of(i.rank) == b) for b in range(len(BANDS))]
-    enough = all(n >= MIN_PER_BAND for n in per_band)
-    store.save_vocab_batch(conn, language, kept if enough else [], len(raw), now(), used.cost_usd())
+    enough = bool(stored) or all(n >= MIN_PER_BAND for n in per_band)
+    store.save_vocab_batch(
+        conn, language, kept if enough else [], len(asked), now(), used.cost_usd()
+    )
     return enough
 
 

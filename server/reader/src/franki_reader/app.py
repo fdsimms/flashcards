@@ -927,6 +927,17 @@ def create_app(
             raise HTTPException(422, f"{LANGUAGES[language].name} counts only its deck.")
         if store.vocab_items(engine.conn, language):
             items = vocab_check.serve(engine.conn, engine.snapshot(language)[1], language)
+            # A bank written when fewer words were asked for is topped up in the background; the
+            # quiz uses what's there meanwhile.
+            failed = vocab_failed.get(language)
+            if (
+                write_vocab is not None
+                and language not in vocab_writing
+                and (failed is None or engine.clock() - failed >= VOCAB_RETRY)
+                and store.vocab_asked(engine.conn, language) < len(vocab_check.sample(language))
+            ):
+                vocab_writing.add(language)
+                background.add_task(write_vocab_bank, language)
             return {"state": "ready", "items": items}
         if write_vocab is None:
             return {"state": "unavailable", "items": []}
