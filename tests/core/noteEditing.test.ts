@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { asEdited, deckChipRows, duplicateOf, editTextToField, fieldToEditText, notePreview, parseTags, searchNotes } from '../../src/core/noteEditing';
-import type { Note } from '../../src/core/types';
-import { omniNote } from '../support/fixtures';
+import { asEdited, deckChipRows, duplicateOf, editTextToField, fieldToEditText, matchesNoteFilter, notePreview, parseTags, searchNotes } from '../../src/core/noteEditing';
+import type { Card, Note } from '../../src/core/types';
+import { NOW, omniNote } from '../support/fixtures';
 
 const basic = (id: string, front: string, back: string, deck = 'Trivia', tags: string[] = []): Note =>
   ({ id, deck, model: 'Basic', fields: { Front: front, Back: back }, tags });
@@ -70,5 +70,47 @@ describe('finding notes', () => {
     expect(duplicateOf(notes, { model: 'Basic', fields: { Front: ' capital OF <i>peru</i>? ' } }, 'Front')?.id).toBe('1');
     expect(duplicateOf(notes, { id: '1', model: 'Basic', fields: { Front: 'Capital of Peru?' } }, 'Front')).toBeUndefined();
     expect(duplicateOf(notes, { model: 'Other', fields: { Front: 'Capital of Peru?' } }, 'Front')).toBeUndefined();
+  });
+});
+
+describe('filtering notes by their cards', () => {
+  const H = 4;
+  const note = basic('1', 'kot', 'cat', 'Polski');
+  let ids = 0;
+  const card = (over: Partial<Card['sched']> & Partial<Pick<Card, 'suspended' | 'retired' | 'flag' | 'buriedAt'>> = {}): Card => {
+    const { suspended = false, retired = false, flag, buriedAt, ...sched } = over;
+    return {
+      id: `1:t${ids++}`, noteId: '1', kind: 't0', suspended, retired, flag, buriedAt,
+      sched: { due: NOW.toISOString(), stability: 1, difficulty: 5, elapsedDays: 0, scheduledDays: 1, learningSteps: 0, reps: 3, lapses: 0, state: 2, lastReview: null, ...sched },
+    };
+  };
+  const matches = (filter: Parameters<typeof matchesNoteFilter>[0], cards: Card[], n = note) => matchesNoteFilter(filter, n, cards, NOW, H);
+
+  it('counts a review due any time before the next study day as due today, and a step only once it is due today', () => {
+    // NOW is noon; the next study day starts at 4 AM tomorrow.
+    expect(matches('due', [card({ due: new Date(2026, 10, 12, 3).toISOString() })])).toBe(true);
+    expect(matches('due', [card({ due: new Date(2026, 10, 12, 5).toISOString() })])).toBe(false);
+    expect(matches('due', [card({ state: 1, due: new Date(2026, 10, 11, 18).toISOString() })])).toBe(true);
+    expect(matches('due', [card({ due: new Date(2026, 10, 1).toISOString() })])).toBe(true);
+  });
+
+  it('leaves a suspended, retired or buried-today card out of New and Due today', () => {
+    const past = new Date(2026, 10, 1).toISOString();
+    expect(matches('due', [card({ due: past, suspended: true })])).toBe(false);
+    expect(matches('due', [card({ due: past, retired: true })])).toBe(false);
+    expect(matches('due', [card({ due: past, buriedAt: new Date(2026, 10, 11, 9).toISOString() })])).toBe(false);
+    // Buried on an earlier study day: Anki has unburied it.
+    expect(matches('due', [card({ due: past, buriedAt: new Date(2026, 10, 10, 9).toISOString() })])).toBe(true);
+    expect(matches('new', [card({ state: 0 })])).toBe(true);
+    expect(matches('new', [card({ state: 0, suspended: true })])).toBe(false);
+  });
+
+  it('keeps a note with any card suspended or flagged, and a note tagged leech', () => {
+    expect(matches('suspended', [card(), card({ suspended: true })])).toBe(true);
+    expect(matches('suspended', [card({ suspended: true, retired: true })])).toBe(false);
+    expect(matches('flagged', [card({ flag: 7 })])).toBe(true);
+    expect(matches('flagged', [card({ flag: 0 })])).toBe(false);
+    expect(matches('leech', [], { ...note, tags: ['Leech'] })).toBe(true);
+    expect(matches('leech', [card()])).toBe(false);
   });
 });

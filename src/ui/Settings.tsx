@@ -5,13 +5,14 @@ import { failureText } from '../core/failure';
 import { THAI_TEXT_CHOICES, thaiTextStyle, type ThaiTextSize } from '../core/script';
 import type { Repo } from '../db/repo';
 import { CheckRow, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
+import { reminderTime, useReminderPrefs } from './studyReminder';
 import { space, useTheme } from './theme';
 
 /**
  * App-wide settings: the screens that aren't about studying (Anki, Backup, Read & Listen, WaniKani), the
- * voices cards are read aloud with, and which answer buttons Review shows.
+ * voices cards are read aloud with, the study reminder, and which answer buttons Review shows.
  */
-export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBackup, onRead, onWaniKani, onVoices }: {
+export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBackup, onRead, onWaniKani, onVoices, onReminder }: {
   repo: Repo;
   /** When the last backup was made (`backupStatus`). */
   backupText?: string;
@@ -24,12 +25,14 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
   onAnki: () => void;
   onBackup: () => void;
   onVoices: () => void;
+  onReminder: () => void;
 }) {
   const c = useTheme();
   const [buttons, setButtons] = useState<AnswerButtons>();
   const [swipe, setSwipe] = useState<boolean>();
   const [hints, setHints] = useState<boolean>();
   const [thaiSize, setThaiSize] = useState<ThaiTextSize>();
+  const reminder = useReminderPrefs();
 
   useEffect(() => { repo.answerButtons().then(setButtons); repo.swipeToRate().then(setSwipe); repo.showCardHints().then(setHints); repo.thaiTextSize().then(setThaiSize); }, [repo]);
 
@@ -73,6 +76,11 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
             onValueChange={chooseHints}
           />
           <NavRow label="Voices" detail="The voices each language is recorded and read aloud with" onPress={onVoices} />
+          <NavRow
+            label="Study reminder"
+            detail={!reminder ? undefined : reminder.on ? `Every day at ${reminderTime(reminder)}` : "Off. A notification each day with how many cards are waiting"}
+            onPress={onReminder}
+          />
         </Group>
         <SectionTitle>Thai text size</SectionTitle>
         <Group accessibilityRole="radiogroup">

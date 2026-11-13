@@ -4,7 +4,7 @@ import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, Animated, Easing, Keyboard, PanResponder, Pressable, ScrollView, Text, TextInput, useColorScheme, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import { FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
-import { AGENT_FLAG, AGENT_FLAG_REASONS, withFlagReason } from '../core/agentFlag';
+import { AGENT_FLAG, withFlagReason } from '../core/agentFlag';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
@@ -42,6 +42,7 @@ import { haptic } from './haptics';
 import { RecordYourself } from './RecordYourself';
 import { useSelfRecording } from './useSelfRecording';
 import { htmlToText } from '../core/html';
+import { chooseAgentFlagReason } from './agentFlagSheet';
 import { LeechHintSheet } from './LeechHintSheet';
 import { canAddMnemonic, mnemonicQuestion, withMnemonic, type MnemonicQuestion } from '../core/leechHint';
 import { usePhoneSpeech } from './usePhoneSpeech';
@@ -757,20 +758,14 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   const chooseAgentFlag = () => {
     const target = current;
     const targetNote = note;
-    const options = [...AGENT_FLAG_REASONS.map((r) => r.label), ...(target.flag === AGENT_FLAG ? ['Remove flag'] : []), 'Cancel'];
-    ActionSheetIOS.showActionSheetWithOptions({
-      title: 'Flag for an agent',
-      message: 'An agent can find this card through the Franki MCP, check it and suggest a fix. It uses the purple flag.',
-      options, cancelButtonIndex: options.length - 1,
-    }, async (i) => {
-      if (i === options.length - 1) return;
-      if (i >= AGENT_FLAG_REASONS.length) {
+    chooseAgentFlagReason(target.flag === AGENT_FLAG, async (reason) => {
+      if (!reason) {
         setStates([target], (s) => ({ ...s, flag: 0 }));
         return;
       }
       if (targetNote && !busy.current) {
         try {
-          const tagged = await saveNote(repo as NoteStore, { id: targetNote.id, deck: targetNote.deck, model: targetNote.model, fields: targetNote.fields, tags: withFlagReason(targetNote.tags, AGENT_FLAG_REASONS[i].slug) });
+          const tagged = await saveNote(repo as NoteStore, { id: targetNote.id, deck: targetNote.deck, model: targetNote.model, fields: targetNote.fields, tags: withFlagReason(targetNote.tags, reason) });
           setNotes((prev) => new Map(prev).set(tagged.id, tagged));
         } catch (e) {
           Alert.alert("Couldn't flag this card", failureText(e, { next: 'Nothing was changed. Try again.' }));

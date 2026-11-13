@@ -37,7 +37,10 @@ export function Wheel({ count, value, onChange, label, format = (i) => String(i)
   const dragging = useRef(false);
 
   useEffect(() => {
-    if (value === shown.current || dragging.current) return;
+    // No guard for a drag in progress: a drag only changes `value` once it settles (which sets
+    // `shown` first), so a differing value here always came from outside and the wheel must follow it.
+    // Guarding on `dragging` left the wheel between rows when a drag's end event never arrived.
+    if (value === shown.current) return;
     shown.current = value;
     ticked.current = value;
     scroll.current?.scrollTo({ y: value * row, animated: true });
@@ -47,6 +50,8 @@ export function Wheel({ count, value, onChange, label, format = (i) => String(i)
   const settle = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     dragging.current = false;
     const i = at(e);
+    // Resting between rows (a snap that didn't land) reads as the wrong value: pull it onto the row.
+    if (e.nativeEvent.contentOffset.y !== i * row) scroll.current?.scrollTo({ y: i * row, animated: true });
     if (i === shown.current) return;
     shown.current = i;
     onChange(i);
