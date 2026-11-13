@@ -4,6 +4,7 @@ import { COMMON_COUNTS, LANGUAGE_ORDER, LANGUAGES, commonLabel, commonNamed, fla
 test("a word says whether it's a deck word, a common word, or neither", () => {
   expect(wordStatus({ status: 'known', deck: true })).toBe('In your deck');
   expect(wordStatus({ status: 'known', deck: false })).toBe('A common word');
+  expect(wordStatus({ status: 'known', deck: false, wanikani: true })).toBe('Learned in WaniKani');
   expect(wordStatus({ status: 'name', deck: false })).toBe('A name');
   expect(wordStatus({ status: 'partial', deck: false })).toBe('Only inside a longer phrase in your deck');
   expect(wordStatus({ status: 'unknown', deck: false })).toBe('Not in your deck');

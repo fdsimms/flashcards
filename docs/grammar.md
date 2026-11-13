@@ -34,8 +34,12 @@ Each point has:
   checks every point has one, with marked words, closed `**` and no em dashes. Written for the
   owner to check, each a few short paragraphs; keep a new one in the same style.
 - **`related`**: points worth comparing it with, by id, in the same language (the test checks).
+- **`known`** (optional): the point reads as Know it until the owner chooses otherwise
+  (`store.load_grammar`). For grammar in nearly every line, which the cap on points not set would
+  otherwise keep out of texts: Japanese's ます and past.
 
-Each point's **finder** stays code, in `grammar.py` and `grammar_europe.py`, keyed by id. The server
+Each point's **finder** stays code, in `grammar.py`, `grammar_europe.py` and `grammar_japanese.py`,
+keyed by id. The server
 won't start if a point has no finder or a finder has no point (`_load`), so a point can't be offered
 for texts and then never found.
 

@@ -11,9 +11,17 @@ import { distinct, type Phrase } from './phrase';
 export const DATE_MODES = ['say', 'pick', 'type', 'tap'] as const;
 export type DateMode = (typeof DATE_MODES)[number];
 
-/** Every way of saying the date that a typed answer is accepted in: the usual one, the others heard, and the digits as written. */
+/** A reading in kana only: Japanese's, which a typed answer may give in place of the kanji. */
+const KANA_READING = /^[\p{Script=Hiragana}\p{Script=Katakana}ー\s]+$/u;
+
+/**
+ * Every way of saying the date that a typed answer is accepted in: the usual one, the others heard,
+ * the digits as written, and in Japanese each of those typed in kana, as its reading.
+ */
 export function acceptedForms(saying: DateSaying): Phrase[] {
-  return distinct([saying.everyday, ...saying.also, { ...saying.written, note: saying.written.note ?? 'As written' }]);
+  const forms = [saying.everyday, ...saying.also, { ...saying.written, note: saying.written.note ?? 'As written' }];
+  const readings = forms.flatMap((f) => (f.roman && KANA_READING.test(f.roman) ? [{ text: f.roman.replace(/\s/g, ''), note: 'In kana' }] : []));
+  return distinct([...forms, ...readings]);
 }
 
 export function sameDate(a: CalendarDate, b: CalendarDate): boolean {

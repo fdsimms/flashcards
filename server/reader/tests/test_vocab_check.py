@@ -13,6 +13,7 @@ from franki_reader import store
 from franki_reader.app import VOCAB_RETRY, create_app
 from franki_reader.engine import Engine
 from franki_reader.generator import Usage
+from franki_reader.japanese import quiz_word
 from franki_reader.lexicon import Entry
 from franki_reader.spaced import common_lemmas
 from franki_reader.vocab_check import (
@@ -49,6 +50,26 @@ def test_the_sample_takes_a_fixed_number_of_plain_words_from_each_band() -> None
         assert len(in_band) == ASKED_PER_BAND and all(lo <= r <= hi for r, _ in in_band)
     assert all(w.isalpha() and w == common_lemmas("pl")[r - 1] for r, w in asked)
     assert sample("ru") != asked  # each language draws its own
+
+
+def test_japanese_asks_only_about_content_words_in_their_dictionary_form() -> None:
+    asked = sample("ja")
+    words = [w for _, w in asked]
+    assert len(asked) == len(BANDS) * ASKED_PER_BAND
+    assert all(w == common_lemmas("ja")[r - 1] for r, w in asked)  # ranks stay the list's
+    # Particles, auxiliaries, lone kana and pieces of a conjugated word are never asked.
+    assert not {"は", "を", "です", "ます", "き", "なっ", "あっ", "だっ"} & set(words)
+    assert quiz_word("食べる") and quiz_word("映画")
+    assert not quiz_word("東京")  # a name
+    # Claude may leave out what Sudachi reads as a word but isn't one alone (まし).
+    assert "まし" in request_message("ja", [(30, "まし")])
+    assert "まし" not in request_message("pl", [(3, "i")])
+
+
+def test_katakana_loanwords_are_giveaways() -> None:
+    assert is_giveaway("ホテル", "hotel")
+    assert is_giveaway("ゲーム", "game")
+    assert not is_giveaway("映画", "movie")
 
 
 def test_the_request_lists_the_ranked_words() -> None:

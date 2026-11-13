@@ -13,8 +13,8 @@ background write and returns None, and the app asks again. A write that fails is
 next request for that topic, once, and keeps the background top-up off that topic for
 `FAILURE_COOLDOWN`, so a topic that keeps missing the floor doesn't keep spending.
 
-Everything outside the process is injected: the model (`ask_for`), Anki (`read_deck`), text to
-speech, the clock and the random source. Any of them can be missing, and the engine says which.
+Everything outside the process is injected: the model (`ask_for`), Anki (`read_deck`), WaniKani
+(`read_wanikani`), text to speech, the clock and the random source. Any of them can be missing, and the engine says which.
 """
 
 import asyncio
@@ -47,7 +47,8 @@ from franki_reader.store import Reading, Reason, StoredText, Story, Topic
 from franki_reader.stretch import pick_stretch
 from franki_reader.study_day import DEFAULT_ROLLOVER, study_day_start
 from franki_reader.suggestions import suggest
-from franki_reader.tts import DEFAULT_VOICES, AudioCache, Synthesize, TtsFailed
+from franki_reader.tts import DEFAULT_VOICES, AudioCache, Synthesize, TtsFailed, billed_chars
+from franki_reader.wanikani import ReadWaniKani, as_entries
 
 # Texts kept written ahead on a language's shelf, not counting ones typed in or story episodes.
 SHELF_SIZE = 3
@@ -142,10 +143,12 @@ class Engine:
         rollover: Callable[[], int] = lambda: DEFAULT_ROLLOVER,
         zone: tzinfo | None = None,
         write_meanings: meanings.WriteMeanings | None = None,
+        read_wanikani: ReadWaniKani | None = None,
     ) -> None:
         self.conn = conn
         self.ask_for = ask_for
         self.read_deck = read_deck
+        self.read_wanikani = read_wanikani  # Japanese's words learned in WaniKani (wanikani.py)
         self.clock = clock
         self.rng = rng or random.Random()
         self.grammar_cache: exposure.Cache = {}
@@ -185,15 +188,25 @@ class Engine:
         language = language or self.language()
         entries = store.load_snapshot(self.conn, language)[0]
         common = store.load_settings(self.conn).common_for(language)
-        return entries, lexicon_from(entries, language, common)
+        extra = [e.text for e in self.wanikani_entries(language)]
+        return entries, lexicon_from(entries, language, common, extra)
 
     def entries(self, language: Code | None = None) -> list[Entry]:
         return self.snapshot(language)[0]
 
+    def wanikani_entries(self, language: Code) -> list[Entry]:
+        """Japanese's words learned in WaniKani, as the model's word list shows them; none for
+        another language. They aren't deck words, so they're kept out of `snapshot`'s entries."""
+        return as_entries(store.load_wanikani(self.conn)) if language == "ja" else []
+
     async def refresh_lexicon(self, language: Code | None = None, force: bool = False) -> None:
+        language = language or self.language()
         if self.read_deck is not None:
-            language = language or self.language()
             await store.refresh_if_stale(self.conn, self.read_deck, self.clock(), language, force)
+        if language == "ja" and self.read_wanikani is not None:
+            await store.refresh_wanikani_if_stale(
+                self.conn, self.read_wanikani, self.clock(), force
+            )
 
     # ==== Serving ====
 
@@ -324,13 +337,14 @@ class Engine:
                 any_words=job.any_words,
                 story=context,
             )
+            known = entries + self.wanikani_entries(language)
             extra = {
                 "reason": job.reason,
                 "story_id": story.id if story else None,
                 "episode": context.episode if context else 0,
             }
             try:
-                result = await generate(self.ask_for(entries, language), lexicon, request)
+                result = await generate(self.ask_for(known, language), lexicon, request)
             except GenerationFailed as e:
                 if e.usage != Usage():
                     # The first attempt got an answer but nothing usable (a refusal, a cut-off,
@@ -443,7 +457,7 @@ class Engine:
                 choose=choose,
                 form=form or settings.form,
                 language=language,
-                common=settings.common_for(language) if LANGUAGES[language].spaced else 0,
+                common=settings.common_for(language) if LANGUAGES[language].counts_common else 0,
                 practice=practice,
                 avoid=avoid,
                 review=review,
@@ -473,9 +487,13 @@ class Engine:
 
     def meanings(self, language: Code) -> dict[str, str]:
         """What a word's gloss falls back on: the words asked about in earlier texts (meanings.py),
-        then the deck's own meanings, which win."""
+        then WaniKani's meanings (Japanese), then the deck's own meanings, which win."""
         entries, _ = self.snapshot(language)
-        return {**store.word_meanings(self.conn, language), **{e.text: e.meaning for e in entries}}
+        return {
+            **store.word_meanings(self.conn, language),
+            **{e.text: e.meaning for e in self.wanikani_entries(language)},
+            **{e.text: e.meaning for e in entries},
+        }
 
     async def fill_meanings(self, texts: list[StoredText], language: Code) -> None:
         """Glosses the words in `texts` that have no gloss (meanings.py). A failure is logged and
@@ -590,7 +608,7 @@ class Engine:
             return None
         # Only a recording Azure made is counted (a cached line never gets here), and a failed one
         # isn't billed, so this is what the audio cost.
-        store.add_audio_chars(self.conn, text.id, len(spoken))
+        store.add_audio_chars(self.conn, text.id, billed_chars(spoken))
         self.audio.write(text.id, line, recorded)
         return self.audio.path(text.id, line)
 
@@ -606,7 +624,7 @@ class Engine:
         for text in texts:
             spaced = LANGUAGES[text.language].spaced
             chars = sum(
-                len(parse_line(ln.text, spaced)[0])
+                billed_chars(parse_line(ln.text, spaced)[0])
                 for i, ln in enumerate(text.lines)
                 if self.audio.has(text.id, i)
             )

@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { checkTyped } from '../../src/tools/answer';
+import { sayJapaneseDate } from '../../src/tools/japanese/date';
 import { sayThaiDate } from '../../src/tools/thai/date';
 import { acceptedForms, addDays, dateOptions, DATE_MODES, sameDate } from '../../src/tools/dateQuiz';
 
@@ -23,6 +25,13 @@ describe('the accepted forms of a date', () => {
     expect(forms[0].text).toBe('วันจันทร์ที่ยี่สิบเจ็ด มิถุนายน พ.ศ. สองพันห้าร้อยแปดสิบเจ็ด');
     expect(forms.at(-1)?.text).toBe('วันจันทร์ที่ 27 มิถุนายน พ.ศ. 2587');
     expect(new Set(forms.map((f) => f.text)).size).toBe(forms.length);
+  });
+
+  it('accepts a Japanese date typed in kana, its reading', () => {
+    const forms = acceptedForms(sayJapaneseDate({ year: 2026, month: 4, day: 1 }, { weekday: false, year: false }));
+    expect(forms.map((f) => f.text)).toEqual(['四月一日', '4月1日', 'しがつついたち']);
+    expect(checkTyped('しがつ ついたち', forms).verdict).toBe('exact');
+    expect(checkTyped('しがつ いちにち', forms).verdict).toBe('different');
   });
 });
 

@@ -15,6 +15,8 @@ given a line's words, it returns the spans that use the point.
   neither), and a rare irregular form can be missed.
 - German, French, Russian, Greek, Polish and Norwegian are found the same way, in
   grammar_europe.py.
+- Japanese points are found from Sudachi's morphemes (the auxiliary ます, the volitional form), in
+  grammar_japanese.py.
 """
 
 import json
@@ -24,7 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast, get_args
 
-from franki_reader import grammar_europe
+from franki_reader import grammar_europe, grammar_japanese
 from franki_reader.coverage import Checker, is_word, parse_line
 from franki_reader.languages import Code
 
@@ -44,6 +46,9 @@ class Point:
     note: str  # what it means, with examples
     find: Finder
     related: tuple[str, ...] = ()  # points to compare it with, from the catalog (drills.py)
+    # Read as Know it until the owner chooses (the catalog's `known`): grammar in nearly every line,
+    # like Japanese's ます and past, which the cap on points not set would keep out of texts.
+    known: bool = False
 
 
 def words(plain: str, lexicon: Checker) -> list[str]:
@@ -404,6 +409,7 @@ _FINDERS: dict[str, Finder] = {
 
 # German, French, Russian, Greek, Polish and Norwegian (grammar_europe.py).
 _FINDERS.update(grammar_europe.FINDERS)
+_FINDERS.update(grammar_japanese.FINDERS)
 
 CATALOG = Path(__file__).with_name("grammar_points.json")
 
@@ -434,6 +440,7 @@ def _load(catalog: Path, finders: dict[str, Finder]) -> tuple[Point, ...]:
             e["note"],
             finders[e["id"]],
             tuple(e.get("related", ())),
+            bool(e.get("known", False)),
         )
         for e in entries
     )

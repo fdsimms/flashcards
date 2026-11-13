@@ -339,7 +339,7 @@ Known words, one per line as: word | meaning | M or Y
 """
 
 # Every other language counts as many of its most common words as known as the `common` setting
-# says, as well as the deck (spaced.py), and most of the decks hold advanced words, so the list is
+# says, as well as the deck (spaced.py, japanese.py), and most of the decks hold advanced words, so the list is
 # what to recycle rather than the only words allowed. How many common words is in each request, so
 # this prefix stays the same, and cached, when the setting changes.
 _SPACED_INSTRUCTIONS = """\
@@ -384,9 +384,8 @@ empty.
 - "paragraph" is true on a story line that opens a paragraph: the first line always, then a new \
 one at a change of scene, time or subject, usually every two to four lines. It is false on every \
 other line, and on every line of a dialogue.
-- In each line's text, put | between words instead of spaces, keep punctuation on its word, and \
-wrap each stretch word or phrase in asterisks every time it appears, like {example} A stretch \
-word can be inflected.
+- In each line's text, {writing}, and wrap each stretch word or phrase in asterisks every time it \
+appears, like {example} A stretch word can be inflected.
 - Wrap a person's, pet's or place's name in tildes every time it appears, like ~Kasia~|mieszka. \
 Names don't count against the known-word target, so mark only real names, never ordinary words, \
 and use at most 4 different names in a text.
@@ -412,7 +411,9 @@ def _instructions(language: Code) -> str:
         return _INSTRUCTIONS
     info = LANGUAGES[language]
     variety = f"{info.variety} " if info.variety else ""
-    return _SPACED_INSTRUCTIONS.format(name=info.name, variety=variety, example=info.example)
+    return _SPACED_INSTRUCTIONS.format(
+        name=info.name, variety=variety, example=info.example, writing=info.writing
+    )
 
 
 def system_prompt(entries: list[Entry], language: Code = "th") -> str:

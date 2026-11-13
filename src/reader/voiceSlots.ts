@@ -61,6 +61,7 @@ const SAMPLES: Record<Language, string> = {
   el: 'Γεια σου, τι κάνεις; Σήμερα έχει πολύ ωραίο καιρό.',
   pl: 'Cześć, co słychać? Dzisiaj jest bardzo ładna pogoda.',
   nb: 'Hei, hvordan går det? I dag er det veldig fint vær.',
+  ja: 'こんにちは。今日はとてもいい天気ですね。',
 };
 const THAI_WOMAN = 'สวัสดีค่ะ วันนี้อากาศดีนะคะ';
 

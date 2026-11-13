@@ -5,7 +5,7 @@ import type { Language } from '../../src/reader/api';
 // The catalog's languages are Read & Listen's: tsc fails here if one list gains a language the other hasn't.
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 const sameLanguages: Same<GrammarLanguage, Language> = true;
-const LANGUAGES: GrammarLanguage[] = ['th', 'es', 'de', 'fr', 'ru', 'el', 'pl', 'nb'];
+const LANGUAGES: GrammarLanguage[] = ['th', 'es', 'de', 'fr', 'ru', 'el', 'pl', 'nb', 'ja'];
 
 describe('the grammar catalog', () => {
   it('gives every point a unique id in its own language, a name and a note', () => {

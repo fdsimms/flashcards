@@ -24,9 +24,10 @@ export type Word = {
   status: 'known' | 'partial' | 'unknown' | 'name' | null; // 'name': a name the model marked; null for spaces and punctuation
   gloss: string | null;
   lemma?: string | null; // the dictionary form, when it differs from the word (every language but Thai)
-  translit?: string | null; // the pronunciation in Latin letters, when there is one (Thai)
+  translit?: string | null; // the pronunciation, when there is one (Thai's in Latin letters, Japanese's in kana)
   stretch: boolean;
   deck: boolean; // a deck word, as against one known for being common (every language but Thai)
+  wanikani?: boolean; // known for being learned in WaniKani (Japanese; absent from a server older than it)
   grammar: string | null; // the grammar point this word uses, if the text marks it (TextGrammar)
   // When it's spoken in its line's audio, [start, end] in milliseconds (reader/spoken.ts). Absent
   // for spaces and punctuation, a line recorded without timings, and a server older than them.
@@ -72,7 +73,7 @@ export type TextGrammarRole = 'practice' | 'avoid' | 'review' | 'unset';
 export type TextGrammar = { id: string; name: string; note: string; role: TextGrammarRole };
 
 // The languages texts are written in. Topics are shared; the rest is per language.
-export type Language = 'th' | 'es' | 'de' | 'fr' | 'ru' | 'el' | 'pl' | 'nb';
+export type Language = 'th' | 'es' | 'de' | 'fr' | 'ru' | 'el' | 'pl' | 'nb' | 'ja';
 
 // Every language but Thai counts this many of its most common words as known, as well as its deck.
 export type CommonCount = 0 | 250 | 500 | 1000 | 2000 | 3000 | 5000 | 10000;
@@ -256,6 +257,7 @@ export type MarkedWord = {
   lemma?: string | null; // the dictionary form, when it differs from the word (absent from a server older than it)
   status: 'known' | 'partial' | 'unknown';
   deck: boolean;
+  wanikani?: boolean; // as Word's
   times: number;
   last_marked: string;
 };

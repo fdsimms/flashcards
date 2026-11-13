@@ -124,6 +124,20 @@ def test_romanized_languages_need_both_romanizations() -> None:
     assert latin is not None and "ContextRomanized" not in latin[1]
 
 
+def test_a_japanese_word_gets_its_reading_in_kana_reading() -> None:
+    asked = {"劇団": ""}
+    got = check(filled("劇団", transliteration="げきだん", romanization="x"), asked, "ja")
+    assert got is not None
+    assert got[1]["KanaReading"] == "げきだん"
+    assert "Transliteration" not in got[1] and "ContextRomanized" not in got[1]
+    # Katakana is a reading too; kanji, Latin letters or none at all aren't.
+    assert check(filled("劇団", transliteration="コーヒー"), asked, "ja") is not None
+    assert check(filled("劇団", transliteration="げき団"), asked, "ja") is None
+    assert check(filled("劇団", transliteration="gekidan"), asked, "ja") is None
+    assert check(filled("劇団"), asked, "ja") is None
+    assert "reading in hiragana" in request_message("ja", [("劇団", "")])
+
+
 def test_the_request_lists_entries_with_the_owners_meanings() -> None:
     message = request_message("fr", [("ricane", ""), ("bouder", "to sulk")])
     assert "1. ricane\n" in message

@@ -954,6 +954,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
 
       <GlossPopover
         tapped={tapped}
+        translitLabel={LANGUAGES[text?.language ?? 'th'].translitLabel}
         grammar={tapped && text ? grammarOf(text, tapped.word) : null}
         api={api}
         grammarChosen={grammarChosen}
@@ -1076,8 +1077,10 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-export function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, onClose }: {
+export function GlossPopover({ tapped, translitLabel, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, onClose }: {
   tapped: Tapped | null;
+  /** The button that shows the word's pronunciation: a transliteration, or Japanese's reading. */
+  translitLabel: string;
   grammar: TextGrammar | null;
   api: Api;
   grammarChosen: Record<string, GrammarChoice>;
@@ -1109,7 +1112,7 @@ export function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarCho
   const above = tapped.y - POPOVER_GAP - popHeight;
   const top = Math.min(above >= insets.top + space.s ? above : tapped.y + POPOVER_GAP, height - popHeight - insets.bottom - space.s);
   const actions: Parameters<typeof WordActionRow>[0][] = [];
-  if (tapped.word.translit && !showTranslit) actions.push({ icon: 'eye', label: 'Show transliteration', onPress: () => setShowTranslit(true) });
+  if (tapped.word.translit && !showTranslit) actions.push({ icon: 'eye', label: translitLabel, onPress: () => setShowTranslit(true) });
   if (onSelectPhrase) actions.push({ icon: 'text.cursor', label: 'Select a phrase', accessibilityLabel: `Select a phrase starting from ${tapped.word.text}`, onPress: onSelectPhrase });
   if (onAddToDeck) actions.push({ icon: 'plus.circle', label: 'Add to deck', accessibilityLabel: `Add ${tapped.word.text} to your deck`, onPress: onAddToDeck });
   if (onToggleFlag) actions.push({ icon: flagged ? 'flag.slash' : 'flag', label: flagged ? 'Unmark' : 'Mark as unknown', onPress: onToggleFlag, chevron: false });

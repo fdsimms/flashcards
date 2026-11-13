@@ -168,11 +168,12 @@ from franki_reader.mnemonics import (
     MnemonicsFailed,
     claude_mnemonics,
 )
-from franki_reader.reader import gloss_for, lemma_for, render
+from franki_reader.reader import from_wanikani, gloss_for, lemma_for, render
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
 from franki_reader.study_day import DEFAULT_ROLLOVER
 from franki_reader.suggestions import suggest
 from franki_reader.tts import AudioCache, Speech, azure_synthesize, azure_usd
+from franki_reader.wanikani import wanikani_reader
 
 # The window the progress summary covers: the Milestone 1 exit check's two weeks.
 VOCAB_RETRY = timedelta(minutes=10)  # before a vocabulary check bank that failed is written again
@@ -714,7 +715,9 @@ def create_app(
         # Every language's deck and voices, the default where none was chosen, so the app shows
         # what's used.
         decks = {code: with_deck(code, current.decks.get(code)).deck for code in LANGUAGES}
-        common = {code: current.common_for(code) for code, info in LANGUAGES.items() if info.spaced}
+        common = {
+            code: current.common_for(code) for code, info in LANGUAGES.items() if info.counts_common
+        }
         voices = {code: engine.voices_for(code) for code in LANGUAGES}
         return {**current.__dict__, "decks": decks, "voices": voices, "common": common}
 
@@ -725,7 +728,7 @@ def create_app(
     @app.patch("/api/settings", dependencies=authed)
     async def update_settings(body: SettingsUpdate, background: BackgroundTasks) -> dict[str, Any]:
         current = store.load_settings(engine.conn)
-        if body.common and any(not LANGUAGES[code].spaced for code in body.common):
+        if body.common and any(not LANGUAGES[code].counts_common for code in body.common):
             raise HTTPException(422, "Thai counts only the words in its deck.")
         common = dict(current.common)
         for code, count in (body.common or {}).items():
@@ -1004,6 +1007,7 @@ def create_app(
                 "lemma": lemma_for(w.word, lexicon),
                 "status": lexicon.status(w.word),
                 "deck": lexicon.entry_of(w.word) is not None,
+                "wanikani": from_wanikani(w.word, lexicon),
                 "times": w.times,
                 "last_marked": instant(w.last_marked),
             }
@@ -1078,7 +1082,7 @@ def create_app(
         """The vocabulary check's questions for a language (vocab_check.py). `state` is "ready" with
         the `items`, "preparing" while Claude writes them (ask again in a few seconds), "failed"
         when it couldn't (not asked again for `VOCAB_RETRY`), or "unavailable" with no Claude key."""
-        if not LANGUAGES[language].spaced:
+        if not LANGUAGES[language].counts_common:
             raise HTTPException(422, f"{LANGUAGES[language].name} counts only its deck.")
         stored = store.vocab_items(engine.conn, language)
         retry_due = (failed := vocab_failed.get(language)) is None or (
@@ -1438,6 +1442,7 @@ def production_app() -> FastAPI:
         else None
     )
     read_deck = with_timeout(anki.read) if anki else None
+    wanikani_token = secrets.get("WANIKANI_TOKEN")
     engine = Engine(
         conn,
         ask_for,
@@ -1447,6 +1452,7 @@ def production_app() -> FastAPI:
         voices=settings.voices,
         rollover=lambda: anki.rollover if anki else DEFAULT_ROLLOVER,
         write_meanings=write_meanings,
+        read_wanikani=wanikani_reader(wanikani_token) if wanikani_token else None,
     )
     engine.count_existing_audio()
     return create_app(

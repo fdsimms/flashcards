@@ -17,7 +17,7 @@ export function canAddMnemonic(note: Note): boolean {
 /** What a hint suggestion is asked about; undefined for a note whose language Read & Listen doesn't write in. */
 export type MnemonicQuestion = { language: Language; entry: string; meaning: string; transliteration: string; context: string };
 
-const READER_LANGUAGES: readonly string[] = ['th', 'es', 'de', 'fr', 'ru', 'el', 'pl', 'nb'];
+const READER_LANGUAGES: readonly string[] = ['th', 'es', 'de', 'fr', 'ru', 'el', 'pl', 'nb', 'ja'];
 
 export function mnemonicQuestion(note: Note): MnemonicQuestion | undefined {
   const code = speechLangFor(note)?.split('-')[0];
@@ -27,7 +27,8 @@ export function mnemonicQuestion(note: Note): MnemonicQuestion | undefined {
   if (!entry || !meaning) return undefined;
   return {
     language: code as Language, entry, meaning,
-    transliteration: htmlToText(note.fields.Transliteration ?? ''),
+    // A Japanese note keeps its reading in KanaReading.
+    transliteration: htmlToText(note.fields.Transliteration || note.fields.KanaReading || ''),
     context: htmlToText(note.fields.Context ?? ''),
   };
 }

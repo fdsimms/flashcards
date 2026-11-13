@@ -272,9 +272,19 @@ DECKS = {
     "el": "👅 Languages::🏝️ Ελληνικά",
     "pl": "👅 Languages::💈 Polski",
     "nb": "👅 Languages::🐟 Norsk",
+    "ja": "👅 Languages::🍥 日本語",
 }
 # How many common words each language counts as known when none was chosen (not Thai: deck only).
-COMMON = {"es": 10000, "de": 3000, "fr": 3000, "ru": 3000, "el": 3000, "pl": 250, "nb": 1000}
+COMMON = {
+    "es": 10000,
+    "de": 3000,
+    "fr": 3000,
+    "ru": 3000,
+    "el": 3000,
+    "pl": 250,
+    "nb": 1000,
+    "ja": 2000,
+}
 # Each language's voice for each slot (the first of a gender where it has no second), the same.
 VOICES = {
     "th": {
@@ -324,6 +334,12 @@ VOICES = {
         "male2": "nb-NO-FinnNeural",
         "female": "nb-NO-PernilleNeural",
         "female2": "nb-NO-IselinNeural",
+    },
+    "ja": {
+        "male": "ja-JP-KeitaNeural",
+        "male2": "ja-JP-DaichiNeural",
+        "female": "ja-JP-NanamiNeural",
+        "female2": "ja-JP-AoiNeural",
     },
 }
 
