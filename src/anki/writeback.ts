@@ -49,6 +49,8 @@ export interface AnkiUndo {
   revlogId: number;
   /** Siblings the answer buried, with their rows as they were, to restore on undo. */
   buried: { cid: number; row: AnkiCardRow & { mod: number; usn: number } }[];
+  /** The decks whose "studied today" counts the answer added to, as they were (deckStats.ts). */
+  decks: { id: number; common: Uint8Array; mtime_secs: number; usn: number }[];
 }
 
 export interface AnkiRevlogRow {

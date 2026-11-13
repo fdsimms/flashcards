@@ -31,7 +31,7 @@ export const keptSql = (schema = 'anki') => ({
   colModified: COL_MODIFIED_SQL.replace('UPDATE col', `UPDATE ${schema}.col`),
   unsentSince: `SELECT COUNT(*) AS n FROM ${schema}.revlog WHERE id > ? AND usn = -1`,
   // Changes made here and not on the server yet, besides answers: notes added, edited or deleted,
-  // cards suspended, buried, flagged or deleted, decks made, renamed or collapsed. A sync sets their
+  // cards suspended, buried, flagged or deleted, decks made, renamed, collapsed or studied in. A sync sets their
   // usn; only a full download drops them. (Decks NOT INDEXED: their name index needs Anki's collation.)
   unsentEdits: `SELECT (SELECT COUNT(*) FROM ${schema}.notes WHERE usn = -1)`
     + ` + (SELECT COUNT(*) FROM ${schema}.graves WHERE usn = -1)`
@@ -41,4 +41,7 @@ export const keptSql = (schema = 'anki') => ({
   revlogSince: `SELECT id, cid, ease, lastIvl, time, type FROM ${schema}.revlog WHERE id >= ? ORDER BY id`,
   // Every deck, for the deck list, which shows a deck with no cards too. Read by scanning, so no collation is needed.
   decks: `SELECT id, name FROM ${schema}.decks NOT INDEXED`,
+  // An answer's "studied today" counts (deckStats.ts). Only `common` and the stamps change, which no index covers.
+  deckStats: `SELECT id, name, mtime_secs, usn, common FROM ${schema}.decks NOT INDEXED`,
+  deckStatsUpdate: `UPDATE ${schema}.decks SET common = ?, mtime_secs = ?, usn = ? WHERE id = ?`,
 });

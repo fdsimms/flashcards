@@ -65,9 +65,10 @@ describe('Custom Study Session in the kept collection', () => {
     const session = await deckNamed(db, CUSTOM_STUDY_DECK);
     expect(session.usn).toBe(-1);
     expect(deckJson(row(session))).toMatchObject({ dyn: 1, resched: false, terms: [[`deck:"${TRIVIA}" is:new`, 100, 5]], previewAgainSecs: 60, previewHardSecs: 600, previewGoodSecs: 0 });
-    // Position stands in for the card's due; its own is kept in odue; every card is in the preview queue.
-    expect(await card(db, 1794408858020)).toMatchObject({ did: session.id, odid: 1794408857991, queue: 4, due: -100000, odue: 5, usn: -1 });
-    expect(await card(db, 1794408858031)).toMatchObject({ queue: 4, due: -99997, odue: 7 });
+    // Position stands in for the card's due; its own is kept in odue; every card is in the review
+    // queue, as Anki builds a deck that doesn't reschedule.
+    expect(await card(db, 1794408858020)).toMatchObject({ did: session.id, odid: 1794408857991, type: 0, queue: 2, due: -100000, odue: 5, usn: -1 });
+    expect(await card(db, 1794408858031)).toMatchObject({ queue: 2, due: -99997, odue: 7 });
     expect(await card(db, 1794408858019)).toMatchObject({ did: 1794408857991, odid: 0, queue: -1 });
     expect(await card(db, 1794408858018)).toMatchObject({ did: 1794408858039, odid: 1794408857991, odue: 10 });
     expect((await db.first<{ mod: number }>('SELECT mod FROM col'))!.mod).toBe(NOW.getTime());

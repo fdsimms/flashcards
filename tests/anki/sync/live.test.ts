@@ -3,6 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildExport } from '../../../src/anki/collection';
+import { deckAndParents, studiedDelta, withStudied, type DeckStatsRow } from '../../../src/anki/deckStats';
+import { decodeMessage, int, uint } from '../../../src/anki/protobuf';
 import { SyncClient } from '../../../src/anki/sync/client';
 import {
   downloadCollection, markDownloaded, prepareForUpload, syncCollection, uploadCollection,
@@ -11,7 +13,7 @@ import { pullMedia, syncMedia, type MediaState } from '../../../src/anki/sync/me
 import { sha1Hex } from '../../../src/anki/sha1';
 import { addAnkiNote, ankiDeckId, ankiNoteType, deleteAnkiNotes, editAnkiNote, moveAnkiNote } from '../../../src/anki/noteWrites';
 import {
-  CARD_ROW_SQL, CARD_STATE_SQL, CARD_STATE_UPDATE_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams,
+  CARD_ROW_SQL, CARD_STATE_SQL, CARD_STATE_UPDATE_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL, ankiDayNumber, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams,
 } from '../../../src/anki/writeback';
 import { ankiCollapsedDecks, setAnkiDeckCollapsed } from '../../../src/anki/deckWrites';
 import { addAnkiDeck, removeAnkiDeck, renameAnkiDeck } from '../../../src/anki/deckEdits';
@@ -77,12 +79,19 @@ function franki(server: AnkiServer, collated: boolean) {
         const row = (await db.first<any>(CARD_ROW_SQL, cid))!;
         const crt = (await db.first<{ crt: number }>('SELECT crt FROM col'))!.crt;
         const id = nextRevlogId(now.getTime(), (await db.first<{ m: number }>('SELECT MAX(id) AS m FROM revlog'))!.m);
+        const clock = { crt, dayStartsAtHour: 4 };
+        const decks = deckAndParents(await db.all<DeckStatsRow>('SELECT id, name, mtime_secs, usn, common FROM decks NOT INDEXED'), row.did);
         await db.transaction(async () => {
-          await db.run(CARD_UPDATE_SQL, ...cardUpdateParams(cardUpdate(after, row, { clock: { crt, dayStartsAtHour: 4 }, now }), cid));
+          await db.run(CARD_UPDATE_SQL, ...cardUpdateParams(cardUpdate(after, row, { clock, now }), cid));
           await db.run(REVLOG_INSERT_SQL, ...revlogParams(revlogEntry(before, after, rating, { id, cid, previousIvl: row.ivl, now, takenMs: 4000 })));
+          // Stamped with the clock, as Anki's set_modified does, even for an answer dated earlier.
+          const today = ankiDayNumber(Math.floor(now.getTime() / 1000), clock);
+          for (const d of decks) {
+            await db.run('UPDATE decks SET common = ?, mtime_secs = ?, usn = -1 WHERE id = ?', withStudied(d.common, today, studiedDelta(row.queue, 4000)), Math.floor(Date.now() / 1000), d.id);
+          }
           await db.run(COL_MODIFIED_SQL, now.getTime());
         });
-        return { cid, revlogId: id };
+        return { cid, revlogId: id, did: Number(row.did), today: ankiDayNumber(Math.floor(now.getTime() / 1000), clock) };
       });
     },
     /** Collapses or expands a deck as the deck list does (setAnkiDeckCollapsed), and reads them back. */
@@ -252,12 +261,17 @@ for (const collated of [true, false]) {
       await expectSame();
     });
 
-    it('sends its own answers, which Anki then has exactly', async () => {
-      const { revlogId } = await me.answer((c) => c.sched.state === 0 && !c.suspended, 3);
+    it('sends its own answers, which Anki then has exactly, counted in its deck for the day', async () => {
+      const { revlogId, did, today } = await me.answer((c) => c.sched.state === 0 && !c.suspended, 3);
       expect(await me.sync()).toMatchObject({ kind: 'synced', sent: 1 });
       desktop.run('sync');
       await expectSame();
-      expect((desktop.run('dump').dump.revlog as number[][]).map((r) => r[0])).toContain(revlogId);
+      const dump = desktop.run('dump').dump;
+      expect((dump.revlog as number[][]).map((r) => r[0])).toContain(revlogId);
+      // Anki's daily limits read the deck's counts, so Anki doesn't offer the new card's place again.
+      const common = decodeMessage(Buffer.from((dump.decks as any[][]).find((d) => d[0] === did)![4], 'base64'));
+      expect([uint(common, 3), int(common, 4)]).toEqual([today, expect.any(Number)]);
+      expect(int(common, 4)).toBeGreaterThanOrEqual(1);
     });
 
     it('when both answered, keeps both reviews and the newer card', async () => {
