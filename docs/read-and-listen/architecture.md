@@ -411,8 +411,18 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
 - **A stretch word used fewer than 2 times** sends the text back too, even at full coverage.
 - **Prompt caching.** The lexicon is the same on every call that day, so it sits in a cached prefix.
 - **Glosses come with the text.** The model returns an English gloss for every word not in the
-  lexicon in the same response, so tap-to-gloss never needs its own API call. Lexicon words use the
+  lexicon in the same response, so a tap never needs its own API call. Lexicon words use the
   deck's `Meaning`.
+- **Common words are glossed after the text is written** (13 November 2026). A common word counts as
+  known without being in the deck, so the model isn't asked to gloss it, and a tap showed "No
+  meaning available" (most of a Norwegian text, whose deck is small). `meanings.py` finds the words in
+  a new text with no gloss (the text's, the deck's, or one kept earlier) and has Claude gloss them
+  in one batched call, each with the English of a line it's in. The answers are kept per language and
+  lower-case word in `word_meanings` and never asked for twice (a word it gave nothing usable for is
+  kept empty, not retried). `Engine.top_up` runs the same pass over the 30 newest waiting or read
+  texts, up to 150 words a call, so texts written before this are filled in. A failed call waits
+  `FAILURE_COOLDOWN` and never keeps a text from being served. The cost is `meanings` in `/api/costs`.
+  The deck's meaning wins over a kept one.
 - **Stretch words** are 1-3 words due today or still young. No random assignment.
 - **Stretch words come back on later days** (brief, design principle 4). A word that was a stretch
   word in a text read on an earlier study day goes ahead of other due and young words, until it has

@@ -27,7 +27,7 @@ from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Literal
 
-from franki_reader import exposure, grammar, store
+from franki_reader import exposure, grammar, meanings, store
 from franki_reader.coverage import Checker, Coverage, parse_line
 from franki_reader.difficulty import Difficulty, adapt
 from franki_reader.gender import full_voices, voice_for
@@ -58,6 +58,7 @@ IDEA_CHOICES = 5
 # How many due or young words the model chooses its stretch words from, when it's choosing.
 STRETCH_CHOICES = 15
 FAILURE_COOLDOWN = timedelta(minutes=30)
+BACKFILL_TEXTS = 30  # how many recent texts a pass looks through for words with no meaning
 # Every attempt was under 85% known words (coverage.MINIMUM), too far off to show.
 MISSED_FLOOR = (
     "Couldn't write a text that fits your words this time. Try again or pick another topic."
@@ -140,6 +141,7 @@ class Engine:
         voices: dict[str, str] | None = None,
         rollover: Callable[[], int] = lambda: DEFAULT_ROLLOVER,
         zone: tzinfo | None = None,
+        write_meanings: meanings.WriteMeanings | None = None,
     ) -> None:
         self.conn = conn
         self.ask_for = ask_for
@@ -154,6 +156,10 @@ class Engine:
         # in `zone`, the process's own (TZ) when None.
         self.rollover = rollover
         self.zone = zone
+        self.write_meanings = write_meanings
+        # When Claude last failed to write word meanings, by language, so a pass that keeps failing
+        # doesn't keep asking.
+        self._meanings_failed: dict[Code, datetime] = {}
         # All by topic and language: a topic can be writing in one language and failed in another.
         self._topic_locks: dict[tuple[int, Code], asyncio.Lock] = {}
         self._topping_up = asyncio.Lock()
@@ -399,6 +405,7 @@ class Engine:
                 store.name_story(self.conn, story.id, result.series, result.cast)
             text = store.get_text(self.conn, text_id)
             assert text is not None
+            await self.fill_meanings([text], language)
             await self.make_audio(text)
             store.mark_ready(self.conn, text_id)
             return text
@@ -461,6 +468,37 @@ class Engine:
             return request(pick_stretch(entries, difficulty.stretch, self.rng, practiced))
         choices = pick_stretch(entries, STRETCH_CHOICES, self.rng, practiced)
         return request(choices, difficulty.stretch) if choices else request([])
+
+    # ==== Word meanings ====
+
+    def meanings(self, language: Code) -> dict[str, str]:
+        """What a word's gloss falls back on: the words asked about in earlier texts (meanings.py),
+        then the deck's own meanings, which win."""
+        entries, _ = self.snapshot(language)
+        return {**store.word_meanings(self.conn, language), **{e.text: e.meaning for e in entries}}
+
+    async def fill_meanings(self, texts: list[StoredText], language: Code) -> None:
+        """Glosses the words in `texts` that have no gloss (meanings.py). A failure is logged and
+        waits `FAILURE_COOLDOWN`; it never keeps a text from being served."""
+        if self.write_meanings is None or not texts:
+            return
+        failed = self._meanings_failed.get(language)
+        if failed is not None and self.clock() - failed < FAILURE_COOLDOWN:
+            return
+        _, lexicon = self.snapshot(language)
+        try:
+            await meanings.fill(
+                self.conn,
+                self.write_meanings,
+                language,
+                texts,
+                lexicon,
+                self.meanings(language),
+                self.clock,
+            )
+        except meanings.MeaningsFailed as e:
+            log.warning("Couldn't write %s word meanings: %s", language, e)
+            self._meanings_failed[language] = self.clock()
 
     # ==== Grammar ====
 
@@ -592,6 +630,10 @@ class Engine:
             await self.time_waiting_texts()
             language = self.language()
             await self.refresh_lexicon(language)
+            # Texts written before their common words were glossed, newest first, a batch a pass.
+            await self.fill_meanings(
+                store.recent_texts(self.conn, language, BACKFILL_TEXTS), language
+            )
             try:
                 self._check_setup(language)
             except NotAvailable as e:

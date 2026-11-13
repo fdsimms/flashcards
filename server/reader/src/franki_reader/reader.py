@@ -14,10 +14,16 @@ def gloss_for(
     word: str, glosses: dict[str, str], lexicon: Checker, meanings: dict[str, str]
 ) -> str | None:
     """The text's own gloss, else the deck's meaning (of the entry it's a form of, so hablé gets
-    hablar's), else the meanings of the deck entries a known compound splits into (a word known
-    that way has no entry of its own to gloss it)."""
+    hablar's), else the meaning kept for the word in lower case (meanings.py: a common word has none
+    from the deck or the text), else the meanings of the deck entries a known compound splits into (a
+    word known that way has no entry of its own to gloss it)."""
     entry = lexicon.entry_of(word)
-    if gloss := glosses.get(word) or meanings.get(word) or (meanings.get(entry) if entry else None):
+    if gloss := (
+        glosses.get(word)
+        or meanings.get(word)
+        or (meanings.get(entry) if entry else None)
+        or meanings.get(word.casefold())
+    ):
         return gloss
     pieces = lexicon.known_pieces(word)
     parts = [meanings[p] for p in pieces or [] if p in meanings]

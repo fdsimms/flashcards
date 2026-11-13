@@ -60,7 +60,8 @@ marked words, ideas) is in the current language, the `language` setting.
                                       plus Azure's audio estimated from the characters it spoke (every
                                       language, not just the current one; the MCP's
                                       read_and_listen_costs reads it), and `explanations`: what
-                                      Explain's calls, lines and phrases, cost over the same days
+                                      Explain's calls, lines and phrases, cost over the same days,
+                                      and `meanings`: what glossing common words cost
     GET   /api/grammar                the current language's grammar points, each practice, avoid,
                                       normal ("Know it") or unset, with how often each came up in
                                       texts read; `least`, the known ones worked in next
@@ -113,7 +114,16 @@ from fastapi.responses import FileResponse, JSONResponse
 from franki_speech import SpeechClient, SpeechError, locale_of
 from pydantic import BaseModel, Field
 
-from franki_reader import config, drills, exposure, grammar, store, timing, vocab_check
+from franki_reader import (
+    config,
+    drills,
+    exposure,
+    grammar,
+    meanings,
+    store,
+    timing,
+    vocab_check,
+)
 from franki_reader.collection import AnkiDeck, SyncSettings
 from franki_reader.coverage import parse_line
 from franki_reader.engine import Engine, NotAvailable, NotFound
@@ -786,6 +796,7 @@ def create_app(
         explained = store.explanation_spending(engine.conn, since)
         drilled = store.drill_spending(engine.conn, since)
         vocab = store.vocab_spending(engine.conn, since)
+        glossed = store.meaning_spending(engine.conn, since)
         rows = by_language.values()
         total = store.Spending(
             sum(r.read for r in rows),
@@ -832,6 +843,20 @@ def create_app(
                     for code, (n, c) in drilled.items()
                 ],
             },
+            # Meanings for words in texts that nothing else glosses, a batch at a time (meanings.py).
+            "meanings": {
+                "batches": sum(n for n, _ in glossed.values()),
+                "cost_usd": round(sum(c for _, c in glossed.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "batches": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in glossed.items()
+                ],
+            },
             # The vocabulary check's words, glossed once a language (vocab_check.py).
             "vocab_checks": {
                 "batches": sum(n for n, _ in vocab.values()),
@@ -851,12 +876,12 @@ def create_app(
     @app.get("/api/words", dependencies=authed)
     async def words() -> list[dict[str, Any]]:
         language = engine.language()
-        entries, lexicon = engine.snapshot(language)
-        meanings = {e.text: e.meaning for e in entries}
+        lexicon = engine.snapshot(language)[1]
+        known = engine.meanings(language)
         return [
             {
                 "word": w.word,
-                "gloss": gloss_for(w.word, w.glosses, lexicon, meanings),
+                "gloss": gloss_for(w.word, w.glosses, lexicon, known),
                 "lemma": lemma_for(w.word, lexicon),
                 "status": lexicon.status(w.word),
                 "deck": lexicon.entry_of(w.word) is not None,
@@ -1044,7 +1069,7 @@ def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
     out = render(
         text,
         lexicon,
-        {e.text: e.meaning for e in entries},
+        engine.meanings(text.language),
         {e.text: e.translit for e in entries if e.translit},
         # Not set as the owner's choices stand now, so a point marked since isn't still explained
         # as unmarked.
@@ -1147,6 +1172,7 @@ def production_app() -> FastAPI:
     explain_phrase: ExplainPhrase | None = None
     write_drills: drills.WriteDrills | None = None
     write_vocab: vocab_check.WriteVocab | None = None
+    write_meanings: meanings.WriteMeanings | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
@@ -1154,6 +1180,7 @@ def production_app() -> FastAPI:
         explain_phrase = claude_explain_phrase(client)
         write_drills = drills.claude_drills(client)
         write_vocab = vocab_check.claude_vocab(client)
+        write_meanings = meanings.claude_meanings(client)
 
         def ask_for(entries: list[Entry], language: Code) -> Ask:
             return claude_ask(client, entries, language)
@@ -1199,6 +1226,7 @@ def production_app() -> FastAPI:
         audio=AudioCache(settings.audio_dir),
         voices=settings.voices,
         rollover=lambda: anki.rollover if anki else DEFAULT_ROLLOVER,
+        write_meanings=write_meanings,
     )
     engine.count_existing_audio()
     return create_app(
