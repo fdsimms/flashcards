@@ -737,7 +737,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                   </View>
                 )}
                 {/* Under the words, above anything they reveal, so a button doesn't move when English or an explanation opens. */}
-                <View style={{ flexDirection: 'row', gap: space.xs, marginTop: space.xs }}>
+                <View style={{ flexDirection: 'row', gap: space.xs, marginTop: space.s }}>
                   {line.audio ? (
                     <RoundButton icon="play.fill" accessibilityLabel={`Play line ${i + 1}`} on onPress={() => playLine(i, false)} />
                   ) : null}
