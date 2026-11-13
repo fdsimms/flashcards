@@ -98,8 +98,9 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/words                  words marked unknown and not cleared, newest first
     POST  /api/words/clear            {word} takes a word off that list until it's marked again
     GET   /api/texts/{id}/lines/{n}/audio   one line's MP3, made now if it isn't cached yet
-    GET   /api/voices?language=th     Azure's voices in a language (any code: th, pl, es-MX), for
-                                      the speakers here and for recording cards in the app
+    GET   /api/voices?language=th     Azure's voices in a language (any code: th, pl, es-MX) and then
+                                      its Multilingual voices of other locales, for the speakers
+                                      here and for recording cards in the app
     POST  /api/speech                 {text, voice, rate?} the text spoken by an Azure voice, as MP3:
                                       the app records a card's audio with it and keeps the file, so
                                       each recording is asked for once
@@ -290,12 +291,20 @@ class ReadingIn(BaseModel):
     seconds: int = Field(default=0, ge=0)
 
 
+def _is_multilingual(name: str) -> bool:
+    """Azure's Multilingual voices read any language, though each is listed under one locale
+    (en-US-AndrewMultilingualNeural), so they're offered and accepted for every language."""
+    return "Multilingual" in name
+
+
 def _check_voice(name: str, code: Code) -> None:
     """Refuses a voice that isn't Azure's shape or doesn't speak the language it's chosen for."""
     try:
         locale = locale_of(name)
     except SpeechError as e:
         raise HTTPException(400, str(e)) from e
+    if _is_multilingual(name):
+        return
     if locale.split("-")[0].lower() != code:
         raise HTTPException(
             400,
@@ -787,13 +796,21 @@ def create_app(
             found = await need_speech().voices()
         except SpeechError as e:
             raise HTTPException(503, str(e)) from e
-        matching = [
-            v
-            for v in found
-            if (loc := (v.get("locale") or "").lower()) == want or loc.startswith(want + "-")
-        ]
-        matching.sort(key=lambda v: (v.get("locale") or "", v.get("name") or ""))
-        return {"voices": matching}
+
+        def in_language(v: dict[str, Any]) -> bool:
+            loc = (v.get("locale") or "").lower()
+            return loc == want or loc.startswith(want + "-")
+
+        def order(v: dict[str, Any]) -> tuple[str, str]:
+            return (v.get("locale") or "", v.get("name") or "")
+
+        # The language's own voices first, then the Multilingual ones of other locales.
+        own = sorted((v for v in found if in_language(v)), key=order)
+        others = sorted(
+            (v for v in found if not in_language(v) and _is_multilingual(v.get("voice") or "")),
+            key=order,
+        )
+        return {"voices": own + others}
 
     @app.post("/api/speech", dependencies=authed)
     async def speak(body: SpeechIn) -> Response:
