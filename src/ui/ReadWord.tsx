@@ -16,30 +16,21 @@ export type PhrasePart = 'only' | 'first' | 'middle' | 'last';
 
 /**
  * A selected phrase is drawn as one band across its pieces, spaces and punctuation included: each
- * piece fills its own box and draws its share of the outline, the ends closing it off. Like the
- * selection ring, the outline is an overlay, so the band moves nothing.
+ * piece fills its own box and draws a bar along its bottom edge. Only the top corners at the
+ * phrase's two ends are rounded, so the band reads the same where the phrase wraps onto a second
+ * line (an outline had ends to close at every wrap, and drew open boxes there). Like the selection
+ * ring, the bar is an overlay, so the band moves nothing.
  */
 function phraseCorners(part: PhrasePart) {
   const r = radius.s - 2;
   const left = part === 'only' || part === 'first' ? r : 0;
   const right = part === 'only' || part === 'last' ? r : 0;
-  return { borderTopLeftRadius: left, borderBottomLeftRadius: left, borderTopRightRadius: right, borderBottomRightRadius: right };
+  return { borderTopLeftRadius: left, borderTopRightRadius: right, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 };
 }
 
-function PhraseOutline({ part }: { part: PhrasePart }) {
+function PhraseBar() {
   const c = useTheme();
-  const opens = part === 'only' || part === 'first';
-  const closes = part === 'only' || part === 'last';
-  return (
-    <View
-      pointerEvents="none"
-      style={{
-        position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderColor: c.accent,
-        borderTopWidth: 1.5, borderBottomWidth: 1.5, borderLeftWidth: opens ? 1.5 : 0, borderRightWidth: closes ? 1.5 : 0,
-        ...phraseCorners(part),
-      }}
-    />
-  );
+  return <View pointerEvents="none" style={{ position: 'absolute', right: 0, bottom: 0, left: 0, height: 2, backgroundColor: c.accent }} />;
 }
 
 export type ReadTextStyle = { fontSize: number; lineHeight: number; font: ReadFont };
@@ -83,7 +74,7 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
           : playing ? { backgroundColor: c.fill, height: textStyle.lineHeight + 4.5, justifyContent: 'center' } : null,
       ]}>
         {piece}
-        {phrasePart ? <PhraseOutline part={phrasePart} /> : null}
+        {phrasePart ? <PhraseBar /> : null}
       </View>
     );
   }
@@ -119,7 +110,7 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
           style={{ position: 'absolute', top: bandInset, bottom: bandInset, left: 0, right: 0, borderRadius: radius.s - 2, backgroundColor: band }}
         />
       ) : null}
-      {phrasePart && !ringed ? <PhraseOutline part={phrasePart} /> : null}
+      {phrasePart && !ringed ? <PhraseBar /> : null}
       {ringed ? (
         <View
           pointerEvents="none"
