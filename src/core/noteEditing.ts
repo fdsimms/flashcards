@@ -1,5 +1,8 @@
+import { nextStudyDayStart } from './day';
 import { htmlToText } from './html';
-import type { Note } from './types';
+import { isBuried } from './queue';
+import { isLeechNote } from './trouble';
+import type { Card, Note } from './types';
 
 /**
  * The pure half of adding, editing and finding notes: what the editor shows for a field, what it
@@ -53,6 +56,35 @@ export function searchNotes(notes: Note[], query: string, deck?: string | null):
   });
   const key = new Map(out.map((n) => [n.id, notePreview(n).front]));
   return out.sort((a, b) => key.get(a.id)!.localeCompare(key.get(b.id)!));
+}
+
+/** What Browse can narrow its notes to, beside a deck and a search. */
+export type NoteFilter = 'new' | 'due' | 'leech' | 'suspended' | 'flagged';
+
+export const NOTE_FILTERS: { value: NoteFilter; label: string }[] = [
+  { value: 'new', label: 'New' },
+  { value: 'due', label: 'Due today' },
+  { value: 'leech', label: 'Leeches' },
+  { value: 'suspended', label: 'Suspended' },
+  { value: 'flagged', label: 'Flagged' },
+];
+
+/**
+ * Whether a note belongs under a Browse filter. Browse lists notes, so a filter about cards keeps
+ * a note with at least one card in that state; a retired card (a kind the note no longer makes)
+ * counts for none. New and Due today are cards that can be studied, so not suspended, and Due
+ * today, as Anki's `is:due`, leaves out a card buried today: a review or step due before the next
+ * study day starts. Leeches go by the note's `leech` tag; Flagged is any of Anki's flags.
+ */
+export function matchesNoteFilter(filter: NoteFilter, note: Note, cards: Card[], now: Date, dayStartsAtHour: number): boolean {
+  if (filter === 'leech') return isLeechNote(note);
+  const live = cards.filter((c) => !c.retired);
+  if (filter === 'suspended') return live.some((c) => c.suspended);
+  if (filter === 'flagged') return live.some((c) => !!c.flag);
+  const studyable = live.filter((c) => !c.suspended);
+  if (filter === 'new') return studyable.some((c) => c.sched.state === 0);
+  const end = nextStudyDayStart(now, dayStartsAtHour).getTime();
+  return studyable.some((c) => c.sched.state !== 0 && !isBuried(c, now, dayStartsAtHour) && new Date(c.sched.due).getTime() < end);
 }
 
 export type DeckChip = { label: string; deck: string | null; selected: boolean };
