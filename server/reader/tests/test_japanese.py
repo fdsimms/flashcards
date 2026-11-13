@@ -282,6 +282,14 @@ def test_lexicon_from_routes_japanese_to_its_checker_with_its_default_common_cou
     assert lx.common == lexicon([], 2000).common
 
 
+def test_a_withheld_entry_is_unknown_in_any_form_even_as_a_common_word() -> None:
+    deck = [Entry(1, "食べる", "to eat", "young"), Entry(2, "飲む", "to drink", "mature")]
+    writing = lexicon_from(deck, "ja", withheld=["食べる"])
+    assert lexicon_from(deck, "ja").status("食べました") == "known"
+    assert writing.status("食べました") == "unknown"
+    assert writing.status("飲みました") == "known"
+
+
 def test_azure_bills_japanese_characters_twice() -> None:
     assert billed_chars("Hola.") == 5
     assert billed_chars("劇団に行く。") == 11  # 。 is billed once

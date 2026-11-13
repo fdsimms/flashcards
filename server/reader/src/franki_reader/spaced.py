@@ -254,10 +254,13 @@ def _is_word(token: str) -> bool:
 class SpacedLexicon:
     spaced = True
 
-    def __init__(self, code: str, known: Iterable[str], common: int = 0) -> None:
+    def __init__(
+        self, code: str, known: Iterable[str], common: int = 0, withheld: Iterable[str] = ()
+    ) -> None:
         self.code = code
         self.rules = RULES[code]
-        self.known = frozenset(e.strip() for e in known if e.strip())
+        held = frozenset(e.strip() for e in withheld if e.strip())
+        self.known = frozenset(e.strip() for e in known if e.strip()) - held
         self.common = _common(code, common) if common else frozenset()
         # key (word, or space-joined phrase) -> the deck entry as written
         self._entries: dict[str, str] = {}
@@ -277,6 +280,17 @@ class SpacedLexicon:
                 if self.rules.reflexive and re.search(rf"[aei]r{self.rules.reflexive}$", word):
                     # A reflexive verb (cerciorarse) also matches its forms without "se".
                     self._entries.setdefault(word[: -len(self.rules.reflexive)], entry)
+        # The words of withheld entries (lexicon_from) and their lemmas: unknown in any form, even
+        # a common word's. Their articles aren't kept as markers.
+        markers = set(self._markers)
+        self._withheld = {
+            form
+            for entry in held
+            for key in self._keys(entry)
+            if len(key) == 1
+            for form in (key[0], self._lemma(key[0]))
+        }
+        self._markers = markers
 
     def _keys(self, entry: str) -> list[tuple[str, ...]]:
         """The ways an entry is matched, each as its words: one per alternative, without the
@@ -399,6 +413,8 @@ class SpacedLexicon:
         if _NUMBER.match(word):
             return True
         forms = self._forms(word)
+        if any(f in self._withheld for f in forms):
+            return False
         if any(f in self.common or f in self._entries or f in self._markers for f in forms):
             return True
         if any(f in self._entries for f in self._guesses(word)):

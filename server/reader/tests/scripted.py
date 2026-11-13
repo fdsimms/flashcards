@@ -39,6 +39,20 @@ IN_RANGE = draft(
     glosses={"ทอน": "give change"},
 )
 BAD = draft("ทอน|ทอน|ฉัน")
+# In range like IN_RANGE (19 counted words, one off the list) with no practice word, for a text
+# written while ข้าวเหนียวมะม่วง is withheld.
+PLAIN = draft(
+    "ฉัน|อยาก|กิน|ครับ|ฉัน|อยาก|กิน|ทอน|ครับ|รับอะไรดี",
+    "ฉัน|อยาก|กิน|ครับ|ฉัน|อยาก|กิน|ครับ|ฉัน|ครับ",
+    glosses={"ทอน": "give change"},
+)
+# In range with ข้าวเหนียวมะม่วง as its practice word and no กิน, for a text written while กิน is
+# withheld.
+WITHOUT_KIN = draft(
+    "ฉัน|อยาก|*ข้าวเหนียวมะม่วง*|ครับ|ฉัน|อยาก|ทอน|ครับ|รับอะไรดี|ครับ",
+    "*ข้าวเหนียวมะม่วง*|ครับ!|ฉัน|อยาก|ครับ|ฉัน|อยาก|ครับ|ฉัน|ครับ",
+    glosses={"ทอน": "give change"},
+)
 
 
 class ScriptedModel:

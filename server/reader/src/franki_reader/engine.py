@@ -45,7 +45,7 @@ from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
 from franki_reader.store import Reading, Reason, StoredText, Story, Topic
-from franki_reader.stretch import pick_stretch, reviewed_words
+from franki_reader.stretch import pick_stretch, reviewed_words, waiting
 from franki_reader.study_day import DEFAULT_ROLLOVER, study_day, study_day_start
 from franki_reader.suggestions import suggest
 from franki_reader.tts import DEFAULT_VOICES, AudioCache, Synthesize, TtsFailed, billed_chars
@@ -208,6 +208,31 @@ class Engine:
     def entries(self, language: Code | None = None) -> list[Entry]:
         return self.snapshot(language)[0]
 
+    def writing_lexicon(
+        self, language: Code, keep: Iterable[Entry] = ()
+    ) -> tuple[list[Entry], Checker]:
+        """The entries and checker a new text is written with: `snapshot`'s, less the words with a
+        card due today and not answered today (`stretch.waiting`: on the snapshot's day, or by due
+        date on a later one). Seen in a text, its gloss a tap away, before its review, a word's
+        review becomes short-term recall and FSRS lengthens an interval the learner didn't earn
+        (brief, principle 9). Such a word isn't in the model's list and counts as unknown in any
+        form, so a draft that uses it goes back naming it. `keep` is the text's practice words,
+        never withheld: the ones picked are never waiting, and those of "Read a text with these
+        words" were just reviewed in Franki, whatever a snapshot read before its sync says.
+        Reading a text, its glosses and its marks still use `snapshot`'s."""
+        entries = self.entries(language)
+        days = self.snapshot_days(language)
+        kept = {e.text for e in keep}
+        held = {
+            e.text
+            for e in entries
+            if e.tier != "unreviewed" and waiting(e, days) and e.text not in kept
+        }
+        common = store.load_settings(self.conn).common_for(language)
+        extra = [e.text for e in self.wanikani_entries(language)]
+        writing = [e for e in entries if e.text not in held]
+        return writing, lexicon_from(entries, language, common, extra, held)
+
     def wanikani_entries(self, language: Code) -> list[Entry]:
         """Japanese's words learned in WaniKani, as the model's word list shows them; none for
         another language. They aren't deck words, so they're kept out of `snapshot`'s entries."""
@@ -345,7 +370,7 @@ class Engine:
                 await self.refresh_lexicon(language, force=True)
             self._check_setup(language)
             assert self.ask_for is not None
-            entries, lexicon = self.snapshot(language)
+            entries = self.entries(language)
             difficulty = store.load_difficulty(self.conn, language)
             context = self._story_context(story) if story else None
             request = self._request(
@@ -358,7 +383,10 @@ class Engine:
                 any_words=job.any_words,
                 story=context,
             )
-            known = entries + self.wanikani_entries(language)
+            # Words due today and not reviewed yet are left out of the list and counted as unknown,
+            # so the text doesn't show them before their review (`writing_lexicon`).
+            writing, lexicon = self.writing_lexicon(language, keep=request.stretch)
+            known = writing + self.wanikani_entries(language)
             extra = {
                 "reason": job.reason,
                 "story_id": story.id if story else None,

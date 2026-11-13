@@ -4,6 +4,7 @@ from fake_anki import card, note
 
 from franki_reader.lexicon import (
     THAI_NOTES_QUERY,
+    Entry,
     build_entries,
     clean,
     days_until_due,
@@ -92,6 +93,16 @@ def test_an_entry_is_due_until_every_due_card_is_answered_today() -> None:
     # A suspended card never comes due.
     leech = build_entries(word, [card(1, 2, 5, suspended=True, due_in=0), card(1, 2, 9, due_in=4)])
     assert leech[0].due_in == 4
+
+
+def test_a_withheld_thai_word_is_unknown_even_when_it_splits_into_known_ones() -> None:
+    deck = [Entry(1, "เข้า", "to enter", "mature"), Entry(2, "ใจ", "heart", "mature")]
+    deck.append(Entry(3, "เข้าใจ", "to understand", "young"))
+    writing = lexicon_from(deck, withheld=["เข้าใจ"])
+    assert lexicon_from(deck).status("เข้าใจ") == "known"
+    assert writing.status("เข้าใจ") == "unknown"
+    assert writing.status("เข้า") == "known"
+    assert "เข้าใจ" not in writing.known
 
 
 def test_clean_strips_html_and_entities() -> None:
