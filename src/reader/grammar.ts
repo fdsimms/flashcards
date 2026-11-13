@@ -11,6 +11,24 @@ export const GRAMMAR_CHOICES: { value: GrammarChoice; label: string }[] = [
   { value: 'avoid', label: "Don't know it" },
 ];
 
+/** A JLPT level as shown: 5 is N5, the easiest, down to 1 for N1. */
+export const jlptName = (level: number) => `N${level}`;
+
+/** The JLPT levels a language's points have, easiest first (5, 4, 3). Empty for a language with none. */
+export function jlptLevels(points: GrammarPoint[]): number[] {
+  return [...new Set(points.map((p) => p.jlpt).filter((n): n is number => n !== undefined))].sort((a, b) => b - a);
+}
+
+/**
+ * The level "I know through N_" describes right now, or null when the choices match none: every
+ * point at that level or easier is Know it or Practice, every harder one Don't know it
+ * (the server's `level_choices`). A point with no level doesn't count either way.
+ */
+export function knownThroughLevel(points: GrammarPoint[]): number | null {
+  const leveled = points.filter((p) => p.jlpt !== undefined);
+  return jlptLevels(points).find((n) => leveled.every((p) => (p.jlpt! >= n ? p.state === 'normal' || p.state === 'practice' : p.state === 'avoid'))) ?? null;
+}
+
 /** How many points a language may practice at once when the server doesn't say (its MAX_PRACTICE). */
 export const DEFAULT_MAX_PRACTICE = 2;
 

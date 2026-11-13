@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type GrammarChoice, type GrammarList } from '../reader/api';
-import { DEFAULT_MAX_PRACTICE, grammarChoiceOptions, seenLine } from '../reader/grammar';
+import { DEFAULT_MAX_PRACTICE, grammarChoiceOptions, jlptName, seenLine } from '../reader/grammar';
 import { Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { haptic } from './haptics';
-import { hairline, space, type, useTheme } from './theme';
+import { ReadGrammarLevel } from './ReadGrammarLevel';
+import { hairline, radius, space, type, useTheme } from './theme';
 
 /**
  * The current language's grammar points, each practiced (used at least twice in every text), known
@@ -64,6 +65,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {points === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
         {points && points.length === 0 ? <Help>There are no grammar points for this language yet.</Help> : null}
+        {points ? <ReadGrammarLevel api={api} points={points} onList={setList} /> : null}
         {points && points.length > 0 ? (
           <Card style={{ gap: space.s }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.s }}>
@@ -130,6 +132,11 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
                       <Text style={{ ...type.headline, color: c.text }}>{p.name}</Text>
                       <Text style={{ ...type.subhead, color: c.textSecondary }}>{p.note}</Text>
                     </View>
+                    {p.jlpt ? (
+                      <View style={{ backgroundColor: c.accentFill, borderRadius: radius.pill, paddingHorizontal: space.s, paddingVertical: 2 }}>
+                        <Text accessibilityLabel={`JLPT ${jlptName(p.jlpt)}`} style={{ ...type.footnote, fontWeight: '700', color: c.accent }}>{jlptName(p.jlpt)}</Text>
+                      </View>
+                    ) : null}
                     <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
                   </Tappable>
                   {seen ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{seen}</Text> : null}

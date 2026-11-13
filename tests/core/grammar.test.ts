@@ -22,6 +22,13 @@ describe('the grammar catalog', () => {
     }
   });
 
+  it('gives a JLPT level of 1 to 5 to every Japanese point and to no other language', () => {
+    for (const p of GRAMMAR_POINTS) {
+      if (p.language === 'ja') expect([1, 2, 3, 4, 5]).toContain(p.jlpt);
+      else expect(p.jlpt).toBeUndefined();
+    }
+  });
+
   it('has points for every language but English, which the learner already reads', () => {
     for (const language of LANGUAGES.filter((l) => l !== 'en')) expect(grammarPointsFor(language).length).toBeGreaterThan(0);
   });

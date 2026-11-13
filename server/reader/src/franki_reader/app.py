@@ -111,6 +111,10 @@ marked words, ideas) is in the current language, the `language` setting.
     PUT   /api/grammar/stretch        {uses: 1 to 4}: how many times the next texts may use grammar
                                       not set (the Grammar dial on the wrap-up screen); answers as
                                       GET /api/grammar does
+    PUT   /api/grammar/level          {through: 5 to 1}: "I know through N_" (Japanese): each point
+                                      at that JLPT level or easier becomes Know it unless it's
+                                      practiced, each above it Don't know it; answers as GET
+                                      /api/grammar does, where each point has its `jlpt`
     PUT   /api/grammar/{id}           {state}; at most 2 practiced at once; from the next text
     GET   /api/forms?language=ru      the grammatical forms a word can be marked as in that language
                                       and the primer for each (form_primers.py): {forms: [{id, name,
@@ -248,6 +252,10 @@ class TopicUpdate(BaseModel):
 
 class GrammarChoice(BaseModel):
     state: Literal["practice", "avoid", "normal"]
+
+
+class GrammarLevelIn(BaseModel):
+    through: int = Field(ge=1, le=5)  # 5 is N5 (the easiest) up to 1 for N1
 
 
 class GrammarStretchIn(BaseModel):
@@ -1216,6 +1224,8 @@ def create_app(
                     "note": p.note,
                     "state": choices.get(p.id, "unset"),
                     "seen": _seen(seen[p.id]),
+                    # The JLPT level, 5 for N5 up to 1 for N1; left out for a language with none.
+                    **({"jlpt": p.jlpt} if p.jlpt else {}),
                 }
                 for p in grammar.points_for(language)
             ],
@@ -1414,6 +1424,16 @@ def create_app(
         language = engine.language()
         current = store.load_difficulty(engine.conn, language)
         store.save_difficulty(engine.conn, replace(current, unset_uses=body.uses), language)
+        return grammar_points()
+
+    # Before /api/grammar/{point_id}, which would take "level" for a point.
+    @app.put("/api/grammar/level", dependencies=authed)
+    async def set_grammar_level(body: GrammarLevelIn) -> dict[str, Any]:
+        language = engine.language()
+        changes = grammar.level_choices(language, body.through, store.load_grammar(engine.conn))
+        if not changes:
+            raise HTTPException(422, f"{LANGUAGES[language].name} has no JLPT levels.")
+        store.set_grammar_many(engine.conn, changes)
         return grammar_points()
 
     @app.put("/api/grammar/{point_id}", dependencies=authed)

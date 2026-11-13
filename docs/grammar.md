@@ -38,6 +38,14 @@ Each point has:
   number used once per language (the server refuses to start without one, and a test checks the
   numbers). The Grammar dial (architecture.md, Grammar) suggests the lowest-level point not yet
   practiced or known. The order is the owner's to correct.
+- **`jlpt`** (optional): Japanese's JLPT level, 5 for N5 (the easiest) up to 1 for N1; the server
+  refuses a number outside 1 to 5, and a test checks every Japanese point has one and no other
+  language does. The levels are the owner's to correct. The Grammar screen shows each as a badge,
+  and its "I know grammar through" control sets points by it (`level_choices`, `PUT
+  /api/grammar/level`): at that level or easier becomes Know it unless practiced, harder becomes
+  Don't know it, practiced or not. Nothing about the level is stored: each point keeps its own choice,
+  and the control shows whichever level the choices match (`knownThroughLevel`), none once a point
+  is changed by hand.
 - **`known`** (optional): the point reads as Know it until the owner chooses otherwise
   (`store.load_grammar`). For grammar in nearly every line, which the cap on points not set would
   otherwise keep out of texts: Japanese's ます and past.

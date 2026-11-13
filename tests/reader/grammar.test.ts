@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import type { GrammarPoint } from '../../src/reader/api';
-import { GRAMMAR_CHOICES, grammarChoiceOptions, grammarStateWord, grammarSummary, markedParts, practicingPoints, seenLine } from '../../src/reader/grammar';
+import { GRAMMAR_CHOICES, grammarChoiceOptions, grammarStateWord, grammarSummary, jlptLevels, jlptName, knownThroughLevel, markedParts, practicingPoints, seenLine } from '../../src/reader/grammar';
 
 const point = (id: string, state: GrammarPoint['state']): GrammarPoint => ({ id, name: id, note: '', state });
 
@@ -94,4 +94,35 @@ test('Practice is turned off for a point that is not practiced once the limit is
   expect(practice('practice', 2)).toBe(false);
   // Know it and Don't know it are never turned off.
   expect(grammarChoiceOptions('Past tense', 'normal', 2, 2).filter((o) => o.disabled).map((o) => o.value)).toEqual(['practice']);
+});
+
+const leveled = (id: string, jlpt: number, state: GrammarPoint['state']): GrammarPoint => ({ ...point(id, state), jlpt });
+
+test('the levels a language has are listed easiest first, and none for a language without', () => {
+  expect(jlptName(5)).toBe('N5');
+  expect(jlptLevels([leveled('a', 4, 'unset'), leveled('b', 5, 'unset'), leveled('c', 4, 'unset'), point('d', 'unset')])).toEqual([5, 4]);
+  expect(jlptLevels([point('a', 'unset')])).toEqual([]);
+});
+
+test('the level known through is the one the choices match', () => {
+  const points = (n5: GrammarPoint['state'], n4: GrammarPoint['state'], n3: GrammarPoint['state']) => [
+    leveled('a', 5, n5), leveled('b', 4, n4), leveled('c', 3, n3),
+  ];
+  expect(knownThroughLevel(points('normal', 'avoid', 'avoid'))).toBe(5);
+  expect(knownThroughLevel(points('normal', 'normal', 'avoid'))).toBe(4);
+  expect(knownThroughLevel(points('normal', 'normal', 'normal'))).toBe(3);
+  // Practice counts as known, and a point at the level reads the same whichever way it's set.
+  expect(knownThroughLevel(points('practice', 'normal', 'avoid'))).toBe(4);
+});
+
+test('no level is known through when the choices match none, or none are set', () => {
+  expect(knownThroughLevel([leveled('a', 5, 'unset'), leveled('b', 4, 'unset')])).toBeNull();
+  // N4 is Know it but N5 isn't: one choice made by hand breaks the match.
+  expect(knownThroughLevel([leveled('a', 5, 'avoid'), leveled('b', 4, 'normal')])).toBeNull();
+  expect(knownThroughLevel([leveled('a', 5, 'normal'), leveled('b', 4, 'normal'), leveled('c', 3, 'unset')])).toBeNull();
+  expect(knownThroughLevel([point('a', 'normal')])).toBeNull();
+});
+
+test('a point with no level is ignored when finding the level', () => {
+  expect(knownThroughLevel([leveled('a', 5, 'normal'), leveled('b', 4, 'avoid'), point('x', 'unset')])).toBe(5);
 });
