@@ -214,6 +214,11 @@ _LEMMA_FIXES: dict[str, dict[str, str]] = {
         }.items()
         for w in forms.split()
     },
+    # lève (je me lève) stays as it is, and paye isn't taken to payer.
+    "fr": {"lève": "lever", "paye": "payer"},
+    # gone comes back as "gan", worse as "wrong". Forms that are also a common noun or adjective
+    # (left, rose, felt, thought) are left out, as for the others.
+    "en": {"gone": "go", "worse": "bad"},
 }
 
 
@@ -266,6 +271,9 @@ class SpacedLexicon:
         self._entries: dict[str, str] = {}
         self._phrases: dict[tuple[str, ...], str] = {}
         self._phrase_words: set[str] = set()  # the words of deck phrases, as written
+        # single-word entries by the spelling written, so Essen (food) and essen (to eat), which
+        # fold to one key, each find their own
+        self._exact: dict[str, str] = {}
         self._markers: set[str] = set()  # articles and the like, taken off studied entries
         for entry in sorted(self.known):
             for key in self._keys(entry):
@@ -275,6 +283,9 @@ class SpacedLexicon:
                     self._phrase_words.update(key)
                     continue
                 word = key[0]
+                for piece in self._pieces(re.sub(r"\([^)]*\)", " ", entry)):
+                    if _is_word(piece) and fold(piece, self.code) == word:
+                        self._exact.setdefault(piece, entry)
                 self._entries.setdefault(word, entry)
                 self._entries.setdefault(self._lemma(word), entry)
                 if self.rules.reflexive and re.search(rf"[aei]r{self.rules.reflexive}$", word):
@@ -391,10 +402,16 @@ class SpacedLexicon:
         if len(words) > 1:
             return self._phrase_entry(words)
         word = words[0] if words else ""
+        if exact := self._exact.get(token.strip()):
+            return exact
         for form in self._forms(word) + self._guesses(word):
             if form in self._entries:
                 return self._entries[form]
         return None
+
+    def on_common_list(self, token: str) -> bool:
+        """Whether the word, or its lemma, is one of the language's common words counted as known."""
+        return any(f in self.common for f in self._forms(fold(token, self.code)))
 
     def status(self, token: str) -> Status:
         words = self._words(token)
