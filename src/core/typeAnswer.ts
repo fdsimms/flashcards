@@ -181,17 +181,3 @@ export function compareAnswer(expected: string, typed: string, combining: boolea
   }
   return `<code id=typeans>${typedHtml}<br><span id=typearrow>&darr;</span><br>${expectedHtml}</code>`;
 }
-
-// ==== Clozes ====
-
-const CLOZE = /\{\{c(\d+)::([\s\S]*?)(?:::([\s\S]*?))?\}\}/g;
-
-/**
- * The text a {{type:cloze:Field}} card expects (Anki's extract_cloze_for_typing): its cloze's
- * answers, joined with ", ", or once when they're all the same; empty when the note has none.
- */
-export function clozeForTyping(text: string, clozeNumber: number): string {
-  const found = [...text.matchAll(CLOZE)].filter((m) => Number(m[1]) === clozeNumber).map((m) => m[2]);
-  if (!found.length) return '';
-  return found.every((x) => x === found[0]) ? found[0] : found.join(', ');
-}

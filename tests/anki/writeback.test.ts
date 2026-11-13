@@ -38,6 +38,9 @@ describe('mapping an answer to Anki', () => {
     expect(u.due).toBe(Math.floor(new Date(after.sched.due).getTime() / 1000));
     expect(u.left).toBeGreaterThanOrEqual(1);
     expect(JSON.parse(u.data!)).toMatchObject({ pos: 12, dr: 0.85 });
+    // A card that had no position kept yet gets its new-card position, as Anki records it.
+    expect(JSON.parse(cardUpdate(after, row({ data: '' }), { crt: CRT, now }).data!).pos).toBe(12);
+    expect(JSON.parse(cardUpdate(after, row({ data: '{}', odid: 3, odue: 7, due: -100000 }), { crt: CRT, now }).data!).pos).toBe(7);
     expect(JSON.parse(u.data!).s).toBeGreaterThan(0);
   });
 

@@ -136,7 +136,10 @@ export const inFilteredOrder = (c: Card) => c.filteredDue !== undefined && c.fil
 /** The day a card is due on, as a number to sort by: its filtered-deck place, else its study day. */
 function dueDay(c: Card, h: number): number {
   if (inFilteredOrder(c)) return c.filteredDue!;
-  return Math.round(studyDayStart(new Date(c.sched.due), h).getTime() / dayMs);
+  // The local date as a day number: dividing the local instant by a day's milliseconds lands on
+  // .5 in some zones (UTC-8 with a 4 AM rollover), where rounding gave two days the same number.
+  const d = studyDayStart(new Date(c.sched.due), h);
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / dayMs;
 }
 
 /** The chance of recalling a card now, by FSRS. Undefined for a card never reviewed. */

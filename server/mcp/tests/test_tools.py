@@ -62,6 +62,31 @@ async def test_updates_tags_and_deletes(client, desktop):
     assert all(n[0] != nid for n in desktop.run("dump")["dump"]["notes"])
 
 
+async def test_a_note_anki_refuses_doesnt_fail_the_rest_of_an_update(client, monkeypatch):
+    from anki.collection import Collection
+
+    found = (await call(client, "find_notes", query='"deck:🧠 Trivia" Capital'))["notes"]
+    refused, kept = found[0]["note_id"], found[1]["note_id"]
+    update_note = Collection.update_note
+
+    def refusing(self, note, *args, **kwargs):
+        if note.id == refused:
+            raise RuntimeError("the note is broken")
+        return update_note(self, note, *args, **kwargs)
+
+    monkeypatch.setattr(Collection, "update_note", refusing)
+    out = await call(client, "update_notes", updates=[
+        {"note_id": refused, "add_tags": ["checked"]},
+        {"note_id": kept, "add_tags": ["checked"]},
+    ])
+    assert out["results"] == [
+        {"note_id": refused, "error": "Anki refused it: the note is broken"},
+        {"note_id": kept, "updated": True},
+    ]
+    notes = (await call(client, "get_notes", note_ids=[refused, kept]))["notes"]
+    assert ["checked" in n["tags"] for n in notes] == [False, True]
+
+
 async def test_card_actions(client):
     note = (await call(client, "get_notes", note_ids=[1794408858018]))["notes"][0]
     cid = note["cards"][0]["card_id"]
@@ -137,6 +162,26 @@ async def test_sees_changes_made_in_anki_and_follows_a_full_sync(client, desktop
     desktop.run("add-field", "Basic", "Extra", "+", "upload")
     types = {t["note_type"]: t for t in (await call(client, "list_note_types"))["note_types"]}
     assert types["Basic"]["fields"] == ["Front", "Back", "Extra"]
+
+
+async def test_a_full_sync_with_unsent_changes_is_refused_until_told_to_take_the_server(client, cm, desktop):
+    await call(client, "list_decks")
+
+    def change_here_while_another_device_uploads(col):
+        note = col.new_note(col.models.by_name("Basic"))
+        note["Front"] = "Only on the MCP"
+        col.add_note(note, col.decks.id_for_name(TRIVIA))
+        desktop.run("add-field", "Basic", "Extra", "+", "upload")
+
+    # The sync after the change finds the server's collection replaced: nothing is overwritten.
+    await cm.write(change_here_while_another_device_uploads)
+    for _ in range(2):  # and it stays refused, rather than taking the server's on a second try
+        assert "sync_now with take_server=true" in await call_error(client, "sync_now")
+    await call(client, "sync_now", take_server=True)
+    types = {t["note_type"]: t for t in (await call(client, "list_note_types"))["note_types"]}
+    assert types["Basic"]["fields"] == ["Front", "Back", "Extra"]
+    assert (await call(client, "find_notes", query='"Front:Only on the MCP"'))["total"] == 0
+    await call(client, "sync_now")  # and syncs normally from then on
 
 
 async def test_flagged_cards_are_found_with_their_reason_and_resolved(client, desktop):

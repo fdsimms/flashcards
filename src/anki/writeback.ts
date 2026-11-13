@@ -123,6 +123,9 @@ export function cardUpdate(
 
   let data: Record<string, unknown> = {};
   try { data = current.data ? JSON.parse(current.data) : {}; } catch { /* unreadable: start afresh */ }
+  // A card leaving New keeps its new-card position, as Anki does (`original_position`), so Forget
+  // with "restore position" can put it back. A new card's due is that position (odue in a filtered deck).
+  if (current.type === 0 && s.state !== 0) data.pos = current.odid ? current.odue : current.due;
   if (s.state !== 0) {
     data.s = Number(s.stability.toFixed(4));
     data.d = Number(s.difficulty.toFixed(3));
