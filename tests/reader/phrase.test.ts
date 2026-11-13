@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Word } from '../../src/reader/api';
-import { locate, phrasePart, phraseRange, phraseText, pickEnd, type PhrasePick } from '../../src/reader/phrase';
+import { dragTo, locate, phrasePart, phraseRange, phraseText, pickEnd, wordUnder, type PhrasePick, type WordBox } from '../../src/reader/phrase';
 
 const w = (text: string): Word => ({
   text,
@@ -70,5 +70,53 @@ describe('phraseText', () => {
 
   it('is empty until the last word is chosen', () => {
     expect(phraseText(line, { line: 0, start: 3, end: null })).toBe('');
+  });
+});
+
+describe('wordUnder', () => {
+  // Two rows of text: words 0, 2, 4 on the first, 6 and 8 on the second (the gaps are spaces).
+  const boxes: WordBox[] = [
+    { index: 0, x: 0, y: 0, width: 40, height: 30 },
+    { index: 2, x: 50, y: 0, width: 40, height: 30 },
+    { index: 4, x: 100, y: 0, width: 40, height: 30 },
+    { index: 6, x: 0, y: 30, width: 60, height: 30 },
+    { index: 8, x: 70, y: 30, width: 40, height: 30 },
+  ];
+
+  it('is the word under the finger', () => {
+    expect(wordUnder(boxes, 60, 10)).toBe(2);
+    expect(wordUnder(boxes, 10, 45)).toBe(6);
+  });
+
+  it('keeps to the row the finger is on when it is between words or past the end', () => {
+    expect(wordUnder(boxes, 47, 10)).toBe(2);
+    expect(wordUnder(boxes, 300, 10)).toBe(4);
+    expect(wordUnder(boxes, 300, 50)).toBe(8);
+  });
+
+  it('takes the nearest row when the finger is above or below the line', () => {
+    expect(wordUnder(boxes, 110, -20)).toBe(4);
+    expect(wordUnder(boxes, 80, 120)).toBe(8);
+  });
+
+  it('is null with nothing measured', () => {
+    expect(wordUnder([], 10, 10)).toBeNull();
+  });
+});
+
+describe('dragTo', () => {
+  it('runs the phrase from where the drag started to the word reached, either way', () => {
+    const held: PhrasePick = { line: 0, start: 3, end: 3 };
+    expect(dragTo(held, 7)).toEqual({ line: 0, start: 3, end: 7 });
+    expect(dragTo(dragTo(held, 7), 0)).toEqual({ line: 0, start: 3, end: 0 });
+  });
+
+  it('leaves the pick as it was on the same word', () => {
+    const held: PhrasePick = { line: 0, start: 3, end: 5 };
+    expect(dragTo(held, 5)).toBe(held);
+  });
+
+  it('draws one word as the whole phrase while the finger is still on it', () => {
+    expect(phrasePart({ line: 0, start: 3, end: 3 }, 0, 3)).toBe('only');
   });
 });

@@ -63,9 +63,12 @@ Franki's (Client, below).
   Under the explanation, the grammar points the finders find in the line show as chips that can be
   set to Practice, Know it or Don't know it there (docs/grammar.md, step 3).
 - **Explain a phrase** (12 November 2026, by the owner's decision, for idioms and set phrases like
-  "ya lo sé"). A word's gloss has "Select a phrase": the word becomes the phrase's first, the other
-  lines dim, and tapping another word in the same line ends it (either way round; Cancel in the bar
-  above the player). The phrase is drawn as one band and Claude's note on it opens under the line:
+  "ya lo sé"). Hold a word and drag to the phrase's last word (13 November 2026, by the owner's
+  request; `usePhraseDrag.ts`): the hold starts it, so a quick swipe still scrolls, and the text's
+  scrolling is off until the finger lifts; held and let go on the same word, it's a tap. Or a
+  word's gloss has "Select a phrase": the word becomes the phrase's first, the other lines dim, and
+  tapping another word in the same line ends it (either way round; Cancel in the bar above the
+  player, which also mentions the hold). The phrase is drawn as one band and Claude's note on it opens under the line:
   what it means there, then a few points on its parts (a set expression, how the words combine,
   tone), with "Explain more simply". A phrase stays within one line, so it has the line's context
   and the server can check it's there: the app sends it as it appears (the pieces joined, spaces
@@ -74,8 +77,7 @@ Franki's (Client, below).
   phrase and version in `phrase_explanations`; its cost counts under `explanations` in
   `/api/costs`. **Add to deck** on the note opens the note editor with the phrase and its meaning
   in the language's deck, the same approval step and daily limit as a marked word (`mining.ts`),
-  and only for a text in the language being read. Hold-and-drag selection was considered and left
-  out: it's hidden, and dragging inside the scrolling text fights the scroll.
+  and only for a text in the language being read.
 - **Register and naturalness** (13 November 2026, by the owner's decision). Texts are written by a
   model, and a line that is grammatical but stiff passes every check in code, so two things show how
   a line is said, and neither grades or adds anything. (1) Each line carries a **register** chip
@@ -427,8 +429,18 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
 - **A stretch word used fewer than 2 times** sends the text back too, even at full coverage.
 - **Prompt caching.** The lexicon is the same on every call that day, so it sits in a cached prefix.
 - **Glosses come with the text.** The model returns an English gloss for every word not in the
-  lexicon in the same response, so tap-to-gloss never needs its own API call. Lexicon words use the
+  lexicon in the same response, so a tap never needs its own API call. Lexicon words use the
   deck's `Meaning`.
+- **Common words are glossed after the text is written** (13 November 2026). A common word counts as
+  known without being in the deck, so the model isn't asked to gloss it, and a tap showed "No
+  meaning available" (most of a Norwegian text, whose deck is small). `meanings.py` finds the words in
+  a new text with no gloss (the text's, the deck's, or one kept earlier) and has Claude gloss them
+  in one batched call, each with the English of a line it's in. The answers are kept per language and
+  lower-case word in `word_meanings` and never asked for twice (a word it gave nothing usable for is
+  kept empty, not retried). `Engine.top_up` runs the same pass over the 30 newest waiting or read
+  texts, up to 150 words a call, so texts written before this are filled in. A failed call waits
+  `FAILURE_COOLDOWN` and never keeps a text from being served. The cost is `meanings` in `/api/costs`.
+  The deck's meaning wins over a kept one.
 - **Stretch words** are 1-3 words due today or still young. No random assignment.
 - **Stretch words come back on later days** (brief, design principle 4). A word that was a stretch
   word in a text read on an earlier day goes ahead of other due and young words, until it has been
@@ -567,6 +579,7 @@ A dialogue's speakers are shown as small drawn characters instead of the A and B
 - **The gender picks the version.** A parent is a father or a mother, from `genders`, so there are 20 drawings from 10 keys and no key says a gender.
 - **Two alike.** When A and B share a character and a gender, B is drawn with other hair (or glasses, under a cap), in B's own color.
 - **Drawn in code, from the theme.** `src/reader/characters.ts` is a list of shapes naming tones; `ReadSpeaker.tsx` paints them in the speaker's colors (gold for A, green for B) with `react-native-svg`, so dark mode needs no second set. `test_characters.py` checks the app draws every key the server can pick.
+- **Speakers are named** (13 November 2026). `roles` holds each speaker's first name in Latin letters, with a job first where the situation gives one ("Waiter Luc"); a friend or relative is only a name. Texts written before this keep roles like "Friend". The reader lists them in a card headed "In this text" above the lines, apart from the dialogue.
 - **Older texts keep the badges.** A text with no characters, or a speaker with no gender, shows A or B as before. Texts already written are not redrawn.
 
 ## Server API

@@ -159,6 +159,24 @@ CREATE TABLE IF NOT EXISTS vocab_items (
     batch_id INTEGER NOT NULL REFERENCES vocab_batches(id),
     PRIMARY KEY (language, lemma)
 );
+-- English meanings for words in texts that have no gloss from the deck or the text (meanings.py):
+-- common words are known without being in the deck, so the model isn't asked to gloss them. A word is
+-- asked about once and kept, as written in lower case; an empty meaning is a word Claude gave none for.
+CREATE TABLE IF NOT EXISTS meaning_batches (
+    id INTEGER PRIMARY KEY,
+    language TEXT NOT NULL,
+    asked INTEGER NOT NULL,
+    kept INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    cost_usd REAL NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS word_meanings (
+    language TEXT NOT NULL,
+    word TEXT NOT NULL,
+    meaning TEXT NOT NULL,
+    batch_id INTEGER NOT NULL REFERENCES meaning_batches(id),
+    PRIMARY KEY (language, word)
+);
 CREATE TABLE IF NOT EXISTS stories (
     id INTEGER PRIMARY KEY,
     language TEXT NOT NULL,
@@ -581,6 +599,16 @@ def ready_texts(conn: sqlite3.Connection, language: Code) -> list[StoredText]:
     rows = conn.execute(
         f"SELECT {_TEXT_COLUMNS} FROM texts WHERE status = 'ready' AND language = ? ORDER BY id",
         (language,),
+    ).fetchall()
+    return [_text(r) for r in rows]
+
+
+def recent_texts(conn: sqlite3.Connection, language: Code, limit: int) -> list[StoredText]:
+    """The newest texts in `language` that can be opened (waiting or already read), newest first."""
+    rows = conn.execute(
+        f"SELECT {_TEXT_COLUMNS} FROM texts WHERE status IN ('ready', 'read') AND language = ?"
+        " ORDER BY id DESC LIMIT ?",
+        (language, limit),
     ).fetchall()
     return [_text(r) for r in rows]
 
@@ -1434,6 +1462,55 @@ def vocab_items(conn: sqlite3.Connection, language: Code) -> list[tuple[str, int
             (language,),
         )
     ]
+
+
+def save_meaning_batch(
+    conn: sqlite3.Connection,
+    language: Code,
+    meanings: dict[str, str],
+    now: datetime,
+    cost_usd: float,
+) -> None:
+    """A batch of words Claude glossed for a language, as {lower-case word: meaning}, with its cost.
+    A word it gave no usable meaning for is kept with an empty one, so it isn't asked again."""
+    with conn:
+        batch = conn.execute(
+            "INSERT INTO meaning_batches (language, asked, kept, created_at, cost_usd)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (
+                language,
+                len(meanings),
+                sum(1 for m in meanings.values() if m),
+                now.isoformat(),
+                cost_usd,
+            ),
+        ).lastrowid
+        conn.executemany(
+            "INSERT OR IGNORE INTO word_meanings (language, word, meaning, batch_id)"
+            " VALUES (?, ?, ?, ?)",
+            [(language, word, meaning, batch) for word, meaning in meanings.items()],
+        )
+
+
+def word_meanings(conn: sqlite3.Connection, language: Code) -> dict[str, str]:
+    """Every word of a language that has been asked about, as {lower-case word: meaning}."""
+    return dict(
+        conn.execute(
+            "SELECT word, meaning FROM word_meanings WHERE language = ?", (language,)
+        ).fetchall()
+    )
+
+
+def meaning_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
+    """Each language with word meanings written since `since`: batches and their cost."""
+    return {
+        language: (count, cost)
+        for language, count, cost in conn.execute(
+            "SELECT language, COUNT(*), SUM(cost_usd) FROM meaning_batches WHERE created_at >= ?"
+            " GROUP BY language ORDER BY SUM(cost_usd) DESC",
+            (since.isoformat(),),
+        )
+    }
 
 
 def vocab_asked(conn: sqlite3.Connection, language: Code) -> int:

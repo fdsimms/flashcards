@@ -121,9 +121,9 @@ export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, o
   const open = (textId: number, playAll = false) => onOpen({ textId, order, playAll });
 
   const textActions = (text: ShelfText) => {
-    const like = text.liked ? 'Fewer like this' : 'More like this';
+    const like = text.liked ? 'Stop writing about this topic' : 'Write more about this topic';
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: text.title, options: [like, 'Not this', 'Cancel'], cancelButtonIndex: 2, destructiveButtonIndex: 1 },
+      { title: text.title, options: [like, 'Remove from shelf', 'Cancel'], cancelButtonIndex: 2, destructiveButtonIndex: 1 },
       async (i) => {
         setActionError(null);
         try {
@@ -247,7 +247,7 @@ export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, o
             ) : (
               <Help>Texts are written here a few at a time, from the words in your deck. Pull down to check for them.</Help>
             )}
-            {shelf.texts.length > 0 ? <Help>Press and hold a text for More like this or Not this. Texts are only written for a language you open here, and at most 3 wait at a time.</Help> : null}
+            {shelf.texts.length > 0 ? <Help>Press and hold a text to write more about its topic or remove it from the shelf. Texts are only written for a language you open here, and at most 3 wait at a time.</Help> : null}
 
             <WriteCard api={api} onWriting={refresh} />
 
@@ -272,7 +272,7 @@ function ShelfRow({ text, first, onPress, onLongPress }: { text: ShelfText; firs
       accessibilityRole="button"
       accessibilityLabel={`${text.title}. ${cardDetail(text)}. ${reason}`}
       accessibilityHint="Opens the text"
-      accessibilityActions={[{ name: 'more', label: 'More like this, or Not this' }]}
+      accessibilityActions={[{ name: 'more', label: 'Change this topic, or remove from shelf' }]}
       onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'more') onLongPress(); }}
       scaleTo={0.99}
       style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, borderTopWidth: first ? 0 : 1, borderTopColor: c.border }}
