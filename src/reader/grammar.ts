@@ -10,6 +10,18 @@ export const GRAMMAR_CHOICES: { value: GrammarChoice; label: string }[] = [
   { value: 'avoid', label: "Don't know it" },
 ];
 
+/** How many points a language may practice at once when the server doesn't say (its MAX_PRACTICE). */
+export const DEFAULT_MAX_PRACTICE = 2;
+
+/**
+ * The choices for one point, with Practice turned off when `practicing` points already fill the
+ * limit and this one isn't among them: the server refuses it, so it isn't offered.
+ */
+export function grammarChoiceOptions(name: string, state: GrammarState, practicing: number, max: number) {
+  const full = state !== 'practice' && practicing >= max;
+  return GRAMMAR_CHOICES.map((s) => ({ ...s, accessibilityLabel: `${name}: ${s.label}`, disabled: s.value === 'practice' && full }));
+}
+
 /** A point's choice in a word or two, beside its name: "Preterite · Practicing". */
 export function grammarStateWord(state: GrammarState): string {
   return { practice: 'Practicing', normal: 'Know it', avoid: "Don't know it", unset: 'Not set' }[state];

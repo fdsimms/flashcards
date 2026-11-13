@@ -1061,6 +1061,7 @@ def create_app(
         return {
             "id": point.id,
             "state": choices.get(point.id, "unset"),
+            "max_practice": grammar.MAX_PRACTICE,
             "seen": _seen(engine.grammar_exposure(point.language)[point.id]),
             "choices": {
                 p.id: choices.get(p.id, "unset") for p in grammar.points_for(point.language)
