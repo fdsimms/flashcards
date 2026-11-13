@@ -30,6 +30,7 @@ import { CheckCard, ReaderCheck } from './ReaderCheck';
 import { usePhraseDrag } from './usePhraseDrag';
 import { ReadGrammarDial } from './ReadGrammarDial';
 import { ReadGrammarNote } from './ReadGrammarNote';
+import { ReadFormChip, ReadFormSheet } from './ReadFormSheet';
 import { ReadFrequency } from './ReadFrequency';
 import { PracticeWordPill, TintPill } from './PracticeWordPill';
 import { WordView } from './ReadWord';
@@ -1007,6 +1008,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
 
       <GlossPopover
         tapped={tapped}
+        language={text?.language}
         translitLabel={LANGUAGES[text?.language ?? 'th'].translitLabel}
         grammar={tapped && text ? grammarOf(text, tapped.word) : null}
         api={api}
@@ -1115,8 +1117,10 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-export function GlossPopover({ tapped, translitLabel, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, onClose }: {
+export function GlossPopover({ tapped, language, translitLabel, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, onClose }: {
   tapped: Tapped | null;
+  /** The language the word is in, for its form's explanation; none, and no form chip is shown (a card's sentence has no forms). */
+  language?: Language;
   /** The button that shows the word's pronunciation: a transliteration, or Japanese's reading. */
   translitLabel: string;
   grammar: TextGrammar | null;
@@ -1141,8 +1145,11 @@ export function GlossPopover({ tapped, translitLabel, grammar, api, grammarChose
   const [popHeight, setPopHeight] = useState(0);
   // The transliteration stays hidden until asked for, and hides again for the next word.
   const [showTranslit, setShowTranslit] = useState(false);
-  useEffect(() => { setPopHeight(0); setShowTranslit(false); }, [tapped]);
+  // The form chip's explanation replaces the popover while it's open.
+  const [showForm, setShowForm] = useState(false);
+  useEffect(() => { setPopHeight(0); setShowTranslit(false); setShowForm(false); }, [tapped]);
   if (!tapped) return null;
+  if (showForm && language && tapped.word.form) return <ReadFormSheet api={api} language={language} word={tapped.word} onClose={onClose} />;
   const popWidth = Math.min(POPOVER_WIDTH, width - 2 * space.l);
   const left = Math.min(Math.max(tapped.x - 40, space.l), width - popWidth - space.l);
   // Above the word when it clears the status bar, so the finger and the word both stay visible;
@@ -1171,6 +1178,7 @@ export function GlossPopover({ tapped, translitLabel, grammar, api, grammarChose
             <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
             {tapped.word.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {tapped.word.lemma}</Text> : null}
             <Text style={{ ...type.body, color: c.text }}>{tapped.word.gloss ?? 'No meaning available'}</Text>
+            {tapped.word.form && language ? <ReadFormChip name={tapped.word.form.name} onPress={() => setShowForm(true)} /> : null}
             {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
             <ReadFrequency word={tapped.word} />
             <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>

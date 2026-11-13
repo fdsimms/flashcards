@@ -27,7 +27,7 @@ from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Literal
 
-from franki_reader import comprehension, exposure, grammar, meanings, store
+from franki_reader import comprehension, exposure, form_primers, forms, grammar, meanings, store
 from franki_reader.coverage import Checker, Coverage, parse_line
 from franki_reader.difficulty import Difficulty, after_reading
 from franki_reader.gender import full_voices, voice_for
@@ -60,6 +60,7 @@ IDEA_CHOICES = 5
 STRETCH_CHOICES = 15
 FAILURE_COOLDOWN = timedelta(minutes=30)
 BACKFILL_TEXTS = 30  # how many recent texts a pass looks through for words with no meaning
+BACKFILL_FORMS = 3  # how many of them a pass picks word forms for (one Claude call each)
 # Every attempt was under 85% known words (coverage.MINIMUM), too far off to show.
 MISSED_FLOOR = (
     "Couldn't write a text that fits your words this time. Try again or pick another topic."
@@ -145,6 +146,7 @@ class Engine:
         write_meanings: meanings.WriteMeanings | None = None,
         read_wanikani: ReadWaniKani | None = None,
         write_questions: comprehension.WriteQuestions | None = None,
+        write_forms: forms.WriteForms | None = None,
     ) -> None:
         self.conn = conn
         self.ask_for = ask_for
@@ -166,6 +168,10 @@ class Engine:
         self._meanings_failed: dict[Code, datetime] = {}
         self._meanings_lock = asyncio.Lock()
         self.write_questions = write_questions
+        self.write_forms = write_forms
+        # When Claude last failed to pick word forms, by language, as for meanings.
+        self._forms_failed: dict[Code, datetime] = {}
+        self._forms_lock = asyncio.Lock()
         # All by topic and language: a topic can be writing in one language and failed in another.
         self._topic_locks: dict[tuple[int, Code], asyncio.Lock] = {}
         self._topping_up = asyncio.Lock()
@@ -426,6 +432,7 @@ class Engine:
             text = store.get_text(self.conn, text_id)
             assert text is not None
             await self.fill_meanings([text], language)
+            await self.fill_forms([text])
             await self.fill_questions(text)
             await self.make_audio(text)
             store.mark_ready(self.conn, text_id)
@@ -567,6 +574,43 @@ class Engine:
         store.save_questions(self.conn, text.id, kept)
         store.save_call_cost(self.conn, "questions", text.language, self.clock(), used.cost_usd())
 
+    async def fill_forms(self, texts: list[StoredText]) -> None:
+        """Has Claude pick the grammatical form of the inflected words in `texts` that haven't been
+        asked about (forms.py), one call a text, and keeps them on the text with what each cost. A
+        failure is logged and waits `FAILURE_COOLDOWN`; it never keeps a text from being served."""
+        if self.write_forms is None:
+            return
+        # One pass at a time, so two passes started together don't pay for the same text.
+        async with self._forms_lock:
+            for text in texts:
+                language = text.language
+                if not form_primers.primers(language):
+                    continue
+                failed = self._forms_failed.get(language)
+                if failed is not None and self.clock() - failed < FAILURE_COOLDOWN:
+                    continue
+                # Read again under the lock: the pass that just finished may have kept it.
+                current = store.get_text(self.conn, text.id)
+                if current is None or current.forms is not None:
+                    continue
+                _, lexicon = self.snapshot(language)
+                rows = forms.candidates(current, lexicon)
+                if not rows:
+                    store.save_forms(self.conn, text.id, {})
+                    continue
+                try:
+                    raw, used = await self.write_forms(language, rows)
+                except forms.FormsFailed as e:
+                    log.warning("Couldn't pick forms for %s text %d: %s", language, text.id, e)
+                    if e.usage != Usage():
+                        store.save_call_cost(
+                            self.conn, "forms", language, self.clock(), e.usage.cost_usd()
+                        )
+                    self._forms_failed[language] = self.clock()
+                    continue
+                store.save_forms(self.conn, text.id, forms.keep(language, raw, rows))
+                store.save_call_cost(self.conn, "forms", language, self.clock(), used.cost_usd())
+
     # ==== Grammar ====
 
     def grammar_exposure(self, language: Code | None = None) -> dict[str, exposure.Exposure]:
@@ -699,9 +743,10 @@ class Engine:
             language = self.language()
             await self.refresh_lexicon(language)
             # Texts written before their common words were glossed, newest first, a batch a pass.
-            await self.fill_meanings(
-                store.recent_texts(self.conn, language, BACKFILL_TEXTS), language
-            )
+            recent = store.recent_texts(self.conn, language, BACKFILL_TEXTS)
+            await self.fill_meanings(recent, language)
+            # Texts written before word forms were picked, newest first, a few a pass.
+            await self.fill_forms([t for t in recent if t.forms is None][:BACKFILL_FORMS])
             try:
                 self._check_setup(language)
             except NotAvailable as e:

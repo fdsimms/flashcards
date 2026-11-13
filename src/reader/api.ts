@@ -30,6 +30,10 @@ export type Word = {
   wanikani?: boolean; // known for being learned in WaniKani (Japanese; absent from a server older than it)
   rank?: number | null; // its place among the language's 10,000 most common words (1 is the most common); null past the list's end; absent from a server older than it
   grammar: string | null; // the grammar point this word uses, if the text marks it (TextGrammar)
+  // The grammatical form this word has in its line ("instrumental case"), when it's an inflected form and
+  // the server could tell: the chip on its popup, which opens that form's FormPrimer. Absent from a server
+  // older than it, and null for a word with no form to note.
+  form?: { id: string; name: string } | null;
   // When it's spoken in its line's audio, [start, end] in milliseconds (reader/spoken.ts). Absent
   // for spaces and punctuation, a line recorded without timings, and a server older than them.
   time?: [number, number];
@@ -76,8 +80,19 @@ export type GrammarList = { max_practice: number; points: GrammarPoint[]; least?
 export type TextGrammarRole = 'practice' | 'avoid' | 'review' | 'unset';
 export type TextGrammar = { id: string; name: string; note: string; role: TextGrammarRole };
 
+// What a form chip's sheet shows (server/reader/.../data/forms/<language>.json): what the form means, a
+// table of endings or patterns (`rows` have a cell for each of `head`), and examples. `*asterisks*`
+// mark the part to highlight, an ending (reader/formPrimer.ts splits them).
+export type FormPrimer = {
+  id: string;
+  name: string;
+  summary: string;
+  table: { head: string[]; rows: string[][] } | null;
+  examples: { text: string; english: string }[];
+};
+
 // The languages texts are written in. Topics are shared; the rest is per language.
-export type Language = 'th' | 'es' | 'de' | 'fr' | 'ru' | 'el' | 'pl' | 'nb' | 'ja';
+export type Language = 'th' | 'es' | 'de' | 'fr' | 'ru' | 'el' | 'pl' | 'nb' | 'ja' | 'en';
 
 // Every language but Thai counts this many of its most common words as known, as well as its deck.
 export type CommonCount = 0 | 250 | 500 | 1000 | 2000 | 3000 | 5000 | 10000;
@@ -390,6 +405,9 @@ export function createApi(
       call<GrammarList>('PUT', `/api/grammar/${id}`, { state }),
     // How many times the next texts may use grammar not set (the Grammar dial on the wrap-up screen).
     setGrammarStretch: (uses: number) => call<GrammarList>('PUT', '/api/grammar/stretch', { uses }),
+    // A language's word forms with a primer each, for the chip on a word's popup. Static on the server: no Claude call.
+    forms: async (language: Language) =>
+      (await call<{ forms: FormPrimer[] }>('GET', `/api/forms?language=${language}`)).forms,
     clearWord: (word: string) => call<void>('POST', '/api/words/clear', { word }),
     settings: () => call<Settings>('GET', '/api/settings'),
     // The deck list's totals, for dundundun's Franki task to read from /api/status (countsReport.ts).

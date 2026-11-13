@@ -378,6 +378,7 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onEpisodes, onStarted }: { 
       />
       <GlossPopover
         tapped={tapped}
+        language={shelf.language}
         translitLabel={LANGUAGES[shelf.language].translitLabel}
         grammar={null}
         api={api}

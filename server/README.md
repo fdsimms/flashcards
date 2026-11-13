@@ -69,7 +69,7 @@ Each Claude app asks for the password once; after that it stays signed in (it's 
 
 ## Read & Listen
 
-The same server can run Read & Listen's server (`reader/`): it writes short dialogues and stories in Thai, Spanish, German, French, Russian, Greek, Polish, Norwegian and Japanese from the words in your decks, checks they're mostly words you know, and records them with Azure's voices. It's one more Anki client of your sync server, and it only reads: it never answers, adds or changes cards. Its design is in `docs/read-and-listen/` at the top of this repository.
+The same server can run Read & Listen's server (`reader/`): it writes short dialogues and stories in Thai, Spanish, German, French, Russian, Greek, Polish, Norwegian, Japanese and English from the words in your decks, checks they're mostly words you know, and records them with Azure's voices. It's one more Anki client of your sync server, and it only reads: it never answers, adds or changes cards. Its design is in `docs/read-and-listen/` at the top of this repository.
 
 It needs more memory than the rest (up to about 350 MB with Thai and Spanish, and Japanese's dictionary adds about 70 MB), so the server may need **2 GB**. After the first texts are written, `docker stats --no-stream` shows how much each part uses. If it stops answering, `docker compose ps` shows it as unhealthy, and the update timer (above, `install-auto-update.sh`) restarts it within about 15 minutes.
 

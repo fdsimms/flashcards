@@ -190,6 +190,7 @@ def test_a_spanish_text_renders_with_spaces_deck_flags_and_glosses_from_the_entr
         "wanikani": False,
         "rank": None,
         "grammar": None,
+        "form": None,
     }
     ciudad = next(w for w in words if w["text"] == "ciudad")
     assert ciudad["deck"] is False and ciudad["status"] == "known"
@@ -369,7 +370,7 @@ def test_switching_language_through_the_api_keeps_topics_and_separates_everythin
         assert [t["name"] for t in c.get("/api/topics", headers=auth).json()] == ["Guard duty"]
         assert c.get("/api/progress", headers=auth).json()["finished"] == 0
         assert c.get("/api/texts", headers=auth).json() == []
-        assert c.patch("/api/settings", json={"language": "en"}, headers=auth).status_code == 422
+        assert c.patch("/api/settings", json={"language": "ko"}, headers=auth).status_code == 422
 
 
 # ==== The other languages (12 November 2026) ====
@@ -481,6 +482,25 @@ def test_norwegian_entries_match_without_their_article_or_infinitive_marker() ->
     assert lexicon.entry_of("skynder") == "å skynde seg"
 
 
+def test_english_counts_deck_words_in_any_form_and_its_common_words() -> None:
+    lexicon = lexicon_of("en", ["velleity", "abnegate", "numinous"], 5000)
+    statuses = word_statuses(lexicon, "She abnegated her velleities near the numinous river.")
+    assert statuses["abnegated"] == "known" and statuses["velleities"] == "known"
+    assert statuses["numinous"] == "known" and statuses["river"] == "known"
+    assert word_statuses(lexicon, "A chiliastic mood.")["chiliastic"] == "unknown"
+    assert lexicon.entry_of("velleities") == "velleity"
+    rare = lexicon_of("en", ["kenosis", "clerisy", "purlieu", "apricate", "arrogate"], 0)
+    for form, entry in {
+        "kenoses": "kenosis",
+        "clerisies": "clerisy",
+        "purlieus": "purlieu",
+        "apricating": "apricate",
+        "arrogated": "arrogate",
+    }.items():
+        assert rare.status(form) == "known" and rare.entry_of(form) == entry, form
+    assert rare.status("river") == "unknown"  # a guess never makes an ordinary word known
+
+
 def test_the_request_says_how_many_common_words_count() -> None:
     from franki_reader.generator import request_message, system_prompt
 
@@ -497,6 +517,8 @@ def test_the_request_says_how_many_common_words_count() -> None:
     assert "Jeg|må|*skynde|meg*!" in prompt
     assert system_prompt(ENTRIES, "es").startswith("You write short Spanish texts")
     assert "Mexican Spanish" in system_prompt(ENTRIES, "es")
+    english = system_prompt(ENTRIES, "en")
+    assert english.startswith("You write short English texts") and "American English" in english
 
 
 def test_the_engine_writes_with_the_chosen_common_count() -> None:

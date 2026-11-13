@@ -33,10 +33,10 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
   const retries = useRetries<number>();
   const [mode, setMode] = useToolPref('moneyMode');
   const [max, setMax] = useToolPref('moneyMax');
-  const currency = CURRENCIES[CURRENCY_OF[language]];
+  const currency = CURRENCIES[CURRENCY_OF[language]!];
   /** The amount, with the currency it's in, so one from another language's money is never shown. */
   const [held, setHeld] = useState(() => {
-    const code = CURRENCY_OF[toolLanguage(tool, toolPrefs().language)];
+    const code = CURRENCY_OF[toolLanguage(tool, toolPrefs().language)]!;
     return { code, amount: randomAmount(CURRENCIES[code], toolPrefs().moneyMax) };
   });
   const amount = held.code === currency.code ? held.amount : undefined;

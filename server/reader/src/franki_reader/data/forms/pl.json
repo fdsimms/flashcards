@@ -1,0 +1,374 @@
+[
+  {
+    "id": "nominative",
+    "name": "nominative case",
+    "summary": "The case of the subject, the one doing something or being described. It's the form a dictionary lists. You see it here when a word is plural.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Kot śpi",
+        "english": "The cat is sleeping"
+      },
+      {
+        "text": "Kot*y* śpią",
+        "english": "The cats are sleeping"
+      }
+    ]
+  },
+  {
+    "id": "genitive",
+    "name": "genitive case",
+    "summary": "Shows belonging ('of', 's), absence, and amounts. It's also the object of a negated verb, and comes after many prepositions, like z (from), do, bez, od.",
+    "table": {
+      "head": [
+        "",
+        "Singular",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Masculine",
+          "*-a* / *-u*",
+          "*-ów* / *-y* / *-i*"
+        ],
+        [
+          "Feminine",
+          "*-y* / *-i*",
+          "no ending, or *-i*"
+        ],
+        [
+          "Neuter",
+          "*-a*",
+          "no ending, or *-i*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "książka brat*a*",
+        "english": "my brother's book"
+      },
+      {
+        "text": "Nie mam czas*u*",
+        "english": "I have no time"
+      },
+      {
+        "text": "dużo ludz*i*",
+        "english": "a lot of people"
+      }
+    ]
+  },
+  {
+    "id": "dative",
+    "name": "dative case",
+    "summary": "Shows who receives something or who it's for ('to', 'for'). It's also the person in sentences like 'I'm cold' and 'I like it'.",
+    "table": {
+      "head": [
+        "",
+        "Singular",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Masculine, neuter",
+          "*-owi* / *-u*",
+          "*-om*"
+        ],
+        [
+          "Feminine",
+          "*-e* / *-i* / *-y*",
+          "*-om*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Daję książkę brat*u*",
+        "english": "I give the book to my brother"
+      },
+      {
+        "text": "Jest m*i* zimno",
+        "english": "I'm cold"
+      },
+      {
+        "text": "Pomagam mam*ie*",
+        "english": "I'm helping Mom"
+      }
+    ]
+  },
+  {
+    "id": "accusative",
+    "name": "accusative case",
+    "summary": "Shows what is acted on, the direct object. Only feminine singular nouns change (to *-ę*). Masculine people and animals look like the genitive, and other masculine and neuter nouns look like the nominative.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Czytam książk*ę*",
+        "english": "I'm reading a book"
+      },
+      {
+        "text": "Widzę brat*a*",
+        "english": "I see my brother"
+      },
+      {
+        "text": "Mam kot*a*",
+        "english": "I have a cat"
+      }
+    ]
+  },
+  {
+    "id": "instrumental",
+    "name": "instrumental case",
+    "summary": "Shows what something is done with or by, or what someone is or works as. In English that's usually 'with', 'by' or 'as'. Also used after z ('together with') and after być when naming a profession.",
+    "table": {
+      "head": [
+        "",
+        "Singular",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Masculine, neuter",
+          "*-em* / *-iem*",
+          "*-ami*"
+        ],
+        [
+          "Feminine",
+          "*-ą*",
+          "*-ami*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Piszę długopis*em*",
+        "english": "I write with a pen"
+      },
+      {
+        "text": "z przyjaciel*em*",
+        "english": "with a friend"
+      },
+      {
+        "text": "Jestem lekarz*em*",
+        "english": "I'm a doctor"
+      }
+    ]
+  },
+  {
+    "id": "locative",
+    "name": "locative case",
+    "summary": "Used only after a preposition: w and na for where something is ('in', 'on'), o for what it's about, and also przy and po.",
+    "table": {
+      "head": [
+        "",
+        "Singular",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Masculine, neuter",
+          "*-e* / *-u*",
+          "*-ach*"
+        ],
+        [
+          "Feminine",
+          "*-e* / *-i*",
+          "*-ach*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "w dom*u*",
+        "english": "in the house"
+      },
+      {
+        "text": "na stol*e*",
+        "english": "on the table"
+      },
+      {
+        "text": "o książc*e*",
+        "english": "about the book"
+      }
+    ]
+  },
+  {
+    "id": "vocative",
+    "name": "vocative case",
+    "summary": "Used to address someone directly. Most feminine names ending in -a change to *-o*, and many masculine ones take *-e* or *-u*.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Mam*o*!",
+        "english": "Mom!"
+      },
+      {
+        "text": "Tomk*u*, chodź tutaj!",
+        "english": "Tomek, come here!"
+      }
+    ]
+  },
+  {
+    "id": "present",
+    "name": "present tense",
+    "summary": "What is happening now or happens regularly. The ending shows the person, so the pronoun is often left out. Verbs fall into a few groups; these three are the most common.",
+    "table": {
+      "head": [
+        "",
+        "like czytać",
+        "like mówić",
+        "like pisać"
+      ],
+      "rows": [
+        [
+          "ja",
+          "*-am*",
+          "*-ię* / *-ę*",
+          "*-ę*"
+        ],
+        [
+          "ty",
+          "*-asz*",
+          "*-isz* / *-ysz*",
+          "*-esz*"
+        ],
+        [
+          "on, ona",
+          "*-a*",
+          "*-i* / *-y*",
+          "*-e*"
+        ],
+        [
+          "my",
+          "*-amy*",
+          "*-imy* / *-ymy*",
+          "*-emy*"
+        ],
+        [
+          "wy",
+          "*-acie*",
+          "*-icie* / *-ycie*",
+          "*-ecie*"
+        ],
+        [
+          "oni",
+          "*-ają*",
+          "*-ą*",
+          "*-ą*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Czyt*am* książkę",
+        "english": "I'm reading a book"
+      },
+      {
+        "text": "Mów*imy* po polsku",
+        "english": "We speak Polish"
+      }
+    ]
+  },
+  {
+    "id": "past",
+    "name": "past tense",
+    "summary": "Something that already happened. The ending shows gender, number and person.",
+    "table": {
+      "head": [
+        "",
+        "Man",
+        "Woman"
+      ],
+      "rows": [
+        [
+          "ja",
+          "*-łem*",
+          "*-łam*"
+        ],
+        [
+          "ty",
+          "*-łeś*",
+          "*-łaś*"
+        ],
+        [
+          "on, ona",
+          "*-ł*",
+          "*-ła*"
+        ],
+        [
+          "my",
+          "*-liśmy*",
+          "*-łyśmy*"
+        ],
+        [
+          "wy",
+          "*-liście*",
+          "*-łyście*"
+        ],
+        [
+          "oni, one",
+          "*-li*",
+          "*-ły*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Czyta*łem* książkę",
+        "english": "I read a book (said by a man)"
+      },
+      {
+        "text": "Czyta*łam* książkę",
+        "english": "I read a book (said by a woman)"
+      }
+    ]
+  },
+  {
+    "id": "future",
+    "name": "future tense",
+    "summary": "Something that will happen. An imperfective verb uses będę plus the infinitive or the past form. A perfective verb has no będę: its present-tense endings mean the future.",
+    "table": null,
+    "examples": [
+      {
+        "text": "*Będę* czytać",
+        "english": "I will be reading"
+      },
+      {
+        "text": "Przeczyta*m* to jutro",
+        "english": "I'll read it through tomorrow"
+      }
+    ]
+  },
+  {
+    "id": "imperative",
+    "name": "imperative",
+    "summary": "A command or request, often the verb stem with *-j* or *-ij*, or with nothing added. For a polite request, use proszę or niech.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Czyta*j*!",
+        "english": "Read!"
+      },
+      {
+        "text": "Chodź tutaj!",
+        "english": "Come here!"
+      }
+    ]
+  },
+  {
+    "id": "conditional",
+    "name": "conditional",
+    "summary": "'Would'. It's the past stem with *-by* added, and the person endings attach to the by.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Chciał*bym* kawę",
+        "english": "I would like a coffee"
+      },
+      {
+        "text": "Poszedł*by*, gdyby miał czas",
+        "english": "He would go if he had time"
+      }
+    ]
+  }
+]

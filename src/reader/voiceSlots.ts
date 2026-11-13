@@ -62,6 +62,7 @@ const SAMPLES: Record<Language, string> = {
   pl: 'Cześć, co słychać? Dzisiaj jest bardzo ładna pogoda.',
   nb: 'Hei, hvordan går det? I dag er det veldig fint vær.',
   ja: 'こんにちは。今日はとてもいい天気ですね。',
+  en: 'Hello, how are you? It’s a lovely day today.',
 };
 const THAI_WOMAN = 'สวัสดีค่ะ วันนี้อากาศดีนะคะ';
 

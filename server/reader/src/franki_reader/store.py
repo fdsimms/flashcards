@@ -32,6 +32,7 @@ LOG_LANGUAGE: dict[Code, str] = {
     "pl": "polish",
     "nb": "norwegian",
     "ja": "japanese",
+    "en": "english",
 }
 MODE = "read_listen"
 
@@ -289,6 +290,10 @@ class StoredText:
     # Questions about what happens in it, for the check after reading (comprehension.py); none for
     # a text written before them, or whose call failed.
     questions: tuple[Question, ...] = ()
+    # The grammatical form of its inflected words, by lower-case word, as a form id (forms.py,
+    # form_primers.py). None until the call that picks them has been answered; {} once it was and
+    # nothing was a form on the list.
+    forms: dict[str, str] | None = None
 
 
 # "topic": the model chooses stretch words that fit the topic from a list of due and young words.
@@ -394,6 +399,8 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # The stretch word count it was written at (Difficulty.stretch; the floor column is the
         # target), so a rating steps from it (difficulty.after_reading). NULL before 13 November 2026.
         ("stretch_count", "stretch_count INTEGER"),
+        # The form of its inflected words (JSON, forms.py); NULL until Claude has been asked.
+        ("forms", "forms TEXT"),
         # A story episode's recap in its own language, written like a line, and that line's English.
         ("recap_line", "recap_line TEXT NOT NULL DEFAULT ''"),
         ("recap_english", "recap_english TEXT NOT NULL DEFAULT ''"),
@@ -771,7 +778,7 @@ def get_text(conn: sqlite3.Connection, text_id: int) -> StoredText | None:
 _TEXT_COLUMNS = (
     "id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar,"
     " translits, reason, story_id, episode, recap, genders, characters, choices, chosen,"
-    " questions, recap_line, recap_english"
+    " questions, forms, recap_line, recap_english"
 )
 
 
@@ -798,6 +805,7 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         choices,
         chosen,
         questions,
+        forms,
         recap_line,
         recap_english,
     ) = row
@@ -823,9 +831,20 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         choices=tuple(Choice(**c) for c in json.loads(choices)),
         chosen=chosen,
         questions=tuple(from_json(q) for q in json.loads(questions)),
+        forms=None if forms is None else json.loads(forms),
         recap_line=recap_line,
         recap_english=recap_english,
     )
+
+
+def save_forms(conn: sqlite3.Connection, text_id: int, forms: dict[str, str]) -> None:
+    """Keeps the forms Claude picked for a text's words (forms.py), which may be none: the text is
+    then not asked again."""
+    with conn:
+        conn.execute(
+            "UPDATE texts SET forms = ? WHERE id = ?",
+            (json.dumps(forms, ensure_ascii=False), text_id),
+        )
 
 
 def save_questions(conn: sqlite3.Connection, text_id: int, questions: tuple[Question, ...]) -> None:
@@ -1298,7 +1317,7 @@ def explanation_spending(
 # What a row of `call_costs` was for. A failed "explain", "phrase" or "natural" call counts with
 # the answers kept for those (`explanation_spending`).
 CallFeature = Literal[
-    "explain", "phrase", "natural", "mnemonics", "recording", "note_queue", "questions"
+    "explain", "phrase", "natural", "mnemonics", "recording", "note_queue", "questions", "forms"
 ]
 
 
@@ -1330,6 +1349,12 @@ def question_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, t
     """Each language with questions written for the check after reading since `since`: how many
     calls (failed ones included) and what they cost Claude."""
     return _feature_spending(conn, "questions", since)
+
+
+def form_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
+    """Each language with word forms picked since `since` (forms.py): how many calls (failed ones
+    included) and what they cost Claude."""
+    return _feature_spending(conn, "forms", since)
 
 
 def _feature_spending(

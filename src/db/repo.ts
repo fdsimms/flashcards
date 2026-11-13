@@ -43,6 +43,11 @@ export interface Repo {
   deleteReview(id: number): Promise<void>;
   /** Answers logged here at or after `since`, oldest first (for stats). */
   listReviews(since: Date): Promise<ReviewLogEntry[]>;
+  /**
+   * Every answer logged here on a card that has had a reason chosen (`ReviewLogEntry.miss`), oldest
+   * first, with that reason if the answer had one: what a card's "Last time" reminder is read from.
+   */
+  listMissAnswers(): Promise<{ cardId: string; miss?: string }[]>;
   /** Replaces the FSRS settings of the decks given; other decks keep theirs. */
   saveDeckParams(params: Map<string, DeckParams>): Promise<void>;
   listDeckParams(): Promise<Map<string, DeckParams>>;
@@ -208,6 +213,12 @@ export class MemoryRepo implements Repo {
   // Kept as JSON text, as the SQLite repo keeps it, so a read never hands back the saved object itself.
   async voiceSettings() { return parseVoiceSettings(this.voiceSettingsValue); }
   async saveVoiceSettings(settings: VoiceSettings) { this.voiceSettingsValue = JSON.stringify(settings); }
+  async listMissAnswers() {
+    const withMiss = new Set([...this.reviews.values()].filter((r) => r.miss).map((r) => r.cardId));
+    return [...this.reviews].sort(([a], [b]) => a - b)
+      .filter(([, r]) => withMiss.has(r.cardId))
+      .map(([, r]) => ({ cardId: r.cardId, ...(r.miss ? { miss: r.miss } : {}) }));
+  }
   async listReviews(since: Date) {
     return [...this.reviews.values()]
       .filter((r) => new Date(r.reviewedAt) >= since)

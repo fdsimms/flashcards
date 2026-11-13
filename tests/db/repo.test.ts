@@ -55,6 +55,21 @@ describe('repo', () => {
     expect((await repo.listReviews(at(8))).map((r) => new Date(r.reviewedAt).getHours())).toEqual([9, 11]);
   });
 
+  it('lists the answers of cards that have had a reason chosen, with the reason, and drops one taken back', async () => {
+    const repo = new MemoryRepo();
+    const note = omniNote();
+    const [card] = makeCards(note, NOW);
+    const other = { ...card, id: 'other:forward' };
+    await repo.upsertNotesAndCards([note], [card, other]);
+    const log = review(card.sched, 1, NOW).log;
+    await repo.addReview({ cardId: card.id, ...log, miss: 'tone' });
+    await repo.addReview({ cardId: other.id, ...log });
+    const undone = await repo.addReview({ cardId: card.id, ...log, rating: 3 });
+    await repo.addReview({ cardId: card.id, ...log, rating: 3 });
+    await repo.deleteReview(undone);
+    expect(await repo.listMissAnswers()).toEqual([{ cardId: card.id, miss: 'tone' }, { cardId: card.id }]);
+  });
+
   it('lists a deck with its subdecks, not decks that merely share a prefix', async () => {
     const repo = new MemoryRepo();
     const notes = [['a', 'Polski'], ['b', 'Polski::Odmiana'], ['c', 'Polski Extra']].map(([id, deck]) => ({ ...omniNote(), id, deck }));
