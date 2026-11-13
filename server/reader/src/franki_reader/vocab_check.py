@@ -2,8 +2,8 @@
 count as known (the `common` setting). The quiz and its scoring run on the phone (src/reader/
 vocabCheck.ts); this is its question bank. Results stay on the phone, and nothing here grades a card.
 
-For each language but Thai, a fixed sample of its common words is drawn, `PER_BAND` from each band of
-ranks, and Claude writes each one's meaning and three wrong choices in one call, once, so the quiz
+For each language but Thai, a fixed sample of its common words is drawn, `ASKED_PER_BAND` from each band
+of ranks, and Claude writes each one's meaning and three wrong choices in one call, once, so the quiz
 never waits on Claude and never asks for a word twice. Generate, then verify: a word is kept only if
 it's one that was asked for and its choices pass the checks below. Anything else is dropped, never
 repaired. Words already in the learner's deck are left out when the bank is served, since they count
@@ -35,12 +35,19 @@ log = logging.getLogger(__name__)
 
 # Ranks in the language's common-word list: the bands the quiz samples, and the choices of the
 # common-words setting that fall on their edges (the app scores by these, src/reader/vocabCheck.ts).
-BANDS = ((1, 100), (101, 250), (251, 500), (501, 1000), (1001, 2000), (2001, 3000), (3001, 5000))
-PER_BAND = (
-    8  # words kept for each band, so 20 questions never run out even with deck words left out
+BANDS = (
+    (1, 100),
+    (101, 250),
+    (251, 500),
+    (501, 1000),
+    (1001, 2000),
+    (2001, 3000),
+    (3001, 5000),
+    (5001, 10000),
 )
-# Asked for: more than a band serves, since some won't pass the checks and some are deck words or
-# giveaways (`is_giveaway`), and a band that runs short makes its neighbours carry its questions.
+# Asked for, and all served: some won't pass the checks and some are deck words or giveaways
+# (`is_giveaway`), and a band that runs short makes its neighbours carry its questions. The more a
+# band holds, the more of a retake's words are new (the app asks unseen words first).
 ASKED_PER_BAND = 14
 MIN_PER_BAND = 5  # kept words a band needs for the bank to be used
 WRONG = 3  # wrong choices a word carries
@@ -328,20 +335,13 @@ def is_giveaway(lemma: str, meaning: str) -> bool:
 
 
 def serve(conn: sqlite3.Connection, lexicon: Checker, language: Code) -> list[dict[str, Any]]:
-    """The language's bank for the quiz, up to `PER_BAND` words a band, without words already in the
+    """The language's bank for the quiz, every stored word, without words already in the
     deck (they count as known) and without proper nouns and obvious cognates (`is_giveaway`), most
     common first. Empty until the bank is written."""
     out: list[dict[str, Any]] = []
-    per_band: dict[int | None, int] = {}
     for lemma, rank, meaning, wrong in store.vocab_items(conn, language):
-        band = band_of(rank)
-        if (
-            lexicon.entry_of(lemma) is not None
-            or per_band.get(band, 0) >= PER_BAND
-            or is_giveaway(lemma, meaning)
-        ):
+        if lexicon.entry_of(lemma) is not None or is_giveaway(lemma, meaning):
             continue
-        per_band[band] = per_band.get(band, 0) + 1
         out.append({"word": lemma, "rank": rank, "meaning": meaning, "wrong": wrong})
     return out
 

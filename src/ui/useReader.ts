@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { studyDayKey } from '../core/day';
 import { createApi, readerAddress, type Api, type Settings as ReaderSettings } from '../reader/api';
-import { minedOne, miningLeft, type MiningCount } from '../reader/mining';
-import { clearPassphrase, loadMined, loadPassphrase, loadPrefs, prefs, saveMined, savePrefs } from '../reader/storage';
+import { clearPassphrase, loadPassphrase, loadPrefs, prefs, savePrefs } from '../reader/storage';
 
 export interface ReaderState {
   /** Read & Listen's server, once its passphrase is saved; null while it's off. */
@@ -22,10 +20,6 @@ export interface ReaderState {
    */
   settings: ReaderSettings | null;
   setSettings: (settings: ReaderSettings) => void;
-  /** How many more marked words can be added to the deck today (src/reader/mining.ts). */
-  miningLeft: number;
-  /** Counts one more marked word added to the deck today. */
-  recordMined: () => void;
   /** The hour the study day starts, for saying "today" or "2 days ago" (the Grammar screen). */
   dayStartsAtHour: number;
   /** Whether the deck list's counts are sent to the server for dundundun (useCountsReport). */
@@ -77,19 +71,8 @@ export function useReader(server: string | undefined, dayStartsAtHour: number): 
     api?.settings().then(setSettings, () => undefined);
   }, [api]);
 
-  const [mined, setMined] = useState<MiningCount | null>(null);
-  useEffect(() => { loadMined().then(setMined); }, []);
-  const today = studyDayKey(new Date(), dayStartsAtHour);
-  const recordMined = useCallback(() => {
-    setMined((before) => {
-      const next = minedOne(before, studyDayKey(new Date(), dayStartsAtHour));
-      saveMined(next);
-      return next;
-    });
-  }, [dayStartsAtHour]);
-
   return useMemo(() => ({
-    api, server, notice, signedIn, signOut, settings, setSettings, miningLeft: miningLeft(mined, today), recordMined, dayStartsAtHour,
+    api, server, notice, signedIn, signOut, settings, setSettings, dayStartsAtHour,
     shareCounts, setShareCounts,
-  }), [api, server, notice, signedIn, signOut, settings, mined, today, recordMined, dayStartsAtHour, shareCounts, setShareCounts]);
+  }), [api, server, notice, signedIn, signOut, settings, dayStartsAtHour, shareCounts, setShareCounts]);
 }

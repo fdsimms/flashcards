@@ -36,11 +36,8 @@ export default function ReaderRoute() {
       mining={language && deck ? {
         language,
         deck,
-        left: reader.miningLeft,
         onAdd: (entry, meaning) => new Promise<boolean>((resolve) => openNoteEditor(minedNote(entry, meaning, deck), (result) => {
-          const saved = !!result && 'saved' in result;
-          if (saved) reader.recordMined();
-          resolve(saved);
+          resolve(!!result && 'saved' in result);
         })),
       } : undefined}
     />

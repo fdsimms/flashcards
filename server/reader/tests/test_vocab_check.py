@@ -19,7 +19,6 @@ from franki_reader.vocab_check import (
     ASKED_PER_BAND,
     BANDS,
     MIN_PER_BAND,
-    PER_BAND,
     VocabFailed,
     VocabItem,
     band_of,
@@ -136,8 +135,12 @@ def test_a_failed_call_stores_nothing() -> None:
     assert store.vocab_spending(conn, NOW - timedelta(days=1)) == {}
 
 
-def vocab_client(writer: Writer | None, deck: list[Entry] | None = None) -> TestClient:
+def vocab_client(
+    writer: Writer | None, deck: list[Entry] | None = None, stored: list[Any] | None = None
+) -> TestClient:
     conn = store.connect(":memory:")
+    if stored:
+        store.save_vocab_batch(conn, "pl", stored, len(stored), NOW, 0.0)
     now = [NOW]
     store.save_snapshot(conn, deck or [], NOW, "pl")
     engine = Engine(conn, None, None, lambda: now[0], random.Random(1))
@@ -157,7 +160,7 @@ def test_the_first_ask_starts_writing_and_the_next_serves_the_bank() -> None:
     assert get(c).json() == {"state": "preparing", "items": []}
     ready = get(c).json()
     assert ready["state"] == "ready" and writer.calls == 1
-    assert len(ready["items"]) == len(BANDS) * PER_BAND  # kept to PER_BAND a band
+    assert len(ready["items"]) == len(BANDS) * ASKED_PER_BAND  # every stored word is served
     first = ready["items"][0]
     assert set(first) == {"word", "rank", "meaning", "wrong"} and len(first["wrong"]) == 3
     assert get(c).json()["state"] == "ready" and writer.calls == 1  # never written twice
@@ -169,7 +172,7 @@ def test_words_already_in_the_deck_are_left_out() -> None:
     c = vocab_client(Writer(bank), [Entry(1, in_deck, "meaning", "mature")])
     get(c)
     words = [i["word"] for i in get(c).json()["items"]]
-    assert in_deck not in words and len(words) == len(BANDS) * PER_BAND
+    assert in_deck not in words and len(words) == len(BANDS) * ASKED_PER_BAND - 1
 
 
 def test_a_failed_write_isnt_asked_again_until_the_retry_time() -> None:
@@ -274,3 +277,19 @@ def test_the_cost_shows_in_the_costs() -> None:
     assert costs["languages"] == [
         {"language": "pl", "name": "Polish", "batches": 1, "cost_usd": 2.0}
     ]
+
+
+def test_a_bank_written_before_the_top_band_is_served_and_topped_up() -> None:
+    ranks = {word: rank for rank, word in sample("pl")}
+    legacy = [
+        VocabItem(w["word"], ranks[w["word"]], w["meaning"], tuple(w["wrong"]))
+        for w in whole_bank()
+        if band_of(ranks[w["word"]]) != len(BANDS) - 1
+    ]
+    writer = Writer(whole_bank())
+    c = vocab_client(writer, stored=legacy)
+    first = get(c).json()  # served as it is, and topped up behind the response
+    assert first["state"] == "ready" and not any(i["rank"] > 5000 for i in first["items"])
+    assert writer.calls == 1
+    assert any(i["rank"] > 5000 for i in get(c).json()["items"])
+    assert get(c).json()["state"] == "ready" and writer.calls == 1

@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type MarkedWord } from '../reader/api';
 import { wordStatus } from '../reader/languages';
-import { MINING_PER_DAY } from '../reader/mining';
 import { Button, Card, ErrorNote, Help, Screen } from './kit';
 import { space, type, useTheme } from './theme';
 
@@ -10,7 +9,7 @@ import { space, type, useTheme } from './theme';
  * Every word marked unknown while reading, newest first, with its meaning, so they can be looked at
  * together. Clear takes a word off the list until it's marked again. Add to deck opens Franki's
  * note editor with the word filled in (the read-words route opens it): nothing reaches the deck
- * unless it's saved there, and at most MINING_PER_DAY a study day (src/reader/mining.ts). A word
+ * unless it's saved there. A word
  * saved there is cleared from the list. This screen writes nothing to the deck itself (CLAUDE.md,
  * Read & Listen).
  */
@@ -20,7 +19,7 @@ export function ReadWords({ api, mining }: {
    * Present when words can be added to the deck: its name, how many more today, and what opens the
    * editor, resolving true once the note is saved.
    */
-  mining?: { deck: string; left: number; onAdd: (word: MarkedWord) => Promise<boolean> };
+  mining?: { deck: string; onAdd: (word: MarkedWord) => Promise<boolean> };
 }) {
   const c = useTheme();
   const [words, setWords] = useState<MarkedWord[] | null>(null);
@@ -78,20 +77,14 @@ export function ReadWords({ api, mining }: {
                   </View>
                   <View style={{ gap: space.s }}>
                     {mining && !w.deck ? (
-                      <Button label="Add to deck" onPress={() => add(w)} disabled={mining.left === 0} />
+                      <Button label="Add to deck" onPress={() => add(w)} />
                     ) : null}
                     <Button label="Clear" variant="secondary" onPress={() => clear(w.word)} />
                   </View>
                 </View>
               ))}
             </Card>
-            {mining ? (
-              <Help>
-                {mining.left === 0
-                  ? `You've added ${MINING_PER_DAY} words today, the most for one day, so your reviews stay manageable. Add more tomorrow.`
-                  : `Add to deck opens a new note in ${mining.deck} with the word and its meaning, to check before saving. Up to ${MINING_PER_DAY} a day; ${mining.left} left today.`}
-              </Help>
-            ) : null}
+            {mining ? <Help>{`Add to deck opens a new note in ${mining.deck} with the word and its meaning, to check before saving.`}</Help> : null}
             <Help>Clear a word once you've dealt with it. Adding one to the deck clears it too.</Help>
           </>
         ) : null}

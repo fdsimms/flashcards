@@ -101,9 +101,8 @@ Franki's (Client, below).
   opens Franki's note editor on a new Omnilanguage note in the current language's deck, with the
   word and its gloss filled in. **Saving it is the approval** (brief, design principle 13): nothing
   reaches the deck otherwise, and the note goes into the collection as every note added in Franki
-  does, reaching Anki at the next sync. At most `MINING_PER_DAY` (10) are added a study day
-  (`src/reader/mining.ts`, counted on the phone), to protect the ~300 reviews/day ceiling (principle
-  12). An added word is cleared from the list. The brief's "given audio" isn't done here: the note
+  does, reaching Anki at the next sync. There is no daily cap (the owner dropped
+  the brief's principle 12 on 13 November 2026: the deck's own new-cards-per-day limit controls how many come up). An added word is cleared from the list. The brief's "given audio" isn't done here: the note
   plays with the phone's voice until audio is recorded for it (the MCP's `add_tts_audio`).
 - **Practice words after studying** (12 November 2026, by the owner's decision). When a Review
   session in a Read & Listen language's deck ends, **Read a text with these words** opens the
@@ -688,16 +687,18 @@ in the current language, with when one was last read to the end. Nothing else le
 
 - **The vocabulary check suggests the common-words setting** (12 November 2026, the owner's idea, for
   every language but Thai): 20 questions on a language's most common words, from its settings page.
-  The server keeps a bank (`vocab_check.py`): `ASKED_PER_BAND` (14) words asked for from each of seven rank bands (1 to 100
-  up to 3,001 to 5,000), a fixed sample per language, glossed by Claude once with three wrong choices
+  The server keeps a bank (`vocab_check.py`): `ASKED_PER_BAND` (14) words asked for from each of eight rank bands (1 to 100
+  up to 5,001 to 10,000), a fixed sample per language, glossed by Claude once with three wrong choices
   and checked in code (a word it didn't ask for, or a wrong choice that could also be right, is
   dropped). It is written in the background the first time (`GET /api/vocab-check` answers
   "preparing" until then), its cost is in `/api/costs` as `vocab_checks`, and words already in the
   deck are left out when it's served, and so are proper nouns (a capitalized meaning, "Thames") and
   obvious cognates (a word sharing 80% of its letters with its meaning, "legislador" and "legislator";
   `is_giveaway`), since they test nothing. That runs on what's stored, so a bank written earlier is
-  cleaned without being written again, and serves up to `PER_BAND` (8) a band, the extra asked words
-  being slack for deck words and giveaways. A bank written when fewer were asked for is topped up in the
+  cleaned without being written again, and serves every stored word (the extra asked words are slack for
+  deck words and giveaways, and the pool a retake draws on). **A retake prefers words not asked before**: the app remembers each language's
+  asked words in the Keychain (`rememberSeen`, starting over once all are seen) and `nextItem` takes an unseen word within a band of
+  the next one before a seen one. A bank written when fewer were asked for is topped up in the
   background the next time it's served (only the sampled words not yet stored are asked for), while the
   quiz uses what's there. A Russian or Greek word is compared by its Latin spelling
   ("телефон" as "telefon"), with both sides respelled by sound (ph as f, c as k, v as b) and the
@@ -707,7 +708,7 @@ in the current language, with when one was last read to the end. Nothing else le
   taking a third of a right one (a guess among four). It suggests the largest setting at which at
   least 90% of the words it would count as known are known, by each band's share, taking an unasked
   band below the lowest asked as known and nothing above the highest asked. The owner accepts it or
-  keeps their setting; it never writes a card or changes anything else. Twenty questions was checked
+  keeps their setting; it never writes a card or changes anything else, except that after a wrong or skipped answer the word can be added to the deck through the note editor (saving is the approval). Each answer is marked right or wrong at once, and the question stays until Next; marking changes no score. The result lists the words missed (wrong or skipped) with their meaning and what was chosen. The 5,001 to 10,000 band was added on 13 November 2026 so 10,000 can be suggested; a bank stored without it is served as it is and topped up in the background with the new band's words. Twenty questions was checked
   by simulation against a learner whose chance of knowing a word falls with its rank: the suggestion
   was within one setting step of the right one 98% of the time (95% at 12 questions, 99% at 40) and
   exactly right 62% of the time (69% at 40), so more questions buy little. Not tried on a real
