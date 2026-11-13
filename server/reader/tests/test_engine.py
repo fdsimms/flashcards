@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from franki_speech import WordMark
 from scripted import BAD, ENTRIES, IN_RANGE, ScriptedModel
 
 from franki_reader import store
@@ -21,6 +22,7 @@ from franki_reader.engine import (
 from franki_reader.generator import GenerationFailed, Usage
 from franki_reader.lexicon import Entry
 from franki_reader.store import Reading, StoredText
+from franki_reader.tts import Spoken
 
 NOW = datetime(2026, 10, 19, 9, 0)
 
@@ -396,13 +398,13 @@ class FakeVoice:
         self.calls: list[tuple[str, str]] = []
         self.fail_on = fail_on
 
-    async def __call__(self, text: str, voice: str) -> bytes:
+    async def __call__(self, text: str, voice: str) -> Spoken:
         from franki_reader.tts import TtsFailed
 
         self.calls.append((text, voice))
         if text == self.fail_on:
             raise TtsFailed("Azure answered 500")
-        return f"mp3:{text}".encode()
+        return Spoken(f"mp3:{text}".encode())
 
 
 def speaking_engine(tmp_path: Path, voice: FakeVoice | None) -> Engine:
@@ -441,9 +443,9 @@ def test_a_text_is_not_ready_until_its_audio_is_made(tmp_path: Path) -> None:
     seen: list[str | None] = []
     e = speaking_engine(tmp_path, None)
 
-    async def voice(text: str, name: str) -> bytes:
+    async def voice(text: str, name: str) -> Spoken:
         seen.append(store.text_status(e.conn, 1))
-        return b"mp3"
+        return Spoken(b"mp3")
 
     e.synthesize = voice
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
@@ -566,7 +568,7 @@ def test_a_newer_voice_change_supersedes_a_running_rerecord(tmp_path: Path) -> N
     run(lambda: e.make_text(other.id))  # two texts waiting
     voice.calls.clear()
 
-    async def slow(text: str, name: str) -> bytes:
+    async def slow(text: str, name: str) -> Spoken:
         await asyncio.sleep(0)  # a real request yields
         return await voice(text, name)
 
@@ -580,6 +582,71 @@ def test_a_newer_voice_change_supersedes_a_running_rerecord(tmp_path: Path) -> N
     # The first run finishes the text it was on (2 lines), then stops; the second does both texts.
     # Without superseding, two full runs would make 8 requests.
     assert len(voice.calls) == 6
+
+
+def test_texts_waiting_from_before_timings_are_re_recorded_with_them_once(tmp_path: Path) -> None:
+    voice = FakeVoice()
+    e = speaking_engine(tmp_path, voice)
+    assert e.audio is not None
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    other = store.add_topic(e.conn, "Bus stop", True, NOW)
+    run(lambda: e.make_text(topic.id))
+    run(lambda: e.make_text(other.id))
+    read, waiting = store.ready_texts(e.conn, "th")
+    e.conn.execute("UPDATE texts SET status = 'read' WHERE id = ?", (read.id,))
+    shelf = store.ready_texts(e.conn, "th")
+    # Both recorded before timings (FakeVoice gives none); the waiting one has a line with no audio.
+    e.audio.path(waiting.id, 1).unlink()
+    voice.calls.clear()
+
+    async def timed(text: str, name: str) -> Spoken:
+        voice.calls.append((text, name))
+        return Spoken(b"mp3", [WordMark(text, 0, 1000)])
+
+    e.synthesize = timed
+    run(e.time_waiting_texts)
+
+    # Every waiting text's lines, the one missing a line's audio included; not the read one's.
+    assert read.id not in {t.id for t in shelf}
+    assert len(voice.calls) == sum(len(t.lines) for t in shelf)
+    assert all(e.audio.has_marks(t.id, i) for t in shelf for i in range(len(t.lines)))
+    assert not e.audio.has_marks(read.id, 0)
+
+    voice.calls.clear()
+    run(e.time_waiting_texts)
+    assert voice.calls == []
+
+
+def test_a_pass_where_azure_gave_no_timings_isnt_repeated(tmp_path: Path) -> None:
+    voice = FakeVoice()
+    e = speaking_engine(tmp_path, voice)
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    run(lambda: e.make_text(topic.id))
+    voice.calls.clear()
+
+    run(e.time_waiting_texts)
+    run(e.time_waiting_texts)
+
+    assert len(voice.calls) == 2  # one pass, both lines
+
+
+def test_a_pass_cut_short_skips_the_texts_it_already_timed(tmp_path: Path) -> None:
+    voice = FakeVoice()
+    e = speaking_engine(tmp_path, voice)
+    assert e.audio is not None
+    food = store.add_topic(e.conn, "Food stall", True, NOW)
+    bus = store.add_topic(e.conn, "Bus stop", True, NOW)
+    run(lambda: e.make_text(food.id))
+    run(lambda: e.make_text(bus.id))
+    first, second = store.ready_texts(e.conn, "th")
+    # The first was re-recorded with timings before a restart; the flag was never set.
+    for i in range(len(first.lines)):
+        e.audio.write(first.id, i, Spoken(b"mp3", [WordMark("x", 0, 1)]))
+    voice.calls.clear()
+
+    run(e.time_waiting_texts)
+
+    assert len(voice.calls) == len(second.lines)
 
 
 # ==== Stretch words setting ====

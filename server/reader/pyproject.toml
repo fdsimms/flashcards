@@ -13,7 +13,8 @@ dependencies = [
     "anki==26.9.4",
     "simplemma>=2.0.0",
     # Azure's text to speech, shared with the MCP (../speech).
-    "franki-speech",
+    # `timings`: the Speech SDK, for the word timings the reader follows along with.
+    "franki-speech[timings]",
 ]
 
 [tool.uv.sources]
