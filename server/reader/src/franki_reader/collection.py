@@ -157,7 +157,11 @@ def read_entries(col: Collection, language: Language) -> list[Entry]:
     due = set(col.find_cards(f"({language.notes_query}) is:due"))
     assert col.db is not None  # open: find_notes just used it
     rows = col.db.all(
-        f"select id, nid, type, ivl from cards where nid in {ids2str(n.note_id for n in notes)}"
+        "select id, nid, type, ivl, queue from cards"
+        f" where nid in {ids2str(n.note_id for n in notes)}"
     )
-    cards = [CardRow(nid, card_type, ivl, cid in due) for cid, nid, card_type, ivl in rows]
+    cards = [
+        CardRow(nid, card_type, ivl, cid in due, suspended=queue == -1)
+        for cid, nid, card_type, ivl, queue in rows
+    ]
     return build_entries(notes, cards)

@@ -48,13 +48,16 @@ class NoteRow:
 
 @dataclass(frozen=True)
 class CardRow:
-    """A card's Anki type (0 new, 1 learning, 2 review, 3 relearning), interval in days, and
-    whether it's due today."""
+    """A card's Anki type (0 new, 1 learning, 2 review, 3 relearning), interval in days, whether
+    it's due today, and whether it's suspended (queue -1)."""
 
     note_id: int
     type: int
     ivl: int
     due: bool = False
+    # A suspended card doesn't count toward its note's tier (`note_tier`): the owner's presets
+    # suspend leeches, the words they keep failing, which shouldn't count as known or be stretched on.
+    suspended: bool = False
 
 
 # Reads one language's deck. Raises AnkiUnavailable (gateway.py) when it can't, so the caller keeps
@@ -66,7 +69,8 @@ def build_entries(notes: Iterable[NoteRow], cards: Iterable[CardRow]) -> list[En
     cards_by_note: dict[int, list[tuple[int, int]]] = {}
     due_notes: set[int] = set()
     for card in cards:
-        cards_by_note.setdefault(card.note_id, []).append((card.type, card.ivl))
+        if not card.suspended:
+            cards_by_note.setdefault(card.note_id, []).append((card.type, card.ivl))
         if card.due:
             due_notes.add(card.note_id)
 

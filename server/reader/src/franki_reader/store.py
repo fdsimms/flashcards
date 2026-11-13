@@ -387,6 +387,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
         ("audio_chars", "audio_chars INTEGER NOT NULL DEFAULT 0"),
         # Questions about the text for the check after reading (JSON, comprehension.py).
         ("questions", "questions TEXT NOT NULL DEFAULT '[]'"),
+        # The stretch word count it was written at (Difficulty.stretch; the floor column is the
+        # target), so a rating steps from it (difficulty.after_reading). NULL before 13 November 2026.
+        ("stretch_count", "stretch_count INTEGER"),
     ):
         if column not in texts_columns:
             conn.execute(f"ALTER TABLE texts ADD COLUMN {sql}")
@@ -633,10 +636,12 @@ def save_text(
     reason: Reason = "",
     story_id: int | None = None,
     episode: int = 0,
+    stretch_count: int | None = None,
 ) -> int:
     """Stores a generated text. `status` is "pending" while its audio is made, "ready" once it can
     be served, "dropped" for a text that missed the floor (kept only for its cost), "read" once
-    it's been read, or "skipped" for one taken off the shelf unread (Not this)."""
+    it's been read, or "skipped" for one taken off the shelf unread (Not this). `floor` and
+    `stretch_count` are the difficulty it was written at."""
     u = generated.usage
     with conn:
         cur = conn.execute(
@@ -644,9 +649,9 @@ def save_text(
                    coverage, token_count, floor, attempts, model, input_tokens, output_tokens,
                    cache_read_tokens, cache_write_tokens, cost_usd, roles, form, language, grammar,
                    focus, translits, reason, story_id, episode, recap, genders, characters,
-                   choices)
+                   choices, stretch_count)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                   ?, ?, ?, ?, ?)""",
+                   ?, ?, ?, ?, ?, ?)""",
             (
                 topic_id,
                 now.isoformat(),
@@ -678,10 +683,18 @@ def save_text(
                 json.dumps(generated.genders),
                 json.dumps(generated.characters),
                 json.dumps([c.__dict__ for c in generated.choices], ensure_ascii=False),
+                stretch_count,
             ),
         )
     assert cur.lastrowid is not None
     return cur.lastrowid
+
+
+def written_at(conn: sqlite3.Connection, text_id: int) -> tuple[float, int | None] | None:
+    """The coverage target and stretch word count a text was written at; the count is None for a
+    text written before it was recorded."""
+    row = conn.execute("SELECT floor, stretch_count FROM texts WHERE id = ?", (text_id,)).fetchone()
+    return (row[0], row[1]) if row else None
 
 
 def set_choice(conn: sqlite3.Connection, text_id: int, index: int) -> str:
