@@ -1,0 +1,209 @@
+[
+  {
+    "id": "polite",
+    "name": "polite form",
+    "summary": "The polite way to say a verb, used with people you don't know well. It ends in -ます.",
+    "table": null,
+    "examples": [
+      {
+        "text": "毎日 食べ*ます*",
+        "english": "I eat every day"
+      },
+      {
+        "text": "駅へ 行き*ます*",
+        "english": "I'm going to the station"
+      }
+    ]
+  },
+  {
+    "id": "past",
+    "name": "past tense",
+    "summary": "Something that already happened. Plain verbs end in -た, and polite verbs in -ました. Adjectives end in -かった.",
+    "table": null,
+    "examples": [
+      {
+        "text": "昨日 映画を 見*た*",
+        "english": "I watched a movie yesterday"
+      },
+      {
+        "text": "朝ご飯を 食べ*ました*",
+        "english": "I ate breakfast"
+      }
+    ]
+  },
+  {
+    "id": "negative",
+    "name": "negative",
+    "summary": "'Doesn't' or 'isn't'. Plain verbs end in -ない and polite verbs in -ません. Adjectives end in -くない.",
+    "table": null,
+    "examples": [
+      {
+        "text": "肉を 食べ*ない*",
+        "english": "I don't eat meat"
+      },
+      {
+        "text": "行き*ません*",
+        "english": "I'm not going"
+      }
+    ]
+  },
+  {
+    "id": "te-form",
+    "name": "te-form",
+    "summary": "A form that links to what comes next: 'and then', requests with ください, ongoing actions with いる. How it ends depends on the verb's last syllable.",
+    "table": {
+      "head": [
+        "Verb ends in",
+        "Te-form"
+      ],
+      "rows": [
+        [
+          "う, つ, る",
+          "*-って*"
+        ],
+        [
+          "む, ぶ, ぬ",
+          "*-んで*"
+        ],
+        [
+          "く",
+          "*-いて*"
+        ],
+        [
+          "ぐ",
+          "*-いで*"
+        ],
+        [
+          "す",
+          "*-して*"
+        ],
+        [
+          "る verbs (ichidan)",
+          "drop る, add *-て*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "起き*て* 食べ*て* 出かけた",
+        "english": "I got up, ate and left"
+      },
+      {
+        "text": "ちょっと 待っ*て* ください",
+        "english": "Please wait a moment"
+      }
+    ]
+  },
+  {
+    "id": "potential",
+    "name": "potential",
+    "summary": "'Can do'. The ichidan form adds -られる and the godan form changes the last syllable to the え row plus る.",
+    "table": null,
+    "examples": [
+      {
+        "text": "日本語が 話せ*る*",
+        "english": "I can speak Japanese"
+      },
+      {
+        "text": "これは 食べ*られる*",
+        "english": "I can eat this"
+      }
+    ]
+  },
+  {
+    "id": "passive",
+    "name": "passive",
+    "summary": "Something done to the subject ('is done'), and sometimes an action that affected the subject badly. It ends in -れる or -られる.",
+    "table": null,
+    "examples": [
+      {
+        "text": "先生に ほめ*られた*",
+        "english": "I was praised by my teacher"
+      },
+      {
+        "text": "雨に 降*られた*",
+        "english": "I got caught in the rain"
+      }
+    ]
+  },
+  {
+    "id": "causative",
+    "name": "causative",
+    "summary": "'Make' or 'let' someone do something. It ends in -せる or -させる.",
+    "table": null,
+    "examples": [
+      {
+        "text": "子供に 野菜を 食べ*させる*",
+        "english": "I make my child eat vegetables"
+      },
+      {
+        "text": "行か*せて* ください",
+        "english": "Please let me go"
+      }
+    ]
+  },
+  {
+    "id": "volitional",
+    "name": "volitional",
+    "summary": "'Let's' or 'I will'. Plain verbs end in -よう or -おう, and polite verbs in -ましょう.",
+    "table": null,
+    "examples": [
+      {
+        "text": "一緒に 食べ*よう*",
+        "english": "Let's eat together"
+      },
+      {
+        "text": "行き*ましょう*",
+        "english": "Let's go"
+      }
+    ]
+  },
+  {
+    "id": "conditional",
+    "name": "conditional",
+    "summary": "'If' or 'when'. The -ば form means 'if', and the -たら form means 'if' or 'once'.",
+    "table": null,
+    "examples": [
+      {
+        "text": "安けれ*ば* 買う",
+        "english": "If it's cheap, I'll buy it"
+      },
+      {
+        "text": "雨が 降っ*たら* 行かない",
+        "english": "If it rains, I won't go"
+      }
+    ]
+  },
+  {
+    "id": "imperative",
+    "name": "imperative",
+    "summary": "A direct command. It sounds rough, so it's mostly heard in orders and in fiction. Godan verbs change the last syllable to the え row, and ichidan verbs add -ろ.",
+    "table": null,
+    "examples": [
+      {
+        "text": "食べ*ろ*",
+        "english": "Eat!"
+      },
+      {
+        "text": "待*て*",
+        "english": "Wait!"
+      }
+    ]
+  },
+  {
+    "id": "desire",
+    "name": "-たい form",
+    "summary": "'Want to'. It's the stem plus -たい, and it works like an adjective.",
+    "table": null,
+    "examples": [
+      {
+        "text": "水が 飲み*たい*",
+        "english": "I want to drink water"
+      },
+      {
+        "text": "行き*たくない*",
+        "english": "I don't want to go"
+      }
+    ]
+  }
+]

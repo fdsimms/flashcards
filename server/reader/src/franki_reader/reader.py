@@ -5,7 +5,7 @@ Generation and coverage)."""
 import re
 from typing import Any
 
-from franki_reader import grammar
+from franki_reader import form_primers, grammar
 from franki_reader.coverage import Checker, is_word, parse_line, segment_line
 from franki_reader.frequency import rank_of
 from franki_reader.japanese import JapaneseLexicon
@@ -89,11 +89,13 @@ def word_out(
     translits: dict[str, str] | None = None,
     stretch: set[str] | None = None,
     point: str | None = None,
+    form: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """One piece of a line as the app draws it (`Word` in src/reader/api.ts): a word with its
     meaning, dictionary form, pronunciation and status, or a space or punctuation (status None),
     which is shown but never tapped. `glosses` and `translits` are a text's own, `stretch` its
-    practice words, `point` the grammar point the word uses."""
+    practice words, `point` the grammar point the word uses, `form` its grammatical form as
+    {"id", "name"} (the app's chip and primer, form_primers.py)."""
     if not is_word(piece):
         return {
             "text": piece,
@@ -106,6 +108,7 @@ def word_out(
             "wanikani": False,
             "rank": None,
             "grammar": None,
+            "form": None,
         }
     entry = lexicon.entry_of(piece)
     return {
@@ -121,6 +124,7 @@ def word_out(
         # Its place among the language's most common words; None past the list's end.
         "rank": None if is_name else rank_of(piece, lexicon),
         "grammar": point,
+        "form": form,
     }
 
 
@@ -170,6 +174,15 @@ def render(
     review = tuple(p for p in text.grammar.get("review", []) if p not in practice + avoid)
     unset = tuple(p for p in unset if p not in practice + avoid + review)
     used: set[str] = set()
+    form_names = form_primers.names(text.language)
+    forms = text.forms or {}
+
+    def form_of(piece: str) -> dict[str, str] | None:
+        """The form a word is marked as in this text, if it's still one the catalog has."""
+        found = forms.get(piece.casefold())
+        if found is None or found not in form_names:
+            return None
+        return {"id": found, "name": form_names[found]}
 
     def render_words(source: str, marked: dict[int, str]) -> list[dict[str, Any]]:
         at = 0
@@ -191,6 +204,7 @@ def render(
                     translits=text.translits,
                     stretch=stretch,
                     point=point,
+                    form=form_of(piece),
                 )
             )
         mark_reflexive_pronouns(words, lexicon)

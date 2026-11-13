@@ -1,0 +1,391 @@
+[
+  {
+    "id": "nominative",
+    "name": "nominative case",
+    "summary": "The case of the subject, the one doing something or being described. It's the form a dictionary lists. You see it here when a word is plural.",
+    "table": {
+      "head": [
+        "",
+        "Singular",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Masculine",
+          "no ending, *-й*, *-ь*",
+          "*-ы* / *-и*"
+        ],
+        [
+          "Feminine",
+          "*-а* / *-я*",
+          "*-ы* / *-и*"
+        ],
+        [
+          "Neuter",
+          "*-о* / *-е*",
+          "*-а* / *-я*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Дом больш*ой*",
+        "english": "The house is big"
+      },
+      {
+        "text": "Дом*а* стоят на горе",
+        "english": "The houses stand on a hill"
+      }
+    ]
+  },
+  {
+    "id": "genitive",
+    "name": "genitive case",
+    "summary": "Shows belonging ('of', 's), absence ('no', 'without'), and what follows numbers from five up and words for amounts. Also used after many prepositions, like из, от, без, у, для.",
+    "table": {
+      "head": [
+        "",
+        "Singular",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Masculine",
+          "*-а* / *-я*",
+          "*-ов* / *-ев* / *-ей*"
+        ],
+        [
+          "Feminine",
+          "*-ы* / *-и*",
+          "no ending, or *-ей*"
+        ],
+        [
+          "Neuter",
+          "*-а* / *-я*",
+          "no ending, or *-ей*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "книга брат*а*",
+        "english": "my brother's book"
+      },
+      {
+        "text": "У меня нет времен*и*",
+        "english": "I have no time"
+      },
+      {
+        "text": "пять рубл*ей*",
+        "english": "five rubles"
+      }
+    ]
+  },
+  {
+    "id": "dative",
+    "name": "dative case",
+    "summary": "Shows who receives something or who it's for ('to', 'for'). It's also the person in sentences like 'I'm cold' and 'I like it'.",
+    "table": {
+      "head": [
+        "",
+        "Singular",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Masculine, neuter",
+          "*-у* / *-ю*",
+          "*-ам* / *-ям*"
+        ],
+        [
+          "Feminine",
+          "*-е* / *-и*",
+          "*-ам* / *-ям*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Я дал книгу брат*у*",
+        "english": "I gave the book to my brother"
+      },
+      {
+        "text": "Мн*е* холодно",
+        "english": "I'm cold"
+      }
+    ]
+  },
+  {
+    "id": "accusative",
+    "name": "accusative case",
+    "summary": "Shows what is acted on, the direct object. It's also the destination after в and на when something is moving there.",
+    "table": {
+      "head": [
+        "",
+        "Singular"
+      ],
+      "rows": [
+        [
+          "Masculine thing, neuter",
+          "same as the nominative"
+        ],
+        [
+          "Masculine person or animal",
+          "same as the genitive: *-а* / *-я*"
+        ],
+        [
+          "Feminine",
+          "*-у* / *-ю*"
+        ],
+        [
+          "Plural",
+          "things: same as the nominative; people and animals: same as the genitive"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Я читаю книг*у*",
+        "english": "I'm reading a book"
+      },
+      {
+        "text": "Я вижу брат*а*",
+        "english": "I see my brother"
+      },
+      {
+        "text": "Мы идём в школ*у*",
+        "english": "We're going to school"
+      }
+    ]
+  },
+  {
+    "id": "instrumental",
+    "name": "instrumental case",
+    "summary": "Shows what something is done with or by, or what someone works as or becomes. In English that's usually 'with', 'by' or 'as'. Also used after с ('together with') and after some verbs, like быть, стать, заниматься.",
+    "table": {
+      "head": [
+        "",
+        "Singular",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Masculine, neuter",
+          "*-ом* / *-ем*",
+          "*-ами* / *-ями*"
+        ],
+        [
+          "Feminine",
+          "*-ой* / *-ей*",
+          "*-ами* / *-ями*"
+        ],
+        [
+          "Feminine in -ь",
+          "*-ью*",
+          "*-ями*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Я пишу ручк*ой*",
+        "english": "I write with a pen"
+      },
+      {
+        "text": "с друг*ом*",
+        "english": "with a friend"
+      },
+      {
+        "text": "Я работаю врач*ом*",
+        "english": "I work as a doctor"
+      }
+    ]
+  },
+  {
+    "id": "prepositional",
+    "name": "prepositional case",
+    "summary": "Used only after a preposition: в and на for where something is ('in', 'on'), and о for what it's about.",
+    "table": {
+      "head": [
+        "",
+        "Singular",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Masculine, neuter, feminine",
+          "*-е*",
+          "*-ах* / *-ях*"
+        ],
+        [
+          "Feminine in -ь, -ия; neuter in -ие",
+          "*-и*",
+          "*-ях*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "в дом*е*",
+        "english": "in the house"
+      },
+      {
+        "text": "на стол*е*",
+        "english": "on the table"
+      },
+      {
+        "text": "о книг*е*",
+        "english": "about the book"
+      }
+    ]
+  },
+  {
+    "id": "present",
+    "name": "present tense",
+    "summary": "What is happening now or happens regularly. The ending shows the person, so the pronoun is often left out. For a perfective verb the same endings mean the future.",
+    "table": {
+      "head": [
+        "",
+        "Type 1",
+        "Type 2"
+      ],
+      "rows": [
+        [
+          "я",
+          "*-ю* / *-у*",
+          "*-ю* / *-у*"
+        ],
+        [
+          "ты",
+          "*-ешь*",
+          "*-ишь*"
+        ],
+        [
+          "он, она",
+          "*-ет*",
+          "*-ит*"
+        ],
+        [
+          "мы",
+          "*-ем*",
+          "*-им*"
+        ],
+        [
+          "вы",
+          "*-ете*",
+          "*-ите*"
+        ],
+        [
+          "они",
+          "*-ют* / *-ут*",
+          "*-ят* / *-ат*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Я чита*ю*",
+        "english": "I read, I'm reading"
+      },
+      {
+        "text": "Мы говор*им* по-русски",
+        "english": "We speak Russian"
+      }
+    ]
+  },
+  {
+    "id": "past",
+    "name": "past tense",
+    "summary": "Something that already happened. The ending agrees with the gender and number of the subject, not the person.",
+    "table": {
+      "head": [
+        "",
+        "Ending"
+      ],
+      "rows": [
+        [
+          "он (masculine)",
+          "*-л*"
+        ],
+        [
+          "она (feminine)",
+          "*-ла*"
+        ],
+        [
+          "оно (neuter)",
+          "*-ло*"
+        ],
+        [
+          "они, мы, вы (plural)",
+          "*-ли*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Он чита*л* книгу",
+        "english": "He read a book"
+      },
+      {
+        "text": "Она чита*ла* книгу",
+        "english": "She read a book"
+      },
+      {
+        "text": "Мы чита*ли* книгу",
+        "english": "We read a book"
+      }
+    ]
+  },
+  {
+    "id": "future",
+    "name": "future tense",
+    "summary": "Something that will happen. An imperfective verb uses буду plus the infinitive. A perfective verb has no буду: its present-tense endings mean the future.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Я *буду* читать",
+        "english": "I will be reading"
+      },
+      {
+        "text": "Я прочита*ю* это завтра",
+        "english": "I'll read it through tomorrow"
+      }
+    ]
+  },
+  {
+    "id": "imperative",
+    "name": "imperative",
+    "summary": "A command or request. It ends in *-й*, *-и* or *-ь*. Add *-те* to speak to several people or to be polite.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Чита*й*!",
+        "english": "Read!"
+      },
+      {
+        "text": "Чита*йте*!",
+        "english": "Read! (to you, polite or plural)"
+      },
+      {
+        "text": "Скаж*и* мне",
+        "english": "Tell me"
+      }
+    ]
+  },
+  {
+    "id": "comparative",
+    "name": "comparative",
+    "summary": "'More' or '-er'. It usually ends in *-ее* and is followed by чем ('than') or a genitive. It doesn't change for gender or case.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Он быстр*ее* меня",
+        "english": "He's faster than me"
+      },
+      {
+        "text": "Это интересн*ее*, чем то",
+        "english": "This is more interesting than that"
+      }
+    ]
+  }
+]
