@@ -550,6 +550,35 @@ def test_a_stretch_word_from_a_text_read_yesterday_is_offered_again_today() -> N
     assert request.stretch[0].text == "ข้าวเหนียวมะม่วง"
 
 
+def test_a_stretch_word_read_earlier_the_same_study_day_is_not_from_an_earlier_day(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import timedelta, timezone
+
+    clock = Clock()
+    clock.now = datetime(2026, 10, 18, 23, 30)  # 06:30 in Bangkok on the 19th
+    e = engine(ScriptedModel(IN_RANGE), clock=clock)
+    e.zone = timezone(timedelta(hours=7))
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    text = run(lambda: fetch(e, topic.id))
+    e.record_reading(text.id, reading("about_right"))
+
+    seen: list[dict[str, int]] = []
+    practiced_days = store.practiced_days
+
+    def spy(*args: Any, **kwargs: Any) -> dict[str, int]:
+        seen.append(practiced_days(*args, **kwargs))
+        return seen[-1]
+
+    monkeypatch.setattr(store, "practiced_days", spy)
+    clock.now = datetime(2026, 10, 19, 1, 0)  # 08:00 in Bangkok: the same study day, a new UTC one
+    e._request("Food stall", ENTRIES, Difficulty(stretch=1))
+    assert seen == [{}]
+    clock.now = datetime(2026, 10, 19, 21, 30)  # 04:30 in Bangkok on the 20th: the next study day
+    e._request("Food stall", ENTRIES, Difficulty(stretch=1))
+    assert seen[-1] == {"ข้าวเหนียวมะม่วง": 1}
+
+
 def test_the_length_setting_sets_the_number_of_lines_asked_for() -> None:
     e = engine(ScriptedModel(IN_RANGE))
     assert e._request("Food stall", ENTRIES, Difficulty()).lines == 8

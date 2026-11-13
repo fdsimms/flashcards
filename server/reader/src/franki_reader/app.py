@@ -137,6 +137,7 @@ from franki_reader.mnemonics import (
 )
 from franki_reader.reader import gloss_for, lemma_for, render
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
+from franki_reader.study_day import DEFAULT_ROLLOVER
 from franki_reader.suggestions import suggest
 from franki_reader.tts import AudioCache, Speech, azure_synthesize
 
@@ -1186,6 +1187,7 @@ def production_app() -> FastAPI:
         synthesize=synthesize,
         audio=AudioCache(settings.audio_dir),
         voices=settings.voices,
+        rollover=lambda: anki.rollover if anki else DEFAULT_ROLLOVER,
     )
     return create_app(
         engine,

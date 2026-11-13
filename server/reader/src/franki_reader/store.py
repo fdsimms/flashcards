@@ -6,7 +6,7 @@ import logging
 import sqlite3
 import statistics
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Any, Literal
 
@@ -15,6 +15,7 @@ from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Form, Generated, Line
 from franki_reader.languages import LANGUAGES, VOICE_SLOTS, Code, with_deck
 from franki_reader.lexicon import Entry, ReadDeck
+from franki_reader.study_day import DEFAULT_ROLLOVER, study_day
 
 SNAPSHOT_MAX_AGE = timedelta(hours=24)
 # How the reading log names each language (it said "thai" before there was a second one).
@@ -998,17 +999,22 @@ def explanation_spending(
 
 
 def practiced_days(
-    conn: sqlite3.Connection, before: datetime, language: Code = "th"
+    conn: sqlite3.Connection,
+    before: datetime,
+    language: Code = "th",
+    rollover: int = DEFAULT_ROLLOVER,
+    zone: tzinfo | None = None,
 ) -> dict[str, int]:
     """For each word that was a stretch word in a text read before `before`, the number of
-    different days it was one."""
+    different study days it was one (study_day.py: the owner's day, not UTC's)."""
     rows = conn.execute(
-        """SELECT DISTINCT substr(r.logged_at, 1, 10), x.stretch FROM readings r
+        """SELECT r.logged_at, x.stretch FROM readings r
            JOIN texts x ON x.id = r.text_id WHERE r.logged_at < ? AND x.language = ?""",
         (before.isoformat(), language),
     )
-    days: dict[str, set[str]] = {}
-    for day, stretch in rows:
+    days: dict[str, set[date]] = {}
+    for logged_at, stretch in rows:
+        day = study_day(datetime.fromisoformat(logged_at), rollover, zone)
         for word in json.loads(stretch):
             days.setdefault(word, set()).add(day)
     return {word: len(d) for word, d in days.items()}
