@@ -152,7 +152,7 @@ class Generated:
     missing_glosses: tuple[str, ...]
     usage: Usage = Usage()
     stretch: tuple[str, ...] = ()  # the stretch words the text actually uses
-    roles: dict[str, str] = field(default_factory=dict)  # speaker -> who they are, e.g. "Waiter"
+    roles: dict[str, str] = field(default_factory=dict)  # speaker -> name, job first if any: "Waiter Nok"
     # speaker -> "male" or "female", for a dialogue (gender.py picks each one's voice)
     genders: dict[str, str] = field(default_factory=dict)
     # speaker -> one of characters.CHARACTERS, for a dialogue; the app draws it in the speaker's gender
@@ -254,8 +254,11 @@ any that isn't with a listed word or a simpler way of saying it. Getting this ri
 matters more than a clever text.
 - Write natural Thai, the way a Thai speaker would say it, never a word-for-word translation of an \
 English phrase or idiom. If an English idea has no plain Thai equivalent, say something else.
-- A dialogue is natural, everyday spoken Thai between two speakers, A and B. In "roles", say who \
-A and B are in this situation, in one to three English words each, like "Waiter" and "Customer".
+- A dialogue is natural, everyday spoken Thai between two speakers, A and B. In "roles", give \
+each speaker a first name, written in Latin letters, that suits the speaker and the language, like \
+"Nok" and "Somchai". Where the situation gives them a job (waiter, shopkeeper, doctor, teacher), put it \
+before the name, like "Waiter Nok". A friend, relative or stranger is only a name. Use two \
+different names.
 - In "genders", say whether A and B are a man or a woman ("male" or "female"). The learner hears a \
 man's voice for a man and a woman's voice for a woman, so every line has to fit its speaker. A man \
 says ครับ and ผม; a woman says ค่ะ (statements) or คะ (questions) and ดิฉัน, never ครับ or ผม. \
@@ -319,9 +322,11 @@ doesn't make sense. Replace a word that isn't allowed with an allowed word or a 
 saying it.
 - Write natural {name}, the way a native speaker would say it, never a word-for-word translation \
 of an English phrase or idiom. If an English idea has no plain {name} equivalent, say something else.
-- A dialogue is natural, everyday spoken {name} between two speakers, A and B. In "roles", say \
-who A and B are in this situation, in one to three English words each, like "Waiter" and \
-"Customer".
+- A dialogue is natural, everyday spoken {name} between two speakers, A and B. In "roles", give \
+each speaker a first name, written in Latin letters, that suits the speaker and {name}, like \
+"Camille" and "Luc". Where the situation gives them a job (waiter, shopkeeper, doctor, teacher), put it \
+before the name, like "Waiter Luc". A friend, relative or stranger is only a name. Use two \
+different names.
 - In "genders", say whether A and B are a man or a woman ("male" or "female"). The learner hears a \
 man's voice for a man and a woman's voice for a woman, so every line has to fit its speaker: where \
 {name} shows the speaker's gender (verb endings, adjectives, participles, titles), use the form for \
