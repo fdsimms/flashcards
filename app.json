@@ -47,7 +47,7 @@
       [
         "expo-audio",
         {
-          "microphonePermission": false,
+          "microphonePermission": "Franki records your voice so you can play it back next to a word's or a line's recording. Recordings stay on this iPhone and are deleted when you move on.",
           "recordAudioAndroid": false,
           "enableBackgroundPlayback": true
         }

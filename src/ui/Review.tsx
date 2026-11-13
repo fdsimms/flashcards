@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActionSheetIOS, Alert, Animated, Easing, Keyboard, PanResponder, Pressable, ScrollView, Text, TextInput, useColorScheme, useWindowDimensions, View } from 'react-native';
 import { FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
 import { AGENT_FLAG, AGENT_FLAG_REASONS, withFlagReason } from '../core/agentFlag';
-import { autoplayFor, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
+import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
 import { failureText } from '../core/failure';
@@ -39,6 +39,8 @@ import { practiceWords } from '../reader/practice';
 import { headword, type DrillRequest } from '../core/forms';
 import { AnswerExtras, FormsCheck, useReviewForms } from './ReviewForms';
 import { haptic } from './haptics';
+import { RecordYourself } from './RecordYourself';
+import { useSelfRecording } from './useSelfRecording';
 import { htmlToText } from '../core/html';
 import { LeechHintSheet } from './LeechHintSheet';
 import { canAddMnemonic, mnemonicQuestion, withMnemonic, type MnemonicQuestion } from '../core/leechHint';
@@ -90,6 +92,9 @@ export function ProgressBar({ value }: { value: number }) {
  * tints toward the answer it would give (right Good, left Again), and flies off when let go past
  * the line. Only a rating the answer buttons show can be given (`swipeRating`).
  */
+/** The audio mode Review plays in (AppContext's), put back after Record yourself records. */
+const AUDIO_MODE = { playsInSilentMode: true };
+
 function SwipeCard({ enabled, shown, onRate, children }: { enabled: boolean; shown: RatingValue[]; onRate: (r: RatingValue) => Promise<void>; children: React.ReactNode }) {
   const c = useTheme();
   const { width } = useWindowDimensions();
@@ -327,9 +332,17 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
    * file is here, as Anki plays it, else the phone's text-to-speech voice.
    */
   const ttsRunning = useRef(false);
+  // Record yourself: a take of your own voice for this card, played back next to its recording.
+  const self = useSelfRecording(current?.id ?? null, AUDIO_MODE, {
+    onBeforeAudio: () => {
+      if (ttsRunning.current) { Speech.stop(); ttsRunning.current = false; }
+      player.current?.pause();
+    },
+  });
   const speak = useCallback(
     (what: Playback | undefined) => {
       if (!what || !rendered) return;
+      self.stopTake();
       // Stopping speech that isn't running can pull the audio session out from under the
       // recording that starts right after, cutting it off.
       if (ttsRunning.current) { Speech.stop(); ttsRunning.current = false; }
@@ -346,7 +359,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       ttsRunning.current = true;
       phoneSpeech.sayWord(what.text, rendered.speechLang);
     },
-    [rendered, phoneSpeech],
+    [rendered, phoneSpeech, self.stopTake],
   );
 
   // Anki's {{tts:}} tags, read with the phone's voices: on their own when a side without a
@@ -534,6 +547,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   const leechSheet = leechPrompt && leechNoteNow ? (
     <LeechHintSheet
       word={htmlToText(leechNoteNow.fields.Entry ?? '')}
+      gloss={[htmlToText(leechNoteNow.fields.Transliteration ?? ''), htmlToText(leechNoteNow.fields.Meaning ?? '')].filter(Boolean).join(' · ')}
       misses={leechPrompt.misses}
       suggest={suggestHints && question ? () => suggestHints(question) : undefined}
       onSkip={() => setLeechPrompt(null)}
@@ -604,7 +618,13 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
     );
   }
 
-  const reveal = () => { Keyboard.dismiss(); setRevealed(true); if (rendered) speak(autoplayFor(rendered, true)); };
+  const reveal = () => {
+    Keyboard.dismiss();
+    // A take made from memory ends here, quietly, so the answer's own recording plays.
+    self.stop(false);
+    setRevealed(true);
+    if (rendered) speak(autoplayFor(rendered, true));
+  };
   // Under the answer: the offer to show the card sooner, and the suggestion to practice its forms.
   const extras = revealed ? (
     <AnswerExtras
@@ -851,6 +871,11 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
             {/* Keyed to the card, so each new one fades in rather than swapping. */}
             <Reveal key={current.id} rise={10} style={{ gap: space.xl }}>
               <Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} />
+              {canRecordYourself(rendered) ? (
+                <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                  <RecordYourself rec={self} label="Record" size="card" />
+                </View>
+              ) : null}
             </Reveal>
             {revealed ? (
               <Reveal rise={8} style={{ gap: space.xl }}>

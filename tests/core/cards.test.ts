@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { autoplayFor, cardKindsFor, playbackFor, renderCard } from '../../src/core/cards';
+import { autoplayFor, canRecordYourself, cardKindsFor, playbackFor, renderCard } from '../../src/core/cards';
 import type { Note } from '../../src/core/types';
 import { omniNote } from '../support/fixtures';
 
@@ -121,6 +121,11 @@ describe('cards', () => {
 
     it('plays the recording on the front of the audio card', () => {
       expect(autoplayFor(renderCard(note, 'audio'), false)?.file).toBe(FILE);
+    });
+
+    it('offers Record yourself on every side of a card with a recording, and not on one without', () => {
+      for (const kind of ['forward', 'reverse', 'audio'] as const) expect(canRecordYourself(renderCard(note, kind))).toBe(true);
+      expect(canRecordYourself(renderCard(omniNote({ Entry: 'kot' }), 'forward'))).toBe(false);
     });
 
     it('keeps the recording off the Play button until the answer is shown', () => {
