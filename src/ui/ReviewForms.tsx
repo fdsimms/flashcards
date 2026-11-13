@@ -9,6 +9,7 @@ import {
 import { heldCards, lookalikeIndex, lookalikeSettings, seenEvents, soonerOffer, whenSeen, type SeenEvent } from '../core/lookalikes';
 import type { Card, DeckSettings, Note, ReviewLogEntry } from '../core/types';
 import type { Repo } from '../db/repo';
+import { haptic } from './haptics';
 import { Button, Card as Box, Help } from './kit';
 import { MIN_TAP, space, type, useTheme } from './theme';
 
@@ -155,7 +156,7 @@ export function AnswerExtras(props: {
               <Text style={{ ...type.body, color: c.text }}>Show this card again sooner</Text>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>{`Good brings it back in ${offer.soonerGood}, not ${offer.plainGood}`}</Text>
             </View>
-            <Switch value={offer.on} onValueChange={props.onSooner} trackColor={{ true: c.accent, false: c.border }} ios_backgroundColor={c.border} accessibilityLabel="Show this card again sooner" />
+            <Switch value={offer.on} onValueChange={(on) => { haptic.select(); props.onSooner(on); }} trackColor={{ true: c.accent, false: c.border }} ios_backgroundColor={c.border} accessibilityLabel="Show this card again sooner" />
           </View>
         </Box>
       ) : null}

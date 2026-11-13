@@ -7,6 +7,7 @@ import { vocabWatch, watchStateOf } from '../reader/vocabWatch';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
+import { Reveal } from './motion';
 import { lift, radius, smooth, space, type, useTheme } from './theme';
 
 const POLL_MS = 3000;
@@ -49,7 +50,7 @@ export function VocabReadyCard({ banner }: { banner: NonNullable<ReturnType<type
   const c = useTheme();
   const { ready, message, hint } = banner;
   return (
-    <View
+    <Reveal
       style={{
         flexDirection: 'row', alignItems: 'center', borderRadius: radius.l, ...smooth,
         backgroundColor: c.surface, borderColor: c.border, borderWidth: 0.5, ...lift(c, 'high'),
@@ -75,7 +76,7 @@ export function VocabReadyCard({ banner }: { banner: NonNullable<ReturnType<type
       >
         <Icon name="xmark" size={14} color={c.textSecondary} />
       </Tappable>
-    </View>
+    </Reveal>
   );
 }
 

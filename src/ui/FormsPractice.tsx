@@ -4,11 +4,12 @@ import {
   drillPrompts, headword, PATTERN_PROMPT_LIMITS, patternOf, practiceChoices, practicedGroups, practicedGroupsLine, studiedWords,
   type DrillRequest, type PracticeRecord, type PracticeWord,
 } from '../core/forms';
+import { failureText } from '../core/failure';
 import type { Card as StoredCard, Note } from '../core/types';
 import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { practicingPoints } from '../reader/grammar';
-import { Button, Card, Chip, Help, Screen, SectionTitle, Segments } from './kit';
+import { Button, Card, Chip, Help, Loading, Screen, SectionTitle, Segments } from './kit';
 import { space, type, useTheme } from './theme';
 
 type Answering = 'pick' | 'type' | 'sentence';
@@ -39,8 +40,11 @@ export function FormsPractice({ repo, readerApi, deck, startGroups, onStart }: {
   const [data, setData] = useState<{ notes: Note[]; cards: StoredCard[]; practice: PracticeRecord[] }>();
   // The kinds of form chosen for being practiced in Read & Listen, and why; the reason shows only while they're still the selection.
   const [preselected, setPreselected] = useState<{ groups: string[]; line: string }>();
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loads, setLoads] = useState(0);
 
   useEffect(() => {
+    setLoadError(null);
     (async () => {
       const [notes, cards, mode, practice, practicing] = await Promise.all([
         repo.listNotes(), repo.listCards(deck), repo.formsAnswerMode(), repo.listPractice(), practicingPoints(readerApi),
@@ -61,8 +65,8 @@ export function FormsPractice({ repo, readerApi, deck, startGroups, onStart }: {
       setPatterns(choices.patterns.slice(0, 1));
       setGroups(practiced.groups.length ? practiced.groups : choices.groups.slice(0, 1));
       setPreselected(line ? { groups: practiced.groups, line } : undefined);
-    })();
-  }, [repo, deck]); // eslint-disable-line react-hooks/exhaustive-deps
+    })().catch((e) => setLoadError(failureText(e, { what: "Couldn't load this deck's words.", next: 'Try again.' })));
+  }, [repo, deck, loads]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const choices = useMemo(() => practiceChoices(words ?? []), [words]);
   const chosen = useMemo(
@@ -79,6 +83,7 @@ export function FormsPractice({ repo, readerApi, deck, startGroups, onStart }: {
   const toggle = (list: string[], set: (l: string[]) => void, v: string) => set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const name = deck.split('::').pop() ?? deck;
 
+  const upTo = limit ? Math.min(asked, limit) : asked;
   const start = () => {
     if (answering !== 'sentence') repo.saveFormsAnswerMode(answering);
     onStart({ kind: 'pattern', deck, patterns, groups, sentence: answering === 'sentence', limit: limit || undefined });
@@ -88,11 +93,11 @@ export function FormsPractice({ repo, readerApi, deck, startGroups, onStart }: {
     <Screen
       title="Practice forms"
       footer={words?.length ? (
-        <Button label={asked ? `Start: up to ${limit ? Math.min(asked, limit) : asked} prompts` : 'Nothing to practice'} onPress={start} disabled={!asked} />
+        <Button label={asked ? `Start: up to ${upTo} ${upTo === 1 ? 'prompt' : 'prompts'}` : 'Nothing to practice'} onPress={start} disabled={!asked} />
       ) : undefined}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.l }}>
-        {!words ? null : !words.length ? (
+        {!words ? <Loading error={loadError} onRetry={() => setLoads((n) => n + 1)} /> : !words.length ? (
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>No words to practice yet</Text>
             <Help>

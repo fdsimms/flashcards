@@ -1,4 +1,4 @@
-import { daysInMonth, shiftMonth, type CalendarDate, type DateParts, type DateSaying } from './date';
+import { daysInMonth, randomDate, shiftMonth, type CalendarDate, type DateParts, type DateSaying } from './date';
 import { distinct, type Phrase } from './phrase';
 
 /**
@@ -26,6 +26,38 @@ export function acceptedForms(saying: DateSaying): Phrase[] {
 
 export function sameDate(a: CalendarDate, b: CalendarDate): boolean {
   return a.year === b.year && a.month === b.month && a.day === b.day;
+}
+
+/**
+ * The date a question asks about, drawn as `date` (any year from FIRST_YEAR to LAST_YEAR). Tapping
+ * the date with the year left unsaid can only be answered in the year the calendar opens on
+ * (`today`'s), so that question asks about `date`'s day and month in that year, February 29 falling
+ * back to the 28th outside a leap year. Every other question asks about `date` itself.
+ */
+export function quizDate(date: CalendarDate, mode: DateMode, parts: DateParts, today: CalendarDate): CalendarDate {
+  if (mode !== 'tap' || parts.year) return date;
+  return { year: today.year, month: date.month, day: Math.min(date.day, daysInMonth(today.year, date.month)) };
+}
+
+/**
+ * A new date to draw after `drawn`, one whose asked date (`quizDate`) differs from the current
+ * one. Tapped with the year unsaid, every year's 12 March asks the same 12 March, so a plain
+ * `randomDate` could draw a question that looks like the last one and leave its answer up.
+ */
+export function nextQuizDraw(drawn: CalendarDate, mode: DateMode, parts: DateParts, today: CalendarDate, random: () => number = Math.random): CalendarDate {
+  const asked = quizDate(drawn, mode, parts, today);
+  for (;;) {
+    const next = randomDate(drawn, random);
+    if (!sameDate(quizDate(next, mode, parts, today), asked)) return next;
+  }
+}
+
+/**
+ * The month the calendar opens on to tap the date: `today`'s, in the asked date's year when the
+ * year is said, so finding it means moving a few months rather than paging through decades.
+ */
+export function quizCalendarStart(date: CalendarDate, parts: DateParts, today: CalendarDate): CalendarDate {
+  return parts.year ? { year: date.year, month: today.month, day: 1 } : { year: today.year, month: today.month, day: 1 };
 }
 
 /** The date `n` days after `d` (before, when negative). */

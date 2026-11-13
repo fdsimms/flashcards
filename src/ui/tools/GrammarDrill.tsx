@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
+import { failureText } from '../../core/failure';
 import { checkAnswer } from '../../core/forms';
 import { grammarPoint } from '../../core/grammar';
 import { DRILL_QUESTIONS, drillPrompts, missingNote, type DrillPrompt } from '../../core/grammarDrills';
@@ -7,9 +8,10 @@ import type { Repo } from '../../db/repo';
 import { ApiError, type Api } from '../../reader/api';
 import { ChoiceButton, type ChoiceState } from '../FormsDrill';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Field, Help, Screen, Segments } from '../kit';
+import { Button, Card, ErrorNote, Field, Help, Loading, Screen, Segments } from '../kit';
 import { radius, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
+import { Status } from './ToolScreen';
 
 type AnswerMode = 'pick' | 'type';
 
@@ -49,7 +51,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
       setNote(missingNote(set.missing, set.writing));
       setPrompts(drillPrompts(set.questions));
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't load the drill.");
+      setError(e instanceof ApiError ? e.message : failureText(e, { what: "Couldn't load the drill.", next: 'Try again.' }));
     }
   };
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -64,7 +66,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
       </Screen>
     );
   }
-  if (!prompts) return <Screen title={title} largeTitle={false}><ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /></Screen>;
+  if (!prompts) return <Screen title={title} largeTitle={false}><Loading /></Screen>;
 
   if (!prompts.length) {
     return (
@@ -115,6 +117,8 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
       await repo.addGrammarAnswer({ pointId: prompt.pointId, drillId: drillId.current, kind: prompt.kind, correct: right, answeredAt: new Date().toISOString() });
       if (right) haptic.success(); else haptic.select();
       setAnswered((a) => [...a, { prompt, given, right, almost: verdict === 'almost' }]);
+    } catch (e) {
+      Alert.alert("Couldn't save this answer", failureText(e, { next: 'The question is still here: answer it again.' }));
     } finally {
       busy.current = false;
     }
@@ -154,7 +158,11 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
               <Text style={{ ...type.subhead, color: c.textSecondary }}>{prompt.label}</Text>
             </View>
           ) : null}
-          <Text style={{ ...type.title, fontWeight: '600', color: c.text, textAlign: 'center' }}>
+          <Text
+            // Until it's answered, VoiceOver reads the gap as "blank" rather than the underscores.
+            accessibilityLabel={prompt.kind === 'which' || current ? undefined : `${prompt.before.trimEnd()} blank ${prompt.after.trimStart()}`.trim()}
+            style={{ ...type.title, fontWeight: '600', color: c.text, textAlign: 'center' }}
+          >
             {prompt.before}
             {prompt.kind === 'which' || current ? (
               <Text style={{ color: prompt.kind === 'gap' ? c.accent : c.text, textDecorationLine: 'underline', textDecorationColor: c.accent }}>{prompt.middle}</Text>
@@ -192,9 +200,9 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
 
         {current ? (
           <Card style={{ gap: space.xs }}>
-            <Text style={{ ...type.headline, color: current.right ? c.countDue : c.danger }}>
-              {current.right ? 'Right' : current.almost ? `Almost: ${prompt.answer}` : `Not quite: ${prompt.answer}`}
-            </Text>
+            {current.right
+              ? <Status tone="good">Right.</Status>
+              : <Status tone="bad">{`${current.almost ? 'Almost' : 'Not quite'}. It's ${prompt.answer}.`}</Status>}
             {current.almost ? <Help>Only an accent or a mark differs, and here that makes it another form, so it counts as wrong.</Help> : null}
             {point ? (
               <View style={{ borderTopWidth: 1, borderTopColor: c.border, paddingTop: space.s, marginTop: space.xs }}>

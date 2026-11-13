@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from './haptics';
 import { Button, ErrorNote, Field, Icon, Tappable } from './kit';
-import { lift, radius, space, type, useTheme } from './theme';
+import { MIN_TAP, radius, space, type, useTheme } from './theme';
 import { failureText } from '../core/failure';
 
 /**
@@ -11,6 +11,10 @@ import { failureText } from '../core/failure';
  * the note's Mnemonic field (src/core/leechHint.ts). Skip leaves the card tagged and goes on.
  * `suggest` is present only while Read & Listen is signed in; it asks that server for ideas, and
  * only when the button is tapped.
+ *
+ * It's iOS's own page sheet: the screen behind it recedes and dims, and a swipe down skips it, as
+ * Skip does. Not while a hint is written or being saved: then the sheet springs back, as iOS
+ * does for a sheet with changes that would be lost.
  */
 export function LeechHintSheet({ word, gloss, misses, suggest, onSave, onSkip }: {
   word: string;
@@ -56,51 +60,55 @@ export function LeechHintSheet({ word, gloss, misses, suggest, onSave, onSkip }:
     }
   };
 
+  // A swipe that iOS refuses (allowSwipeDismissal off) also calls onRequestClose, so it checks the same thing.
+  const swipeSkips = !saving && !hint.trim();
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onSkip}>
-      <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: c.shadow, opacity: 0.45 }]} onPress={onSkip} accessibilityLabel="Skip" />
-      <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
-        {/* Floats just above the bottom edge with every corner rounded, rather than running into the phone's own square-cut edge. */}
-        <View style={{
-          backgroundColor: c.surface, borderRadius: radius.xl, maxHeight: '85%',
-          marginHorizontal: space.s, marginBottom: Math.max(insets.bottom, space.s),
-          paddingTop: space.m, paddingBottom: space.l, ...lift(c, 'high'),
-        }}>
-          <View style={{ alignSelf: 'center', width: 36, height: 5, borderRadius: 3, backgroundColor: c.textTertiary, opacity: 0.6, marginBottom: space.s }} />
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: space.l, gap: space.m }}>
-            <View style={{ gap: space.xs }}>
-              <Text style={{ ...type.headline, color: c.text }}>{`You've missed ${word} ${misses} times`}</Text>
-              {gloss ? <Text style={{ ...type.callout, color: c.textSecondary }}>{gloss}</Text> : null}
-            </View>
-            <Text style={{ ...type.footnote, color: c.textSecondary }}>
-              Write a hint to see on the back of this card next time. It's saved on the note and synced to Anki.
-            </Text>
-            <Field label="Hint" value={hint} onChangeText={setHint} placeholder="A sound-alike, a picture, anything that sticks" multiline autoFocus />
-            {suggest ? (
-              <Tappable onPress={ask} disabled={asking} accessibilityRole="button" accessibilityLabel="Suggest hints" style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: 36 }}>
-                <Icon name="sparkles" size={18} color={c.accent} />
-                <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>{asking ? 'Asking Claude…' : ideas.length ? 'Suggest more hints' : 'Suggest hints'}</Text>
-              </Tappable>
-            ) : null}
-            {ideas.map((idea) => (
-              <Tappable
-                key={idea}
-                onPress={() => { haptic.select(); setHint(idea); }}
-                accessibilityRole="button"
-                accessibilityLabel={`Use this hint: ${idea}`}
-                style={{ backgroundColor: c.accentFill, borderRadius: radius.m, paddingHorizontal: space.m, paddingVertical: space.s }}
-              >
-                <Text style={{ ...type.subhead, color: c.text }}>{idea}</Text>
-              </Tappable>
-            ))}
-            {error ? <ErrorNote message={error} /> : null}
-            <View style={{ flexDirection: 'row', gap: space.m }}>
-              <Button label="Skip" variant="secondary" onPress={onSkip} style={{ flex: 1 }} disabled={saving} />
-              <Button label="Save hint" onPress={save} style={{ flex: 1 }} busy={saving} disabled={!hint.trim()} />
-            </View>
-          </ScrollView>
+    <Modal
+      visible
+      animationType="slide"
+      presentationStyle="pageSheet"
+      allowSwipeDismissal={swipeSkips}
+      onRequestClose={() => { if (swipeSkips) onSkip(); }}
+      backdropColor={c.surface}
+    >
+      {/* The sheet sits below the screen's top, so the keyboard's overlap is measured natively (a KeyboardAvoidingView reads its own layout, not the window, and pads too little). */}
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        style={{ flex: 1, backgroundColor: c.surface }}
+        contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.xl, paddingBottom: Math.max(insets.bottom, space.l), gap: space.m }}
+      >
+        <View style={{ gap: space.xs }}>
+          <Text style={{ ...type.headline, color: c.text }}>{`You've missed ${word} ${misses} times`}</Text>
+          {gloss ? <Text style={{ ...type.callout, color: c.textSecondary }}>{gloss}</Text> : null}
         </View>
-      </KeyboardAvoidingView>
+        <Text style={{ ...type.footnote, color: c.textSecondary }}>
+          Write a hint to see on the back of this card next time. It's saved on the note and synced to Anki. Swipe down to skip.
+        </Text>
+        <Field label="Hint" value={hint} onChangeText={setHint} placeholder="A sound-alike, a picture, anything that sticks" multiline autoFocus />
+        {suggest ? (
+          <Tappable onPress={ask} disabled={asking} accessibilityRole="button" accessibilityLabel="Suggest hints" accessibilityState={{ busy: asking, disabled: asking }} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP }}>
+            <Icon name="sparkles" size={18} color={c.accent} />
+            <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>{asking ? 'Asking Claude…' : ideas.length ? 'Suggest more hints' : 'Suggest hints'}</Text>
+          </Tappable>
+        ) : null}
+        {ideas.map((idea) => (
+          <Tappable
+            key={idea}
+            onPress={() => { haptic.select(); setHint(idea); }}
+            accessibilityRole="button"
+            accessibilityLabel={`Use this hint: ${idea}`}
+            style={{ backgroundColor: c.accentFill, borderRadius: radius.m, paddingHorizontal: space.m, paddingVertical: space.s }}
+          >
+            <Text style={{ ...type.subhead, color: c.text }}>{idea}</Text>
+          </Tappable>
+        ))}
+        {error ? <ErrorNote message={error} /> : null}
+        <View style={{ flexDirection: 'row', gap: space.m }}>
+          <Button label="Skip" variant="secondary" onPress={onSkip} style={{ flex: 1 }} disabled={saving} />
+          <Button label="Save hint" onPress={save} style={{ flex: 1 }} busy={saving} disabled={!hint.trim()} />
+        </View>
+      </ScrollView>
     </Modal>
   );
 }

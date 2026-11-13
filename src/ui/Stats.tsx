@@ -11,7 +11,7 @@ import type { Card, DeckParams, Note } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { WANIKANI_SCOPE } from '../wanikani/log';
-import { Card as Box, Chip, ErrorNote, Help, Screen } from './kit';
+import { Card as Box, Chip, Help, Loading, Screen } from './kit';
 import { haptic } from './haptics';
 import { AnswerCalendar } from './StatsCalendar';
 import { hairline, space, type, useTheme } from './theme';
@@ -76,9 +76,9 @@ export function Stats({ repo, wanikani = [] }: { repo: Repo & AnkiLink; wanikani
 
   return (
     <Screen title="Stats">
-      {error && !stats ? (
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l }}>
-          <ErrorNote message={error} onRetry={() => setAttempt((n) => n + 1)} />
+      {!stats ? (
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1 }}>
+          <Loading error={error} onRetry={() => setAttempt((n) => n + 1)} />
         </ScrollView>
       ) : null}
       {!stats ? null : (
@@ -262,6 +262,7 @@ function Bars<T extends { value: number }>({ bars, describe, first, last, peak: 
             key={i}
             onPress={() => { haptic.select(); setPicked(i === picked ? null : i); }}
             accessibilityRole="button"
+            accessibilityState={{ selected: picked === i }}
             accessibilityLabel={describe(d, i, bars.length).join(': ')}
             style={{ flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' }}
           >

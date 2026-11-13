@@ -4,13 +4,14 @@ import { LANGUAGES } from '../../reader/languages';
 import type { Language } from '../../reader/api';
 import { checkTyped, type Check, type Segment } from '../../tools/answer';
 import type { CalendarDate, DateParts, DateSaying } from '../../tools/date';
-import { acceptedForms, dateOptions, sameDate, type DateMode, type DateOption } from '../../tools/dateQuiz';
+import { acceptedForms, dateOptions, quizCalendarStart, sameDate, type DateMode, type DateOption } from '../../tools/dateQuiz';
 import type { Phrase } from '../../tools/phrase';
 import { haptic } from '../haptics';
-import { Card, Chip, Field, Icon, Tappable } from '../kit';
+import { Card, Field, Icon, Tappable } from '../kit';
+import { Reveal } from '../motion';
 import { hairline, radius, smooth, space, type, useTheme } from '../theme';
 import { dateLabel } from './CalendarMonth';
-import { ControlLabel, PlayButton, Ways, type ToolActions } from './ToolScreen';
+import { ChipChoice, PlayButton, Status, Ways, type ToolActions } from './ToolScreen';
 
 /**
  * Saying dates besides saying it aloud: pick the phrase, type it, or read the phrase and tap the
@@ -26,8 +27,8 @@ function useKeyedState<T>(key: string, initial: T): [T, (value: T) => void] {
   return [state.key === key ? state.value : initial, (value) => set({ key, value })];
 }
 
-/** The month the calendar opens on to find a date: the current one. A calendar date's own fields, not a day key, so the local clock is right. */
-function thisMonth(): CalendarDate {
+/** Today, as the calendar opens on it to find a date. A calendar date's own fields, not a day key, so the local clock is right. */
+export function today(): CalendarDate {
   const now = new Date();
   return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
 }
@@ -76,7 +77,7 @@ export function useDateQuiz({ mode, language, date, parts, saying, sayer, speak,
   const [checked, setChecked] = useKeyedState<Check | null>(question, null);
   const [picked, setPicked] = useKeyedState<number | null>(question, null);
   const [revealed, setRevealed] = useKeyedState(question, false);
-  const [view, setView] = useKeyedState<CalendarDate>(question, thisMonth());
+  const [view, setView] = useKeyedState<CalendarDate>(question, quizCalendarStart(date, parts, today()));
   const [tapped, setTapped] = useKeyedState<CalendarDate | null>(question, null);
 
   const { options, correct } = useMemo(
@@ -86,7 +87,7 @@ export function useDateQuiz({ mode, language, date, parts, saying, sayer, speak,
   );
 
   const check = () => {
-    if (!saying || checked) return;
+    if (!saying || checked || !typed.trim()) return;
     Keyboard.dismiss();
     const verdict = checkTyped(typed, acceptedForms(saying));
     setChecked(verdict);
@@ -123,7 +124,7 @@ export function useDateQuiz({ mode, language, date, parts, saying, sayer, speak,
   if (mode === 'type') {
     actions = checked
       ? { secondary: { label: 'Try again', onPress: () => setChecked(null) }, primary: { label: 'Next', onPress: next } }
-      : { secondary: randomize, primary: { label: 'Check', onPress: check } };
+      : { secondary: randomize, primary: { label: 'Check', onPress: check, disabled: !typed.trim() } };
   } else if (mode === 'pick') {
     actions = picked !== null || revealed ? { primary: { label: 'Next', onPress: next } } : { secondary: randomize, primary: showAnswer };
   } else if (mode === 'tap') {
@@ -142,29 +143,7 @@ const MODES: { value: DateMode; label: string }[] = [
 
 /** How the date is answered. */
 export function ModeChips({ mode, onChange }: { mode: DateMode; onChange: (m: DateMode) => void }) {
-  return (
-    <View style={{ gap: space.s }}>
-      <ControlLabel>Answer by</ControlLabel>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-        {MODES.map((m) => <Chip key={m.value} label={m.label} selected={mode === m.value} onPress={() => onChange(m.value)} />)}
-      </View>
-    </View>
-  );
-}
-
-type Tone = 'good' | 'warn' | 'bad';
-
-/** A result line: a symbol and what happened. */
-function Status({ tone, children }: { tone: Tone; children: string }) {
-  const c = useTheme();
-  const color = tone === 'good' ? c.countDue : tone === 'warn' ? c.warning : c.danger;
-  const name = tone === 'good' ? 'checkmark.circle.fill' : tone === 'warn' ? 'exclamationmark.circle.fill' : 'xmark.circle.fill';
-  return (
-    <View accessible accessibilityRole="text" style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
-      <Icon name={name} size={20} color={color} />
-      <Text style={{ ...type.headline, color, flex: 1 }}>{children}</Text>
-    </View>
-  );
+  return <ChipChoice label="Answer by" options={MODES} value={mode} onChange={onChange} />;
 }
 
 /** Text with the marked stretches in color and underlined. */
@@ -213,28 +192,30 @@ export function TypeAnswer({ quiz, saying, language, onPlay }: { quiz: DateQuiz;
         error={!!checked && checked.verdict !== 'exact'}
       />
       {checked && saying ? (
-        <Card>
-          {checked.verdict === 'exact' ? (
-            <Status tone="good">Right.</Status>
-          ) : checked.verdict === 'close' ? (
-            <Status tone="warn">{`Close. ${checked.differing} ${checked.differing === 1 ? 'letter differs' : 'letters differ'}.`}</Status>
-          ) : (
-            <Status tone="bad">Not quite. The letters that differ are marked.</Status>
-          )}
-          {checked.verdict !== 'exact' && checked.typed.length ? (
-            <Block title="Your answer"><Marked segments={checked.typed} color={c.danger} /></Block>
-          ) : null}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
-            <View style={{ flex: 1, gap: space.xs }}>
-              {checked.verdict === 'exact' ? <Marked segments={checked.correct} color={c.countDue} /> : (
-                <Block title="Correct"><Marked segments={checked.correct} color={c.countDue} /></Block>
-              )}
-              {checked.expected.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{checked.expected.roman}</Text> : null}
+        <Reveal>
+          <Card>
+            {checked.verdict === 'exact' ? (
+              <Status tone="good">Right.</Status>
+            ) : checked.verdict === 'close' ? (
+              <Status tone="warn">{`Close. ${checked.differing} ${checked.differing === 1 ? 'letter differs' : 'letters differ'}.`}</Status>
+            ) : (
+              <Status tone="bad">Not quite. The letters that differ are marked.</Status>
+            )}
+            {checked.verdict !== 'exact' && checked.typed.length ? (
+              <Block title="Your answer"><Marked segments={checked.typed} color={c.danger} /></Block>
+            ) : null}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
+              <View style={{ flex: 1, gap: space.xs }}>
+                {checked.verdict === 'exact' ? <Marked segments={checked.correct} color={c.countDue} /> : (
+                  <Block title="Correct"><Marked segments={checked.correct} color={c.countDue} /></Block>
+                )}
+                {checked.expected.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{checked.expected.roman}</Text> : null}
+              </View>
+              <PlayButton label="Play the answer" onPress={() => onPlay(checked.expected)} />
             </View>
-            <PlayButton onPress={() => onPlay(checked.expected)} />
-          </View>
-          <Ways title="Also accepted" phrases={acceptedForms(saying).filter((p) => p.text !== checked.expected.text)} onPlay={onPlay} />
-        </Card>
+            <Ways title="Also accepted" phrases={acceptedForms(saying).filter((p) => p.text !== checked.expected.text)} onPlay={onPlay} />
+          </Card>
+        </Reveal>
       ) : (
         <Text style={{ ...type.footnote, color: c.textSecondary, paddingHorizontal: space.xs }}>Spaces and punctuation don't matter. Digits are accepted too.</Text>
       )}
@@ -279,7 +260,9 @@ export function PickAnswer({ quiz }: { quiz: DateQuiz }) {
         })}
       </View>
       {quiz.picked !== null ? (
-        wrong ? <Status tone="bad">{`Not quite. That phrase is ${dateLabel(wrong.date)}.`}</Status> : <Status tone="good">Right.</Status>
+        <Reveal>
+          {wrong ? <Status tone="bad">{`Not quite. That phrase is ${dateLabel(wrong.date)}.`}</Status> : <Status tone="good">Right.</Status>}
+        </Reveal>
       ) : null}
     </View>
   );
@@ -297,7 +280,7 @@ export function TapQuestion({ quiz, saying, onPlay }: { quiz: DateQuiz; saying: 
           <Text selectable style={{ ...type.cardBack, color: c.text }}>{saying.everyday.text}</Text>
           {answered && saying.everyday.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{saying.everyday.roman}</Text> : null}
         </View>
-        <PlayButton onPress={() => onPlay(saying.everyday)} />
+        <PlayButton label="Play the phrase" onPress={() => onPlay(saying.everyday)} />
       </View>
     </Card>
   );
@@ -307,9 +290,13 @@ export function TapQuestion({ quiz, saying, onPlay }: { quiz: DateQuiz; saying: 
 export function TapResult({ quiz, date }: { quiz: DateQuiz; date: CalendarDate }) {
   const c = useTheme();
   if (quiz.tapped) {
-    return sameDate(quiz.tapped, date)
-      ? <Status tone="good">Right.</Status>
-      : <Status tone="bad">{`Not quite. You tapped ${dateLabel(quiz.tapped)}. The phrase is ${dateLabel(date)}.`}</Status>;
+    return (
+      <Reveal>
+        {sameDate(quiz.tapped, date)
+          ? <Status tone="good">Right.</Status>
+          : <Status tone="bad">{`Not quite. You tapped ${dateLabel(quiz.tapped)}. The phrase is ${dateLabel(date)}.`}</Status>}
+      </Reveal>
+    );
   }
   if (quiz.revealed) return <Text style={{ ...type.subhead, color: c.textSecondary, paddingHorizontal: space.xs }}>{`That's ${dateLabel(date)}.`}</Text>;
   return <Text style={{ ...type.footnote, color: c.textSecondary, paddingHorizontal: space.xs }}>Move to the right month and tap the date.</Text>;

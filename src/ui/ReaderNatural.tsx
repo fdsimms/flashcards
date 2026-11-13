@@ -5,7 +5,7 @@ import type { Api, NaturalCheck } from '../reader/api';
 import { isOff, registerLabel, verdictLabel } from '../reader/register';
 import { ErrorNote, Icon, Tappable } from './kit';
 import { haptic } from './haptics';
-import { radius, space, type, useTheme } from './theme';
+import { hairline, radius, space, type, useTheme } from './theme';
 
 /**
  * How a line is said, and whether a native speaker would say it. The chip is the register Claude
@@ -74,9 +74,10 @@ export function NaturalPill({ state, ask }: ReturnType<typeof useNaturalCheck>) 
       accessibilityLabel="Does this sound natural?"
       accessibilityState={{ busy: asking }}
       restOpacity={asking ? 0.6 : 1}
+      hitSlop={{ top: space.s, bottom: space.s }}
       style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, alignSelf: 'flex-start', backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.s }}
     >
-      {asking ? <ActivityIndicator size="small" /> : <Icon name="questionmark.circle" size={14} color={c.text} weight="semibold" />}
+      {asking ? <ActivityIndicator size="small" color={c.accent} /> : <Icon name="questionmark.circle" size={14} color={c.text} weight="semibold" />}
       <Text style={{ ...type.footnote, color: c.text }}>Does this sound natural?</Text>
     </Tappable>
   );
@@ -90,7 +91,7 @@ export function NaturalResult({ state, ask }: ReturnType<typeof useNaturalCheck>
   const { verdict, reason, alternative } = state.check;
   const off = isOff(verdict);
   return (
-    <View style={{ gap: space.s, paddingTop: space.s, borderTopWidth: 1, borderTopColor: c.border }} accessibilityLabel={`Does this sound natural? ${verdictLabel(verdict)}. ${reason}`}>
+    <View style={{ gap: space.s, paddingTop: space.s, borderTopWidth: hairline, borderTopColor: c.border }} accessibilityLabel={`Does this sound natural? ${verdictLabel(verdict)}. ${reason}`}>
       <Text accessibilityRole="header" style={{ ...type.overline, color: c.textSecondary }}>Does this sound natural?</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, alignSelf: 'flex-start', backgroundColor: off ? c.warningFill : c.goodFill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.xs }}>
         <Icon name={off ? 'exclamationmark.triangle' : 'checkmark'} size={14} color={off ? c.warning : c.good} weight="bold" />

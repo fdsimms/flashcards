@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { checkTyped } from '../../src/tools/answer';
 import { sayJapaneseDate } from '../../src/tools/japanese/date';
 import { sayThaiDate } from '../../src/tools/thai/date';
-import { acceptedForms, addDays, dateOptions, DATE_MODES, sameDate } from '../../src/tools/dateQuiz';
+import { acceptedForms, addDays, dateOptions, DATE_MODES, nextQuizDraw, quizCalendarStart, quizDate, sameDate } from '../../src/tools/dateQuiz';
 
 /** A repeatable stand-in for Math.random. */
 function seeded(seed: number) {
@@ -84,5 +84,64 @@ describe('the phrases offered for a date', () => {
       const { options } = dateOptions(d, parts, sayThaiDate, seeded(3));
       expect(new Set(options.map((o) => o.phrase.text)).size).toBe(4);
     }
+  });
+});
+
+describe('the date a question asks about', () => {
+  const drawn = { year: 1987, month: 3, day: 12 };
+  const today = { year: 2026, month: 11, day: 13 };
+  const yearOff = { weekday: true, year: false };
+  const yearOn = { weekday: true, year: true };
+
+  it('is the drawn date for every question but tapping it with the year unsaid', () => {
+    for (const mode of ['say', 'pick', 'type'] as const) {
+      expect(quizDate(drawn, mode, yearOff, today)).toBe(drawn);
+      expect(quizDate(drawn, mode, yearOn, today)).toBe(drawn);
+    }
+    expect(quizDate(drawn, 'tap', yearOn, today)).toBe(drawn);
+  });
+
+  it('moves to the year the calendar opens on when it is tapped with the year unsaid', () => {
+    expect(quizDate(drawn, 'tap', yearOff, today)).toEqual({ year: 2026, month: 3, day: 12 });
+  });
+
+  it('falls back to February 28 outside a leap year', () => {
+    expect(quizDate({ year: 2028, month: 2, day: 29 }, 'tap', yearOff, today)).toEqual({ year: 2026, month: 2, day: 28 });
+    expect(quizDate({ year: 2028, month: 2, day: 29 }, 'tap', yearOff, { year: 2032, month: 1, day: 1 })).toEqual({ year: 2032, month: 2, day: 29 });
+  });
+});
+
+describe('the month the calendar opens on to tap the date', () => {
+  const today = { year: 2026, month: 11, day: 13 };
+
+  it("opens on this month in the asked date's year when the year is said", () => {
+    expect(quizCalendarStart({ year: 1987, month: 3, day: 12 }, { weekday: false, year: true }, today)).toEqual({ year: 1987, month: 11, day: 1 });
+  });
+
+  it('opens on this month when the year is unsaid, the year the question is in', () => {
+    const start = quizCalendarStart({ year: 2026, month: 3, day: 12 }, { weekday: true, year: false }, today);
+    expect(start).toEqual({ year: 2026, month: 11, day: 1 });
+    expect(start.year).toBe(quizDate({ year: 1987, month: 3, day: 12 }, 'tap', { weekday: true, year: false }, today).year);
+  });
+});
+
+describe('the next date drawn', () => {
+  const today = { year: 2026, month: 11, day: 13 };
+  // A random source that returns these values in turn.
+  const sequence = (dates: number[]) => { let i = 0; return () => dates[i++ % dates.length]; };
+
+  it('draws again when a new date would ask the same day and month, tapped with the year unsaid', () => {
+    // 0 draws 1 January 1950, which asks the same 1 January as 1987's; 0.123 draws a day in 1962.
+    const drawn = { year: 1987, month: 1, day: 1 };
+    const parts = { weekday: true, year: false };
+    const next = nextQuizDraw(drawn, 'tap', parts, today, sequence([0, 0.123]));
+    expect(next.year).not.toBe(1950);
+    expect(sameDate(quizDate(next, 'tap', parts, today), quizDate(drawn, 'tap', parts, today))).toBe(false);
+  });
+
+  it('takes the first new draw otherwise', () => {
+    const drawn = { year: 1987, month: 3, day: 12 };
+    const next = nextQuizDraw(drawn, 'say', { weekday: true, year: true }, today, sequence([0.5]));
+    expect(sameDate(next, drawn)).toBe(false);
   });
 });

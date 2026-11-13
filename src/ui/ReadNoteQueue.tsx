@@ -31,7 +31,7 @@ function NoteRow({ note, first, onOpen, onRetry, onRemove }: {
     <View style={{ borderTopWidth: first ? 0 : hairline, borderTopColor: c.border }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Tappable
-          onPress={onOpen}
+          onPress={() => { haptic.tap(); onOpen(); }}
           disabled={note.state === 'waiting'}
           accessibilityRole="button"
           accessibilityLabel={`${note.entry}. ${meaning ? `${meaning}. ` : ''}${label}. ${note.state === 'ready' ? 'Review' : note.state === 'failed' ? 'Fill in by hand' : ''}`}
@@ -89,9 +89,10 @@ export function ReadNoteQueue({ queue, error, getItems, onReview, onRetry, onRem
   const [problem, setProblem] = useState<string | null>(null);
   const reviewing = useRef(false);
 
-  const act = async (job: () => Promise<void>) => {
+  /** `what` says what failed, e.g. "Couldn't remove kot from the queue." */
+  const act = async (what: string, job: () => Promise<void>) => {
     setProblem(null);
-    try { await job(); } catch (e) { setProblem(failureText(e, { what: "That didn't work.", next: 'Try again.' })); }
+    try { await job(); } catch (e) { setProblem(failureText(e, { what, next: 'Try again.' })); }
   };
 
   // `all` goes on through the ready notes after this one; a failed word filled in by hand is just itself.
@@ -139,7 +140,7 @@ export function ReadNoteQueue({ queue, error, getItems, onReview, onRetry, onRem
         ) : null}
         {error ? <ErrorNote message={error} onRetry={onRefresh} /> : null}
         {problem ? <ErrorNote message={problem} /> : null}
-        {!queue && !error ? <ActivityIndicator color={c.textSecondary} style={{ padding: space.xl }} /> : null}
+        {!queue && !error ? <ActivityIndicator color={c.accent} style={{ padding: space.xl }} /> : null}
         {queue && !items.length ? <Help>Nothing is queued. Use Quick add on the deck list to add words, and Claude fills in the rest.</Help> : null}
         {sections.map((section) => (
           <View key={section.key} style={{ gap: space.s }}>
@@ -151,8 +152,8 @@ export function ReadNoteQueue({ queue, error, getItems, onReview, onRetry, onRem
                   note={note}
                   first={i === 0}
                   onOpen={() => review(note, note.state === 'ready')}
-                  onRetry={() => act(() => onRetry(note.id))}
-                  onRemove={() => act(() => onRemove(note.id))}
+                  onRetry={() => act(`Couldn't ask Claude again for ${note.entry}.`, () => onRetry(note.id))}
+                  onRemove={() => act(`Couldn't remove ${note.entry} from the queue.`, () => onRemove(note.id))}
                 />
               ))}
             </Group>

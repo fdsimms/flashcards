@@ -21,9 +21,14 @@ export function useKeyboardScroll() {
   const reveal = useCallback(() => {
     const input = TextInput.State.currentlyFocusedInput();
     if (!input || !ref.current || height.current === 0) return;
-    input.measureInWindow((_x, y, _w, h) => {
-      const overlap = y + h + space.m - (Dimensions.get('window').height - height.current);
-      if (overlap > 0) ref.current?.scrollTo({ y: offset.current + overlap, animated: true });
+    // The field clears the keyboard, or the scroll view's own bottom edge when that's higher: a
+    // screen that shrinks above the keyboard puts its footer between the two.
+    ref.current.measureInWindow((_sx, sy, _sw, sh) => {
+      const visibleBottom = Math.min(sy + sh, Dimensions.get('window').height - height.current);
+      input.measureInWindow((_x, y, _w, h) => {
+        const overlap = y + h + space.m - visibleBottom;
+        if (overlap > 0) ref.current?.scrollTo({ y: offset.current + overlap, animated: true });
+      });
     });
   }, []);
 

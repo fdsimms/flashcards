@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Text } from 'react-native';
 import { recordNotes, type RecordDeps } from '../anki/recordService';
 import { isOmnilanguage } from '../core/cards';
+import { failureText } from '../core/failure';
 import { isInDeck } from '../core/deckTree';
 import { planRecordings, type RecordingPlan } from '../core/recording';
 import type { Note } from '../core/types';
@@ -46,8 +47,8 @@ export function DeckRecordings({ repo, deck, recorder }: { repo: Repo; deck: str
     const r = await recordNotes(recorder, plan.ready, setDone, () => left.current);
     if (left.current) return;
     setDone(undefined);
-    setResult(`Recorded ${notes(r.recorded)}. They go to Anki at the next sync.`);
-    if (r.stopped) setError(`Stopped: ${r.stopped}`);
+    if (r.recorded) setResult(`Recorded ${notes(r.recorded)}. ${r.recorded === 1 ? 'It goes' : 'They go'} to Anki at the next sync.`);
+    if (r.stopped) setError(failureText(r.stopped, { what: r.recorded ? "Couldn't record the rest." : "Couldn't record them.", next: 'Try again.' }));
     await load();
   };
 
@@ -76,7 +77,7 @@ export function DeckRecordings({ repo, deck, recorder }: { repo: Repo; deck: str
         <Help>{`${waiting.join(', ')} can't be recorded until ${plan.noVoice.size === 1 ? 'its language has' : 'their languages have'} a voice for recordings. Choose one in Settings, Voices.`}</Help>
       ) : null}
       {result ? <Help>{result}</Help> : null}
-      {error ? <ErrorNote message={error} /> : null}
+      {error ? <ErrorNote message={error} onRetry={record} /> : null}
     </Card>
   );
 }

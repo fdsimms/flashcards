@@ -10,27 +10,33 @@ import type { BackupStore } from '../db/sqliteRepo';
 import { Button, Card, Help, MessageList, Screen } from './kit';
 import { space, type, useTheme } from './theme';
 
-export function Backup({ store }: { store: BackupStore }) {
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+export function Backup({ store, syncOn }: {
+  store: BackupStore;
+  /** Sync is on, so the Anki server also holds the collection. */
+  syncOn: boolean;
+}) {
   const c = useTheme();
   const [log, setLog] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<'backup' | 'restore' | null>(null);
   // A second tap while a backup or restore is running would start another one over the first.
   const running = useRef(false);
   const say = (line: string) => setLog((l) => [line, ...l]);
 
-  const run = async (work: () => Promise<void>) => {
+  const run = async (which: 'backup' | 'restore', work: () => Promise<void>) => {
     if (running.current) return;
     running.current = true;
-    setBusy(true);
+    setBusy(which);
     try {
       await work();
     } finally {
       running.current = false;
-      setBusy(false);
+      setBusy(null);
     }
   };
 
-  const backUp = () => run(async () => {
+  const backUp = () => run('backup', async () => {
     const name = backupFileName(dayKeyOf(new Date()));
     const file = new File(Paths.cache, name);
     try {
@@ -41,7 +47,7 @@ export function Backup({ store }: { store: BackupStore }) {
         return;
       }
       await Sharing.shareAsync(file.uri, { UTI: 'public.database', mimeType: 'application/x-sqlite3', dialogTitle: 'Save backup' });
-      say(`Made ${name}${media ? `, with ${media} images and sounds` : ''}. Choose "Save to Files" to keep it in iCloud Drive or on this iPhone.`);
+      say(`Made ${name}${media ? `, with ${plural(media, 'image or sound', 'images and sounds')}` : ''}. Choose "Save to Files" to keep it in iCloud Drive or on this iPhone.`);
     } catch (e: any) {
       say(failureText(e, { what: "Couldn't make a backup.", next: 'Try again.' }));
     }
@@ -59,10 +65,10 @@ export function Backup({ store }: { store: BackupStore }) {
         {
           text: 'Replace',
           style: 'destructive',
-          onPress: () => run(async () => {
+          onPress: () => run('restore', async () => {
             try {
               const { notes, cards, media } = await store.restoreFrom(fileUriToPath(asset.uri));
-              say(`Restored ${asset.name}: ${notes} notes, ${cards} cards${media ? `, ${media} images and sounds` : ''}.`);
+              say(`Restored ${asset.name}: ${plural(notes, 'note', 'notes')}, ${plural(cards, 'card', 'cards')}${media ? `, ${plural(media, 'image or sound', 'images and sounds')}` : ''}.`);
             } catch (e: any) {
               say(failureText(e, { what: `Couldn't restore ${asset.name}.`, next: 'Try again.' }));
             }
@@ -78,15 +84,15 @@ export function Backup({ store }: { store: BackupStore }) {
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Back up</Text>
           <Help>
-            Everything is stored only on this iPhone. A backup is one file with your decks, cards, review history, and the images
-            and sounds imported from Anki. Choose "Save to Files" to keep it in iCloud Drive.
+            {syncOn ? '' : 'Everything is stored only on this iPhone. '}A backup is one file with your decks, cards, review history,
+            and the images and sounds imported from Anki. Choose "Save to Files" to keep it in iCloud Drive.
           </Help>
-          <Button label="Back up now" onPress={backUp} busy={busy} />
+          <Button label="Back up now" onPress={backUp} busy={busy === 'backup'} disabled={busy === 'restore'} />
         </Card>
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Restore</Text>
           <Help>Replace everything on this iPhone with a backup, for example after reinstalling the app or on a new phone.</Help>
-          <Button label="Restore from a backup" variant="secondary" onPress={restore} disabled={busy} />
+          <Button label="Restore from a backup" variant="secondary" onPress={restore} busy={busy === 'restore'} disabled={busy === 'backup'} />
         </Card>
         <MessageList lines={log} />
       </ScrollView>

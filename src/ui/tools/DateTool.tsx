@@ -2,14 +2,14 @@ import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { LANGUAGES } from '../../reader/languages';
 import { randomDate, type CalendarDate } from '../../tools/date';
-import { sameDate } from '../../tools/dateQuiz';
+import { nextQuizDraw, quizDate, sameDate } from '../../tools/dateQuiz';
 import { datePatterns } from '../../tools/patterns';
 import { DATE_SAYERS, WEEK_STARTS_ON } from '../../tools/tools';
 import { Card, Chip } from '../kit';
 import { space } from '../theme';
 import { CalendarMonth } from './CalendarMonth';
 import type { ToolScreenProps } from './index';
-import { ModeChips, PickAnswer, TapQuestion, TapResult, TypeAnswer, useDateQuiz } from './DateQuiz';
+import { ModeChips, PickAnswer, TapQuestion, TapResult, today, TypeAnswer, useDateQuiz } from './DateQuiz';
 import { AnswerCard, ControlLabel, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
 import { useMarks } from './useMarks';
 
@@ -28,12 +28,16 @@ export function DateTool({ tool, repo }: ToolScreenProps) {
   const [weekday, setWeekday] = useToolPref('dateWeekday');
   const [year, setYear] = useToolPref('dateYear');
   const [mode, setMode] = useToolPref('dateMode');
-  const [date, setDate] = useState<CalendarDate>(() => randomDate());
+  const [drawn, setDrawn] = useState<CalendarDate>(() => randomDate());
+  const now = today();
+  // The date asked about: the one drawn, or its day and month this year when it's tapped with the year unsaid.
+  const date = useMemo(() => quizDate(drawn, mode, { weekday, year }, now), [drawn, mode, year, now.year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saying = useMemo(() => DATE_SAYERS[language]?.(date, { weekday, year }), [language, date, weekday, year]);
-  const change = (next: CalendarDate) => { answer.hide(); setDate(next); };
   const parts = { weekday, year };
-  const next = () => change(marks.pick(() => randomDate(date), (d) => datePatterns(d, parts)));
+  const change = (next: CalendarDate) => { answer.hide(); setDrawn(next); };
+  // Weighed by the date it would ask, which is what's marked.
+  const next = () => change(marks.pick(() => nextQuizDraw(drawn, mode, parts, now), (d) => datePatterns(quizDate(d, mode, parts, now), parts)));
   const mark = (right: boolean) => marks.mark(datePatterns(date, parts), right);
   const quiz = useDateQuiz({ mode, language, date, parts, saying, sayer: DATE_SAYERS[language], speak: answer.speak, next, onResult: mark });
   const tapping = mode === 'tap';

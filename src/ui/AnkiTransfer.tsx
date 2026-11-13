@@ -62,7 +62,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
       setLog((l) => [
         `Imported ${name}: ${plural(r.notes, 'note', 'notes')}, ${plural(r.cards, 'card', 'cards')}, ${plural(r.media, 'image or sound', 'images and sounds')}.`,
         ...shown,
-        ...(r.warnings.length > shown.length ? [`and ${r.warnings.length - shown.length} more warnings`] : []),
+        ...(r.warnings.length > shown.length ? [`and ${plural(r.warnings.length - shown.length, 'more warning', 'more warnings')}`] : []),
         ...l,
       ]);
     } catch (e: any) {
@@ -112,7 +112,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
     if (current.unsent > 0) {
       Alert.alert(
         'Import over answers not in Anki?',
-        `Franki has ${plural(current.unsent, 'answer', 'answers')} that aren't in Anki yet. Importing replaces Franki's collection with this one, and they'll be lost. Send to Anki first to keep them.`,
+        `Franki has ${plural(current.unsent, 'answer', 'answers')} that ${current.unsent === 1 ? "isn't" : "aren't"} in Anki yet. Importing replaces Franki's collection with this one, and ${current.unsent === 1 ? "it'll be lost. Send to Anki first to keep it." : "they'll be lost. Send to Anki first to keep them."}`,
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Import anyway', style: 'destructive', onPress: () => importPackage(picked, name) },
@@ -173,7 +173,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
             <Text style={{ ...type.headline, color: c.text }}>Send your answers to Anki</Text>
             <Text style={{ ...type.body, color: status.unsent ? c.warning : c.textSecondary }}>
               {status.unsent
-                ? `${plural(status.unsent, 'answer', 'answers')} aren't in Anki yet.${sentLine}`
+                ? `${plural(status.unsent, 'answer', 'answers')} ${status.unsent === 1 ? "isn't" : "aren't"} in Anki yet.${sentLine}`
                 : `Everything studied here is in Anki.${sentLine}`}
             </Text>
             <Help>

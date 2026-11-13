@@ -1,7 +1,29 @@
 // The note queue, app side: words typed in Quick add, filled in by Claude on Read & Listen's server, then
 // reviewed here. Saving a note in the note editor is the approval step: nothing in this file (or the
 // screens that use it) creates a note or touches a card. Pure, so it's tested.
-import type { NoteQueue, QueuedNote } from './api';
+import type { Language, NoteQueue, QueuedNote } from './api';
+
+/**
+ * The decks Quick add can queue words for: each Read & Listen language's deck (`decks`, from its
+ * settings; missing from a server older than the deck setting) that is in the collection
+ * (`deckNames`). A language never studied has no deck to add to. The deck list offers Quick add only
+ * when this has one, and the Quick add screen chooses from it, so the two can't disagree. The
+ * language `current` (the one being read) comes first, as the one to start with.
+ */
+export function quickAddDecks(
+  decks: Partial<Record<Language, string>> | undefined,
+  deckNames: readonly string[],
+  current?: Language,
+): { deck: string; language: Language }[] {
+  if (!decks) return [];
+  const present = new Set(deckNames);
+  const options = (Object.keys(decks) as Language[])
+    .flatMap((language) => {
+      const deck = decks[language];
+      return deck && present.has(deck) ? [{ deck, language }] : [];
+    });
+  return [...options.filter((d) => d.language === current), ...options.filter((d) => d.language !== current)];
+}
 
 /** The most words one Quick add queues; the server refuses more. */
 export const MAX_WORDS = 50;

@@ -5,7 +5,6 @@ import { timePatterns } from '../../tools/patterns';
 import { MINUTE_STEPS, randomTime, type ClockTime, type MinuteStep } from '../../tools/time';
 import { toolPrefs } from '../../tools/storage';
 import { TIME_SAYERS } from '../../tools/tools';
-import { haptic } from '../haptics';
 import { Card, Segments } from '../kit';
 import { space, type, useTheme } from '../theme';
 import { ClockFace } from './ClockFace';
@@ -34,7 +33,7 @@ export function TimeTool({ tool, repo }: ToolScreenProps) {
   const saying = useMemo(() => TIME_SAYERS[language]?.(time), [language, time]);
   const change = (next: ClockTime) => { answer.hide(); setTime(next); };
   const next = () => change(marks.pick(() => randomTime(step, time), (t) => timePatterns(t, language)));
-  const chooseStep = (s: MinuteStep) => { haptic.select(); setStep(s); };
+  const chooseStep = (s: MinuteStep) => setStep(s);
 
   return (
     <ToolScreen

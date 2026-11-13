@@ -2,7 +2,7 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Stack } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Animated, Easing, Keyboard, PanResponder, Pressable, ScrollView, Text, TextInput, useColorScheme, useWindowDimensions, View } from 'react-native';
+import { ActionSheetIOS, Alert, Animated, Easing, Keyboard, PanResponder, Pressable, ScrollView, Text, TextInput, useColorScheme, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import { FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
 import { AGENT_FLAG, AGENT_FLAG_REASONS, withFlagReason } from '../core/agentFlag';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
@@ -45,7 +45,7 @@ import { htmlToText } from '../core/html';
 import { LeechHintSheet } from './LeechHintSheet';
 import { canAddMnemonic, mnemonicQuestion, withMnemonic, type MnemonicQuestion } from '../core/leechHint';
 import { usePhoneSpeech } from './usePhoneSpeech';
-import { Button, Count, Icon, Screen, Tappable } from './kit';
+import { Button, Count, Icon, Loading, Screen, Tappable } from './kit';
 import { Reveal, useReduceMotion } from './motion';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 import { useHeaderInset } from './useHeaderInset';
@@ -67,7 +67,7 @@ export function CardSurface({ children }: { children: React.ReactNode }) {
 }
 
 /** How far through the session is, as a thin line under the header. */
-export function ProgressBar({ value }: { value: number }) {
+export function ProgressBar({ value, label = 'Progress through this session', style }: { value: number; label?: string; style?: StyleProp<ViewStyle> }) {
   const c = useTheme();
   const reduce = useReduceMotion();
   const v = useRef(new Animated.Value(value)).current;
@@ -78,9 +78,9 @@ export function ProgressBar({ value }: { value: number }) {
   return (
     <View
       accessibilityRole="progressbar"
-      accessibilityLabel="Progress through this session"
+      accessibilityLabel={label}
       accessibilityValue={{ min: 0, max: 100, now: Math.round(value * 100) }}
-      style={{ height: 4, marginHorizontal: space.l, marginTop: space.xs, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }}
+      style={[{ height: 4, marginHorizontal: space.l, marginTop: space.xs, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }, style]}
     >
       <Animated.View style={{ height: 4, borderRadius: 2, backgroundColor: c.accent, width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'], extrapolate: 'clamp' }) }} />
     </View>
@@ -236,7 +236,9 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   // Anki's load balancer works from a snapshot of the days ahead, taken when the session is built.
   const loadSnapshot = useRef<LoadSnapshot>(new Map());
 
+  const [loadError, setLoadError] = useState<string | null>(null);
   useEffect(() => {
+    setLoadError(null);
     (async () => {
       const now = new Date();
       const cs = await repo.collectionSettings();
@@ -266,7 +268,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
         (card) => loadDayIndex(card, now, cs.dayStartsAtHour, dayNumber),
       );
       setCards(c);
-    })();
+    })().catch((e) => setLoadError(failureText(e, { what: "Couldn't load this deck.", next: 'Try again.' })));
   }, [repo, deck, reloads, reloadKey]);
 
   // Forms practice and lookalikes (src/ui/ReviewForms.tsx): held lookalikes, the offer to show a card sooner, suggestions.
@@ -561,7 +563,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       }}
     />
   ) : null;
-  if (!cards) return <Screen title={title} largeTitle={false}><View /></Screen>;
+  if (!cards) return <Screen title={title} largeTitle={false}><Loading error={loadError} onRetry={() => setReloads((n) => n + 1)} /></Screen>;
 
   const undoButton = history.length
     ? <Stack.Toolbar.Button icon="arrow.uturn.backward" accessibilityLabel="Undo the last answer" onPress={undo} />
@@ -602,7 +604,9 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
         toolbar={undoButton ? <Stack.Toolbar placement="right">{undoButton}</Stack.Toolbar> : undefined}
         footer={footer}
       >
-        <Reveal style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
+        <Reveal style={{ flex: 1 }}>
+          {/* Scrolls when the summary and the forms check outgrow the space above the buttons. */}
+          <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
           <Icon name={waitingFor ? 'clock' : 'checkmark.circle.fill'} size={56} color={waitingFor ? c.textTertiary : c.countDue} weight="regular" />
           <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>
             {waitingFor ? 'Nothing due right now' : 'All done for now'}
@@ -612,6 +616,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
           </Text>
           {history.length ? <SessionSummary history={history} /> : null}
           <FormsCheck items={forms.toCheck} />
+          </ScrollView>
         </Reveal>
       </Screen>
       </>
@@ -707,6 +712,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       setCards((prev) => prev && prev.map((c) => byId.get(c.id) ?? c));
       setRevealed(false);
       setNow(when);
+      haptic.success();
     } catch (e) {
       Alert.alert("Couldn't change this card", failureText(e, { next: 'Try again.' }));
     } finally {
@@ -856,7 +862,10 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} /> : null}
       {page ? (
         <CardSurface>
-          <CardWebView key={`${current.id}:${revealed ? 'back' : 'front'}`} html={revealed ? page.back : page.front} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} />
+          {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
+              blanking the card while a new one starts. Keyed to the card and the answers given, so a card shown
+              again (after Again, or an undo) starts fresh instead of showing its back while its front loads. */}
+          <CardWebView key={`${current.id}:${history.length}`} html={revealed ? page.back : page.front} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} />
         </CardSurface>
       ) : null}
       {page && extras ? (

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { refreshFromKeptCollection } from '../anki/transfer';
 import { runCustomStudy, type CustomStudyResult } from '../anki/customStudyService';
 import {
@@ -24,7 +25,9 @@ export function CustomStudy({ repo, deck, onStarted }: {
   /** Called once it's done, with what happened: a limit raised, or the deck to study now. */
   onStarted: (result: CustomStudyResult) => void;
 }) {
-  const { scrollProps, bottomPadding } = useKeyboardScroll();
+  // The keyboard's height pads the whole screen, not just the list, so the footer's button stays above it.
+  const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
+  const insets = useSafeAreaInsets();
   const [kind, setKind] = useState<CustomStudyKind>('moreNew');
   const option = CUSTOM_STUDY_OPTIONS.find((o) => o.kind === kind)!;
   const [amount, setAmount] = useState(String(option.field.start));
@@ -58,13 +61,14 @@ export function CustomStudy({ repo, deck, onStarted }: {
 
   const name = deck.split('::').pop();
   return (
+    <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
     <Screen
       title="Custom study"
       largeTitle={false}
       lockGesture={busy}
       footer={<Button label={kind === 'moreNew' || kind === 'moreReviews' ? 'Increase limit' : 'Start studying'} onPress={start} busy={busy} />}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
         <Help>For {name}. Cards you pick are studied in a deck called Custom Study Session.</Help>
         <Group accessibilityRole="radiogroup">
           {CUSTOM_STUDY_OPTIONS.map((o, i) => (
@@ -95,5 +99,6 @@ export function CustomStudy({ repo, deck, onStarted }: {
         {error ? <View><ErrorNote message={error} /></View> : null}
       </ScrollView>
     </Screen>
+    </View>
   );
 }

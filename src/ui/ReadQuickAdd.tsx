@@ -4,6 +4,7 @@ import { ApiError, type Language } from '../reader/api';
 import { MAX_WORDS, parseWords } from '../reader/noteQueue';
 import { Button, Card, ErrorNote, Field, Help, Screen, Select } from './kit';
 import { space } from './theme';
+import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
  * Quick add: type or paste words, one per line, and Claude fills in the rest on the server (Read &
@@ -18,6 +19,7 @@ export function ReadQuickAdd({ decks, initial, onAdd, onDone }: {
   onAdd: (language: Language, deck: string, entries: { entry: string; meaning: string }[]) => Promise<void>;
   onDone: () => void;
 }) {
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const [deck, setDeck] = useState(initial);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -46,7 +48,14 @@ export function ReadQuickAdd({ decks, initial, onAdd, onDone }: {
       largeTitle={false}
       footer={<Button label={entries.length ? `Add ${entries.length} to queue` : 'Add to queue'} onPress={add} busy={busy} disabled={!entries.length || tooMany} />}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+        // Return adds a line, so dragging the list down is how the keyboard goes away to reach Add.
+        keyboardDismissMode="interactive"
+        contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }}
+        {...scrollProps}
+      >
         <Card>
           <Select label="Deck" options={decks.map((d) => d.deck)} value={deck} onChange={setDeck} />
         </Card>

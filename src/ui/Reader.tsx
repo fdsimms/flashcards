@@ -20,12 +20,14 @@ import { choicesView, holdsPlayAll } from '../reader/choices';
 import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
+import { Reveal } from './motion';
 import { LineExplanation } from './ReaderExplain';
 import { RegisterChip } from './ReaderNatural';
 import { PhraseExplanation, PhrasePickBanner, type PhraseMining } from './ReaderPhrase';
 import { ReadChoices } from './ReadChoices';
 import { usePhraseDrag } from './usePhraseDrag';
 import { ReadGrammarNote } from './ReadGrammarNote';
+import { PracticeWordPill, TintPill } from './PracticeWordPill';
 import { WordView } from './ReadWord';
 import { ReaderKey } from './ReaderKey';
 import { WordActionGroup, WordActionRow, WordPlayButton } from './ReadWordActions';
@@ -34,7 +36,7 @@ import { useSpokenWords } from './useSpokenWords';
 import { RecordYourself } from './RecordYourself';
 import { useSelfRecording, type SelfRecording } from './useSelfRecording';
 import { Button, Card, Chip, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
-import { lift, MIN_TAP, radius, space, type, useTheme } from './theme';
+import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
  * The reader: a text split into words by the server, a gloss on tap, audio line by line, and a
@@ -143,9 +145,13 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const chooseGrammar = (id: string, state: GrammarChoice) => setGrammarChosen((prev) => ({ ...prev, [id]: state }));
   const [ended, setEnded] = useState(false);
   const [rating, setRating] = useState<Rating | null>(null);
-  const [leaving, setLeaving] = useState(false);
+  // Which way the screen is being left while the reading is logged, for that button's spinner.
+  const [leaving, setLeaving] = useState<'next' | 'back' | null>(null);
   const [writing, setWriting] = useState(false);
-  const [upNext, setUpNext] = useState<UpNext | null>(null);
+  // What Next opens from the end view: undefined while it's looked up, null when there's none or
+  // the lookup failed (`nextFailed`).
+  const [upNext, setUpNext] = useState<UpNext | null | undefined>(undefined);
+  const [nextFailed, setNextFailed] = useState(false);
   const [lengthStep, setLengthStep] = useState<LengthStep>('same');
   const [liked, setLiked] = useState<boolean | null>(null);
   const [steerError, setSteerError] = useState<string | null>(null);
@@ -311,7 +317,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     setTapped(null);
     setPhrase(null);
     setListenOnly(false);
-    setUpNext(null);
+    setUpNext(undefined);
+    setNextFailed(false);
     setLengthStep('same');
     setLiked(null);
     setSteerError(null);
@@ -364,25 +371,25 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   }, [text]); // eslint-disable-line react-hooks/exhaustive-deps -- once per text
 
   // What Next opens: the next text in the shelf's order, else whatever the shelf has now (a text
-  // written since). Looked up when the end view shows, and when Play all moves on.
+  // written since). Looked up when the end view shows, and when Play all moves on. Throws when the
+  // shelf can't be reached, so the end view can say so rather than look like there's nothing next.
   const findNext = async (): Promise<UpNext | null> => {
     if (source.kind !== 'shelf' || !text) return null;
-    try {
-      const shelf = await api.shelf();
-      const order = playOrder(shelf).filter((id) => id !== text.id);
-      const listed = nextInOrder(source.order, text.id);
-      const id = listed !== null && order.includes(listed) ? listed : (order[0] ?? null);
-      const card = [...(shelf.story?.next ? [shelf.story.next] : []), ...shelf.texts].find((t) => t.id === id);
-      return card ? { id: card.id, title: card.title, lines: card.lines, order } : null;
-    } catch {
-      return null;
-    }
+    const shelf = await api.shelf();
+    const order = playOrder(shelf).filter((id) => id !== text.id);
+    const listed = nextInOrder(source.order, text.id);
+    const id = listed !== null && order.includes(listed) ? listed : (order[0] ?? null);
+    const card = [...(shelf.story?.next ? [shelf.story.next] : []), ...shelf.texts].find((t) => t.id === id);
+    return card ? { id: card.id, title: card.title, lines: card.lines, order } : null;
   };
 
   useEffect(() => {
     if (!ended || source.kind !== 'shelf') return;
     let live = true;
-    findNext().then((n) => { if (live && mounted.current) setUpNext(n); });
+    findNext().then(
+      (n) => { if (live && mounted.current) { setUpNext(n); setNextFailed(false); } },
+      () => { if (live && mounted.current) { setUpNext(null); setNextFailed(true); } },
+    );
     return () => { live = false; };
   }, [ended]); // eslint-disable-line react-hooks/exhaustive-deps -- once per end view
 
@@ -409,7 +416,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     } catch {
       // The reading is lost, not your place: carry on either way.
     }
-    const next = await findNext();
+    const next = await findNext().catch(() => null);
     if (!mounted.current) return;
     if (next) onNext({ kind: 'shelf', textId: next.id, order: next.order, playAll: true });
     else setEnded(true);
@@ -458,13 +465,13 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     const finished = ended || (session?.listenOnly ?? false);
     if (text && session && finished && !review && !logged.current) {
       logged.current = true;
-      setLeaving(true);
+      setLeaving(then);
       try {
         await api.logReading(text.id, toLog(session, Date.now(), rating, true));
       } catch {
         // The reading is lost, not your place: carry on either way.
       } finally {
-        if (mounted.current) setLeaving(false);
+        if (mounted.current) setLeaving(null);
       }
     }
     if (!mounted.current) return;
@@ -478,7 +485,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   // A finished text is logged before the screen goes, however it goes: the Back button, the swipe,
   // or Back to topics. Without this a swipe skipped the log and the text stayed queued.
   const needsLog = !!text && !!session && (ended || session.listenOnly) && !review && !logged.current;
-  const stopGuarding = usePreventRemove(needsLog || leaving, ({ repeat }) => { finish('back', repeat); });
+  const stopGuarding = usePreventRemove(needsLog || leaving !== null, ({ repeat }) => { finish('back', repeat); });
 
   const tap = (word: Word, x: number, y: number) => {
     if (!session || !text) return;
@@ -670,12 +677,12 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
               <Card style={{ padding: space.m, gap: space.m }}>
                 {text.stretch.length > 0 ? (
                   <ChipRow label="Practice words">
-                    {text.stretch.map((w) => <Pill key={w} text={w} bg={c.accentFill} fg={c.accent} onPress={(x, y) => openPracticeWord(w, x, y)} />)}
+                    {text.stretch.map((w) => <PracticeWordPill key={w} word={w} onPress={(x, y) => openPracticeWord(w, x, y)} />)}
                   </ChipRow>
                 ) : null}
                 {practicedGrammar(text).length > 0 ? (
                   <ChipRow label="Grammar">
-                    {practicedGrammar(text).map((g) => <Pill key={g.id} text={g.name} bg={c.speakerB} fg={c.onSpeakerB} />)}
+                    {practicedGrammar(text).map((g) => <TintPill key={g.id} text={g.name} bg={c.speakerB} fg={c.onSpeakerB} />)}
                   </ChipRow>
                 ) : null}
                 <ReaderKey examples={keyMarks} language={text.language ?? 'th'} textStyle={readStyle(text, thaiFont)} shown={markShown} onChange={showMark} />
@@ -829,6 +836,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                       label="EN"
                       accessibilityLabel={lineEnglish.includes(i) ? `Hide English for line ${i + 1}` : `Show English for line ${i + 1}`}
                       on={lineEnglish.includes(i)}
+                      expanded={lineEnglish.includes(i)}
                       onPress={() => toggleLineEnglish(i)}
                     />
                   ) : null}
@@ -837,6 +845,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                       icon="sparkles"
                       accessibilityLabel={explained.includes(i) ? `Hide explanation for line ${i + 1}` : `Explain line ${i + 1}`}
                       on={explained.includes(i)}
+                      expanded={explained.includes(i)}
                       onPress={() => toggleExplained(i)}
                     />
                   ) : null}
@@ -864,91 +873,104 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
       ) : null}
 
       {text && session && ended ? (
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
-          <Card style={{ gap: space.s }}>
-            <Text style={{ ...type.title, color: c.text }}>How was this one?</Text>
-            <Help>Your answer sets how hard the next text is.</Help>
-            <View accessibilityRole="radiogroup" style={{ gap: space.s }}>
-              {RATINGS.map((r) => {
-                const selected = rating === r.value;
-                return (
-                  <Tappable
-                    key={r.value}
-                    onPress={() => { haptic.select(); setRating(selected ? null : r.value); }}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected }}
-                    accessibilityLabel={`${r.label}. ${r.hint}`}
-                    scaleTo={0.98}
-                    style={{
-                      borderWidth: 1, borderRadius: radius.m, paddingHorizontal: space.l, paddingVertical: space.m, gap: 2,
-                      borderColor: selected ? c.accent : c.border, backgroundColor: selected ? c.accentFill : undefined,
-                    }}
-                  >
-                    <Text style={{ ...type.headline, color: selected ? c.accent : c.text }}>{r.label}</Text>
-                    <Text style={{ ...type.footnote, color: selected ? c.accent : c.textSecondary }}>{r.hint}</Text>
-                  </Tappable>
-                );
-              })}
-            </View>
-          </Card>
-          <View style={{ flexDirection: 'row', gap: space.s }}>
-            <Stat value={`${Math.round(text.coverage * 100)}%`} label="Words you know" />
-            <Stat value={String(session.glossed.length)} label="Words looked up" />
-            <Stat value={formatDuration(seconds)} label="Time" />
-          </View>
-          {session.flagged.length > 0 ? (
-            <Card style={{ gap: 0 }}>
-              <Text style={{ ...type.headline, color: c.text, paddingBottom: space.s }}>Marked as unknown</Text>
-              {session.flagged.map((w, i) => (
-                <View key={w} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: c.border }}>
-                  <Text style={{ ...type.body, color: c.text }}>{w}</Text>
-                  <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>{glossFor(text, w) ?? ''}</Text>
-                </View>
-              ))}
-              <View style={{ paddingTop: space.s }}><Help>These are kept in Marked words, where the ones not in your deck can be added to it.</Help></View>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l }}>
+          <Reveal style={{ gap: space.m }}>
+            <Card style={{ gap: space.s }}>
+              <Text style={{ ...type.title, color: c.text }}>How was this one?</Text>
+              <Help>Your answer sets how hard the next text is.</Help>
+              <View accessibilityRole="radiogroup" style={{ gap: space.s }}>
+                {RATINGS.map((r) => {
+                  const selected = rating === r.value;
+                  return (
+                    <Tappable
+                      key={r.value}
+                      onPress={() => { haptic.select(); setRating(selected ? null : r.value); }}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`${r.label}. ${r.hint}`}
+                      scaleTo={0.98}
+                      style={{
+                        borderWidth: 1, borderRadius: radius.m, paddingHorizontal: space.l, paddingVertical: space.m, gap: 2,
+                        borderColor: selected ? c.accent : c.border, backgroundColor: selected ? c.accentFill : undefined,
+                      }}
+                    >
+                      <Text style={{ ...type.headline, color: selected ? c.accent : c.text }}>{r.label}</Text>
+                      <Text style={{ ...type.footnote, color: selected ? c.accent : c.textSecondary }}>{r.hint}</Text>
+                    </Tappable>
+                  );
+                })}
+              </View>
             </Card>
-          ) : null}
-          {source.kind === 'shelf' ? (
-            <Card style={{ gap: space.m }}>
-              <View style={{ gap: 2 }}>
-                <Text style={{ ...type.headline, color: c.text }}>For the next ones</Text>
-                <Help>Changes the texts written from now on. Texts already on the shelf stay as they are.</Help>
-              </View>
-              <View style={{ gap: space.xs }}>
-                <Text style={{ ...type.footnote, color: c.textSecondary }}>Length</Text>
-                <Segments<LengthStep>
-                  options={[{ value: 'shorter', label: 'Shorter' }, { value: 'same', label: 'Same' }, { value: 'longer', label: 'Longer' }]}
-                  value={lengthStep}
-                  onChange={chooseLength}
-                />
-              </View>
-              {liked !== null && !text.episode ? (
-                <View style={{ gap: space.xs }}>
-                  <Text style={{ ...type.footnote, color: c.textSecondary }}>{`This theme: ${text.topic}`}</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-                    <Chip label="More like this" selected={liked} onPress={() => chooseLiked(true)} />
-                    <Chip label="Fewer like this" selected={!liked} onPress={() => chooseLiked(false)} />
+            <View style={{ flexDirection: 'row', gap: space.s }}>
+              <Stat value={`${Math.round(text.coverage * 100)}%`} label="Words you know" />
+              <Stat value={String(session.glossed.length)} label="Words looked up" />
+              <Stat value={formatDuration(seconds)} label="Time" />
+            </View>
+            {session.flagged.length > 0 ? (
+              <Card style={{ gap: 0 }}>
+                <Text style={{ ...type.headline, color: c.text, paddingBottom: space.s }}>Marked as unknown</Text>
+                {session.flagged.map((w, i) => (
+                  <View key={w} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, borderTopWidth: i === 0 ? 0 : hairline, borderTopColor: c.border }}>
+                    <Text style={{ ...type.body, color: c.text }}>{w}</Text>
+                    <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>{glossFor(text, w) ?? ''}</Text>
                   </View>
+                ))}
+                <View style={{ paddingTop: space.s }}><Help>These are kept in Marked words, where the ones not in your deck can be added to it.</Help></View>
+              </Card>
+            ) : null}
+            {source.kind === 'shelf' ? (
+              <Card style={{ gap: space.m }}>
+                <View style={{ gap: 2 }}>
+                  <Text style={{ ...type.headline, color: c.text }}>For the next ones</Text>
+                  <Help>Changes the texts written from now on. Texts already on the shelf stay as they are.</Help>
                 </View>
-              ) : null}
-              {steerError ? <ErrorNote message={steerError} /> : null}
-            </Card>
-          ) : null}
-          {rating === 'about_right' && hasAudio ? (
-            <View style={{ gap: space.xs }}>
-              <Button label="Listen without the text" variant="secondary" onPress={listenWithoutText} />
-              <Help>Plays it again with the text hidden.</Help>
-            </View>
-          ) : null}
-          {source.kind === 'shelf' ? (
-            upNext ? (
+                <View style={{ gap: space.xs }}>
+                  <Text style={{ ...type.footnote, color: c.textSecondary }}>Length</Text>
+                  <Segments<LengthStep>
+                    options={[{ value: 'shorter', label: 'Shorter' }, { value: 'same', label: 'Same' }, { value: 'longer', label: 'Longer' }]}
+                    value={lengthStep}
+                    onChange={chooseLength}
+                  />
+                </View>
+                {liked !== null && !text.episode ? (
+                  <View style={{ gap: space.xs }}>
+                    <Text style={{ ...type.footnote, color: c.textSecondary }}>{`This theme: ${text.topic}`}</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
+                      <Chip label="More like this" selected={liked} onPress={() => chooseLiked(true)} />
+                      <Chip label="Fewer like this" selected={!liked} onPress={() => chooseLiked(false)} />
+                    </View>
+                  </View>
+                ) : null}
+                {steerError ? <ErrorNote message={steerError} /> : null}
+              </Card>
+            ) : null}
+            {rating === 'about_right' && hasAudio ? (
               <View style={{ gap: space.xs }}>
-                <Button label={`Next: ${upNext.title}`} onPress={() => finish('next')} busy={leaving} />
-                <Help>{`About ${minutesFor(upNext.lines)} min.`}</Help>
+                <Button label="Listen without the text" variant="secondary" onPress={listenWithoutText} />
+                <Help>Plays it again with the text hidden.</Help>
               </View>
-            ) : null
-          ) : <Button label="Next text" onPress={() => finish('next')} busy={leaving} />}
-          <Button label={review ? 'Back to the list' : 'Save and back to the shelf'} variant={source.kind === 'shelf' && !upNext ? 'primary' : 'secondary'} onPress={() => finish('back')} />
+            ) : null}
+            {/* While the next text is looked up its place is held, so Save doesn't move when it
+                comes. With none, Save fades in where Next would have been, as the main button. */}
+            {source.kind !== 'shelf' ? (
+              <Button label="Next text" onPress={() => finish('next')} busy={leaving === 'next'} />
+            ) : upNext === undefined ? (
+              <View style={{ gap: space.xs }}>
+                <NextPlaceholder />
+                <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><Help> </Help></View>
+              </View>
+            ) : upNext ? (
+              <Reveal style={{ gap: space.xs }}>
+                <Button label={`Next: ${upNext.title}`} onPress={() => finish('next')} busy={leaving === 'next'} />
+                <Help>{`About ${minutesFor(upNext.lines)} min.`}</Help>
+              </Reveal>
+            ) : nextFailed ? (
+              <Reveal><Help>Couldn't reach the shelf to find the next text. Go back to the shelf to choose one.</Help></Reveal>
+            ) : null}
+            <Reveal key={source.kind === 'shelf' && upNext === null ? 'alone' : 'under'}>
+              <Button label={review ? 'Back to the list' : 'Save and back to the shelf'} variant={source.kind === 'shelf' && upNext === null ? 'primary' : 'secondary'} onPress={() => finish('back')} busy={leaving === 'back'} />
+            </Reveal>
+          </Reveal>
         </ScrollView>
       ) : null}
 
@@ -1009,24 +1031,6 @@ function glossFor(text: ReaderText, word: string): string | null {
   return null;
 }
 
-function Pill({ text, bg, fg, onPress }: { text: string; bg: string; fg: string; onPress?: (x: number, y: number) => void }) {
-  const pill = (
-    <Text style={{ ...type.subhead, fontWeight: '700', color: fg, backgroundColor: bg, paddingHorizontal: 10, paddingVertical: space.xs, borderRadius: radius.pill, overflow: 'hidden' }}>
-      {text}
-    </Text>
-  );
-  if (!onPress) return pill;
-  return (
-    <Tappable
-      onPress={(e) => onPress(e.nativeEvent.pageX, e.nativeEvent.pageY)}
-      accessibilityRole="button"
-      accessibilityLabel={`Meaning of ${text}`}
-    >
-      {pill}
-    </Tappable>
-  );
-}
-
 function ChipRow({ label, children }: { label: string; children: React.ReactNode }) {
   const c = useTheme();
   return (
@@ -1048,11 +1052,13 @@ function ToggleRow({ label, children }: { label: string; children: React.ReactNo
 }
 
 /** A line's replay and EN buttons: a full tap target, filled when on. One of `icon` or `label`. */
-function RoundButton({ icon, label, accessibilityLabel, on, onPress }: {
+function RoundButton({ icon, label, accessibilityLabel, on, expanded, onPress }: {
   icon?: SFSymbol;
   label?: string;
   accessibilityLabel: string;
   on: boolean;
+  /** For a button that shows something under the line (English, an explanation): whether it's showing. */
+  expanded?: boolean;
   onPress: () => void;
 }) {
   const c = useTheme();
@@ -1062,6 +1068,7 @@ function RoundButton({ icon, label, accessibilityLabel, on, onPress }: {
       onPress={() => { haptic.tap(); onPress(); }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={expanded === undefined ? undefined : { expanded }}
       scaleTo={0.92}
       style={{
         minWidth: MIN_TAP, minHeight: MIN_TAP, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center',
@@ -1118,9 +1125,10 @@ export function GlossPopover({ tapped, translitLabel, grammar, api, grammarChose
   if (onToggleFlag) actions.push({ icon: flagged ? 'flag.slash' : 'flag', label: flagged ? 'Unmark' : 'Mark as unknown', onPress: onToggleFlag, chevron: false });
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
       <View
         onLayout={(e) => setPopHeight(e.nativeEvent.layout.height)}
+        onAccessibilityEscape={onClose}
         style={{
           position: 'absolute', top, left, width: popWidth, opacity: popHeight > 0 ? 1 : 0,
           backgroundColor: c.surface, borderColor: c.border, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.l,
@@ -1230,6 +1238,26 @@ function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, rep
   );
 }
 
+/** Where "Next: …" goes while the next text is looked up: a dashed, empty button with a spinner. */
+function NextPlaceholder() {
+  const c = useTheme();
+  return (
+    <View
+      accessible
+      accessibilityLabel="Finding the next text"
+      accessibilityState={{ disabled: true, busy: true }}
+      style={{
+        minHeight: 52, borderRadius: radius.m + 2, ...smooth, paddingHorizontal: space.l, paddingVertical: space.m,
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s,
+        borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.border,
+      }}
+    >
+      <ActivityIndicator size="small" color={c.accent} />
+      <Text style={{ ...type.body, color: c.textSecondary }}>Finding the next text…</Text>
+    </View>
+  );
+}
+
 /** Previous or next line in the player bar. */
 function SkipButton({ icon, label, onPress }: { icon: SFSymbol; label: string; onPress: () => void }) {
   const c = useTheme();
@@ -1249,7 +1277,7 @@ function SkipButton({ icon, label, onPress }: { icon: SFSymbol; label: string; o
 function Stat({ value, label }: { value: string; label: string }) {
   const c = useTheme();
   return (
-    <View style={{ flex: 1, backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: radius.m, padding: space.m }}>
+    <View style={{ flex: 1, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.m, padding: space.m }}>
       <Text style={{ ...type.title, color: c.text }}>{value}</Text>
       <Text style={{ ...type.caption, color: c.textSecondary }}>{label}</Text>
     </View>

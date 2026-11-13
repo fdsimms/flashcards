@@ -108,7 +108,7 @@ export const CUSTOM_STUDY_OPTIONS: CustomStudyOption[] = [
   { kind: 'moreReviews', title: "Increase today's review limit", detail: "Study more reviews today. Tomorrow the deck's usual limit applies again.", field: { label: 'Extra reviews', start: 10 } },
   { kind: 'forgotten', title: "Review forgotten cards", detail: "Go over the cards you answered Again on recently. Their schedules stay as they are.", field: { label: 'Days back', start: 1 } },
   { kind: 'ahead', title: "Review ahead", detail: "Study reviews that are due in the next few days. Answers reschedule them as usual.", field: { label: 'Days ahead', start: 1 } },
-  { kind: 'previewNew', title: "Preview new cards", detail: "Look at new cards added recently without starting them. Their schedules stay as they are.", field: { label: 'Added in the last days', start: 1 } },
+  { kind: 'previewNew', title: "Preview new cards", detail: "Look at new cards added recently without starting them. Their schedules stay as they are.", field: { label: 'Days back', start: 1 } },
   { kind: 'cram', title: "Study by card state or tag", detail: "Pick cards by their state or tags, for example to cram before a test. Their schedules stay as they are.", field: { label: 'Cards', start: 100 }, cram: true },
 ];
 

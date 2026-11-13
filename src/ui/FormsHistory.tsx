@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import { failureText } from '../core/failure';
 import { CONFUSION_MISSES, CONFUSION_WORDS, FORM_CLEARED_AFTER } from '../core/forms';
 import { practiceStats, type PracticeStats, type WeakFormStat } from '../core/formsStats';
 import type { Repo } from '../db/repo';
-import { Card, Help, Screen, SectionTitle } from './kit';
+import { Card, Help, Loading, Screen, SectionTitle } from './kit';
 import { hairline, radius, space, type, useTheme } from './theme';
 
 /** How many forms "Still needs work" lists before "and N more". */
@@ -16,20 +17,23 @@ const LISTED_FORMS = 10;
  */
 export function FormsHistory({ repo, deck }: { repo: Repo; deck: string }) {
   const [stats, setStats] = useState<PracticeStats>();
+  const [error, setError] = useState<string | null>(null);
+  const [loads, setLoads] = useState(0);
 
   useEffect(() => {
     let live = true;
+    setError(null);
     (async () => {
       const [notes, practice] = await Promise.all([repo.listNotes(), repo.listPractice()]);
       if (live) setStats(practiceStats(deck, notes, practice, new Date()));
-    })();
+    })().catch((e) => { if (live) setError(failureText(e, { what: "Couldn't load your practice history.", next: 'Try again.' })); });
     return () => { live = false; };
-  }, [repo, deck]);
+  }, [repo, deck, loads]);
 
   return (
     <Screen title="Practice history">
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
-        {!stats ? null : !stats.answers ? <Empty /> : <Content stats={stats} />}
+        {!stats ? <Loading error={error} onRetry={() => setLoads((n) => n + 1)} /> : !stats.answers ? <Empty /> : <Content stats={stats} />}
       </ScrollView>
     </Screen>
   );
@@ -97,7 +101,7 @@ function Content({ stats }: { stats: PracticeStats }) {
                   <View style={{ width: `${p}%`, height: '100%', backgroundColor: c.chart }} />
                 </View>
               </View>
-              <Text style={{ ...type.subhead, fontWeight: '600', color: c.text, width: 48, textAlign: 'right', fontVariant: ['tabular-nums'] }}>{`${p}%`}</Text>
+              <Text style={{ ...type.subhead, fontWeight: '600', color: c.text, minWidth: 48, textAlign: 'right', fontVariant: ['tabular-nums'] }}>{`${p}%`}</Text>
             </View>
           );
         })}
@@ -133,7 +137,7 @@ function Row({ label, detail, trailing, first }: { label: string; detail: string
         <Text style={{ ...type.headline, color: c.text }}>{label}</Text>
         <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text>
       </View>
-      {trailing ? <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{trailing}</Text> : null}
+      {trailing ? <Text style={{ ...type.subhead, fontWeight: '600', color: c.text, flexShrink: 1 }}>{trailing}</Text> : null}
     </View>
   );
 }

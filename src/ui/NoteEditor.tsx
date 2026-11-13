@@ -1,7 +1,7 @@
 import { Stack, usePreventRemove } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View, type TextInputInstance } from 'react-native';
-import { cardsFor, deleteNote, NoteRefused, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
+import { cardsFor, deleteNote, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { cardStateOf, FLAG_NAMES, type CardState } from '../core/cardState';
 import { failureText } from '../core/failure';
 import type { AnkiLink } from '../db/ankiLink';
@@ -11,9 +11,10 @@ import { duplicateOf, editTextToField, fieldToEditText, parseTags } from '../cor
 import type { Note, NoteType } from '../core/types';
 import type { NoteEditorResult } from './AppContext';
 import type { RecordDeps, Recording } from '../anki/recordService';
-import { Button, Card, Chip, Field, Help, Screen, Select } from './kit';
+import { Button, Card, Chip, Field, Help, Loading, Screen, Select } from './kit';
 import { afterSave, RecordAudio, useVoiceSettings } from './RecordAudio';
-import { space, type, useTheme } from './theme';
+import { radius, smooth, space, type, useTheme } from './theme';
+import { useHeaderInset } from './useHeaderInset';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 const OMNI_CARD_NAMES: Record<string, string> = { forward: 'Front', reverse: 'Reverse', audio: 'Audio' };
@@ -52,6 +53,11 @@ export function NoteEditor(props: {
   const [tags, setTags] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  // Until the note (or, adding one, the decks and note types) is in, the form isn't shown.
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [missing, setMissing] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   // The note's cards, for undoing a suspend, bury or flag set while studying.
   const [noteCardList, setNoteCardList] = useState<CardRow[]>([]);
   const [dayStartsAtHour, setDayStartsAtHour] = useState(4);
@@ -75,6 +81,7 @@ export function NoteEditor(props: {
   };
 
   useEffect(() => {
+    setLoadError(null);
     (async () => {
       const [all, types, params] = await Promise.all([props.repo.listNotes(), props.repo.listNoteTypes(), props.repo.listDeckParams()]);
       setNotes(all);
@@ -83,7 +90,7 @@ export function NoteEditor(props: {
       setFilteredDecks(new Set([...params].filter(([, p]) => p.filtered).map(([d]) => d)));
       if ('noteId' in props.target) {
         const n = all.find((x) => x.id === (props.target as { noteId: string }).noteId);
-        if (!n) return;
+        if (!n) { setMissing(true); setLoaded(true); return; }
         const [cs, cards] = await Promise.all([props.repo.collectionSettings(), props.repo.listCards()]);
         setDayStartsAtHour(cs.dayStartsAtHour);
         setNoteCardList(cards.filter((x) => x.noteId === n.id && !x.retired));
@@ -104,8 +111,9 @@ export function NoteEditor(props: {
         setModel(asked && (types.has(asked) || all.some((n) => n.model === asked)) ? asked : startModel);
         if (props.target.fields) setFields(props.target.fields);
       }
-    })();
-  }, [props.repo]); // eslint-disable-line react-hooks/exhaustive-deps
+      setLoaded(true);
+    })().catch((e) => setLoadError(failureText(e, { what: "Couldn't open the note.", next: 'Try again.' })));
+  }, [props.repo, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const decks = useMemo(
     () => [...new Set([...notes.map((n) => n.deck), ...(props.decks ?? []).filter((d) => !filteredDecks.has(d))])].sort((a, b) => a.localeCompare(b)),
@@ -142,7 +150,7 @@ export function NoteEditor(props: {
       stopAsking();
       props.onClose({ saved });
     } catch (e) {
-      setError(e instanceof NoteRefused ? e.message : failureText(e, { what: "Couldn't save the note.", next: 'Try again.' }));
+      setError(failureText(e, { what: "Couldn't save the note.", next: 'Try again.' }));
     } finally {
       setBusy(false);
     }
@@ -157,6 +165,14 @@ export function NoteEditor(props: {
     ]);
   });
   const cancel = () => props.onClose();
+
+  // An error shows above the first card, so the screen goes back to the top to show it: a Save
+  // tapped at the bottom of a long note otherwise looked like it did nothing. The scroll view's
+  // top at rest is the header's height above zero (contentInsetAdjustmentBehavior).
+  const header = useHeaderInset();
+  useEffect(() => {
+    if (error) scrollProps.ref.current?.scrollTo({ y: -header.top, animated: true });
+  }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const remove = () => {
     if (!original) return;
@@ -193,12 +209,23 @@ export function NoteEditor(props: {
             <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={cancel}>Cancel</Stack.Toolbar.Button>
           </Stack.Toolbar>
           <Stack.Toolbar placement="right">
-            <Stack.Toolbar.Button accessibilityLabel="Save the note" disabled={busy} onPress={save}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button>
+            <Stack.Toolbar.Button accessibilityLabel="Save the note" disabled={busy || !loaded || missing} onPress={save}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button>
           </Stack.Toolbar>
         </>
       }
     >
+      {!loaded ? <Loading error={loadError} onRetry={() => setAttempt((n) => n + 1)} /> : missing ? (
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l }}>
+          <Help>Couldn't find this note. It may have been deleted, here or in Anki.</Help>
+        </ScrollView>
+      ) : (
+        <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1 }}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
+          {error ? (
+            <View accessibilityRole="alert" style={{ backgroundColor: c.dangerFill, borderRadius: radius.m, ...smooth, padding: space.m }}>
+              <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text>
+            </View>
+          ) : null}
           <Card>
             <Select label="Deck" options={decks} value={deck} onChange={(d) => { setDeck(d); setError(undefined); }} />
             {editing ? (
@@ -243,10 +270,9 @@ export function NoteEditor(props: {
               onRecorded={(r) => { setRecording(r); setFields((f) => ({ ...f, Audio: [f.Audio?.trim(), `[sound:${r.name}]`].filter(Boolean).join(' ') })); }}
             />
           </Card>
-          {error ? <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text> : null}
           {duplicate ? (
             <Text style={{ ...type.subhead, color: c.warning }}>
-              A {model} note in {duplicate.deck} already has this {fieldNames[0]}.
+              Another {model} note in {duplicate.deck} already has this {fieldNames[0]}.
             </Text>
           ) : null}
           <Help>
@@ -278,6 +304,8 @@ export function NoteEditor(props: {
           ) : null}
           {editing ? <Button label="Delete note" variant="destructive" onPress={remove} disabled={busy} /> : null}
         </ScrollView>
+        </View>
+      )}
     </Screen>
   );
 }

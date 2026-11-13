@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Text, View } from 'react-native';
+import { Text } from 'react-native';
 import { DEFAULT_PRIORITY_DAYS, DEFAULT_PRIORITY_PERCENT, MAX_PRIORITY_DAYS, parsePriorityNumber, prioritySettings } from '../core/priority';
 import type { DeckSettings } from '../core/types';
-import { Card, Field, Help, SectionTitle, SwitchRow } from './kit';
-import { space, type, useTheme } from './theme';
+import { Card, Field, Group, Help, SectionTitle, SwitchRow } from './kit';
+import { type, useTheme } from './theme';
 
 /**
  * Deck options for "tagged cards first" (`prioritySettings`). It applies to the deck and its
@@ -32,25 +32,25 @@ export function DeckPriorityOptions({ deck, all, onChange }: {
   return (
     <>
       <SectionTitle>Tagged cards first</SectionTitle>
-      <Card>
+      <Group>
         <SwitchRow first label="Study tagged cards first" value={p.on} onValueChange={(v) => onChange({ priorityFirst: v })} />
-        <Help>
-          New cards with this tag come before the rest of the deck's new cards. A card stops coming first once you've studied it,
-          or {p.days === 1 ? '1 day' : `${p.days} days`} after Franki first saw the tag on it, whichever happens first. They never
-          take more than {p.percent}% of the day's new cards (rounded up, so at least 1), and they count against the same daily
-          limit. Reviews are never moved.
-        </Help>
-        {p.on ? (
-          <View style={{ gap: space.m }}>
-            <Field label="Tag" value={p.tag} onChangeText={(v) => onChange({ priorityTag: v })} autoCapitalize="none" autoCorrect={false} placeholder="italki" />
-            {p.tag ? null : <Text style={{ ...type.subhead, color: c.danger }}>Enter a tag. Nothing comes first until you do.</Text>}
-            <Field label="First for (days)" value={days} onChangeText={(v) => number('days', v, 1, MAX_PRIORITY_DAYS, 'Days')} keyboardType="number-pad" error={!!errors.days} placeholder={String(DEFAULT_PRIORITY_DAYS)} />
-            {errors.days ? <Text style={{ ...type.subhead, color: c.danger }}>{errors.days}</Text> : null}
-            <Field label="At most (% of new cards)" value={percent} onChangeText={(v) => number('percent', v, 1, 100, 'The percentage')} keyboardType="number-pad" error={!!errors.percent} placeholder={String(DEFAULT_PRIORITY_PERCENT)} />
-            {errors.percent ? <Text style={{ ...type.subhead, color: c.danger }}>{errors.percent}</Text> : null}
-          </View>
-        ) : null}
-      </Card>
+      </Group>
+      <Help>
+        New cards with this tag come before the rest of the deck's new cards. A card stops coming first once you've studied it,
+        or {p.days === 1 ? '1 day' : `${p.days} days`} after Franki first saw the tag on it, whichever happens first. They never
+        take more than {p.percent}% of the day's new cards (rounded up, so at least 1), and they count against the same daily
+        limit. Reviews are never moved.
+      </Help>
+      {p.on ? (
+        <Card>
+          <Field label="Tag" value={p.tag} onChangeText={(v) => onChange({ priorityTag: v })} autoCapitalize="none" autoCorrect={false} placeholder="italki" />
+          {p.tag ? null : <Text style={{ ...type.subhead, color: c.warning }}>Enter a tag. Nothing comes first until you do.</Text>}
+          <Field label="First for (days)" value={days} onChangeText={(v) => number('days', v, 1, MAX_PRIORITY_DAYS, 'Days')} keyboardType="number-pad" error={!!errors.days} placeholder={String(DEFAULT_PRIORITY_DAYS)} />
+          {errors.days ? <Text style={{ ...type.subhead, color: c.danger }}>{errors.days}</Text> : null}
+          <Field label="At most (% of new cards)" value={percent} onChangeText={(v) => number('percent', v, 1, 100, 'The percentage')} keyboardType="number-pad" error={!!errors.percent} placeholder={String(DEFAULT_PRIORITY_PERCENT)} />
+          {errors.percent ? <Text style={{ ...type.subhead, color: c.danger }}>{errors.percent}</Text> : null}
+        </Card>
+      ) : null}
     </>
   );
 }
