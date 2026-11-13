@@ -16,7 +16,7 @@ const SPACED = { fontSize: 20, lineHeight: 1.5, highlightLabel: 'Highlight words
 
 export const LANGUAGES: Record<Language, LanguageInfo> = {
   th: { name: 'Thai', flag: '🇹🇭', fontSize: 23, lineHeight: 1.75, highlightLabel: 'Highlight words not in your deck', speech: 'th-TH' },
-  es: { name: 'Spanish', flag: '🇪🇸', ...SPACED, speech: 'es-MX' },
+  es: { name: 'Spanish', flag: '🇲🇽', ...SPACED, speech: 'es-MX' },
   de: { name: 'German', flag: '🇩🇪', ...SPACED, speech: 'de-DE' },
   fr: { name: 'French', flag: '🇫🇷', ...SPACED, speech: 'fr-FR' },
   ru: { name: 'Russian', flag: '🇷🇺', ...SPACED, speech: 'ru-RU' },
