@@ -30,6 +30,12 @@ describe('cards', () => {
     expect(back.find((b) => b.text === 'Ctx')?.tapLabel).toBeUndefined();
     expect(back.find((b) => b.text === 'book')?.tapLabel).toBeUndefined();
   });
+  it('puts the answer first, then the transliteration link under it, on the forward and audio cards', () => {
+    const note = omniNote({ Entry: 'หนังสือ', Transliteration: 'nang-suu', Meaning: 'book' });
+    for (const kind of ['forward', 'audio'] as const) {
+      expect(renderCard(note, kind).back.blocks.map((b) => b.text).slice(0, 2)).toEqual(kind === 'audio' ? ['หนังสือ', 'book'] : ['book', 'nang-suu']);
+    }
+  });
   it("shows a Japanese word's kana after the word on every card's back, behind a tap as in Anki", () => {
     const note = omniNote({ Entry: '大人', Meaning: 'adult', KanaReading: 'おとな', Language: 'Japanese' });
     for (const kind of ['forward', 'reverse', 'audio'] as const) {

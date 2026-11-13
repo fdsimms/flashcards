@@ -5,7 +5,7 @@ import { DEFAULT_THAI_TEXT_SIZE, hasThai, thaiTextStyle, withThaiLineHeight, typ
 import type { RenderedSide } from '../core/types';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
-import { MIN_TAP, radius, smooth, space, type, useTheme, type Colors } from './theme';
+import { MIN_TAP, hairline, radius, smooth, space, type, useTheme, type Colors } from './theme';
 
 type Block = RenderedSide['blocks'][number];
 type Item = { b: Block; i: number };
@@ -52,16 +52,32 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
     return out;
   }, [side.blocks]);
 
-  const hint = ({ b, i }: Item, inExample: boolean) => (
+  const reveal = (i: number) => { haptic.select(); setShownHints((prev) => new Set(prev).add(i)); };
+
+  // A hidden line outside the example sentence: a centered link.
+  const hint = ({ b, i }: Item) => (
     <Tappable
       key={i}
       accessibilityRole="button"
-      onPress={() => { haptic.select(); setShownHints((prev) => new Set(prev).add(i)); }}
+      onPress={() => reveal(i)}
+      style={{ alignSelf: 'center', minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.m }}
+    >
+      <Text style={{ ...type.callout, color: c.accent }}>{b.tapLabel}</Text>
+    </Tappable>
+  );
+
+  // A hidden line inside the Example box: a full-width row under the sentence.
+  const hintRow = ({ b, i }: Item) => (
+    <Tappable
+      key={i}
+      accessibilityRole="button"
+      onPress={() => reveal(i)}
       style={{
-        alignSelf: inExample ? 'flex-start' : 'center', minHeight: MIN_TAP, justifyContent: 'center',
-        paddingHorizontal: inExample ? 0 : space.m,
+        flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP, paddingHorizontal: space.m,
+        borderTopWidth: hairline, borderTopColor: c.border,
       }}
     >
+      <Icon name="eye" size={16} color={c.accent} />
       <Text style={{ ...type.callout, color: c.accent }}>{b.tapLabel}</Text>
     </Tappable>
   );
@@ -85,11 +101,16 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
         if (isExample(first.b)) {
           return (
             <View key={first.i} style={{ gap: space.xs }}>
-              {group.map((it) => (hidden(it) ? hint(it, true) : line(it)))}
+              <Text style={{ ...type.overline, color: c.accent }}>Example</Text>
+              <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, overflow: 'hidden' }}>
+                {group.map((it) => (hidden(it)
+                  ? hintRow(it)
+                  : <View key={it.i} style={{ padding: space.m, paddingTop: it.b.role === 'example' ? space.m : space.s }}>{line(it)}</View>))}
+              </View>
             </View>
           );
         }
-        if (hidden(first)) return hint(first, false);
+        if (hidden(first)) return hint(first);
 
         const { b, i } = first;
         if (b.role === 'chips') {
@@ -130,7 +151,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
             <View style={b.icon ? { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s } : undefined}>
               {b.icon ? <Icon name={b.icon} size={28} color={c.text} /> : null}
               {b.emphasis ? (
-                <Text style={{ ...withThaiLineHeight(which === 'front' ? type.cardFront : type.cardBack, b.text), color: c.text, textAlign: 'center' }}>
+                <Text style={{ ...withThaiLineHeight(type.cardFront, b.text), color: c.text, textAlign: 'center' }}>
                   {b.prefix ? <Text style={{ color: c.textTertiary, fontWeight: '400' }}>{b.prefix} </Text> : null}
                   {b.text}
                 </Text>
