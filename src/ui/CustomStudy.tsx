@@ -11,6 +11,7 @@ import type { Repo } from '../db/repo';
 import { haptic } from './haptics';
 import { Button, CheckRow, Card, ErrorNote, Field, Group, Help, Screen, Select } from './kit';
 import { space } from './theme';
+import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
  * Anki's Custom Study for a deck: raise today's limits, or pick cards (forgotten, due soon, new,
@@ -23,6 +24,7 @@ export function CustomStudy({ repo, deck, onStarted }: {
   /** Called once it's done, with what happened: a limit raised, or the deck to study now. */
   onStarted: (result: CustomStudyResult) => void;
 }) {
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const [kind, setKind] = useState<CustomStudyKind>('moreNew');
   const option = CUSTOM_STUDY_OPTIONS.find((o) => o.kind === kind)!;
   const [amount, setAmount] = useState(String(option.field.start));
@@ -62,7 +64,7 @@ export function CustomStudy({ repo, deck, onStarted }: {
       lockGesture={busy}
       footer={<Button label={kind === 'moreNew' || kind === 'moreReviews' ? 'Increase limit' : 'Start studying'} onPress={start} busy={busy} />}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
         <Help>For {name}. Cards you pick are studied in a deck called Custom Study Session.</Help>
         <Group accessibilityRole="radiogroup">
           {CUSTOM_STUDY_OPTIONS.map((o, i) => (

@@ -5,6 +5,7 @@ import { signIn, turnOffSync } from '../anki/syncService';
 import type { AnkiLink, SyncSettings as Settings } from '../db/ankiLink';
 import { Button, Card, Field, Help, MessageList, Screen } from './kit';
 import { space, type, useTheme } from './theme';
+import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
  * Setting up sync with an Anki sync server, and syncing by hand. Off until signed in. Sync itself
@@ -17,6 +18,7 @@ export function SyncSettings(props: {
   sync: () => Promise<string | undefined>;
   reload: () => Promise<void>;
 }) {
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const s = props.settings;
   const [server, setServer] = useState(s?.server ?? '');
@@ -62,7 +64,7 @@ export function SyncSettings(props: {
 
   return (
     <Screen title="Sync">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
         {s?.enabled ? (
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>Syncing with {s.server.replace(/^https?:\/\//, '').replace(/\/$/, '')}</Text>
