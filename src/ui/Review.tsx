@@ -48,7 +48,6 @@ import { LeechHintSheet } from './LeechHintSheet';
 import { canAddMnemonic, mnemonicQuestion, withMnemonic, type MnemonicQuestion } from '../core/leechHint';
 import { PlayButton } from './PlayButton';
 import { usePhoneSpeech } from './usePhoneSpeech';
-import { languageKey } from '../core/voices';
 import { missReasonsFor, missReminder } from '../core/misses';
 import { AgainSplit, MissReminder } from './MissMarks';
 import { useMissMarks } from './useMissMarks';
@@ -178,7 +177,7 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo, onVoices }: {
+export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -210,8 +209,6 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   onCustomStudy: () => void;
   /** Opens Card Info (src/ui/CardInfo.tsx) for a card. */
   onCardInfo: (cardId: string) => void;
-  /** Opens one language's voice and speed (Settings, Voices) from the card's Play button; `language` is its code, e.g. th. */
-  onVoices: (language: string) => void;
 }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
@@ -956,8 +953,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
         {playbackFor(rendered, revealed) ? (
           <PlayButton
             onPlay={() => speak(playbackFor(rendered, revealed))}
-            language={rendered.speechLang ? languageKey(rendered.speechLang) : undefined}
-            onVoice={rendered.speechLang ? () => onVoices(languageKey(rendered.speechLang!)) : undefined}
+            speech={rendered.speechLang}
           />
         ) : null}
         </View>

@@ -12,8 +12,9 @@ import { toolLanguage, type ToolInfo } from '../../tools/tools';
 import { haptic } from '../haptics';
 import { Button, Card, Chip, Help, Icon, Screen, Tappable } from '../kit';
 import { Reveal } from '../motion';
-import { MIN_TAP, radius, space, type, useTheme } from '../theme';
+import { MIN_TAP, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
+import { PlayPill } from '../PlayButton';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 
 /**
@@ -126,7 +127,7 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
       )}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, paddingBottom: space.l + bottomPadding, gap: space.l }} keyboardShouldPersistTaps="handled" {...scrollProps}>
-        {children}
+        <ToolLanguage.Provider value={language}>{children}</ToolLanguage.Provider>
       </ScrollView>
     </Screen>
   );
@@ -199,20 +200,13 @@ export function AnswerCard({ shown, prompt, answer, onPlay }: { shown: boolean; 
   );
 }
 
-/** The round speaker button beside a phrase. `label` says what it plays, for VoiceOver ("Play the answer"). */
+/** The language a Practice tool is in, for the play buttons below its ToolScreen. */
+const ToolLanguage = React.createContext<Language | null>(null);
+
+/** The play button beside a phrase, with a link to the language's voice. `label` says what it plays, for VoiceOver ("Play the answer"). */
 export function PlayButton({ label, onPress }: { label: string; onPress: () => void }) {
-  const c = useTheme();
-  return (
-    <Tappable
-      onPress={() => { haptic.tap(); onPress(); }}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      hitSlop={6}
-      style={{ width: 40, height: 40, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
-    >
-      <Icon name="speaker.wave.2.fill" size={18} color={c.accent} />
-    </Tappable>
-  );
+  const language = React.useContext(ToolLanguage);
+  return <PlayPill label={label} onPlay={onPress} speech={language ? LANGUAGES[language].speech : undefined} />;
 }
 
 /** Other ways to say it, under a small heading: each tappable to hear it, with a speaker at its end to say so. */

@@ -9,8 +9,9 @@ import {
 import { loadVocabSeen, saveVocabSeen } from '../reader/storage';
 import { vocabWatch } from '../reader/vocabWatch';
 import { haptic } from './haptics';
+import { PlayPill } from './PlayButton';
 import { Reveal } from './motion';
-import { Button, Card, Divider, ErrorNote, Group, Help, Icon, Screen, SectionTitle, Tappable } from './kit';
+import { Button, Card, Divider, ErrorNote, Group, Help, Screen, SectionTitle, Tappable } from './kit';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 const POLL_MS = 3000;
@@ -279,14 +280,9 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
           <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.xs }}>
             <Text style={{ ...type.footnote, color: c.textSecondary }}>What does this mean?</Text>
             <Text selectable style={{ ...withThaiLineHeight(type.cardFront, item.word), color: c.text, textAlign: 'center' }}>{item.word}</Text>
-            <Tappable
-              onPress={() => { haptic.tap(); onPlayWord(item.word, language); }}
-              accessibilityRole="button"
-              accessibilityLabel={`Play ${item.word}`}
-              style={{ marginTop: space.s, width: 44, height: 44, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Icon name="speaker.wave.2.fill" size={18} color={c.accent} />
-            </Tappable>
+            <View style={{ marginTop: space.s }}>
+              <PlayPill label={`Play ${item.word}`} onPlay={() => onPlayWord(item.word, language)} speech={LANGUAGES[language].speech} />
+            </View>
           </Card>
           {[choices.slice(0, 2), choices.slice(2)].map((pair, row) => (
             <View key={row} style={{ flexDirection: 'row', gap: space.s }}>
