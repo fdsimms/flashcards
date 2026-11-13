@@ -1,6 +1,7 @@
 import { ttsFilter, ttsTags, withoutTts, TTS_NO_LANGUAGE, type TtsTag } from './tts';
 import { clozeForTyping, clozeNumbers, clozeOnly, renderCloze } from './cloze';
 import { occlusionPlan, occlusionScript } from './imageOcclusion';
+import { mathjaxScripts, needsMathJax } from './mathjax';
 import { compareAnswer } from './typeAnswer';
 import type { Note, NoteType } from './types';
 
@@ -354,13 +355,16 @@ export function sideAudio(html: string): { tts: TtsTag[]; hasSound: boolean } {
 /**
  * A complete page for the WebView: the note type's CSS, Anki's body classes (`card cardN`, and
  * `nightMode night_mode` in dark mode, which many decks style), the sound player, and Anki's
- * `anki.imageOcclusion` for an image occlusion card's own script to call. Relative
- * media paths ("flag.svg") resolve against `mediaBase`, the media folder's URI.
+ * `anki.imageOcclusion` for an image occlusion card's own script to call, and MathJax when the
+ * side has math. Relative media paths ("flag.svg") resolve against `mediaBase`, the media
+ * folder's URI.
  */
 export function cardDocument(
   html: string,
   opts: {
     css: string; ord: number; dark: boolean; autoplay: boolean; mediaBase?: string;
+    /** The bundled MathJax script's URI (src/core/mathjax.ts), loaded only by a side with math. */
+    mathjax?: string;
     /** The app's colors for the page behind the card, so it matches the frame it sits in. */
     colors?: { background: string; text: string; cloze: string };
   },
@@ -370,6 +374,7 @@ export function cardDocument(
     : { background: '#ffffff', text: '#1b1b1b', cloze: '#2f6db5' });
   const night = opts.dark ? ' nightMode night_mode' : '';
   const base = opts.mediaBase ? `<base href="${escapeAttr(opts.mediaBase)}">` : '';
+  const math = opts.mathjax && needsMathJax(html) ? opts.mathjax : undefined;
   return `<!doctype html><html><head><meta charset="utf-8">${base}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
@@ -392,11 +397,11 @@ code#typeans { display: inline-block; white-space: pre-wrap; font-family: ui-mon
 ${opts.css}
 </style>
 <script>${occlusionScript(occlusionPlan(html))}</script></head>
-<body class="card card${opts.ord + 1}${night}"><div id="qa" style="width:100%">${ttsButtons(soundButtons(html))}</div>
+<body class="card card${opts.ord + 1}${night}"><div id="qa" style="width:100%${math ? ';opacity:0' : ''}">${ttsButtons(soundButtons(html))}</div>
 <script>
 var player = null;
 function playSound(file) { if (player) player.pause(); player = new Audio(file); player.play(); }
 function speakTts(i) { if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ tts: i })); }
 ${opts.autoplay ? "var first = document.querySelector('[data-sound]'); if (first) playSound(first.dataset.sound);" : ''}
-</script></body></html>`;
+</script>${math ? mathjaxScripts(math) : ''}</body></html>`;
 }
