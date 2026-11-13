@@ -647,9 +647,11 @@ in the current language, with when one was last read to the end. Nothing else le
   the word's background (`spoken` in the theme), chosen over fading the rest of the line or a
   karaoke-style "read so far". A word stays lit through the pause after it. Where the SDK can't be
   used (a custom `AZURE_SPEECH_ENDPOINT`, the SDK not loading, Azure unreachable over its
-  connection) the line is recorded through REST as before, with no timings, and plays unlit; so do
-  lines recorded before this. Slower playback needs nothing more: the player's position is in the
-  audio's own time.
+  connection) the line is recorded through REST as before, with no timings, and plays unlit. The
+  texts waiting to be read when this came in are re-recorded with timings once
+  (`Engine.time_waiting_texts`, on the first top-up, behind the `waiting_texts_timed` flag), as the
+  owner chose; texts already read keep their audio and play unlit. Slower playback needs nothing
+  more: the player's position is in the audio's own time.
 - The 0.7x to 1.0x speed control is the player's rate with pitch kept (`expo-audio`), so there's one
   file per line whatever the speed. "Play" runs the dialogue line by line; each line has its own
   replay button. Playback continues with the ringer on silent and the screen locked; the player

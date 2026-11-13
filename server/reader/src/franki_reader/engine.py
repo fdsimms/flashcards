@@ -483,6 +483,26 @@ class Engine:
                 self.audio.drop(text.id)
                 await self.make_audio(text)
 
+    async def time_waiting_texts(self) -> None:
+        """Once: re-records the texts waiting to be read whose audio was made before word timings
+        (tts.py), so they light up as they're spoken too; a text already read keeps its audio. The
+        flag is set when a pass finishes, so one cut short by a restart picks up where it left off
+        (a text it re-recorded has its timings and is skipped), and a pass where Azure gave no
+        timings (the SDK unusable here) still ends it, rather than re-recording every time."""
+        if self.audio is None or self.synthesize is None or store.waiting_texts_timed(self.conn):
+            return
+        audio = self.audio
+        for language in LANGUAGES:
+            async with self._rerecord_locks.setdefault(language, asyncio.Lock()):
+                for text in store.ready_texts(self.conn, language):
+                    lines = range(len(text.lines))
+                    if any(
+                        audio.has(text.id, i) and not audio.has_marks(text.id, i) for i in lines
+                    ):
+                        audio.drop(text.id)
+                        await self.make_audio(text)
+        store.mark_waiting_texts_timed(self.conn)
+
     async def line_audio(self, text: StoredText, line: int) -> Path | None:
         """The cached MP3 for one line, made now if it's missing and text to speech is set up."""
         if self.audio is None or not 0 <= line < len(text.lines):
@@ -507,12 +527,14 @@ class Engine:
         """Refreshes the current language's lexicon if it's a day old, then writes the story's next
         episode if it has none waiting, and fills the shelf to `SHELF_SIZE`. Only the current
         language, so having several doesn't multiply the spending. Runs after a response is sent; a
-        second call while one is running does nothing. A topic that failed recently is skipped, and
+        second call while one is running does nothing. The first pass also re-records the texts
+        waiting to be read with word timings (`time_waiting_texts`). A topic that failed recently is skipped, and
         a failed shelf text ends the pass and pauses the shelf for `FAILURE_COOLDOWN`; a missing
         key or word list stops it quietly."""
         if self._topping_up.locked():
             return
         async with self._topping_up:
+            await self.time_waiting_texts()
             language = self.language()
             await self.refresh_lexicon(language)
             try:

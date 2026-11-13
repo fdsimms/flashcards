@@ -89,6 +89,9 @@ class AudioCache:
             _write_whole(times, json.dumps(marks, ensure_ascii=False).encode())
         _write_whole(path, spoken.audio)
 
+    def has_marks(self, text_id: int, line: int) -> bool:
+        return self.path(text_id, line).with_suffix(".json").is_file()
+
     def marks(self, text_id: int, line: int) -> list[WordMark] | None:
         """The line's word timings, or None when it was recorded without them."""
         try:
