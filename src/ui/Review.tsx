@@ -401,14 +401,17 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   const shownAt = useRef(Date.now());
   // One warning per session if answers can't be written into the Anki collection.
   const warnedAnki = useRef(false);
-  useEffect(() => { shownAt.current = Date.now(); }, [current?.id]);
+  // Each showing of a card: the same card back again (after Again, with nothing else left, or an undo)
+  // is a new showing, timed, spoken and faded in afresh, as the WebView's key below does for a template card.
+  const showing = current ? `${current.id}:${history.length}` : undefined;
+  useEffect(() => { shownAt.current = Date.now(); }, [showing]);
   // Each card, and each time a card comes back, starts with an empty box.
-  useEffect(() => { if (!revealed) setTyped(''); }, [current?.id, revealed]);
+  useEffect(() => { if (!revealed) setTyped(''); }, [showing, revealed]);
 
   // Auto-speak the front when a card with audio appears.
   useEffect(() => {
     if (rendered) speak(autoplayFor(rendered, false));
-  }, [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const answer = async (rating: RatingValue) => {
     if (!current || !note || busy.current || current === lastAnswered.current) return;
@@ -904,8 +907,8 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
-            {/* Keyed to the card, so each new one fades in rather than swapping. */}
-            <Reveal key={current.id} rise={10} style={{ gap: space.xl }}>
+            {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. */}
+            <Reveal key={showing} rise={10} style={{ gap: space.xl }}>
               <Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} />
               {canRecordYourself(rendered) ? (
                 <View style={{ flexDirection: 'row', justifyContent: 'center' }}>

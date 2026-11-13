@@ -80,6 +80,17 @@ def test_a_reflexive_verb_matches_its_forms_and_joined_pronouns_come_off() -> No
     assert LEXICON.status("dámelo") == "known"  # dar, under me and lo
 
 
+def test_a_pronoun_comes_off_a_verb_form_that_takes_one_only() -> None:
+    deck = SpacedLexicon(
+        "es", ["tomar", "ver", "estar", "correr", "poner", "dar", "ir", "te", "la"]
+    )
+    for word in ["tomarte", "tomándote", "verla", "ponlo", "dale", "irse"]:
+        assert deck.status(word) == "known", word
+    # Words that only end like a pronoun keep it: tomate isn't toma + te, nor estante estan + te.
+    for word in ["tomate", "estante", "corrales", "tela", "vasos"]:
+        assert deck.status(word) == "unknown", word
+
+
 def test_a_rare_word_outside_the_deck_is_unknown() -> None:
     assert LEXICON.status("ornitorrinco") == "unknown"
 

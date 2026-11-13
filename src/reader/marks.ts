@@ -16,7 +16,7 @@ export const HIDEABLE: HideableMark[] = ['stretch', 'practice', 'avoid', 'known'
 
 export const MARK_INFO: Record<Exclude<Mark, 'highlight'>, { title: string; about: string }> = {
   name: { title: 'Name', about: 'A person or place.' },
-  stretch: { title: 'Practice word', about: 'A new word this text was written to teach. Gold and bold, with a small dot.' },
+  stretch: { title: 'Practice word', about: 'A word from your deck this text was written to practice. Gold and bold, with a small dot.' },
   practice: { title: "Grammar you're practicing", about: 'Solid green line. Tap the word to see the point.' },
   avoid: { title: "Grammar you're avoiding", about: 'Dashed gray line. It slipped into the text anyway.' },
   known: { title: 'Grammar you know', about: "Thin gray line. A point set to Know it, or one you haven't set at all." },

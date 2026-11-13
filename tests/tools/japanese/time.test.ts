@@ -23,6 +23,12 @@ describe('a time in Japanese', () => {
     expect(say(12).also.map((p) => p.text)).toContain('正午');
   });
 
+  it('says midnight and noon with 午前零時 and 午後零時, never 午前十二時 or 午後十二時', () => {
+    expect(say(0, 15).also[0]).toEqual({ text: '午前零時十五分', roman: 'ごぜん れいじ じゅうごふん', note: 'With 午前, a.m.' });
+    expect(say(12, 30).also[0].text).toBe('午後零時半');
+    expect([0, 12].flatMap((h) => say(h).also.map((p) => p.text)).filter((t) => t.includes('午前十二') || t.includes('午後十二'))).toEqual([]);
+  });
+
   it('gives the 24-hour form for timetables', () => {
     expect(say(15, 15).formal).toEqual({ text: '十五時十五分', roman: 'じゅうごじ じゅうごふん' });
     expect(say(0, 5).formal.text).toBe('零時五分');

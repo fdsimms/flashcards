@@ -129,6 +129,14 @@ describe('soonerOffer', () => {
     expect(soonerOffer({ ...base, card: card('b', review(new Date(2026, 9, 1))), events: [{ noteId: 'a', at: new Date(2026, 10, 5), how: 'review' }] })).toBeUndefined();
     expect(soonerOffer({ ...base, card: card('b', { state: 1 }), events })).toBeUndefined();
   });
+  it('does not for a lookalike its deck already kept it apart from, only one inside the hold', () => {
+    const c = card('b', review(new Date(2026, 9, 25)));
+    const seenYesterday: SeenEvent[] = [{ noteId: 'a', at: yesterday, how: 'review' }];
+    expect(soonerOffer({ ...base, card: c, events: seenYesterday, heldDays: 1 })).toBeUndefined();
+    expect(soonerOffer({ ...base, card: c, events: seenYesterday, heldDays: 2 })).toEqual(seenYesterday[0]);
+    const seenToday: SeenEvent[] = [{ noteId: 'a', at: new Date(2026, 10, 11, 9), how: 'review' }];
+    expect(soonerOffer({ ...base, card: c, events: seenToday, heldDays: 1 })).toEqual(seenToday[0]);
+  });
 });
 
 describe('whenSeen', () => {

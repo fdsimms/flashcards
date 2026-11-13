@@ -1036,9 +1036,9 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
 }
 
 const RATINGS: { value: Rating; label: string; hint: string }[] = [
-  { value: 'too_easy', label: 'Too easy', hint: 'More new words next time' },
+  { value: 'too_easy', label: 'Too easy', hint: 'More unfamiliar words next time' },
   { value: 'about_right', label: 'About right', hint: 'Keep it like this' },
-  { value: 'too_hard', label: 'Too hard', hint: 'Fewer new words next time' },
+  { value: 'too_hard', label: 'Too hard', hint: 'Fewer unfamiliar words next time' },
 ];
 
 /** The reading size for a text's language. */

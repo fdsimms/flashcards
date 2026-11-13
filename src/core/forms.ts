@@ -167,22 +167,37 @@ function genderChoices(note: Note): string[] {
 
 export type Verdict = 'right' | 'almost' | 'wrong';
 
-/** Ё is folded into е here, as Russian usually writes it, so "елка" for "ёлка" is right. */
-const clean = (s: string) => foldYo(s.normalize('NFC').trim().replace(/\s+/g, ' ').replace(/[.!?¡¿]+$/u, '').toLocaleLowerCase());
+/**
+ * Ё is folded into е here, as Russian usually writes it, so "елка" for "ёлка" is right. So are what
+ * a keyboard decides rather than the speller, as the Practice tools' check folds them (tools/answer.ts):
+ * σ for a final ς, ss for ß, and a curly apostrophe for a straight one ("j’espère").
+ */
+const clean = (s: string) =>
+  foldYo(s.normalize('NFC').trim().replace(/\s+/g, ' ').replace(/[.!?¡¿]+$/u, '').toLocaleLowerCase())
+    .replace(/ς/g, 'σ').replace(/ß/g, 'ss').replace(/[’‘ʼ]/g, "'");
 /** Without accents and other marks: "esperé" -> "espere", "øl" -> "ol", "łza" -> "lza". */
 const unmarked = (s: string) => foldUndecomposed(s.normalize('NFD').replace(/[̀-ͯ]/g, '').normalize('NFC'));
 
 /**
  * A typed answer against a form's accepted answers. Case and surrounding spaces don't matter.
  * Right but for an accent is "almost": it's often a different form (espere, esperé), so it isn't
- * counted on its own, and the drill offers to count it.
+ * counted on its own, and the drill offers to count it. When it's exactly one of the word's other
+ * forms (`others`: pisze for piszę, hablo for habló), it's wrong: the mark is the ending being drilled.
  */
-export function checkAnswer(typed: string, answers: string[]): Verdict {
+export function checkAnswer(typed: string, answers: string[], others: string[] = []): Verdict {
   const t = clean(typed);
   if (!t) return 'wrong';
   const all = answers.map(clean);
   if (all.includes(t)) return 'right';
+  if (others.some((o) => clean(o) === t)) return 'wrong';
   return all.some((a) => unmarked(a) === unmarked(t)) ? 'almost' : 'wrong';
+}
+
+/** The word's other form a wrong answer is, if it's one: "present · on" for pisze asked as piszę. */
+export function formGiven(given: string, prompt: Pick<FormPrompt, 'answers' | 'otherForms'>): string | undefined {
+  const t = clean(given);
+  if (!t || prompt.answers.some((a) => clean(a) === t)) return undefined;
+  return prompt.otherForms?.find((o) => clean(o.text) === t)?.name;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -347,6 +362,8 @@ export interface FormPrompt {
   sentence?: { before: string; after: string; translation?: string };
   /** The grammar point the form is (docs/grammar.md), shown once the answer is. */
   grammar?: { id: string; name: string; note: string };
+  /** The word's other forms that are spelled differently, with their names ("present · on"), to say which one a wrong answer was. */
+  otherForms?: { text: string; name: string }[];
 }
 
 const isLetter = (ch: string | undefined) => !!ch && /[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]/.test(ch);
@@ -402,6 +419,9 @@ export function promptFor(
   }
   const picked = wrong.slice(0, 3);
   const word = headword(note);
+  const otherForms = form.key === 'field:Gender' ? [] : own
+    .filter((f) => f.key !== form.key && f.key !== 'field:Gender')
+    .flatMap((f) => f.answers.filter((a) => !right.has(clean(a))).map((text) => ({ text, name: f.group === f.label ? f.label : `${f.group} · ${f.label}` })));
   const point = formGrammar(note, form);
   return {
     noteId: note.id,
@@ -414,6 +434,7 @@ export function promptFor(
     ...(picked.length ? { choices: shuffle([form.answers[0], ...picked], random) } : {}),
     ...(form.key === 'field:Gender' ? {} : { sentence: sentenceGap(note, form.answers) }),
     ...(point ? { grammar: { id: point.id, name: point.name, note: point.note } } : {}),
+    ...(otherForms.length ? { otherForms } : {}),
   };
 }
 
@@ -619,17 +640,24 @@ export function patternPrompts(
   const chosen = words.filter((w) => choice.patterns.includes(patternOf(w.note)));
   const byNote = new Map<string, PracticeRecord[]>();
   for (const r of history) (byNote.get(r.noteId) ?? byNote.set(r.noteId, []).get(r.noteId)!).push(r);
-  const candidates: { word: PracticeWord; form: WordForm; rank: number; owed: number }[] = [];
+  const candidates: { word: PracticeWord; form: WordForm; rank: number; owed: number; lastAsked: string }[] = [];
   for (const w of chosen) {
     const mine = byNote.get(w.note.id) ?? [];
     const weak = weakForms(mine);
-    const asked = new Set(mine.map((r) => r.key));
+    const lastAsked = new Map<string, string>();
+    for (const r of mine) if ((lastAsked.get(r.key) ?? '') < r.practicedAt) lastAsked.set(r.key, r.practicedAt);
     for (const f of w.forms) {
       if (!choice.groups.includes(f.group)) continue;
-      candidates.push({ word: w, form: f, rank: askRank(f, weak, asked.has(f.key), confused, isPracticed(w.note, f, practicing)), owed: weak.get(f.key) ?? 0 });
+      candidates.push({
+        word: w, form: f, rank: askRank(f, weak, lastAsked.has(f.key), confused, isPracticed(w.note, f, practicing)),
+        owed: weak.get(f.key) ?? 0, lastAsked: lastAsked.get(f.key) ?? '',
+      });
     }
   }
-  const ordered = shuffle(candidates, random).sort((a, b) => a.rank - b.rank || b.owed - a.owed).slice(0, count);
+  // As `chooseForms` orders one word's: then the form asked longest ago, so yesterday's aren't as likely as last month's.
+  const ordered = shuffle(candidates, random)
+    .sort((a, b) => a.rank - b.rank || b.owed - a.owed || a.lastAsked.localeCompare(b.lastAsked))
+    .slice(0, count);
   // Spread the words out: take the next candidate from a different word than the last one.
   const out: typeof ordered = [];
   const left = shuffle(ordered, random);

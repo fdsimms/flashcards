@@ -21,15 +21,21 @@ describe('a time’s patterns', () => {
 describe('an amount’s patterns', () => {
   const PLN = CURRENCIES.PLN;
 
-  it('gives its size, whether it has a minor part, and how it ends', () => {
-    expect(moneyPatterns(2300, PLN)).toEqual(['digits:2', 'minor:false', 'ends:2-4']);
-    expect(moneyPatterns(1_277_50, PLN)).toEqual(['digits:4', 'minor:true', 'ends:5-9']);
-    expect(moneyPatterns(100, PLN)).toEqual(['digits:1', 'minor:false', 'ends:1']);
+  it('gives how it ends, how its thousands end, and a minor part when it has one', () => {
+    expect(moneyPatterns(2300, PLN)).toEqual(['ends:2-4']);
+    expect(moneyPatterns(1_277_50, PLN)).toEqual(['ends:5-9', 'thousands:1', 'minor']);
+    expect(moneyPatterns(5_000_00, PLN)).toEqual(['ends:0', 'thousands:5-9']);
+    expect(moneyPatterns(100, PLN)).toEqual(['ends:1']);
+  });
+
+  it('leaves out what nearly every amount has, so a miss leans toward its own kind', () => {
+    // A rouble amount is always whole, and most up to 10,000 have four digits: neither tells one apart.
+    for (const a of [12, 313, 714, 5000, 9999]) expect(moneyPatterns(a * 100, CURRENCIES.RUB).filter((p) => p.startsWith('minor') || p.startsWith('digits'))).toEqual([]);
   });
 
   it('sets the teens apart from the endings they’d otherwise share', () => {
     // 22, 12, 112, 21, 20 and 25 zł.
-    expect([2200, 1200, 11200, 2100, 2000, 2500].map((a) => moneyPatterns(a, PLN)[2])).toEqual(['ends:2-4', 'ends:teen', 'ends:teen', 'ends:1', 'ends:0', 'ends:5-9']);
+    expect([2200, 1200, 11200, 2100, 2000, 2500].map((a) => moneyPatterns(a, PLN)[0])).toEqual(['ends:2-4', 'ends:teen', 'ends:teen', 'ends:1', 'ends:0', 'ends:5-9']);
   });
 });
 

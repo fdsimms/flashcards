@@ -59,8 +59,9 @@ export function useReviewForms(repo: Repo, input: {
 
   const { card, note, revealed } = shown;
   // The lookalike that may have given this card's answer away, once it's shown (`soonerOffer`).
-  const offer = card && note && revealed && lookalikeSettings(note.deck, deckSettings).offerSooner
-    ? soonerOffer({ card, index, events: seen, now, dayStartsAtHour: H })
+  const look = note ? lookalikeSettings(note.deck, deckSettings) : undefined;
+  const offer = card && revealed && look?.offerSooner
+    ? soonerOffer({ card, index, events: seen, now, dayStartsAtHour: H, heldDays: look.keepApart ? look.days : undefined })
     : undefined;
   // The suggestion to practice this word's forms, once its answer is shown.
   const suggestion = useMemo(() => {

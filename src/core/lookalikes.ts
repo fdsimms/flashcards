@@ -189,6 +189,10 @@ export const SOONER_DAYS = SEEN_LOOKBACK_DAYS;
  * The lookalike that may have given away a Review card's answer: one seen since the card was last
  * reviewed, within `SOONER_DAYS`. Scheduling the answer from that moment instead of the last
  * review gives the smaller interval FSRS gives a card reviewed then (`countFrom` in scheduler.ts).
+ *
+ * With the card's deck keeping lookalikes apart (`heldDays`, its `lookalikeDays`), only one seen
+ * within that window counts: one seen before it is what the hold already judged far enough apart,
+ * and cutting the interval for it would penalize every card the hold kept apart, the day after.
  */
 export function soonerOffer(input: {
   card: Card;
@@ -196,11 +200,12 @@ export function soonerOffer(input: {
   events: SeenEvent[];
   now: Date;
   dayStartsAtHour: number;
+  heldDays?: number;
 }): SeenEvent | undefined {
   const { card } = input;
   if (card.sched.state !== 2 || !card.sched.lastReview) return undefined;
   const last = new Date(card.sched.lastReview);
-  const since = windowStart(input.now, input.dayStartsAtHour, SOONER_DAYS);
+  const since = windowStart(input.now, input.dayStartsAtHour, Math.min(input.heldDays ?? SOONER_DAYS, SOONER_DAYS));
   const seen = latestLookalike(card.noteId, input.index, input.events, since > last ? since : last);
   return seen && seen.at > last && seen.at <= input.now ? seen : undefined;
 }

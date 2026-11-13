@@ -63,8 +63,20 @@ export function checkMeaning(subject: Subject, synonyms: string[], typed: string
     ...synonyms,
   ].map(normalizeMeaning).filter(Boolean);
   if (accepted.includes(answer)) return { result: 'correct' };
-  const close = accepted.some((m) => levenshtein(answer, m) <= typoAllowance(m.length));
+  const close = accepted.some((m) => closeEnough(answer, m));
   return close ? { result: 'correct', close: true } : { result: 'wrong' };
+}
+
+/**
+ * A typo away from a meaning. With as many words as the meaning, each word gets its own word's
+ * allowance as well: measured over the whole, "to eat" (6 letters, 2 typos) took "to sit", "to cut"
+ * and "to get", and "two things" took "six things", each a different word with the short one wrong.
+ */
+function closeEnough(answer: string, meaning: string): boolean {
+  if (levenshtein(answer, meaning) > typoAllowance(meaning.length)) return false;
+  const typed = answer.split(' ');
+  const words = meaning.split(' ');
+  return typed.length !== words.length || words.every((w, i) => levenshtein(typed[i], w) <= typoAllowance(w.length));
 }
 
 export function checkReading(subject: Subject, typed: string): Verdict {

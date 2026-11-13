@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  checkAnswer, chooseForms, formGrammar, practicedGroups, practicedGroupsLine, confusedAnswers, confusions, weakForms, formsOf, formsSettings, formsSuggestion, headword, introductions, patternOf, patternPrompts,
+  checkAnswer, chooseForms, formGiven, formGrammar, practicedGroups, practicedGroupsLine, confusedAnswers, confusions, weakForms, formsOf, formsSettings, formsSuggestion, headword, introductions, patternOf, patternPrompts,
   practiceChoices, practicePool, promptFor, drillPrompts, studiedWords, sentenceGap, unreadableNotice, withoutArticle, wordPrompts, type PracticeRecord, type WordForm,
 } from '../../src/core/forms';
 import { newSchedState } from '../../src/core/scheduler';
@@ -110,6 +110,17 @@ describe('checkAnswer', () => {
     expect(checkAnswer('soeurs', ['sœurs'])).toBe('almost');
     expect(checkAnswer('szedl', ['szedł'])).toBe('almost');
   });
+  it("calls another form of the word wrong, not almost: the mark is the ending being drilled", () => {
+    expect(checkAnswer('pisze', ['piszę'], ['pisze', 'piszesz'])).toBe('wrong');
+    expect(checkAnswer('pisze', ['piszę'])).toBe('almost');
+    expect(checkAnswer('piszę', ['piszę'], ['pisze'])).toBe('right');
+  });
+  it("folds what the keyboard decides: a final σ, ss for ß, a curly apostrophe", () => {
+    expect(checkAnswer('παιδιασ', ['παιδιάς'])).toBe('almost');
+    expect(checkAnswer('παιδιάσ', ['παιδιάς'])).toBe('right');
+    expect(checkAnswer('ass', ['aß'])).toBe('right');
+    expect(checkAnswer('j’espère', ["j'espère"])).toBe('right');
+  });
   it('accepts any of the alternatives, and nothing else', () => {
     expect(checkAnswer('esperase', ['esperara', 'esperase'])).toBe('right');
     expect(checkAnswer('esperaban', ['esperarán'])).toBe('wrong');
@@ -193,6 +204,15 @@ describe('promptFor', () => {
     expect(p.choices).toContain('esperamos');
     expect(p.choices!.filter((c) => c !== 'esperamos').every((c) => ['espero', 'esperas', 'espera'].includes(c))).toBe(true);
     expect(p).toMatchObject({ headword: 'esperar', meaning: 'to wait; to hope', label: 'nosotros', group: 'present' });
+  });
+  it("names the word's other forms, so a wrong answer can say which one it was", () => {
+    const note = esperar();
+    const p = promptFor(note, formsOf(note).forms.find((f) => f.key === 'present · nosotros')!, [], seeded());
+    expect(p.otherForms).toContainEqual({ text: 'espero', name: 'present · yo' });
+    expect(p.otherForms!.some((o) => o.text === 'esperamos')).toBe(false);
+    expect(formGiven('Espero', p)).toBe('present · yo');
+    expect(formGiven('esperamos', p)).toBeUndefined();
+    expect(formGiven('xyz', p)).toBeUndefined();
   });
   it('fills in from the same form of other words when the word has too few', () => {
     const tisch = { ...omniNote({ Entry: 'der Tisch', Language: 'german', Plural: 'die Tische' }), id: 'tisch' };
@@ -293,6 +313,13 @@ describe('pattern practice', () => {
   it('puts forms still owed right answers first', () => {
     const ps = patternPrompts(words, { patterns: ['irregular'], groups: ['present'] }, [rec('present · tú', false, at(9), 'tener')], 1, seeded());
     expect(ps.map((p) => p.key)).toEqual(['present · tú']);
+  });
+  it('then asks the form asked longest ago', () => {
+    const history = [rec('present · yo', true, at(9), 'tener'), rec('present · tú', true, at(2), 'tener')];
+    for (let seed = 1; seed <= 20; seed++) {
+      const ps = patternPrompts(words, { patterns: ['irregular'], groups: ['present'] }, history, 1, seeded(seed * 7919));
+      expect(ps.map((p) => p.key)).toEqual(['present · tú']);
+    }
   });
 });
 

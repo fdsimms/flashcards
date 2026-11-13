@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { checkAnswer, drillPrompts, type DrillRequest, type FormPrompt, type PracticeRecord, type Verdict } from '../core/forms';
+import { checkAnswer, drillPrompts, formGiven, type DrillRequest, type FormPrompt, type PracticeRecord, type Verdict } from '../core/forms';
 import { failureText } from '../core/failure';
 import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
@@ -19,6 +19,8 @@ interface Answered {
   prompt: FormPrompt;
   given: string;
   verdict: Verdict;
+  /** The row it was logged as, which counting an "almost" marks right. */
+  record: PracticeRecord;
   /** "Almost" that the user chose to count. */
   counted: boolean;
 }
@@ -81,6 +83,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   const log = async (p: FormPrompt, correct: boolean, given: string) => {
     const record: PracticeRecord = { noteId: p.noteId, key: p.key, correct, practicedAt: new Date().toISOString(), given };
     await repo.addPractice(record);
+    return record;
   };
 
   const answer = async (given: string, picked = false) => {
@@ -88,10 +91,10 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
     busy.current = true;
     try {
       // A pick is the form or it isn't: a choice one accent away is another form, not a typo.
-      const verdict: Verdict = picked ? (prompt.answers.includes(given) ? 'right' : 'wrong') : checkAnswer(given, prompt.answers);
-      await log(prompt, verdict === 'right', given);
+      const verdict: Verdict = picked ? (prompt.answers.includes(given) ? 'right' : 'wrong') : checkAnswer(given, prompt.answers, prompt.otherForms?.map((o) => o.text));
+      const record = await log(prompt, verdict === 'right', given);
       if (verdict === 'right') haptic.success(); else haptic.select();
-      setAnswered((a) => [...a, { prompt, given, verdict, counted: false }]);
+      setAnswered((a) => [...a, { prompt, given, verdict, record, counted: false }]);
       // `busy` clears before the answer is drawn: a tap in between mustn't log this prompt again.
       answeredIndex.current = index;
     } catch (e) {
@@ -101,12 +104,12 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
     }
   };
 
-  /** "Almost" counted as right: logged again as right, so the miss isn't what's remembered. */
+  /** "Almost" counted as right: its row is marked right, so no miss is left to ask it again or show in the history. */
   const countIt = async () => {
     if (!current || current.verdict !== 'almost' || current.counted || busy.current) return;
     busy.current = true;
     try {
-      await log(current.prompt, true, current.given);
+      await repo.countPractice(current.record);
       haptic.success();
       setAnswered((a) => a.map((x, i) => (i === index ? { ...x, counted: true } : x)));
     } catch (e) {
@@ -289,6 +292,8 @@ export function ChoiceButton({ label, state, onPress }: { label: string; state: 
 function Feedback({ answered, onCount, onOpenGrammar }: { answered: Answered; onCount: () => void; onOpenGrammar?: (id: string) => void }) {
   const c = useTheme();
   const answer = answered.prompt.answers[0];
+  // Which of the word's forms a wrong answer was, so the contrast being drilled is named.
+  const given = answered.verdict === 'wrong' ? formGiven(answered.given, answered.prompt) : undefined;
   if (answered.verdict === 'right') {
     return (
       <Card style={{ gap: space.xs }}>
@@ -314,6 +319,7 @@ function Feedback({ answered, onCount, onOpenGrammar }: { answered: Answered; on
   return (
     <Card style={{ gap: space.xs }}>
       <Text style={{ ...type.headline, color: c.danger }}>{`Not quite: ${answer}`}</Text>
+      {given ? <Help>{`${answered.given.trim()} is ${given}.`}</Help> : null}
       {answered.prompt.answers.length > 1 ? <Help>{`Also right: ${answered.prompt.answers.slice(1).join(', ')}`}</Help> : null}
       <GrammarLine grammar={answered.prompt.grammar} onOpen={onOpenGrammar} />
     </Card>

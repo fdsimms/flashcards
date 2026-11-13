@@ -31,6 +31,15 @@ describe('meanings', () => {
     expect(checkMeaning(vocab, [], 'child')).toEqual({ result: 'wrong' });
   });
 
+  it("measures each word's typos against that word, so a short word in a phrase isn't swapped for another", () => {
+    const eat = parseSubject({ ...vocabResource, data: { ...vocabResource.data, meanings: [{ meaning: 'To Eat', primary: true, accepted_answer: true }], auxiliary_meanings: [] } })!;
+    for (const typed of ['to sit', 'to cut', 'to get', 'to hit']) expect(checkMeaning(eat, [], typed)).toEqual({ result: 'wrong' });
+    expect(checkMeaning(eat, [], 'to eat')).toEqual({ result: 'correct' });
+    const things = parseSubject({ ...vocabResource, data: { ...vocabResource.data, meanings: [{ meaning: 'Two Things', primary: true, accepted_answer: true }], auxiliary_meanings: [] } })!;
+    expect(checkMeaning(things, [], 'six things')).toEqual({ result: 'wrong' });
+    expect(checkMeaning(things, [], 'two thngs')).toEqual({ result: 'correct', close: true });
+  });
+
   it('asks again for kana typed as a meaning, or nothing at all', () => {
     expect(checkMeaning(vocab, [], 'おとな').result).toBe('retry');
     expect(checkMeaning(vocab, [], '  ').result).toBe('retry');
