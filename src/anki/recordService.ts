@@ -1,3 +1,4 @@
+import { speechLangFor } from '../core/cards';
 import { needsRecording, recordingName, recordingText, RECORDING_RATE, withRecording } from '../core/recording';
 import type { Note } from '../core/types';
 import { sha1Hex } from './sha1';
@@ -10,8 +11,11 @@ import { saveNote, type NoteStore } from './noteService';
  */
 export interface RecordDeps {
   store: NoteStore;
-  /** The text as MP3, from Read & Listen's server (`Api.speech`). */
-  speak(text: string, voice: string, rate: number): Promise<Uint8Array>;
+  /**
+   * The text as MP3, from Read & Listen's server (`Api.speech`). `language` is the text's (th-TH), for a
+   * Multilingual voice, which reads any language and would otherwise guess it from the text.
+   */
+  speak(text: string, voice: string, rate: number, language?: string): Promise<Uint8Array>;
   media: {
     exists(name: string): boolean;
     read(name: string): Promise<Uint8Array | undefined>;
@@ -31,13 +35,14 @@ export interface Recording {
 /**
  * `text` spoken in `voice`, kept in the media folder. A file with the same text and voice already
  * here is used again rather than asked for. Nothing is sent yet (`sendRecording`), so a recording
- * made in the note editor and never saved stays on the phone.
+ * made in the note editor and never saved stays on the phone. `language` is the text's
+ * (`speechLangFor` the note).
  */
-export async function makeRecording(deps: RecordDeps, text: string, voice: string): Promise<Recording> {
+export async function makeRecording(deps: RecordDeps, text: string, voice: string, language?: string): Promise<Recording> {
   const name = recordingName(text, voice);
   let bytes = deps.media.exists(name) ? await deps.media.read(name) : undefined;
   if (!bytes?.length) {
-    bytes = await deps.speak(text, voice, RECORDING_RATE);
+    bytes = await deps.speak(text, voice, RECORDING_RATE, language);
     await deps.media.write(name, bytes);
   }
   return { name, sha1: sha1Hex(bytes) };
@@ -57,7 +62,7 @@ export async function recordNote(deps: RecordDeps, noteId: string, voice: string
   const before = await deps.store.getNote(noteId);
   if (!before || !needsRecording(before)) return undefined;
   const text = recordingText(before);
-  const recording = await makeRecording(deps, text, voice);
+  const recording = await makeRecording(deps, text, voice, speechLangFor(before));
 
   const note = await deps.store.getNote(noteId);
   if (!note || !needsRecording(note) || recordingText(note) !== text) return undefined;

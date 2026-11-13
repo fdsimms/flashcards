@@ -34,19 +34,20 @@ export function useAzureVoices(api: Api | null, language: string | undefined) {
 /**
  * Plays `text` in an Azure voice, to hear it before choosing. Each sample is asked for once and
  * kept in the cache folder, named as a recording would be, so tapping a voice again plays at once.
+ * `language` is the text's (th-TH, or Read & Listen's code: th), for a Multilingual voice.
  */
 export function useAzureSample(api: Api | null) {
   const player = useRef<AudioPlayer | null>(null);
   const [error, setError] = useState<string>();
   useEffect(() => () => { player.current?.remove(); player.current = null; }, []);
-  const play = useCallback(async (text: string, voice: string) => {
+  const play = useCallback(async (text: string, voice: string, language?: string) => {
     if (!api) return;
     setError(undefined);
     player.current?.pause();
     try {
       const file = new File(Paths.cache, `sample-${recordingName(text, voice)}`);
       if (!file.exists) {
-        const bytes = await api.speech(text, voice);
+        const bytes = await api.speech(text, voice, 1, language);
         file.create({ overwrite: true });
         await file.write(bytes);
       }

@@ -32,7 +32,7 @@ export function ReadVoicePick({ api, language, slot, selected, onSettings }: {
     const before = chosen;
     setChosen(voice);
     setError(undefined);
-    sample.play(sampleLine(language, gender), voice);
+    sample.play(sampleLine(language, gender), voice, language);
     try {
       onSettings(await api.updateSettings({ voices: { [language]: { [slot]: voice } } }));
     } catch (e) {

@@ -56,8 +56,8 @@ class Spoken:
     marks: list[WordMark] | None = None
 
 
-# Speaks one line in one voice.
-Synthesize = Callable[[str, str], Coroutine[Any, Any, Spoken]]
+# Speaks one line in one voice: the text, the voice, and the text's locale (th-TH).
+Synthesize = Callable[[str, str, str], Coroutine[Any, Any, Spoken]]
 
 
 class Speech(Protocol):
@@ -65,7 +65,9 @@ class Speech(Protocol):
 
     async def voices(self) -> list[dict[str, Any]]: ...
 
-    async def synthesize(self, text: str, voice: str, rate: float = 1.0) -> bytes: ...
+    async def synthesize(
+        self, text: str, voice: str, rate: float = 1.0, language: str | None = None
+    ) -> bytes: ...
 
 
 class TtsFailed(Exception):
@@ -73,9 +75,9 @@ class TtsFailed(Exception):
 
 
 def azure_synthesize(client: SpeechClient) -> Synthesize:
-    async def synthesize(text: str, voice: str) -> Spoken:
+    async def synthesize(text: str, voice: str, language: str) -> Spoken:
         try:
-            return Spoken(*await client.speak(text, voice))
+            return Spoken(*await client.speak(text, voice, language=language))
         except SpeechError as e:
             raise TtsFailed(str(e)) from e
 

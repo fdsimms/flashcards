@@ -7,8 +7,8 @@ Open risk: the request shapes here (the region host, the SSML body, the output-f
 the voices list) follow Azure's documented REST API as known when this was written. The host,
 the `Ocp-Apim-Subscription-Key` header and the `audio-24khz-48kbitrate-mono-mp3` format name were
 checked against Microsoft's own Speech SDK source; the `/cognitiveservices/v1` path, the
-`X-Microsoft-OutputFormat` header and the voices list are unverified until the first call with a
-live key. The endpoint is configurable (AZURE_SPEECH_ENDPOINT) in case a region or a custom domain
+`X-Microsoft-OutputFormat` header, the voices list and the <lang> element a Multilingual voice is
+given (`ssml`) are unverified until the first call with a live key. The endpoint is configurable (AZURE_SPEECH_ENDPOINT) in case a region or a custom domain
 needs another host.
 
 `speak` records through Azure's Speech SDK instead (sdk.py, the `timings` extra), for the word
@@ -22,7 +22,7 @@ import logging
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TypeVar
 from xml.sax.saxutils import escape
 
 import httpx
@@ -30,6 +30,7 @@ import httpx
 from franki_speech.sdk import SdkMissing, SdkResult, WordMark, speak_ssml
 
 log = logging.getLogger(__name__)
+T = TypeVar("T")
 
 OUTPUT_FORMAT = "audio-24khz-48kbitrate-mono-mp3"
 TIMEOUT_SECONDS = 30.0
@@ -41,6 +42,8 @@ MAX_RETRY_WAIT = 10.0
 # hold the reader's topic lock and stop the shelf filling, so past this the line goes by REST.
 SDK_TIMEOUT_SECONDS = 60.0
 LOCALE = re.compile(r"^([a-z]{2,3}-[A-Z]{2})-")
+# A text's language as a locale: a language, an optional script and a region (th-TH, ja-JP, sr-Latn-RS).
+_TEXT_LOCALE = re.compile(r"^([A-Za-z]{2,3})(?:-([A-Za-z]{4}))?-([A-Za-z]{2}|\d{3})$")
 # Thai has no commas or periods: a space after Thai text (or its ? or !) and before more Thai ends a
 # clause or sentence. Each becomes an explicit pause, since a voice may run straight through a bare
 # space. A space beside a Latin word ("OK ค่ะ") isn't a break and is left alone.
@@ -64,13 +67,20 @@ __all__ = [
     "SpeechClient",
     "SpeechError",
     "WordMark",
+    "is_multilingual",
     "locale_of",
     "ssml",
+    "text_locale",
 ]
 
 
 class SpeechError(Exception):
-    """Azure refused or couldn't be reached; the message says which and why."""
+    """Azure refused or couldn't be reached; the message says which and why. `status` is the HTTP
+    status of a refusal (an SDK error mapped to one), when there was one."""
+
+    def __init__(self, message: str, status: int | None = None) -> None:
+        super().__init__(message)
+        self.status = status
 
 
 @dataclass
@@ -116,8 +126,51 @@ class SpeechClient:
             ]
         return self._voices
 
-    async def synthesize(self, text: str, voice: str, rate: float = 1.0) -> bytes:
-        """The text spoken in `voice` at `rate` (1.0 is normal speed), as MP3 bytes."""
+    async def synthesize(
+        self, text: str, voice: str, rate: float = 1.0, language: str | None = None
+    ) -> bytes:
+        """`_synthesize`, asked again without the language if Azure refuses the `<lang>` element
+        (`_without_lang_on_refusal`)."""
+        return await self._without_lang_on_refusal(
+            text, voice, rate, language, lambda lang: self._synthesize(text, voice, rate, lang)
+        )
+
+    async def speak(
+        self, text: str, voice: str, rate: float = 1.0, language: str | None = None
+    ) -> tuple[bytes, list[WordMark] | None]:
+        """`_speak`, asked again without the language if Azure refuses the `<lang>` element
+        (`_without_lang_on_refusal`)."""
+        return await self._without_lang_on_refusal(
+            text, voice, rate, language, lambda lang: self._speak(text, voice, rate, lang)
+        )
+
+    async def _without_lang_on_refusal(
+        self,
+        text: str,
+        voice: str,
+        rate: float,
+        language: str | None,
+        call: Callable[[str | None], Awaitable[T]],
+    ) -> T:
+        """The `<lang>` element a Multilingual voice is given (`ssml`) is written from Microsoft's
+        examples but unchecked against a live key. If Azure refuses a request that has one, the
+        line is asked for again without it, as it was before, rather than not recorded at all."""
+        try:
+            return await call(language)
+        except SpeechError as e:
+            if e.status != 400 or ssml(text, voice, rate, language) == ssml(text, voice, rate):
+                raise
+            log.warning(
+                "Azure refused <lang xml:lang='%s'> for %s; recording without it", language, voice
+            )
+            return await call(None)
+
+    async def _synthesize(
+        self, text: str, voice: str, rate: float = 1.0, language: str | None = None
+    ) -> bytes:
+        """The text spoken in `voice` at `rate` (1.0 is normal speed), as MP3 bytes. `language` is
+        the text's locale (th-TH), when it's known: a Multilingual voice is told to read it in that
+        language (`ssml`)."""
         r = await self._send(
             "POST",
             "/cognitiveservices/v1",
@@ -127,21 +180,21 @@ class SpeechClient:
                     "X-Microsoft-OutputFormat": OUTPUT_FORMAT,
                 }
             ),
-            content=ssml(text, voice, rate).encode(),
+            content=ssml(text, voice, rate, language).encode(),
         )
         if not r.content:
             raise SpeechError(f"Azure returned no audio for {voice}.")
         return r.content
 
-    async def speak(
-        self, text: str, voice: str, rate: float = 1.0
+    async def _speak(
+        self, text: str, voice: str, rate: float = 1.0, language: str | None = None
     ) -> tuple[bytes, list[WordMark] | None]:
         """The text spoken as `synthesize` speaks it, with when each word starts and ends, which
         only the Speech SDK gives. The words are None when they can't be had (a custom endpoint,
         which the SDK isn't set up for here; the SDK not loading; Azure unreachable over its
         connection): the audio then comes from the REST API, as `synthesize` makes it."""
         if self.endpoint is None:
-            body = ssml(text, voice, rate)
+            body = ssml(text, voice, rate, language)
             for attempt in range(RATE_LIMIT_RETRIES + 1):
                 try:
                     r = await asyncio.wait_for(
@@ -165,7 +218,7 @@ class SpeechClient:
                     log.warning("Speech SDK couldn't reach Azure (%s), trying REST", r.error)
                     break
                 raise self._refused(_SDK_STATUS.get(r.error), f"{r.error}: {r.details[:200]}")
-        return await self.synthesize(text, voice, rate), None
+        return await self._synthesize(text, voice, rate, language), None
 
     async def _send(self, method: str, path: str, **kw: Any) -> httpx.Response:
         for attempt in range(RATE_LIMIT_RETRIES + 1):
@@ -188,7 +241,7 @@ class SpeechClient:
                 "Azure Speech refused the key. Check AZURE_SPEECH_KEY and AZURE_SPEECH_REGION in server/.env."
             )
         if status == 400:
-            return SpeechError(f"Azure Speech refused the request. {self.voice_help}")
+            return SpeechError(f"Azure Speech refused the request. {self.voice_help}", 400)
         if status == 429:
             return SpeechError("Azure Speech is limiting requests. Wait a minute and try again.")
         return SpeechError(f"Azure Speech answered {what}")
@@ -225,15 +278,50 @@ def locale_of(voice: str) -> str:
     return m.group(1)
 
 
-def ssml(text: str, voice: str, rate: float = 1.0) -> str:
+def is_multilingual(voice: str) -> bool:
+    """Azure's Multilingual voices read any language, though each is listed under one locale
+    (en-US-AvaMultilingualNeural)."""
+    return "Multilingual" in voice
+
+
+def text_locale(language: str) -> str:
+    """A text's language as the locale SSML names it ("th-th" is th-TH), or why it isn't one."""
+    m = _TEXT_LOCALE.match(language.strip())
+    if not m:
+        raise SpeechError(f'"{language}" isn\'t a language and region (like "th-TH" or "ja-JP").')
+    lang, script, region = m.groups()
+    return "-".join([lang.lower(), *([script.title()] if script else []), region.upper()])
+
+
+def ssml(text: str, voice: str, rate: float = 1.0, language: str | None = None) -> str:
+    """The SSML that speaks `text` in `voice` at `rate`. `language` is the text's locale, when it's
+    known. A Multilingual voice reading another language than its own is told which, since left to
+    itself it guesses from the text, and a short line, or Japanese in kanji alone (read as
+    Chinese), can be guessed wrong. Any other voice reads its own language, and `language` changes
+    nothing for it."""
     pct = round((rate - 1) * 100)
     locale = locale_of(voice)
+    spoken_in = locale
+    if language is not None and is_multilingual(voice):
+        spoken_in = text_locale(language)
     body = escape(text)
-    if locale.startswith("th-"):
+    if spoken_in.split("-")[0] == "th":
         body = _THAI_BREAK.sub(THAI_PAUSE, body)
         for word, alias in THAI_PRONUNCIATIONS.items():
             body = body.replace(word, f"<sub alias='{alias}'>{word}</sub>")
+    body = f"<prosody rate='{pct:+d}%'>{body}</prosody>"
+    if spoken_in != locale:
+        # Microsoft's "Voice and sound with SSML" page (speech-synthesis-markup-voice, "Adjust
+        # speaking languages", the lang element), as it was described when this was written: a
+        # Multilingual voice's text goes in <lang xml:lang='...'> directly inside <voice>, and
+        # <speak>'s xml:lang stays the voice's own locale. The structure page lets <lang> hold
+        # <prosody>, <break> and <sub>, so the rate and Thai's pauses go inside it. Unchecked
+        # against a live key (learn.microsoft.com couldn't be fetched from where this was
+        # written, so the form is from Microsoft's examples as known, not reread): if Azure
+        # refuses it, or a voice still guesses the language, look here first. Other voices don't
+        # take <lang> at all, by Microsoft's note, so theirs never gets one.
+        body = f"<lang xml:lang='{spoken_in}'>{body}</lang>"
     return (
         f"<speak version='1.0' xml:lang='{locale}'><voice name='{escape(voice)}'>"
-        f"<prosody rate='{pct:+d}%'>{body}</prosody></voice></speak>"
+        f"{body}</voice></speak>"
     )

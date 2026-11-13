@@ -3,7 +3,7 @@ from pathlib import Path
 
 import httpx
 import pytest
-from franki_speech import SpeechClient, WordMark
+from franki_speech import SpeechClient, WordMark, ssml
 from franki_speech.sdk import SdkResult
 
 from franki_reader.tts import AudioCache, Spoken, TtsFailed, azure_synthesize
@@ -14,21 +14,31 @@ from franki_reader.tts import AudioCache, Spoken, TtsFailed, azure_synthesize
 MARKS = [WordMark("สวัสดี", 50, 600), WordMark("ครับ", 600, 900)]
 
 
-def run(sdk: SdkResult) -> Spoken:
+def run(sdk: SdkResult, voice: str = "th-TH-NiwatNeural", sent: list[str] | None = None) -> Spoken:
     async def speak(key: str, region: str, body: str) -> SdkResult:
+        if sent is not None:
+            sent.append(body)
         return sdk
 
     async def go() -> Spoken:
         rest = httpx.MockTransport(lambda r: httpx.Response(200, content=b"ID3rest"))
         async with httpx.AsyncClient(transport=rest) as http:
             client = SpeechClient("k", "eastus", http=http, sdk_speak=speak)
-            return await azure_synthesize(client)("สวัสดีครับ", "th-TH-NiwatNeural")
+            return await azure_synthesize(client)("สวัสดีครับ", voice, "th-TH")
 
     return asyncio.run(go())
 
 
 def test_speaks_a_line_with_its_word_timings_through_the_shared_client() -> None:
     assert run(SdkResult(audio=b"ID3mp3", marks=MARKS)) == Spoken(b"ID3mp3", MARKS)
+
+
+def test_the_lines_language_reaches_azure() -> None:
+    sent: list[str] = []
+    ava = "en-US-AvaMultilingualNeural"
+    run(SdkResult(audio=b"ID3mp3", marks=MARKS), ava, sent)
+    assert sent == [ssml("สวัสดีครับ", ava, language="th-TH")]
+    assert "<lang xml:lang='th-TH'>" in sent[0]
 
 
 def test_a_line_azure_couldnt_time_is_still_spoken() -> None:

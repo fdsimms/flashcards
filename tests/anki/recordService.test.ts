@@ -21,7 +21,7 @@ async function franki(notes = [omniNote()]) {
   const spoken: string[] = [];
   const deps: RecordDeps = {
     store,
-    speak: async (text, voice) => { spoken.push(`${voice}:${text}`); return new TextEncoder().encode(`mp3 ${text}`); },
+    speak: async (text, voice, _rate, language) => { spoken.push(`${voice}:${language}:${text}`); return new TextEncoder().encode(`mp3 ${text}`); },
     media: {
       exists: (n) => files.has(n),
       read: async (n) => files.get(n),
@@ -40,7 +40,8 @@ describe('recording notes', () => {
     const f = await franki();
     const saved = await recordNote(f.deps, 'n1', VOICE);
     const name = saved!.fields.Audio.match(/\[sound:(.+)\]/)![1];
-    expect(f.spoken).toEqual([`${VOICE}:หนังสือ`]);
+    // The note's language goes with it, for a Multilingual voice.
+    expect(f.spoken).toEqual([`${VOICE}:th-TH:หนังสือ`]);
     expect(new TextDecoder().decode(f.files.get(name))).toBe('mp3 หนังสือ');
     expect(f.pending.get(name)).toBe(sha1Hex(f.files.get(name)!));
     expect((await f.store.getNote('n1'))!.fields.Audio).toBe(`[sound:${name}]`);

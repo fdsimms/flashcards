@@ -165,7 +165,7 @@ def test_logging_a_reading() -> None:
 def speaking_client(tmp_path: Path, timed: bool = False) -> TestClient:
     from franki_reader.tts import AudioCache
 
-    async def voice(text: str, name: str) -> Spoken:
+    async def voice(text: str, name: str, language: str) -> Spoken:
         # Timed: the whole line as one word, so every word in it is spoken from 0 to 1000 ms.
         return Spoken(b"ID3" + text.encode(), [WordMark(text, 0, 1000)] if timed else None)
 
@@ -623,7 +623,7 @@ class FakeSpeech:
     """Azure, as the voice routes use it."""
 
     def __init__(self) -> None:
-        self.spoken: list[tuple[str, str, float]] = []
+        self.spoken: list[tuple[str, str, float, str | None]] = []
 
     async def voices(self) -> list[dict[str, Any]]:
         return [
@@ -657,8 +657,10 @@ class FakeSpeech:
             {"voice": "en-US-AriaNeural", "locale": "en-US", "name": "Aria", "gender": "Female"},
         ]
 
-    async def synthesize(self, text: str, voice: str, rate: float = 1.0) -> bytes:
-        self.spoken.append((text, voice, rate))
+    async def synthesize(
+        self, text: str, voice: str, rate: float = 1.0, language: str | None = None
+    ) -> bytes:
+        self.spoken.append((text, voice, rate, language))
         return b"ID3" + text.encode()
 
 
@@ -710,7 +712,8 @@ def test_speaks_a_cards_text_as_mp3() -> None:
     assert r.status_code == 200
     assert r.headers["content-type"] == "audio/mpeg"
     assert r.content == b"ID3kot"
-    assert speech.spoken == [("kot", "pl-PL-ZofiaNeural", 0.9)]
+    # An app from before the text's language was sent leaves it out.
+    assert speech.spoken == [("kot", "pl-PL-ZofiaNeural", 0.9, None)]
     assert (
         c.post(
             "/api/speech", json={"text": "x" * 501, "voice": "pl-PL-ZofiaNeural"}, headers=AUTH
@@ -723,6 +726,26 @@ def test_speaks_a_cards_text_as_mp3() -> None:
     )
 
 
+def test_a_cards_language_reaches_azure_as_a_locale() -> None:
+    speech = FakeSpeech()
+    c = voice_client(speech)
+    ava = "en-US-AvaMultilingualNeural"
+    for language in ["ja-JP", "ja_jp", "ja", "ko", "th-TH"]:
+        r = c.post(
+            "/api/speech",
+            json={"text": "東京", "voice": ava, "language": language},
+            headers=AUTH,
+        )
+        assert r.status_code == 200
+    # A code of a language here is its locale; one with no region to name is left out.
+    assert [s[3] for s in speech.spoken] == ["ja-JP", "ja-JP", "ja-JP", None, "th-TH"]
+    bad = c.post(
+        "/api/speech", json={"text": "x", "voice": ava, "language": "ja-JP'/>"}, headers=AUTH
+    )
+    assert bad.status_code == 400
+    assert "isn't a language and region" in bad.json()["detail"]
+
+
 def test_a_cards_recording_counts_in_the_costs_and_a_failed_one_doesnt() -> None:
     speech = FakeSpeech()
     c = voice_client(speech)
@@ -733,7 +756,7 @@ def test_a_cards_recording_counts_in_the_costs_and_a_failed_one_doesnt() -> None
     # Azure bills kana and kanji as two characters each (tts.billed_chars).
     c.post("/api/speech", json={"text": "猫", "voice": "ja-JP-NanamiNeural"}, headers=AUTH)
 
-    async def down(text: str, voice: str, rate: float = 1.0) -> bytes:
+    async def down(text: str, voice: str, rate: float = 1.0, language: str | None = None) -> bytes:
         raise SpeechError("Azure didn't answer.")
 
     speech.synthesize = down  # type: ignore[method-assign]
@@ -811,7 +834,7 @@ def test_texts_waiting_to_be_read_are_spoken_again_in_new_voices(tmp_path: Path)
 
     used: list[str] = []
 
-    async def voice(text: str, name: str) -> Spoken:
+    async def voice(text: str, name: str, language: str) -> Spoken:
         used.append(name)
         return Spoken(b"ID3" + name.encode())
 

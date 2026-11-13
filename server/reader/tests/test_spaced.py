@@ -270,9 +270,11 @@ def test_spanish_lines_are_spoken_in_a_mexican_voice(tmp_path: Any) -> None:
     from franki_reader.tts import AudioCache
 
     spoken: list[tuple[str, str]] = []
+    languages: list[str] = []
 
-    async def voice(text: str, name: str) -> Spoken:
+    async def voice(text: str, name: str, language: str) -> Spoken:
         spoken.append((text, name))
+        languages.append(language)
         return Spoken(b"ID3")
 
     e, _ = spanish_engine()
@@ -281,6 +283,7 @@ def test_spanish_lines_are_spoken_in_a_mexican_voice(tmp_path: Any) -> None:
     asyncio.run(e.make_text(topic.id))
     assert spoken[0] == ("¿Lograron mantener a raya al enemigo?", "es-MX-JorgeNeural")
     assert spoken[1][1] == "es-MX-DaliaNeural"
+    assert set(languages) == {"es-MX"}
 
 
 def test_switching_language_through_the_api_keeps_topics_and_separates_everything_else() -> None:

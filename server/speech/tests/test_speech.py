@@ -12,8 +12,10 @@ from franki_speech import (
     SpeechClient,
     SpeechError,
     WordMark,
+    is_multilingual,
     locale_of,
     ssml,
+    text_locale,
 )
 from franki_speech.sdk import SdkMissing, SdkResult
 
@@ -46,6 +48,52 @@ def test_a_thai_respelling_has_no_space_the_voice_would_pause_at() -> None:
 
 def test_ssml_sets_the_speed() -> None:
     assert "<prosody rate='-20%'>" in ssml("x", VOICE, 0.8)
+
+
+MULTI = "en-US-AvaMultilingualNeural"
+
+
+def test_a_multilingual_voice_is_told_the_texts_language() -> None:
+    out = ssml("東京", MULTI, 0.8, language="ja-JP")
+    assert out == (
+        "<speak version='1.0' xml:lang='en-US'><voice name='en-US-AvaMultilingualNeural'>"
+        "<lang xml:lang='ja-JP'><prosody rate='-20%'>東京</prosody></lang></voice></speak>"
+    )
+
+
+def test_a_multilingual_voice_reading_its_own_language_or_an_unknown_one_gets_no_lang() -> None:
+    plain = ssml("Hello", MULTI)
+    assert "<lang" not in plain and "xml:lang='en-US'" in plain
+    assert ssml("Hello", MULTI, language="en-us") == plain
+
+
+def test_thai_read_by_a_multilingual_voice_gets_thais_pauses_and_respellings() -> None:
+    out = ssml("มะม่วง ไปไหนครับ", MULTI, language="th-TH")
+    assert "<lang xml:lang='th-TH'>" in out
+    assert f"<sub alias='มะ\u200bม่วง'>มะม่วง</sub>{THAI_PAUSE}ไปไหนครับ" in out
+    # Without the text's language, the voice's (English) decides, as before.
+    assert "<break" not in ssml("มะม่วง ไปไหนครับ", MULTI)
+
+
+def test_a_voice_that_isnt_multilingual_ignores_the_texts_language() -> None:
+    assert ssml("สวัสดีครับ ไปไหน", VOICE, language="ja-JP") == ssml("สวัสดีครับ ไปไหน", VOICE)
+    assert ssml("¿Qué tal?", "es-MX-JorgeNeural", language="es-ES") == ssml(
+        "¿Qué tal?", "es-MX-JorgeNeural"
+    )
+
+
+def test_a_texts_language_is_a_locale() -> None:
+    assert text_locale("th-th") == "th-TH"
+    assert text_locale("sr-latn-rs") == "sr-Latn-RS"
+    for bad in ["th", "Thai", "ja-JP' x='1", ""]:
+        with pytest.raises(SpeechError, match="isn't a language and region"):
+            text_locale(bad)
+    with pytest.raises(SpeechError):
+        ssml("x", MULTI, language="ja")
+
+
+def test_a_multilingual_voice_is_known_by_its_name() -> None:
+    assert is_multilingual(MULTI) and not is_multilingual(VOICE)
 
 
 def test_a_name_that_isnt_a_voice_says_so() -> None:
@@ -174,6 +222,62 @@ def test_speak_gives_the_sdks_audio_and_word_timings_for_the_same_ssml() -> None
     (audio, marks), sent = speak([SdkResult(audio=b"ID3sdk", marks=MARKS)])
     assert audio == b"ID3sdk" and marks == MARKS
     assert sent == [ssml("สวัสดีครับ", VOICE)]
+
+
+def test_speak_and_synthesize_send_the_texts_language() -> None:
+    sent: list[str] = []
+
+    async def fake(key: str, region: str, body: str) -> SdkResult:
+        sent.append(body)
+        return SdkResult(error="ConnectionFailure")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(request.content.decode())
+        return httpx.Response(200, content=b"ID3rest")
+
+    async def go() -> tuple[bytes, list[WordMark] | None]:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            client = SpeechClient("k", "eastus", http=http, sleep=no_sleep, sdk_speak=fake)
+            return await client.speak("東京", MULTI, language="ja-JP")
+
+    assert asyncio.run(go()) == (b"ID3rest", None)
+    # The SDK's try and REST's fallback both say it.
+    assert sent == [ssml("東京", MULTI, language="ja-JP")] * 2
+
+
+def test_a_refused_lang_element_is_asked_for_again_without_it() -> None:
+    # The <lang> element is written from Microsoft's examples, unchecked against a live key: if
+    # Azure refuses it, the line is still recorded, as it was before.
+    sent: list[str] = []
+
+    async def fake(key: str, region: str, body: str) -> SdkResult:
+        sent.append(body)
+        if "<lang" in body:
+            return SdkResult(error="BadRequest", details="lang")
+        return SdkResult(audio=b"ID3sdk", marks=MARKS)
+
+    def refuses(request: httpx.Request) -> httpx.Response:
+        sent.append(request.content.decode())
+        return httpx.Response(
+            400 if "<lang" in request.content.decode() else 200, content=b"ID3rest"
+        )
+
+    async def go() -> tuple[tuple[bytes, list[WordMark] | None], bytes]:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(refuses)) as http:
+            client = SpeechClient("k", "eastus", http=http, sleep=no_sleep, sdk_speak=fake)
+            return (
+                await client.speak("東京", MULTI, language="ja-JP"),
+                await client.synthesize("東京", MULTI, language="ja-JP"),
+            )
+
+    spoken, synthesized = asyncio.run(go())
+    assert spoken == (b"ID3sdk", MARKS) and synthesized == b"ID3rest"
+    assert sent == [ssml("東京", MULTI, language="ja-JP"), ssml("東京", MULTI)] * 2
+
+
+def test_a_refusal_without_a_lang_element_is_not_asked_again() -> None:
+    with pytest.raises(SpeechError, match="refused the request"):
+        speak([SdkResult(error="BadRequest", details="voice")])
 
 
 def test_speak_falls_back_to_rest_without_timings_when_the_sdk_wont_load() -> None:

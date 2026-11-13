@@ -50,6 +50,17 @@ async def test_records_into_the_field_and_reaches_another_device(client, cm, azu
     assert (desktop.path.parent / "collection.media" / sound).read_bytes().startswith(b"MP3:")
 
 
+async def test_a_multilingual_voice_is_told_the_texts_language(client, azure):
+    out = await call(client, "add_tts_audio", note_ids=[BOOK], source_fields=["Front"], target_field="Back",
+                     voice="en-US-AvaMultilingualNeural", language="th-th")
+    assert out["added"] == 1
+    sent = azure.requests[0].content.decode()
+    assert sent == ssml("หนังสือ", "en-US-AvaMultilingualNeural", language="th-TH")
+    assert "<lang xml:lang='th-TH'>" in sent
+    assert "isn't a language and region" in await call_error(
+        client, "add_tts_audio", note_ids=[WATER], source_fields=["Front"], target_field="Back", voice=VOICE, language="Thai")
+
+
 async def test_says_what_went_wrong(client, azure):
     assert "Up to 10" in await call_error(client, "add_tts_audio", note_ids=list(range(11)), source_fields=["Front"], target_field="Back", voice=VOICE)
     assert "isn't an Azure voice" in await call_error(client, "add_tts_audio", note_ids=[WATER], source_fields=["Front"], target_field="Back", voice="Premwadee")
