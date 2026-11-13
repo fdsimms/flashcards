@@ -49,7 +49,7 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
       onRandomize={() => next()}
       onToggle={() => answer.toggle(saying?.everyday)}
     >
-      <Segments options={MODES} value={mode} onChange={(m) => { setMode(m); next(); }} />
+      <Segments options={MODES} value={mode} onChange={(m) => { if (m === mode) return; setMode(m); next(); }} />
 
       <Card style={{ minHeight: 150, justifyContent: 'center' }}>
         {mode === 'count' ? (

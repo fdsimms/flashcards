@@ -1,4 +1,4 @@
-import { daysInMonth, shiftMonth, type CalendarDate, type DateParts, type DateSaying } from './date';
+import { daysInMonth, randomDate, shiftMonth, type CalendarDate, type DateParts, type DateSaying } from './date';
 import { distinct, type Phrase } from './phrase';
 
 /**
@@ -29,6 +29,19 @@ export function sameDate(a: CalendarDate, b: CalendarDate): boolean {
 export function quizDate(date: CalendarDate, mode: DateMode, parts: DateParts, today: CalendarDate): CalendarDate {
   if (mode !== 'tap' || parts.year) return date;
   return { year: today.year, month: date.month, day: Math.min(date.day, daysInMonth(today.year, date.month)) };
+}
+
+/**
+ * A new date to draw after `drawn`, one whose asked date (`quizDate`) differs from the current
+ * one. Tapped with the year unsaid, every year's 12 March asks the same 12 March, so a plain
+ * `randomDate` could draw a question that looks like the last one and leave its answer up.
+ */
+export function nextQuizDraw(drawn: CalendarDate, mode: DateMode, parts: DateParts, today: CalendarDate, random: () => number = Math.random): CalendarDate {
+  const asked = quizDate(drawn, mode, parts, today);
+  for (;;) {
+    const next = randomDate(drawn, random);
+    if (!sameDate(quizDate(next, mode, parts, today), asked)) return next;
+  }
 }
 
 /**

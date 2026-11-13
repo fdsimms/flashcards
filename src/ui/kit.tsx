@@ -518,7 +518,7 @@ export function Segments<T extends string | number>({ options, value, onChange, 
         return (
           <Pressable
             key={o.value}
-            onPress={() => { if (selected) return; haptic.select(); onChange(o.value); }}
+            onPress={() => { if (!selected) haptic.select(); onChange(o.value); }}
             disabled={o.disabled}
             accessibilityRole="radio"
             accessibilityState={{ selected, disabled: o.disabled }}
