@@ -147,10 +147,16 @@ export function inProgressCount(root: string, cardsByDeck: Map<string, Card[]>):
   return n;
 }
 
-/** How many new cards a gated deck lets in now: its cap less what's in progress under it. */
+/**
+ * How many new cards a gated deck lets in now: its cap less what's in progress under it, and never
+ * more than its own daily new limit has room for, so turning a gate on doesn't let in the whole
+ * cap in one day.
+ */
 function gateBudget(deck: string, input: TreeQueueInput): number | undefined {
   const cap = input.gateFor?.(deck);
-  return cap === undefined ? undefined : Math.max(0, cap - inProgressCount(deck, input.cardsByDeck));
+  if (cap === undefined) return undefined;
+  const daily = input.limitsFor(deck).newPerDay - sumStudied(deck, input.studiedByDeck).introduced;
+  return Math.max(0, Math.min(cap - inProgressCount(deck, input.cardsByDeck), daily));
 }
 
 interface LimitNode { review: number; new: number; capNewToReview: boolean }
@@ -172,9 +178,10 @@ interface LimitNode { review: number; new: number; capNewToReview: boolean }
  * - **Presentation:** learning cards due now, then reviews mixed with day-long learning and new
  *   cards (by the root's mix options), then learning cards due within the learn-ahead limit.
  *
- * A progress gate (Franki's own) replaces the daily new limit on the gated deck and everything
- * under it, and a gate on a deck above `root` still holds when a subdeck is opened. The deck
- * list's counts and the review screen both come from this.
+ * A progress gate (Franki's own) limits new cards on the gated deck to the smaller of its room
+ * and the deck's own daily new limit; the daily new limits of the decks under it don't apply. A
+ * gate on a deck above `root` still holds when a subdeck is opened. The deck list's counts and the
+ * review screen both come from this.
  */
 export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const now = input.now ?? new Date();
@@ -198,7 +205,7 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
       const done = sumStudied(d, input.studiedByDeck);
       let review = limits.reviewsPerDay - done.reviewed;
       let fresh = limits.newPerDay - done.introduced;
-      // Under a progress gate, the gate (on the gated deck) or nothing (below it) replaces the daily new limit.
+      // Under a progress gate, the gate (on the gated deck, within its own daily limit) or nothing (below it) replaces the daily new limit.
       if (gatedAt(d)) fresh = gateBudget(d, input) ?? Number.POSITIVE_INFINITY;
       if (cap) {
         review -= done.introduced;

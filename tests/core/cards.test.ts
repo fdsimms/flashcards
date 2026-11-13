@@ -134,18 +134,29 @@ describe('cards', () => {
       expect(canRecordYourself(renderCard(omniNote({ Entry: 'kot' }), 'forward'))).toBe(false);
     });
 
-    it('keeps the recording off the Play button until the answer is shown', () => {
-      const r = renderCard(note, 'forward');
-      expect(playbackFor(r, false)?.file).toBeUndefined();
-      expect(playbackFor(r, true)?.file).toBe(FILE);
+    it('keeps the recording off the Play button on the front of a reverse card until the answer is shown', () => {
       expect(playbackFor(renderCard(note, 'reverse'), false)).toBeUndefined();
+      expect(playbackFor(renderCard(note, 'reverse'), true)?.file).toBe(FILE);
     });
 
-    it('speaks the front aloud when there is no recording, and the reverse word when its answer is shown', () => {
+    it('plays the recording from Play on the front of a forward card, which already shows the word', () => {
+      const r = renderCard(note, 'forward');
+      expect(playbackFor(r, false)?.file).toBe(FILE);
+      expect(playbackFor(r, true)?.file).toBe(FILE);
+    });
+
+    it('speaks nothing by itself on the front of a forward card, and the word when its answer is shown', () => {
       const plain = omniNote({ Entry: 'kot', GenerateReverse: 'y' });
-      expect(autoplayFor(renderCard(plain, 'forward'), false)?.text).toBe('kot');
-      expect(autoplayFor(renderCard(plain, 'forward'), true)).toBeUndefined();
+      expect(autoplayFor(renderCard(plain, 'forward'), false)).toBeUndefined();
+      expect(autoplayFor(renderCard(plain, 'forward'), true)?.text).toBe('kot');
+      expect(playbackFor(renderCard(plain, 'forward'), false)).toEqual({ text: 'kot', file: undefined });
+    });
+
+    it('speaks the reverse word when its answer is shown, and the audio card its word as it comes up', () => {
+      const plain = omniNote({ Entry: 'kot', GenerateReverse: 'y', GenerateAudioCard: 'y' });
+      expect(autoplayFor(renderCard(plain, 'reverse'), false)).toBeUndefined();
       expect(autoplayFor(renderCard(plain, 'reverse'), true)?.text).toBe('kot');
+      expect(autoplayFor(renderCard(plain, 'audio'), false)?.text).toBe('kot');
     });
   });
 });

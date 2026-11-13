@@ -17,7 +17,7 @@ import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS,
 import { fuzzSeed } from '../core/ankiFuzz';
 import { balancerFor, buildLoadSnapshot, forgetCard, loadDayIndex, recordAnswer, type LoadSnapshot } from '../core/loadBalance';
 import { ankiToday, fnvHash } from '../core/order';
-import { saveNote, setCardStates, type NoteStore } from '../anki/noteService';
+import { saveLeechHint, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { forgetCards, setDueDates } from '../anki/rescheduleService';
 import { parseDueDate } from '../core/reschedule';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
@@ -45,7 +45,7 @@ import { useSelfRecording } from './useSelfRecording';
 import { htmlToText } from '../core/html';
 import { chooseAgentFlagReason } from './agentFlagSheet';
 import { LeechHintSheet } from './LeechHintSheet';
-import { canAddMnemonic, mnemonicQuestion, withMnemonic, type MnemonicQuestion } from '../core/leechHint';
+import { canAddMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
 import { usePhoneSpeech } from './usePhoneSpeech';
 import { Button, Count, Icon, Loading, Screen, Tappable } from './kit';
 import { Reveal, useReduceMotion } from './motion';
@@ -210,8 +210,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   const dark = useColorScheme() === 'dark';
   const [cards, setCards] = useState<Card[] | null>(null);
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
-  // The answer that just made a card a leech asks for a hint to keep in its note's Mnemonic field.
-  const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses: number } | null>(null);
+  // The answer that just made a card a leech asks for a hint to keep in its note's Mnemonic field,
+  // and names the card when that answer suspended it, so saving a hint can bring it back.
+  const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses: number; suspendedCardId?: string } | null>(null);
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
   // While "Read a text with these words" waits for the sync that sends today's answers first.
@@ -484,7 +485,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
           // The answer stands; the tag just isn't added.
         }
       }
-      if (isLeech && canAddMnemonic(note)) setLeechPrompt({ noteId: note.id, misses: res.sched.lapses });
+      if (isLeech && canAddMnemonic(note)) {
+        setLeechPrompt({ noteId: note.id, misses: res.sched.lapses, ...(updated.suspended && !current.suspended ? { suspendedCardId: current.id } : {}) });
+      }
       // Counted in the deck the card is studied in, as Anki counts it (a filtered deck's answers count there).
       // Time capped at a minute, as Anki's maximum answer time is, so a phone put down mid-card doesn't swell the summary.
       const record: AnswerRecord = {
@@ -587,15 +590,32 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
       word={htmlToText(leechNoteNow.fields.Entry ?? '')}
       gloss={[htmlToText(leechNoteNow.fields.Transliteration ?? ''), htmlToText(leechNoteNow.fields.Meaning ?? '')].filter(Boolean).join(' · ')}
       misses={leechPrompt.misses}
+      suspended={!!leechPrompt.suspendedCardId}
       suggest={suggestHints && question ? () => suggestHints(question) : undefined}
       onSkip={() => setLeechPrompt(null)}
       onSave={async (hint) => {
-        const saved = await saveNote(repo as NoteStore, {
-          id: leechNoteNow.id, deck: leechNoteNow.deck, model: leechNoteNow.model,
-          fields: withMnemonic(leechNoteNow.fields, hint), tags: leechNoteNow.tags,
-        });
+        // The card as it is now, captured before the awaits: still suspended, or nothing to bring back.
+        const suspended = cards?.find((c) => c.id === leechPrompt.suspendedCardId && c.suspended);
+        const when = new Date();
+        writes.current++;
+        let result: Awaited<ReturnType<typeof saveLeechHint>>;
+        try {
+          result = await saveLeechHint(repo as NoteStore & AnkiLink, leechNoteNow, hint, suspended, when, H);
+        } finally {
+          writes.current++;
+        }
+        const { note: saved, card, cardError, ankiError } = result;
         setNotes((prev) => new Map(prev).set(saved.id, saved));
+        if (card) {
+          setCards((prev) => prev && prev.map((c) => (c.id === card.id ? card : c)));
+          setNow(when);
+        }
         setLeechPrompt(null);
+        if (cardError) {
+          Alert.alert("Couldn't unsuspend this card", failureText(cardError, { next: 'Your hint is saved. To study the card again, unsuspend it when you edit its note.' }));
+        } else if (ankiError) {
+          Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: "It's made in Franki, but it won't reach Anki." }));
+        }
       }}
     />
   ) : null;
