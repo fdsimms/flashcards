@@ -146,6 +146,9 @@ export type ShelfText = {
   form: Form;
   lines: number;
   stretch: string[];
+  // The practice words as the reader draws them, to open their popovers, in the order of `stretch`.
+  // Only on a story's next episode, and missing from a server older than it.
+  practice?: Word[];
   reason: ShelfReason;
   coverage: number;
   episode: number;
