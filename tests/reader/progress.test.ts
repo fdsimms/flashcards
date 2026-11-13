@@ -29,3 +29,15 @@ test('it reports coverage and ratings', () => {
   expect(describeProgress(p).detail).toBe('Median 97% known words. 7 of 10 rated about right.');
   expect(describeProgress(p).next).toBe('New texts aim for at least 97% known words and 1 practice word.');
 });
+
+test('it reports the check after reading when it was taken', () => {
+  const p: Progress = {
+    ...base,
+    finished: 4,
+    median_coverage: 0.93,
+    ratings: { too_easy: 0, about_right: 0, too_hard: 0, none: 4 },
+    check: { texts: 3, right: 11, asked: 15 },
+  };
+  expect(describeProgress(p).detail).toBe('Median 93% known words. Checks after 3 texts: 73% right.');
+  expect(describeProgress({ ...p, check: { texts: 0, right: 0, asked: 0 } }).detail).toBe('Median 93% known words.');
+});

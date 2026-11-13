@@ -43,8 +43,10 @@ export function toLog(
   now: number,
   rating: Rating | null,
   finished: boolean,
+  check: { right: number; asked: number } | null = null,
 ): ReadingLog {
   return {
+    ...(check && check.asked > 0 ? { check_right: check.right, check_asked: check.asked } : {}),
     rating,
     finished,
     words_glossed: session.glossed,

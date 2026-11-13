@@ -110,6 +110,17 @@ export type LineGrammar = { id: string; name: string; note: string; state: Gramm
 // words come segmented), with its English beside it.
 export type TextChoice = { english: string; words: Word[] };
 
+// A question about what happens in a text, for the check after reading (reader/check.ts), written by
+// Claude with the text: in the text's language with its English, the line that answers it (from 0),
+// and the index of the right choice.
+export type TextQuestion = {
+  line: number;
+  question: string;
+  english: string;
+  choices: { text: string; english: string }[];
+  answer: number;
+};
+
 export type ReaderText = {
   id: number;
   topicId: number;
@@ -135,6 +146,9 @@ export type ReaderText = {
   // one is). Missing from a server older than story choices, and empty for any other text.
   choices?: TextChoice[];
   chosen?: number | null;
+  // Questions about what happens, for the check after reading. Missing from a server older than
+  // them, and empty for a text written before them or whose questions couldn't be written.
+  questions?: TextQuestion[];
 };
 
 // Why a text is on the shelf: written around words due today, on a liked theme, an idea not
@@ -235,6 +249,8 @@ export type Progress = {
   finished: number;
   median_coverage: number | null;
   ratings: Record<Rating | 'none', number>;
+  // The check after reading, over the finished texts it was taken with. Missing from a server older than it.
+  check?: { texts: number; right: number; asked: number };
   next: { floor: number; stretch: number };
 };
 
@@ -273,6 +289,9 @@ export type ReadingLog = {
   audio_speed: number | null;
   listen_only: boolean;
   seconds: number;
+  // The check after reading, when it was taken: answers right, of those asked.
+  check_right?: number;
+  check_asked?: number;
 };
 
 // A word queued for Claude to fill in (src/reader/noteQueue.ts). `fields` is what it wrote, by Anki field

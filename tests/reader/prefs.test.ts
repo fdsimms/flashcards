@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { DEFAULT_PREFS, parsePrefs } from '../../src/reader/prefs';
 
 test('saved settings come back', () => {
-  expect(parsePrefs(JSON.stringify({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'] }))).toEqual({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'] });
+  expect(parsePrefs(JSON.stringify({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true }))).toEqual({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true });
 });
 
 test('nothing saved, or something unreadable, gives the defaults', () => {
