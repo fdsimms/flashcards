@@ -8,6 +8,7 @@ import { AGENT_FLAG, AGENT_FLAG_REASONS, withFlagReason } from '../core/agentFla
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
+import { failureText } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayStart } from '../core/day';
 import { isInterdayLearning, nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
@@ -17,7 +18,7 @@ import { fuzzSeed } from '../core/ankiFuzz';
 import { balancerFor, buildLoadSnapshot, forgetCard, loadDayIndex, recordAnswer, type LoadSnapshot } from '../core/loadBalance';
 import { ankiToday, fnvHash } from '../core/order';
 import { saveNote, setCardStates, type NoteStore } from '../anki/noteService';
-import { forgetCards, RescheduleRefused, setDueDates } from '../anki/rescheduleService';
+import { forgetCards, setDueDates } from '../anki/rescheduleService';
 import { parseDueDate } from '../core/reschedule';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
 import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../core/session';
@@ -441,7 +442,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
           warnedAnki.current = true;
           Alert.alert(
             "Couldn't save this answer for Anki",
-            `It counts in Franki, but it won't be in the file sent to Anki. ${e?.message ?? e}`,
+            failureText(e, { next: "It counts in Franki, but it won't be in the file sent to Anki." }),
           );
         }
       }
@@ -475,7 +476,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       setRevealed(false);
       setNow(when);
     } catch (e) {
-      Alert.alert("Couldn't save this answer", `${e instanceof Error ? e.message : String(e)} The card is still here: answer it again.`);
+      Alert.alert("Couldn't save this answer", failureText(e, { next: 'The card is still here: answer it again.' }));
     } finally {
       busy.current = false;
     }
@@ -518,7 +519,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       setRevealed(false);
       setNow(new Date());
     } catch (e) {
-      Alert.alert("Couldn't undo that answer", `${e instanceof Error ? e.message : String(e)} Try again.`);
+      Alert.alert("Couldn't undo that answer", failureText(e, { next: 'Try again.' }));
     } finally {
       busy.current = false;
     }
@@ -550,16 +551,12 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       suggest={suggestHints && question ? () => suggestHints(question) : undefined}
       onSkip={() => setLeechPrompt(null)}
       onSave={async (hint) => {
-        try {
-          const saved = await saveNote(repo as NoteStore, {
-            id: leechNoteNow.id, deck: leechNoteNow.deck, model: leechNoteNow.model,
-            fields: withMnemonic(leechNoteNow.fields, hint), tags: leechNoteNow.tags,
-          });
-          setNotes((prev) => new Map(prev).set(saved.id, saved));
-          setLeechPrompt(null);
-        } catch (e) {
-          throw new Error(`Couldn't save the hint. ${e instanceof Error ? e.message : String(e)} Try again, or skip it.`);
-        }
+        const saved = await saveNote(repo as NoteStore, {
+          id: leechNoteNow.id, deck: leechNoteNow.deck, model: leechNoteNow.model,
+          fields: withMnemonic(leechNoteNow.fields, hint), tags: leechNoteNow.tags,
+        });
+        setNotes((prev) => new Map(prev).set(saved.id, saved));
+        setLeechPrompt(null);
       }}
     />
   ) : null;
@@ -703,14 +700,14 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       const when = new Date();
       const { cards: updated, ankiError } = await setCardStates(repo, targets, change, when, H);
       if (ankiError) {
-        Alert.alert("Couldn't save this change for Anki", `It's made in Franki, but it won't reach Anki. ${(ankiError as any)?.message ?? ankiError}`);
+        Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: "It's made in Franki, but it won't reach Anki." }));
       }
       const byId = new Map(updated.map((u) => [u.id, u]));
       setCards((prev) => prev && prev.map((c) => byId.get(c.id) ?? c));
       setRevealed(false);
       setNow(when);
     } catch (e) {
-      Alert.alert("Couldn't change this card", `${e instanceof Error ? e.message : String(e)} Try again.`);
+      Alert.alert("Couldn't change this card", failureText(e, { next: 'Try again.' }));
     } finally {
       busy.current = false;
     }
@@ -744,7 +741,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
           const tagged = await saveNote(repo as NoteStore, { id: targetNote.id, deck: targetNote.deck, model: targetNote.model, fields: targetNote.fields, tags: withFlagReason(targetNote.tags, AGENT_FLAG_REASONS[i].slug) });
           setNotes((prev) => new Map(prev).set(tagged.id, tagged));
         } catch (e) {
-          Alert.alert("Couldn't flag this card", `Nothing was changed. ${(e as any)?.message ?? e}`);
+          Alert.alert("Couldn't flag this card", failureText(e, { next: 'Nothing was changed. Try again.' }));
           return;
         }
       }
@@ -764,7 +761,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       setNow(when);
       haptic.success();
     } catch (e) {
-      Alert.alert(failure, e instanceof RescheduleRefused ? e.message : `Nothing was changed. ${(e as any)?.message ?? e}`);
+      Alert.alert(failure, failureText(e, { next: 'Nothing was changed. Try again.' }));
     } finally {
       busy.current = false;
     }

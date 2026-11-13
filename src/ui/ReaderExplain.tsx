@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
+import { failureText } from '../core/failure';
 import { ApiError, type Api, type ExplainPoint, type GrammarChoice, type GrammarState, type LineGrammar } from '../reader/api';
 import { GRAMMAR_CHOICES, grammarStateWord } from '../reader/grammar';
 import { HeaderAction, Tappable, ErrorNote, Segments } from './kit';
@@ -42,7 +43,7 @@ export function LineExplanation({ api, textId, line, grammarChosen, onGrammarCho
       const answer = await api.explainLine(textId, line, wantSimple);
       if (latest.current === mine) { setPoints(answer.points); setGrammar(answer.grammar); setSimple(wantSimple); }
     } catch (e) {
-      if (latest.current === mine) { setError(e instanceof Error ? e.message : String(e)); setSimple(wantSimple); }
+      if (latest.current === mine) { setError(failureText(e, { what: "Couldn't explain this line.", next: 'Try again.' })); setSimple(wantSimple); }
     }
   };
 

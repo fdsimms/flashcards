@@ -1,4 +1,5 @@
 import { makeCards } from '../core/cards';
+import { Refusal } from '../core/failure';
 import type { Card, DeckParams, Note, NoteType, CollectionSettings } from '../core/types';
 import { omnilanguageFieldNames } from './models';
 
@@ -150,7 +151,7 @@ export function importTsv(
     return { names: noteType?.fields, noteType };
   };
   if (!columns && notetypeCol < 0 && !resolve(fileModel).names) {
-    throw new Error(`The file has no #columns line, and the fields of note type "${fileModel}" aren't known here yet. Import your collection from AnkiMobile first, or export with columns.`);
+    throw new Refusal(`The file has no #columns line, and the fields of note type "${fileModel}" aren't known here yet. Import your collection from AnkiMobile first, or export with columns.`);
   }
 
   const rows = parseDelimited(body, sep).filter((r) => r.some((c) => c.trim() !== ''));

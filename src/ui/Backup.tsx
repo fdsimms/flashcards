@@ -4,7 +4,8 @@ import * as Sharing from 'expo-sharing';
 import React, { useRef, useState } from 'react';
 import { Alert, ScrollView, Text } from 'react-native';
 import { dayKeyOf } from '../core/day';
-import { backupFileName, fileUriToPath, NotABackupError } from '../db/backup';
+import { failureText } from '../core/failure';
+import { backupFileName, fileUriToPath } from '../db/backup';
 import type { BackupStore } from '../db/sqliteRepo';
 import { Button, Card, Help, MessageList, Screen } from './kit';
 import { space, type, useTheme } from './theme';
@@ -42,7 +43,7 @@ export function Backup({ store }: { store: BackupStore }) {
       await Sharing.shareAsync(file.uri, { UTI: 'public.database', mimeType: 'application/x-sqlite3', dialogTitle: 'Save backup' });
       say(`Made ${name}${media ? `, with ${media} images and sounds` : ''}. Choose "Save to Files" to keep it in iCloud Drive or on this iPhone.`);
     } catch (e: any) {
-      say(`Couldn't make a backup. ${e?.message ?? e}`);
+      say(failureText(e, { what: "Couldn't make a backup.", next: 'Try again.' }));
     }
   });
 
@@ -63,8 +64,7 @@ export function Backup({ store }: { store: BackupStore }) {
               const { notes, cards, media } = await store.restoreFrom(fileUriToPath(asset.uri));
               say(`Restored ${asset.name}: ${notes} notes, ${cards} cards${media ? `, ${media} images and sounds` : ''}.`);
             } catch (e: any) {
-              const reason = e instanceof NotABackupError ? e.message : `${e?.message ?? e}`;
-              say(`Couldn't restore ${asset.name}. ${reason}`);
+              say(failureText(e, { what: `Couldn't restore ${asset.name}.`, next: 'Try again.' }));
             }
           }),
         },

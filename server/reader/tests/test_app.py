@@ -632,6 +632,13 @@ class FakeSpeech:
                 "name": "Elvira",
                 "gender": "Female",
             },
+            {
+                "voice": "en-US-AvaMultilingualNeural",
+                "locale": "en-US",
+                "name": "Ava Multilingual",
+                "gender": "Female",
+            },
+            {"voice": "en-US-AriaNeural", "locale": "en-US", "name": "Aria", "gender": "Female"},
         ]
 
     async def synthesize(self, text: str, voice: str, rate: float = 1.0) -> bytes:
@@ -649,10 +656,31 @@ def voice_client(speech: FakeSpeech | None) -> TestClient:
 def test_lists_azures_voices_in_a_language_every_region_included() -> None:
     c = voice_client(FakeSpeech())
     es = c.get("/api/voices", params={"language": "es"}, headers=AUTH).json()["voices"]
-    assert [v["voice"] for v in es] == ["es-ES-ElviraNeural", "es-MX-DaliaNeural"]
+    # The language's own voices first, then the Multilingual ones of other locales (not Aria).
+    assert [v["voice"] for v in es] == [
+        "es-ES-ElviraNeural",
+        "es-MX-DaliaNeural",
+        "en-US-AvaMultilingualNeural",
+    ]
     pl = c.get("/api/voices", params={"language": "pl_PL"}, headers=AUTH).json()["voices"]
-    assert [v["voice"] for v in pl] == ["pl-PL-ZofiaNeural"]
+    assert [v["voice"] for v in pl] == ["pl-PL-ZofiaNeural", "en-US-AvaMultilingualNeural"]
     assert c.get("/api/voices", params={"language": "es"}).status_code == 401
+
+
+def test_a_multilingual_voice_can_be_chosen_for_any_language_but_a_regular_one_cannot() -> None:
+    c = voice_client(FakeSpeech())
+    ok = c.patch(
+        "/api/settings",
+        headers=AUTH,
+        json={"voices": {"el": {"female2": "en-US-AvaMultilingualNeural"}}},
+    )
+    assert ok.status_code == 200
+    assert ok.json()["voices"]["el"]["female2"] == "en-US-AvaMultilingualNeural"
+    refused = c.patch(
+        "/api/settings", headers=AUTH, json={"voices": {"el": {"female2": "en-US-AriaNeural"}}}
+    )
+    assert refused.status_code == 400
+    assert "not Greek" in refused.json()["detail"]
 
 
 def test_speaks_a_cards_text_as_mp3() -> None:
