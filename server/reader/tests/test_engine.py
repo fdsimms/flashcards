@@ -154,6 +154,14 @@ def test_a_dropped_text_is_kept_for_its_cost_but_never_served() -> None:
     assert store.next_ready_text(e.conn, topic.id) is None
 
 
+def test_a_revision_that_fails_still_stores_the_dropped_text_for_its_cost() -> None:
+    e = engine(ScriptedModel(BAD, GenerationFailed("The response was cut off")))
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    assert run(lambda: e.make_text(topic.id)) is None
+    rows = e.conn.execute("SELECT status, cost_usd FROM texts").fetchall()
+    assert len(rows) == 1 and rows[0][0] == "dropped" and rows[0][1] > 0
+
+
 def test_a_claude_error_is_reported_to_the_next_request() -> None:
     e = engine(ScriptedModel(IN_RANGE))
 
