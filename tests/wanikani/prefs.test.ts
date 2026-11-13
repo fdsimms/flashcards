@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WaniKaniError } from '../../src/wanikani/api';
-import { DEFAULT_PREFS, flushOutbox, lessonsToday, parsePrefs, parseState } from '../../src/wanikani/prefs';
+import { apprenticeBlocks, DEFAULT_PREFS, flushOutbox, lessonsToday, parsePrefs, parseState } from '../../src/wanikani/prefs';
 import type { Outcome } from '../../src/wanikani/session';
 
 const review = (id: number): Outcome => ({ kind: 'review', assignmentId: id, subjectId: id, srsStage: 1, wrongMeaning: 0, wrongReading: 0, at: '2026-11-12T12:00:00.000Z' });
@@ -23,6 +23,23 @@ describe('options', () => {
     expect(lessonsToday(40, 15, 10)).toBe(5);
     expect(lessonsToday(40, 15, 20)).toBe(0);
     expect(lessonsToday(3, 15, 0)).toBe(3);
+  });
+
+  it('holds lessons back only while more items are at Apprentice than the limit', () => {
+    expect(DEFAULT_PREFS.maxApprentice).toBeNull();
+    expect(apprenticeBlocks(500, null)).toBe(false);
+    expect(apprenticeBlocks(100, 100)).toBe(false);
+    expect(apprenticeBlocks(101, 100)).toBe(true);
+    expect(lessonsToday(40, 15, 0, 101, 100)).toBe(0);
+    expect(lessonsToday(40, 15, 0, 100, 100)).toBe(15);
+    expect(lessonsToday(40, 15, 0, 500, null)).toBe(15);
+  });
+
+  it('keeps a saved Apprentice limit and reads anything else as no limit', () => {
+    expect(parsePrefs(JSON.stringify({ maxApprentice: 100 })).maxApprentice).toBe(100);
+    expect(parsePrefs(JSON.stringify({ maxApprentice: 0 })).maxApprentice).toBe(0);
+    expect(parsePrefs(JSON.stringify({ maxApprentice: -5 })).maxApprentice).toBeNull();
+    expect(parsePrefs(JSON.stringify({ maxApprentice: 'lots' })).maxApprentice).toBeNull();
   });
 });
 
