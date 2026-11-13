@@ -4,6 +4,7 @@ import { hasUnicase, type SyncDb } from './sync/collectionSync';
 import { nativeDeckName } from './sync/deckRows';
 import { COL_MODIFIED_SQL } from './writeback';
 import { cleanDeckName } from '../core/deckNames';
+import { Refusal } from '../core/failure';
 
 /**
  * Decks made, renamed and deleted in Franki, written into the kept Anki collection the way Anki
@@ -19,7 +20,7 @@ import { cleanDeckName } from '../core/deckNames';
  */
 
 /** Why a deck can't be made, renamed or deleted, with what to do, to show as it is. */
-export class DeckRefused extends Error {}
+export class DeckRefused extends Refusal {}
 
 const COMMON = { studyCollapsed: 1, browserCollapsed: 2 }; // Deck.Common
 const KIND = { normal: 1, filtered: 2 }; // Deck.KindContainer

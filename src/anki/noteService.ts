@@ -1,5 +1,6 @@
 import { isOmnilanguage, makeCards } from '../core/cards';
 import { cardStateOf, withCardState, type CardState } from '../core/cardState';
+import { Refusal } from '../core/failure';
 import type { Card, Note, NoteType } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
 import { ankiCollapsedDecks, setAnkiDeckCollapsed } from './deckWrites';
@@ -36,7 +37,7 @@ export interface NoteDraft {
 }
 
 /** A note that can't be saved, with the reason to show beside it. */
-export class NoteRefused extends Error {}
+export class NoteRefused extends Refusal {}
 
 /** The cards a note would have (new ones), the way Franki generates them. */
 export function cardsFor(note: Note, noteTypes: Map<string, NoteType>, now: Date): Card[] {

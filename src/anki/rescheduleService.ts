@@ -1,4 +1,5 @@
 import { nextStudyDayStart } from '../core/day';
+import { Refusal } from '../core/failure';
 import { ankiToday } from '../core/order';
 import { forgetCard, pickDays, setDueCard, type DueDateSpec } from '../core/reschedule';
 import type { Card } from '../core/types';
@@ -15,7 +16,7 @@ import { forgetAnkiCards, setAnkiDueDates, type RescheduledRow, type Rescheduled
  */
 
 /** Why the change can't be made, with what to do, to show as it is. */
-export class RescheduleRefused extends Error {}
+export class RescheduleRefused extends Refusal {}
 
 /** A card as Franki keeps it, from its Anki row after the change. */
 function fromAnkiRow(card: Card, row: RescheduledRow, crt: number | undefined, now: Date): Card {

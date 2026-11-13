@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Image, Text, useColorScheme, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { mnemonicParts, otherMeanings, primaryMeaning, READING_TYPE_NAMES, readingGroups, type Subject } from '../wanikani/subjects';
+import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
@@ -115,7 +116,7 @@ export function SubjectDetails({ subject, showMeaning, showReading, synonyms, le
         </Tappable>
       ) : null}
       {hasMnemonics && !mnemonics ? (
-        <Tappable onPress={() => setMnemonics(true)} accessibilityRole="button" style={{ alignSelf: 'center', minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.m }}>
+        <Tappable onPress={() => { haptic.tap(); setMnemonics(true); }} accessibilityRole="button" style={{ alignSelf: 'center', minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.m }}>
           <Text style={{ ...type.callout, color: c.accent, fontWeight: '600' }}>Show mnemonics</Text>
         </Tappable>
       ) : null}

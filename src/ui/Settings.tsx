@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, Text } from 'react-native';
 import { ANSWER_BUTTON_CHOICES, type AnswerButtons } from '../core/answerButtons';
+import { failureText } from '../core/failure';
 import { THAI_TEXT_CHOICES, thaiTextStyle, type ThaiTextSize } from '../core/script';
 import type { Repo } from '../db/repo';
 import { CheckRow, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
@@ -39,7 +40,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onSta
       await write();
       show();
     } catch (e) {
-      Alert.alert("Couldn't save this setting", `${e instanceof Error ? e.message : String(e)} Try again.`);
+      Alert.alert("Couldn't save this setting", failureText(e, { next: 'Try again.' }));
     }
   };
   const choose = (value: AnswerButtons) => save(() => repo.saveAnswerButtons(value), () => setButtons(value));

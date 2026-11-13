@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { failureText } from '../core/failure';
 import { type NoteQueue, type QueuedNote } from '../reader/api';
 import { counts, firstReady } from '../reader/noteQueue';
 import { haptic } from './haptics';
@@ -90,7 +91,7 @@ export function ReadNoteQueue({ queue, error, getItems, onReview, onRetry, onRem
 
   const act = async (job: () => Promise<void>) => {
     setProblem(null);
-    try { await job(); } catch (e) { setProblem(e instanceof Error ? e.message : "That didn't work. Try again."); }
+    try { await job(); } catch (e) { setProblem(failureText(e, { what: "That didn't work.", next: 'Try again.' })); }
   };
 
   // `all` goes on through the ready notes after this one; a failed word filled in by hand is just itself.

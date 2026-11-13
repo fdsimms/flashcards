@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { failureText } from '../core/failure';
 
 /**
  * Why the deck list's last load failed, if it did. `guard` runs a load, clearing the problem when
@@ -12,7 +13,8 @@ export function useLoadProblem() {
       await load();
       setProblem(undefined);
     } catch (e) {
-      setProblem(`${e instanceof Error ? e.message : String(e)} Tap to try again.`);
+      // The banner's own title says what failed and its action says to tap.
+      setProblem(failureText(e, { next: 'The decks shown may be out of date.' }));
     }
   }, []);
   return { problem, guard };

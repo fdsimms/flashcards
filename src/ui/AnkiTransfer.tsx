@@ -3,7 +3,8 @@ import { File } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text } from 'react-native';
-import { buildPackageForAnki, importCollectionPackage, PackageRefused } from '../anki/transfer';
+import { buildPackageForAnki, importCollectionPackage } from '../anki/transfer';
+import { failureText } from '../core/failure';
 import type { AnkiLink, AnkiStatus } from '../db/ankiLink';
 import { fileUriToPath } from '../db/backup';
 import type { Repo } from '../db/repo';
@@ -65,7 +66,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
         ...l,
       ]);
     } catch (e: any) {
-      say(`Couldn't import ${name}. ${e instanceof PackageRefused ? e.message : e?.message ?? e}`);
+      say(failureText(e, { what: `Couldn't import ${name}.`, next: 'Try again.' }));
     }
   });
 
@@ -78,7 +79,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
       await repo.upsertNotesAndCards(result.notes, result.cards);
       say(`Imported ${name}: ${plural(result.notes.length, 'note', 'notes')}. These cards aren't in Anki, so they stay in Franki only.`);
     } catch (e: any) {
-      say(`Couldn't import ${name}. ${e?.message ?? e}`);
+      say(failureText(e, { what: `Couldn't import ${name}.`, next: 'Try again.' }));
     }
   });
 
@@ -141,7 +142,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
         ],
       );
     } catch (e: any) {
-      say(`Couldn't make the file for Anki. ${e instanceof PackageRefused ? e.message : e?.message ?? e}`);
+      say(failureText(e, { what: "Couldn't make the file for Anki.", next: 'Try again.' }));
     }
   });
 

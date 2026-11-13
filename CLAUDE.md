@@ -132,6 +132,9 @@ jokey metaphors or cutesy voice. Read each line aloud and rewrite it if nobody w
 
 **An error says what happened, then what to do.** "Couldn't import deck.apkg. Anki package files
 can't be read yet. In Anki, export as..." rather than "failed: <exception>". Buttons name the action.
+Screens build it with `failureText` (`src/core/failure.ts`): an error written for a person extends
+`Refusal` and is shown as it is; any other error's text goes last, in parentheses.
+`tests/noRawErrors.test.ts` fails the build on a screen showing an error's text another way.
 
 **American English** in anything a user sees. **No em dashes** in UI text, alerts, commit messages,
 PR descriptions or issue bodies: use a period, colon, comma or parentheses. Code comments are
@@ -159,7 +162,9 @@ src/wanikani WaniKani as a deck: its API, the study session (undo holds the late
 src/tools    the Practice tab's tools (time, dates, money, grammar): the list (tools.ts), each tool's logic, and each
              language's under its own folder (thai/, spanish/...); pure, tested, except storage.ts. A tool
              comes in every app language unless it doesn't apply, and never schedules or writes a card
-             (tests/tools/noGrading.test.ts); a quiz mode may check a typed or picked answer and keeps nothing. Screens are src/ui/Practice.tsx and src/ui/tools/
+             (tests/tools/noGrading.test.ts). It may check an answer, or take Missed it / Got it, and keep only a
+             fading tally of missed patterns on the phone (marks.ts, patterns.ts) that leans the next random
+             question toward them. Screens are src/ui/Practice.tsx and src/ui/tools/
 src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested);
              sync/ syncs with an Anki sync server (pure, tested; syncService.ts is the phone's side)
 server/      a ready-to-run Anki sync server (Docker, Caddy); server/mcp is the MCP for Claude (Python);

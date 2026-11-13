@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { collapsedDecks, setDeckCollapsed, type NoteStore } from '../anki/noteService';
+import { failureText } from '../core/failure';
 
 export interface CollapsedDecks {
   /** Decks whose subdecks the deck list hides: Anki's own collapsed state, shared through sync. */
@@ -33,7 +34,7 @@ export function useCollapsedDecks(repo: NoteStore | null): CollapsedDecks {
     seq.current++;
     setCollapsed((prev) => { const s = new Set(prev); if (next) s.add(deck); else s.delete(deck); return s; });
     setDeckCollapsed(repo, deck, next).catch((e) => {
-      Alert.alert(`Couldn't ${next ? 'collapse' : 'expand'} ${deck}`, `It's back as it was. ${e instanceof Error ? e.message : String(e)}`);
+      Alert.alert(`Couldn't ${next ? 'collapse' : 'expand'} ${deck}`, failureText(e, { next: "It's back as it was. Try again." }));
       load();
     });
   }, [repo, collapsed, load]);

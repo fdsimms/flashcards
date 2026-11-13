@@ -272,6 +272,22 @@ export function SwipeToReveal({ open, onOpenChange, action, width = 92, children
   );
 }
 
+/** The button a `SwipeToReveal` row slides open onto: a symbol over a short label, filling the space. */
+export function SwipeAction({ icon, label, accessibilityLabel, onPress }: { icon: SFSymbol; label: string; accessibilityLabel: string; onPress: () => void }) {
+  const c = useTheme();
+  return (
+    <Pressable
+      onPress={() => { haptic.tap(); onPress(); }}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={({ pressed }) => ({ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.xs, backgroundColor: c.accent, opacity: pressed ? 0.8 : 1 })}
+    >
+      <Icon name={icon} size={22} color={c.onAccent} />
+      <Text style={{ ...type.footnote, color: c.onAccent, fontWeight: '600' }}>{label}</Text>
+    </Pressable>
+  );
+}
+
 /**
  * A small button inside a screen's content (More ideas, Mark as unknown), a full tap target tall.
  * A tinted pill with a hairline edge, so it reads as a button and still shows on `accentFill`.
