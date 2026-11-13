@@ -37,9 +37,12 @@ import type { ClockTime, TimeSaying } from './time';
  * own. A new tool is an entry in `TOOLS`, its logic beside this file (each language's under that
  * language's folder, e.g. thai/), and its screen and icon in `TOOL_SCREENS` (src/ui/tools/), which
  * won't typecheck until it has one. A tool comes in every one of the app's languages
- * (`LANGUAGE_ORDER`, Read & Listen's) unless it doesn't apply to one. Nothing here touches the
+ * (`TOOL_LANGUAGES`, Read & Listen's but English) unless it doesn't apply to one. Nothing here touches the
  * collection: a tool never grades a card or writes a review.
  */
+
+/** The languages the tools come in: every app language but English, which the app is already in. */
+export const TOOL_LANGUAGES: Language[] = LANGUAGE_ORDER.filter((l) => l !== 'en');
 
 export type ToolId = 'time' | 'dates' | 'money' | 'grammar';
 
@@ -92,16 +95,16 @@ export const MONEY_SAYERS: Partial<Record<Language, (amount: number) => MoneySay
 };
 
 /** The money each language is practiced with: Mexican pesos for Spanish, as its voice is Mexican. */
-export const CURRENCY_OF: Record<Language, CurrencyCode> = {
+export const CURRENCY_OF: Partial<Record<Language, CurrencyCode>> = {
   th: 'THB', es: 'MXN', fr: 'EUR', de: 'EUR', el: 'EUR', pl: 'PLN', ru: 'RUB', nb: 'NOK', ja: 'JPY',
 };
 
 /** The weekday a calendar's week starts on where the language is spoken: 0 Sunday (Thailand, Mexico, Japan), 1 Monday. */
-export const WEEK_STARTS_ON: Record<Language, 0 | 1> = {
+export const WEEK_STARTS_ON: Partial<Record<Language, 0 | 1>> = {
   th: 0, es: 0, fr: 1, de: 1, el: 1, pl: 1, ru: 1, nb: 1, ja: 0,
 };
 
-const withSayer = (sayers: Partial<Record<Language, unknown>>) => LANGUAGE_ORDER.filter((l) => !!sayers[l]);
+const withSayer = (sayers: Partial<Record<Language, unknown>>) => TOOL_LANGUAGES.filter((l) => !!sayers[l]);
 
 export const TOOLS: ToolInfo[] = [
   {
@@ -127,7 +130,7 @@ export const TOOLS: ToolInfo[] = [
     id: 'grammar',
     title: 'Grammar',
     summary: "Short drills on the grammar you're practicing, spaced over days.",
-    languages: LANGUAGE_ORDER.filter((l) => grammarPointsFor(l).length > 0),
+    languages: TOOL_LANGUAGES.filter((l) => grammarPointsFor(l).length > 0),
   },
 ];
 

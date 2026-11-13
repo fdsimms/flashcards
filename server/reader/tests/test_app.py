@@ -14,6 +14,7 @@ from franki_reader import store
 from franki_reader.app import create_app
 from franki_reader.engine import SHELF_SIZE, Engine
 from franki_reader.gateway import AnkiUnavailable
+from franki_reader.languages import Code
 from franki_reader.status import DeckDue, DueStatus, LearningLater, StudyDay
 from franki_reader.store import Settings
 from franki_reader.tts import Spoken
@@ -282,6 +283,7 @@ DECKS = {
     "pl": "👅 Languages::💈 Polski",
     "nb": "👅 Languages::🐟 Norsk",
     "ja": "👅 Languages::🍥 日本語",
+    "en": "👅 Languages::🗽 English",
 }
 # How many common words each language counts as known when none was chosen (not Thai: deck only).
 COMMON = {
@@ -293,6 +295,7 @@ COMMON = {
     "pl": 250,
     "nb": 1000,
     "ja": 2000,
+    "en": 5000,
 }
 # Each language's voice for each slot (the first of a gender where it has no second), the same.
 VOICES = {
@@ -349,6 +352,12 @@ VOICES = {
         "male2": "ja-JP-DaichiNeural",
         "female": "ja-JP-NanamiNeural",
         "female2": "ja-JP-AoiNeural",
+    },
+    "en": {
+        "male": "en-US-GuyNeural",
+        "male2": "en-US-DavisNeural",
+        "female": "en-US-JennyNeural",
+        "female2": "en-US-AriaNeural",
     },
 }
 
@@ -1204,18 +1213,19 @@ def test_only_the_passphrase_reports_counts() -> None:
     assert c.put("/api/franki-counts", json={"due": -1, "new": 0}, headers=AUTH).status_code == 422
 
 
-def test_japanese_is_hidden_from_the_app_until_its_build_has_it() -> None:
-    # An app built before Japanese has no entry for it and crashes on one, so a saved Japanese
-    # setting reads as Thai and the shelf doesn't list it (languages.HIDDEN_LANGUAGES).
+@pytest.mark.parametrize("hidden", ["ja", "en"])
+def test_a_new_language_is_hidden_from_the_app_until_its_build_has_it(hidden: Code) -> None:
+    # An app built before a language has no entry for it and crashes on one, so a saved setting
+    # for it reads as Thai and the shelf doesn't list it (languages.HIDDEN_LANGUAGES).
     conn = store.connect(":memory:")
     store.save_snapshot(conn, ENTRIES, NOW)
-    store.save_settings(conn, Settings(language="ja"))
+    store.save_settings(conn, Settings(language=hidden))
     engine = Engine(conn, ScriptedModel(IN_RANGE).ask_for, None, lambda: NOW, random.Random(1))
     c = started(create_app(engine, "open sesame"))
     assert c.get("/api/settings", headers=AUTH).json()["language"] == "th"
     shelf = c.get("/api/shelf", headers=AUTH).json()
     assert shelf["language"] == "th"
-    assert "ja" not in [language["code"] for language in shelf["languages"]]
+    assert hidden not in [language["code"] for language in shelf["languages"]]
 
 
 def test_glosses_split_a_cards_sentences_in_the_order_sent() -> None:

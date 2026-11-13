@@ -237,7 +237,7 @@ and of Milestone 3 where the brief put it. Mining followed on 12 November 2026 (
 works as before.
 
 German, French, Russian, Greek, Polish and Norwegian (Bokmål) followed on 12 November 2026, at the
-owner's request for "all my other languages" but English. Japanese, held back then, followed on
+owner's request for "all my other languages" but English (added later, below). Japanese, held back then, followed on
 13 November 2026 (Japanese, below). The Backlog decks (Portuguese, Italian, Esperanto, Chinese) were empty, and Loopless Letters is
 Thai letters, so none of them is a language here. Each new language works as Spanish does
 (`spaced.py`, below), with its own deck, voices, list of common words and grammar points
@@ -251,7 +251,7 @@ Thai letters, so none of them is a language here. Each new language works as Spa
   language still needs its deck, voices and rules for its entries in code (`languages.py`,
   `spaced.py`) and a list of common words (`scripts/build_common.py`).
 
-- **One setting, `language`** (`th`, `es`, `de`, `fr`, `ru`, `el`, `pl`, `nb` or `ja`), picks the
+- **One setting, `language`** (`th`, `es`, `de`, `fr`, `ru`, `el`, `pl`, `nb`, `ja` or `en`), picks the
   language new texts are written and served in. It's the menu in the shelf's header. **Topics are shared**: a topic like "At a
   coffee shop" has texts in each language. The lexicon snapshot, ready texts, difficulty, progress,
   past texts, marked words, practiced stretch words and failures are per language. Only the current
@@ -356,7 +356,26 @@ Thai letters, so none of them is a language here. Each new language works as Spa
 - **Topic ideas** are ranked by fit for Thai only: their words are Thai, so every other language
   keeps the listed order.
 - The reading log names each language in English, lowercase (`thai`, `spanish`, `german`, `french`,
-  `russian`, `greek`, `polish`, `norwegian`, `japanese`).
+  `russian`, `greek`, `polish`, `norwegian`, `japanese`, `english`).
+
+### English
+
+Added on 13 November 2026, at the owner's request: texts written around the rare words in
+`👅 Languages::🗽 English` (chiliastic, velleity, kenosis), to read them in use. It works as the other
+spaced languages do, with these differences:
+
+- **The deck is the learner's own words, and common words carry the text.** The deck holds rare
+  words and no everyday ones, as Spanish's does, so `common` defaults to 5,000 and is changed like
+  the others'. Voices are Azure's en-US Guy, Davis, Jenny and Aria; the prompt asks for American English.
+- **The learner already reads English**, so the prompt asks for `english` as a plainer paraphrase of
+  the line and each gloss as a short definition or synonym, not a translation.
+- **Rare words' forms** (velleities, kenoses, apricating) aren't known to simplemma, so `spaced.py`
+  also tries a form's ending as its deck entry (`Rules.guesses`), against deck entries only.
+- **No Practice tools and no grammar points**: telling the time or money in English is something the
+  learner already does (`TOOL_LANGUAGES` leaves it out), and the grammar catalog has none for it.
+- **Hidden until the app is rebuilt with it**, as Japanese is: `HIDDEN_LANGUAGES` in
+  `languages.py` keeps a language out of the shelf and settings for a build that has no entry for
+  it. Empty it once the app is rebuilt.
 
 ### Japanese
 

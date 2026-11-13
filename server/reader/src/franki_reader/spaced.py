@@ -147,6 +147,25 @@ RULES: dict[str, Rules] = {
     # The deck marks a noun's gender with ten, ta, to or te (ta kobieta).
     "pl": Rules(prefixes=frozenset({"ten", "ta", "to", "te"}), suffixes=frozenset({"się"})),
     "nb": Rules(prefixes=frozenset({"en", "ei", "et", "å"}), suffixes=frozenset({"seg"})),
+    # The deck's entries are bare words (velleity, abnegate), with no article or "to". simplemma
+    # knows the common ones' forms but not a rare word's (velleities, kenoses), so a form is also
+    # tried as its entry by its ending, against deck entries only, never the common words.
+    "en": Rules(
+        guesses=(
+            ("ies", "y"),
+            ("ied", "y"),
+            ("ing", "e"),
+            ("ing", ""),
+            ("ed", "e"),
+            ("ed", ""),
+            ("es", "is"),  # Greek plurals: kenoses, anacruses
+            ("es", "e"),
+            ("es", ""),
+            ("s", ""),
+            ("i", "us"),
+            ("ae", "a"),
+        ),
+    ),
 }
 
 
