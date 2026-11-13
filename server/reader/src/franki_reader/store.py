@@ -605,7 +605,9 @@ def set_favorite(conn: sqlite3.Connection, topic_id: int, favorite: bool) -> Top
                 " AND id NOT IN (SELECT topic_id FROM stories)",
                 (topic_id,),
             )
-    return get_topic(conn, topic_id)
+    # A shelf idea is filed away (hidden), so Fewer like this on its text finds a removed topic:
+    # that's already as unliked as it gets, not a missing topic.
+    return get_topic(conn, topic_id, include_removed=True)
 
 
 def topic_names(conn: sqlite3.Connection) -> set[str]:

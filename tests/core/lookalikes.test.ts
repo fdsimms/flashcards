@@ -51,6 +51,11 @@ describe('lookalikeIndex', () => {
     expect(idx.get('t')).toEqual(new Set(['g']));
     expect(idx.get('s')).toEqual(new Set(['f']));
   });
+  it("does not link a word to its counting word or gender, which are other words", () => {
+    const bike = word('m', 'motorcycle', { Classifier: 'คัน', Gender: 'f' });
+    const kan = word('k', 'คัน');
+    expect(lookalikeIndex([bike, kan]).size).toBe(0);
+  });
   it('never links words of different languages, or notes of other note types', () => {
     const pl = { ...word('p', 'esperar'), fields: { ...word('p', 'esperar').fields, Language: 'polish' } };
     const generic: Note = { id: 'g', deck: ES, model: 'Basic', fields: { Front: 'esperar', Back: 'x' }, tags: [] };
