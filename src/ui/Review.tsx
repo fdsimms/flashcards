@@ -47,6 +47,7 @@ import { htmlToText } from '../core/html';
 import { chooseAgentFlagReason } from './agentFlagSheet';
 import { LeechHintSheet } from './LeechHintSheet';
 import { canAddMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
+import { PlayButton } from './PlayButton';
 import { usePhoneSpeech } from './usePhoneSpeech';
 import { missReasonsFor, missReminder } from '../core/misses';
 import { AgainSplit, MissReminder } from './MissMarks';
@@ -976,19 +977,10 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
         </SwipeCard>
         {/* Fixed in the card's bottom right corner, so it's under the thumb whatever the card's length. */}
         {playbackFor(rendered, revealed) ? (
-          <Tappable
-            onPress={() => { haptic.tap(); speak(playbackFor(rendered, revealed)); }}
-            accessibilityRole="button"
-            accessibilityLabel="Play the word"
-            scaleTo={0.94}
-            style={{
-              position: 'absolute', right: space.l, bottom: space.l, minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.s,
-              paddingHorizontal: space.l, borderRadius: radius.pill, backgroundColor: c.fill,
-            }}
-          >
-            <Icon name="speaker.wave.2.fill" size={18} color={c.accent} />
-            <Text style={{ ...type.callout, color: c.accent, fontWeight: '600' }}>Play</Text>
-          </Tappable>
+          <PlayButton
+            onPlay={() => speak(playbackFor(rendered, revealed))}
+            speech={rendered.speechLang}
+          />
         ) : null}
         </View>
       ) : null}
