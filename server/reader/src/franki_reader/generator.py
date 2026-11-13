@@ -218,6 +218,10 @@ class Generated:
     recap: str = ""
     series: str = ""
     cast: str = ""
+    # The recap as the reader sees it on the shelf: a line in the text's language (`|` between
+    # words, counted in coverage) and its English. Empty when the model gave none.
+    recap_line: str = ""
+    recap_english: str = ""
     # What the reader may pick to happen next, for a story episode that ends on a choice.
     choices: tuple[Choice, ...] = ()
 
@@ -283,6 +287,12 @@ DRAFT_SCHEMA: dict[str, Any] = {
         "recap": {"type": "string"},
         "series": {"type": "string"},
         "cast": {"type": "string"},
+        "recap_line": {
+            "type": "object",
+            "properties": {"text": {"type": "string"}, "english": {"type": "string"}},
+            "required": ["text", "english"],
+            "additionalProperties": False,
+        },
         "choices": {
             "type": "array",
             "items": {
@@ -523,8 +533,16 @@ _CHOICES_ASK = (
 )
 
 
+# The recap stays in English for the next episode's request; this one is for the reader.
+_RECAP_LINE_ASK = (
+    'In "recap_line", say what "recap" says for the reader, in one line of the story\'s language '
+    "written like the text (| between words, only words the learner knows, names marked as in "
+    'the lines), with its English in "english". It can be simpler than "recap".'
+)
+
+
 def _story_part(story: StoryContext) -> str:
-    return _story_intro(story) + " " + _CHOICES_ASK
+    return _story_intro(story) + " " + _RECAP_LINE_ASK + " " + _CHOICES_ASK
 
 
 def _story_intro(story: StoryContext) -> str:
@@ -754,14 +772,16 @@ def _assess(
             str(draft.get(k) or "").strip() for k in ("recap", "series", "cast")
         )
         choices = _choices(draft, request)
+        recap_line, recap_english = _recap_line(draft, request)
     except (KeyError, TypeError) as e:
         raise GenerationFailed(f"The draft is missing a field: {e}") from e
     if not lines:
         raise GenerationFailed("The draft has no lines")
 
-    # The choices are read like lines, so a word outside the deck in one counts against the floor
-    # and is named in the revision message like any other.
-    coverage = check([ln.text for ln in lines] + [c.text for c in choices], lexicon)
+    # The choices and the recap's line are read like lines, so a word outside the deck in one
+    # counts against the floor and is named in the revision message like any other.
+    extra = [c.text for c in choices] + ([recap_line] if recap_line else [])
+    coverage = check([ln.text for ln in lines] + extra, lexicon)
     used, problems = _stretch_used(coverage, request, lexicon)
     if request.form == "story":
         genders = {}  # a story has only its narrator
@@ -804,6 +824,8 @@ def _assess(
         recap=recap,
         series=series,
         cast=cast_,
+        recap_line=recap_line,
+        recap_english=recap_english,
         choices=choices,
     )
     return generated, problems
@@ -820,6 +842,17 @@ def _choices(draft: dict[str, Any], request: TextRequest) -> tuple[Choice, ...]:
         if str(c["text"]).strip() and str(c["english"]).strip()
     ]
     return tuple(found[:MAX_CHOICES]) if len(found) >= MIN_CHOICES else ()
+
+
+def _recap_line(draft: dict[str, Any], request: TextRequest) -> tuple[str, str]:
+    """A story episode's recap in its own language and that line's English, or two empty strings
+    when it isn't a story episode or either half is missing (the shelf then shows the English
+    recap, as before this was asked for)."""
+    raw = draft.get("recap_line")
+    if request.story is None or not isinstance(raw, dict):
+        return "", ""
+    text, english = str(raw.get("text") or "").strip(), str(raw.get("english") or "").strip()
+    return (text, english) if text and english else ("", "")
 
 
 MAX_NAMES = 4
