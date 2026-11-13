@@ -863,6 +863,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
         <ScrollView style={{ flexGrow: 0, maxHeight: '45%' }} contentContainerStyle={{ paddingHorizontal: space.l, paddingVertical: space.s }}>{extras}</ScrollView>
       ) : null}
       {page ? null : rendered ? (
+        <View style={{ flex: 1 }}>
         <SwipeCard enabled={swipeOn && revealed} shown={shown} onRate={answer}>
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
@@ -870,24 +871,9 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
             {/* Keyed to the card, so each new one fades in rather than swapping. */}
             <Reveal key={current.id} rise={10} style={{ gap: space.xl }}>
               <Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} />
-              {playbackFor(rendered, revealed) || canRecordYourself(rendered) ? (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
-                  {playbackFor(rendered, revealed) ? (
-                    <Tappable
-                      onPress={() => { haptic.tap(); speak(playbackFor(rendered, revealed)); }}
-                      accessibilityRole="button"
-                      accessibilityLabel="Play the word"
-                      scaleTo={0.94}
-                      style={{
-                        minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.s,
-                        paddingHorizontal: space.l, borderRadius: radius.pill, backgroundColor: c.fill,
-                      }}
-                    >
-                      <Icon name="speaker.wave.2.fill" size={18} color={c.accent} />
-                      <Text style={{ ...type.callout, color: c.accent, fontWeight: '600' }}>Play</Text>
-                    </Tappable>
-                  ) : null}
-                  {canRecordYourself(rendered) ? <RecordYourself rec={self} label="Record" size="card" /> : null}
+              {canRecordYourself(rendered) ? (
+                <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                  <RecordYourself rec={self} label="Record" size="card" />
                 </View>
               ) : null}
             </Reveal>
@@ -901,6 +887,23 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
           </ScrollView>
           </Pressable>
         </SwipeCard>
+        {/* Fixed in the card's bottom right corner, so it's under the thumb whatever the card's length. */}
+        {playbackFor(rendered, revealed) ? (
+          <Tappable
+            onPress={() => { haptic.tap(); speak(playbackFor(rendered, revealed)); }}
+            accessibilityRole="button"
+            accessibilityLabel="Play the word"
+            scaleTo={0.94}
+            style={{
+              position: 'absolute', right: space.l, bottom: space.l, minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.s,
+              paddingHorizontal: space.l, borderRadius: radius.pill, backgroundColor: c.fill,
+            }}
+          >
+            <Icon name="speaker.wave.2.fill" size={18} color={c.accent} />
+            <Text style={{ ...type.callout, color: c.accent, fontWeight: '600' }}>Play</Text>
+          </Tappable>
+        ) : null}
+        </View>
       ) : null}
     </Screen>
     </View>
