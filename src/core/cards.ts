@@ -101,6 +101,14 @@ export function playbackFor(card: RenderedCard, revealed: boolean): Playback | u
 }
 
 /**
+ * Whether the card offers Record yourself: only with a recording of the word to compare against,
+ * on either side, so a take can be made from memory before the answer and played back after it.
+ */
+export function canRecordYourself(card: RenderedCard): boolean {
+  return !!card.audioFile;
+}
+
+/**
  * What plays by itself when a card comes up (`revealed` false) or its answer is shown (true).
  * Showing the answer plays only what's new there: the recording, or the word a reverse card asks for.
  * A card with no recording speaks its front text with the phone's voice, as before.

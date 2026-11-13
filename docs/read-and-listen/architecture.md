@@ -103,6 +103,10 @@ Franki's (Client, below).
   Off, 2×, 3×, 5× and ∞ (a count is the line's total plays; ∞ goes until turned off). The count isn't
   kept: it starts at Off each time a text opens, and a line started fresh (Play, a skip, a line's own
   replay button) begins its count again.
+- **Record yourself** in the player, beside Repeat line, records the line playing or last played
+  ("Record line 2"), pausing playback; Stop (or 30 seconds) ends the take and plays it back. Yours
+  replays it, and the line's own buttons replay the native line. One take at a time, for that line
+  only: moving to another line or closing the text deletes it, and it's never sent to the server.
 - **Past texts**: texts read to the end, newest first (the last 50), opened in the same reader to
   read or listen to again. Reading one again isn't logged: the log is one row per text, and a reread
   shouldn't count toward the exit check or move difficulty. So there's no Done or rating, and words
@@ -703,7 +707,7 @@ in the current language, with when one was last read to the end. Nothing else le
   whose audio fails to load is skipped with a note. Thai plays over other audio (a podcast keeps
   going), as the owner chose.
 - The app fetches audio itself, with the passphrase in the request's headers.
-- The `expo-audio` plugin is configured with no microphone permission: the app never records.
+- The microphone is used only by Record yourself (below, under Repeat line); a take stays on the phone.
 
 ## Logging
 
