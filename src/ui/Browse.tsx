@@ -3,29 +3,36 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../anki/noteService';
 import { failureText } from '../core/failure';
-import { deckChipRows, notePreview, searchNotes } from '../core/noteEditing';
-import type { Note } from '../core/types';
+import { deckChipRows, matchesNoteFilter, NOTE_FILTERS, notePreview, searchNotes, type NoteFilter } from '../core/noteEditing';
+import type { Card, Note } from '../core/types';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { Chip, Divider, Loading, Screen } from './kit';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
- * Every note, searchable and narrowed to a deck or any of its subdecks; tap one to edit it, or Add a new one.
+ * Every note, searchable and narrowed to a deck or any of its subdecks, and to a state its cards
+ * are in (new, due today, a leech, suspended, flagged); tap one to edit it, or Add a new one.
  * Search matches every word in any field, a tag or the deck name (src/core/noteEditing.ts).
  */
 export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void }) {
   const { bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [notes, setNotes] = useState<Note[] | null>(null);
+  const [cards, setCards] = useState<{ byNote: Map<string, Card[]>; now: Date; dayStartsAtHour: number } | null>(null);
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<string | null>(null);
+  const [filter, setFilter] = useState<NoteFilter | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      setNotes(await repo.listNotes());
+      const [loaded, all, { dayStartsAtHour }] = await Promise.all([repo.listNotes(), repo.listCards(), repo.collectionSettings()]);
+      const byNote = new Map<string, Card[]>();
+      for (const card of all) byNote.set(card.noteId, [...(byNote.get(card.noteId) ?? []), card]);
+      setCards({ byNote, now: new Date(), dayStartsAtHour });
+      setNotes(loaded);
     } catch (e) {
       setError(failureText(e, { what: "Couldn't load your notes.", next: 'Try again.' }));
     }
@@ -33,7 +40,12 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
   useEffect(() => { load(); }, [load]);
 
   const chipRows = useMemo(() => deckChipRows(notes ?? [], scope), [notes, scope]);
-  const found = useMemo(() => (notes ? searchNotes(notes, query, scope) : []), [notes, query, scope]);
+  const found = useMemo(() => {
+    if (!notes) return [];
+    const matched = searchNotes(notes, query, scope);
+    if (!filter || !cards) return matched;
+    return matched.filter((n) => matchesNoteFilter(filter, n, cards.byNote.get(n.id) ?? [], cards.now, cards.dayStartsAtHour));
+  }, [notes, cards, query, scope, filter]);
   // The editor is a sheet over this screen; a saved or deleted note means the list is out of date.
   const edit = (target: NoteEditorTarget) => onEditNote(target, (result) => { if (result) load(); });
 
@@ -61,6 +73,11 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
                 {row.map((chip) => <Chip key={chip.deck ?? '*'} label={chip.label} selected={chip.selected} onPress={() => setScope(chip.deck)} />)}
               </ScrollView>
             ))}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.s }} keyboardShouldPersistTaps="handled">
+              {[{ value: null, label: 'Any' }, ...NOTE_FILTERS].map((f) => (
+                <Chip key={f.value ?? '*'} label={f.label} selected={filter === f.value} onPress={() => setFilter(f.value)} />
+              ))}
+            </ScrollView>
             {notes ? (
               <Text style={{ ...type.footnote, color: c.textSecondary }}>
                 {found.length.toLocaleString()} {found.length === 1 ? 'note' : 'notes'}
@@ -70,7 +87,7 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
         }
         ListEmptyComponent={notes ? (
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center', paddingTop: space.xl }}>
-            {query.trim() ? `No notes match "${query.trim()}".` : 'No notes yet. Tap + to add one.'}
+            {query.trim() ? `No notes match "${query.trim()}".` : filter ? 'No notes here match this filter.' : 'No notes yet. Tap + to add one.'}
           </Text>
         ) : <Loading error={error} onRetry={load} />}
         renderItem={({ item, index }) => <NoteRow note={item} first={index === 0} last={index === found.length - 1} onPress={() => edit({ noteId: item.id })} />}
