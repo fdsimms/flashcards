@@ -28,15 +28,17 @@ from pathlib import Path
 from typing import Literal
 
 from franki_reader import exposure, grammar, store
-from franki_reader.coverage import Checker, parse_line
+from franki_reader.coverage import Checker, Coverage, parse_line
 from franki_reader.difficulty import Difficulty, adapt
 from franki_reader.gender import full_voices, voice_for
 from franki_reader.generator import (
     Ask,
     Form,
+    Generated,
     GenerationFailed,
     StoryContext,
     TextRequest,
+    Usage,
     generate,
 )
 from franki_reader.languages import LANGUAGES, Code
@@ -316,12 +318,34 @@ class Engine:
                 any_words=job.any_words,
                 story=context,
             )
-            result = await generate(self.ask_for(entries, language), lexicon, request)
             extra = {
                 "reason": job.reason,
                 "story_id": story.id if story else None,
                 "episode": context.episode if context else 0,
             }
+            try:
+                result = await generate(self.ask_for(entries, language), lexicon, request)
+            except GenerationFailed as e:
+                if e.usage != Usage():
+                    # The first attempt got an answer but nothing usable (a refusal, a cut-off,
+                    # invalid JSON): stored as dropped with no text, never served, so what it
+                    # cost is still on record. A call that got no answer cost nothing.
+                    empty = Generated("", (), {}, Coverage((), ()), 1, False, (), usage=e.usage)
+                    store.save_text(
+                        self.conn,
+                        topic_id,
+                        empty,
+                        [],
+                        difficulty.floor,
+                        self.clock(),
+                        "dropped",
+                        request.form,
+                        language,
+                        _grammar_record(request),
+                        focus,
+                        **extra,  # type: ignore[arg-type]
+                    )
+                raise
             words = list(result.stretch)
             if not result.passed:
                 # Stored as dropped, never served, so its cost is still on record.

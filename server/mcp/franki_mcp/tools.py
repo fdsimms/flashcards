@@ -369,6 +369,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                     results.append({"note_id": u.note_id, "updated": True})
                 except ToolError as e:
                     results.append({"note_id": u.note_id, "error": str(e)})
+                except Exception as e:  # noqa: BLE001 - one note Anki refuses doesn't fail the rest
+                    results.append({"note_id": u.note_id, "error": f"Anki refused it: {e}"})
             return {"results": results}
 
         return await cm.write(run)

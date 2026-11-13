@@ -826,7 +826,11 @@ def log_reading(conn: sqlite3.Connection, text_id: int, reading: Reading, now: d
                 reading.seconds,
             ),
         )
-        conn.execute("UPDATE texts SET status = 'read' WHERE id = ?", (text_id,))
+        # Only a text that was served: a dropped or skipped one keeps its status, so the costs
+        # still count it as what it was.
+        conn.execute(
+            "UPDATE texts SET status = 'read' WHERE id = ? AND status = 'ready'", (text_id,)
+        )
 
 
 def reading_seconds(conn: sqlite3.Connection, start: datetime, end: datetime) -> int:
@@ -1395,9 +1399,15 @@ def vocab_items(conn: sqlite3.Connection, language: Code) -> list[tuple[str, int
 
 
 def vocab_asked(conn: sqlite3.Connection, language: Code) -> int:
-    """How many words Claude has been asked to gloss for a language, passed or not."""
+    """How many words Claude has been asked to gloss for a language, passed or not, in batches
+    that were kept. A first write that left a band short kept nothing (vocab_check.write_bank), so
+    its words count as never asked: they're asked again, and a bank that later gains a band is
+    still topped up. A batch was kept when it kept a word, or when the bank already had words (a
+    top-up keeps what passes, even nothing)."""
     row = conn.execute(
-        "SELECT SUM(asked) FROM vocab_batches WHERE language = ?", (language,)
+        """SELECT SUM(asked) FROM vocab_batches b WHERE language = ? AND (kept > 0 OR EXISTS
+               (SELECT 1 FROM vocab_items i WHERE i.language = b.language AND i.batch_id < b.id))""",
+        (language,),
     ).fetchone()
     return int(row[0] or 0)
 
