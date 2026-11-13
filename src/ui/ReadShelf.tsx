@@ -1,6 +1,6 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Keyboard, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Keyboard, RefreshControl, ScrollView, Text, View, type ScrollViewInstance } from 'react-native';
 import { ApiError, type Api, type Form, type Language, type Shelf, type ShelfText } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { cardDetail, playMinutes, playOrder, reasonLabel, surprisePick } from '../reader/shelf';
@@ -47,6 +47,24 @@ export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, o
   const [refreshing, setRefreshing] = useState(false);
   const [markedCount, setMarkedCount] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // The keyboard is handled here rather than by the scroll view's automaticallyAdjustKeyboardInsets:
+  // under the transparent header iOS scrolled the story's field up past the top, and again on every
+  // poll's re-render. Room for the keyboard goes at the bottom, and only the field far down the page
+  // (WriteCard's) is scrolled into view, once the keyboard is up.
+  const scroll = useRef<ScrollViewInstance>(null);
+  const scrollToWrite = useRef(false);
+  const [keyboard, setKeyboard] = useState(0);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', (e) => setKeyboard(e.endCoordinates.height));
+    const shown = Keyboard.addListener('keyboardDidShow', () => {
+      if (!scrollToWrite.current) return;
+      scrollToWrite.current = false;
+      scroll.current?.scrollToEnd({ animated: true });
+    });
+    const hide = Keyboard.addListener('keyboardWillHide', () => { scrollToWrite.current = false; setKeyboard(0); });
+    return () => { show.remove(); shown.remove(); hide.remove(); };
+  }, []);
 
   // Bumped when the language changes, so a load started before it is dropped rather than shown.
   const loadSeq = useRef(0);
@@ -188,10 +206,10 @@ export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, o
       )}
     >
       <ScrollView
+        ref={scroll}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: space.l, gap: space.m }}
+        contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: space.l + keyboard, gap: space.m }}
         keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
       >
         {practice ? (
@@ -245,7 +263,7 @@ export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, o
             )}
             {shelf.texts.length > 0 ? <Help>Press and hold a text for More like this or Not this. Texts are only written for a language you open here, and at most 3 wait at a time.</Help> : null}
 
-            <WriteCard api={api} onWriting={refresh} />
+            <WriteCard api={api} onWriting={refresh} onFieldFocus={() => { scrollToWrite.current = true; }} />
 
             <Group>
               <NavRow first label="Past texts" detail="Read or listen to a text again" onPress={onPast} />
@@ -361,7 +379,7 @@ function StoryCard({ api, shelf, onOpen, onStarted }: { api: Api; shelf: Shelf; 
 }
 
 /** A text on any topic, written in the background; it joins the shelf when it's ready. */
-function WriteCard({ api, onWriting }: { api: Api; onWriting: () => void }) {
+function WriteCard({ api, onWriting, onFieldFocus }: { api: Api; onWriting: () => void; onFieldFocus: () => void }) {
   const [name, setName] = useState('');
   const [form, setForm] = useState<Form>('dialogue');
   const [busy, setBusy] = useState(false);
@@ -406,7 +424,7 @@ function WriteCard({ api, onWriting }: { api: Api; onWriting: () => void }) {
     <Card>
       <Button label="Surprise me" variant="secondary" onPress={surprise} busy={busy} />
       <Help>Writes a text on an idea you haven't tried, with no topic needed.</Help>
-      <Field label="Write one about something else" placeholder="For example, haggling at a market" value={name} onChangeText={setName} returnKeyType="done" onSubmitEditing={write} />
+      <Field label="Write one about something else" placeholder="For example, haggling at a market" value={name} onChangeText={setName} onFocus={onFieldFocus} returnKeyType="done" onSubmitEditing={write} />
       <Segments<Form> options={[{ value: 'dialogue', label: 'Dialogue' }, { value: 'story', label: 'Story' }]} value={form} onChange={setForm} />
       {error ? <ErrorNote message={error} /> : null}
       <Button label="Write" variant="secondary" onPress={write} busy={busy} disabled={!name.trim()} />
