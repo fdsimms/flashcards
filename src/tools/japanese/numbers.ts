@@ -13,12 +13,16 @@ const READING = ['', 'いち', 'に', 'さん', 'よん', 'ご', 'ろく', 'な�
 const HUNDREDS = ['', 'ひゃく', 'にひゃく', 'さんびゃく', 'よんひゃく', 'ごひゃく', 'ろっぴゃく', 'ななひゃく', 'はっぴゃく', 'きゅうひゃく'];
 const THOUSANDS = ['', 'せん', 'にせん', 'さんぜん', 'よんせん', 'ごせん', 'ろくせん', 'ななせん', 'はっせん', 'きゅうせん'];
 
-/** `n` from 1 to 9,999: 二百五十 にひゃくごじゅう. 一 is left off before 十, 百 and 千. */
-function belowMan(n: number): [string, string] {
+/**
+ * `n` from 1 to 9,999: 二百五十 にひゃくごじゅう. 一 is left off before 十, 百 and 千, except 千
+ * after 万 (`afterMan`), which is 一千 いっせん: 二万一千, にまんいっせん.
+ */
+function belowMan(n: number, afterMan = false): [string, string] {
   const [th, h, t, u] = [Math.floor(n / 1000), Math.floor(n / 100) % 10, Math.floor(n / 10) % 10, n % 10];
   let text = '';
   let reading = '';
-  if (th) { text += (th > 1 ? KANJI[th] : '') + '千'; reading += THOUSANDS[th]; }
+  if (th === 1 && afterMan) { text += '一千'; reading += 'いっせん'; }
+  else if (th) { text += (th > 1 ? KANJI[th] : '') + '千'; reading += THOUSANDS[th]; }
   if (h) { text += (h > 1 ? KANJI[h] : '') + '百'; reading += HUNDREDS[h]; }
   if (t) { text += (t > 1 ? KANJI[t] : '') + '十'; reading += (t > 1 ? READING[t] : '') + 'じゅう'; }
   if (u) { text += KANJI[u]; reading += READING[u]; }
@@ -34,7 +38,7 @@ export function japaneseNumber(n: number): Word {
   const [mText, mReading] = man ? belowMan(man) : ['', ''];
   // 一万, not 万: unlike 十, 百 and 千, 万 keeps its 一.
   const head: Word = man ? [(man === 1 ? '一' : mText) + '万', (man === 1 ? 'いち' : mReading) + 'まん'] : ['', ''];
-  const [rText, rReading] = rest ? belowMan(rest) : ['', ''];
+  const [rText, rReading] = rest ? belowMan(rest, man > 0) : ['', ''];
   return [head[0] + rText, head[1] + rReading];
 }
 

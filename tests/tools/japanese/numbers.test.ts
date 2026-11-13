@@ -15,6 +15,15 @@ describe('Japanese numbers', () => {
     ]);
   });
 
+  it('says 千 after 万 as 一千, いっせん', () => {
+    expect([11_000, 21_000, 21_277, 1_001_000].map(japaneseNumber)).toEqual([
+      ['一万一千', 'いちまんいっせん'],
+      ['二万一千', 'にまんいっせん'],
+      ['二万一千二百七十七', 'にまんいっせんにひゃくななじゅうなな'],
+      ['百万一千', 'ひゃくまんいっせん'],
+    ]);
+  });
+
   it('changes the sound of 百 and 千 after some digits', () => {
     expect([300, 600, 800, 3000, 8000].map((n) => japaneseNumber(n)[1])).toEqual([
       'さんびゃく', 'ろっぴゃく', 'はっぴゃく', 'さんぜん', 'はっせん',
