@@ -191,7 +191,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
               ) : (
                 <Help>None yet.</Help>
               )}
-              <Help>More like this, at the end of a text or on a text held down, adds its theme. The shelf writes from these, today's due words, and new ideas. Themes are shared by every language.</Help>
+              <Help>Choosing More like this at the end of a text, or Write more about this topic on a text held down, adds its theme. The shelf writes from these, today's due words, and new ideas. Themes are shared by every language.</Help>
             </Card>
 
             <SectionTitle>Practice words</SectionTitle>
