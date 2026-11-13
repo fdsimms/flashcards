@@ -1,6 +1,6 @@
 import { isInDeck } from './deckTree';
 import {
-  confusions, headword, practicePool, weakForms, withoutArticle,
+  confusions, genderHeadword, headword, practicePool, weakForms,
   type Confusion, type PracticeRecord, type PracticeWord,
 } from './forms';
 import type { Note } from './types';
@@ -79,12 +79,11 @@ export function practiceStats(deck: string, notes: Iterable<Note>, history: Prac
       const stillOwed = owed.get(f.key);
       if (!stillOwed) continue;
       const lastMiss = rows.map((r) => r.correct).lastIndexOf(false);
-      const gender = f.key === 'field:Gender';
-      const word = headword(w.note);
+      const word = f.key === 'field:Gender' ? genderHeadword(w.note) : headword(w.note);
       weak.push({
         noteId: w.note.id,
         key: f.key,
-        name: [gender ? withoutArticle(word) : word, f.label, ...(f.group && f.group !== f.label ? [f.group] : [])].join(' · '),
+        name: [word, f.label, ...(f.group && f.group !== f.label ? [f.group] : [])].join(' · '),
         answer: f.answers[0],
         attempts: rows.length,
         misses: rows.filter((r) => !r.correct).length,
