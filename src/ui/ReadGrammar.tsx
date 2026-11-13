@@ -44,6 +44,9 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
   const now = new Date();
   const points = list?.points ?? null;
   const least = (list?.least ?? []).map((id) => points?.find((p) => p.id === id)).filter((p) => p !== undefined);
+  // At the limit the server refuses another Practice, so the suggestions don't offer one.
+  const practicing = (points ?? []).filter((p) => p.state === 'practice');
+  const full = practicing.length >= (list?.max_practice ?? 2);
   return (
     <Screen title="Grammar">
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
@@ -56,14 +59,18 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
         {least.length > 0 ? (
           <Card style={{ gap: space.s }}>
             <Text style={{ ...type.headline, color: c.text }}>Seen least of what you know</Text>
-            <Text style={{ ...type.subhead, color: c.textSecondary }}>These are being worked into your next texts. Practice one to see it in every text.</Text>
+            <Text style={{ ...type.subhead, color: c.textSecondary }}>
+              {full
+                ? `These are being worked into your next texts. You're practicing ${practicing.map((p) => p.name).join(' and ')}. Set one to Know it to practice another.`
+                : 'These are being worked into your next texts. Practice one to see it in every text.'}
+            </Text>
             {least.map((p) => (
               <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingTop: space.s, borderTopWidth: 1, borderTopColor: c.border }}>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{p.name}</Text>
                   {p.seen ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{seenLine(p.seen, p.state, now, dayStartsAtHour, true)}</Text> : null}
                 </View>
-                <HeaderAction label="Practice" accessibilityLabel={`Practice ${p.name}`} onPress={() => choose(p.id, 'practice')} />
+                {full ? null : <HeaderAction label="Practice" accessibilityLabel={`Practice ${p.name}`} onPress={() => choose(p.id, 'practice')} />}
               </View>
             ))}
           </Card>
