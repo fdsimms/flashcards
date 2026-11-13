@@ -534,6 +534,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   const leechSheet = leechPrompt && leechNoteNow ? (
     <LeechHintSheet
       word={htmlToText(leechNoteNow.fields.Entry ?? '')}
+      gloss={[htmlToText(leechNoteNow.fields.Transliteration ?? ''), htmlToText(leechNoteNow.fields.Meaning ?? '')].filter(Boolean).join(' · ')}
       misses={leechPrompt.misses}
       suggest={suggestHints && question ? () => suggestHints(question) : undefined}
       onSkip={() => setLeechPrompt(null)}
