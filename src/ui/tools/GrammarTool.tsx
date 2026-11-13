@@ -5,7 +5,7 @@ import { grammarPoint } from '../../core/grammar';
 import { DRILL_POINTS, DRILL_QUESTIONS, duePoints, dueWhen, scheduledPoints, type DrillState, type GrammarAnswer } from '../../core/grammarDrills';
 import { ApiError, type Language } from '../../reader/api';
 import { grammarStateWord } from '../../reader/grammar';
-import { LANGUAGES } from '../../reader/languages';
+import { LANGUAGES, flaggedName } from '../../reader/languages';
 import { toolLanguage } from '../../tools/tools';
 import { loadToolPrefs, saveToolPrefs, toolPrefs } from '../../tools/storage';
 import { Button, Card, ErrorNote, Group, Help, NavRow, Screen } from '../kit';
@@ -75,9 +75,9 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
       toolbar={tool.languages.length > 1 ? (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Menu title="Language" accessibilityLabel={`Language: ${name}. Change the language`}>
-            <Stack.Toolbar.Label>{name}</Stack.Toolbar.Label>
+            <Stack.Toolbar.Label>{flaggedName(language)}</Stack.Toolbar.Label>
             {tool.languages.map((l) => (
-              <Stack.Toolbar.MenuAction key={l} isOn={l === language} onPress={() => chooseLanguage(l)}>{LANGUAGES[l].name}</Stack.Toolbar.MenuAction>
+              <Stack.Toolbar.MenuAction key={l} isOn={l === language} onPress={() => chooseLanguage(l)}>{flaggedName(l)}</Stack.Toolbar.MenuAction>
             ))}
           </Stack.Toolbar.Menu>
         </Stack.Toolbar>
