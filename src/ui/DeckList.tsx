@@ -85,7 +85,7 @@ function TodaySummary({ due, fresh }: { due: number; fresh: number }) {
   const c = useTheme();
   const caughtUp = due + fresh === 0;
   const figure = (value: number, label: string, color: string) => (
-    <View style={{ flex: 1, gap: 2 }}>
+    <View style={{ flex: 1, gap: 2, alignItems: 'center' }}>
       <Text style={{ ...type.largeTitle, color: value ? color : c.textTertiary, fontVariant: ['tabular-nums'] }}>{value}</Text>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
     </View>
