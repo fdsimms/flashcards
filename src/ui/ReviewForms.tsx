@@ -118,10 +118,10 @@ export function useReviewForms(repo: Repo, input: {
     offerView: (goodIn: (from?: Date) => string) => {
       const word = offer ? notes.get(offer.noteId) : undefined;
       if (!offer || !word) return undefined;
-      return {
-        how: offer.how, word: headword(word), when: whenSeen(offer.at, now, H), on: soonerOn,
-        soonerGood: goodIn(offer.at), plainGood: goodIn(undefined),
-      };
+      const soonerGood = goodIn(offer.at), plainGood = goodIn(undefined);
+      // "8d, not 8d" offers nothing: leave it out when the interval wouldn't change.
+      if (soonerGood === plainGood) return undefined;
+      return { how: offer.how, word: headword(word), when: whenSeen(offer.at, now, H), on: soonerOn, soonerGood, plainGood };
     },
   };
 }
