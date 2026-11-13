@@ -3,7 +3,8 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type GrammarChoice, type GrammarList } from '../reader/api';
 import { DEFAULT_MAX_PRACTICE, grammarChoiceOptions, seenLine } from '../reader/grammar';
 import { Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
-import { space, type, useTheme } from './theme';
+import { haptic } from './haptics';
+import { hairline, space, type, useTheme } from './theme';
 
 /**
  * The current language's grammar points, each practiced (used at least twice in every text), known
@@ -14,10 +15,15 @@ import { space, type, useTheme } from './theme';
  */
 
 
+/** Where on the screen a point's choice was changed: its row in Practicing, in Seen least, or in the full list. */
+type Where = 'practicing' | 'least' | 'list';
+
 export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; dayStartsAtHour: number; onOpenPoint: (id: string) => void }) {
   const c = useTheme();
   const [list, setList] = useState<GrammarList | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A change that failed, shown under the row it was made on: the list is long, and a message at the top would be out of sight.
+  const [failed, setFailed] = useState<{ id: string; where: Where; message: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -29,17 +35,18 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
   }, [api]);
   useEffect(() => { load(); }, [load]);
 
-  const choose = async (id: string, state: GrammarChoice) => {
+  const choose = async (id: string, state: GrammarChoice, where: Where) => {
     const before = list;
     setList((l) => l && { ...l, points: l.points.map((p) => (p.id === id ? { ...p, state } : p)) });
-    setError(null);
+    setFailed(null);
     try {
       setList(await api.setGrammar(id, state));
     } catch (e) {
       setList(before);
-      setError(e instanceof ApiError ? e.message : "Couldn't change that. Try again.");
+      setFailed({ id, where, message: e instanceof ApiError ? e.message : "Couldn't change that. Try again." });
     }
   };
+  const failure = (id: string, where: Where) => (failed?.id === id && failed.where === where ? <ErrorNote message={failed.message} /> : null);
 
   const now = new Date();
   const points = list?.points ?? null;
@@ -54,7 +61,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
         <Help>
           {`Practice: used at least twice in every text, at most ${max} at a time. Know it: used freely, and the ones you've seen least are worked into texts. Don't know it: kept out of texts. Not set: at most 2 uses in a text, underlined and explained. Applies from the next text written.`}
         </Help>
-        {error ? <ErrorNote message={error} onRetry={points === null ? load : undefined} /> : null}
+        {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {points === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
         {points && points.length === 0 ? <Help>There are no grammar points for this language yet.</Help> : null}
         {points && points.length > 0 ? (
@@ -69,12 +76,15 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
               <>
                 <Text style={{ ...type.subhead, color: c.textSecondary }}>Used at least twice in every text. Remove sets a point to Know it.</Text>
                 {practicing.map((p) => (
-                  <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingTop: space.s, borderTopWidth: 1, borderTopColor: c.border }}>
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{p.name}</Text>
-                      {p.seen ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{seenLine(p.seen, p.state, now, dayStartsAtHour, true)}</Text> : null}
+                  <View key={p.id} style={{ gap: space.s, paddingTop: space.s, borderTopWidth: hairline, borderTopColor: c.border }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{p.name}</Text>
+                        {p.seen ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{seenLine(p.seen, p.state, now, dayStartsAtHour, true)}</Text> : null}
+                      </View>
+                      <HeaderAction label="Remove" accessibilityLabel={`Remove ${p.name} from Practice`} onPress={() => choose(p.id, 'normal', 'practicing')} />
                     </View>
-                    <HeaderAction label="Remove" accessibilityLabel={`Remove ${p.name} from Practice`} onPress={() => choose(p.id, 'normal')} />
+                    {failure(p.id, 'practicing')}
                   </View>
                 ))}
               </>
@@ -90,12 +100,15 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
                 : 'These are being worked into your next texts. Practice one to see it in every text.'}
             </Text>
             {least.map((p) => (
-              <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingTop: space.s, borderTopWidth: 1, borderTopColor: c.border }}>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{p.name}</Text>
-                  {p.seen ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{seenLine(p.seen, p.state, now, dayStartsAtHour, true)}</Text> : null}
+              <View key={p.id} style={{ gap: space.s, paddingTop: space.s, borderTopWidth: hairline, borderTopColor: c.border }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{p.name}</Text>
+                    {p.seen ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{seenLine(p.seen, p.state, now, dayStartsAtHour, true)}</Text> : null}
+                  </View>
+                  {full ? null : <HeaderAction label="Practice" accessibilityLabel={`Practice ${p.name}`} onPress={() => choose(p.id, 'practice', 'least')} />}
                 </View>
-                {full ? null : <HeaderAction label="Practice" accessibilityLabel={`Practice ${p.name}`} onPress={() => choose(p.id, 'practice')} />}
+                {failure(p.id, 'least')}
               </View>
             ))}
           </Card>
@@ -105,10 +118,10 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
             {points.map((p, i) => {
               const seen = seenLine(p.seen, p.state, now, dayStartsAtHour);
               return (
-                <View key={p.id} style={{ paddingVertical: space.m, gap: space.xs, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: c.border }}>
+                <View key={p.id} style={{ paddingVertical: space.m, gap: space.xs, borderTopWidth: i === 0 ? 0 : hairline, borderTopColor: c.border }}>
                   {/* The name and note open the point's page (docs/grammar.md, step 4). */}
                   <Tappable
-                    onPress={() => onOpenPoint(p.id)}
+                    onPress={() => { haptic.tap(); onOpenPoint(p.id); }}
                     accessibilityRole="button"
                     accessibilityLabel={`${p.name}. ${p.note}. Opens its page`}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}
@@ -125,8 +138,9 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
                     style={{ marginTop: space.s }}
                     options={grammarChoiceOptions(p.name, p.state, practicing.length, max)}
                     value={p.state}
-                    onChange={(state) => { if (state !== 'unset') choose(p.id, state); }}
+                    onChange={(state) => { if (state !== 'unset') choose(p.id, state, 'list'); }}
                   />
+                  {failure(p.id, 'list')}
                 </View>
               );
             })}

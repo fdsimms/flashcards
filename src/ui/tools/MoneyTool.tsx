@@ -5,7 +5,6 @@ import type { MoneyMode } from '../../tools/prefs';
 import { breakDown, CURRENCIES, MONEY_MAXES, randomAmount, type MoneyMax } from '../../tools/money';
 import { toolPrefs } from '../../tools/storage';
 import { CURRENCY_OF, MONEY_SAYERS, toolLanguage } from '../../tools/tools';
-import { haptic } from '../haptics';
 import { Card, Segments } from '../kit';
 import { space, type, useTheme } from '../theme';
 import { Cash } from './Cash';
@@ -50,7 +49,7 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
       onRandomize={() => next()}
       onToggle={() => answer.toggle(saying?.everyday)}
     >
-      <Segments options={MODES} value={mode} onChange={(m) => { haptic.select(); answer.hide(); setMode(m); }} />
+      <Segments options={MODES} value={mode} onChange={(m) => { setMode(m); next(); }} />
 
       <Card style={{ minHeight: 150, justifyContent: 'center' }}>
         {mode === 'count' ? (
@@ -68,7 +67,7 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
         <Segments
           options={MONEY_MAXES.map((m) => ({ value: m, label: m.toLocaleString('en-US') }))}
           value={max}
-          onChange={(m) => { haptic.select(); setMax(m); next(m); }}
+          onChange={(m) => { setMax(m); next(m); }}
         />
       </View>
 

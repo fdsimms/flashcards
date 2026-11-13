@@ -45,7 +45,7 @@ export function ReadGrammarNote({ grammar, api, chosen, onChosen }: {
       <Text style={{ ...type.footnote, color: c.textSecondary }}>{line}</Text>
       {grammar.role === 'unset' && chosen ? (
         <Text style={{ ...type.footnote, color: c.textSecondary }}>
-          {chosen === 'avoid' ? "Marked as Don't know it. It's kept out of texts written from now on." : 'Marked as Know it. Applies from the next text written.'}
+          {chosen === 'avoid' ? "Marked as not known. It's kept out of texts written from now on." : 'Marked as known. Applies from the next text written.'}
         </Text>
       ) : grammar.role === 'unset' ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.m }}>

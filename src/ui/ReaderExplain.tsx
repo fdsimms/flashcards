@@ -6,7 +6,7 @@ import { GRAMMAR_CHOICES, grammarStateWord } from '../reader/grammar';
 import { HeaderAction, Tappable, ErrorNote, Segments } from './kit';
 import { haptic } from './haptics';
 import { NaturalPill, NaturalResult, useNaturalCheck } from './ReaderNatural';
-import { radius, space, type, useTheme } from './theme';
+import { hairline, radius, space, type, useTheme } from './theme';
 
 /**
  * A line's explanation, opened under it by the reader's explain button. It asks the server when it
@@ -56,13 +56,13 @@ export function LineExplanation({ api, textId, line, grammarChosen, onGrammarCho
   return (
     <View
       accessibilityLabel={`Explanation of line ${line + 1}`}
-      style={{ marginTop: space.m, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.m, padding: space.m, gap: space.s }}
+      style={{ marginTop: space.m, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, borderRadius: radius.m, padding: space.m, gap: space.s }}
     >
       {error ? (
         <ErrorNote message={error} onRetry={() => load(simple)} />
       ) : points === null ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-          <ActivityIndicator />
+          <ActivityIndicator color={c.accent} />
           <Text style={{ ...type.subhead, color: c.textSecondary }}>Asking Claude…</Text>
         </View>
       ) : (
@@ -79,6 +79,7 @@ export function LineExplanation({ api, textId, line, grammarChosen, onGrammarCho
                 onPress={() => { haptic.tap(); load(true); }}
                 accessibilityRole="button"
                 accessibilityLabel="Explain more simply"
+                hitSlop={{ top: space.s, bottom: space.s }}
                 style={{ alignSelf: 'flex-start', backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.s }}
               >
                 <Text style={{ ...type.footnote, color: c.text }}>Explain more simply</Text>
@@ -143,6 +144,7 @@ function GrammarInLine({ api, grammar, chosen, onChosen, onOpen }: {
             accessibilityRole="button"
             accessibilityState={{ expanded: open === g.id }}
             accessibilityLabel={`${g.name}, ${grammarStateWord(stateOf(g))}`}
+            hitSlop={{ top: space.s, bottom: space.s }}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: space.xs, backgroundColor: c.accentFill, borderRadius: radius.pill,
               paddingHorizontal: space.m, paddingVertical: space.xs, borderWidth: 2, borderColor: open === g.id ? c.accent : c.accentFill,
@@ -154,7 +156,7 @@ function GrammarInLine({ api, grammar, chosen, onChosen, onOpen }: {
         ))}
       </View>
       {shown ? (
-        <View style={{ gap: space.s, paddingTop: space.s, borderTopWidth: 1, borderTopColor: c.border }}>
+        <View style={{ gap: space.s, paddingTop: space.s, borderTopWidth: hairline, borderTopColor: c.border }}>
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
             <Text style={{ fontWeight: '600', color: c.text }}>{`${shown.name}.`}</Text>
             {` ${shown.note}.`}

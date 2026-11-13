@@ -82,7 +82,8 @@ describe('recording notes', () => {
     };
     const progress: number[] = [];
     const r = await recordNotes(f.deps, notes.map((note) => ({ note, voice: VOICE })), (n) => progress.push(n));
-    expect(r).toEqual({ recorded: 2, stopped: "Couldn't reach the server." });
+    expect(r.recorded).toBe(2);
+    expect(r.stopped).toEqual(new Error("Couldn't reach the server."));
     expect(progress).toEqual([1, 2]);
   });
 });

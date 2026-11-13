@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { failureText } from '../../core/failure';
 import { grammarPoint } from '../../core/grammar';
 import { DRILL_POINTS, DRILL_QUESTIONS, duePoints, dueWhen, scheduledPoints, type DrillState, type GrammarAnswer } from '../../core/grammarDrills';
 import { ApiError, type Language } from '../../reader/api';
@@ -12,6 +13,7 @@ import { Button, Card, ErrorNote, Group, Help, NavRow, Screen } from '../kit';
 import { space, type, useTheme } from '../theme';
 import { GrammarDrill } from './GrammarDrill';
 import type { ToolScreenProps } from './index';
+import { ControlLabel } from './ToolScreen';
 
 /**
  * Grammar drills (docs/grammar.md, step 5): the points set to Practice or Know it in Read & Listen,
@@ -39,14 +41,14 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
 
   const load = useCallback(async () => {
     setError(null);
-    const [mine, settings] = await Promise.all([repo.listGrammarAnswers(), repo.collectionSettings()]);
-    setAnswers(mine);
-    setHour(settings.dayStartsAtHour);
-    if (!readerApi) return;
     try {
+      const [mine, settings] = await Promise.all([repo.listGrammarAnswers(), repo.collectionSettings()]);
+      setAnswers(mine);
+      setHour(settings.dayStartsAtHour);
+      if (!readerApi) return;
       setChoices((await readerApi.grammarChoices()).choices);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't load your grammar choices.");
+      setError(e instanceof ApiError ? e.message : failureText(e, { what: "Couldn't load your grammar choices.", next: 'Try again.' }));
     }
   }, [repo, readerApi]);
   useEffect(() => { if (!drilling) load(); }, [load, drilling]);
@@ -114,7 +116,7 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
               </Help>
             </Card>
             <View style={{ gap: space.s }}>
-              <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs }}>Drilled</Text>
+              <ControlLabel>Drilled</ControlLabel>
               <Group>
                 {scheduled.map((s, i) => (
                   <NavRow

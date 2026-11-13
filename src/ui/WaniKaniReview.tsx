@@ -208,6 +208,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const undo = () => {
     const back = study && studyUndo(study);
     if (!back) return;
+    haptic.tap();
     answeredFrom.current = null;
     setStudy(back);
     resetQuestion();
@@ -300,7 +301,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     ) : <Button label="Back to decks" onPress={onDone} />;
     return (
       <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
-        <Reveal style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
+        <Reveal style={{ flex: 1 }}>
+          <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
           <Icon name="checkmark.circle.fill" size={56} color={c.countDue} weight="regular" />
           <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>All done for now</Text>
           <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>
@@ -308,9 +310,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           </Text>
           {next.held && prefs.maxApprentice !== null ? (
             <Text style={{ ...type.subhead, color: c.warning, textAlign: 'center' }}>
-              {`Lessons are paused: ${next.apprentice} items are at Apprentice, over your limit of ${prefs.maxApprentice}.`}
+              {`Lessons are paused: ${next.apprentice} ${next.apprentice === 1 ? 'item is' : 'items are'} at Apprentice, over your limit of ${prefs.maxApprentice}.`}
             </Text>
           ) : null}
+          </ScrollView>
         </Reveal>
       </Screen>
     );

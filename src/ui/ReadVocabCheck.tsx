@@ -8,8 +8,9 @@ import {
 import { loadVocabSeen, saveVocabSeen } from '../reader/storage';
 import { vocabWatch } from '../reader/vocabWatch';
 import { haptic } from './haptics';
+import { Reveal } from './motion';
 import { Button, Card, ErrorNote, Group, Help, Icon, Screen, Tappable } from './kit';
-import { radius, smooth, space, type, useTheme } from './theme';
+import { hairline, radius, smooth, space, type, useTheme } from './theme';
 
 const POLL_MS = 3000;
 
@@ -216,7 +217,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
                   key={b.band}
                   accessible
                   accessibilityLabel={`Words ${bandLabel(b.band)}: ${b.right} of ${b.asked} right`}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, paddingVertical: space.m, paddingHorizontal: space.l, borderTopWidth: i ? 0.5 : 0, borderColor: c.border }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, paddingVertical: space.m, paddingHorizontal: space.l, borderTopWidth: i ? hairline : 0, borderColor: c.border }}
                 >
                   <View style={{ width: 8, height: 8, borderRadius: radius.pill, backgroundColor: b.known >= KNOWN_SHARE ? c.good : b.known >= 0.5 ? c.warning : c.textTertiary }} />
                   <Text style={{ ...type.callout, color: c.text, flex: 1 }}>{`Words ${bandLabel(b.band)}`}</Text>
@@ -233,7 +234,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
                       key={m.item.word}
                       accessible
                       accessibilityLabel={`${m.item.word}, ${m.item.meaning}. ${m.picked ? `You chose ${m.picked}.` : 'Skipped.'}`}
-                      style={{ gap: 2, paddingVertical: space.m, paddingHorizontal: space.l, borderTopWidth: i ? 0.5 : 0, borderColor: c.border }}
+                      style={{ gap: 2, paddingVertical: space.m, paddingHorizontal: space.l, borderTopWidth: i ? hairline : 0, borderColor: c.border }}
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.m }}>
                         <Text selectable style={{ ...type.callout, color: c.text, flexShrink: 1 }}>{m.item.word}</Text>
@@ -270,47 +271,50 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
         <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: QUESTIONS, now: asked.length }} style={{ height: 4, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }}>
           <View style={{ height: 4, width: `${(asked.length / QUESTIONS) * 100}%`, backgroundColor: c.accent }} />
         </View>
-        <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.xs }}>
-          <Text style={{ ...type.footnote, color: c.textSecondary }}>What does this mean?</Text>
-          <Text selectable style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>{item.word}</Text>
-          <Tappable
-            onPress={() => { haptic.tap(); onPlayWord(item.word, language); }}
-            accessibilityRole="button"
-            accessibilityLabel={`Play ${item.word}`}
-            style={{ marginTop: space.s, width: 44, height: 44, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Icon name="speaker.wave.2.fill" size={18} color={c.accent} />
-          </Tappable>
-        </Card>
-        {[choices.slice(0, 2), choices.slice(2)].map((pair, row) => (
-          <View key={row} style={{ flexDirection: 'row', gap: space.s }}>
-            {pair.map((choice) => {
-              const right = choice === item.meaning;
-              const wrongPick = !!feedback && feedback.picked === choice && !right;
-              const mark = feedback && right ? c.good : wrongPick ? c.danger : null;
-              return (
-                <Tappable
-                  key={choice}
-                  onPress={() => answer(right ? 'right' : 'wrong', choice)}
-                  disabled={!!feedback}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${choice}${feedback && right ? '. Right answer' : wrongPick ? '. Your answer' : ''}`}
-                  style={{
-                    flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center',
-                    paddingHorizontal: space.m, paddingVertical: space.m, borderRadius: radius.m, ...smooth,
-                    backgroundColor: feedback && right ? c.goodFill : wrongPick ? c.dangerFill : c.surface,
-                    borderColor: mark ?? c.border, borderWidth: mark ? 1 : 0.5,
-                    opacity: feedback && !mark ? 0.5 : 1,
-                  }}
-                >
-                  <Text style={{ ...type.body, color: c.text, textAlign: 'center', fontWeight: feedback && right ? '600' : '400' }}>{choice}</Text>
-                </Tappable>
-              );
-            })}
-          </View>
-        ))}
+        {/* Keyed to the word, so each question fades in as a new card does in Review. */}
+        <Reveal key={item.word} rise={10} style={{ gap: space.m }}>
+          <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.xs }}>
+            <Text style={{ ...type.footnote, color: c.textSecondary }}>What does this mean?</Text>
+            <Text selectable style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>{item.word}</Text>
+            <Tappable
+              onPress={() => { haptic.tap(); onPlayWord(item.word, language); }}
+              accessibilityRole="button"
+              accessibilityLabel={`Play ${item.word}`}
+              style={{ marginTop: space.s, width: 44, height: 44, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Icon name="speaker.wave.2.fill" size={18} color={c.accent} />
+            </Tappable>
+          </Card>
+          {[choices.slice(0, 2), choices.slice(2)].map((pair, row) => (
+            <View key={row} style={{ flexDirection: 'row', gap: space.s }}>
+              {pair.map((choice) => {
+                const right = choice === item.meaning;
+                const wrongPick = !!feedback && feedback.picked === choice && !right;
+                const mark = feedback && right ? c.good : wrongPick ? c.danger : null;
+                return (
+                  <Tappable
+                    key={choice}
+                    onPress={() => answer(right ? 'right' : 'wrong', choice)}
+                    disabled={!!feedback}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${choice}${feedback && right ? '. Right answer' : wrongPick ? '. Your answer' : ''}`}
+                    style={{
+                      flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center',
+                      paddingHorizontal: space.m, paddingVertical: space.m, borderRadius: radius.m, ...smooth,
+                      backgroundColor: feedback && right ? c.goodFill : wrongPick ? c.dangerFill : c.surface,
+                      borderColor: mark ?? c.border, borderWidth: mark ? 1 : 0.5,
+                      opacity: feedback && !mark ? 0.5 : 1,
+                    }}
+                  >
+                    <Text style={{ ...type.body, color: c.text, textAlign: 'center', fontWeight: feedback && right ? '600' : '400' }}>{choice}</Text>
+                  </Tappable>
+                );
+              })}
+            </View>
+          ))}
+        </Reveal>
         {feedback ? (
-          <View style={{ flexDirection: 'row', gap: space.s }}>
+          <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
             {mining && feedback.reply !== 'right' ? (
               <Button
                 label={added.includes(item.word) ? 'Added to deck' : 'Add to deck'}
@@ -321,7 +325,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
               />
             ) : null}
             <Button label={asked.length + 1 >= QUESTIONS ? 'See result' : 'Next'} onPress={next} style={{ flex: 1 }} />
-          </View>
+          </Reveal>
         ) : (
           <Tappable
             onPress={() => answer('skipped')}

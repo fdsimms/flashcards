@@ -1,11 +1,11 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Keyboard, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Keyboard, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type Form, type Language, type Shelf, type ShelfText, type Word } from '../reader/api';
 import { LANGUAGES, flaggedName } from '../reader/languages';
 import { cardDetail, playMinutes, playOrder, reasonLabel, surprisePick } from '../reader/shelf';
 import { haptic } from './haptics';
-import { Button, Card, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
+import { Button, Card, Divider, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
 import { GlossPopover, type Tapped } from './Reader';
 import { hairline, MIN_TAP, radius, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
@@ -102,11 +102,13 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
     loadSeq.current++;
     setShelf(null);
     setError(null);
+    setActionError(null);
     try {
       await api.updateSettings({ language });
       onLanguage();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't switch the language. Try again.");
+      // Not `error`: the reload below clears that once the shelf (still the old language's) loads.
+      setActionError(e instanceof ApiError ? e.message : "Couldn't switch the language. Try again.");
     }
     idlePolls.current = 0;
     await load();
@@ -239,7 +241,8 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
                   <ShelfRow key={t.id} text={t} first={i === 0} onPress={() => open(t.id)} onLongPress={() => textActions(t)} />
                 ))}
                 {shelf.writing.map((w, i) => (
-                  <View key={`${w.topic}:${i}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, borderTopWidth: shelf.texts.length + i === 0 ? 0 : 1, borderTopColor: c.border }}>
+                  <View key={`${w.topic}:${i}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l }}>
+                    {shelf.texts.length + i === 0 ? null : <Divider inset={space.l} />}
                     <ActivityIndicator size="small" color={c.accent} />
                     <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>
                       {w.reason === 'asked' ? `Writing "${w.topic}"` : 'Writing a new text'}
@@ -269,7 +272,7 @@ function ShelfRow({ text, first, onPress, onLongPress }: { text: ShelfText; firs
   const c = useTheme();
   const reason = reasonLabel(text);
   return (
-    <Tappable
+    <Pressable
       onPress={() => { haptic.tap(); onPress(); }}
       onLongPress={() => { haptic.select(); onLongPress(); }}
       accessibilityRole="button"
@@ -277,16 +280,16 @@ function ShelfRow({ text, first, onPress, onLongPress }: { text: ShelfText; firs
       accessibilityHint="Opens the text"
       accessibilityActions={[{ name: 'more', label: 'Change this topic, or remove from shelf' }]}
       onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'more') onLongPress(); }}
-      scaleTo={0.99}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, borderTopWidth: first ? 0 : 1, borderTopColor: c.border }}
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, backgroundColor: pressed ? c.fill : 'transparent' })}
     >
+      {first ? null : <Divider inset={space.l} />}
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ ...type.headline, color: c.text }}>{text.title}</Text>
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{cardDetail(text)}</Text>
         <Text style={{ ...type.footnote, color: text.reason === 'due' ? c.countDue : c.textSecondary }}>{reason}</Text>
       </View>
       <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
-    </Tappable>
+    </Pressable>
   );
 }
 
@@ -322,7 +325,7 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onStarted }: { api: Api; sh
       <Card>
         <Text style={{ ...type.headline, color: c.text }}>Start an ongoing story</Text>
         <Help>Each episode picks up where the last one ended, with the same people and places, so the same words keep coming back. Leave the topic empty and the story is up to the writer.</Help>
-        <Field label="What should it be about?" placeholder="e.g., a small café on a rainy day" value={about} onChangeText={setAbout} returnKeyType="done" onSubmitEditing={start} />
+        <Field label="What should it be about?" placeholder="For example, a small café on a rainy day" value={about} onChangeText={setAbout} returnKeyType="done" onSubmitEditing={start} />
         {error ? <ErrorNote message={error} /> : null}
         <Button label="Start a story" variant="secondary" onPress={start} busy={starting} />
       </Card>
@@ -349,9 +352,10 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onStarted }: { api: Api; sh
                 return word ? (
                   <Tappable
                     key={w}
-                    onPress={(e) => setTapped({ word, x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}
+                    onPress={(e) => { haptic.tap(); setTapped({ word, x: e.nativeEvent.pageX, y: e.nativeEvent.pageY }); }}
                     accessibilityRole="button"
                     accessibilityLabel={`Meaning of ${w}`}
+                    hitSlop={{ top: space.m, bottom: space.m }}
                   >
                     {pill}
                   </Tappable>
@@ -380,7 +384,7 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onStarted }: { api: Api; sh
           <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>Writing the next episode. This takes about half a minute.</Text>
         </View>
       ) : story.failed ? (
-        <Help>{`Couldn't write the next episode: ${story.failed} It's tried again in half an hour.`}</Help>
+        <Help>{`Couldn't write the next episode: ${story.failed} The server tries again in half an hour.`}</Help>
       ) : (
         <Help>The next episode is written when you pull down or come back here.</Help>
       )}
@@ -398,14 +402,15 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onStarted }: { api: Api; sh
 function WriteCard({ api, onWriting }: { api: Api; onWriting: () => void }) {
   const [name, setName] = useState('');
   const [form, setForm] = useState<Form>('dialogue');
-  const [busy, setBusy] = useState(false);
+  // Which button is working: the other is disabled meanwhile, without a spinner of its own.
+  const [busy, setBusy] = useState<'write' | 'surprise' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const write = async () => {
     const topic = name.trim();
     if (!topic || busy) return;
     Keyboard.dismiss();
-    setBusy(true);
+    setBusy('write');
     setError(null);
     try {
       await api.writeAbout(topic, form);
@@ -414,7 +419,7 @@ function WriteCard({ api, onWriting }: { api: Api; onWriting: () => void }) {
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't start writing that. Try again.");
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -422,7 +427,7 @@ function WriteCard({ api, onWriting }: { api: Api; onWriting: () => void }) {
   const surprise = async () => {
     if (busy) return;
     Keyboard.dismiss();
-    setBusy(true);
+    setBusy('surprise');
     setError(null);
     try {
       const pick = surprisePick(await api.suggestions(), Math.random);
@@ -432,18 +437,18 @@ function WriteCard({ api, onWriting }: { api: Api; onWriting: () => void }) {
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't start writing that. Try again.");
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
   return (
     <Card>
-      <Button label="Surprise me" variant="secondary" onPress={surprise} busy={busy} />
+      <Button label="Surprise me" variant="secondary" onPress={surprise} busy={busy === 'surprise'} disabled={busy !== null} />
       <Help>Writes a text on an idea you haven't tried, with no topic needed.</Help>
       <Field label="Write one about something else" placeholder="For example, haggling at a market" value={name} onChangeText={setName} returnKeyType="done" onSubmitEditing={write} />
       <Segments<Form> options={[{ value: 'dialogue', label: 'Dialogue' }, { value: 'story', label: 'Story' }]} value={form} onChange={setForm} />
       {error ? <ErrorNote message={error} /> : null}
-      <Button label="Write" variant="secondary" onPress={write} busy={busy} disabled={!name.trim()} />
+      <Button label="Write" variant="secondary" onPress={write} busy={busy === 'write'} disabled={!name.trim() || busy !== null} />
       <Help>Takes about half a minute. It joins the shelf when it's ready.</Help>
     </Card>
   );

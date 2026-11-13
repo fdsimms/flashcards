@@ -68,8 +68,8 @@ export async function recordNote(deps: RecordDeps, noteId: string, voice: string
 
 export interface RecordResult {
   recorded: number;
-  /** Why it stopped early, if it did: the first failure's message. */
-  stopped?: string;
+  /** Why it stopped early, if it did: the first failure, for the screen to word (`failureText`). */
+  stopped?: unknown;
 }
 
 /**
@@ -89,7 +89,7 @@ export async function recordNotes(
     try {
       if (await recordNote(deps, note.id, voice)) recorded++;
     } catch (e) {
-      return { recorded, stopped: e instanceof Error ? e.message : String(e) };
+      return { recorded, stopped: e };
     }
     onProgress(i + 1);
   }

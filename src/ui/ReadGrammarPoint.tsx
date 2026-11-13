@@ -9,7 +9,7 @@ import { ApiError, type Api, type GrammarChoice, type GrammarPointPage } from '.
 import { DEFAULT_MAX_PRACTICE, grammarChoiceOptions, grammarStateWord, markedParts, seenLine } from '../reader/grammar';
 import { haptic } from './haptics';
 import { Button, Card, ErrorNote, HeaderAction, Help, Screen, SectionTitle, Segments, Tappable } from './kit';
-import { radius, space, type, useTheme } from './theme';
+import { hairline, radius, space, type, useTheme } from './theme';
 
 /**
  * A grammar point's page (docs/grammar.md, step 4): its choice, the explanation and related points
@@ -125,7 +125,7 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
             <Text style={{ ...type.headline, color: c.text }}>Set it to Know it?</Text>
             <Text style={{ ...type.subhead, color: c.text }}>{knowItReason(suggestion, page.seen.texts)}</Text>
             <View style={{ flexDirection: 'row', gap: space.m }}>
-              <HeaderAction label="Know it" accessibilityLabel={`Set ${point.name} to Know it`} onPress={() => { haptic.tap(); choose('normal'); }} />
+              <HeaderAction label="Know it" accessibilityLabel={`Set ${point.name} to Know it`} onPress={() => choose('normal')} />
               <HeaderAction label="Not yet" accessibilityLabel={`Not yet: keep ${point.name} as it is`} onPress={notYet} />
             </View>
           </View>
@@ -156,6 +156,7 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
                     onPress={() => { haptic.tap(); onOpenPoint(r.id); }}
                     accessibilityRole="button"
                     accessibilityLabel={state ? `${r.name}, ${grammarStateWord(state)}` : r.name}
+                    hitSlop={{ top: space.s, bottom: space.s }}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, backgroundColor: c.accentFill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.s }}
                   >
                     <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{r.name}</Text>
@@ -173,7 +174,7 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
             <Card style={{ gap: space.m }}>
               {seen ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{seen}</Text> : null}
               {page.examples.map((e, i) => (
-                <View key={`${e.text_id}:${i}`} style={{ gap: 2, paddingTop: space.m, borderTopWidth: 1, borderTopColor: c.border }}>
+                <View key={`${e.text_id}:${i}`} style={{ gap: 2, paddingTop: space.m, borderTopWidth: hairline, borderTopColor: c.border }}>
                   <Text style={{ ...type.callout, color: c.text }}>
                     {markedParts(e.line, e.words).map((part, j) => (part.marked
                       ? <Text key={j} style={{ textDecorationLine: 'underline', textDecorationColor: c.accent }}>{part.text}</Text>

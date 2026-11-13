@@ -2,13 +2,13 @@ import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { LANGUAGES } from '../../reader/languages';
 import { randomDate, type CalendarDate } from '../../tools/date';
-import { sameDate } from '../../tools/dateQuiz';
+import { quizDate, sameDate } from '../../tools/dateQuiz';
 import { DATE_SAYERS, WEEK_STARTS_ON } from '../../tools/tools';
 import { Card, Chip } from '../kit';
 import { space } from '../theme';
 import { CalendarMonth } from './CalendarMonth';
 import type { ToolScreenProps } from './index';
-import { ModeChips, PickAnswer, TapQuestion, TapResult, TypeAnswer, useDateQuiz } from './DateQuiz';
+import { ModeChips, PickAnswer, TapQuestion, TapResult, today, TypeAnswer, useDateQuiz } from './DateQuiz';
 import { AnswerCard, ControlLabel, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
 
 /**
@@ -23,12 +23,15 @@ export function DateTool({ tool, repo }: ToolScreenProps) {
   const [weekday, setWeekday] = useToolPref('dateWeekday');
   const [year, setYear] = useToolPref('dateYear');
   const [mode, setMode] = useToolPref('dateMode');
-  const [date, setDate] = useState<CalendarDate>(() => randomDate());
+  const [drawn, setDrawn] = useState<CalendarDate>(() => randomDate());
+  const now = today();
+  // The date asked about: the one drawn, or its day and month this year when it's tapped with the year unsaid.
+  const date = useMemo(() => quizDate(drawn, mode, { weekday, year }, now), [drawn, mode, year, now.year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saying = useMemo(() => DATE_SAYERS[language]?.(date, { weekday, year }), [language, date, weekday, year]);
-  const change = (next: CalendarDate) => { answer.hide(); setDate(next); };
+  const change = (next: CalendarDate) => { answer.hide(); setDrawn(next); };
   const parts = { weekday, year };
-  const quiz = useDateQuiz({ mode, language, date, parts, saying, sayer: DATE_SAYERS[language], speak: answer.speak, next: () => change(randomDate(date)) });
+  const quiz = useDateQuiz({ mode, language, date, parts, saying, sayer: DATE_SAYERS[language], speak: answer.speak, next: () => change(randomDate(drawn)) });
   const tapping = mode === 'tap';
 
   return (
@@ -37,7 +40,7 @@ export function DateTool({ tool, repo }: ToolScreenProps) {
       language={language}
       onLanguage={(l) => { setLanguage(l); answer.hide(); }}
       shown={answer.shown}
-      onRandomize={() => change(randomDate(date))}
+      onRandomize={() => change(randomDate(drawn))}
       onToggle={() => answer.toggle(saying?.everyday)}
       actions={quiz.actions}
     >

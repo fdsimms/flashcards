@@ -1,9 +1,11 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import React, { useEffect, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { failureText } from '../core/failure';
 import { pageUsesMathJax } from '../core/mathjax';
 import { installMathJax } from '../media/mathjax';
+import { space, type, useTheme } from './theme';
 
 let pageCount = 0;
 
@@ -31,7 +33,9 @@ export function CardWebView({ html, onMessage, onTap }: {
   /** A tap on the page that wasn't on a link, button or field. Setting it makes the page post `{"tap": true}`. */
   onTap?: () => void;
 }) {
+  const c = useTheme();
   const [uri, setUri] = useState<string>();
+  const [error, setError] = useState<string>();
   const seq = useRef(0);
 
   useEffect(() => {
@@ -54,8 +58,10 @@ export function CardWebView({ html, onMessage, onTap }: {
       file.create({ overwrite: true });
       await file.write(html);
       // After the await: a newer page may have been written meanwhile; only the latest is shown.
-      if (!cancelled && n === seq.current) setUri(file.uri);
-    })();
+      if (!cancelled && n === seq.current) { setUri(file.uri); setError(undefined); }
+    })().catch((e) => {
+      if (!cancelled && n === seq.current) setError(failureText(e, { what: "Couldn't show this card.", next: 'Close the deck and open it again.' }));
+    });
     return () => {
       cancelled = true;
       // Leave the file until the next page replaces it, so the WebView never loses its page.
@@ -63,6 +69,13 @@ export function CardWebView({ html, onMessage, onTap }: {
     };
   }, [html]);
 
+  if (error) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', padding: space.xl }}>
+        <Text style={{ ...type.subhead, color: c.danger, textAlign: 'center' }}>{error}</Text>
+      </View>
+    );
+  }
   if (!uri) return <View style={{ flex: 1 }} />;
   return (
     <WebView

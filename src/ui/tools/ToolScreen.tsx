@@ -11,7 +11,8 @@ import { loadToolPrefs, saveToolPrefs, toolPrefs } from '../../tools/storage';
 import { toolLanguage, type ToolInfo } from '../../tools/tools';
 import { haptic } from '../haptics';
 import { Button, Card, Help, Icon, Screen, Tappable } from '../kit';
-import { radius, space, type, useTheme } from '../theme';
+import { Reveal } from '../motion';
+import { MIN_TAP, radius, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 
@@ -71,7 +72,7 @@ export function useAnswer(repo: Repo, language: Language) {
 /** The footer's two buttons when a tool needs other than Randomize and Show answer (a quiz's Check, Try again, Next). No `secondary` leaves the primary button the whole width. */
 export interface ToolActions {
   secondary?: { label: string; onPress: () => void };
-  primary: { label: string; onPress: () => void };
+  primary: { label: string; onPress: () => void; disabled?: boolean };
 }
 
 export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onToggle, actions, children }: {
@@ -106,7 +107,7 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onT
           {actions ? (
             <>
               {actions.secondary ? <Button variant="secondary" label={actions.secondary.label} style={{ flex: 1 }} onPress={actions.secondary.onPress} /> : null}
-              <Button label={actions.primary.label} style={{ flex: 1 }} onPress={actions.primary.onPress} />
+              <Button label={actions.primary.label} style={{ flex: 1 }} onPress={actions.primary.onPress} disabled={actions.primary.disabled} />
             </>
           ) : (
             <>
@@ -127,7 +128,7 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onT
 /** A small all-caps label over a tool's control, as over a group of rows. */
 export function ControlLabel({ children }: { children: string }) {
   const c = useTheme();
-  return <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs }}>{children}</Text>;
+  return <Text accessibilityRole="header" style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs }}>{children}</Text>;
 }
 
 export interface Answer {
@@ -145,30 +146,30 @@ export function AnswerCard({ shown, prompt, answer, onPlay }: { shown: boolean; 
       {!shown || !answer ? (
         <Help>{prompt}</Help>
       ) : (
-        <>
+        <Reveal style={{ gap: space.m }}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
             <View style={{ flex: 1, gap: space.xs }}>
               <Text selectable style={{ ...type.cardBack, color: c.text }}>{answer.everyday.text}</Text>
               {answer.everyday.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{answer.everyday.roman}</Text> : null}
             </View>
-            <PlayButton onPress={() => onPlay(answer.everyday)} />
+            <PlayButton label="Play the answer" onPress={() => onPlay(answer.everyday)} />
           </View>
           {answer.also.length ? <Ways title="Also said" phrases={answer.also} onPlay={onPlay} /> : null}
           {answer.last ? <Ways title={answer.last.title} phrases={[answer.last.phrase]} onPlay={onPlay} /> : null}
-        </>
+        </Reveal>
       )}
     </Card>
   );
 }
 
-/** The round speaker button beside a phrase. */
-export function PlayButton({ onPress }: { onPress: () => void }) {
+/** The round speaker button beside a phrase. `label` says what it plays, for VoiceOver ("Play the answer"). */
+export function PlayButton({ label, onPress }: { label: string; onPress: () => void }) {
   const c = useTheme();
   return (
     <Tappable
       onPress={() => { haptic.tap(); onPress(); }}
       accessibilityRole="button"
-      accessibilityLabel="Play"
+      accessibilityLabel={label}
       hitSlop={6}
       style={{ width: 40, height: 40, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
     >
@@ -184,7 +185,7 @@ export function Ways({ title, phrases, onPlay }: { title: string; phrases: Phras
     <View style={{ gap: space.s, borderTopWidth: 0.5, borderTopColor: c.border, paddingTop: space.m }}>
       <Text style={{ ...type.overline, color: c.textSecondary }}>{title}</Text>
       {phrases.map((p) => (
-        <Tappable key={p.text} onPress={() => { haptic.tap(); onPlay(p); }} accessibilityRole="button" accessibilityHint="Plays it" scaleTo={0.99} style={{ gap: 2 }}>
+        <Tappable key={p.text} onPress={() => { haptic.tap(); onPlay(p); }} accessibilityRole="button" accessibilityHint="Plays it" scaleTo={0.99} style={{ gap: 2, minHeight: MIN_TAP, justifyContent: 'center' }}>
           <Text style={{ ...type.body, color: c.text }}>{p.text}</Text>
           {p.roman || p.note ? (
             <Text style={{ ...type.footnote, color: c.textSecondary }}>{[p.roman, p.note].filter(Boolean).join(' · ')}</Text>

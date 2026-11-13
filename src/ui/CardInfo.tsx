@@ -10,8 +10,8 @@ import { paramsForDeck } from '../core/scheduler';
 import { durationText } from '../core/stats';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
-import { ErrorNote, Group, Screen, SectionTitle } from './kit';
-import { hairline, space, type, useTheme } from './theme';
+import { Divider, Group, Loading, Screen, SectionTitle } from './kit';
+import { space, type, useTheme } from './theme';
 
 const RATINGS = ['', 'Again', 'Hard', 'Good', 'Easy'];
 const date = (d: Date) => d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -25,11 +25,9 @@ function InfoRow({ label, value, first }: { label: string; value: string; first?
     <View
       accessible
       accessibilityLabel={`${label}: ${value}`}
-      style={{
-        flexDirection: 'row', justifyContent: 'space-between', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l,
-        borderTopWidth: first ? 0 : hairline, borderTopColor: c.border,
-      }}
+      style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l }}
     >
+      {first ? null : <Divider inset={space.l} />}
       <Text style={{ ...type.body, color: c.textSecondary }}>{label}</Text>
       <Text style={{ ...type.body, color: c.text, flexShrink: 1, textAlign: 'right' }}>{value}</Text>
     </View>
@@ -68,11 +66,12 @@ function HistoryRow({ entry, first }: { entry: HistoryEntry; first?: boolean }) 
     <View
       accessible
       accessibilityLabel={`${dateTime(entry.at)}. ${what}${detail ? `. ${detail}` : ''}`}
-      style={{ paddingVertical: space.m, paddingHorizontal: space.l, gap: 2, borderTopWidth: first ? 0 : hairline, borderTopColor: c.border }}
+      style={{ paddingVertical: space.m, paddingHorizontal: space.l, gap: 2 }}
     >
+      {first ? null : <Divider inset={space.l} />}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.m }}>
-        <Text style={{ ...type.body, color: entry.rating === 1 ? c.again : c.text }}>{what}</Text>
-        {detail ? <Text style={{ ...type.body, color: c.textSecondary }}>{detail}</Text> : null}
+        <Text style={{ ...type.body, color: entry.rating === 1 ? c.again : c.text, flexShrink: 1 }}>{what}</Text>
+        {detail ? <Text style={{ ...type.body, color: c.textSecondary, flexShrink: 1, textAlign: 'right' }}>{detail}</Text> : null}
       </View>
       <Text style={{ ...type.footnote, color: c.textSecondary }}>{dateTime(entry.at)}</Text>
     </View>
@@ -87,9 +86,11 @@ export function CardInfo({ repo, cardId }: { repo: Repo & AnkiLink; cardId: stri
   const c = useTheme();
   const [data, setData] = useState<{ info: Info; history: HistoryEntry[]; dayStartsAtHour: number } | null>();
   const [error, setError] = useState<string>();
+  const [loads, setLoads] = useState(0);
 
   useEffect(() => {
     let live = true;
+    setError(undefined);
     (async () => {
       try {
         const now = new Date();
@@ -106,13 +107,13 @@ export function CardInfo({ repo, cardId }: { repo: Repo & AnkiLink; cardId: stri
       }
     })();
     return () => { live = false; };
-  }, [repo, cardId]);
+  }, [repo, cardId, loads]);
 
   return (
     <Screen title="Card info" largeTitle={false}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.m }}>
-        {error ? <ErrorNote message={error} /> : null}
-        {data === null ? <Text style={{ ...type.body, color: c.textSecondary }}>This card isn't in Franki any more.</Text> : null}
+        {data === undefined ? <Loading error={error} onRetry={() => setLoads((n) => n + 1)} /> : null}
+        {data === null ? <Text style={{ ...type.body, color: c.textSecondary }}>This card isn't in Franki anymore.</Text> : null}
         {data ? (
           <>
             <Group>

@@ -17,10 +17,11 @@ const JA = { fontFamily: 'Hiragino Sans' } as const;
 function RadicalImage({ image, size }: { image: NonNullable<Subject['image']>; size: number }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
-  if (!image.svg) return <Image source={{ uri: image.url }} style={{ width: size, height: size, tintColor: c.text }} accessibilityIgnoresInvertColors />;
+  // Labelled by what it is, not its meaning, which would give the answer away.
+  if (!image.svg) return <Image source={{ uri: image.url }} style={{ width: size, height: size, tintColor: c.text }} accessibilityIgnoresInvertColors accessible accessibilityRole="image" accessibilityLabel="Radical picture" />;
   const html = `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;height:100%;background:transparent}img{width:100%;height:100%;object-fit:contain;filter:${dark ? 'invert(1)' : 'none'}}</style><img src="${image.url.replace(/"/g, '&quot;')}">`;
   return (
-    <View style={{ width: size, height: size }} pointerEvents="none">
+    <View style={{ width: size, height: size }} pointerEvents="none" accessible accessibilityRole="image" accessibilityLabel="Radical picture">
       <WebView source={{ html }} originWhitelist={['*']} scrollEnabled={false} opaque={false} style={{ backgroundColor: 'transparent' }} />
     </View>
   );

@@ -3,6 +3,6 @@ import { useApp } from '../ui/AppContext';
 import { Backup } from '../ui/Backup';
 
 export default function BackupRoute() {
-  const { repo } = useApp();
-  return <Backup store={repo} />;
+  const { repo, syncSettings } = useApp();
+  return <Backup store={repo} syncOn={!!syncSettings?.enabled} />;
 }

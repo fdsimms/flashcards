@@ -1,19 +1,20 @@
 import { useFocusEffect } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, ScrollView } from 'react-native';
+import { ActivityIndicator, Alert, AppState, ScrollView } from 'react-native';
 import {
   azureVoiceName, chosenVoice, deckLanguages, defaultRate, voiceQuality, voicesIn, VOICE_RATES,
   type DeckLanguage, type PhoneVoice, type VoiceChoice, type VoiceSettings,
 } from '../core/voices';
+import { failureText } from '../core/failure';
 import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { AzureVoiceRows, useAzureSample, useAzureVoices } from './AzureVoices';
-import { CheckRow, ErrorNote, Group, Help, NavRow, Screen, SectionTitle, Segments } from './kit';
-import { space } from './theme';
+import { CheckRow, ErrorNote, Group, Help, Loading, NavRow, Screen, SectionTitle, Segments } from './kit';
+import { space, useTheme } from './theme';
 
 const DOWNLOAD_HELP =
-  'More voices can be downloaded on iPhone in Settings > Accessibility > Spoken Content > Voices. ' +
+  'More voices can be downloaded on iPhone in Settings, Accessibility, Spoken Content, Voices. ' +
   "Enhanced and Premium voices sound the most natural. Siri's voices can't be used by other apps.";
 
 /**
@@ -25,6 +26,8 @@ function useVoiceChoices(repo: Repo) {
   const [languages, setLanguages] = useState<DeckLanguage[]>();
   const [voices, setVoices] = useState<PhoneVoice[]>([]);
   const [settings, setSettings] = useState<VoiceSettings>({});
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const latest = useRef<VoiceSettings>({});
 
   const loadVoices = useCallback(() => { Speech.getAvailableVoicesAsync().then(setVoices).catch(() => {}); }, []);
@@ -36,25 +39,33 @@ function useVoiceChoices(repo: Repo) {
 
   useFocusEffect(useCallback(() => {
     let live = true;
+    setError(null);
     (async () => {
       const [notes, types, saved] = await Promise.all([repo.listNotes(), repo.listNoteTypes(), repo.voiceSettings()]);
       if (!live) return;
       latest.current = saved;
       setSettings(saved);
       setLanguages(deckLanguages(notes, types.values(), saved));
-    })();
+    })().catch((e) => { if (live) setError(failureText(e, { what: "Couldn't load the voices.", next: 'Try again.' })); });
     return () => { live = false; Speech.stop(); };
-  }, [repo]));
+  }, [repo, attempt]));
 
   /** Saves a language's choice (to SQLite first, then the screen), built on the last one saved. */
   const choose = useCallback(async (key: string, change: Partial<VoiceChoice>) => {
-    const next = { ...latest.current, [key]: { ...latest.current[key], ...change } };
+    const before = latest.current;
+    const next = { ...before, [key]: { ...before[key], ...change } };
     latest.current = next;
-    await repo.saveVoiceSettings(next);
+    try {
+      await repo.saveVoiceSettings(next);
+    } catch (e) {
+      latest.current = before;
+      Alert.alert("Couldn't save this setting", failureText(e, { next: 'Try again.' }));
+      return;
+    }
     setSettings(next);
   }, [repo]);
 
-  return { languages, voices, settings, choose };
+  return { languages, voices, settings, choose, error, retry: () => setAttempt((n) => n + 1) };
 }
 
 /** What a language's row says: the voice cards are recorded with, and the iPhone's voice and speed. */
@@ -70,7 +81,8 @@ function summary(lang: DeckLanguage, voices: PhoneVoice[], settings: VoiceSettin
 
 /** Settings > Voices: each language the decks are read aloud in, with its voice and speed. */
 export function Voices({ repo, onLanguage }: { repo: Repo; onLanguage: (key: string) => void }) {
-  const { languages, voices, settings } = useVoiceChoices(repo);
+  const c = useTheme();
+  const { languages, voices, settings, error, retry } = useVoiceChoices(repo);
   return (
     <Screen title="Voices">
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
@@ -82,7 +94,9 @@ export function Voices({ repo, onLanguage }: { repo: Repo; onLanguage: (key: str
           </Group>
         ) : languages ? (
           <Help>None of your decks are read aloud yet. Omnilanguage notes with a Language, and note types whose templates use Anki's tts filter, show up here.</Help>
-        ) : null}
+        ) : error ? (
+          <ErrorNote message={error} onRetry={retry} />
+        ) : <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} />}
         <Help>
           For each language: the Azure voice cards without a recording are recorded with, and the iPhone voice and
           speed that read a card until it has one. A card with a recording plays it instead. A voice or speed named
@@ -100,11 +114,22 @@ export function Voices({ repo, onLanguage }: { repo: Repo; onLanguage: (key: str
  * reads a word from the decks with it.
  */
 export function VoiceLanguage({ repo, api, languageKey }: { repo: Repo; api: Api | null; languageKey: string }) {
-  const { languages, voices, settings, choose } = useVoiceChoices(repo);
+  const c = useTheme();
+  const { languages, voices, settings, choose, error, retry } = useVoiceChoices(repo);
   const lang = languages?.find((l) => l.key === languageKey);
   const azure = useAzureVoices(api, lang?.key);
   const sample = useAzureSample(api);
-  if (!lang) return <Screen title="">{null}</Screen>;
+  if (!lang) {
+    return (
+      <Screen title="">
+        {languages ? (
+          <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l }}>
+            <Help>No deck is read aloud in this language anymore.</Help>
+          </ScrollView>
+        ) : <Loading error={error} onRetry={retry} />}
+      </Screen>
+    );
+  }
 
   const choice = settings[lang.key];
   const current = chosenVoice(voices, settings, lang.key);
@@ -125,7 +150,9 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: Repo; api: Api
           <Help>Recording cards with Azure's voices needs Read & Listen turned on (Settings, Read & Listen), since its server holds the Azure key.</Help>
         ) : azure.error ? (
           <ErrorNote message={azure.error} onRetry={azure.retry} />
-        ) : azure.voices ? (
+        ) : !azure.voices ? (
+          <ActivityIndicator color={c.accent} style={{ marginVertical: space.l }} />
+        ) : (
           <>
             <Group accessibilityRole="radiogroup">
               <AzureVoiceRows
@@ -143,7 +170,7 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: Repo; api: Api
               {`${lang.name} notes without a recording get one in this voice: when a note is added, from Record audio in the note editor, and for a whole deck from its options. Read & Listen's server records it, and it goes to Anki with the note at the next sync. Only Omnilanguage notes are recorded, from their Entry.`}
             </Help>
           </>
-        ) : null}
+        )}
         <SectionTitle>iPhone voice speed</SectionTitle>
         <Segments
           options={VOICE_RATES.map((r) => ({ value: r, label: `${r.toFixed(1)}×`, accessibilityLabel: `Speed ${r}` }))}
@@ -152,7 +179,7 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: Repo; api: Api
         />
         <SectionTitle>iPhone voice</SectionTitle>
         {choice?.voice && !current ? (
-          <Help>{`${choice.voiceName ?? 'The voice chosen before'} isn't on this iPhone any more, so iOS picks one. Download it again or choose another.`}</Help>
+          <Help>{`${choice.voiceName ?? 'The voice chosen before'} isn't on this iPhone anymore, so iOS picks one. Download it again or choose another.`}</Help>
         ) : null}
         <Group accessibilityRole="radiogroup">
           <CheckRow

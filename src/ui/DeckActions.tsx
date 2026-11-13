@@ -42,7 +42,7 @@ export function useDeckActions(onOptions: (deck: string) => void) {
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Create', isPreferred: true,
-        onPress: (value?: string) => run("Couldn't create the deck.", () => createDeck(repo, value ?? '', fromAnki), (p) => create(p, value ?? '')),
+        onPress: (value?: string) => run("Couldn't create the deck", () => createDeck(repo, value ?? '', fromAnki), (p) => create(p, value ?? '')),
       },
     ], 'plain-text', typed);
   }, [repo, run, fromAnki]);
@@ -52,7 +52,7 @@ export function useDeckActions(onOptions: (deck: string) => void) {
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Rename', isPreferred: true,
-        onPress: (value?: string) => run("Couldn't rename the deck.", () => renameDeck(repo, deck, value ?? '', fromAnki), (p) => rename(deck, p, value ?? '')),
+        onPress: (value?: string) => run("Couldn't rename the deck", () => renameDeck(repo, deck, value ?? '', fromAnki), (p) => rename(deck, p, value ?? '')),
       },
     ], 'plain-text', typed);
   }, [repo, run, fromAnki]);
@@ -62,19 +62,19 @@ export function useDeckActions(onOptions: (deck: string) => void) {
     try {
       preview = await deckDeletionPreview(repo, deck);
     } catch (e) {
-      Alert.alert("Couldn't delete the deck.", failureText(e, { next: 'Try again.' }));
+      Alert.alert("Couldn't delete the deck", failureText(e, { next: 'Try again.' }));
       return;
     }
     const subdecks = decks.filter((r) => r.deck !== deck && isInDeck(r.deck, deck)).length;
     Alert.alert(`Delete "${deck}"?`, deckDeletionWarning(preview, subdecks), [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => run("Couldn't delete the deck.", () => deleteDeck(repo, deck, fromAnki)) },
+      { text: 'Delete', style: 'destructive', onPress: () => run("Couldn't delete the deck", () => deleteDeck(repo, deck, fromAnki)) },
     ]);
   }, [repo, decks, run, fromAnki]);
 
   /** A deck dragged to a new place. Dropped into a collapsed deck, that deck opens to show it there. */
   const move = useCallback((m: DeckMove) => {
-    run("Couldn't move the deck.", async () => {
+    run("Couldn't move the deck", async () => {
       await moveDeck(repo, m, fromAnki);
       if (m.parent !== null && collapse.collapsed.has(m.parent)) collapse.toggle(m.parent);
     });

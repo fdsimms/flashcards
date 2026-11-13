@@ -7,7 +7,7 @@ import { useDeckDrag } from './DeckDrag';
 import { DISCLOSURE, ROW_PAD, WELL_EDGE, WELL_INSET } from './deckLayout';
 import { haptic } from './haptics';
 import { Button, Card, Group, Icon, NavRow, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
-import { useReduceMotion } from './motion';
+import { Reveal, useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
 import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
@@ -154,12 +154,15 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
   // What the row sits on is the card's own color at even depths and a well's tint at odd ones; the
   // pressed state and the show/hide button take the other one, so they show.
   const onWell = row.depth % 2 === 1 ? c.surface : c.fill;
+  const line = detail ? detail.text : `${row.total.toLocaleString()} ${row.total === 1 ? 'card' : 'cards'}${row.collapsed && subdecks ? ` · ${subdecks} ${subdecks === 1 ? 'subdeck' : 'subdecks'}` : ''}`;
+  const gateLine = row.gate ? `${row.gate.inProgress} of ${row.gate.cap} in progress${atCap ? ', new cards wait' : ''}` : null;
   return (
     <Pressable
       onPress={onOpen}
       onLongPress={onLift}
       accessibilityRole="button"
-      accessibilityLabel={`${row.name}: ${row.due} due, ${row.fresh} new`}
+      // The label replaces the text inside, so it says the lines under the name too.
+      accessibilityLabel={[`${row.name}: ${row.due} due, ${row.fresh} new`, line.replace(' · ', ', '), gateLine].filter(Boolean).join('. ')}
       accessibilityActions={onStep ? [{ name: 'moveUp', label: 'Move up' }, { name: 'moveDown', label: 'Move down' }] : undefined}
       onAccessibilityAction={(e) => onStep?.(e.nativeEvent.actionName === 'moveUp' ? -1 : 1)}
       style={({ pressed }) => ({
@@ -172,14 +175,10 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
       {gutter ? <View style={{ width: DISCLOSURE }} /> : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{row.name}</Text>
-        <Text style={{ ...type.footnote, color: detail?.warning ? c.warning : c.textSecondary }}>
-          {detail ? detail.text : `${row.total.toLocaleString()} ${row.total === 1 ? 'card' : 'cards'}${row.collapsed && subdecks ? ` · ${subdecks} ${subdecks === 1 ? 'subdeck' : 'subdecks'}` : ''}`}
-        </Text>
-        {row.gate ? (
+        <Text style={{ ...type.footnote, color: detail?.warning ? c.warning : c.textSecondary }}>{line}</Text>
+        {gateLine ? (
           // Under the cap, new cards come in; at it, they wait until cards are a week out.
-          <Text style={{ ...type.footnote, color: atCap ? c.warning : c.textSecondary }}>
-            {row.gate.inProgress} of {row.gate.cap} in progress{atCap ? ', new cards wait' : ''}
-          </Text>
+          <Text style={{ ...type.footnote, color: atCap ? c.warning : c.textSecondary }}>{gateLine}</Text>
         ) : null}
       </View>
       <Stat value={row.due} label="due" color={c.countDue} />
@@ -191,6 +190,8 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
         accessibilityHint={menuHint}
         scaleTo={0.85}
         dimTo={0.4}
+        // Drawn 4pt narrower than a full tap target to leave the counts room; the slop makes up the rest.
+        hitSlop={{ left: 2, right: 2 }}
         style={{ width: MIN_TAP - 4, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
       >
         <Icon name="ellipsis" size={18} color={c.textTertiary} weight="semibold" />
@@ -222,6 +223,7 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
 function WarningBanner({ title, detail, action, hint, onPress }: { title: string; detail: string; action: string; hint?: string; onPress: () => void }) {
   const c = useTheme();
   return (
+    <Reveal>
     <Tappable onPress={() => { haptic.tap(); onPress(); }} accessibilityRole="button" accessibilityLabel={`${title}. ${detail}`} accessibilityHint={hint} scaleTo={0.98}>
       <View style={{ flexDirection: 'row', gap: space.m, alignItems: 'flex-start', borderRadius: radius.l, ...smooth, borderWidth: 1, borderColor: c.warning, backgroundColor: c.surface, padding: space.m }}>
         <Icon name="exclamationmark.triangle.fill" size={22} color={c.warning} />
@@ -232,6 +234,7 @@ function WarningBanner({ title, detail, action, hint, onPress }: { title: string
         </View>
       </View>
     </Tappable>
+    </Reveal>
   );
 }
 
@@ -381,7 +384,7 @@ export function DeckList(props: {
             <WarningBanner title="Sync didn't finish" detail={props.sync.status} action="Tap to try again" hint="Syncs now" onPress={syncTapped} />
           ) : null}
           {groups.length || props.extra ? <TodaySummary due={totals.due} fresh={totals.fresh} /> : null}
-          {groups.length === 0 ? (props.loaded === false ? null : (
+          {groups.length === 0 ? (props.loaded === false ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : (
             <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
               <Icon name="tray" size={40} color={c.textTertiary} weight="regular" />
               <Text style={{ ...type.title, color: c.text, marginTop: space.s }}>No decks yet</Text>

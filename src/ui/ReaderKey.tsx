@@ -6,7 +6,7 @@ import { HIGHLIGHT_ABOUT, MARK_INFO, type Example, type Mark } from '../reader/m
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { WordView, type ReadTextStyle } from './ReadWord';
-import { MIN_TAP, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, space, type, useTheme } from './theme';
 
 /**
  * What the marks on the words mean, with a switch for each. It lists only the marks the open text
@@ -53,7 +53,7 @@ export function ReaderKey({ examples, language, textStyle, shown, onChange }: {
                 onAccessibilityAction={() => { haptic.select(); onChange(e.mark, !on); }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, minHeight: MIN_TAP + space.m }}
               >
-                {i > 0 ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: c.border }} /> : null}
+                {i > 0 ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: hairline, backgroundColor: c.border }} /> : null}
                 {/* The sample is a picture of the mark: not tappable, and not read aloud beside the row's own label. */}
                 <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 112, alignItems: 'center' }}>
                   <WordView

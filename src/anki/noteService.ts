@@ -58,7 +58,7 @@ export async function saveNote(store: NoteStore, draft: NoteDraft, now: Date = n
   const noteTypes = await store.listNoteTypes();
   const noteType = noteTypes.get(draft.model);
   const existing = draft.id ? await store.getNote(draft.id) : undefined;
-  if (draft.id && !existing) throw new NoteRefused("This note isn't in Franki any more.");
+  if (draft.id && !existing) throw new NoteRefused("This note isn't in Franki anymore.");
   // An edit can move the note to another deck; it can't change its note type.
   const note: Note = { id: draft.id ?? '', deck: draft.deck, model: existing?.model ?? draft.model, fields: draft.fields, tags: draft.tags };
   const generated = cardsFor(note, noteTypes, now);
@@ -81,7 +81,7 @@ export async function saveNote(store: NoteStore, draft: NoteDraft, now: Date = n
         if (!nt) return null;
         if (existing) {
           const nid = await ankiNoteIdOf(db, oldCards);
-          if (nid === null) return { refused: "This note's cards aren't in the Anki collection any more, so it can't be changed there. Sync, then try again." };
+          if (nid === null) return { refused: "This note's cards aren't in the Anki collection anymore, so it can't be changed there. Sync, then try again." };
           // Moved first, so a card the edit adds lands in the new deck.
           if (note.deck !== existing.deck) {
             const deckId = await ankiDeckId(db, note.deck);

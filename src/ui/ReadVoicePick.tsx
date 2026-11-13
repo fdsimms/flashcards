@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ActivityIndicator, ScrollView } from 'react-native';
 import { failureText } from '../core/failure';
 import type { Api, Language, Settings, VoiceSlot } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { sampleLine, slotInfo, voicesForSlot } from '../reader/voiceSlots';
 import { AzureVoiceRows, useAzureSample, useAzureVoices } from './AzureVoices';
 import { ErrorNote, Group, Help, Screen } from './kit';
-import { space } from './theme';
+import { space, useTheme } from './theme';
 
 /**
  * One of a language's voice slots: the voices of its gender to choose from, the chosen one checked.
@@ -21,6 +21,7 @@ export function ReadVoicePick({ api, language, slot, selected, onSettings }: {
   /** The settings as the server has them after a change, for the rest of the app. */
   onSettings: (settings: Settings) => void;
 }) {
+  const c = useTheme();
   const { label, gender } = slotInfo(slot);
   const [chosen, setChosen] = useState<string>();
   const [error, setError] = useState<string>();
@@ -48,6 +49,7 @@ export function ReadVoicePick({ api, language, slot, selected, onSettings }: {
         {error ? <ErrorNote message={error} /> : null}
         {azure.error ? <ErrorNote message={azure.error} onRetry={azure.retry} /> : null}
         {sample.error ? <ErrorNote message={sample.error} /> : null}
+        {!options && !azure.error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
         {options ? (
           <Group accessibilityRole="radiogroup">
             <AzureVoiceRows voices={options} selected={chosen ?? selected} onChoose={(v) => { if (v) choose(v.voice); }} />

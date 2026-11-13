@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, ScrollView, Text, View } from 'react-native';
 import {
   ApiError, type Api, type Progress, type Settings, type SettingsChange, type Shelf, type StretchWords,
 } from '../reader/api';
@@ -20,6 +20,9 @@ import { useKeyboardScroll } from './useKeyboardScroll';
  * ongoing story, the themes the shelf writes from, practice words, and how reading is going.
  * Opened from the shelf's sliders button; the language is the one the shelf is showing.
  */
+/** The card a change was made in, where its failure is shown. */
+type Section = 'words' | 'story' | 'themes' | 'stretch';
+
 export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, onVocabCheck, onEpisodes }: {
   api: Api;
   /** Franki's decks, to choose the language's deck from. */
@@ -40,6 +43,8 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
   const [progress, setProgress] = useState<Progress | null>(null);
   const [grammar, setGrammar] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A change that failed, shown in the card it was made in rather than at the top, out of sight.
+  const [failed, setFailed] = useState<{ at: Section; message: string } | null>(null);
   const [about, setAbout] = useState('');
   const [starting, setStarting] = useState(false);
 
@@ -62,12 +67,12 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
 
   // Each change is numbered, so only the latest one's answer (or failure) is shown.
   const settingSeq = useRef(0);
-  const change = async (update: SettingsChange) => {
+  const change = async (update: SettingsChange, at: Section) => {
     if (!settings) return;
     const before = settings;
     const mine = ++settingSeq.current;
     setSettings({ ...settings, ...update, decks: { ...settings.decks, ...update.decks }, voices: settings.voices, common: { ...settings.common, ...update.common } });
-    setError(null);
+    setFailed(null);
     try {
       const saved = await api.updateSettings(update);
       if (mine !== settingSeq.current) return;
@@ -76,30 +81,32 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
     } catch (e) {
       if (mine !== settingSeq.current) return;
       setSettings(before);
-      setError(e instanceof ApiError ? e.message : "Couldn't change that setting. Try again.");
+      setFailed({ at, message: e instanceof ApiError ? e.message : "Couldn't change that setting. Try again." });
     }
   };
 
   const unlike = async (id: number) => {
     setShelf((s) => (s ? { ...s, themes: s.themes.filter((t) => t.id !== id) } : s));
+    setFailed(null);
     try {
       await api.setFavorite(id, false);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't remove that theme. Try again.");
+      setFailed({ at: 'themes', message: e instanceof ApiError ? e.message : "Couldn't remove that theme. Try again." });
       load();
     }
   };
 
   const startStory = async () => {
     if (starting) return;
+    Keyboard.dismiss();
     setStarting(true);
-    setError(null);
+    setFailed(null);
     try {
       await api.startStory(about.trim());
       setAbout('');
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't start a story. Try again.");
+      setFailed({ at: 'story', message: e instanceof ApiError ? e.message : "Couldn't start a story. Try again." });
     } finally {
       setStarting(false);
     }
@@ -117,6 +124,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
   const name = language ? LANGUAGES[language].name : '';
   const story = shelf?.story ?? null;
   const voices = language ? settings?.voices?.[language] : undefined;
+  const failure = (at: Section) => (failed?.at === at ? <ErrorNote message={failed.message} /> : null);
 
   return (
     <Screen title={name ? `${name} settings` : 'Settings'}>
@@ -140,12 +148,13 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
                     label="Deck"
                     options={deckNames.includes(settings.decks[language]) ? deckNames : [settings.decks[language], ...deckNames]}
                     value={settings.decks[language]}
-                    onChange={(deck) => change({ decks: { [language]: deck } })}
+                    onChange={(deck) => change({ decks: { [language]: deck } }, 'words')}
                   />
                   <Help>Words come from this deck and its subdecks. Texts already waiting were written from the old one.</Help>
                 </>
               ) : null}
-              <CommonWords settings={settings} onChange={(count) => change({ common: { [language]: count } })} />
+              <CommonWords settings={settings} onChange={(count) => change({ common: { [language]: count } }, 'words')} />
+              {failure('words')}
             </Card>
             <Group>
               {/* Thai counts only its deck, so it has no common words to check. */}
@@ -167,8 +176,9 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
                 <Help>No story yet. Start one here or on the shelf.</Help>
               )}
               {story && story.read > 0 ? <Button label="Read from the start" variant="secondary" onPress={() => onEpisodes(story.id)} /> : null}
-              <Field label={story ? 'A new story about' : 'A story about'} placeholder="Leave empty to let the writer choose" value={about} onChangeText={setAbout} />
-              <Button label="Start a new story" variant="secondary" onPress={confirmNewStory} busy={starting} />
+              <Field label={story ? 'A new story about' : 'A story about'} placeholder="Leave empty to let the writer choose" value={about} onChangeText={setAbout} returnKeyType="done" onSubmitEditing={confirmNewStory} />
+              {failure('story')}
+              <Button label={story ? 'Start a new story' : 'Start a story'} variant="secondary" onPress={confirmNewStory} busy={starting} />
               <Help>A new story keeps the same people and places from one episode to the next.</Help>
             </Card>
 
@@ -194,7 +204,8 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
               ) : (
                 <Help>None yet.</Help>
               )}
-              <Help>Choosing More like this at the end of a text, or Write more about this topic on a text held down, adds its theme. The shelf writes from these, today's due words, and new ideas. Themes are shared by every language.</Help>
+              {failure('themes')}
+              <Help>Choosing More like this at the end of a text, or holding a text on the shelf and choosing Write more about this topic, adds its theme. The shelf writes from these, today's due words, and new ideas. Themes are shared by every language.</Help>
             </Card>
 
             <SectionTitle>Practice words</SectionTitle>
@@ -202,8 +213,9 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
               <Segments<StretchWords>
                 options={[{ value: 'topic', label: 'Fit the text' }, { value: 'any', label: 'Any due word' }]}
                 value={settings.stretch_words}
-                onChange={(stretch_words) => change({ stretch_words })}
+                onChange={(stretch_words) => change({ stretch_words }, 'stretch')}
               />
+              {failure('stretch')}
               <Help>
                 {settings.stretch_words === 'topic'
                   ? 'Picked from your due and newer cards to fit each text. One text on the shelf always uses words due today.'

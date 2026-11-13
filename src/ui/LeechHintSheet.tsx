@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, V
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from './haptics';
 import { Button, ErrorNote, Field, Icon, Tappable } from './kit';
-import { lift, radius, space, type, useTheme } from './theme';
+import { lift, MIN_TAP, radius, space, type, useTheme } from './theme';
 import { failureText } from '../core/failure';
 
 /**
@@ -56,7 +56,7 @@ export function LeechHintSheet({ word, misses, suggest, onSave, onSkip }: {
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onSkip}>
-      <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: c.shadow, opacity: 0.45 }]} onPress={onSkip} accessibilityLabel="Skip" />
+      <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: c.shadow, opacity: 0.45 }]} onPress={onSkip} accessibilityRole="button" accessibilityLabel="Skip" />
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
         <View style={{
           backgroundColor: c.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, maxHeight: '85%',
@@ -70,7 +70,7 @@ export function LeechHintSheet({ word, misses, suggest, onSave, onSkip }: {
             </Text>
             <Field label="Hint" value={hint} onChangeText={setHint} placeholder="A sound-alike, a picture, anything that sticks" multiline autoFocus />
             {suggest ? (
-              <Tappable onPress={ask} disabled={asking} accessibilityRole="button" accessibilityLabel="Suggest hints" style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: 36 }}>
+              <Tappable onPress={ask} disabled={asking} accessibilityRole="button" accessibilityLabel="Suggest hints" accessibilityState={{ busy: asking, disabled: asking }} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP }}>
                 <Icon name="sparkles" size={18} color={c.accent} />
                 <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>{asking ? 'Asking Claude…' : ideas.length ? 'Suggest more hints' : 'Suggest hints'}</Text>
               </Tappable>

@@ -1,7 +1,8 @@
 import { usePreventRemove } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, ScrollView, Switch, Text, TextInput, useColorScheme, View } from 'react-native';
 import { DEFAULT_GATE_CAP } from '../core/config';
+import { failureText } from '../core/failure';
 import { groupByDeck, inProgressCount } from '../core/deckTree';
 import { GURU_INTERVAL_DAYS, parseGateCap } from '../core/progress';
 import { paramsForDeck } from '../core/scheduler';
@@ -12,7 +13,7 @@ import { DeckFormsOptions } from './DeckFormsOptions';
 import { DeckPriorityOptions } from './DeckPriorityOptions';
 import { DeckRecordings } from './DeckRecordings';
 import { haptic } from './haptics';
-import { Card, Group, Help, NavRow, Screen } from './kit';
+import { Card, Group, Help, Loading, NavRow, Screen } from './kit';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
@@ -20,7 +21,11 @@ import { useKeyboardScroll } from './useKeyboardScroll';
 export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Repo; deck: string; onCustomStudy: () => void; recorder: RecordDeps | null }) {
   const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
+  const dark = useColorScheme() === 'dark';
   const [settings, setSettings] = useState<DeckSettings | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [capFocused, setCapFocused] = useState(false);
   const [capText, setCapText] = useState('');
   const [error, setError] = useState<string>();
   const [inProgress, setInProgress] = useState<number>();
@@ -31,6 +36,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
   const saving = useRef(Promise.resolve());
 
   useEffect(() => {
+    setLoadError(null);
     (async () => {
       const [all, cards, notes, params] = await Promise.all([repo.listDeckSettings(), repo.listCards(deck), repo.listNotes(), repo.listDeckParams()]);
       setFiltered(!!paramsForDeck(deck, params)?.filtered);
@@ -39,13 +45,16 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
       setSettings(s);
       setCapText(String(s.gateCap ?? DEFAULT_GATE_CAP));
       setInProgress(inProgressCount(deck, groupByDeck(cards, new Map(notes.map((n) => [n.id, n.deck])))));
-    })();
-  }, [repo, deck]);
+    })().catch((e) => setLoadError(failureText(e, { what: "Couldn't load this deck's options.", next: 'Try again.' })));
+  }, [repo, deck, attempt]);
 
-  // Writes queue behind each other, so a quick toggle-then-edit can't land out of order.
+  // Writes queue behind each other, so a quick toggle-then-edit can't land out of order. A failed
+  // write is said and the queue goes on, so later saves (and leaving the screen) aren't stuck behind it.
   const save = (next: DeckSettings) => {
     setSettings(next);
-    saving.current = saving.current.then(() => repo.saveDeckSettings(deck, next));
+    saving.current = saving.current
+      .then(() => repo.saveDeckSettings(deck, next))
+      .catch((e) => Alert.alert("Couldn't save this setting", failureText(e, { next: 'Try again.' })));
   };
 
   const toggle = (on: boolean) => {
@@ -81,7 +90,8 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
   const name = deck.split('::').pop();
   return (
     <Screen title={name}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
+      {!settings ? <Loading error={loadError} onRetry={() => setAttempt((n) => n + 1)} /> : (
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
             <Text style={{ ...type.headline, color: c.text, flex: 1 }}>Limit cards in progress</Text>
@@ -100,12 +110,16 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
                   value={capText}
                   onChangeText={(v) => { setCapText(v); setError(undefined); }}
                   onEndEditing={commitCap}
+                  onFocus={() => setCapFocused(true)}
+                  onBlur={() => setCapFocused(false)}
                   keyboardType="number-pad"
                   returnKeyType="done"
+                  keyboardAppearance={dark ? 'dark' : 'light'}
+                  selectionColor={c.accent}
                   accessibilityLabel="Most cards in progress"
                   style={{
                     ...type.body, color: c.text, backgroundColor: c.fill,
-                    borderColor: error ? c.danger : 'transparent', borderWidth: 1.5, borderRadius: radius.m, ...smooth,
+                    borderColor: error ? c.danger : capFocused ? c.accent : 'transparent', borderWidth: 1.5, borderRadius: radius.m, ...smooth,
                     paddingHorizontal: space.m, paddingVertical: space.s, minWidth: 88, textAlign: 'right',
                   }}
                 />
@@ -126,6 +140,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
         {settings ? <DeckFormsOptions deck={deck} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {filtered ? null : <DeckRecordings repo={repo} deck={deck} recorder={recorder} />}
       </ScrollView>
+      )}
     </Screen>
   );
 }

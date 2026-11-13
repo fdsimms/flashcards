@@ -20,6 +20,25 @@ export function sameDate(a: CalendarDate, b: CalendarDate): boolean {
   return a.year === b.year && a.month === b.month && a.day === b.day;
 }
 
+/**
+ * The date a question asks about, drawn as `date` (any year from FIRST_YEAR to LAST_YEAR). Tapping
+ * the date with the year left unsaid can only be answered in the year the calendar opens on
+ * (`today`'s), so that question asks about `date`'s day and month in that year, February 29 falling
+ * back to the 28th outside a leap year. Every other question asks about `date` itself.
+ */
+export function quizDate(date: CalendarDate, mode: DateMode, parts: DateParts, today: CalendarDate): CalendarDate {
+  if (mode !== 'tap' || parts.year) return date;
+  return { year: today.year, month: date.month, day: Math.min(date.day, daysInMonth(today.year, date.month)) };
+}
+
+/**
+ * The month the calendar opens on to tap the date: `today`'s, in the asked date's year when the
+ * year is said, so finding it means moving a few months rather than paging through decades.
+ */
+export function quizCalendarStart(date: CalendarDate, parts: DateParts, today: CalendarDate): CalendarDate {
+  return parts.year ? { year: date.year, month: today.month, day: 1 } : { year: today.year, month: today.month, day: 1 };
+}
+
 /** The date `n` days after `d` (before, when negative). */
 export function addDays(d: CalendarDate, n: number): CalendarDate {
   let { year, month, day } = d;

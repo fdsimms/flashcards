@@ -4,7 +4,7 @@ import { failureText } from '../core/failure';
 import type { Api, Language, PhraseExplanation as Explained } from '../reader/api';
 import { Icon, Tappable, ErrorNote } from './kit';
 import { haptic } from './haptics';
-import { MIN_TAP, radius, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, radius, space, type, useTheme } from './theme';
 
 /** Adding the phrase to the deck: the note editor opens with it, and saving there is the approval. */
 export type PhraseMining = {
@@ -68,11 +68,13 @@ export function PhraseExplanation({ api, textId, line, phrase, mining, onClose }
   };
 
   const pill = { alignSelf: 'flex-start', backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.s } as const;
+  // The pill is shorter than a full tap target; this makes up the rest.
+  const pillSlop = { top: space.s, bottom: space.s };
 
   return (
     <View
       accessibilityLabel={`Explanation of ${phrase}`}
-      style={{ marginTop: space.m, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.m, padding: space.m, gap: space.s }}
+      style={{ marginTop: space.m, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, borderRadius: radius.m, padding: space.m, gap: space.s }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
         <View style={{ flex: 1 }}>
@@ -95,7 +97,7 @@ export function PhraseExplanation({ api, textId, line, phrase, mining, onClose }
         <ErrorNote message={error} onRetry={() => load(simple)} />
       ) : answer === null ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-          <ActivityIndicator />
+          <ActivityIndicator color={c.accent} />
           <Text style={{ ...type.subhead, color: c.textSecondary }}>Asking Claude…</Text>
         </View>
       ) : (
@@ -113,6 +115,7 @@ export function PhraseExplanation({ api, textId, line, phrase, mining, onClose }
                 onPress={() => { haptic.tap(); load(true); }}
                 accessibilityRole="button"
                 accessibilityLabel="Explain more simply"
+                hitSlop={pillSlop}
                 style={pill}
               >
                 <Text style={{ ...type.footnote, color: c.text }}>Explain more simply</Text>
@@ -123,6 +126,7 @@ export function PhraseExplanation({ api, textId, line, phrase, mining, onClose }
                 onPress={() => { haptic.tap(); add(); }}
                 accessibilityRole="button"
                 accessibilityLabel={`Add ${phrase} to ${mining.deck}`}
+                hitSlop={pillSlop}
                 style={pill}
               >
                 <Text style={{ ...type.footnote, color: c.text }}>Add to deck</Text>
@@ -144,7 +148,7 @@ export function PhrasePickBanner({ first, onCancel }: { first: string; onCancel:
   return (
     <View
       accessibilityLiveRegion="polite"
-      style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.m, paddingVertical: space.s, paddingLeft: space.m, paddingRight: space.s }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, borderRadius: radius.m, paddingVertical: space.s, paddingLeft: space.m, paddingRight: space.s }}
     >
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>Tap the last word of the phrase</Text>

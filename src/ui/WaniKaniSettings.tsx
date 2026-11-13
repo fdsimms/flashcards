@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActionSheetIOS, ScrollView, Text } from 'react-native';
+import { ActionSheetIOS, Alert, ScrollView, Text } from 'react-native';
 import { problemText, WaniKaniError } from '../wanikani/api';
 import { APPRENTICE_LIMIT_CHOICES, NEW_PER_DAY_CHOICES } from '../wanikani/prefs';
 import { PRODUCTION_BATCH } from '../wanikani/productionService';
@@ -37,6 +37,21 @@ export function WaniKaniSettings({ wanikani, decks }: {
     }
   };
 
+  const turnOff = () => {
+    const n = wanikani.unsent;
+    const unsentLine = n
+      ? ` The ${n === 1 ? "answer that hasn't" : `${n} answers that haven't`} reached WaniKani yet ${n === 1 ? 'stays' : 'stay'} on this iPhone and ${n === 1 ? 'is' : 'are'} sent when you turn WaniKani back on.`
+      : '';
+    Alert.alert(
+      'Turn off WaniKani?',
+      `Franki forgets your API token on this iPhone. Production cards already made stay in your deck.${unsentLine}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Turn off', style: 'destructive', onPress: wanikani.signOut },
+      ],
+    );
+  };
+
   const chooseDeck = () => {
     const options = [...decks, 'Cancel'];
     ActionSheetIOS.showActionSheetWithOptions({ title: 'Deck for production cards', options, cancelButtonIndex: decks.length }, (i) => {
@@ -54,15 +69,15 @@ export function WaniKaniSettings({ wanikani, decks }: {
           </Help>
           <Help>Franki talks only to api.wanikani.com, and only once a token is entered here.</Help>
         </Card>
-        {wanikani.on ? (
+        {wanikani.on === null ? null : wanikani.on ? (
           <Card>
-            <Text style={{ ...type.headline, color: c.text }}>On</Text>
+            <Text style={{ ...type.headline, color: c.text }}>WaniKani is on</Text>
             {wanikani.user ? <Help>{`Signed in as ${wanikani.user.username}, level ${wanikani.user.level}.`}</Help> : null}
             {wanikani.problem ? <ErrorNote message={problemText(wanikani.problem)} onRetry={() => wanikani.refresh(true)} /> : null}
             {wanikani.unsent ? (
               <Help>{`${wanikani.unsent} ${wanikani.unsent === 1 ? "answer hasn't" : "answers haven't"} reached WaniKani yet. Franki sends them when it can reach it.`}</Help>
             ) : null}
-            <Button label="Turn off" variant="secondary" onPress={wanikani.signOut} />
+            <Button label="Turn off" variant="destructive" onPress={turnOff} />
             <Help>Turning it off forgets the token on this iPhone. Production cards already made stay in your deck.</Help>
           </Card>
         ) : (

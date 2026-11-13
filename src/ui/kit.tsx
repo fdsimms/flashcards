@@ -117,7 +117,7 @@ export function Group({ children, style, accessibilityRole }: { children: React.
 }
 
 /** The hairline between two rows in a `Group`, starting `inset` in from the left like iOS's. */
-function Divider({ inset }: { inset: number }) {
+export function Divider({ inset }: { inset: number }) {
   const c = useTheme();
   return <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: inset, right: 0, height: hairline, backgroundColor: c.border }} />;
 }
@@ -148,17 +148,17 @@ export function NavRow({ label, detail, onPress, first, icon, disabled }: {
       style={({ pressed }) => ({
         minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m,
         paddingVertical: space.m, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : 'transparent',
-        opacity: disabled ? 0.45 : 1,
       })}
     >
       {first ? null : <Divider inset={space.l + (icon ? tile + space.m : 0)} />}
       {icon ? (
-        <View style={{ width: tile, height: tile, borderRadius: 7, ...smooth, backgroundColor: icon.color, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ opacity: disabled ? 0.45 : 1, width: tile, height: tile, borderRadius: 7, ...smooth, backgroundColor: icon.color, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={icon.name} size={17} color={c.onRating} />
         </View>
       ) : null}
       <View style={{ flex: 1, gap: 2 }}>
-        <Text style={{ ...type.body, color: c.text }}>{label}</Text>
+        {/* Only the name dims when disabled: the detail says why, so it stays readable. */}
+        <Text style={{ ...type.body, color: disabled ? c.textTertiary : c.text }}>{label}</Text>
         {detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : null}
       </View>
       <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
@@ -487,7 +487,7 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
   const c = useTheme();
   return (
     <Tappable
-      onPress={() => { if (!selected) haptic.select(); onPress(); }}
+      onPress={() => { haptic.select(); onPress(); }}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       scaleTo={0.95}
@@ -518,7 +518,7 @@ export function Segments<T extends string | number>({ options, value, onChange, 
         return (
           <Pressable
             key={o.value}
-            onPress={() => onChange(o.value)}
+            onPress={() => { if (selected) return; haptic.select(); onChange(o.value); }}
             disabled={o.disabled}
             accessibilityRole="radio"
             accessibilityState={{ selected, disabled: o.disabled }}
@@ -530,6 +530,19 @@ export function Segments<T extends string | number>({ options, value, onChange, 
           </Pressable>
         );
       })}
+    </View>
+  );
+}
+
+/**
+ * What a screen shows until its data is in: a spinner, or, when loading failed, why, with Try
+ * again. Fills the screen and centers itself, so a screen never sits blank while it waits.
+ */
+export function Loading({ error, onRetry }: { error?: string | null; onRetry?: () => void }) {
+  const c = useTheme();
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: space.xl, minHeight: 160 }}>
+      {error ? <ErrorNote message={error} onRetry={onRetry} /> : <ActivityIndicator color={c.accent} accessibilityLabel="Loading" />}
     </View>
   );
 }

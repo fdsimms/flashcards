@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ActivityIndicator, ScrollView } from 'react-native';
 import { failureText } from '../core/failure';
 import { azureVoiceName } from '../core/voices';
 import type { Api, Language, Settings, Speakers } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { hasVoiceSlots, sharesVoice, VOICE_SLOTS } from '../reader/voiceSlots';
 import { ErrorNote, Group, Help, NavRow, Screen } from './kit';
-import { space } from './theme';
+import { space, useTheme } from './theme';
 
 /**
  * The Azure voices a language's texts are read in, by gender: a man's and a woman's, and a second
@@ -23,19 +23,23 @@ export function ReadVoices({ api, language, voices, onSettings, onPick }: {
   onSettings: (settings: Settings) => void;
   onPick: (slot: keyof Speakers) => void;
 }) {
+  const c = useTheme();
   const name = LANGUAGES[language].name;
   const [error, setError] = useState<string>();
+  // Bumped by Try again, to ask for the settings again.
+  const [attempt, setAttempt] = useState(0);
   const known = hasVoiceSlots(voices);
 
   useEffect(() => {
     if (known) return;
     let live = true;
+    setError(undefined);
     api.settings().then(
       (s) => { if (live) onSettings(s); },
       (e) => { if (live) setError(failureText(e, { what: "Couldn't load the voices.", next: 'Try again.' })); },
     );
     return () => { live = false; };
-  }, [api, known]); // eslint-disable-line react-hooks/exhaustive-deps -- onSettings is the app's setter
+  }, [api, known, attempt]); // eslint-disable-line react-hooks/exhaustive-deps -- onSettings is the app's setter
 
   // The settings loaded, but the server sends voices by speaker: it hasn't been updated yet.
   const outdated = !known && voices !== undefined;
@@ -43,7 +47,8 @@ export function ReadVoices({ api, language, voices, onSettings, onPick }: {
   return (
     <Screen title={`${name} voices`}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
-        {error ? <ErrorNote message={error} /> : null}
+        {error ? <ErrorNote message={error} onRetry={() => setAttempt((n) => n + 1)} /> : null}
+        {!known && voices === undefined && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
         {outdated ? <ErrorNote message="Read & Listen's server doesn't offer voices by gender yet. It updates itself within about 15 minutes of an update; try again then." /> : null}
         {known ? (
           <>

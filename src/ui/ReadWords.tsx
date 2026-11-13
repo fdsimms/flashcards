@@ -3,7 +3,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react
 import { ApiError, type Api, type MarkedWord } from '../reader/api';
 import { wordStatus } from '../reader/languages';
 import { Button, Card, ErrorNote, Help, Screen } from './kit';
-import { space, type, useTheme } from './theme';
+import { hairline, space, type, useTheme } from './theme';
 
 /**
  * Every word marked unknown while reading, newest first, with its meaning, so they can be looked at
@@ -66,7 +66,7 @@ export function ReadWords({ api, mining }: {
           <>
             <Card style={{ paddingVertical: 0, gap: 0 }}>
               {words.map((w, i) => (
-                <View key={w.word} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: c.border }}>
+                <View key={w.word} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, borderTopWidth: i === 0 ? 0 : hairline, borderTopColor: c.border }}>
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={{ ...type.title, fontWeight: '400', color: c.text }}>{w.word}</Text>
                     {w.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {w.lemma}</Text> : null}

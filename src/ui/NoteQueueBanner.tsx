@@ -5,6 +5,7 @@ import { bannerOf } from '../reader/noteQueue';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
+import { Reveal } from './motion';
 import { lift, radius, smooth, space, type, useTheme } from './theme';
 import { useNoteQueue } from './useNoteQueue';
 
@@ -24,6 +25,7 @@ export function NoteQueueCard({ banner }: { banner: NonNullable<ReturnType<typeo
   const icon = tone === 'ready' ? 'checkmark.circle.fill' : tone === 'waiting' ? 'clock' : 'exclamationmark.triangle.fill';
   const color = tone === 'ready' ? c.good : tone === 'waiting' ? c.textSecondary : c.warning;
   return (
+    <Reveal>
     <Tappable
       onPress={banner.open}
       accessibilityRole="button"
@@ -40,5 +42,6 @@ export function NoteQueueCard({ banner }: { banner: NonNullable<ReturnType<typeo
       </View>
       <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
     </Tappable>
+    </Reveal>
   );
 }

@@ -43,7 +43,7 @@ export function DeckPriorityOptions({ deck, all, onChange }: {
         {p.on ? (
           <View style={{ gap: space.m }}>
             <Field label="Tag" value={p.tag} onChangeText={(v) => onChange({ priorityTag: v })} autoCapitalize="none" autoCorrect={false} placeholder="italki" />
-            {p.tag ? null : <Text style={{ ...type.subhead, color: c.danger }}>Enter a tag. Nothing comes first until you do.</Text>}
+            {p.tag ? null : <Text style={{ ...type.subhead, color: c.warning }}>Enter a tag. Nothing comes first until you do.</Text>}
             <Field label="First for (days)" value={days} onChangeText={(v) => number('days', v, 1, MAX_PRIORITY_DAYS, 'Days')} keyboardType="number-pad" error={!!errors.days} placeholder={String(DEFAULT_PRIORITY_DAYS)} />
             {errors.days ? <Text style={{ ...type.subhead, color: c.danger }}>{errors.days}</Text> : null}
             <Field label="At most (% of new cards)" value={percent} onChangeText={(v) => number('percent', v, 1, 100, 'The percentage')} keyboardType="number-pad" error={!!errors.percent} placeholder={String(DEFAULT_PRIORITY_PERCENT)} />

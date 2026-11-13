@@ -2,10 +2,11 @@ import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../anki/noteService';
+import { failureText } from '../core/failure';
 import { deckChipRows, notePreview, searchNotes } from '../core/noteEditing';
 import type { Note } from '../core/types';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
-import { Chip, Screen } from './kit';
+import { Chip, Loading, Screen } from './kit';
 import { hairline, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
@@ -19,8 +20,16 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => setNotes(await repo.listNotes()), [repo]);
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      setNotes(await repo.listNotes());
+    } catch (e) {
+      setError(failureText(e, { what: "Couldn't load your notes.", next: 'Try again.' }));
+    }
+  }, [repo]);
   useEffect(() => { load(); }, [load]);
 
   const chipRows = useMemo(() => deckChipRows(notes ?? [], scope), [notes, scope]);
@@ -60,6 +69,11 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
             ) : null}
           </View>
         }
+        ListEmptyComponent={notes ? (
+          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center', paddingTop: space.xl }}>
+            {query.trim() ? `No notes match "${query.trim()}".` : 'No notes yet. Tap + to add one.'}
+          </Text>
+        ) : <Loading error={error} onRetry={load} />}
         renderItem={({ item }) => <NoteRow note={item} onPress={() => edit({ noteId: item.id })} />}
       />
     </Screen>
@@ -73,8 +87,10 @@ function NoteRow({ note, onPress }: { note: Note; onPress: () => void }) {
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${front}, ${back}. Edit`}
-      style={({ pressed }) => ({ paddingVertical: space.m, gap: 2, opacity: pressed ? 0.6 : 1 })}
+      accessibilityLabel={[front || 'Empty note', back, note.deck].filter(Boolean).join(', ')}
+      accessibilityHint="Opens the note to edit"
+      // Edge to edge, so the pressed highlight spans the screen as a list row's does.
+      style={({ pressed }) => ({ paddingVertical: space.m, paddingHorizontal: space.l, marginHorizontal: -space.l, gap: 2, backgroundColor: pressed ? c.fill : 'transparent' })}
     >
       <Text numberOfLines={1} style={{ ...type.body, color: c.text }}>{front || '(empty)'}</Text>
       {back ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{back}</Text> : null}

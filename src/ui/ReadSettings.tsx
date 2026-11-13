@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, Text } from 'react-native';
+import { Alert, ScrollView, Text } from 'react-native';
 import { ApiError, createApi, readerAddress, type Language, type Speakers } from '../reader/api';
 import { LANGUAGE_ORDER, flaggedName } from '../reader/languages';
 import { prefs, savePassphrase, savePrefs } from '../reader/storage';
@@ -34,6 +34,15 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   const [error, setError] = useState<string | null>(null);
   const [followWords, setFollowWords] = useState(prefs().followWords);
   const address = syncServer ? readerAddress(syncServer) : null;
+
+  const turnOff = () => Alert.alert(
+    'Turn off Read & Listen?',
+    "Franki forgets the passphrase on this iPhone and stops reaching Read & Listen's server, so recording cards with Azure's voices stops too. Your topics, texts and reading log stay on the server, ready when you turn it back on.",
+    [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Turn off', style: 'destructive', onPress: onSignOut },
+    ],
+  );
 
   const signIn = async () => {
     const passphrase = value.trim();
@@ -76,7 +85,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>On</Text>
             <Help>{`Texts come from ${address}.`}</Help>
-            <Button label="Turn off" variant="secondary" onPress={onSignOut} />
+            <Button label="Turn off" variant="destructive" onPress={turnOff} />
             <Help>Turning it off forgets the passphrase on this iPhone. Your topics and past texts stay on the server.</Help>
           </Card>
         ) : (
@@ -91,7 +100,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
               returnKeyType="go"
               onSubmitEditing={signIn}
             />
-            <Help>{`READER_PASSPHRASE in the server's .env. Franki checks it with ${address} and keeps it in the Keychain.`}</Help>
+            <Help>{`It's READER_PASSPHRASE in the server's .env. Franki checks it with ${address} and keeps it in the Keychain.`}</Help>
             {error ? <ErrorNote message={error} /> : null}
             <Button label="Turn on" onPress={signIn} busy={busy} disabled={!value.trim()} />
           </Card>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { daysInMonth, shiftMonth, weekdayOf, type CalendarDate } from '../../tools/date';
 import { sameDate } from '../../tools/dateQuiz';
 import { haptic } from '../haptics';
@@ -60,7 +60,7 @@ export function CalendarMonth({ date, onChange, weekStartsOn, selected, onNaviga
       </View>
       <View style={{ flexDirection: 'row' }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
         {Array.from({ length: 7 }, (_, i) => (
-          <Text key={i} style={{ ...type.caption, fontWeight: '600', color: c.textTertiary, flex: 1, textAlign: 'center' }}>{WEEKDAYS[(i + weekStartsOn) % 7][0]}</Text>
+          <Text key={i} maxFontSizeMultiplier={2} style={{ ...type.caption, fontWeight: '600', color: c.textSecondary, flex: 1, textAlign: 'center' }}>{WEEKDAYS[(i + weekStartsOn) % 7][0]}</Text>
         ))}
       </View>
       {weeks.map((week, w) => (
@@ -73,18 +73,20 @@ export function CalendarMonth({ date, onChange, weekStartsOn, selected, onNaviga
             const isWrong = is(wrong, day);
             const filled = isRight || isWrong || isChosen;
             return (
-              <Pressable
+              <Tappable
                 key={day}
                 onPress={() => { if (!locked && !isChosen) { haptic.select(); onChange(d); } }}
+                disabled={!!locked}
+                scaleTo={0.9}
                 accessibilityRole="button"
                 accessibilityLabel={`${dateLabel(d)}${isRight ? ', the right date' : isWrong ? ', the date you tapped' : ''}`}
                 accessibilityState={{ selected: isChosen, disabled: !!locked }}
-                style={{ flex: 1, alignItems: 'center', paddingVertical: 2 }}
+                style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: MIN_TAP, paddingVertical: 2 }}
               >
                 <View style={{ minWidth: 38, minHeight: 38, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: isRight ? c.good : isWrong ? c.again : isChosen ? c.accent : 'transparent' }}>
-                  <Text style={{ ...type.callout, fontVariant: ['tabular-nums'], fontWeight: filled ? '700' : '400', color: isRight || isWrong ? c.onRating : isChosen ? c.onAccent : c.text }}>{day}</Text>
+                  <Text maxFontSizeMultiplier={2} style={{ ...type.callout, fontVariant: ['tabular-nums'], fontWeight: filled ? '700' : '400', color: isRight || isWrong ? c.onRating : isChosen ? c.onAccent : c.text }}>{day}</Text>
                 </View>
-              </Pressable>
+              </Tappable>
             );
           })}
         </View>

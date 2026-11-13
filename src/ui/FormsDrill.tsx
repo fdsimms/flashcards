@@ -1,11 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { checkAnswer, drillPrompts, type DrillRequest, type FormPrompt, type PracticeRecord, type Verdict } from '../core/forms';
+import { failureText } from '../core/failure';
 import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { practicingPoints } from '../reader/grammar';
 import { haptic } from './haptics';
-import { Button, Card, Field, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
+import { Button, Card, Field, HeaderAction, Help, Icon, Loading, Screen, Segments, Tappable } from './kit';
+import { Reveal } from './motion';
+import { ProgressBar } from './Review';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
@@ -35,7 +39,9 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   /** Opens a grammar point's page; missing while Read & Listen is off, since the page needs it. */
   onOpenGrammar?: (id: string) => void;
 }) {
-  const { scrollProps, bottomPadding } = useKeyboardScroll();
+  // The keyboard's height pads the whole screen, not just the list, so Check and Next in the footer stay above it.
+  const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
+  const insets = useSafeAreaInsets();
   const c = useTheme();
   const [prompts, setPrompts] = useState<FormPrompt[] | null>(null);
   const [notice, setNotice] = useState<string>();
@@ -49,8 +55,11 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   // Set while an answer is being written: a second tap must not answer the same prompt twice.
   const busy = useRef(false);
   const answeredIndex = useRef(-1);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loads, setLoads] = useState(0);
 
   useEffect(() => {
+    setLoadError(null);
     (async () => {
       const [notes, cards, practice, saved, practicing] = await Promise.all([
         repo.listNotes(), repo.listCards(), repo.listPractice(), repo.formsAnswerMode(), practicingPoints(readerApi),
@@ -59,10 +68,10 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
       setMode(typeOnly ? 'type' : saved);
       setNotice(built.notice);
       setPrompts(built.prompts);
-    })();
-  }, [repo]); // eslint-disable-line react-hooks/exhaustive-deps
+    })().catch((e) => setLoadError(failureText(e, { what: "Couldn't load the forms to practice.", next: 'Try again.' })));
+  }, [repo, loads]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!prompts) return <Screen title="Practice forms" largeTitle={false}><View /></Screen>;
+  if (!prompts) return <Screen title="Practice forms" largeTitle={false}><Loading error={loadError} onRetry={() => setLoads((n) => n + 1)} /></Screen>;
 
   const done = index >= prompts.length;
   const prompt = prompts[index];
@@ -85,6 +94,8 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
       setAnswered((a) => [...a, { prompt, given, verdict, counted: false }]);
       // `busy` clears before the answer is drawn: a tap in between mustn't log this prompt again.
       answeredIndex.current = index;
+    } catch (e) {
+      Alert.alert("Couldn't save this answer", failureText(e, { next: 'Answer it again.' }));
     } finally {
       busy.current = false;
     }
@@ -98,6 +109,8 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
       await log(current.prompt, true, current.given);
       haptic.success();
       setAnswered((a) => a.map((x, i) => (i === index ? { ...x, counted: true } : x)));
+    } catch (e) {
+      Alert.alert("Couldn't count it as right", failureText(e, { next: 'Try again.' }));
     } finally {
       busy.current = false;
     }
@@ -151,22 +164,16 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   ) : undefined;
 
   return (
+    <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
     <Screen title={`${index + 1} of ${prompts.length}`} largeTitle={false} footer={footer}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ padding: space.l, paddingBottom: space.l + bottomPadding, gap: space.xl, flexGrow: 1, width: '100%', maxWidth: 640, alignSelf: 'center' }}
+        contentContainerStyle={{ padding: space.l, gap: space.xl, flexGrow: 1, width: '100%', maxWidth: 640, alignSelf: 'center' }}
         keyboardShouldPersistTaps="handled"
         {...scrollProps}
       >
         <View style={{ gap: space.xl }} onLayout={(e) => setTopHeight(e.nativeEvent.layout.height + space.xl)}>
-          <View
-            accessibilityRole="progressbar"
-            accessibilityLabel="Progress through this practice"
-            accessibilityValue={{ min: 0, max: prompts.length, now: index }}
-            style={{ height: 4, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }}
-          >
-            <View style={{ width: `${(index / prompts.length) * 100}%`, height: 4, borderRadius: 2, backgroundColor: c.accent }} />
-          </View>
+          <ProgressBar value={index / prompts.length} label="Progress through this practice" style={{ marginHorizontal: 0, marginTop: 0 }} />
           {typeOnly ? null : (
             <Segments<AnswerMode>
               options={[{ value: 'pick', label: 'Pick' }, { value: 'type', label: 'Type' }]}
@@ -177,7 +184,9 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
         </View>
         {/* Padded at the bottom by the height of the controls above, so the question sits in the middle of the screen rather than of what's left under them. */}
         <View style={{ flex: 1, justifyContent: 'center', gap: space.xl, paddingBottom: topHeight }}>
-          <Question prompt={prompt} reveal={current ? prompt.answers[0] : undefined} />
+          <Reveal key={index} rise={10}>
+            <Question prompt={prompt} reveal={current ? prompt.answers[0] : undefined} />
+          </Reveal>
           {picking ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
               {prompt.choices!.map((choice) => (
@@ -201,10 +210,11 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
             />
           )}
           {mode === 'pick' && !prompt.choices ? <Help>This one is typed: there are no other forms to pick from.</Help> : null}
-          {current ? <Feedback answered={current} onCount={countIt} onOpenGrammar={onOpenGrammar} /> : null}
+          {current ? <Reveal rise={6}><Feedback answered={current} onCount={countIt} onOpenGrammar={onOpenGrammar} /></Reveal> : null}
         </View>
       </ScrollView>
     </Screen>
+    </View>
   );
 }
 
@@ -221,7 +231,11 @@ function Question({ prompt, reveal }: { prompt: FormPrompt; reveal?: string }) {
       </View>
       {prompt.sentence ? (
         <View style={{ alignItems: 'center', gap: space.xs, marginTop: space.s }}>
-          <Text style={{ ...type.title, fontWeight: '600', color: c.text, textAlign: 'center' }}>
+          <Text
+            // VoiceOver reads the underscores of the gap badly: it says "blank" until the answer fills it.
+            accessibilityLabel={reveal ? undefined : `${prompt.sentence.before} blank ${prompt.sentence.after}`}
+            style={{ ...type.title, fontWeight: '600', color: c.text, textAlign: 'center' }}
+          >
             {prompt.sentence.before}
             <Text style={{ color: c.accent, textDecorationLine: 'underline' }}>{reveal ?? '_____'}</Text>
             {prompt.sentence.after}

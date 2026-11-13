@@ -18,6 +18,9 @@ export function ClockFace({ time, size }: { time: ClockTime; size: number }) {
     <View style={{ position: 'absolute', left: mid - width / 2, top: mid - length, width, height: length + width / 2, borderRadius: width / 2, backgroundColor: color }} />
   ));
   const hours = (time.hour % 12) + time.minute / 60;
+  // The numerals' size follows the face's, so their box and its centering do too.
+  const numeral = size * 0.085;
+  const box = { width: Math.ceil(numeral * 2.2), height: Math.ceil(numeral * 1.4) };
   return (
     <View
       accessible
@@ -36,7 +39,7 @@ export function ClockFace({ time, size }: { time: ClockTime; size: number }) {
           <Text
             key={n}
             allowFontScaling={false}
-            style={{ position: 'absolute', width: 24, left: mid + r * Math.cos(a) - 12, top: mid + r * Math.sin(a) - 8, textAlign: 'center', fontSize: size * 0.085, lineHeight: 16, fontWeight: '600', color: c.text }}
+            style={{ position: 'absolute', width: box.width, left: mid + r * Math.cos(a) - box.width / 2, top: mid + r * Math.sin(a) - box.height / 2, textAlign: 'center', fontSize: numeral, lineHeight: box.height, fontWeight: '600', color: c.text }}
           >
             {n}
           </Text>
