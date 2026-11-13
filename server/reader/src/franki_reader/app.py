@@ -107,9 +107,11 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/voices?language=th     Azure's voices in a language (any code: th, pl, es-MX) and then
                                       its Multilingual voices of other locales, for the speakers
                                       here and for recording cards in the app
-    POST  /api/speech                 {text, voice, rate?} the text spoken by an Azure voice, as MP3:
-                                      the app records a card's audio with it and keeps the file, so
-                                      each recording is asked for once
+    POST  /api/speech                 {text, voice, rate?, language?} the text spoken by an Azure
+                                      voice, as MP3: the app records a card's audio with it and
+                                      keeps the file, so each recording is asked for once. The
+                                      language (th-TH, or th) tells a Multilingual voice what to read
+                                      the text as
     POST  /api/texts/{id}/lines/{n}/explain   {simple?} the line's grammar and vocabulary explained in
                                       English by Claude: {points: [{phrase, note}]}. Asked on the
                                       owner's tap and kept per line (and per simple version).
@@ -135,7 +137,7 @@ from typing import Annotated, Any, Literal
 import anthropic
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import FileResponse, JSONResponse
-from franki_speech import SpeechClient, SpeechError, locale_of
+from franki_speech import SpeechClient, SpeechError, is_multilingual, locale_of, text_locale
 from pydantic import BaseModel, Field
 
 from franki_reader import (
@@ -172,6 +174,7 @@ from franki_reader.languages import (
     Code,
     CommonCount,
     VoiceSlot,
+    speech_locale,
     with_deck,
 )
 from franki_reader.lexicon import Entry
@@ -232,6 +235,9 @@ class SpeechIn(BaseModel):
     text: str = Field(min_length=1, max_length=MAX_SPEECH_CHARS)
     voice: str = Field(min_length=1, max_length=100)
     rate: float = Field(default=1.0, ge=0.5, le=2.0)
+    # The text's language (th-TH, or a code here: th), for a Multilingual voice to read it in. An
+    # app from before it was sent leaves it out, and the voice guesses from the text as before.
+    language: str | None = Field(default=None, min_length=2, max_length=20)
 
 
 class QueuedEntry(BaseModel):
@@ -305,19 +311,13 @@ class ReadingIn(BaseModel):
     seconds: int = Field(default=0, ge=0)
 
 
-def _is_multilingual(name: str) -> bool:
-    """Azure's Multilingual voices read any language, though each is listed under one locale
-    (en-US-AndrewMultilingualNeural), so they're offered and accepted for every language."""
-    return "Multilingual" in name
-
-
 def _check_voice(name: str, code: Code) -> None:
     """Refuses a voice that isn't Azure's shape or doesn't speak the language it's chosen for."""
     try:
         locale = locale_of(name)
     except SpeechError as e:
         raise HTTPException(400, str(e)) from e
-    if _is_multilingual(name):
+    if is_multilingual(name):  # it reads any language, so it's offered for every one
         return
     if locale.split("-")[0].lower() != code:
         raise HTTPException(
@@ -832,7 +832,7 @@ def create_app(
         # The language's own voices first, then the Multilingual ones of other locales.
         own = sorted((v for v in found if in_language(v)), key=order)
         others = sorted(
-            (v for v in found if not in_language(v) and _is_multilingual(v.get("voice") or "")),
+            (v for v in found if not in_language(v) and is_multilingual(v.get("voice") or "")),
             key=order,
         )
         return {"voices": own + others}
@@ -841,11 +841,13 @@ def create_app(
     async def speak(body: SpeechIn) -> Response:
         try:
             locale_of(body.voice)
+            locale = speech_locale(body.language) if body.language else None
+            language = text_locale(locale) if locale else None
         except SpeechError as e:
             raise HTTPException(400, str(e)) from e
         spoken = body.text.strip()
         try:
-            mp3 = await need_speech().synthesize(spoken, body.voice, body.rate)
+            mp3 = await need_speech().synthesize(spoken, body.voice, body.rate, language)
         except SpeechError as e:
             # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
             raise HTTPException(503, str(e)) from e

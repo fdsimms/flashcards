@@ -602,7 +602,8 @@ class Engine:
         spoken, _ = parse_line(text.lines[line].text, LANGUAGES[text.language].spaced)
         voice = voice_for(text.lines[line].speaker, text.genders, self.voices_for(text.language))
         try:
-            recorded = await self.synthesize(spoken, voice)
+            # The text's language goes too, for a Multilingual voice, which would otherwise guess it.
+            recorded = await self.synthesize(spoken, voice, LANGUAGES[text.language].locale)
         except TtsFailed as e:
             log.warning("No audio for text %d line %d: %s", text.id, line, e)
             return None

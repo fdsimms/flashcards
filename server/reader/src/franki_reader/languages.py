@@ -14,6 +14,8 @@ import re
 from dataclasses import dataclass, field, replace
 from typing import Literal
 
+from franki_speech import locale_of
+
 Code = Literal["th", "es", "de", "fr", "ru", "el", "pl", "nb", "ja"]
 
 # Languages kept out of what the app is shown, for a build of the app from before they were added
@@ -57,6 +59,12 @@ class Language:
     writing: str = "put | between words instead of spaces, keep punctuation on its word"
     # The note field holding a word's pronunciation, shown behind the reader's reveal.
     translit_field: str = "Transliteration"
+
+    @property
+    def locale(self) -> str:
+        """The locale its texts are written in, as its own voices speak it (th-TH, es-MX): what a
+        Multilingual voice chosen for it is told to read them as (franki_speech's `ssml`)."""
+        return locale_of(next(iter(self.voices.values())))
 
     @property
     def counts_common(self) -> bool:
@@ -222,6 +230,18 @@ LANGUAGES: dict[Code, Language] = {
         translit_field="KanaReading",
     ),
 }
+
+
+def speech_locale(language: str) -> str | None:
+    """A text's language as the speech client takes it, a locale: a language here by its code
+    ("ja") is its own (ja-JP), and a locale ("th-TH", "th_TH") is passed on for the client to read
+    or refuse. Any other bare code ("ko") has no region to name, so it's None, and a Multilingual
+    voice guesses the language as it did before the language was sent."""
+    code = language.strip().replace("_", "-")
+    for known in LANGUAGES.values():
+        if known.code == code.lower():
+            return known.locale
+    return code if "-" in code else None
 
 
 def with_deck(code: Code, deck: str | None) -> Language:

@@ -39,6 +39,7 @@ from .speech import (
     locale_of,
     measure_loudness,
     normalize_loudness,
+    text_locale,
 )
 
 MAX_NOTES_PER_CALL = 100
@@ -226,7 +227,7 @@ reaches their devices at their next sync.
   calling update_notes or add_tts_audio. Only after they approve, and once the fix is made, call
   resolve_flag to clear the flag. Leave a flag in place when the user declines or you're unsure.
 - Audio: add_tts_audio records a field's text with an Azure voice into another field (list_voices
-  names them), leveled to one loudness. normalize_audio does the same for audio a note already has
+  names them), leveled to one loudness. With a Multilingual voice, pass the text's language. normalize_audio does the same for audio a note already has
   (preview first: it measures each file and changes nothing). Try preview=true first when the text needs cleaning up (replacements, text_overrides).
 - FSRS settings and limits belong to a deck's options preset, which several decks can share:
   say which decks a change affects before making it.
@@ -997,6 +998,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         voice: str,
         join: str = " ",
         rate: float = 1.0,
+        language: str | None = None,
         replacements: list[Replacement] | None = None,
         text_overrides: dict[str, str] | None = None,
         overwrite: bool = False,
@@ -1009,6 +1011,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
           each `replacements` find/replace in order; `text_overrides` (note id to text) replaces it
           outright for the notes named.
         - `rate` is the speed (0.5 to 2.0, 1 is normal).
+        - `language` is the text's language and region ("th-TH", "ja-JP"). Pass it with a
+          Multilingual voice (en-US-AvaMultilingualNeural), which otherwise guesses the language
+          from the text and can guess a short word wrong. Other voices read their own language
+          and ignore it.
         - A note whose target field already has audio is skipped unless `overwrite`, which replaces
           that audio; other text in the field stays.
         - `preview` returns the text each note would be read as, recording nothing.
@@ -1019,6 +1025,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             raise ToolError("rate must be between 0.5 and 2.0.")
         try:
             locale_of(voice)
+            if language is not None:
+                language = text_locale(language)
         except SpeechError as e:
             raise ToolError(str(e)) from e
         overrides = {int(k): v for k, v in (text_overrides or {}).items()}
@@ -1058,7 +1066,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if "error" in p:
                 continue
             try:
-                audio[p["note_id"]] = await client.synthesize(p["text"], voice, rate)
+                audio[p["note_id"]] = await client.synthesize(p["text"], voice, rate, language)
             except SpeechError as e:
                 p["error"] = str(e)
                 continue

@@ -452,12 +452,14 @@ def test_the_missed_floor_message_is_plain() -> None:
 class FakeVoice:
     def __init__(self, fail_on: str | None = None) -> None:
         self.calls: list[tuple[str, str]] = []
+        self.languages: list[str] = []
         self.fail_on = fail_on
 
-    async def __call__(self, text: str, voice: str) -> Spoken:
+    async def __call__(self, text: str, voice: str, language: str) -> Spoken:
         from franki_reader.tts import TtsFailed
 
         self.calls.append((text, voice))
+        self.languages.append(language)
         if text == self.fail_on:
             raise TtsFailed("Azure answered 500")
         return Spoken(f"mp3:{text}".encode())
@@ -492,6 +494,8 @@ def test_a_new_text_gets_audio_for_each_line_in_its_speakers_voice(tmp_path: Pat
         ("ฉันอยากกินข้าวเหนียวมะม่วงครับฉันอยากกินทอนครับ", "voice-a"),
         ("ข้าวเหนียวมะม่วงครับ!ฉันอยากกินครับฉันอยากกินครับ", "voice-b"),
     ]
+    # Each line says the text's language, for a Multilingual voice.
+    assert voice.languages == ["th-TH", "th-TH"]
     assert e.has_audio(text.id, 0) and e.has_audio(text.id, 1)
 
 
@@ -499,7 +503,7 @@ def test_a_text_is_not_ready_until_its_audio_is_made(tmp_path: Path) -> None:
     seen: list[str | None] = []
     e = speaking_engine(tmp_path, None)
 
-    async def voice(text: str, name: str) -> Spoken:
+    async def voice(text: str, name: str, language: str) -> Spoken:
         seen.append(store.text_status(e.conn, 1))
         return Spoken(b"mp3")
 
@@ -624,9 +628,9 @@ def test_a_newer_voice_change_supersedes_a_running_rerecord(tmp_path: Path) -> N
     run(lambda: e.make_text(other.id))  # two texts waiting
     voice.calls.clear()
 
-    async def slow(text: str, name: str) -> Spoken:
+    async def slow(text: str, name: str, language: str) -> Spoken:
         await asyncio.sleep(0)  # a real request yields
-        return await voice(text, name)
+        return await voice(text, name, language)
 
     e.synthesize = slow
 
@@ -655,7 +659,7 @@ def test_texts_waiting_from_before_timings_are_re_recorded_with_them_once(tmp_pa
     e.audio.path(waiting.id, 1).unlink()
     voice.calls.clear()
 
-    async def timed(text: str, name: str) -> Spoken:
+    async def timed(text: str, name: str, language: str) -> Spoken:
         voice.calls.append((text, name))
         return Spoken(b"mp3", [WordMark(text, 0, 1000)])
 

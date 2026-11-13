@@ -160,7 +160,7 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: Repo; api: Api
                 selected={choice?.azureVoice}
                 none={{ label: 'Don\'t record', hint: 'Cards without a recording are read with the iPhone voice below' }}
                 onChoose={(v) => {
-                  if (v) sample.play(lang.sample ?? lang.name, v.voice);
+                  if (v) sample.play(lang.sample ?? lang.name, v.voice, lang.sample ? lang.lang : undefined);
                   choose(lang.key, { azureVoice: v?.voice });
                 }}
               />

@@ -223,7 +223,7 @@ CREATE TABLE IF NOT EXISTS stories (
 -- that failed after Claude answered (their caches hold answers only, so the line can be asked
 -- again), memory hints (mnemonics.py; the app keeps the hints, in the note), and a card recorded by
 -- an Azure voice (POST /api/speech), as the characters Azure billed. A recording's language is
--- empty: the app doesn't say it, and a Multilingual voice speaks any.
+-- left empty: recordings are counted all together, and an older app doesn't say it.
 CREATE TABLE IF NOT EXISTS call_costs (
     id INTEGER PRIMARY KEY,
     feature TEXT NOT NULL,

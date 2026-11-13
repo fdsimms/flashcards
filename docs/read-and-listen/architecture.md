@@ -730,11 +730,16 @@ in the current language, with when one was last read to the end. Nothing else le
   offered in the picker, but none is a default, as they haven't been tried through this client.
   Azure's Multilingual voices (en-US-AvaMultilingualNeural) are listed under one locale but read
   any language, so `GET /api/voices` adds them after a language's own voices and the settings
-  accept them for any language (`_is_multilingual`); every other voice still has to speak the
-  language. This is how Greek, which has one standard voice of each gender, gets second voices.
-  The speech request's `xml:lang` is the voice's own locale (en-US), and Azure reads the text in
-  its language; a Multilingual voice for Thai also skips the Thai pause and pronunciation fixes,
-  which apply only to th- voices.
+  accept them for any language (`franki_speech.is_multilingual`); every other voice still has to
+  speak the language. This is how Greek, which has one standard voice of each gender, gets second
+  voices. The speech request's `xml:lang` stays the voice's own locale (en-US), and since 13
+  November 2026 a Multilingual voice is told the text's language with SSML's `<lang xml:lang>`
+  (`franki_speech.ssml`; the language's locale is `Language.locale`, its default voices'), since
+  left to itself it guesses the language from the text and a short line, or Japanese in kanji
+  alone, can read as another. The Thai pause and pronunciation fixes follow the text's language,
+  so a Multilingual voice reading Thai gets them too. The `<lang>` form follows Microsoft's SSML
+  docs as known, unchecked against a live key; texts recorded before keep their audio until
+  they're re-recorded (a voice change).
   Since 12 November 2026 each slot can be chosen in the app (Read & Listen's settings, from
   `GET /api/voices`, filtered to the slot's gender by `voiceSlots.ts`; `PATCH /api/settings`
   refuses a voice of the other gender), stored in the `voices` setting over those defaults. A
@@ -743,10 +748,11 @@ in the current language, with when one was last read to the end. Nothing else le
   gender they were.
 - The same server also speaks a card's word for the app (`POST /api/speech`,
   Settings > Voices in Franki), which keeps the MP3 in the note, so each recording is asked for
-  once. Its characters count under `recordings` in `/api/costs` (Logging). Azure is
-  called through the client shared with the MCP (`server/speech`, `franki_speech`, since 12 November
-  2026), whose docstring says which parts of the API were checked; the first real call is the check
-  for the rest.
+  once. The app sends the note's language (`speechLangFor`, th-TH) with it, for a Multilingual
+  voice; an app from before that leaves it out, and the voice guesses as it did. Its characters
+  count under `recordings` in `/api/costs` (Logging). Azure is called through the client shared
+  with the MCP (`server/speech`, `franki_speech`, since 12 November 2026), whose docstring says
+  which parts of the API were checked; the first real call is the check for the rest.
 - In Thai, each space between clauses becomes a 200 ms SSML `<break>` (`THAI_PAUSE` in
   `franki_speech`), since a voice may not pause at a bare space. It applies to the MCP's
   `add_tts_audio` too. Audio already cached keeps no pauses.
@@ -797,8 +803,8 @@ in the current language, with when one was last read to the end. Nothing else le
   Azure's audio is counted as the characters it billed (`audio_chars` on each text, re-recordings
   included, `tts.billed_chars`) and reported as an estimate at a list price per character
   (`tts.AZURE_USD_PER_MILLION_CHARS`), not Azure's bill. Cards recorded in the app
-  (`POST /api/speech`) count the same way, under `recordings`, in total only: the app doesn't say
-  which language a card is in.
+  (`POST /api/speech`) count the same way, under `recordings`, in total only, not by
+  language (an older app doesn't say which language a card is in).
 - **A call that failed after Claude answered is still counted**, since it was paid for (a refusal, an
   answer cut off at `max_tokens`, one with no text or that can't be read or used). Each feature's
   `...Failed` exception carries the call's `Usage` (`generator.usage_of`), empty when Claude never

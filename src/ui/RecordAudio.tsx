@@ -65,7 +65,7 @@ export function RecordAudio({ recorder, note, settings, onRecorded }: {
     setBusy(true);
     setError(undefined);
     try {
-      const r = await makeRecording(recorder, recordingText(note), voice);
+      const r = await makeRecording(recorder, recordingText(note), voice, speechLangFor(note));
       onRecorded(r);
       const uri = mediaFileUri(r.name);
       if (uri) {

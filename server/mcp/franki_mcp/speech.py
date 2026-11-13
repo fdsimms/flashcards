@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import hashlib
 
-from franki_speech import SpeechClient, SpeechError, locale_of, ssml
+from franki_speech import SpeechClient, SpeechError, locale_of, ssml, text_locale
 from franki_speech.loudness import (
     TARGET_LUFS,
     TOLERANCE_LU,
@@ -28,6 +28,7 @@ __all__ = [
     "measure_loudness",
     "normalize_loudness",
     "ssml",
+    "text_locale",
 ]
 
 

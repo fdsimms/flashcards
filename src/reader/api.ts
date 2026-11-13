@@ -389,9 +389,10 @@ export function createApi(
     // Azure's voices in a language (any code: th, pl, es-MX), every region included.
     azureVoices: async (language: string) =>
       (await call<{ voices: AzureVoice[] }>('GET', `/api/voices?language=${encodeURIComponent(language)}`)).voices,
-    // `text` spoken by an Azure voice, as MP3 bytes: a card's recording, or a voice's sample.
-    speech: async (text: string, voice: string, rate = 1) =>
-      new Uint8Array(await (await send('POST', '/api/speech', { text, voice, rate })).arrayBuffer()),
+    // `text` spoken by an Azure voice, as MP3 bytes: a card's recording, or a voice's sample. `language` is
+    // the text's (th-TH, or a code: th), which a Multilingual voice would otherwise guess from the text.
+    speech: async (text: string, voice: string, rate = 1, language?: string) =>
+      new Uint8Array(await (await send('POST', '/api/speech', { text, voice, rate, language })).arrayBuffer()),
     // Memory hints for a word (a leech), written by Claude on the server: asked only when the owner taps for them.
     mnemonics: async (question: { language: Language; entry: string; meaning: string; transliteration?: string; context?: string }) =>
       (await call<{ hints: string[] }>('POST', '/api/mnemonics', question)).hints,

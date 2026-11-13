@@ -16,7 +16,7 @@ export function useRecorder(): RecordDeps | null {
     const media = repo.mediaSyncState();
     return {
       store: repo,
-      speak: (text, voice, rate) => api.speech(text, voice, rate),
+      speak: (text, voice, rate, language) => api.speech(text, voice, rate, language),
       media: {
         exists: hasMedia,
         read: readMedia,
