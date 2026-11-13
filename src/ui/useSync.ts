@@ -33,8 +33,15 @@ export function useSync(repo: (Repo & AnkiLink) | null, onSynced: () => void) {
   /** Syncs if sync is on and none is running. Returns what happened, as a line to show. */
   const sync = useCallback(async (): Promise<string | undefined> => {
     if (!repo || running.current) return undefined;
-    if (!(await repo.syncSettings()).enabled) return undefined;
+    // Claimed before the settings read, so a second call made during that await doesn't start a second sync.
     running.current = true;
+    let enabled = false;
+    try {
+      enabled = (await repo.syncSettings()).enabled;
+    } finally {
+      if (!enabled) running.current = false;
+    }
+    if (!enabled) return undefined;
     setSyncing(true);
     try {
       return reportText(await syncNow(repo, choose));

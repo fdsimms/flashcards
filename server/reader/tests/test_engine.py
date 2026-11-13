@@ -1,7 +1,7 @@
 import asyncio
 import random
 from collections.abc import Awaitable, Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +19,7 @@ from franki_reader.engine import (
     NotAvailable,
     NotFound,
 )
-from franki_reader.generator import GenerationFailed
+from franki_reader.generator import GenerationFailed, Usage
 from franki_reader.lexicon import Entry
 from franki_reader.store import Reading, StoredText
 from franki_reader.tts import Spoken
@@ -156,6 +156,28 @@ def test_a_dropped_text_is_kept_for_its_cost_but_never_served() -> None:
     assert store.next_ready_text(e.conn, topic.id) is None
 
 
+def test_a_revision_that_fails_still_stores_the_dropped_text_for_its_cost() -> None:
+    e = engine(ScriptedModel(BAD, GenerationFailed("The response was cut off")))
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    assert run(lambda: e.make_text(topic.id)) is None
+    rows = e.conn.execute("SELECT status, cost_usd FROM texts").fetchall()
+    assert len(rows) == 1 and rows[0][0] == "dropped" and rows[0][1] > 0
+
+
+def test_a_first_attempt_that_fails_with_an_answer_is_stored_dropped_for_its_cost() -> None:
+    cut_off = GenerationFailed("The response was cut off", Usage(100, 500, 2000, 0))
+    e = engine(ScriptedModel(cut_off))
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    with pytest.raises(GenerationFailed, match="cut off"):
+        run(lambda: e.make_text(topic.id))
+    rows = e.conn.execute("SELECT status, attempts, cost_usd FROM texts").fetchall()
+    assert len(rows) == 1 and rows[0][:2] == ("dropped", 1) and rows[0][2] > 0
+    assert store.next_ready_text(e.conn, topic.id) is None
+    spent = store.spending(e.conn, NOW - timedelta(days=1))["th"]
+    assert (spent.dropped, spent.texts) == (1, 1)
+    assert spent.cost_usd == pytest.approx(rows[0][2])
+
+
 def test_a_claude_error_is_reported_to_the_next_request() -> None:
     e = engine(ScriptedModel(IN_RANGE))
 
@@ -175,6 +197,8 @@ def test_a_claude_error_is_reported_to_the_next_request() -> None:
             await e.next_text(topic.id)
 
     run(scenario)
+    # No answer, no cost: nothing to keep on record.
+    assert e.conn.execute("SELECT COUNT(*) FROM texts").fetchone()[0] == 0
 
 
 def test_says_what_is_missing() -> None:
@@ -671,6 +695,35 @@ def test_a_stretch_word_from_a_text_read_yesterday_is_offered_again_today() -> N
     clock.now = NOW + timedelta(days=1)
     request = e._request("Food stall", entries, Difficulty(stretch=1))
     assert request.stretch[0].text == "ข้าวเหนียวมะม่วง"
+
+
+def test_a_stretch_word_read_earlier_the_same_study_day_is_not_from_an_earlier_day(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import timedelta, timezone
+
+    clock = Clock()
+    clock.now = datetime(2026, 10, 18, 23, 30)  # 06:30 in Bangkok on the 19th
+    e = engine(ScriptedModel(IN_RANGE), clock=clock)
+    e.zone = timezone(timedelta(hours=7))
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    text = run(lambda: fetch(e, topic.id))
+    e.record_reading(text.id, reading("about_right"))
+
+    seen: list[dict[str, int]] = []
+    practiced_days = store.practiced_days
+
+    def spy(*args: Any, **kwargs: Any) -> dict[str, int]:
+        seen.append(practiced_days(*args, **kwargs))
+        return seen[-1]
+
+    monkeypatch.setattr(store, "practiced_days", spy)
+    clock.now = datetime(2026, 10, 19, 1, 0)  # 08:00 in Bangkok: the same study day, a new UTC one
+    e._request("Food stall", ENTRIES, Difficulty(stretch=1))
+    assert seen == [{}]
+    clock.now = datetime(2026, 10, 19, 21, 30)  # 04:30 in Bangkok on the 20th: the next study day
+    e._request("Food stall", ENTRIES, Difficulty(stretch=1))
+    assert seen[-1] == {"ข้าวเหนียวมะม่วง": 1}
 
 
 def test_the_length_setting_sets_the_number_of_lines_asked_for() -> None:

@@ -225,6 +225,37 @@ def test_a_database_from_before_roles_gains_the_column(tmp_path) -> None:  # typ
     assert "roles" in columns
 
 
+def test_practiced_days_are_the_owners_study_days(conn) -> None:  # type: ignore[no-untyped-def]
+    from datetime import timezone
+
+    from scripted import GOOD
+
+    from franki_reader.coverage import check
+    from franki_reader.generator import Generated, Line
+    from franki_reader.lexicon import lexicon_from
+    from franki_reader.store import Reading, log_reading, practiced_days
+
+    bangkok = timezone(timedelta(hours=7))
+    topic = add_topic(conn, "Food", True, NOW)
+    lines = tuple(Line(ln["speaker"], ln["text"], ln["english"]) for ln in GOOD["lines"])
+    generated = Generated(
+        "t", lines, {}, check([ln.text for ln in lines], lexicon_from(OLD)), 1, True, ()
+    )
+
+    def reading_at(at: datetime) -> None:
+        text_id = save_text(conn, topic.id, generated, ["ข้าว"], 0.95, at)
+        log_reading(conn, text_id, Reading(None, True, (), (), None, False, 10), at)
+
+    # 06:30 and 07:30 in Bangkok on the 19th, an hour apart either side of UTC's midnight: one day.
+    reading_at(datetime(2026, 10, 18, 23, 30))
+    reading_at(datetime(2026, 10, 19, 0, 30))
+    later = datetime(2026, 10, 25, 9)
+    assert practiced_days(conn, later, "th", 4, bangkok) == {"ข้าว": 1}
+    # 03:30 in Bangkok on the 19th is before 4 AM, so still the 18th's study day: another day.
+    reading_at(datetime(2026, 10, 18, 20, 30))
+    assert practiced_days(conn, later, "th", 4, bangkok) == {"ข้าว": 2}
+
+
 def test_a_word_marked_again_after_clearing_is_listed_again(conn) -> None:  # type: ignore[no-untyped-def]
     from scripted import GOOD
 
@@ -330,3 +361,26 @@ def test_spending_counts_every_text_written_since_the_date_by_language(conn) -> 
     assert (es.read, es.waiting, es.dropped, es.attempts) == (0, 1, 0, 1)
     assert es.cost_usd == pytest.approx(0.01)
     assert spending(conn, NOW + timedelta(days=1)) == {}
+
+
+def test_only_a_served_text_becomes_read(conn) -> None:  # type: ignore[no-untyped-def]
+    from franki_reader.coverage import Coverage
+    from franki_reader.generator import Generated
+    from franki_reader.store import Reading, log_reading, spending, text_status
+
+    topic = add_topic(conn, "Food", True, NOW)
+    empty = Generated("t", (), {}, Coverage((), ()), 1, True, ())
+    ids = {
+        status: save_text(conn, topic.id, empty, [], 0.95, NOW, status=status)
+        for status in ("ready", "dropped", "skipped")
+    }
+    for text_id in ids.values():
+        log_reading(conn, text_id, Reading(None, True, (), (), None, False, 10), NOW)
+
+    assert {s: text_status(conn, i) for s, i in ids.items()} == {
+        "ready": "read",
+        "dropped": "dropped",
+        "skipped": "skipped",
+    }
+    th = spending(conn, NOW - timedelta(days=1))["th"]
+    assert (th.read, th.dropped, th.skipped) == (1, 1, 1)

@@ -24,6 +24,17 @@ export function studyDayStart(date: Date, dayStartsAtHour: number): Date {
   return start;
 }
 
+/**
+ * `days` calendar days after `date` (before, when negative), at the same time of day. Never
+ * `getTime() + days * 86400000`: across a DST change a day is 23 or 25 hours, and the result lands
+ * an hour off, which can be in the study day before or after (tests/noDayMillis.test.ts).
+ */
+export function addCalendarDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
 /** The start of the next study day after the one `date` falls in. */
 export function nextStudyDayStart(date: Date, dayStartsAtHour: number): Date {
   const next = studyDayStart(date, dayStartsAtHour);

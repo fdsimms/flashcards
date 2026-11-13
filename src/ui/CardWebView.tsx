@@ -2,6 +2,8 @@ import { Directory, File, Paths } from 'expo-file-system';
 import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { pageUsesMathJax } from '../core/mathjax';
+import { installMathJax } from '../media/mathjax';
 
 let pageCount = 0;
 
@@ -43,6 +45,12 @@ export function CardWebView({ html, onMessage, onTap }: {
     const file = new File(dir, `page-${++pageCount}.html`);
     let cancelled = false;
     (async () => {
+      // A side with math loads the bundled MathJax from the documents folder; without it the page
+      // still shows, with the TeX as written.
+      if (pageUsesMathJax(html)) {
+        await installMathJax().catch((e) => console.warn('MathJax not installed', e));
+        if (cancelled) return; // replaced meanwhile: don't write a page nothing will delete
+      }
       file.create({ overwrite: true });
       await file.write(html);
       // After the await: a newer page may have been written meanwhile; only the latest is shown.

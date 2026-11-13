@@ -6,7 +6,8 @@ import { russianTranslit } from './translit';
 /**
  * A time of day in Russian, on the 12-hour clock. Minutes past count toward the next hour, in the
  * genitive of its ordinal: десять минут третьего (2:10), четверть третьего (2:15), половина
- * третьего (2:30). After half past, без and the minutes left in the genitive, then the next hour
+ * третьего (2:30). Just after it the clock is read as it shows (два тридцать две, 2:32); from 2:35,
+ * без and the minutes left in the genitive, then the next hour
  * as a bare number: без десяти три (2:50), без четверти три (2:45); one o'clock is час (без
  * десяти час). The part of the day follows in the genitive: ночи, утра, дня, вечера. The formal
  * form is the 24-hour one: четырнадцать тридцать.
@@ -82,6 +83,10 @@ export function sayRussianTime(t: ClockTime): TimeSaying {
     alts.push(ru(`без пятнадцати ${bareHour(next)}`));
   } else if (m < 30) {
     everyday = `${minutesPast(m)} ${ORDINAL_GENITIVE[next]}`;
+  } else if (m < 35) {
+    // Just past half, the clock is read as it shows: без двадцати девяти минут is rarely heard.
+    everyday = `${bareHour(h12)} ${minuteDigits(m)}`;
+    alts.push(ru(`без ${minutesLeft(60 - m)} ${bareHour(next)}`));
   } else {
     everyday = `без ${minutesLeft(60 - m)} ${bareHour(next)}`;
   }

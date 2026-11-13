@@ -78,8 +78,9 @@ export function toKana(input: string, final = false): string {
       }
       continue;
     }
-    // A doubled consonant (other than n) is a small つ: "kitte" is きって.
-    if (CONSONANT.test(ch) && ch !== 'n' && s[i + 1] === ch) {
+    // A doubled consonant (other than n) is a small つ: "kitte" is きって. "tch" is too, as in
+    // Hepburn's "matcha" (まっちゃ), which IMEs accept.
+    if ((CONSONANT.test(ch) && ch !== 'n' && s[i + 1] === ch) || (ch === 't' && s[i + 1] === 'c' && s[i + 2] === 'h')) {
       out += 'っ';
       i++;
       continue;

@@ -8,7 +8,7 @@ import type { Repo } from '../db/repo';
 import { hasMedia, readMedia, removeMedia, writeMedia } from '../media/mediaFiles';
 import { fileSink, keptCollectionFile, workFolder } from './files';
 import { normalizeEndpoint, SyncClient, type HttpPost } from './sync/client';
-import { downloadCollection, markDownloaded, prepareForUpload, uploadCollection } from './sync/collectionSync';
+import { downloadCollection, markDownloaded, prepareForUpload, uploadCollection, type SqlValue } from './sync/collectionSync';
 import { syncMedia } from './sync/mediaSync';
 import { SyncError } from './sync/protocol';
 import { runSync, syncErrorText, type FullSyncQuestion, type SyncReport } from './sync/runSync';
@@ -112,6 +112,30 @@ async function receiveCollection(client: SyncClient): Promise<File> {
   return file;
 }
 
+/**
+ * A copy of the kept collection readied for upload (`prepareForUpload`) at `at`. Readying the kept
+ * collection with the same `at` afterwards gives it the same rows, usns and schema time.
+ */
+async function readiedCopy(at: number): Promise<File> {
+  const work = workFolder('anki-sync-upload');
+  const file = new File(work, 'collection.anki2');
+  await keptCollectionFile().copy(file);
+  const conn = await SQLite.openDatabaseAsync(file.name, {}, fileUriToPath(work.uri));
+  try {
+    await conn.execAsync('PRAGMA journal_mode = DELETE');
+    const p = (params: SqlValue[]) => params as SQLite.SQLiteBindValue[];
+    await prepareForUpload({
+      all: (sql, ...params) => conn.getAllAsync(sql, p(params)),
+      first: (sql, ...params) => conn.getFirstAsync(sql, p(params)),
+      run: async (sql, ...params) => { await conn.runAsync(sql, p(params)); },
+      transaction: (fn) => conn.withTransactionAsync(fn),
+    }, () => at);
+  } finally {
+    await conn.closeAsync();
+  }
+  return file;
+}
+
 /** Syncs now. `choose` is asked only when one side would replace the other and lose something. */
 export async function syncNow(
   repo: Repo & AnkiLink,
@@ -134,8 +158,13 @@ export async function syncNow(
         await adoptDownloadedCollection(repo, file);
       },
       upload: async () => {
-        await repo.withSyncConnection((db) => prepareForUpload(db));
-        await uploadCollection(client, new Uint8Array(await keptCollectionFile().arrayBuffer()));
+        // Readied on a copy, and the kept collection only once the server has taken it: readying
+        // marks every unsent row as sent and moves the schema time, so a failed upload left the
+        // next sync seeing nothing unsent and downloading over Franki's answers without asking.
+        const at = Date.now();
+        const copy = await readiedCopy(at);
+        await uploadCollection(client, new Uint8Array(await copy.arrayBuffer()));
+        await repo.withSyncConnection((db) => prepareForUpload(db, () => at));
       },
       refresh: () => refreshFromKeptCollection(repo),
       syncMedia: (usn) => syncMedia(client, repo.mediaSyncState(), { exists: hasMedia, write: writeMedia, remove: removeMedia, read: readMedia }, usn),
