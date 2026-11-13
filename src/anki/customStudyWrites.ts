@@ -195,9 +195,11 @@ export async function buildCustomStudyDeck(
     let position = POSITION_BASE;
     for (const cid of picked) {
       // A card's own due is kept in odue; the deck's position stands in for it (a card due at 0 or
-      // before keeps its due, as in Anki). Without rescheduling every card goes in the preview queue.
+      // before keeps its due, as in Anki). Without rescheduling every card goes in the review queue,
+      // as Anki's move_into_filtered_deck puts it; the preview queue (4) is for one shown again
+      // after a delay (`previewAgain`).
       await db.run(
-        `UPDATE cards SET odid = did, odue = due, did = ?, due = CASE WHEN due > 0 THEN ? ELSE due END, queue = CASE WHEN ? THEN queue ELSE 4 END, mod = ?, usn = -1 WHERE id = ?`,
+        `UPDATE cards SET odid = did, odue = due, did = ?, due = CASE WHEN due > 0 THEN ? ELSE due END, queue = CASE WHEN ? THEN queue ELSE 2 END, mod = ?, usn = -1 WHERE id = ?`,
         row.id, position++, plan.reschedule ? 1 : 0, nowSecs, cid,
       );
     }

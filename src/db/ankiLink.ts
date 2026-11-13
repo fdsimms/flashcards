@@ -1,9 +1,10 @@
 import * as SQLite from 'expo-sqlite';
 import { inSchema, keptSql, stripUnicaseIn } from '../anki/attachedSql';
+import { deckAndParents, studiedDelta, withStudied, type DeckStatsRow } from '../anki/deckStats';
 import { COLLECTION_QUERIES, type CollectionRows } from '../anki/collection';
 import { ankiFolder, keptCollectionFile, pathOf, workFolder } from '../anki/files';
 import {
-  cardRestoreParams, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, previewAgain, previewReturn, previewRevlogEntry, revlogEntry, revlogParams, type AnkiCardRow, type AnkiUndo,
+  cardRestoreParams, cardStateParams, cardUpdate, cardUpdateParams, ankiDayNumber, nextRevlogId, previewAgain, previewReturn, previewRevlogEntry, revlogEntry, revlogParams, type AnkiCardRow, type AnkiUndo,
 } from '../anki/writeback';
 import type { SqlValue, SyncDb } from '../anki/sync/collectionSync';
 import type { MediaState } from '../anki/sync/mediaSync';
@@ -229,6 +230,8 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
         const sibling = s.ankiId ? await db.getFirstAsync<AnkiCardRow & { mod: number; usn: number }>(SQL.cardRow, Number(s.ankiId)) : null;
         if (sibling) buried.push({ cid: Number(s.ankiId), row: sibling });
       }
+      const deckRows = await db.getAllAsync<DeckStatsRow>(SQL.deckStats);
+      const decks = deckAndParents(deckRows, row.did).map(({ id, common, mtime_secs, usn }) => ({ id, common, mtime_secs, usn }));
       await db.withTransactionAsync(async () => {
         const update = !preview ? cardUpdate(after, row, { clock, now, desiredRetention, steps })
           : preview.again ? previewAgain(row, Math.floor(preview.again.getTime() / 1000), now)
@@ -237,9 +240,14 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
         const entry = revlogEntry(before, after, rating, { id: revlogId, cid, previousIvl: row.ivl, now, takenMs, clock });
         await db.runAsync(SQL.revlogInsert, ...revlogParams(preview ? previewRevlogEntry(entry, row, preview.again, now) : entry));
         for (const b of buried) await db.runAsync(SQL.buryCard, Math.floor(now.getTime() / 1000), b.cid);
+        // Counted on the deck the card is studied in and those above it, from the queue it was answered from.
+        const today = ankiDayNumber(Math.floor(now.getTime() / 1000), clock);
+        const delta = studiedDelta(row.queue, entry.time);
+        // Stamped with the clock, as Anki's set_modified does: sync keeps the deck row stamped later.
+        for (const d of decks) await db.runAsync(SQL.deckStatsUpdate, withStudied(d.common, today, delta), Math.floor(Date.now() / 1000), -1, d.id);
         await db.runAsync(SQL.colModified, now.getTime());
       });
-      return { cid, row, revlogId, buried };
+      return { cid, row, revlogId, buried, decks };
     }),
 
     undoAnkiAnswer: (u) => lockAnki(async () => {
@@ -251,6 +259,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       await db.withTransactionAsync(async () => {
         await db.runAsync(SQL.cardUpdate, ...cardRestoreParams(u.row, u.cid));
         for (const b of u.buried) await db.runAsync(SQL.cardUpdate, ...cardRestoreParams(b.row, b.cid));
+        for (const d of u.decks ?? []) await db.runAsync(SQL.deckStatsUpdate, d.common, d.mtime_secs, d.usn, d.id);
         await db.runAsync(SQL.revlogDelete, u.revlogId);
         await db.runAsync(SQL.colModified, Date.now());
       });

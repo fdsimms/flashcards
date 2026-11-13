@@ -384,9 +384,11 @@ Anki with "Send to Anki", one app holding the collection at a time.
 - **Anki's collection is the record.** A package import replaces every Anki card's scheduling
   (`applyAnkiCollection`), studied here or not, unlike a TSV re-import; the screen warns first
   when answers haven't been sent to Anki yet.
-- **Franki writes the kept collection only through `cards` and `revlog`, the way Anki writes
-  an answer** (`src/anki/writeback.ts`: card columns, one review log row, both usn -1, and the
-  collection's modified stamp, `COL_MODIFIED_SQL`, without which a sync never sees the answer).
+- **Franki writes an answer into the kept collection the way Anki writes one**
+  (`src/anki/writeback.ts`: card columns, one review log row, both usn -1, and the collection's
+  modified stamp, `COL_MODIFIED_SQL`, without which a sync never sees the answer), plus the
+  "studied today" counts of the card's deck and every deck above it (`src/anki/deckStats.ts`),
+  which Anki's daily limits read instead of the review log.
   Every answer and undo in Review goes through `writeAnkiAnswer` / `undoAnkiAnswer`, which wait on
   `lockAnki` while a sync or an import holds the collection. A sync also writes what Anki's own
   sync writes (notes, graves, config, decks in place).

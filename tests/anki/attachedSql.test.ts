@@ -2,10 +2,11 @@ import { copyFileSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { deckAndParents, studiedDelta, withStudied } from '../../src/anki/deckStats';
 import { inSchema, keptSql, stripUnicaseIn } from '../../src/anki/attachedSql';
 import { buildExport, COLLECTION_QUERIES, type CollectionRows } from '../../src/anki/collection';
 import { readPackage, writePackage } from '../../src/anki/package';
-import { cardRestoreParams, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams, type AnkiCardRow } from '../../src/anki/writeback';
+import { ankiDayNumber, cardRestoreParams, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams, type AnkiCardRow } from '../../src/anki/writeback';
 import { review } from '../../src/core/scheduler';
 import { isBuried } from '../../src/core/queue';
 import type { Card } from '../../src/core/types';
@@ -75,19 +76,29 @@ describe('the app\'s SQL against attached Anki collections', () => {
       const cid = Number(before.ankiId);
       const row = db.prepare(SQL.cardRow).get(cid) as unknown as AnkiCardRow & { mod: number; usn: number };
       const id = nextRevlogId(now.getTime(), (db.prepare(SQL.maxRevlogId).get() as any).m);
+      const decks = deckAndParents(db.prepare(SQL.deckStats).all() as any, row.did);
       db.exec('BEGIN');
       db.prepare(SQL.cardUpdate).run(...cardUpdateParams(cardUpdate(after, row, { clock: { crt, dayStartsAtHour: 4 }, now }), cid));
       db.prepare(SQL.revlogInsert).run(...revlogParams(revlogEntry(before, after, rating, { id, cid, previousIvl: row.ivl, now, takenMs: 3000 })));
+      const today = ankiDayNumber(Math.floor(now.getTime() / 1000), { crt, dayStartsAtHour: 4 });
+      for (const d of decks) db.prepare(SQL.deckStatsUpdate).run(withStudied(d.common, today, studiedDelta(row.queue, 3000)), Math.floor(now.getTime() / 1000), -1, d.id);
       db.exec('COMMIT');
-      return { cid, row, id, rating };
+      return { cid, row, id, rating, decks };
     };
     const kept1 = answer(cards.find((c) => c.sched.state === 2)!, 3);
     const undone = answer(cards.find((c) => c.sched.state === 0 && !c.suspended)!, 4);
+    // The answer counted on its deck and the ones above it, as Anki's daily limits read it.
+    expect(undone.decks.length).toBeGreaterThanOrEqual(1);
+    const counted = db.prepare(SQL.deckStats).all() as any[];
+    for (const d of undone.decks) expect(counted.find((r) => r.id === d.id).usn).toBe(-1);
     // undoAnkiAnswer
     db.exec('BEGIN');
     db.prepare(SQL.cardUpdate).run(...cardRestoreParams(undone.row, undone.cid));
+    for (const d of undone.decks) db.prepare(SQL.deckStatsUpdate).run(d.common, d.mtime_secs, d.usn, d.id);
     db.prepare(SQL.revlogDelete).run(undone.id);
     db.exec('COMMIT');
+    const restored = db.prepare(SQL.deckStats).all() as any[];
+    for (const d of undone.decks) expect(restored.find((r) => r.id === d.id)).toEqual(d);
     expect((db.prepare(SQL.unsentSince).get(0) as any).n).toBeGreaterThanOrEqual(1);
     // writeAnkiAnswer's bury: a sibling held back as Anki's scheduler buries it, then undone with
     // its answer, which puts the sibling's row back exactly as it was.
