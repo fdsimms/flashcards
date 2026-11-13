@@ -10,6 +10,7 @@ from franki_reader.coverage import Checker, is_word, parse_line, segment_line
 from franki_reader.frequency import rank_of
 from franki_reader.japanese import JapaneseLexicon
 from franki_reader.spaced import fold, lemma
+from franki_reader.split_verbs import join_split_verbs
 from franki_reader.store import StoredText
 
 
@@ -134,7 +135,9 @@ def render_sentence(
     """A card's example sentence split and glossed as a text's line is, for the card's word
     popovers. The sentence is plain text, not a model line: `|`, `*` and `~` mean nothing in it.
     The pieces join back to the sentence as segmented, which the app checks before using them."""
-    return [word_out(p, lexicon, meanings, deck_translits) for p in lexicon.segment(sentence)]
+    words = [word_out(p, lexicon, meanings, deck_translits) for p in lexicon.segment(sentence)]
+    join_split_verbs(words, lexicon, meanings, deck_translits, set())
+    return words
 
 
 _REFLEXIVE_PRONOUNS = frozenset({"me", "te", "se", "nos", "os"})
@@ -206,6 +209,7 @@ def render_line(
             )
         )
     mark_reflexive_pronouns(words, lexicon)
+    join_split_verbs(words, lexicon, meanings, deck_translits or {}, stretch)
     return words
 
 
