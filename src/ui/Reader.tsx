@@ -443,6 +443,16 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     setTapped({ word, x, y });
   };
 
+  // A practice word's pill opens the same popover as the word in the text. Not while a phrase is
+  // being picked, when a tap belongs to the phrase.
+  const openPracticeWord = (text_: string, x: number, y: number) => {
+    if (!session || !text || (phrase && phrase.end === null)) return;
+    const word = text.lines.flatMap((l) => l.words).find((w) => w.text === text_);
+    if (!word) return;
+    setSession(lookUp(session, word.text));
+    setTapped({ word, x, y });
+  };
+
   // Holding a word and dragging to the last word of a phrase; held without dragging, it's a tap.
   const phraseDrag = usePhraseDrag({ lines: text?.lines ?? null, setPhrase, onHeld: tap });
 
@@ -610,7 +620,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
               <Card style={{ padding: space.m, gap: space.m }}>
                 {text.stretch.length > 0 ? (
                   <ChipRow label="Practice words">
-                    {text.stretch.map((w) => <Pill key={w} text={w} bg={c.accentFill} fg={c.accent} />)}
+                    {text.stretch.map((w) => <Pill key={w} text={w} bg={c.accentFill} fg={c.accent} onPress={(x, y) => openPracticeWord(w, x, y)} />)}
                   </ChipRow>
                 ) : null}
                 {practicedGrammar(text).length > 0 ? (
@@ -943,11 +953,21 @@ function glossFor(text: ReaderText, word: string): string | null {
   return null;
 }
 
-function Pill({ text, bg, fg }: { text: string; bg: string; fg: string }) {
-  return (
+function Pill({ text, bg, fg, onPress }: { text: string; bg: string; fg: string; onPress?: (x: number, y: number) => void }) {
+  const pill = (
     <Text style={{ ...type.subhead, fontWeight: '700', color: fg, backgroundColor: bg, paddingHorizontal: 10, paddingVertical: space.xs, borderRadius: radius.pill, overflow: 'hidden' }}>
       {text}
     </Text>
+  );
+  if (!onPress) return pill;
+  return (
+    <Tappable
+      onPress={(e) => onPress(e.nativeEvent.pageX, e.nativeEvent.pageY)}
+      accessibilityRole="button"
+      accessibilityLabel={`Meaning of ${text}`}
+    >
+      {pill}
+    </Tappable>
   );
 }
 
