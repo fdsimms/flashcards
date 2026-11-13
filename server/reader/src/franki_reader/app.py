@@ -53,6 +53,10 @@ marked words, ideas) is in the current language, the `language` setting.
                                       ?story=<id>, that story's episodes, first to last
     GET   /api/texts/{id}             one text, in the same shape as /next; reading it again isn't logged
     POST  /api/texts/{id}/reading     logs a session with a text and adjusts difficulty
+    POST  /api/texts/{id}/choice      {choice} the option picked at the end of a story episode, as an
+                                      index into its choices; it can be changed until the episode is
+                                      read, which is when the next one is written from it (404 for
+                                      no such text or choice, 409 once it's read)
     GET   /api/progress               finished texts, coverage and ratings over the last 14 days,
                                       and the difficulty the next text is written at
     GET   /api/costs?days=30          what Claude cost over the last `days` days, per language:
@@ -248,6 +252,10 @@ class FrankiCountsIn(BaseModel):
     # The deck list's totals across the top-level decks: due (reviews and learning) and new.
     due: int = Field(ge=0, le=1_000_000)
     new: int = Field(ge=0, le=1_000_000)
+
+
+class ChoiceIn(BaseModel):
+    choice: int = Field(ge=0)
 
 
 class ReadingIn(BaseModel):
@@ -796,6 +804,17 @@ def create_app(
             # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
             raise HTTPException(503, str(e)) from e
         return {"hints": hints}
+
+    @app.post("/api/texts/{text_id}/choice", status_code=204, dependencies=authed)
+    async def choose(text_id: int, body: ChoiceIn) -> Response:
+        match store.set_choice(engine.conn, text_id, body.choice):
+            case "unknown":
+                raise HTTPException(404, "That choice isn't on this text.")
+            case "read":
+                raise HTTPException(
+                    409, "This episode is already read, so its choice can't change."
+                )
+        return Response(status_code=204)
 
     @app.post("/api/texts/{text_id}/reading", status_code=204, dependencies=authed)
     async def reading(text_id: int, body: ReadingIn, background: BackgroundTasks) -> Response:

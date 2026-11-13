@@ -16,12 +16,14 @@ import { RATES } from '../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, type LengthStep } from '../reader/shelf';
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
 import { locate, phrasePart, phraseText, pickEnd, type PhrasePick } from '../reader/phrase';
+import { choicesView, holdsPlayAll } from '../reader/choices';
 import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
 import { LineExplanation } from './ReaderExplain';
 import { RegisterChip } from './ReaderNatural';
 import { PhraseExplanation, PhrasePickBanner, type PhraseMining } from './ReaderPhrase';
+import { ReadChoices } from './ReadChoices';
 import { usePhraseDrag } from './usePhraseDrag';
 import { ReadGrammarNote } from './ReadGrammarNote';
 import { WordView } from './ReadWord';
@@ -142,6 +144,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const [lengthStep, setLengthStep] = useState<LengthStep>('same');
   const [liked, setLiked] = useState<boolean | null>(null);
   const [steerError, setSteerError] = useState<string | null>(null);
+  // A story episode's pick for what happens next (an index into text.choices), and why saving it failed.
+  const [chosen, setChosen] = useState<number | null>(null);
+  const [choiceError, setChoiceError] = useState<string | null>(null);
+  const choiceSeq = useRef(0);
   // The length new texts were written at when this text opened, so Shorter and Longer step from it.
   const baseLength = useRef<Length>(settings?.lines ?? 8);
   const autoPlayed = useRef(false);
@@ -257,7 +263,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     else {
       setPlayingAll(false);
       // Play all: the whole text has played, so it counts as read; on to the next one.
-      if (playingAll && source.kind === 'shelf' && source.playAll && !listenOnly) playNext();
+      // An episode that ends on a choice holds Play all, so the choice isn't skipped past.
+      if (playingAll && source.kind === 'shelf' && source.playAll && !listenOnly && !holdsPlayAll(text, review)) playNext();
     }
   }, [status.didJustFinish]); // eslint-disable-line react-hooks/exhaustive-deps -- reacts to a line ending only
 
@@ -293,6 +300,9 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     setLengthStep('same');
     setLiked(null);
     setSteerError(null);
+    setChosen(null);
+    setChoiceError(null);
+    choiceSeq.current++;
     autoPlayed.current = false;
     baseLength.current = settings?.lines ?? 8;
     lineBoxes.current = [];
@@ -304,6 +314,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
         if (!stillWanted()) return;
         setText(opened);
         setLiked(opened.liked ?? null);
+        setChosen(opened.chosen ?? null);
         setSession(startSession(opened, Date.now()));
         return;
       }
@@ -359,6 +370,21 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     findNext().then((n) => { if (live && mounted.current) setUpNext(n); });
     return () => { live = false; };
   }, [ended]); // eslint-disable-line react-hooks/exhaustive-deps -- once per end view
+
+  // Saves the pick as it's made, since the server writes the next episode from it once this one is read.
+  const choose = (index: number) => {
+    if (!text) return;
+    const seq = ++choiceSeq.current;
+    const before = chosen;
+    setChosen(index);
+    setChoiceError(null);
+    api.chooseNext(text.id, index).catch((e) => {
+      // A later tap, or another text, has taken over since: leave its state alone.
+      if (!mounted.current || seq !== choiceSeq.current) return;
+      setChosen(before);
+      setChoiceError(e instanceof ApiError ? e.message : "Couldn't save your choice. Try again.");
+    });
+  };
 
   const playNext = async () => {
     if (!text || !session || logged.current || source.kind !== 'shelf') return;
@@ -798,6 +824,11 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
               </View>
             </View>
           ))}
+          {!listenOnly && choicesView(text, review) ? (
+            <View style={{ paddingHorizontal: space.l, paddingBottom: space.l }}>
+              <ReadChoices choices={text.choices ?? []} chosen={chosen} textStyle={readStyle(text, thaiFont)} onChoose={review ? null : choose} error={choiceError} />
+            </View>
+          ) : null}
           {review ? null : (
             <View style={{ padding: space.l }}>
               <Button label="Done" onPress={() => { player.pause(); setEnded(true); }} />

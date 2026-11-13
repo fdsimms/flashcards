@@ -542,6 +542,15 @@ next episode is the top of the shelf.
 - **An episode is a story-form text like any other**: the same coverage target, revision loop and
   stretch words, filed under the story's own hidden topic. The next one is written only once the
   last has been read, so at most one waits.
+- **An episode ends on a choice** (added 13 November 2026). The same request asks for two or three
+  `choices`: short options for what happens next, written like lines (`|` between words, English
+  beside each) and counted in the text's coverage, so one with a word outside the deck is sent back
+  like any other draft. Fewer than two is no choice, and the story carries on as before. They're
+  stored on the episode (`choices`, and `chosen`, the index picked) and sent with it as segmented
+  words. The app saves the pick when it's tapped (`POST /api/texts/{id}/choice`), which can change
+  until the episode is read: reading is what writes the next episode, and its request then says
+  "the reader chose X". No pick means no line saying so. A read episode refuses a new pick (409).
+  Play all stops at an episode that has choices. Not built: a typed option of the reader's own.
 
 ## Topics
 

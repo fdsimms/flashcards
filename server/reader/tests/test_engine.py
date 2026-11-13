@@ -331,6 +331,62 @@ def test_a_story_keeps_its_cast_and_each_episode_hears_the_ones_before() -> None
     assert [t.episode for t in store.episodes(e.conn, story_id)] == [1, 2]
 
 
+def test_the_next_episode_is_written_from_the_choice_the_reader_made() -> None:
+    choices = [
+        {"text": "ฉัน|กิน", "english": "I eat."},
+        {"text": "อยาก|กิน", "english": "I want to eat."},
+    ]
+    first = {**IN_RANGE, "series": "Noi's stall", "cast": "Noi.", "recap": "Noi opens."}
+    model = ScriptedModel({**first, "choices": choices}, {**IN_RANGE, "recap": "Noi eats."})
+    e = engine(model)
+
+    async def start() -> int:
+        story = e.start_story("a noodle stall")
+        await settle(e)
+        return story.id
+
+    story_id = run(start)
+    episode = store.waiting_episode(e.conn, story_id)
+    assert episode is not None and [c.english for c in episode.choices] == [
+        "I eat.",
+        "I want to eat.",
+    ]
+    assert episode.chosen is None
+
+    assert store.set_choice(e.conn, episode.id, 1) == "ok"
+    assert store.set_choice(e.conn, episode.id, 0) == "ok"  # a pick can change until it's read
+    assert store.set_choice(e.conn, episode.id, 2) == "unknown"
+    assert store.set_choice(e.conn, 9999, 0) == "unknown"
+    assert store.get_text(e.conn, episode.id).chosen == 0  # type: ignore[union-attr]
+
+    e.record_reading(episode.id, reading(None))
+    assert store.set_choice(e.conn, episode.id, 1) == "read"
+    calls = model.calls
+    run(e.top_up)
+    asked = model.messages_seen[calls][0]["content"]
+    assert 'chose what happens next: "I eat."' in asked
+
+
+def test_an_episode_read_with_no_choice_made_carries_on_without_one() -> None:
+    choices = [{"text": "ฉัน|กิน", "english": "I eat."}, {"text": "อยาก|กิน", "english": "Eat."}]
+    first = {**IN_RANGE, "series": "Noi's stall", "cast": "Noi.", "choices": choices}
+    model = ScriptedModel(first, IN_RANGE)
+    e = engine(model)
+
+    async def start() -> int:
+        story = e.start_story("a noodle stall")
+        await settle(e)
+        return story.id
+
+    story_id = run(start)
+    episode = store.waiting_episode(e.conn, story_id)
+    assert episode is not None
+    e.record_reading(episode.id, reading(None))
+    calls = model.calls
+    run(e.top_up)
+    assert "chose what happens next" not in model.messages_seen[calls][0]["content"]
+
+
 def test_a_new_story_retires_the_old_one() -> None:
     e = engine(ScriptedModel(IN_RANGE))
 

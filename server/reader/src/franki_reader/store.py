@@ -12,7 +12,7 @@ from typing import Any, Literal
 
 from franki_reader.difficulty import Difficulty
 from franki_reader.gateway import AnkiUnavailable
-from franki_reader.generator import MODEL, Form, Generated, Line
+from franki_reader.generator import MODEL, Choice, Form, Generated, Line
 from franki_reader.languages import LANGUAGES, VOICE_SLOTS, Code, with_deck
 from franki_reader.lexicon import Entry, ReadDeck
 from franki_reader.study_day import DEFAULT_ROLLOVER, study_day
@@ -232,6 +232,10 @@ class StoredText:
     story_id: int | None = None
     episode: int = 0
     recap: str = ""  # a story episode's one sentence about what happened in it
+    # What the reader can pick to happen next, for an episode that ends on a choice, and the
+    # index of the one they picked (None until they do, and for good if they never do).
+    choices: tuple[Choice, ...] = ()
+    chosen: int | None = None
 
 
 # "topic": the model chooses stretch words that fit the topic from a list of due and young words.
@@ -323,6 +327,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
         ("story_id", "story_id INTEGER REFERENCES stories(id)"),
         ("episode", "episode INTEGER NOT NULL DEFAULT 0"),
         ("recap", "recap TEXT NOT NULL DEFAULT ''"),
+        # A story episode's choices for what happens next (JSON) and the index the reader picked.
+        ("choices", "choices TEXT NOT NULL DEFAULT '[]'"),
+        ("chosen", "chosen INTEGER"),
         # Characters Azure has spoken for the text, each time its lines were recorded (a
         # re-recording counts again); what its audio cost is worked out from this.
         ("audio_chars", "audio_chars INTEGER NOT NULL DEFAULT 0"),
@@ -534,9 +541,10 @@ def save_text(
             """INSERT INTO texts (topic_id, created_at, status, title, lines, glosses, stretch,
                    coverage, token_count, floor, attempts, model, input_tokens, output_tokens,
                    cache_read_tokens, cache_write_tokens, cost_usd, roles, form, language, grammar,
-                   focus, translits, reason, story_id, episode, recap, genders, characters)
+                   focus, translits, reason, story_id, episode, recap, genders, characters,
+                   choices)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                   ?, ?, ?, ?)""",
+                   ?, ?, ?, ?, ?)""",
             (
                 topic_id,
                 now.isoformat(),
@@ -567,10 +575,25 @@ def save_text(
                 generated.recap,
                 json.dumps(generated.genders),
                 json.dumps(generated.characters),
+                json.dumps([c.__dict__ for c in generated.choices], ensure_ascii=False),
             ),
         )
     assert cur.lastrowid is not None
     return cur.lastrowid
+
+
+def set_choice(conn: sqlite3.Connection, text_id: int, index: int) -> str:
+    """Records which of an episode's choices the reader picked, replacing an earlier pick. Returns
+    "ok", "unknown" for no such text or no such choice on it, or "read" for an episode already
+    read, since the next episode is written from the pick once it is."""
+    with conn:
+        row = conn.execute("SELECT status, choices FROM texts WHERE id = ?", (text_id,)).fetchone()
+        if row is None or not 0 <= index < len(json.loads(row[1])):
+            return "unknown"
+        if row[0] == "read":
+            return "read"
+        conn.execute("UPDATE texts SET chosen = ? WHERE id = ?", (index, text_id))
+    return "ok"
 
 
 def mark_ready(conn: sqlite3.Connection, text_id: int) -> None:
@@ -621,7 +644,7 @@ def get_text(conn: sqlite3.Connection, text_id: int) -> StoredText | None:
 
 _TEXT_COLUMNS = (
     "id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar,"
-    " translits, reason, story_id, episode, recap, genders, characters"
+    " translits, reason, story_id, episode, recap, genders, characters, choices, chosen"
 )
 
 
@@ -645,6 +668,8 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         recap,
         genders,
         characters,
+        choices,
+        chosen,
     ) = row
     return StoredText(
         id=text_id,
@@ -665,6 +690,8 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         recap=recap,
         genders=json.loads(genders),
         characters=json.loads(characters),
+        choices=tuple(Choice(**c) for c in json.loads(choices)),
+        chosen=chosen,
     )
 
 
