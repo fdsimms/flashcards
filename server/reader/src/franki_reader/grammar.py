@@ -21,7 +21,7 @@ given a line's words, it returns the spans that use the point.
 
 import json
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast, get_args
@@ -36,6 +36,9 @@ Finder = Callable[[list[str]], list[Span]]
 PRACTICE_USES = 2  # a practiced point appears at least this many times
 MAX_PRACTICE = 2  # points practiced at once, so texts stay natural
 UNSET_USES = 2  # uses of points the owner hasn't marked, in all, before a draft goes back
+# The range the Grammar dial moves that between (difficulty.py): 1 use up to 4.
+MIN_UNSET_USES = 1
+MAX_UNSET_USES = 4
 
 
 @dataclass(frozen=True)
@@ -49,6 +52,9 @@ class Point:
     # Read as Know it until the owner chooses (the catalog's `known`): grammar in nearly every line,
     # like Japanese's ます and past, which the cap on points not set would keep out of texts.
     known: bool = False
+    # Where the point comes in its language's order of difficulty, 1 the easiest (the catalog's
+    # `level`): the Grammar dial suggests the lowest one not yet learned.
+    level: int = 0
 
 
 def words(plain: str, lexicon: Checker) -> list[str]:
@@ -425,6 +431,7 @@ def _load(catalog: Path, finders: dict[str, Finder]) -> tuple[Point, ...]:
     problems += [
         f"{pid} has a finder but isn't in the catalog" for pid in finders if pid not in ids
     ]
+    problems += [f"{e['id']} has no level" for e in entries if not isinstance(e.get("level"), int)]
     problems += [
         f"{e['id']} is in {e['language']}, which isn't a language here"
         for e in entries
@@ -441,6 +448,7 @@ def _load(catalog: Path, finders: dict[str, Finder]) -> tuple[Point, ...]:
             finders[e["id"]],
             tuple(e.get("related", ())),
             bool(e.get("known", False)),
+            int(e["level"]),
         )
         for e in entries
     )
@@ -453,3 +461,10 @@ POINTS: dict[str, Point] = {p.id: p for p in _ALL}
 
 def points_for(language: Code) -> list[Point]:
     return [p for p in _ALL if p.language == language]
+
+
+def next_to_learn(language: Code, choices: Mapping[str, str]) -> Point | None:
+    """The language's easiest point the owner isn't practicing or doesn't already know: one not set
+    or set to Don't know it. What the Grammar dial suggests to practice."""
+    left = [p for p in points_for(language) if choices.get(p.id, "unset") in ("unset", "avoid")]
+    return min(left, key=lambda p: p.level, default=None)

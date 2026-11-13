@@ -45,3 +45,10 @@ def test_a_fair_check_too_few_questions_or_too_hard_change_nothing() -> None:
     assert adapt_to_check(Difficulty(0.93, 1), "too_hard", 0, 5) == Difficulty(0.93, 1)
     # A good score never makes the next text harder: the rating does that.
     assert adapt_to_check(Difficulty(0.92, 2), "too_easy", 5, 5) == Difficulty(0.92, 2)
+
+
+def test_grammar_allowance_defaults_to_two_and_a_rating_leaves_it_alone() -> None:
+    assert Difficulty().unset_uses == 2
+    assert adapt(Difficulty(unset_uses=4), "too_hard").unset_uses == 4
+    assert adapt(Difficulty(unset_uses=1), "too_easy").unset_uses == 1
+    assert adapt_to_check(Difficulty(unset_uses=4), None, 0, 5).unset_uses == 4

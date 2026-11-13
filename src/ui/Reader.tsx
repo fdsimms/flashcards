@@ -28,6 +28,7 @@ import { PhraseExplanation, PhrasePickBanner, type PhraseMining } from './Reader
 import { ReadChoices } from './ReadChoices';
 import { CheckCard, ReaderCheck } from './ReaderCheck';
 import { usePhraseDrag } from './usePhraseDrag';
+import { ReadGrammarDial } from './ReadGrammarDial';
 import { ReadGrammarNote } from './ReadGrammarNote';
 import { PracticeWordPill, TintPill } from './PracticeWordPill';
 import { WordView } from './ReadWord';
@@ -960,6 +961,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                     onChange={chooseLength}
                   />
                 </View>
+                <ReadGrammarDial api={api} />
                 {liked !== null && !text.episode ? (
                   <View style={{ gap: space.xs }}>
                     <Text style={{ ...type.footnote, color: c.textSecondary }}>{`This theme: ${text.topic}`}</Text>
