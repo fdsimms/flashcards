@@ -7,6 +7,7 @@ import random
 from datetime import datetime
 from typing import Any
 
+import pytest
 from scripted import ScriptedModel, draft
 
 from franki_reader import store
@@ -20,6 +21,13 @@ from franki_reader.reader import render
 from franki_reader.store import StoredText
 from franki_reader.tts import billed_chars
 from franki_reader.wanikani import WaniKaniWord
+
+
+@pytest.fixture(autouse=True)
+def japanese_shown(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Japanese is hidden from the app for now (languages.HIDDEN_LANGUAGES); these test it as shown."""
+    monkeypatch.setattr(store, "HIDDEN_LANGUAGES", frozenset())
+
 
 DECK = [
     "劇団",
