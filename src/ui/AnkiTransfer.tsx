@@ -10,7 +10,7 @@ import { fileUriToPath } from '../db/backup';
 import type { Repo } from '../db/repo';
 import type { BackupStore } from '../db/sqliteRepo';
 import { importTsv } from '../import/tsv';
-import { reconcileIds } from '../import/reconcile';
+import { leaveAnkiNotes, reconcileIds } from '../import/reconcile';
 import { Button, Card, Help, MessageList, Screen } from './kit';
 import { space, type, useTheme } from './theme';
 
@@ -75,9 +75,17 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
       const notes = await repo.listNotes();
       // Anki's decks with their ids, and Franki's own by name, for a deck column that gives a deck's id.
       const decks = [...await repo.ankiDecks(), ...[...new Set(notes.map((n) => n.deck))].map((name) => ({ name }))];
-      const result = reconcileIds(importTsv(await picked.text(), { noteTypes: await repo.listNoteTypes(), decks }), notes);
+      // A row matching a note from Anki is left alone: this import can't change Anki's copy.
+      const ankiNotes = new Set((await repo.listCards()).filter((c) => c.ankiId).map((c) => c.noteId));
+      const result = leaveAnkiNotes(reconcileIds(importTsv(await picked.text(), { noteTypes: await repo.listNoteTypes(), decks }), notes), ankiNotes);
       await repo.upsertNotesAndCards(result.notes, result.cards);
-      say(`Imported ${name}: ${plural(result.notes.length, 'note', 'notes')}. These cards aren't in Anki, so they stay in Franki only.`);
+      const shown = result.warnings.slice(0, MAX_WARNINGS);
+      setLog((l) => [
+        `Imported ${name}: ${plural(result.notes.length, 'note', 'notes')}. These cards aren't in Anki, so they stay in Franki only.`,
+        ...shown,
+        ...(result.warnings.length > shown.length ? [`and ${plural(result.warnings.length - shown.length, 'more warning', 'more warnings')}`] : []),
+        ...l,
+      ]);
     } catch (e: any) {
       say(failureText(e, { what: `Couldn't import ${name}.`, next: 'Try again.' }));
     }
