@@ -6,6 +6,7 @@ from typing import Any
 
 from franki_reader import grammar
 from franki_reader.coverage import Checker, is_word, parse_line, segment_line
+from franki_reader.japanese import JapaneseLexicon
 from franki_reader.spaced import fold, lemma
 from franki_reader.store import StoredText
 
@@ -15,14 +16,17 @@ def gloss_for(
 ) -> str | None:
     """The text's own gloss, else the deck's meaning (of the entry it's a form of, so hablé gets
     hablar's), else the meaning kept for the word in lower case (meanings.py: a common word has none
-    from the deck or the text), else the meanings of the deck entries a known compound splits into (a
-    word known that way has no entry of its own to gloss it)."""
+    from the deck or the text), else, in Japanese, its dictionary form's (a WaniKani word's meaning is
+    kept by its dictionary form, and 食べました has none of its own), else the meanings of the deck
+    entries a known compound splits into (a word known that way has no entry of its own to gloss it)."""
     entry = lexicon.entry_of(word)
+    lemma = lexicon.lemma_of(word) if isinstance(lexicon, JapaneseLexicon) else None
     if gloss := (
         glosses.get(word)
         or meanings.get(word)
         or (meanings.get(entry) if entry else None)
         or meanings.get(word.casefold())
+        or (meanings.get(lemma) if lemma else None)
     ):
         return gloss
     pieces = lexicon.known_pieces(word)
@@ -32,7 +36,10 @@ def gloss_for(
 
 def lemma_for(word: str, lexicon: Checker) -> str | None:
     """The dictionary form of a word (rozumiem to rozumieć): the deck entry it's a form of, else
-    simplemma's lemma. None for Thai, which has no inflection, and when the word is its own lemma."""
+    simplemma's lemma (Sudachi's dictionary form in Japanese: 行きました to 行く). None for Thai, which
+    has no inflection, and when the word is its own lemma."""
+    if isinstance(lexicon, JapaneseLexicon):
+        return lexicon.lemma_of(word) if is_word(word) else None
     if not lexicon.spaced or not is_word(word):
         return None
     code: str = getattr(lexicon, "code", "")
@@ -44,12 +51,23 @@ def lemma_for(word: str, lexicon: Checker) -> str | None:
     return None if fold(word, code) in fold(found, code).split() else found
 
 
+def from_wanikani(word: str, lexicon: Checker) -> bool:
+    """Whether a Japanese word is known for being learned in WaniKani, not from the deck or for
+    being common: the app says so rather than calling it a common word."""
+    return isinstance(lexicon, JapaneseLexicon) and lexicon.from_wanikani(word)
+
+
 def translit_for(
     word: str, translits: dict[str, str], lexicon: Checker, deck: dict[str, str]
 ) -> str | None:
     """The deck note's transliteration (of the entry the word is a form of), else the one the model
     wrote for the text, else the deck entries' joined when a known compound splits into them. None
-    when there's nothing to show, so the app offers no reveal rather than an empty one."""
+    when there's nothing to show, so the app offers no reveal rather than an empty one.
+
+    Japanese reads each word as it's written here: the deck's KanaReading only for the entry itself
+    (a conjugated form reads differently: 破った is やぶった, not やぶる), else Sudachi's reading."""
+    if isinstance(lexicon, JapaneseLexicon):
+        return deck.get(word) or lexicon.reading_of(word)
     entry = lexicon.entry_of(word)
     if found := deck.get(word) or (deck.get(entry) if entry else None) or translits.get(word):
         return found
@@ -92,6 +110,7 @@ def render(
                         "translit": None,
                         "stretch": False,
                         "deck": False,
+                        "wanikani": False,
                         "grammar": None,
                     }
                 )
@@ -110,6 +129,7 @@ def render(
                     "stretch": (entry or piece) in stretch,
                     # A deck word, as against one known for being common (every language but Thai).
                     "deck": entry is not None,
+                    "wanikani": not is_name and from_wanikani(piece, lexicon),
                     "grammar": point,
                 }
             )

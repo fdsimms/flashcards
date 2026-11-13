@@ -58,6 +58,8 @@ services:
       APP_PASSPHRASE: ${READER_PASSPHRASE:-}
       # A key for GET /reader/api/status alone (what's due), for dundundun.
       STATUS_TOKEN: ${READER_STATUS_TOKEN:-}
+      # A read-only WaniKani token: its learned vocabulary counts as known Japanese.
+      WANIKANI_TOKEN: ${WANIKANI_TOKEN:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
       AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}

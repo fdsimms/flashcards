@@ -3,16 +3,18 @@ Languages): the Anki deck (a setting, defaulting to the owner's decks), the voic
 written, and how known words are counted.
 
 Thai counts only deck words as known, segmented with the deck as the dictionary (coverage.py).
-Every other language is written with spaces and matched by lemma (spaced.py): its studied deck
-words, plus as many of its most common words as the `common` setting says, since most of the
-owner's decks hold advanced words, not everyday ones.
+Japanese is split into words by Sudachi and matched by dictionary form (japanese.py). Every other
+language is written with spaces and matched by lemma (spaced.py). Every language but Thai counts
+its studied deck words plus as many of its most common words as the `common` setting says, since
+most of the owner's decks hold advanced words, not everyday ones; Japanese also counts the
+vocabulary learned in WaniKani (wanikani.py).
 """
 
 import re
 from dataclasses import dataclass, field, replace
 from typing import Literal
 
-Code = Literal["th", "es", "de", "fr", "ru", "el", "pl", "nb"]
+Code = Literal["th", "es", "de", "fr", "ru", "el", "pl", "nb", "ja"]
 
 # How many of a language's most common words can be counted as known (the `common` setting).
 CommonCount = Literal[0, 250, 500, 1000, 2000, 3000, 5000, 10000]
@@ -35,6 +37,7 @@ class Language:
     # language with only one voice of a gender has to (gender.py).
     voices: dict[str, str] = field(default_factory=dict)
     # Written with spaces between words. Thai isn't: its spaces mark clause breaks (coverage.parse_line).
+    # Nor is Japanese, which has none.
     spaced: bool = False
     # Subdecks of the deck whose notes aren't vocabulary, by their name under it.
     skip: tuple[str, ...] = ()
@@ -43,8 +46,18 @@ class Language:
     common: int = 0
     # What the prompt says about which variety to write, if anything.
     variety: str = ""
-    # A line as the model writes it, for the prompt (spaced languages).
+    # A line as the model writes it, for the prompt (every language but Thai).
     example: str = ""
+    # How the prompt says to split a line into words (every language but Thai).
+    writing: str = "put | between words instead of spaces, keep punctuation on its word"
+    # The note field holding a word's pronunciation, shown behind the reader's reveal.
+    translit_field: str = "Transliteration"
+
+    @property
+    def counts_common(self) -> bool:
+        """Whether some of its most common words count as known (data/<code>_common.txt). Thai has
+        no list: only its deck counts."""
+        return self.code != "th"
 
     @property
     def notes_query(self) -> str:
@@ -177,6 +190,31 @@ LANGUAGES: dict[Code, Language] = {
         example="Jeg|må|*skynde|meg*!",
         common=1000,
         variety="Write Bokmål.",
+    ),
+    # Added on 13 November 2026, by the owner's decision. The deck holds intermediate words, and
+    # WaniKani's words count too, so 2,000 common words is a first guess at the owner's level.
+    "ja": Language(
+        code="ja",
+        name="Japanese",
+        deck=_LANGUAGES + "🍥 日本語",
+        voices={
+            "male": "ja-JP-KeitaNeural",
+            "male2": "ja-JP-DaichiNeural",
+            "female": "ja-JP-NanamiNeural",
+            "female2": "ja-JP-AoiNeural",
+        },
+        example="明日|は|*劇団*|の|公演|を|見|に|行く|よ。",
+        writing=(
+            "put | between words and never a space, since Japanese is written without them, and "
+            "keep punctuation on its word"
+        ),
+        common=2000,
+        variety=(
+            "Write standard Japanese, with kanji wherever a native speaker would use them and kana "
+            "elsewhere, never romaji: the learner's app shows each word's reading."
+        ),
+        # The owner's Japanese notes keep the reading in KanaReading, not Transliteration.
+        translit_field="KanaReading",
     ),
 }
 

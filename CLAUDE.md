@@ -467,7 +467,7 @@ and never the server's files, so searches, note adds, scheduling and sync behave
 ### Read & Listen (`server/reader/`, `src/reader/`)
 
 Texts (dialogues, short stories) written by Claude from the words already in the language decks
-(Thai, Spanish, German, French, Russian, Greek, Polish, Norwegian), checked in code to be 95-98% known words, recorded with Azure's voices, read in the app with
+(Thai, Spanish, German, French, Russian, Greek, Polish, Norwegian, Japanese), checked in code to be 95-98% known words, recorded with Azure's voices, read in the app with
 a gloss on every word. **`docs/read-and-listen/brief.md` is the spec, with the evidence behind each
 rule; `architecture.md` beside it has every decision since.** Where they and this file disagree,
 they win and this is stale. The rules that must not break:
@@ -481,10 +481,11 @@ they win and this is stale. The rules that must not break:
 - **Generate, then verify in code.** The model writes lines as `|`-split strings with stretch words
   in `*asterisks*`; the server re-segments every line itself (lexicon-first for Thai, by lemma for
   the rest, `spaced.py`) and sends drafts under the floor back with the unknown words named. Never trust the
-  model to stay in vocabulary.
+  model to stay in vocabulary. Japanese is split by SudachiPy (`japanese.py`).
 - **A word counts as known only when its note is studied** (young or mature); a word found only
   inside a studied phrase is partial and counts as unknown. Every language but Thai also counts as
-  many of its most common word families as its `common` setting says.
+  many of its most common word families as its `common` setting says, and Japanese also counts
+  WaniKani vocabulary at Guru or above (`wanikani.py`, read with the server's `WANIKANI_TOKEN`).
 - **Batch and cache.** Texts are written in the background and queued, never inside a request, and
   never one API call per word or page view.
 - **The owner steers the topics.** The shelf (`architecture.md`, Shelf) offers texts already

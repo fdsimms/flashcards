@@ -15,6 +15,7 @@ from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Form, Generated, Line
 from franki_reader.languages import LANGUAGES, VOICE_SLOTS, Code, with_deck
 from franki_reader.lexicon import Entry, ReadDeck
+from franki_reader.wanikani import ReadWaniKani, WaniKaniUnavailable, WaniKaniWord
 
 SNAPSHOT_MAX_AGE = timedelta(hours=24)
 # How the reading log names each language (it said "thai" before there was a second one).
@@ -27,6 +28,7 @@ LOG_LANGUAGE: dict[Code, str] = {
     "el": "greek",
     "pl": "polish",
     "nb": "norwegian",
+    "ja": "japanese",
 }
 MODE = "read_listen"
 
@@ -43,6 +45,13 @@ CREATE TABLE IF NOT EXISTS lexicon (
 CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS wanikani (
+    subject_id INTEGER PRIMARY KEY,
+    characters TEXT NOT NULL,
+    meaning TEXT NOT NULL,
+    reading TEXT NOT NULL,
+    srs_stage INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS topics (
     id INTEGER PRIMARY KEY,
@@ -413,6 +422,49 @@ async def refresh_if_stale(
         log.warning("The %s deck has no notes; keeping the snapshot from %s", name, taken_at)
         return False
     save_snapshot(conn, entries, now, language)
+    return True
+
+
+# ==== WaniKani ====
+# The vocabulary learned in WaniKani, counted as known Japanese words (wanikani.py). Like the
+# lexicon, only the latest list is kept.
+
+_WANIKANI_TAKEN_AT = "wanikani_taken_at"
+
+
+def save_wanikani(conn: sqlite3.Connection, words: list[WaniKaniWord], taken_at: datetime) -> None:
+    with conn:
+        conn.execute("DELETE FROM wanikani")
+        conn.executemany(
+            "INSERT OR REPLACE INTO wanikani (subject_id, characters, meaning, reading, srs_stage)"
+            " VALUES (?, ?, ?, ?, ?)",
+            [(w.subject_id, w.characters, w.meaning, w.reading, w.srs_stage) for w in words],
+        )
+        _set_meta(conn, _WANIKANI_TAKEN_AT, taken_at.isoformat())
+
+
+def load_wanikani(conn: sqlite3.Connection) -> list[WaniKaniWord]:
+    rows = conn.execute(
+        "SELECT subject_id, characters, meaning, reading, srs_stage FROM wanikani"
+        " ORDER BY subject_id"
+    )
+    return [WaniKaniWord(*row) for row in rows]
+
+
+async def refresh_wanikani_if_stale(
+    conn: sqlite3.Connection, read: ReadWaniKani, now: datetime, force: bool = False
+) -> bool:
+    """Reads WaniKani again when the last list is a day old, or now with `force`. If it can't be
+    read, the last list stays. Returns whether it refreshed."""
+    taken_at = _get_meta(conn, _WANIKANI_TAKEN_AT)
+    if not force and not is_stale(datetime.fromisoformat(taken_at) if taken_at else None, now):
+        return False
+    try:
+        words = await read()
+    except WaniKaniUnavailable as e:
+        log.warning("WaniKani not refreshed, using the list from %s: %s", taken_at, e)
+        return False
+    save_wanikani(conn, words, now)
     return True
 
 

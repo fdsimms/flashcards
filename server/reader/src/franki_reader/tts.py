@@ -14,6 +14,7 @@ couldn't be used, has no timings and plays without them.
 """
 
 import json
+import re
 import shutil
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
@@ -28,9 +29,17 @@ DEFAULT_VOICES = {"male": "th-TH-NiwatNeural", "female": "th-TH-PremwadeeNeural"
 # about $15 per million characters in the US; a "HD" voice chosen in the app costs more, so the
 # estimate runs low for one. Open risk: the figure comes from third-party price lists, since
 # Microsoft's own page wouldn't load for it. Check it against the Azure pricing calculator and
-# change it here if it differs. A language with Chinese, Japanese or Korean text (billed as two
-# characters each) would need a rule too, but none of the app's languages is one.
+# change it here if it differs. Chinese, Japanese and Korean characters are billed as two each
+# (`billed_chars`).
 AZURE_USD_PER_MILLION_CHARS = 15.0
+
+# Kana, kanji and hangul, which Azure bills as two characters each.
+_DOUBLE = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\uf900-\ufaff々〆ー]")
+
+
+def billed_chars(text: str) -> int:
+    """How many characters Azure bills for speaking `text`."""
+    return len(text) + len(_DOUBLE.findall(text))
 
 
 def azure_usd(characters: int) -> float:

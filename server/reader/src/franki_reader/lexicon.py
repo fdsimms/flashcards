@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 from franki_reader.coverage import Checker, Lexicon
+from franki_reader.japanese import JapaneseLexicon
 from franki_reader.languages import LANGUAGES, Code, Language
 from franki_reader.spaced import SpacedLexicon
 from franki_reader.tiers import Tier, note_tier
@@ -30,12 +31,14 @@ class Entry:
     meaning: str
     tier: Tier
     due: bool = False  # a card of this note is due in Anki today
-    translit: str = ""  # the note's Transliteration field (Thai), empty when it has none
+    # The note's pronunciation (Language.translit_field: Thai's Transliteration, Japanese's
+    # KanaReading), empty when it has none
+    translit: str = ""
 
 
 @dataclass(frozen=True)
 class NoteRow:
-    """A note as stored: its Entry, Meaning and Transliteration fields as HTML."""
+    """A note as stored: its Entry, Meaning and pronunciation (Language.translit_field) as HTML."""
 
     note_id: int
     entry: str
@@ -85,17 +88,26 @@ def build_entries(notes: Iterable[NoteRow], cards: Iterable[CardRow]) -> list[En
     return entries
 
 
-def lexicon_from(entries: list[Entry], language: Code = "th", common: int | None = None) -> Checker:
+def lexicon_from(
+    entries: list[Entry],
+    language: Code = "th",
+    common: int | None = None,
+    extra: Iterable[str] = (),
+) -> Checker:
     """Mature and young both count as known for coverage; unreviewed notes don't. `common` is how
-    many of the language's most common words count too (the setting), its default if None."""
+    many of the language's most common words count too (the setting), its default if None. `extra`
+    is words known from outside the deck, which aren't deck words (Japanese's from WaniKani)."""
     known = frozenset(e.text for e in entries if e.tier != "unreviewed")
-    return _lexicon(language, known, LANGUAGES[language].common if common is None else common)
+    count = LANGUAGES[language].common if common is None else common
+    return _lexicon(language, known, count, frozenset(extra))
 
 
 @lru_cache(maxsize=4)
-def _lexicon(language: Code, known: frozenset[str], common: int) -> Checker:
+def _lexicon(language: Code, known: frozenset[str], common: int, extra: frozenset[str]) -> Checker:
     # Building one costs about a second (the segmenter's dictionary), so the same set of known
     # words reuses it: once per snapshot in production, once per test module in tests.
+    if language == "ja":
+        return JapaneseLexicon(known, common, extra)
     if LANGUAGES[language].spaced:
         return SpacedLexicon(language, known, common)
     return Lexicon(known)

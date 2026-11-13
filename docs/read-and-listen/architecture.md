@@ -198,9 +198,8 @@ and of Milestone 3 where the brief put it. Mining followed on 12 November 2026 (
 works as before.
 
 German, French, Russian, Greek, Polish and Norwegian (Bokmål) followed on 12 November 2026, at the
-owner's request for "all my other languages" but English. Japanese is held back by the owner's
-decision, to be tried with WaniKani's data instead; it would also need a word splitter like Thai's.
-The Backlog decks (Portuguese, Italian, Esperanto, Chinese) were empty, and Loopless Letters is
+owner's request for "all my other languages" but English. Japanese, held back then, followed on
+13 November 2026 (Japanese, below). The Backlog decks (Portuguese, Italian, Esperanto, Chinese) were empty, and Loopless Letters is
 Thai letters, so none of them is a language here. Each new language works as Spanish does
 (`spaced.py`, below), with its own deck, voices, list of common words and grammar points
 (Grammar). A language with no grammar points would say so on the Grammar screen.
@@ -213,7 +212,7 @@ Thai letters, so none of them is a language here. Each new language works as Spa
   language still needs its deck, voices and rules for its entries in code (`languages.py`,
   `spaced.py`) and a list of common words (`scripts/build_common.py`).
 
-- **One setting, `language`** (`th`, `es`, `de`, `fr`, `ru`, `el`, `pl` or `nb`), picks the
+- **One setting, `language`** (`th`, `es`, `de`, `fr`, `ru`, `el`, `pl`, `nb` or `ja`), picks the
   language new texts are written and served in. It's the menu in the shelf's header. **Topics are shared**: a topic like "At a
   coffee shop" has texts in each language. The lexicon snapshot, ready texts, difficulty, progress,
   past texts, marked words, practiced stretch words and failures are per language. Only the current
@@ -302,7 +301,52 @@ Thai letters, so none of them is a language here. Each new language works as Spa
 - **Topic ideas** are ranked by fit for Thai only: their words are Thai, so every other language
   keeps the listed order.
 - The reading log names each language in English, lowercase (`thai`, `spanish`, `german`, `french`,
-  `russian`, `greek`, `polish`, `norwegian`).
+  `russian`, `greek`, `polish`, `norwegian`, `japanese`).
+
+### Japanese
+
+Added on 13 November 2026, by the owner's decision, Read & Listen first and the Practice tools
+after. The deck is `👅 Languages::🍥 日本語` (about 390 notes, 189 studied when added: intermediate
+words and phrases like 劇団, 約束を破る, 見せびらかす, 経験する), with the reading in `KanaReading`
+rather than `Transliteration` (`Language.translit_field`).
+
+- **Known words come from three places**, the owner's choice: the studied deck notes, the
+  vocabulary learned in WaniKani, and Japanese's most common words, up to the `common` setting
+  (default 2,000, a first guess, since WaniKani covers much of the everyday vocabulary). Particles,
+  auxiliaries and numbers always count as known: they're grammar, not vocabulary.
+- **WaniKani** (`wanikani.py`): a vocabulary or kana vocabulary subject counts once it's at Guru
+  (SRS stage 5) or above, and Master (7) or above is listed to the model as well known. The server
+  reads it with `WANIKANI_TOKEN` in `server/.env`, a read-only token from WaniKani's settings, once
+  a day with the Japanese deck, and keeps the last list when WaniKani can't be reached. Without the
+  token, Japanese counts its deck and common words only. The words are known but aren't deck words:
+  they're listed in the model's word list beside the deck's (negative ids, so they never meet a
+  note id), gloss with WaniKani's meaning, and say "Learned in WaniKani" in the app. Nothing is
+  ever sent to WaniKani.
+- **Splitting a line** (`japanese.py`): Japanese has no spaces, so the server splits each line
+  itself with SudachiPy (core dictionary, mode C), never by the model's `|`. A word is what's
+  tapped: a verb or adjective with what conjugates it (行きました, 食べさせられた, 待って), a prefix
+  with the word after it (お茶), a suffix with the noun before it (学生たち) but not after a name.
+  Words match by Sudachi's surface, dictionary and normalized forms, so 行きました is 行く, and
+  spelling variants meet (引越し and 引っ越し, できる and 出来る). A deck phrase (約束を破る) is found
+  by its morphemes and is one word, conjugated or not; a suru verb's noun and a na-adjective's stem
+  count too. A compound Sudachi keeps whole is known when its shortest units are. MeCab with UniDic
+  was the other choice; Sudachi was picked for its normalized forms. Its dictionary adds about 70 MB.
+- **Readings**: each word's reading is Sudachi's, in hiragana, as the word is written in the text
+  (破った is やぶった), except the deck's `KanaReading` for an entry written exactly as on the note.
+  A word in kana only, or with digits (Sudachi reads 13日 as イチミッカ), has none. The popover's
+  button says "Show reading".
+- **Common words**: `data/ja_common.txt`, built by `build_common.py` from wordfreq's Japanese list,
+  each form grouped by Sudachi's normalized form and shown as its most frequent dictionary form.
+  wordfreq's forms are MeCab's pieces (し, なっ, まし), so a few of the listed words are fragments;
+  they still count their family. There's **no vocabulary check** for Japanese yet: those
+  fragments and the particles near the top of the list would make poor questions.
+- **The prompt** is the template the spaced languages share, with Japanese's own rule for `|`
+  (between words, and never a space) and its variety: standard Japanese, kanji where a native
+  speaker would use them, never romaji.
+- **Voices**: `ja-JP-KeitaNeural` and `ja-JP-DaichiNeural` (men), `ja-JP-NanamiNeural` and
+  `ja-JP-AoiNeural` (women). Azure bills a Japanese character as two (`tts.billed_chars`), which
+  the cost figures count.
+- **No grammar points yet**: the Grammar screen says so.
 
 ## Grammar
 

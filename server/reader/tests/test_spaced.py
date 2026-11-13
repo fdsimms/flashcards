@@ -176,6 +176,7 @@ def test_a_spanish_text_renders_with_spaces_deck_flags_and_glosses_from_the_entr
         "translit": None,
         "stretch": True,
         "deck": True,
+        "wanikani": False,
         "grammar": None,
     }
     ciudad = next(w for w in words if w["text"] == "ciudad")
@@ -320,7 +321,7 @@ def test_switching_language_through_the_api_keeps_topics_and_separates_everythin
         assert [t["name"] for t in c.get("/api/topics", headers=auth).json()] == ["Guard duty"]
         assert c.get("/api/progress", headers=auth).json()["finished"] == 0
         assert c.get("/api/texts", headers=auth).json() == []
-        assert c.patch("/api/settings", json={"language": "ja"}, headers=auth).status_code == 422
+        assert c.patch("/api/settings", json={"language": "en"}, headers=auth).status_code == 422
 
 
 # ==== The other languages (12 November 2026) ====
@@ -339,7 +340,7 @@ def test_every_language_but_thai_has_a_list_of_10000_common_words_and_voices() -
     for code, language in LANGUAGES.items():
         assert language.voices["male"] and language.voices["female"]
         if code != "th":
-            assert language.spaced and len(common_words(code)) == 10_000
+            assert language.counts_common and len(common_words(code)) == 10_000
 
 
 def test_greek_final_sigma_and_russian_yo_match_the_common_words() -> None:

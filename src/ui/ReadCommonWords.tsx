@@ -12,6 +12,8 @@ export function CommonWords({ settings, onChange }: { settings: Settings; onChan
   const count = settings.common?.[settings.language];
   if (count === undefined) return null;
   const name = LANGUAGES[settings.language].name;
+  // Japanese also counts the vocabulary learned in WaniKani, when the server has its token.
+  const deck = settings.language === 'ja' ? 'your Japanese deck and WaniKani' : `your ${name} deck`;
   return (
     <>
       <Select
@@ -25,8 +27,8 @@ export function CommonWords({ settings, onChange }: { settings: Settings; onChan
       />
       <Help>
         {count === 0
-          ? `Only words from your ${name} deck count as known. Choose a number if texts feel too hard to write from the deck alone.`
-          : `Texts can use the ${commonLabel(count)} most common ${name} words, in all their forms, as well as your deck. Choose fewer if texts feel too hard. Applies from the next text written.`}
+          ? `Only words from ${deck} count as known. Choose a number if texts feel too hard to write from the deck alone.`
+          : `Texts can use the ${commonLabel(count)} most common ${name} words, in all their forms, as well as ${deck}. Choose fewer if texts feel too hard. Applies from the next text written.`}
       </Help>
     </>
   );

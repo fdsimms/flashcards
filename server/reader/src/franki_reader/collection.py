@@ -39,7 +39,6 @@ Required = SyncCollectionResponse.ChangesRequired
 
 ENTRY_FIELD = "Entry"
 MEANING_FIELD = "Meaning"
-TRANSLIT_FIELD = "Transliteration"
 
 
 @dataclass(frozen=True)
@@ -132,8 +131,8 @@ class AnkiDeck:
 
 
 def read_entries(col: Collection, language: Language) -> list[Entry]:
-    """Every note in the language's query with its Entry, Meaning and Transliteration, and its
-    cards' state."""
+    """Every note in the language's query with its Entry, Meaning and pronunciation
+    (`Language.translit_field`), and its cards' state."""
     note_ids = list(col.find_notes(language.notes_query))
     notes = []
     for nid in note_ids:
@@ -145,7 +144,7 @@ def read_entries(col: Collection, language: Language) -> list[Entry]:
                 nid,
                 fields[ENTRY_FIELD],
                 fields.get(MEANING_FIELD, ""),
-                fields.get(TRANSLIT_FIELD, ""),
+                fields.get(language.translit_field, ""),
             )
         )
     if not notes:

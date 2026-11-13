@@ -20,6 +20,8 @@ SECRET_NAMES = (
     # A second key that opens only `GET /api/status` (what's due), for another app such as
     # dundundun: it can't write texts or spend anything, unlike the passphrase.
     "STATUS_TOKEN",
+    # A read-only WaniKani token: its learned vocabulary counts as known Japanese (wanikani.py).
+    "WANIKANI_TOKEN",
 )
 
 

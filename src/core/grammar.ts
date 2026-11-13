@@ -5,7 +5,7 @@
 import catalog from '../../server/reader/src/franki_reader/grammar_points.json';
 
 /** The languages with grammar points: Read & Listen's languages, by the code Forms practice reads from a note. */
-export type GrammarLanguage = 'th' | 'es' | 'de' | 'fr' | 'ru' | 'el' | 'pl' | 'nb';
+export type GrammarLanguage = 'th' | 'es' | 'de' | 'fr' | 'ru' | 'el' | 'pl' | 'nb' | 'ja';
 
 export interface GrammarPointInfo {
   /** `<language>.<name>`, the id the server and every text's record use: "es.preterite". */

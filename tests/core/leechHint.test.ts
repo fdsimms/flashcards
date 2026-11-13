@@ -21,8 +21,14 @@ describe('mnemonicQuestion', () => {
     expect(mnemonicQuestion(omniNote({ Entry: 'ทุก', Meaning: 'all' }))?.language).toBe('th');
   });
 
+  it("takes a Japanese note's reading from KanaReading", () => {
+    expect(mnemonicQuestion(omniNote({ Entry: '犬', Meaning: 'dog', Transliteration: '', KanaReading: 'いぬ', Language: 'Japanese' }))).toEqual({
+      language: 'ja', entry: '犬', meaning: 'dog', transliteration: 'いぬ', context: '',
+    });
+  });
+
   it('is undefined for a language Read & Listen does not write in, or a note with no entry', () => {
-    expect(mnemonicQuestion(omniNote({ Entry: '犬', Meaning: 'dog', Language: 'Japanese' }))).toBeUndefined();
+    expect(mnemonicQuestion(omniNote({ Entry: 'dog', Meaning: 'a dog', Language: 'English' }))).toBeUndefined();
     expect(mnemonicQuestion(omniNote({ Entry: '', Meaning: 'all', Language: 'Thai' }))).toBeUndefined();
   });
 });

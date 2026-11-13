@@ -87,12 +87,12 @@ export const MONEY_SAYERS: Partial<Record<Language, (amount: number) => MoneySay
 
 /** The money each language is practiced with: Mexican pesos for Spanish, as its voice is Mexican. */
 export const CURRENCY_OF: Record<Language, CurrencyCode> = {
-  th: 'THB', es: 'MXN', fr: 'EUR', de: 'EUR', el: 'EUR', pl: 'PLN', ru: 'RUB', nb: 'NOK',
+  th: 'THB', es: 'MXN', fr: 'EUR', de: 'EUR', el: 'EUR', pl: 'PLN', ru: 'RUB', nb: 'NOK', ja: 'JPY',
 };
 
-/** The weekday a calendar's week starts on where the language is spoken: 0 Sunday (Thailand, Mexico), 1 Monday. */
+/** The weekday a calendar's week starts on where the language is spoken: 0 Sunday (Thailand, Mexico, Japan), 1 Monday. */
 export const WEEK_STARTS_ON: Record<Language, 0 | 1> = {
-  th: 0, es: 0, fr: 1, de: 1, el: 1, pl: 1, ru: 1, nb: 1,
+  th: 0, es: 0, fr: 1, de: 1, el: 1, pl: 1, ru: 1, nb: 1, ja: 0,
 };
 
 const withSayer = (sayers: Partial<Record<Language, unknown>>) => LANGUAGE_ORDER.filter((l) => !!sayers[l]);
