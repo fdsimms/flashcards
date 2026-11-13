@@ -21,7 +21,7 @@ the reader's popup; Thai has no inflection to group and no common-words setting.
 Run with the simplemma and Sudachi the server runs (pyproject.toml) and wordfreq 3.1.1, which is
 outside the server's own dependencies:
 
-    uv run --with wordfreq==3.1.1 python scripts/build_common.py de fr ru el pl nb ja th
+    uv run --with wordfreq==3.1.1 python scripts/build_common.py en de fr ru el pl nb ja th
 
 Rebuild every list after upgrading simplemma, and Japanese's after upgrading Sudachi or its
 dictionary, so the lemmas here match the ones they give at runtime.
@@ -45,6 +45,7 @@ FORMS = 50_000
 KEEP = 10_000
 DATA = Path(__file__).parent.parent / "src" / "franki_reader" / "data"
 NAMES = {
+    "en": "English",
     "es": "Spanish",
     "de": "German",
     "fr": "French",

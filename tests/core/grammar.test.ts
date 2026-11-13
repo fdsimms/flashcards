@@ -5,7 +5,7 @@ import type { Language } from '../../src/reader/api';
 // The catalog's languages are Read & Listen's: tsc fails here if one list gains a language the other hasn't.
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 const sameLanguages: Same<GrammarLanguage, Language> = true;
-const LANGUAGES: GrammarLanguage[] = ['th', 'es', 'de', 'fr', 'ru', 'el', 'pl', 'nb', 'ja'];
+const LANGUAGES: GrammarLanguage[] = ['th', 'es', 'de', 'fr', 'ru', 'el', 'pl', 'nb', 'ja', 'en'];
 
 describe('the grammar catalog', () => {
   it('gives every point a unique id in its own language, a name and a note', () => {
@@ -22,8 +22,8 @@ describe('the grammar catalog', () => {
     }
   });
 
-  it('has points for every language', () => {
-    for (const language of LANGUAGES) expect(grammarPointsFor(language).length).toBeGreaterThan(0);
+  it('has points for every language but English, which the learner already reads', () => {
+    for (const language of LANGUAGES.filter((l) => l !== 'en')) expect(grammarPointsFor(language).length).toBeGreaterThan(0);
   });
 
   it('links a Forms group to one point at most in each language', () => {
