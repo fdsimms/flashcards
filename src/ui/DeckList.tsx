@@ -9,6 +9,7 @@ import { haptic } from './haptics';
 import { Button, Card, Group, Icon, NavRow, Screen, SwipeToReveal, Tappable } from './kit';
 import { useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
+import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 type ShownRow = DeckRow & { hasSubdecks: boolean; collapsed: boolean };
@@ -250,6 +251,7 @@ export function DeckList(props: {
 }) {
   const c = useTheme();
   const header = useHeaderInset();
+  const { banner: vocabReady } = useVocabReady();
   const shown = useMemo(() => shownDeckRows(props.decks, props.collapsed ?? new Set()), [props.decks, props.collapsed]);
   const groups = useMemo(() => groupByTopLevel(shown), [shown]);
   const allDecks = useMemo(() => props.decks.map((r) => r.deck), [props.decks]);
@@ -348,6 +350,20 @@ export function DeckList(props: {
               </View>
             </Pressable>
           ) : null}
+          {vocabReady ? <VocabReadyCard banner={vocabReady} /> : null}
+          {props.sync?.failed ? (
+            // A failed sync is shown first, where it can't be scrolled past; a tap tries again.
+            <Pressable onPress={syncTapped} accessibilityRole="button" accessibilityHint="Syncs now" style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
+              <View style={{ flexDirection: 'row', gap: space.m, alignItems: 'flex-start', borderRadius: radius.l, ...smooth, borderWidth: 1, borderColor: c.warning, backgroundColor: c.surface, padding: space.m }}>
+                <Icon name="exclamationmark.triangle.fill" size={22} color={c.warning} />
+                <View style={{ flex: 1, gap: space.xs }}>
+                  <Text style={{ ...type.headline, color: c.warning }}>Sync didn't finish</Text>
+                  <Text style={{ ...type.subhead, color: c.textSecondary }}>{props.sync.status}</Text>
+                  <Text style={{ ...type.subhead, color: c.accent, fontWeight: '600' }}>Tap to try again</Text>
+                </View>
+              </View>
+            </Pressable>
+          ) : null}
           {groups.length || props.extra ? <TodaySummary due={totals.due} fresh={totals.fresh} /> : null}
           {groups.length === 0 ? (props.loaded === false ? null : (
             <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
@@ -400,11 +416,11 @@ export function DeckList(props: {
             ))
           )}
           {props.extra?.node}
-          {props.sync ? (
+          {props.sync && (!props.sync.failed || props.ankiUnsent) ? (
             <Pressable onPress={syncTapped} accessibilityRole="button" accessibilityHint="Syncs now"
               style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
               <Text style={{ ...type.footnote, color: props.sync.failed ? c.warning : c.textSecondary, textAlign: 'center' }}>
-                {props.sync.status}
+                {props.sync.failed ? '' : props.sync.status}
                 {props.ankiUnsent ? ` ${props.ankiUnsent} ${props.ankiUnsent === 1 ? "answer isn't" : "answers aren't"} synced yet.` : ''}
               </Text>
             </Pressable>
