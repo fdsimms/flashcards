@@ -530,6 +530,42 @@ def test_a_text_that_is_not_a_story_episode_has_no_choices() -> None:
     assert result.choices == ()
 
 
+def _recap(text: str, english: str) -> dict[str, Any]:
+    return dict(GOOD, recap="Noi eats.", recap_line={"text": text, "english": english})
+
+
+def test_a_story_episode_asks_for_its_recap_in_the_story_language() -> None:
+    from franki_reader.generator import StoryContext
+
+    for episode in (1, 2):
+        sent = request_message(TextRequest("a stall", story=StoryContext(episode, "", "Noi")))
+        assert '"recap_line"' in sent
+    assert '"recap_line"' not in request_message(TextRequest("food"))
+
+
+def test_a_story_episodes_recap_line_is_kept_beside_the_english_recap() -> None:
+    result = run(ScriptedModel(_recap("ฉัน|กิน", "I eat.")), _episode())
+    assert (result.recap, result.recap_line, result.recap_english) == (
+        "Noi eats.",
+        "ฉัน|กิน",
+        "I eat.",
+    )
+
+
+def test_the_recap_line_is_counted_in_coverage_and_sent_back_when_a_word_is_unknown() -> None:
+    model = ScriptedModel(_recap("ฉัน|ทอน", "I give change."), _recap("ฉัน|กิน", "I eat."))
+    result = run(model, TextRequest("food", (MANGO,), story=_episode().story, floor=0.99))
+    assert result.passed and result.attempts == 2 and result.recap_line == "ฉัน|กิน"
+    assert "ทอน" in model.sent[1][-1]["content"]
+
+
+def test_a_recap_line_missing_half_or_outside_a_story_is_dropped() -> None:
+    no_english = run(ScriptedModel(_recap("ฉัน|กิน", " ")), _episode())
+    assert no_english.passed and (no_english.recap_line, no_english.recap_english) == ("", "")
+    not_story = run(ScriptedModel(_recap("ฉัน|กิน", "I eat.")), TextRequest("food"))
+    assert (not_story.recap_line, not_story.recap_english) == ("", "")
+
+
 def test_a_draft_with_a_line_that_does_not_fit_its_speaker_is_sent_back() -> None:
     wrong = draft("ฉัน|อยาก|กิน|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ")
     wrong["genders"] = {"A": "male", "B": "female"}  # B says ครับ

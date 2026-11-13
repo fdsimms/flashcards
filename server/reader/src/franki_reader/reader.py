@@ -155,6 +155,44 @@ def mark_reflexive_pronouns(words: list[dict[str, Any]], lexicon: Checker) -> No
             words[before]["stretch"] = True
 
 
+def render_line(
+    source: str,
+    text: StoredText,
+    lexicon: Checker,
+    meanings: dict[str, str],
+    deck_translits: dict[str, str] | None = None,
+    marked: dict[int, str] | None = None,
+) -> list[dict[str, Any]]:
+    """A model line written for `text` (one of its lines, a choice, its recap) as the reader's
+    words, glossed from the text's own glosses and translits first. `marked` is the grammar point
+    each word uses, by index among the line's words."""
+    marked = marked or {}
+    stretch = set(text.stretch)
+    at = 0
+    words: list[dict[str, Any]] = []
+    for piece, is_name in segment_line(source, lexicon):
+        point = None
+        if is_word(piece):
+            covers = grammar.count_words(piece, lexicon.spaced)
+            point = next((marked[i] for i in range(at, at + covers) if i in marked), None)
+            at += covers
+        words.append(
+            word_out(
+                piece,
+                lexicon,
+                meanings,
+                deck_translits or {},
+                is_name=is_name,
+                glosses=text.glosses,
+                translits=text.translits,
+                stretch=stretch,
+                point=point,
+            )
+        )
+    mark_reflexive_pronouns(words, lexicon)
+    return words
+
+
 def render(
     text: StoredText,
     lexicon: Checker,
@@ -164,7 +202,6 @@ def render(
 ) -> dict[str, Any]:
     """`unset` is the language's grammar points the owner hasn't marked, as of now: any that turn
     up are marked and explained like the known ones worked in for review."""
-    stretch = set(text.stretch)
     practice = tuple(text.grammar.get("practice", []))
     avoid = tuple(text.grammar.get("avoid", []))
     review = tuple(p for p in text.grammar.get("review", []) if p not in practice + avoid)
@@ -172,29 +209,7 @@ def render(
     used: set[str] = set()
 
     def render_words(source: str, marked: dict[int, str]) -> list[dict[str, Any]]:
-        at = 0
-        words: list[dict[str, Any]] = []
-        for piece, is_name in segment_line(source, lexicon):
-            point = None
-            if is_word(piece):
-                covers = grammar.count_words(piece, lexicon.spaced)
-                point = next((marked[i] for i in range(at, at + covers) if i in marked), None)
-                at += covers
-            words.append(
-                word_out(
-                    piece,
-                    lexicon,
-                    meanings,
-                    deck_translits or {},
-                    is_name=is_name,
-                    glosses=text.glosses,
-                    translits=text.translits,
-                    stretch=stretch,
-                    point=point,
-                )
-            )
-        mark_reflexive_pronouns(words, lexicon)
-        return words
+        return render_line(source, text, lexicon, meanings, deck_translits, marked)
 
     lines = []
     for line in text.lines:
