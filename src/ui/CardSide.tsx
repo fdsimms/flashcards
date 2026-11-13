@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View, type TextStyle } from 'react-native';
 import type { Segment } from '../core/highlight';
-import { DEFAULT_THAI_TEXT_SIZE, hasThai, thaiTextStyle, type ThaiTextSize } from '../core/script';
+import { DEFAULT_THAI_TEXT_SIZE, hasThai, thaiTextStyle, withThaiLineHeight, type ThaiTextSize } from '../core/script';
 import type { RenderedSide } from '../core/types';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
@@ -130,7 +130,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
             <View style={b.icon ? { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s } : undefined}>
               {b.icon ? <Icon name={b.icon} size={28} color={c.text} /> : null}
               {b.emphasis ? (
-                <Text style={{ ...(which === 'front' ? type.cardFront : type.cardBack), color: c.text, textAlign: 'center' }}>
+                <Text style={{ ...withThaiLineHeight(which === 'front' ? type.cardFront : type.cardBack, b.text), color: c.text, textAlign: 'center' }}>
                   {b.prefix ? <Text style={{ color: c.textTertiary, fontWeight: '400' }}>{b.prefix} </Text> : null}
                   {b.text}
                 </Text>
