@@ -11,6 +11,7 @@ import { haptic } from './haptics';
 import { Button, Card, ErrorNote, Field, Group, Help, Icon, NavRow, Screen, SectionTitle, Segments, Select, Tappable } from './kit';
 import { CommonWords } from './ReadCommonWords';
 import { radius, space, type, useTheme } from './theme';
+import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
  * One language's Read & Listen settings, the ones set once and rarely changed
@@ -31,6 +32,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
   /** Lists the story's episodes, to read again from the first. */
   onEpisodes: (storyId: number) => void;
 }) {
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [shelf, setShelf] = useState<Shelf | null>(null);
@@ -117,9 +119,9 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
     <Screen title={name ? `${name} settings` : 'Settings'}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
+        contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }}
         keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
+        {...scrollProps}
       >
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {!settings && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}

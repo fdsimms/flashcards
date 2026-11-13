@@ -24,6 +24,19 @@ from franki_speech import SpeechClient, SpeechError, WordMark
 
 DEFAULT_VOICES = {"male": "th-TH-NiwatNeural", "female": "th-TH-PremwadeeNeural"}
 
+# Azure bills speech by the character. Standard neural voices (the defaults here) are listed at
+# about $15 per million characters in the US; a "HD" voice chosen in the app costs more, so the
+# estimate runs low for one. Open risk: the figure comes from third-party price lists, since
+# Microsoft's own page wouldn't load for it. Check it against the Azure pricing calculator and
+# change it here if it differs. A language with Chinese, Japanese or Korean text (billed as two
+# characters each) would need a rule too, but none of the app's languages is one.
+AZURE_USD_PER_MILLION_CHARS = 15.0
+
+
+def azure_usd(characters: int) -> float:
+    """What `characters` of speech cost Azure, as an estimate (`AZURE_USD_PER_MILLION_CHARS`)."""
+    return characters * AZURE_USD_PER_MILLION_CHARS / 1_000_000
+
 
 @dataclass(frozen=True)
 class Spoken:

@@ -14,9 +14,11 @@ import { DeckRecordings } from './DeckRecordings';
 import { haptic } from './haptics';
 import { Card, Group, Help, NavRow, Screen } from './kit';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
+import { useKeyboardScroll } from './useKeyboardScroll';
 
 /** Settings made in the app for one deck: the progress gate, forms practice, lookalike words and recordings. */
 export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Repo; deck: string; onCustomStudy: () => void; recorder: RecordDeps | null }) {
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [settings, setSettings] = useState<DeckSettings | null>(null);
   const [capText, setCapText] = useState('');
@@ -79,7 +81,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
   const name = deck.split('::').pop();
   return (
     <Screen title={name}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
             <Text style={{ ...type.headline, color: c.text, flex: 1 }}>Limit cards in progress</Text>

@@ -423,8 +423,31 @@ def test_costs_count_every_text_written_and_what_each_read_one_cost() -> None:
     assert thai["cost_usd"] > 0
     assert thai["per_read_text_usd"] == pytest.approx(thai["cost_usd"] / 2, abs=1e-4)
     assert costs["total"]["cost_usd"] == thai["cost_usd"]
+    # No text to speech here, so no audio: the totals are Claude's alone.
+    assert thai["audio_chars"] == 0 and thai["azure_usd"] == 0
+    assert thai["total_usd"] == thai["cost_usd"]
     assert c.get("/api/costs", params={"days": 0}, headers=AUTH).status_code == 422
     assert c.get("/api/costs").status_code == 401
+
+
+def test_costs_add_azures_audio_estimated_from_the_characters_spoken() -> None:
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, ENTRIES, NOW)
+    engine = Engine(conn, ScriptedModel(IN_RANGE).ask_for, None, lambda: NOW, random.Random(1))
+    c = started(create_app(engine, "open sesame"))
+    read(c, "about_right", [])
+    read(c, None, [])
+    conn.execute("UPDATE texts SET audio_chars = 500000 WHERE id = 1")
+    conn.commit()
+
+    costs = c.get("/api/costs", headers=AUTH).json()
+    [thai] = costs["languages"]
+
+    assert thai["audio_chars"] == 500000
+    assert thai["azure_usd"] == 7.5  # $15 per million characters
+    assert thai["total_usd"] == pytest.approx(thai["cost_usd"] + 7.5, abs=1e-3)
+    assert thai["total_per_read_text_usd"] == pytest.approx(thai["total_usd"] / 2, abs=1e-3)
+    assert costs["total"]["azure_usd"] == 7.5
 
 
 def test_marked_words_are_listed_with_glosses_until_cleared() -> None:

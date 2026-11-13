@@ -518,8 +518,31 @@ class Engine:
         except TtsFailed as e:
             log.warning("No audio for text %d line %d: %s", text.id, line, e)
             return None
+        # Only a recording Azure made is counted (a cached line never gets here), and a failed one
+        # isn't billed, so this is what the audio cost.
+        store.add_audio_chars(self.conn, text.id, len(spoken))
         self.audio.write(text.id, line, recorded)
         return self.audio.path(text.id, line)
+
+    def count_existing_audio(self) -> None:
+        """Once: estimates what the audio recorded before characters were counted cost, as the
+        characters of every line that has audio on the volume. It leaves out lines recorded and
+        replaced since, so those texts read a little low."""
+        if self.audio is None:
+            return
+        texts = store.texts_missing_audio_chars(self.conn)
+        if texts is None:
+            return
+        for text in texts:
+            spaced = LANGUAGES[text.language].spaced
+            chars = sum(
+                len(parse_line(ln.text, spaced)[0])
+                for i, ln in enumerate(text.lines)
+                if self.audio.has(text.id, i)
+            )
+            if chars:
+                store.add_audio_chars(self.conn, text.id, chars)
+        store.mark_audio_chars_counted(self.conn)
 
     # ==== Top-up and readings ====
 

@@ -56,7 +56,8 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/progress               finished texts, coverage and ratings over the last 14 days,
                                       and the difficulty the next text is written at
     GET   /api/costs?days=30          what Claude cost over the last `days` days, per language:
-                                      texts read, waiting, dropped and skipped, attempts and dollars (every
+                                      texts read, waiting, dropped and skipped, attempts and dollars,
+                                      plus Azure's audio estimated from the characters it spoke (every
                                       language, not just the current one; the MCP's
                                       read_and_listen_costs reads it), and `explanations`: what
                                       Explain's calls, lines and phrases, cost over the same days
@@ -138,7 +139,7 @@ from franki_reader.mnemonics import (
 from franki_reader.reader import gloss_for, lemma_for, render
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
 from franki_reader.suggestions import suggest
-from franki_reader.tts import AudioCache, Speech, azure_synthesize
+from franki_reader.tts import AudioCache, Speech, azure_synthesize, azure_usd
 
 # The window the progress summary covers: the Milestone 1 exit check's two weeks.
 VOCAB_RETRY = timedelta(minutes=10)  # before a vocabulary check bank that failed is written again
@@ -277,6 +278,7 @@ async def _check_voice_gender(speech: Speech | None, name: str, slot: VoiceSlot)
 def _spent(s: store.Spending) -> dict[str, Any]:
     """/api/costs's figures for one language or the total. Per read text divides everything spent
     (dropped and unread texts too) by the texts actually read: what each one really cost."""
+    total = s.cost_usd + azure_usd(s.audio_chars)
     return {
         "texts": s.texts,
         "read": s.read,
@@ -287,6 +289,13 @@ def _spent(s: store.Spending) -> dict[str, Any]:
         "cost_usd": round(s.cost_usd, 4),
         "per_text_usd": round(s.cost_usd / s.texts, 4) if s.texts else None,
         "per_read_text_usd": round(s.cost_usd / s.read, 4) if s.read else None,
+        # Azure's audio, estimated from the characters it spoke (tts.AZURE_USD_PER_MILLION_CHARS),
+        # and Claude and Azure together. The three above stay Claude's alone.
+        "audio_chars": s.audio_chars,
+        "azure_usd": round(azure_usd(s.audio_chars), 4),
+        "total_usd": round(total, 4),
+        "total_per_text_usd": round(total / s.texts, 4) if s.texts else None,
+        "total_per_read_text_usd": round(total / s.read, 4) if s.read else None,
     }
 
 
@@ -784,6 +793,7 @@ def create_app(
             sum(r.attempts for r in rows),
             sum(r.cost_usd for r in rows),
             sum(r.skipped for r in rows),
+            sum(r.audio_chars for r in rows),
         )
         return {
             "days": days,
@@ -1188,6 +1198,7 @@ def production_app() -> FastAPI:
         audio=AudioCache(settings.audio_dir),
         voices=settings.voices,
     )
+    engine.count_existing_audio()
     return create_app(
         engine,
         settings.secrets.get("APP_PASSPHRASE"),

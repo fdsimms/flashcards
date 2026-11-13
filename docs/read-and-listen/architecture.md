@@ -279,7 +279,7 @@ Thai letters, so none of them is a language here. Each new language works as Spa
   standard voices have one, for a dialogue between two men or two women (Audio). The speech
   request's language comes from the voice's name.
 - **In the app**, a word known for being common rather than from the deck says "A common word" in
-  its gloss, and outside Thai the highlight switch is "Highlight words you might not know". Every
+  its gloss, and outside Thai the highlight's row in the reader's key is "Might be new to you". Every
   language but Thai is set a little smaller than Thai.
 - **Topic ideas** are ranked by fit for Thai only: their words are Thai, so every other language
   keeps the listed order.
@@ -453,7 +453,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   (`name_problems`). Thai has no capitals, so the limit is all it has. `segment_line` finds a marked
   name's pieces by position, so jasmine written as a word elsewhere in the line isn't a name, and
   joins them into one piece. The app gets that word with status `"name"` and shades it with its own
-  color (the "Mark names" switch in the reader hides the shading; the name still isn't counted).
+  color (the Name switch in the reader's key hides the shading; the name still isn't counted).
   Nothing is migrated: a text written before this has no marks and shows as it did.
 
 ## Shelf

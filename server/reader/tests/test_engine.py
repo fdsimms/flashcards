@@ -471,6 +471,70 @@ def test_missing_audio_is_made_on_request_and_then_cached(tmp_path: Path) -> Non
     assert run(lambda: e.line_audio(text, 9)) is None
 
 
+def audio_chars(e: Engine, text_id: int) -> int:
+    return int(
+        e.conn.execute("SELECT audio_chars FROM texts WHERE id = ?", (text_id,)).fetchone()[0]
+    )
+
+
+def test_the_characters_azure_speaks_for_a_text_are_counted(tmp_path: Path) -> None:
+    voice = FakeVoice()
+    e = speaking_engine(tmp_path, voice)
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+
+    text = run(lambda: fetch(e, topic.id))
+    spoken = sum(len(t) for t, _ in voice.calls)
+
+    assert spoken > 0 and audio_chars(e, text.id) == spoken
+    # A line already cached isn't spoken again, so it isn't counted again.
+    run(lambda: e.line_audio(text, 0))
+    assert audio_chars(e, text.id) == spoken
+    # A re-recording is billed again, and counts again.
+    e.audio.drop(text.id)  # type: ignore[union-attr]
+    run(lambda: e.make_audio(text))
+    assert audio_chars(e, text.id) == spoken * 2
+
+
+def test_a_line_azure_refused_is_not_counted(tmp_path: Path) -> None:
+    refused = "ข้าวเหนียวมะม่วงครับ!ฉันอยากกินครับฉันอยากกินครับ"
+    voice = FakeVoice(fail_on=refused)
+    e = speaking_engine(tmp_path, voice)
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+
+    text = run(lambda: fetch(e, topic.id))
+
+    counted = sum(len(t) for t, _ in voice.calls if t != refused)
+    assert audio_chars(e, text.id) == counted > 0
+
+
+def test_audio_recorded_before_counting_is_estimated_once_from_the_volume(tmp_path: Path) -> None:
+    e = speaking_engine(tmp_path, FakeVoice())
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    text = run(lambda: fetch(e, topic.id))
+    counted = audio_chars(e, text.id)
+    e.conn.execute("UPDATE texts SET audio_chars = 0")  # as before this was recorded
+    e.conn.commit()
+
+    e.count_existing_audio()
+    assert audio_chars(e, text.id) == counted
+
+    # Done once: later audio isn't added to a count it's already in.
+    e.conn.execute("UPDATE texts SET audio_chars = 5")
+    e.conn.commit()
+    e.count_existing_audio()
+    assert audio_chars(e, text.id) == 5
+
+
+def test_spending_adds_up_each_languages_audio_characters(tmp_path: Path) -> None:
+    e = speaking_engine(tmp_path, FakeVoice())
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    text = run(lambda: fetch(e, topic.id))
+
+    spent = store.spending(e.conn, datetime(2020, 1, 1))
+
+    assert spent[text.language].audio_chars == audio_chars(e, text.id) > 0
+
+
 def test_a_newer_voice_change_supersedes_a_running_rerecord(tmp_path: Path) -> None:
     voice = FakeVoice()
     e = speaking_engine(tmp_path, voice)

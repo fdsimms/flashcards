@@ -1,14 +1,15 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Stack, usePreventRemove } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, type Api, type GrammarChoice, type Language, type Length, type PastText, type Rating, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../reader/deckWords';
+import { marksIn, withMark, type HideableMark, type Mark } from '../reader/marks';
 import { scrollTarget, type Box } from '../reader/follow';
-import { THAI_FONTS, THAI_FONT_LABELS, readFont, type ReadFont, type ThaiFont } from '../reader/fonts';
+import { THAI_FONTS, THAI_FONT_LABELS, readFont, type ThaiFont } from '../reader/fonts';
 import { LANGUAGES, wordStatus } from '../reader/languages';
 import { firstLine, nextLine, paragraphs, previousLine, rangeOf } from '../reader/playback';
 import { RATES } from '../reader/playbackRate';
@@ -21,6 +22,8 @@ import { haptic } from './haptics';
 import { LineExplanation } from './ReaderExplain';
 import { PhraseExplanation, PhrasePickBanner, type PhraseMining } from './ReaderPhrase';
 import { ReadGrammarNote } from './ReadGrammarNote';
+import { WordView } from './ReadWord';
+import { ReaderKey } from './ReaderKey';
 import { WordActionGroup, WordActionRow, WordPlayButton } from './ReadWordActions';
 import { Speaker, speakerSize } from './ReadSpeaker';
 import { useSpokenWords } from './useSpokenWords';
@@ -38,8 +41,9 @@ import { lift, MIN_TAP, radius, space, type, useTheme } from './theme';
  * words marked unknown). The gloss popover is a transparent Modal, so a tap's page coordinates
  * place it directly.
  *
- * Reading options (Show English, Paragraphs, highlight, Thai letters) are one header menu, so the text
- * starts right under the practice words.
+ * Reading options (Show English, Paragraphs, Thai letters) are one header menu, so the text
+ * starts right under the practice words. The key to the marks on words, with a switch for each, is a
+ * row in that card (ReaderKey.tsx).
  *
  * From the shelf: a text already written opens straight away, and the end view steers the next
  * ones (length, more or fewer like this) and offers the next text on the shelf. Play all plays the
@@ -119,6 +123,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const [listenOnly, setListenOnly] = useState(false);
   const [highlight, setHighlight] = useState(prefs().highlight);
   const [markNames, setMarkNames] = useState(prefs().markNames);
+  const [hiddenMarks, setHiddenMarks] = useState(prefs().hiddenMarks);
   const [paragraphMode, setParagraphMode] = useState(prefs().paragraphs);
   const [thaiFont, setThaiFont] = useState(prefs().thaiFont);
   const [tapped, setTapped] = useState<Tapped | null>(null);
@@ -174,6 +179,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   // Everything else is a row per line.
   const marked = text ? paragraphs(text.lines) : null;
   const paras = paragraphMode ? marked : null;
+  // The marks this text uses, for the key. Marking a word unknown changes the session, so it's read again then.
+  const keyMarks = useMemo(() => (text ? marksIn(text, (w) => (session ? isFlagged(session, w) : false)) : []), [text, session]);
 
   const scroller = useRef<ScrollViewInstance>(null);
   const lineBoxes = useRef<Box[]>([]);
@@ -492,6 +499,16 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     setMarkNames(on);
   };
 
+  // The key's switches: the first two marks have their own settings, the rest share a list.
+  const showMark = (mark: Mark, on: boolean) => {
+    if (mark === 'highlight') return turnOnHighlight(on);
+    if (mark === 'name') return turnOnMarkNames(on);
+    const next = withMark(hiddenMarks, mark, on);
+    savePrefs({ hiddenMarks: next });
+    setHiddenMarks(next);
+  };
+  const markShown = (mark: Mark) => mark === 'highlight' ? highlight : mark === 'name' ? markNames : !hiddenMarks.includes(mark as HideableMark);
+
   // The selected phrase's explanation, keyed by the phrase so a new one asks again.
   const phraseCard = (pick: PhrasePick) => {
     if (!text) return null;
@@ -512,7 +529,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
 
   const seconds = session ? Math.round((Date.now() - session.startedAt) / 1000) : 0;
   const hasAudio = text ? firstLine(text.lines) !== null : false;
-  const language = LANGUAGES[text?.language ?? 'th'];
 
   return (
     <Screen
@@ -524,8 +540,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
             {marked ? (
               <Stack.Toolbar.MenuAction isOn={paragraphMode} onPress={() => turnOnParagraphs(!paragraphMode)}>Paragraphs</Stack.Toolbar.MenuAction>
             ) : null}
-            <Stack.Toolbar.MenuAction isOn={highlight} onPress={() => turnOnHighlight(!highlight)}>{language.highlightLabel}</Stack.Toolbar.MenuAction>
-            <Stack.Toolbar.MenuAction isOn={markNames} onPress={() => turnOnMarkNames(!markNames)}>Mark names</Stack.Toolbar.MenuAction>
             {text.language === 'th' || text.language === undefined ? (
               <Stack.Toolbar.Menu inline title="Thai letters">
                 {THAI_FONTS.map((f) => (
@@ -577,14 +591,14 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={100}
         >
-          <View style={{ paddingHorizontal: space.l, gap: space.l }}>
+          <View style={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.l }}>
             <View style={{ gap: space.xs }}>
               <Text style={{ ...type.title, color: c.text }}>{text.title}</Text>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>
                 {text.episode ? `${text.topic} · Episode ${text.episode}` : (text.topic ?? (source.kind === 'topic' ? source.topic.name : source.kind === 'past' ? source.text.topic : ''))}
               </Text>
             </View>
-            {text.stretch.length > 0 || practicedGrammar(text).length > 0 ? (
+            {text.stretch.length > 0 || practicedGrammar(text).length > 0 || keyMarks.length > 0 ? (
               <Card style={{ padding: space.m, gap: space.m }}>
                 {text.stretch.length > 0 ? (
                   <ChipRow label="Practice words">
@@ -596,6 +610,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                     {practicedGrammar(text).map((g) => <Pill key={g.id} text={g.name} bg={c.speakerB} fg={c.onSpeakerB} />)}
                   </ChipRow>
                 ) : null}
+                <ReaderKey examples={keyMarks} language={text.language ?? 'th'} textStyle={readStyle(text, thaiFont)} shown={markShown} onChange={showMark} />
               </Card>
             ) : null}
             {text.roles.A || text.roles.B ? (
@@ -661,6 +676,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                                 highlighted={highlight && isOutsideDeck(word)}
                                 named={markNames && isName(word)}
                                 selected={tapped?.word === word}
+                                hidden={hiddenMarks}
                                 {...phraseLook(range.start + k, word, l.words)}
                                 playing={shaded === range.start + k}
                                 spoken={spoken.has(word)}
@@ -720,6 +736,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                             highlighted={highlight && isOutsideDeck(word)}
                             named={markNames && isName(word)}
                             selected={tapped?.word === word}
+                            hidden={hiddenMarks}
                             {...phraseLook(i, word, line.words)}
                             spoken={spoken.has(word)}
                             onPress={tap}
@@ -963,130 +980,6 @@ function RoundButton({ icon, label, accessibilityLabel, on, onPress }: {
     >
       {icon ? <Icon name={icon} size={16} color={fg} weight="semibold" /> : <Text style={{ ...type.footnote, fontWeight: '700', color: fg }}>{label}</Text>}
     </Tappable>
-  );
-}
-
-type PhrasePart = 'only' | 'first' | 'middle' | 'last';
-
-/**
- * A selected phrase is drawn as one band across its pieces, spaces and punctuation included: each
- * piece fills its own box and draws its share of the outline, the ends closing it off. Like the
- * selection ring, the outline is an overlay, so the band moves nothing.
- */
-function phraseCorners(part: PhrasePart) {
-  const r = radius.s - 2;
-  const left = part === 'only' || part === 'first' ? r : 0;
-  const right = part === 'only' || part === 'last' ? r : 0;
-  return { borderTopLeftRadius: left, borderBottomLeftRadius: left, borderTopRightRadius: right, borderBottomRightRadius: right };
-}
-
-function PhraseOutline({ part }: { part: PhrasePart }) {
-  const c = useTheme();
-  const opens = part === 'only' || part === 'first';
-  const closes = part === 'only' || part === 'last';
-  return (
-    <View
-      pointerEvents="none"
-      style={{
-        position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderColor: c.accent,
-        borderTopWidth: 1.5, borderBottomWidth: 1.5, borderLeftWidth: opens ? 1.5 : 0, borderRightWidth: closes ? 1.5 : 0,
-        ...phraseCorners(part),
-      }}
-    />
-  );
-}
-
-function WordView({ word, grammar, textStyle, flagged, highlighted, named, selected, phrasePart = null, phraseStart = false, dimmed = false, playing = false, spoken = false, onPress }: {
-  word: Word;
-  grammar: TextGrammar | null;
-  textStyle: { fontSize: number; lineHeight: number; font: ReadFont };
-  flagged: boolean;
-  highlighted: boolean;
-  /** A name the model marked, with names marked on. */
-  named: boolean;
-  selected: boolean;
-  /** Where it sits in the selected phrase, if it's in one. */
-  phrasePart?: PhrasePart | null;
-  /** The phrase's first word, while its last is being chosen: ringed like a tapped word. */
-  phraseStart?: boolean;
-  /** In a line the phrase being selected can't reach. */
-  dimmed?: boolean;
-  /** In the line being played, in a story read as continuous text (a line row is shaded as a whole). */
-  playing?: boolean;
-  /** Being spoken now, as the line plays (useSpokenWords). */
-  spoken?: boolean;
-  onPress: (word: Word, x: number, y: number) => void;
-}) {
-  const c = useTheme();
-  if (word.status === null) {
-    // A space becomes a gap; punctuation is shown but can't be tapped. Inside a selected phrase
-    // either one takes a tapped word's height (padding, plus the underline's border), so the band
-    // runs through it unbroken.
-    const piece = word.text.trim()
-      ? <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: c.text }}>{word.text}</Text>
-      : <View style={{ width: textStyle.fontSize * 0.3 }} />;
-    if (!phrasePart && !dimmed && !playing) return piece;
-    return (
-      <View style={[
-        { opacity: dimmed ? 0.35 : 1 },
-        phrasePart ? { backgroundColor: c.accentFill, height: textStyle.lineHeight + 4.5, justifyContent: 'center' }
-          : playing ? { backgroundColor: c.fill, height: textStyle.lineHeight + 4.5, justifyContent: 'center' } : null,
-      ]}>
-        {piece}
-        {phrasePart ? <PhraseOutline part={phrasePart} /> : null}
-      </View>
-    );
-  }
-  const ringed = selected || phraseStart;
-  return (
-    <Pressable
-      onPress={(e) => onPress(word, e.nativeEvent.pageX, e.nativeEvent.pageY)}
-      accessibilityRole="button"
-      accessibilityLabel={[word.text, word.stretch && 'practice word', grammar && grammar.name, highlighted && 'not in your deck', named && 'name', flagged && 'marked unknown']
-        .filter(Boolean).join(', ')}
-      accessibilityHint="Shows what this word means"
-      style={{
-        // Thai has no spaces between words, so tappable words sit flush and only real spaces in the
-        // text show as gaps. The selection ring is an overlay inside the word's own box: a border
-        // cancelled by a negative margin pushed each box past its slot and overlapped its neighbors.
-        // A playing line is one band, so its words are square and flush; a phrase, a highlight or the word being spoken inside it keeps its own corners.
-        borderRadius: playing && !phrasePart && !ringed && !highlighted && !named && !spoken ? 0 : radius.s - 2, paddingVertical: 1.5, opacity: dimmed ? 0.35 : 1,
-        backgroundColor: ringed || phrasePart ? c.accentFill : spoken ? c.spoken : highlighted ? c.highlight : named ? c.nameFill : playing ? c.fill : undefined,
-        ...(phrasePart && !ringed ? phraseCorners(phrasePart) : null),
-      }}
-    >
-      {phrasePart && !ringed ? <PhraseOutline part={phrasePart} /> : null}
-      {ringed ? (
-        <View
-          pointerEvents="none"
-          style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.s - 2, borderWidth: 1.5, borderColor: c.accent }}
-        />
-      ) : null}
-      <Text
-        style={[
-          { fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: word.stretch ? c.accent : c.text },
-          word.stretch ? textStyle.font.emphasis : null,
-          // The underline is a bottom border, not textDecoration: iOS draws a text underline through
-          // Thai's below-the-line vowels and consonant feet. The border is always there (transparent
-          // when unused) so every word is the same height and a row stays aligned.
-          // Grammar is underlined solid when practiced, dashed when it slipped in while avoided, and
-          // with a thin gray line when it's a known point worked in or one not set yet (thinner by
-          // half a point, made up below it so the row's height doesn't change); a practice word's
-          // or a marked word's dotted underline takes its place.
-          { borderBottomWidth: 1.5, borderBottomColor: 'transparent' },
-          grammar && (grammar.role === 'practice' || grammar.role === 'avoid') ? {
-            borderStyle: grammar.role === 'practice' ? 'solid' : 'dashed',
-            borderBottomColor: grammar.role === 'practice' ? c.onSpeakerB : c.textTertiary,
-          } : null,
-          grammar && (grammar.role === 'review' || grammar.role === 'unset') ? {
-            borderStyle: 'solid', borderBottomWidth: 1, marginBottom: 0.5, borderBottomColor: c.textTertiary,
-          } : null,
-          word.stretch || flagged ? { borderStyle: 'dotted', borderBottomColor: flagged ? c.danger : c.accent } : null,
-        ]}
-      >
-        {word.text}
-      </Text>
-    </Pressable>
   );
 }
 

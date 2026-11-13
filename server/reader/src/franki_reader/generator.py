@@ -281,8 +281,9 @@ who it is the first time (เด็ก|ผู้ชาย|ชื่อ|~ต้�
 person afterward. Never call someone "the boy" and then switch to a name with nothing linking them.
 - Where a clause or sentence ends, put a space instead of |, as Thai is written: \
 สวัสดี|ครับ ไป|ไหน|มา|ครับ. The voice pauses at each space, so put one at every clause or sentence \
-break and nowhere else: never between words of the same clause, and never before a particle like \
-ครับ, ค่ะ or นะ.
+break and nowhere else: never between words of the same clause, never before a particle like \
+ครับ, ค่ะ or นะ, and never right after a connective that opens a clause (แล้ว, และ, แต่, หรือ, \
+เพราะ, ถ้า, ก็, จึง): write เขา|ดู|เด็ก แล้ว|เดิน|มา, not เขา|ดู|เด็ก แล้ว เดิน|มา.
 - Give "english", a natural English translation of each line.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
 is not in the list, and for each name ("a girl's name"). For each of those words also give "translit", its pronunciation in Latin letters \
