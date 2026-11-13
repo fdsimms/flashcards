@@ -37,7 +37,7 @@ export function FormsPractice({ repo, readerApi, deck, startGroups, onStart }: {
   const [groups, setGroups] = useState<string[]>([]);
   const [answering, setAnswering] = useState<Answering>('pick');
   const [limit, setLimit] = useState<number>(PATTERN_PROMPT_LIMITS[0]);
-  const [data, setData] = useState<{ notes: Note[]; cards: StoredCard[]; practice: PracticeRecord[] }>();
+  const [data, setData] = useState<{ notes: Note[]; cards: StoredCard[]; practice: PracticeRecord[]; dayStartsAtHour: number }>();
   // The kinds of form chosen for being practiced in Read & Listen, and why; the reason shows only while they're still the selection.
   const [preselected, setPreselected] = useState<{ groups: string[]; line: string }>();
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -46,10 +46,10 @@ export function FormsPractice({ repo, readerApi, deck, startGroups, onStart }: {
   useEffect(() => {
     setLoadError(null);
     (async () => {
-      const [notes, cards, mode, practice, practicing] = await Promise.all([
-        repo.listNotes(), repo.listCards(deck), repo.formsAnswerMode(), repo.listPractice(), practicingPoints(readerApi),
+      const [notes, cards, mode, practice, practicing, { dayStartsAtHour }] = await Promise.all([
+        repo.listNotes(), repo.listCards(deck), repo.formsAnswerMode(), repo.listPractice(), practicingPoints(readerApi), repo.collectionSettings(),
       ]);
-      setData({ notes, cards, practice });
+      setData({ notes, cards, practice, dayStartsAtHour });
       const mine = studiedWords(deck, notes, cards);
       const choices = practiceChoices(mine);
       const practiced = practicedGroups(mine, practicing);

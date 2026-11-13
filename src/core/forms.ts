@@ -167,22 +167,37 @@ function genderChoices(note: Note): string[] {
 
 export type Verdict = 'right' | 'almost' | 'wrong';
 
-/** Ё is folded into е here, as Russian usually writes it, so "елка" for "ёлка" is right. */
-const clean = (s: string) => foldYo(s.normalize('NFC').trim().replace(/\s+/g, ' ').replace(/[.!?¡¿]+$/u, '').toLocaleLowerCase());
+/**
+ * Ё is folded into е here, as Russian usually writes it, so "елка" for "ёлка" is right. So are what
+ * a keyboard decides rather than the speller, as the Practice tools' check folds them (tools/answer.ts):
+ * σ for a final ς, ss for ß, and a curly apostrophe for a straight one ("j’espère").
+ */
+const clean = (s: string) =>
+  foldYo(s.normalize('NFC').trim().replace(/\s+/g, ' ').replace(/[.!?¡¿]+$/u, '').toLocaleLowerCase())
+    .replace(/ς/g, 'σ').replace(/ß/g, 'ss').replace(/[’‘ʼ]/g, "'");
 /** Without accents and other marks: "esperé" -> "espere", "øl" -> "ol", "łza" -> "lza". */
 const unmarked = (s: string) => foldUndecomposed(s.normalize('NFD').replace(/[̀-ͯ]/g, '').normalize('NFC'));
 
 /**
  * A typed answer against a form's accepted answers. Case and surrounding spaces don't matter.
  * Right but for an accent is "almost": it's often a different form (espere, esperé), so it isn't
- * counted on its own, and the drill offers to count it.
+ * counted on its own, and the drill offers to count it. When it's exactly one of the word's other
+ * forms (`others`: pisze for piszę, hablo for habló), it's wrong: the mark is the ending being drilled.
  */
-export function checkAnswer(typed: string, answers: string[]): Verdict {
+export function checkAnswer(typed: string, answers: string[], others: string[] = []): Verdict {
   const t = clean(typed);
   if (!t) return 'wrong';
   const all = answers.map(clean);
   if (all.includes(t)) return 'right';
+  if (others.some((o) => clean(o) === t)) return 'wrong';
   return all.some((a) => unmarked(a) === unmarked(t)) ? 'almost' : 'wrong';
+}
+
+/** The word's other form a wrong answer is, if it's one: "present · on" for pisze asked as piszę. */
+export function formGiven(given: string, prompt: Pick<FormPrompt, 'answers' | 'otherForms'>): string | undefined {
+  const t = clean(given);
+  if (!t || prompt.answers.some((a) => clean(a) === t)) return undefined;
+  return prompt.otherForms?.find((o) => clean(o.text) === t)?.name;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -220,13 +235,22 @@ const MAX_OWED = 6;
 
 /**
  * Forms still owed a run of right answers, with how many: each miss adds FORM_CLEARED_AFTER, each
- * right answer takes one off. A miss stays until it's put right, however long ago it was.
+ * right answer takes one off. A miss stays until it's put right, however long ago it was. A right
+ * answer straight after a miss on the same study day (`dayStartsAtHour`) takes nothing off: it's
+ * the retry at the end of the drill, with the answer just seen, and counting it would clear a
+ * form after one more right answer, the luck FORM_CLEARED_AFTER is there to rule out. It's still
+ * logged; only the next right answer counts.
  */
-export function weakForms(history: PracticeRecord[]): Map<string, number> {
+export function weakForms(history: PracticeRecord[], dayStartsAtHour: number): Map<string, number> {
   const owed = new Map<string, number>();
+  const previous = new Map<string, PracticeRecord>();
   for (const r of [...history].sort((a, b) => a.practicedAt.localeCompare(b.practicedAt))) {
     const now = owed.get(r.key) ?? 0;
-    owed.set(r.key, r.correct ? Math.max(0, now - 1) : Math.min(MAX_OWED, now + FORM_CLEARED_AFTER));
+    const before = previous.get(r.key);
+    const retry = r.correct && !!before && !before.correct
+      && studyDayStart(new Date(before.practicedAt), dayStartsAtHour).getTime() === studyDayStart(new Date(r.practicedAt), dayStartsAtHour).getTime();
+    owed.set(r.key, retry ? now : r.correct ? Math.max(0, now - 1) : Math.min(MAX_OWED, now + FORM_CLEARED_AFTER));
+    previous.set(r.key, r);
   }
   for (const [k, n] of owed) if (!n) owed.delete(k);
   return owed;
@@ -313,12 +337,13 @@ function shuffle<T>(xs: T[], random: () => number): T[] {
 export function chooseForms(
   forms: WordForm[],
   history: PracticeRecord[],
+  dayStartsAtHour: number,
   count: number,
   random: () => number = Math.random,
   confused: Set<string> = new Set(),
   practiced: (f: WordForm) => boolean = () => false,
 ): WordForm[] {
-  const weak = weakForms(history);
+  const weak = weakForms(history, dayStartsAtHour);
   const lastAsked = new Map<string, string>();
   for (const r of history) if ((lastAsked.get(r.key) ?? '') < r.practicedAt) lastAsked.set(r.key, r.practicedAt);
   const rank = (f: WordForm) => askRank(f, weak, lastAsked.has(f.key), confused, practiced(f));
@@ -347,6 +372,8 @@ export interface FormPrompt {
   sentence?: { before: string; after: string; translation?: string };
   /** The grammar point the form is (docs/grammar.md), shown once the answer is. */
   grammar?: { id: string; name: string; note: string };
+  /** The word's other forms that are spelled differently, with their names ("present · on"), to say which one a wrong answer was. */
+  otherForms?: { text: string; name: string }[];
 }
 
 const isLetter = (ch: string | undefined) => !!ch && /[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]/.test(ch);
@@ -402,6 +429,9 @@ export function promptFor(
   }
   const picked = wrong.slice(0, 3);
   const word = headword(note);
+  const otherForms = form.key === 'field:Gender' ? [] : own
+    .filter((f) => f.key !== form.key && f.key !== 'field:Gender')
+    .flatMap((f) => f.answers.filter((a) => !right.has(clean(a))).map((text) => ({ text, name: f.group === f.label ? f.label : `${f.group} · ${f.label}` })));
   const point = formGrammar(note, form);
   return {
     noteId: note.id,
@@ -414,6 +444,7 @@ export function promptFor(
     ...(picked.length ? { choices: shuffle([form.answers[0], ...picked], random) } : {}),
     ...(form.key === 'field:Gender' ? {} : { sentence: sentenceGap(note, form.answers) }),
     ...(point ? { grammar: { id: point.id, name: point.name, note: point.note } } : {}),
+    ...(otherForms.length ? { otherForms } : {}),
   };
 }
 
@@ -512,13 +543,14 @@ export function wordPrompts(
   notes: Note[],
   pool: PracticeWord[],
   history: PracticeRecord[],
+  dayStartsAtHour: number,
   perWord: number,
   random: () => number = Math.random,
   confused: Set<string> = new Set(),
   practicing: Set<string> = new Set(),
 ): FormPrompt[] {
   const lists = notes.map((n) => chooseForms(
-    formsOf(n).forms, history.filter((r) => r.noteId === n.id), perWord, random, confused, (f) => isPracticed(n, f, practicing),
+    formsOf(n).forms, history.filter((r) => r.noteId === n.id), dayStartsAtHour, perWord, random, confused, (f) => isPracticed(n, f, practicing),
   ).map((f) => promptFor(n, f, pool, random)));
   const out: FormPrompt[] = [];
   for (let i = 0; lists.some((l) => i < l.length); i++) for (const l of lists) if (i < l.length) out.push(l[i]);
@@ -609,6 +641,7 @@ export function patternPrompts(
   words: PracticeWord[],
   choice: { patterns: string[]; groups: string[] },
   history: PracticeRecord[],
+  dayStartsAtHour: number,
   count: number,
   random: () => number = Math.random,
   /** Where wrong choices are taken from: every word with forms, not only these. */
@@ -619,17 +652,24 @@ export function patternPrompts(
   const chosen = words.filter((w) => choice.patterns.includes(patternOf(w.note)));
   const byNote = new Map<string, PracticeRecord[]>();
   for (const r of history) (byNote.get(r.noteId) ?? byNote.set(r.noteId, []).get(r.noteId)!).push(r);
-  const candidates: { word: PracticeWord; form: WordForm; rank: number; owed: number }[] = [];
+  const candidates: { word: PracticeWord; form: WordForm; rank: number; owed: number; lastAsked: string }[] = [];
   for (const w of chosen) {
     const mine = byNote.get(w.note.id) ?? [];
-    const weak = weakForms(mine);
-    const asked = new Set(mine.map((r) => r.key));
+    const weak = weakForms(mine, dayStartsAtHour);
+    const lastAsked = new Map<string, string>();
+    for (const r of mine) if ((lastAsked.get(r.key) ?? '') < r.practicedAt) lastAsked.set(r.key, r.practicedAt);
     for (const f of w.forms) {
       if (!choice.groups.includes(f.group)) continue;
-      candidates.push({ word: w, form: f, rank: askRank(f, weak, asked.has(f.key), confused, isPracticed(w.note, f, practicing)), owed: weak.get(f.key) ?? 0 });
+      candidates.push({
+        word: w, form: f, rank: askRank(f, weak, lastAsked.has(f.key), confused, isPracticed(w.note, f, practicing)),
+        owed: weak.get(f.key) ?? 0, lastAsked: lastAsked.get(f.key) ?? '',
+      });
     }
   }
-  const ordered = shuffle(candidates, random).sort((a, b) => a.rank - b.rank || b.owed - a.owed).slice(0, count);
+  // As `chooseForms` orders one word's: then the form asked longest ago, so yesterday's aren't as likely as last month's.
+  const ordered = shuffle(candidates, random)
+    .sort((a, b) => a.rank - b.rank || b.owed - a.owed || a.lastAsked.localeCompare(b.lastAsked))
+    .slice(0, count);
   // Spread the words out: take the next candidate from a different word than the last one.
   const out: typeof ordered = [];
   const left = shuffle(ordered, random);
@@ -664,7 +704,15 @@ export function studiedWords(deck: string, notes: Iterable<Note>, cards: Card[])
  */
 export function drillPrompts(
   request: DrillRequest,
-  data: { notes: Note[]; cards: Card[]; practice: PracticeRecord[]; /** Grammar point ids practiced in Read & Listen, asked first. */ practicing?: Set<string> },
+  data: {
+    notes: Note[];
+    cards: Card[];
+    practice: PracticeRecord[];
+    /** The collection's "Next day starts at", which decides what counts as a retry the same day (`weakForms`). */
+    dayStartsAtHour: number;
+    /** Grammar point ids practiced in Read & Listen, asked first. */
+    practicing?: Set<string>;
+  },
   random: () => number = Math.random,
 ): { prompts: FormPrompt[]; notice?: string } {
   const practicing = data.practicing ?? new Set<string>();
@@ -673,14 +721,34 @@ export function drillPrompts(
   if (request.kind === 'words') {
     const byId = new Map(data.notes.map((n) => [n.id, n]));
     const targets = request.noteIds.map((id) => byId.get(id)).filter((n): n is Note => !!n);
-    return { prompts: wordPrompts(targets, pool, data.practice, request.perWord, random, confused, practicing), notice: unreadableNotice(targets) };
+    return { prompts: wordPrompts(targets, pool, data.practice, data.dayStartsAtHour, request.perWord, random, confused, practicing), notice: unreadableNotice(targets) };
   }
   const words = studiedWords(request.deck, data.notes, data.cards);
   const choice = { patterns: request.patterns, groups: request.groups };
   const limit = request.limit ?? Number.POSITIVE_INFINITY;
   // "In a sentence" filters after choosing, so it picks from every form rather than the first few.
-  const all = patternPrompts(words, choice, data.practice, request.sentence ? Number.POSITIVE_INFINITY : limit, random, pool, confused, practicing);
+  const all = patternPrompts(words, choice, data.practice, data.dayStartsAtHour, request.sentence ? Number.POSITIVE_INFINITY : limit, random, pool, confused, practicing);
   const prompts = request.sentence ? all.filter((p) => p.sentence).slice(0, limit) : all;
   const chosen = words.filter((w) => choice.patterns.includes(patternOf(w.note))).map((w) => w.note);
   return { prompts, notice: unreadableNotice(chosen) };
+}
+
+/**
+ * The missed prompts, to practice again right after the summary that showed every answer: each
+ * one's choices reshuffled, its answer never where it was, so a pick is made by reading the form
+ * rather than by remembering where it sat.
+ */
+export function againPrompts(missed: FormPrompt[], random: () => number = Math.random): FormPrompt[] {
+  return missed.map((p) => {
+    if (!p.choices || p.choices.length < 2) return p;
+    const was = p.choices.indexOf(p.answers[0]);
+    const choices = shuffle(p.choices, random);
+    const at = choices.indexOf(p.answers[0]);
+    if (at === was) {
+      // Swap it with any other place, evenly.
+      const other = (at + 1 + Math.floor(random() * (choices.length - 1))) % choices.length;
+      [choices[at], choices[other]] = [choices[other], choices[at]];
+    }
+    return { ...p, choices };
+  });
 }

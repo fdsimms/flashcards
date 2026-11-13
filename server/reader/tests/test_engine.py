@@ -2,6 +2,7 @@ import asyncio
 import random
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -418,6 +419,43 @@ def test_the_difficulty_follows_the_rating() -> None:
 
     assert store.load_difficulty(e.conn) == Difficulty(0.93, 1)
     assert store.get_topic(e.conn, topic.id).ready == 0  # type: ignore[union-attr]
+
+
+def test_ratings_of_texts_written_ahead_at_the_old_level_do_not_stack() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    topics = [store.add_topic(e.conn, name, True, NOW) for name in ("Food", "Taxi", "Market")]
+    # Three texts written at the starting level before any is read.
+    texts = [run(partial(fetch, e, topic.id)) for topic in topics]
+    assert store.written_at(e.conn, texts[0].id) == (0.92, 2)
+
+    for text in texts:
+        e.record_reading(text.id, reading("too_hard"))
+
+    # One step, as one rating would, not three.
+    assert store.load_difficulty(e.conn) == Difficulty(0.93, 1)
+
+
+def test_too_easy_on_texts_written_ahead_does_not_overshoot() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    topics = [store.add_topic(e.conn, name, True, NOW) for name in ("Food", "Taxi")]
+    texts = [run(partial(fetch, e, topic.id)) for topic in topics]
+
+    for text in texts:
+        e.record_reading(text.id, reading("too_easy"))
+
+    assert store.load_difficulty(e.conn) == Difficulty(0.91, 3)
+
+
+def test_a_text_written_before_its_stretch_count_was_recorded_steps_from_the_current_one() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    text = run(lambda: fetch(e, topic.id))
+    e.conn.execute("UPDATE texts SET stretch_count = NULL")
+    store.save_difficulty(e.conn, Difficulty(0.92, 3))
+
+    e.record_reading(text.id, reading("too_hard"))
+
+    assert store.load_difficulty(e.conn) == Difficulty(0.93, 2)
 
 
 def test_a_repeated_reading_is_ignored() -> None:

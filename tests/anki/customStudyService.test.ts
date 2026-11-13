@@ -72,10 +72,18 @@ describe('increasing a deck\'s limit for today', () => {
     expect(l.reviewsPerDay).toBeGreaterThan(50);
   });
 
-  it("refuses more new cards for a deck with a progress gate, which has no daily limit to raise", async () => {
+  it('raises the daily new limit of a deck with a progress gate, which the gate lets in within', async () => {
     const { store, take } = await franki();
     await store.saveDeckSettings(TRIVIA, { gateCap: 50 });
-    await expect(runCustomStudy(store, TRIVIA, { kind: 'moreNew', count: 5 }, take, NOW)).rejects.toThrow('progress gate');
+    expect(await runCustomStudy(store, TRIVIA, { kind: 'moreNew', count: 5 }, take, NOW)).toEqual({ kind: 'limits' });
+    expect(deckLimits(paramsForDeck(TRIVIA, await store.listDeckParams()), { newPerDay: 20, reviewsPerDay: 200 }, '2026-11-11').newPerDay).toBe(8);
+  });
+
+  it('refuses more new cards for a deck under a gated deck, whose own daily limit the gate replaces', async () => {
+    const { store, take } = await franki();
+    await store.saveDeckSettings('👅 Languages', { gateCap: 50 });
+    await expect(runCustomStudy(store, '👅 Languages::🐘 ภาษาไทย', { kind: 'moreNew', count: 5 }, take, NOW))
+      .rejects.toThrow('This deck\'s new cards are limited by the progress gate on 👅 Languages. Use Custom study on 👅 Languages to let in more new cards today.');
   });
 
   it('refuses an amount that is not a whole number of cards', async () => {

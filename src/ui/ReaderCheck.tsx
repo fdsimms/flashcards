@@ -2,7 +2,7 @@ import { useAudioPlayer } from 'expo-audio';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import type { Api, ReaderText, TextLine } from '../reader/api';
-import { checkScore, isRight, type CheckPicks, type CheckQuestion } from '../reader/check';
+import { canSteer, checkScore, isRight, steersDifficulty, type CheckPicks, type CheckQuestion } from '../reader/check';
 import { choiceText } from '../reader/choices';
 import { prefs, savePrefs } from '../reader/storage';
 import { haptic } from './haptics';
@@ -216,12 +216,17 @@ export function CheckCard({ text, questions, picks, onStart }: {
 }) {
   const c = useTheme();
   const listening = questions.filter((q) => q.kind === 'listen').length;
+  const effect = !canSteer(questions)
+    ? ''
+    : questions.every(steersDifficulty)
+      ? ' A low score makes the next text a little easier.'
+      : ' A low score makes the next text a little easier. Questions on words don\'t count toward it.';
   if (!picks) {
     return (
       <Card style={{ gap: space.s }}>
         <Text accessibilityRole="header" style={{ ...type.title, color: c.text }}>Check what you understood</Text>
         <Help>
-          {`${questions.length} ${questions.length === 1 ? 'question' : 'questions'} on this text${listening ? `, ${listening === 1 ? 'one' : listening} by ear` : ''}. A low score makes the next text a little easier.`}
+          {`${questions.length} ${questions.length === 1 ? 'question' : 'questions'} on this text${listening ? `, ${listening === 1 ? 'one' : listening} by ear` : ''}.${effect}`}
         </Help>
         <Button label="Start" onPress={onStart} />
       </Card>

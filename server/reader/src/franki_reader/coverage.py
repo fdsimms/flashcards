@@ -171,10 +171,13 @@ class Lexicon:
     def status(self, token: str) -> Status:
         if token in self.known or _is_number(token):
             return "known"
-        if token in self.partial:
-            return "partial"
+        # A clean split into deck entries is known even when a longer entry also holds the word:
+        # ร้านอาหาร is ร้าน + อาหาร, whether or not ร้านอาหารไทย is in the deck too. Partial is for
+        # a word found only inside a phrase (รับ inside รับอะไรดี).
         if self._splits_into_known(token):
             return "known"
+        if token in self.partial:
+            return "partial"
         return "unknown"
 
     def known_pieces(self, token: str) -> list[str] | None:

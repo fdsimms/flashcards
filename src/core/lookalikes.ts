@@ -19,13 +19,37 @@ import type { Card, DeckSettings, Note, ReviewLogEntry } from './types';
 const MIN_SHARED = 4;
 /** And the share of the shorter word it has to cover: esper(ar)/esper(o) 5 of 6, espera(r)/espera(nza) 6 of 8. */
 const MIN_SHARE = 0.75;
+/**
+ * A shorter word than this links only to one at most `MAX_LONGER_BY` letters longer: an inflection
+ * (Haus/Haustür) rather than a compound or derivation built on it (Haus/Hausaufgabe, nach/Nachricht).
+ */
+const MIN_STEM = 6;
+const MAX_LONGER_BY = 3;
+
+/**
+ * Languages whose accents are compared away: they mark stress (Spanish, Greek, Portuguese), or are
+ * routinely left off (French capitals). Everywhere else a marked letter is its own letter, so
+ * Polish dziękuję and dzień, or German schon and schön, stay apart.
+ */
+const ACCENTS_IGNORED = new Set(['es', 'el', 'fr', 'pt']);
 
 const unmarked = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').normalize('NFC');
 
-/** A word as it's compared: lower case, no accents, no article, nothing after a bracket or dash. */
-export function lookalikeForm(word: string): string {
+/**
+ * A word as it's compared: lower case, no article, nothing after a bracket or dash, and no accents
+ * in a language whose accents don't change the letter (`lang` is a speech tag, `speechLangFor`).
+ */
+const STRESS_MARKED = new Set(['ru', 'uk']);
+const withoutStress = (s: string) => s.normalize('NFD').replace(/[\u0300\u0301]/g, '').normalize('NFC');
+
+export function lookalikeForm(word: string, lang: string | undefined): string {
   const head = word.split(/\s[(—–-]|\(|,/)[0].trim();
-  return unmarked(withoutArticle(head).toLocaleLowerCase()).replace(/\s+/g, ' ').trim();
+  const lower = withoutArticle(head).toLocaleLowerCase().normalize('NFC');
+  const code = lang?.split('-')[0].toLowerCase() ?? '';
+  // Stress marks added to a Russian or Ukrainian word for learning (молоко́) aren't spelling: they
+  // come off, while й, ё and ї, which are letters, stay.
+  const form = ACCENTS_IGNORED.has(code) ? unmarked(lower) : STRESS_MARKED.has(code) ? withoutStress(lower) : lower;
+  return form.replace(/\s+/g, ' ').trim();
 }
 
 function language(note: Note): string {
@@ -38,12 +62,18 @@ function sharedStart(a: string, b: string): number {
   return i;
 }
 
-/** Whether two compared words look alike: one starts most of the way into the other. */
+/**
+ * Whether two compared words look alike: one starts most of the way into the other, and a short
+ * word only links to its inflections, not to every longer word built on it.
+ */
 export function wordsLookAlike(a: string, b: string): boolean {
   if (!a || !b) return false;
   if (a === b) return true;
+  const shorter = Math.min(a.length, b.length);
+  const longer = Math.max(a.length, b.length);
+  if (shorter < MIN_STEM && longer - shorter > MAX_LONGER_BY) return false;
   const shared = sharedStart(a, b);
-  return shared >= MIN_SHARED && shared >= MIN_SHARE * Math.min(a.length, b.length);
+  return shared >= MIN_SHARED && shared >= MIN_SHARE * shorter;
 }
 
 /**
@@ -60,13 +90,13 @@ export function lookalikeIndex(notes: Note[]): Map<string, Set<string>> {
   const byLang = new Map<string, { id: string; word: string; forms: Set<string> }[]>();
   for (const n of notes) {
     if (!isOmnilanguage(n)) continue;
-    const word = lookalikeForm(headword(n));
+    const lang = language(n);
+    const word = lookalikeForm(headword(n), lang);
     if (!word) continue;
     const forms = new Set<string>();
     // Gender (an article) and the counting word (a different word that goes with this one) don't look like it.
-    for (const f of formsOf(n).forms) if (f.key !== 'field:Gender' && f.key !== 'field:Classifier') for (const a of f.answers) forms.add(lookalikeForm(a));
-    for (const k of htmlToText(n.fields.KeyForms ?? '').split(/[,;\n]/)) if (k.trim()) forms.add(lookalikeForm(k));
-    const lang = language(n);
+    for (const f of formsOf(n).forms) if (f.key !== 'field:Gender' && f.key !== 'field:Classifier') for (const a of f.answers) forms.add(lookalikeForm(a, lang));
+    for (const k of htmlToText(n.fields.KeyForms ?? '').split(/[,;\n]/)) if (k.trim()) forms.add(lookalikeForm(k, lang));
     (byLang.get(lang) ?? byLang.set(lang, []).get(lang)!).push({ id: n.id, word, forms });
   }
   for (const words of byLang.values()) {
@@ -190,6 +220,10 @@ export const SOONER_DAYS = SEEN_LOOKBACK_DAYS;
  * The lookalike that may have given away a Review card's answer: one seen since the card was last
  * reviewed, within `SOONER_DAYS`. Scheduling the answer from that moment instead of the last
  * review gives the smaller interval FSRS gives a card reviewed then (`countFrom` in scheduler.ts).
+ *
+ * With the card's deck keeping lookalikes apart (`heldDays`, its `lookalikeDays`), only one seen
+ * within that window counts: one seen before it is what the hold already judged far enough apart,
+ * and cutting the interval for it would penalize every card the hold kept apart, the day after.
  */
 export function soonerOffer(input: {
   card: Card;
@@ -197,11 +231,12 @@ export function soonerOffer(input: {
   events: SeenEvent[];
   now: Date;
   dayStartsAtHour: number;
+  heldDays?: number;
 }): SeenEvent | undefined {
   const { card } = input;
   if (card.sched.state !== 2 || !card.sched.lastReview) return undefined;
   const last = new Date(card.sched.lastReview);
-  const since = windowStart(input.now, input.dayStartsAtHour, SOONER_DAYS);
+  const since = windowStart(input.now, input.dayStartsAtHour, Math.min(input.heldDays ?? SOONER_DAYS, SOONER_DAYS));
   const seen = latestLookalike(card.noteId, input.index, input.events, since > last ? since : last);
   return seen && seen.at > last && seen.at <= input.now ? seen : undefined;
 }
