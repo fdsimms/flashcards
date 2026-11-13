@@ -345,6 +345,19 @@ export function DeckList(props: {
               </View>
             </Pressable>
           ) : null}
+          {props.sync?.failed && !syncShown ? (
+            // A failed sync is shown first, where it can't be scrolled past; a tap tries again.
+            <Pressable onPress={syncTapped} accessibilityRole="button" accessibilityHint="Syncs now" style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
+              <View style={{ flexDirection: 'row', gap: space.m, alignItems: 'flex-start', borderRadius: radius.l, ...smooth, borderWidth: 1, borderColor: c.warning, backgroundColor: c.surface, padding: space.m }}>
+                <Icon name="exclamationmark.triangle.fill" size={22} color={c.warning} />
+                <View style={{ flex: 1, gap: space.xs }}>
+                  <Text style={{ ...type.headline, color: c.warning }}>Sync didn't finish</Text>
+                  <Text style={{ ...type.subhead, color: c.textSecondary }}>{props.sync.status}</Text>
+                  <Text style={{ ...type.subhead, color: c.accent, fontWeight: '600' }}>Tap to try again</Text>
+                </View>
+              </View>
+            </Pressable>
+          ) : null}
           {groups.length || props.extra ? <TodaySummary due={totals.due} fresh={totals.fresh} /> : null}
           {groups.length === 0 ? (props.loaded === false ? null : (
             <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
@@ -397,11 +410,11 @@ export function DeckList(props: {
             ))
           )}
           {props.extra?.node}
-          {props.sync ? (
+          {props.sync && (!props.sync.failed || syncShown || props.ankiUnsent) ? (
             <Pressable onPress={syncTapped} accessibilityRole="button" accessibilityHint="Syncs now"
               style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
               <Text style={{ ...type.footnote, color: props.sync.failed ? c.warning : c.textSecondary, textAlign: 'center' }}>
-                {syncShown ? 'Syncing…' : props.sync.status}
+                {syncShown ? 'Syncing…' : props.sync.failed ? '' : props.sync.status}
                 {props.ankiUnsent ? ` ${props.ankiUnsent} ${props.ankiUnsent === 1 ? "answer isn't" : "answers aren't"} synced yet.` : ''}
               </Text>
             </Pressable>
