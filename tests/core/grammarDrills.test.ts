@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anyDrilled, drillPrompts, dueWhen, duePoints, drillResults, isDrilled, missingNote, namesAnswer, pointSchedule, scheduledPoints, type GrammarAnswer } from '../../src/core/grammarDrills';
+import { anyDrilled, drillPrompts, drillWentWell, dueWhen, duePoints, drillResults, isDrilled, missingNote, namesAnswer, pointSchedule, scheduledPoints, type GrammarAnswer } from '../../src/core/grammarDrills';
 
 const H = 4;
 const NOW = new Date(2026, 10, 12, 12);
@@ -27,6 +27,16 @@ describe('when a point is next drilled', () => {
   it('comes back the next day after a drill that went badly, from the first step', () => {
     const answers = [...drill('es.preterite', 'a', 1, 5), ...drill('es.preterite', 'b', 3, 5), ...drill('es.preterite', 'c', 8, 3)];
     expect(pointSchedule('es.preterite', 'practice', answers, NOW, H)).toMatchObject({ due: day(9), step: -1 });
+  });
+
+  it('forgives one slip on a point with 3 or 4 questions in a drill, as a 4/3/3 split gives', () => {
+    expect([drillWentWell(8, 10), drillWentWell(4, 5), drillWentWell(3, 4), drillWentWell(2, 3)]).toEqual([true, true, true, true]);
+    expect([drillWentWell(7, 10), drillWentWell(3, 5), drillWentWell(2, 4), drillWentWell(1, 3)]).toEqual([false, false, false, false]);
+    // One or two questions: all but one would be half or none of them.
+    expect([drillWentWell(1, 1), drillWentWell(2, 2), drillWentWell(0, 1), drillWentWell(1, 2)]).toEqual([true, true, false, false]);
+    expect(pointSchedule('es.preterite', 'practice', drill('es.preterite', 'a', 10, 3, 4), NOW, H)).toMatchObject({ due: day(11), step: 0 });
+    expect(pointSchedule('es.preterite', 'normal', drill('es.preterite', 'a', 10, 2, 3), NOW, H)).toMatchObject({ due: day(17), step: 0 });
+    expect(pointSchedule('es.preterite', 'practice', drill('es.preterite', 'a', 10, 2, 4), NOW, H)).toMatchObject({ due: day(11), step: -1 });
   });
 
   it('spaces a known point further, and still brings it back the next day after a drill that went badly', () => {

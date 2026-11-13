@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   againPrompts, checkAnswer, chooseForms, formGiven, formGrammar, practicedGroups, practicedGroupsLine, confusedAnswers, confusions, weakForms, formsOf, formsSettings, formsSuggestion, headword, introductions, patternOf, patternPrompts,
-  practiceChoices, practicePool, promptFor, drillPrompts, studiedWords, sentenceGap, unreadableNotice, withoutArticle, wordPrompts, type PracticeRecord, type WordForm,
+  practiceChoices, practicePool, promptFor, promptKeys, drillPrompts, mergeSentencePrompts, studiedWords, sentenceGap, unreadableNotice, withoutArticle, wordPrompts,
+  type FormPrompt, type PracticeRecord, type WordForm,
 } from '../../src/core/forms';
 import { newSchedState } from '../../src/core/scheduler';
 import type { Note } from '../../src/core/types';
@@ -64,8 +65,53 @@ describe('formsOf', () => {
   it("reads Norwegian's own articles as a gender, the same ones it asks for", () => {
     const bok = omniNote({ Entry: 'bok', Meaning: 'book', Language: 'norwegian', Gender: 'ei' });
     expect(formsOf(bok).unreadable).toEqual([]);
-    expect(formsOf(bok).forms[0].answers).toEqual(['ei']);
+    expect(formsOf(bok).forms[0].answers).toEqual(['ei', 'en']);
     expect(formsOf(omniNote({ Entry: 'hus', Language: 'norwegian', Gender: 'et' })).forms[0].answers).toEqual(['et']);
+  });
+  it('accepts en as well as ei for a Norwegian feminine, the Entry\'s own first, and never offers en as wrong', () => {
+    const enBok = omniNote({ Entry: 'en bok', Language: 'norwegian', Gender: 'f' });
+    expect(formsOf(enBok).forms[0].answers).toEqual(['en', 'ei']);
+    expect(formsOf(omniNote({ Entry: 'ei bok', Language: 'norwegian', Gender: 'f' })).forms[0].answers).toEqual(['ei', 'en']);
+    for (const note of [enBok, omniNote({ Entry: 'bok', Language: 'norwegian', Gender: 'f' })]) {
+      const p = promptFor(note, formsOf(note).forms[0], [], seeded());
+      expect(p.headword).toBe('bok');
+      expect(p.choices!.filter((c) => !p.answers.includes(c))).toEqual(['et']);
+      expect(checkAnswer('ei', p.answers)).toBe('right');
+      expect(checkAnswer('en', p.answers)).toBe('right');
+    }
+    // A masculine noun can't take ei, so it's still offered.
+    const stol = omniNote({ Entry: 'en stol', Language: 'norwegian', Gender: 'm' });
+    expect([...promptFor(stol, formsOf(stol).forms[0], [], seeded()).choices!].sort()).toEqual(['ei', 'en', 'et']);
+  });
+  it("asks the gender as a word when the Entry's own article isn't the one its gender gives", () => {
+    const gender = (Entry: string, Language: string, Gender: string) => formsOf(omniNote({ Entry, Language, Gender })).forms[0].answers;
+    // Feminine, but el (and un) before a stressed a.
+    expect(gender('el agua', 'spanish', 'f')).toEqual(['feminine']);
+    expect(gender('un águila', 'spanish', 'f')).toEqual(['feminine']);
+    expect(gender('el hambre', 'spanish', 'f')).toEqual(['feminine']);
+    // The article that goes with the gender, definite or not, is asked as before.
+    expect(gender('la mesa', 'spanish', 'f')).toEqual(['la']);
+    expect(gender('una mano', 'spanish', 'f')).toEqual(['la']);
+    expect(gender('el libro', 'spanish', 'm')).toEqual(['el']);
+    // French l' before a vowel, whatever the Entry shows: neither le nor la is right.
+    expect(gender("l'arbre", 'french', 'm')).toEqual(['masculine']);
+    expect(gender('un ami', 'french', 'm')).toEqual(['masculine']);
+    expect(gender('école', 'french', 'f')).toEqual(['feminine']);
+    expect(gender('le livre', 'french', 'm')).toEqual(['le']);
+    expect(gender('le héros', 'french', 'm')).toEqual(['le']);
+    // German, Greek and Polish articles always go with the gender.
+    expect(gender('ein Haus', 'german', 'n')).toEqual(['das']);
+    expect(gender('η γυναίκα', 'greek', 'f')).toEqual(['η']);
+    expect(gender('ta córka', 'polish', 'f')).toEqual(['ta']);
+  });
+  it('offers the genders the language has as words, and shows the word without its misleading article', () => {
+    const agua = omniNote({ Entry: 'el agua', Meaning: 'water', Language: 'spanish', Gender: 'f' });
+    const p = promptFor(agua, formsOf(agua).forms[0], [], seeded());
+    expect(p.headword).toBe('agua');
+    expect([...p.choices!].sort()).toEqual(['feminine', 'masculine']);
+    expect(p.answers).toEqual(['feminine']);
+    const ru = omniNote({ Entry: 'стол', Language: 'russian', Gender: 'm' });
+    expect([...promptFor(ru, formsOf(ru).forms[0], [], seeded()).choices!].sort()).toEqual(['feminine', 'masculine', 'neuter']);
   });
   it('has nothing for a note without forms, so nothing is suggested', () => {
     expect(formsOf(omniNote()).forms).toEqual([]);
@@ -223,8 +269,40 @@ describe('confusions', () => {
 
   it('finds the same wrong answer for the same right one across several words', () => {
     const list = confusions([miss('a', 'ten', 1), miss('b', 'ten', 2), miss('c', 'Ten ', 3), miss('d', 'ta', 3)], words);
-    expect(list).toEqual([{ expected: 'ta', given: 'ten', misses: 3, words: 3, lastAt: at(3) }]);
+    expect(list).toEqual([{ kind: 'answer', expected: 'ta', given: 'ten', misses: 3, words: 3, lastAt: at(3) }]);
     expect(confusedAnswers(list)).toEqual(new Set(['ta']));
+  });
+
+  describe('between forms', () => {
+    const verb = (id: string, preterite: string, subjunctive: string) => {
+      const note = esperar({ Entry: id, Forms: [
+        `preterite · yo: ${preterite}`, `present subjunctive · yo: ${subjunctive}`, `present subjunctive · él: ${subjunctive}`, `present · yo: ${id.slice(0, -2)}o`,
+      ].join('<br>') }, id);
+      return { note, forms: formsOf(note).forms };
+    };
+    const verbs = [verb('hablar', 'hablé', 'hable'), verb('esperar', 'esperé', 'espere'), verb('mirar', 'miré', 'mire')];
+    const wrong = (noteId: string, given: string, day: number, key = 'preterite · yo'): PracticeRecord => ({ noteId, key, correct: false, practicedAt: at(day), given });
+
+    it("finds another form of each word given for the one asked, though the answers differ from word to word", () => {
+      const history = [wrong('hablar', 'hable', 1), wrong('esperar', 'espere', 2), wrong('mirar', 'mire', 3), wrong('hablar', 'Hable', 4)];
+      // The answers differ word to word, so no "answer" mix-up shows; the forms do. Spelled like
+      // "· él" as well, it's taken for the person asked.
+      expect(confusions(history, verbs)).toEqual([
+        { kind: 'form', expected: 'preterite · yo', given: 'present subjunctive · yo', misses: 4, words: 3, lastAt: at(4) },
+      ]);
+    });
+    it('needs enough misses on more than one word, and a wrong answer that is one of the forms', () => {
+      expect(confusions([wrong('hablar', 'hable', 1), wrong('esperar', 'espere', 2)], verbs)).toEqual([]);
+      expect(confusions([wrong('hablar', 'hable', 1), wrong('hablar', 'hable', 2), wrong('hablar', 'hable', 3)], verbs)).toEqual([]);
+      expect(confusions([wrong('hablar', 'hablaba', 1), wrong('esperar', 'esperaba', 2), wrong('mirar', 'miraba', 3)], verbs)).toEqual([]);
+    });
+    it('asks the form mixed up sooner, in every word', () => {
+      const list = confusions([wrong('hablar', 'hable', 1), wrong('esperar', 'espere', 2), wrong('mirar', 'mire', 3)], verbs);
+      const tener = verb('tener', 'tuve', 'tenga');
+      for (let seed = 1; seed <= 10; seed++) {
+        expect(chooseForms(tener.forms, [], DAY_START, 1, seeded(seed), confusedAnswers(list)).map((f) => f.key)).toEqual(['preterite · yo']);
+      }
+    });
   });
   it('needs enough misses on more than one word, and an answer that was kept', () => {
     expect(confusions([miss('a', 'ten', 1), miss('b', 'ten', 2)], words)).toEqual([]);
@@ -256,6 +334,23 @@ describe('promptFor', () => {
     expect(formGiven('Espero', p)).toBe('present · yo');
     expect(formGiven('esperamos', p)).toBeUndefined();
     expect(formGiven('xyz', p)).toBeUndefined();
+  });
+  it('names a form with no group of its own by its label, and takes a wrong answer for the asked person first', () => {
+    const note = esperar({ Forms: 'infinitive: esperar<br>preterite · yo: esperé<br>present subjunctive · él: espere<br>present subjunctive · yo: espere' });
+    const p = promptFor(note, formsOf(note).forms[1], [], seeded());
+    expect(p.otherForms).toContainEqual({ text: 'esperar', name: 'infinitive' });
+    expect(formGiven('espere', p)).toBe('present subjunctive · yo');
+  });
+  it('reads the right answer aloud in the note\'s language, a gender with its word, and nothing it can\'t say', () => {
+    const note = esperar();
+    expect(promptFor(note, formsOf(note).forms[0], [], seeded()).say).toEqual({ text: 'espero', lang: 'es-MX' });
+    const mesa = omniNote({ Entry: 'la mesa', Language: 'spanish', Gender: 'f' });
+    expect(promptFor(mesa, formsOf(mesa).forms[0], [], seeded()).say).toEqual({ text: 'la mesa', lang: 'es-MX' });
+    // A gender asked as a word is English, not the note's language.
+    const agua = omniNote({ Entry: 'el agua', Language: 'spanish', Gender: 'f' });
+    expect(promptFor(agua, formsOf(agua).forms[0], [], seeded()).say).toBeUndefined();
+    const unknown = { ...esperar({ Language: 'klingon' }), deck: 'Other' };
+    expect(promptFor(unknown, formsOf(unknown).forms[0], [], seeded()).say).toBeUndefined();
   });
   it('fills in from the same form of other words when the word has too few', () => {
     const tisch = { ...omniNote({ Entry: 'der Tisch', Language: 'german', Plural: 'die Tische' }), id: 'tisch' };
@@ -418,6 +513,37 @@ describe('drillPrompts', () => {
     const inSentence = drillPrompts({ ...request, sentence: true }, both, seeded()).prompts;
     expect(inSentence.map((p) => p.key).sort()).toEqual(['present · yo', 'present · yo']);
     expect(inSentence.every((p) => p.sentence)).toBe(true);
+  });
+  it('asks forms that would show the same sentence with the same answer once, logged under each', () => {
+    const espera = esperar({
+      Context: 'Ella esperaba el autobús.',
+      Forms: 'imperfect · yo: esperaba<br>imperfect · él: esperaba<br>imperfect · tú: esperabas<br>present · él: espera',
+    });
+    const request = { kind: 'pattern' as const, deck: '👅 Languages', patterns: ['-ar, regular'], groups: ['imperfect', 'present'], sentence: true };
+    const { prompts } = drillPrompts(request, { ...data, notes: [espera] }, seeded());
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]).toMatchObject({ group: 'imperfect', answers: ['esperaba'], sentence: { before: 'Ella ', after: ' el autobús.' } });
+    expect(['yo / él', 'él / yo']).toContain(prompts[0].label);
+    expect([...promptKeys(prompts[0])].sort()).toEqual(['imperfect · yo', 'imperfect · él']);
+    // A limit counts the prompts asked, not the forms they stand for.
+    expect(drillPrompts({ ...request, limit: 1 }, { ...data, notes: [espera] }, seeded()).prompts).toHaveLength(1);
+  });
+  it('names each form in full when the forms merged are of different groups, and leaves other words alone', () => {
+    const p = (noteId: string, key: string, answers: string[]): FormPrompt => {
+      const [group, label] = key.split(' · ');
+      return { noteId, key, headword: noteId, meaning: '', label, group, answers, sentence: { before: 'Ya ', after: '.' } };
+    };
+    const merged = mergeSentencePrompts([
+      p('a', 'present · él', ['espera']), p('b', 'present · él', ['espera']), p('a', 'imperative · tú', ['Espera']), p('a', 'present · yo', ['espero']),
+    ]);
+    expect(merged.map((x) => [x.noteId, x.label, x.group, promptKeys(x)])).toEqual([
+      ['a', 'present · él / imperative · tú', '', ['present · él', 'imperative · tú']],
+      ['b', 'él', 'present', ['present · él']],
+      ['a', 'yo', 'present', ['present · yo']],
+    ]);
+    // A prompt with no sentence is never merged.
+    const bare = { ...p('a', 'present · él', ['espera']), sentence: undefined };
+    expect(mergeSentencePrompts([bare, bare])).toHaveLength(2);
   });
   it('caps a pattern drill only when asked to', () => {
     const request = { kind: 'pattern' as const, deck: '👅 Languages', patterns: ['-ar, regular'], groups: ['present'], sentence: false };

@@ -24,6 +24,20 @@ export const PRACTICE_STEPS = [1, 3, 7, 14, 30] as const;
 export const KNOWN_STEPS = [7, 14, 30, 60] as const;
 /** The share right that counts a point's part of a drill as gone well. */
 export const DRILL_PASS = 0.8;
+/**
+ * A point with fewer questions than this in a drill also went well with all but one right: a drill
+ * of 3 points splits its 10 questions 4/3/3, where 80% would mean every one, so one slip (even on a
+ * "which" pick) would send it back to tomorrow.
+ */
+export const DRILL_FEW = 5;
+
+/**
+ * Whether a point's part of a drill went well: DRILL_PASS of it right, or all but one of fewer than
+ * DRILL_FEW. Not with one or two questions, where all but one is half or none of them.
+ */
+export function drillWentWell(right: number, total: number): boolean {
+  return right >= DRILL_PASS * total || (total >= 3 && total < DRILL_FEW && right >= total - 1);
+}
 /** Questions in a drill, and the most points one drill mixes. */
 export const DRILL_QUESTIONS = 10;
 export const DRILL_POINTS = 3;
@@ -61,7 +75,7 @@ export function pointSchedule(pointId: string, state: DrillState, answers: Gramm
   let last: Date | undefined;
   let passed = false;
   for (const d of [...drills.values()].sort((a, b) => a.at.localeCompare(b.at))) {
-    passed = d.right >= DRILL_PASS * d.total;
+    passed = drillWentWell(d.right, d.total);
     // A drill that went badly starts the point over: its next good one waits the first step, not the second.
     step = passed ? Math.min(step + 1, steps.length - 1) : -1;
     last = new Date(d.at);

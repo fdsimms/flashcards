@@ -39,18 +39,84 @@ export interface NoteForms {
   unreadable: string[];
 }
 
-/** Gender words by language: the article where the language has one, as learners say it. */
-const ARTICLES: Record<string, Record<'m' | 'f' | 'n', string | undefined>> = {
-  de: { m: 'der', f: 'die', n: 'das' },
-  es: { m: 'el', f: 'la', n: undefined },
-  fr: { m: 'le', f: 'la', n: undefined },
-  it: { m: 'il', f: 'la', n: undefined },
-  pt: { m: 'o', f: 'a', n: undefined },
-  pl: { m: 'ten', f: 'ta', n: 'to' },
-  el: { m: 'ο', f: 'η', n: 'το' },
-  nb: { m: 'en', f: 'ei', n: 'et' },
+type Gender = 'm' | 'f' | 'n';
+
+/**
+ * Gender words by language: the article where the language has one, as learners say it. More than
+ * one is accepted where the language allows either: a Bokmål feminine noun takes "ei" or "en".
+ */
+const ARTICLES: Record<string, Partial<Record<Gender, string[]>>> = {
+  de: { m: ['der'], f: ['die'], n: ['das'] },
+  es: { m: ['el'], f: ['la'] },
+  fr: { m: ['le'], f: ['la'] },
+  it: { m: ['il'], f: ['la'] },
+  pt: { m: ['o'], f: ['a'] },
+  pl: { m: ['ten'], f: ['ta'], n: ['to'] },
+  el: { m: ['ο'], f: ['η'], n: ['το'] },
+  nb: { m: ['en'], f: ['ei', 'en'], n: ['et'] },
 };
 const GENDER_WORDS = { m: 'masculine', f: 'feminine', n: 'neuter' } as const;
+
+/**
+ * The articles an Entry may start with, by language, and which definite articles each goes with:
+ * itself, or for an indefinite one those it pairs with ("un" goes with el in Spanish, so "un agua"
+ * takes el too). An Entry whose article goes with none of its gender's in ARTICLES (el agua, lo zio,
+ * l'acqua) has its gender asked as a word, since the article the table gives would be wrong for it.
+ */
+const ENTRY_ARTICLES: Record<string, Record<string, string[]>> = {
+  de: { der: ['der'], die: ['die'], das: ['das'], ein: ['der', 'das'], eine: ['die'] },
+  es: { el: ['el'], la: ['la'], un: ['el'], una: ['la'] },
+  fr: { le: ['le'], la: ['la'], "l'": ["l'"], un: ['le', "l'"], une: ['la', "l'"] },
+  it: { il: ['il'], lo: ['lo'], la: ['la'], "l'": ["l'"], un: ['il', "l'"], uno: ['lo'], una: ['la'], "un'": ["l'"] },
+  pt: { o: ['o'], a: ['a'], um: ['o'], uma: ['a'] },
+  pl: { ten: ['ten'], ta: ['ta'], to: ['to'] },
+  el: { ο: ['ο'], η: ['η'], το: ['το'], ένας: ['ο'], μία: ['η'], μια: ['η'], ένα: ['το'] },
+  nb: { en: ['en'], ei: ['ei'], et: ['et'] },
+};
+
+/**
+ * Words whose article isn't the one ARTICLES gives, whatever the Entry shows: French and Italian
+ * take l' before a vowel, and an Italian masculine noun takes lo before s and a consonant, z, gn,
+ * ps, pn, x or y. French h is left out, as it goes either way (l'homme, le héros).
+ */
+function takesOtherArticle(lang: string, g: Gender, word: string): boolean {
+  const w = word.toLocaleLowerCase();
+  if ((lang === 'fr' || lang === 'it') && /^[aeiouàâäéèêëìíîïòóôöùúûüœæ]/u.test(w)) return true;
+  return lang === 'it' && g === 'm' && /^(s[^aeiouàèéìíòóùú]|z|gn|ps|pn|x|y)/u.test(w);
+}
+
+/** The Entry's own article in its language, and the word after it: "el agua" -> el, agua. */
+function entryArticle(note: Note, lang: string): { article: string; goesWith: string[]; rest: string } | undefined {
+  const table = ENTRY_ARTICLES[lang];
+  const m = table && /^([^\s'’]+['’]|[^\s'’]+\s+)(?=\S)/u.exec(headword(note));
+  if (!m) return undefined;
+  const article = m[1].trim().replace('’', "'").toLocaleLowerCase();
+  const goesWith = table[article];
+  return goesWith ? { article, goesWith, rest: headword(note).slice(m[1].length).trim() } : undefined;
+}
+
+/**
+ * What a note's gender is asked as: the language's article for it, the Entry's own first where it
+ * has one of them ("en bok" asks en, accepting ei), or the gender as a word ("feminine") where the
+ * language has no article table or the article it gives isn't this word's (el agua, l'acqua).
+ */
+function genderAnswers(note: Note, g: Gender): string[] {
+  const lang = langOf(note) ?? '';
+  const accepted = ARTICLES[lang]?.[g];
+  if (!accepted) return [GENDER_WORDS[g]];
+  const own = entryArticle(note, lang);
+  if (takesOtherArticle(lang, g, own?.rest ?? withoutArticle(headword(note)))) return [GENDER_WORDS[g]];
+  if (!own) return accepted;
+  const fits = accepted.filter((a) => own.goesWith.includes(a));
+  return fits.length ? [...fits, ...accepted.filter((a) => !fits.includes(a))] : [GENDER_WORDS[g]];
+}
+
+const isGenderWord = (answer: string) => (Object.values(GENDER_WORDS) as string[]).includes(answer);
+
+/** The word a gender prompt shows: without its article, which is what's asked or would mislead ("el agua", feminine). */
+export function genderHeadword(note: Note): string {
+  return entryArticle(note, langOf(note) ?? '')?.rest ?? withoutArticle(headword(note));
+}
 
 /**
  * Every article a headword or a listed form might start with, longest first, for taking it off the
@@ -135,10 +201,7 @@ export function formsOf(note: Note): NoteForms {
   if (gender) {
     const g = genderLetter(gender);
     if (!g) unreadable.push(`Gender: ${gender}`);
-    else {
-      const word = ARTICLES[langOf(note) ?? '']?.[g] ?? GENDER_WORDS[g];
-      add({ key: 'field:Gender', group: 'gender', label: 'gender', answers: [word] });
-    }
+    else add({ key: 'field:Gender', group: 'gender', label: 'gender', answers: genderAnswers(note, g) });
   }
   for (const { field, label } of FIELD_FORMS) {
     const text = htmlToText(note.fields[field] ?? '').replace(/\s+/g, ' ').trim();
@@ -148,7 +211,7 @@ export function formsOf(note: Note): NoteForms {
 }
 
 /** "m", "masc", "masculine", "der" and the like, as m / f / n. Undefined when it isn't one. */
-function genderLetter(text: string): 'm' | 'f' | 'n' | undefined {
+function genderLetter(text: string): Gender | undefined {
   const t = text.toLocaleLowerCase().replace(/[.\s]/g, '');
   if (['m', 'masc', 'masculine', 'männlich', 'der', 'el', 'le', 'il', 'ten', 'ο', 'en'].includes(t)) return 'm';
   if (['f', 'fem', 'feminine', 'weiblich', 'die', 'la', 'ta', 'η', 'ei'].includes(t)) return 'f';
@@ -156,10 +219,14 @@ function genderLetter(text: string): 'm' | 'f' | 'n' | undefined {
   return undefined;
 }
 
-/** The gender choices offered for a note's language: its articles, else masculine / feminine / neuter. */
-function genderChoices(note: Note): string[] {
+/**
+ * The gender choices offered for a note: its language's articles when that's what's asked, else
+ * the genders as words, only those the language has (no neuter in Spanish).
+ */
+function genderChoices(note: Note, form: WordForm): string[] {
   const table = ARTICLES[langOf(note) ?? ''];
-  return table ? Object.values(table).filter((a): a is string => !!a) : Object.values(GENDER_WORDS);
+  if (table && !isGenderWord(form.answers[0])) return [...new Set(Object.values(table).flat())];
+  return (Object.keys(GENDER_WORDS) as Gender[]).filter((g) => !table || table[g]).map((g) => GENDER_WORDS[g]);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -191,6 +258,27 @@ export function checkAnswer(typed: string, answers: string[], others: string[] =
   if (all.includes(t)) return 'right';
   if (others.some((o) => clean(o) === t)) return 'wrong';
   return all.some((a) => unmarked(a) === unmarked(t)) ? 'almost' : 'wrong';
+}
+
+/** A form as a drill names it: "present · yo", or only its label when it has no group of its own ("plural", "infinitive"). */
+export const formName = (f: Pick<WordForm, 'group' | 'label'>): string => (f.group && f.group !== f.label ? `${f.group} · ${f.label}` : f.label);
+
+/**
+ * The word's other forms a wrong answer could be (never its gender, which no other form is): the
+ * asked form's person first, then its tense, so espere asked as "preterite · yo" is taken for
+ * "present subjunctive · yo" rather than "present subjunctive · él", which is spelled the same.
+ */
+function rivalForms(asked: WordForm, forms: WordForm[]): WordForm[] {
+  if (asked.key === 'field:Gender') return [];
+  const rank = (f: WordForm) => (f.label === asked.label ? 0 : f.group === asked.group ? 1 : 2);
+  return forms.filter((f) => f.key !== asked.key && f.key !== 'field:Gender').sort((a, b) => rank(a) - rank(b));
+}
+
+/** Which of the word's other forms a wrong answer is, if it's one (`rivalForms`). */
+function givenForm(given: string, asked: WordForm, forms: WordForm[]): WordForm | undefined {
+  const t = clean(given);
+  if (!t || asked.answers.some((a) => clean(a) === t)) return undefined;
+  return rivalForms(asked, forms).find((f) => f.answers.some((a) => clean(a) === t));
 }
 
 /** The word's other form a wrong answer is, if it's one: "present · on" for pisze asked as piszę. */
@@ -261,9 +349,14 @@ export const CONFUSION_MISSES = 3;
 export const CONFUSION_WORDS = 2;
 
 export interface Confusion {
-  /** What the form's answer is ("ta"). */
+  /**
+   * "answer": the same wrong answer for the same right one ("ten" for "ta"). "form": another form
+   * of each word for the one asked, whatever the words (the present subjunctive for the preterite).
+   */
+  kind: 'answer' | 'form';
+  /** What the form's answer is ("ta"), or for "form" the form asked ("preterite · yo"). */
   expected: string;
-  /** What was answered instead ("ten"). */
+  /** What was answered instead ("ten"), or for "form" the form it was ("present subjunctive · yo"). */
   given: string;
   misses: number;
   /** How many different words it happened on. */
@@ -273,22 +366,31 @@ export interface Confusion {
 }
 
 /**
- * The same wrong answer given for the same right one across several words ("ten" for "ta"): a
- * gap in the pattern, not in one word. Only practice that kept what was answered can show one.
+ * Gaps in a pattern rather than in one word, each seen CONFUSION_MISSES times across CONFUSION_WORDS
+ * or more words: the same wrong answer given for the same right one ("ten" for "ta"), or another of
+ * each word's forms given for the one asked (the present subjunctive for the preterite, whose
+ * answers differ from verb to verb), worked out from the words' forms as they are now. Only
+ * practice that kept what was answered can show one.
  */
 export function confusions(history: PracticeRecord[], words: PracticeWord[]): Confusion[] {
-  const expectedOf = new Map<string, string>();
-  for (const w of words) for (const f of w.forms) expectedOf.set(`${w.note.id}\u0000${f.key}`, f.answers[0]);
+  const formsOfNote = new Map(words.map((w) => [w.note.id, w.forms]));
   const found = new Map<string, Confusion & { notes: Set<string> }>();
-  for (const r of history) {
-    const expected = expectedOf.get(`${r.noteId}\u0000${r.key}`);
-    if (r.correct || !r.given || !expected || clean(r.given) === clean(expected)) continue;
-    const id = `${clean(expected)}\u0000${clean(r.given)}`;
-    const c = found.get(id) ?? { expected, given: r.given, misses: 0, words: 0, lastAt: r.practicedAt, notes: new Set<string>() };
+  const tally = (r: PracticeRecord, kind: Confusion['kind'], expected: string, given: string, id: string) => {
+    const key = `${kind}\u0000${id}`;
+    const c = found.get(key) ?? { kind, expected, given, misses: 0, words: 0, lastAt: r.practicedAt, notes: new Set<string>() };
     c.misses++;
     c.notes.add(r.noteId);
     if (r.practicedAt > c.lastAt) c.lastAt = r.practicedAt;
-    found.set(id, c);
+    found.set(key, c);
+  };
+  for (const r of history) {
+    const forms = formsOfNote.get(r.noteId);
+    const asked = forms?.find((f) => f.key === r.key);
+    if (r.correct || !r.given || !forms || !asked || asked.answers.some((a) => clean(a) === clean(r.given!))) continue;
+    const expected = asked.answers[0];
+    tally(r, 'answer', expected, r.given, `${clean(expected)}\u0000${clean(r.given)}`);
+    const other = givenForm(r.given, asked, forms);
+    if (other) tally(r, 'form', formName(asked), formName(other), `${formName(asked)}\u0000${formName(other)}`);
   }
   return [...found.values()]
     .map(({ notes, ...c }) => ({ ...c, words: notes.size }))
@@ -296,13 +398,20 @@ export function confusions(history: PracticeRecord[], words: PracticeWord[]): Co
     .sort((a, b) => b.misses - a.misses || b.lastAt.localeCompare(a.lastAt));
 }
 
-/** The right answers (cleaned) that practice keeps getting mixed up, for ranking forms whose answer is one of them. */
-export const confusedAnswers = (list: Confusion[]): Set<string> => new Set(list.map((c) => clean(c.expected)));
+/** Marks a form's name in `confusedAnswers`, so it can't be taken for an answer. */
+const CONFUSED_FORM = 'form\u0000';
 
-/** Ask order: still owed a run of right answers, then a form whose answer is often confused, then never asked, then asked. */
+/**
+ * What practice keeps getting mixed up, for ranking forms: the right answers (cleaned) of "answer"
+ * confusions, and the names of the forms asked in "form" ones.
+ */
+export const confusedAnswers = (list: Confusion[]): Set<string> =>
+  new Set(list.map((c) => (c.kind === 'form' ? CONFUSED_FORM + c.expected : clean(c.expected))));
+
+/** Ask order: still owed a run of right answers, then a form often confused, then never asked, then asked. */
 function askRank(f: WordForm, weak: Map<string, number>, asked: boolean, confused: Set<string>, practiced: boolean): number {
   if (weak.has(f.key)) return 0;
-  if (confused.has(clean(f.answers[0]))) return 1;
+  if (confused.has(clean(f.answers[0])) || confused.has(CONFUSED_FORM + formName(f))) return 1;
   if (practiced) return 2;
   return asked ? 4 : 3;
 }
@@ -374,7 +483,17 @@ export interface FormPrompt {
   grammar?: { id: string; name: string; note: string };
   /** The word's other forms that are spelled differently, with their names ("present · on"), to say which one a wrong answer was. */
   otherForms?: { text: string; name: string }[];
+  /** Every form key it stands for, when it's several asked as one (`mergeSentencePrompts`); else only `key`. */
+  keys?: string[];
+  /**
+   * The right answer read aloud after a miss, with the phone's voice for the note's language. Absent
+   * when the language isn't known, or for a gender asked as a word ("feminine"), which isn't in it.
+   */
+  say?: { text: string; lang: string };
 }
+
+/** The form keys a prompt's answer is logged under: one for each form it stands for. */
+export const promptKeys = (p: Pick<FormPrompt, 'key' | 'keys'>): string[] => p.keys ?? [p.key];
 
 const isLetter = (ch: string | undefined) => !!ch && /[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]/.test(ch);
 
@@ -415,7 +534,7 @@ export function promptFor(
     if (a && !right.has(clean(a)) && !wrong.some((w) => clean(w) === clean(a))) wrong.push(a);
   };
   if (form.key === 'field:Gender') {
-    for (const g of genderChoices(note)) offer(g);
+    for (const g of genderChoices(note, form)) offer(g);
   } else {
     const sameGroup = own.filter((f) => f.key !== form.key && f.group === form.group && !f.key.startsWith('field:'));
     const sameLabel = own.filter((f) => f.key !== form.key && f.label === form.label && !f.key.startsWith('field:'));
@@ -428,24 +547,66 @@ export function promptFor(
     }
   }
   const picked = wrong.slice(0, 3);
-  const word = headword(note);
-  const otherForms = form.key === 'field:Gender' ? [] : own
-    .filter((f) => f.key !== form.key && f.key !== 'field:Gender')
-    .flatMap((f) => f.answers.filter((a) => !right.has(clean(a))).map((text) => ({ text, name: f.group === f.label ? f.label : `${f.group} · ${f.label}` })));
+  const gender = form.key === 'field:Gender';
+  const word = gender ? genderHeadword(note) : headword(note);
+  // In the order `rivalForms` gives, so `formGiven` names the one a wrong answer most likely was.
+  const otherForms = rivalForms(form, own)
+    .flatMap((f) => f.answers.filter((a) => !right.has(clean(a))).map((text) => ({ text, name: formName(f) })));
   const point = formGrammar(note, form);
+  const lang = speechLangFor(note);
+  // A gender is read with its word ("la mesa"), since an article alone is hard to make out.
+  const spoken = gender ? (isGenderWord(form.answers[0]) ? undefined : `${form.answers[0]} ${word}`) : form.answers[0];
   return {
     noteId: note.id,
     key: form.key,
-    headword: form.key === 'field:Gender' ? withoutArticle(word) : word,
+    headword: word,
     meaning: htmlToText(isOmnilanguage(note) ? note.fields.Meaning ?? '' : Object.values(note.fields)[1] ?? '').replace(/\s+/g, ' ').trim(),
     label: form.label,
     group: form.group === form.label ? '' : form.group,
     answers: form.answers,
     ...(picked.length ? { choices: shuffle([form.answers[0], ...picked], random) } : {}),
-    ...(form.key === 'field:Gender' ? {} : { sentence: sentenceGap(note, form.answers) }),
+    ...(gender ? {} : { sentence: sentenceGap(note, form.answers) }),
     ...(point ? { grammar: { id: point.id, name: point.name, note: point.note } } : {}),
     ...(otherForms.length ? { otherForms } : {}),
+    ...(lang && spoken ? { say: { text: spoken, lang } } : {}),
   };
+}
+
+/**
+ * In a sentence, one word's prompts that would show the same sentence with the same gap and the
+ * same answers, as one prompt standing for each of them: "imperfect · yo" and "imperfect · él" on
+ * "Ella ___ el autobús." are asked once, as "yo / él", rather than twice with a subject the sentence
+ * contradicts. It takes the first one's place, and its answer is logged under every key it covers.
+ */
+export function mergeSentencePrompts(prompts: FormPrompt[]): FormPrompt[] {
+  const out: FormPrompt[] = [];
+  const merged = new Map<string, { at: number; forms: FormPrompt[] }>();
+  for (const p of prompts) {
+    if (!p.sentence) { out.push(p); continue; }
+    const answers = [...new Set(p.answers.map(clean))].sort().join('\u0001');
+    const id = [p.noteId, p.sentence.before, p.sentence.after, answers].join('\u0000');
+    const same = merged.get(id);
+    if (same) { same.forms.push(p); continue; }
+    merged.set(id, { at: out.length, forms: [p] });
+    out.push(p);
+  }
+  for (const { at, forms } of merged.values()) {
+    if (forms.length < 2) continue;
+    const [first, ...rest] = forms;
+    // Their group once when they share one ("imperfect", "yo / él"); else each form's whole name.
+    const oneGroup = rest.every((f) => f.group === first.group);
+    // The first's other forms and choices already leave the rest out, as they have the same answers.
+    const { grammar, ...prompt } = first;
+    out[at] = {
+      ...prompt,
+      label: forms.map((f) => (oneGroup ? f.label : [f.group, f.label].filter(Boolean).join(' · '))).join(' / '),
+      group: oneGroup ? first.group : '',
+      keys: forms.flatMap(promptKeys),
+      // A grammar point only when it's every form's.
+      ...(grammar && rest.every((f) => f.grammar?.id === grammar.id) ? { grammar } : {}),
+    };
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -700,7 +861,8 @@ export function studiedWords(deck: string, notes: Iterable<Note>, cards: Card[])
 
 /**
  * The prompts a drill asks, and what it says about Forms lines it couldn't read. "In a sentence"
- * keeps only forms that the word's example sentence holds.
+ * keeps only forms that the word's example sentence holds, one prompt for forms that would show
+ * the same gap with the same answer (`mergeSentencePrompts`).
  */
 export function drillPrompts(
   request: DrillRequest,
@@ -728,7 +890,7 @@ export function drillPrompts(
   const limit = request.limit ?? Number.POSITIVE_INFINITY;
   // "In a sentence" filters after choosing, so it picks from every form rather than the first few.
   const all = patternPrompts(words, choice, data.practice, data.dayStartsAtHour, request.sentence ? Number.POSITIVE_INFINITY : limit, random, pool, confused, practicing);
-  const prompts = request.sentence ? all.filter((p) => p.sentence).slice(0, limit) : all;
+  const prompts = request.sentence ? mergeSentencePrompts(all.filter((p) => p.sentence)).slice(0, limit) : all;
   const chosen = words.filter((w) => choice.patterns.includes(patternOf(w.note))).map((w) => w.note);
   return { prompts, notice: unreadableNotice(chosen) };
 }

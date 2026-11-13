@@ -1,7 +1,8 @@
+import * as Speech from 'expo-speech';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { againPrompts, checkAnswer, drillPrompts, formGiven, type DrillRequest, type FormPrompt, type PracticeRecord, type Verdict } from '../core/forms';
+import { againPrompts, checkAnswer, drillPrompts, formGiven, promptKeys, type DrillRequest, type FormPrompt, type PracticeRecord, type Verdict } from '../core/forms';
 import { failureText } from '../core/failure';
 import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
@@ -12,6 +13,7 @@ import { Reveal } from './motion';
 import { ProgressBar } from './Review';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
+import { usePhoneSpeech } from './usePhoneSpeech';
 
 export type AnswerMode = 'pick' | 'type';
 
@@ -19,8 +21,8 @@ interface Answered {
   prompt: FormPrompt;
   given: string;
   verdict: Verdict;
-  /** The row it was logged as, which counting an "almost" marks right. */
-  record: PracticeRecord;
+  /** The rows it was logged as, one for each form the prompt stands for, which counting an "almost" marks right. */
+  records: PracticeRecord[];
   /** "Almost" that the user chose to count. */
   counted: boolean;
 }
@@ -59,6 +61,8 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   const answeredIndex = useRef(-1);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loads, setLoads] = useState(0);
+  const speech = usePhoneSpeech(repo);
+  useEffect(() => () => { Speech.stop(); }, []);
 
   useEffect(() => {
     setLoadError(null);
@@ -80,10 +84,12 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   const current = answered.length > index ? answered[index] : undefined;
   const picking = mode === 'pick' && !!prompt?.choices;
 
+  // Under every form the prompt stands for (`promptKeys`), so each keeps its own history.
   const log = async (p: FormPrompt, correct: boolean, given: string) => {
-    const record: PracticeRecord = { noteId: p.noteId, key: p.key, correct, practicedAt: new Date().toISOString(), given };
-    await repo.addPractice(record);
-    return record;
+    const practicedAt = new Date().toISOString();
+    const records = promptKeys(p).map((key): PracticeRecord => ({ noteId: p.noteId, key, correct, practicedAt, given }));
+    for (const record of records) await repo.addPractice(record);
+    return records;
   };
 
   const answer = async (given: string, picked = false) => {
@@ -92,9 +98,11 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
     try {
       // A pick is the form or it isn't: a choice one accent away is another form, not a typo.
       const verdict: Verdict = picked ? (prompt.answers.includes(given) ? 'right' : 'wrong') : checkAnswer(given, prompt.answers, prompt.otherForms?.map((o) => o.text));
-      const record = await log(prompt, verdict === 'right', given);
+      const records = await log(prompt, verdict === 'right', given);
       if (verdict === 'right') haptic.success(); else haptic.select();
-      setAnswered((a) => [...a, { prompt, given, verdict, record, counted: false }]);
+      setAnswered((a) => [...a, { prompt, given, verdict, records, counted: false }]);
+      // The right form, heard once after a miss; nothing when the note's language isn't known.
+      if (verdict !== 'right' && prompt.say) { Speech.stop(); speech.sayWord(prompt.say.text, prompt.say.lang); }
       // `busy` clears before the answer is drawn: a tap in between mustn't log this prompt again.
       answeredIndex.current = index;
     } catch (e) {
@@ -109,7 +117,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
     if (!current || current.verdict !== 'almost' || current.counted || busy.current) return;
     busy.current = true;
     try {
-      await repo.countPractice(current.record);
+      for (const record of current.records) await repo.countPractice(record);
       haptic.success();
       setAnswered((a) => a.map((x, i) => (i === index ? { ...x, counted: true } : x)));
     } catch (e) {
