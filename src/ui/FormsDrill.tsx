@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { checkAnswer, drillPrompts, formGiven, type DrillRequest, type FormPrompt, type PracticeRecord, type Verdict } from '../core/forms';
+import { againPrompts, checkAnswer, drillPrompts, formGiven, type DrillRequest, type FormPrompt, type PracticeRecord, type Verdict } from '../core/forms';
 import { failureText } from '../core/failure';
 import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
@@ -63,10 +63,10 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   useEffect(() => {
     setLoadError(null);
     (async () => {
-      const [notes, cards, practice, saved, practicing] = await Promise.all([
-        repo.listNotes(), repo.listCards(), repo.listPractice(), repo.formsAnswerMode(), practicingPoints(readerApi),
+      const [notes, cards, practice, saved, practicing, { dayStartsAtHour }] = await Promise.all([
+        repo.listNotes(), repo.listCards(), repo.listPractice(), repo.formsAnswerMode(), practicingPoints(readerApi), repo.collectionSettings(),
       ]);
-      const built = drillPrompts(request, { notes, cards, practice, practicing });
+      const built = drillPrompts(request, { notes, cards, practice, dayStartsAtHour, practicing });
       setMode(typeOnly ? 'type' : saved);
       setNotice(built.notice);
       setPrompts(built.prompts);
@@ -130,8 +130,9 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   const switchMode = (m: AnswerMode) => { setMode(m); repo.saveFormsAnswerMode(m); };
 
   const missed = answered.filter((a) => !isRight(a));
+  // Its choices reshuffled: the summary just showed every answer, so the same places would give them away.
   const again = () => {
-    setPrompts(missed.map((a) => a.prompt));
+    setPrompts(againPrompts(missed.map((a) => a.prompt)));
     setAnswered([]);
     setIndex(0);
     answeredIndex.current = -1;

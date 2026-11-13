@@ -46,8 +46,11 @@ export interface PracticeStats {
 
 const DAY_MS = 86400000;
 
-/** The words in `deck` (and its subdecks) whose notes list forms, with the practice history of those words. */
-export function practiceStats(deck: string, notes: Iterable<Note>, history: PracticeRecord[], now: Date): PracticeStats {
+/**
+ * The words in `deck` (and its subdecks) whose notes list forms, with the practice history of those
+ * words. `dayStartsAtHour` is the collection's, for what `weakForms` counts as a same-day retry.
+ */
+export function practiceStats(deck: string, notes: Iterable<Note>, history: PracticeRecord[], now: Date, dayStartsAtHour: number): PracticeStats {
   const words: PracticeWord[] = practicePool(notes).filter((w) => isInDeck(w.note.deck, deck));
   const byNote = new Map<string, PracticeRecord[]>();
   for (const r of history) (byNote.get(r.noteId) ?? byNote.set(r.noteId, []).get(r.noteId)!).push(r);
@@ -61,7 +64,7 @@ export function practiceStats(deck: string, notes: Iterable<Note>, history: Prac
   for (const w of words) {
     const mine = (byNote.get(w.note.id) ?? []).sort((a, b) => a.practicedAt.localeCompare(b.practicedAt));
     if (!mine.length) continue;
-    const owed = weakForms(mine);
+    const owed = weakForms(mine, dayStartsAtHour);
     for (const f of w.forms) {
       const rows = mine.filter((r) => r.key === f.key);
       if (!rows.length) continue;
