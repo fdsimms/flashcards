@@ -477,7 +477,7 @@ export interface FormPrompt {
   answers: string[];
   /** For picking: the answer and up to three others, shuffled. Undefined: nothing to pick from, so it's typed. */
   choices?: string[];
-  /** The note's example sentence with the answer blanked out, when it holds the answer. */
+  /** The note's example sentence with the answer blanked out, when it holds the answer and, outside "In a sentence", no other form's (`sentenceFor`). */
   sentence?: { before: string; after: string; translation?: string };
   /** The grammar point the form is (docs/grammar.md), shown once the answer is. */
   grammar?: { id: string; name: string; note: string };
@@ -502,6 +502,11 @@ const isLetter = (ch: string | undefined) => !!ch && /[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]/.t
  * drill can ask for it in a sentence. Scripts without word spaces (Thai) match anywhere.
  */
 export function sentenceGap(note: Note, answers: string[]): FormPrompt['sentence'] {
+  return gapIn(note, answers)?.sentence;
+}
+
+/** `sentenceGap`, and the answer the gap took out of the sentence. */
+function gapIn(note: Note, answers: string[]): { sentence: NonNullable<FormPrompt['sentence']>; answer: string } | undefined {
   const text = htmlToText(note.fields.Context ?? '').replace(/\s+/g, ' ').trim();
   if (!text) return undefined;
   const lower = text.toLocaleLowerCase();
@@ -511,21 +516,40 @@ export function sentenceGap(note: Note, answers: string[]): FormPrompt['sentence
     for (let i = lower.indexOf(needle); i >= 0; i = lower.indexOf(needle, i + 1)) {
       if (isLetter(text[i - 1]) || isLetter(text[i + needle.length])) continue;
       const translation = htmlToText(note.fields.ContextTranslation ?? '').replace(/\s+/g, ' ').trim();
-      return { before: text.slice(0, i), after: text.slice(i + needle.length), ...(translation ? { translation } : {}) };
+      return { sentence: { before: text.slice(0, i), after: text.slice(i + needle.length), ...(translation ? { translation } : {}) }, answer: a };
     }
   }
   return undefined;
 }
 
 /**
+ * The example sentence a form's prompt shows, with the form blanked out. Not when the word in the
+ * gap is also another of the word's forms (esperaba is "imperfect · yo" and "imperfect · él"):
+ * "Ella ___ el autobús." under "yo" says the subject is yo in a sentence whose subject is Ella.
+ * The word's fields (plural, gender...) don't count. `inSentence` keeps it all the same: "In a
+ * sentence" asks such forms as one prompt naming each of them (`mergeSentencePrompts`), which
+ * finds them by this sentence.
+ */
+export function sentenceFor(note: Note, form: WordForm, forms: WordForm[], inSentence = false): FormPrompt['sentence'] {
+  if (form.key === 'field:Gender') return undefined;
+  const gap = gapIn(note, form.answers);
+  if (!gap || inSentence) return gap?.sentence;
+  const word = clean(gap.answer);
+  const shared = forms.some((f) => f.key !== form.key && !f.key.startsWith('field:') && f.answers.some((a) => clean(a) === word));
+  return shared ? undefined : gap.sentence;
+}
+
+/**
  * A prompt for one form. Wrong choices come from the word's own other forms first (so picking
  * means reading the ending), then the same form of other words in `pool` (same language).
+ * `inSentence` is for "In a sentence", which shows a sentence another form shares (`sentenceFor`).
  */
 export function promptFor(
   note: Note,
   form: WordForm,
   others: { note: Note; forms: WordForm[] }[],
   random: () => number = Math.random,
+  inSentence = false,
 ): FormPrompt {
   const own = formsOf(note).forms;
   const right = new Set(form.answers.map(clean));
@@ -565,7 +589,7 @@ export function promptFor(
     group: form.group === form.label ? '' : form.group,
     answers: form.answers,
     ...(picked.length ? { choices: shuffle([form.answers[0], ...picked], random) } : {}),
-    ...(gender ? {} : { sentence: sentenceGap(note, form.answers) }),
+    ...(gender ? {} : { sentence: sentenceFor(note, form, own, inSentence) }),
     ...(point ? { grammar: { id: point.id, name: point.name, note: point.note } } : {}),
     ...(otherForms.length ? { otherForms } : {}),
     ...(lang && spoken ? { say: { text: spoken, lang } } : {}),
@@ -577,6 +601,7 @@ export function promptFor(
  * same answers, as one prompt standing for each of them: "imperfect · yo" and "imperfect · él" on
  * "Ella ___ el autobús." are asked once, as "yo / él", rather than twice with a subject the sentence
  * contradicts. It takes the first one's place, and its answer is logged under every key it covers.
+ * It finds them by their sentences, so they have to be built with `inSentence` (`sentenceFor`).
  */
 export function mergeSentencePrompts(prompts: FormPrompt[]): FormPrompt[] {
   const out: FormPrompt[] = [];
@@ -809,6 +834,8 @@ export function patternPrompts(
   pool: PracticeWord[] = words,
   confused: Set<string> = new Set(),
   practicing: Set<string> = new Set(),
+  /** "In a sentence": keeps a sentence another form shares, for `mergeSentencePrompts` (`sentenceFor`). */
+  inSentence = false,
 ): FormPrompt[] {
   const chosen = words.filter((w) => choice.patterns.includes(patternOf(w.note)));
   const byNote = new Map<string, PracticeRecord[]>();
@@ -839,7 +866,7 @@ export function patternPrompts(
     const i = left.findIndex((c) => c.word.note.id !== prev);
     out.push(left.splice(i >= 0 ? i : 0, 1)[0]);
   }
-  return out.map((c) => promptFor(c.word.note, c.form, pool, random));
+  return out.map((c) => promptFor(c.word.note, c.form, pool, random, inSentence));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -889,7 +916,7 @@ export function drillPrompts(
   const choice = { patterns: request.patterns, groups: request.groups };
   const limit = request.limit ?? Number.POSITIVE_INFINITY;
   // "In a sentence" filters after choosing, so it picks from every form rather than the first few.
-  const all = patternPrompts(words, choice, data.practice, data.dayStartsAtHour, request.sentence ? Number.POSITIVE_INFINITY : limit, random, pool, confused, practicing);
+  const all = patternPrompts(words, choice, data.practice, data.dayStartsAtHour, request.sentence ? Number.POSITIVE_INFINITY : limit, random, pool, confused, practicing, request.sentence);
   const prompts = request.sentence ? mergeSentencePrompts(all.filter((p) => p.sentence)).slice(0, limit) : all;
   const chosen = words.filter((w) => choice.patterns.includes(patternOf(w.note))).map((w) => w.note);
   return { prompts, notice: unreadableNotice(chosen) };

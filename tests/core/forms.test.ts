@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   againPrompts, checkAnswer, chooseForms, formGiven, formGrammar, practicedGroups, practicedGroupsLine, confusedAnswers, confusions, weakForms, formsOf, formsSettings, formsSuggestion, headword, introductions, patternOf, patternPrompts,
-  practiceChoices, practicePool, promptFor, promptKeys, drillPrompts, mergeSentencePrompts, studiedWords, sentenceGap, unreadableNotice, withoutArticle, wordPrompts,
+  practiceChoices, practicePool, promptFor, promptKeys, drillPrompts, mergeSentencePrompts, studiedWords, sentenceFor, sentenceGap, unreadableNotice, withoutArticle, wordPrompts,
   type FormPrompt, type PracticeRecord, type WordForm,
 } from '../../src/core/forms';
 import { newSchedState } from '../../src/core/scheduler';
@@ -536,6 +536,32 @@ describe('drillPrompts', () => {
     expect([...promptKeys(prompts[0])].sort()).toEqual(['imperfect · yo', 'imperfect · él']);
     // A limit counts the prompts asked, not the forms they stand for.
     expect(drillPrompts({ ...request, limit: 1 }, { ...data, notes: [espera] }, seeded()).prompts).toHaveLength(1);
+  });
+  it("shows no sentence outside \"In a sentence\" for a form whose answer another form shares, but merged in it does", () => {
+    const espera = esperar({
+      Context: 'Ella esperaba el autobús.',
+      Forms: 'imperfect · yo: esperaba<br>imperfect · él: esperaba<br>imperfect · tú: esperabas',
+    });
+    const request = { kind: 'pattern' as const, deck: '👅 Languages', patterns: ['-ar, regular'], groups: ['imperfect'], sentence: false };
+    const picked = drillPrompts(request, { ...data, notes: [espera] }, seeded()).prompts;
+    expect(picked.map((p) => p.key).sort()).toEqual(['imperfect · tú', 'imperfect · yo', 'imperfect · él']);
+    expect(picked.every((p) => !p.sentence)).toBe(true);
+    const words = drillPrompts({ kind: 'words', noteIds: ['esperar'], perWord: 6 }, { ...data, notes: [espera] }, seeded()).prompts;
+    expect(words.filter((p) => p.key !== 'imperfect · tú').every((p) => !p.sentence)).toBe(true);
+    const [merged] = drillPrompts({ ...request, sentence: true }, { ...data, notes: [espera] }, seeded()).prompts;
+    expect(merged.sentence).toMatchObject({ before: 'Ella ', after: ' el autobús.' });
+    expect([...promptKeys(merged)].sort()).toEqual(['imperfect · yo', 'imperfect · él']);
+  });
+  it('keeps the sentence for a form no other form shares, and ignores fields', () => {
+    const note = esperar({ Context: 'Ella esperaba el autobús.', Forms: 'imperfect · él: esperaba<br>imperfect · tú: esperabas', Plural: 'esperaba' });
+    const { forms } = formsOf(note);
+    const el = forms.find((f) => f.key === 'imperfect · él')!;
+    expect(sentenceFor(note, el, forms)).toMatchObject({ before: 'Ella ', after: ' el autobús.' });
+    expect(promptFor(note, el, [], seeded()).sentence).toMatchObject({ before: 'Ella ' });
+    // Shared only by an alternative that isn't the word in the gap: the gap still says which form it is.
+    const subj = esperar({ Context: 'Ojalá esperase.', Forms: 'imperfect subjunctive · yo: esperara / esperase<br>imperfect subjunctive · nosotros: esperáramos<br>past · x: esperara' });
+    const yo = formsOf(subj).forms[0];
+    expect(sentenceFor(subj, yo, formsOf(subj).forms)).toMatchObject({ before: 'Ojalá ', after: '.' });
   });
   it('names each form in full when the forms merged are of different groups, and leaves other words alone', () => {
     const p = (noteId: string, key: string, answers: string[]): FormPrompt => {

@@ -59,6 +59,10 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   // Set while an answer is being written: a second tap must not answer the same prompt twice.
   const busy = useRef(false);
   const answeredIndex = useRef(-1);
+  // The rows already written for the prompt on screen: a save that fails partway, then answered
+  // again, writes only the forms it hadn't reached, rather than the first ones twice. Above the
+  // early return below, as every hook must be.
+  const written = useRef<{ prompt?: FormPrompt; rows: Map<string, PracticeRecord> }>({ rows: new Map() });
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loads, setLoads] = useState(0);
   const speech = usePhoneSpeech(repo);
@@ -83,10 +87,6 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   const prompt = prompts[index];
   const current = answered.length > index ? answered[index] : undefined;
   const picking = mode === 'pick' && !!prompt?.choices;
-
-  // The rows already written for the prompt on screen: a save that fails partway, then answered
-  // again, writes only the forms it hadn't reached, rather than the first ones twice.
-  const written = useRef<{ prompt?: FormPrompt; rows: Map<string, PracticeRecord> }>({ rows: new Map() });
 
   // Under every form the prompt stands for (`promptKeys`), so each keeps its own history.
   const log = async (p: FormPrompt, correct: boolean, given: string) => {
