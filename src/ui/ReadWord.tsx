@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View, type GestureResponderEvent, type ViewInstance } from 'react-native';
 import type { TextGrammar, Word } from '../reader/api';
 import type { ReadFont } from '../reader/fonts';
 import type { HideableMark } from '../reader/marks';
@@ -44,7 +44,7 @@ function PhraseOutline({ part }: { part: PhrasePart }) {
 
 export type ReadTextStyle = { fontSize: number; lineHeight: number; font: ReadFont };
 
-export function WordView({ word, grammar, textStyle, flagged, highlighted, named, selected, hidden = [], phrasePart = null, phraseStart = false, dimmed = false, playing = false, spoken = false, onPress }: {
+export function WordView({ word, grammar, textStyle, flagged, highlighted, named, selected, hidden = [], phrasePart = null, phraseStart = false, dimmed = false, playing = false, spoken = false, onPress, onLongPress, viewRef }: {
   word: Word;
   grammar: TextGrammar | null;
   textStyle: ReadTextStyle;
@@ -66,6 +66,10 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
   /** Being spoken now, as the line plays (useSpokenWords). */
   spoken?: boolean;
   onPress: (word: Word, x: number, y: number) => void;
+  /** Held: starts selecting a phrase by dragging (usePhraseDrag). */
+  onLongPress?: (word: Word, e: GestureResponderEvent) => void;
+  /** The word's view, measured when a phrase is dragged. */
+  viewRef?: (v: ViewInstance | null) => void;
 }) {
   const c = useTheme();
   if (word.status === null) {
@@ -98,7 +102,10 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
   const band = ringed || phrasePart ? null : spoken ? c.spoken : highlighted ? c.highlight : named ? c.nameFill : null;
   return (
     <Pressable
+      ref={viewRef}
       onPress={(e) => onPress(word, e.nativeEvent.pageX, e.nativeEvent.pageY)}
+      onLongPress={onLongPress ? (e) => onLongPress(word, e) : undefined}
+      delayLongPress={350}
       accessibilityRole="button"
       accessibilityLabel={[word.text, word.stretch && 'practice word', grammar && grammar.name, highlighted && 'not in your deck', named && 'name', flagged && 'marked unknown']
         .filter(Boolean).join(', ')}
