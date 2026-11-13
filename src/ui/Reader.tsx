@@ -31,6 +31,8 @@ import { ReaderKey } from './ReaderKey';
 import { WordActionGroup, WordActionRow, WordPlayButton } from './ReadWordActions';
 import { Speaker, speakerSize } from './ReadSpeaker';
 import { useSpokenWords } from './useSpokenWords';
+import { RecordYourself } from './RecordYourself';
+import { useSelfRecording, type SelfRecording } from './useSelfRecording';
 import { Button, Card, Chip, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { lift, MIN_TAP, radius, space, type, useTheme } from './theme';
 
@@ -98,6 +100,9 @@ export type ReaderSource =
 
 type UpNext = { id: number; title: string; lines: number; order: number[] };
 
+/** Listening goes on with the screen locked or in another app, while the reader is open. */
+const READER_AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: true };
+
 export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, onDone, onOpenGrammar, mining }: {
   api: Api;
   source: ReaderSource;
@@ -156,13 +161,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const loadId = useRef(0);
   useEffect(() => () => { mounted.current = false; }, []);
 
-  // Listening goes on with the screen locked or in another app, while the reader is open. Review's
-  // card audio doesn't need it, so it's turned off again on the way out.
-  useEffect(() => {
-    setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true }).catch(() => undefined);
-    return () => { setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false }).catch(() => undefined); };
-  }, []);
-
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
   const status = useAudioPlayerStatus(player);
   const [current, setCurrent] = useState<number | null>(null);
@@ -172,6 +170,19 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   // two lines of Play all the player is briefly not playing, so that gap keeps the shade too.
   const shaded = status.playing || status.isBuffering || (playingAll && status.didJustFinish) ? current : null;
   const [rate, setRate] = useState(prefs().rate);
+  // Record yourself, for shadowing: a take of the line that's playing or last played.
+  const self = useSelfRecording(text && current !== null ? `${text.id}:${current}` : null, READER_AUDIO_MODE, {
+    onBeforeAudio: () => player.pause(),
+  });
+
+  // READER_AUDIO_MODE while the reader is open. Review's card audio doesn't need background
+  // playback, so it's turned off again on the way out. Declared after Record yourself, so this
+  // cleanup runs after the one that puts the reader's mode back when it closes mid-take.
+  useEffect(() => {
+    setAudioModeAsync(READER_AUDIO_MODE).catch(() => undefined);
+    return () => { setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false }).catch(() => undefined); };
+  }, []);
+
   const [silentLine, setSilentLine] = useState<number | null>(null);
   // Plays per line (1 is off, Infinity is until turned off) and how many the current line has had in this round.
   const [repeat, setRepeat] = useState<number>(1);
@@ -213,6 +224,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
 
   const playLine = (i: number, all: boolean) => {
     if (!text) return;
+    self.stop(false);
+    self.stopTake();
     setSilentLine(null);
     player.replace(api.audioSource(text.id, i));
     player.setPlaybackRate(rate, 'high');
@@ -232,6 +245,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
 
   const togglePlay = () => {
     if (!text) return;
+    self.stop(false);
+    self.stopTake();
     if (status.playing) player.pause();
     else if (current !== null && !status.didJustFinish && status.currentTime < status.duration) {
       player.setPlaybackRate(rate, 'high');
@@ -607,7 +622,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           ) : null}
           {hasAudio ? (
             <PlayerBar playing={status.playing} current={current} total={text.lines.length} what={text.form === 'story' ? 'story' : 'dialogue'} skippable={paras !== null} onSkip={skip}
-              rate={rate} repeat={repeat} played={played} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={() => { setRepeat((r) => nextRepeatCount(r)); setPlayed(1); }} />
+              rate={rate} repeat={repeat} played={played} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={() => { setRepeat((r) => nextRepeatCount(r)); setPlayed(1); }}
+              rec={current !== null ? self : null} />
           ) : <Help>No audio for this text.</Help>}
         </>
       ) : undefined}
@@ -1132,7 +1148,7 @@ export function GlossPopover({ tapped, translitLabel, grammar, api, grammarChose
   );
 }
 
-function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, repeat, played, silentLine, onToggle, onRate, onRepeat }: {
+function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, repeat, played, silentLine, onToggle, onRate, onRepeat, rec }: {
   playing: boolean;
   current: number | null;
   total: number;
@@ -1149,6 +1165,8 @@ function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, rep
   onToggle: () => void;
   onRate: (rate: number) => void;
   onRepeat: () => void;
+  /** Record yourself, once a line has played. */
+  rec: SelfRecording | null;
 }) {
   const c = useTheme();
   const repeating = repeat > 1;
@@ -1198,11 +1216,15 @@ function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, rep
             {play}
             <SkipButton icon="forward.end.fill" label="Next line" onPress={() => onSkip(1)} />
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>{label}{chip}</View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>{label}</View>
         </>
       ) : (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>{play}{label}{chip}</View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>{play}{label}</View>
       )}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
+        {chip}
+        {rec && current !== null ? <RecordYourself rec={rec} label={`Record line ${current + 1}`} size="player" /> : null}
+      </View>
       <Segments options={RATES.map((r) => ({ value: r, label: `${r.toFixed(1)}×`, accessibilityLabel: `Speed ${r}` }))} value={rate} onChange={onRate} />
     </View>
   );

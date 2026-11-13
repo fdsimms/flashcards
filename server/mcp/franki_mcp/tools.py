@@ -10,6 +10,7 @@ error naming what to change, never as a silent skip.
 from __future__ import annotations
 
 import base64
+import os
 import re
 import time
 from datetime import date, datetime, timedelta
@@ -26,10 +27,22 @@ from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 
 from .collection import CollectionManager
-from .speech import SpeechClient, SpeechError, audio_filename, locale_of
+from .speech import (
+    TARGET_LUFS,
+    TOLERANCE_LU,
+    LoudnessError,
+    SpeechClient,
+    SpeechError,
+    audio_filename,
+    leveled_filename,
+    locale_of,
+    measure_loudness,
+    normalize_loudness,
+)
 
 MAX_NOTES_PER_CALL = 100
 MAX_AUDIO_NOTES_PER_CALL = 10
+MAX_LEVEL_NOTES_PER_CALL = 20
 FILTER_ORDERS = {name.lower(): value for name, value in DeckProto.Filtered.SearchTerm.Order.items()}
 SOUND = re.compile(r"\[sound:[^\]]*\]")
 MATURE_DAYS = 21
@@ -212,7 +225,8 @@ reaches their devices at their next sync.
   calling update_notes or add_tts_audio. Only after they approve, and once the fix is made, call
   resolve_flag to clear the flag. Leave a flag in place when the user declines or you're unsure.
 - Audio: add_tts_audio records a field's text with an Azure voice into another field (list_voices
-  names them). Try preview=true first when the text needs cleaning up (replacements, text_overrides).
+  names them), leveled to one loudness. normalize_audio does the same for audio a note already has
+  (preview first: it measures each file and changes nothing). Try preview=true first when the text needs cleaning up (replacements, text_overrides).
 - FSRS settings and limits belong to a deck's options preset, which several decks can share:
   say which decks a change affects before making it.
 - add_field makes every device download the whole collection: ask the user to sync every device
@@ -974,7 +988,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         preview: bool = False,
     ) -> dict[str, Any]:
         """Records audio for notes (up to 10 a call) with an Azure voice and puts it in a field as
-        [sound:...], for Anki, AnkiMobile and Franki to play.
+        [sound:...], for Anki, AnkiMobile and Franki to play. Each recording is leveled to the same
+        loudness, so cards don't play louder or quieter than one another.
         - The text is `source_fields`' text (formatting and media left out) joined by `join`, then
           each `replacements` find/replace in order; `text_overrides` (note id to text) replaces it
           outright for the notes named.
@@ -1031,6 +1046,12 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 audio[p["note_id"]] = await client.synthesize(p["text"], voice, rate)
             except SpeechError as e:
                 p["error"] = str(e)
+                continue
+            try:
+                audio[p["note_id"]] = await normalize_loudness(audio[p["note_id"]])
+            except LoudnessError as e:
+                # Saved as Azure made it, and said so: a recording at its own level beats none.
+                p["warning"] = f"Saved without leveling its loudness: {e}"
         if not audio:
             return {"added": 0, "results": plans}
 
@@ -1056,3 +1077,90 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
 
         results = await cm.write(save, media=True)
         return {"added": sum(1 for r in results if "audio" in r), "results": results}
+
+    @server.tool(annotations=WRITE)
+    async def normalize_audio(
+        note_ids: list[int],
+        field: str | None = None,
+        preview: bool = False,
+    ) -> dict[str, Any]:
+        """Levels the loudness of audio notes already have (up to 20 notes a call), so cards don't
+        play louder or quieter than one another. Each [sound:...] file in `field` (every field when
+        omitted) is measured; one more than 1 LU from the target (-16 LUFS) is replaced in the note
+        by a leveled MP3 copy, and one close enough is left alone. The old file stays in the media
+        folder (other notes may use it); delete_media removes it once nothing does.
+        - `preview` measures each file and reports what would change, changing nothing.
+        """
+        if len(note_ids) > MAX_LEVEL_NOTES_PER_CALL:
+            raise ToolError(f"Up to {MAX_LEVEL_NOTES_PER_CALL} notes a call; send the rest in another.")
+
+        def gather(col: Collection) -> list[dict[str, Any]]:
+            out: list[dict[str, Any]] = []
+            media = col.media.dir()
+            for nid in note_ids:
+                try:
+                    note = _get_note(col, nid)
+                    if field is not None:
+                        _check_fields(note.note_type(), {field: ""})
+                except ToolError as e:
+                    out.append({"note_id": nid, "error": str(e)})
+                    continue
+                found = False
+                for f in [field] if field is not None else note.keys():
+                    for name in dict.fromkeys(m[len("[sound:"):-1] for m in SOUND.findall(note[f])):
+                        found = True
+                        path = os.path.join(media, name)
+                        entry: dict[str, Any] = {"note_id": nid, "field": f, "file": name}
+                        if not os.path.isfile(path):
+                            entry["error"] = "The file isn't in the media folder."
+                        else:
+                            with open(path, "rb") as fh:
+                                entry["data"] = fh.read()
+                        out.append(entry)
+                if not found:
+                    out.append({"note_id": nid, "error": "The note has no audio" + (f" in {field}." if field else ".")})
+            return out
+
+        items = await cm.read(gather)
+        for it in items:
+            data = it.pop("data", None)
+            if data is None:
+                continue
+            try:
+                lufs = await measure_loudness(data)
+                if lufs is None:
+                    it["status"] = "skipped: nothing to measure (silent or too short)"
+                    continue
+                it["loudness_lufs"] = round(lufs, 1)
+                if abs(lufs - TARGET_LUFS) <= TOLERANCE_LU:
+                    it["status"] = "already at the target level"
+                elif preview:
+                    it["status"] = "would be leveled"
+                else:
+                    rate = 24000 if it["file"].startswith("franki-tts-") else 44100
+                    it["leveled"] = await normalize_loudness(data, sample_rate=rate)
+                    it["new_file"] = leveled_filename(data)
+            except LoudnessError as e:
+                it["error"] = str(e)
+        if preview or not any("leveled" in it for it in items):
+            return {"changed": 0, "results": [{k: v for k, v in it.items() if k != "leveled"} for it in items]}
+
+        def save(col: Collection) -> list[dict[str, Any]]:
+            for it in items:
+                if "leveled" not in it:
+                    continue
+                note = _get_note(col, it["note_id"])
+                old = f"[sound:{it['file']}]"
+                if old not in note[it["field"]]:
+                    it["error"] = "The note changed while the audio was being leveled. Nothing was saved; try it again."
+                    continue
+                name = col.media.write_data(it["new_file"], it.pop("leveled"))
+                note[it["field"]] = note[it["field"]].replace(old, f"[sound:{name}]")
+                col.update_note(note)
+                it["new_file"], it["status"] = name, "leveled"
+            return items
+
+        results = await cm.write(save, media=True)
+        for it in results:
+            it.pop("leveled", None)
+        return {"changed": sum(1 for r in results if r.get("status") == "leveled"), "results": results}

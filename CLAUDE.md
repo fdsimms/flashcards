@@ -195,9 +195,12 @@ the review. `MemoryRepo` is the reference implementation and must behave like th
 
 **Audio plays with the silent switch on** (`setAudioModeAsync({ playsInSilentMode: true })` in
 `src/ui/AppContext.tsx`): iOS otherwise mutes an app's recordings, TTS and WebView audio alike, which made every
-play button look broken. `expo-audio`'s config plugin adds no microphone permission (Franki never
-records) but does allow background audio, which only Read & Listen's reader turns on, while it's
-open (`shouldPlayInBackground`), so listening goes on with the screen locked.
+play button look broken. `expo-audio`'s config plugin asks for the microphone only for Record
+yourself (`useSelfRecording`): a take of your own voice to play next to a card's or a line's
+recording, kept in the caches folder until you move on and never saved, synced or sent. The session
+allows recording only while a take is made, since iOS's play-and-record category puts Bluetooth
+headphones into call quality. The plugin also allows background audio, which only Read & Listen's
+reader turns on, while it's open (`shouldPlayInBackground`), so listening goes on with the screen locked.
 
 **Everything stays on the device, except sync, Read & Listen and WaniKani.** TTS is `expo-speech` (on-device
 voices, chosen per language in Settings, Voices) and storage is local SQLite. The network calls are
