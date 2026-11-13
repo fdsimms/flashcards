@@ -92,3 +92,26 @@ def test_an_english_pairing_needs_the_phrase_in_the_deck() -> None:
     assert (
         en_words("She looks it up.", [Entry(3, "look", "to look", "mature")])["up"]["lemma"] is None
     )
+
+
+NB = [Entry(1, "å slå opp", "to look up", "mature"), Entry(2, "å skru av", "to turn off", "mature")]
+
+
+def nb_words(sentence: str, entries: list[Entry] = NB) -> dict[str, dict[str, Any]]:
+    meanings = {e.text: e.meaning for e in entries}
+    out = render_sentence(sentence, lexicon_from(entries, "nb", common=0), meanings, {})
+    return {w["text"]: w for w in out if w["text"].strip()}
+
+
+def test_a_norwegian_phrasal_verb_is_joined_across_a_pronoun_or_a_definite_noun() -> None:
+    for sentence, verb, particle in [
+        ("Hun slår det opp.", "slår", "opp"),
+        ("Han skrur lyset av.", "skrur", "av"),
+        ("Han skrur den gamle lampen av.", "skrur", "av"),
+    ]:
+        w = nb_words(sentence)
+        assert w[verb]["lemma"] == w[particle]["lemma"] and w[verb]["lemma"].startswith("å ")
+
+
+def test_a_norwegian_particle_that_begins_another_phrase_is_not_joined() -> None:
+    assert nb_words("Hun slår på bordet opp.")["slår"]["lemma"] != "å slå opp"

@@ -5,13 +5,14 @@ segmenter only joins a phrase whose words are next to each other.
 
 German: a particle that ends its clause is joined to the nearest word before it in that clause whose
 dictionary form with the particle in front is a studied deck entry (an + schauen = anschauen).
-English: a particle after a short object (a pronoun, or a determiner and up to two more words) is
+English and Norwegian: a particle after a short object (a pronoun, or a determiner and up to two more words) is
 joined to the verb before the object when "verb particle" is a studied deck phrase.
 
 Only a verb that is really in the deck is joined, so no pairing is guessed: a line that has no such
 entry is left as segmented. Both words then show the entry's dictionary form and meaning, and a
 practice word is marked on both, as a reflexive verb's pronoun is (reader.mark_reflexive_pronouns)."""
 
+from dataclasses import dataclass
 from typing import Any
 
 from franki_reader.coverage import Checker, is_word
@@ -43,8 +44,8 @@ def join_split_verbs(
 ) -> None:
     """Join each split verb in `words` (a line's words as `reader.word_out` made them) in place."""
     code = getattr(lexicon, "code", "")
-    if code == "en":
-        _join_phrasal_verbs(words, lexicon, meanings, deck_translits, stretch)
+    if phrasal := _PHRASAL.get(code):
+        _join_phrasal_verbs(words, lexicon, meanings, deck_translits, stretch, phrasal)
     if code != "de":
         return
     for at, particle in enumerate(words):
@@ -78,33 +79,44 @@ def _join(
             word["status"] = "known"
 
 
-# English particles of a phrasal verb, and the words that begin an object between verb and particle.
-_EN_PARTICLES = frozenset(
-    {"up", "down", "out", "off", "on", "in", "over", "away", "back", "around", "through", "along"}
-    | {"apart", "together", "aside", "ahead"}
-)
-_EN_PRONOUNS = frozenset(
-    {"it", "them", "him", "her", "me", "us", "you", "this", "that", "these", "those"}
-)
-_EN_DETERMINERS = frozenset(
-    {
-        "the",
-        "a",
-        "an",
-        "my",
-        "your",
-        "his",
-        "her",
-        "its",
-        "our",
-        "their",
-        "this",
-        "that",
-        "these",
-        "those",
-    }
-)
-_EN_OBJECT_MAX = 3  # a determiner and up to two more words (the old red lamp)
+@dataclass(frozen=True)
+class _Phrasal:
+    """What a language's phrasal verbs are made of: the particles, the pronouns that can be the
+    object alone, the words that begin a longer object (the old lamp), and, where the article is
+    an ending (Norwegian lyset), the endings of a one-word object."""
+
+    particles: frozenset[str]
+    pronouns: frozenset[str]
+    determiners: frozenset[str]
+    definite_endings: tuple[str, ...] = ()
+
+
+_PHRASAL = {
+    "en": _Phrasal(
+        particles=frozenset(
+            {"up", "down", "out", "off", "on", "in", "over", "away", "back", "around", "through"}
+            | {"along", "apart", "together", "aside", "ahead"}
+        ),
+        pronouns=frozenset({"it", "them", "him", "her", "me", "us", "you", "this", "that"})
+        | {"these", "those"},
+        determiners=frozenset({"the", "a", "an", "my", "your", "his", "her", "its", "our", "their"})
+        | {"this", "that", "these", "those"},
+    ),
+    "nb": _Phrasal(
+        particles=frozenset(
+            {"opp", "ned", "ut", "inn", "av", "på", "over", "bort", "fram", "frem", "igjen", "med"}
+            | {"til", "tilbake", "sammen", "fra", "om", "etter", "løs", "fast", "rundt", "forbi"}
+            | {"gjennom", "hjem"}
+        ),
+        pronouns=frozenset({"det", "den", "dem", "ham", "henne", "meg", "deg", "oss", "dere"})
+        | {"denne", "dette", "disse"},
+        determiners=frozenset({"den", "det", "de", "en", "ei", "et", "min", "mi", "mitt", "mine"})
+        | {"din", "di", "ditt", "dine", "hans", "hennes", "vår", "vårt", "våre", "deres"}
+        | {"denne", "dette", "disse"},
+        definite_endings=("et", "en", "a", "ene", "ne"),
+    ),
+}
+_OBJECT_MAX = 3  # a determiner and up to two more words (the old red lamp)
 
 
 def _join_phrasal_verbs(
@@ -113,18 +125,18 @@ def _join_phrasal_verbs(
     meanings: dict[str, str],
     deck_translits: dict[str, str],
     stretch: set[str],
+    rules: _Phrasal,
 ) -> None:
     """Join a verb to a particle that has a short object between them ("looks it up"). A verb and
     particle that sit together are already one token (the deck phrase), so those aren't touched."""
     for at, particle in enumerate(words):
         text = particle["text"].lower()
-        if text not in _EN_PARTICLES:
+        if text not in rules.particles:
             continue
         before = _clause_words_before(words, at)
-        for gap in range(1, _EN_OBJECT_MAX + 1):
-            if len(before) <= gap or not _is_object(
-                [words[i]["text"].lower() for i in before[:gap][::-1]]
-            ):
+        for gap in range(1, _OBJECT_MAX + 1):
+            between = [words[i]["text"].lower() for i in before[:gap][::-1]]
+            if len(before) <= gap or not _is_object(between, rules):
                 continue
             verb = words[before[gap]]
             if " " in verb["text"].strip():
@@ -135,11 +147,12 @@ def _join_phrasal_verbs(
                 break
 
 
-def _is_object(gap: list[str]) -> bool:
-    """A pronoun, or a determiner and then words, as the thing a phrasal verb is done to."""
+def _is_object(gap: list[str], rules: _Phrasal) -> bool:
+    """A pronoun, a definite noun where that's an ending, or a determiner and then words, as the
+    thing a phrasal verb is done to."""
     if len(gap) == 1:
-        return gap[0] in _EN_PRONOUNS
-    return gap[0] in _EN_DETERMINERS
+        return gap[0] in rules.pronouns or gap[0].endswith(rules.definite_endings)
+    return gap[0] in rules.determiners
 
 
 def _ends_clause(words: list[dict[str, Any]], at: int) -> bool:
