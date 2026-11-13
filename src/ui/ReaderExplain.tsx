@@ -51,7 +51,7 @@ export function LineExplanation({ api, textId, line, grammarChosen, onGrammarCho
   return (
     <View
       accessibilityLabel={`Explanation of line ${line + 1}`}
-      style={{ marginTop: space.s, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.m, padding: space.m, gap: space.s }}
+      style={{ marginTop: space.m, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.m, padding: space.m, gap: space.s }}
     >
       {error ? (
         <ErrorNote message={error} onRetry={() => load(simple)} />
@@ -73,7 +73,7 @@ export function LineExplanation({ api, textId, line, grammarChosen, onGrammarCho
               onPress={() => { haptic.tap(); load(true); }}
               accessibilityRole="button"
               accessibilityLabel="Explain more simply"
-              style={{ alignSelf: 'flex-start', backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.s }}
+              style={{ alignSelf: 'flex-start', marginTop: space.xs, backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.s }}
             >
               <Text style={{ ...type.footnote, color: c.text }}>Explain more simply</Text>
             </Tappable>
