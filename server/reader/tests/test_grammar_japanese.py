@@ -68,3 +68,16 @@ def test_matches_line_up_with_the_readers_words() -> None:
     assert words("ご飯を食べている。", LEXICON) == ["ご飯", "を", "食べて", "いる"]
     found_in = find_in_lines(["ご飯|を|食べて|いる。"], LEXICON, ("ja.te_iru",))
     assert found_in == {"ja.te_iru": ["食べている"]}
+
+
+def test_masu_and_the_past_read_as_known_until_the_owner_chooses() -> None:
+    from franki_reader import store
+    from franki_reader.exposure import unset_points
+
+    conn = store.connect(":memory:")
+    choices = store.load_grammar(conn)
+    assert choices["ja.masu"] == "normal" and choices["ja.past"] == "normal"
+    assert "ja.masu" not in unset_points(choices, "ja")
+    assert "ja.te_iru" in unset_points(choices, "ja")
+    store.set_grammar(conn, "ja.past", "practice")
+    assert store.load_grammar(conn)["ja.past"] == "practice"

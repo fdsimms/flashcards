@@ -10,6 +10,7 @@ from datetime import date, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Any, Literal
 
+from franki_reader import grammar
 from franki_reader.difficulty import Difficulty
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Choice, Form, Generated, Line
@@ -1334,9 +1335,12 @@ def load_grammar(conn: sqlite3.Connection) -> dict[str, GrammarState]:
     """The owner's grammar choices for every language, by point id. A point that isn't listed is
     not set: allowed a little, and never worked in on purpose (docs/read-and-listen/architecture.md,
     Grammar). Before 12 November 2026 normal ("Know it") wasn't stored either, so a point the owner
-    set to it then reads as not set."""
+    set to it then reads as not set. A point the catalog marks `known` reads as Know it until the
+    owner chooses otherwise."""
     raw = _get_meta(conn, "grammar")
-    return json.loads(raw) if raw else {}
+    chosen: dict[str, GrammarState] = json.loads(raw) if raw else {}
+    defaults: dict[str, GrammarState] = {p.id: "normal" for p in grammar.POINTS.values() if p.known}
+    return {**defaults, **chosen}
 
 
 def set_grammar(conn: sqlite3.Connection, point_id: str, state: GrammarState) -> None:

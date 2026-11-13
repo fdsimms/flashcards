@@ -571,6 +571,7 @@
       "language": "ja",
       "name": "Polite ます form",
       "note": "Polite verbs: 行きます, 食べました, 飲みません",
+      "known": true,
       "explanation": "Adding **ます** to a verb's stem makes it polite, the way you talk to strangers, colleagues and shop staff: **行きます**, \"I go\" or \"I'll go\". Friends and family use the plain form instead (**行く**).\n\nIt has its own past and negative: **行きました** (went), **行きません** (don't go), **行きませんでした** (didn't go). **行きましょう** is \"let's go\".\n\nThe stem is the form before ます: **食べる** gives **食べます**, **飲む** gives **飲みます**, and the two irregular verbs give **します** (する) and **来ます** (来る).",
       "related": [
         "ja.past",
@@ -582,6 +583,7 @@
       "language": "ja",
       "name": "Past tense",
       "note": "Finished events: 行った, 食べた, 高かった",
+      "known": true,
       "explanation": "The past ends in **た** (or **だ** after some verbs): **食べた**, \"ate\"; **読んだ**, \"read\". The polite past is **ました**: **食べました**.\n\nIt's formed like the て form, with た in place of て: **行って** becomes **行った**, **書いて** becomes **書いた**, **飲んで** becomes **飲んだ**.\n\nAdjectives take it too: **高い** becomes **高かった**, \"was expensive\". After a noun or a な adjective it's **だった** (plain) or **でした** (polite): **静かだった**, \"it was quiet\".",
       "related": [
         "ja.masu",

@@ -359,8 +359,9 @@ rather than `Transliteration` (`Language.translit_field`).
   conditionals, the causative, てしまう, keigo) are found from Sudachi's morphemes in
   `grammar_japanese.py`: the auxiliary ます, た by its normalized form (読んだ's だ is た), the
   volitional by its conjugation form. The potential and the passive share られる, so neither is a
-  point. Like every language's, points not set are capped at two uses a text, and ます and the
-  past are in almost every Japanese line, so marking those two Know it lets texts read naturally.
+  point. ます and the past are in almost every Japanese line, so the cap on points not set would
+  keep them out of texts: both read as Know it until the owner chooses otherwise (the catalog's
+  `known`, the owner's decision).
 - **Practice** (`src/tools/japanese/`): telling the time, dates and money, each answer in kanji
   with its reading in hiragana where the other languages show a romanization. The counters' sound
   changes are worked out in `numbers.ts` (四時 よじ, 六分 ろっぷん, 一日 ついたち, 四円 よえん). A
