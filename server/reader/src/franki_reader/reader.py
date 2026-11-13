@@ -182,4 +182,7 @@ def render(
             {"english": c.english, "words": render_words(c.text, {})} for c in text.choices
         ],
         "chosen": text.chosen,
+        # Questions about what happens, for the check after reading (comprehension.py): each in the
+        # text's language with its English, the line that answers it (from 0), and the right choice.
+        "questions": [q.as_json() for q in text.questions],
     }

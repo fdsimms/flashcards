@@ -17,6 +17,7 @@ import { minutesFor, nextInOrder, playOrder, stepLength, type LengthStep } from 
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
 import { locate, phrasePart, phraseText, pickEnd, type PhrasePick } from '../reader/phrase';
 import { choicesView, holdsPlayAll } from '../reader/choices';
+import { buildCheck, checkScore, type CheckPicks, type CheckQuestion } from '../reader/check';
 import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
@@ -25,6 +26,7 @@ import { LineExplanation } from './ReaderExplain';
 import { RegisterChip } from './ReaderNatural';
 import { PhraseExplanation, PhrasePickBanner, type PhraseMining } from './ReaderPhrase';
 import { ReadChoices } from './ReadChoices';
+import { CheckCard, ReaderCheck } from './ReaderCheck';
 import { usePhraseDrag } from './usePhraseDrag';
 import { ReadGrammarNote } from './ReadGrammarNote';
 import { PracticeWordPill, TintPill } from './PracticeWordPill';
@@ -145,6 +147,11 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const chooseGrammar = (id: string, state: GrammarChoice) => setGrammarChosen((prev) => ({ ...prev, [id]: state }));
   const [ended, setEnded] = useState(false);
   const [rating, setRating] = useState<Rating | null>(null);
+  // The check after reading (ReaderCheck): its questions, built at Done; what was picked for each,
+  // null until it's started; and whether it's showing in place of the end view.
+  const [check, setCheck] = useState<CheckQuestion[]>([]);
+  const [checkPicks, setCheckPicks] = useState<CheckPicks | null>(null);
+  const [checking, setChecking] = useState(false);
   // Which way the screen is being left while the reading is logged, for that button's spinner.
   const [leaving, setLeaving] = useState<'next' | 'back' | null>(null);
   const [writing, setWriting] = useState(false);
@@ -309,6 +316,9 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     setError(null);
     setEnded(false);
     setRating(null);
+    setCheck([]);
+    setCheckPicks(null);
+    setChecking(false);
     setWriting(false);
     setLineEnglish([]);
     // The next text is a different one: an explanation left open would ask the server for the
@@ -467,7 +477,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
       logged.current = true;
       setLeaving(then);
       try {
-        await api.logReading(text.id, toLog(session, Date.now(), rating, true));
+        await api.logReading(text.id, toLog(session, Date.now(), rating, true, checkPicks ? checkScore(check, checkPicks) : null));
       } catch {
         // The reading is lost, not your place: carry on either way.
       } finally {
@@ -866,15 +876,30 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           ) : null}
           {review ? null : (
             <View style={{ padding: space.l }}>
-              <Button label="Done" onPress={() => { player.pause(); setEnded(true); }} />
+              <Button label="Done" onPress={() => { player.pause(); setCheck(buildCheck(text, session)); setEnded(true); }} />
             </View>
           )}
         </ScrollView>
       ) : null}
 
-      {text && session && ended ? (
+      {text && session && ended && checking ? (
+        <ReaderCheck
+          api={api}
+          text={text}
+          questions={check}
+          picks={checkPicks ?? {}}
+          textStyle={readStyle(text, thaiFont)}
+          onPick={(key, pick) => setCheckPicks((prev) => ({ ...prev, [key]: pick }))}
+          onDone={() => setChecking(false)}
+        />
+      ) : null}
+
+      {text && session && ended && !checking ? (
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l }}>
           <Reveal style={{ gap: space.m }}>
+            {check.length ? (
+              <CheckCard text={text} questions={check} picks={checkPicks} onStart={() => { setCheckPicks((prev) => prev ?? {}); setChecking(true); }} />
+            ) : null}
             <Card style={{ gap: space.s }}>
               <Text style={{ ...type.title, color: c.text }}>How was this one?</Text>
               <Help>Your answer sets how hard the next text is.</Help>

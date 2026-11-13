@@ -94,6 +94,25 @@ Franki's (Client, below).
   on every line when a text is written (a cost on every text for lines never questioned), to be
   reconsidered if the taps show lines are often off, and coloring the chip when it disagrees with the
   situation.
+- **Check what you understood** (13 November 2026, the owner chose from a mock). After Done, the end
+  view offers a few multiple-choice questions above the rating, one at a time, each marked at once
+  with the line that answers it (its words, English and audio). Three kinds, built when Done is
+  tapped (`src/reader/check.ts`, pure and tested; `src/ui/ReaderCheck.tsx`): up to two about what
+  happens, then one line to recognize by ear (two when there are none about what happens), then up to
+  two words (marked unknown first, then looked up, then the practice words). The questions about
+  what happens are Claude's, in the text's language with an English toggle (kept in the reader's
+  prefs), written once the text passes its checks in one call (`comprehension.py`) and kept on the
+  text (`texts.questions`); the code keeps a question only if its line exists, its four choices
+  differ in both languages, and it uses at most one word that is neither known nor in the text, and a
+  failed call leaves the text without them. Their cost is `questions` in `/api/costs`. The listening
+  and word questions are built from the text's own lines, audio and glosses, so they cost nothing.
+  The score (right of those answered, "I don't know" counting as wrong) is logged with the reading
+  (`check_right`, `check_asked`) and shown in Progress. **A poor score makes the next text easier**
+  (the owner's choice): under 60% right of at least three raises the coverage target a step
+  (`adapt_to_check`), unless the text was rated Too hard, which already did; a good score changes
+  nothing, as the rating is what makes texts harder. Nothing is graded or added to the deck. Not done:
+  the check on a past text read again (its reading isn't logged), and questions for texts written
+  before it.
 - **Listen only** (brief, design principle 6). Once a text is rated "About right", the end view
   offers to play it again with the Thai hidden; the lines show who's speaking instead, and "Show the
   text" brings the words back. The reading is then logged with `listen_only` true. The brief's
