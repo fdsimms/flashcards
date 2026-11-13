@@ -4,8 +4,11 @@ import type { Repo } from '../../db/repo';
 import type { Api } from '../../reader/api';
 import type { ToolId, ToolInfo } from '../../tools/tools';
 import type { Colors } from '../theme';
+import { CountingTool } from './CountingTool';
 import { DateTool } from './DateTool';
 import { MoneyTool } from './MoneyTool';
+import { NumbersTool } from './NumbersTool';
+import { ScriptTool } from './ScriptTool';
 import { GrammarTool } from './GrammarTool';
 import { TimeTool } from './TimeTool';
 
@@ -34,5 +37,8 @@ export const TOOL_SCREENS: Record<ToolId, {
   time: { Screen: TimeTool, icon: 'clock.fill', color: (c) => c.easy },
   dates: { Screen: DateTool, icon: 'calendar', color: (c) => c.again },
   money: { Screen: MoneyTool, icon: 'banknote.fill', color: (c) => c.good },
+  numbers: { Screen: NumbersTool, icon: 'number', color: (c) => c.orange },
+  counting: { Screen: CountingTool, icon: 'square.stack.3d.up.fill', color: (c) => c.teal },
+  script: { Screen: ScriptTool, icon: 'character.book.closed.fill', color: (c) => c.rose },
   grammar: { Screen: GrammarTool, icon: 'text.book.closed.fill', color: (c) => c.violet },
 };

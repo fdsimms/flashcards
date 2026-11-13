@@ -1,3 +1,4 @@
+import { normalizeDigits } from './number';
 import type { Phrase } from './phrase';
 import { pickOther } from './random';
 
@@ -97,4 +98,23 @@ export function breakDown(amount: number, currency: Currency): Piece[] {
 /** What's printed on a note or coin: "1000 ฿", "50 c". */
 export function pieceLabel(value: number, currency: Currency): string {
   return value >= currency.minorPerMajor ? `${value / currency.minorPerMajor} ${currency.symbol}` : `${value} ${currency.minorSymbol}`;
+}
+
+/**
+ * A price typed after hearing it, in minor units, or undefined when it isn't one. Spaces and
+ * the currency's sign don't matter, and either a comma or a dot can mark the minor part or the
+ * thousands, as the keyboard and the language have it: the last one is the minor part when one
+ * or two digits follow it at the end (12,49 or 12.5), and every other one groups thousands
+ * (1.277, 1,277,50). Thai and full-width digits count as 0-9.
+ */
+export function parseTypedAmount(text: string, currency: Currency): number | undefined {
+  const plain = normalizeDigits(text)
+    .replace(/[\s\u00a0\u202f]/g, '')
+    .split(currency.symbol).join('');
+  if (!/^\d[\d.,]*$/.test(plain) || /[.,]{2}|[.,]$/.test(plain)) return undefined;
+  const minor = plain.match(/[.,](\d{1,2})$/);
+  const wholePart = (minor ? plain.slice(0, -minor[0].length) : plain).replace(/[.,]/g, '');
+  const whole = Number(wholePart);
+  const fraction = minor ? Number(minor[1].padEnd(2, '0')) : 0;
+  return whole * currency.minorPerMajor + fraction * (currency.minorPerMajor / 100);
 }

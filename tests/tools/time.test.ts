@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { clockText, MINUTE_STEPS, randomTime } from '../../src/tools/time';
+import { clockText, heardAs, MINUTE_STEPS, randomTime } from '../../src/tools/time';
+import { TIME_SAYERS } from '../../src/tools/tools';
 
 /** A random() that returns each of `values` in turn. */
 const sequence = (...values: number[]) => () => values.shift() ?? 0;
@@ -37,5 +38,22 @@ describe('a time in digits', () => {
   it('pads hours and minutes', () => {
     expect(clockText({ hour: 9, minute: 5 })).toBe('09:05');
     expect(clockText({ hour: 23, minute: 59 })).toBe('23:59');
+  });
+});
+
+describe('a clock set to the time heard', () => {
+  const at = (hour: number, minute: number) => ({ hour, minute });
+
+  it('is right for any time said the same way', () => {
+    // fünf vor halb drei says nothing of the afternoon.
+    expect(heardAs(at(2, 25), at(14, 25), TIME_SAYERS.de!)).toBe(true);
+    expect(heardAs(at(14, 25), at(14, 25), TIME_SAYERS.de!)).toBe(true);
+    expect(heardAs(at(0, 0), at(12, 0), TIME_SAYERS.es!)).toBe(true);
+  });
+
+  it('tells them apart where the words do', () => {
+    expect(heardAs(at(2, 0), at(14, 0), TIME_SAYERS.th!)).toBe(false);
+    expect(heardAs(at(0, 0), at(12, 0), TIME_SAYERS.fr!)).toBe(false);
+    expect(heardAs(at(2, 30), at(2, 25), TIME_SAYERS.de!)).toBe(false);
   });
 });

@@ -43,3 +43,12 @@ export interface TimeSaying {
   /** The 24-hour form: what's written, announced, and read off a timetable. */
   formal: Phrase;
 }
+
+/**
+ * Whether a clock set to `set` is the time heard as `heard`: whether the two are said the same
+ * way. So 14:25 set for German's "fünf vor halb drei" is right, as 2:25 is, since nothing said
+ * tells them apart; but Thai's บ่ายสองโมง is 14:00 only, and French's midi isn't minuit.
+ */
+export function heardAs(set: ClockTime, heard: ClockTime, sayer: (t: ClockTime) => TimeSaying): boolean {
+  return sayer(set).everyday.text === sayer(heard).everyday.text;
+}

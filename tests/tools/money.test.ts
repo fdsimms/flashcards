@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { breakDown, CURRENCIES, MONEY_MAXES, pieceLabel, randomAmount } from '../../src/tools/money';
+import { breakDown, CURRENCIES, MONEY_MAXES, parseTypedAmount, pieceLabel, randomAmount } from '../../src/tools/money';
 
 describe('a random amount', () => {
   it('stays from one unit up to the most asked for, in the steps the currency is priced in', () => {
@@ -63,5 +63,32 @@ describe("what's printed on a note or coin", () => {
     expect(pieceLabel(100000, CURRENCIES.THB)).toBe('1000 ฿');
     expect(pieceLabel(50, CURRENCIES.EUR)).toBe('50 c');
     expect(pieceLabel(200, CURRENCIES.PLN)).toBe('2 zł');
+  });
+});
+
+describe('a price typed after hearing it', () => {
+  const EUR = CURRENCIES.EUR;
+
+  it('reads a comma or a dot before the cents', () => {
+    expect(parseTypedAmount('12,49', EUR)).toBe(1249);
+    expect(parseTypedAmount('12.49', EUR)).toBe(1249);
+    expect(parseTypedAmount('12,5', EUR)).toBe(1250);
+    expect(parseTypedAmount('0,05', EUR)).toBe(5);
+    expect(parseTypedAmount('12', EUR)).toBe(1200);
+  });
+
+  it('takes any other comma, dot or space as grouping thousands, and ignores the sign', () => {
+    expect(parseTypedAmount('1.277', EUR)).toBe(127700);
+    expect(parseTypedAmount('1,277.50', CURRENCIES.MXN)).toBe(127750);
+    expect(parseTypedAmount('1 277,50 €', EUR)).toBe(127750);
+    expect(parseTypedAmount('1 277 zł', CURRENCIES.PLN)).toBe(127700);
+    expect(parseTypedAmount('฿๑,๒๗๗', CURRENCIES.THB)).toBe(127700);
+  });
+
+  it('refuses what isn’t an amount', () => {
+    expect(parseTypedAmount('', EUR)).toBeUndefined();
+    expect(parseTypedAmount('twelve', EUR)).toBeUndefined();
+    expect(parseTypedAmount('12,', EUR)).toBeUndefined();
+    expect(parseTypedAmount('12,,49', EUR)).toBeUndefined();
   });
 });
