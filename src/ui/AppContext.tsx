@@ -81,7 +81,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [backup, setBackup] = useState<{ text: string; overdue: boolean }>();
   const [ankiUnsent, setAnkiUnsent] = useState(0);
   const collapse = useCollapsedDecks(repo);
-  const snapshot = useDeckSnapshot(repo, setDecks);
+  const snapshot = useDeckSnapshot(repo, setDecks, collapse);
   // The collection's "Next day starts at", for counting marked words added per study day.
   const [dayStartsAtHour, setDayStartsAtHour] = useState(DAY_STARTS_AT_HOUR);
 
