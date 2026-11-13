@@ -77,6 +77,8 @@ const light = {
   highlight: '#fbe2b0',
   /** Behind a name in a Read & Listen text (Mali, Kasia), when names are marked. */
   nameFill: '#cfe3f2',
+  /** Behind the word being spoken as a Read & Listen line plays. */
+  spoken: '#e4ddcb',
   /** A soft drop shadow under a raised surface (the review card). Near-invisible on dark, so it's heavier there. */
   shadow: '#2a2113',
   shadowOpacity: 0.08,
@@ -125,6 +127,7 @@ const dark: typeof light = {
   characterWhite: '#e9e6df',
   highlight: '#4d3a14',
   nameFill: '#1f3a4f',
+  spoken: '#3b4252',
   shadow: '#000000',
   shadowOpacity: 0.45,
   flags: ['', '#ee6b63', '#f0984f', '#62bd7b', '#6ba2ec', '#e486cb', '#4cc4c4', '#a989e6'],

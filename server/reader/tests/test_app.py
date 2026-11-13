@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from franki_speech import WordMark
 from scripted import BAD, ENTRIES, IN_RANGE, ScriptedModel
 
 from franki_reader import store
@@ -15,6 +16,7 @@ from franki_reader.engine import SHELF_SIZE, Engine
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.status import DeckDue, DueStatus, LearningLater, StudyDay
 from franki_reader.store import Settings
+from franki_reader.tts import Spoken
 
 NOW = datetime(2026, 10, 19, 9, 0)
 AUTH = {"Authorization": "Bearer open sesame"}
@@ -160,11 +162,12 @@ def test_logging_a_reading() -> None:
     )
 
 
-def speaking_client(tmp_path: Path) -> TestClient:
+def speaking_client(tmp_path: Path, timed: bool = False) -> TestClient:
     from franki_reader.tts import AudioCache
 
-    async def voice(text: str, name: str) -> bytes:
-        return b"ID3" + text.encode()
+    async def voice(text: str, name: str) -> Spoken:
+        # Timed: the whole line as one word, so every word in it is spoken from 0 to 1000 ms.
+        return Spoken(b"ID3" + text.encode(), [WordMark(text, 0, 1000)] if timed else None)
 
     conn = store.connect(":memory:")
     store.save_snapshot(conn, ENTRIES, NOW)
@@ -185,6 +188,22 @@ def test_lines_say_whether_they_have_audio() -> None:
     topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
     text = next_text(c, topic["id"]).json()
     assert [line["audio"] for line in text["lines"]] == [False, False]
+
+
+def test_each_word_says_when_its_spoken_once_its_line_is_recorded_with_timings(
+    tmp_path: Path,
+) -> None:
+    c = speaking_client(tmp_path, timed=True)
+    topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
+    text = next_text(c, topic["id"]).json()
+    words = [w for line in text["lines"] for w in line["words"]]
+    assert all(w["time"] == [0, 1000] for w in words if w["status"] is not None)
+    assert all("time" not in w for w in words if w["status"] is None)
+
+    untimed = speaking_client(tmp_path / "untimed")
+    topic = untimed.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
+    text = next_text(untimed, topic["id"]).json()
+    assert all("time" not in w for line in text["lines"] for w in line["words"])
 
 
 def test_a_lines_audio_is_served_as_mp3(tmp_path: Path) -> None:
@@ -724,9 +743,9 @@ def test_texts_waiting_to_be_read_are_spoken_again_in_new_voices(tmp_path: Path)
 
     used: list[str] = []
 
-    async def voice(text: str, name: str) -> bytes:
+    async def voice(text: str, name: str) -> Spoken:
         used.append(name)
-        return b"ID3" + name.encode()
+        return Spoken(b"ID3" + name.encode())
 
     conn = store.connect(":memory:")
     store.save_snapshot(conn, ENTRIES, NOW)

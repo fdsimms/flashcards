@@ -55,7 +55,7 @@ export function LineExplanation({ api, textId, line, grammarChosen, onGrammarCho
   return (
     <View
       accessibilityLabel={`Explanation of line ${line + 1}`}
-      style={{ marginTop: space.s, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.m, padding: space.m, gap: space.s }}
+      style={{ marginTop: space.m, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.m, padding: space.m, gap: space.s }}
     >
       {error ? (
         <ErrorNote message={error} onRetry={() => load(simple)} />
@@ -72,7 +72,7 @@ export function LineExplanation({ api, textId, line, grammarChosen, onGrammarCho
               {`: ${p.note}`}
             </Text>
           ))}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s, marginTop: space.xs }}>
             {simple ? null : (
               <Tappable
                 onPress={() => { haptic.tap(); load(true); }}
