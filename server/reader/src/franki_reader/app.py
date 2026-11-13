@@ -925,10 +925,14 @@ def create_app(
         when it couldn't (not asked again for `VOCAB_RETRY`), or "unavailable" with no Claude key."""
         if not LANGUAGES[language].spaced:
             raise HTTPException(422, f"{LANGUAGES[language].name} counts only its deck.")
-        if store.vocab_items(engine.conn, language):
+        stored = store.vocab_items(engine.conn, language)
+        retry_due = (failed := vocab_failed.get(language)) is None or (
+            engine.clock() - failed >= VOCAB_RETRY
+        )
+        if stored:
             items = vocab_check.serve(engine.conn, engine.snapshot(language)[1], language)
-            # A bank written when fewer words were asked for is topped up in the background; the
-            # quiz uses what's there meanwhile.
+            # A bank written when fewer words were asked for, or before a band was added, is topped
+            # up in the background; the quiz uses what's there meanwhile.
             failed = vocab_failed.get(language)
             if (
                 write_vocab is not None
@@ -943,8 +947,7 @@ def create_app(
             return {"state": "unavailable", "items": []}
         if language in vocab_writing:
             return {"state": "preparing", "items": []}
-        failed = vocab_failed.get(language)
-        if failed is not None and engine.clock() - failed < VOCAB_RETRY:
+        if not retry_due:
             return {"state": "failed", "items": []}
         vocab_writing.add(language)  # before the response, so the next poll sees it
         background.add_task(write_vocab_bank, language)

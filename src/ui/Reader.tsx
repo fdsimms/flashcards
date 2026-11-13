@@ -866,7 +866,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
             if (saved) setSession((s) => (s && isFlagged(s, word) ? toggleFlag(s, word) : s));
           });
         } : null}
-        addsLeft={mining?.left ?? 0}
         onClose={() => setTapped(null)}
       />
     </Screen>
@@ -1074,7 +1073,7 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, addsLeft, onClose }: {
+function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, onClose }: {
   tapped: Tapped | null;
   grammar: TextGrammar | null;
   api: Api;
@@ -1089,7 +1088,6 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
   /** Opens the note editor on this word; null when the word is in the deck or isn't in the language being read. */
   onAddToDeck: (() => void) | null;
   /** How many more words can be added to the deck today. */
-  addsLeft: number;
   onClose: () => void;
 }) {
   const c = useTheme();
@@ -1110,7 +1108,7 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
   const actions: Parameters<typeof WordActionRow>[0][] = [];
   if (tapped.word.translit && !showTranslit) actions.push({ icon: 'eye', label: 'Show transliteration', onPress: () => setShowTranslit(true) });
   if (onSelectPhrase) actions.push({ icon: 'text.cursor', label: 'Select a phrase', accessibilityLabel: `Select a phrase starting from ${tapped.word.text}`, onPress: onSelectPhrase });
-  if (onAddToDeck && addsLeft > 0) actions.push({ icon: 'plus.circle', label: 'Add to deck', accessibilityLabel: `Add ${tapped.word.text} to your deck`, onPress: onAddToDeck });
+  if (onAddToDeck) actions.push({ icon: 'plus.circle', label: 'Add to deck', accessibilityLabel: `Add ${tapped.word.text} to your deck`, onPress: onAddToDeck });
   if (onToggleFlag) actions.push({ icon: flagged ? 'flag.slash' : 'flag', label: flagged ? 'Unmark' : 'Mark as unknown', onPress: onToggleFlag, chevron: false });
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
