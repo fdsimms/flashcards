@@ -3,9 +3,11 @@ Records Anki's own card generation and cloze rendering for tests/core/cloze.test
 tests/core/template.test.ts, from the `anki` package at the sync server's ANKI_VERSION:
 
 - cloze: which cards a cloze note makes, what {{cloze:Text}} and {{cloze-only:Text}} render on
-  each side of each, and extract_cloze_for_typing for each cloze number;
+  each side of each, and extract_cloze_for_typing for each cloze number (clozes inside MathJax
+  and image occlusion clozes included);
 - cardgen: whether a normal note type's template makes a card for a note's fields and tags;
-- conditionals: what {{#Field}} / {{^Field}} do with a field's value.
+- conditionals: what {{#Field}} / {{^Field}} do with a field's value;
+- imageOcclusion: both sides of each card of Image Occlusion notes, with Anki's stock note type.
 
     <venv>/bin/python tests/fixtures/anki/make-template-vectors.py
 """
@@ -39,6 +41,40 @@ CLOZE = [
     ("{{c1::Text}}", "{{c2::in the other field}}"),
     ("{{c1::x}}}", ""),
     ("".join("{{c%d::%d " % (i, i) for i in range(1, 13)) + "end" + "}}" * 12, ""),
+    # MathJax: the cloze filter strips HTML between \( \) or \[ \], its own spans included.
+    (r"\({{c1::x^2}}\) and {{c2::y::why}}", ""),
+    (r"\({{c1::x::<i>h</i>}} + {{c2::<b>z</b>}}\)", ""),
+    (r'\[<b>a</b> {{c1::<span style="color:red">b</span> &lt; c&nbsp;d}}\]', ""),
+    (r"{{c1::\(a\)}} {{c2::a \(b}} <i>c</i>\)", ""),
+    ("\\(\n<!-- {{c2::note}} -->{{c1::x<br>y}}\n\\]", ""),
+    (r"\(<STYLE>p{}</STYLE><script>1<2</script>{{c1::a}}\) \(unclosed {{c2::<b>b</b>}}", ""),
+    (r"\\({{c1::<b>x</b>}}\\) \)<b>{{c2::y}}</b>\(", ""),
+    # Image occlusion: a cloze starting "image-occlusion:" becomes a div of data attributes.
+    ("{{c1::image-occlusion:rect:left=.2:top=.3:width=.1:height=.1:oi=1}}"
+     "{{c2::image-occlusion:ellipse:left=.5:top=.5:width=.2:height=.1:rx=.1:ry=.05:oi=1}}", ""),
+    ("{{c1::image-occlusion:polygon:left=.1:top=.1:points=.1,.1 .3,.1 .2,.4:oi=1}}"
+     "{{c1::image-occlusion:rect:left=.6:top=.6:width=.1:height=.1:angle=1250:fill=#ff0000:oi=1}}"
+     '{{c0::image-occlusion:text:left=.4:top=.05:text=Label \\: <b>&"x"</b> \\\\ é:scale=1.5:fs=.04:oi=1}}'
+     "{{c2,3::image-occlusion:rect:left=.0:top=.0:width=.05:height=.05}}", ""),
+    ("{{c1::image-occlusion:rect:left=:top=.2:width=0:height=.1}} "
+     "{{c2::image-occlusion:circle:left=.1:foo=bar:rx=0:ry=:points=1 2,3 4,5,6:text=:fs=:scale=0}} "
+     "{{c3::image-occlusion:rect:left=a\\x:top=.1}} {{c4::image-occlusion:rect::left=.1:top=.2::hint}} "
+     "{{c5::image-occlusion:}} {{c6::image-occlusion:rect:left=.1\\}} {{c7::image-occlusion:rect}} "
+     "{{c8::image-occlusion:rect:left=\\:x=1:top=a=b:x:y=2:points=}}", ""),
+    ("{{c1::image-occlusion:rect:left=.1:top=.1:width=.1:height=.1 {{c2::nested}}}} {{c2::two}} \\({{c3::image-occlusion:text:text=<b>m</b>}}\\)", ""),
+]
+
+# Image Occlusion notes, rendered with Anki's stock note type: (Occlusion, Image, Header, Back Extra).
+IMAGE_OCCLUSION = [
+    ("{{c1::image-occlusion:rect:left=.1:top=.1:width=.2:height=.2:oi=1}}"
+     "{{c2::image-occlusion:ellipse:left=.5:top=.2:width=.2:height=.1:rx=.1:ry=.05:oi=1}}"
+     "{{c3::image-occlusion:polygon:left=.1:top=.6:points=.1,.6 .3,.6 .2,.9:oi=1}}"
+     "{{c0::image-occlusion:text:left=.6:top=.7:text=Label:scale=1:fs=.05:oi=1}}",
+     '<img src="io.png">', "Header", "Extra"),
+    ("{{c1::image-occlusion:rect:left=.1:top=.1:width=.2:height=.2}}"
+     "{{c2::image-occlusion:rect:left=.5:top=.5:width=.2:height=.2:angle=1250}}"
+     "{{c2::image-occlusion:rect:left=.7:top=.1:width=.1:height=.1}}",
+     '<img src="io.png">', "", ""),
 ]
 
 FRONTS = [
@@ -164,11 +200,33 @@ def conditional_vectors(col: Collection) -> list:
     return out
 
 
+def image_occlusion_vectors(col: Collection) -> dict:
+    col._backend.add_image_occlusion_notetype()
+    nt = col.models.by_name("Image Occlusion")
+    t = nt["tmpls"][0]
+    notes = []
+    for occlusion, image, header, extra in IMAGE_OCCLUSION:
+        n = col.new_note(nt)
+        n["Occlusion"], n["Image"], n["Header"], n["Back Extra"] = occlusion, image, header, extra
+        col.add_note(n, 1)
+        cards = {}
+        for c in sorted(n.cards(), key=lambda c: c.ord):
+            r = c.render_output(reload=True)
+            cards[str(c.ord)] = {"front": r.question_text, "back": r.answer_text}
+        notes.append({"fields": dict(n.items()), "cards": cards})
+    return {
+        "noteType": {"name": nt["name"], "fields": [f["name"] for f in nt["flds"]], "css": nt["css"],
+                     "front": t["qfmt"], "back": t["afmt"]},
+        "notes": notes,
+    }
+
+
 def main() -> None:
     d = tempfile.mkdtemp()
     col = Collection(os.path.join(d, "c.anki2"))
     try:
-        out = {"cloze": cloze_vectors(col), "cardgen": cardgen_vectors(col), "conditionals": conditional_vectors(col)}
+        out = {"cloze": cloze_vectors(col), "cardgen": cardgen_vectors(col), "conditionals": conditional_vectors(col),
+               "imageOcclusion": image_occlusion_vectors(col)}
     finally:
         col.close()
     path = os.path.join(os.path.dirname(__file__), "template-vectors.json")

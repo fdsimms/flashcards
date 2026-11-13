@@ -141,6 +141,18 @@ describe('cloze', () => {
     // A note with no cloze gets card 1 from Anki, only to show an error on; Franki makes none.
     expect(generated).toEqual(Object.entries(cards).filter(([, c]) => !('empty' in c)).map(([ord]) => Number(ord)));
   });
+
+  /** Recorded from the real `anki` 26.09.4 package, with its stock Image Occlusion note type. */
+  it.each(vectors.imageOcclusion.notes)('renders an image occlusion note as Anki does (%#)', ({ fields, cards }) => {
+    const { name, fields: names, css, front, back } = vectors.imageOcclusion.noteType;
+    const io: NoteType = { name, kind: 'cloze', fields: names, css, templates: [{ ord: 0, name, front, back }] };
+    const n: Note = { id: 'io', deck: 'D', model: name, tags: [], fields };
+    expect(templateOrdinals(n, io)).toEqual(Object.keys(cards).map(Number));
+    for (const [ord, card] of Object.entries(cards)) {
+      const rendered = renderTemplateCard(n, io, Number(ord));
+      expect([rendered.front, rendered.back]).toEqual([card.front, card.back]);
+    }
+  });
 });
 
 describe('templateOrdinals', () => {
@@ -175,6 +187,20 @@ describe('cardDocument', () => {
     expect(doc).toContain('.card { color: red; }');
     expect(doc).toContain('data-sound="hello.mp3"');
     expect(doc).toContain('playSound(first.dataset.sound)');
+  });
+
+  it("defines anki.imageOcclusion before the card's own script calls it, with Anki's layout for it", () => {
+    const { noteType, notes } = vectors.imageOcclusion;
+    const front = notes[0].cards[0].front;
+    const doc = cardDocument(front, { css: noteType.css, ord: 0, dark: false, autoplay: false });
+    const head = doc.slice(0, doc.indexOf('<body'));
+    expect(head).toContain('#image-occlusion-container img { position: absolute; top: 0; left: 0; width: 100%; height: 100%;');
+    expect(head.indexOf('#image-occlusion-canvas {')).toBeLessThan(head.indexOf(noteType.css));
+    const script = /<script>([\s\S]*?)<\/script><\/head>/.exec(doc)![1];
+    const win: { anki?: { imageOcclusion: { setup: unknown } } } = {};
+    new Function('window', 'document', script)(win, {});
+    expect(typeof win.anki?.imageOcclusion.setup).toBe('function');
+    expect(doc.indexOf('anki.imageOcclusion.setup();')).toBeGreaterThan(doc.indexOf('<body'));
   });
 
   it("paints the page in the app's colors when given them", () => {
