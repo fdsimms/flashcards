@@ -12,8 +12,10 @@ import { failureText } from '../core/failure';
  * `suggest` is present only while Read & Listen is signed in; it asks that server for ideas, and
  * only when the button is tapped.
  */
-export function LeechHintSheet({ word, misses, suggest, onSave, onSkip }: {
+export function LeechHintSheet({ word, gloss, misses, suggest, onSave, onSkip }: {
   word: string;
+  /** What the word means (with its transliteration), so the sheet makes sense without the card behind it. */
+  gloss?: string;
   misses: number;
   suggest?: () => Promise<string[]>;
   /** Saves the hint on the note; throws when it can't, and the sheet says why. */
@@ -58,13 +60,18 @@ export function LeechHintSheet({ word, misses, suggest, onSave, onSkip }: {
     <Modal visible transparent animationType="slide" onRequestClose={onSkip}>
       <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: c.shadow, opacity: 0.45 }]} onPress={onSkip} accessibilityRole="button" accessibilityLabel="Skip" />
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
+        {/* Floats just above the bottom edge with every corner rounded, rather than running into the phone's own square-cut edge. */}
         <View style={{
-          backgroundColor: c.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, maxHeight: '85%',
-          paddingTop: space.m, paddingBottom: Math.max(insets.bottom, space.l), ...lift(c, 'high'),
+          backgroundColor: c.surface, borderRadius: radius.xl, maxHeight: '85%',
+          marginHorizontal: space.s, marginBottom: Math.max(insets.bottom, space.s),
+          paddingTop: space.m, paddingBottom: space.l, ...lift(c, 'high'),
         }}>
           <View style={{ alignSelf: 'center', width: 36, height: 5, borderRadius: 3, backgroundColor: c.textTertiary, opacity: 0.6, marginBottom: space.s }} />
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: space.l, gap: space.m }}>
-            <Text style={{ ...type.headline, color: c.text }}>{`You've missed ${word} ${misses} times`}</Text>
+            <View style={{ gap: space.xs }}>
+              <Text style={{ ...type.headline, color: c.text }}>{`You've missed ${word} ${misses} times`}</Text>
+              {gloss ? <Text style={{ ...type.callout, color: c.textSecondary }}>{gloss}</Text> : null}
+            </View>
             <Text style={{ ...type.footnote, color: c.textSecondary }}>
               Write a hint to see on the back of this card next time. It's saved on the note and synced to Anki.
             </Text>

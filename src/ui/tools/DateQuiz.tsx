@@ -16,7 +16,9 @@ import { ControlLabel, PlayButton, Ways, type ToolActions } from './ToolScreen';
 /**
  * Saying dates besides saying it aloud: pick the phrase, type it, or read the phrase and tap the
  * date. `useDateQuiz` holds what each one needs and gives the footer's buttons; the parts below
- * draw them. Nothing is kept or scheduled: a new date or a new setting starts the question over.
+ * draw them. Nothing is scheduled: a new date or a new setting starts the question over, and the
+ * first answer to each question (or asking for the answer) is passed to `onResult`, which only leans
+ * what comes up next (useMarks).
  */
 
 /** State that goes back to `initial` as soon as `key` (the question) changes, with no render in between showing the old answer. */
@@ -51,7 +53,7 @@ export interface DateQuiz {
   tap: (d: CalendarDate) => void;
 }
 
-export function useDateQuiz({ mode, language, date, parts, saying, sayer, speak, next }: {
+export function useDateQuiz({ mode, language, date, parts, saying, sayer, speak, next, onResult }: {
   mode: DateMode;
   language: Language;
   date: CalendarDate;
@@ -61,8 +63,16 @@ export function useDateQuiz({ mode, language, date, parts, saying, sayer, speak,
   speak: (p: Phrase) => void;
   /** A new date. */
   next: () => void;
+  /** How the question went: once per question, at its first answer, so Try again can't count it twice. Asking for the answer counts as missed. */
+  onResult: (right: boolean) => void;
 }): DateQuiz {
   const question = `${mode}|${language}|${date.year}-${date.month}-${date.day}|${parts.weekday}|${parts.year}`;
+  const resulted = useRef<string | null>(null);
+  const result = (right: boolean) => {
+    if (resulted.current === question) return;
+    resulted.current = question;
+    onResult(right);
+  };
   const [typed, setTyped] = useKeyedState(question, '');
   const [checked, setChecked] = useKeyedState<Check | null>(question, null);
   const [picked, setPicked] = useKeyedState<number | null>(question, null);
@@ -79,25 +89,31 @@ export function useDateQuiz({ mode, language, date, parts, saying, sayer, speak,
   const check = () => {
     if (!saying || checked || !typed.trim()) return;
     Keyboard.dismiss();
-    setChecked(checkTyped(typed, acceptedForms(saying)));
+    const verdict = checkTyped(typed, acceptedForms(saying));
+    setChecked(verdict);
+    // Close counts as missed: the letters off are often an ending, which is the hard part.
+    result(verdict.verdict === 'exact');
     haptic.answer();
     speak(saying.everyday);
   };
   const choose = (index: number) => {
     if (!saying || picked !== null || revealed) return;
     setPicked(index);
+    result(index === correct);
     haptic.answer();
     speak(saying.everyday);
   };
   const tap = (d: CalendarDate) => {
     if (!saying || tapped || revealed) return;
     setTapped(d);
+    result(sameDate(d, date));
     haptic.answer();
     speak(saying.everyday);
   };
   const reveal = () => {
     if (!saying) return;
     setRevealed(true);
+    result(false);
     setView({ ...date });
     speak(saying.everyday);
   };

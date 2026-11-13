@@ -162,7 +162,9 @@ src/wanikani WaniKani as a deck: its API, the study session (undo holds the late
 src/tools    the Practice tab's tools (time, dates, money, grammar): the list (tools.ts), each tool's logic, and each
              language's under its own folder (thai/, spanish/...); pure, tested, except storage.ts. A tool
              comes in every app language unless it doesn't apply, and never schedules or writes a card
-             (tests/tools/noGrading.test.ts); a quiz mode may check a typed or picked answer and keeps nothing. Screens are src/ui/Practice.tsx and src/ui/tools/
+             (tests/tools/noGrading.test.ts). It may check an answer, or take Missed it / Got it, and keep only a
+             fading tally of missed patterns on the phone (marks.ts, patterns.ts) that leans the next random
+             question toward them. Screens are src/ui/Practice.tsx and src/ui/tools/
 src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested);
              sync/ syncs with an Anki sync server (pure, tested; syncService.ts is the phone's side)
 server/      a ready-to-run Anki sync server (Docker, Caddy); server/mcp is the MCP for Claude (Python);
@@ -193,9 +195,12 @@ the review. `MemoryRepo` is the reference implementation and must behave like th
 
 **Audio plays with the silent switch on** (`setAudioModeAsync({ playsInSilentMode: true })` in
 `src/ui/AppContext.tsx`): iOS otherwise mutes an app's recordings, TTS and WebView audio alike, which made every
-play button look broken. `expo-audio`'s config plugin adds no microphone permission (Franki never
-records) but does allow background audio, which only Read & Listen's reader turns on, while it's
-open (`shouldPlayInBackground`), so listening goes on with the screen locked.
+play button look broken. `expo-audio`'s config plugin asks for the microphone only for Record
+yourself (`useSelfRecording`): a take of your own voice to play next to a card's or a line's
+recording, kept in the caches folder until you move on and never saved, synced or sent. The session
+allows recording only while a take is made, since iOS's play-and-record category puts Bluetooth
+headphones into call quality. The plugin also allows background audio, which only Read & Listen's
+reader turns on, while it's open (`shouldPlayInBackground`), so listening goes on with the screen locked.
 
 **Everything stays on the device, except sync, Read & Listen and WaniKani.** TTS is `expo-speech` (on-device
 voices, chosen per language in Settings, Voices) and storage is local SQLite. The network calls are

@@ -18,9 +18,10 @@ import { usePhoneSpeech } from '../usePhoneSpeech';
 
 /**
  * What every Practice tool's screen shares: the language menu in the header, Randomize and Show
- * answer at the bottom, and the answer card (the usual way to say it, read aloud in the voice
- * chosen in Settings, Voices; other ways it's said; a last form such as the formal or written
- * one). A tool's screen gives only what's in between.
+ * answer at the bottom (Missed it and Got it once the answer is showing), and the answer card
+ * (the usual way to say it, read aloud in the voice chosen in Settings, Voices; other ways it's
+ * said; a last form such as the formal or written one). A tool's screen gives only what's in
+ * between.
  */
 
 /** The language a tool is practiced in: the one last chosen in any tool, kept between launches. */
@@ -59,9 +60,8 @@ export function useAnswer(repo: Repo, language: Language) {
       speak,
       /** Hides it again: the question changed. */
       hide: () => { Speech.stop(); setShown(false); },
-      /** Show answer, or Hide answer when it's showing. */
-      toggle: (first: Phrase | undefined) => {
-        if (shown) { Speech.stop(); setShown(false); return; }
+      /** Show answer: shows it and reads `first` aloud. */
+      show: (first: Phrase | undefined) => {
         setShown(true);
         if (first) speak(first);
       },
@@ -75,13 +75,15 @@ export interface ToolActions {
   primary: { label: string; onPress: () => void; disabled?: boolean };
 }
 
-export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onToggle, actions, children }: {
+export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onShow, onMark, actions, children }: {
   tool: ToolInfo;
   language: Language;
   onLanguage: (l: Language) => void;
   shown: boolean;
   onRandomize: () => void;
-  onToggle: () => void;
+  onShow: () => void;
+  /** Once the answer is showing, Missed it and Got it take the footer's place: each marks the answer (useMarks) and moves on. */
+  onMark: (right: boolean) => void;
   /** Replaces the footer's Randomize and Show answer. */
   actions?: ToolActions;
   children: React.ReactNode;
@@ -109,10 +111,15 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onT
               {actions.secondary ? <Button variant="secondary" label={actions.secondary.label} style={{ flex: 1 }} onPress={actions.secondary.onPress} /> : null}
               <Button label={actions.primary.label} style={{ flex: 1 }} onPress={actions.primary.onPress} disabled={actions.primary.disabled} />
             </>
+          ) : shown ? (
+            <>
+              <Button variant="secondary" label="Missed it" style={{ flex: 1 }} onPress={() => onMark(false)} />
+              <Button label="Got it" style={{ flex: 1 }} onPress={() => onMark(true)} />
+            </>
           ) : (
             <>
               <Button variant="secondary" label="Randomize" style={{ flex: 1 }} onPress={onRandomize} />
-              <Button label={shown ? 'Hide answer' : 'Show answer'} style={{ flex: 1 }} onPress={onToggle} />
+              <Button label="Show answer" style={{ flex: 1 }} onPress={onShow} />
             </>
           )}
         </View>

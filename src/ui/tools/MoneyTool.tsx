@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { LANGUAGES } from '../../reader/languages';
 import type { MoneyMode } from '../../tools/prefs';
 import { breakDown, CURRENCIES, MONEY_MAXES, randomAmount, type MoneyMax } from '../../tools/money';
+import { moneyPatterns } from '../../tools/patterns';
 import { toolPrefs } from '../../tools/storage';
 import { CURRENCY_OF, MONEY_SAYERS, toolLanguage } from '../../tools/tools';
 import { Card, Segments } from '../kit';
@@ -10,18 +11,21 @@ import { space, type, useTheme } from '../theme';
 import { Cash } from './Cash';
 import type { ToolScreenProps } from './index';
 import { AnswerCard, ControlLabel, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
+import { useMarks } from './useMarks';
 
 const MODES: { value: MoneyMode; label: string }[] = [{ value: 'count', label: 'Notes and coins' }, { value: 'price', label: 'A price' }];
 
 /**
  * Counting money: an amount in the chosen language's own money, as notes and coins to add up or
- * as a price to read, then said in that language. A new amount comes with each Randomize, and
- * with a change of language, mode or size, since another currency is priced in other steps.
+ * as a price to read, then said in that language and marked Missed it or Got it. A new amount
+ * comes with each Randomize or mark, leaning toward the kinds missed lately (useMarks), and with a
+ * change of language, mode or size, since another currency is priced in other steps.
  */
 export function MoneyTool({ tool, repo }: ToolScreenProps) {
   const c = useTheme();
   const [language, setLanguage] = useToolLanguage(tool);
   const answer = useAnswer(repo, language);
+  const marks = useMarks(tool.id, language);
   const [mode, setMode] = useToolPref('moneyMode');
   const [max, setMax] = useToolPref('moneyMax');
   const currency = CURRENCIES[CURRENCY_OF[language]];
@@ -31,7 +35,10 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
     return { code, amount: randomAmount(CURRENCIES[code], toolPrefs().moneyMax) };
   });
   const amount = held.code === currency.code ? held.amount : undefined;
-  const next = (m: MoneyMax = max) => { answer.hide(); setHeld({ code: currency.code, amount: randomAmount(currency, m, amount) }); };
+  const next = (m: MoneyMax = max) => {
+    answer.hide();
+    setHeld({ code: currency.code, amount: marks.pick(() => randomAmount(currency, m, amount), (a) => moneyPatterns(a, currency)) });
+  };
   // Another language's money (chosen, or the saved language once it's read): a new amount in it.
   useEffect(() => {
     if (held.code !== currency.code) setHeld({ code: currency.code, amount: randomAmount(currency, max) });
@@ -47,7 +54,8 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
       onLanguage={(l) => { setLanguage(l); answer.hide(); }}
       shown={answer.shown}
       onRandomize={() => next()}
-      onToggle={() => answer.toggle(saying?.everyday)}
+      onShow={() => answer.show(saying?.everyday)}
+      onMark={(right) => { if (amount !== undefined) marks.mark(moneyPatterns(amount, currency), right); next(); }}
     >
       <Segments options={MODES} value={mode} onChange={(m) => { if (m === mode) return; setMode(m); next(); }} />
 
