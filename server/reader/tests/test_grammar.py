@@ -513,3 +513,98 @@ def test_choices_reach_the_request_for_their_own_language_only() -> None:
     assert (spanish.practice, spanish.avoid) == (("es.pluperfect",), ("es.preterite",))
     thai = engine._request("t", [], Difficulty(), "th")
     assert (thai.practice, thai.avoid) == ((), ())
+
+
+# ==== JLPT levels (Japanese) ====
+
+
+@pytest.fixture
+def japanese_shown(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Japanese is hidden from the app for now (languages.HIDDEN_LANGUAGES); these test it as shown."""
+    monkeypatch.setattr(store, "HIDDEN_LANGUAGES", frozenset())
+
+
+def test_each_japanese_point_has_a_jlpt_level_and_other_languages_have_none(
+    japanese_shown: None,
+) -> None:
+    assert {p.id: p.jlpt for p in points_for("ja")} == {
+        "ja.masu": 5,
+        "ja.past": 5,
+        "ja.te_iru": 5,
+        "ja.tai": 5,
+        "ja.te_kudasai": 5,
+        "ja.volitional": 4,
+        "ja.conditional": 4,
+        "ja.causative": 4,
+        "ja.te_shimau": 4,
+        "ja.keigo": 3,
+    }
+    assert {p.jlpt for p in points_for("es")} == {0}
+    body = client("ja")[0].get("/api/grammar", headers=AUTH).json()
+    assert {p["id"]: p.get("jlpt") for p in body["points"]}["ja.keigo"] == 3
+    assert "jlpt" not in client("es")[0].get("/api/grammar", headers=AUTH).json()["points"][0]
+
+
+def test_knowing_through_a_level_sets_what_is_above_it_to_dont_know_it(
+    japanese_shown: None,
+) -> None:
+    c, e = client("ja")
+    body = c.put("/api/grammar/level", json={"through": 5}, headers=AUTH).json()
+    states = {p["id"]: p["state"] for p in body["points"]}
+    assert {i for i, s in states.items() if s == "normal"} == {
+        "ja.masu",
+        "ja.past",
+        "ja.te_iru",
+        "ja.tai",
+        "ja.te_kudasai",
+    }
+    assert {i for i, s in states.items() if s == "avoid"} == {
+        "ja.volitional",
+        "ja.conditional",
+        "ja.causative",
+        "ja.te_shimau",
+        "ja.keigo",
+    }
+    body = c.put("/api/grammar/level", json={"through": 1}, headers=AUTH).json()
+    assert {p["state"] for p in body["points"]} == {"normal"}
+    assert store.load_grammar(e.conn)["ja.keigo"] == "normal"
+
+
+def test_a_level_keeps_practice_at_or_below_it_but_not_above_it(japanese_shown: None) -> None:
+    c, _ = client("ja")
+    c.put("/api/grammar/ja.tai", json={"state": "practice"}, headers=AUTH)
+    c.put("/api/grammar/ja.causative", json={"state": "practice"}, headers=AUTH)
+    body = c.put("/api/grammar/level", json={"through": 5}, headers=AUTH).json()
+    states = {p["id"]: p["state"] for p in body["points"]}
+    assert states["ja.tai"] == "practice"
+    assert states["ja.causative"] == "avoid"
+
+
+def test_a_level_leaves_other_languages_choices_alone(japanese_shown: None) -> None:
+    c, e = client("es")
+    c.put("/api/grammar/es.preterite", json={"state": "practice"}, headers=AUTH)
+    c.put("/api/grammar/level", json={"through": 4}, headers=AUTH)  # Spanish has none: refused
+    assert store.load_grammar(e.conn)["es.preterite"] == "practice"
+    store.save_settings(e.conn, store.Settings(language="ja"))
+    c.put("/api/grammar/level", json={"through": 4}, headers=AUTH)
+    assert store.load_grammar(e.conn)["es.preterite"] == "practice"
+
+
+def test_a_language_without_levels_refuses_one() -> None:
+    c, _ = client("es")
+    refused = c.put("/api/grammar/level", json={"through": 5}, headers=AUTH)
+    assert refused.status_code == 422
+    assert refused.json()["detail"] == "Spanish has no JLPT levels."
+    for bad in (0, 6):
+        assert c.put("/api/grammar/level", json={"through": bad}, headers=AUTH).status_code == 422
+    assert c.put("/api/grammar/level", json={"through": 5}).status_code == 401
+
+
+def test_a_catalog_jlpt_level_outside_one_to_five_stops_the_server(tmp_path: Path) -> None:
+    from franki_reader import grammar as g
+
+    entry = {"id": "ja.masu", "language": "ja", "name": "x", "note": "x", "level": 1, "jlpt": 6}
+    catalog = tmp_path / "points.json"
+    catalog.write_text(json.dumps({"points": [entry]}), encoding="utf-8")
+    with pytest.raises(ValueError, match="ja.masu has a JLPT level that isn't 1 to 5"):
+        g._load(catalog, {"ja.masu": lambda w: []})

@@ -70,7 +70,8 @@ export type GrammarPointPage = {
   examples: GrammarExample[];
 };
 
-export type GrammarPoint = { id: string; name: string; note: string; state: GrammarState; seen?: GrammarSeen };
+// `jlpt`: the JLPT level a Japanese point is taught at, 5 for N5 (the easiest) up to 1 for N1; other languages have none.
+export type GrammarPoint = { id: string; name: string; note: string; state: GrammarState; seen?: GrammarSeen; jlpt?: number };
 
 // `least`: the known points the next texts are asked to work in, least seen first.
 // `stretch`: how many times a text may use grammar not set (1 to 4), and the easiest point not yet
@@ -408,6 +409,8 @@ export function createApi(
     grammarChoices: () => call<{ choices: Record<string, GrammarChoice> }>('GET', '/api/grammar/choices'),
     setGrammar: (id: string, state: GrammarChoice) =>
       call<GrammarList>('PUT', `/api/grammar/${id}`, { state }),
+    // "I know through N_" (Japanese): points at that JLPT level or easier become Know it unless practiced, harder ones Don't know it.
+    setGrammarLevel: (through: number) => call<GrammarList>('PUT', '/api/grammar/level', { through }),
     // How many times the next texts may use grammar not set (the Grammar dial on the wrap-up screen).
     setGrammarStretch: (uses: number) => call<GrammarList>('PUT', '/api/grammar/stretch', { uses }),
     // A language's word forms with a primer each, for the chip on a word's popup. Static on the server: no Claude call.
