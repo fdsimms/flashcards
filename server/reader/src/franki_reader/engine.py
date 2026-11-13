@@ -2,10 +2,9 @@
 ready, keep the shelf and the ongoing story topped up, and log readings
 (docs/read-and-listen/architecture.md, Hosting, Shelf and Stories).
 
-The shelf is a few texts written ahead in the language being read (`SHELF_SIZE`), each for a
-reason: around words reviewed today, on a theme the owner likes, or an idea not tried before, with
-dialogues and stories mixed. It's filled only for the current language, only after a request from
-the app, and a text left unread stays on it rather than being written again.
+The shelf is the texts written and not yet read in the language being read. Nothing fills it on its
+own: a text is written only when asked for (a typed topic, "Surprise me", a practice text), and the
+ongoing story's next episode is written once the last one is read.
 
 Writing a text takes up to a minute or more (three attempts, then audio), longer than an iPhone
 waits on one request, so `/next` never waits for it: `next_text` returns a ready text or starts a
@@ -45,24 +44,14 @@ from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
 from franki_reader.store import Reading, Reason, StoredText, Story, Topic
-from franki_reader.stretch import pick_stretch, reviewed_words, waiting
+from franki_reader.stretch import pick_stretch, waiting
 from franki_reader.study_day import DEFAULT_ROLLOVER, study_day, study_day_start
-from franki_reader.suggestions import suggest
 from franki_reader.tts import DEFAULT_VOICES, AudioCache, Synthesize, TtsFailed, billed_chars
 from franki_reader.wanikani import ReadWaniKani, as_entries
 
-# Texts kept written ahead on a language's shelf, not counting ones typed in or story episodes.
-SHELF_SIZE = 3
-# The kinds of text the shelf keeps one of each, in the order they're written.
-SHELF_KINDS: tuple[Reason, ...] = ("due", "liked", "new")
-# A new idea is picked from this many of the best-fitting ones, so the shelf isn't predictable.
-IDEA_CHOICES = 5
 # How many reviewed or young words the model chooses its stretch words from, when it's choosing.
 STRETCH_CHOICES = 15
 FAILURE_COOLDOWN = timedelta(minutes=30)
-# How old the snapshot may be while the shelf has room for its "due" text, which waits for words
-# reviewed today: Anki is read again (a sync with the owner's own server, no API call) after this.
-DUE_SNAPSHOT_AGE = timedelta(minutes=30)
 BACKFILL_TEXTS = 30  # how many recent texts a pass looks through for words with no meaning
 BACKFILL_FORMS = 3  # how many of them a pass picks word forms for (one Claude call each)
 # Every attempt was under 85% known words (coverage.MINIMUM), too far off to show.
@@ -185,9 +174,6 @@ class Engine:
         self._rerecord_locks: dict[Code, asyncio.Lock] = {}
         self._writing: set[_Key] = set()
         self._jobs: dict[_Key, Job] = {}  # what's being written now, for the shelf to show
-        # When a shelf text last failed, by language: the shelf isn't filled again until the
-        # cooldown passes, or every refresh would try another idea and keep spending.
-        self._shelf_failed: dict[Code, datetime] = {}
         self._failures: dict[_Key, _Failure] = {}
         self._tasks: set[asyncio.Task[None]] = set()
 
@@ -792,24 +778,18 @@ class Engine:
     # ==== Top-up and readings ====
 
     async def top_up(self) -> None:
-        """Refreshes the current language's lexicon if it's a day old, then writes the story's next
-        episode if it has none waiting, and fills the shelf to `SHELF_SIZE`. Only the current
-        language, so having several doesn't multiply the spending. Runs after a response is sent; a
-        second call while one is running does nothing. The first pass also re-records the texts
-        waiting to be read with word timings (`time_waiting_texts`). A topic that failed recently is skipped, and
-        a failed shelf text ends the pass and pauses the shelf for `FAILURE_COOLDOWN`; a missing
-        key or word list stops it quietly."""
+        """Refreshes the current language's lexicon if it's a day old and writes the story's next
+        episode if it has none waiting. Nothing else is written unasked: the shelf holds only
+        texts the owner asked for. Only the current language, so having several doesn't multiply
+        the spending. Runs after a response is sent; a second call while one is running does
+        nothing. The first pass also re-records the texts waiting to be read with word timings
+        (`time_waiting_texts`). A missing key or word list stops it quietly."""
         if self._topping_up.locked():
             return
         async with self._topping_up:
             await self.time_waiting_texts()
             language = self.language()
-            # While the shelf has room for its "due" text, which waits for words reviewed today,
-            # Anki is read more often than daily, so a review shows soon after it's synced.
-            due_gap = (gap := self._shelf_gap(language)) is not None and "due" not in gap[0]
-            await self.refresh_lexicon(
-                language, max_age=DUE_SNAPSHOT_AGE if due_gap else store.SNAPSHOT_MAX_AGE
-            )
+            await self.refresh_lexicon(language)
             # Texts written before their common words were glossed, newest first, a batch a pass.
             recent = store.recent_texts(self.conn, language, BACKFILL_TEXTS)
             await self.fill_meanings(recent, language)
@@ -825,14 +805,6 @@ class Engine:
                 episode = Job(story.topic_id, language, reason="story", story_id=story.id)
                 if self._idle(episode) and not self._episode_waiting(story):
                     await self._write(episode)
-            failed = self._shelf_failed.get(language)
-            if failed is not None and self.clock() - failed < FAILURE_COOLDOWN:
-                return
-            while (job := self._next_shelf_job(language)) is not None:
-                await self._write(job)
-                if self._cooling_down(job.key):
-                    self._shelf_failed[language] = self.clock()
-                    break
 
     def _idle(self, job: Job) -> bool:
         return job.key not in self._writing and not self._cooling_down(job.key)
@@ -844,69 +816,11 @@ class Engine:
         """The shelf texts and story episodes being written in a language now."""
         return [j for j in self._jobs.values() if j.language == language and not j.focus]
 
-    def _shelf_gap(self, language: Code) -> tuple[set[Reason], Form] | None:
-        """The kinds of text the shelf has (or is writing) and the form its next one takes, or None
-        when it has `SHELF_SIZE`. Dialogues and stories alternate."""
-        on_shelf = [t for t in store.shelf_texts(self.conn, language) if t.reason != "asked"]
-        writing = [j for j in self.writing(language) if j.story_id is None and j.reason != "asked"]
-        if len(on_shelf) + len(writing) >= SHELF_SIZE:
-            return None
-        forms = [t.form for t in on_shelf] + [j.form or "dialogue" for j in writing]
-        form: Form = "story" if forms.count("dialogue") > forms.count("story") else "dialogue"
-        return {t.reason for t in on_shelf} | {j.reason for j in writing}, form
-
-    def _next_shelf_job(self, language: Code) -> Job | None:
-        """The next text the shelf needs, or None when it has `SHELF_SIZE`. Each kind in
-        `SHELF_KINDS` the shelf lacks comes first; dialogues and stories alternate."""
-        gap = self._shelf_gap(language)
-        if gap is None:
-            return None
-        have, form = gap
-        wanted = [k for k in SHELF_KINDS if k not in have] + ["new", "liked"]
-        for kind in wanted:
-            job = self._shelf_job(kind, language, form)
-            if job is not None:
-                return job
-        return None
-
-    def _shelf_job(self, kind: Reason, language: Code, form: Form) -> Job | None:
-        # A liked theme with nothing waiting and nothing being written for it.
-        free = [
-            t
-            for t in store.liked_topics(self.conn)
-            if self._idle(Job(t.id, language))
-            and store.next_ready_text(self.conn, t.id, language) is None
-        ]
-        if kind == "liked":
-            if not free:
-                return None
-            return Job(self.rng.choice(free).id, language, reason="liked", form=form)
-        if kind == "due":
-            # Written only around words already reviewed today (stretch.py): until there are some,
-            # the slot goes to the next kind, and the due text is written once one is free again.
-            if not reviewed_words(self.entries(language), self.snapshot_days(language)):
-                return None
-            topic = self.rng.choice(free) if free else self._new_topic(language)
-            if topic is None:
-                return None
-            return Job(topic.id, language, reason="due", form=form, any_words=True)
-        topic = self._new_topic(language)
-        return Job(topic.id, language, reason="new", form=form) if topic else None
-
-    def _new_topic(self, language: Code) -> Topic | None:
-        """An idea not tried before, added as a hidden topic, so it isn't listed or offered again."""
-        _, lexicon = self.snapshot(language)
-        ideas = suggest(lexicon, store.topic_names(self.conn), language)[:IDEA_CHOICES]
-        if not ideas:
-            return None
-        name = self.rng.choice(ideas).name
-        return store.add_topic(self.conn, name, False, self.clock(), hidden=True)
-
     # ==== Asked for ====
 
     def write_about(self, name: str, form: Form) -> Topic:
-        """Starts writing a text on a topic typed in (it joins the shelf when it's ready, beyond
-        `SHELF_SIZE`). Raises ValueError for an empty name, NotAvailable when nothing can be
+        """Starts writing a text on a topic typed in (it joins the shelf when it's ready).
+        Raises ValueError for an empty name, NotAvailable when nothing can be
         written yet."""
         language = self.language()
         self._check_setup(language)

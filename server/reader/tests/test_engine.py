@@ -8,17 +8,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from fake_anki import FakeDeck, card, note
 from franki_speech import WordMark
-from scripted import BAD, ENTRIES, IN_RANGE, PLAIN, WITHOUT_KIN, ScriptedModel
+from scripted import BAD, ENTRIES, IN_RANGE, WITHOUT_KIN, ScriptedModel
 
 from franki_reader import store
 from franki_reader.difficulty import Difficulty
 from franki_reader.engine import (
-    DUE_SNAPSHOT_AGE,
-    FAILURE_COOLDOWN,
     MISSED_FLOOR,
-    SHELF_SIZE,
     Engine,
     NotAvailable,
     NotFound,
@@ -222,80 +218,36 @@ def test_an_unknown_topic_is_not_found() -> None:
         run(lambda: engine(ScriptedModel(IN_RANGE)).next_text(99))
 
 
-def test_top_up_fills_the_shelf_with_one_of_each_kind_in_both_forms() -> None:
+def test_top_up_writes_no_text_unasked() -> None:
     model = ScriptedModel(IN_RANGE)
     e = engine(model)
     store.add_topic(e.conn, "Food stall", True, NOW)
-    store.add_topic(e.conn, "Taxi", True, NOW)
 
     run(e.top_up)
-    run(e.top_up)  # full: nothing more is written
+    run(e.top_up)
 
-    shelf = store.shelf_texts(e.conn, "th")
-    assert model.calls == SHELF_SIZE == len(shelf)
-    assert [t.reason for t in shelf] == ["due", "liked", "new"]
-    assert [t.form for t in shelf] == ["dialogue", "story", "dialogue"]
-    # The idea is filed away: not listed as a topic, and not offered again.
-    new = store.topic_name(e.conn, shelf[2].topic_id)
-    assert [t.name for t in store.list_topics(e.conn)] == ["Food stall", "Taxi"]
-    assert new in store.topic_names(e.conn)
+    assert model.calls == 0
+    assert store.shelf_texts(e.conn, "th") == []
 
 
-def test_a_text_taken_off_the_shelf_is_replaced_and_counted_as_skipped() -> None:
+def test_a_text_taken_off_the_shelf_is_counted_as_skipped_and_not_replaced() -> None:
     model = ScriptedModel(IN_RANGE)
     e = engine(model)
-    run(e.top_up)
+
+    async def scenario() -> None:
+        e.write_about("Haggling at a market", "story")
+        await settle(e)
+
+    run(scenario)
     first = store.shelf_texts(e.conn, "th")[0]
 
     assert store.skip_text(e.conn, first.id)
     assert not store.skip_text(e.conn, first.id)  # already off the shelf
     run(e.top_up)
 
-    assert len(store.shelf_texts(e.conn, "th")) == SHELF_SIZE
-    assert first.id not in {t.id for t in store.shelf_texts(e.conn, "th")}
+    assert store.shelf_texts(e.conn, "th") == []
+    assert model.calls == 1
     assert store.spending(e.conn, NOW)["th"].skipped == 1
-
-
-def test_the_due_text_waits_for_a_word_reviewed_today_and_anki_is_read_again_meanwhile() -> None:
-    # ข้าวเหนียวมะม่วง is due today and not reviewed yet; every other studied word is mature and not
-    # due. Reading it in context before its review would make that review short-term recall.
-    notes = [note(e.note_id, e.text, e.meaning) for e in ENTRIES]
-    cards = [card(n, 2, 40, due_in=10) for n in (1, 2, 3, 5, 6)] + [card(7, 0, 0)]
-    deck = FakeDeck(notes, [*cards, card(4, 2, 5, due=True, due_in=0)])
-    clock = Clock()
-    # Every text before the review leaves ข้าวเหนียวมะม่วง out (PLAIN); the due text uses it.
-    model = ScriptedModel(PLAIN, PLAIN, PLAIN, PLAIN, IN_RANGE)
-    e = Engine(store.connect(":memory:"), model.ask_for, deck, clock, random.Random(1))
-    store.add_topic(e.conn, "Food stall", True, NOW)
-    store.add_topic(e.conn, "Taxi", True, NOW)
-
-    run(e.top_up)
-    shelf = store.shelf_texts(e.conn, "th")
-    assert len(shelf) == SHELF_SIZE and "due" not in {t.reason for t in shelf}
-    assert all(t.stretch == () for t in shelf)  # nor any other text's practice word
-    assert e._request("Taxi", e.entries("th"), Difficulty(stretch=1)).stretch == ()
-    assert len(deck.reads) == 1
-
-    # A slot frees up: within DUE_SNAPSHOT_AGE, Anki isn't read again and the slot goes to another kind.
-    store.skip_text(e.conn, shelf[0].id)
-    clock.now = NOW + timedelta(minutes=10)
-    run(e.top_up)
-    assert len(deck.reads) == 1
-    assert "due" not in {t.reason for t in store.shelf_texts(e.conn, "th")}
-
-    # Reviewed (on another device, synced): the next free slot is the due text, written around it.
-    deck.cards[-1] = card(4, 2, 5, rated=True, due_in=3)
-    store.skip_text(e.conn, store.shelf_texts(e.conn, "th")[0].id)
-    clock.now = NOW + DUE_SNAPSHOT_AGE + timedelta(minutes=10)
-    run(e.top_up)
-    assert len(deck.reads) == 2
-    due = [t for t in store.shelf_texts(e.conn, "th") if t.reason == "due"]
-    assert [t.stretch for t in due] == [("ข้าวเหนียวมะม่วง",)]
-
-    # With the due text on the shelf, Anki is read daily again.
-    clock.now += DUE_SNAPSHOT_AGE
-    run(e.top_up)
-    assert len(deck.reads) == 2
 
 
 def test_a_word_due_today_and_not_reviewed_is_left_out_of_a_new_text() -> None:
@@ -333,27 +285,7 @@ def test_a_word_that_came_due_since_the_snapshot_is_not_a_practice_word() -> Non
     assert e._request("x", ENTRIES, Difficulty(stretch=1)).stretch == ()
 
 
-def test_a_failed_shelf_text_ends_the_pass_and_its_topic_cools_down() -> None:
-    clock = Clock()
-    model = ScriptedModel(BAD, BAD, BAD, IN_RANGE)
-    e = engine(model, clock=clock)
-    market = store.add_topic(e.conn, "At the market", True, NOW)
-
-    run(e.top_up)  # the due-words text, on the only liked theme, misses three times
-    assert model.calls == 3
-    assert store.shelf_texts(e.conn, "th") == []
-    assert e.failure(market.id, "th") == MISSED_FLOOR
-
-    run(e.top_up)  # the shelf waits out the cooldown rather than trying another idea
-    assert model.calls == 3
-
-    clock.now = NOW + FAILURE_COOLDOWN
-    assert e.failure(market.id, "th") is None
-    run(e.top_up)
-    assert len(store.shelf_texts(e.conn, "th")) == SHELF_SIZE
-
-
-def test_a_text_asked_for_joins_the_shelf_beyond_its_size() -> None:
+def test_a_text_asked_for_joins_the_shelf() -> None:
     model = ScriptedModel(IN_RANGE)
     e = engine(model)
     run(e.top_up)
@@ -364,8 +296,8 @@ def test_a_text_asked_for_joins_the_shelf_beyond_its_size() -> None:
 
     run(scenario)
     shelf = store.shelf_texts(e.conn, "th")
-    assert len(shelf) == SHELF_SIZE + 1
-    asked = shelf[-1]
+    assert len(shelf) == 1
+    asked = shelf[0]
     assert (asked.reason, asked.form) == ("asked", "story")
     assert store.topic_name(e.conn, asked.topic_id) == "Haggling at a market"
     with pytest.raises(ValueError):

@@ -506,9 +506,8 @@ they win and this is stale. The rules that must not break:
   WaniKani vocabulary at Guru or above (`wanikani.py`, read with the server's `WANIKANI_TOKEN`).
 - **Batch and cache.** Texts are written in the background and queued, never inside a request, and
   never one API call per word or page view.
-- **The owner steers the topics.** The shelf (`architecture.md`, Shelf) offers texts already
-  written on liked themes, due words and new ideas, writes ahead only for the language being read,
-  and never more than `SHELF_SIZE`; any topic can still be typed in. Already rejected, don't
+- **The owner asks for each text.** The shelf (`architecture.md`, Shelf) holds only texts asked for
+  (a typed topic, Surprise me) and the ongoing story's next episode; nothing is written ahead. Already rejected, don't
   revisit: cloze cards, saving generated sentences as Anki cards, rescheduling Thai cards.
 - **It reads Anki as a sync client of the sync server beside it**, through Anki's own `anki`
   package like the MCP, every read under `with_timeout` (45 seconds) so a server that stops

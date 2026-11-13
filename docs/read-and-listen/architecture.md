@@ -748,24 +748,16 @@ topics, favorites and constant setting changes awkward, though the texts themsel
 - **The tab opens on the language read last** (`language`), and its header has a menu of every
   language with how many texts each has waiting. Switching changes `language`, so only the language
   being read is ever written for.
-- **The shelf keeps `SHELF_SIZE` (3) texts written ahead** in that language (`_next_shelf_job` in
-  `engine.py`), each for a reason stored on the text (`texts.reason`) and shown on its card: one
-  written around words due today (`due`: the words are handed to the model, as "Any word" does), one
-  on a liked theme (`liked`), and one on an idea not tried before (`new`, from the topic ideas, best
-  fit first, filed as a hidden topic so it's never offered again). With no liked theme free, ideas
-  fill the gap. Dialogues and stories alternate, so the shelf has both without a setting.
-- **The "due" text waits for words reviewed today** (13 November 2026; see Generation and coverage,
-  Never a word due today that isn't reviewed yet). Its words are only ones already answered today,
-  and its card says "Uses 2 words you reviewed today". Until there's one, the shelf doesn't write it:
-  the slot goes to a liked theme or a new idea, and the due text is written the next time a slot is
-  free and a word has been reviewed, rather than falling back to young words under a label that
-  would be wrong. While the shelf has room for it, the top-up reads Anki again when the snapshot is
-  30 minutes old (`DUE_SNAPSHOT_AGE`, a sync with the owner's own server, no API call) rather than
-  daily, so a review done elsewhere shows within the half hour after it's synced.
-- **Spending.** Texts are written only after the app asks for the shelf, only for the current
-  language, and never more than the shelf is short. A text left unread stays on the shelf rather
-  than being written again. A failed shelf text stops the pass and pauses that language's shelf for
-  `FAILURE_COOLDOWN`, or each refresh would try another idea and keep paying.
+- **The shelf writes nothing on its own** (13 November 2026, by the owner: 41 of 65 texts written in
+  a month were never read, and each language opened filled its own shelf of 3). It holds the texts
+  asked for: a typed topic, Surprise me (`asked`), a practice text, and the ongoing story's next
+  episode, which is written once the last one is read. Before this the shelf kept `SHELF_SIZE` (3)
+  texts written ahead per language, one each of `due`, `liked` and `new`, refilled every time one
+  was read; those texts keep their reasons and show as they did, but none is written any more, and
+  the top-up no longer reads Anki every 30 minutes for a due text (the snapshot is daily again).
+- **Spending.** A text is written only because it was asked for, in the language being read. Nothing
+  waits unread unless it was asked for. A failed text is reported to the next request for its topic
+  and that topic waits out `FAILURE_COOLDOWN` before it's tried again.
 - **Steering instead of settings.** Press and hold a card for More like this (its topic becomes a
   liked theme) or Not this (the text is taken off unread: status `skipped`, counted in the costs).
   The end of a text has the same theme choice and Shorter, Same or Longer, which sets the length
