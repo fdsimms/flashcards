@@ -19,6 +19,11 @@ describe('reconcileIds', () => {
     expect(res.notes[0].deck).toBe('Trivia::New');
     expect(res.cards.map((c) => [c.id, c.noteId])).toEqual([['1700000000:forward', '1700000000']]);
   });
+  it('matches a front written with a character reference to the same text stored plainly', () => {
+    const stored = basic('tsv:Fr:l\'eau', 'Fr', "l'eau");
+    const res = reconcileIds(resultOf([basic('tsv:Fr:l&#x27;eau', 'Fr', 'l&#x27;eau', 'water')]), [stored]);
+    expect(res.notes[0].id).toBe("tsv:Fr:l'eau");
+  });
   it('keeps an id that is already stored', () => {
     const stored = basic('a', 'D', 'Q');
     expect(reconcileIds(resultOf([basic('a', 'D', 'Q')]), [stored, basic('b', 'E', 'Q')]).notes[0].id).toBe('a');

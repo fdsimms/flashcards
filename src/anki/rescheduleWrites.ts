@@ -146,9 +146,12 @@ async function latestRevlogId(db: SyncDb): Promise<number | null> {
   return (await db.first<{ m: number | null }>('SELECT max(id) AS m FROM revlog'))?.m ?? null;
 }
 
-/** The changed cards' rows as they are now, by Anki card id, to read back into Franki. */
-/** `revlogId`: the Manual review log row added for the change (an import reads its time as the latest answer). */
-export type RescheduledRow = RescheduleRow & { mod: number; revlogId: number };
+/**
+ * The changed cards' rows as they are now, by Anki card id, to read back into Franki.
+ * `lastAnsweredId`: the card's latest real answer in the review log, or null. Anki's FSRS takes
+ * that as the last review, skipping Manual rows like the one added for the change (ease 0).
+ */
+export type RescheduledRow = RescheduleRow & { mod: number; lastAnsweredId: number | null };
 export type RescheduledRows = Map<number, RescheduledRow>;
 
 async function rewrite(
@@ -163,11 +166,12 @@ async function rewrite(
     for (const cid of cids) {
       const row = await db.first<RescheduleRow>(ROW_SQL, cid);
       if (!row) continue;
+      const answered = await db.first<{ m: number | null }>('SELECT max(id) AS m FROM revlog WHERE cid = ? AND ease > 0', cid);
       const next = await change({ ...row, data: row.data ?? '' }, cid);
       revlogId = nextRevlogId(now.getTime(), revlogId);
       await db.run(REVLOG_INSERT_SQL, ...revlogParams(manualRevlog(next, row.ivl, revlogId, cid)));
       await db.run(UPDATE_SQL, next.did, next.odid, next.odue, next.type, next.queue, next.due, next.ivl, next.factor, next.reps, next.lapses, next.data, nowSecs, cid);
-      out.set(cid, { ...next, mod: nowSecs, revlogId });
+      out.set(cid, { ...next, mod: nowSecs, lastAnsweredId: answered?.m ?? null });
     }
     if (after) await after();
     await db.run(COL_MODIFIED_SQL, now.getTime());

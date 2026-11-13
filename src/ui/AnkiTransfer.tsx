@@ -83,7 +83,9 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
     }
   });
 
-  const pick = async () => {
+  // A failure before an import starts (the picker, reading the collection's state) is said too.
+  const pick = () => choose().catch((e) => say(failureText(e, { what: "Couldn't open that file.", next: 'Try again.' })));
+  const choose = async () => {
     const res = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: false });
     if (res.canceled) return;
     const asset = res.assets[0];
@@ -138,7 +140,18 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
         'Once AnkiMobile has imported it, Anki has every answer given here, and Franki counts them as sent.',
         [
           { text: 'Not yet', style: 'cancel' },
-          { text: "Yes, it's in Anki", onPress: async () => { await repo.markSentToAnki(); await refresh(); say('Sent to Anki.'); } },
+          {
+            text: "Yes, it's in Anki",
+            onPress: async () => {
+              try {
+                await repo.markSentToAnki();
+                await refresh();
+                say('Sent to Anki.');
+              } catch (e) {
+                say(failureText(e, { what: "Couldn't count the answers as sent.", next: 'Send to Anki again, then tap Yes.' }));
+              }
+            },
+          },
         ],
       );
     } catch (e: any) {

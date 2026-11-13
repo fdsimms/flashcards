@@ -55,7 +55,8 @@ export const COLLECTION_QUERIES = {
   cards: 'SELECT id, nid, did, ord, type, queue, due, ivl, factor, reps, lapses, left, odid, odue, data, mod, flags FROM cards',
   decks: 'SELECT id, name, kind FROM decks',
   deckConfigs: 'SELECT id, config FROM deck_config',
-  lastReviews: 'SELECT cid, MAX(id) AS last FROM revlog GROUP BY cid',
+  // The latest real answer: Anki's FSRS skips Manual rows (Set Due Date, Forget), which have ease 0.
+  lastReviews: 'SELECT cid, MAX(id) AS last FROM revlog WHERE ease > 0 GROUP BY cid',
   config: "SELECT key, val FROM config WHERE key IN ('rollover', 'collapseTime', 'newCardsIgnoreReviewLimit', 'applyAllParentLimits', 'creationOffset', 'loadBalancerEnabled')",
 } as const;
 

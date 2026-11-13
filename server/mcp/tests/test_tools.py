@@ -57,6 +57,10 @@ async def test_updates_tags_and_deletes(client, desktop):
     assert (await call(client, "manage_tags", action="rename", old_name="south-america", new_name="americas"))["notes_changed"] == 1
     assert "americas" in (await call(client, "manage_tags", action="list"))["tags"]
     assert "Nothing was deleted" in await call_error(client, "delete_notes", note_ids=[nid, 123])
+    too_many = [{"note_id": nid, "tags": []}] * 101
+    assert "Up to 100" in await call_error(client, "update_notes", updates=too_many)
+    assert "Up to 100" in await call_error(client, "get_notes", note_ids=[nid] * 101)
+    assert "Up to 100" in await call_error(client, "card_memory_state", card_ids=[1] * 101)
     assert (await call(client, "delete_notes", note_ids=[nid]))["deleted"] == 1
     desktop.run("sync")
     assert all(n[0] != nid for n in desktop.run("dump")["dump"]["notes"])
@@ -103,6 +107,7 @@ async def test_card_actions(client):
     card = (await call(client, "get_notes", note_ids=[1794408858018]))["notes"][0]["cards"][0]
     assert card["stage"] == "new"
     assert "set_flag needs flag" in await call_error(client, "manage_cards", action="set_flag", card_ids=[cid], flag=9)
+    assert "couldn't read days" in await call_error(client, "manage_cards", action="set_due_date", card_ids=[cid], days="abc")
 
 
 async def test_studies_in_anki_order_and_the_answer_reaches_another_device(client, desktop):
@@ -133,6 +138,12 @@ async def test_stats_and_fsrs(client):
     fsrs = await call(client, "get_fsrs_settings", deck=THAI)
     assert fsrs["desired_retention"] == pytest.approx(0.85) and fsrs["new_per_day"] == 7
     assert "between 0.7 and 0.99" in await call_error(client, "set_fsrs_settings", deck=THAI, desired_retention=1.5)
+    # 19 numbers take effect even over 21 already there, which Anki would otherwise schedule with.
+    p6 = [round(0.1 + i / 10, 4) for i in range(21)]
+    await call(client, "set_fsrs_settings", deck=THAI, params=p6)
+    assert (await call(client, "get_fsrs_settings", deck=THAI))["params"] == pytest.approx(p6)
+    await call(client, "set_fsrs_settings", deck=THAI, params=p6[:19])
+    assert (await call(client, "get_fsrs_settings", deck=THAI))["params"] == pytest.approx(p6[:19])
     opt = await call(client, "optimize_fsrs", deck=THAI)
     assert opt["applied"] is False
 

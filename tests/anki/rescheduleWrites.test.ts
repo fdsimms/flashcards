@@ -63,6 +63,19 @@ describe('Forget and Set Due Date in the kept collection, as Anki writes them', 
   }
 });
 
+describe("the card's last answer, read back after the change", () => {
+  it("is its latest real answer, not the Manual row the change adds, as Anki's FSRS reads it", async () => {
+    const db = await kept(true);
+    const cid = VECTORS.find((v) => v.op === 'setDue')!.cids[0];
+    await db.run('DELETE FROM revlog WHERE cid = ?', cid);
+    expect((await setAnkiDueDates(db, [cid], { today: 100, nextDayStartSecs: 0, days: () => 3, forceReset: false }, NOW)).get(cid)!.lastAnsweredId).toBeNull();
+    await db.run('INSERT INTO revlog (id, cid, usn, ease, ivl, lastIvl, factor, time, type) VALUES (1700000000000, ?, 0, 3, 5, 1, 2500, 4000, 1)', cid);
+    const again = await setAnkiDueDates(db, [cid], { today: 100, nextDayStartSecs: 0, days: () => 3, forceReset: false }, NOW);
+    expect(again.get(cid)!.lastAnsweredId).toBe(1700000000000);
+    db.close();
+  });
+});
+
 const review: RescheduleRow = { did: 1, odid: 0, odue: 0, type: 2, queue: 2, due: 50, ivl: 10, factor: 2500, reps: 4, lapses: 1, data: '{"pos":3,"s":12,"d":5,"lrt":1000}' };
 
 describe('forgetRow', () => {

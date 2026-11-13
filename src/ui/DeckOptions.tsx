@@ -35,6 +35,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
   useEffect(() => {
     setLoadError(null);
     (async () => {
+      await saving.current; // a reload after a failed save reads what the saves still queued wrote
       const [all, cards, notes, params] = await Promise.all([repo.listDeckSettings(), repo.listCards(deck), repo.listNotes(), repo.listDeckParams()]);
       setFiltered(!!paramsForDeck(deck, params)?.filtered);
       const s = all.get(deck) ?? {};
@@ -46,12 +47,16 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
   }, [repo, deck, attempt]);
 
   // Writes queue behind each other, so a quick toggle-then-edit can't land out of order. A failed
-  // write is said and the queue goes on, so later saves (and leaving the screen) aren't stuck behind it.
+  // write is said and the queue goes on, so later saves (and leaving the screen) aren't stuck behind it;
+  // the screen is read back from what's stored, so it doesn't go on showing the setting that wasn't saved.
   const save = (next: DeckSettings) => {
     setSettings(next);
     saving.current = saving.current
       .then(() => repo.saveDeckSettings(deck, next))
-      .catch((e) => Alert.alert("Couldn't save this setting", failureText(e, { next: 'Try again.' })));
+      .catch((e) => {
+        Alert.alert("Couldn't save this setting", failureText(e, { next: 'Try again.' }));
+        setAttempt((n) => n + 1);
+      });
   };
 
   const toggle = (on: boolean) => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deckChipRows, duplicateOf, editTextToField, fieldToEditText, notePreview, parseTags, searchNotes } from '../../src/core/noteEditing';
+import { asEdited, deckChipRows, duplicateOf, editTextToField, fieldToEditText, notePreview, parseTags, searchNotes } from '../../src/core/noteEditing';
 import type { Note } from '../../src/core/types';
 import { omniNote } from '../support/fixtures';
 
@@ -11,6 +11,11 @@ describe('editing a note', () => {
     expect(fieldToEditText('one<br>two<BR/>three<br />four <b>bold</b>')).toBe('one\ntwo\nthree\nfour <b>bold</b>');
     expect(editTextToField('one\ntwo\r\nthree <b>bold</b>')).toBe('one<br>two<br>three <b>bold</b>');
     expect(editTextToField(fieldToEditText('a<br>b'))).toBe('a<br>b');
+  });
+
+  it('reads a field the editor would store back differently untouched as unchanged', () => {
+    expect(asEdited('one<br/>two\nthree<BR>')).toBe('one<br>two<br>three<br>');
+    expect(asEdited(editTextToField(fieldToEditText('one<br/>two\nthree')))).toBe(editTextToField(fieldToEditText('one<br/>two\nthree')));
   });
 
   it('reads typed tags once each, whatever their case', () => {

@@ -186,4 +186,14 @@ describe('emptying a filtered deck', () => {
     expect(await card(db, 1794408858030)).toMatchObject({ queue: -1, due: 6 });
     db.close();
   });
+
+  it("puts a new card Anki left in the review queue (built without rescheduling) back in the new queue", async () => {
+    const db = await kept();
+    await build(db, TRIVIA, cram('new'));
+    const session = await deckNamed(db, CUSTOM_STUDY_DECK);
+    await db.run('UPDATE cards SET queue = 2 WHERE id = 1794408858020');
+    await emptyFilteredDeck(db, session.id, NOW);
+    expect(await card(db, 1794408858020)).toMatchObject({ type: 0, queue: 0, due: 5 });
+    db.close();
+  });
 });

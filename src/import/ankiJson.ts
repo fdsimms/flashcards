@@ -1,5 +1,7 @@
 import { isOmnilanguage, makeCards } from '../core/cards';
+import { DAY_STARTS_AT_HOUR } from '../core/config';
 import { addCalendarDays, dayKeyOf } from '../core/day';
+import { ankiDayStart } from '../core/order';
 import { newSchedState, paramsForDeck } from '../core/scheduler';
 import type { Card, CardKind, CollectionSettings, DeckParams, DayLimit, Note, NoteType, SchedState } from '../core/types';
 import { omnilanguageKindByOrd } from './models';
@@ -174,20 +176,23 @@ export function easeToDifficulty(factor: number | undefined): number {
 /** Anki writes an intraday learning card's due as a unix timestamp, every other due as a day number. */
 const TIMESTAMP_DUE = 1_000_000_000;
 
+/** What places Anki's day numbers: the collection's creation, in its own time zone, and the hour its day starts. */
+export type AnkiDays = Pick<CollectionSettings, 'collectionCreated' | 'dayStartsAtHour' | 'creationOffset'>;
+
 /**
- * When an Anki card is due. A day number counts days from the collection's creation, which Anki
- * stamps at the rollover hour, so the result lands on the start of that study day. Without the
- * creation time a day number can't be placed, and the card is due now (the importer warns).
+ * When an Anki card is due. A day number counts calendar days from the date the collection was
+ * created (`ankiToday`), so the result is the start of that study day. Without the creation time
+ * a day number can't be placed, and the card is due now (the importer warns).
  */
-export function ankiDueDate(c: AnkiCardInfo, collectionCreated: number | undefined, now: Date): Date {
+export function ankiDueDate(c: AnkiCardInfo, days: AnkiDays, now: Date): Date {
   if (c.due === undefined) return now;
   if (c.due >= TIMESTAMP_DUE) return new Date(c.due * 1000);
-  if (collectionCreated === undefined) return now;
-  return new Date((collectionCreated + c.due * 86400) * 1000);
+  if (days.collectionCreated === undefined) return now;
+  return ankiDayStart(c.due, days.dayStartsAtHour, days.collectionCreated, days.creationOffset);
 }
 
 /** Convert Anki's scheduling fields into an FSRS state. Prefers a real FSRS memory state when given. */
-export function schedFromAnki(c: AnkiCardInfo, collectionCreated: number | undefined, now: Date): SchedState {
+export function schedFromAnki(c: AnkiCardInfo, days: AnkiDays, now: Date): SchedState {
   const type = c.type ?? 0;
   // A forgotten card is new again but keeps its review and lapse counts in Anki (unless they were
   // reset); Anki's fuzz is seeded by reps and leeches count lapses, so they're kept here too.
@@ -195,7 +200,7 @@ export function schedFromAnki(c: AnkiCardInfo, collectionCreated: number | undef
 
   // A learning card's interval is 0, or negative seconds in AnkiConnect; neither is a day count.
   const interval = Math.max(1, c.interval ?? 1);
-  const due = ankiDueDate(c, collectionCreated, now);
+  const due = ankiDueDate(c, days, now);
   const stability = c.memoryState?.stability ?? interval;
   const difficulty = c.memoryState?.difficulty ?? easeToDifficulty(c.factor);
   // The real last answer when the export has it; otherwise estimated as one interval before due.
@@ -219,6 +224,11 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
   const deckParams = data.deckConfigs
     ? deckParamsFromConfigs(data.deckConfigs, data.collectionCreated)
     : data.fsrsParams?.presets ? deckParamsFromPresets(data.fsrsParams.presets) : undefined;
+  const days: AnkiDays = {
+    collectionCreated: data.collectionCreated,
+    dayStartsAtHour: data.collectionSettings?.dayStartsAtHour ?? DAY_STARTS_AT_HOUR,
+    creationOffset: data.collectionSettings?.creationOffset,
+  };
   const warnings: string[] = [];
   const notes = new Map<string, Note>();
   const cardsByNote = new Map<string, AnkiCardInfo[]>();
@@ -257,7 +267,7 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
         skippedByModel.set(n.modelName, (skippedByModel.get(n.modelName) ?? 0) + 1);
         continue;
       }
-      target.sched = schedFromAnki(ac, data.collectionCreated, now);
+      target.sched = schedFromAnki(ac, days, now);
       if (ac.stepsLeft !== undefined) {
         // ts-fsrs counts the step a learning card is on from the first (0); Anki counts the steps
         // left, the current one included. Without the preset's steps, ts-fsrs's own (1m 10m, 10m).

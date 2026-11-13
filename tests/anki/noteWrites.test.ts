@@ -109,13 +109,17 @@ for (const unicase of [false, true]) {
 }
 
 describe.skipIf(!unicaseExtension())('moving a note between decks', () => {
-  it('changes a card\'s deck, or a filtered card\'s home deck', async () => {
+  it("changes a card's deck, taking one in a filtered deck out of it first, as Anki's Change Deck does", async () => {
     const db = await collection(true);
     const nid = (await db.first<{ id: number }>("SELECT id FROM notes WHERE flds LIKE 'Capital of Peru?%'"))!.id;
     const [card] = await db.all<{ id: number }>('SELECT id FROM cards WHERE nid = ?', nid);
-    await db.run('UPDATE cards SET odid = did, did = 999 WHERE id = ?', card.id); // as if in a filtered deck
+    const before = (await db.first<{ type: number; due: number }>('SELECT type, due FROM cards WHERE id = ?', card.id))!;
+    // As Anki builds a filtered deck without rescheduling: due set aside in odue, in the review queue.
+    await db.run('UPDATE cards SET odid = did, did = 999, odue = due, due = -100000, queue = 2 WHERE id = ?', card.id);
     const { moveAnkiNote } = await import('../../src/anki/noteWrites');
     await moveAnkiNote(db, nid, 42, NOW);
-    expect(await db.first('SELECT did, odid, usn FROM cards WHERE id = ?', card.id)).toEqual({ did: 999, odid: 42, usn: -1 });
+    const queue = before.type === 0 ? 0 : before.type === 2 ? 2 : before.due > 1_000_000_000 ? 1 : 3;
+    expect(await db.first('SELECT did, odid, odue, due, queue, usn FROM cards WHERE id = ?', card.id))
+      .toEqual({ did: 42, odid: 0, odue: 0, due: before.due, queue, usn: -1 });
   });
 });

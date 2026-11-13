@@ -20,6 +20,14 @@ export function editTextToField(text: string): string {
   return text.replace(/\r\n?/g, '\n').replace(/\n/g, '<br>');
 }
 
+/**
+ * A stored field as the editor would store it back untouched (`<br/>` and a raw new line both as
+ * `<br>`): what an edit is compared with, so opening a note doesn't count as changing it.
+ */
+export function asEdited(html: string): string {
+  return editTextToField(fieldToEditText(html));
+}
+
 /** Tags typed as text, separated by spaces: each once, whatever its case (the first spelling wins). */
 export function parseTags(text: string): string[] {
   const seen = new Map<string, string>();

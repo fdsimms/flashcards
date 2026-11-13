@@ -3,7 +3,7 @@ import { Refusal } from '../core/failure';
 import { ankiToday } from '../core/order';
 import { forgetCard, pickDays, setDueCard, type DueDateSpec } from '../core/reschedule';
 import type { Card } from '../core/types';
-import { schedFromAnki } from '../import/ankiJson';
+import { schedFromAnki, type AnkiDays } from '../import/ankiJson';
 import type { NoteStore } from './noteService';
 import { forgetAnkiCards, setAnkiDueDates, type RescheduledRow, type RescheduledRows } from './rescheduleWrites';
 
@@ -19,16 +19,16 @@ import { forgetAnkiCards, setAnkiDueDates, type RescheduledRow, type Rescheduled
 export class RescheduleRefused extends Refusal {}
 
 /** A card as Franki keeps it, from its Anki row after the change. */
-function fromAnkiRow(card: Card, row: RescheduledRow, crt: number | undefined, now: Date): Card {
+function fromAnkiRow(card: Card, row: RescheduledRow, days: AnkiDays, now: Date): Card {
   let data: { s?: unknown; d?: unknown; lrt?: unknown } = {};
   try { data = row.data ? JSON.parse(row.data) : {}; } catch { /* no memory state */ }
   const sched = schedFromAnki({
     cardId: card.ankiId!, note: card.noteId, deckName: '', type: row.type, due: row.due, interval: row.ivl, factor: row.factor,
     reps: row.reps, lapses: row.lapses,
     memoryState: typeof data.s === 'number' && typeof data.d === 'number' ? { stability: data.s, difficulty: data.d } : undefined,
-    // As the importer reads it (collection.ts): the card's own last answer, else its latest review log row.
-    lastReview: typeof data.lrt === 'number' ? data.lrt : Math.floor(row.revlogId / 1000),
-  }, crt, now);
+    // As the importer reads it (collection.ts): the card's own last answer, else its latest answer in the review log.
+    lastReview: typeof data.lrt === 'number' ? data.lrt : row.lastAnsweredId !== null ? Math.floor(row.lastAnsweredId / 1000) : undefined,
+  }, days, now);
   return {
     ...card,
     // Both put the card in an ordinary queue at home, out of any bury, suspension or filtered deck.
@@ -49,7 +49,7 @@ async function reschedule(
   const rows = anki.length ? await store.lockAnki(() => inAnki(anki.map((c) => Number(c.ankiId)))) : new Map() as RescheduledRows;
   const out = cards.map((c) => {
     const row = c.ankiId ? rows.get(Number(c.ankiId)) : undefined;
-    return row ? fromAnkiRow(c, row, cs.collectionCreated, now) : inFranki(c);
+    return row ? fromAnkiRow(c, row, cs, now) : inFranki(c);
   });
   for (const c of out) await store.saveCard(c);
   return out;

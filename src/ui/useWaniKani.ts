@@ -45,6 +45,8 @@ export interface WaniKaniState {
   send: (outcomes: Outcome[]) => void;
   /** Answers given here that haven't reached WaniKani yet. */
   unsent: number;
+  /** The assignments those answers are for, which WaniKani still lists as up until they reach it. */
+  unsentAssignments: () => Set<number>;
   /** Answers given here over the last year, for Stats (log.ts). */
   log: LogEntry[];
   /** The deck production cards go in: the one chosen, or the Japanese deck. */
@@ -181,6 +183,8 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   produceRef.current = produce;
   const srsRead = useRef(false);
 
+  const unsentAssignments = useCallback(() => new Set((stored.current?.outbox ?? []).map((o) => o.assignmentId)), []);
+
   /** The offline copy as it stands: answers given or sent since it was made are left out. */
   const copyData = useCallback((): OfflineData | null => {
     const copy = snapshot.current;
@@ -285,7 +289,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     api, user,
     counts: counts ? { reviews: counts.reviews, lessons: lessonsToday(counts.available, prefs.newPerDay, startedToday, counts.apprentice, prefs.maxApprentice) } : null,
     apprentice: counts ? counts.apprentice : null,
-    problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, log, productionDeck, production, startedToday, dayStartsAtHour,
+    problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, unsentAssignments, log, productionDeck, production, startedToday, dayStartsAtHour,
     offline, offlineData: copyData,
-  }), [token, api, user, counts, problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, log, productionDeck, production, startedToday, dayStartsAtHour, offline, copyData]);
+  }), [token, api, user, counts, problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, unsentAssignments, log, productionDeck, production, startedToday, dayStartsAtHour, offline, copyData]);
 }

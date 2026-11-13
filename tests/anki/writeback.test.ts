@@ -6,7 +6,7 @@ import { buildExport } from '../../src/anki/collection';
 import { readPackage, writePackage } from '../../src/anki/package';
 import {
   CARD_ROW_SQL, CARD_UPDATE_SQL, REVLOG_INSERT_SQL, ankiDayNumber, cardUpdate, cardUpdateParams, nextRevlogId,
-  cardStateParams, previewAgain, previewReturn, queueForType, revlogDifficulty, revlogEntry, revlogParams, type AnkiCardRow,
+  cardStateParams, previewAgain, previewReturn, previewRevlogEntry, queueForType, revlogDifficulty, revlogEntry, revlogParams, type AnkiCardRow,
 } from '../../src/anki/writeback';
 import { makeCards } from '../../src/core/cards';
 import { review } from '../../src/core/scheduler';
@@ -18,6 +18,7 @@ import { omniNote } from '../support/fixtures';
 
 const DIR = join(__dirname, '..', 'fixtures', 'anki');
 const CRT = Math.floor(new Date(2026, 10, 1, 4).getTime() / 1000);
+const CLOCK = { crt: CRT, dayStartsAtHour: 4 };
 const row = (over: Partial<AnkiCardRow> = {}): AnkiCardRow => ({
   did: 5, odid: 0, odue: 0, type: 0, queue: 0, due: 12, ivl: 0, factor: 0, reps: 0, lapses: 0, left: 0, data: '{"pos":12}', ...over,
 });
@@ -33,14 +34,14 @@ describe('mapping an answer to Anki', () => {
 
   it('writes a first answer as learning due within the day, keeping Anki\'s own data keys', () => {
     const after: Card = { ...card, sched: review(card.sched, 3, now).sched };
-    const u = cardUpdate(after, row(), { crt: CRT, now, desiredRetention: 0.85 });
+    const u = cardUpdate(after, row(), { clock: CLOCK, now, desiredRetention: 0.85 });
     expect(u).toMatchObject({ type: 1, queue: 1, ivl: 0, reps: 1, factor: 2500, usn: -1 });
     expect(u.due).toBe(Math.floor(new Date(after.sched.due).getTime() / 1000));
     expect(u.left).toBeGreaterThanOrEqual(1);
     expect(JSON.parse(u.data!)).toMatchObject({ pos: 12, dr: 0.85 });
     // A card that had no position kept yet gets its new-card position, as Anki records it.
-    expect(JSON.parse(cardUpdate(after, row({ data: '' }), { crt: CRT, now }).data!).pos).toBe(12);
-    expect(JSON.parse(cardUpdate(after, row({ data: '{}', odid: 3, odue: 7, due: -100000 }), { crt: CRT, now }).data!).pos).toBe(7);
+    expect(JSON.parse(cardUpdate(after, row({ data: '' }), { clock: CLOCK, now }).data!).pos).toBe(12);
+    expect(JSON.parse(cardUpdate(after, row({ data: '{}', odid: 3, odue: 7, due: -100000 }), { clock: CLOCK, now }).data!).pos).toBe(7);
     expect(JSON.parse(u.data!).s).toBeGreaterThan(0);
   });
 
@@ -48,25 +49,40 @@ describe('mapping an answer to Anki', () => {
     const params = { weights: [], desiredRetention: 0.9, maxInterval: 36500, learnSteps: [10, 1440, 4320] };
     // At 20:00, a Good on the first step waits a day: due tomorrow, on step 2 of 3.
     const after: Card = { ...card, sched: review(card.sched, 3, now, params).sched };
-    const u = cardUpdate(after, row(), { crt: CRT, now, steps: { learn: 3, relearn: 1 } });
+    const u = cardUpdate(after, row(), { clock: CLOCK, now, steps: { learn: 3, relearn: 1 } });
     expect(u).toMatchObject({ type: 1, queue: 3, left: 2 });
-    expect(u.due).toBe(ankiDayNumber(Math.floor(now.getTime() / 1000), CRT) + 1);
+    expect(u.due).toBe(ankiDayNumber(Math.floor(now.getTime() / 1000), CLOCK) + 1);
     // Anki logs a day-long step in days, and a step within the day in negative seconds.
-    expect(revlogEntry(card, after, 3, { id: 1, cid: 1, previousIvl: 0, now, takenMs: 0, crt: CRT }).ivl).toBe(1);
+    expect(revlogEntry(card, after, 3, { id: 1, cid: 1, previousIvl: 0, now, takenMs: 0, clock: CLOCK }).ivl).toBe(1);
     const short: Card = { ...card, sched: review(card.sched, 3, new Date(2026, 10, 11, 9, 0)).sched };
-    expect(revlogEntry(card, short, 3, { id: 1, cid: 1, previousIvl: 0, now: new Date(2026, 10, 11, 9, 0), takenMs: 0, crt: CRT }).ivl).toBe(-600);
+    expect(revlogEntry(card, short, 3, { id: 1, cid: 1, previousIvl: 0, now: new Date(2026, 10, 11, 9, 0), takenMs: 0, clock: CLOCK }).ivl).toBe(-600);
   });
 
   it('keeps a card answered in a filtered deck there while it learns, and sends it home as a review', () => {
     const learning: Card = { ...card, sched: review(card.sched, 3, now).sched };
-    expect(cardUpdate(learning, row({ did: 99, odid: 5, odue: 40 }), { crt: CRT, now })).toMatchObject({ did: 99, odid: 5, queue: 1 });
+    expect(cardUpdate(learning, row({ did: 99, odid: 5, odue: 40 }), { clock: CLOCK, now })).toMatchObject({ did: 99, odid: 5, queue: 1 });
     const graduated: Card = { ...card, sched: review(card.sched, 4, now).sched };
-    expect(cardUpdate(graduated, row({ did: 99, odid: 5, odue: 40 }), { crt: CRT, now })).toMatchObject({ did: 5, odid: 0, odue: 0, queue: 2 });
+    expect(cardUpdate(graduated, row({ did: 99, odid: 5, odue: 40 }), { clock: CLOCK, now })).toMatchObject({ did: 5, odid: 0, odue: 0, queue: 2 });
   });
 
   it("keeps a previewed card in its filtered deck, due again after the delay, when it isn't finished", () => {
     const inPreview = row({ did: 99, odid: 5, odue: 812, type: 2, queue: 2, due: -100000, ivl: 30 });
     expect(previewAgain(inPreview, 1794000060, now)).toMatchObject({ did: 99, odid: 5, odue: 812, type: 2, queue: 4, due: 1794000060, ivl: 30, usn: -1 });
+  });
+
+  it('logs a review answered before its day as filtered, as Anki logs reviewing ahead', () => {
+    const due: Card = { ...card, sched: { ...review(card.sched, 3, now).sched, state: 2, due: new Date(2026, 10, 15, 9).toISOString() } };
+    const after: Card = { ...due, sched: review(due.sched, 3, now).sched };
+    expect(revlogEntry(due, after, 3, { id: 1, cid: 1, previousIvl: 5, now, takenMs: 0, clock: CLOCK }).type).toBe(3);
+    const onTheDay = { ...due, sched: { ...due.sched, due: new Date(now.getTime() - 3600_000).toISOString() } };
+    expect(revlogEntry(onTheDay, after, 3, { id: 1, cid: 1, previousIvl: 5, now, takenMs: 0, clock: CLOCK }).type).toBe(1);
+  });
+
+  it('logs a preview answer as Anki does: factor 0, so FSRS leaves it out of the memory state', () => {
+    const entry = { id: 1, cid: 1, usn: -1, ease: 1, ivl: 5, lastIvl: 3, factor: 850, time: 4000, type: 1 };
+    const current = row({ ivl: 30 });
+    expect(previewRevlogEntry(entry, current, new Date(now.getTime() + 60_000), now)).toMatchObject({ type: 3, factor: 0, ivl: -60, lastIvl: 30 });
+    expect(previewRevlogEntry({ ...entry, ease: 3 }, current, undefined, now)).toMatchObject({ type: 3, factor: 0, ivl: 0 });
   });
 
   it("sends a previewed card home with its schedule untouched", () => {
@@ -78,15 +94,15 @@ describe('mapping an answer to Anki', () => {
   it('writes a review as a day number counted from the collection\'s creation', () => {
     const graduated: Card = { ...card, sched: { ...review(card.sched, 4, now).sched } };
     expect(graduated.sched.state).toBe(2);
-    const u = cardUpdate(graduated, row(), { crt: CRT, now });
+    const u = cardUpdate(graduated, row(), { clock: CLOCK, now });
     expect(u.queue).toBe(2);
-    expect(u.due).toBe(ankiDayNumber(Math.floor(new Date(graduated.sched.due).getTime() / 1000), CRT));
+    expect(u.due).toBe(ankiDayNumber(Math.floor(new Date(graduated.sched.due).getTime() / 1000), CLOCK));
     expect(u.ivl).toBe(graduated.sched.scheduledDays);
   });
 
   it('sends a filtered-deck card home and keeps a suspended card suspended', () => {
     const after: Card = { ...card, suspended: true, sched: review(card.sched, 4, now).sched };
-    expect(cardUpdate(after, row({ did: 99, odid: 5, odue: 40 }), { crt: CRT, now })).toMatchObject({ did: 5, odid: 0, odue: 0, queue: -1 });
+    expect(cardUpdate(after, row({ did: 99, odid: 5, odue: 40 }), { clock: CLOCK, now })).toMatchObject({ did: 5, odid: 0, odue: 0, queue: -1 });
   });
 
   it('logs the answer with Anki\'s kinds and units', () => {
@@ -175,7 +191,7 @@ describe('a round trip through a real Anki package', () => {
       const after: Card = { ...before, sched: review(before.sched, rating, now).sched };
       const cid = Number(before.ankiId);
       const current = db.prepare(CARD_ROW_SQL).get(cid) as unknown as AnkiCardRow;
-      db.prepare(CARD_UPDATE_SQL).run(...cardUpdateParams(cardUpdate(after, current, { crt: data.collectionCreated, now }), cid));
+      db.prepare(CARD_UPDATE_SQL).run(...cardUpdateParams(cardUpdate(after, current, { clock: { crt: data.collectionCreated!, dayStartsAtHour: 4 }, now }), cid));
       lastId = nextRevlogId(now.getTime(), lastId);
       db.prepare(REVLOG_INSERT_SQL).run(...revlogParams(revlogEntry(before, after, rating, { id: lastId, cid, previousIvl: current.ivl, now, takenMs: 4200 })));
       answers.push({ cid, ease: rating });
