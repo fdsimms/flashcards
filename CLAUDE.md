@@ -291,9 +291,11 @@ Anything that leaves cards out goes in through `queueInput` too, for both: looka
 seen (`heldCards`, `src/core/lookalikes.ts`) are loaded by `loadHeld` for the deck list and by
 `useReviewForms` in Review, and a card held in one but not the other shows a count the deck can't open with.
 
-**A progress gate replaces a deck's daily new-card limit** (`DeckSettings.gateCap`, set on Deck
-options): new cards come in only while fewer than the cap are in progress in that deck and its
-subdecks, and no daily new limit applies anywhere under it. **In progress is read from the card's
+**A progress gate limits a deck's new cards by what's in progress** (`DeckSettings.gateCap`, set on
+Deck options): new cards come in only while fewer than the cap are in progress in that deck and its
+subdecks, and never more in a day than the gated deck's own daily new limit (`gateBudget`, so
+turning a gate on doesn't release the whole cap at once); the daily new limits of decks under it
+don't apply, and Custom Study's extra new cards are refused there. **In progress is read from the card's
 current FSRS schedule every time, never stored** (`isInProgress`, `src/core/progress.ts`): started,
 and not yet a Review scheduled `GURU_INTERVAL_DAYS` (7, WaniKani's Guru interval) or more out. So a
 card that drops back under a week (a lapse, a shorter interval) counts again at once. Counting

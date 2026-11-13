@@ -31,6 +31,45 @@ describe('meanings', () => {
     expect(checkMeaning(vocab, [], 'child')).toEqual({ result: 'wrong' });
   });
 
+  it("measures each word's typos against that word, so a short word in a phrase isn't swapped for another", () => {
+    const eat = parseSubject({ ...vocabResource, data: { ...vocabResource.data, meanings: [{ meaning: 'To Eat', primary: true, accepted_answer: true }], auxiliary_meanings: [] } })!;
+    for (const typed of ['to sit', 'to cut', 'to get', 'to hit']) expect(checkMeaning(eat, [], typed)).toEqual({ result: 'wrong' });
+    expect(checkMeaning(eat, [], 'to eat')).toEqual({ result: 'correct' });
+    const things = parseSubject({ ...vocabResource, data: { ...vocabResource.data, meanings: [{ meaning: 'Two Things', primary: true, accepted_answer: true }], auxiliary_meanings: [] } })!;
+    expect(checkMeaning(things, [], 'six things')).toEqual({ result: 'wrong' });
+    expect(checkMeaning(things, [], 'two thngs')).toEqual({ result: 'correct', close: true });
+  });
+
+  it('refuses a near miss that is another real word: numbers, weekdays, months and look-alikes', () => {
+    const meaning = (m: string, whitelist: string[] = []) => parseSubject({
+      ...vocabResource,
+      data: {
+        ...vocabResource.data,
+        meanings: [{ meaning: m, primary: true, accepted_answer: true }],
+        auxiliary_meanings: whitelist.map((w) => ({ meaning: w, type: 'whitelist' })),
+      },
+    })!;
+    const cases: [string, string][] = [['Five', 'fire'], ['Sunday', 'monday'], ['Tuesday', 'thursday'], ['Month', 'mouth'], ['Eight', 'right'], ['Four', 'hour']];
+    for (const [m, typed] of cases) {
+      expect(checkMeaning(meaning(m), [], typed)).toEqual({ result: 'wrong' });
+      // An exact match still counts, and so do the user's synonyms and WaniKani's whitelist.
+      expect(checkMeaning(meaning(m), [], m.toLowerCase())).toEqual({ result: 'correct' });
+      expect(checkMeaning(meaning(m), [typed], typed)).toEqual({ result: 'correct' });
+      expect(checkMeaning(meaning(m, [typed]), [], typed)).toEqual({ result: 'correct' });
+    }
+    // In a phrase, only the word that must be exact is held to it.
+    expect(checkMeaning(meaning('Five Things'), [], 'fire things')).toEqual({ result: 'wrong' });
+    expect(checkMeaning(meaning('Five Things'), [], 'five thngs')).toEqual({ result: 'correct', close: true });
+    // Split differently, the exact word still has to be there on both sides.
+    expect(checkMeaning(meaning('Sunday Morning'), [], 'sunday mor ning')).toEqual({ result: 'correct', close: true });
+    expect(checkMeaning(meaning('Sunday Morning'), [], 'monday mor ning')).toEqual({ result: 'wrong' });
+    // Words outside the set keep their typo allowance.
+    expect(checkMeaning(meaning('Mountain'), [], 'mountian')).toEqual({ result: 'correct', close: true });
+    // A typo of one of these words (righ) is still a typo: only another real word in its place is refused.
+    expect(checkMeaning(meaning('Right'), [], 'righ')).toEqual({ result: 'correct', close: true });
+    expect(checkMeaning(meaning('Seventeen'), [], 'seventen')).toEqual({ result: 'correct', close: true });
+  });
+
   it('asks again for kana typed as a meaning, or nothing at all', () => {
     expect(checkMeaning(vocab, [], 'おとな').result).toBe('retry');
     expect(checkMeaning(vocab, [], '  ').result).toBe('retry');

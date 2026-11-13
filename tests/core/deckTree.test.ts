@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { deckLimits, deckLineage, deckListTotals, deckRows, deckTree, earlierDeckToStudy, isInDeck, nextDeckToStudy, shownDeckRows, treeQueue, type TreeQueueInput } from '../../src/core/deckTree';
+import { DEFAULT_COLLECTION_SETTINGS } from '../../src/core/config';
+import { deckLimits, deckLineage, deckListTotals, deckRows, deckTree, earlierDeckToStudy, isInDeck, nextDeckToStudy, queueInput, shownDeckRows, treeQueue, type TreeQueueInput } from '../../src/core/deckTree';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -132,9 +133,30 @@ function guru(count: number): Card[] {
 
 describe('progress gate', () => {
   const daily1 = { newPerDay: 1, reviewsPerDay: 200 };
-  it('lets in new cards up to the cap less what is in progress, ignoring the daily new limit', () => {
-    const q = treeQueue('Thai', input({ Thai: [...inProgress(7), ...guru(50), ...newCards(10)] }, { Thai: daily1 }, new Map(), { Thai: 10 }));
+  it('lets in new cards up to the cap less what is in progress', () => {
+    const q = treeQueue('Thai', input({ Thai: [...inProgress(7), ...guru(50), ...newCards(10)] }, {}, new Map(), { Thai: 10 }));
     expect(q.fresh).toHaveLength(3);
+  });
+  it("never lets in more than the gated deck's own daily new limit, so turning a gate on doesn't release the whole cap", () => {
+    const decks = { Thai: [...inProgress(10), ...newCards(200)] };
+    expect(treeQueue('Thai', input(decks, { Thai: { newPerDay: 15, reviewsPerDay: 200 } }, new Map(), { Thai: 100 })).fresh).toHaveLength(15);
+    expect(treeQueue('Thai', input(decks, { Thai: daily1 }, new Map(), { Thai: 10 + 3 })).fresh).toHaveLength(1);
+  });
+  it("counts new cards studied today against the gated deck's daily limit", () => {
+    const studied = new Map([['Thai', { introduced: 4, reviewed: 4 }]]);
+    const q = treeQueue('Thai', input({ Thai: newCards(10) }, { Thai: { newPerDay: 5, reviewsPerDay: 200 } }, studied, { Thai: 100 }));
+    expect(q.fresh).toHaveLength(1);
+  });
+  it("uses a today-only limit on the gated deck from Custom Study, within the gate's room", () => {
+    const params = { weights: [], desiredRetention: 0.9, maxInterval: 36500, newPerDay: 2, newLimitToday: { limit: 30, day: '2026-11-11' } };
+    const cards = [...inProgress(5), ...newCards(40)];
+    const notes = cards.map((c) => ({ id: c.noteId, deck: 'Thai', model: 'Basic', fields: { Front: c.noteId, Back: '' }, tags: [] }));
+    const build = (cap: number) => queueInput({
+      notes, cards, params: new Map([['Thai', params]]), studied: new Map(), gateFor: (d) => (d === 'Thai' ? cap : undefined),
+      collection: { ...DEFAULT_COLLECTION_SETTINGS, dayStartsAtHour: H }, now: NOW,
+    });
+    expect(treeQueue('Thai', build(100)).fresh).toHaveLength(30);
+    expect(treeQueue('Thai', build(25)).fresh).toHaveLength(20);
   });
   it('holds every new card back at the cap', () => {
     const q = treeQueue('Thai', input({ Thai: [...inProgress(10), ...newCards(5)] }, {}, new Map(), { Thai: 10 }));
@@ -148,6 +170,14 @@ describe('progress gate', () => {
   it("still applies a parent's gate when a subdeck is opened on its own", () => {
     const decks = { 'Polski::Odmiana': [...inProgress(6), ...newCards(5)], 'Polski::Rekcja': inProgress(3) };
     expect(treeQueue('Polski::Odmiana', input(decks, {}, new Map(), { Polski: 10 })).fresh).toHaveLength(1);
+  });
+  it("still applies a parent's gate, and that deck's daily new limit, when a subdeck is opened on its own", () => {
+    const decks = { 'Polski::Odmiana': [...inProgress(6), ...newCards(10)], 'Polski::Rekcja': inProgress(3) };
+    const limits = { Polski: { newPerDay: 2, reviewsPerDay: 200 } };
+    expect(treeQueue('Polski::Odmiana', input(decks, limits, new Map(), { Polski: 100 })).fresh).toHaveLength(2);
+    expect(deckRows(input(decks, limits, new Map(), { Polski: 100 })).map((r) => [r.deck, r.fresh])).toEqual([
+      ['Polski', 2], ['Polski::Odmiana', 2], ['Polski::Rekcja', 0],
+    ]);
   });
   it('shows the count against the cap on a gated deck row', () => {
     const rows = deckRows(input({ Thai: [...inProgress(4), ...newCards(1)] }, {}, new Map(), { Thai: 10 }));

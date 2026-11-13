@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  answerQuestion, askLater, buildSession, canAskLater, canUndo, currentQuestion, questionMode, remaining, sessionProgress, shuffled, startStudy,
-  studyAnswer, studyAskLater, studyFlush, studyUndo, type SessionItem,
-  sessionItems,
+  answerQuestion, askLater, buildSession, canAskLater, canMarkCorrect, canUndo, currentQuestion, questionMode, remaining, REVIEW_WINDOW, sessionProgress,
+  shuffled, startStudy, studyAnswer, studyAskLater, studyFlush, studyUndo, type SessionItem,
+  sessionItems, windows, wrongSoFar,
 } from '../../src/wanikani/session';
 import { parseAssignment, parseSubject } from '../../src/wanikani/subjects';
 import { assignmentResource, kanaVocabResource, kanjiResource, radicalResource, vocabResource } from './fixtures';
@@ -49,6 +49,33 @@ describe('building a session', () => {
     expect(batched.map((q) => (q.kind === 'lesson' ? `show ${q.assignmentId}` : q.assignmentId))).toEqual([
       'show 3', 'show 4', 3, 4, 4, 3, 'show 5', 5, 5,
     ]);
+  });
+
+  it('asks reviews apart in windows of about ten items, so an item is never left half done for long', () => {
+    let seed = 11;
+    const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const items = Array.from({ length: 100 }, (_, n): SessionItem => ({ ...vocab, assignmentId: n + 1, subjectId: n + 1 }));
+    const queue = buildSession(items, { mode: 'apart' }, random).queue;
+    expect(queue).toHaveLength(200);
+    const pos = new Map<string, number>();
+    queue.forEach((q, i) => pos.set(`${q.assignmentId}:${q.kind}`, i));
+    expect(pos.size).toBe(200);
+    // Each window of ten items is asked whole before the next: 20 questions each.
+    for (let w = 0; w < 10; w++) {
+      expect(new Set(queue.slice(w * 20, w * 20 + 20).map((q) => q.assignmentId)).size).toBe(10);
+    }
+    const gaps = items.map((i) => Math.abs(pos.get(`${i.assignmentId}:meaning`)! - pos.get(`${i.assignmentId}:reading`)!));
+    expect(Math.max(...gaps)).toBeLessThanOrEqual(2 * REVIEW_WINDOW - 1);
+    // Still shuffled: the reviews don't come out in the order given.
+    expect(queue.map((q) => q.assignmentId)).not.toEqual([...queue.map((q) => q.assignmentId)].sort((a, b) => a - b));
+  });
+
+  it('keeps every window about the same size, so the last is not a stub', () => {
+    expect(windows([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], 10).map((w) => w.length)).toEqual([6, 5]);
+    expect(windows(Array.from({ length: 23 }, (_, i) => i), 10).map((w) => w.length)).toEqual([8, 8, 7]);
+    expect(windows([1, 2, 3], 10)).toEqual([[1, 2, 3]]);
+    expect(windows([], 10)).toEqual([]);
+    expect(windows(Array.from({ length: 23 }, (_, i) => i), 10).flat()).toEqual(Array.from({ length: 23 }, (_, i) => i));
   });
 
   it('shuffles every item into the result exactly once', () => {
@@ -174,6 +201,59 @@ describe('undo', () => {
     expect(study.history).toHaveLength(2);
     study = studyUndo(studyUndo(study)!)!;
     expect(study.session).toEqual(buildSession(items, { mode: 'together' }, first));
+    expect(wrongSoFar(study.session, vocab.assignmentId) + wrongSoFar(study.session, radical.assignmentId)).toBe(0);
+  });
+
+  // Typed: vocab's meaning, then its reading, then the radical, in that order.
+  const typedStudy = () => startStudy({
+    ...buildSession([vocab, radical], { mode: 'apart' }, first),
+    queue: [{ assignmentId: 1, kind: 'meaning' }, { assignmentId: 1, kind: 'reading' }, { assignmentId: 2, kind: 'meaning' }],
+  }, true);
+
+  it('keeps a typed miss when its answer is undone, since the right answer was shown', () => {
+    const start = typedStudy();
+    let study = studyAnswer(start, false, at, first).study;
+    study = studyUndo(study)!;
+    // Back to the same question, in the same place, with the miss still counted.
+    expect(study.session.queue).toEqual(start.session.queue);
+    expect(study.session.progress[1]).toMatchObject({ wrongMeaning: 1, wrongReading: 0, meaning: false });
+    // Answered right now, the item still goes to WaniKani with the miss.
+    study = studyAnswer(study, true, at, first).study;
+    study = studyAnswer(study, true, at, first).study;
+    expect(study.held).toMatchObject({ assignmentId: 1, wrongMeaning: 1, wrongReading: 0 });
+  });
+
+  it('keeps every typed miss when undoing back over several answers', () => {
+    let study = typedStudy();
+    study = studyAnswer(study, false, at, first).study; // vocab's meaning
+    study = studyAnswer(study, false, at, first).study; // vocab's reading
+    study = studyUndo(studyUndo(study)!)!;
+    expect(study.session.progress[1]).toMatchObject({ wrongMeaning: 1, wrongReading: 1 });
+    expect(study.session.queue).toEqual(typedStudy().session.queue);
+  });
+
+  it('counts a typed miss that was shown but not yet counted when undo goes back past it', () => {
+    let study = studyAnswer(typedStudy(), true, at, first).study; // vocab's meaning, right
+    // The reading is typed wrong and its answer shown; undo is tapped before Next.
+    study = studyUndo(study, true)!;
+    expect(currentQuestion(study.session)).toEqual({ assignmentId: 1, kind: 'meaning' });
+    expect(study.session.progress[1]).toMatchObject({ meaning: false, wrongMeaning: 0, wrongReading: 1 });
+  });
+
+  it('takes back a rated Again, which may have been a mistaken tap', () => {
+    let study = startStudy(buildSession([vocab], { mode: 'together' }, first));
+    study = studyUndo(studyAnswer(study, false, at, first).study)!;
+    expect(wrongSoFar(study.session, vocab.assignmentId)).toBe(0);
+  });
+});
+
+describe('marking a typed answer correct', () => {
+  it('is offered for a meaning only, never a reading', () => {
+    expect(canMarkCorrect({ assignmentId: 1, kind: 'meaning' })).toBe(true);
+    expect(canMarkCorrect({ assignmentId: 1, kind: 'reading' })).toBe(false);
+    expect(canMarkCorrect({ assignmentId: 1, kind: 'both' })).toBe(false);
+    expect(canMarkCorrect({ assignmentId: 1, kind: 'lesson' })).toBe(false);
+    expect(canMarkCorrect(undefined)).toBe(false);
   });
 
   it('sends what is held when the session closes', () => {

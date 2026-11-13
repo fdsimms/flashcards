@@ -220,6 +220,12 @@ export interface RenderedCard {
    */
   audioFile?: string;
   audioSide?: 'front' | 'back';
+  /**
+   * The front shows the word itself (an Omnilanguage forward card, which asks for the meaning).
+   * Play there may play the recording, which gives nothing away, but nothing plays by itself:
+   * hearing the word as it comes up would make a reading card a listening one.
+   */
+  frontShowsWord?: boolean;
 }
 
 /** A note type's Anki templates and styling, for rendering cards the way Anki does. */

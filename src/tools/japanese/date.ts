@@ -58,9 +58,6 @@ export function sayJapaneseDate(d: CalendarDate, parts: DateParts): DateSaying {
   if (parts.year) {
     also.push(said([era.name, eraYear(era.year), ...dayAndMonth, ...(parts.weekday ? [weekday] : [])], `The year of the era (${era.name[0]})`));
   }
-  const digits = `${parts.year ? `${d.year}年` : ''}${d.month}月${d.day}日`;
-  const written = { text: `${digits}${parts.weekday ? `（${weekdayKanji}）` : ''}` };
-  // The weekday written out after the digits is as common as the one kanji in parentheses.
-  const writtenAlso = parts.weekday ? [weekday, weekdayShort].map(([kanji]) => ({ text: `${digits}${kanji}`, note: 'As written' })) : [];
-  return { everyday, also: distinct([everyday, ...also]).slice(1), written, writtenAlso };
+  const written = { text: `${parts.year ? `${d.year}年` : ''}${d.month}月${d.day}日${parts.weekday ? `（${weekdayKanji}）` : ''}` };
+  return { everyday, also: distinct([everyday, ...also]).slice(1), written };
 }

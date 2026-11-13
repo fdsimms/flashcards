@@ -1,14 +1,16 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, test } from 'vitest';
 import type { ReaderText, TextLine, TextQuestion, Word } from '../../src/reader/api';
-import { buildCheck, checkScore, CHOICES, isRight, type CheckQuestion } from '../../src/reader/check';
+import { buildCheck, canSteer, CHECK_MIN_ASKED, checkScore, CHOICES, isRight, loggedScore, type CheckQuestion } from '../../src/reader/check';
 import { lookUp, startSession, toggleFlag } from '../../src/reader/session';
 
 const word = (text: string, gloss: string | null, extra: Partial<Word> = {}): Word =>
   ({ text, status: 'known', gloss, stretch: false, deck: true, grammar: null, ...extra });
 const space: Word = { text: ' ', status: null, gloss: null, stretch: false, deck: false, grammar: null };
 
-function line(english: string, words: Word[], audio = true): TextLine {
-  return { speaker: 'A', english, audio, words: words.flatMap((w, i) => (i ? [space, w] : [w])) };
+function line(english: string, words: Word[], audio = true, speaker: TextLine['speaker'] = 'A'): TextLine {
+  return { speaker, english, audio, words: words.flatMap((w, i) => (i ? [space, w] : [w])) };
 }
 
 const LINES: TextLine[] = [
@@ -100,4 +102,78 @@ test('the score counts right answers of those answered, a skip as wrong', () => 
   expect(isRight(first, picks)).toBe(true);
   expect(isRight(third, picks)).toBe(false);
   expect(checkScore(check, picks)).toEqual({ right: 1, asked: 3 });
+});
+
+test('the logged score leaves out word questions, which are still asked and marked', () => {
+  const session = toggleFlag(startSession(text(), 0), 'prisa');
+  const check = buildCheck(text([QUESTION]), session, seeded());
+  expect(check.map((q) => q.kind)).toEqual(['text', 'listen', 'word', 'word']);
+  // Right on what happens and by ear, wrong on both words.
+  const picks = Object.fromEntries(check.map((q) => [q.key, q.kind === 'word' ? (q.answer + 1) % CHOICES : q.answer]));
+  expect(checkScore(check, picks)).toEqual({ right: 2, asked: 4 });
+  expect(loggedScore(check, picks)).toEqual({ right: 2, asked: 2 });
+  // A check of words alone logs nothing that could move difficulty.
+  const words = check.filter((q) => q.kind === 'word');
+  expect(loggedScore(words, picks)).toEqual({ right: 0, asked: 0 });
+});
+
+test('a check moves difficulty only with three questions that count toward it', () => {
+  const session = toggleFlag(startSession(text(), 0), 'prisa');
+  // One about what happens and one by ear: the words make four, but only two count.
+  expect(canSteer(buildCheck(text([QUESTION]), session, seeded()))).toBe(false);
+  const second = { ...QUESTION, line: 4, question: '¿Qué olvidó?', english: 'What did she forget?' };
+  expect(canSteer(buildCheck(text([QUESTION, second]), session, seeded()))).toBe(true);
+});
+
+test("the app's minimum matches the server's", () => {
+  const server = readFileSync(join(__dirname, '..', '..', 'server', 'reader', 'src', 'franki_reader', 'difficulty.py'), 'utf8');
+  expect(server).toMatch(new RegExp(`^CHECK_MIN_ASKED = ${CHECK_MIN_ASKED}$`, 'm'));
+});
+
+// A dialogue whose every line is long enough to be asked by ear, each with its own words.
+const said = (speaker: TextLine['speaker'], english: string, n: number) =>
+  line(english, [word(`uno${n}`, `one ${n}`), word(`dos${n}`, `two ${n}`), word(`tres${n}`, `three ${n}`)], true, speaker);
+const speakerOf = (lines: TextLine[], english: string) => lines.find((l) => l.english === english)?.speaker;
+
+test("a line heard is told apart from the same speaker's other lines, not by the voice", () => {
+  const dialogue = Array.from({ length: 8 }, (_, i) => said(i % 2 ? 'B' : 'A', `Line ${i}.`, i));
+  for (let seed = 1; seed <= 20; seed++) {
+    const listen = buildCheck(text([], dialogue), startSession(text(), 0), seeded(seed)).filter((q) => q.kind === 'listen');
+    expect(listen).toHaveLength(2);
+    for (const q of listen) {
+      const speaker = dialogue[q.line].speaker;
+      for (const choice of q.choices) expect(speakerOf(dialogue, choice as string)).toBe(speaker);
+    }
+  }
+});
+
+test("the other speaker's lines fill in only when one speaker has too few", () => {
+  // A says two lines, B six: a question on A's line has one wrong choice of A's, two of B's.
+  const speakers: TextLine['speaker'][] = ['A', 'B', 'B', 'A', 'B', 'B', 'B', 'B'];
+  const dialogue = speakers.map((s, i) => said(s, `Line ${i}.`, i));
+  let seenA = false;
+  for (let seed = 1; seed <= 40; seed++) {
+    for (const q of buildCheck(text([], dialogue), startSession(text(), 0), seeded(seed))) {
+      if (q.kind !== 'listen') continue;
+      const counts = { A: 0, B: 0, N: 0 };
+      for (const choice of q.choices) counts[speakerOf(dialogue, choice as string)!]++;
+      if (dialogue[q.line].speaker === 'A') {
+        seenA = true;
+        expect(counts).toEqual({ A: 2, B: 2, N: 0 });
+      } else {
+        expect(counts).toEqual({ A: 0, B: 4, N: 0 });
+      }
+    }
+  }
+  expect(seenA).toBe(true);
+});
+
+test("a story's lines are all the narrator's, so any of them can be a wrong choice", () => {
+  const story = Array.from({ length: 6 }, (_, i) => said('N', `Line ${i}.`, i));
+  const listen = buildCheck({ ...text([], story), form: 'story' }, startSession(text(), 0), seeded(3)).filter((q) => q.kind === 'listen');
+  expect(listen).toHaveLength(2);
+  for (const q of listen) {
+    expect(q.choices).toHaveLength(CHOICES);
+    expect(q.choices).toContain(story[q.line].english);
+  }
 });

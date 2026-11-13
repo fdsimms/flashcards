@@ -169,6 +169,20 @@ def test_reads_the_thai_deck_with_each_notes_tier(desktop: Desktop, deck: AnkiDe
     }
 
 
+def test_a_suspended_leech_is_read_as_unreviewed(desktop: Desktop, deck: AnkiDeck) -> None:
+    desktop.add(THAI, "ฉัน", "I; me", ivl=40)
+    leech = desktop.add(THAI, "ยาก", "hard", ivl=5, due=True)
+    desktop.col.sched.suspend_cards(desktop.col.card_ids_of_note(leech))  # type: ignore[arg-type]
+    desktop.sync()
+
+    entries = read(deck)
+
+    assert {t: (e.tier, e.due) for t, e in entries.items()} == {
+        "ฉัน": ("mature", False),
+        "ยาก": ("unreviewed", False),
+    }
+
+
 def test_reads_each_notes_transliteration(desktop: Desktop, deck: AnkiDeck) -> None:
     desktop.add(THAI, "หนังสือ", "book", ivl=40, translit="nǎng-sǔue")
     desktop.add(THAI, "ไป", "go")
@@ -228,6 +242,8 @@ def test_a_read_leaves_nothing_to_send(desktop: Desktop, deck: AnkiDeck) -> None
     """Read & Listen never grades or adds cards: after a read, the reader's copy holds nothing a sync
     would send to the server."""
     desktop.add(THAI, "ฉัน", "I; me", ivl=40, due=True)
+    leech = desktop.add(THAI, "ยาก", "hard", ivl=5, due=True)
+    desktop.col.sched.suspend_cards(desktop.col.card_ids_of_note(leech))  # type: ignore[arg-type]
     desktop.sync()
     read(deck)
     read(deck)
