@@ -1,6 +1,7 @@
-import { isOmnilanguage, speechLangFor } from './cards';
+import { isOmnilanguage } from './cards';
 import { headword, withoutArticle } from './forms';
 import { htmlToText } from './html';
+import { noteLanguage } from './lookalikes';
 import type { Note } from './types';
 
 /**
@@ -13,11 +14,6 @@ import type { Note } from './types';
 
 /** How many of the other words "Not:" names before counting the rest. */
 const MAX_NAMED = 3;
-
-/** The note's language, as `lookalikes.ts` takes it: its speech tag, else its deck's top two levels. */
-function language(note: Note): string {
-  return speechLangFor(note) ?? note.deck.split('::').slice(0, 2).join('::');
-}
 
 /**
  * A Meaning as the set of meanings it lists: markup stripped, lower case, split on ";", "," and
@@ -54,7 +50,7 @@ export function synonymIndex(notes: Iterable<Note>): Map<string, Note[]> {
     if (!isOmnilanguage(note)) continue;
     const meanings = meaningSet(note.fields.Meaning ?? '');
     if (!meanings.size) continue;
-    const lang = language(note);
+    const lang = noteLanguage(note);
     const e = { note, meanings, word: bareEntry(note).toLocaleLowerCase() };
     entries.push({ lang, e });
     const byMeaning = byLang.get(lang) ?? byLang.set(lang, new Map()).get(lang)!;

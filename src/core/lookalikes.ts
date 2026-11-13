@@ -52,7 +52,8 @@ export function lookalikeForm(word: string, lang: string | undefined): string {
   return form.replace(/\s+/g, ' ').trim();
 }
 
-function language(note: Note): string {
+/** A note's language for grouping it with others: its speech tag, else its deck's top two levels. */
+export function noteLanguage(note: Note): string {
   return speechLangFor(note) ?? note.deck.split('::').slice(0, 2).join('::');
 }
 
@@ -90,7 +91,7 @@ export function lookalikeIndex(notes: Note[]): Map<string, Set<string>> {
   const byLang = new Map<string, { id: string; word: string; forms: Set<string> }[]>();
   for (const n of notes) {
     if (!isOmnilanguage(n)) continue;
-    const lang = language(n);
+    const lang = noteLanguage(n);
     const word = lookalikeForm(headword(n), lang);
     if (!word) continue;
     const forms = new Set<string>();
