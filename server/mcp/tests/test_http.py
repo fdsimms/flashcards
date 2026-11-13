@@ -14,8 +14,10 @@ import httpx
 import httpx2
 import pytest
 import uvicorn
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from franki_mcp.__main__ import build_app
+from franki_mcp import auth
+from franki_mcp.__main__ import PROXY_NETWORKS, build_app
 from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
 
@@ -35,7 +37,8 @@ def served(desktop, sync_server, tmp_path):
         "MCP_PUBLIC_URL": public, "MCP_PASSWORD": PASSWORD, "MCP_DATA": str(tmp_path / "data"),
         "ANKI_SYNC_ENDPOINT": sync_server, "ANKI_USER": "user", "ANKI_PASSWORD": "pass",
     })
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
+    # Proxies trusted as main() trusts them, so a test's X-Forwarded-For stands for the address Caddy passes on.
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning", forwarded_allow_ips=PROXY_NETWORKS))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
     while not server.started:
@@ -119,3 +122,58 @@ async def test_claude_code_on_any_loopback_port_then_uses_the_tools(served):
         async with Client(streamable_http_client(f"{served}/mcp", http_client=h)) as client:
             decks = (await client.call_tool("list_decks", {})).structured_content["decks"]
     assert any(d["deck"] == "🧠 Trivia" for d in decks)
+
+
+def from_address(public: str, address: str) -> httpx.Client:
+    """A browser at this address, as Caddy passes its requests on."""
+    return httpx.Client(base_url=public, headers={"X-Forwarded-For": address})
+
+
+def test_wrong_passwords_lock_out_their_own_address_only(served, monkeypatch):
+    monkeypatch.setattr(auth, "WRONG_PASSWORD_DELAY", 0)
+    with from_address(served, "203.0.113.7") as stranger:
+        for _ in range(auth.MAX_FAILURES):
+            assert "That password isn&#x27;t right." in sign_in(stranger, served, password="wrong")["page"]
+        # Locked out: even the right password isn't checked from there.
+        assert "Too many wrong passwords from your network. Try again in 15 minutes." in sign_in(stranger, served)["page"]
+    with from_address(served, "198.51.100.4") as owner:
+        assert sign_in(owner, served)["access_token"]
+
+
+def test_brute_force_across_new_clients_and_ipv6_addresses_stays_limited(served, monkeypatch):
+    monkeypatch.setattr(auth, "WRONG_PASSWORD_DELAY", 0)
+    # A newly registered client for every guess (sign_in registers one each time), each from a new address in one IPv6 /64.
+    for n in range(auth.MAX_FAILURES):
+        with from_address(served, f"2001:db8:1:2::{n + 1:x}") as http:
+            assert "That password isn&#x27;t right." in sign_in(http, served, password="wrong")["page"]
+    with from_address(served, "2001:db8:1:2:ffff::1") as http:
+        assert "Too many wrong passwords from your network" in sign_in(http, served)["page"]
+    with from_address(served, "2001:db8:1:3::1") as http:
+        assert sign_in(http, served)["access_token"]
+
+
+def test_guesses_from_many_addresses_pause_the_page_for_minutes(served, monkeypatch):
+    monkeypatch.setattr(auth, "WRONG_PASSWORD_DELAY", 0)
+    for a in range(auth.MAX_FAILURES_ALL // auth.MAX_FAILURES):
+        with from_address(served, f"192.0.2.{a + 1}") as http:
+            for _ in range(auth.MAX_FAILURES):
+                assert "That password isn&#x27;t right." in sign_in(http, served, password="wrong")["page"]
+    with from_address(served, "198.51.100.4") as owner:
+        page = sign_in(owner, served)["page"]
+    assert "Too many wrong passwords have been tried in the last few minutes. Try again in 5 minutes." in page
+
+
+@pytest.mark.parametrize("peer, forwarded, seen", [
+    ("172.18.0.5", "198.51.100.4", "198.51.100.4"),  # Caddy, on the compose network, passing a request on
+    ("172.18.0.5", "6.6.6.6, 198.51.100.4", "198.51.100.4"),  # an address the client wrote in front is skipped
+    ("203.0.113.9", "198.51.100.4", "203.0.113.9"),  # anyone else can't name an address
+])
+async def test_only_the_proxy_says_where_a_request_came_from(peer, forwarded, seen):
+    got = {}
+
+    async def app(scope, receive, send):
+        got["client"] = scope["client"][0]
+
+    scope = {"type": "http", "client": (peer, 1234), "headers": [(b"x-forwarded-for", forwarded.encode())]}
+    await ProxyHeadersMiddleware(app, PROXY_NETWORKS)(scope, None, None)
+    assert got["client"] == seen

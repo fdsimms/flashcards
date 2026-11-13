@@ -16,7 +16,9 @@ from __future__ import annotations
 import hashlib
 import hmac
 import html
+import ipaddress
 import json
+import math
 import secrets
 import sqlite3
 import threading
@@ -45,9 +47,16 @@ CODE_SECONDS = 300
 PENDING_SECONDS = 600
 CLAUDE_CALLBACKS = ("https://claude.ai/api/mcp/auth_callback", "https://claude.com/api/mcp/auth_callback")
 LOOPBACK_HOSTS = ("localhost", "127.0.0.1", "[::1]", "::1")
-# Wrong passwords allowed per 15 minutes before the page stops checking for the rest of them.
+# Wrong passwords on the approval page. Each source (_source) gets 10 per 15 minutes, then the page
+# stops checking its passwords until the oldest drops out, however many clients it registers. All
+# sources together get 100 per 5 minutes, which bounds guessing from many addresses at once without
+# letting a stranger lock the owner out from one: tripping it takes 10 addresses, and it clears 5
+# minutes after they stop. (One global count of 10 per 15 minutes let anyone lock the page.)
 MAX_FAILURES = 10
 FAILURE_WINDOW = 900
+MAX_FAILURES_ALL = 100
+FAILURE_WINDOW_ALL = 300
+WRONG_PASSWORD_DELAY = 1
 
 
 def _hash(token: str) -> str:
@@ -63,6 +72,27 @@ def _same_but_port(a: str, b: str) -> bool:
     """RFC 8252 7.3: a loopback redirect matches whatever port the client opened."""
     ua, ub = urlparse(a), urlparse(b)
     return _is_loopback(a) and _is_loopback(b) and ua.hostname == ub.hostname and ua.path == ub.path and ua.query == ub.query
+
+
+def _source(request: Request) -> str:
+    """Where a password came from, as the wrong-password limit counts it: the client address uvicorn
+    gives the request (Caddy's X-Forwarded-For, believed only from the proxy's network, see
+    PROXY_NETWORKS in __main__), an IPv6 one by its /64, since a connection is usually given a whole /64."""
+    host = request.client.host if request.client else ""
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return host
+    if isinstance(ip, ipaddress.IPv6Address):
+        if ip.ipv4_mapped:
+            return str(ip.ipv4_mapped)
+        return str(ipaddress.ip_network(f"{ip}/64", strict=False))
+    return str(ip)
+
+
+def _minutes(seconds: float) -> str:
+    n = max(1, math.ceil(seconds / 60))
+    return "1 minute" if n == 1 else f"{n} minutes"
 
 
 class Client(OAuthClientInformationFull):
@@ -89,7 +119,8 @@ class SingleUserAuth:
         for table in ("clients", "pending", "codes", "access", "refresh"):
             self._db.execute(f"create table if not exists {table} (id text primary key, data text not null, expires real)")
         self._lock = threading.Lock()
-        self._failures: list[float] = []
+        self._failures: dict[str, list[float]] = {}
+        self._all_failures: list[float] = []
 
     # ---- storage ----
 
@@ -159,6 +190,18 @@ After you connect, it returns to {e(redirect)}.</p>
 </form></main></body></html>"""
         return HTMLResponse(body, headers={"Cache-Control": "no-store", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer"})
 
+    def _locked(self, source: str, now: float) -> str:
+        """Why the page won't check a password from this source now, or "" when it will."""
+        self._failures = {s: kept for s, times in self._failures.items() if (kept := [t for t in times if now - t < FAILURE_WINDOW])}
+        self._all_failures = [t for t in self._all_failures if now - t < FAILURE_WINDOW_ALL]
+        mine = self._failures.get(source, [])
+        if len(mine) >= MAX_FAILURES:
+            return f"Too many wrong passwords from your network. Try again in {_minutes(mine[-MAX_FAILURES] + FAILURE_WINDOW - now)}."
+        if len(self._all_failures) >= MAX_FAILURES_ALL:
+            wait = _minutes(self._all_failures[-MAX_FAILURES_ALL] + FAILURE_WINDOW_ALL - now)
+            return f"Too many wrong passwords have been tried in the last few minutes. Try again in {wait}."
+        return ""
+
     async def _pending(self, request_id: str):
         pending = self._get("pending", request_id) if request_id else None
         client = await self.get_client(pending["client_id"]) if pending else None
@@ -181,13 +224,14 @@ After you connect, it returns to {e(redirect)}.</p>
         params = pending["params"]
         redirect_host = urlparse(params["redirect_uri"]).hostname or "the app"
         now = time.time()
-        self._failures = [t for t in self._failures if now - t < FAILURE_WINDOW]
-        if len(self._failures) >= MAX_FAILURES:
-            return self._page(request_id, client.client_name or "Claude", redirect_host,
-                              "Too many wrong passwords. Wait 15 minutes, then try again.")
+        source = _source(request)
+        # No await between this check and counting a wrong password, so requests sent at once can't all pass it.
+        if locked := self._locked(source, now):
+            return self._page(request_id, client.client_name or "Claude", redirect_host, locked)
         if not hmac.compare_digest(str(form.get("password", "")).encode(), self.password.encode()):
-            self._failures.append(now)
-            await anyio.sleep(1)
+            self._failures.setdefault(source, []).append(now)
+            self._all_failures.append(now)
+            await anyio.sleep(WRONG_PASSWORD_DELAY)
             return self._page(request_id, client.client_name or "Claude", redirect_host, "That password isn't right.")
         self._take("pending", request_id)
         code = secrets.token_urlsafe(32)
