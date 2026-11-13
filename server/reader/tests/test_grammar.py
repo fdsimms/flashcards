@@ -14,9 +14,19 @@ from scripted import ENTRIES
 
 from franki_reader import store
 from franki_reader.app import create_app
+from franki_reader.difficulty import adapt
 from franki_reader.engine import Engine
 from franki_reader.generator import Line, TextRequest, Usage, generate, request_message
-from franki_reader.grammar import _FINDERS, CATALOG, POINTS, _load, points_for, points_in, words
+from franki_reader.grammar import (
+    _FINDERS,
+    CATALOG,
+    POINTS,
+    _load,
+    next_to_learn,
+    points_for,
+    points_in,
+    words,
+)
 from franki_reader.languages import Code
 from franki_reader.lexicon import lexicon_from
 from franki_reader.reader import render
@@ -182,7 +192,7 @@ def _catalog(tmp_path: Path, *points: dict[str, Any]) -> Path:
 
 
 def _point(pid: str, language: str = "es") -> dict[str, Any]:
-    return {"id": pid, "language": language, "name": pid, "note": "a note"}
+    return {"id": pid, "language": language, "name": pid, "note": "a note", "level": 1}
 
 
 def test_points_come_from_the_catalog_in_its_order(tmp_path: Path) -> None:
@@ -202,6 +212,7 @@ def test_points_come_from_the_catalog_in_its_order(tmp_path: Path) -> None:
         ([], ["es.a"], "es.a has a finder but isn't in the catalog"),
         ([_point("es.a"), _point("es.a")], ["es.a"], "es.a is listed twice"),
         ([_point("it.a", "it")], ["it.a"], "it.a is in it, which isn't a language here"),
+        ([{**_point("es.a"), "level": None}], ["es.a"], "es.a has no level"),
     ],
 )
 def test_a_catalog_that_doesnt_match_the_finders_stops_the_server(
@@ -209,6 +220,26 @@ def test_a_catalog_that_doesnt_match_the_finders_stops_the_server(
 ) -> None:
     with pytest.raises(ValueError, match=re.escape(problem)):
         _load(_catalog(tmp_path, *points), {pid: lambda ws: [] for pid in finders})
+
+
+def test_every_real_point_has_a_level_and_a_language_has_each_level_once() -> None:
+    by_language: dict[str, list[int]] = {}
+    for p in POINTS.values():
+        by_language.setdefault(p.language, []).append(p.level)
+    for language, levels in by_language.items():
+        assert sorted(levels) == list(range(1, len(levels) + 1)), language
+
+
+def test_the_next_point_to_learn_is_the_easiest_not_practiced_or_known() -> None:
+    assert next_to_learn("es", {}).id == "es.preterite"  # type: ignore[union-attr]
+    choices = {
+        "es.preterite": "normal",
+        "es.progressive": "practice",
+        "es.present_perfect": "avoid",
+    }
+    assert next_to_learn("es", choices).id == "es.present_perfect"  # type: ignore[union-attr]
+    everything = {p.id: "normal" for p in points_for("es")}
+    assert next_to_learn("es", everything) is None
 
 
 def test_the_real_catalog_has_a_finder_for_every_point() -> None:
@@ -273,6 +304,18 @@ def test_more_than_two_uses_of_unmarked_grammar_go_back() -> None:
         "Use grammar the learner may not know at most 2 times in all; this draft has: "
         "Conditional (comería, hablaría, tendría)." in model.sent[1][-1]["content"]
     )
+
+
+def test_the_allowance_for_unmarked_grammar_follows_the_request() -> None:
+    three = draft("Yo|comería|y|hablaría.", "Ella|tendría|tiempo.")
+    request = TextRequest("t", language="es", unset=("es.conditional",), unset_uses=3)
+    assert "at most 3 times in the whole text" in request_message(request)
+    assert asyncio.run(generate(Model(three), ES, request)).passed
+    once = TextRequest("t", language="es", unset=("es.conditional",), unset_uses=1)
+    assert "at most once in the whole text" in request_message(once)
+    model = Model(three, draft("Yo|comería|mucho.", "Ella|tiene|tiempo."))
+    assert asyncio.run(generate(model, ES, once)).attempts == 2
+    assert "at most once in all" in model.sent[1][-1]["content"]
 
 
 def test_an_avoided_tense_sends_the_draft_back_naming_the_words() -> None:
@@ -383,6 +426,30 @@ def test_the_grammar_list_is_the_current_languages_and_starts_unset() -> None:
     assert body["points"][0]["seen"] == {"texts": 0, "uses": 0, "last": None}
     assert body["least"] == []  # nothing is known yet, so nothing is worked in
     assert c.get("/api/grammar").status_code == 401
+
+
+def test_the_grammar_dial_starts_at_two_and_suggests_the_easiest_point() -> None:
+    c, _ = client("es")
+    body = c.get("/api/grammar", headers=AUTH).json()
+    assert body["stretch"] == {"uses": 2, "next": {"id": "es.preterite", "name": "Preterite"}}
+
+
+def test_the_grammar_dial_is_saved_for_the_language_and_held_between_one_and_four() -> None:
+    c, e = client("es")
+    body = c.put("/api/grammar/stretch", json={"uses": 4}, headers=AUTH).json()
+    assert body["stretch"]["uses"] == 4 and body["points"]
+    assert store.load_difficulty(e.conn, "es").unset_uses == 4
+    assert store.load_difficulty(e.conn, "th").unset_uses == 2  # another language's is its own
+    for bad in (0, 5):
+        assert c.put("/api/grammar/stretch", json={"uses": bad}, headers=AUTH).status_code == 422
+    assert c.put("/api/grammar/stretch", json={"uses": 3}).status_code == 401
+
+
+def test_the_next_texts_are_asked_for_the_dials_allowance_and_a_rating_leaves_it() -> None:
+    c, e = client("es")
+    c.put("/api/grammar/stretch", json={"uses": 3}, headers=AUTH)
+    assert e._request("t", [], store.load_difficulty(e.conn, "es"), "es").unset_uses == 3
+    assert adapt(store.load_difficulty(e.conn, "es"), "too_hard").unset_uses == 3
 
 
 def test_know_it_is_kept_and_the_least_seen_known_points_are_listed() -> None:

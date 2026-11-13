@@ -27,9 +27,9 @@ from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Literal
 
-from franki_reader import exposure, grammar, meanings, store
+from franki_reader import comprehension, exposure, grammar, meanings, store
 from franki_reader.coverage import Checker, Coverage, parse_line
-from franki_reader.difficulty import Difficulty, adapt
+from franki_reader.difficulty import Difficulty, adapt, adapt_to_check
 from franki_reader.gender import full_voices, voice_for
 from franki_reader.generator import (
     Ask,
@@ -144,6 +144,7 @@ class Engine:
         zone: tzinfo | None = None,
         write_meanings: meanings.WriteMeanings | None = None,
         read_wanikani: ReadWaniKani | None = None,
+        write_questions: comprehension.WriteQuestions | None = None,
     ) -> None:
         self.conn = conn
         self.ask_for = ask_for
@@ -163,6 +164,7 @@ class Engine:
         # When Claude last failed to write word meanings, by language, so a pass that keeps failing
         # doesn't keep asking.
         self._meanings_failed: dict[Code, datetime] = {}
+        self.write_questions = write_questions
         # All by topic and language: a topic can be writing in one language and failed in another.
         self._topic_locks: dict[tuple[int, Code], asyncio.Lock] = {}
         self._topping_up = asyncio.Lock()
@@ -420,6 +422,7 @@ class Engine:
             text = store.get_text(self.conn, text_id)
             assert text is not None
             await self.fill_meanings([text], language)
+            await self.fill_questions(text)
             await self.make_audio(text)
             store.mark_ready(self.conn, text_id)
             return text
@@ -462,6 +465,7 @@ class Engine:
                 avoid=avoid,
                 review=review,
                 unset=unset,
+                unset_uses=difficulty.unset_uses,
                 story=story,
             )
 
@@ -517,6 +521,26 @@ class Engine:
         except meanings.MeaningsFailed as e:
             log.warning("Couldn't write %s word meanings: %s", language, e)
             self._meanings_failed[language] = self.clock()
+
+    async def fill_questions(self, text: StoredText) -> None:
+        """Writes the questions for the check after reading (comprehension.py) and keeps them on the
+        text, with what the call cost. A failure is logged and leaves the text without them; it
+        never keeps a text from being served."""
+        if self.write_questions is None or text.questions:
+            return
+        _, lexicon = self.snapshot(text.language)
+        try:
+            raw, used = await self.write_questions(text.language, text.lines)
+        except comprehension.QuestionsFailed as e:
+            log.warning("Couldn't write questions for %s text %d: %s", text.language, text.id, e)
+            if e.usage != Usage():
+                store.save_call_cost(
+                    self.conn, "questions", text.language, self.clock(), e.usage.cost_usd()
+                )
+            return
+        kept = comprehension.keep(raw, text.lines, lexicon)
+        store.save_questions(self.conn, text.id, kept)
+        store.save_call_cost(self.conn, "questions", text.language, self.clock(), used.cost_usd())
 
     # ==== Grammar ====
 
@@ -777,6 +801,13 @@ class Engine:
             return
         store.log_reading(self.conn, text_id, reading, self.clock())
         text = store.get_text(self.conn, text_id)
-        if reading.rating is not None and text is not None:
+        if text is not None:
             current = store.load_difficulty(self.conn, text.language)
-            store.save_difficulty(self.conn, adapt(current, reading.rating), text.language)
+            after = adapt_to_check(
+                adapt(current, reading.rating),
+                reading.rating,
+                reading.check_right,
+                reading.check_asked,
+            )
+            if after != current:
+                store.save_difficulty(self.conn, after, text.language)

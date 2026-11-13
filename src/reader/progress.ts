@@ -13,6 +13,9 @@ export function describeProgress(p: Progress): { headline: string; detail: strin
   } else {
     const parts = [`Median ${percent(p.median_coverage)} known words.`];
     if (rated > 0) parts.push(`${p.ratings.about_right} of ${rated} rated about right.`);
+    if (p.check && p.check.asked > 0) {
+      parts.push(`Checks after ${plural(p.check.texts, 'text')}: ${percent(p.check.right / p.check.asked)} right.`);
+    }
     detail = parts.join(' ');
   }
   const next = `New texts aim for at least ${percent(p.next.floor)} known words and ${plural(
