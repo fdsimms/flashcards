@@ -159,7 +159,9 @@ src/wanikani WaniKani as a deck: its API, the study session (undo holds the late
 src/tools    the Practice tab's tools (time, dates, money, grammar): the list (tools.ts), each tool's logic, and each
              language's under its own folder (thai/, spanish/...); pure, tested, except storage.ts. A tool
              comes in every app language unless it doesn't apply, and never schedules or writes a card
-             (tests/tools/noGrading.test.ts); a quiz mode may check a typed or picked answer and keeps nothing. Screens are src/ui/Practice.tsx and src/ui/tools/
+             (tests/tools/noGrading.test.ts). It may check an answer, or take Missed it / Got it, and keep only a
+             fading tally of missed patterns on the phone (marks.ts, patterns.ts) that leans the next random
+             question toward them. Screens are src/ui/Practice.tsx and src/ui/tools/
 src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested);
              sync/ syncs with an Anki sync server (pure, tested; syncService.ts is the phone's side)
 server/      a ready-to-run Anki sync server (Docker, Caddy); server/mcp is the MCP for Claude (Python);
