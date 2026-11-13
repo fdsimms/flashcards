@@ -78,7 +78,7 @@ export function wordsLookAlike(a: string, b: string): boolean {
 
 /**
  * Each note's lookalikes, by note id. Two notes are lookalikes when their words look alike, or
- * when one's word is among the other's listed forms (Forms, KeyForms).
+ * when one's word is among the other's listed forms (Forms, KeyForms; not Gender or the counting word).
  */
 export function lookalikeIndex(notes: Note[]): Map<string, Set<string>> {
   const out = new Map<string, Set<string>>();
@@ -94,7 +94,8 @@ export function lookalikeIndex(notes: Note[]): Map<string, Set<string>> {
     const word = lookalikeForm(headword(n), lang);
     if (!word) continue;
     const forms = new Set<string>();
-    for (const f of formsOf(n).forms) if (!f.key.startsWith('field:Gender')) for (const a of f.answers) forms.add(lookalikeForm(a, lang));
+    // Gender (an article) and the counting word (a different word that goes with this one) don't look like it.
+    for (const f of formsOf(n).forms) if (f.key !== 'field:Gender' && f.key !== 'field:Classifier') for (const a of f.answers) forms.add(lookalikeForm(a, lang));
     for (const k of htmlToText(n.fields.KeyForms ?? '').split(/[,;\n]/)) if (k.trim()) forms.add(lookalikeForm(k, lang));
     (byLang.get(lang) ?? byLang.set(lang, []).get(lang)!).push({ id: n.id, word, forms });
   }
