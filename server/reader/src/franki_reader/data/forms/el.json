@@ -1,0 +1,351 @@
+[
+  {
+    "id": "nominative",
+    "name": "nominative case",
+    "summary": "The case of the subject, the one doing something or being described. It's the form a dictionary lists.",
+    "table": {
+      "head": [
+        "",
+        "Singular",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Masculine",
+          "*-ος* / *-ης* / *-ας*",
+          "*-οι* / *-ες*"
+        ],
+        [
+          "Feminine",
+          "*-α* / *-η*",
+          "*-ες*"
+        ],
+        [
+          "Neuter",
+          "*-ο* / *-ι* / *-μα*",
+          "*-α* / *-ια* / *-ματα*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Ο δάσκαλος μιλάει",
+        "english": "The teacher is speaking"
+      },
+      {
+        "text": "Οι δάσκαλοι μιλάνε",
+        "english": "The teachers are speaking"
+      }
+    ]
+  },
+  {
+    "id": "genitive",
+    "name": "genitive case",
+    "summary": "Shows belonging ('of', 's). It's also the indirect object when it's a short pronoun, like μου ('to me') and σου ('to you').",
+    "table": {
+      "head": [
+        "",
+        "Singular",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Masculine",
+          "*-ου* / *-η* / *-α*",
+          "*-ων*"
+        ],
+        [
+          "Feminine",
+          "*-ας* / *-ης*",
+          "*-ων*"
+        ],
+        [
+          "Neuter",
+          "*-ου* / *-ιού* / *-ματος*",
+          "*-ων*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "το βιβλίο του δασκάλ*ου*",
+        "english": "the teacher's book"
+      },
+      {
+        "text": "*Μου* έδωσε το βιβλίο",
+        "english": "He gave me the book"
+      }
+    ]
+  },
+  {
+    "id": "accusative",
+    "name": "accusative case",
+    "summary": "Shows what is acted on, the direct object. It's also the case after most prepositions, like σε, από, για, με.",
+    "table": {
+      "head": [
+        "",
+        "Singular",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Masculine",
+          "*-ο* / *-η* / *-α*",
+          "*-ους* / *-ες*"
+        ],
+        [
+          "Feminine",
+          "*-α* / *-η*",
+          "*-ες*"
+        ],
+        [
+          "Neuter",
+          "same as the nominative",
+          "same as the nominative"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Βλέπω τον δάσκαλ*ο*",
+        "english": "I see the teacher"
+      },
+      {
+        "text": "για τη μητέρα",
+        "english": "for the mother"
+      }
+    ]
+  },
+  {
+    "id": "vocative",
+    "name": "vocative case",
+    "summary": "Used to address someone directly. For most masculine names ending in -ος it drops the s.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Γιώργ*ο*, έλα εδώ!",
+        "english": "George, come here!"
+      },
+      {
+        "text": "Κύρι*ε*!",
+        "english": "Sir!"
+      }
+    ]
+  },
+  {
+    "id": "plural",
+    "name": "plural",
+    "summary": "More than one. The ending depends on the gender and the type of noun.",
+    "table": null,
+    "examples": [
+      {
+        "text": "οι φίλ*οι*",
+        "english": "the friends"
+      },
+      {
+        "text": "οι γυναίκ*ες*",
+        "english": "the women"
+      },
+      {
+        "text": "τα παιδι*ά*",
+        "english": "the children"
+      }
+    ]
+  },
+  {
+    "id": "present",
+    "name": "present tense",
+    "summary": "What is happening now or happens regularly. The ending shows the person, so the pronoun is often left out.",
+    "table": {
+      "head": [
+        "",
+        "Type 1 (γράφω)",
+        "Type 2 (μιλάω)"
+      ],
+      "rows": [
+        [
+          "εγώ",
+          "*-ω*",
+          "*-άω* / *-ώ*"
+        ],
+        [
+          "εσύ",
+          "*-εις*",
+          "*-άς*"
+        ],
+        [
+          "αυτός",
+          "*-ει*",
+          "*-άει* / *-ά*"
+        ],
+        [
+          "εμείς",
+          "*-ουμε*",
+          "*-άμε*"
+        ],
+        [
+          "εσείς",
+          "*-ετε*",
+          "*-άτε*"
+        ],
+        [
+          "αυτοί",
+          "*-ουν*",
+          "*-άνε* / *-ούν*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Γράφ*ω* ένα γράμμα",
+        "english": "I'm writing a letter"
+      },
+      {
+        "text": "Μιλ*άμε* ελληνικά",
+        "english": "We speak Greek"
+      }
+    ]
+  },
+  {
+    "id": "past",
+    "name": "past tense",
+    "summary": "Something that already happened. Many verbs add an ε- at the front, and the endings change. The simple past (aorist) says it happened once.",
+    "table": {
+      "head": [
+        "",
+        "Ending"
+      ],
+      "rows": [
+        [
+          "εγώ",
+          "*-α*"
+        ],
+        [
+          "εσύ",
+          "*-ες*"
+        ],
+        [
+          "αυτός",
+          "*-ε*"
+        ],
+        [
+          "εμείς",
+          "*-αμε*"
+        ],
+        [
+          "εσείς",
+          "*-ατε*"
+        ],
+        [
+          "αυτοί",
+          "*-αν*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "*Έγραψα* ένα γράμμα",
+        "english": "I wrote a letter"
+      },
+      {
+        "text": "Χθες *πήγα* στο σχολείο",
+        "english": "Yesterday I went to school"
+      }
+    ]
+  },
+  {
+    "id": "future",
+    "name": "future tense",
+    "summary": "Something that will happen. It's made with θα plus the verb, so it's easy to spot.",
+    "table": null,
+    "examples": [
+      {
+        "text": "*Θα* γράψω ένα γράμμα",
+        "english": "I will write a letter"
+      },
+      {
+        "text": "*Θα* πάμε αύριο",
+        "english": "We will go tomorrow"
+      }
+    ]
+  },
+  {
+    "id": "subjunctive",
+    "name": "subjunctive",
+    "summary": "Made with να plus the verb. Used after verbs like θέλω (I want), πρέπει (I must) and for 'in order to'. Greek has no infinitive, so να takes its place.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Θέλω *να φάω*",
+        "english": "I want to eat"
+      },
+      {
+        "text": "Πρέπει *να φύγω*",
+        "english": "I have to leave"
+      }
+    ]
+  },
+  {
+    "id": "imperative",
+    "name": "imperative",
+    "summary": "A command or request. It's the verb stem with a special ending, often -ε or -α for you singular.",
+    "table": null,
+    "examples": [
+      {
+        "text": "*Έλα* εδώ!",
+        "english": "Come here!"
+      },
+      {
+        "text": "*Κοίτα*!",
+        "english": "Look!"
+      }
+    ]
+  },
+  {
+    "id": "passive",
+    "name": "passive voice",
+    "summary": "The verb forms ending in -μαι: for things done to the subject, done to oneself, and some verbs that are only passive in form.",
+    "table": {
+      "head": [
+        "",
+        "Ending"
+      ],
+      "rows": [
+        [
+          "εγώ",
+          "*-μαι*"
+        ],
+        [
+          "εσύ",
+          "*-σαι*"
+        ],
+        [
+          "αυτός",
+          "*-ται*"
+        ],
+        [
+          "εμείς",
+          "*-μαστε*"
+        ],
+        [
+          "εσείς",
+          "*-στε*"
+        ],
+        [
+          "αυτοί",
+          "*-νται*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "*Ονομάζομαι* Γιώργος",
+        "english": "My name is George"
+      },
+      {
+        "text": "*Κοιμάμαι* νωρίς",
+        "english": "I go to sleep early"
+      }
+    ]
+  }
+]

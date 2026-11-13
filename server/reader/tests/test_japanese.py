@@ -194,6 +194,7 @@ def test_a_japanese_text_renders_with_readings_lemmas_and_glosses() -> None:
         "wanikani": False,
         "rank": None,
         "grammar": None,
+        "form": None,
     }
     # The deck's reading for the entry itself, Sudachi's for a conjugated word, none for kana.
     assert words["劇団"]["translit"] == "げきだん"

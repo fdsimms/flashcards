@@ -1,0 +1,210 @@
+[
+  {
+    "id": "present",
+    "name": "present tense",
+    "summary": "What is happening now or happens regularly. It ends in -r and is the same for every person.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Jeg snakk*er* norsk",
+        "english": "I speak Norwegian"
+      },
+      {
+        "text": "Han komm*er* i morgen",
+        "english": "He comes tomorrow"
+      }
+    ]
+  },
+  {
+    "id": "past",
+    "name": "past tense",
+    "summary": "Something that already happened. The ending is -et, -a, -de or -te. Irregular verbs change their vowel instead, like gå to gikk.",
+    "table": {
+      "head": [
+        "Ending",
+        "Example"
+      ],
+      "rows": [
+        [
+          "*-et* / *-a*",
+          "snakket"
+        ],
+        [
+          "*-de*",
+          "levde"
+        ],
+        [
+          "*-te*",
+          "kjøpte"
+        ],
+        [
+          "vowel change",
+          "gikk"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Jeg snakk*et* med henne i går",
+        "english": "I talked with her yesterday"
+      },
+      {
+        "text": "Han *gikk* hjem",
+        "english": "He went home"
+      }
+    ]
+  },
+  {
+    "id": "participle",
+    "name": "past participle",
+    "summary": "The verb form used after har or er to say something has happened, and as an adjective. It ends in -et, -a, -t or -d.",
+    "table": {
+      "head": [
+        "Ending",
+        "Example"
+      ],
+      "rows": [
+        [
+          "*-et* / *-a*",
+          "snakket"
+        ],
+        [
+          "*-d*",
+          "levd"
+        ],
+        [
+          "*-t*",
+          "kjøpt"
+        ],
+        [
+          "vowel change",
+          "gått"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Jeg har snakk*et* med henne",
+        "english": "I have talked with her"
+      },
+      {
+        "text": "Han har *gått* hjem",
+        "english": "He has gone home"
+      }
+    ]
+  },
+  {
+    "id": "imperative",
+    "name": "imperative",
+    "summary": "A command or request. It's the stem of the verb, with no ending.",
+    "table": null,
+    "examples": [
+      {
+        "text": "*Kom* hit!",
+        "english": "Come here!"
+      },
+      {
+        "text": "*Snakk* høyere",
+        "english": "Speak louder"
+      }
+    ]
+  },
+  {
+    "id": "plural",
+    "name": "plural",
+    "summary": "More than one. Nouns add -er or -e, or stay the same (usually for neuter nouns with one syllable).",
+    "table": {
+      "head": [
+        "Gender",
+        "Ending",
+        "Example"
+      ],
+      "rows": [
+        [
+          "Masculine",
+          "*-er* / *-e*",
+          "gutt, gutter"
+        ],
+        [
+          "Feminine",
+          "*-er*",
+          "bok, bøker"
+        ],
+        [
+          "Neuter",
+          "no ending",
+          "barn, barn"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "to bil*er*",
+        "english": "two cars"
+      },
+      {
+        "text": "tre gutt*er*",
+        "english": "three boys"
+      },
+      {
+        "text": "mange barn",
+        "english": "many children"
+      }
+    ]
+  },
+  {
+    "id": "definite",
+    "name": "definite form",
+    "summary": "'The': Norwegian adds it to the end of the noun instead of putting a word in front. The plural definite ends in -ene (or -a for some neuter nouns).",
+    "table": {
+      "head": [
+        "Gender",
+        "Singular",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Masculine",
+          "*-en*",
+          "*-ene*"
+        ],
+        [
+          "Feminine",
+          "*-a* / *-en*",
+          "*-ene*"
+        ],
+        [
+          "Neuter",
+          "*-et*",
+          "*-a* / *-ene*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Bok*a* ligger på bordet",
+        "english": "The book is on the table"
+      },
+      {
+        "text": "Gutt*en* er her",
+        "english": "The boy is here"
+      }
+    ]
+  },
+  {
+    "id": "comparative",
+    "name": "comparative",
+    "summary": "'More' or '-er'. Add -ere to the adjective, or use mer in front. Use enn for 'than'.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Han er høy*ere* enn meg",
+        "english": "He is taller than me"
+      },
+      {
+        "text": "Dette er billig*ere*",
+        "english": "This is cheaper"
+      }
+    ]
+  }
+]

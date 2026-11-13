@@ -1,0 +1,415 @@
+[
+  {
+    "id": "present",
+    "name": "present tense",
+    "summary": "What is happening now or happens regularly. The ending shows the person, so the pronoun is often left out.",
+    "table": {
+      "head": [
+        "",
+        "-ar",
+        "-er",
+        "-ir"
+      ],
+      "rows": [
+        [
+          "yo",
+          "*-o*",
+          "*-o*",
+          "*-o*"
+        ],
+        [
+          "tú",
+          "*-as*",
+          "*-es*",
+          "*-es*"
+        ],
+        [
+          "él, ella",
+          "*-a*",
+          "*-e*",
+          "*-e*"
+        ],
+        [
+          "nosotros",
+          "*-amos*",
+          "*-emos*",
+          "*-imos*"
+        ],
+        [
+          "vosotros",
+          "*-áis*",
+          "*-éis*",
+          "*-ís*"
+        ],
+        [
+          "ellos",
+          "*-an*",
+          "*-en*",
+          "*-en*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Habl*o* español",
+        "english": "I speak Spanish"
+      },
+      {
+        "text": "Com*emos* a las dos",
+        "english": "We eat at two"
+      }
+    ]
+  },
+  {
+    "id": "preterite",
+    "name": "preterite",
+    "summary": "A completed action in the past: it happened and it's over. Often used with words like ayer or una vez.",
+    "table": {
+      "head": [
+        "",
+        "-ar",
+        "-er, -ir"
+      ],
+      "rows": [
+        [
+          "yo",
+          "*-é*",
+          "*-í*"
+        ],
+        [
+          "tú",
+          "*-aste*",
+          "*-iste*"
+        ],
+        [
+          "él, ella",
+          "*-ó*",
+          "*-ió*"
+        ],
+        [
+          "nosotros",
+          "*-amos*",
+          "*-imos*"
+        ],
+        [
+          "vosotros",
+          "*-asteis*",
+          "*-isteis*"
+        ],
+        [
+          "ellos",
+          "*-aron*",
+          "*-ieron*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Ayer habl*é* con ella",
+        "english": "Yesterday I talked with her"
+      },
+      {
+        "text": "Él com*ió* tarde",
+        "english": "He ate late"
+      }
+    ]
+  },
+  {
+    "id": "imperfect",
+    "name": "imperfect",
+    "summary": "A past state or habit, or the background of a story ('was doing', 'used to'). It doesn't say how it ended.",
+    "table": {
+      "head": [
+        "",
+        "-ar",
+        "-er, -ir"
+      ],
+      "rows": [
+        [
+          "yo",
+          "*-aba*",
+          "*-ía*"
+        ],
+        [
+          "tú",
+          "*-abas*",
+          "*-ías*"
+        ],
+        [
+          "él, ella",
+          "*-aba*",
+          "*-ía*"
+        ],
+        [
+          "nosotros",
+          "*-ábamos*",
+          "*-íamos*"
+        ],
+        [
+          "vosotros",
+          "*-abais*",
+          "*-íais*"
+        ],
+        [
+          "ellos",
+          "*-aban*",
+          "*-ían*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "De niño jug*aba* al fútbol",
+        "english": "As a child I used to play soccer"
+      },
+      {
+        "text": "*Era* tarde",
+        "english": "It was late"
+      }
+    ]
+  },
+  {
+    "id": "future",
+    "name": "future tense",
+    "summary": "Something that will happen. The endings are added to the whole infinitive. It's also used to guess about the present ('it must be').",
+    "table": {
+      "head": [
+        "",
+        "Ending"
+      ],
+      "rows": [
+        [
+          "yo",
+          "*-é*"
+        ],
+        [
+          "tú",
+          "*-ás*"
+        ],
+        [
+          "él, ella",
+          "*-á*"
+        ],
+        [
+          "nosotros",
+          "*-emos*"
+        ],
+        [
+          "vosotros",
+          "*-éis*"
+        ],
+        [
+          "ellos",
+          "*-án*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Mañana hablar*é* con él",
+        "english": "Tomorrow I'll talk with him"
+      },
+      {
+        "text": "*Será* fácil",
+        "english": "It will be easy"
+      }
+    ]
+  },
+  {
+    "id": "conditional",
+    "name": "conditional",
+    "summary": "'Would': polite requests and things that depend on a condition. The endings are added to the whole infinitive.",
+    "table": {
+      "head": [
+        "",
+        "Ending"
+      ],
+      "rows": [
+        [
+          "yo",
+          "*-ía*"
+        ],
+        [
+          "tú",
+          "*-ías*"
+        ],
+        [
+          "él, ella",
+          "*-ía*"
+        ],
+        [
+          "nosotros",
+          "*-íamos*"
+        ],
+        [
+          "vosotros",
+          "*-íais*"
+        ],
+        [
+          "ellos",
+          "*-ían*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Me gustar*ía* un café",
+        "english": "I would like a coffee"
+      },
+      {
+        "text": "Yo ir*ía* contigo",
+        "english": "I would go with you"
+      }
+    ]
+  },
+  {
+    "id": "present-subjunctive",
+    "name": "present subjunctive",
+    "summary": "Used after wishes, doubt, emotion and orders, usually after que. The endings swap the vowel: -ar verbs take -e, and -er and -ir verbs take -a.",
+    "table": {
+      "head": [
+        "",
+        "-ar",
+        "-er, -ir"
+      ],
+      "rows": [
+        [
+          "yo",
+          "*-e*",
+          "*-a*"
+        ],
+        [
+          "tú",
+          "*-es*",
+          "*-as*"
+        ],
+        [
+          "él, ella",
+          "*-e*",
+          "*-a*"
+        ],
+        [
+          "nosotros",
+          "*-emos*",
+          "*-amos*"
+        ],
+        [
+          "vosotros",
+          "*-éis*",
+          "*-áis*"
+        ],
+        [
+          "ellos",
+          "*-en*",
+          "*-an*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Quiero que *vengas*",
+        "english": "I want you to come"
+      },
+      {
+        "text": "Espero que *llueva*",
+        "english": "I hope it rains"
+      }
+    ]
+  },
+  {
+    "id": "imperfect-subjunctive",
+    "name": "imperfect subjunctive",
+    "summary": "The subjunctive for the past, and for unlikely 'if' clauses. It's formed from the ellos preterite, with -ra (or -se) endings.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Quería que *vinieras*",
+        "english": "I wanted you to come"
+      },
+      {
+        "text": "Si *tuviera* tiempo, iría",
+        "english": "If I had time, I would go"
+      }
+    ]
+  },
+  {
+    "id": "imperative",
+    "name": "imperative",
+    "summary": "A command or request. The tú form is the same as the él form of the present. A negative command uses the subjunctive.",
+    "table": null,
+    "examples": [
+      {
+        "text": "*Habla* más despacio",
+        "english": "Speak more slowly"
+      },
+      {
+        "text": "No *hables* tan rápido",
+        "english": "Don't speak so fast"
+      }
+    ]
+  },
+  {
+    "id": "participle",
+    "name": "past participle",
+    "summary": "The verb form used with haber to say something has happened, and as an adjective. It ends in -ado or -ido. As an adjective it agrees with the noun.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Ya he habl*ado*",
+        "english": "I've already spoken"
+      },
+      {
+        "text": "La puerta está cerr*ada*",
+        "english": "The door is closed"
+      }
+    ]
+  },
+  {
+    "id": "gerund",
+    "name": "gerund",
+    "summary": "The -ando or -iendo form, used with estar for something in progress, and for 'while' or 'by'.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Está com*iendo*",
+        "english": "He is eating"
+      },
+      {
+        "text": "Aprendo escuch*ando*",
+        "english": "I learn by listening"
+      }
+    ]
+  },
+  {
+    "id": "feminine",
+    "name": "feminine form",
+    "summary": "The form used with a feminine noun. Most words ending in -o change to -a, and many ending in a consonant add -a.",
+    "table": null,
+    "examples": [
+      {
+        "text": "la niñ*a* alt*a*",
+        "english": "the tall girl"
+      },
+      {
+        "text": "una amiga español*a*",
+        "english": "a Spanish friend"
+      }
+    ]
+  },
+  {
+    "id": "plural",
+    "name": "plural",
+    "summary": "More than one. Words ending in a vowel add -s, and words ending in a consonant add -es.",
+    "table": null,
+    "examples": [
+      {
+        "text": "las cas*as*",
+        "english": "the houses"
+      },
+      {
+        "text": "los papel*es*",
+        "english": "the papers"
+      }
+    ]
+  }
+]

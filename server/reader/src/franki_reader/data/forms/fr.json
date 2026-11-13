@@ -1,0 +1,356 @@
+[
+  {
+    "id": "present",
+    "name": "present tense",
+    "summary": "What is happening now or happens regularly. Verbs ending in -er share these endings.",
+    "table": {
+      "head": [
+        "",
+        "Ending"
+      ],
+      "rows": [
+        [
+          "je",
+          "*-e*"
+        ],
+        [
+          "tu",
+          "*-es*"
+        ],
+        [
+          "il, elle",
+          "*-e*"
+        ],
+        [
+          "nous",
+          "*-ons*"
+        ],
+        [
+          "vous",
+          "*-ez*"
+        ],
+        [
+          "ils, elles",
+          "*-ent*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Je parl*e* français",
+        "english": "I speak French"
+      },
+      {
+        "text": "Nous mange*ons*",
+        "english": "We eat"
+      }
+    ]
+  },
+  {
+    "id": "imperfect",
+    "name": "imperfect",
+    "summary": "A past state or habit, or the background of a story ('was doing', 'used to'). The endings are added to the stem of the nous form.",
+    "table": {
+      "head": [
+        "",
+        "Ending"
+      ],
+      "rows": [
+        [
+          "je",
+          "*-ais*"
+        ],
+        [
+          "tu",
+          "*-ais*"
+        ],
+        [
+          "il, elle",
+          "*-ait*"
+        ],
+        [
+          "nous",
+          "*-ions*"
+        ],
+        [
+          "vous",
+          "*-iez*"
+        ],
+        [
+          "ils, elles",
+          "*-aient*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Quand j'étais petit, je jou*ais* dehors",
+        "english": "When I was little, I played outside"
+      },
+      {
+        "text": "Il pleuv*ait*",
+        "english": "It was raining"
+      }
+    ]
+  },
+  {
+    "id": "future",
+    "name": "future tense",
+    "summary": "Something that will happen. The endings are added to the infinitive (or its irregular stem).",
+    "table": {
+      "head": [
+        "",
+        "Ending"
+      ],
+      "rows": [
+        [
+          "je",
+          "*-ai*"
+        ],
+        [
+          "tu",
+          "*-as*"
+        ],
+        [
+          "il, elle",
+          "*-a*"
+        ],
+        [
+          "nous",
+          "*-ons*"
+        ],
+        [
+          "vous",
+          "*-ez*"
+        ],
+        [
+          "ils, elles",
+          "*-ont*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Je parler*ai* demain",
+        "english": "I'll talk tomorrow"
+      },
+      {
+        "text": "Il viendr*a* ce soir",
+        "english": "He will come tonight"
+      }
+    ]
+  },
+  {
+    "id": "conditional",
+    "name": "conditional",
+    "summary": "'Would': polite requests and things that depend on a condition. It uses the future stem with the imperfect endings.",
+    "table": {
+      "head": [
+        "",
+        "Ending"
+      ],
+      "rows": [
+        [
+          "je",
+          "*-ais*"
+        ],
+        [
+          "tu",
+          "*-ais*"
+        ],
+        [
+          "il, elle",
+          "*-ait*"
+        ],
+        [
+          "nous",
+          "*-ions*"
+        ],
+        [
+          "vous",
+          "*-iez*"
+        ],
+        [
+          "ils, elles",
+          "*-aient*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Je voudr*ais* un café",
+        "english": "I would like a coffee"
+      },
+      {
+        "text": "Il viendr*ait* s'il pouvait",
+        "english": "He would come if he could"
+      }
+    ]
+  },
+  {
+    "id": "subjunctive",
+    "name": "subjunctive",
+    "summary": "Used after expressions of necessity, wishes, doubt and emotion, and after bien que and pour que. It follows que. Most verbs share the endings of the present, with nous and vous like the imperfect.",
+    "table": {
+      "head": [
+        "",
+        "Ending"
+      ],
+      "rows": [
+        [
+          "que je",
+          "*-e*"
+        ],
+        [
+          "que tu",
+          "*-es*"
+        ],
+        [
+          "qu'il, qu'elle",
+          "*-e*"
+        ],
+        [
+          "que nous",
+          "*-ions*"
+        ],
+        [
+          "que vous",
+          "*-iez*"
+        ],
+        [
+          "qu'ils, qu'elles",
+          "*-ent*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Il faut que tu *viennes*",
+        "english": "You have to come"
+      },
+      {
+        "text": "Je veux qu'il *parte*",
+        "english": "I want him to leave"
+      }
+    ]
+  },
+  {
+    "id": "imperative",
+    "name": "imperative",
+    "summary": "A command or request. It's the tu, nous or vous form with no pronoun. For -er verbs, the tu form drops the s.",
+    "table": null,
+    "examples": [
+      {
+        "text": "*Viens* ici!",
+        "english": "Come here!"
+      },
+      {
+        "text": "*Allons*-y!",
+        "english": "Let's go!"
+      }
+    ]
+  },
+  {
+    "id": "participle",
+    "name": "past participle",
+    "summary": "The verb form used after avoir or être to say something has happened (the passé composé). It also works as an adjective. It ends in -é, -i or -u. With être, or after a direct object that comes first, it agrees with the noun.",
+    "table": {
+      "head": [
+        "Verb type",
+        "Ending",
+        "Example"
+      ],
+      "rows": [
+        [
+          "-er",
+          "*-é*",
+          "parlé"
+        ],
+        [
+          "-ir",
+          "*-i*",
+          "fini"
+        ],
+        [
+          "-re",
+          "*-u*",
+          "vendu"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "J'ai mang*é*",
+        "english": "I ate"
+      },
+      {
+        "text": "Elle est part*ie*",
+        "english": "She left"
+      }
+    ]
+  },
+  {
+    "id": "gerund",
+    "name": "present participle",
+    "summary": "The -ant form, often after en to mean 'while' or 'by'. It doesn't change for gender or number.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Il chante en march*ant*",
+        "english": "He sings while walking"
+      },
+      {
+        "text": "En parl*ant* avec elle, j'ai compris",
+        "english": "By talking with her, I understood"
+      }
+    ]
+  },
+  {
+    "id": "passe-simple",
+    "name": "passé simple",
+    "summary": "A past tense used only in writing, such as novels and history, for completed events. In speech the passé composé replaces it.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Il parl*a* longtemps",
+        "english": "He spoke for a long time"
+      },
+      {
+        "text": "Elle *fut* surprise",
+        "english": "She was surprised"
+      }
+    ]
+  },
+  {
+    "id": "feminine",
+    "name": "feminine form",
+    "summary": "The form used with a feminine noun. Most adjectives add -e. Some change more: -eux to -euse, -if to -ive.",
+    "table": null,
+    "examples": [
+      {
+        "text": "une grand*e* maison",
+        "english": "a big house"
+      },
+      {
+        "text": "elle est heureu*se*",
+        "english": "she is happy"
+      }
+    ]
+  },
+  {
+    "id": "plural",
+    "name": "plural",
+    "summary": "More than one. Most words add -s, and words ending in -eau or -al change to -x or -aux. The s is usually silent.",
+    "table": null,
+    "examples": [
+      {
+        "text": "les ami*s*",
+        "english": "the friends"
+      },
+      {
+        "text": "les cheva*ux*",
+        "english": "the horses"
+      }
+    ]
+  }
+]

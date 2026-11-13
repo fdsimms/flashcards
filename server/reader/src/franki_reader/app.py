@@ -71,7 +71,9 @@ marked words, ideas) is in the current language, the `language` setting.
                                       (lines and phrases) and the naturalness check cost;
                                       `drills`, `meanings` (glossing common words), `vocab_checks`
                                       and `note_queue`; `mnemonics`, memory hints; `questions`,
-                                      the check after reading's questions (comprehension.py); and
+                                      the check after reading's questions (comprehension.py);
+                                      `forms`, the grammatical form picked for a text's inflected
+                                      words (forms.py); and
                                       `recordings`, the cards recorded through /api/speech, as
                                       Azure's characters and their estimate. A call that failed
                                       after Claude answered was still paid for, and counts in its
@@ -110,6 +112,10 @@ marked words, ideas) is in the current language, the `language` setting.
                                       not set (the Grammar dial on the wrap-up screen); answers as
                                       GET /api/grammar does
     PUT   /api/grammar/{id}           {state}; at most 2 practiced at once; from the next text
+    GET   /api/forms?language=ru      the grammatical forms a word can be marked as in that language
+                                      and the primer for each (form_primers.py): {forms: [{id, name,
+                                      summary, table, examples}]}; none for Thai, which has no
+                                      inflection
     GET   /api/words                  words marked unknown and not cleared, newest first
     POST  /api/words/clear            {word} takes a word off that list until it's marked again
     GET   /api/texts/{id}/lines/{n}/audio   one line's MP3, made now if it isn't cached yet
@@ -163,6 +169,8 @@ from franki_reader import (
     config,
     drills,
     exposure,
+    form_primers,
+    forms,
     grammar,
     meanings,
     note_queue,
@@ -1017,6 +1025,7 @@ def create_app(
         glossed = store.meaning_spending(engine.conn, since)
         hinted = store.mnemonic_spending(engine.conn, since)
         questioned = store.question_spending(engine.conn, since)
+        formed = store.form_spending(engine.conn, since)
         recorded, recorded_chars = store.recording_spending(engine.conn, since)
         rows = by_language.values()
         total = store.Spending(
@@ -1136,6 +1145,21 @@ def create_app(
                     for code, (n, c) in questioned.items()
                 ],
             },
+            # The grammatical form picked for a text's inflected words, one call per text (forms.py),
+            # failed calls included.
+            "forms": {
+                "asked": sum(n for n, _ in formed.values()),
+                "cost_usd": round(sum(c for _, c in formed.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "asked": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in formed.items()
+                ],
+            },
             # Cards recorded by an Azure voice in the app (POST /api/speech): Azure's alone, an
             # estimate like the texts' audio. Not per language: the app doesn't say which.
             "recordings": {
@@ -1236,6 +1260,12 @@ def create_app(
                 vocab_failed[language] = engine.clock()
         finally:
             vocab_writing.discard(language)
+
+    @app.get("/api/forms", dependencies=authed)
+    async def get_forms(language: Code) -> dict[str, Any]:
+        """The primers for a language's word forms (the chip on a word's popup opens one). Static:
+        nothing here asks Claude."""
+        return {"forms": list(form_primers.primers(language))}
 
     @app.get("/api/vocab-check", dependencies=authed)
     async def get_vocab_check(language: Code, background: BackgroundTasks) -> dict[str, Any]:
@@ -1581,6 +1611,7 @@ def production_app() -> FastAPI:
     write_notes: note_queue.WriteNotes | None = None
     write_meanings: meanings.WriteMeanings | None = None
     write_questions: comprehension.WriteQuestions | None = None
+    write_forms: forms.WriteForms | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
@@ -1592,6 +1623,7 @@ def production_app() -> FastAPI:
         write_notes = note_queue.claude_notes(client)
         write_meanings = meanings.claude_meanings(client)
         write_questions = comprehension.claude_questions(client)
+        write_forms = forms.claude_forms(client)
 
         def ask_for(entries: list[Entry], language: Code) -> Ask:
             return claude_ask(client, entries, language)
@@ -1640,6 +1672,7 @@ def production_app() -> FastAPI:
         rollover=lambda: anki.rollover if anki else DEFAULT_ROLLOVER,
         write_meanings=write_meanings,
         write_questions=write_questions,
+        write_forms=write_forms,
         read_wanikani=wanikani_reader(wanikani_token) if wanikani_token else None,
     )
     engine.count_existing_audio()

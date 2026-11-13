@@ -587,6 +587,24 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   texts, up to 150 words a call, so texts written before this are filled in. A failed call waits
   `FAILURE_COOLDOWN` and never keeps a text from being served. The cost is `meanings` in `/api/costs`.
   The deck's meaning wins over a kept one.
+- **Word forms** (13 November 2026). The popup's "Dictionary form" line says what a word is a form
+  of, not which form. After a text is written (`Engine.fill_forms`, `forms.py`), one Claude call a
+  text is given each word that is a form of another (the ones with a dictionary form shown) with the
+  line it's in and its English, and picks the form it has there from the language's own list
+  (`data/forms/<code>.json`, `form_primers.py`), or `none`. It's per text, not per word like
+  meanings, because one spelling can be different forms in different lines (чем is the instrumental
+  of что, and also "than"). Code checks only that the answer is on the list for a word that was
+  asked about; a wrong note is worse than none, so the prompt says to answer `none` when unsure. A
+  word that occurs more than once is asked about at its first appearance. The answers are kept on
+  the text (`texts.forms`; NULL until asked, `{}` once asked and nothing fit), so a tap never makes a
+  call and a text is asked once. A failed call waits `FAILURE_COOLDOWN` and never keeps a text from
+  being served; its cost is `forms` in `/api/costs`. `Engine.top_up` fills the newest 3 texts a pass
+  that have none (`BACKFILL_FORMS`), so texts written before this get them. Thai has no list: it has
+  no inflection. Each form's primer (what it means, a table of endings, examples) is fixed text
+  written once per language, in the repo and reviewed, served by `GET /api/forms?language=`: nothing
+  is generated when the chip is tapped. In the app the chip sits after the meaning, and opens a page
+  sheet (`ReadFormSheet`) that ends with what the form is in the tapped word. Not done: the marked
+  words list (a mark isn't tied to a text) and a card's example sentences show no form.
 - **Stretch words** are 1-3 words due today or still young. No random assignment.
 - **Stretch words come back on later days** (brief, design principle 4). A word that was a stretch
   word in a text read on an earlier study day goes ahead of other due and young words, until it has

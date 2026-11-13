@@ -1,0 +1,445 @@
+[
+  {
+    "id": "nominative",
+    "name": "nominative case",
+    "summary": "The case of the subject, the one doing something or being described. It's the form a dictionary lists.",
+    "table": {
+      "head": [
+        "",
+        "masculine",
+        "feminine",
+        "neuter",
+        "plural"
+      ],
+      "rows": [
+        [
+          "the",
+          "*der*",
+          "*die*",
+          "*das*",
+          "*die*"
+        ],
+        [
+          "a",
+          "*ein*",
+          "*eine*",
+          "*ein*",
+          "-"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "*Der* Mann liest",
+        "english": "The man is reading"
+      },
+      {
+        "text": "*Die* Kinder spielen",
+        "english": "The children are playing"
+      }
+    ]
+  },
+  {
+    "id": "accusative",
+    "name": "accusative case",
+    "summary": "Shows what is acted on, the direct object. It's also used after prepositions like für, durch, ohne, gegen, and for where something is going. Only the masculine changes.",
+    "table": {
+      "head": [
+        "",
+        "masculine",
+        "feminine",
+        "neuter",
+        "plural"
+      ],
+      "rows": [
+        [
+          "the",
+          "*den*",
+          "*die*",
+          "*das*",
+          "*die*"
+        ],
+        [
+          "a",
+          "*einen*",
+          "*eine*",
+          "*ein*",
+          "-"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Ich sehe *den* Mann",
+        "english": "I see the man"
+      },
+      {
+        "text": "Das ist für *dich*",
+        "english": "That's for you"
+      }
+    ]
+  },
+  {
+    "id": "dative",
+    "name": "dative case",
+    "summary": "Shows who receives something or who it's for ('to', 'for'). It's also used after prepositions like mit, bei, nach, von, zu, aus, and for where something already is. Plural nouns usually add -n.",
+    "table": {
+      "head": [
+        "",
+        "masculine",
+        "feminine",
+        "neuter",
+        "plural"
+      ],
+      "rows": [
+        [
+          "the",
+          "*dem*",
+          "*der*",
+          "*dem*",
+          "*den*"
+        ],
+        [
+          "a",
+          "*einem*",
+          "*einer*",
+          "*einem*",
+          "-"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Ich gebe *dem* Mann das Buch",
+        "english": "I give the man the book"
+      },
+      {
+        "text": "Ich wohne bei *meiner* Mutter",
+        "english": "I live with my mother"
+      }
+    ]
+  },
+  {
+    "id": "genitive",
+    "name": "genitive case",
+    "summary": "Shows belonging ('of', 's), mostly in writing. Masculine and neuter nouns usually add -s or -es. In speech, von plus the dative often replaces it.",
+    "table": {
+      "head": [
+        "",
+        "masculine",
+        "feminine",
+        "neuter",
+        "plural"
+      ],
+      "rows": [
+        [
+          "the",
+          "*des*",
+          "*der*",
+          "*des*",
+          "*der*"
+        ],
+        [
+          "a",
+          "*eines*",
+          "*einer*",
+          "*eines*",
+          "-"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "das Auto *des* Mannes",
+        "english": "the man's car"
+      },
+      {
+        "text": "wegen *des* Wetters",
+        "english": "because of the weather"
+      }
+    ]
+  },
+  {
+    "id": "plural",
+    "name": "plural",
+    "summary": "More than one. Nouns form the plural in several ways, so each noun is best learned with its plural.",
+    "table": {
+      "head": [
+        "Ending",
+        "Example"
+      ],
+      "rows": [
+        [
+          "*-e*, sometimes with an umlaut",
+          "Tag, Tag*e*"
+        ],
+        [
+          "*-er*, with an umlaut",
+          "Haus, Häus*er*"
+        ],
+        [
+          "*-n* / *-en*",
+          "Frau, Frau*en*"
+        ],
+        [
+          "*-s*",
+          "Auto, Auto*s*"
+        ],
+        [
+          "no ending",
+          "Lehrer, Lehrer"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "zwei Kind*er*",
+        "english": "two children"
+      },
+      {
+        "text": "die Häus*er*",
+        "english": "the houses"
+      },
+      {
+        "text": "die Frau*en*",
+        "english": "the women"
+      }
+    ]
+  },
+  {
+    "id": "present",
+    "name": "present tense",
+    "summary": "What is happening now or happens regularly. Some verbs change their vowel for du and er, like fahren to du fährst.",
+    "table": {
+      "head": [
+        "",
+        "Ending"
+      ],
+      "rows": [
+        [
+          "ich",
+          "*-e*"
+        ],
+        [
+          "du",
+          "*-st*"
+        ],
+        [
+          "er, sie, es",
+          "*-t*"
+        ],
+        [
+          "wir",
+          "*-en*"
+        ],
+        [
+          "ihr",
+          "*-t*"
+        ],
+        [
+          "sie, Sie",
+          "*-en*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Ich lern*e* Deutsch",
+        "english": "I'm learning German"
+      },
+      {
+        "text": "Du fähr*st* nach Hause",
+        "english": "You're driving home"
+      }
+    ]
+  },
+  {
+    "id": "past",
+    "name": "past tense",
+    "summary": "Something that already happened, used mostly in writing and stories. In speech, the perfect (haben or sein plus a past participle) is more common. Regular verbs add -te. Irregular verbs change their vowel.",
+    "table": {
+      "head": [
+        "",
+        "Regular",
+        "Irregular"
+      ],
+      "rows": [
+        [
+          "ich",
+          "*-te*",
+          "no ending"
+        ],
+        [
+          "du",
+          "*-test*",
+          "*-st*"
+        ],
+        [
+          "er, sie, es",
+          "*-te*",
+          "no ending"
+        ],
+        [
+          "wir",
+          "*-ten*",
+          "*-en*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Sie lern*te* Deutsch",
+        "english": "She learned German"
+      },
+      {
+        "text": "Er *ging* nach Hause",
+        "english": "He went home"
+      }
+    ]
+  },
+  {
+    "id": "participle",
+    "name": "past participle",
+    "summary": "The verb form used with haben or sein to say something has happened ('has gone'), and in the passive. Regular verbs are ge- plus the stem plus -t. Irregular verbs are ge- plus -en.",
+    "table": {
+      "head": [
+        "Verb type",
+        "Pattern",
+        "Example"
+      ],
+      "rows": [
+        [
+          "Regular",
+          "*ge-* stem *-t*",
+          "gemacht"
+        ],
+        [
+          "Irregular",
+          "*ge-* stem *-en*",
+          "gegangen"
+        ],
+        [
+          "Separable",
+          "prefix *ge-* stem",
+          "aufgemacht"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Ich habe es *gemacht*",
+        "english": "I did it"
+      },
+      {
+        "text": "Er ist nach Hause *gegangen*",
+        "english": "He went home"
+      }
+    ]
+  },
+  {
+    "id": "imperative",
+    "name": "imperative",
+    "summary": "A command or request. The du form is the stem, often with no ending. Add -t for ihr, and use the -en form with Sie.",
+    "table": {
+      "head": [
+        "",
+        "Ending"
+      ],
+      "rows": [
+        [
+          "du",
+          "stem, or *-e*"
+        ],
+        [
+          "ihr",
+          "*-t*"
+        ],
+        [
+          "Sie",
+          "*-en* + Sie"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "*Komm* hier!",
+        "english": "Come here!"
+      },
+      {
+        "text": "*Kommen* Sie bitte!",
+        "english": "Please come!"
+      }
+    ]
+  },
+  {
+    "id": "subjunctive",
+    "name": "subjunctive II",
+    "summary": "'Would' and 'if only': wishes, polite requests and things that aren't real. It's formed from the past tense, often with an umlaut. würde plus an infinitive is a common stand-in.",
+    "table": {
+      "head": [
+        "Verb",
+        "Subjunctive II"
+      ],
+      "rows": [
+        [
+          "haben",
+          "*hätte*"
+        ],
+        [
+          "sein",
+          "*wäre*"
+        ],
+        [
+          "können",
+          "*könnte*"
+        ],
+        [
+          "werden",
+          "*würde*"
+        ]
+      ]
+    },
+    "examples": [
+      {
+        "text": "Ich *hätte* gern einen Kaffee",
+        "english": "I'd like a coffee"
+      },
+      {
+        "text": "Wenn ich Zeit *hätte*, *würde* ich kommen",
+        "english": "If I had time, I would come"
+      }
+    ]
+  },
+  {
+    "id": "comparative",
+    "name": "comparative",
+    "summary": "'More' or '-er'. Add -er to the adjective, and often an umlaut. Use als for 'than'.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Er ist schnell*er* als ich",
+        "english": "He is faster than me"
+      },
+      {
+        "text": "Das ist bess*er*",
+        "english": "That is better"
+      }
+    ]
+  },
+  {
+    "id": "superlative",
+    "name": "superlative",
+    "summary": "'The most' or '-est'. Add -(e)st to the adjective, and use am before it when it follows a verb.",
+    "table": null,
+    "examples": [
+      {
+        "text": "Er läuft *am schnellsten*",
+        "english": "He runs the fastest"
+      },
+      {
+        "text": "Das ist der *beste* Kaffee",
+        "english": "That's the best coffee"
+      }
+    ]
+  }
+]
