@@ -6,6 +6,8 @@ import type { RenderedSide } from '../core/types';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { MIN_TAP, hairline, radius, smooth, space, type, useTheme, type Colors } from './theme';
+import { CardSentence } from './CardSentence';
+import type { SentenceGloss } from './useCardGlosses';
 
 type Block = RenderedSide['blocks'][number];
 type Item = { b: Block; i: number };
@@ -31,9 +33,11 @@ function MarkedText({ text, segments, style, c }: { text: string; segments?: Seg
  * are a labeled list, an example sentence's lines sit close together with the word highlighted,
  * and a note is set off in a box.
  * `showHints` shows the lines Anki hides behind a tap (romanization, translation) without one.
+ * With `gloss` (the sentence's words from Read & Listen's server), the example sentence's words can
+ * be tapped for their meanings (CardSentence).
  */
-export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE }: {
-  side: RenderedSide; which: 'front' | 'back'; showHints: boolean; thaiSize?: ThaiTextSize;
+export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE, gloss }: {
+  side: RenderedSide; which: 'front' | 'back'; showHints: boolean; thaiSize?: ThaiTextSize; gloss?: SentenceGloss | null;
 }) {
   const c = useTheme();
   const thai = thaiTextStyle(thaiSize);
@@ -84,7 +88,9 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
 
   const line = ({ b, i }: Item) => {
     if (b.role === 'example') {
-      return <MarkedText key={i} text={b.text} segments={b.segments} c={c} style={{ ...(hasThai(b.text) ? thai : { fontSize: type.title.fontSize, lineHeight: 34 }), color: c.text }} />;
+      const style = { ...(hasThai(b.text) ? thai : { fontSize: type.title.fontSize, lineHeight: 34 }), color: c.text };
+      if (gloss && gloss.words.map((w) => w.text).join('') === b.text) return <CardSentence key={i} gloss={gloss} segments={b.segments} style={style} />;
+      return <MarkedText key={i} text={b.text} segments={b.segments} c={c} style={style} />;
     }
     if (b.role === 'exampleRomanized' || b.role === 'exampleTranslation') {
       return <MarkedText key={i} text={b.text} segments={b.segments} c={c} style={{ ...type.subhead, lineHeight: 21, color: c.textSecondary }} />;

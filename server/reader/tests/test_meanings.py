@@ -22,6 +22,7 @@ from franki_reader.meanings import (
     claude_meanings,
     fill,
     missing,
+    missing_in_sentences,
     request_message,
 )
 from franki_reader.reader import render
@@ -227,3 +228,29 @@ def test_claude_meanings_keeps_the_usage_of_an_answer_it_cant_use(
     with pytest.raises(MeaningsFailed) as failed:
         finish(write("nb", [("varm", "Warm food!")]))
     assert failed.value.usage.output_tokens == 900  # the call is still paid for
+
+
+def test_a_cards_sentence_asks_about_the_words_nothing_glosses_with_its_english() -> None:
+    lexicon = lexicon_from(DECK, "nb", 1000)
+    asked = missing_in_sentences(
+        [("Varm mat!", "Warm food!"), ("Mat og vann.", "Food and water.")],
+        lexicon,
+        {"mat": "food", "vann": "water"},
+    )
+    assert dict(asked) == {"varm": "Warm food!", "og": "Food and water."}
+
+
+def test_the_engine_fills_card_sentences_and_shares_the_cooldown_with_texts() -> None:
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, DECK, NOW, "nb")
+    writer = Writer(fail=True)
+    engine = Engine(conn, None, None, lambda: NOW, random.Random(1), write_meanings=writer)
+
+    asyncio.run(engine.fill_meanings([stored_text(conn)], "nb"))
+    asyncio.run(engine.fill_sentence_meanings([("Varm suppe.", "Warm soup.")], "nb"))
+    assert len(writer.asked) == 1  # cooling down after the texts' pass failed
+
+    writer.fail = False
+    engine._meanings_failed.clear()
+    asyncio.run(engine.fill_sentence_meanings([("Varm suppe.", "Warm soup.")], "nb"))
+    assert engine.meanings("nb")["suppe"] == "meaning of suppe"

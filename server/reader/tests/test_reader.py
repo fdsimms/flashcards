@@ -2,7 +2,7 @@ from scripted import ENTRIES
 
 from franki_reader.generator import Line
 from franki_reader.lexicon import Entry, lexicon_from
-from franki_reader.reader import render
+from franki_reader.reader import render, render_sentence
 from franki_reader.store import StoredText
 
 TEXT = StoredText(
@@ -172,3 +172,13 @@ def test_a_line_says_its_register_or_nothing_for_an_older_text() -> None:
     )
     out = render(text, lexicon_from(ENTRIES), MEANINGS)
     assert [ln["register"] for ln in out["lines"]] == ["casual", ""]
+
+
+def test_a_cards_sentence_is_split_and_glossed_like_a_line_and_joins_back_to_itself() -> None:
+    sentence = "ฉันอยากกินข้าวเหนียวมะม่วง *ครับ* ~|"
+    words = render_sentence(sentence, lexicon_from(ENTRIES), MEANINGS, {"กิน": "gin"})
+    assert "".join(w["text"] for w in words) == sentence  # no markup read out of plain text
+    eat = next(w for w in words if w["text"] == "กิน")
+    assert eat["gloss"] == "eat" and eat["translit"] == "gin" and eat["deck"] is True
+    assert eat["stretch"] is False and eat["grammar"] is None
+    assert all(w["status"] is None for w in words if not w["text"].strip())

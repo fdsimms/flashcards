@@ -163,6 +163,7 @@ class Engine:
         # When Claude last failed to write word meanings, by language, so a pass that keeps failing
         # doesn't keep asking.
         self._meanings_failed: dict[Code, datetime] = {}
+        self._meanings_lock = asyncio.Lock()
         # All by topic and language: a topic can be writing in one language and failed in another.
         self._topic_locks: dict[tuple[int, Code], asyncio.Lock] = {}
         self._topping_up = asyncio.Lock()
@@ -498,25 +499,46 @@ class Engine:
     async def fill_meanings(self, texts: list[StoredText], language: Code) -> None:
         """Glosses the words in `texts` that have no gloss (meanings.py). A failure is logged and
         waits `FAILURE_COOLDOWN`; it never keeps a text from being served."""
-        if self.write_meanings is None or not texts:
-            return
-        failed = self._meanings_failed.get(language)
-        if failed is not None and self.clock() - failed < FAILURE_COOLDOWN:
-            return
-        _, lexicon = self.snapshot(language)
-        try:
-            await meanings.fill(
-                self.conn,
-                self.write_meanings,
-                language,
-                texts,
-                lexicon,
-                self.meanings(language),
-                self.clock,
+        if texts:
+            await self._fill_words(
+                language, lambda lexicon, known: meanings.missing(texts, lexicon, known)
             )
-        except meanings.MeaningsFailed as e:
-            log.warning("Couldn't write %s word meanings: %s", language, e)
-            self._meanings_failed[language] = self.clock()
+
+    async def fill_sentence_meanings(
+        self, sentences: list[tuple[str, str]], language: Code
+    ) -> None:
+        """`fill_meanings` for cards' example sentences, as (sentence, its English), so a word in
+        one that nothing glosses has a meaning the next time the card's words are asked for."""
+        if sentences:
+            await self._fill_words(
+                language,
+                lambda lexicon, known: meanings.missing_in_sentences(sentences, lexicon, known),
+            )
+
+    async def _fill_words(
+        self,
+        language: Code,
+        find: Callable[[Checker, dict[str, str]], list[tuple[str, str]]],
+    ) -> None:
+        if self.write_meanings is None:
+            return
+        # One pass at a time, so two passes started together don't pay for the same words.
+        async with self._meanings_lock:
+            failed = self._meanings_failed.get(language)
+            if failed is not None and self.clock() - failed < FAILURE_COOLDOWN:
+                return
+            _, lexicon = self.snapshot(language)
+            try:
+                await meanings.fill_words(
+                    self.conn,
+                    self.write_meanings,
+                    language,
+                    find(lexicon, self.meanings(language)),
+                    self.clock,
+                )
+            except meanings.MeaningsFailed as e:
+                log.warning("Couldn't write %s word meanings: %s", language, e)
+                self._meanings_failed[language] = self.clock()
 
     # ==== Grammar ====
 

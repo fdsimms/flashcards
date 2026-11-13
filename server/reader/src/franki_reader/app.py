@@ -127,6 +127,14 @@ marked words, ideas) is in the current language, the `language` setting.
                                       per line
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
                                       memory hints for a word the owner keeps forgetting: {hints: [...]}
+    POST  /api/glosses                {language, sentences: [{text, english?}]} cards' example
+                                      sentences split and glossed as a text's lines are, for the
+                                      app's word popovers on a card: {ready, sentences: [[word]]},
+                                      in the order sent. `ready` is false (and `sentences` empty)
+                                      until the language's deck has been read. Asked once for a
+                                      whole study session; afterwards, in the background, reads the
+                                      deck if it's a day old and has Claude gloss the words that
+                                      had no meaning, so they have one next time
 """
 
 import hmac
@@ -184,7 +192,7 @@ from franki_reader.mnemonics import (
     MnemonicsFailed,
     claude_mnemonics,
 )
-from franki_reader.reader import from_wanikani, gloss_for, lemma_for, render
+from franki_reader.reader import from_wanikani, gloss_for, lemma_for, render, render_sentence
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
 from franki_reader.study_day import DEFAULT_ROLLOVER
 from franki_reader.suggestions import suggest
@@ -194,6 +202,7 @@ from franki_reader.wanikani import wanikani_reader
 # The window the progress summary covers: the Milestone 1 exit check's two weeks.
 VOCAB_RETRY = timedelta(minutes=10)  # before a vocabulary check bank that failed is written again
 MAX_QUEUED = 50  # words one Quick add can queue
+MAX_GLOSS_SENTENCES = 1000  # example sentences one /api/glosses call can ask about
 PROGRESS_DAYS = 14
 # How many past texts the list shows.
 PAST_TEXTS = 50
@@ -257,6 +266,17 @@ class MnemonicIn(BaseModel):
     meaning: str = Field(min_length=1, max_length=300)
     transliteration: str = Field(default="", max_length=200)
     context: str = Field(default="", max_length=500)
+
+
+class GlossSentence(BaseModel):
+    text: str = Field(min_length=1, max_length=1000)
+    # The sentence's translation, which tells Claude which sense a word has.
+    english: str = Field(default="", max_length=1000)
+
+
+class GlossesIn(BaseModel):
+    language: Code
+    sentences: list[GlossSentence] = Field(max_length=MAX_GLOSS_SENTENCES)
 
 
 class DrillsIn(BaseModel):
@@ -884,6 +904,29 @@ def create_app(
             engine.conn, "mnemonics", body.language, engine.clock(), used.cost_usd()
         )
         return {"hints": hints}
+
+    @app.post("/api/glosses", dependencies=authed)
+    async def glosses(body: GlossesIn, background: BackgroundTasks) -> dict[str, Any]:
+        """Never writes to Anki or grades a card: it only reads the snapshot of the deck."""
+        language = body.language
+        entries, lexicon = engine.snapshot(language)
+        sentences = [(s.text, s.english) for s in body.sentences]
+
+        async def after() -> None:
+            await engine.refresh_lexicon(language)
+            await engine.fill_sentence_meanings(sentences, language)
+
+        background.add_task(after)
+        if not entries:
+            return {"ready": False, "sentences": []}
+        known = engine.meanings(language)
+        translits = {e.text: e.translit for e in entries if e.translit}
+        return {
+            "ready": True,
+            "sentences": [
+                render_sentence(text, lexicon, known, translits) for text, _ in sentences
+            ],
+        }
 
     @app.post("/api/texts/{text_id}/choice", status_code=204, dependencies=authed)
     async def choose(text_id: int, body: ChoiceIn) -> Response:

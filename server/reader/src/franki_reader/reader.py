@@ -76,6 +76,58 @@ def translit_for(
     return " + ".join(parts) if pieces and len(parts) == len(pieces) else None
 
 
+def word_out(
+    piece: str,
+    lexicon: Checker,
+    meanings: dict[str, str],
+    deck_translits: dict[str, str],
+    *,
+    is_name: bool = False,
+    glosses: dict[str, str] | None = None,
+    translits: dict[str, str] | None = None,
+    stretch: set[str] | None = None,
+    point: str | None = None,
+) -> dict[str, Any]:
+    """One piece of a line as the app draws it (`Word` in src/reader/api.ts): a word with its
+    meaning, dictionary form, pronunciation and status, or a space or punctuation (status None),
+    which is shown but never tapped. `glosses` and `translits` are a text's own, `stretch` its
+    practice words, `point` the grammar point the word uses."""
+    if not is_word(piece):
+        return {
+            "text": piece,
+            "status": None,
+            "gloss": None,
+            "lemma": None,
+            "translit": None,
+            "stretch": False,
+            "deck": False,
+            "wanikani": False,
+            "grammar": None,
+        }
+    entry = lexicon.entry_of(piece)
+    return {
+        "text": piece,
+        "status": "name" if is_name else lexicon.status(piece),
+        "gloss": gloss_for(piece, glosses or {}, lexicon, meanings),
+        "lemma": lemma_for(piece, lexicon),
+        "translit": translit_for(piece, translits or {}, lexicon, deck_translits),
+        "stretch": (entry or piece) in (stretch or set()),
+        # A deck word, as against one known for being common (every language but Thai).
+        "deck": entry is not None,
+        "wanikani": not is_name and from_wanikani(piece, lexicon),
+        "grammar": point,
+    }
+
+
+def render_sentence(
+    sentence: str, lexicon: Checker, meanings: dict[str, str], deck_translits: dict[str, str]
+) -> list[dict[str, Any]]:
+    """A card's example sentence split and glossed as a text's line is, for the card's word
+    popovers. The sentence is plain text, not a model line: `|`, `*` and `~` mean nothing in it.
+    The pieces join back to the sentence as segmented, which the app checks before using them."""
+    return [word_out(p, lexicon, meanings, deck_translits) for p in lexicon.segment(sentence)]
+
+
 def render(
     text: StoredText,
     lexicon: Checker,
@@ -96,38 +148,23 @@ def render(
         at = 0
         words = []
         for piece, is_name in segment_line(source, lexicon):
-            if not is_word(piece):
-                words.append(
-                    {
-                        "text": piece,
-                        "status": None,
-                        "gloss": None,
-                        "lemma": None,
-                        "translit": None,
-                        "stretch": False,
-                        "deck": False,
-                        "wanikani": False,
-                        "grammar": None,
-                    }
-                )
-                continue
-            covers = grammar.count_words(piece, lexicon.spaced)
-            point = next((marked[i] for i in range(at, at + covers) if i in marked), None)
-            at += covers
-            entry = lexicon.entry_of(piece)
+            point = None
+            if is_word(piece):
+                covers = grammar.count_words(piece, lexicon.spaced)
+                point = next((marked[i] for i in range(at, at + covers) if i in marked), None)
+                at += covers
             words.append(
-                {
-                    "text": piece,
-                    "status": "name" if is_name else lexicon.status(piece),
-                    "gloss": gloss_for(piece, text.glosses, lexicon, meanings),
-                    "lemma": lemma_for(piece, lexicon),
-                    "translit": translit_for(piece, text.translits, lexicon, deck_translits or {}),
-                    "stretch": (entry or piece) in stretch,
-                    # A deck word, as against one known for being common (every language but Thai).
-                    "deck": entry is not None,
-                    "wanikani": not is_name and from_wanikani(piece, lexicon),
-                    "grammar": point,
-                }
+                word_out(
+                    piece,
+                    lexicon,
+                    meanings,
+                    deck_translits or {},
+                    is_name=is_name,
+                    glosses=text.glosses,
+                    translits=text.translits,
+                    stretch=stretch,
+                    point=point,
+                )
             )
         return words
 
