@@ -3,6 +3,7 @@ import { studyDayKey, studyDayStart } from './day';
 import { inheritedSetting, isInDeck } from './deckTree';
 import { grammarPointForForms, type GrammarPointInfo } from './grammar';
 import { htmlToText } from './html';
+import { foldUndecomposed, foldYo } from './letters';
 import type { Card, DeckSettings, Note, ReviewLogEntry } from './types';
 
 /**
@@ -51,10 +52,15 @@ const ARTICLES: Record<string, Record<'m' | 'f' | 'n', string | undefined>> = {
 };
 const GENDER_WORDS = { m: 'masculine', f: 'feminine', n: 'neuter' } as const;
 
-/** Every article a headword might start with, longest first, for taking it off the word. */
+/**
+ * Every article a headword or a listed form might start with, longest first, for taking it off the
+ * word. Each ends in a space or an apostrophe, so only a whole article is taken: "une table", not
+ * the "un" of "unité". German's indefinite articles are only the nominative ones a headword starts with.
+ */
 const LEADING_ARTICLES = [
-  'los ', 'las ', 'una ', 'der ', 'die ', 'das ', 'les ', 'ten ', 'tej ', 'el ', 'la ', 'un ', 'le ', "l'", 'il ', 'lo ',
-  'ta ', 'to ', 'en ', 'ei ', 'et ', 'το ', 'ο ', 'η ', 'o ', 'a ',
+  'los ', 'las ', 'una ', 'der ', 'die ', 'das ', 'des ', 'ein ', 'eine ', 'les ', 'une ', 'ten ', 'tej ', 'el ', 'la ', 'un ',
+  'le ', "l'", 'l’', 'il ', 'lo ', 'ta ', 'to ', 'en ', 'ei ', 'et ', 'το ', 'ο ', 'η ', 'οι ', 'τα ', 'του ', 'της ', 'των ',
+  'o ', 'a ',
 ].sort((a, b) => b.length - a.length);
 
 const langOf = (note: Note) => speechLangFor(note)?.split('-')[0];
@@ -161,9 +167,10 @@ function genderChoices(note: Note): string[] {
 
 export type Verdict = 'right' | 'almost' | 'wrong';
 
-const clean = (s: string) => s.normalize('NFC').trim().replace(/\s+/g, ' ').replace(/[.!?¡¿]+$/u, '').toLocaleLowerCase();
-/** Without accents and other marks: "esperé" -> "espere", "ёлка" -> "елка". */
-const unmarked = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').normalize('NFC');
+/** Ё is folded into е here, as Russian usually writes it, so "елка" for "ёлка" is right. */
+const clean = (s: string) => foldYo(s.normalize('NFC').trim().replace(/\s+/g, ' ').replace(/[.!?¡¿]+$/u, '').toLocaleLowerCase());
+/** Without accents and other marks: "esperé" -> "espere", "øl" -> "ol", "łza" -> "lza". */
+const unmarked = (s: string) => foldUndecomposed(s.normalize('NFD').replace(/[̀-ͯ]/g, '').normalize('NFC'));
 
 /**
  * A typed answer against a form's accepted answers. Case and surrounding spaces don't matter.

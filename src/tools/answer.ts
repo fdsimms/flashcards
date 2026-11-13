@@ -1,3 +1,4 @@
+import { foldUndecomposed, foldYo } from '../core/letters';
 import type { Phrase } from './phrase';
 
 /**
@@ -8,7 +9,8 @@ import type { Phrase } from './phrase';
  *
  * - exact: it matches an accepted form.
  * - close: it matches one but for marks on the letters (Thai tone and vowel marks and ์, Greek and
- *   Spanish accents, the breve of й). Shown as a near miss, never as right, so a wrong spelling
+ *   Spanish accents, the breve of й, ø, ł typed as o, l and æ, œ as ae, oe). Ё typed as е is exact, as Russian
+ *   usually writes it. Shown as a near miss, never as right, so a wrong spelling
  *   isn't reinforced.
  * - different: anything else.
  *
@@ -50,7 +52,8 @@ function tokens(s: string): Token[] {
       last.text += ch;
       last.key += ch.toLocaleLowerCase();
     } else if (/[\p{L}\p{N}\p{M}]/u.test(ch)) {
-      out.push({ text: ch, key: ch.toLocaleLowerCase() });
+      // ё folds in the key, not just the spelling, so the diff doesn't mark е against ё either.
+      out.push({ text: ch, key: foldYo(ch.toLocaleLowerCase()) });
     } else {
       out.push({ text: ch, key: null });
     }
@@ -60,8 +63,8 @@ function tokens(s: string): Token[] {
 
 // Lowercased a letter at a time, a capital Σ is always σ, never the final ς; and ß may be written ss.
 const spelling = (ts: Token[]) => ts.map((t) => t.key ?? '').join('').replace(/ς/g, 'σ').replace(/ß/g, 'ss');
-/** The spelling without any marks: "มิ" and "มี" both become "ม". */
-const unmarked = (ts: Token[]) => spelling(ts).normalize('NFD').replace(/\p{M}/gu, '').normalize('NFC');
+/** The spelling without any marks: "มิ" and "มี" both become "ม", "øl" and "ol" both "ol". */
+const unmarked = (ts: Token[]) => foldUndecomposed(spelling(ts).normalize('NFD').replace(/\p{M}/gu, '').normalize('NFC'));
 
 const plain = (ts: Token[]): Segment[] => [{ text: ts.map((t) => t.text).join(''), marked: false }];
 

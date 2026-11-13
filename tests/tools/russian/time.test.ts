@@ -63,6 +63,13 @@ describe('a time in Russian', () => {
     expect(everyday(12, 50)).toBe('без десяти час');
   });
 
+  it('reads the clock as it shows just past half past, and still takes без', () => {
+    expect(everyday(13, 31)).toBe('час тридцать одна');
+    expect(everyday(14, 34)).toBe('два тридцать четыре');
+    expect(also(13, 31)).toContain('без двадцати девяти минут два');
+    expect(everyday(14, 35)).toBe('без двадцати пяти три');
+  });
+
   it('gives the part of the day and the other ways to say it', () => {
     expect(also(2)).toEqual(['два часа ночи', 'два ноль-ноль']);
     expect(also(9, 7)).toEqual(['семь минут десятого утра', 'девять ноль семь', 'девять часов семь минут']);

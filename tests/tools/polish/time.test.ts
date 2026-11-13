@@ -48,6 +48,13 @@ describe('a time in Polish', () => {
     expect(everyday(12, 50)).toBe('za dziesięć pierwsza');
   });
 
+  it('reads the clock as it shows just past half past, and still takes za', () => {
+    expect(everyday(13, 31)).toBe('pierwsza trzydzieści jeden');
+    expect(everyday(14, 34)).toBe('druga trzydzieści cztery');
+    expect(also(13, 31)).toContain('za dwadzieścia dziewięć druga');
+    expect(everyday(14, 35)).toBe('za dwadzieścia pięć trzecia');
+  });
+
   it('gives the part of the day', () => {
     expect(also(2)[0]).toBe('druga w nocy');
     expect(also(23)[0]).toBe('jedenasta w nocy');
