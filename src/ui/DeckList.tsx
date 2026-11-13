@@ -9,6 +9,7 @@ import { haptic } from './haptics';
 import { Button, Card, Group, Icon, NavRow, Screen, SwipeToReveal, Tappable } from './kit';
 import { useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
+import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 type ShownRow = DeckRow & { hasSubdecks: boolean; collapsed: boolean };
@@ -250,6 +251,7 @@ export function DeckList(props: {
 }) {
   const c = useTheme();
   const header = useHeaderInset();
+  const { banner: vocabReady } = useVocabReady();
   const shown = useMemo(() => shownDeckRows(props.decks, props.collapsed ?? new Set()), [props.decks, props.collapsed]);
   const groups = useMemo(() => groupByTopLevel(shown), [shown]);
   const allDecks = useMemo(() => props.decks.map((r) => r.deck), [props.decks]);
@@ -348,6 +350,7 @@ export function DeckList(props: {
               </View>
             </Pressable>
           ) : null}
+          {vocabReady ? <VocabReadyCard banner={vocabReady} /> : null}
           {props.sync?.failed ? (
             // A failed sync is shown first, where it can't be scrolled past; a tap tries again.
             <Pressable onPress={syncTapped} accessibilityRole="button" accessibilityHint="Syncs now" style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
