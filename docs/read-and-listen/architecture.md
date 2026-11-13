@@ -279,7 +279,7 @@ Thai letters, so none of them is a language here. Each new language works as Spa
   standard voices have one, for a dialogue between two men or two women (Audio). The speech
   request's language comes from the voice's name.
 - **In the app**, a word known for being common rather than from the deck says "A common word" in
-  its gloss, and outside Thai the highlight switch is "Highlight words you might not know". Every
+  its gloss, and outside Thai the highlight's row in the reader's key is "Might be new to you". Every
   language but Thai is set a little smaller than Thai.
 - **Topic ideas** are ranked by fit for Thai only: their words are Thai, so every other language
   keeps the listed order.
@@ -454,7 +454,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   (`name_problems`). Thai has no capitals, so the limit is all it has. `segment_line` finds a marked
   name's pieces by position, so jasmine written as a word elsewhere in the line isn't a name, and
   joins them into one piece. The app gets that word with status `"name"` and shades it with its own
-  color (the "Mark names" switch in the reader hides the shading; the name still isn't counted).
+  color (the Name switch in the reader's key hides the shading; the name still isn't counted).
   Nothing is migrated: a text written before this has no marks and shows as it did.
 
 ## Shelf
@@ -707,8 +707,12 @@ in the current language, with when one was last read to the end. Nothing else le
   vocabCheck.ts`, pure and tested): it starts at the 251 to 500 band, goes up a band after a right
   answer and down after a wrong one or "I don't know", and scores each band with a wrong answer
   taking a third of a right one (a guess among four). It suggests the largest setting at which at
-  least 90% of the words it would count as known are known, by each band's share, taking an unasked
-  band below the lowest asked as known and nothing above the highest asked. The owner accepts it or
+  least 90% of the words it would count as known are likely known, from one curve fitted to all the
+  answers (the chance of knowing a word falls with the log of its rank at a fixed slope, so only where
+  it crosses 50% is fitted; a wrong answer is partly a guess, a skip is not), and nothing above the
+  highest band asked. Each band's own score is still shown, but doesn't decide the suggestion: scoring
+  bands one by one (13 November 2026) let one miss in a four-question band outweigh nine right answers
+  in the band above it, and suggested 1,000 for a learner who knew about 3,000. The owner accepts it or
   keeps their setting; it never writes a card or changes anything else, except that after a wrong or skipped answer the word can be added to the deck through the note editor (saving is the approval). Each answer is marked right or wrong at once, and the question stays until Next; marking changes no score. The result lists the words missed (wrong or skipped) with their meaning and what was chosen. The 5,001 to 10,000 band was added on 13 November 2026 so 10,000 can be suggested; a bank stored without it is served as it is and topped up in the background with the new band's words. Twenty questions was checked
   by simulation against a learner whose chance of knowing a word falls with its rank: the suggestion
   was within one setting step of the right one 98% of the time (95% at 12 questions, 99% at 40) and

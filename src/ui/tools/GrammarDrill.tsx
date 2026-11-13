@@ -9,6 +9,7 @@ import { ChoiceButton, type ChoiceState } from '../FormsDrill';
 import { haptic } from '../haptics';
 import { Button, Card, ErrorNote, Field, Help, Screen, Segments } from '../kit';
 import { radius, space, type, useTheme } from '../theme';
+import { useKeyboardScroll } from '../useKeyboardScroll';
 
 type AnswerMode = 'pick' | 'type';
 
@@ -26,6 +27,7 @@ interface Answered {
  * it went. Nothing here touches a card.
  */
 export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Repo; points: string[]; onDone: () => void }) {
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [prompts, setPrompts] = useState<DrillPrompt[] | null>(null);
   const [note, setNote] = useState<string>();
@@ -130,9 +132,9 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
     <Screen title={`${index + 1} of ${prompts.length}`} largeTitle={false} footer={footer}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ padding: space.l, gap: space.xl, width: '100%', maxWidth: 640, alignSelf: 'center' }}
+        contentContainerStyle={{ padding: space.l, paddingBottom: space.l + bottomPadding, gap: space.xl, width: '100%', maxWidth: 640, alignSelf: 'center' }}
         keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
+        {...scrollProps}
       >
         <View
           accessibilityRole="progressbar"

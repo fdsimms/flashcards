@@ -296,6 +296,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
         ("story_id", "story_id INTEGER REFERENCES stories(id)"),
         ("episode", "episode INTEGER NOT NULL DEFAULT 0"),
         ("recap", "recap TEXT NOT NULL DEFAULT ''"),
+        # Characters Azure has spoken for the text, each time its lines were recorded (a
+        # re-recording counts again); what its audio cost is worked out from this.
+        ("audio_chars", "audio_chars INTEGER NOT NULL DEFAULT 0"),
     ):
         if column not in texts_columns:
             conn.execute(f"ALTER TABLE texts ADD COLUMN {sql}")
@@ -908,8 +911,9 @@ class Spending:
     waiting: int  # written and not read yet ("pending" while its audio is made, or "ready")
     dropped: int
     attempts: int  # Claude conversations' answers, summed over the texts
-    cost_usd: float
+    cost_usd: float  # Claude's alone; Azure's is worked out from `audio_chars`
     skipped: int = 0  # taken off the shelf unread (Not this)
+    audio_chars: int = 0  # characters Azure spoke for these texts, re-recordings included
 
     @property
     def texts(self) -> int:
@@ -917,28 +921,68 @@ class Spending:
 
 
 def spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, Spending]:
-    """Each language with a text written since `since`, the most spent first. The cost is Claude's
-    alone: Azure's audio isn't recorded per text."""
+    """Each language with a text written since `since`, the most spent first. A text's audio counts
+    wherever it was recorded: a re-recording months later is still that text's cost."""
     by_language: dict[Code, dict[str, Any]] = {}
-    for language, status, count, attempts, cost in conn.execute(
-        """SELECT language, status, COUNT(*), SUM(attempts), SUM(cost_usd) FROM texts
-           WHERE created_at >= ? GROUP BY language, status""",
+    for language, status, count, attempts, cost, chars in conn.execute(
+        """SELECT language, status, COUNT(*), SUM(attempts), SUM(cost_usd), SUM(audio_chars)
+           FROM texts WHERE created_at >= ? GROUP BY language, status""",
         (since.isoformat(),),
     ):
         row = by_language.setdefault(
             language,
-            {"read": 0, "waiting": 0, "dropped": 0, "skipped": 0, "attempts": 0, "cost": 0.0},
+            {
+                "read": 0,
+                "waiting": 0,
+                "dropped": 0,
+                "skipped": 0,
+                "attempts": 0,
+                "cost": 0.0,
+                "chars": 0,
+            },
         )
         row[status if status in ("read", "dropped", "skipped") else "waiting"] += count
         row["attempts"] += attempts
         row["cost"] += cost
+        row["chars"] += chars
     out = {
         language: Spending(
-            r["read"], r["waiting"], r["dropped"], r["attempts"], r["cost"], r["skipped"]
+            r["read"],
+            r["waiting"],
+            r["dropped"],
+            r["attempts"],
+            r["cost"],
+            r["skipped"],
+            r["chars"],
         )
         for language, r in by_language.items()
     }
     return dict(sorted(out.items(), key=lambda item: -item[1].cost_usd))
+
+
+def add_audio_chars(conn: sqlite3.Connection, text_id: int, characters: int) -> None:
+    """Adds the characters Azure just spoke for a text to what it has cost so far."""
+    with conn:
+        conn.execute(
+            "UPDATE texts SET audio_chars = audio_chars + ? WHERE id = ?", (characters, text_id)
+        )
+
+
+_AUDIO_CHARS_COUNTED = "audio_chars_counted"
+
+
+def texts_missing_audio_chars(conn: sqlite3.Connection) -> list[StoredText] | None:
+    """The texts with no audio count, for a one-time estimate from the audio already on the volume
+    (the characters were not counted before this). None once that has been done."""
+    if _get_meta(conn, _AUDIO_CHARS_COUNTED):
+        return None
+    rows = conn.execute(f"SELECT {_TEXT_COLUMNS} FROM texts WHERE audio_chars = 0").fetchall()
+    return [_text(r) for r in rows]
+
+
+def mark_audio_chars_counted(conn: sqlite3.Connection) -> None:
+    with conn:
+        _set_meta(conn, _AUDIO_CHARS_COUNTED, "1")
 
 
 def get_phrase_explanation(

@@ -7,6 +7,7 @@ import { practicingPoints } from '../reader/grammar';
 import { haptic } from './haptics';
 import { Button, Card, Field, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { useKeyboardScroll } from './useKeyboardScroll';
 
 export type AnswerMode = 'pick' | 'type';
 
@@ -34,6 +35,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   /** Opens a grammar point's page; missing while Read & Listen is off, since the page needs it. */
   onOpenGrammar?: (id: string) => void;
 }) {
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [prompts, setPrompts] = useState<FormPrompt[] | null>(null);
   const [notice, setNotice] = useState<string>();
@@ -151,9 +153,9 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
     <Screen title={`${index + 1} of ${prompts.length}`} largeTitle={false} footer={footer}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ padding: space.l, gap: space.xl, flexGrow: 1, width: '100%', maxWidth: 640, alignSelf: 'center' }}
+        contentContainerStyle={{ padding: space.l, paddingBottom: space.l + bottomPadding, gap: space.xl, flexGrow: 1, width: '100%', maxWidth: 640, alignSelf: 'center' }}
         keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
+        {...scrollProps}
       >
         <View style={{ gap: space.xl }} onLayout={(e) => setTopHeight(e.nativeEvent.layout.height + space.xl)}>
           <View

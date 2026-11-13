@@ -13,6 +13,7 @@ import type { RecordDeps, Recording } from '../anki/recordService';
 import { Button, Card, Chip, Field, Help, Screen, Select } from './kit';
 import { afterSave, RecordAudio, useVoiceSettings } from './RecordAudio';
 import { space, type, useTheme } from './theme';
+import { useKeyboardScroll } from './useKeyboardScroll';
 
 const OMNI_CARD_NAMES: Record<string, string> = { forward: 'Front', reverse: 'Reverse', audio: 'Audio' };
 const MARK_LABELS: Record<Mark, string> = { b: 'Bold', i: 'Italic', u: 'Underline' };
@@ -38,6 +39,7 @@ export function NoteEditor(props: {
   /** Recording audio with an Azure voice (useRecorder); null while Read & Listen is off. */
   recorder?: RecordDeps | null;
 }) {
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [notes, setNotes] = useState<Note[]>([]);
   const [filteredDecks, setFilteredDecks] = useState<Set<string>>(new Set());
@@ -195,7 +197,7 @@ export function NoteEditor(props: {
         </>
       }
     >
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
           <Card>
             <Select label="Deck" options={decks} value={deck} onChange={(d) => { setDeck(d); setError(undefined); }} />
             {editing ? (

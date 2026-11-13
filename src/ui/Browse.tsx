@@ -7,12 +7,14 @@ import type { Note } from '../core/types';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { Chip, Screen } from './kit';
 import { hairline, space, type, useTheme } from './theme';
+import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
  * Every note, searchable and narrowed to a deck or any of its subdecks; tap one to edit it, or Add a new one.
  * Search matches every word in any field, a tag or the deck name (src/core/noteEditing.ts).
  */
 export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void }) {
+  const { bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [query, setQuery] = useState('');
@@ -42,8 +44,7 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        automaticallyAdjustKeyboardInsets
-        contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l }}
+        contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding }}
         ItemSeparatorComponent={() => <View style={{ height: hairline, backgroundColor: c.border }} />}
         ListHeaderComponent={
           <View style={{ gap: space.s, paddingBottom: space.s }}>
