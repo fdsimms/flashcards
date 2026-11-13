@@ -200,7 +200,9 @@ sync with the user's own Anki sync server (`src/anki/sync/`), off until they sig
 Listen, which talks to its server beside the sync server and is off until its passphrase is entered
 (Settings, Read & Listen). WaniKani talks to api.wanikani.com only once its token is entered
 (Settings, WaniKani); its answers go to WaniKani, which schedules them, and only its production
-notes enter the collection. Recording a card with an Azure voice (`src/core/recording.ts`) goes
+notes enter the collection. It keeps an offline copy of what's up (`offline.ts`: reviews, lessons, subjects, synonyms, and
+recordings as files), made each time WaniKani is reached, so a session can be studied with no connection: its answers go to the
+outbox and are sent later, and the copy leaves out items answered since it was made. Recording a card with an Azure voice (`src/core/recording.ts`) goes
 through Read & Listen's server, so it's off while Read & Listen is. A
 future feature that needs the network (a dictionary lookup, an AI hint) ships behind its own setting
 that defaults to off.

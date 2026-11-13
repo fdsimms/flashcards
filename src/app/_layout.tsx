@@ -5,6 +5,7 @@ import { useColorScheme } from 'react-native';
 import { AppProvider } from '../ui/AppContext';
 import { useStackScreenOptions } from '../ui/stackOptions';
 import { useTheme } from '../ui/theme';
+import { VocabReadyBanner } from '../ui/VocabReadyBanner';
 
 /**
  * The root of the app: the shared state, the navigation theme (the app's own palette, so a screen
@@ -32,6 +33,7 @@ export default function RootLayout() {
           {/* The note editor opens over Review and Browse as a sheet. */}
           <Stack.Screen name="note-editor" options={{ presentation: 'modal' }} />
         </Stack>
+        <VocabReadyBanner />
       </AppProvider>
       <StatusBar style="auto" />
     </ThemeProvider>

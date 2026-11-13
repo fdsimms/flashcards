@@ -312,7 +312,7 @@ function StoryCard({ api, shelf, onOpen, onStarted }: { api: Api; shelf: Shelf; 
       <Card>
         <Text style={{ ...type.headline, color: c.text }}>Start an ongoing story</Text>
         <Help>Each episode picks up where the last one ended, with the same people and places, so the same words keep coming back. Leave the topic empty and the story is up to the writer.</Help>
-        <Field label="What should it be about?" placeholder="e.g., a noodle stall in Bangkok" value={about} onChangeText={setAbout} returnKeyType="done" onSubmitEditing={start} />
+        <Field label="What should it be about?" placeholder="For example, a small café on a rainy day" value={about} onChangeText={setAbout} returnKeyType="done" onSubmitEditing={start} />
         {error ? <ErrorNote message={error} /> : null}
         <Button label="Start a story" variant="secondary" onPress={start} busy={starting} />
       </Card>
