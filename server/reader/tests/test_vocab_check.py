@@ -21,8 +21,10 @@ from franki_reader.vocab_check import (
     MIN_PER_BAND,
     PER_BAND,
     VocabFailed,
+    VocabItem,
     band_of,
     check,
+    is_giveaway,
     request_message,
     sample,
     write_bank,
@@ -141,6 +143,7 @@ def vocab_client(writer: Writer | None, deck: list[Entry] | None = None) -> Test
     engine = Engine(conn, None, None, lambda: now[0], random.Random(1))
     c = started(create_app(engine, "open sesame", write_vocab=writer))
     c.now = now  # type: ignore[attr-defined]
+    c.conn = conn  # type: ignore[attr-defined]
     return c
 
 
@@ -188,6 +191,79 @@ def test_thai_and_unknown_languages_are_refused() -> None:
     assert get(c, "th").status_code == 422
     assert get(c, "xx").status_code == 422
     assert c.get("/api/vocab-check?language=pl").status_code == 401
+
+
+def test_proper_nouns_and_obvious_cognates_are_giveaways() -> None:
+    assert is_giveaway("po", "Po")  # a river
+    assert is_giveaway("támesis", "Thames")
+    assert is_giveaway("legislador", "legislator")
+    assert is_giveaway("persona", "person")
+    assert is_giveaway("importante", "important")
+    assert is_giveaway("aceptar", "to accept")
+    assert is_giveaway("comunicación", "communication")
+    assert is_giveaway("no", "no")
+    assert is_giveaway("sí", "si")  # accents don't hide a match
+
+
+def test_russian_and_greek_words_are_compared_by_their_latin_spelling() -> None:
+    for word, meaning in [
+        ("телефон", "telephone"),
+        ("президент", "president"),
+        ("университет", "university"),
+        ("революция", "revolution"),
+        ("музыка", "music"),
+        ("τηλέφωνο", "telephone"),
+        ("πρόβλημα", "problem"),
+        ("θέατρο", "theater"),
+        ("μουσική", "music"),
+    ]:
+        assert is_giveaway(word, meaning), word
+
+
+def test_words_that_need_studying_are_not_giveaways() -> None:
+    assert not is_giveaway("alcalde", "mayor")
+    assert not is_giveaway("ver", "to see")
+    assert not is_giveaway("se", "see")  # shared letters in a short word aren't a cognate
+    assert not is_giveaway("tiempo", "time")
+    assert not is_giveaway("casa", "house")
+    assert not is_giveaway("yo", "I")  # "I" is capitalized but isn't a proper noun
+    assert not is_giveaway("работа", "work")
+    for word, meaning in [
+        ("дом", "house"),
+        ("время", "time"),
+        ("говорить", "to speak"),
+        ("мой", "my"),  # short: sharing a sound isn't a cognate
+        ("σπίτι", "house"),
+        ("άνθρωπος", "person"),
+        ("μιλάω", "to speak"),
+    ]:
+        assert not is_giveaway(word, meaning), word
+
+
+def test_giveaways_in_a_stored_bank_are_left_out_when_served() -> None:
+    bank = whole_bank()
+    bank[0]["meaning"] = "Thames"
+    bank[1]["meaning"] = bank[1]["word"]  # a word that is its own meaning
+    c = vocab_client(Writer(bank))
+    get(c)
+    words = [i["word"] for i in get(c).json()["items"]]
+    assert bank[0]["word"] not in words and bank[1]["word"] not in words
+
+
+def test_a_bank_written_with_fewer_words_is_topped_up_with_the_rest() -> None:
+    old = [
+        VocabItem(w["word"], r, "to see", ("to sleep", "to buy", "house"))
+        for (r, _), w in zip(sample("pl"), whole_bank(), strict=False)
+    ]
+    stored = [i for i in old if i.lemma in {w for _, w in sample("pl")}]
+    writer = Writer(whole_bank())
+    c = vocab_client(writer)
+    store.save_vocab_batch(c.conn, "pl", stored[:70], 70, NOW, 0.0)  # type: ignore[attr-defined]
+    before = len(store.vocab_items(c.conn, "pl"))  # type: ignore[attr-defined]
+    # The quiz is served at once, and the rest of the sample is written in the background.
+    assert get(c).json()["state"] == "ready" and writer.calls == 1
+    assert len(store.vocab_items(c.conn, "pl")) > before  # type: ignore[attr-defined]
+    assert get(c).json()["state"] == "ready" and writer.calls == 1  # not topped up twice
 
 
 def test_the_cost_shows_in_the_costs() -> None:
