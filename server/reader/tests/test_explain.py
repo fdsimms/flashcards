@@ -12,10 +12,13 @@ from franki_reader import store
 from franki_reader.app import create_app
 from franki_reader.engine import Engine
 from franki_reader.explain import (
+    CheckRequest,
     ExplainFailed,
     ExplainRequest,
     PhraseRequest,
+    check_message,
     clean,
+    clean_check,
     clean_phrase,
     phrase_message,
     request_message,
@@ -26,7 +29,10 @@ POINTS = [{"phrase": "ฉัน", "note": "I, said by anyone."}]
 
 
 def client(
-    explain: Any = None, explain_phrase: Any = None, text: dict[str, Any] = GOOD
+    explain: Any = None,
+    explain_phrase: Any = None,
+    text: dict[str, Any] = GOOD,
+    check_natural: Any = None,
 ) -> tuple[TestClient, int]:
     conn = store.connect(":memory:")
     store.save_snapshot(conn, ENTRIES, NOW)
@@ -42,7 +48,9 @@ def client(
         lambda: datetime(2026, 10, 19, 9),
         random.Random(1),
     )
-    app = create_app(engine, "open sesame", None, None, explain, explain_phrase)
+    app = create_app(
+        engine, "open sesame", None, None, explain, explain_phrase, check_natural=check_natural
+    )
     return started(app), text_id
 
 
@@ -272,3 +280,104 @@ def test_the_phrase_request_names_the_phrase_and_its_line() -> None:
     )
     assert "Selected phrase: ya lo sé" in message and "Line: Sí, ya lo sé." in message
     assert "Spanish" in message and "- ¿Sabes?" in message
+
+
+# ==== Does this sound natural? ====
+
+VERDICT = {"verdict": "stiff", "reason": "Too written for a market.", "alternative": "ฉัน|กิน"}
+COST = Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")
+
+
+def natural_url(text_id: int, line: int = 0) -> str:
+    return f"/api/texts/{text_id}/lines/{line}/natural"
+
+
+def test_checks_the_line_with_who_says_it_and_its_neighbours() -> None:
+    seen: list[CheckRequest] = []
+
+    async def check(request: CheckRequest) -> tuple[dict[str, str], Usage]:
+        seen.append(request)
+        return VERDICT, COST
+
+    c, text_id = client(check_natural=check)
+    response = c.post(natural_url(text_id, 1), headers=AUTH)
+    assert response.status_code == 200 and response.json() == VERDICT
+    assert len(seen) == 1 and "|" not in seen[0].line and "*" not in seen[0].line
+    assert seen[0].speaker == "B (Customer)"
+    assert seen[0].context and seen[0].line not in seen[0].context
+
+
+def test_checks_a_line_once_and_counts_it_with_the_explanations() -> None:
+    calls: list[str] = []
+
+    async def check(request: CheckRequest) -> tuple[dict[str, str], Usage]:
+        calls.append(request.line)
+        return VERDICT, COST
+
+    c, text_id = client(check_natural=check)
+    for _ in range(3):
+        assert c.post(natural_url(text_id), headers=AUTH).json() == VERDICT
+    assert len(calls) == 1
+    spent = c.get("/api/costs", headers=AUTH).json()["explanations"]
+    assert spent["asked"] == 1 and spent["cost_usd"] == 2.0
+
+
+def test_a_failed_check_is_not_kept() -> None:
+    results: list[Any] = [ExplainFailed("Claude didn't check this line. Try again in a moment.")]
+
+    async def check(request: CheckRequest) -> tuple[dict[str, str], Usage]:
+        if results:
+            raise results.pop()
+        return VERDICT, COST
+
+    c, text_id = client(check_natural=check)
+    failed = c.post(natural_url(text_id), headers=AUTH)
+    assert failed.status_code == 503 and "didn't check" in failed.json()["detail"]
+    assert c.post(natural_url(text_id), headers=AUTH).json() == VERDICT
+
+
+def test_a_check_needs_the_passphrase_a_real_line_and_claude() -> None:
+    async def check(request: CheckRequest) -> tuple[dict[str, str], Usage]:
+        raise AssertionError("not asked")
+
+    c, text_id = client(check_natural=check)
+    assert c.post(natural_url(text_id)).status_code == 401
+    assert c.post(natural_url(text_id, 99), headers=AUTH).status_code == 404
+    assert c.post(natural_url(text_id + 1), headers=AUTH).status_code == 404
+    unset, other = client()
+    off = unset.post(natural_url(other), headers=AUTH)
+    assert off.status_code == 503 and "ANTHROPIC_API_KEY" in off.json()["detail"]
+
+
+def test_clean_check_needs_a_known_verdict_and_a_reason() -> None:
+    assert clean_check(
+        {"verdict": "stiff", "reason": " Too formal. ", "alternative": " Pourquoi tu "}
+    ) == {
+        "verdict": "stiff",
+        "reason": "Too formal.",
+        "alternative": "Pourquoi tu",
+    }
+    # A natural line has no alternative, whatever the model sent.
+    natural = clean_check({"verdict": "natural", "reason": "Fine.", "alternative": "Same."})
+    assert natural is not None and natural["alternative"] == ""
+    assert clean_check({"verdict": "wrong", "reason": "x", "alternative": ""}) is None
+    assert clean_check({"verdict": "stiff", "reason": " ", "alternative": ""}) is None
+    assert clean_check({"verdict": "stiff", "alternative": ""}) is None
+
+
+def test_the_check_request_names_the_language_speaker_and_register() -> None:
+    message = check_message(
+        CheckRequest(
+            "fr",
+            "Pourquoi regardes-tu cela ?",
+            "Why are you looking at that?",
+            "A (Friend)",
+            "formal",
+            ("Salut.",),
+        )
+    )
+    assert "French" in message and "Line: Pourquoi regardes-tu cela ?" in message
+    assert "Spoken by: A (Friend)" in message and "written as: formal" in message
+    assert "- Salut." in message
+    bare = check_message(CheckRequest("fr", "Salut.", "Hi."))
+    assert "Spoken by" not in bare and "written as" not in bare

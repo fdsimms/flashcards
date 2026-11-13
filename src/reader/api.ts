@@ -55,6 +55,8 @@ export type GrammarPointPage = {
   state: GrammarState;
   seen: GrammarSeen;
   choices: Record<string, GrammarState>;
+  /** How many points may be practiced at once. Absent from a server older than it. */
+  max_practice?: number;
   examples: GrammarExample[];
 };
 
@@ -76,7 +78,17 @@ export type CommonCount = 0 | 250 | 500 | 1000 | 2000 | 3000 | 5000 | 10000;
 
 // A and B are a dialogue's two speakers; N is a story's narrator. `paragraph`: this line opens a
 // paragraph of a story (missing from a server older than paragraphs).
-export type TextLine = { speaker: 'A' | 'B' | 'N'; english: string; words: Word[]; audio: boolean; paragraph?: boolean };
+// `register`: how the text was written to be said (casual, formal...); '' for a text written before the
+// server was asked, and missing from a server older than that.
+export type TextLine = { speaker: 'A' | 'B' | 'N'; english: string; words: Word[]; audio: boolean; paragraph?: boolean; register?: Register | '' };
+
+// How a line is said by a native speaker in its situation.
+export type Register = 'casual' | 'neutral' | 'formal' | 'slang';
+
+// Claude's answer to "Does this sound natural?" on a line: `alternative` is what a native speaker would
+// more likely say, and empty when the line is natural.
+export type NaturalVerdict = 'natural' | 'stiff' | 'unusual';
+export type NaturalCheck = { verdict: NaturalVerdict; reason: string; alternative: string };
 
 // A dialogue between two speakers, or a short story told by a narrator.
 export type Form = 'dialogue' | 'story';
@@ -88,6 +100,10 @@ export type PhraseExplanation = { meaning: string; points: ExplainPoint[] };
 
 // A grammar point found in an explained line, with the owner's choice as it stands (docs/grammar.md, step 3).
 export type LineGrammar = { id: string; name: string; note: string; state: GrammarState };
+
+// One thing the reader can pick to happen in a story's next episode: written like a line (its
+// words come segmented), with its English beside it.
+export type TextChoice = { english: string; words: Word[] };
 
 export type ReaderText = {
   id: number;
@@ -110,6 +126,10 @@ export type ReaderText = {
   liked?: boolean;
   reason?: ShelfReason;
   episode?: number;
+  // A story episode's options for what happens next, and the index of the one picked (null until
+  // one is). Missing from a server older than story choices, and empty for any other text.
+  choices?: TextChoice[];
+  chosen?: number | null;
 };
 
 // Why a text is on the shelf: written around words due today, on a liked theme, an idea not
@@ -126,6 +146,9 @@ export type ShelfText = {
   form: Form;
   lines: number;
   stretch: string[];
+  // The practice words as the reader draws them, to open their popovers, in the order of `stretch`.
+  // Only on a story's next episode, and missing from a server older than it.
+  practice?: Word[];
   reason: ShelfReason;
   coverage: number;
   episode: number;
@@ -356,6 +379,10 @@ export function createApi(
     text: (textId: number) => call<ReaderText>('GET', `/api/texts/${textId}`),
     logReading: (textId: number, log: ReadingLog) =>
       call<void>('POST', `/api/texts/${textId}/reading`, log),
+    // The option picked at the end of a story episode (an index into its choices). The server
+    // writes the next episode from it once this one is logged as read, so it's sent when tapped.
+    chooseNext: (textId: number, choice: number) =>
+      call<void>('POST', `/api/texts/${textId}/choice`, { choice }),
     // Azure's voices in a language (any code: th, pl, es-MX), every region included.
     azureVoices: async (language: string) =>
       (await call<{ voices: AzureVoice[] }>('GET', `/api/voices?language=${encodeURIComponent(language)}`)).voices,
@@ -372,6 +399,10 @@ export function createApi(
       // A server older than step 3 sends no grammar.
       return { points: answer.points, grammar: answer.grammar ?? [] };
     },
+    // Whether a native speaker would say a line, judged by Claude on the server: asked on the owner's tap and
+    // kept per line there.
+    checkNatural: (textId: number, line: number) =>
+      call<NaturalCheck>('POST', `/api/texts/${textId}/lines/${line}/natural`),
     // A phrase selected in a line (as it appears there), explained the same way and kept per phrase.
     explainPhrase: (textId: number, line: number, phrase: string, simple: boolean) =>
       call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple }),

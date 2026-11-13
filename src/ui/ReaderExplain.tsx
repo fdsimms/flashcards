@@ -4,13 +4,16 @@ import { ApiError, type Api, type ExplainPoint, type GrammarChoice, type Grammar
 import { GRAMMAR_CHOICES, grammarStateWord } from '../reader/grammar';
 import { HeaderAction, Tappable, ErrorNote, Segments } from './kit';
 import { haptic } from './haptics';
+import { NaturalPill, NaturalResult, useNaturalCheck } from './ReaderNatural';
 import { radius, space, type, useTheme } from './theme';
 
 /**
  * A line's explanation, opened under it by the reader's explain button. It asks the server when it
  * mounts (the server writes it once and keeps it, so opening a line again costs nothing), and
  * "Explain more simply" asks for the plainer version. Under it, the grammar points the server found
- * in the line (docs/grammar.md, step 3). Nothing here grades a word or touches a card.
+ * in the line (docs/grammar.md, step 3). Beside "Explain more simply", "Does this sound natural?" asks
+ * Claude whether a native speaker would say the line (ReaderNatural.tsx). Nothing here grades a
+ * word or touches a card.
  * `grammarChosen` is what the reader has seen chosen this session, here or in a word's popover.
  */
 export function LineExplanation({ api, textId, line, grammarChosen, onGrammarChosen, onOpenGrammar }: {
@@ -27,6 +30,7 @@ export function LineExplanation({ api, textId, line, grammarChosen, onGrammarCho
   const [points, setPoints] = useState<ExplainPoint[] | null>(null);
   const [grammar, setGrammar] = useState<LineGrammar[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const natural = useNaturalCheck(api, textId, line);
   // Counts requests, so an answer that arrives after a newer one was asked for (or after closing) is dropped.
   const latest = useRef(0);
 
@@ -68,16 +72,20 @@ export function LineExplanation({ api, textId, line, grammarChosen, onGrammarCho
               {`: ${p.note}`}
             </Text>
           ))}
-          {simple ? null : (
-            <Tappable
-              onPress={() => { haptic.tap(); load(true); }}
-              accessibilityRole="button"
-              accessibilityLabel="Explain more simply"
-              style={{ alignSelf: 'flex-start', marginTop: space.xs, backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.s }}
-            >
-              <Text style={{ ...type.footnote, color: c.text }}>Explain more simply</Text>
-            </Tappable>
-          )}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s, marginTop: space.xs }}>
+            {simple ? null : (
+              <Tappable
+                onPress={() => { haptic.tap(); load(true); }}
+                accessibilityRole="button"
+                accessibilityLabel="Explain more simply"
+                style={{ alignSelf: 'flex-start', backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.s }}
+              >
+                <Text style={{ ...type.footnote, color: c.text }}>Explain more simply</Text>
+              </Tappable>
+            )}
+            <NaturalPill {...natural} />
+          </View>
+          <NaturalResult {...natural} />
           <GrammarInLine api={api} grammar={grammar} chosen={grammarChosen} onChosen={onGrammarChosen} onOpen={onOpenGrammar} />
         </>
       )}

@@ -1,11 +1,12 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Keyboard, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { ApiError, type Api, type Form, type Language, type Shelf, type ShelfText } from '../reader/api';
+import { ApiError, type Api, type Form, type Language, type Shelf, type ShelfText, type Word } from '../reader/api';
 import { LANGUAGES, flaggedName } from '../reader/languages';
 import { cardDetail, playMinutes, playOrder, reasonLabel, surprisePick } from '../reader/shelf';
 import { haptic } from './haptics';
 import { Button, Card, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
+import { GlossPopover, type Tapped } from './Reader';
 import { hairline, MIN_TAP, radius, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
@@ -29,10 +30,12 @@ const SHELF_SIZE = 3;
 
 export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 
-export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, onPast, onWords, onLanguage }: {
+export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLanguagePage, onPast, onWords, onLanguage }: {
   api: Api;
   /** Opened from Review's "Read a text with these words": offers a text written to practice them. */
   practice?: { language: Language; count: number; onCancel: () => void };
+  /** Says a practice word aloud from its popover. */
+  onPlayWord: (word: string, language: Language) => void;
   onOpen: (open: OpenText) => void;
   /** Writes a text on `topicId` practicing the words just studied (the reader waits for it). */
   onPractice: (topic: { id: number; name: string }) => void;
@@ -121,9 +124,9 @@ export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, o
   const open = (textId: number, playAll = false) => onOpen({ textId, order, playAll });
 
   const textActions = (text: ShelfText) => {
-    const like = text.liked ? 'Fewer like this' : 'More like this';
+    const like = text.liked ? 'Stop writing about this topic' : 'Write more about this topic';
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: text.title, options: [like, 'Not this', 'Cancel'], cancelButtonIndex: 2, destructiveButtonIndex: 1 },
+      { title: text.title, options: [like, 'Remove from shelf', 'Cancel'], cancelButtonIndex: 2, destructiveButtonIndex: 1 },
       async (i) => {
         setActionError(null);
         try {
@@ -213,7 +216,7 @@ export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, o
 
         {shelf ? (
           <>
-            <StoryCard api={api} shelf={shelf} onOpen={(id) => open(id)} onStarted={refresh} />
+            <StoryCard api={api} shelf={shelf} onPlayWord={onPlayWord} onOpen={(id) => open(id)} onStarted={refresh} />
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: space.s }}>
               <Text accessibilityRole="header" style={{ ...type.title, color: c.text }}>Ready for you</Text>
@@ -247,7 +250,7 @@ export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, o
             ) : (
               <Help>Texts are written here a few at a time, from the words in your deck. Pull down to check for them.</Help>
             )}
-            {shelf.texts.length > 0 ? <Help>Press and hold a text for More like this or Not this. Texts are only written for a language you open here, and at most 3 wait at a time.</Help> : null}
+            {shelf.texts.length > 0 ? <Help>Press and hold a text to write more about its topic or remove it from the shelf. Texts are only written for a language you open here, and at most 3 wait at a time.</Help> : null}
 
             <WriteCard api={api} onWriting={refresh} />
 
@@ -272,7 +275,7 @@ function ShelfRow({ text, first, onPress, onLongPress }: { text: ShelfText; firs
       accessibilityRole="button"
       accessibilityLabel={`${text.title}. ${cardDetail(text)}. ${reason}`}
       accessibilityHint="Opens the text"
-      accessibilityActions={[{ name: 'more', label: 'More like this, or Not this' }]}
+      accessibilityActions={[{ name: 'more', label: 'Change this topic, or remove from shelf' }]}
       onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'more') onLongPress(); }}
       scaleTo={0.99}
       style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, borderTopWidth: first ? 0 : 1, borderTopColor: c.border }}
@@ -288,11 +291,13 @@ function ShelfRow({ text, first, onPress, onLongPress }: { text: ShelfText; firs
 }
 
 /** The ongoing story: its next episode, the one being written, or a way to start one. */
-function StoryCard({ api, shelf, onOpen, onStarted }: { api: Api; shelf: Shelf; onOpen: (textId: number) => void; onStarted: () => void }) {
+function StoryCard({ api, shelf, onPlayWord, onOpen, onStarted }: { api: Api; shelf: Shelf; onPlayWord: (word: string, language: Language) => void; onOpen: (textId: number) => void; onStarted: () => void }) {
   const c = useTheme();
   const [about, setAbout] = useState('');
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A practice word's popover: its meaning, as on the card's own text.
+  const [tapped, setTapped] = useState<Tapped | null>(null);
   const story = shelf.story;
 
   const start = async () => {
@@ -337,12 +342,37 @@ function StoryCard({ api, shelf, onOpen, onStarted }: { api: Api; shelf: Shelf; 
           {next.stretch.length > 0 ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>Practice words</Text>
-              {next.stretch.map((w) => (
-                <Text key={w} style={{ ...type.subhead, color: c.text, backgroundColor: c.accentFill, paddingHorizontal: space.s, paddingVertical: 2, borderRadius: radius.pill, overflow: 'hidden' }}>{w}</Text>
-              ))}
+              {next.stretch.map((w) => {
+                const pill = <Text style={{ ...type.subhead, color: c.text, backgroundColor: c.accentFill, paddingHorizontal: space.s, paddingVertical: 2, borderRadius: radius.pill, overflow: 'hidden' }}>{w}</Text>;
+                // A server older than the practice words sends none, and the pill stays plain.
+                const word = next.practice?.find((p) => p.text === w);
+                return word ? (
+                  <Tappable
+                    key={w}
+                    onPress={(e) => setTapped({ word, x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Meaning of ${w}`}
+                  >
+                    {pill}
+                  </Tappable>
+                ) : <React.Fragment key={w}>{pill}</React.Fragment>;
+              })}
             </View>
           ) : null}
           <Button label="Read and listen" onPress={() => onOpen(next.id)} />
+          <GlossPopover
+            tapped={tapped}
+            grammar={null}
+            api={api}
+            grammarChosen={{}}
+            onGrammarChosen={() => undefined}
+            flagged={false}
+            onToggleFlag={null}
+            onPlay={() => { if (tapped) onPlayWord(tapped.word.text, shelf.language); }}
+            onSelectPhrase={null}
+            onAddToDeck={null}
+            onClose={() => setTapped(null)}
+          />
         </>
       ) : story.writing ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>

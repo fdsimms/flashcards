@@ -97,6 +97,15 @@ test('clearing a marked word posts it, and skipping a text posts to it', async (
   expect(calls[1].init.method).toBe('POST');
 });
 
+test("a story episode's pick for what happens next is sent as an index", async () => {
+  const { impl, calls } = fakeFetch(new Response(null, { status: 204 }));
+  const api = createApi('https://x', 'p', impl);
+  await api.chooseNext(7, 1);
+  expect(calls[0].url).toBe('https://x/api/texts/7/choice');
+  expect(calls[0].init.method).toBe('POST');
+  expect(JSON.parse(calls[0].init.body as string)).toEqual({ choice: 1 });
+});
+
 test('the shelf writes a typed topic, starts a story and lists a story\'s episodes', async () => {
   const { impl, calls } = fakeFetch(new Response(null, { status: 202 }));
   const api = createApi('https://x', 'p', impl);
@@ -158,6 +167,15 @@ test("an explanation comes with the line's grammar, and none from an older serve
   expect(got).toEqual({ points: [{ phrase: 'fuimos', note: 'we went' }], grammar });
   const older = fakeFetch(json({ points: [] }));
   expect((await createApi('https://x', 'p', older.impl).explainLine(3, 1, false)).grammar).toEqual([]);
+});
+
+test('a naturalness check is asked of the line and comes back as the server sent it', async () => {
+  const answer = { verdict: 'stiff', reason: 'Too written.', alternative: 'Pourquoi tu regardes ça ?' };
+  const { impl, calls } = fakeFetch(json(answer));
+  const got = await createApi('https://x/reader', 'p', impl).checkNatural(3, 1);
+  expect(calls[0].url).toBe('https://x/reader/api/texts/3/lines/1/natural');
+  expect(calls[0].init.method).toBe('POST');
+  expect(got).toEqual(answer);
 });
 
 test('the deck list totals are put to the counts route', async () => {

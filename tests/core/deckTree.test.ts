@@ -230,6 +230,19 @@ describe("Anki's v3 limits and gathering", () => {
     expect(q(bury).fresh.map((c) => c.id)).toEqual([front.id]);
     expect(q(undefined).fresh).toHaveLength(2);
   });
+
+  it("doesn't let a sibling the limits leave out bury the other, as Anki checks the limit first", () => {
+    const [front] = newCards(1);
+    const back = { ...front, id: `${front.noteId}:reverse`, kind: 'reverse' as const };
+    const [other] = newCards(1);
+    const bury = { weights: [], desiredRetention: 0.9, maxInterval: 36500, bury: { new: true, reviews: true, interdayLearning: true } };
+    // P::A has no new cards left today, so its card isn't gathered and buries nothing in P::B.
+    const q = treeQueue('P', {
+      ...input({ 'P::A': [front], 'P::B': [back, other] }, { 'P::A': { newPerDay: 0, reviewsPerDay: 200 } }),
+      paramsFor: () => bury,
+    });
+    expect(q.fresh.map((c) => c.id).sort()).toEqual([back.id, other.id].sort());
+  });
 });
 
 describe('collapsed decks on the deck list', () => {

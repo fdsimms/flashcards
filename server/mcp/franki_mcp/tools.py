@@ -369,6 +369,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                     results.append({"note_id": u.note_id, "updated": True})
                 except ToolError as e:
                     results.append({"note_id": u.note_id, "error": str(e)})
+                except Exception as e:  # noqa: BLE001 - one note Anki refuses doesn't fail the rest
+                    results.append({"note_id": u.note_id, "error": f"Anki refused it: {e}"})
             return {"results": results}
 
         return await cm.write(run)
@@ -738,11 +740,13 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         return {"filename": name}
 
     @server.tool(annotations=WRITE)
-    async def sync_now() -> dict[str, Any]:
+    async def sync_now(take_server: bool = False) -> dict[str, Any]:
         """Syncs with the Anki sync server now (it also happens before and after every tool), then
-        starts a media sync."""
+        starts a media sync. take_server=true is only for after a sync refused because the server's
+        collection was replaced while changes made here hadn't reached it: it downloads the server's
+        copy and loses those changes. Ask the user first."""
         started = time.monotonic()
-        message = await cm.sync_now()
+        message = await cm.sync_now(take_server=take_server)
         return {"message": message, "seconds": round(time.monotonic() - started, 1)}
 
     # ---- note types ----

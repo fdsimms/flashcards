@@ -1,7 +1,7 @@
 import { nextCard, type Queue, type StudiedToday } from './queue';
 import type { AnkiUndo } from '../anki/writeback';
 import type { RatingValue } from './scheduler';
-import type { Card, Note } from './types';
+import type { Card } from './types';
 
 /**
  * Bookkeeping for one review session, kept out of the screen so it can be tested: today's counts
@@ -44,8 +44,8 @@ export interface AnswerRecord {
   takenMs: number;
   /** Siblings the answer buried (`siblingsToBury`), as they were before: undo puts them back. */
   buried: Card[];
-  /** The note as it was, when the answer made the card a leech and tagged it: undo puts it back. */
-  leechNote?: Note;
+  /** The note the answer tagged as a leech: undo takes the tag back off, leaving anything edited since (a hint). */
+  leechNoteId?: string;
 }
 
 /** How far through the session is: answers given over those plus the cards still queued. */

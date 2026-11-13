@@ -502,6 +502,10 @@ async function sanityCounts(db: SyncDb, state: SyncState): Promise<SanityCounts>
 /**
  * Readies the collection to replace the server's (rslib's `before_upload`): nothing is left
  * waiting to be sent, and the schema time moves so every other device knows to download it.
+ *
+ * Run it on a copy to upload, and on the kept collection only once the server has taken that copy
+ * (`syncNow`'s upload). Readied first, a failed upload left every unsent answer marked as sent and
+ * the schema changed, so the next sync downloaded the server's collection over them without asking.
  */
 export async function prepareForUpload(db: SyncDb, now: () => number = Date.now): Promise<void> {
   await db.transaction(async () => {

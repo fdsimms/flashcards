@@ -147,7 +147,7 @@ export function PhrasePickBanner({ first, onCancel }: { first: string; onCancel:
     >
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>Tap the last word of the phrase</Text>
-        <Text style={{ ...type.footnote, color: c.textSecondary }}>{`Starting from "${first}". A phrase stays within one line.`}</Text>
+        <Text style={{ ...type.footnote, color: c.textSecondary }}>{`Starting from "${first}". A phrase stays within one line. You can also hold a word and drag.`}</Text>
       </View>
       <Tappable
         onPress={() => { haptic.tap(); onCancel(); }}

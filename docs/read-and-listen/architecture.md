@@ -63,9 +63,12 @@ Franki's (Client, below).
   Under the explanation, the grammar points the finders find in the line show as chips that can be
   set to Practice, Know it or Don't know it there (docs/grammar.md, step 3).
 - **Explain a phrase** (12 November 2026, by the owner's decision, for idioms and set phrases like
-  "ya lo sé"). A word's gloss has "Select a phrase": the word becomes the phrase's first, the other
-  lines dim, and tapping another word in the same line ends it (either way round; Cancel in the bar
-  above the player). The phrase is drawn as one band and Claude's note on it opens under the line:
+  "ya lo sé"). Hold a word and drag to the phrase's last word (13 November 2026, by the owner's
+  request; `usePhraseDrag.ts`): the hold starts it, so a quick swipe still scrolls, and the text's
+  scrolling is off until the finger lifts; held and let go on the same word, it's a tap. Or a
+  word's gloss has "Select a phrase": the word becomes the phrase's first, the other lines dim, and
+  tapping another word in the same line ends it (either way round; Cancel in the bar above the
+  player, which also mentions the hold). The phrase is drawn as one band and Claude's note on it opens under the line:
   what it means there, then a few points on its parts (a set expression, how the words combine,
   tone), with "Explain more simply". A phrase stays within one line, so it has the line's context
   and the server can check it's there: the app sends it as it appears (the pieces joined, spaces
@@ -74,15 +77,32 @@ Franki's (Client, below).
   phrase and version in `phrase_explanations`; its cost counts under `explanations` in
   `/api/costs`. **Add to deck** on the note opens the note editor with the phrase and its meaning
   in the language's deck, the same approval step and daily limit as a marked word (`mining.ts`),
-  and only for a text in the language being read. Hold-and-drag selection was considered and left
-  out: it's hidden, and dragging inside the scrolling text fights the scroll.
+  and only for a text in the language being read.
+- **Register and naturalness** (13 November 2026, by the owner's decision). Texts are written by a
+  model, and a line that is grammatical but stiff passes every check in code, so two things show how
+  a line is said, and neither grades or adds anything. (1) Each line carries a **register** chip
+  (casual, neutral, formal or slang) at the end of its buttons. The generator asks for it with the
+  line (`Line.register`, `REGISTERS`, `generator.py`), so it costs no extra call and is kept in the
+  text's `lines`; a text written before it, or an answer outside the list, shows no chip. (2) The
+  explanation has **Does this sound natural?**, asked only on the tap
+  (`POST /api/texts/{id}/lines/{n}/natural`, `explain.py`) and kept per line in `naturalness`, so
+  asking again costs nothing; its cost counts under `explanations` in `/api/costs`. It is a second,
+  separate call that judges the line as a native speaker with who says it and the lines around it
+  (a model grading its own draft in the same call mostly approves it), and answers natural, stiff or
+  unusual with a reason and, unless natural, what a native speaker would more likely say. That is
+  text only: the line's recorded audio is unchanged. Tried and left out for now: running the review
+  on every line when a text is written (a cost on every text for lines never questioned), to be
+  reconsidered if the taps show lines are often off, and coloring the chip when it disagrees with the
+  situation.
 - **Listen only** (brief, design principle 6). Once a text is rated "About right", the end view
   offers to play it again with the Thai hidden; the lines show who's speaking instead, and "Show the
   text" brings the words back. The reading is then logged with `listen_only` true. The brief's
   "unlocks for a text" is read as "for the text just rated", since a text is never served twice.
 - While audio plays, the text scrolls to keep the line being spoken in view.
-- **Repeat line** in the player plays the current line over and over, for shadowing, until it's
-  turned off.
+- **Repeat line** in the player plays the current line again, for shadowing. One chip steps through
+  Off, 2×, 3×, 5× and ∞ (a count is the line's total plays; ∞ goes until turned off). The count isn't
+  kept: it starts at Off each time a text opens, and a line started fresh (Play, a skip, a line's own
+  replay button) begins its count again.
 - **Past texts**: texts read to the end, newest first (the last 50), opened in the same reader to
   read or listen to again. Reading one again isn't logged: the log is one row per text, and a reread
   shouldn't count toward the exit check or move difficulty. So there's no Done or rating, and words
@@ -90,8 +110,8 @@ Franki's (Client, below).
   away, since that's when the brief unlocks it.
 - The reader's playback speed and the highlight switch are kept between launches, in the Keychain
   next to the passphrase (`src/reader/storage.ts`).
-- **Progress** on the language's settings page (on the topics screen before the shelf): finished texts over the last 14 days against the Milestone 1
-  exit check (10 texts, median coverage 95% or more, most rated "about right"), and the coverage
+- **Progress** on the language's settings page (on the topics screen before the shelf): finished texts over the last 14 days with their median coverage and
+  ratings (no goal is set; the Milestone 1 exit check's 10 texts was dropped), and the coverage
   target and practice word count new texts are written at, so the effect of a rating is visible.
   Only finished readings count.
 - **Marked words**: every word marked unknown in a reading, newest first, with its gloss and whether
@@ -411,12 +431,23 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
 - **A stretch word used fewer than 2 times** sends the text back too, even at full coverage.
 - **Prompt caching.** The lexicon is the same on every call that day, so it sits in a cached prefix.
 - **Glosses come with the text.** The model returns an English gloss for every word not in the
-  lexicon in the same response, so tap-to-gloss never needs its own API call. Lexicon words use the
+  lexicon in the same response, so a tap never needs its own API call. Lexicon words use the
   deck's `Meaning`.
+- **Common words are glossed after the text is written** (13 November 2026). A common word counts as
+  known without being in the deck, so the model isn't asked to gloss it, and a tap showed "No
+  meaning available" (most of a Norwegian text, whose deck is small). `meanings.py` finds the words in
+  a new text with no gloss (the text's, the deck's, or one kept earlier) and has Claude gloss them
+  in one batched call, each with the English of a line it's in. The answers are kept per language and
+  lower-case word in `word_meanings` and never asked for twice (a word it gave nothing usable for is
+  kept empty, not retried). `Engine.top_up` runs the same pass over the 30 newest waiting or read
+  texts, up to 150 words a call, so texts written before this are filled in. A failed call waits
+  `FAILURE_COOLDOWN` and never keeps a text from being served. The cost is `meanings` in `/api/costs`.
+  The deck's meaning wins over a kept one.
 - **Stretch words** are 1-3 words due today or still young. No random assignment.
 - **Stretch words come back on later days** (brief, design principle 4). A word that was a stretch
-  word in a text read on an earlier day goes ahead of other due and young words, until it has been
-  one on 3 different days (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be due
+  word in a text read on an earlier study day goes ahead of other due and young words, until it has
+  been one on 3 different study days (Anki's, in `TZ` from its "Next day starts at"; `study_day.py`)
+  (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be due
   or young, so a word that has matured since is left alone. In "Fit the topic" it's offered first,
   and the model may still pass it over if it doesn't fit.
 - **Short stories** as well as dialogues: a "Text type" setting (`form` in `/api/settings`),
@@ -511,6 +542,15 @@ next episode is the top of the shelf.
 - **An episode is a story-form text like any other**: the same coverage target, revision loop and
   stretch words, filed under the story's own hidden topic. The next one is written only once the
   last has been read, so at most one waits.
+- **An episode ends on a choice** (added 13 November 2026). The same request asks for two or three
+  `choices`: short options for what happens next, written like lines (`|` between words, English
+  beside each) and counted in the text's coverage, so one with a word outside the deck is sent back
+  like any other draft. Fewer than two is no choice, and the story carries on as before. They're
+  stored on the episode (`choices`, and `chosen`, the index picked) and sent with it as segmented
+  words. The app saves the pick when it's tapped (`POST /api/texts/{id}/choice`), which can change
+  until the episode is read: reading is what writes the next episode, and its request then says
+  "the reader chose X". No pick means no line saying so. A read episode refuses a new pick (409).
+  Play all stops at an episode that has choices. Not built: a typed option of the reader's own.
 
 ## Topics
 
@@ -528,9 +568,11 @@ next episode is the top of the shelf.
   `writing`, `failed`, `idle`) for the app to show.
 - A text is stored as `pending` until its audio is made, then `ready`; one left pending by a
   restart is made ready at startup. A text whose every attempt was under 90% is stored as
-  `dropped`, never served, so its cost is still on record.
+  `dropped`, never served, so its cost is still on record; so is a first attempt Claude answered
+  with nothing usable (a refusal, a cut-off, invalid JSON), as a dropped row with no text.
 - A text leaves the queue once a reading is logged for it, rated or not, so the same text is never
-  served twice.
+  served twice. Only a `ready` text becomes `read`: a dropped or skipped one keeps its status, so
+  the costs still count it as what it was.
 - **Topic ideas**, so topics don't all have to be thought up. About 30 everyday situations
   (`server/reader/src/franki_reader/suggestions.py`), each with six Thai words it's likely to need, offered on
   the topics screen a few at a time (until the shelf, which now writes from them itself), ordered by how many of those words the deck knows: the best fit
@@ -551,6 +593,7 @@ A dialogue's speakers are shown as small drawn characters instead of the A and B
 - **The gender picks the version.** A parent is a father or a mother, from `genders`, so there are 20 drawings from 10 keys and no key says a gender.
 - **Two alike.** When A and B share a character and a gender, B is drawn with other hair (or glasses, under a cap), in B's own color.
 - **Drawn in code, from the theme.** `src/reader/characters.ts` is a list of shapes naming tones; `ReadSpeaker.tsx` paints them in the speaker's colors (gold for A, green for B) with `react-native-svg`, so dark mode needs no second set. `test_characters.py` checks the app draws every key the server can pick.
+- **Speakers are named** (13 November 2026). `roles` holds each speaker's first name in Latin letters, with a job first where the situation gives one ("Waiter Luc"); a friend or relative is only a name. Texts written before this keep roles like "Friend". The reader lists them in a card headed "In this text" above the lines, apart from the dialogue.
 - **Older texts keep the badges.** A text with no characters, or a speaker with no gender, shows A or B as before. Texts already written are not redrawn.
 
 ## Server API

@@ -161,6 +161,11 @@ export interface ReviewLogEntry {
   due: string;
   stability: number;
   difficulty: number;
+  /**
+   * The answer was to a learning step that had crossed into a later day (Anki's queue 3), which
+   * counts as a review today. Anki's review log tells by `lastIvl`; Franki's table keeps it here.
+   */
+  interday?: boolean;
 }
 
 export interface RenderedSide {

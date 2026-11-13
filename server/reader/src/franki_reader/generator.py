@@ -37,6 +37,8 @@ MAX_TOKENS = 16000
 MAX_ATTEMPTS = 3
 MAX_STRETCH = 3
 STRETCH_MIN_USES = 2
+# How a line is said; the app shows it as a chip on the line.
+REGISTERS = ("casual", "neutral", "formal", "slang")
 
 # Per million tokens: input, output, cache read, cache write (5-minute cache, 1.25x input). A model
 # not listed here (a refusal fallback) is priced as MODEL, which is close enough for a running total.
@@ -80,7 +82,12 @@ Ask = Callable[[list[dict[str, Any]]], Coroutine[Any, Any, tuple[dict[str, Any],
 
 
 class GenerationFailed(Exception):
-    """The model refused, ran out of tokens, or returned something unusable."""
+    """The model refused, ran out of tokens, or returned something unusable. `usage` is what the
+    failed call was billed for, when it got an answer at all."""
+
+    def __init__(self, message: str, usage: Usage | None = None) -> None:
+        super().__init__(message)
+        self.usage = usage or Usage()
 
 
 # A dialogue between A and B, or a short story told by a narrator (N), one sentence or two a line.
@@ -97,6 +104,22 @@ class StoryContext:
     title: str = ""  # the story's name, from the first episode on
     cast: str = ""  # its characters and setting, from the first episode
     recaps: tuple[str, ...] = ()  # one sentence for each earlier episode, oldest first
+    # The English of what the reader chose at the end of the last episode, if they chose.
+    chosen: str = ""
+
+
+@dataclass(frozen=True)
+class Choice:
+    """One thing the reader can pick to happen in a story's next episode. Written and checked like
+    a line: `|` between words, counted in the text's coverage."""
+
+    text: str
+    english: str
+
+
+# How many choices an episode ends with, at least and at most. Fewer than the least is no choice.
+MIN_CHOICES = 2
+MAX_CHOICES = 3
 
 
 @dataclass(frozen=True)
@@ -139,6 +162,9 @@ class Line:
     english: str
     # A story's line that opens a paragraph. Older texts and dialogues have none.
     paragraph: bool = False
+    # How a native speaker would say it in that situation, one of REGISTERS. Empty for a text
+    # written before the model was asked, and for an answer outside the list.
+    register: str = ""
 
 
 @dataclass(frozen=True)
@@ -152,7 +178,7 @@ class Generated:
     missing_glosses: tuple[str, ...]
     usage: Usage = Usage()
     stretch: tuple[str, ...] = ()  # the stretch words the text actually uses
-    roles: dict[str, str] = field(default_factory=dict)  # speaker -> who they are, e.g. "Waiter"
+    roles: dict[str, str] = field(default_factory=dict)  # name, job first: "Waiter Nok"
     # speaker -> "male" or "female", for a dialogue (gender.py picks each one's voice)
     genders: dict[str, str] = field(default_factory=dict)
     # speaker -> one of characters.CHARACTERS, for a dialogue; the app draws it in the speaker's gender
@@ -172,6 +198,8 @@ class Generated:
     recap: str = ""
     series: str = ""
     cast: str = ""
+    # What the reader may pick to happen next, for a story episode that ends on a choice.
+    choices: tuple[Choice, ...] = ()
 
 
 DRAFT_SCHEMA: dict[str, Any] = {
@@ -211,8 +239,9 @@ DRAFT_SCHEMA: dict[str, Any] = {
                     "text": {"type": "string"},
                     "english": {"type": "string"},
                     "paragraph": {"type": "boolean"},
+                    "register": {"type": "string", "enum": list(REGISTERS)},
                 },
-                "required": ["speaker", "text", "english", "paragraph"],
+                "required": ["speaker", "text", "english", "paragraph", "register"],
                 "additionalProperties": False,
             },
         },
@@ -234,6 +263,15 @@ DRAFT_SCHEMA: dict[str, Any] = {
         "recap": {"type": "string"},
         "series": {"type": "string"},
         "cast": {"type": "string"},
+        "choices": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"text": {"type": "string"}, "english": {"type": "string"}},
+                "required": ["text", "english"],
+                "additionalProperties": False,
+            },
+        },
     },
     "required": ["title", "roles", "genders", "characters", "lines", "glosses"],
     "additionalProperties": False,
@@ -254,8 +292,11 @@ any that isn't with a listed word or a simpler way of saying it. Getting this ri
 matters more than a clever text.
 - Write natural Thai, the way a Thai speaker would say it, never a word-for-word translation of an \
 English phrase or idiom. If an English idea has no plain Thai equivalent, say something else.
-- A dialogue is natural, everyday spoken Thai between two speakers, A and B. In "roles", say who \
-A and B are in this situation, in one to three English words each, like "Waiter" and "Customer".
+- A dialogue is natural, everyday spoken Thai between two speakers, A and B. In "roles", give \
+each speaker a first name, written in Latin letters, that suits the speaker and the language, like \
+"Nok" and "Somchai". Where the situation gives them a job (waiter, shopkeeper, doctor, teacher), put it \
+before the name, like "Waiter Nok". A friend, relative or stranger is only a name. Use two \
+different names.
 - In "genders", say whether A and B are a man or a woman ("male" or "female"). The learner hears a \
 man's voice for a man and a woman's voice for a woman, so every line has to fit its speaker. A man \
 says ครับ and ผม; a woman says ค่ะ (statements) or คะ (questions) and ดิฉัน, never ครับ or ผม. \
@@ -285,6 +326,10 @@ break and nowhere else: never between words of the same clause, never before a p
 ครับ, ค่ะ or นะ, and never right after a connective that opens a clause (แล้ว, และ, แต่, หรือ, \
 เพราะ, ถ้า, ก็, จึง): write เขา|ดู|เด็ก แล้ว|เดิน|มา, not เขา|ดู|เด็ก แล้ว เดิน|มา.
 - Give "english", a natural English translation of each line.
+- Give "register" for each line: how a native speaker would say it in that situation: \
+"casual" (everyday speech with friends or family), "neutral", "formal" (polite, official or written) \
+or "slang". Write each line in its register, so a chat between friends is casual, and a story's \
+narrator is usually neutral.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
 is not in the list, and for each name ("a girl's name"). For each of those words also give "translit", its pronunciation in Latin letters \
 with tone marks and a hyphen between syllables, as the learner's own cards write it: \
@@ -319,9 +364,11 @@ doesn't make sense. Replace a word that isn't allowed with an allowed word or a 
 saying it.
 - Write natural {name}, the way a native speaker would say it, never a word-for-word translation \
 of an English phrase or idiom. If an English idea has no plain {name} equivalent, say something else.
-- A dialogue is natural, everyday spoken {name} between two speakers, A and B. In "roles", say \
-who A and B are in this situation, in one to three English words each, like "Waiter" and \
-"Customer".
+- A dialogue is natural, everyday spoken {name} between two speakers, A and B. In "roles", give \
+each speaker a first name, written in Latin letters, that suits the speaker and {name}, like \
+"Camille" and "Luc". Where the situation gives them a job (waiter, shopkeeper, doctor, teacher), put it \
+before the name, like "Waiter Luc". A friend, relative or stranger is only a name. Use two \
+different names.
 - In "genders", say whether A and B are a man or a woman ("male" or "female"). The learner hears a \
 man's voice for a man and a woman's voice for a woman, so every line has to fit its speaker: where \
 {name} shows the speaker's gender (verb endings, adjectives, participles, titles), use the form for \
@@ -347,6 +394,10 @@ and use at most 4 different names in a text.
 who it is the first time (a girl named Kasia, a dog called Burek), and use the name for that same \
 person afterward. Never call someone "the boy" and then switch to a name with nothing linking them.
 - Give "english", a natural English translation of each line.
+- Give "register" for each line: how a native speaker would say it in that situation: \
+"casual" (everyday speech with friends or family), "neutral", "formal" (polite, official or written) \
+or "slang". Write each line in its register, so a chat between friends is casual, and a story's \
+narrator is usually neutral.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
 is neither an allowed common word nor on the list. Also gloss any word whose form matches a listed \
 word but is used here as a different word, such as a verb form that two verbs share.
@@ -442,7 +493,20 @@ def request_message(request: TextRequest) -> str:
 STORY_RECAPS = 12
 
 
+_CHOICES_ASK = (
+    f'In "choices", end the episode on a decision: give {MIN_CHOICES} or {MAX_CHOICES} short '
+    "options for what happens next, each one line of the story's language written like the text "
+    '(| between words, only words the learner knows) with its English in "english". Make the '
+    "options lead to clearly different next episodes, and gloss any word in them that isn't on "
+    "the list, as for the lines."
+)
+
+
 def _story_part(story: StoryContext) -> str:
+    return _story_intro(story) + " " + _CHOICES_ASK
+
+
+def _story_intro(story: StoryContext) -> str:
     if story.episode == 1:
         about = f"It's about: {story.about}" if story.about else "Choose what it's about yourself."
         return (
@@ -455,10 +519,17 @@ def _story_part(story: StoryContext) -> str:
         )
     recent = story.recaps[-STORY_RECAPS:]
     so_far = "\n".join(f"- {r}" for r in recent) if recent else "- (no summary)"
+    picked = (
+        f'The reader chose what happens next: "{story.chosen}". Start this episode from that '
+        "choice.\n"
+        if story.chosen
+        else ""
+    )
     return (
         f'This is episode {story.episode} of an ongoing story, "{story.title}". Keep the same '
         "characters and setting, and pick up where the last episode ended; something new happens "
         "in this one.\n"
+        f"{picked}"
         f"Characters and setting: {story.cast or 'as in the earlier episodes'}\n"
         f"The story so far, one sentence an episode:\n{so_far}\n"
         'In "recap", say in one English sentence what happens in this episode, naming the '
@@ -554,10 +625,19 @@ async def generate(ask: Ask, lexicon: Checker, request: TextRequest) -> Generate
     best: Generated | None = None  # the attempt with the highest coverage, the later one on a tie
     usage = Usage()
     for attempt in range(1, MAX_ATTEMPTS + 1):
-        draft, content, used = await ask(messages)
-        usage += used
-        result, problems = _assess(draft, lexicon, request, attempt)
-        result = replace(result, usage=usage)
+        try:
+            draft, content, used = await ask(messages)
+            usage += used
+            assessed, problems = _assess(draft, lexicon, request, attempt)
+        except GenerationFailed as e:
+            usage += e.usage
+            if result is None:
+                raise GenerationFailed(str(e), usage) from e
+            # A revision failed: what the earlier attempts wrote (and cost) is still kept below,
+            # so a good enough draft is served and a dropped one still has its cost on record.
+            result = replace(result, attempts=attempt, usage=usage)
+            break
+        result = replace(assessed, usage=usage)
         if result.passed:
             return result
         # Fewer grammar problems first, then closer to the target; the later attempt on a tie.
@@ -616,7 +696,13 @@ def _assess(
     try:
         lines = _paragraphs(
             tuple(
-                Line(ln["speaker"], ln["text"], ln["english"], bool(ln.get("paragraph")))
+                Line(
+                    ln["speaker"],
+                    ln["text"],
+                    ln["english"],
+                    bool(ln.get("paragraph")),
+                    ln["register"] if ln.get("register") in REGISTERS else "",
+                )
                 for ln in draft["lines"]
             ),
             request.form,
@@ -642,12 +728,15 @@ def _assess(
         recap, series, cast_ = (
             str(draft.get(k) or "").strip() for k in ("recap", "series", "cast")
         )
+        choices = _choices(draft, request)
     except (KeyError, TypeError) as e:
         raise GenerationFailed(f"The draft is missing a field: {e}") from e
     if not lines:
         raise GenerationFailed("The draft has no lines")
 
-    coverage = check([ln.text for ln in lines], lexicon)
+    # The choices are read like lines, so a word outside the deck in one counts against the floor
+    # and is named in the revision message like any other.
+    coverage = check([ln.text for ln in lines] + [c.text for c in choices], lexicon)
     used, problems = _stretch_used(coverage, request, lexicon)
     if request.form == "story":
         genders = {}  # a story has only its narrator
@@ -690,8 +779,22 @@ def _assess(
         recap=recap,
         series=series,
         cast=cast_,
+        choices=choices,
     )
     return generated, problems
+
+
+def _choices(draft: dict[str, Any], request: TextRequest) -> tuple[Choice, ...]:
+    """The choices a story episode ends on. Only a story episode is asked for them, and fewer than
+    `MIN_CHOICES` is no choice, so the episode is kept and the story carries on by itself."""
+    if request.story is None:
+        return ()
+    found = [
+        Choice(str(c["text"]).strip(), str(c["english"]).strip())
+        for c in draft.get("choices") or []
+        if str(c["text"]).strip() and str(c["english"]).strip()
+    ]
+    return tuple(found[:MAX_CHOICES]) if len(found) >= MIN_CHOICES else ()
 
 
 MAX_NAMES = 4
@@ -777,17 +880,6 @@ def claude_ask(
         except anthropic.APIError as e:
             # Overloaded, rate limited, unreachable: say so rather than failing the request.
             raise GenerationFailed(f"Claude didn't answer ({type(e).__name__})") from e
-        if response.stop_reason == "refusal":
-            raise GenerationFailed("Claude declined to write this text")
-        if response.stop_reason == "max_tokens":
-            raise GenerationFailed("The response was cut off")
-        text = next((b.text for b in response.content if b.type == "text"), None)
-        if text is None:
-            raise GenerationFailed("The response had no text")
-        try:
-            draft = json.loads(text)
-        except json.JSONDecodeError as e:
-            raise GenerationFailed("The response wasn't valid JSON") from e
         u = response.usage
         used = Usage(
             u.input_tokens,
@@ -796,6 +888,17 @@ def claude_ask(
             u.cache_creation_input_tokens or 0,
             response.model,
         )
+        if response.stop_reason == "refusal":
+            raise GenerationFailed("Claude declined to write this text", used)
+        if response.stop_reason == "max_tokens":
+            raise GenerationFailed("The response was cut off", used)
+        text = next((b.text for b in response.content if b.type == "text"), None)
+        if text is None:
+            raise GenerationFailed("The response had no text", used)
+        try:
+            draft = json.loads(text)
+        except json.JSONDecodeError as e:
+            raise GenerationFailed("The response wasn't valid JSON", used) from e
         return draft, list(response.content), used
 
     return ask

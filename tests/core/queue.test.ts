@@ -61,6 +61,21 @@ describe('queue', () => {
     expect(nextLearningDue([base], { dayStartsAtHour: H, now: NOW })).toBeUndefined();
     expect(nextLearningDue([withSched(base, { state: 1, due: at.toISOString() })], { dayStartsAtHour: H, now: NOW })).toEqual(at);
   });
+  it("doesn't wait for a day-long learning step, which comes back on its own day", () => {
+    const [base] = makeCards(omniNote(), NOW);
+    // Answered this morning onto a one-day step: due tomorrow, Anki's queue 3.
+    const interday = withSched(base, {
+      state: 1, lastReview: new Date(2026, 10, 11, 9, 0).toISOString(), due: new Date(2026, 10, 12, 9, 0).toISOString(),
+    });
+    expect(nextLearningDue([interday], { dayStartsAtHour: H, now: NOW })).toBeUndefined();
+    // One already due today but held back by the review limit doesn't leave the screen waiting either.
+    const dueToday = withSched(base, {
+      state: 1, lastReview: new Date(2026, 10, 10, 9, 0).toISOString(), due: new Date(2026, 10, 11, 9, 0).toISOString(),
+    });
+    expect(nextLearningDue([dueToday], { dayStartsAtHour: H, now: NOW })).toBeUndefined();
+    // A step that runs past the day's end with no last answer recorded (imported) isn't waited for either.
+    expect(nextLearningDue([withSched(base, { state: 1, due: new Date(2026, 10, 12, 5, 0).toISOString() })], { dayStartsAtHour: H, now: NOW })).toBeUndefined();
+  });
 });
 
 describe('buried cards', () => {
@@ -155,7 +170,7 @@ describe("today's counts", () => {
       // A new card's first answer (lastIvl 0), then its next learning step: one card introduced.
       { id: at(8), cid: 100, ease: 3, lastIvl: 0, time: 5000, type: 0 },
       { id: at(8) + 600_000, cid: 100, ease: 3, lastIvl: -600, time: 4000, type: 0 },
-      // Reviews, one of them in a filtered deck (type 3).
+      // A review, and a preview in a filtered deck (type 3), which uses no limits, as in Anki.
       { id: at(9), cid: 101, ease: 3, lastIvl: 12, time: 3000, type: 1 },
       { id: at(10), cid: 101, ease: 1, lastIvl: 30, time: 3000, type: 3 },
       // An answer to a learning card on a day-long step (its last interval in days) counts as a review.
@@ -167,6 +182,15 @@ describe("today's counts", () => {
     // Franki's own answer to an Anki card is in the review log too (write-back), so its row in
     // Franki's table isn't counted again.
     const reviews = [{ cardId: fresh.id, ...review(fresh.sched, 3, NOW).log }];
-    expect(counts({ cards: [fresh, reviewing], revlog, reviews }).get(deck)).toEqual({ introduced: 1, reviewed: 3 });
+    expect(counts({ cards: [fresh, reviewing], revlog, reviews }).get(deck)).toEqual({ introduced: 1, reviewed: 2 });
+  });
+
+  it("counts a Franki-only card's answer on a day-long learning step as a review, as the session did", () => {
+    const [card] = makeCards(note, NOW);
+    const reviews = [
+      { cardId: card.id, ...review(card.sched, 3, NOW).log, state: 1, interday: true },
+      { cardId: card.id, ...review(card.sched, 3, NOW).log, state: 1 }, // a step within the day: no limit
+    ];
+    expect(counts({ cards: [card], reviews }).get(deck)).toEqual({ introduced: 0, reviewed: 1 });
   });
 });

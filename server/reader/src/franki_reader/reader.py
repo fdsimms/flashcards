@@ -14,10 +14,16 @@ def gloss_for(
     word: str, glosses: dict[str, str], lexicon: Checker, meanings: dict[str, str]
 ) -> str | None:
     """The text's own gloss, else the deck's meaning (of the entry it's a form of, so hablé gets
-    hablar's), else the meanings of the deck entries a known compound splits into (a word known
-    that way has no entry of its own to gloss it)."""
+    hablar's), else the meaning kept for the word in lower case (meanings.py: a common word has none
+    from the deck or the text), else the meanings of the deck entries a known compound splits into (a
+    word known that way has no entry of its own to gloss it)."""
     entry = lexicon.entry_of(word)
-    if gloss := glosses.get(word) or meanings.get(word) or (meanings.get(entry) if entry else None):
+    if gloss := (
+        glosses.get(word)
+        or meanings.get(word)
+        or (meanings.get(entry) if entry else None)
+        or meanings.get(word.casefold())
+    ):
         return gloss
     pieces = lexicon.known_pieces(word)
     parts = [meanings[p] for p in pieces or [] if p in meanings]
@@ -67,15 +73,11 @@ def render(
     review = tuple(p for p in text.grammar.get("review", []) if p not in practice + avoid)
     unset = tuple(p for p in unset if p not in practice + avoid + review)
     used: set[str] = set()
-    lines = []
-    for line in text.lines:
-        plain, _ = parse_line(line.text, lexicon.spaced)
-        # Which words use a marked point, by index among the line's words; the first role wins.
-        marked = grammar.marks(plain, lexicon, practice + avoid + review + unset)
-        used.update(marked.values())
+
+    def render_words(source: str, marked: dict[int, str]) -> list[dict[str, Any]]:
         at = 0
         words = []
-        for piece, is_name in segment_line(line.text, lexicon):
+        for piece, is_name in segment_line(source, lexicon):
             if not is_word(piece):
                 words.append(
                     {
@@ -107,12 +109,21 @@ def render(
                     "grammar": point,
                 }
             )
+        return words
+
+    lines = []
+    for line in text.lines:
+        plain, _ = parse_line(line.text, lexicon.spaced)
+        # Which words use a marked point, by index among the line's words; the first role wins.
+        marked = grammar.marks(plain, lexicon, practice + avoid + review + unset)
+        used.update(marked.values())
         lines.append(
             {
                 "speaker": line.speaker,
                 "english": line.english,
                 "paragraph": line.paragraph,
-                "words": words,
+                "register": line.register,
+                "words": render_words(line.text, marked),
             }
         )
     return {
@@ -145,4 +156,10 @@ def render(
             if pid in grammar.POINTS
         ],
         "lines": lines,
+        # What the reader can pick to happen in the next episode (a story episode only), as words
+        # like a line's but with no grammar marks, and the index picked so far.
+        "choices": [
+            {"english": c.english, "words": render_words(c.text, {})} for c in text.choices
+        ],
+        "chosen": text.chosen,
     }

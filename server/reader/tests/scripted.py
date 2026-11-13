@@ -41,9 +41,10 @@ BAD = draft("ทอน|ทอน|ฉัน")
 
 
 class ScriptedModel:
-    """Returns the given drafts in order, then repeats the last one."""
+    """Returns the given drafts in order, then repeats the last one. An exception in their place
+    is raised, as a failed call would."""
 
-    def __init__(self, *drafts: dict[str, Any]) -> None:
+    def __init__(self, *drafts: dict[str, Any] | Exception) -> None:
         self.drafts = list(drafts)
         self.calls = 0
         self.entries_seen: list[list[Entry]] = []
@@ -58,6 +59,8 @@ class ScriptedModel:
             self.calls += 1
             self.messages_seen.append(list(messages))
             d = self.drafts.pop(0) if len(self.drafts) > 1 else self.drafts[0]
+            if isinstance(d, Exception):
+                raise d
             return d, [{"type": "text", "text": "draft"}], Usage(100, 500, 2000, 0)
 
         return ask

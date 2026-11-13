@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import type { Language } from '../../../reader/api';
 import { useApp } from '../../../ui/AppContext';
 import { ReadShelf } from '../../../ui/ReadShelf';
+import { useWordAudio } from '../../../ui/useWordAudio';
 
 /**
  * Read & Listen's home: the shelf of the language last read. Sends you to its settings when it
@@ -11,7 +12,8 @@ import { ReadShelf } from '../../../ui/ReadShelf';
  */
 export default function ReadRoute() {
   const router = useRouter();
-  const { reader } = useApp();
+  const { reader, repo } = useApp();
+  const playWord = useWordAudio(repo);
   const { practice: raw } = useLocalSearchParams<{ practice?: string }>();
   const practice = useMemo(() => {
     try { return raw ? (JSON.parse(raw) as { language: Language; words: string[] }) : undefined; } catch { return undefined; }
@@ -22,6 +24,7 @@ export default function ReadRoute() {
     <ReadShelf
       api={api}
       practice={practice ? { language: practice.language, count: practice.words.length, onCancel: () => router.setParams({ practice: '' }) } : undefined}
+      onPlayWord={playWord}
       onOpen={(open) => router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'shelf', ...open }) } })}
       onPractice={(topic) => {
         // Only this text practices them. Cleared before the push, since setParams changes whichever

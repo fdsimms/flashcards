@@ -1,7 +1,8 @@
 """
-Records Anki's own type-the-answer output for tests/core/typeAnswer.test.ts:
-compare_answer (what the back of a {{type:}} card shows) and extract_cloze_for_typing (what a
-{{type:cloze:}} card expects), from the `anki` package at the sync server's ANKI_VERSION.
+Records Anki's own type-the-answer output: compare_answer (what the back of a {{type:}} card
+shows), for tests/core/typeAnswer.test.ts, and extract_cloze_for_typing (what a {{type:cloze:}}
+card expects), for tests/core/cloze.test.ts, from the `anki` package at the sync server's
+ANKI_VERSION.
 
     <venv>/bin/python tests/fixtures/anki/make-typeanswer-vectors.py
 """

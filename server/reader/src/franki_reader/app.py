@@ -53,6 +53,10 @@ marked words, ideas) is in the current language, the `language` setting.
                                       ?story=<id>, that story's episodes, first to last
     GET   /api/texts/{id}             one text, in the same shape as /next; reading it again isn't logged
     POST  /api/texts/{id}/reading     logs a session with a text and adjusts difficulty
+    POST  /api/texts/{id}/choice      {choice} the option picked at the end of a story episode, as an
+                                      index into its choices; it can be changed until the episode is
+                                      read, which is when the next one is written from it (404 for
+                                      no such text or choice, 409 once it's read)
     GET   /api/progress               finished texts, coverage and ratings over the last 14 days,
                                       and the difficulty the next text is written at
     GET   /api/costs?days=30          what Claude cost over the last `days` days, per language:
@@ -60,7 +64,8 @@ marked words, ideas) is in the current language, the `language` setting.
                                       plus Azure's audio estimated from the characters it spoke (every
                                       language, not just the current one; the MCP's
                                       read_and_listen_costs reads it), and `explanations`: what
-                                      Explain's calls, lines and phrases, cost over the same days
+                                      Explain's calls, lines and phrases, cost over the same days,
+                                      and `meanings`: what glossing common words cost
     GET   /api/grammar                the current language's grammar points, each practice, avoid,
                                       normal ("Know it") or unset, with how often each came up in
                                       texts read; `least`, the known ones worked in next
@@ -107,6 +112,10 @@ marked words, ideas) is in the current language, the `language` setting.
                                       line, as it appears there, explained by Claude:
                                       {meaning, points: [{phrase, note}]}. Kept per phrase, like
                                       the line's
+    POST  /api/texts/{id}/lines/{n}/natural   whether a native speaker would say the line, judged by
+                                      Claude: {verdict, reason, alternative}, verdict one of
+                                      natural, stiff, unusual. Asked on the owner's tap and kept
+                                      per line
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
                                       memory hints for a word the owner keeps forgetting: {hints: [...]}
 """
@@ -122,16 +131,29 @@ from fastapi.responses import FileResponse, JSONResponse
 from franki_speech import SpeechClient, SpeechError, locale_of
 from pydantic import BaseModel, Field
 
-from franki_reader import config, drills, exposure, grammar, note_queue, store, timing, vocab_check
+from franki_reader import (
+    config,
+    drills,
+    exposure,
+    grammar,
+    meanings,
+    note_queue,
+    store,
+    timing,
+    vocab_check,
+)
 from franki_reader.collection import AnkiDeck, SyncSettings
 from franki_reader.coverage import parse_line
 from franki_reader.engine import Engine, NotAvailable, NotFound
 from franki_reader.explain import (
+    CheckNatural,
+    CheckRequest,
     Explain,
     ExplainFailed,
     ExplainPhrase,
     ExplainRequest,
     PhraseRequest,
+    claude_check,
     claude_explain,
     claude_explain_phrase,
 )
@@ -147,6 +169,7 @@ from franki_reader.mnemonics import (
 )
 from franki_reader.reader import gloss_for, lemma_for, render
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
+from franki_reader.study_day import DEFAULT_ROLLOVER
 from franki_reader.suggestions import suggest
 from franki_reader.tts import AudioCache, Speech, azure_synthesize, azure_usd
 
@@ -253,6 +276,10 @@ class FrankiCountsIn(BaseModel):
     new: int = Field(ge=0, le=1_000_000)
 
 
+class ChoiceIn(BaseModel):
+    choice: int = Field(ge=0)
+
+
 class ReadingIn(BaseModel):
     rating: Literal["too_easy", "about_right", "too_hard"] | None = None
     finished: bool = False
@@ -332,6 +359,7 @@ def create_app(
     write_drills: drills.WriteDrills | None = None,
     write_vocab: vocab_check.WriteVocab | None = None,
     write_notes: note_queue.WriteNotes | None = None,
+    check_natural: CheckNatural | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
     # Points whose drill questions are being written, shared by every request (drills.top_up).
@@ -639,6 +667,40 @@ def create_app(
         )
         return answer
 
+    @app.post("/api/texts/{text_id}/lines/{line}/natural", dependencies=authed)
+    async def check_line(text_id: int, line: int) -> dict[str, str]:
+        text = store.get_text(engine.conn, text_id)
+        if text is None or not 0 <= line < len(text.lines):
+            raise HTTPException(404, "No such line.")
+        if (kept := store.get_naturalness(engine.conn, text_id, line)) is not None:
+            return kept
+        if check_natural is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't check lines"
+                " (ANTHROPIC_API_KEY in server/.env turns this on).",
+            )
+        spaced = LANGUAGES[text.language].spaced
+        plain = [parse_line(ln.text, spaced)[0] for ln in text.lines]
+        speaker = text.lines[line].speaker
+        role = text.roles.get(speaker, "")
+        try:
+            answer, used = await check_natural(
+                CheckRequest(
+                    text.language,
+                    plain[line],
+                    text.lines[line].english,
+                    f"{speaker} ({role})" if role else "",
+                    text.lines[line].register,
+                    tuple(plain[max(0, line - 3) : line] + plain[line + 1 : line + 3]),
+                )
+            )
+        except ExplainFailed as e:
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_naturalness(engine.conn, text_id, line, answer, engine.clock(), used.cost_usd())
+        return answer
+
     def settings_out(current: Settings) -> dict[str, Any]:
         # Every language's deck and voices, the default where none was chosen, so the app shows
         # what's used.
@@ -769,6 +831,17 @@ def create_app(
             raise HTTPException(503, str(e)) from e
         return {"hints": hints}
 
+    @app.post("/api/texts/{text_id}/choice", status_code=204, dependencies=authed)
+    async def choose(text_id: int, body: ChoiceIn) -> Response:
+        match store.set_choice(engine.conn, text_id, body.choice):
+            case "unknown":
+                raise HTTPException(404, "That choice isn't on this text.")
+            case "read":
+                raise HTTPException(
+                    409, "This episode is already read, so its choice can't change."
+                )
+        return Response(status_code=204)
+
     @app.post("/api/texts/{text_id}/reading", status_code=204, dependencies=authed)
     async def reading(text_id: int, body: ReadingIn, background: BackgroundTasks) -> Response:
         try:
@@ -811,6 +884,7 @@ def create_app(
         drilled = store.drill_spending(engine.conn, since)
         vocab = store.vocab_spending(engine.conn, since)
         queued = store.queue_spending(engine.conn, since)
+        glossed = store.meaning_spending(engine.conn, since)
         rows = by_language.values()
         total = store.Spending(
             sum(r.read for r in rows),
@@ -857,6 +931,20 @@ def create_app(
                     for code, (n, c) in drilled.items()
                 ],
             },
+            # Meanings for words in texts that nothing else glosses, a batch at a time (meanings.py).
+            "meanings": {
+                "batches": sum(n for n, _ in glossed.values()),
+                "cost_usd": round(sum(c for _, c in glossed.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "batches": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in glossed.items()
+                ],
+            },
             # The vocabulary check's words, glossed once a language (vocab_check.py).
             "vocab_checks": {
                 "batches": sum(n for n, _ in vocab.values()),
@@ -890,12 +978,12 @@ def create_app(
     @app.get("/api/words", dependencies=authed)
     async def words() -> list[dict[str, Any]]:
         language = engine.language()
-        entries, lexicon = engine.snapshot(language)
-        meanings = {e.text: e.meaning for e in entries}
+        lexicon = engine.snapshot(language)[1]
+        known = engine.meanings(language)
         return [
             {
                 "word": w.word,
-                "gloss": gloss_for(w.word, w.glosses, lexicon, meanings),
+                "gloss": gloss_for(w.word, w.glosses, lexicon, known),
                 "lemma": lemma_for(w.word, lexicon),
                 "status": lexicon.status(w.word),
                 "deck": lexicon.entry_of(w.word) is not None,
@@ -1089,6 +1177,7 @@ def create_app(
         return {
             "id": point.id,
             "state": choices.get(point.id, "unset"),
+            "max_practice": grammar.MAX_PRACTICE,
             "seen": _seen(engine.grammar_exposure(point.language)[point.id]),
             "choices": {
                 p.id: choices.get(p.id, "unset") for p in grammar.points_for(point.language)
@@ -1158,7 +1247,7 @@ def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
     out = render(
         text,
         lexicon,
-        {e.text: e.meaning for e in entries},
+        engine.meanings(text.language),
         {e.text: e.translit for e in entries if e.translit},
         # Not set as the owner's choices stand now, so a point marked since isn't still explained
         # as unmarked.
@@ -1178,10 +1267,31 @@ def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
     return out
 
 
-def _shelf_text(text: StoredText, engine: Engine) -> dict[str, Any]:
-    """A text on the shelf as a card shows it, without its words (they come with /api/texts/{id})."""
+def _practice_words(text: StoredText, engine: Engine) -> list[dict[str, Any]]:
+    """The text's practice words as the reader draws them (meaning, dictionary form, status), in
+    the order of `text.stretch`, so a card can open a word's popover without fetching the whole text.
+    A practice word that doesn't turn up as a word of the text is left out."""
+    entries, lexicon = engine.snapshot(text.language)
+    out = render(
+        text,
+        lexicon,
+        engine.meanings(text.language),
+        {e.text: e.translit for e in entries if e.translit},
+    )
+    first: dict[str, dict[str, Any]] = {}
+    for line in out["lines"]:
+        for word in line["words"]:
+            if word["status"] is not None:
+                first.setdefault(word["text"], word)
+    return [first[w] for w in text.stretch if w in first]
+
+
+def _shelf_text(text: StoredText, engine: Engine, practice: bool = False) -> dict[str, Any]:
+    """A text on the shelf as a card shows it, without its words (they come with /api/texts/{id}).
+    `practice` adds its practice words' meanings, for the card that lists them."""
     topic = store.get_topic(engine.conn, text.topic_id, text.language, include_removed=True)
     return {
+        **({"practice": _practice_words(text, engine)} if practice else {}),
         "id": text.id,
         "title": text.title,
         "topic": topic.name if topic else "",
@@ -1211,7 +1321,7 @@ def _shelf(engine: Engine) -> dict[str, Any]:
             "about": story.about,
             "read": len(read),
             "last_recap": read[-1].recap if read else "",
-            "next": _shelf_text(waiting, engine) if waiting else None,
+            "next": _shelf_text(waiting, engine, practice=True) if waiting else None,
             "writing": any(j.story_id == story.id for j in writing),
             "failed": engine.failure(story.topic_id, language),
         }
@@ -1259,17 +1369,21 @@ def production_app() -> FastAPI:
     mnemonics: MakeMnemonics | None = None
     explain: Explain | None = None
     explain_phrase: ExplainPhrase | None = None
+    check_natural: CheckNatural | None = None
     write_drills: drills.WriteDrills | None = None
     write_vocab: vocab_check.WriteVocab | None = None
     write_notes: note_queue.WriteNotes | None = None
+    write_meanings: meanings.WriteMeanings | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
         explain = claude_explain(client)
         explain_phrase = claude_explain_phrase(client)
+        check_natural = claude_check(client)
         write_drills = drills.claude_drills(client)
         write_vocab = vocab_check.claude_vocab(client)
         write_notes = note_queue.claude_notes(client)
+        write_meanings = meanings.claude_meanings(client)
 
         def ask_for(entries: list[Entry], language: Code) -> Ask:
             return claude_ask(client, entries, language)
@@ -1314,6 +1428,8 @@ def production_app() -> FastAPI:
         synthesize=synthesize,
         audio=AudioCache(settings.audio_dir),
         voices=settings.voices,
+        rollover=lambda: anki.rollover if anki else DEFAULT_ROLLOVER,
+        write_meanings=write_meanings,
     )
     engine.count_existing_audio()
     return create_app(
@@ -1328,4 +1444,5 @@ def production_app() -> FastAPI:
         write_drills=write_drills,
         write_vocab=write_vocab,
         write_notes=write_notes,
+        check_natural=check_natural,
     )

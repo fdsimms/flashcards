@@ -187,8 +187,12 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const itemMs = useRef(new Map<number, number>());
   useEffect(() => { shownAt.current = Date.now(); }, [question, study?.session.queue.length]);
 
+  // The session last answered from: two taps before a re-render would both answer it, sending the
+  // held answer to WaniKani and logging it twice.
+  const answeredFrom = useRef<Study | null>(null);
   const answer = (correct: boolean) => {
-    if (!study || !question) return;
+    if (!study || !question || answeredFrom.current === study) return;
+    answeredFrom.current = study;
     haptic.answer();
     const ms = (itemMs.current.get(question.assignmentId) ?? 0) + Math.min(60_000, Date.now() - shownAt.current);
     itemMs.current.set(question.assignmentId, ms);
@@ -204,6 +208,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const undo = () => {
     const back = study && studyUndo(study);
     if (!back) return;
+    answeredFrom.current = null;
     setStudy(back);
     resetQuestion();
   };
@@ -211,6 +216,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   // Moves the question to the back of its pile without answering it, so nothing is counted wrong.
   const later = () => {
     if (!study) return;
+    answeredFrom.current = null;
     setStudy(studyAskLater(study));
     resetQuestion();
   };

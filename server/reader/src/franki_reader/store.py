@@ -6,15 +6,16 @@ import logging
 import sqlite3
 import statistics
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Any, Literal
 
 from franki_reader.difficulty import Difficulty
 from franki_reader.gateway import AnkiUnavailable
-from franki_reader.generator import MODEL, Form, Generated, Line
+from franki_reader.generator import MODEL, Choice, Form, Generated, Line
 from franki_reader.languages import LANGUAGES, VOICE_SLOTS, Code, with_deck
 from franki_reader.lexicon import Entry, ReadDeck
+from franki_reader.study_day import DEFAULT_ROLLOVER, study_day
 
 SNAPSHOT_MAX_AGE = timedelta(hours=24)
 # How the reading log names each language (it said "thai" before there was a second one).
@@ -97,6 +98,15 @@ CREATE TABLE IF NOT EXISTS explanations (
     cost_usd REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (text_id, line, simple)
 );
+-- Claude's answer to "Does this sound natural?" on a line, asked once per line on the owner's tap.
+CREATE TABLE IF NOT EXISTS naturalness (
+    text_id INTEGER NOT NULL REFERENCES texts(id),
+    line INTEGER NOT NULL,
+    answer TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    cost_usd REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (text_id, line)
+);
 CREATE TABLE IF NOT EXISTS phrase_explanations (
     text_id INTEGER NOT NULL REFERENCES texts(id),
     line INTEGER NOT NULL,
@@ -167,6 +177,24 @@ CREATE TABLE IF NOT EXISTS note_queue (
     tried_at TEXT,
     cost_usd REAL NOT NULL DEFAULT 0
 );
+-- English meanings for words in texts that have no gloss from the deck or the text (meanings.py):
+-- common words are known without being in the deck, so the model isn't asked to gloss them. A word is
+-- asked about once and kept, as written in lower case; an empty meaning is a word Claude gave none for.
+CREATE TABLE IF NOT EXISTS meaning_batches (
+    id INTEGER PRIMARY KEY,
+    language TEXT NOT NULL,
+    asked INTEGER NOT NULL,
+    kept INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    cost_usd REAL NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS word_meanings (
+    language TEXT NOT NULL,
+    word TEXT NOT NULL,
+    meaning TEXT NOT NULL,
+    batch_id INTEGER NOT NULL REFERENCES meaning_batches(id),
+    PRIMARY KEY (language, word)
+);
 CREATE TABLE IF NOT EXISTS stories (
     id INTEGER PRIMARY KEY,
     language TEXT NOT NULL,
@@ -221,6 +249,10 @@ class StoredText:
     story_id: int | None = None
     episode: int = 0
     recap: str = ""  # a story episode's one sentence about what happened in it
+    # What the reader can pick to happen next, for an episode that ends on a choice, and the
+    # index of the one they picked (None until they do, and for good if they never do).
+    choices: tuple[Choice, ...] = ()
+    chosen: int | None = None
 
 
 # "topic": the model chooses stretch words that fit the topic from a list of due and young words.
@@ -312,6 +344,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
         ("story_id", "story_id INTEGER REFERENCES stories(id)"),
         ("episode", "episode INTEGER NOT NULL DEFAULT 0"),
         ("recap", "recap TEXT NOT NULL DEFAULT ''"),
+        # A story episode's choices for what happens next (JSON) and the index the reader picked.
+        ("choices", "choices TEXT NOT NULL DEFAULT '[]'"),
+        ("chosen", "chosen INTEGER"),
         # Characters Azure has spoken for the text, each time its lines were recorded (a
         # re-recording counts again); what its audio cost is worked out from this.
         ("audio_chars", "audio_chars INTEGER NOT NULL DEFAULT 0"),
@@ -523,9 +558,10 @@ def save_text(
             """INSERT INTO texts (topic_id, created_at, status, title, lines, glosses, stretch,
                    coverage, token_count, floor, attempts, model, input_tokens, output_tokens,
                    cache_read_tokens, cache_write_tokens, cost_usd, roles, form, language, grammar,
-                   focus, translits, reason, story_id, episode, recap, genders, characters)
+                   focus, translits, reason, story_id, episode, recap, genders, characters,
+                   choices)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                   ?, ?, ?, ?)""",
+                   ?, ?, ?, ?, ?)""",
             (
                 topic_id,
                 now.isoformat(),
@@ -556,10 +592,25 @@ def save_text(
                 generated.recap,
                 json.dumps(generated.genders),
                 json.dumps(generated.characters),
+                json.dumps([c.__dict__ for c in generated.choices], ensure_ascii=False),
             ),
         )
     assert cur.lastrowid is not None
     return cur.lastrowid
+
+
+def set_choice(conn: sqlite3.Connection, text_id: int, index: int) -> str:
+    """Records which of an episode's choices the reader picked, replacing an earlier pick. Returns
+    "ok", "unknown" for no such text or no such choice on it, or "read" for an episode already
+    read, since the next episode is written from the pick once it is."""
+    with conn:
+        row = conn.execute("SELECT status, choices FROM texts WHERE id = ?", (text_id,)).fetchone()
+        if row is None or not 0 <= index < len(json.loads(row[1])):
+            return "unknown"
+        if row[0] == "read":
+            return "read"
+        conn.execute("UPDATE texts SET chosen = ? WHERE id = ?", (index, text_id))
+    return "ok"
 
 
 def mark_ready(conn: sqlite3.Connection, text_id: int) -> None:
@@ -593,6 +644,16 @@ def ready_texts(conn: sqlite3.Connection, language: Code) -> list[StoredText]:
     return [_text(r) for r in rows]
 
 
+def recent_texts(conn: sqlite3.Connection, language: Code, limit: int) -> list[StoredText]:
+    """The newest texts in `language` that can be opened (waiting or already read), newest first."""
+    rows = conn.execute(
+        f"SELECT {_TEXT_COLUMNS} FROM texts WHERE status IN ('ready', 'read') AND language = ?"
+        " ORDER BY id DESC LIMIT ?",
+        (language, limit),
+    ).fetchall()
+    return [_text(r) for r in rows]
+
+
 def get_text(conn: sqlite3.Connection, text_id: int) -> StoredText | None:
     row = conn.execute(f"SELECT {_TEXT_COLUMNS} FROM texts WHERE id = ?", (text_id,)).fetchone()
     return _text(row) if row else None
@@ -600,7 +661,7 @@ def get_text(conn: sqlite3.Connection, text_id: int) -> StoredText | None:
 
 _TEXT_COLUMNS = (
     "id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar,"
-    " translits, reason, story_id, episode, recap, genders, characters"
+    " translits, reason, story_id, episode, recap, genders, characters, choices, chosen"
 )
 
 
@@ -624,6 +685,8 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         recap,
         genders,
         characters,
+        choices,
+        chosen,
     ) = row
     return StoredText(
         id=text_id,
@@ -644,6 +707,8 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         recap=recap,
         genders=json.loads(genders),
         characters=json.loads(characters),
+        choices=tuple(Choice(**c) for c in json.loads(choices)),
+        chosen=chosen,
     )
 
 
@@ -681,6 +746,29 @@ def save_explanation(
                 now.isoformat(),
                 cost_usd,
             ),
+        )
+
+
+def get_naturalness(conn: sqlite3.Connection, text_id: int, line: int) -> dict[str, str] | None:
+    row = conn.execute(
+        "SELECT answer FROM naturalness WHERE text_id = ? AND line = ?", (text_id, line)
+    ).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def save_naturalness(
+    conn: sqlite3.Connection,
+    text_id: int,
+    line: int,
+    answer: dict[str, str],
+    now: datetime,
+    cost_usd: float = 0.0,
+) -> None:
+    with conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO naturalness (text_id, line, answer, created_at, cost_usd)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (text_id, line, json.dumps(answer, ensure_ascii=False), now.isoformat(), cost_usd),
         )
 
 
@@ -842,7 +930,11 @@ def log_reading(conn: sqlite3.Connection, text_id: int, reading: Reading, now: d
                 reading.seconds,
             ),
         )
-        conn.execute("UPDATE texts SET status = 'read' WHERE id = ?", (text_id,))
+        # Only a text that was served: a dropped or skipped one keeps its status, so the costs
+        # still count it as what it was.
+        conn.execute(
+            "UPDATE texts SET status = 'read' WHERE id = ? AND status = 'ready'", (text_id,)
+        )
 
 
 def reading_seconds(conn: sqlite3.Connection, start: datetime, end: datetime) -> int:
@@ -1042,14 +1134,16 @@ def save_phrase_explanation(
 def explanation_spending(
     conn: sqlite3.Connection, since: datetime
 ) -> dict[Code, tuple[int, float]]:
-    """Each language with a line or a phrase explained since `since`: how many explanations were
-    asked for (a plainer version counts again) and what they cost Claude."""
+    """Each language with a line or a phrase explained, or a line checked for sounding natural,
+    since `since`: how many answers were asked for (a plainer version counts again) and what they
+    cost Claude."""
     return {
         language: (count, cost)
         for language, count, cost in conn.execute(
             """SELECT t.language, COUNT(*), SUM(e.cost_usd) FROM (
                    SELECT text_id, created_at, cost_usd FROM explanations
                    UNION ALL SELECT text_id, created_at, cost_usd FROM phrase_explanations
+                   UNION ALL SELECT text_id, created_at, cost_usd FROM naturalness
                ) e
                JOIN texts t ON t.id = e.text_id WHERE e.created_at >= ? GROUP BY t.language
                ORDER BY SUM(e.cost_usd) DESC""",
@@ -1059,17 +1153,22 @@ def explanation_spending(
 
 
 def practiced_days(
-    conn: sqlite3.Connection, before: datetime, language: Code = "th"
+    conn: sqlite3.Connection,
+    before: datetime,
+    language: Code = "th",
+    rollover: int = DEFAULT_ROLLOVER,
+    zone: tzinfo | None = None,
 ) -> dict[str, int]:
     """For each word that was a stretch word in a text read before `before`, the number of
-    different days it was one."""
+    different study days it was one (study_day.py: the owner's day, not UTC's)."""
     rows = conn.execute(
-        """SELECT DISTINCT substr(r.logged_at, 1, 10), x.stretch FROM readings r
+        """SELECT r.logged_at, x.stretch FROM readings r
            JOIN texts x ON x.id = r.text_id WHERE r.logged_at < ? AND x.language = ?""",
         (before.isoformat(), language),
     )
-    days: dict[str, set[str]] = {}
-    for day, stretch in rows:
+    days: dict[str, set[date]] = {}
+    for logged_at, stretch in rows:
+        day = study_day(datetime.fromisoformat(logged_at), rollover, zone)
         for word in json.loads(stretch):
             days.setdefault(word, set()).add(day)
     return {word: len(d) for word, d in days.items()}
@@ -1419,10 +1518,65 @@ def vocab_items(conn: sqlite3.Connection, language: Code) -> list[tuple[str, int
     ]
 
 
+def save_meaning_batch(
+    conn: sqlite3.Connection,
+    language: Code,
+    meanings: dict[str, str],
+    now: datetime,
+    cost_usd: float,
+) -> None:
+    """A batch of words Claude glossed for a language, as {lower-case word: meaning}, with its cost.
+    A word it gave no usable meaning for is kept with an empty one, so it isn't asked again."""
+    with conn:
+        batch = conn.execute(
+            "INSERT INTO meaning_batches (language, asked, kept, created_at, cost_usd)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (
+                language,
+                len(meanings),
+                sum(1 for m in meanings.values() if m),
+                now.isoformat(),
+                cost_usd,
+            ),
+        ).lastrowid
+        conn.executemany(
+            "INSERT OR IGNORE INTO word_meanings (language, word, meaning, batch_id)"
+            " VALUES (?, ?, ?, ?)",
+            [(language, word, meaning, batch) for word, meaning in meanings.items()],
+        )
+
+
+def word_meanings(conn: sqlite3.Connection, language: Code) -> dict[str, str]:
+    """Every word of a language that has been asked about, as {lower-case word: meaning}."""
+    return dict(
+        conn.execute(
+            "SELECT word, meaning FROM word_meanings WHERE language = ?", (language,)
+        ).fetchall()
+    )
+
+
+def meaning_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
+    """Each language with word meanings written since `since`: batches and their cost."""
+    return {
+        language: (count, cost)
+        for language, count, cost in conn.execute(
+            "SELECT language, COUNT(*), SUM(cost_usd) FROM meaning_batches WHERE created_at >= ?"
+            " GROUP BY language ORDER BY SUM(cost_usd) DESC",
+            (since.isoformat(),),
+        )
+    }
+
+
 def vocab_asked(conn: sqlite3.Connection, language: Code) -> int:
-    """How many words Claude has been asked to gloss for a language, passed or not."""
+    """How many words Claude has been asked to gloss for a language, passed or not, in batches
+    that were kept. A first write that left a band short kept nothing (vocab_check.write_bank), so
+    its words count as never asked: they're asked again, and a bank that later gains a band is
+    still topped up. A batch was kept when it kept a word, or when the bank already had words (a
+    top-up keeps what passes, even nothing)."""
     row = conn.execute(
-        "SELECT SUM(asked) FROM vocab_batches WHERE language = ?", (language,)
+        """SELECT SUM(asked) FROM vocab_batches b WHERE language = ? AND (kept > 0 OR EXISTS
+               (SELECT 1 FROM vocab_items i WHERE i.language = b.language AND i.batch_id < b.id))""",
+        (language,),
     ).fetchone()
     return int(row[0] or 0)
 

@@ -217,6 +217,24 @@ describe('syncing the kept collection', () => {
     expect((await db.first<{ n: number }>('SELECT COUNT(*) AS n FROM graves'))!.n).toBe(0);
     expect(await colRow(db)).toMatchObject({ scm: NOW, ls: NOW, usn: before.usn + 1 });
   });
+
+  it('readies two copies alike given the same time, so the kept one can follow an upload of the other', async () => {
+    // The phone uploads a readied copy and readies the kept collection only once the server took it.
+    const dump = async (db: Awaited<ReturnType<typeof collection>>) => ({
+      col: await db.first('SELECT usn, scm, ls FROM col'),
+      cards: await db.all('SELECT id, usn FROM cards ORDER BY id'),
+      notes: await db.all('SELECT id, usn FROM notes ORDER BY id'),
+      revlog: await db.all('SELECT id, usn FROM revlog ORDER BY id'),
+      graves: await db.all('SELECT * FROM graves'),
+    });
+    const [a, b] = [await collection(), await collection()];
+    for (const db of [a, b]) {
+      await db.run('UPDATE cards SET usn = -1 WHERE id IN (SELECT id FROM cards LIMIT 3)');
+      await db.run('INSERT INTO graves (usn, oid, type) VALUES (-1, 5, 0)');
+      await prepareForUpload(db, () => NOW);
+    }
+    expect(await dump(a)).toEqual(await dump(b));
+  });
 });
 
 describe.skipIf(!unicaseExtension())('with Anki\'s collation, writing decks, options, note types and tags in place', () => {

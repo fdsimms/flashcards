@@ -1,9 +1,10 @@
-"""A line's grammar and vocabulary explained in English, when the owner taps Explain on it, and a
-phrase the owner selected in a line, when they select one.
+"""A line's grammar and vocabulary explained in English, when the owner taps Explain on it, a
+phrase the owner selected in a line, when they select one, and whether a line sounds natural, when
+they ask.
 
-Asked only on that tap, once per line or phrase (the answer is kept in `explanations` and
-`phrase_explanations`), never ahead of time. Reading and listening still never grade or write
-cards: this only shows text.
+Asked only on that tap, once per line or phrase (the answer is kept in `explanations`,
+`phrase_explanations` and `naturalness`), never ahead of time. Reading and listening still never
+grade or write cards: this only shows text.
 """
 
 import json
@@ -78,6 +79,33 @@ PHRASE_SCHEMA: dict[str, Any] = {
 }
 
 
+VERDICTS = ("natural", "stiff", "unusual")
+
+CHECK_SYSTEM = (
+    "You are a native speaker of the language, reviewing one line of a short text written for "
+    "learners. Judge whether a native speaker would actually say or write this line in this "
+    "situation, given who is speaking and the lines around it. Answer with `verdict`: "
+    '"natural" (a native speaker would say it), "stiff" (correct, but too formal, too literal or '
+    'too written for this situation) or "unusual" (grammatical, but a native speaker would '
+    "hardly say it this way). Give `reason`, one or two short plain English sentences naming "
+    "what is off, or why it works when it is natural. Give `alternative`: what a native speaker "
+    "would more likely say, in the language and as plain text with no markup, or an empty "
+    'string when the verdict is "natural". Judge only naturalness and register, not whether the '
+    "words are easy for a learner. Do not use em dashes."
+)
+
+CHECK_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "verdict": {"type": "string", "enum": list(VERDICTS)},
+        "reason": {"type": "string"},
+        "alternative": {"type": "string"},
+    },
+    "required": ["verdict", "reason", "alternative"],
+    "additionalProperties": False,
+}
+
+
 class ExplainFailed(Exception):
     """Written to be shown as it is."""
 
@@ -110,6 +138,20 @@ class PhraseRequest:
 ExplainPhrase = Callable[[PhraseRequest], Awaitable[tuple[dict[str, Any], Usage]]]
 
 
+@dataclass(frozen=True)
+class CheckRequest:
+    language: Code
+    line: str  # plain text, as shown
+    english: str
+    speaker: str = ""  # who says it, e.g. "A (Waiter)"; empty for a narrator
+    register: str = ""  # what the text was written as, when it says
+    context: tuple[str, ...] = ()
+
+
+# {verdict, reason, alternative}, and what asking for it cost.
+CheckNatural = Callable[[CheckRequest], Awaitable[tuple[dict[str, str], Usage]]]
+
+
 def request_message(request: ExplainRequest) -> str:
     lines = [f"Language: {LANGUAGES[request.language].name}", f"Line: {request.line}"]
     lines.append(f"English: {request.english}")
@@ -124,6 +166,33 @@ def phrase_message(request: PhraseRequest) -> str:
         request.language, request.line, request.english, request.context, request.simple
     )
     return f"Selected phrase: {request.phrase}\n" + request_message(base)
+
+
+def check_message(request: CheckRequest) -> str:
+    lines = [f"Language: {LANGUAGES[request.language].name}", f"Line: {request.line}"]
+    if request.speaker:
+        lines.append(f"Spoken by: {request.speaker}")
+    if request.register:
+        lines.append(f"The text was written as: {request.register}")
+    lines.append(f"English: {request.english}")
+    if request.context:
+        lines.append("The text around it:")
+        lines.extend(f"- {c}" for c in request.context)
+    return "\n".join(lines)
+
+
+def clean_check(answer: dict[str, Any]) -> dict[str, str] | None:
+    """The verdict, reason and alternative the model gave, trimmed; None without a verdict from
+    the list or a reason. A natural line has no alternative."""
+    verdict, reason, alternative = (answer.get(k) for k in ("verdict", "reason", "alternative"))
+    if verdict not in VERDICTS or not isinstance(reason, str) or not reason.strip():
+        return None
+    alt = alternative.strip()[:MAX_CHARS] if isinstance(alternative, str) else ""
+    return {
+        "verdict": verdict,
+        "reason": reason.strip()[:MAX_CHARS],
+        "alternative": "" if verdict == "natural" else alt,
+    }
 
 
 def clean(points: object) -> list[dict[str, str]]:
@@ -197,6 +266,19 @@ def claude_explain(client: anthropic.AsyncAnthropic) -> Explain:
         return points, used
 
     return explain
+
+
+def claude_check(client: anthropic.AsyncAnthropic) -> CheckNatural:
+    async def check(request: CheckRequest) -> tuple[dict[str, str], Usage]:
+        answer, used = await _ask(
+            client, CHECK_SYSTEM, check_message(request), CHECK_SCHEMA, "this line"
+        )
+        cleaned = clean_check(answer)
+        if cleaned is None:
+            raise ExplainFailed("Claude didn't check this line. Try again in a moment.")
+        return cleaned, used
+
+    return check
 
 
 def clean_phrase(answer: dict[str, Any]) -> dict[str, Any] | None:
