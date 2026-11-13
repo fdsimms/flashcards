@@ -537,6 +537,12 @@ and compare after.
 
 ## Working style
 
+**Recommend the best option.** When there's a choice between several ways to do something,
+recommend the best one, even if another option would be simpler. Don't steer toward the simpler
+one just because it's less work. The exception is a choice with a real tradeoff, such as a
+security or privacy risk, data going to a third party, a cost, or something the owner has to keep
+running. In that case, name the tradeoff next to the recommendation so the owner can weigh it.
+
 **Stay in scope.** Fix what was asked in the pattern the surrounding file already uses. Adjacent
 code that merely looks improvable isn't the task (see "Bugs, siblings, orphans and follow-ups" for
 what to do about a real bug).
