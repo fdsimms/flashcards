@@ -8,14 +8,14 @@ type LanguageInfo = {
   flag: string; // a flag emoji, to tell the languages apart at a glance (the language isn't the country, so it's only a cue)
   fontSize: number; // Thai sits bigger than Latin text at the same size
   lineHeight: number; // Thai needs room for marks above and below
-  highlightLabel: string;
+  highlightLabel: string; // what the highlighted words are, as the key names them
   speech: string; // the phone voice's language for a tapped word, the same as Review reads these decks in
 };
 
-const SPACED = { fontSize: 20, lineHeight: 1.5, highlightLabel: 'Highlight words you might not know' };
+const SPACED = { fontSize: 20, lineHeight: 1.5, highlightLabel: 'Might be new to you' };
 
 export const LANGUAGES: Record<Language, LanguageInfo> = {
-  th: { name: 'Thai', flag: '🇹🇭', fontSize: 23, lineHeight: 1.75, highlightLabel: 'Highlight words not in your deck', speech: 'th-TH' },
+  th: { name: 'Thai', flag: '🇹🇭', fontSize: 23, lineHeight: 1.75, highlightLabel: 'Not in your deck', speech: 'th-TH' },
   es: { name: 'Spanish', flag: '🇲🇽', ...SPACED, speech: 'es-MX' },
   de: { name: 'German', flag: '🇩🇪', ...SPACED, speech: 'de-DE' },
   fr: { name: 'French', flag: '🇫🇷', ...SPACED, speech: 'fr-FR' },
