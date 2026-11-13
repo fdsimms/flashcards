@@ -7,6 +7,7 @@ import { cardDetail, playMinutes, playOrder, reasonLabel, surprisePick } from '.
 import { haptic } from './haptics';
 import { Button, Card, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, space, type, useTheme } from './theme';
+import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
  * Read & Listen's home: one language's shelf (docs/read-and-listen/architecture.md, Shelf). On top,
@@ -47,6 +48,8 @@ export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, o
   const [refreshing, setRefreshing] = useState(false);
   const [markedCount, setMarkedCount] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
 
   // Bumped when the language changes, so a load started before it is dropped rather than shown.
   const loadSeq = useRef(0);
@@ -190,9 +193,9 @@ export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, o
     >
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: space.l, gap: space.m }}
+        contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: space.l + bottomPadding, gap: space.m }}
         keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
+        {...scrollProps}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
       >
         {practice ? (
