@@ -101,9 +101,8 @@ Franki's (Client, below).
   opens Franki's note editor on a new Omnilanguage note in the current language's deck, with the
   word and its gloss filled in. **Saving it is the approval** (brief, design principle 13): nothing
   reaches the deck otherwise, and the note goes into the collection as every note added in Franki
-  does, reaching Anki at the next sync. At most `MINING_PER_DAY` (10) are added a study day
-  (`src/reader/mining.ts`, counted on the phone), to protect the ~300 reviews/day ceiling (principle
-  12). An added word is cleared from the list. The brief's "given audio" isn't done here: the note
+  does, reaching Anki at the next sync. There is no daily cap (the owner dropped
+  the brief's principle 12 on 13 November 2026: the deck's own new-cards-per-day limit controls how many come up). An added word is cleared from the list. The brief's "given audio" isn't done here: the note
   plays with the phone's voice until audio is recorded for it (the MCP's `add_tts_audio`).
 - **Practice words after studying** (12 November 2026, by the owner's decision). When a Review
   session in a Read & Listen language's deck ends, **Read a text with these words** opens the
@@ -709,7 +708,7 @@ in the current language, with when one was last read to the end. Nothing else le
   taking a third of a right one (a guess among four). It suggests the largest setting at which at
   least 90% of the words it would count as known are known, by each band's share, taking an unasked
   band below the lowest asked as known and nothing above the highest asked. The owner accepts it or
-  keeps their setting; it never writes a card or changes anything else, except that after a wrong or skipped answer the word can be added to the deck through the note editor (saving is the approval, and it counts toward `MINING_PER_DAY`). Each answer is marked right or wrong at once, and the question stays until Next; marking changes no score. The result lists the words missed (wrong or skipped) with their meaning and what was chosen. The 5,001 to 10,000 band was added on 13 November 2026 so 10,000 can be suggested; a bank stored without it is served as it is and topped up in the background with the new band's words. Twenty questions was checked
+  keeps their setting; it never writes a card or changes anything else, except that after a wrong or skipped answer the word can be added to the deck through the note editor (saving is the approval). Each answer is marked right or wrong at once, and the question stays until Next; marking changes no score. The result lists the words missed (wrong or skipped) with their meaning and what was chosen. The 5,001 to 10,000 band was added on 13 November 2026 so 10,000 can be suggested; a bank stored without it is served as it is and topped up in the background with the new band's words. Twenty questions was checked
   by simulation against a learner whose chance of knowing a word falls with its rank: the suggestion
   was within one setting step of the right one 98% of the time (95% at 12 questions, 99% at 40) and
   exactly right 62% of the time (69% at 40), so more questions buy little. Not tried on a real

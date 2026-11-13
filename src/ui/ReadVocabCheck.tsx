@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type CommonCount, type Language, type Settings, type VocabBank } from '../reader/api';
 import { LANGUAGES, commonLabel } from '../reader/languages';
-import { MINING_PER_DAY } from '../reader/mining';
 import {
   KNOWN_SHARE, QUESTIONS, bandLabel, choicesFor, estimate, missedWords, nextItem, rememberSeen, type Asked, type Reply, type VocabItem,
 } from '../reader/vocabCheck';
@@ -29,8 +28,8 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
   /** The settings as the server has them after the suggestion is used. */
   onSettings: (settings: Settings) => void;
   onPlayWord: (word: string, language: Language) => void;
-  /** Present when words can be added to the deck: its name, how many more today, and what opens the note editor, resolving true once the note is saved. */
-  mining?: { deck: string; left: number; onAdd: (word: string, meaning: string) => Promise<boolean> };
+  /** Present when words can be added to the deck: its name and what opens the note editor, resolving true once the note is saved. */
+  mining?: { deck: string; onAdd: (word: string, meaning: string) => Promise<boolean> };
   onDone: () => void;
 }) {
   const c = useTheme();
@@ -283,49 +282,46 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
             <Icon name="speaker.wave.2.fill" size={18} color={c.accent} />
           </Tappable>
         </Card>
-        {choices.map((choice) => {
-          const right = choice === item.meaning;
-          const wrongPick = !!feedback && feedback.picked === choice && !right;
-          const mark = feedback && right ? c.good : wrongPick ? c.danger : null;
-          return (
-            <Tappable
-              key={choice}
-              onPress={() => answer(right ? 'right' : 'wrong', choice)}
-              disabled={!!feedback}
-              accessibilityRole="button"
-              accessibilityLabel={`${choice}${feedback && right ? '. Right answer' : wrongPick ? '. Your answer' : ''}`}
-              style={{
-                minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.s,
-                paddingHorizontal: space.l, paddingVertical: space.m, borderRadius: radius.m, ...smooth,
-                backgroundColor: feedback && right ? c.goodFill : wrongPick ? c.dangerFill : c.surface,
-                borderColor: mark ?? c.border, borderWidth: mark ? 1 : 0.5,
-                opacity: feedback && !mark ? 0.55 : 1,
-              }}
-            >
-              <Text style={{ ...type.body, color: c.text, flexShrink: 1 }}>{choice}</Text>
-              {mark ? <Text style={{ ...type.footnote, fontWeight: '600', color: mark }}>{right ? 'Right answer' : 'Your answer'}</Text> : null}
-            </Tappable>
-          );
-        })}
+        {[choices.slice(0, 2), choices.slice(2)].map((pair, row) => (
+          <View key={row} style={{ flexDirection: 'row', gap: space.s }}>
+            {pair.map((choice) => {
+              const right = choice === item.meaning;
+              const wrongPick = !!feedback && feedback.picked === choice && !right;
+              const mark = feedback && right ? c.good : wrongPick ? c.danger : null;
+              return (
+                <Tappable
+                  key={choice}
+                  onPress={() => answer(right ? 'right' : 'wrong', choice)}
+                  disabled={!!feedback}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${choice}${feedback && right ? '. Right answer' : wrongPick ? '. Your answer' : ''}`}
+                  style={{
+                    flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center',
+                    paddingHorizontal: space.m, paddingVertical: space.m, borderRadius: radius.m, ...smooth,
+                    backgroundColor: feedback && right ? c.goodFill : wrongPick ? c.dangerFill : c.surface,
+                    borderColor: mark ?? c.border, borderWidth: mark ? 1 : 0.5,
+                    opacity: feedback && !mark ? 0.5 : 1,
+                  }}
+                >
+                  <Text style={{ ...type.body, color: c.text, textAlign: 'center', fontWeight: feedback && right ? '600' : '400' }}>{choice}</Text>
+                </Tappable>
+              );
+            })}
+          </View>
+        ))}
         {feedback ? (
-          <>
+          <View style={{ flexDirection: 'row', gap: space.s }}>
             {mining && feedback.reply !== 'right' ? (
-              <>
-                <Button
-                  label={added.includes(item.word) ? 'Added to deck' : 'Add to deck'}
-                  variant="secondary"
-                  onPress={() => add(item)}
-                  disabled={added.includes(item.word) || mining.left === 0}
-                />
-                <Help>
-                  {mining.left === 0
-                    ? `You've added ${MINING_PER_DAY} words today, the most for one day, so your reviews stay manageable. Add more tomorrow.`
-                    : `Add to deck opens a new note in ${mining.deck} with the word and its meaning, to check before saving. Up to ${MINING_PER_DAY} a day; ${mining.left} left today.`}
-                </Help>
-              </>
+              <Button
+                label={added.includes(item.word) ? 'Added to deck' : 'Add to deck'}
+                variant="secondary"
+                onPress={() => add(item)}
+                disabled={added.includes(item.word)}
+                style={{ flex: 1 }}
+              />
             ) : null}
-            <Button label={asked.length + 1 >= QUESTIONS ? 'See result' : 'Next'} onPress={next} />
-          </>
+            <Button label={asked.length + 1 >= QUESTIONS ? 'See result' : 'Next'} onPress={next} style={{ flex: 1 }} />
+          </View>
         ) : (
           <Tappable
             onPress={() => answer('skipped')}

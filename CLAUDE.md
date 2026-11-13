@@ -477,8 +477,7 @@ they win and this is stale. The rules that must not break:
   checks a read leaves nothing to send), and the app's side imports nothing that schedules or
   writes cards (`tests/reader/noGrading.test.ts` fails the build on it). Adding a marked word or a
   selected phrase to the deck goes through the note editor, opened by the `read-words` and `reader`
-  routes, where saving is the approval, and at most `MINING_PER_DAY` a study day
-  (`src/reader/mining.ts`).
+  routes (and the vocabulary check), where saving is the approval. There is no daily cap on additions.
 - **Generate, then verify in code.** The model writes lines as `|`-split strings with stretch words
   in `*asterisks*`; the server re-segments every line itself (lexicon-first for Thai, by lemma for
   the rest, `spaced.py`) and sends drafts under the floor back with the unknown words named. Never trust the

@@ -865,7 +865,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
             if (saved) setSession((s) => (s && isFlagged(s, word) ? toggleFlag(s, word) : s));
           });
         } : null}
-        addsLeft={mining?.left ?? 0}
         onClose={() => setTapped(null)}
       />
     </Screen>
@@ -1073,7 +1072,7 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, addsLeft, onClose }: {
+function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, onClose }: {
   tapped: Tapped | null;
   grammar: TextGrammar | null;
   api: Api;
@@ -1088,7 +1087,6 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
   /** Opens the note editor on this word; null when the word is in the deck or isn't in the language being read. */
   onAddToDeck: (() => void) | null;
   /** How many more words can be added to the deck today. */
-  addsLeft: number;
   onClose: () => void;
 }) {
   const c = useTheme();
@@ -1139,7 +1137,7 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
             <HeaderAction label="Select a phrase" accessibilityLabel={`Select a phrase starting from ${tapped.word.text}`} onPress={onSelectPhrase} />
           </View>
         ) : null}
-        {onAddToDeck && addsLeft > 0 ? (
+        {onAddToDeck ? (
           <View style={{ alignItems: 'flex-start' }}>
             <HeaderAction label="Add to deck" accessibilityLabel={`Add ${tapped.word.text} to your deck`} onPress={onAddToDeck} />
           </View>

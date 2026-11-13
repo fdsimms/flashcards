@@ -1,5 +1,4 @@
 import * as SecureStore from 'expo-secure-store';
-import { parseMiningCount, type MiningCount } from './mining';
 import { parseSeen } from './vocabCheck';
 import { DEFAULT_PREFS, parsePrefs, type Prefs } from './prefs';
 
@@ -11,7 +10,6 @@ import { DEFAULT_PREFS, parsePrefs, type Prefs } from './prefs';
 
 const PASSPHRASE_KEY = 'reader.passphrase';
 const PREFS_KEY = 'reader.prefs';
-const MINED_KEY = 'reader.mined';
 const VOCAB_SEEN_KEY = 'reader.vocabSeen.';
 
 export const loadPassphrase = () => SecureStore.getItemAsync(PASSPHRASE_KEY);
@@ -34,19 +32,6 @@ export const prefs = (): Prefs => current;
 export function savePrefs(change: Partial<Prefs>): void {
   current = { ...current, ...change };
   SecureStore.setItemAsync(PREFS_KEY, JSON.stringify(current)).catch(() => undefined);
-}
-
-/** How many marked words were added to the deck, and on which study day (mining.ts). */
-export async function loadMined(): Promise<MiningCount | null> {
-  try {
-    return parseMiningCount(await SecureStore.getItemAsync(MINED_KEY));
-  } catch {
-    return null;
-  }
-}
-
-export function saveMined(count: MiningCount): void {
-  SecureStore.setItemAsync(MINED_KEY, JSON.stringify(count)).catch(() => undefined);
 }
 
 /** The words a language's vocabulary check has already asked (vocabCheck.ts), so a retake prefers new ones. */

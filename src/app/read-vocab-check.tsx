@@ -25,11 +25,8 @@ export default function ReadVocabCheckRoute() {
       // `decks` is missing from a server older than the deck setting.
       mining={deck ? {
         deck,
-        left: reader.miningLeft,
         onAdd: (word, meaning) => new Promise<boolean>((resolve) => openNoteEditor(minedNote(word, meaning, deck), (result) => {
-          const saved = !!result && 'saved' in result;
-          if (saved) reader.recordMined();
-          resolve(saved);
+          resolve(!!result && 'saved' in result);
         })),
       } : undefined}
       onDone={() => router.back()}
