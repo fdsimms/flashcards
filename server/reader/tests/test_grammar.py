@@ -96,6 +96,19 @@ def test_look_alikes_are_left_alone() -> None:
     assert result == {"es.imperfect": ["había"]}
 
 
+def test_nouns_that_end_like_a_participle_or_a_gerund_are_left_alone() -> None:
+    # ruido and pescado are nouns; blando only ends in -ando.
+    assert "es.pluperfect" not in found("Había ruido en la calle. Había pescado en el mercado.")
+    assert "es.present_perfect" not in found("Ella ha vestido bonito.")
+    assert "es.progressive" not in found("El café está blando.")
+
+
+def test_the_preterite_and_the_future_are_not_also_a_subjunctive() -> None:
+    # hablaste and hablaremos end like a present subjunctive's -e and -emos.
+    assert found("Ayer hablaste con ella.") == {"es.preterite": ["hablaste"]}
+    assert found("Mañana hablaremos y hablaréis.") == {"es.future": ["hablaremos", "hablaréis"]}
+
+
 def test_a_pluperfects_haber_is_not_also_imperfect() -> None:
     assert "es.imperfect" not in found("Había comido.")
 
@@ -125,6 +138,30 @@ def test_each_thai_point_is_found(text: str, point: str) -> None:
 
 def test_want_is_not_must() -> None:
     assert found("ฉันต้องการน้ำ", TH) == {}
+
+
+@pytest.mark.parametrize(
+    ("words", "point"),
+    [
+        (["แล้วแต่", "คุณ"], "th.already"),  # it depends
+        (["แล้วก็", "ไป", "กินข้าว"], "th.already"),  # and then
+        (["แล้ว", "คุณ", "ล่ะ"], "th.already"),  # a line opening with แล้ว: and you?
+        (["ของ", "ต้องห้าม"], "th.must"),  # forbidden
+        (["กำลังซื้อ", "สูง"], "th.ongoing"),  # buying power
+        (["กว่า", "จะ", "ถึง", "บ้าน"], "th.comparison"),  # by the time
+        (["เสียง", "เพราะ", "จัง"], "th.because"),  # a sweet voice
+        (["เพลง", "นี้", "เพราะ", "มาก"], "th.because"),
+    ],
+)
+def test_thai_words_that_mean_something_else_next_to_a_marker_are_left_alone(
+    words: list[str], point: str
+) -> None:
+    from franki_reader.grammar import POINTS
+
+    assert POINTS[point].find(words) == []
+    # ...while the same markers still count where they carry the meaning.
+    assert POINTS["th.already"].find(["กิน", "ข้าว", "แล้ว"]) == [(2, 3)]
+    assert POINTS["th.because"].find(["ไม่", "ไป", "เพราะ", "ฝนตก"]) == [(2, 3)]
 
 
 def test_every_point_has_a_name_and_a_note() -> None:
