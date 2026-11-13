@@ -6,14 +6,14 @@ import { breakDown, CURRENCIES, MONEY_MAXES, randomAmount, type MoneyMax } from 
 import { moneyPatterns } from '../../tools/patterns';
 import { toolPrefs } from '../../tools/storage';
 import { CURRENCY_OF, MONEY_SAYERS, toolLanguage } from '../../tools/tools';
-import { Card, Segments } from '../kit';
+import { Card } from '../kit';
 import { space, type, useTheme } from '../theme';
 import { Cash } from './Cash';
 import type { ToolScreenProps } from './index';
-import { AnswerCard, ControlLabel, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
+import { AnswerCard, ChipChoice, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
 import { useMarks } from './useMarks';
 
-const MODES: { value: MoneyMode; label: string }[] = [{ value: 'count', label: 'Notes and coins' }, { value: 'price', label: 'A price' }];
+const MODES: { value: MoneyMode; label: string }[] = [{ value: 'count', label: 'Counting' }, { value: 'price', label: 'Prices' }];
 
 /**
  * Counting money: an amount in the chosen language's own money, as notes and coins to add up or
@@ -57,27 +57,24 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
       onShow={() => answer.show(saying?.everyday)}
       onMark={(right) => { if (amount !== undefined) marks.mark(moneyPatterns(amount, currency), right); next(); }}
     >
-      <Segments options={MODES} value={mode} onChange={(m) => { if (m === mode) return; setMode(m); next(); }} />
-
       <Card style={{ minHeight: 150, justifyContent: 'center' }}>
         {mode === 'count' ? (
           <Cash pieces={pieces} currency={currency} />
         ) : (
           <View style={{ alignItems: 'center', gap: space.xs }}>
             <Text maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: 44, fontVariant: ['tabular-nums'], color: c.text }}>{saying?.written.text}</Text>
-            <Text style={{ ...type.footnote, color: c.textSecondary }}>Say the price</Text>
           </View>
         )}
       </Card>
 
-      <View style={{ gap: space.s }}>
-        <ControlLabel>Amounts up to</ControlLabel>
-        <Segments
-          options={MONEY_MAXES.map((m) => ({ value: m, label: m.toLocaleString('en-US') }))}
-          value={max}
-          onChange={(m) => { setMax(m); next(m); }}
-        />
-      </View>
+      <ChipChoice label="Practice" options={MODES} value={mode} onChange={(m) => { setMode(m); next(); }} />
+
+      <ChipChoice
+        label="Amounts up to"
+        options={MONEY_MAXES.map((m) => ({ value: m, label: m.toLocaleString('en-US') }))}
+        value={max}
+        onChange={(m) => { setMax(m); next(m); }}
+      />
 
       <AnswerCard
         shown={answer.shown}

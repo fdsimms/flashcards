@@ -6,8 +6,9 @@ import { LANGUAGES, flaggedName } from '../reader/languages';
 import { cardDetail, playMinutes, playOrder, reasonLabel, surprisePick } from '../reader/shelf';
 import { haptic } from './haptics';
 import { Button, Card, Divider, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
+import { PracticeWordPill } from './PracticeWordPill';
 import { GlossPopover, type Tapped } from './Reader';
-import { hairline, MIN_TAP, radius, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
@@ -346,20 +347,9 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onStarted }: { api: Api; sh
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>Practice words</Text>
               {next.stretch.map((w) => {
-                const pill = <Text style={{ ...type.subhead, color: c.text, backgroundColor: c.accentFill, paddingHorizontal: space.s, paddingVertical: 2, borderRadius: radius.pill, overflow: 'hidden' }}>{w}</Text>;
                 // A server older than the practice words sends none, and the pill stays plain.
                 const word = next.practice?.find((p) => p.text === w);
-                return word ? (
-                  <Tappable
-                    key={w}
-                    onPress={(e) => { haptic.tap(); setTapped({ word, x: e.nativeEvent.pageX, y: e.nativeEvent.pageY }); }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Meaning of ${w}`}
-                    hitSlop={{ top: space.m, bottom: space.m }}
-                  >
-                    {pill}
-                  </Tappable>
-                ) : <React.Fragment key={w}>{pill}</React.Fragment>;
+                return <PracticeWordPill key={w} word={w} onPress={word ? (x, y) => setTapped({ word, x, y }) : undefined} />;
               })}
             </View>
           ) : null}

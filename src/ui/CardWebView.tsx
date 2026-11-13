@@ -25,6 +25,10 @@ true;
  * because iOS's WebView only reads local files (the card's images and sounds in the media folder)
  * for a page that itself came from a file URL, with read access granted to the folder above both.
  * An HTML string with a file:// baseUrl doesn't get that access.
+ *
+ * A new `html` loads into the same WebView, and the page already shown stays until the new one is
+ * written and has loaded (WKWebView keeps the old page up while the next navigates), so showing a
+ * card's back doesn't blank the card. Key it to start a new card from an empty view instead.
  */
 export function CardWebView({ html, onMessage, onTap }: {
   html: string;
@@ -42,9 +46,9 @@ export function CardWebView({ html, onMessage, onTap }: {
     const dir = new Directory(Paths.document, 'card-pages');
     dir.create({ idempotent: true, intermediates: true });
     // A new name per page, so the WebView loads it fresh, and the previous one is removed. The
-    // counter is shared by every CardWebView: Review mounts a new one for each card side, and a
-    // per-instance counter gave them all `page-1.html`, so one side's delayed delete below removed
-    // the next side's page before the WebView had loaded it (error -1100).
+    // counter is shared by every CardWebView: Review mounts a new one for each card, and a
+    // per-instance counter gave them all `page-1.html`, so one page's delayed delete below removed
+    // the next one's page before the WebView had loaded it (error -1100).
     const n = ++seq.current;
     const file = new File(dir, `page-${++pageCount}.html`);
     let cancelled = false;

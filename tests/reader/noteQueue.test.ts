@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QueuedNote } from '../../src/reader/api';
-import { bannerOf, counts, firstReady, parseWords, reviewTarget } from '../../src/reader/noteQueue';
+import { bannerOf, counts, firstReady, parseWords, quickAddDecks, reviewTarget } from '../../src/reader/noteQueue';
 import { createNoteQueueStore } from '../../src/reader/noteQueueStore';
 
 const note = (over: Partial<QueuedNote> = {}): QueuedNote => ({
@@ -102,5 +102,25 @@ describe('the store', () => {
     off();
     store.set({ queue: null, error: 'x' });
     expect(calls).toBe(2);
+  });
+});
+
+describe('quickAddDecks', () => {
+  const decks = { th: 'ภาษาไทย', fr: 'Languages::Français', pl: 'Polski' };
+
+  it('offers only the languages whose deck is in the collection', () => {
+    expect(quickAddDecks(decks, ['Polski', 'Languages', 'Languages::Français', 'Trivia'])).toEqual([
+      { deck: 'Languages::Français', language: 'fr' },
+      { deck: 'Polski', language: 'pl' },
+    ]);
+  });
+
+  it('offers nothing when no language deck is in the collection, or the settings have no decks', () => {
+    expect(quickAddDecks(decks, ['Trivia'])).toEqual([]);
+    expect(quickAddDecks(undefined, ['Polski'])).toEqual([]);
+  });
+
+  it('puts the language being read first', () => {
+    expect(quickAddDecks(decks, ['Polski', 'Languages::Français', 'ภาษาไทย'], 'pl').map((d) => d.language)).toEqual(['pl', 'th', 'fr']);
   });
 });

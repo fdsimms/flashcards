@@ -6,8 +6,8 @@ import { failureText } from '../core/failure';
 import { deckChipRows, notePreview, searchNotes } from '../core/noteEditing';
 import type { Note } from '../core/types';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
-import { Chip, Loading, Screen } from './kit';
-import { hairline, space, type, useTheme } from './theme';
+import { Chip, Divider, Loading, Screen } from './kit';
+import { hairline, radius, smooth, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
@@ -54,7 +54,6 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding }}
-        ItemSeparatorComponent={() => <View style={{ height: hairline, backgroundColor: c.border }} />}
         ListHeaderComponent={
           <View style={{ gap: space.s, paddingBottom: space.s }}>
             {chipRows.map((row, i) => (
@@ -74,13 +73,18 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
             {query.trim() ? `No notes match "${query.trim()}".` : 'No notes yet. Tap + to add one.'}
           </Text>
         ) : <Loading error={error} onRetry={load} />}
-        renderItem={({ item }) => <NoteRow note={item} onPress={() => edit({ noteId: item.id })} />}
+        renderItem={({ item, index }) => <NoteRow note={item} first={index === 0} last={index === found.length - 1} onPress={() => edit({ noteId: item.id })} />}
       />
     </Screen>
   );
 }
 
-function NoteRow({ note, onPress }: { note: Note; onPress: () => void }) {
+/**
+ * A row of the card the notes sit on, drawn row by row (the list stays virtualized, so the card
+ * can't be one view): the first and last round its corners, and every row but the first draws the
+ * divider above it, as a `Group`'s rows do.
+ */
+function NoteRow({ note, first, last, onPress }: { note: Note; first: boolean; last: boolean; onPress: () => void }) {
   const c = useTheme();
   const { front, back } = notePreview(note);
   return (
@@ -89,9 +93,15 @@ function NoteRow({ note, onPress }: { note: Note; onPress: () => void }) {
       accessibilityRole="button"
       accessibilityLabel={[front || 'Empty note', back, note.deck].filter(Boolean).join(', ')}
       accessibilityHint="Opens the note to edit"
-      // Edge to edge, so the pressed highlight spans the screen as a list row's does.
-      style={({ pressed }) => ({ paddingVertical: space.m, paddingHorizontal: space.l, marginHorizontal: -space.l, gap: 2, backgroundColor: pressed ? c.fill : 'transparent' })}
+      style={({ pressed }) => ({
+        paddingVertical: space.m, paddingHorizontal: space.l, gap: 2, backgroundColor: pressed ? c.fill : c.surface, ...smooth,
+        borderColor: c.border, borderLeftWidth: hairline, borderRightWidth: hairline,
+        borderTopWidth: first ? hairline : 0, borderBottomWidth: last ? hairline : 0,
+        borderTopLeftRadius: first ? radius.l : 0, borderTopRightRadius: first ? radius.l : 0,
+        borderBottomLeftRadius: last ? radius.l : 0, borderBottomRightRadius: last ? radius.l : 0,
+      })}
     >
+      {first ? null : <Divider inset={space.l} />}
       <Text numberOfLines={1} style={{ ...type.body, color: c.text }}>{front || '(empty)'}</Text>
       {back ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{back}</Text> : null}
       <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary }}>{note.deck}</Text>

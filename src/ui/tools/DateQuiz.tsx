@@ -7,11 +7,11 @@ import type { CalendarDate, DateParts, DateSaying } from '../../tools/date';
 import { acceptedForms, dateOptions, quizCalendarStart, sameDate, type DateMode, type DateOption } from '../../tools/dateQuiz';
 import type { Phrase } from '../../tools/phrase';
 import { haptic } from '../haptics';
-import { Card, Chip, Field, Icon, Tappable } from '../kit';
+import { Card, Field, Icon, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import { hairline, radius, smooth, space, type, useTheme } from '../theme';
 import { dateLabel } from './CalendarMonth';
-import { ControlLabel, PlayButton, Ways, type ToolActions } from './ToolScreen';
+import { ChipChoice, PlayButton, Status, Ways, type ToolActions } from './ToolScreen';
 
 /**
  * Saying dates besides saying it aloud: pick the phrase, type it, or read the phrase and tap the
@@ -143,29 +143,7 @@ const MODES: { value: DateMode; label: string }[] = [
 
 /** How the date is answered. */
 export function ModeChips({ mode, onChange }: { mode: DateMode; onChange: (m: DateMode) => void }) {
-  return (
-    <View style={{ gap: space.s }}>
-      <ControlLabel>Answer by</ControlLabel>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-        {MODES.map((m) => <Chip key={m.value} label={m.label} selected={mode === m.value} onPress={() => onChange(m.value)} />)}
-      </View>
-    </View>
-  );
-}
-
-type Tone = 'good' | 'warn' | 'bad';
-
-/** A result line: a symbol and what happened. */
-function Status({ tone, children }: { tone: Tone; children: string }) {
-  const c = useTheme();
-  const color = tone === 'good' ? c.countDue : tone === 'warn' ? c.warning : c.danger;
-  const name = tone === 'good' ? 'checkmark.circle.fill' : tone === 'warn' ? 'exclamationmark.circle.fill' : 'xmark.circle.fill';
-  return (
-    <View accessible accessibilityRole="text" style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
-      <Icon name={name} size={20} color={color} />
-      <Text style={{ ...type.headline, color, flex: 1 }}>{children}</Text>
-    </View>
-  );
+  return <ChipChoice label="Answer by" options={MODES} value={mode} onChange={onChange} />;
 }
 
 /** Text with the marked stretches in color and underlined. */

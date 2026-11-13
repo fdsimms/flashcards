@@ -1,7 +1,7 @@
 import { Stack, usePreventRemove } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View, type TextInputInstance } from 'react-native';
-import { cardsFor, deleteNote, NoteRefused, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
+import { cardsFor, deleteNote, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { cardStateOf, FLAG_NAMES, type CardState } from '../core/cardState';
 import { failureText } from '../core/failure';
 import type { AnkiLink } from '../db/ankiLink';
@@ -13,7 +13,8 @@ import type { NoteEditorResult } from './AppContext';
 import type { RecordDeps, Recording } from '../anki/recordService';
 import { Button, Card, Chip, Field, Help, Loading, Screen, Select } from './kit';
 import { afterSave, RecordAudio, useVoiceSettings } from './RecordAudio';
-import { space, type, useTheme } from './theme';
+import { radius, smooth, space, type, useTheme } from './theme';
+import { useHeaderInset } from './useHeaderInset';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 const OMNI_CARD_NAMES: Record<string, string> = { forward: 'Front', reverse: 'Reverse', audio: 'Audio' };
@@ -149,7 +150,7 @@ export function NoteEditor(props: {
       stopAsking();
       props.onClose({ saved });
     } catch (e) {
-      setError(e instanceof NoteRefused ? e.message : failureText(e, { what: "Couldn't save the note.", next: 'Try again.' }));
+      setError(failureText(e, { what: "Couldn't save the note.", next: 'Try again.' }));
     } finally {
       setBusy(false);
     }
@@ -164,6 +165,14 @@ export function NoteEditor(props: {
     ]);
   });
   const cancel = () => props.onClose();
+
+  // An error shows above the first card, so the screen goes back to the top to show it: a Save
+  // tapped at the bottom of a long note otherwise looked like it did nothing. The scroll view's
+  // top at rest is the header's height above zero (contentInsetAdjustmentBehavior).
+  const header = useHeaderInset();
+  useEffect(() => {
+    if (error) scrollProps.ref.current?.scrollTo({ y: -header.top, animated: true });
+  }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const remove = () => {
     if (!original) return;
@@ -210,7 +219,13 @@ export function NoteEditor(props: {
           <Help>Couldn't find this note. It may have been deleted, here or in Anki.</Help>
         </ScrollView>
       ) : (
+        <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1 }}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
+          {error ? (
+            <View accessibilityRole="alert" style={{ backgroundColor: c.dangerFill, borderRadius: radius.m, ...smooth, padding: space.m }}>
+              <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text>
+            </View>
+          ) : null}
           <Card>
             <Select label="Deck" options={decks} value={deck} onChange={(d) => { setDeck(d); setError(undefined); }} />
             {editing ? (
@@ -255,7 +270,6 @@ export function NoteEditor(props: {
               onRecorded={(r) => { setRecording(r); setFields((f) => ({ ...f, Audio: [f.Audio?.trim(), `[sound:${r.name}]`].filter(Boolean).join(' ') })); }}
             />
           </Card>
-          {error ? <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text> : null}
           {duplicate ? (
             <Text style={{ ...type.subhead, color: c.warning }}>
               Another {model} note in {duplicate.deck} already has this {fieldNames[0]}.
@@ -290,6 +304,7 @@ export function NoteEditor(props: {
           ) : null}
           {editing ? <Button label="Delete note" variant="destructive" onPress={remove} disabled={busy} /> : null}
         </ScrollView>
+        </View>
       )}
     </Screen>
   );

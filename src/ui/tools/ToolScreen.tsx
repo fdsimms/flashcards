@@ -10,7 +10,7 @@ import type { ToolPrefs } from '../../tools/prefs';
 import { loadToolPrefs, saveToolPrefs, toolPrefs } from '../../tools/storage';
 import { toolLanguage, type ToolInfo } from '../../tools/tools';
 import { haptic } from '../haptics';
-import { Button, Card, Help, Icon, Screen, Tappable } from '../kit';
+import { Button, Card, Chip, Help, Icon, Screen, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import { MIN_TAP, radius, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
@@ -138,6 +138,36 @@ export function ControlLabel({ children }: { children: string }) {
   return <Text accessibilityRole="header" style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs }}>{children}</Text>;
 }
 
+/** A tool's mode, or another choice among a few, as a labelled row of chips under the exercise ("Answer by", "Practice"). */
+export function ChipChoice<T extends string | number>({ label, options, value, onChange }: {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <View style={{ gap: space.s }}>
+      <ControlLabel>{label}</ControlLabel>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
+        {options.map((o) => <Chip key={o.value} label={o.label} selected={value === o.value} onPress={() => { if (o.value !== value) onChange(o.value); }} />)}
+      </View>
+    </View>
+  );
+}
+
+/** How an answer went, the same in every Practice quiz: a symbol, then "Right." or "Not quite. It's …". */
+export function Status({ tone, children }: { tone: 'good' | 'warn' | 'bad'; children: string }) {
+  const c = useTheme();
+  const color = tone === 'good' ? c.countDue : tone === 'warn' ? c.warning : c.danger;
+  const name = tone === 'good' ? 'checkmark.circle.fill' : tone === 'warn' ? 'exclamationmark.circle.fill' : 'xmark.circle.fill';
+  return (
+    <View accessible accessibilityRole="text" style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
+      <Icon name={name} size={20} color={color} />
+      <Text style={{ ...type.headline, color, flex: 1 }}>{children}</Text>
+    </View>
+  );
+}
+
 export interface Answer {
   everyday: Phrase;
   also: Phrase[];
@@ -185,18 +215,28 @@ export function PlayButton({ label, onPress }: { label: string; onPress: () => v
   );
 }
 
-/** Other ways to say it, under a small heading: each tappable to hear it. */
+/** Other ways to say it, under a small heading: each tappable to hear it, with a speaker at its end to say so. */
 export function Ways({ title, phrases, onPlay }: { title: string; phrases: Phrase[]; onPlay: (p: Phrase) => void }) {
   const c = useTheme();
   return (
     <View style={{ gap: space.s, borderTopWidth: 0.5, borderTopColor: c.border, paddingTop: space.m }}>
       <Text style={{ ...type.overline, color: c.textSecondary }}>{title}</Text>
       {phrases.map((p) => (
-        <Tappable key={p.text} onPress={() => { haptic.tap(); onPlay(p); }} accessibilityRole="button" accessibilityHint="Plays it" scaleTo={0.99} style={{ gap: 2, minHeight: MIN_TAP, justifyContent: 'center' }}>
-          <Text style={{ ...type.body, color: c.text }}>{p.text}</Text>
-          {p.roman || p.note ? (
-            <Text style={{ ...type.footnote, color: c.textSecondary }}>{[p.roman, p.note].filter(Boolean).join(' · ')}</Text>
-          ) : null}
+        <Tappable
+          key={p.text}
+          onPress={() => { haptic.tap(); onPlay(p); }}
+          accessibilityRole="button"
+          accessibilityLabel={`Play ${[p.text, p.roman, p.note].filter(Boolean).join(', ')}`}
+          scaleTo={0.99}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP }}
+        >
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={{ ...type.body, color: c.text }}>{p.text}</Text>
+            {p.roman || p.note ? (
+              <Text style={{ ...type.footnote, color: c.textSecondary }}>{[p.roman, p.note].filter(Boolean).join(' · ')}</Text>
+            ) : null}
+          </View>
+          <Icon name="speaker.wave.2.fill" size={16} color={c.accent} />
         </Tappable>
       ))}
     </View>

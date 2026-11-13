@@ -11,6 +11,7 @@ import { haptic } from '../haptics';
 import { Button, Card, ErrorNote, Field, Help, Loading, Screen, Segments } from '../kit';
 import { radius, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
+import { Status } from './ToolScreen';
 
 type AnswerMode = 'pick' | 'type';
 
@@ -199,9 +200,9 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
 
         {current ? (
           <Card style={{ gap: space.xs }}>
-            <Text style={{ ...type.headline, color: current.right ? c.countDue : c.danger }}>
-              {current.right ? 'Right' : current.almost ? `Almost: ${prompt.answer}` : `Not quite: ${prompt.answer}`}
-            </Text>
+            {current.right
+              ? <Status tone="good">Right.</Status>
+              : <Status tone="bad">{`${current.almost ? 'Almost' : 'Not quite'}. It's ${prompt.answer}.`}</Status>}
             {current.almost ? <Help>Only an accent or a mark differs, and here that makes it another form, so it counts as wrong.</Help> : null}
             {point ? (
               <View style={{ borderTopWidth: 1, borderTopColor: c.border, paddingTop: space.s, marginTop: space.xs }}>

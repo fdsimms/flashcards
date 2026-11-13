@@ -9,8 +9,8 @@ import { loadVocabSeen, saveVocabSeen } from '../reader/storage';
 import { vocabWatch } from '../reader/vocabWatch';
 import { haptic } from './haptics';
 import { Reveal } from './motion';
-import { Button, Card, ErrorNote, Group, Help, Icon, Screen, Tappable } from './kit';
-import { hairline, radius, smooth, space, type, useTheme } from './theme';
+import { Button, Card, Divider, ErrorNote, Group, Help, Icon, Screen, SectionTitle, Tappable } from './kit';
+import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 const POLL_MS = 3000;
 
@@ -204,7 +204,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
           <>
             {error ? <ErrorNote message={error} /> : null}
             <View style={{ alignItems: 'center', gap: 2, paddingVertical: space.m }}>
-              <Text accessibilityRole="header" style={{ fontSize: 52, fontWeight: '700', color: c.accent }}>
+              <Text accessibilityRole="header" style={{ ...type.largeTitle, color: c.accent }}>
                 {none ? 'Under 250' : result.suggested.toLocaleString('en-US')}
               </Text>
               <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
@@ -217,8 +217,9 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
                   key={b.band}
                   accessible
                   accessibilityLabel={`Words ${bandLabel(b.band)}: ${b.right} of ${b.asked} right`}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, paddingVertical: space.m, paddingHorizontal: space.l, borderTopWidth: i ? hairline : 0, borderColor: c.border }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP, paddingVertical: space.m, paddingHorizontal: space.l }}
                 >
+                  {i ? <Divider inset={space.l} /> : null}
                   <View style={{ width: 8, height: 8, borderRadius: radius.pill, backgroundColor: b.known >= KNOWN_SHARE ? c.good : b.known >= 0.5 ? c.warning : c.textTertiary }} />
                   <Text style={{ ...type.callout, color: c.text, flex: 1 }}>{`Words ${bandLabel(b.band)}`}</Text>
                   <Text style={{ ...type.callout, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{`${b.right} of ${b.asked}`}</Text>
@@ -227,15 +228,16 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
             </Group>
             {missed.length ? (
               <>
-                <Text style={{ ...type.footnote, color: c.textSecondary, textTransform: 'uppercase', paddingHorizontal: space.xs }}>{`Missed (${missed.length})`}</Text>
+                <SectionTitle>{`Missed (${missed.length})`}</SectionTitle>
                 <Group>
                   {missed.map((m, i) => (
                     <View
                       key={m.item.word}
                       accessible
                       accessibilityLabel={`${m.item.word}, ${m.item.meaning}. ${m.picked ? `You chose ${m.picked}.` : 'Skipped.'}`}
-                      style={{ gap: 2, paddingVertical: space.m, paddingHorizontal: space.l, borderTopWidth: i ? hairline : 0, borderColor: c.border }}
+                      style={{ gap: 2, minHeight: MIN_TAP, justifyContent: 'center', paddingVertical: space.m, paddingHorizontal: space.l }}
                     >
+                      {i ? <Divider inset={space.l} /> : null}
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.m }}>
                         <Text selectable style={{ ...type.callout, color: c.text, flexShrink: 1 }}>{m.item.word}</Text>
                         <Text style={{ ...type.callout, color: c.textSecondary, flexShrink: 1, textAlign: 'right' }}>{m.item.meaning}</Text>

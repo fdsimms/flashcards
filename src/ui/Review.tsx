@@ -862,7 +862,10 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} /> : null}
       {page ? (
         <CardSurface>
-          <CardWebView key={`${current.id}:${revealed ? 'back' : 'front'}`} html={revealed ? page.back : page.front} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} />
+          {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
+              blanking the card while a new one starts. Keyed to the card and the answers given, so a card shown
+              again (after Again, or an undo) starts fresh instead of showing its back while its front loads. */}
+          <CardWebView key={`${current.id}:${history.length}`} html={revealed ? page.back : page.front} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} />
         </CardSurface>
       ) : null}
       {page && extras ? (

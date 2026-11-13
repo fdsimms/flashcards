@@ -1,6 +1,6 @@
 import { usePreventRemove } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, Switch, Text, TextInput, useColorScheme, View } from 'react-native';
+import { Alert, ScrollView, Text } from 'react-native';
 import { DEFAULT_GATE_CAP } from '../core/config';
 import { failureText } from '../core/failure';
 import { groupByDeck, inProgressCount } from '../core/deckTree';
@@ -12,20 +12,17 @@ import type { RecordDeps } from '../anki/recordService';
 import { DeckFormsOptions } from './DeckFormsOptions';
 import { DeckPriorityOptions } from './DeckPriorityOptions';
 import { DeckRecordings } from './DeckRecordings';
-import { haptic } from './haptics';
-import { Card, Group, Help, Loading, NavRow, Screen } from './kit';
-import { hairline, radius, smooth, space, type, useTheme } from './theme';
+import { Card, Field, Group, Help, Loading, NavRow, Screen, SwitchRow } from './kit';
+import { space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /** Settings made in the app for one deck: the progress gate, forms practice, lookalike words and recordings. */
 export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Repo; deck: string; onCustomStudy: () => void; recorder: RecordDeps | null }) {
   const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
-  const dark = useColorScheme() === 'dark';
   const [settings, setSettings] = useState<DeckSettings | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
-  const [capFocused, setCapFocused] = useState(false);
   const [capText, setCapText] = useState('');
   const [error, setError] = useState<string>();
   const [inProgress, setInProgress] = useState<number>();
@@ -59,7 +56,6 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
 
   const toggle = (on: boolean) => {
     if (!settings) return;
-    haptic.select();
     if (!on) { save({ ...settings, gateCap: undefined }); setError(undefined); return; }
     const parsed = parseGateCap(capText);
     save({ ...settings, gateCap: 'cap' in parsed ? parsed.cap : DEFAULT_GATE_CAP });
@@ -92,42 +88,29 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
     <Screen title={name}>
       {!settings ? <Loading error={loadError} onRetry={() => setAttempt((n) => n + 1)} /> : (
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
-        <Card>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
-            <Text style={{ ...type.headline, color: c.text, flex: 1 }}>Limit cards in progress</Text>
-            <Switch value={on} onValueChange={toggle} disabled={!settings} trackColor={{ true: c.accent, false: c.border }} ios_backgroundColor={c.border} accessibilityLabel="Limit cards in progress" />
-          </View>
-          <Help>
-            Show new cards only while fewer than this many cards in this deck and its subdecks are still in progress. A card
-            stops counting once its next review is {GURU_INTERVAL_DAYS} days or more away, and counts again if you forget it.
-            While this is on, the deck's daily new card limit doesn't apply.
-          </Help>
-          {on ? (
-            <View style={{ gap: space.xs, borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.m }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
-                <Text style={{ ...type.body, color: c.text, flex: 1 }}>Most cards in progress</Text>
-                <TextInput
-                  value={capText}
-                  onChangeText={(v) => { setCapText(v); setError(undefined); }}
-                  onEndEditing={commitCap}
-                  onFocus={() => setCapFocused(true)}
-                  onBlur={() => setCapFocused(false)}
-                  keyboardType="number-pad"
-                  returnKeyType="done"
-                  keyboardAppearance={dark ? 'dark' : 'light'}
-                  selectionColor={c.accent}
-                  accessibilityLabel="Most cards in progress"
-                  style={{
-                    ...type.body, color: c.text, backgroundColor: c.fill,
-                    borderColor: error ? c.danger : capFocused ? c.accent : 'transparent', borderWidth: 1.5, borderRadius: radius.m, ...smooth,
-                    paddingHorizontal: space.m, paddingVertical: space.s, minWidth: 88, textAlign: 'right',
-                  }}
-                />
-              </View>
-              {error ? <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text> : null}
-            </View>
-          ) : null}
-        </Card>
+        <Group>
+          <SwitchRow
+            first
+            label="Limit cards in progress"
+            hint={`Show new cards only while fewer than this many cards in this deck and its subdecks are still in progress. A card stops counting once its next review is ${GURU_INTERVAL_DAYS} days or more away, and counts again if you forget it. While this is on, the deck's daily new card limit doesn't apply.`}
+            value={on}
+            onValueChange={toggle}
+          />
+        </Group>
+        {on ? (
+          <Card>
+            <Field
+              label="In progress at most"
+              value={capText}
+              onChangeText={(v) => { setCapText(v); setError(undefined); }}
+              onEndEditing={commitCap}
+              keyboardType="number-pad"
+              returnKeyType="done"
+              error={!!error}
+            />
+            {error ? <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text> : null}
+          </Card>
+        ) : null}
         {inProgress !== undefined ? (
           <Help>{inProgress === 1 ? '1 card is' : `${inProgress} cards are`} in progress in this deck and its subdecks now.</Help>
         ) : null}

@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { syncStatusText } from '../../../anki/sync/runSync';
+import { quickAddDecks } from '../../../reader/noteQueue';
 import { useApp } from '../../../ui/AppContext';
 import { useDeckActions } from '../../../ui/DeckActions';
 import { DeckList } from '../../../ui/DeckList';
@@ -32,7 +33,7 @@ export default function DecksRoute() {
       onBrowse={() => router.push('/browse')}
       onOptions={openOptions}
       onNewDeck={deckActions.create}
-      onQuickAdd={reader.api ? () => router.push('/read-quick-add') : undefined}
+      onQuickAdd={reader.api && quickAddDecks(reader.settings?.decks, decks.map((d) => d.deck)).length ? () => router.push('/read-quick-add') : undefined}
       onDeckMenu={deckActions.menu}
       onMoveDeck={deckActions.move}
       collapsed={collapse.collapsed}
