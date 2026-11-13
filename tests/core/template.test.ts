@@ -141,6 +141,18 @@ describe('cloze', () => {
     // A note with no cloze gets card 1 from Anki, only to show an error on; Franki makes none.
     expect(generated).toEqual(Object.entries(cards).filter(([, c]) => !('empty' in c)).map(([ord]) => Number(ord)));
   });
+
+  /** Recorded from the real `anki` 26.09.4 package, with its stock Image Occlusion note type. */
+  it.each(vectors.imageOcclusion.notes)('renders an image occlusion note as Anki does (%#)', ({ fields, cards }) => {
+    const { name, fields: names, css, front, back } = vectors.imageOcclusion.noteType;
+    const io: NoteType = { name, kind: 'cloze', fields: names, css, templates: [{ ord: 0, name, front, back }] };
+    const n: Note = { id: 'io', deck: 'D', model: name, tags: [], fields };
+    expect(templateOrdinals(n, io)).toEqual(Object.keys(cards).map(Number));
+    for (const [ord, card] of Object.entries(cards)) {
+      const rendered = renderTemplateCard(n, io, Number(ord));
+      expect([rendered.front, rendered.back]).toEqual([card.front, card.back]);
+    }
+  });
 });
 
 describe('templateOrdinals', () => {
