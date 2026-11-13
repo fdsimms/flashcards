@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 import {
   ApiError, type Api, type Progress, type Settings, type SettingsChange, type Shelf, type StretchWords,
@@ -55,7 +56,9 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
     api.progress().then(setProgress, () => undefined);
     api.grammar().then((g) => setGrammar(grammarSummary(g.points)), () => undefined);
   }, [api]); // eslint-disable-line react-hooks/exhaustive-deps -- onSettings is the app's setter
-  useEffect(() => { load(); }, [load]);
+  // Not only on mount: the vocabulary check (and the voices and grammar screens) open on top of this
+  // one, so a setting they change is only known to the server until this asks again.
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   // Each change is numbered, so only the latest one's answer (or failure) is shown.
   const settingSeq = useRef(0);
@@ -191,7 +194,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
               ) : (
                 <Help>None yet.</Help>
               )}
-              <Help>More like this, at the end of a text or on a text held down, adds its theme. The shelf writes from these, today's due words, and new ideas. Themes are shared by every language.</Help>
+              <Help>Choosing More like this at the end of a text, or Write more about this topic on a text held down, adds its theme. The shelf writes from these, today's due words, and new ideas. Themes are shared by every language.</Help>
             </Card>
 
             <SectionTitle>Practice words</SectionTitle>
