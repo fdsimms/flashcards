@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
 import { siblingStep, type DeckMove } from '../core/deckOrder';
 import { deckListTotals, isInDeck, shownDeckRows, type DeckRow } from '../core/deckTree';
 import { useDeckDrag } from './DeckDrag';
@@ -8,7 +8,8 @@ import { DISCLOSURE, ROW_PAD, WELL_EDGE, WELL_INSET } from './deckLayout';
 import { haptic } from './haptics';
 import { Button, Card, Group, Icon, NavRow, Screen, SwipeToReveal, Tappable } from './kit';
 import { useReduceMotion } from './motion';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { useHeaderInset } from './useHeaderInset';
+import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 type ShownRow = DeckRow & { hasSubdecks: boolean; collapsed: boolean };
 
@@ -248,6 +249,7 @@ export function DeckList(props: {
   extra?: { node: React.ReactNode; due: number; fresh: number; refresh: () => Promise<unknown> };
 }) {
   const c = useTheme();
+  const header = useHeaderInset();
   const shown = useMemo(() => shownDeckRows(props.decks, props.collapsed ?? new Set()), [props.decks, props.collapsed]);
   const groups = useMemo(() => groupByTopLevel(shown), [shown]);
   const allDecks = useMemo(() => props.decks.map((r) => r.deck), [props.decks]);
@@ -314,6 +316,7 @@ export function DeckList(props: {
         </Stack.Toolbar>
       }
     >
+      <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1 }}>
       <ScrollView
         {...drag.scrollProps}
         contentInsetAdjustmentBehavior="automatic"
@@ -401,7 +404,7 @@ export function DeckList(props: {
             <Pressable onPress={syncTapped} accessibilityRole="button" accessibilityHint="Syncs now"
               style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
               <Text style={{ ...type.footnote, color: props.sync.failed ? c.warning : c.textSecondary, textAlign: 'center' }}>
-                {syncShown ? 'Syncing…' : props.sync.status}
+                {props.sync.status}
                 {props.ankiUnsent ? ` ${props.ankiUnsent} ${props.ankiUnsent === 1 ? "answer isn't" : "answers aren't"} synced yet.` : ''}
               </Text>
             </Pressable>
@@ -418,6 +421,16 @@ export function DeckList(props: {
           {drag.overlay}
         </View>
       </ScrollView>
+      {syncShown ? (
+        // Over the list, not in it, so the rows don't move when it comes and goes; taps pass through.
+        <View pointerEvents="none" style={{ position: 'absolute', top: header.top + space.s, left: 0, right: 0, alignItems: 'center' }}>
+          <View accessibilityRole="progressbar" accessibilityLabel="Syncing" style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.pill, paddingVertical: space.s, paddingHorizontal: space.m, ...lift(c, 'high') }}>
+            <ActivityIndicator size="small" color={c.textSecondary} />
+            <Text style={{ ...type.footnote, color: c.text }}>Syncing…</Text>
+          </View>
+        </View>
+      ) : null}
+      </View>
     </Screen>
   );
 }

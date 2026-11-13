@@ -272,19 +272,26 @@ export function SwipeToReveal({ open, onOpenChange, action, width = 92, children
   );
 }
 
-/** A small text action inside a screen's content (More ideas, Mark as unknown), a full tap target tall. */
+/**
+ * A small button inside a screen's content (More ideas, Mark as unknown), a full tap target tall.
+ * A tinted pill with a hairline edge, so it reads as a button and still shows on `accentFill`.
+ */
 export function HeaderAction({ label, onPress, accessibilityLabel }: { label: string; onPress: () => void; accessibilityLabel?: string }) {
   const c = useTheme();
   return (
-    <Pressable
-      onPress={onPress}
+    <Tappable
+      onPress={() => { haptic.tap(); onPress(); }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      hitSlop={space.s}
-      style={({ pressed }) => ({ minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.s, opacity: pressed ? 0.4 : 1 })}
+      scaleTo={0.97}
+      hitSlop={space.xs}
+      style={{
+        minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.l, borderRadius: radius.pill,
+        backgroundColor: c.accentFill, borderWidth: hairline, borderColor: c.accent,
+      }}
     >
-      <Text style={{ ...type.body, color: c.accent }}>{label}</Text>
-    </Pressable>
+      <Text style={{ ...type.body, fontWeight: '600', color: c.accent }}>{label}</Text>
+    </Tappable>
   );
 }
 
