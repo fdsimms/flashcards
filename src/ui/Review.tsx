@@ -29,6 +29,7 @@ import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
+import { mathjaxUri } from '../media/mathjax';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardWebView } from './CardWebView';
 import { Side } from './CardSide';
@@ -296,7 +297,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
     const ord = Number(current.kind.slice(1));
     const { front, back, typeAnswer } = renderTemplateCard(note, noteType, ord, typedShown);
     const opts = {
-      css: noteType.css, ord, dark, autoplay: true, mediaBase: mediaBaseUri(),
+      css: noteType.css, ord, dark, autoplay: true, mediaBase: mediaBaseUri(), mathjax: mathjaxUri(),
       colors: { background: c.surface, text: c.text, cloze: c.countNew },
     };
     return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer, frontAudio: sideAudio(front), backAudio: sideAudio(back) };
