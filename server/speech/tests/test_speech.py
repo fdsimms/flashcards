@@ -245,6 +245,41 @@ def test_speak_and_synthesize_send_the_texts_language() -> None:
     assert sent == [ssml("東京", MULTI, language="ja-JP")] * 2
 
 
+def test_a_refused_lang_element_is_asked_for_again_without_it() -> None:
+    # The <lang> element is written from Microsoft's examples, unchecked against a live key: if
+    # Azure refuses it, the line is still recorded, as it was before.
+    sent: list[str] = []
+
+    async def fake(key: str, region: str, body: str) -> SdkResult:
+        sent.append(body)
+        if "<lang" in body:
+            return SdkResult(error="BadRequest", details="lang")
+        return SdkResult(audio=b"ID3sdk", marks=MARKS)
+
+    def refuses(request: httpx.Request) -> httpx.Response:
+        sent.append(request.content.decode())
+        return httpx.Response(
+            400 if "<lang" in request.content.decode() else 200, content=b"ID3rest"
+        )
+
+    async def go() -> tuple[tuple[bytes, list[WordMark] | None], bytes]:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(refuses)) as http:
+            client = SpeechClient("k", "eastus", http=http, sleep=no_sleep, sdk_speak=fake)
+            return (
+                await client.speak("東京", MULTI, language="ja-JP"),
+                await client.synthesize("東京", MULTI, language="ja-JP"),
+            )
+
+    spoken, synthesized = asyncio.run(go())
+    assert spoken == (b"ID3sdk", MARKS) and synthesized == b"ID3rest"
+    assert sent == [ssml("東京", MULTI, language="ja-JP"), ssml("東京", MULTI)] * 2
+
+
+def test_a_refusal_without_a_lang_element_is_not_asked_again() -> None:
+    with pytest.raises(SpeechError, match="refused the request"):
+        speak([SdkResult(error="BadRequest", details="voice")])
+
+
 def test_speak_falls_back_to_rest_without_timings_when_the_sdk_wont_load() -> None:
     (audio, marks), _ = speak([SdkMissing("libMicrosoft.CognitiveServices.Speech.core.so")])
     assert (audio, marks) == (b"ID3rest", None)

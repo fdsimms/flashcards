@@ -22,7 +22,7 @@ import logging
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TypeVar
 from xml.sax.saxutils import escape
 
 import httpx
@@ -30,6 +30,7 @@ import httpx
 from franki_speech.sdk import SdkMissing, SdkResult, WordMark, speak_ssml
 
 log = logging.getLogger(__name__)
+T = TypeVar("T")
 
 OUTPUT_FORMAT = "audio-24khz-48kbitrate-mono-mp3"
 TIMEOUT_SECONDS = 30.0
@@ -74,7 +75,12 @@ __all__ = [
 
 
 class SpeechError(Exception):
-    """Azure refused or couldn't be reached; the message says which and why."""
+    """Azure refused or couldn't be reached; the message says which and why. `status` is the HTTP
+    status of a refusal (an SDK error mapped to one), when there was one."""
+
+    def __init__(self, message: str, status: int | None = None) -> None:
+        super().__init__(message)
+        self.status = status
 
 
 @dataclass
@@ -123,6 +129,45 @@ class SpeechClient:
     async def synthesize(
         self, text: str, voice: str, rate: float = 1.0, language: str | None = None
     ) -> bytes:
+        """`_synthesize`, asked again without the language if Azure refuses the `<lang>` element
+        (`_without_lang_on_refusal`)."""
+        return await self._without_lang_on_refusal(
+            text, voice, rate, language, lambda lang: self._synthesize(text, voice, rate, lang)
+        )
+
+    async def speak(
+        self, text: str, voice: str, rate: float = 1.0, language: str | None = None
+    ) -> tuple[bytes, list[WordMark] | None]:
+        """`_speak`, asked again without the language if Azure refuses the `<lang>` element
+        (`_without_lang_on_refusal`)."""
+        return await self._without_lang_on_refusal(
+            text, voice, rate, language, lambda lang: self._speak(text, voice, rate, lang)
+        )
+
+    async def _without_lang_on_refusal(
+        self,
+        text: str,
+        voice: str,
+        rate: float,
+        language: str | None,
+        call: Callable[[str | None], Awaitable[T]],
+    ) -> T:
+        """The `<lang>` element a Multilingual voice is given (`ssml`) is written from Microsoft's
+        examples but unchecked against a live key. If Azure refuses a request that has one, the
+        line is asked for again without it, as it was before, rather than not recorded at all."""
+        try:
+            return await call(language)
+        except SpeechError as e:
+            if e.status != 400 or ssml(text, voice, rate, language) == ssml(text, voice, rate):
+                raise
+            log.warning(
+                "Azure refused <lang xml:lang='%s'> for %s; recording without it", language, voice
+            )
+            return await call(None)
+
+    async def _synthesize(
+        self, text: str, voice: str, rate: float = 1.0, language: str | None = None
+    ) -> bytes:
         """The text spoken in `voice` at `rate` (1.0 is normal speed), as MP3 bytes. `language` is
         the text's locale (th-TH), when it's known: a Multilingual voice is told to read it in that
         language (`ssml`)."""
@@ -141,7 +186,7 @@ class SpeechClient:
             raise SpeechError(f"Azure returned no audio for {voice}.")
         return r.content
 
-    async def speak(
+    async def _speak(
         self, text: str, voice: str, rate: float = 1.0, language: str | None = None
     ) -> tuple[bytes, list[WordMark] | None]:
         """The text spoken as `synthesize` speaks it, with when each word starts and ends, which
@@ -173,7 +218,7 @@ class SpeechClient:
                     log.warning("Speech SDK couldn't reach Azure (%s), trying REST", r.error)
                     break
                 raise self._refused(_SDK_STATUS.get(r.error), f"{r.error}: {r.details[:200]}")
-        return await self.synthesize(text, voice, rate, language), None
+        return await self._synthesize(text, voice, rate, language), None
 
     async def _send(self, method: str, path: str, **kw: Any) -> httpx.Response:
         for attempt in range(RATE_LIMIT_RETRIES + 1):
@@ -196,7 +241,7 @@ class SpeechClient:
                 "Azure Speech refused the key. Check AZURE_SPEECH_KEY and AZURE_SPEECH_REGION in server/.env."
             )
         if status == 400:
-            return SpeechError(f"Azure Speech refused the request. {self.voice_help}")
+            return SpeechError(f"Azure Speech refused the request. {self.voice_help}", 400)
         if status == 429:
             return SpeechError("Azure Speech is limiting requests. Wait a minute and try again.")
         return SpeechError(f"Azure Speech answered {what}")
