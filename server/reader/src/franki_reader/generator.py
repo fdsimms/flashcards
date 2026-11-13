@@ -37,6 +37,8 @@ MAX_TOKENS = 16000
 MAX_ATTEMPTS = 3
 MAX_STRETCH = 3
 STRETCH_MIN_USES = 2
+# How a line is said; the app shows it as a chip on the line.
+REGISTERS = ("casual", "neutral", "formal", "slang")
 
 # Per million tokens: input, output, cache read, cache write (5-minute cache, 1.25x input). A model
 # not listed here (a refusal fallback) is priced as MODEL, which is close enough for a running total.
@@ -139,6 +141,9 @@ class Line:
     english: str
     # A story's line that opens a paragraph. Older texts and dialogues have none.
     paragraph: bool = False
+    # How a native speaker would say it in that situation, one of REGISTERS. Empty for a text
+    # written before the model was asked, and for an answer outside the list.
+    register: str = ""
 
 
 @dataclass(frozen=True)
@@ -211,8 +216,9 @@ DRAFT_SCHEMA: dict[str, Any] = {
                     "text": {"type": "string"},
                     "english": {"type": "string"},
                     "paragraph": {"type": "boolean"},
+                    "register": {"type": "string", "enum": list(REGISTERS)},
                 },
-                "required": ["speaker", "text", "english", "paragraph"],
+                "required": ["speaker", "text", "english", "paragraph", "register"],
                 "additionalProperties": False,
             },
         },
@@ -288,6 +294,10 @@ break and nowhere else: never between words of the same clause, never before a p
 ครับ, ค่ะ or นะ, and never right after a connective that opens a clause (แล้ว, และ, แต่, หรือ, \
 เพราะ, ถ้า, ก็, จึง): write เขา|ดู|เด็ก แล้ว|เดิน|มา, not เขา|ดู|เด็ก แล้ว เดิน|มา.
 - Give "english", a natural English translation of each line.
+- Give "register" for each line: how a native speaker would say it in that situation: \
+"casual" (everyday speech with friends or family), "neutral", "formal" (polite, official or written) \
+or "slang". Write each line in its register, so a chat between friends is casual, and a story's \
+narrator is usually neutral.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
 is not in the list, and for each name ("a girl's name"). For each of those words also give "translit", its pronunciation in Latin letters \
 with tone marks and a hyphen between syllables, as the learner's own cards write it: \
@@ -352,6 +362,10 @@ and use at most 4 different names in a text.
 who it is the first time (a girl named Kasia, a dog called Burek), and use the name for that same \
 person afterward. Never call someone "the boy" and then switch to a name with nothing linking them.
 - Give "english", a natural English translation of each line.
+- Give "register" for each line: how a native speaker would say it in that situation: \
+"casual" (everyday speech with friends or family), "neutral", "formal" (polite, official or written) \
+or "slang". Write each line in its register, so a chat between friends is casual, and a story's \
+narrator is usually neutral.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
 is neither an allowed common word nor on the list. Also gloss any word whose form matches a listed \
 word but is used here as a different word, such as a verb form that two verbs share.
@@ -621,7 +635,13 @@ def _assess(
     try:
         lines = _paragraphs(
             tuple(
-                Line(ln["speaker"], ln["text"], ln["english"], bool(ln.get("paragraph")))
+                Line(
+                    ln["speaker"],
+                    ln["text"],
+                    ln["english"],
+                    bool(ln.get("paragraph")),
+                    ln["register"] if ln.get("register") in REGISTERS else "",
+                )
                 for ln in draft["lines"]
             ),
             request.form,

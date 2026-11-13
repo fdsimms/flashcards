@@ -58,6 +58,8 @@ const light = {
   /** Quiet fills for a right and a wrong choice once it's marked (the vocabulary check). */
   goodFill: 'rgba(67, 131, 90, 0.15)',
   dangerFill: 'rgba(179, 68, 59, 0.12)',
+  /** A quiet amber fill: a note that something is off but not wrong (a line that sounds stiff). */
+  warningFill: 'rgba(153, 101, 26, 0.13)',
   /** Speaker B's badge in Read & Listen, and the text on it. */
   speakerB: '#d2e6db',
   onSpeakerB: '#24563f',
@@ -115,6 +117,7 @@ const dark: typeof light = {
   accentFill: 'rgba(212, 180, 106, 0.18)',
   goodFill: 'rgba(95, 176, 124, 0.18)',
   dangerFill: 'rgba(224, 118, 108, 0.16)',
+  warningFill: 'rgba(224, 168, 90, 0.16)',
   speakerB: '#22392f',
   onSpeakerB: '#9fd6bb',
   speakerAFace: '#70613f',

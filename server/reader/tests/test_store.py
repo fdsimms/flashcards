@@ -155,6 +155,43 @@ def test_a_text_keeps_its_speakers_roles(conn) -> None:  # type: ignore[no-untyp
     assert stored is not None and stored.roles == {"A": "Vendor", "B": "Customer"}
 
 
+def test_a_text_keeps_each_lines_register_and_an_older_one_has_none(conn) -> None:  # type: ignore[no-untyped-def]
+    from dataclasses import replace
+
+    from test_generator import GOOD, MANGO, ScriptedModel, run
+
+    from franki_reader.generator import Line, TextRequest
+
+    generated = run(ScriptedModel(GOOD), TextRequest("food", (MANGO,)))
+    lines = (replace(generated.lines[0], register="casual"), generated.lines[1])
+    topic = add_topic(conn, "food", True, NOW)
+    text_id = save_text(conn, topic.id, replace(generated, lines=lines), [], 0.95, NOW)
+    stored = get_text(conn, text_id)
+    assert stored is not None and [ln.register for ln in stored.lines] == ["casual", ""]
+    # A row written before the field has no key for it, and still loads.
+    conn.execute(
+        "UPDATE texts SET lines = ? WHERE id = ?",
+        ('[{"speaker": "A", "text": "ฉัน", "english": "I.", "paragraph": false}]', text_id),
+    )
+    old = get_text(conn, text_id)
+    assert old is not None and old.lines == (Line("A", "ฉัน", "I.", False, ""),)
+
+
+def test_a_naturalness_answer_is_kept_per_line(conn) -> None:  # type: ignore[no-untyped-def]
+    from test_generator import GOOD, MANGO, ScriptedModel, run
+
+    from franki_reader.generator import TextRequest
+    from franki_reader.store import get_naturalness, save_naturalness
+
+    generated = run(ScriptedModel(GOOD), TextRequest("food", (MANGO,)))
+    text_id = save_text(conn, add_topic(conn, "food", True, NOW).id, generated, [], 0.95, NOW)
+    answer = {"verdict": "stiff", "reason": "Too written.", "alternative": "ฉัน กิน"}
+    assert get_naturalness(conn, text_id, 0) is None
+    save_naturalness(conn, text_id, 0, answer, NOW, 0.01)
+    assert get_naturalness(conn, text_id, 0) == answer
+    assert get_naturalness(conn, text_id, 1) is None
+
+
 def test_a_text_keeps_its_speakers_characters(conn) -> None:  # type: ignore[no-untyped-def]
     from test_generator import GOOD, MANGO, ScriptedModel, run
 
