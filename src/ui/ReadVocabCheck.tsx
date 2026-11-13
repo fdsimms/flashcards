@@ -3,8 +3,9 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type CommonCount, type Language, type Settings, type VocabBank } from '../reader/api';
 import { LANGUAGES, commonLabel } from '../reader/languages';
 import {
-  KNOWN_SHARE, QUESTIONS, bandLabel, choicesFor, estimate, missedWords, nextItem, type Asked, type Reply, type VocabItem,
+  KNOWN_SHARE, QUESTIONS, bandLabel, choicesFor, estimate, missedWords, nextItem, rememberSeen, type Asked, type Reply, type VocabItem,
 } from '../reader/vocabCheck';
+import { loadVocabSeen, saveVocabSeen } from '../reader/storage';
 import { haptic } from './haptics';
 import { Button, Card, ErrorNote, Group, Help, Icon, Screen, Tappable } from './kit';
 import { radius, smooth, space, type, useTheme } from './theme';
@@ -36,6 +37,9 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
   const [asked, setAsked] = useState<Asked[]>([]);
   const [item, setItem] = useState<VocabItem | null>(null);
   const [saving, setSaving] = useState(false);
+  // Words asked in earlier checks, which a retake leaves for last (vocabCheck.ts).
+  const [seen, setSeen] = useState<string[]>([]);
+  useEffect(() => { loadVocabSeen(language).then(setSeen); }, [language]);
 
   // The server writes the questions the first time, which takes a minute: ask again until they're ready.
   useEffect(() => {
@@ -63,7 +67,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
   const begin = () => {
     haptic.tap();
     setAsked([]);
-    setItem(nextItem(items, [], Math.random) ?? null);
+    setItem(nextItem(items, [], Math.random, new Set(seen)) ?? null);
     setStarted(true);
   };
 
@@ -72,7 +76,13 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
     haptic.select();
     const done = [...asked, { item, reply, picked }];
     setAsked(done);
-    setItem(done.length >= QUESTIONS ? null : nextItem(items, done, Math.random) ?? null);
+    const next = done.length >= QUESTIONS ? null : nextItem(items, done, Math.random, new Set(seen)) ?? null;
+    setItem(next);
+    if (!next) {
+      const remembered = rememberSeen(seen, done, items);
+      setSeen(remembered);
+      saveVocabSeen(language, remembered);
+    }
   };
 
   const result = useMemo(() => (finished ? estimate(asked) : null), [finished, asked]);

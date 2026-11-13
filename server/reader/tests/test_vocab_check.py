@@ -19,7 +19,6 @@ from franki_reader.vocab_check import (
     ASKED_PER_BAND,
     BANDS,
     MIN_PER_BAND,
-    PER_BAND,
     VocabFailed,
     VocabItem,
     band_of,
@@ -161,7 +160,7 @@ def test_the_first_ask_starts_writing_and_the_next_serves_the_bank() -> None:
     assert get(c).json() == {"state": "preparing", "items": []}
     ready = get(c).json()
     assert ready["state"] == "ready" and writer.calls == 1
-    assert len(ready["items"]) == len(BANDS) * PER_BAND  # kept to PER_BAND a band
+    assert len(ready["items"]) == len(BANDS) * ASKED_PER_BAND  # every stored word is served
     first = ready["items"][0]
     assert set(first) == {"word", "rank", "meaning", "wrong"} and len(first["wrong"]) == 3
     assert get(c).json()["state"] == "ready" and writer.calls == 1  # never written twice
@@ -173,7 +172,7 @@ def test_words_already_in_the_deck_are_left_out() -> None:
     c = vocab_client(Writer(bank), [Entry(1, in_deck, "meaning", "mature")])
     get(c)
     words = [i["word"] for i in get(c).json()["items"]]
-    assert in_deck not in words and len(words) == len(BANDS) * PER_BAND
+    assert in_deck not in words and len(words) == len(BANDS) * ASKED_PER_BAND - 1
 
 
 def test_a_failed_write_isnt_asked_again_until_the_retry_time() -> None:

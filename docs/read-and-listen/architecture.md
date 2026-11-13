@@ -696,8 +696,10 @@ in the current language, with when one was last read to the end. Nothing else le
   deck are left out when it's served, and so are proper nouns (a capitalized meaning, "Thames") and
   obvious cognates (a word sharing 80% of its letters with its meaning, "legislador" and "legislator";
   `is_giveaway`), since they test nothing. That runs on what's stored, so a bank written earlier is
-  cleaned without being written again, and serves up to `PER_BAND` (8) a band, the extra asked words
-  being slack for deck words and giveaways. A bank written when fewer were asked for is topped up in the
+  cleaned without being written again, and serves every stored word (the extra asked words are slack for
+  deck words and giveaways, and the pool a retake draws on). **A retake prefers words not asked before**: the app remembers each language's
+  asked words in the Keychain (`rememberSeen`, starting over once all are seen) and `nextItem` takes an unseen word within a band of
+  the next one before a seen one. A bank written when fewer were asked for is topped up in the
   background the next time it's served (only the sampled words not yet stored are asked for), while the
   quiz uses what's there. A Russian or Greek word is compared by its Latin spelling
   ("телефон" as "telefon"), with both sides respelled by sound (ph as f, c as k, v as b) and the

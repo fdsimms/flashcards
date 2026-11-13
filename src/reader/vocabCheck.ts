@@ -50,14 +50,43 @@ export function nextBand(asked: Asked[]): number {
   return band;
 }
 
-/** The next question: an unasked word from the next band, else from the closest band that has one. Undefined once none are left. */
-export function nextItem(items: VocabItem[], asked: Asked[], rng: Rng): VocabItem | undefined {
+/**
+ * The next question: an unasked word from the next band, else from the closest band that has one.
+ * A word not in `seen` (asked in an earlier check) is preferred within a band of the next one, so a
+ * retake gets new words while any are left near the learner's level; failing that a seen word is
+ * asked rather than a fresh one from a band too far away to say much. Undefined once none are left.
+ */
+export function nextItem(items: VocabItem[], asked: Asked[], rng: Rng, seen: ReadonlySet<string> = new Set()): VocabItem | undefined {
   const used = new Set(asked.map((a) => a.item.word));
   const left = items.filter((i) => !used.has(i.word) && bandOf(i.rank) >= 0);
   const want = nextBand(asked);
-  const closest = Math.min(...left.map((i) => Math.abs(bandOf(i.rank) - want)));
-  const near = left.filter((i) => Math.abs(bandOf(i.rank) - want) === closest);
+  const away = (i: VocabItem) => Math.abs(bandOf(i.rank) - want);
+  const fresh = left.filter((i) => !seen.has(i.word) && away(i) <= 1);
+  const pool = fresh.length ? fresh : left;
+  const closest = Math.min(...pool.map(away));
+  const near = pool.filter((i) => away(i) === closest);
   return near.length ? near[Math.floor(rng() * near.length)] : undefined;
+}
+
+/** The words saved from earlier checks, ignoring anything that isn't a list of words. */
+export function parseSeen(raw: string | null): string[] {
+  try {
+    const v: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(v) ? v.filter((w): w is string => typeof w === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The words to remember after a check: the ones asked now added to those already seen, kept to words
+ * still in the bank. Once every word in the bank has been seen the list starts over, so a retake
+ * is never left with only seen words forever.
+ */
+export function rememberSeen(seen: readonly string[], asked: Asked[], items: VocabItem[]): string[] {
+  const inBank = new Set(items.map((i) => i.word));
+  const all = new Set([...seen, ...asked.map((a) => a.item.word)].filter((w) => inBank.has(w)));
+  return all.size >= inBank.size ? [] : [...all];
 }
 
 /** The right meaning and the three wrong ones, in a random order. */
