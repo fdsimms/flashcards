@@ -11,7 +11,7 @@ import { marksIn, withMark, type HideableMark, type Mark } from '../reader/marks
 import { scrollTarget, type Box } from '../reader/follow';
 import { THAI_FONTS, THAI_FONT_LABELS, readFont, type ThaiFont } from '../reader/fonts';
 import { LANGUAGES, wordStatus } from '../reader/languages';
-import { firstLine, nextLine, paragraphs, previousLine, rangeOf } from '../reader/playback';
+import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf, repeatChipLabel } from '../reader/playback';
 import { RATES } from '../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, type LengthStep } from '../reader/shelf';
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
@@ -167,7 +167,9 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const shaded = status.playing || status.isBuffering || (playingAll && status.didJustFinish) ? current : null;
   const [rate, setRate] = useState(prefs().rate);
   const [silentLine, setSilentLine] = useState<number | null>(null);
-  const [repeat, setRepeat] = useState(false);
+  // Plays per line (1 is off, Infinity is until turned off) and how many the current line has had in this round.
+  const [repeat, setRepeat] = useState<number>(1);
+  const [played, setPlayed] = useState(1);
   // The words being spoken in the line playing, lit as the voice reaches them (useSpokenWords.ts),
   // unless that's turned off in Read & Listen's settings. Read from prefs on each render rather than
   // kept in state, so a change made there shows here without reopening the text.
@@ -210,6 +212,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     player.setPlaybackRate(rate, 'high');
     player.play();
     setCurrent(i);
+    setPlayed(1);
     setPlayingAll(all);
     setSession((s) => (s ? heard(s, rate) : s));
   };
@@ -243,9 +246,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
 
   useEffect(() => {
     if (!status.didJustFinish || current === null || !text) return;
-    const next = nextLine(text.lines, current, playingAll, repeat);
+    const next = nextLine(text.lines, current, playingAll, repeat, played);
     if (next === current) {
       // The same source again: rewind rather than reload it.
+      setPlayed((n) => n + 1);
       player.seekTo(0).then(() => player.play(), () => undefined);
       return;
     }
@@ -567,7 +571,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           ) : null}
           {hasAudio ? (
             <PlayerBar playing={status.playing} current={current} total={text.lines.length} what={text.form === 'story' ? 'story' : 'dialogue'} skippable={paras !== null} onSkip={skip}
-              rate={rate} repeat={repeat} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={() => setRepeat((r) => !r)} />
+              rate={rate} repeat={repeat} played={played} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={() => { setRepeat((r) => nextRepeatCount(r)); setPlayed(1); }} />
           ) : <Help>No audio for this text.</Help>}
         </>
       ) : undefined}
@@ -1074,7 +1078,7 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
   );
 }
 
-function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, repeat, silentLine, onToggle, onRate, onRepeat }: {
+function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, repeat, played, silentLine, onToggle, onRate, onRepeat }: {
   playing: boolean;
   current: number | null;
   total: number;
@@ -1083,47 +1087,68 @@ function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, rep
   skippable: boolean;
   onSkip: (step: -1 | 1) => void;
   rate: number;
-  repeat: boolean;
+  /** Plays per line: 1 is off, Infinity is until turned off. */
+  repeat: number;
+  /** How many times the current line has played in this round. */
+  played: number;
   silentLine: number | null;
   onToggle: () => void;
   onRate: (rate: number) => void;
   onRepeat: () => void;
 }) {
   const c = useTheme();
+  const repeating = repeat > 1;
+  const play = (
+    <Tappable
+      onPress={() => { haptic.tap(); onToggle(); }}
+      accessibilityRole="button"
+      accessibilityLabel={playing ? 'Pause' : 'Play'}
+      scaleTo={0.92}
+      style={{ width: 52, height: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent }}
+    >
+      <Icon name={playing ? 'pause.fill' : 'play.fill'} size={22} color={c.onAccent} weight="semibold" />
+    </Tappable>
+  );
+  const repeatNote = repeat === Infinity ? 'Repeating this line' : `Repeating this line (${Math.min(played, repeat)} of ${repeat})`;
+  const label = (
+    <View style={{ flex: 1 }}>
+      <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{current === null ? `Play the ${what}` : `Line ${current + 1} of ${total}`}</Text>
+      <Text style={{ ...type.footnote, color: c.textSecondary }}>
+        {silentLine !== null ? `Line ${silentLine + 1} has no audio.` : repeating ? repeatNote : skippable ? 'Tap a word for its meaning' : "Tap a line's play button to replay it"}
+      </Text>
+    </View>
+  );
+  // One tap steps Off, 2×, 3×, 5×, ∞ (playback.ts), so the choices share one chip.
+  const chip = (
+    <Tappable
+      onPress={() => { haptic.select(); onRepeat(); }}
+      accessibilityRole="button"
+      accessibilityLabel="Repeat line"
+      accessibilityValue={{ text: repeating ? (repeat === Infinity ? 'Until turned off' : `${repeat} times`) : 'Off' }}
+      scaleTo={0.95}
+      style={{
+        minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingHorizontal: space.m, borderRadius: radius.pill,
+        backgroundColor: repeating ? c.accentFill : c.fill,
+      }}
+    >
+      <Icon name="repeat" size={14} color={repeating ? c.accent : c.textSecondary} weight="semibold" />
+      <Text style={{ ...type.footnote, fontWeight: '600', color: repeating ? c.accent : c.textSecondary }}>{repeatChipLabel(repeat)}</Text>
+    </Tappable>
+  );
   return (
     <View style={{ gap: space.m }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
-        {skippable ? <SkipButton icon="backward.end.fill" label="Previous line" onPress={() => onSkip(-1)} /> : null}
-        <Tappable
-          onPress={() => { haptic.tap(); onToggle(); }}
-          accessibilityRole="button"
-          accessibilityLabel={playing ? 'Pause' : 'Play'}
-          scaleTo={0.92}
-          style={{ width: 52, height: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent }}
-        >
-          <Icon name={playing ? 'pause.fill' : 'play.fill'} size={22} color={c.onAccent} weight="semibold" />
-        </Tappable>
-        {skippable ? <SkipButton icon="forward.end.fill" label="Next line" onPress={() => onSkip(1)} /> : null}
-        <View style={{ flex: 1 }}>
-          <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{current === null ? `Play the ${what}` : `Line ${current + 1} of ${total}`}</Text>
-          <Text style={{ ...type.footnote, color: c.textSecondary }}>
-            {silentLine !== null ? `Line ${silentLine + 1} has no audio.` : repeat ? 'Repeating this line' : skippable ? 'Tap a word for its meaning' : "Tap a line's play button to replay it"}
-          </Text>
-        </View>
-        <Tappable
-          onPress={() => { haptic.select(); onRepeat(); }}
-          accessibilityRole="switch"
-          accessibilityLabel="Repeat line"
-          accessibilityState={{ checked: repeat }}
-          scaleTo={0.95}
-          style={{
-            minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.m, borderRadius: radius.pill,
-            backgroundColor: repeat ? c.accentFill : c.fill,
-          }}
-        >
-          <Text style={{ ...type.footnote, fontWeight: '600', color: repeat ? c.accent : c.textSecondary }}>Repeat line</Text>
-        </Tappable>
-      </View>
+      {skippable ? (
+        <>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
+            <SkipButton icon="backward.end.fill" label="Previous line" onPress={() => onSkip(-1)} />
+            {play}
+            <SkipButton icon="forward.end.fill" label="Next line" onPress={() => onSkip(1)} />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>{label}{chip}</View>
+        </>
+      ) : (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>{play}{label}{chip}</View>
+      )}
       <Segments options={RATES.map((r) => ({ value: r, label: `${r.toFixed(1)}×`, accessibilityLabel: `Speed ${r}` }))} value={rate} onChange={onRate} />
     </View>
   );
