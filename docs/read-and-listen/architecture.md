@@ -647,6 +647,13 @@ in the current language, with when one was last read to the end. Nothing else le
   man in Thai, Russian, Greek, Polish or Norwegian; no second woman in Greek) reads two speakers
   of that gender in the same voice until one is chosen. Azure's newer Dragon and MAI voices are
   offered in the picker, but none is a default, as they haven't been tried through this client.
+  Azure's Multilingual voices (en-US-AvaMultilingualNeural) are listed under one locale but read
+  any language, so `GET /api/voices` adds them after a language's own voices and the settings
+  accept them for any language (`_is_multilingual`); every other voice still has to speak the
+  language. This is how Greek, which has one standard voice of each gender, gets second voices.
+  The speech request's `xml:lang` is the voice's own locale (en-US), and Azure reads the text in
+  its language; a Multilingual voice for Thai also skips the Thai pause and pronunciation fixes,
+  which apply only to th- voices.
   Since 12 November 2026 each slot can be chosen in the app (Read & Listen's settings, from
   `GET /api/voices`, filtered to the slot's gender by `voiceSlots.ts`; `PATCH /api/settings`
   refuses a voice of the other gender), stored in the `voices` setting over those defaults. A

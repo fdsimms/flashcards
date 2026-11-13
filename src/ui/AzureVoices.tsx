@@ -74,7 +74,7 @@ export function AzureVoiceRows({ voices, selected, onChoose, none }: {
           key={v.voice}
           first={!none && i === 0}
           label={v.name}
-          hint={[v.gender, v.locale].filter(Boolean).join(', ')}
+          hint={[v.gender, v.locale, v.voice.includes('Multilingual') ? 'any language' : ''].filter(Boolean).join(', ')}
           selected={selected === v.voice}
           onPress={() => onChoose(v)}
         />
