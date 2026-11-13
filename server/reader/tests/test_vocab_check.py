@@ -24,7 +24,7 @@ from franki_reader.vocab_check import (
     VocabItem,
     band_of,
     check,
-    complete,
+    is_giveaway,
     request_message,
     sample,
     write_bank,
@@ -147,6 +147,7 @@ def vocab_client(
     engine = Engine(conn, None, None, lambda: now[0], random.Random(1))
     c = started(create_app(engine, "open sesame", write_vocab=writer))
     c.now = now  # type: ignore[attr-defined]
+    c.conn = conn  # type: ignore[attr-defined]
     return c
 
 
@@ -196,6 +197,79 @@ def test_thai_and_unknown_languages_are_refused() -> None:
     assert c.get("/api/vocab-check?language=pl").status_code == 401
 
 
+def test_proper_nouns_and_obvious_cognates_are_giveaways() -> None:
+    assert is_giveaway("po", "Po")  # a river
+    assert is_giveaway("támesis", "Thames")
+    assert is_giveaway("legislador", "legislator")
+    assert is_giveaway("persona", "person")
+    assert is_giveaway("importante", "important")
+    assert is_giveaway("aceptar", "to accept")
+    assert is_giveaway("comunicación", "communication")
+    assert is_giveaway("no", "no")
+    assert is_giveaway("sí", "si")  # accents don't hide a match
+
+
+def test_russian_and_greek_words_are_compared_by_their_latin_spelling() -> None:
+    for word, meaning in [
+        ("телефон", "telephone"),
+        ("президент", "president"),
+        ("университет", "university"),
+        ("революция", "revolution"),
+        ("музыка", "music"),
+        ("τηλέφωνο", "telephone"),
+        ("πρόβλημα", "problem"),
+        ("θέατρο", "theater"),
+        ("μουσική", "music"),
+    ]:
+        assert is_giveaway(word, meaning), word
+
+
+def test_words_that_need_studying_are_not_giveaways() -> None:
+    assert not is_giveaway("alcalde", "mayor")
+    assert not is_giveaway("ver", "to see")
+    assert not is_giveaway("se", "see")  # shared letters in a short word aren't a cognate
+    assert not is_giveaway("tiempo", "time")
+    assert not is_giveaway("casa", "house")
+    assert not is_giveaway("yo", "I")  # "I" is capitalized but isn't a proper noun
+    assert not is_giveaway("работа", "work")
+    for word, meaning in [
+        ("дом", "house"),
+        ("время", "time"),
+        ("говорить", "to speak"),
+        ("мой", "my"),  # short: sharing a sound isn't a cognate
+        ("σπίτι", "house"),
+        ("άνθρωπος", "person"),
+        ("μιλάω", "to speak"),
+    ]:
+        assert not is_giveaway(word, meaning), word
+
+
+def test_giveaways_in_a_stored_bank_are_left_out_when_served() -> None:
+    bank = whole_bank()
+    bank[0]["meaning"] = "Thames"
+    bank[1]["meaning"] = bank[1]["word"]  # a word that is its own meaning
+    c = vocab_client(Writer(bank))
+    get(c)
+    words = [i["word"] for i in get(c).json()["items"]]
+    assert bank[0]["word"] not in words and bank[1]["word"] not in words
+
+
+def test_a_bank_written_with_fewer_words_is_topped_up_with_the_rest() -> None:
+    old = [
+        VocabItem(w["word"], r, "to see", ("to sleep", "to buy", "house"))
+        for (r, _), w in zip(sample("pl"), whole_bank(), strict=False)
+    ]
+    stored = [i for i in old if i.lemma in {w for _, w in sample("pl")}]
+    writer = Writer(whole_bank())
+    c = vocab_client(writer)
+    store.save_vocab_batch(c.conn, "pl", stored[:70], 70, NOW, 0.0)  # type: ignore[attr-defined]
+    before = len(store.vocab_items(c.conn, "pl"))  # type: ignore[attr-defined]
+    # The quiz is served at once, and the rest of the sample is written in the background.
+    assert get(c).json()["state"] == "ready" and writer.calls == 1
+    assert len(store.vocab_items(c.conn, "pl")) > before  # type: ignore[attr-defined]
+    assert get(c).json()["state"] == "ready" and writer.calls == 1  # not topped up twice
+
+
 def test_the_cost_shows_in_the_costs() -> None:
     c = vocab_client(Writer(whole_bank()))
     get(c)
@@ -206,7 +280,7 @@ def test_the_cost_shows_in_the_costs() -> None:
     ]
 
 
-def test_a_bank_written_before_the_top_band_is_served_and_written_again() -> None:
+def test_a_bank_written_before_the_top_band_is_served_and_topped_up() -> None:
     ranks = {word: rank for rank, word in sample("pl")}
     legacy = [
         VocabItem(w["word"], ranks[w["word"]], w["meaning"], tuple(w["wrong"]))
@@ -215,16 +289,8 @@ def test_a_bank_written_before_the_top_band_is_served_and_written_again() -> Non
     ]
     writer = Writer(whole_bank())
     c = vocab_client(writer, stored=legacy)
-    first = get(c).json()  # served as it is, and written again behind the response
+    first = get(c).json()  # served as it is, and topped up behind the response
     assert first["state"] == "ready" and not any(i["rank"] > 5000 for i in first["items"])
     assert writer.calls == 1
     assert any(i["rank"] > 5000 for i in get(c).json()["items"])
     assert get(c).json()["state"] == "ready" and writer.calls == 1
-
-
-def test_a_bank_is_complete_only_when_every_band_has_enough_words() -> None:
-    conn = store.connect(":memory:")
-    asyncio.run(write_bank(conn, Writer(whole_bank()), "pl", lambda: NOW))
-    items = store.vocab_items(conn, "pl")
-    assert complete(items)
-    assert not complete([i for i in items if band_of(i[1]) != len(BANDS) - 1])

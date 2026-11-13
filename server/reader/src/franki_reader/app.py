@@ -930,13 +930,18 @@ def create_app(
             engine.clock() - failed >= VOCAB_RETRY
         )
         if stored:
-            # A bank from before a band was added is served as it is while the whole bank is written
-            # again, so the check never waits on it.
-            rewrite = write_vocab is not None and not vocab_check.complete(stored)
-            if rewrite and language not in vocab_writing and retry_due:
+            items = vocab_check.serve(engine.conn, engine.snapshot(language)[1], language)
+            # A bank written when fewer words were asked for, or before a band was added, is topped
+            # up in the background; the quiz uses what's there meanwhile.
+            failed = vocab_failed.get(language)
+            if (
+                write_vocab is not None
+                and language not in vocab_writing
+                and (failed is None or engine.clock() - failed >= VOCAB_RETRY)
+                and store.vocab_asked(engine.conn, language) < len(vocab_check.sample(language))
+            ):
                 vocab_writing.add(language)
                 background.add_task(write_vocab_bank, language)
-            items = vocab_check.serve(engine.conn, engine.snapshot(language)[1], language)
             return {"state": "ready", "items": items}
         if write_vocab is None:
             return {"state": "unavailable", "items": []}

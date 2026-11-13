@@ -19,6 +19,7 @@ import { loadHeld } from './lookalikeHold';
 import { useCollapsedDecks, type CollapsedDecks } from './useCollapsedDecks';
 import { useReader, type ReaderState } from './useReader';
 import { useCountsReport } from './useCountsReport';
+import { useDeckSnapshot } from './useDeckSnapshot';
 import { useSync } from './useSync';
 import { useWaniKani, type WaniKaniState } from './useWaniKani';
 
@@ -80,6 +81,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [backup, setBackup] = useState<{ text: string; overdue: boolean }>();
   const [ankiUnsent, setAnkiUnsent] = useState(0);
   const collapse = useCollapsedDecks(repo);
+  const snapshot = useDeckSnapshot(repo, setDecks, collapse);
   // The collection's "Next day starts at", for counting marked words added per study day.
   const [dayStartsAtHour, setDayStartsAtHour] = useState(DAY_STARTS_AT_HOUR);
 
@@ -104,11 +106,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const studied = studiedToday({ notes, cards, reviews, revlog, now, dayStartsAtHour: collection.dayStartsAtHour });
     const settings = await applyPriorityStamps(repo, notes, savedSettings, now);
     const held = await loadHeld(repo, { notes, cards, settings, now, dayStartsAtHour: collection.dayStartsAtHour });
-    setDecks(deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now, held, boostFor: boostFor({ notes, settings, now }) }), listedDecks(ankiDecks, settings), (d) => settings.get(d)?.position));
+    const rows = deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now, held, boostFor: boostFor({ notes, settings, now }) }), listedDecks(ankiDecks, settings), (d) => settings.get(d)?.position);
+    setDecks(rows);
+    snapshot.save(rows, now, collection.dayStartsAtHour);
     setBackup(backupStatus(lastBackup, now, cards.length > 0));
     setAnkiUnsent((await repo.ankiStatus()).unsent);
     collapse.load();
-  }, [repo, collapse.load]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [repo, collapse.load, snapshot.save]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync, when it's on: at launch, on coming back to the app (from the deck list, so a deck being
   // studied isn't changed under it), after studying a deck (Review's screen asks), and on leaving the app.

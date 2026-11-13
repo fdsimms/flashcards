@@ -7,16 +7,19 @@ ranks, and Claude writes each one's meaning and three wrong choices in one call,
 never waits on Claude and never asks for a word twice. Generate, then verify: a word is kept only if
 it's one that was asked for and its choices pass the checks below. Anything else is dropped, never
 repaired. Words already in the learner's deck are left out when the bank is served, since they count
-as known anyway.
+as known anyway, and so are proper nouns and obvious cognates, which test nothing.
 """
 
 import json
 import logging
 import random
+import re
 import sqlite3
+import unicodedata
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
+from difflib import SequenceMatcher
 from typing import Any, cast
 
 import anthropic
@@ -45,11 +48,15 @@ BANDS = (
 PER_BAND = (
     8  # words kept for each band, so 20 questions never run out even with deck words left out
 )
-ASKED_PER_BAND = 10  # asked for, since some won't pass the checks
+# Asked for: more than a band serves, since some won't pass the checks and some are deck words or
+# giveaways (`is_giveaway`), and a band that runs short makes its neighbours carry its questions.
+ASKED_PER_BAND = 14
 MIN_PER_BAND = 5  # kept words a band needs for the bank to be used
 WRONG = 3  # wrong choices a word carries
 MAX_MEANING = 40  # characters
-MAX_TOKENS = 8000
+MAX_TOKENS = 12000
+# Share of letters a word and its English meaning must have in common to be a giveaway.
+COGNATE_RATIO = 0.8
 
 _SYSTEM = """\
 You write multiple-choice vocabulary questions for an English-speaking learner of {language}. You \
@@ -109,13 +116,6 @@ def band_of(rank: int) -> int | None:
     return next((i for i, (lo, hi) in enumerate(BANDS) if lo <= rank <= hi), None)
 
 
-def complete(items: list[tuple[str, int, str, list[str]]]) -> bool:
-    """Whether a stored bank reaches every band. A bank written before a band was added doesn't, and
-    is written again whole (the sample's earlier bands are unchanged, so they're glossed the same words)."""
-    per_band = [sum(1 for _, rank, _, _ in items if band_of(rank) == b) for b in range(len(BANDS))]
-    return all(n >= MIN_PER_BAND for n in per_band)
-
-
 def sample(language: Code) -> list[tuple[int, str]]:
     """`ASKED_PER_BAND` words from each band as (rank, word), the same ones every time for a language
     (the list is fixed, and so is the seed), so a word is glossed once. Single plain words only."""
@@ -172,9 +172,13 @@ async def write_bank(
     language: Code,
     now: Callable[[], datetime],
 ) -> bool:
-    """Has Claude gloss the language's sample and stores what passes. False when it couldn't, or
-    nothing passed, so the caller can try again later."""
-    asked = sample(language)
+    """Has Claude gloss the language's sample and stores what passes. A bank already there is topped
+    up: only sampled words not yet stored are asked for, and what passes is added. False when it
+    couldn't, or nothing passed on a first write, so the caller can try again later."""
+    stored = {lemma for lemma, *_ in store.vocab_items(conn, language)}
+    asked = [(rank, word) for rank, word in sample(language) if word not in stored]
+    if not asked:
+        return True
     try:
         raw, used = await write(language, asked)
     except VocabFailed as e:
@@ -182,22 +186,169 @@ async def write_bank(
         return False
     lookup = {word: rank for rank, word in asked}
     kept = [i for i in (check(r, lookup) for r in raw) if i is not None]
-    # Every band needs enough words for the quiz to reach it; otherwise none are kept, so the bank
-    # is written again whole later. The cost is recorded either way.
+    # A first write needs every band to have enough words for the quiz to reach it; otherwise none are
+    # kept, so the bank is written again whole later. The cost is recorded either way.
     per_band = [sum(1 for i in kept if band_of(i.rank) == b) for b in range(len(BANDS))]
-    enough = all(n >= MIN_PER_BAND for n in per_band)
-    store.save_vocab_batch(conn, language, kept if enough else [], len(raw), now(), used.cost_usd())
+    enough = bool(stored) or all(n >= MIN_PER_BAND for n in per_band)
+    store.save_vocab_batch(
+        conn, language, kept if enough else [], len(asked), now(), used.cost_usd()
+    )
     return enough
+
+
+def _fold(text: str) -> str:
+    """Lowercase without accents, so "legislador" and "legislator" compare on their letters."""
+    decomposed = unicodedata.normalize("NFD", text.casefold())
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+_CYRILLIC = dict(
+    zip(
+        "абвгдезийклмнопрстуфхцчшщъыьэюяё",
+        [
+            "a",
+            "b",
+            "v",
+            "g",
+            "d",
+            "e",
+            "z",
+            "i",
+            "i",
+            "k",
+            "l",
+            "m",
+            "n",
+            "o",
+            "p",
+            "r",
+            "s",
+            "t",
+            "u",
+            "f",
+            "h",
+            "ts",
+            "ch",
+            "sh",
+            "sh",
+            "",
+            "i",
+            "",
+            "e",
+            "iu",
+            "ia",
+            "e",
+        ],
+        strict=True,
+    )
+)
+_CYRILLIC["ж"] = "zh"
+_GREEK = dict(
+    zip(
+        "αβγδεζηθικλμνξοπρσςτυφχψω",
+        [
+            "a",
+            "v",
+            "g",
+            "d",
+            "e",
+            "z",
+            "i",
+            "th",
+            "i",
+            "k",
+            "l",
+            "m",
+            "n",
+            "ks",
+            "o",
+            "p",
+            "r",
+            "s",
+            "s",
+            "t",
+            "i",
+            "f",
+            "h",
+            "ps",
+            "o",
+        ],
+        strict=True,
+    )
+)
+
+
+def _latin(word: str) -> str:
+    """A Cyrillic or Greek word in Latin letters ("телефон" as "telefon"), so it can be compared with
+    its English meaning; other letters are kept."""
+    word = word.replace("ου", "u")
+    return "".join(_CYRILLIC.get(c) or _GREEK.get(c) or c for c in word)
+
+
+def _sound(word: str) -> str:
+    """English spelled the way a transliteration spells it ("telephone" as "telefone"): the letters
+    that differ only by spelling convention are made the same, and doubled letters made single."""
+    for old, new in (
+        ("tion", "tsi"),
+        ("ph", "f"),
+        ("ck", "k"),
+        ("th", "t"),
+        ("ch", "h"),
+        ("sh", "h"),
+        ("c", "k"),
+        ("q", "k"),
+        ("y", "i"),
+        ("w", "v"),
+        ("v", "b"),
+        ("x", "ks"),
+    ):
+        word = word.replace(old, new)
+    word = re.sub(r"(.)\1+", r"\1", word)
+    # The ending is the language's own (-o, -os, -ia), unless that would leave too little ("moi").
+    stem = re.sub(r"[aeiou]+s?$", "", word)
+    return stem if len(stem) >= 3 else word
+
+
+def is_giveaway(lemma: str, meaning: str) -> bool:
+    """A word that tests nothing: a proper noun (its meaning is capitalized, "Thames") or a cognate an
+    English speaker reads without studying (the word and its meaning share most of their letters,
+    "legislador" and "legislator"). Checked here rather than left to Claude, and on what's stored, so a
+    bank written before this check is cleaned when it's served. Russian and Greek words are compared
+    with their Latin spelling ("телефон" as "telefon"), both sides respelled by sound."""
+    if meaning[:1].isupper() and meaning != "I":
+        return True
+    folded = _fold(lemma)
+    text = _fold(meaning)
+    pieces = text.removeprefix("to ").split()
+    if (spelled := _latin(folded)) != folded:  # Cyrillic or Greek: compare by sound
+        folded = _sound(spelled)
+        pieces = [_sound(p) for p in pieces]
+    candidates = [" ".join(pieces), *pieces]
+    # A verb's ending is its own ("aceptar", "to accept"), so a verb is also compared without it.
+    words = [folded, folded[:-2]] if text.startswith("to ") else [folded]
+    # Short words only match when identical: "se" and "see" share letters, not a meaning.
+    return any(
+        word == c
+        or (min(len(word), len(c)) >= 4 and SequenceMatcher(None, word, c).ratio() >= COGNATE_RATIO)
+        for word in words
+        for c in candidates
+        if c
+    )
 
 
 def serve(conn: sqlite3.Connection, lexicon: Checker, language: Code) -> list[dict[str, Any]]:
     """The language's bank for the quiz, up to `PER_BAND` words a band, without words already in the
-    deck (they count as known), most common first. Empty until the bank is written."""
+    deck (they count as known) and without proper nouns and obvious cognates (`is_giveaway`), most
+    common first. Empty until the bank is written."""
     out: list[dict[str, Any]] = []
     per_band: dict[int | None, int] = {}
     for lemma, rank, meaning, wrong in store.vocab_items(conn, language):
         band = band_of(rank)
-        if lexicon.entry_of(lemma) is not None or per_band.get(band, 0) >= PER_BAND:
+        if (
+            lexicon.entry_of(lemma) is not None
+            or per_band.get(band, 0) >= PER_BAND
+            or is_giveaway(lemma, meaning)
+        ):
             continue
         per_band[band] = per_band.get(band, 0) + 1
         out.append({"word": lemma, "rank": rank, "meaning": meaning, "wrong": wrong})

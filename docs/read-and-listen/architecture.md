@@ -688,18 +688,26 @@ in the current language, with when one was last read to the end. Nothing else le
 
 - **The vocabulary check suggests the common-words setting** (12 November 2026, the owner's idea, for
   every language but Thai): 20 questions on a language's most common words, from its settings page.
-  The server keeps a bank (`vocab_check.py`): `PER_BAND` words from each of eight rank bands (1 to 100
+  The server keeps a bank (`vocab_check.py`): `ASKED_PER_BAND` (14) words asked for from each of eight rank bands (1 to 100
   up to 5,001 to 10,000), a fixed sample per language, glossed by Claude once with three wrong choices
   and checked in code (a word it didn't ask for, or a wrong choice that could also be right, is
   dropped). It is written in the background the first time (`GET /api/vocab-check` answers
   "preparing" until then), its cost is in `/api/costs` as `vocab_checks`, and words already in the
-  deck are left out when it's served. **The quiz and its scoring run in the app** (`src/reader/
+  deck are left out when it's served, and so are proper nouns (a capitalized meaning, "Thames") and
+  obvious cognates (a word sharing 80% of its letters with its meaning, "legislador" and "legislator";
+  `is_giveaway`), since they test nothing. That runs on what's stored, so a bank written earlier is
+  cleaned without being written again, and serves up to `PER_BAND` (8) a band, the extra asked words
+  being slack for deck words and giveaways. A bank written when fewer were asked for is topped up in the
+  background the next time it's served (only the sampled words not yet stored are asked for), while the
+  quiz uses what's there. A Russian or Greek word is compared by its Latin spelling
+  ("телефон" as "telefon"), with both sides respelled by sound (ph as f, c as k, v as b) and the
+  ending left off; it catches "telephone" and "problem" but not looser ones ("president"). **The quiz and its scoring run in the app** (`src/reader/
   vocabCheck.ts`, pure and tested): it starts at the 251 to 500 band, goes up a band after a right
   answer and down after a wrong one or "I don't know", and scores each band with a wrong answer
   taking a third of a right one (a guess among four). It suggests the largest setting at which at
   least 90% of the words it would count as known are known, by each band's share, taking an unasked
   band below the lowest asked as known and nothing above the highest asked. The owner accepts it or
-  keeps their setting; it never writes a card or changes anything else. The result lists the words missed (wrong or skipped) with their meaning and what was chosen. The 5,001 to 10,000 band was added on 13 November 2026 so 10,000 can be suggested; a bank stored without it is served as it is and written again in the background (`vocab_check.complete`). Twenty questions was checked
+  keeps their setting; it never writes a card or changes anything else. The result lists the words missed (wrong or skipped) with their meaning and what was chosen. The 5,001 to 10,000 band was added on 13 November 2026 so 10,000 can be suggested; a bank stored without it is served as it is and topped up in the background with the new band's words. Twenty questions was checked
   by simulation against a learner whose chance of knowing a word falls with its rank: the suggestion
   was within one setting step of the right one 98% of the time (95% at 12 questions, 99% at 40) and
   exactly right 62% of the time (69% at 40), so more questions buy little. Not tried on a real
