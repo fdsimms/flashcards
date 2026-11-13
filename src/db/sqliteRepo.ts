@@ -74,6 +74,7 @@ const MIGRATIONS: { table: string; column: string; sql: string }[] = [
   { table: 'cards', column: 'flag', sql: 'ALTER TABLE cards ADD COLUMN flag INTEGER' },
   { table: 'form_practice', column: 'given', sql: 'ALTER TABLE form_practice ADD COLUMN given TEXT' },
   { table: 'reviews', column: 'interday', sql: 'ALTER TABLE reviews ADD COLUMN interday INTEGER NOT NULL DEFAULT 0' },
+  { table: 'reviews', column: 'deck', sql: 'ALTER TABLE reviews ADD COLUMN deck TEXT' },
 ];
 
 async function migrate(db: SQLite.SQLiteDatabase) {
@@ -275,8 +276,8 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async addReview(e: ReviewLogEntry) {
       const r = await db.runAsync(
-        'INSERT INTO reviews (card_id, rating, reviewed_at, state, due, stability, difficulty, interday) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        e.cardId, e.rating, e.reviewedAt, e.state, e.due, e.stability, e.difficulty, e.interday ? 1 : 0,
+        'INSERT INTO reviews (card_id, rating, reviewed_at, state, due, stability, difficulty, interday, deck) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        e.cardId, e.rating, e.reviewedAt, e.state, e.due, e.stability, e.difficulty, e.interday ? 1 : 0, e.deck ?? null,
       );
       return r.lastInsertRowId;
     },
@@ -369,12 +370,12 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async listReviews(since) {
       // ISO strings are all UTC, so comparing them as text compares the instants.
-      const rows = await db.getAllAsync<{ card_id: string; rating: number; reviewed_at: string; state: number; due: string; stability: number; difficulty: number; interday: number }>(
-        'SELECT card_id, rating, reviewed_at, state, due, stability, difficulty, interday FROM reviews WHERE reviewed_at >= ? ORDER BY reviewed_at', since.toISOString(),
+      const rows = await db.getAllAsync<{ card_id: string; rating: number; reviewed_at: string; state: number; due: string; stability: number; difficulty: number; interday: number; deck: string | null }>(
+        'SELECT card_id, rating, reviewed_at, state, due, stability, difficulty, interday, deck FROM reviews WHERE reviewed_at >= ? ORDER BY reviewed_at', since.toISOString(),
       );
       return rows.map((r) => ({
         cardId: r.card_id, rating: r.rating as ReviewLogEntry['rating'], reviewedAt: r.reviewed_at,
-        state: r.state, due: r.due, stability: r.stability, difficulty: r.difficulty, interday: !!r.interday,
+        state: r.state, due: r.due, stability: r.stability, difficulty: r.difficulty, interday: !!r.interday, deck: r.deck ?? undefined,
       }));
     },
     async saveDeckParams(params) {

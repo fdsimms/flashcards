@@ -191,6 +191,26 @@ describe("today's counts", () => {
     expect(counts({ cards: [fresh, reviewing], revlog, reviews }).get(deck)).toEqual({ introduced: 1, reviewed: 2 });
   });
 
+  it('counts an answer given in a filtered deck there, after the card has gone home, as the session did', () => {
+    const [base] = makeCards(note, NOW);
+    const home = { ...base, ankiId: '100', sched: { ...base.sched, state: 2 } }; // back home: a review now
+    const answeredAt = new Date(2026, 10, 11, 9, 0);
+    // Franki's row for its answer to the Anki card says where it was given; the review log doesn't.
+    const reviews = [{ cardId: home.id, ...review(base.sched, 3, answeredAt).log, state: 2, deck: 'Custom Study Session' }];
+    const revlog = [
+      { id: answeredAt.getTime(), cid: 100, ease: 3, lastIvl: 12, time: 3000, type: 1 },
+      // Another device's answer to the same card, later: no row here, so counted where the card is.
+      { id: answeredAt.getTime() + 3_600_000, cid: 100, ease: 3, lastIvl: 12, time: 3000, type: 1 },
+    ];
+    const c = counts({ cards: [home], revlog, reviews });
+    expect(c.get('Custom Study Session')).toEqual({ introduced: 0, reviewed: 1 });
+    expect(c.get(deck)).toEqual({ introduced: 0, reviewed: 1 });
+    // A Franki-only card's own row carries it too.
+    const own = { ...base, id: `${base.id}-own` };
+    expect(counts({ cards: [own], reviews: [{ cardId: own.id, ...review(base.sched, 3, answeredAt).log, state: 2, deck: 'F' }] }).get('F'))
+      .toEqual({ introduced: 0, reviewed: 1 });
+  });
+
   it("counts a Franki-only card's answer on a day-long learning step as a review, as the session did", () => {
     const [card] = makeCards(note, NOW);
     const reviews = [

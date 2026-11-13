@@ -31,6 +31,8 @@ export interface Answer {
   interday?: boolean;
   /** An answer in a filtered deck that only previews (review log type 3): it uses no deck's limits. */
   preview?: boolean;
+  /** The filtered deck it was given in, when Franki logged it there (`ReviewLogEntry.deck`). */
+  deck?: string;
   takenMs: number;
 }
 
@@ -51,6 +53,14 @@ export function answersFrom(input: { revlog: RevlogRow[]; reviews: ReviewLogEntr
   for (const c of input.cards) {
     if (c.ankiId) { byAnkiId.set(Number(c.ankiId), c.id); ankiCards.add(c.id); }
   }
+  // Where Franki answered an Anki card in a filtered deck: its own log row for the answer, which
+  // has the deck the review log lacks. The review log row is stamped with the answer's time in ms
+  // (`nextRevlogId`, a little later only when two answers share a millisecond).
+  const filteredAt = new Map<string, { at: number; deck: string }[]>();
+  for (const r of input.reviews) {
+    if (r.deck && ankiCards.has(r.cardId)) (filteredAt.get(r.cardId) ?? filteredAt.set(r.cardId, []).get(r.cardId)!).push({ at: Date.parse(r.reviewedAt), deck: r.deck });
+  }
+  const deckOf = (cardId: string, revlogId: number) => filteredAt.get(cardId)?.find((f) => revlogId >= f.at && revlogId - f.at < 1000)?.deck;
   const out: Answer[] = [];
   for (const r of input.revlog) {
     const cardId = byAnkiId.get(r.cid);
@@ -66,6 +76,7 @@ export function answersFrom(input: { revlog: RevlogRow[]; reviews: ReviewLogEntr
       lastIntervalDays: r.lastIvl > 0 ? r.lastIvl : undefined,
       interday: (r.type === 0 || r.type === 2) && r.lastIvl > 0,
       preview: r.type === 3,
+      deck: deckOf(cardId, r.id),
       takenMs: r.time,
     });
   }
@@ -79,6 +90,7 @@ export function answersFrom(input: { revlog: RevlogRow[]; reviews: ReviewLogEntr
       kind: r.state === 2 ? 'review' : r.state === 3 ? 'relearn' : 'learn',
       wasNew: r.state === 0,
       interday: !!r.interday,
+      deck: r.deck,
       takenMs: 0,
     });
   }

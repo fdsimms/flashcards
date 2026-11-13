@@ -166,6 +166,12 @@ export interface ReviewLogEntry {
    * counts as a review today. Anki's review log tells by `lastIvl`; Franki's table keeps it here.
    */
   interday?: boolean;
+  /**
+   * The filtered deck the card was answered in, when it was in one. A rescheduling filtered deck
+   * sends a card home once it's a review, and Anki's review log doesn't say where an answer was
+   * given, so today's counts read it here (`answersFrom`), as Anki counts the answer there.
+   */
+  deck?: string;
 }
 
 export interface RenderedSide {
