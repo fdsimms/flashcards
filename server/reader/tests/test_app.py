@@ -110,6 +110,15 @@ def test_a_topic_can_be_unfavorited() -> None:
     assert c.patch("/api/topics/99", json={"favorite": False}, headers=AUTH).status_code == 404
 
 
+def test_unliking_a_hidden_shelf_topic_is_not_an_error() -> None:
+    c = client()
+    topic = c.post("/api/topics", json={"name": "Taxi", "favorite": False}, headers=AUTH).json()
+    c.delete(f"/api/topics/{topic['id']}", headers=AUTH)
+    updated = c.patch(f"/api/topics/{topic['id']}", json={"favorite": False}, headers=AUTH)
+    assert updated.status_code == 200
+    assert updated.json()["favorite"] is False
+
+
 def test_next_text_returns_the_server_split_lines() -> None:
     c = client()
     topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
