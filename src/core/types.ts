@@ -172,6 +172,8 @@ export interface ReviewLogEntry {
    * given, so today's counts read it here (`answersFrom`), as Anki counts the answer there.
    */
   deck?: string;
+  /** What was wrong, when the answer was Again with a reason chosen (`MissReason.key`, src/core/misses.ts). Franki's own: never sent to Anki. */
+  miss?: string;
 }
 
 export interface RenderedSide {
