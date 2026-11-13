@@ -93,9 +93,13 @@ FINDERS: dict[str, Finder] = {
     "ja.te_iru": _either(_after_te("いる", "居る"), _each(_auxiliary("てる", "でる"))),
     "ja.tai": _each(_auxiliary("たい")),
     "ja.te_kudasai": _after_te("くださる", "下さる"),
-    # 会おう, 食べよう, 行きましょう.
+    # 会おう, 食べよう, 行きましょう. Not でしょう or だろう, "probably": です and だ have the form too.
     "ja.volitional": _each(
-        lambda m: m.pos in (_VERB, _AUXILIARY) and m.form.startswith("意志推量形")
+        lambda m: (
+            m.pos in (_VERB, _AUXILIARY)
+            and m.form.startswith("意志推量形")
+            and m.dictionary not in ("です", "だ")
+        )
     ),
     # 行ったら, 雨だったら, 行けば.
     "ja.conditional": _each(

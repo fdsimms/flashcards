@@ -337,6 +337,22 @@ Thai letters, so none of them is a language here. Each new language works as Spa
 - **In the app**, a word known for being common rather than from the deck says "A common word" in
   its gloss, and outside Thai the highlight's row in the reader's key is "Might be new to you". Every
   language but Thai is set a little smaller than Thai.
+- **How common a word is** (13 November 2026, the owner's idea, to decide what to add to the deck):
+  the word popup shows a four-bar meter, a band (very common up to 1,000, common to 3,000, uncommon
+  to 10,000, rare beyond) and the word's place, "Uncommon · #6,412", from `rank` on each word of a
+  text (`frequency.py`: the place in `data/<code>_common.txt`, by dictionary form, so hablé shows
+  hablar's; `null` past the list's end, which the app calls rare). Thai has a list for this too,
+  `data/th_common.txt`, built by `build_common.py` from two sources (wordfreq has no Thai): the
+  word counts of the Thai National Corpus that PyThaiNLP ships, which is mostly written Thai, and
+  every third line of OpenSubtitles' Thai subtitles from OPUS, which are speech (downloaded on the
+  first run into the temp folder; about a minute on four cores). A word ranks by the average of its
+  frequency in the two, so casual words land where they're said (ครับ from #199 to #49, โอเค from
+  absent to #198, ป่ะ from #7,248 to #4,378). The subtitles are cut into words with the corpus's
+  words added to PyThaiNLP's dictionary, so a casual word the corpus lists isn't split, and words
+  outside that dictionary are dropped (the subtitles leave fragments like ยนะ). Every other
+  language's list is wordfreq's blend, which already includes subtitles and social media. It only
+  ranks: Thai still counts only its deck as known. The licences of the corpus and of OpenSubtitles
+  aren't confirmed. A name shows nothing.
 - **Topic ideas** are ranked by fit for Thai only: their words are Thai, so every other language
   keeps the listed order.
 - The reading log names each language in English, lowercase (`thai`, `spanish`, `german`, `french`,

@@ -46,6 +46,21 @@ CASES: list[tuple[Code, str, str, list[str]]] = [
     ),
     ("de", "Ich kann schwimmen, aber ich muss arbeiten.", "de.modals", ["kann", "muss"]),
     ("de", "Ich bleibe, weil ich müde bin.", "de.subordinate", ["weil"]),
+    (
+        "de",
+        "Ich habe das Buch gestern gekauft und er hat es gehört.",
+        "de.perfect",
+        ["gekauft", "gehört"],
+    ),
+    ("de", "Wir sind spät aufgestanden und gegangen.", "de.perfect", ["aufgestanden"]),
+    # sein: only verbs of movement and change (ist gegangen), not a state (ist verkauft).
+    (
+        "de",
+        "Er ist gestern gegangen, wir sind angekommen und es ist passiert.",
+        "de.perfect",
+        ["gegangen", "angekommen", "passiert"],
+    ),
+    ("de", "Sie war gegangen und er hatte gegessen.", "de.pluperfect", ["gegangen", "gegessen"]),
     # French
     (
         "fr",
@@ -69,6 +84,34 @@ CASES: list[tuple[Code, str, str, list[str]]] = [
         ["parlerais", "serait"],
     ),
     ("fr", "Il faut que je sois là et qu'il fasse beau.", "fr.subjunctive", ["sois", "fasse"]),
+    (
+        "fr",
+        "Il reviendra demain et je deviendrai médecin.",
+        "fr.future",
+        ["reviendra", "deviendrai"],
+    ),
+    # Spelling changes: acheter, appeler.
+    (
+        "fr",
+        "Nous appellerions et j'achèterais du pain.",
+        "fr.conditional",
+        ["appellerions", "achèterais"],
+    ),
+    ("fr", "Je connaissais Marc, mais je ne le connais plus.", "fr.imperfect", ["connaissais"]),
+    # être: verbs of movement and change, and reflexive verbs; not a state (est fatiguée).
+    (
+        "fr",
+        "Il est parti, elle s'est levée et nous nous sommes lavés.",
+        "fr.passe_compose",
+        ["est parti", "est levée", "sommes lavés"],
+    ),
+    ("fr", "Il n'est pas encore revenu.", "fr.passe_compose", ["est pas encore revenu"]),
+    (
+        "fr",
+        "Je vais le voir et elle va bien chercher du pain.",
+        "fr.near_future",
+        ["vais le voir", "va bien chercher"],
+    ),
     # Russian
     ("ru", "Он читал книгу, а она пошла домой.", "ru.past", ["читал", "пошла"]),
     ("ru", "Я буду читать, а он будет работать.", "ru.future", ["буду читать", "будет работать"]),
@@ -87,11 +130,13 @@ CASES: list[tuple[Code, str, str, list[str]]] = [
         "ru.comparative",
         ["быстрее", "лучше", "более"],
     ),
+    ("ru", "Улыбаясь, она вернулась, неся сумку.", "ru.gerund", ["улыбаясь", "неся"]),
     # Greek
     ("el", "Θα πάω αύριο.", "el.tha", ["θα"]),
     ("el", "Θέλω να φύγω.", "el.na", ["να"]),
     ("el", "Χθες έγραψα ένα γράμμα και πήγαμε σινεμά.", "el.past", ["έγραψα", "πήγαμε"]),
     ("el", "Έχω γράψει το γράμμα.", "el.perfect", ["έχω γράψει"]),
+    ("el", "Χθες γράψαμε και μείναμε εκεί.", "el.past", ["γράψαμε", "μείναμε"]),
     ("el", "Είχαν φύγει νωρίς.", "el.pluperfect", ["είχαν φύγει"]),
     # Polish
     ("pl", "Byłem w domu, a ona poszła do sklepu.", "pl.past", ["byłem", "poszła"]),
@@ -99,6 +144,12 @@ CASES: list[tuple[Code, str, str, list[str]]] = [
     ("pl", "Chciałbym kawę, gdyby była.", "pl.conditional", ["chciałbym", "gdyby"]),
     ("pl", "Czy masz czas?", "pl.czy", ["czy"]),
     ("pl", "Chcę iść, ale muszę pracować.", "pl.modals", ["chcę iść", "muszę pracować"]),
+    (
+        "pl",
+        "Chcę zobaczyć ten koc, ale muszę uciec.",
+        "pl.modals",
+        ["chcę zobaczyć", "muszę uciec"],
+    ),
     # Norwegian
     ("nb", "Jeg var hjemme og spiste; vi bodde der.", "nb.past", ["var", "spiste", "bodde"]),
     ("nb", "Jeg snakket med henne.", "nb.past", ["snakket"]),
@@ -127,6 +178,58 @@ def test_each_point_is_found(language: Code, text: str, point: str, matches: lis
         ("el", "Όταν έρθει η μέρα.", "el.past"),
         ("pl", "To jest mała szkoła.", "pl.past"),
         ("nb", "Eplet er rødt.", "nb.past"),  # a noun's -et
+        # A participle after sein or être is a state, not a perfect: only verbs of movement and
+        # change (and reflexive ones) form it that way.
+        ("de", "Das Auto ist verkauft und die Tür ist geöffnet.", "de.perfect"),
+        ("de", "Der Tisch ist gedeckt, und das Geschäft ist geschlossen.", "de.perfect"),
+        ("de", "Das Haus war verkauft.", "de.pluperfect"),
+        ("fr", "Elle est fatiguée et il est fini.", "fr.passe_compose"),
+        ("fr", "La porte est fermée et il est surpris.", "fr.passe_compose"),
+        # German: present tenses of ge- and prefixed verbs end like a participle (geht, beginnt),
+        # and a plural verb after werden is a present tense, not an infinitive.
+        ("de", "Das Wetter ist schön, und es geht mir gut.", "de.perfect"),
+        ("de", "Wir sind müde, aber es geht.", "de.perfect"),
+        ("de", "Ich habe Hunger, und der Film beginnt gleich.", "de.perfect"),
+        ("de", "Er hat Geld und sie gehört zu uns.", "de.perfect"),
+        ("de", "Die Bücher sind alt, und sie gehören mir.", "de.perfect"),
+        ("de", "Es wird dunkel, und wir gehen nach Hause.", "de.future"),
+        # French: nouns ending like a participle (une pensée), places after aller, and the
+        # present of connaître, which ends like an imperfect.
+        ("fr", "J'ai une pensée pour toi.", "fr.passe_compose"),
+        ("fr", "Il a une dictée demain.", "fr.passe_compose"),
+        ("fr", "Je vais à la mer et nous allons au théâtre.", "fr.near_future"),
+        ("fr", "Il va chez sa mère. Je vais au centre.", "fr.near_future"),
+        ("fr", "Elle va en Angleterre en octobre, et en voiture.", "fr.near_future"),
+        ("fr", "Je connais ce quartier et tu connais Marc.", "fr.imperfect"),
+        ("fr", "Elle apparaît et il disparaît: je disparais aussi.", "fr.imperfect"),
+        # Russian: -ее and -ей of an -ий adjective are the neuter and the feminine, not a
+        # comparative; будет before a noun isn't a compound future; -ся presents, imperatives
+        # and feminine participles aren't verbal adverbs.
+        ("ru", "Это хорошее место, и у меня синее платье.", "ru.comparative"),
+        ("ru", "Я говорю с хорошей учительницей о последней неделе.", "ru.comparative"),
+        ("ru", "Домашнее задание и будущее.", "ru.comparative"),
+        ("ru", "У нас будет возможность и радость.", "ru.future"),
+        ("ru", "Завтра будет ночь, и будет пять часов.", "ru.future"),
+        ("ru", "Он учится, а они находятся дома.", "ru.gerund"),
+        ("ru", "Здесь ведется работа, а там вводятся правила.", "ru.gerund"),
+        ("ru", "Возвращайся домой и занимайся спортом.", "ru.gerund"),
+        ("ru", "Взятая книга и вызванная проблема.", "ru.gerund"),
+        ("ru", "Он ждёт гостя.", "ru.gerund"),
+        # Greek: the present's we, you-plural and colloquial they end like a past's -ε, and a
+        # command can end like one; έχει σπίτι και μένει is a present, not a perfect.
+        ("el", "Γράφουμε ένα γράμμα και μένουμε στην Αθήνα.", "el.past"),
+        ("el", "Εμείς μιλάμε ελληνικά. Αυτοί γράφουνε.", "el.past"),
+        ("el", "Θέλετε καφέ; Πατήστε εδώ.", "el.past"),
+        ("el", "Πες μου. Κοίτα εδώ και σταμάτα.", "el.past"),
+        ("el", "Ο φίλος μου έχει ένα σπίτι και μένει εκεί.", "el.perfect"),
+        ("el", "Έχω δουλειά και θέλει να έρθει.", "el.perfect"),
+        # Polish: a noun in -c after a verb that takes an infinitive.
+        ("pl", "Lubię noc i lubię ten owoc.", "pl.modals"),
+        ("pl", "Chcę ten koc i ojciec ma pałac.", "pl.modals"),
+        # Norwegian: a neuter noun with its article (huset) isn't a past tense after det, and an
+        # adjective like nytt isn't a participle.
+        ("nb", "Det huset er stort, og det barnet er søtt.", "nb.past"),
+        ("nb", "Vi har nytt hus og fritt valg.", "nb.perfect"),
     ],
 )
 def test_look_alikes_are_left_alone(language: Code, text: str, point: str) -> None:
@@ -136,13 +239,17 @@ def test_look_alikes_are_left_alone(language: Code, text: str, point: str) -> No
 # Present-tense texts, so a point found here would send a draft back for grammar it doesn't use.
 PLAIN = {
     "de": "Ich nehme einen Kaffee. Die Bedienung ist nett, und das Wetter ist schön. Die Kinder "
-    "spielen im Garten, die Katze schläft. Die rechte Seite ist frei. Er ist gut gelaunt.",
+    "spielen im Garten, die Katze schläft. Die rechte Seite ist frei. Er ist gut gelaunt. Das "
+    "Wetter ist schön, und es geht mir gut. Es wird dunkel, und wir gehen nach Hause.",
     "fr": "Je prends un café. Le serveur est gentil et il fait beau. Nous sommes assis dehors. "
-    "Les enfants jouent, le chat dort. Mais c'est vrai, elle est jolie et il est petit.",
+    "Les enfants jouent, le chat dort. Mais c'est vrai, elle est jolie et il est petit. Je "
+    "connais ce quartier. Je vais à la mer chez ma mère, et nous allons au théâtre en octobre.",
     "ru": "Я хочу кофе. Официант вежливый, и сегодня хорошая погода. Дети играют в саду, кошка "
-    "спит. У меня нет времени. Вы говорите по-русски? Мама и дочь дома.",
+    "спит. У меня нет времени. Вы говорите по-русски? Мама и дочь дома. Это хорошее место, у "
+    "меня есть синее платье и домашнее задание. Он учится, а они находятся дома.",
     "el": "Θέλω έναν καφέ. Ο σερβιτόρος είναι ευγενικός. Καθόμαστε έξω στον ήλιο. Τα παιδιά "
-    "παίζουν στον κήπο, η γάτα κοιμάται. Όταν έρχεται η μέρα.",
+    "παίζουν στον κήπο, η γάτα κοιμάται. Όταν έρχεται η μέρα. Εμείς γράφουμε και μένουμε εδώ. "
+    "Τι κάνετε; Θέλετε καφέ; Αυτοί παίζουνε στον κήπο.",
     "pl": "Poproszę kawę. Kelner jest miły, a dzisiaj jest ładna pogoda. Dzieci bawią się w "
     "ogrodzie, kot śpi. To jest mała szkoła.",
     "nb": "Jeg tar en kaffe. Kelneren er hyggelig. Barna leker i hagen, katten sover. Det blir "

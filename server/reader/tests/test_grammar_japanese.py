@@ -64,6 +64,13 @@ def test_look_alikes_are_left_alone() -> None:
     assert "ja.te_iru" not in found("猫がいる。")
 
 
+def test_probably_is_not_lets() -> None:
+    # でしょう and だろう have the volitional form too, but mean "probably".
+    assert "ja.volitional" not in found("明日は雨でしょう。")
+    assert "ja.volitional" not in found("彼は学生だろう。")
+    assert found("一緒に行きましょう。")["ja.volitional"] == ["行きましょう"]
+
+
 def test_matches_line_up_with_the_readers_words() -> None:
     assert words("ご飯を食べている。", LEXICON) == ["ご飯", "を", "食べて", "いる"]
     found_in = find_in_lines(["ご飯|を|食べて|いる。"], LEXICON, ("ja.te_iru",))
