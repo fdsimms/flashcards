@@ -1131,10 +1131,31 @@ def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
     return out
 
 
-def _shelf_text(text: StoredText, engine: Engine) -> dict[str, Any]:
-    """A text on the shelf as a card shows it, without its words (they come with /api/texts/{id})."""
+def _practice_words(text: StoredText, engine: Engine) -> list[dict[str, Any]]:
+    """The text's practice words as the reader draws them (meaning, dictionary form, status), in
+    the order of `text.stretch`, so a card can open a word's popover without fetching the whole text.
+    A practice word that doesn't turn up as a word of the text is left out."""
+    entries, lexicon = engine.snapshot(text.language)
+    out = render(
+        text,
+        lexicon,
+        engine.meanings(text.language),
+        {e.text: e.translit for e in entries if e.translit},
+    )
+    first: dict[str, dict[str, Any]] = {}
+    for line in out["lines"]:
+        for word in line["words"]:
+            if word["status"] is not None:
+                first.setdefault(word["text"], word)
+    return [first[w] for w in text.stretch if w in first]
+
+
+def _shelf_text(text: StoredText, engine: Engine, practice: bool = False) -> dict[str, Any]:
+    """A text on the shelf as a card shows it, without its words (they come with /api/texts/{id}).
+    `practice` adds its practice words' meanings, for the card that lists them."""
     topic = store.get_topic(engine.conn, text.topic_id, text.language, include_removed=True)
     return {
+        **({"practice": _practice_words(text, engine)} if practice else {}),
         "id": text.id,
         "title": text.title,
         "topic": topic.name if topic else "",
@@ -1164,7 +1185,7 @@ def _shelf(engine: Engine) -> dict[str, Any]:
             "about": story.about,
             "read": len(read),
             "last_recap": read[-1].recap if read else "",
-            "next": _shelf_text(waiting, engine) if waiting else None,
+            "next": _shelf_text(waiting, engine, practice=True) if waiting else None,
             "writing": any(j.story_id == story.id for j in writing),
             "failed": engine.failure(story.topic_id, language),
         }

@@ -76,7 +76,7 @@ import { lift, MIN_TAP, radius, space, type, useTheme } from './theme';
  * seconds. `loadId` and `mounted` make a load that's been superseded (Next, then Back) drop its result.
  */
 
-type Tapped = { word: Word; x: number; y: number };
+export type Tapped = { word: Word; x: number; y: number };
 
 const POLL_MS = 3_000;
 // Three attempts and the audio rarely take more than two minutes; past this, something is wrong.
@@ -1025,7 +1025,7 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, onClose }: {
+export function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, onClose }: {
   tapped: Tapped | null;
   grammar: TextGrammar | null;
   api: Api;

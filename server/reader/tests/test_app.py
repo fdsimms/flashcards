@@ -861,7 +861,14 @@ def test_a_story_is_started_and_its_episodes_are_listed_once_read() -> None:
     assert (story["title"], story["about"], story["read"]) == ("Noi's stall", "a noodle stall", 0)
     episode = story["next"]
     assert episode["episode"] == 1 and episode["reason"] == "story"
-    assert c.get(f"/api/texts/{episode['id']}", headers=AUTH).json()["topic"] == "Noi's stall"
+    full = c.get(f"/api/texts/{episode['id']}", headers=AUTH).json()
+    assert full["topic"] == "Noi's stall"
+    # The card carries its practice words as the reader draws them, to open their popovers.
+    in_text = {w["text"]: w for line in full["lines"] for w in line["words"] if w["status"]}
+    assert [w["text"] for w in episode["practice"]] == [
+        s for s in episode["stretch"] if s in in_text
+    ]
+    assert all(w == in_text[w["text"]] for w in episode["practice"])
 
     body = {"rating": None, "finished": True}
     c.post(f"/api/texts/{episode['id']}/reading", json=body, headers=AUTH)
