@@ -152,7 +152,7 @@ class Generated:
     missing_glosses: tuple[str, ...]
     usage: Usage = Usage()
     stretch: tuple[str, ...] = ()  # the stretch words the text actually uses
-    roles: dict[str, str] = field(default_factory=dict)  # speaker -> name, job first if any: "Waiter Nok"
+    roles: dict[str, str] = field(default_factory=dict)  # name, job first: "Waiter Nok"
     # speaker -> "male" or "female", for a dialogue (gender.py picks each one's voice)
     genders: dict[str, str] = field(default_factory=dict)
     # speaker -> one of characters.CHARACTERS, for a dialogue; the app draws it in the speaker's gender
