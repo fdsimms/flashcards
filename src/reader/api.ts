@@ -2,6 +2,7 @@
 // passphrase; the server's own error sentences are passed through, since they're written to be
 // shown as they are.
 
+import { Refusal } from '../core/failure';
 import type { DrillQuestionIn } from '../core/grammarDrills';
 
 /**
@@ -264,7 +265,7 @@ export type ReadingLog = {
   seconds: number;
 };
 
-export class ApiError extends Error {
+export class ApiError extends Refusal {
   constructor(
     message: string,
     readonly status: number,

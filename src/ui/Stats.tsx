@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { cardHomeDeck, isInDeck } from '../core/deckTree';
+import { failureText } from '../core/failure';
 import { paramsForDeck } from '../core/scheduler';
 import {
   answerCalendar, answersFrom, calendarStart, computeStats, durationText, intervalGroups, intervalText, MATURE_DAYS, percent,
@@ -48,7 +49,7 @@ export function Stats({ repo, wanikani = [] }: { repo: Repo & AnkiLink; wanikani
         repo.listNotes(), repo.listCards(), repo.listReviews(since), repo.ankiReviewLog(since), repo.listDeckParams(),
       ]);
       setData({ notes, cards, answers: answersFrom({ revlog, reviews, cards }), params, now, dayStartsAtHour });
-    })().catch((e) => setError(`Couldn't load the stats. ${e instanceof Error ? e.message : String(e)}`));
+    })().catch((e) => setError(failureText(e, { what: "Couldn't load the stats.", next: 'Try again.' })));
   }, [repo, attempt]);
 
   const tops = useMemo(() => [

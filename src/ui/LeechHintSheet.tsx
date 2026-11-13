@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from './haptics';
 import { Button, ErrorNote, Field, Icon, Tappable } from './kit';
 import { lift, radius, space, type, useTheme } from './theme';
+import { failureText } from '../core/failure';
 
 /**
  * Opens over the review screen when an answer makes a card a leech, asking for a hint to save in
@@ -35,7 +36,7 @@ export function LeechHintSheet({ word, misses, suggest, onSave, onSkip }: {
     try {
       setIdeas(await suggest());
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(failureText(e, { what: "Couldn't suggest hints.", next: 'Try again, or write your own.' }));
     } finally {
       setAsking(false);
     }

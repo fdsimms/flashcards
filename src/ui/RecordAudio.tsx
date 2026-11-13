@@ -3,12 +3,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { makeRecording, recordNote, sendRecording, type RecordDeps, type Recording } from '../anki/recordService';
 import { isOmnilanguage, speechLangFor } from '../core/cards';
+import { failureText } from '../core/failure';
 import { needsRecording, recordingText, recordingVoice } from '../core/recording';
 import type { Note } from '../core/types';
 import { azureVoiceName, languageKey, languageName, type VoiceSettings } from '../core/voices';
 import type { Repo } from '../db/repo';
 import { mediaFileUri } from '../media/mediaFiles';
-import { ApiError } from '../reader/api';
 import { Button, ErrorNote, Help } from './kit';
 
 /**
@@ -24,8 +24,6 @@ export function useVoiceSettings(repo: Repo): VoiceSettings {
   return settings;
 }
 
-const message = (e: unknown) => (e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e));
-
 /**
  * After a save: a recording made here goes on the list the next sync sends, if the saved note
  * still has it; a new note without one is recorded now, in the background, with an alert if that
@@ -38,7 +36,7 @@ export function afterSave(recorder: RecordDeps | null, saved: Note, opts: { adde
   const voice = recordingVoice(saved, opts.settings);
   if (opts.added && voice && needsRecording(saved)) {
     recordNote(recorder, saved.id, voice).catch((e) => {
-      Alert.alert('Saved without a recording', `${message(e)} Record it later with Record audio in the note editor, or from the deck's options.`);
+      Alert.alert('Saved without a recording', failureText(e, { next: "Record it later with Record audio in the note editor, or from the deck's options." }));
     });
   }
 }
@@ -76,7 +74,7 @@ export function RecordAudio({ recorder, note, settings, onRecorded }: {
         player.current.play();
       }
     } catch (e) {
-      setError(message(e));
+      setError(failureText(e, { what: "Couldn't record it.", next: 'Try again.' }));
     } finally {
       setBusy(false);
     }

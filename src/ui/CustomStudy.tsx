@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { refreshFromKeptCollection } from '../anki/transfer';
 import { runCustomStudy, type CustomStudyResult } from '../anki/customStudyService';
-import { CustomStudyRefused } from '../anki/customStudyWrites';
 import {
   CRAM_CHOICES, CUSTOM_STUDY_OPTIONS, customStudyFrom, customStudyProblem, type CramSelect, type CustomStudyKind,
 } from '../core/customStudy';
+import { failureText } from '../core/failure';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { haptic } from './haptics';
@@ -51,7 +51,7 @@ export function CustomStudy({ repo, deck, onStarted }: {
       haptic.success();
       onStarted(result);
     } catch (e) {
-      setError(e instanceof CustomStudyRefused ? e.message : `Couldn't start custom study. ${e instanceof Error ? e.message : ''}`.trim());
+      setError(failureText(e, { what: "Couldn't start custom study.", next: 'Try again.' }));
       setBusy(false);
     }
   };
