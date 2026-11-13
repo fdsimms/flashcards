@@ -41,7 +41,7 @@ describe('requests', () => {
 
   it('keeps a free account to the levels it opens', async () => {
     const { fn, calls } = fakeFetch(() => ({ body: { total_count: 4, data: [] } }));
-    expect(await createWaniKaniApi('t', fn).counts(3)).toEqual({ reviews: 4, lessons: 4 });
+    expect(await createWaniKaniApi('t', fn).counts(3)).toEqual({ reviews: 4, lessons: 4, apprentice: 4 });
     expect(calls.every((c) => c.url.includes('levels=1%2C2%2C3'))).toBe(true);
   });
 

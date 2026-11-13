@@ -7,7 +7,7 @@ import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
 import { problemText, WaniKaniError } from '../wanikani/api';
 import { toKana } from '../wanikani/kana';
-import { lessonsToday } from '../wanikani/prefs';
+import { apprenticeBlocks, lessonsToday } from '../wanikani/prefs';
 import {
   buildSession, canAskLater, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
   studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
@@ -24,7 +24,8 @@ import { useHeaderInset } from './useHeaderInset';
 import { SubjectDetails, SubjectFront } from './WaniKaniCard';
 
 /**
- * Studies WaniKani: today's reviews, then today's lessons, as a deck. Answers are typed or rated
+ * Studies WaniKani, as a deck: today's reviews, or, when none are up or after they're done and
+ * "Start lessons" is tapped, today's lessons. The two are never mixed in one session. Answers are typed or rated
  * (WaniKani's options), checked here, and sent to WaniKani as each item finishes, the latest held
  * back so it can be undone (src/wanikani/session.ts). WaniKani does the scheduling.
  */
@@ -37,6 +38,11 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const [study, setStudy] = useState<Study | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loads, setLoads] = useState(0);
+  // Reviews and lessons are separate sessions: the lessons one is started from the end of the reviews.
+  const [lessonsOnly, setLessonsOnly] = useState(false);
+  const [kind, setKind] = useState<'reviews' | 'lessons'>('reviews');
+  // What the lessons are, once this session is done: how many are offered, and whether the Apprentice limit holds them back.
+  const [next, setNext] = useState<{ lessons: number; held: boolean; apprentice: number }>({ lessons: 0, held: false, apprentice: 0 });
   // The current question's state: the answer shown, what was typed, and how it was judged.
   const [revealed, setRevealed] = useState(false);
   const [typed, setTyped] = useState('');
@@ -60,18 +66,26 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     (async () => {
       try {
         const user = wanikani.user ?? await api.user();
-        const [reviews, lessons, started] = await Promise.all([
+        const [reviews, lessons, started, apprentice] = await Promise.all([
           api.reviewsAvailable(user.maxLevel), api.lessonsAvailable(user.maxLevel),
           api.lessonsStartedSince(studyDayStart(new Date(), wanikani.dayStartsAtHour)),
+          api.apprenticeCount(user.maxLevel),
         ]);
-        const read = new Map((await api.subjects([...reviews, ...lessons].map((a) => a.subjectId))).map((s) => [s.id, s]));
-        const items = sessionItems(reviews, lessons, read, lessonsToday(lessons.length, prefs.newPerDay, started));
+        // Reviews first; lessons only when none are up or they were asked for.
+        const lessonKind = lessonsOnly || reviews.length === 0;
+        const offered = lessonsToday(lessons.length, prefs.newPerDay, started);
+        const held = apprenticeBlocks(apprentice, prefs.maxApprentice) && offered > 0;
+        const lessonCount = held ? 0 : offered;
+        const read = new Map((await api.subjects((lessonKind ? lessons : reviews).map((a) => a.subjectId))).map((s) => [s.id, s]));
+        const items = lessonKind ? sessionItems([], lessons, read, lessonCount) : sessionItems(reviews, [], read, 0);
         // The user's own synonyms count as right answers when typing; without them, only WaniKani's do.
         const typed = prefs.answer === 'type';
         const syn = typed ? await api.synonyms(items.map((i) => i.subjectId)).catch(() => new Map<number, string[]>()) : new Map<number, string[]>();
         if (gone) return;
         setSubjects(read);
         setSynonyms(syn);
+        setKind(lessonKind ? 'lessons' : 'reviews');
+        setNext({ lessons: lessonKind ? 0 : lessonCount, held, apprentice });
         setTyping(typed);
         setStudy(startStudy(buildSession(items, { mode: questionMode(prefs.answer, prefs.separate), lessonBatch: user.lessonBatch })));
       } catch (e) {
@@ -79,7 +93,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
       }
     })();
     return () => { gone = true; };
-  }, [api, loads]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [api, loads, lessonsOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The typing box sits in the footer, so the screen is padded by the keyboard, as in Review.
   const insets = useSafeAreaInsets();
@@ -218,14 +232,34 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
 
   if (!question || !item || !subject) {
     const done = study.session.finished.length;
+    // Lessons wait for a tap rather than following the reviews on their own. Held answers are sent
+    // and counts read again first, so the Apprentice limit is checked against the reviews just done.
+    const startLessons = async () => {
+      send(studyFlush(study).send);
+      setStudy(null);
+      await wanikani.refresh(true);
+      setLessonsOnly(true);
+    };
+    const offer = kind === 'reviews' && next.lessons > 0;
+    const footer = offer ? (
+      <>
+        <Button label={`Start ${next.lessons} ${next.lessons === 1 ? 'lesson' : 'lessons'}`} onPress={startLessons} />
+        <Button label="Back to decks" variant="secondary" onPress={onDone} />
+      </>
+    ) : <Button label="Back to decks" onPress={onDone} />;
     return (
-      <Screen title={title} largeTitle={false} toolbar={toolbar} footer={<Button label="Back to decks" onPress={onDone} />}>
+      <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
         <Reveal style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
           <Icon name="checkmark.circle.fill" size={56} color={c.countDue} weight="regular" />
           <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>All done for now</Text>
           <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>
-            {done ? `${done} ${done === 1 ? 'item' : 'items'} this session. ` : ''}Nothing else is up on WaniKani right now.
+            {done ? `${done} ${done === 1 ? 'item' : 'items'} this session. ` : ''}{kind === 'reviews' && offer ? 'Your lessons are ready when you want them.' : 'Nothing else is up on WaniKani right now.'}
           </Text>
+          {next.held && prefs.maxApprentice !== null ? (
+            <Text style={{ ...type.subhead, color: c.warning, textAlign: 'center' }}>
+              {`Lessons are paused: ${next.apprentice} items are at Apprentice, over your limit of ${prefs.maxApprentice}.`}
+            </Text>
+          ) : null}
         </Reveal>
       </Screen>
     );
@@ -303,8 +337,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
       <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
-          <Count value={left.reviews} label="due" color={c.countDue} />
-          <Count value={left.lessons} label="new" color={c.countNew} />
+          {kind === 'reviews' ? <Count value={left.reviews} label="due" color={c.countDue} /> : <Count value={left.lessons} label="new" color={c.countNew} />}
         </View>
         <ProgressBar value={sessionProgress(study.session)} />
         <CardSurface>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ActionSheetIOS, ScrollView, Text } from 'react-native';
 import { problemText, WaniKaniError } from '../wanikani/api';
-import { NEW_PER_DAY_CHOICES } from '../wanikani/prefs';
+import { APPRENTICE_LIMIT_CHOICES, NEW_PER_DAY_CHOICES } from '../wanikani/prefs';
 import { PRODUCTION_BATCH } from '../wanikani/productionService';
 import { Button, Card, CheckRow, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
 import type { WaniKaniState } from './useWaniKani';
@@ -113,6 +113,16 @@ export function WaniKaniSettings({ wanikani, decks }: {
         </Group>
         <Help>
           {`Lessons done on wanikani.com count toward the day's lessons too.${wanikani.on ? ` ${wanikani.startedToday} done today.` : ''}`}
+        </Help>
+
+        <SectionTitle>Apprentice limit</SectionTitle>
+        <Group accessibilityRole="radiogroup">
+          {APPRENTICE_LIMIT_CHOICES.map((n, i) => (
+            <CheckRow key={n ?? 'none'} first={i === 0} label={n === null ? 'No limit' : String(n)} selected={prefs.maxApprentice === n} onPress={() => setPrefs({ maxApprentice: n })} />
+          ))}
+        </Group>
+        <Help>
+          {`Lessons aren't offered while more than this many items are at Apprentice. Reviews are never held back.${wanikani.on && wanikani.apprentice !== null ? ` ${wanikani.apprentice} at Apprentice now.` : ''}`}
         </Help>
 
         <SectionTitle>Production cards</SectionTitle>

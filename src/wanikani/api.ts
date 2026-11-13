@@ -112,12 +112,17 @@ export function query(params: Record<string, string | number | boolean | number[
   return parts.length ? `?${parts.join('&')}` : '';
 }
 
+/** WaniKani's Apprentice 1 to 4. */
+const APPRENTICE_STAGES = [1, 2, 3, 4];
+
 export type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 
 export interface WaniKaniApi {
   user(): Promise<WaniKaniUser>;
-  /** How many reviews and lessons are up now, without reading the items. */
-  counts(maxLevel: number): Promise<{ reviews: number; lessons: number }>;
+  /** How many reviews and lessons are up now, and how many items are at Apprentice, without reading the items. */
+  counts(maxLevel: number): Promise<{ reviews: number; lessons: number; apprentice: number }>;
+  /** How many items are at Apprentice (stages 1 to 4): what the lesson limit is checked against. */
+  apprenticeCount(maxLevel: number): Promise<number>;
   /** Lessons done since `since` (the study day's start), here or anywhere else. */
   lessonsStartedSince(since: Date): Promise<number>;
   reviewsAvailable(maxLevel: number): Promise<Assignment[]>;
@@ -185,6 +190,7 @@ export function createWaniKaniApi(token: string, fetchFn: Fetch = fetch): WaniKa
   }
 
   const levels = (maxLevel: number) => (maxLevel < 60 ? Array.from({ length: maxLevel }, (_, i) => i + 1) : undefined);
+  const apprenticeCount = (maxLevel: number) => total(`/assignments${query({ srs_stages: APPRENTICE_STAGES, hidden: false, levels: levels(maxLevel) })}`);
   const assignments = async (params: Parameters<typeof query>[0]) => (await collection(`/assignments${query(params)}`))
     .map(parseAssignment).filter((a): a is Assignment => !!a && !a.hidden);
 
@@ -195,12 +201,14 @@ export function createWaniKaniApi(token: string, fetchFn: Fetch = fetch): WaniKa
       return user;
     },
     async counts(maxLevel) {
-      const [reviews, lessons] = await Promise.all([
+      const [reviews, lessons, apprentice] = await Promise.all([
         total(`/assignments${query({ immediately_available_for_review: true, hidden: false, levels: levels(maxLevel) })}`),
         total(`/assignments${query({ immediately_available_for_lessons: true, hidden: false, levels: levels(maxLevel) })}`),
+        apprenticeCount(maxLevel),
       ]);
-      return { reviews, lessons };
+      return { reviews, lessons, apprentice };
     },
+    apprenticeCount,
     async lessonsStartedSince(since) {
       // Assignments changed since the day began (reviews change them too), counted by when each was started.
       return startedSince(await assignments({ started: true, updated_after: since.toISOString() }), since.getTime());
