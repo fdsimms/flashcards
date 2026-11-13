@@ -99,8 +99,10 @@ Franki's (Client, below).
   text" brings the words back. The reading is then logged with `listen_only` true. The brief's
   "unlocks for a text" is read as "for the text just rated", since a text is never served twice.
 - While audio plays, the text scrolls to keep the line being spoken in view.
-- **Repeat line** in the player plays the current line over and over, for shadowing, until it's
-  turned off.
+- **Repeat line** in the player plays the current line again, for shadowing. One chip steps through
+  Off, 2×, 3×, 5× and ∞ (a count is the line's total plays; ∞ goes until turned off). The count isn't
+  kept: it starts at Off each time a text opens, and a line started fresh (Play, a skip, a line's own
+  replay button) begins its count again.
 - **Past texts**: texts read to the end, newest first (the last 50), opened in the same reader to
   read or listen to again. Reading one again isn't logged: the log is one row per text, and a reread
   shouldn't count toward the exit check or move difficulty. So there's no Done or rating, and words
@@ -540,6 +542,15 @@ next episode is the top of the shelf.
 - **An episode is a story-form text like any other**: the same coverage target, revision loop and
   stretch words, filed under the story's own hidden topic. The next one is written only once the
   last has been read, so at most one waits.
+- **An episode ends on a choice** (added 13 November 2026). The same request asks for two or three
+  `choices`: short options for what happens next, written like lines (`|` between words, English
+  beside each) and counted in the text's coverage, so one with a word outside the deck is sent back
+  like any other draft. Fewer than two is no choice, and the story carries on as before. They're
+  stored on the episode (`choices`, and `chosen`, the index picked) and sent with it as segmented
+  words. The app saves the pick when it's tapped (`POST /api/texts/{id}/choice`), which can change
+  until the episode is read: reading is what writes the next episode, and its request then says
+  "the reader chose X". No pick means no line saying so. A read episode refuses a new pick (409).
+  Play all stops at an episode that has choices. Not built: a typed option of the reader's own.
 
 ## Topics
 

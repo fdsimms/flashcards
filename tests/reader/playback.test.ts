@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { firstLine, nextLine, paragraphs, previousLine, rangeOf } from '../../src/reader/playback';
+import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf, repeatChipLabel } from '../../src/reader/playback';
 
 const lines = [{ audio: false }, { audio: true }, { audio: false }, { audio: true }];
 
@@ -17,11 +17,27 @@ test('a replayed line plays alone', () => {
   expect(nextLine(lines, 1, false)).toBeNull();
 });
 
-test('with repeat on, the line that just finished plays again', () => {
+test('with a repeat count, the line plays again until it has played that many times', () => {
   const lines = [{ audio: true }, { audio: true }];
-  expect(nextLine(lines, 0, true, true)).toBe(0);
-  expect(nextLine(lines, 1, false, true)).toBe(1);
-  expect(nextLine(lines, 0, true, false)).toBe(1);
+  expect(nextLine(lines, 0, true, 3, 1)).toBe(0);
+  expect(nextLine(lines, 0, true, 3, 2)).toBe(0);
+  expect(nextLine(lines, 0, true, 3, 3)).toBe(1);
+  expect(nextLine(lines, 1, false, 2, 1)).toBe(1);
+  expect(nextLine(lines, 1, false, 2, 2)).toBeNull();
+  expect(nextLine(lines, 0, true, 1)).toBe(1);
+});
+
+test('repeating forever never moves on', () => {
+  const lines = [{ audio: true }, { audio: true }];
+  expect(nextLine(lines, 0, true, Infinity, 500)).toBe(0);
+});
+
+test('the repeat chip steps through the counts and wraps back to off', () => {
+  expect(nextRepeatCount(1)).toBe(2);
+  expect(nextRepeatCount(3)).toBe(5);
+  expect(nextRepeatCount(5)).toBe(Infinity);
+  expect(nextRepeatCount(Infinity)).toBe(1);
+  expect(['Repeat: Off', '2×', '3×', '5×', '∞']).toEqual([1, 2, 3, 5, Infinity].map(repeatChipLabel));
 });
 
 test('previous line skips silent lines and stops at the start', () => {

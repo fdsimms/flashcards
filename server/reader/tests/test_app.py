@@ -878,6 +878,58 @@ def test_a_story_is_started_and_its_episodes_are_listed_once_read() -> None:
     assert [(t["topic"], t["episode"]) for t in past] == [("Noi's stall", 1)]
 
 
+def test_a_story_episodes_choices_are_shown_and_the_pick_is_recorded_until_it_is_read() -> None:
+    choices = [
+        {"text": "ฉัน|กิน", "english": "I eat."},
+        {"text": "อยาก|กิน", "english": "I want to eat."},
+    ]
+    model = ScriptedModel(
+        {
+            **IN_RANGE,
+            "series": "Noi's stall",
+            "cast": "Noi.",
+            "recap": "Noi opens.",
+            "choices": choices,
+        }
+    )
+    c = client(model)
+    c.post("/api/story", json={"about": "a noodle stall"}, headers=AUTH)
+    deadline = time.time() + 10
+    while (story := c.get("/api/shelf", headers=AUTH).json()["story"])["next"] is None:
+        assert time.time() < deadline
+        time.sleep(0.02)
+    episode_id = story["next"]["id"]
+
+    shown = c.get(f"/api/texts/{episode_id}", headers=AUTH).json()
+    assert shown["chosen"] is None
+    assert [ch["english"] for ch in shown["choices"]] == ["I eat.", "I want to eat."]
+    assert "".join(w["text"] for w in shown["choices"][0]["words"]) == "ฉันกิน"
+    assert shown["choices"][0]["words"][0]["gloss"] == "I; me"
+
+    url = f"/api/texts/{episode_id}/choice"
+    assert c.post(url, json={"choice": 1}, headers=AUTH).status_code == 204
+    assert c.get(f"/api/texts/{episode_id}", headers=AUTH).json()["chosen"] == 1
+    assert c.post(url, json={"choice": 2}, headers=AUTH).status_code == 404
+    assert c.post(url, json={"choice": -1}, headers=AUTH).status_code == 422
+    assert c.post("/api/texts/9999/choice", json={"choice": 0}, headers=AUTH).status_code == 404
+
+    c.post(f"/api/texts/{episode_id}/reading", json={"finished": True}, headers=AUTH)
+    assert c.post(url, json={"choice": 0}, headers=AUTH).status_code == 409
+    assert c.get(f"/api/texts/{episode_id}", headers=AUTH).json()["chosen"] == 1
+
+
+def test_a_text_with_no_choices_shows_none() -> None:
+    c = client(ScriptedModel(IN_RANGE))
+    topic = c.post("/api/topics", json={"name": "Food"}, headers=AUTH).json()
+    text = c.post(f"/api/topics/{topic['id']}/next", headers=AUTH)
+    deadline = time.time() + 10
+    while text.status_code != 200:
+        assert time.time() < deadline
+        time.sleep(0.02)
+        text = c.post(f"/api/topics/{topic['id']}/next", headers=AUTH)
+    assert (text.json()["choices"], text.json()["chosen"]) == ([], None)
+
+
 def test_a_time_sent_to_the_app_is_utc_whatever_the_servers_zone(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

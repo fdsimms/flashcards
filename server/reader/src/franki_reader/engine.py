@@ -735,12 +735,16 @@ class Engine:
 
     def _story_context(self, story: Story) -> StoryContext:
         told = store.episodes(self.conn, story.id)
+        chosen = ""
+        if told and told[-1].chosen is not None and told[-1].chosen < len(told[-1].choices):
+            chosen = told[-1].choices[told[-1].chosen].english
         return StoryContext(
             episode=max((t.episode for t in told), default=0) + 1,
             about=story.about,
             title=story.title,
             cast=story.cast,
             recaps=tuple(t.recap for t in told if t.recap),
+            chosen=chosen,
         )
 
     def record_reading(self, text_id: int, reading: Reading) -> None:
