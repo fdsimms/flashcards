@@ -62,20 +62,12 @@ export function toKana(input: string, final = false): string {
   let i = 0;
   while (i < s.length) {
     const ch = s[i];
-    // "nn" is ん, but in "konnichi" the second n starts に: before a vowel or y only one n is used.
-    // At the end, while typing, both stay letters: the next key decides.
+    // "nn" is always ん, while typing too, as WaniKani's answer box reads it (WanaKana's IME
+    // mode): "zennin" is ぜんいん and こんにちは takes "konnnichiha". Reading the second n as the
+    // start of に instead failed 全員, 本屋 and every word like them.
     if (ch === 'n' && s[i + 1] === 'n') {
-      const after = s[i + 2];
-      if (after !== undefined && /[aiueoy]/.test(after)) {
-        out += 'ん';
-        i++;
-      } else if (after === undefined && !final) {
-        out += input.slice(i, i + 2);
-        i += 2;
-      } else {
-        out += 'ん';
-        i += 2;
-      }
+      out += 'ん';
+      i += 2;
       continue;
     }
     // A doubled consonant (other than n) is a small つ: "kitte" is きって. "tch" is too, as in

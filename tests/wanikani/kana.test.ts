@@ -25,19 +25,38 @@ describe('romaji to kana', () => {
     expect(toKana("kin'youbi")).toBe('きんようび');
   });
 
-  it('uses one n of a pair before a vowel, and both otherwise', () => {
-    expect(toKana('konnichiha')).toBe('こんにちは');
-    expect(toKana('onna')).toBe('おんな');
+  it('reads nn as ん every time, as WaniKani does', () => {
+    expect(toKana('konnnichiha')).toBe('こんにちは');
+    expect(toKana('konnichiha')).toBe('こんいちは');
+    expect(toKana('onnna')).toBe('おんな');
     expect(toKana('hon nn', true)).toBe('ほん ん');
-    expect(toKana('sannen', true)).toBe('さんねん');
+    expect(toKana('sannnen', true)).toBe('さんねん');
+  });
+
+  it('reads nn before a vowel or y as ん, not ん plus a な or にゃ syllable', () => {
+    expect(toKana('zennin', true)).toBe('ぜんいん');
+    expect(toKana('tennin', true)).toBe('てんいん');
+    expect(toKana('gennin', true)).toBe('げんいん');
+    expect(toKana('honnya')).toBe('ほんや');
+    expect(toKana('konnya')).toBe('こんや');
+    expect(toKana('kinnyoubi')).toBe('きんようび');
+    expect(toKana('kinnen', true)).toBe('きんえん');
+    expect(toKana('mannichi')).toBe('まんいち');
+  });
+
+  it('still takes n\' and xn for ん', () => {
+    expect(toKana("zen'in", true)).toBe('ぜんいん');
+    expect(toKana('zexnin', true)).toBe('ぜんいん');
+    expect(toKana('hoxnya')).toBe('ほんや');
   });
 
   it('leaves an unfinished syllable as letters while typing', () => {
     expect(toKana('ky')).toBe('ky');
     expect(toKana('kan')).toBe('かn');
-    expect(toKana('konn')).toBe('こnn');
-    expect(toKana('こnn')).toBe('こnn');
-    expect(toKana('こnni')).toBe('こんに');
+    expect(toKana('konn')).toBe('こん');
+    expect(toKana('こnn')).toBe('こん');
+    expect(toKana('こんn')).toBe('こんn');
+    expect(toKana('こんni')).toBe('こんに');
   });
 
   it('leaves kana typed on a Japanese keyboard alone, and keeps converting after it', () => {

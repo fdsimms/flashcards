@@ -76,8 +76,27 @@ function closeEnough(answer: string, meaning: string): boolean {
   if (levenshtein(answer, meaning) > typoAllowance(meaning.length)) return false;
   const typed = answer.split(' ');
   const words = meaning.split(' ');
-  return typed.length !== words.length || words.every((w, i) => levenshtein(typed[i], w) <= typoAllowance(w.length));
+  if (typed.length !== words.length) {
+    // Split differently ("grown up" for "grownup"), so words can't be paired: an exact-only word
+    // on either side has to be on the other too.
+    return words.every((w) => !EXACT_WORDS.has(w) || typed.includes(w)) && typed.every((t) => !EXACT_WORDS.has(t) || words.includes(t));
+  }
+  return words.every((w, i) => typed[i] === w || (!EXACT_WORDS.has(w) && !EXACT_WORDS.has(typed[i]) && levenshtein(typed[i], w) <= typoAllowance(w.length)));
 }
+
+/**
+ * Words a typo allowance would turn into another real word: "fire" passed for Five, "monday" for
+ * Sunday, "mouth" for Month, "hour" for Four. Where one of these is the typed word or the meaning's
+ * word at the same place, the two must match exactly.
+ */
+const EXACT_WORDS = new Set([
+  'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+  'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty',
+  'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety', 'hundred', 'thousand',
+  'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+  'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december',
+  'hour', 'for', 'fire', 'right', 'weight', 'month', 'mouth', 'line', 'tin', 'man', 'men', 'woman', 'women',
+]);
 
 export function checkReading(subject: Subject, typed: string): Verdict {
   const answer = toHiragana(toKana(typed.trim(), true)).replace(/\s/g, '');
