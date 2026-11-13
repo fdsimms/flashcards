@@ -58,7 +58,8 @@ function tokens(s: string): Token[] {
   return out;
 }
 
-const spelling = (ts: Token[]) => ts.map((t) => t.key ?? '').join('');
+// Lowercased a letter at a time, a capital Σ is always σ, never the final ς; and ß may be written ss.
+const spelling = (ts: Token[]) => ts.map((t) => t.key ?? '').join('').replace(/ς/g, 'σ').replace(/ß/g, 'ss');
 /** The spelling without any marks: "มิ" and "มี" both become "ม". */
 const unmarked = (ts: Token[]) => spelling(ts).normalize('NFD').replace(/\p{M}/gu, '').normalize('NFC');
 

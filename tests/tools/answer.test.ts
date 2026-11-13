@@ -23,6 +23,12 @@ describe('checking a typed answer', () => {
     expect(checkTyped('LUNES 27 DE JUNIO'.toLowerCase(), acceptedForms(saySpanishDate(monday, { weekday: true, year: false }))).verdict).toBe('exact');
   });
 
+  it('takes a final sigma typed in capitals, and ss for ß', () => {
+    expect(checkTyped('ΤΡΕΙΣ ΝΟΕΜΒΡΙΟΥ', [{ text: 'τρεις Νοεμβρίου' }]).verdict).toBe('close');
+    expect(checkTyped('ΤΡΕΙΣ ΝΟΕΜΒΡΊΟΥ', [{ text: 'τρεις Νοεμβρίου' }]).verdict).toBe('exact');
+    expect(checkTyped('einunddreissigste', [{ text: 'einunddreißigste' }]).verdict).toBe('exact');
+  });
+
   it('accepts the other forms of the date: shortened, without the era, in digits', () => {
     const checked = (s: string) => checkTyped(s, thai);
     expect(checked('วันจันทร์ที่ยี่สิบเจ็ด มิถุนา พ.ศ. สองพันห้าร้อยแปดสิบเจ็ด').verdict).toBe('exact');

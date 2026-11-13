@@ -238,6 +238,8 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       ]);
       const today = studiedToday({ notes: n, cards: c, reviews, revlog, now, dayStartsAtHour: cs.dayStartsAtHour });
       setCollection(cs);
+      // The queue reads the day from `now`: a reload after a while away (or past the day's start) needs it fresh too.
+      setNow(now);
       setAnswerButtons(buttons);
       setSwipeOn(swipe);
       setShowHints(hints);
@@ -425,11 +427,11 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
           );
         }
       }
-      let leechNote: Note | undefined;
+      let leechNoteId: string | undefined;
       if (isLeech && !note.tags.includes('leech')) {
         try {
           const tagged = await saveNote(repo as NoteStore, { id: note.id, deck: note.deck, model: note.model, fields: note.fields, tags: [...note.tags, 'leech'] }, when);
-          leechNote = note;
+          leechNoteId = note.id;
           setNotes((prev) => new Map(prev).set(tagged.id, tagged));
         } catch {
           // The answer stands; the tag just isn't added.
@@ -439,7 +441,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       // Counted in the deck the card is studied in, as Anki counts it (a filtered deck's answers count there).
       // Time capped at a minute, as Anki's maximum answer time is, so a phone put down mid-card doesn't swell the summary.
       const record: AnswerRecord = {
-        before: current, reviewId, deck: cardDeck(current, note.deck), anki, buried: siblings, leechNote,
+        before: current, reviewId, deck: cardDeck(current, note.deck), anki, buried: siblings, leechNoteId,
         rating, takenMs: Math.min(when.getTime() - shownAt.current, 60000),
       };
       // Now a review, it weighs on the days the load balancer spreads later answers over, as in Anki.
@@ -473,10 +475,12 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       }
       await repo.saveCard(last.before);
       for (const s of last.buried) await repo.saveCard(s);
-      if (last.leechNote) {
-        const n = last.leechNote;
+      // The note as it is now, not as it was before the answer: a hint typed in the leech sheet
+      // since then stays, and only the tag comes off.
+      const n = last.leechNoteId ? await repo.getNote(last.leechNoteId) : undefined;
+      if (n) {
         try {
-          const restored = await saveNote(repo as NoteStore, { id: n.id, deck: n.deck, model: n.model, fields: n.fields, tags: n.tags });
+          const restored = await saveNote(repo as NoteStore, { id: n.id, deck: n.deck, model: n.model, fields: n.fields, tags: n.tags.filter((t) => t !== 'leech') });
           setNotes((prev) => new Map(prev).set(restored.id, restored));
         } catch { /* the tag stays */ }
       }

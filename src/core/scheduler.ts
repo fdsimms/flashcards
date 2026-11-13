@@ -188,13 +188,15 @@ export function review(sched: SchedState, rating: RatingValue, now: Date = new D
   const maxInterval = params?.maxInterval ?? 36500;
   const factor = ctx.seed !== undefined ? fuzzFactor(ctx.seed) : undefined;
   const raw = (r: RatingValue) => rawInterval(outcomes[r as Grade].card.stability, retention, weights);
-  const DAY = 86400000;
-  const onDay = (days: number) => new Date(now.getTime() + days * DAY).toISOString();
+  // Calendar days, not 24-hour blocks: across a DST change a day is 23 or 25 hours, and adding
+  // milliseconds moved the due time an hour, into the study day before or after.
+  const plusDays = (from: Date, days: number) => { const d = new Date(from); d.setDate(d.getDate() + days); return d; };
+  const onDay = (days: number) => plusDays(now, days).toISOString();
   /** A wait of `secs`: fuzzed within the day, or a day-long step from the start of the day it lands on. */
   const step = (secs: number) => {
     const nextDay = nextStudyDayStart(now, ctx.dayStartsAtHour ?? DAY_STARTS_AT_HOUR).getTime();
     const untilRollover = Math.floor((nextDay - now.getTime()) / 1000);
-    if (secs >= untilRollover) return new Date(nextDay + Math.floor((secs - untilRollover) / 86400) * DAY).toISOString();
+    if (secs >= untilRollover) return plusDays(new Date(nextDay), Math.floor((secs - untilRollover) / 86400)).toISOString();
     return new Date(now.getTime() + learningStepWithFuzz(ctx.seed, secs) * 1000).toISOString();
   };
 

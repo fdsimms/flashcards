@@ -144,9 +144,9 @@ export function formsOf(note: Note): NoteForms {
 /** "m", "masc", "masculine", "der" and the like, as m / f / n. Undefined when it isn't one. */
 function genderLetter(text: string): 'm' | 'f' | 'n' | undefined {
   const t = text.toLocaleLowerCase().replace(/[.\s]/g, '');
-  if (['m', 'masc', 'masculine', 'männlich', 'der', 'el', 'le', 'il', 'ten', 'ο'].includes(t)) return 'm';
-  if (['f', 'fem', 'feminine', 'weiblich', 'die', 'la', 'ta', 'η'].includes(t)) return 'f';
-  if (['n', 'neut', 'neuter', 'sächlich', 'das', 'to', 'το'].includes(t)) return 'n';
+  if (['m', 'masc', 'masculine', 'männlich', 'der', 'el', 'le', 'il', 'ten', 'ο', 'en'].includes(t)) return 'm';
+  if (['f', 'fem', 'feminine', 'weiblich', 'die', 'la', 'ta', 'η', 'ei'].includes(t)) return 'f';
+  if (['n', 'neut', 'neuter', 'sächlich', 'das', 'to', 'το', 'et'].includes(t)) return 'n';
   return undefined;
 }
 

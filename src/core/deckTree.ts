@@ -216,9 +216,12 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const pathOf = (deck: string) => deckLineage(deck).filter((d) => nodes.has(d)).reverse();
   const deckOfCard = new Map<string, string>();
   for (const d of active) for (const c of input.cardsByDeck.get(d)!) deckOfCard.set(c.id, d);
+  /** Whether every deck on the card's path still has room for it. */
+  const hasRoom = (card: Card, kind: 'review' | 'new'): boolean =>
+    pathOf(deckOfCard.get(card.id)!).every((d) => nodes.get(d)![kind] > 0);
   const admit = (card: Card, kind: 'review' | 'new'): boolean => {
     const path = pathOf(deckOfCard.get(card.id)!);
-    if (path.some((d) => nodes.get(d)![kind] <= 0)) return false;
+    if (!hasRoom(card, kind)) return false;
     for (const d of path) {
       const n = nodes.get(d)!;
       n[kind]--;
@@ -256,7 +259,8 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
     .filter((c) => shownAt(c) < nextDay);
   for (const c of intraday) heldBack(c, null);
   const gatherDue = (cards: Card[], kind: keyof BurySettings) =>
-    sortReviews(cards, order.reviewOrder, ctx).filter((c) => !heldBack(c, kind) && admit(c, 'review'));
+    // Room first, as Anki checks the limit before a card is gathered: one the limits leave out buries nothing.
+    sortReviews(cards, order.reviewOrder, ctx).filter((c) => hasRoom(c, 'review') && !heldBack(c, kind) && admit(c, 'review'));
   // A review in a filtered deck is due whatever its own due date: its due there is its place in the deck.
   const reviewDue = (c: Card) => c.sched.state === 2 && (inFilteredOrder(c) || isDue(c, now, h));
   const interday = previewDeck ? [] : gatherDue(rest.filter((c) => isInterdayLearning(c, h) && dueMs(c) < nextDay), 'interdayLearning');
@@ -265,7 +269,7 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const gatherFresh = (cards: Card[], limit = Number.POSITIVE_INFINITY) => {
     let n = 0;
     return sortNew(
-      gatherNew(cards, order.newGatherPriority, ctx, (c) => n < limit && !heldBack(c, 'new') && admit(c, 'new') && ++n > 0),
+      gatherNew(cards, order.newGatherPriority, ctx, (c) => n < limit && hasRoom(c, 'new') && !heldBack(c, 'new') && admit(c, 'new') && ++n > 0),
       order.newSortOrder, ctx,
     );
   };

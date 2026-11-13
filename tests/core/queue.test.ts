@@ -61,6 +61,21 @@ describe('queue', () => {
     expect(nextLearningDue([base], { dayStartsAtHour: H, now: NOW })).toBeUndefined();
     expect(nextLearningDue([withSched(base, { state: 1, due: at.toISOString() })], { dayStartsAtHour: H, now: NOW })).toEqual(at);
   });
+  it("doesn't wait for a day-long learning step, which comes back on its own day", () => {
+    const [base] = makeCards(omniNote(), NOW);
+    // Answered this morning onto a one-day step: due tomorrow, Anki's queue 3.
+    const interday = withSched(base, {
+      state: 1, lastReview: new Date(2026, 10, 11, 9, 0).toISOString(), due: new Date(2026, 10, 12, 9, 0).toISOString(),
+    });
+    expect(nextLearningDue([interday], { dayStartsAtHour: H, now: NOW })).toBeUndefined();
+    // One already due today but held back by the review limit doesn't leave the screen waiting either.
+    const dueToday = withSched(base, {
+      state: 1, lastReview: new Date(2026, 10, 10, 9, 0).toISOString(), due: new Date(2026, 10, 11, 9, 0).toISOString(),
+    });
+    expect(nextLearningDue([dueToday], { dayStartsAtHour: H, now: NOW })).toBeUndefined();
+    // A step that runs past the day's end with no last answer recorded (imported) isn't waited for either.
+    expect(nextLearningDue([withSched(base, { state: 1, due: new Date(2026, 10, 12, 5, 0).toISOString() })], { dayStartsAtHour: H, now: NOW })).toBeUndefined();
+  });
 });
 
 describe('buried cards', () => {

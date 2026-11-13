@@ -90,13 +90,17 @@ export function isBuried(card: Card, now: Date, dayStartsAtHour: number): boolea
 /**
  * When the next learning card comes due, for a session that has run out of cards: the review
  * screen waits for it instead of declaring the deck done. Undefined when none is waiting.
+ * Only a step within today counts: a day-long step (Anki's queue 3) comes back on its own day,
+ * under the review limit, so the session is done rather than waiting for it, as in Anki.
  */
 export function nextLearningDue(cards: Card[], opts: QueueOptions): Date | undefined {
   const now = opts.now ?? new Date();
+  const dayEnd = nextStudyDayStart(now, opts.dayStartsAtHour).getTime();
   let best: number | undefined;
   for (const c of studiable(cards)) {
     if (isBuried(c, now, opts.dayStartsAtHour)) continue;
-    if (isLearning(c) && (best === undefined || dueMs(c) < best)) best = dueMs(c);
+    if (!isLearning(c) || isInterdayLearning(c, opts.dayStartsAtHour) || dueMs(c) >= dayEnd) continue;
+    if (best === undefined || dueMs(c) < best) best = dueMs(c);
   }
   return best === undefined ? undefined : new Date(best);
 }

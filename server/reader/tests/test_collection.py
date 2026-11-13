@@ -264,8 +264,11 @@ def test_due_counts_reviews_and_learning_as_ankis_deck_list_does(
     desktop.add(SPANISH, "el blindaje", "armor plating", ivl=30, due=True)
     desktop.learning(SPANISH, "la mesa", due_in=-60)
     desktop.learning(SPANISH, "la silla", due_in=0, interday=True)
-    desktop.learning(SPANISH, "el vaso", due_in=3 * 3600)
-    desktop.learning(SPANISH, "la taza", due_in=3 * 3600)
+    # Later today, before Anki's day ends: a fixed 3 hours ran past the 4 AM cutoff when the
+    # test ran between 1 and 4 AM, and those cards weren't today's.
+    later = min(3 * 3600, (desktop.col.sched.day_cutoff - int(time.time())) // 2)
+    desktop.learning(SPANISH, "el vaso", due_in=later)
+    desktop.learning(SPANISH, "la taza", due_in=later)
     desktop.add(THAI, "ใหม่", "new")  # new cards aren't counted
     desktop.sync()
     tree = desktop.col.sched.deck_due_tree()

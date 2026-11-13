@@ -189,9 +189,17 @@ class CollectionManager:
 
     def _full_download(self, auth) -> None:
         log.info("downloading the whole collection from the sync server")
-        self.col.close_for_full_sync()
-        self.col.full_upload_or_download(auth=auth, server_usn=None, upload=False)
-        self.col.reopen(after_full_sync=True)
+        # Reopened whatever happens, as the reader does: a failed download otherwise left the
+        # collection half-closed (col.db None) until the next one succeeded.
+        try:
+            self.col.close_for_full_sync()
+            self.col.full_upload_or_download(auth=auth, server_usn=None, upload=False)
+        except Exception as e:
+            raise SyncProblem(
+                f"Couldn't download the collection from the sync server: {e}. Try sync_now again."
+            ) from e
+        finally:
+            self.col.reopen(after_full_sync=True)
 
     # ---- media ----
 

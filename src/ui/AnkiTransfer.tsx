@@ -121,7 +121,8 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
 
   const send = () => run('send', async () => {
     try {
-      const out = await buildPackageForAnki(repo);
+      // Under the lock, so a sync can't commit to the collection while it's being packed.
+      const out = await repo.lockAnki(() => buildPackageForAnki(repo));
       if (!(await Sharing.isAvailableAsync())) {
         say(`Couldn't open the share sheet on this device, so ${out.name} wasn't sent anywhere.`);
         return;

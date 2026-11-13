@@ -155,6 +155,20 @@ describe('repo', () => {
     expect(cards.get(gone.id)!.retired).toBe(true);
     expect(cards.get(localCard.id)!.retired).toBe(false);
   });
+
+  it("keeps a card's Anki id when an import without one (a TSV) comes in, as the SQLite repo does", async () => {
+    const repo = new MemoryRepo();
+    const a = { ...omniNote(), id: 'a' };
+    const b = { ...omniNote(), id: 'b' };
+    const [fresh] = makeCards(a, NOW).map((c) => ({ ...c, ankiId: '2000' }));
+    const [studied] = makeCards(b, NOW).map((c) => ({ ...c, ankiId: '2001' }));
+    await repo.upsertNotesAndCards([a, b], [fresh, studied]);
+    await repo.saveCard({ ...studied, sched: review(studied.sched, 3, NOW).sched });
+    await repo.upsertNotesAndCards([a, b], [...makeCards(a, NOW), ...makeCards(b, NOW)]);
+    const cards = new Map((await repo.listCards()).map((c) => [c.id, c]));
+    expect(cards.get(fresh.id)!.ankiId).toBe('2000');
+    expect(cards.get(studied.id)!.ankiId).toBe('2001');
+  });
   it('keeps forms practice, lists it from a time on, and deletes it with its note', async () => {
     const repo = new MemoryRepo();
     const note = omniNote();

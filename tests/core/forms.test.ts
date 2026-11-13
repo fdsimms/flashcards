@@ -61,6 +61,12 @@ describe('formsOf', () => {
     expect(formsOf(ru).forms[0].answers).toEqual(['masculine']);
     expect(formsOf(omniNote({ Gender: 'common' })).unreadable).toEqual(['Gender: common']);
   });
+  it("reads Norwegian's own articles as a gender, the same ones it asks for", () => {
+    const bok = omniNote({ Entry: 'bok', Meaning: 'book', Language: 'norwegian', Gender: 'ei' });
+    expect(formsOf(bok).unreadable).toEqual([]);
+    expect(formsOf(bok).forms[0].answers).toEqual(['ei']);
+    expect(formsOf(omniNote({ Entry: 'hus', Language: 'norwegian', Gender: 'et' })).forms[0].answers).toEqual(['et']);
+  });
   it('has nothing for a note without forms, so nothing is suggested', () => {
     expect(formsOf(omniNote()).forms).toEqual([]);
   });
