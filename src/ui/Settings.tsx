@@ -8,10 +8,10 @@ import { CheckRow, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from '
 import { space, useTheme } from './theme';
 
 /**
- * App-wide settings: the screens that aren't about studying (Anki, Stats, Backup, Read & Listen), the
+ * App-wide settings: the screens that aren't about studying (Anki, Backup, Read & Listen, WaniKani), the
  * voices cards are read aloud with, and which answer buttons Review shows.
  */
-export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onStats, onBackup, onRead, onWaniKani, onVoices }: {
+export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBackup, onRead, onWaniKani, onVoices }: {
   repo: Repo;
   /** When the last backup was made (`backupStatus`). */
   backupText?: string;
@@ -22,7 +22,6 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onSta
   wanikaniOn: boolean;
   onWaniKani: () => void;
   onAnki: () => void;
-  onStats: () => void;
   onBackup: () => void;
   onVoices: () => void;
 }) {
@@ -54,7 +53,6 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onSta
         <Group>
           {/* The tile colors are the rating colors: each is picked so white reads on it in light and dark. */}
           <NavRow first icon={{ name: 'arrow.triangle.2.circlepath', color: c.easy }} label="Anki" detail="Sync, or send your collection to and from Anki by file" onPress={onAnki} />
-          <NavRow icon={{ name: 'chart.bar.fill', color: c.good }} label="Stats" detail="Answers, how much you remember, and what's coming due" onPress={onStats} />
           <NavRow icon={{ name: 'externaldrive.fill', color: c.hard }} label="Backup" detail={backupText ?? 'Save or restore everything in Franki'} onPress={onBackup} />
           <NavRow icon={{ name: 'book.fill', color: c.again }} label="Read & Listen" detail={readerOn ? 'On' : 'Off. Texts to read and listen to, written from your decks'} onPress={onRead} />
           <NavRow icon={{ name: 'character.ja', color: c.violet }} label="WaniKani" detail={wanikaniOn ? 'On' : 'Off. Study your WaniKani reviews and lessons as a deck'} onPress={onWaniKani} />

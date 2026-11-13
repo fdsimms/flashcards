@@ -30,6 +30,7 @@ export default function DecksRoute() {
       onBackup={() => router.push('/backup')}
       onSettings={() => router.push('/settings')}
       onBrowse={() => router.push('/browse')}
+      onStats={() => router.push('/stats')}
       onOptions={openOptions}
       onNewDeck={deckActions.create}
       onQuickAdd={reader.api ? () => router.push('/read-quick-add') : undefined}
