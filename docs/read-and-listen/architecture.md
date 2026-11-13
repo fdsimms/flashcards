@@ -108,8 +108,8 @@ Franki's (Client, below).
   away, since that's when the brief unlocks it.
 - The reader's playback speed and the highlight switch are kept between launches, in the Keychain
   next to the passphrase (`src/reader/storage.ts`).
-- **Progress** on the language's settings page (on the topics screen before the shelf): finished texts over the last 14 days against the Milestone 1
-  exit check (10 texts, median coverage 95% or more, most rated "about right"), and the coverage
+- **Progress** on the language's settings page (on the topics screen before the shelf): finished texts over the last 14 days with their median coverage and
+  ratings (no goal is set; the Milestone 1 exit check's 10 texts was dropped), and the coverage
   target and practice word count new texts are written at, so the effect of a rating is visible.
   Only finished readings count.
 - **Marked words**: every word marked unknown in a reading, newest first, with its gloss and whether
