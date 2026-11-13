@@ -21,8 +21,10 @@ export interface WaniKaniState {
   on: boolean | null;
   api: WaniKaniApi | null;
   user: WaniKaniUser | null;
-  /** Reviews up now, and lessons left to offer today; null until read. */
+  /** Reviews up now, and lessons left to offer today (none while the Apprentice limit holds them back); null until read. */
   counts: { reviews: number; lessons: number } | null;
+  /** Items at Apprentice as last read; null until read. */
+  apprentice: number | null;
   /** Why the last read or send failed; null when it worked. */
   problem: WaniKaniProblem | null;
   prefs: WaniKaniPrefs;
@@ -58,7 +60,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   const [token, setToken] = useState<string | null>();
   const [prefs, setPrefsState] = useState<WaniKaniPrefs>(DEFAULT_PREFS);
   const [user, setUser] = useState<WaniKaniUser | null>(null);
-  const [counts, setCounts] = useState<{ available: number; reviews: number } | null>(null);
+  const [counts, setCounts] = useState<{ available: number; reviews: number; apprentice: number } | null>(null);
   const [startedToday, setStartedToday] = useState(0);
   const [problem, setProblem] = useState<WaniKaniProblem | null>(null);
   const [srs, setSrs] = useState<Map<number, SrsSystem>>(DEFAULT_SRS);
@@ -174,7 +176,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
         api.lessonsStartedSince(studyDayStart(new Date(), dayStartsAtHour)),
       ]);
       setUser(u);
-      setCounts({ available: c.lessons, reviews: c.reviews });
+      setCounts({ available: c.lessons, reviews: c.reviews, apprentice: c.apprentice });
       setStartedToday(started);
       setProblem(null);
       if (!srsRead.current) {
@@ -212,7 +214,8 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   return useMemo(() => ({
     on: token === undefined ? null : !!token,
     api, user,
-    counts: counts ? { reviews: counts.reviews, lessons: lessonsToday(counts.available, prefs.newPerDay, startedToday) } : null,
+    counts: counts ? { reviews: counts.reviews, lessons: lessonsToday(counts.available, prefs.newPerDay, startedToday, counts.apprentice, prefs.maxApprentice) } : null,
+    apprentice: counts ? counts.apprentice : null,
     problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, log, productionDeck, production, startedToday, dayStartsAtHour,
   }), [token, api, user, counts, problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, log, productionDeck, production, startedToday, dayStartsAtHour]);
 }
