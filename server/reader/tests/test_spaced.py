@@ -22,7 +22,7 @@ from franki_reader.tts import Spoken
 
 ENTRIES = [
     Entry(1, "el blindaje", "armor plating / shielding", "mature"),
-    Entry(2, "mantener a raya", "to keep at bay / to keep in check", "young", due=True),
+    Entry(2, "mantener a raya", "to keep at bay / to keep in check", "young", reviewed=True),
     Entry(3, "a quemarropa", "point-blank", "mature"),
     Entry(4, "cerciorarse", "to make sure", "mature"),
     Entry(5, "diezmar", "to decimate", "young"),
@@ -78,6 +78,17 @@ def test_a_reflexive_verb_matches_its_forms_and_joined_pronouns_come_off() -> No
     assert LEXICON.entry_of("cercioramos") == "cerciorarse"
     assert LEXICON.entry_of("cerciorándonos") == "cerciorarse"
     assert LEXICON.status("dámelo") == "known"  # dar, under me and lo
+
+
+def test_a_pronoun_comes_off_a_verb_form_that_takes_one_only() -> None:
+    deck = SpacedLexicon(
+        "es", ["tomar", "ver", "estar", "correr", "poner", "dar", "ir", "te", "la"]
+    )
+    for word in ["tomarte", "tomándote", "verla", "ponlo", "dale", "irse"]:
+        assert deck.status(word) == "known", word
+    # Words that only end like a pronoun keep it: tomate isn't toma + te, nor estante estan + te.
+    for word in ["tomate", "estante", "corrales", "tela", "vasos"]:
+        assert deck.status(word) == "unknown", word
 
 
 def test_a_rare_word_outside_the_deck_is_unknown() -> None:
@@ -172,6 +183,7 @@ def test_a_spanish_text_renders_with_spaces_deck_flags_and_glosses_from_the_entr
         "text": "ojivas",
         "status": "known",
         "gloss": "warhead",
+        "parts": None,
         "lemma": "la ojiva",
         "translit": None,
         "stretch": True,
@@ -552,3 +564,14 @@ def test_spanish_subjunctives_match_a_deck_infinitive() -> None:
         assert deck.entry_of(form) == entry, form
     # a guess only matches a deck entry, so a word that merely looks like one isn't made known
     assert deck.status("elogie") == "unknown"
+
+
+def test_a_withheld_entry_is_unknown_in_any_form_even_as_a_common_word() -> None:
+    # A word due today and not reviewed yet, while a text is written (engine.writing_lexicon).
+    deck = [Entry(1, "el vino", "wine", "young"), Entry(2, "la casa", "house", "mature")]
+    reading = lexicon_from(deck, "es")
+    writing = lexicon_from(deck, "es", withheld=["el vino"])
+    assert reading.status("vino") == reading.status("vinos") == "known"
+    assert writing.status("vino") == writing.status("vinos") == "unknown"
+    assert writing.entry_of("vino") is None
+    assert writing.status("casa") == writing.status("el") == "known"

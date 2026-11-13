@@ -1,4 +1,4 @@
-from franki_reader.difficulty import Difficulty, adapt, adapt_to_check
+from franki_reader.difficulty import Difficulty, adapt, adapt_to_check, after_reading
 
 
 def test_too_hard_raises_the_floor_and_cuts_a_stretch_word() -> None:
@@ -52,3 +52,51 @@ def test_grammar_allowance_defaults_to_two_and_a_rating_leaves_it_alone() -> Non
     assert adapt(Difficulty(unset_uses=4), "too_hard").unset_uses == 4
     assert adapt(Difficulty(unset_uses=1), "too_easy").unset_uses == 1
     assert adapt_to_check(Difficulty(unset_uses=4), None, 0, 5).unset_uses == 4
+
+
+def test_a_rating_steps_from_the_level_the_text_was_written_at() -> None:
+    # Written at 92% with two stretch words; the target has since moved to 93% with one.
+    written, current = Difficulty(0.92, 2), Difficulty(0.93, 1)
+    # Too hard: already a step above the text's level, so nothing moves.
+    assert after_reading(current, written, "too_hard", None, None) == current
+    # Too easy: a step below the text's level, which is below the current one.
+    assert after_reading(current, written, "too_easy", None, None) == Difficulty(0.91, 3)
+    assert after_reading(current, written, "about_right", None, None) == current
+
+
+def test_a_rating_never_moves_the_level_back() -> None:
+    # Too hard on a text written at 92% when the target is already 95%: it stays at 95%.
+    assert after_reading(Difficulty(0.95, 1), Difficulty(0.92, 2), "too_hard", None, None) == (
+        Difficulty(0.95, 1)
+    )
+    # Too easy on a text written at 95% when the target has dropped to 92%.
+    assert after_reading(Difficulty(0.92, 3), Difficulty(0.95, 1), "too_easy", None, None) == (
+        Difficulty(0.92, 3)
+    )
+
+
+def test_a_rating_of_a_text_at_a_limit_takes_the_level_to_that_limit() -> None:
+    # The text was written at the highest target; the current one has dropped since.
+    assert after_reading(Difficulty(0.97, 2), Difficulty(0.99, 1), "too_hard", None, None) == (
+        Difficulty(0.99, 1)
+    )
+    assert after_reading(Difficulty(0.92, 2), Difficulty(0.90, 3), "too_easy", None, None) == (
+        Difficulty(0.90, 3)
+    )
+
+
+def test_a_poor_check_steps_from_the_texts_level_too() -> None:
+    # Three texts written at 92% each with a poor check raise the target once, not three times.
+    current = Difficulty(0.92, 2)
+    for _ in range(3):
+        current = after_reading(current, Difficulty(0.92, 2), "about_right", 1, 5)
+    assert current == Difficulty(0.93, 2)
+    # With "too easy", the two cancel out on the target; the stretch words still go up.
+    assert after_reading(Difficulty(0.92, 2), Difficulty(0.92, 2), "too_easy", 1, 5) == (
+        Difficulty(0.92, 3)
+    )
+
+
+def test_after_reading_keeps_the_current_grammar_allowance() -> None:
+    current = Difficulty(0.92, 2, unset_uses=4)
+    assert after_reading(current, Difficulty(0.92, 2), "too_hard", None, None).unset_uses == 4

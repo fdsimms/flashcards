@@ -193,6 +193,9 @@ describe('repo', () => {
     expect((await repo.listPractice()).map((p) => p.key)).toEqual(['present · tú', 'present · yo']);
     expect((await repo.listPractice())[0].given).toBe('tu');
     expect((await repo.listPractice(new Date(2026, 10, 11))).map((p) => p.key)).toEqual(['present · yo']);
+    // An "almost" counted as right: the row itself turns right, with no second row beside it.
+    await repo.countPractice({ noteId: note.id, key: 'present · tú', correct: false, practicedAt: new Date(2026, 10, 10, 9).toISOString() });
+    expect((await repo.listPractice()).map((p) => [p.key, p.correct])).toEqual([['present · tú', true], ['present · yo', true]]);
     await repo.deleteNote(note.id);
     expect(await repo.listPractice()).toEqual([]);
   });

@@ -121,6 +121,12 @@ constraints.
 4. **1-3 stretch words per text, today's due or young words first.** Each appears 2-3 times in the
    text and comes back in later texts on later days. Repetition and spacing are both moderators of
    incidental learning.
+
+   > **Changed on 13 November 2026 by the owner.** A word due today is a stretch word only once it
+   > has been reviewed today. Read in context before its review, the review becomes short-term
+   > recall, rated Good, and FSRS lengthens the interval: the corruption principle 9 prevents,
+   > arriving by priming. Words reviewed today come first, then young words not due. See
+   > `architecture.md`, Generation and coverage.
 5. **Gloss in English, on tap.** Stretch words carry an English gloss; any other word reveals one on
    tap. First-language glosses beat target-language ones.
 6. **Read-while-listening is the default.** Text plus audio line by line, with speed from 0.7x to

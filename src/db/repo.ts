@@ -74,6 +74,8 @@ export interface Repo {
   saveThaiTextSize(size: ThaiTextSize): Promise<void>;
   /** Logs one answered forms practice prompt. Franki's own: never written to Anki. */
   addPractice(record: PracticeRecord): Promise<void>;
+  /** Marks a logged prompt right (by note, form and time): an "almost" the user chose to count, so no miss is left behind. */
+  countPractice(record: PracticeRecord): Promise<void>;
   /** Forms practice logged at or after `since` (all of it without), oldest first. */
   listPractice(since?: Date): Promise<PracticeRecord[]>;
   /** Grammar drills' answers (src/core/grammarDrills.ts): Franki's own, never sent to Anki. */
@@ -192,6 +194,11 @@ export class MemoryRepo implements Repo {
   async thaiTextSize() { return this.thaiTextSizeSetting; }
   async saveThaiTextSize(size: ThaiTextSize) { this.thaiTextSizeSetting = size; }
   async addPractice(record: PracticeRecord) { this.practice.push({ ...record }); }
+  async countPractice(record: PracticeRecord) {
+    for (const p of this.practice) {
+      if (p.noteId === record.noteId && p.key === record.key && p.practicedAt === record.practicedAt) p.correct = true;
+    }
+  }
   async listPractice(since?: Date) {
     return this.practice
       .filter((p) => !since || new Date(p.practicedAt) >= since)

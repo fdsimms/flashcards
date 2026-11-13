@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anyDrilled, drillPrompts, dueWhen, duePoints, drillResults, isDrilled, missingNote, pointSchedule, scheduledPoints, type GrammarAnswer } from '../../src/core/grammarDrills';
+import { anyDrilled, drillPrompts, drillWentWell, dueWhen, duePoints, drillResults, isDrilled, missingNote, namesAnswer, pointSchedule, scheduledPoints, type GrammarAnswer } from '../../src/core/grammarDrills';
 
 const H = 4;
 const NOW = new Date(2026, 10, 12, 12);
@@ -26,12 +26,22 @@ describe('when a point is next drilled', () => {
 
   it('comes back the next day after a drill that went badly, from the first step', () => {
     const answers = [...drill('es.preterite', 'a', 1, 5), ...drill('es.preterite', 'b', 3, 5), ...drill('es.preterite', 'c', 8, 3)];
-    expect(pointSchedule('es.preterite', 'practice', answers, NOW, H)).toMatchObject({ due: day(9), step: 0 });
+    expect(pointSchedule('es.preterite', 'practice', answers, NOW, H)).toMatchObject({ due: day(9), step: -1 });
+  });
+
+  it('forgives one slip on a point with 3 or 4 questions in a drill, as a 4/3/3 split gives', () => {
+    expect([drillWentWell(8, 10), drillWentWell(4, 5), drillWentWell(3, 4), drillWentWell(2, 3)]).toEqual([true, true, true, true]);
+    expect([drillWentWell(7, 10), drillWentWell(3, 5), drillWentWell(2, 4), drillWentWell(1, 3)]).toEqual([false, false, false, false]);
+    // One or two questions: all but one would be half or none of them.
+    expect([drillWentWell(1, 1), drillWentWell(2, 2), drillWentWell(0, 1), drillWentWell(1, 2)]).toEqual([true, true, false, false]);
+    expect(pointSchedule('es.preterite', 'practice', drill('es.preterite', 'a', 10, 3, 4), NOW, H)).toMatchObject({ due: day(11), step: 0 });
+    expect(pointSchedule('es.preterite', 'normal', drill('es.preterite', 'a', 10, 2, 3), NOW, H)).toMatchObject({ due: day(17), step: 0 });
+    expect(pointSchedule('es.preterite', 'practice', drill('es.preterite', 'a', 10, 2, 4), NOW, H)).toMatchObject({ due: day(11), step: -1 });
   });
 
   it('spaces a known point further, and still brings it back the next day after a drill that went badly', () => {
     expect(pointSchedule('es.preterite', 'normal', drill('es.preterite', 'a', 1, 5), NOW, H).due).toEqual(day(8));
-    expect(pointSchedule('es.preterite', 'normal', drill('es.preterite', 'a', 10, 1), NOW, H)).toMatchObject({ due: day(11), step: 0 });
+    expect(pointSchedule('es.preterite', 'normal', drill('es.preterite', 'a', 10, 1), NOW, H)).toMatchObject({ due: day(11), step: -1 });
   });
 
   it('counts a drill on its study day, and only its own point', () => {
@@ -108,6 +118,17 @@ describe("a drill's questions as the screen asks them", () => {
       { kind: 'gap', id: 4, point: 'el.na', before: 'Προσπαθώ ', answer: 'να', after: ' γράψω ένα ποίημα.', english: 'I am trying to write a poem.', wrong: ['και', 'θα', 'πως'], hint: '' },
     ], random);
     expect(el.label).toBe('');
+  });
+
+  it('leaves out a point name holding a word of a longer answer, but not English that happens to be in it', () => {
+    const gap = (point: string, answer: string, hint: string) =>
+      drillPrompts([{ kind: 'gap', id: 5, point, before: '', answer, after: '', english: '', wrong: ['x'], hint }], random)[0].label;
+    expect(gap('el.tha', 'θα πάμε', 'πάω, εμείς')).toBe('πάω, εμείς');
+    expect(gap('ja.te_iru', '食べている', '食べる')).toBe('食べる');
+    expect(gap('ru.future', 'буду читать', 'читать, я')).toBe('читать, я');
+    expect(gap('pl.future', 'będę czytać', 'czytać, ja')).toBe('czytać, ja');
+    expect(gap('nb.past', 'passet', 'passe')).toBe('Past tense · passe');
+    expect(namesAnswer('Past tense', 'pastaen')).toBe(false);
   });
 
   it("leaves out a question it can't ask", () => {

@@ -291,6 +291,12 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
         p.noteId, p.key, p.correct ? 1 : 0, p.practicedAt, p.given ?? null,
       );
     },
+    async countPractice(p) {
+      await db.runAsync(
+        'UPDATE form_practice SET correct = 1 WHERE note_id = ? AND form_key = ? AND practiced_at = ?',
+        p.noteId, p.key, p.practicedAt,
+      );
+    },
     async listPractice(since) {
       // ISO strings are all UTC, so comparing them as text compares the instants.
       const rows = await db.getAllAsync<{ note_id: string; form_key: string; correct: number; practiced_at: string; given: string | null }>(

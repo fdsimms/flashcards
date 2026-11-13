@@ -1,5 +1,12 @@
 import { expect, test } from 'vitest';
-import { COMMON_COUNTS, LANGUAGE_ORDER, LANGUAGES, commonLabel, commonNamed, flaggedName, languageNamed, wordStatus } from '../../src/reader/languages';
+import { COMMON_COUNTS, LANGUAGE_ORDER, LANGUAGES, commonLabel, commonNamed, flaggedName, languageNamed, meaningOf, wordStatus } from '../../src/reader/languages';
+
+test("a word's meaning is its gloss, else its parts labeled as parts, never as its meaning", () => {
+  expect(meaningOf({ gloss: 'to understand', parts: null })).toBe('to understand');
+  expect(meaningOf({ gloss: null, parts: 'to enter + heart' })).toBe('Parts: to enter + heart');
+  expect(meaningOf({ gloss: null })).toBe('No meaning available');
+  expect(meaningOf({ gloss: '', parts: '' })).toBe('No meaning available');
+});
 
 test("a word says whether it's a deck word, a common word, or neither", () => {
   expect(wordStatus({ status: 'known', deck: true })).toBe('In your deck');

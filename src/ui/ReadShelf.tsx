@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Keyboard, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type Form, type Language, type Shelf, type ShelfText, type Word } from '../reader/api';
 import { LANGUAGES, flaggedName } from '../reader/languages';
+import { ReadReviewFirst } from './ReadReviewFirst';
 import { cardDetail, playMinutes, playOrder, reasonLabel, surprisePick } from '../reader/shelf';
 import { haptic } from './haptics';
 import { Button, Card, Divider, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
@@ -32,7 +33,7 @@ const SHELF_SIZE = 3;
 
 export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 
-export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLanguagePage, onPast, onEpisodes, onWords, onLanguage }: {
+export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLanguagePage, onPast, onEpisodes, onWords, onLanguage, onReview }: {
   api: Api;
   /** Opened from Review's "Read a text with these words": offers a text written to practice them. */
   practice?: { language: Language; count: number; onCancel: () => void };
@@ -48,6 +49,8 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
   onWords: () => void;
   /** The language was changed here; the app-wide settings follow. */
   onLanguage: () => void;
+  /** Opens a deck's review: the language's deck, from the card shown while its reviews are due. */
+  onReview: (deck: string) => void;
 }) {
   const c = useTheme();
   const [shelf, setShelf] = useState<Shelf | null>(null);
@@ -222,6 +225,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
 
         {shelf ? (
           <>
+            <ReadReviewFirst language={shelf.language} onReview={onReview} />
             <StoryCard api={api} shelf={shelf} onPlayWord={onPlayWord} onOpen={(id) => open(id)} onEpisodes={onEpisodes} onStarted={refresh} />
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: space.s }}>

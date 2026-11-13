@@ -24,6 +24,20 @@ export const PRACTICE_STEPS = [1, 3, 7, 14, 30] as const;
 export const KNOWN_STEPS = [7, 14, 30, 60] as const;
 /** The share right that counts a point's part of a drill as gone well. */
 export const DRILL_PASS = 0.8;
+/**
+ * A point with fewer questions than this in a drill also went well with all but one right: a drill
+ * of 3 points splits its 10 questions 4/3/3, where 80% would mean every one, so one slip (even on a
+ * "which" pick) would send it back to tomorrow.
+ */
+export const DRILL_FEW = 5;
+
+/**
+ * Whether a point's part of a drill went well: DRILL_PASS of it right, or all but one of fewer than
+ * DRILL_FEW. Not with one or two questions, where all but one is half or none of them.
+ */
+export function drillWentWell(right: number, total: number): boolean {
+  return right >= DRILL_PASS * total || (total >= 3 && total < DRILL_FEW && right >= total - 1);
+}
 /** Questions in a drill, and the most points one drill mixes. */
 export const DRILL_QUESTIONS = 10;
 export const DRILL_POINTS = 3;
@@ -35,7 +49,7 @@ export interface PointSchedule {
   state: DrillState;
   /** The start of the study day it's next due; a point never drilled is due today. */
   due: Date;
-  /** Drills in a row that went well, capped at the last step. -1 for never drilled. */
+  /** Drills in a row that went well, capped at the last step. -1 for never drilled, or since one that went badly. */
   step: number;
   lastDrilled?: Date;
 }
@@ -61,8 +75,9 @@ export function pointSchedule(pointId: string, state: DrillState, answers: Gramm
   let last: Date | undefined;
   let passed = false;
   for (const d of [...drills.values()].sort((a, b) => a.at.localeCompare(b.at))) {
-    passed = d.right >= DRILL_PASS * d.total;
-    step = passed ? Math.min(step + 1, steps.length - 1) : 0;
+    passed = drillWentWell(d.right, d.total);
+    // A drill that went badly starts the point over: its next good one waits the first step, not the second.
+    step = passed ? Math.min(step + 1, steps.length - 1) : -1;
     last = new Date(d.at);
   }
   if (!last) return { pointId, state, due: studyDayStart(now, dayStartsAtHour), step };
@@ -178,8 +193,9 @@ export function drillPrompts(questions: DrillQuestionIn[], random: () => number 
         choices: shuffled(names, random), answer: point.name, typable: false,
       });
     } else {
-      // A point named after its word ("να (to, so that)", "Conditional (бы)") would print the answer above the gap.
-      const gives = point.language === 'th' || point.name.toLocaleLowerCase().includes(q.answer.trim().toLocaleLowerCase());
+      // A point named after its word ("να (to, so that)", "Conditional (бы)") would print the answer above the gap,
+      // whole or in part: "θα (will, would)" above "θα πάμε", "ている" above "食べている".
+      const gives = point.language === 'th' || namesAnswer(point.name, q.answer);
       const names = gives ? [] : [point.name];
       out.push({
         pointId: point.id, kind: 'gap', before: q.before, middle: q.answer, after: q.after, english: q.english,
@@ -189,6 +205,21 @@ export function drillPrompts(questions: DrillQuestionIn[], random: () => number 
     }
   }
   return out;
+}
+
+/**
+ * Whether a point's name holds the answer, or a word of it: "θα (will, would)" above "θα πάμε",
+ * "ている" above "食べている", "Future with będę" above "będę czytać". A word in another script than
+ * the gloss's counts inside a longer one (Japanese has no spaces); a Latin one only as a whole word,
+ * so the English of a name ("Past tense") isn't found inside the answer's letters.
+ */
+export function namesAnswer(name: string, answer: string): boolean {
+  const n = name.toLocaleLowerCase();
+  const a = answer.trim().toLocaleLowerCase();
+  if (!a) return false;
+  if (n.includes(a)) return true;
+  const answerWords = new Set(a.split(/[\s,.!?¿¡]+/u));
+  return n.split(/[\s,;:·()/+]+/u).some((w) => !!w && (/[^\p{Script=Latin}\d'’]/u.test(w) ? a.includes(w) : answerWords.has(w)));
 }
 
 /** What to say about points that got no question, if any. */

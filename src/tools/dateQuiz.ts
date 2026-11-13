@@ -11,17 +11,22 @@ import { distinct, type Phrase } from './phrase';
 export const DATE_MODES = ['say', 'pick', 'type', 'tap'] as const;
 export type DateMode = (typeof DATE_MODES)[number];
 
-/** A reading in kana only: Japanese's, which a typed answer may give in place of the kanji. */
+/** A reading in kana only: Japanese's, which is all a typed answer in Japanese may give. */
 const KANA_READING = /^[\p{Script=Hiragana}\p{Script=Katakana}ー\s]+$/u;
 
 /**
- * Every way of saying the date that a typed answer is accepted in: the usual one, the others heard,
- * the digits as written, and in Japanese each of those typed in kana, as its reading.
+ * Every way of saying the date that a typed answer is accepted in: the usual one and the others
+ * heard, in words. Never the digits as written (still shown under "As written" with the answer):
+ * "12 listopada" would pass without the ordinal, which is the whole difficulty. In Japanese, only
+ * the kana readings, each noting the kanji it's written in: typed through the IME, いちにち becomes
+ * 一日 and would match 十一月一日, so ついたち, ようか and はつか would never be checked.
  */
 export function acceptedForms(saying: DateSaying): Phrase[] {
-  const forms = [saying.everyday, ...saying.also, { ...saying.written, note: saying.written.note ?? 'As written' }, ...(saying.writtenAlso ?? [])];
-  const readings = forms.flatMap((f) => (f.roman && KANA_READING.test(f.roman) ? [{ text: f.roman.replace(/\s/g, ''), note: 'In kana' }] : []));
-  return distinct([...forms, ...readings]);
+  const forms = [saying.everyday, ...saying.also];
+  const readings = forms.flatMap((f) => (f.roman && KANA_READING.test(f.roman)
+    ? [{ text: f.roman.replace(/\s/g, ''), note: [f.text, f.note].filter(Boolean).join(' · ') }]
+    : []));
+  return distinct(readings.length ? readings : forms);
 }
 
 export function sameDate(a: CalendarDate, b: CalendarDate): boolean {

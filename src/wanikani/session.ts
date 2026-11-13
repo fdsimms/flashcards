@@ -13,12 +13,14 @@ import { asksReading, type Assignment, type Subject } from './subjects';
  * WaniKani once its quiz answers are right. Quiz misses don't count against it, as on WaniKani.
  *
  * How an item with a reading is asked (`QuestionMode`): `together`, one question covers meaning and
- * reading (flip mode; Again counts as one wrong meaning); `apart`, two questions anywhere in the
- * session, as WaniKani does; `adjacent`, two questions back to back (typing, with "separately" off).
+ * reading (flip mode; Again counts as one wrong meaning); `apart`, two questions shuffled in with
+ * the rest of the item's window of reviews (or its lesson batch), as WaniKani does; `adjacent`, two
+ * questions back to back (typing, with "separately" off).
  *
  * Undo: WaniKani can't take an answer back, so the latest finished item's answer is held here and
  * sent only when the next answer is given or the session closes (`Study`). Until then every answer
- * since the last one sent can be undone.
+ * since the last one sent can be undone. A typed answer that was wrong stays a miss when it's
+ * undone (`keepMisses`): its right answer has been shown, so undo would otherwise turn it into a pass.
  */
 
 export type QuestionKind = 'meaning' | 'reading' | 'both' | 'lesson';
@@ -101,13 +103,23 @@ export function questionMode(answer: 'type' | 'flip', separate: boolean): Questi
   return separate ? 'apart' : answer === 'flip' ? 'together' : 'adjacent';
 }
 
-/**
- * A session over `items`: reviews first, shuffled (WaniKani's default order), then lessons in the
- * order given. Asked apart, an item's meaning and reading are shuffled in with everything else.
- */
 /** Lessons shown before each quiz when WaniKani's own batch size isn't known. */
 export const LESSON_BATCH = 5;
 
+/**
+ * About how many reviews are in flight at once when meaning and reading are asked apart, as
+ * WaniKani keeps about 10. Shuffling every question of a 100-review session together put a median
+ * 53 questions between an item's two, so stopping halfway left dozens of items half done, and
+ * only finished items reach WaniKani.
+ */
+export const REVIEW_WINDOW = 10;
+
+/**
+ * A session over `items`: reviews first, shuffled (WaniKani's default order), then lessons in the
+ * order given. Asked apart, an item's meaning and reading are shuffled in with the other items of
+ * its window: the shuffled reviews are cut into windows of about `REVIEW_WINDOW` (all the same size
+ * give or take one, so the last isn't a stub), and each window's questions are shuffled together.
+ */
 export function buildSession(items: SessionItem[], opts: { mode: QuestionMode; lessonBatch?: number }, random: () => number = Math.random): Session {
   const reviews = items.filter((i) => !i.lesson);
   const lessons = items.filter((i) => i.lesson);
@@ -125,12 +137,27 @@ export function buildSession(items: SessionItem[], opts: { mode: QuestionMode; l
     const group = lessons.slice(i, i + batch);
     lessonQuestions.push(...group.map((l): Question => ({ assignmentId: l.assignmentId, kind: 'lesson' })), ...quiz(group));
   }
+  const reviewQuestions = opts.mode === 'apart' ? windows(shuffled(reviews, random), REVIEW_WINDOW).flatMap(quiz) : quiz(reviews);
   return {
     items: Object.fromEntries(items.map((i) => [i.assignmentId, i])),
-    queue: [...quiz(reviews), ...lessonQuestions],
+    queue: [...reviewQuestions, ...lessonQuestions],
     progress: Object.fromEntries(items.map((i) => [i.assignmentId, { meaning: false, reading: !i.asksReading, wrongMeaning: 0, wrongReading: 0, finished: false }])),
     finished: [],
   };
+}
+
+/** `items` cut, in order, into as few windows of at most `size` as will hold them, as even as they can be. */
+export function windows<T>(items: readonly T[], size: number): T[][] {
+  const count = Math.ceil(items.length / Math.max(1, size));
+  const out: T[][] = [];
+  let start = 0;
+  for (let k = 0; k < count; k++) {
+    // The first (length % count) windows take one more.
+    const end = start + Math.floor(items.length / count) + (k < items.length % count ? 1 : 0);
+    out.push(items.slice(start, end));
+    start = end;
+  }
+  return out;
 }
 
 export function currentQuestion(s: Session): Question | undefined {
@@ -165,7 +192,7 @@ export function answerQuestion(s: Session, correct: boolean, at: Date, random: (
   // Seeing a lesson is the lesson; its quiz comes after the batch.
   if (q.kind === 'lesson') return { session: { ...s, queue: rest } };
   if (!correct) {
-    const p = q.kind === 'reading' ? { ...before, wrongReading: before.wrongReading + 1 } : { ...before, wrongMeaning: before.wrongMeaning + 1 };
+    const p = missed(before, q.kind);
     const queue = [...rest];
     queue.splice(requeueAt(rest, random), 0, q);
     return { session: { ...s, queue, progress: { ...s.progress, [q.assignmentId]: p } } };
@@ -185,6 +212,20 @@ export function answerQuestion(s: Session, correct: boolean, at: Date, random: (
       wrongMeaning: p.wrongMeaning, wrongReading: p.wrongReading, at: at.toISOString(),
     },
   };
+}
+
+/** An item's progress with one more miss on the question asked: Again on `both` is a wrong meaning. */
+function missed(p: Progress, kind: QuestionKind): Progress {
+  return kind === 'reading' ? { ...p, wrongReading: p.wrongReading + 1 } : { ...p, wrongMeaning: p.wrongMeaning + 1 };
+}
+
+/**
+ * Whether a typed answer judged wrong may be marked correct: only a meaning, where it covers a typo
+ * past the allowance or a synonym WaniKani would take. A reading is right or wrong in kana, and
+ * WaniKani has no override, so marking one correct would turn a real mistake into a pass.
+ */
+export function canMarkCorrect(q: Question | undefined): boolean {
+  return q?.kind === 'meaning';
 }
 
 /**
@@ -237,10 +278,16 @@ export interface Study {
   held: Outcome | null;
   /** Sessions to go back to, newest last; none past the last outcome sent. */
   history: Session[];
+  /**
+   * Whether undo keeps the misses it goes back past (typed answers, where a miss is the checker's
+   * verdict and its right answer was shown). Rated answers are the user's own call, so undoing
+   * Again takes the miss back too, for a mistaken tap.
+   */
+  keepMisses: boolean;
 }
 
-export function startStudy(session: Session): Study {
-  return { session, held: null, history: [] };
+export function startStudy(session: Session, keepMisses = false): Study {
+  return { session, held: null, history: [], keepMisses };
 }
 
 /** Answers the current question. `send` is what must now go to WaniKani: the outcome that was held. */
@@ -250,7 +297,7 @@ export function studyAnswer(study: Study, correct: boolean, at: Date, random: ()
   // Once the held outcome is sent, nothing before this answer can be undone.
   const history = study.held ? [study.session] : [...study.history, study.session];
   const { session, outcome } = answerQuestion(study.session, correct, at, random);
-  return { study: { session, held: outcome ?? null, history }, send };
+  return { study: { ...study, session, held: outcome ?? null, history }, send };
 }
 
 /**
@@ -265,10 +312,29 @@ export function canUndo(study: Study): boolean {
   return study.history.length > 0;
 }
 
-/** Takes back the latest answer, and drops the held outcome it made. Null when there's nothing to undo. */
-export function studyUndo(study: Study): Study | null {
+/**
+ * Takes back the latest answer, and drops the held outcome it made. Null when there's nothing to undo.
+ * With `keepMisses`, every item keeps the misses it has now, so the question undone comes back with
+ * its miss still counted. `missShown` says the current question was just judged wrong and its right
+ * answer shown, but not counted yet (typing, before Next): that miss is counted too, so undoing the
+ * answer before it can't clear it.
+ */
+export function studyUndo(study: Study, missShown = false): Study | null {
   if (!study.history.length) return null;
-  return { session: study.history[study.history.length - 1], held: null, history: study.history.slice(0, -1) };
+  const back = study.history[study.history.length - 1];
+  const kept = study.keepMisses ? withMisses(back.progress, study.session.progress) : back.progress;
+  const q = study.session.queue[0];
+  const progress = missShown && q && q.kind !== 'lesson' ? { ...kept, [q.assignmentId]: missed(kept[q.assignmentId], q.kind) } : kept;
+  const session = progress === back.progress ? back : { ...back, progress };
+  return { ...study, session, held: null, history: study.history.slice(0, -1) };
+}
+
+/** `progress` with each item's miss counts taken from `now`. Misses only ever go up, so these are the most. */
+function withMisses(progress: Record<number, Progress>, now: Record<number, Progress>): Record<number, Progress> {
+  return Object.fromEntries(Object.entries(progress).map(([id, p]) => {
+    const n = now[Number(id)];
+    return [id, n ? { ...p, wrongMeaning: n.wrongMeaning, wrongReading: n.wrongReading } : p];
+  }));
 }
 
 /** Closing the session: whatever is held goes now. */

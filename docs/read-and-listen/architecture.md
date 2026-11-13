@@ -99,7 +99,9 @@ Franki's (Client, below).
   with the line that answers it (its words, English and audio). Three kinds, built when Done is
   tapped (`src/reader/check.ts`, pure and tested; `src/ui/ReaderCheck.tsx`): up to two about what
   happens, then one line to recognize by ear (two when there are none about what happens), then up to
-  two words (marked unknown first, then looked up, then the practice words). The questions about
+  two words (marked unknown first, then looked up, then the practice words). A line heard is offered
+  with the same speaker's other lines as the wrong choices, and the other speaker's only when there
+  aren't enough (13 November 2026), so in a dialogue the voice alone doesn't rule choices out. The questions about
   what happens are Claude's, in the text's language with an English toggle (kept in the reader's
   prefs), written once the text passes its checks in one call (`comprehension.py`) and kept on the
   text (`texts.questions`); the code keeps a question only if its line exists, its four choices
@@ -107,9 +109,17 @@ Franki's (Client, below).
   failed call leaves the text without them. Their cost is `questions` in `/api/costs`. The listening
   and word questions are built from the text's own lines, audio and glosses, so they cost nothing.
   The score (right of those answered, "I don't know" counting as wrong) is logged with the reading
-  (`check_right`, `check_asked`) and shown in Progress. **A poor score makes the next text easier**
-  (the owner's choice): under 60% right of at least three raises the coverage target a step
-  (`adapt_to_check`), unless the text was rated Too hard, which already did; a good score changes
+  (`check_right`, `check_asked`) and shown in Progress. **Only the questions about what happens and
+  by ear are logged** (13 November 2026, `loggedScore`): the word questions ask about words marked
+  unknown or looked up, which were off the list, so missing them is expected and two misses in a
+  small check made texts easier. They are still asked and marked, and the end view's "right on this
+  text" counts them; the app leaves them out of what it sends, so the server and its API are
+  unchanged (readings before this counted them). Since the server needs three answers, a text with
+  fewer than three questions that count (no questions about what happens, or one) can't move
+  difficulty, and the check's offer then doesn't say a low score makes the next text easier. **A poor score makes the next text easier**
+  (the owner's choice): under 60% right of at least three raises the coverage target a step from
+  the text's own level (`adapt_to_check`, through `after_reading`, as for a rating under Logging),
+  unless the text was rated Too hard, which already did; a good score changes
   nothing, as the rating is what makes texts harder. Nothing is graded or added to the deck. Not done:
   the check on a past text read again (its reading isn't logged), and questions for texts written
   before it.
@@ -219,9 +229,31 @@ Franki's (Client, below).
 - A note's tier comes from its weakest reviewed card: **mature** if the lowest interval is 21 days or
   more, **young** if reviewed but below that, **unreviewed** if no card has been reviewed
   (`server/reader/src/franki_reader/tiers.py`).
+- **A suspended card doesn't count** (13 November 2026, the owner's decision from a review of the
+  teaching). The owner's presets suspend leeches, so a suspended card is the word the learner keeps
+  failing: a note whose reviewed cards are all suspended is unreviewed, so it isn't known for
+  coverage and is never a stretch word, and a note with another unsuspended reviewed card is tiered
+  from that one. The cards' `queue` is read with their type and interval (`collection.py`, -1 is
+  suspended; `build_entries` leaves those cards out).
 - Mature and young both count as known for coverage. The prompt asks the model to favor mature words.
 - **Partial:** a word that only appears inside a longer deck entry (รับ inside รับอะไรดี). It counts as
   unknown for coverage, and its gloss can point at the entry it came from.
+- **A compound known by splitting is glossed as itself, never as its parts** (13 November 2026). A
+  word that splits cleanly into deck entries counts as known (เข้าใจ from เข้า and ใจ, ลูกน้ำ, หน้าที่;
+  Japanese compounds Sudachi keeps whole the same way), but the reader used to gloss it part by part
+  ("enter + heart"), which misleads for an opaque compound. Such a word now needs a gloss of its own:
+  Thai's prompt asks the model to gloss every word it joins from two list words, and any it doesn't
+  is asked for with the text's other unglossed words (Generation and coverage, the meanings pass). If
+  there's still none, the app shows the parts' meanings labeled as parts ("Parts: to enter + heart",
+  `parts` beside `gloss` in the API, `meaningOf` in src/reader/languages.ts), so they aren't read as
+  its meaning, aren't put in a new note's Meaning, and aren't a word question's answer.
+- **What's due and reviewed** (13 November 2026). Each note keeps, from the snapshot's study day,
+  whether a card was due and not yet answered that day (`due`: Anki's `is:due` without `rated:1`),
+  whether one was answered that day on any device (`reviewed`, `rated:1`), and how many study days
+  after it the soonest card comes due (`due_in`, from the cards' due day or learning step). A
+  snapshot can be from an earlier study day than today, so on a later day a word is taken as waiting
+  once `due_in` says it has come due, and nothing is known to be reviewed. Stretch words, and the
+  words a new text may use, read these (Generation and coverage). Still read only: `test_collection.py` checks a read leaves nothing to send.
 - Only the latest snapshot is kept. No history.
 - **Transliteration** (Thai): a word's popover hides it behind "Show transliteration". A deck word shows
   its note's `Transliteration` field, kept in the snapshot. A word off the list shows the one the model
@@ -605,13 +637,71 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   is generated when the chip is tapped. In the app the chip sits after the meaning, and opens a page
   sheet (`ReadFormSheet`) that ends with what the form is in the tapped word. Not done: the marked
   words list (a mark isn't tied to a text) and a card's example sentences show no form.
-- **Stretch words** are 1-3 words due today or still young. No random assignment.
+- **A text's meanings are its own** (13 November 2026, changing "Common words are glossed after the text is written" above). A word was glossed
+  once, from the first line it turned up in, and that meaning was kept for the language and shown in
+  every later text, so Spanish vino ("came" or "wine"), cara ("face" or "expensive") and sobre
+  ("envelope" or "about") showed their first sense everywhere, and the check after reading marked the
+  learner wrong for knowing the word. Now the meanings asked for a text are kept with that text
+  (`texts.meanings`, by lower-case word, a column added at startup) and shown there, after the
+  model's own gloss and before the deck's. Every new text asks for each of its words that has no gloss
+  from the text or the deck, whatever was kept for the language, so a text pays for its own common
+  words: one call per text when it's written (up to 150 words), never one per word. Answers are
+  numbered, so one call can ask for a word in two texts and keep each one's sense. `word_meanings`
+  still keeps the first meaning each word got, only as the fallback for a text with none of its own
+  (a failed call) and for cards' example sentences, which have no text and still ask once per word.
+  The check's word questions take their answers from the text's words as the server glosses them,
+  so they use the text's own meaning. The top-up pass now also asks, once, for the words of the 30
+  newest texts that only had the language's meaning, so texts waiting to be read get their own sense
+  too.
+- **Stretch words** are 1-3 words reviewed today or still young. No random assignment.
+- **Never a word due today that isn't reviewed yet** (13 November 2026, the owner's decision, from
+  brief principles 4 and 9). Reading a due word in context with its gloss, before its Anki review
+  that day, turns the review into short-term recall: it's rated Good and FSRS lengthens an interval
+  the learner didn't earn, the corruption principle 9 prevents, by priming rather than grading. So
+  no stretch pick (the shelf's texts, a story episode, a typed topic, either practice-word setting)
+  takes a word with a card due today and not answered today on any device; a word answered today is
+  fine and goes first, then young words not due (`stretch.py`, from the snapshot's `due`, `reviewed`
+  and `due_in`, Lexicon). A mature word counts only once reviewed today. "Read a text with these
+  words" from Review is unchanged: its words were just reviewed. A text already written waits on the
+  shelf as it is; its practice words aren't checked again when it's opened.
+- **Nor anywhere else in a new text** (13 November 2026, the owner's decision, following the item
+  above). While a text is written, a word with a card due today and not answered today counts as not
+  known (`Engine.writing_lexicon`, by the same `due`, `reviewed` and `due_in` as `stretch.py`, and
+  `snapshot_days` for a snapshot from an earlier day): it's left out of the word list the model is
+  given, and the checker counts it as unknown in any form, even where it's also one of the common
+  words (spaced.py, japanese.py) or splits into known Thai words (`withheld` in `lexicon_from`). A
+  draft that uses it anyway goes back with it named like any other unknown word, and the text's
+  stored coverage is the one measured that way. The text's own practice words are never withheld:
+  the ones picked are never waiting, and those of "Read a text with these words" were just reviewed
+  in Franki, whatever a snapshot read before Franki synced says. Only writing changes: reading a
+  text, its glosses and its known or unknown marks, the vocabulary check and everything else that
+  reads the lexicon use the snapshot as before, so a text written earlier isn't re-marked. Texts
+  already written stay as they are, and cards' example sentences aren't affected.
+  - *Prompt cache.* The list is the cached prefix. The withheld words come from the snapshot and
+    the study day, so the prefix is the same for every text written from one snapshot on one day: a
+    write's revisions and a top-up's texts share it, as before. It changes when the snapshot is read
+    again after reviews (which already changed it whenever a tier did) and at the rollover, and a
+    "Read a text with these words" text, whose words aren't withheld, has its own. Fixing the
+    withheld words for the whole study day was considered and not done: the cache lasts 5 minutes,
+    so it would only keep words out after they'd been reviewed.
+  - *A heavy review day.* With 150 words due, those are out of the list until reviewed (and until
+    a later snapshot shows it). Most are young or recently missed words; the words most texts lean on
+    are mature with long intervals, and in every language but Thai the common words carry most of the
+    coverage, so the target is normally still reached. A draft that leans on withheld words is revised
+    up to 3 times as usual; if none reaches the target, the closest attempt at 85% or more is served
+    with the reader's "fewer than usual" note, and under that the text is dropped and the topic waits
+    `FAILURE_COOLDOWN`, like any other miss. Nothing waits for the reviews to be done first.
+  - *Reviewing first.* So the shelf suggests it: while the language's deck has reviews due, a card
+    at the top says how many ("12 Thai reviews due. Review them first, and new texts can use those
+    words.") and opens that deck's review (`ReadReviewFirst`, `src/reader/reviewFirst.ts`). The count
+    is the deck list's own row, so it never says 12 and opens a deck with none. It's a suggestion,
+    never a gate: nothing on the shelf waits for it.
 - **Stretch words come back on later days** (brief, design principle 4). A word that was a stretch
-  word in a text read on an earlier study day goes ahead of other due and young words, until it has
-  been one on 3 different study days (Anki's, in `TZ` from its "Next day starts at"; `study_day.py`)
-  (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be due
-  or young, so a word that has matured since is left alone. In "Fit the topic" it's offered first,
-  and the model may still pass it over if it doesn't fit.
+  word in a text read on an earlier study day goes ahead of other reviewed and young words, until it
+  has been one on 3 different study days (Anki's, in `TZ` from its "Next day starts at"; `study_day.py`)
+  (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be reviewed today
+  or young, and not waiting for its review, so a word that has matured since is left alone. In "Fit
+  the topic" it's offered first, and the model may still pass it over if it doesn't fit.
 - **Short stories** as well as dialogues: a "Text type" setting (`form` in `/api/settings`),
   applying from the next text written. A story is told by a narrator (speaker `N`), one or two plain
   sentences a line, and is spoken in voice A. The brief's feasibility test found narrative drops
@@ -630,12 +720,12 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   (on by default, kept in the reader's prefs) turns paragraph mode off for a story, giving the line-by-line view.
 - **Dialogue length** is a setting: 6, 8 or 12 lines (`lines` in `/api/settings`), applying from the
   next text written. Longer dialogues have more room for unknown words before missing the floor.
-- **The model chooses stretch words to fit the topic** (the default). It gets 15 due or young
+- **The model chooses stretch words to fit the topic** (the default). It gets 15 reviewed or young
   words and uses 1 to the current stretch count of them, so a dialogue about ordering food isn't
   bent around "tiger" because tiger happens to be due. The text records the ones it used. A text
   that uses none, too many, or one fewer than 2 times goes back for revision. The other setting,
-  "Any due word", hands the model that many words to use, which keeps every due word in rotation at
-  the cost of odder dialogues. It's a setting on the Topics screen (`GET`/`PATCH /api/settings`),
+  "Any word" ("Any due word" until 13 November 2026), hands the model that many words to use, which
+  keeps every word in rotation at the cost of odder dialogues. It's a setting on the Topics screen (`GET`/`PATCH /api/settings`),
   stored on the server so background writes follow it, and like ratings it applies from the next
   text written. It's separate from difficulty on purpose: ratings decide how many stretch words and
   how much coverage; this decides only which words.
@@ -660,10 +750,18 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   being read is ever written for.
 - **The shelf keeps `SHELF_SIZE` (3) texts written ahead** in that language (`_next_shelf_job` in
   `engine.py`), each for a reason stored on the text (`texts.reason`) and shown on its card: one
-  written around words due today (`due`: the due words are handed to the model, as "Any due word"
-  does), one on a liked theme (`liked`), and one on an idea not tried before (`new`, from the topic
-  ideas, best fit first, filed as a hidden topic so it's never offered again). With no liked theme
-  free, ideas fill the gap. Dialogues and stories alternate, so the shelf has both without a setting.
+  written around words due today (`due`: the words are handed to the model, as "Any word" does), one
+  on a liked theme (`liked`), and one on an idea not tried before (`new`, from the topic ideas, best
+  fit first, filed as a hidden topic so it's never offered again). With no liked theme free, ideas
+  fill the gap. Dialogues and stories alternate, so the shelf has both without a setting.
+- **The "due" text waits for words reviewed today** (13 November 2026; see Generation and coverage,
+  Never a word due today that isn't reviewed yet). Its words are only ones already answered today,
+  and its card says "Uses 2 words you reviewed today". Until there's one, the shelf doesn't write it:
+  the slot goes to a liked theme or a new idea, and the due text is written the next time a slot is
+  free and a word has been reviewed, rather than falling back to young words under a label that
+  would be wrong. While the shelf has room for it, the top-up reads Anki again when the snapshot is
+  30 minutes old (`DUE_SNAPSHOT_AGE`, a sync with the owner's own server, no API call) rather than
+  daily, so a review done elsewhere shows within the half hour after it's synced.
 - **Spending.** Texts are written only after the app asks for the shelf, only for the current
   language, and never more than the shelf is short. A text left unread stays on the shelf rather
   than being written again. A failed shelf text stops the pass and pauses that language's shelf for
@@ -896,6 +994,14 @@ in the current language, with when one was last read to the end. Nothing else le
   stretch words (`server/reader/src/franki_reader/difficulty.py`). A text already waiting in a favorite's queue
   keeps the difficulty it was written at, so a rating shows up one text later; the owner chose that
   over discarding queued texts (19 October 2026). The Milestone 1 exit check reads the log.
+- **A rating steps from the level the rated text was written at** (13 November 2026, the owner's
+  decision from a review of the teaching; `after_reading`). Each text stores its target (`floor`)
+  and stretch word count (`stretch_count`, NULL for texts written before, whose rating steps the
+  stretch words from the current count as before). Too hard leaves the target at the higher of the
+  current one and a step above the text's, and the stretch words at the lower of the current count
+  and one below the text's; too easy is the mirror. Before this each rating stepped from the current
+  level, so three texts written ahead at 92% and all rated too hard moved the target three steps
+  before a text at the new level was read. A poor check steps from the text's level the same way.
 - A reading posted twice for the same text (a retried request) is counted once.
 - Each text also records the model that actually answered (a refusal fallback can change it), its
   tokens and its cost in dollars, dropped texts included, so the real cost per text can be read

@@ -111,8 +111,9 @@ step is its own PR, and each that changes a screen is mocked up for the owner fi
    - **Spaced by point, worked out from the answers, never stored** (`src/core/grammarDrills.ts`):
      the phone keeps each answer (`grammar_answers`, restored with a backup), and a point's next
      drill is read from them every time. Practice points come back after 1, 3, 7, 14, then 30 days
-     with each drill where 80% or more of its questions were right, Know it ones after 7, 14, 30,
-     then 60; a drill under 80% brings it back the next day. Not set and Don't know it aren't
+     with each drill where 80% or more of its questions were right (or all but one, when it had 3
+     or 4: a 4/3/3 split would otherwise allow no slip), Know it ones after 7, 14, 30, then 60; a
+     drill that went worse brings it back the next day. Not set and Don't know it aren't
      drilled. A drill is 10 questions over at most 3 due points, Practice ones first.
    - **The Know it suggestion counts drills too**, with Forms practice (`suggestKnowIt`).
 **Points no finder can find** (case, verb aspect) join the catalog with `findable: false` in the

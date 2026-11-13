@@ -128,8 +128,10 @@ class Lexicon:
 
     spaced = False
 
-    def __init__(self, known: Iterable[str]) -> None:
-        self.known = frozenset(w.strip() for w in known if w.strip())
+    def __init__(self, known: Iterable[str], withheld: Iterable[str] = ()) -> None:
+        # `withheld`: deck entries counted as unknown even when they split into known ones.
+        self.withheld = frozenset(w.strip() for w in withheld if w.strip())
+        self.known = frozenset(w.strip() for w in known if w.strip()) - self.withheld
 
     @cached_property
     def partial(self) -> frozenset[str]:
@@ -169,12 +171,17 @@ class Lexicon:
         return out
 
     def status(self, token: str) -> Status:
+        if token in self.withheld:
+            return "unknown"
         if token in self.known or _is_number(token):
+            return "known"
+        # A clean split into deck entries is known even when a longer entry also holds the word:
+        # ร้านอาหาร is ร้าน + อาหาร, whether or not ร้านอาหารไทย is in the deck too. Partial is for
+        # a word found only inside a phrase (รับ inside รับอะไรดี).
+        if self._splits_into_known(token):
             return "known"
         if token in self.partial:
             return "partial"
-        if self._splits_into_known(token):
-            return "known"
         return "unknown"
 
     def known_pieces(self, token: str) -> list[str] | None:

@@ -112,7 +112,7 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
               <Help>
                 {due.length > DRILL_POINTS
                   ? `A drill mixes ${DRILL_POINTS} points, Practice ones first; start another for the rest.`
-                  : "A point that goes well (8 in 10 right) comes back later each time; one that doesn't comes back tomorrow."}
+                  : "A point that goes well (8 in 10 right, or all but one of 3 or 4 questions) comes back later each time; one that doesn't comes back tomorrow."}
               </Help>
             </Card>
             <View style={{ gap: space.s }}>

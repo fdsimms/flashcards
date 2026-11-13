@@ -4,6 +4,10 @@ import { newSchedState } from './scheduler';
 import { templateOrdinals } from './template';
 import type { Card, CardKind, Note, NoteType, RenderedCard, RenderedSide } from './types';
 
+/**
+ * Language names, in English and as the language writes itself, with the BCP-47 tag a note in it
+ * is spoken in. A Language field is matched whole; a deck name is searched for each, in this order.
+ */
 const LANG_TAGS: Record<string, string> = {
   thai: 'th-TH', ภาษาไทย: 'th-TH',
   polish: 'pl-PL', polski: 'pl-PL',
@@ -14,14 +18,38 @@ const LANG_TAGS: Record<string, string> = {
   japanese: 'ja-JP', 日本語: 'ja-JP',
   german: 'de-DE', deutsch: 'de-DE',
   spanish: 'es-MX', español: 'es-MX', espanol: 'es-MX',
+  italian: 'it-IT', italiano: 'it-IT',
+  portuguese: 'pt-BR', português: 'pt-BR', portugues: 'pt-BR',
+  chinese: 'zh-CN', mandarin: 'zh-CN', 中文: 'zh-CN', 普通话: 'zh-CN', 普通話: 'zh-CN',
+  cantonese: 'zh-HK', 粵語: 'zh-HK', 粤语: 'zh-HK', 廣東話: 'zh-HK',
+  korean: 'ko-KR', 한국어: 'ko-KR',
+  dutch: 'nl-NL', nederlands: 'nl-NL',
+  swedish: 'sv-SE', svenska: 'sv-SE',
+  danish: 'da-DK', dansk: 'da-DK',
+  finnish: 'fi-FI', suomi: 'fi-FI',
+  czech: 'cs-CZ', čeština: 'cs-CZ', cestina: 'cs-CZ',
+  hungarian: 'hu-HU', magyar: 'hu-HU',
+  romanian: 'ro-RO', română: 'ro-RO',
+  turkish: 'tr-TR', türkçe: 'tr-TR', turkce: 'tr-TR',
+  ukrainian: 'uk-UA', українська: 'uk-UA',
+  arabic: 'ar-SA', العربية: 'ar-SA',
+  hebrew: 'he-IL', עברית: 'he-IL',
+  hindi: 'hi-IN', हिन्दी: 'hi-IN', हिंदी: 'hi-IN',
+  vietnamese: 'vi-VN', 'tiếng việt': 'vi-VN', 'tieng viet': 'vi-VN',
+  indonesian: 'id-ID', 'bahasa indonesia': 'id-ID',
   english: 'en-US',
 };
 
+/**
+ * The language a note is spoken in: its Language field, else a language its deck's name gives.
+ * Undefined when neither names one, which means don't speak it: iOS's default voice would read
+ * the word as English, which a learner can't recognize.
+ */
 export function speechLangFor(note: Note): string | undefined {
-  const raw = htmlToText(note.fields.Language ?? '').toLowerCase();
+  const raw = htmlToText(note.fields.Language ?? '').normalize('NFC').toLowerCase();
   if (raw && LANG_TAGS[raw]) return LANG_TAGS[raw];
   // Fall back to scanning the deck name for a known language.
-  const deck = note.deck.toLowerCase();
+  const deck = note.deck.normalize('NFC').toLowerCase();
   for (const [k, v] of Object.entries(LANG_TAGS)) if (deck.includes(k)) return v;
   return undefined;
 }
@@ -76,9 +104,14 @@ function pushIf(blocks: Block[], text: string, label?: string, emphasis?: boolea
   if (text) blocks.push({ label, text, emphasis, tapLabel, ...extra });
 }
 
-export function renderCard(note: Note, kind: CardKind): RenderedCard {
+/**
+ * A card as the native renderer shows it. `wanted` is the note's line saying which of several
+ * words with its meaning a reverse card asks for (`wantedLines` in synonyms.ts); it shows under
+ * the meaning on the reverse card's front.
+ */
+export function renderCard(note: Note, kind: CardKind, wanted?: string): RenderedCard {
   if (!isOmnilanguage(note)) return renderGeneric(note);
-  const card = renderOmnilanguage(note, kind);
+  const card = renderOmnilanguage(note, kind, wanted);
   const audioFile = soundFiles(note.fields.Audio)[0];
   return audioFile ? { ...card, audioFile, audioSide: kind === 'audio' ? 'front' : 'back' } : card;
 }
@@ -92,11 +125,12 @@ export interface Playback {
 /**
  * What the Play button says for the side shown. A recording belongs to `audioSide` and, once the
  * answer is shown, is free to replay from either side; before then it stays quiet on the other
- * side, so a recording of the answer isn't played over the question.
+ * side, so a recording of the answer isn't played over the question, unless the front already
+ * shows the word it says (`frontShowsWord`).
  */
 export function playbackFor(card: RenderedCard, revealed: boolean): Playback | undefined {
   const text = revealed ? card.back.speak ?? card.front.speak : card.front.speak;
-  const file = card.audioFile && (revealed || card.audioSide === 'front') ? card.audioFile : undefined;
+  const file = card.audioFile && (revealed || card.audioSide === 'front' || card.frontShowsWord) ? card.audioFile : undefined;
   return text || file ? { text, file } : undefined;
 }
 
@@ -110,11 +144,13 @@ export function canRecordYourself(card: RenderedCard): boolean {
 
 /**
  * What plays by itself when a card comes up (`revealed` false) or its answer is shown (true).
- * Showing the answer plays only what's new there: the recording, or the word a reverse card asks for.
- * A card with no recording speaks its front text with the phone's voice, as before.
+ * Showing the answer plays the word: the recording, else the phone's voice. A card that shows the
+ * word on its front (`frontShowsWord`) is quiet until then; any other card with no recording
+ * speaks its front text with the phone's voice, as before.
  */
 export function autoplayFor(card: RenderedCard, revealed: boolean): Playback | undefined {
   if (!revealed) {
+    if (card.frontShowsWord) return undefined;
     // A card with a recording that belongs to its back stays quiet until the answer, as in Anki.
     if (card.audioFile && card.audioSide !== 'front') return undefined;
     return card.front.speak || card.audioFile ? { text: card.front.speak, file: card.audioFile } : undefined;
@@ -133,10 +169,13 @@ const FORM_ROWS: [field: string, label: string][] = [
 const GENDER_WORDS: Record<string, string> = { m: 'masculine', f: 'feminine', n: 'neuter' };
 const RUSSIAN_PRONOUNS: Record<string, string> = { m: 'мой', f: 'моя', n: 'моё' };
 
-function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
+function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): RenderedCard {
   const speechLang = speechLangFor(note);
 
   const entry = t(note, 'Entry');
+  // What the phone's voice may say: nothing in a language that isn't known, which it would read as
+  // English. A recording (`audioFile`) still plays.
+  const say = speechLang ? entry : undefined;
   const translit = t(note, 'Transliteration');
   // A Japanese word's kana, shown on the back after the word as Anki's template does ({{hint:KanaReading}}).
   const kana = t(note, 'KanaReading');
@@ -176,27 +215,37 @@ function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
     pushIf(back, translit, undefined, undefined, 'Show transliteration');
     pushIf(back, kana, undefined, undefined, 'Show reading');
     back.push(...detail());
-    return { front: { blocks: front, speak: entry }, back: { blocks: back }, speechLang };
+    // The word is on the front already: Play may say it there, but it plays by itself only with the answer.
+    return { front: { blocks: front, speak: say }, back: { blocks: back, speak: say }, speechLang, frontShowsWord: true };
   }
 
   if (kind === 'reverse') {
     pushIf(front, meaning, undefined, true);
+    // Which of the words with this meaning is wanted (synonyms.ts), so the other one isn't marked wrong.
+    pushIf(front, wanted ?? '', undefined, undefined, undefined, { role: 'wanted' });
     pushIf(front, t(note, 'LeechHint'), undefined);
     pushEntry(back);
     pushIf(back, translit, undefined, undefined, 'Show transliteration');
     pushIf(back, kana, undefined, undefined, 'Show reading');
     back.push(...detail());
-    return { front: { blocks: front }, back: { blocks: back, speak: entry }, speechLang };
+    return { front: { blocks: front }, back: { blocks: back, speak: say }, speechLang };
   }
 
   // audio: hear it, recall the meaning
   front.push({ text: 'Listen', emphasis: true, icon: 'speaker.wave.2.fill' });
+  // With no recording and no language to speak it in, there is nothing to hear: say so rather than play nothing.
+  if (!say && !soundFiles(note.fields.Audio).length) {
+    front.push({
+      text: "This word has no recording, and its language isn't known, so there's nothing to play. To hear it, set the note's Language field (Italian, for example).",
+      role: 'note',
+    });
+  }
   pushEntry(back);
   pushIf(back, meaning, undefined, true);
   pushIf(back, translit, undefined, undefined, 'Show transliteration');
   pushIf(back, kana, undefined, undefined, 'Show reading');
   back.push(...detail());
-  return { front: { blocks: front, speak: entry }, back: { blocks: back }, speechLang };
+  return { front: { blocks: front, speak: say }, back: { blocks: back }, speechLang };
 }
 
 /**

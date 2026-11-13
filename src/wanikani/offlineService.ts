@@ -1,10 +1,11 @@
 import type { WaniKaniApi, WaniKaniUser } from './api';
 import { inlineImages, OFFLINE_LESSONS, type Snapshot } from './offline';
 import { sessionItems } from './session';
+import { withComponents } from './subjects';
 
 /**
- * Making the offline copy (offline.ts): the reviews and lessons that are up, their subjects and
- * synonyms, read from WaniKani. Pure over the API it's given, so tests can fake one.
+ * Making the offline copy (offline.ts): the reviews and lessons that are up, their subjects, the
+ * radicals and kanji those are made of, and synonyms, read from WaniKani. Pure over the API it's given, so tests can fake one.
  */
 
 export interface SnapshotDeps {
@@ -23,7 +24,9 @@ export async function makeSnapshot(
   const first = new Set(sessionItems([], allLessons, bySubject, OFFLINE_LESSONS).map((i) => i.assignmentId));
   const lessons = allLessons.filter((a) => first.has(a.id));
   const used = new Set([...reviews, ...lessons].map((a) => a.subjectId));
-  const subjects = await inlineImages(read.filter((s) => used.has(s.id)), opts.previous?.subjects ?? [], deps.api.download);
+  // The parts go in too, so an offline card shows its "Made of" row, a radical's picture included.
+  const withParts = await withComponents(read.filter((s) => used.has(s.id)), deps.api.subjects);
+  const subjects = await inlineImages(withParts, opts.previous?.subjects ?? [], deps.api.download);
   // Typing counts the user's own synonyms as right; without them only WaniKani's do, which is still usable.
   const synonyms = await deps.api.synonyms([...used]).catch(() => new Map<number, string[]>());
   return {

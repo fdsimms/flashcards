@@ -12,7 +12,7 @@ const LISTED_FORMS = 10;
 
 /**
  * What a deck's forms practice has shown so far: totals, the forms still owed right answers, the
- * same wrong answer given again and again, and the right rate by kind of form. Read-only; it
+ * same wrong answer or other form given again and again, and the right rate by kind of form. Read-only; it
  * changes nothing, least of all when a card is due.
  */
 export function FormsHistory({ repo, deck }: { repo: Repo; deck: string }) {
@@ -24,8 +24,8 @@ export function FormsHistory({ repo, deck }: { repo: Repo; deck: string }) {
     let live = true;
     setError(null);
     (async () => {
-      const [notes, practice] = await Promise.all([repo.listNotes(), repo.listPractice()]);
-      if (live) setStats(practiceStats(deck, notes, practice, new Date()));
+      const [notes, practice, { dayStartsAtHour }] = await Promise.all([repo.listNotes(), repo.listPractice(), repo.collectionSettings()]);
+      if (live) setStats(practiceStats(deck, notes, practice, new Date(), dayStartsAtHour));
     })().catch((e) => { if (live) setError(failureText(e, { what: "Couldn't load your practice history.", next: 'Try again.' })); });
     return () => { live = false; };
   }, [repo, deck, loads]);
@@ -70,18 +70,24 @@ function Content({ stats }: { stats: PracticeStats }) {
         <Card><Help>Nothing right now. Every form you missed has been put right.</Help></Card>
       )}
       {hidden > 0 ? <Help>{hidden === 1 ? 'And 1 more form.' : `And ${hidden} more forms.`}</Help> : null}
-      <Help>{`Each miss needs ${FORM_CLEARED_AFTER} right answers to clear. These are asked first in practice.`}</Help>
+      <Help>{`Each miss needs ${FORM_CLEARED_AFTER} right answers to clear, and the first right answer after a miss doesn't count on the same day. These are asked first in practice.`}</Help>
 
       <SectionTitle>Mixed up</SectionTitle>
       {stats.mixedUp.length ? (
         <Card style={{ gap: 0, paddingVertical: space.xs }}>
           {stats.mixedUp.map((m, i) => (
-            <Row key={`${m.expected}:${m.given}`} first={!i} label={`“${m.given}” for “${m.expected}”`} detail={`${m.misses} times, across ${m.words} words`} />
+            <Row
+              key={`${m.kind}:${m.expected}:${m.given}`}
+              first={!i}
+              // An answer is quoted as typed; a form is named ("present subjunctive · yo for preterite · yo").
+              label={m.kind === 'form' ? `${m.given} for ${m.expected}` : `“${m.given}” for “${m.expected}”`}
+              detail={`${m.misses} times, across ${m.words} words`}
+            />
           ))}
         </Card>
       ) : null}
       <Help>
-        {`A mix-up is the same wrong answer given ${CONFUSION_MISSES} times across ${CONFUSION_WORDS} or more words. Only answers kept from now on can show one. Forms with these answers come up sooner in practice.`}
+        {`A mix-up is the same wrong answer, or the same other form of the word, given ${CONFUSION_MISSES} times across ${CONFUSION_WORDS} or more words. Only answers kept from now on can show one. Forms mixed up like this come up sooner in practice.`}
       </Help>
 
       <SectionTitle>By kind of form</SectionTitle>

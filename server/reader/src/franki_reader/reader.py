@@ -17,23 +17,34 @@ from franki_reader.store import StoredText
 def gloss_for(
     word: str, glosses: dict[str, str], lexicon: Checker, meanings: dict[str, str]
 ) -> str | None:
-    """The text's own gloss, else the deck's meaning (of the entry it's a form of, so hablé gets
-    hablar's), else the meaning kept for the word in lower case (meanings.py: a common word has none
-    from the deck or the text), else, in Japanese, its dictionary form's (a WaniKani word's meaning is
-    kept by its dictionary form, and 食べました has none of its own), else the meanings of the deck
-    entries a known compound splits into (a word known that way has no entry of its own to gloss it)."""
+    """The text's own gloss (`StoredText.own_glosses`: the model's, or the meaning asked for it in
+    its line here, meanings.py), as written or in lower case, else the deck's meaning (of the entry
+    it's a form of, so hablé gets hablar's), else the meaning kept for the word in lower case (the
+    language's fallback, for a text with none of its own), else, in Japanese, its dictionary form's (a
+    WaniKani word's meaning is kept by its dictionary form, and 食べました has none of its own).
+
+    A compound known only by splitting into deck entries (เข้าใจ, เข้า + ใจ) has no gloss from them:
+    its parts' meanings ("enter + heart") are often not its own ("understand"), so it needs one of
+    its own like any other word, and `parts_for` gives the parts, labeled as such."""
     entry = lexicon.entry_of(word)
     lemma = lexicon.lemma_of(word) if isinstance(lexicon, JapaneseLexicon) else None
-    if gloss := (
+    return (
         glosses.get(word)
+        or glosses.get(word.casefold())
         or meanings.get(word)
         or (meanings.get(entry) if entry else None)
         or meanings.get(word.casefold())
         or (meanings.get(lemma) if lemma else None)
-    ):
-        return gloss
+        or None
+    )
+
+
+def parts_for(word: str, lexicon: Checker, meanings: dict[str, str]) -> str | None:
+    """The meanings of the deck entries a known compound splits into ("enter + heart" for เข้าใจ),
+    for a word with no gloss of its own: the app shows them labeled as its parts, never as its
+    meaning. None for a word that isn't known by splitting, or a part with no meaning."""
     pieces = lexicon.known_pieces(word)
-    parts = [meanings[p] for p in pieces or [] if p in meanings]
+    parts = [meanings[p] for p in pieces or [] if meanings.get(p)]
     return " + ".join(parts) if pieces and len(parts) == len(pieces) else None
 
 
@@ -93,15 +104,16 @@ def word_out(
     form: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """One piece of a line as the app draws it (`Word` in src/reader/api.ts): a word with its
-    meaning, dictionary form, pronunciation and status, or a space or punctuation (status None),
-    which is shown but never tapped. `glosses` and `translits` are a text's own, `stretch` its
-    practice words, `point` the grammar point the word uses, `form` its grammatical form as
-    {"id", "name"} (the app's chip and primer, form_primers.py)."""
+    meaning (or, for a compound with none, its parts' meanings), dictionary form, pronunciation and
+    status, or a space or punctuation (status None), which is shown but never tapped. `glosses` and
+    `translits` are a text's own, `stretch` its practice words, `point` the grammar point the word
+    uses, `form` its grammatical form as {"id", "name"} (the app's chip and primer, form_primers.py)."""
     if not is_word(piece):
         return {
             "text": piece,
             "status": None,
             "gloss": None,
+            "parts": None,
             "lemma": None,
             "translit": None,
             "stretch": False,
@@ -112,10 +124,12 @@ def word_out(
             "form": None,
         }
     entry = lexicon.entry_of(piece)
+    gloss = gloss_for(piece, glosses or {}, lexicon, meanings)
     return {
         "text": piece,
         "status": "name" if is_name else lexicon.status(piece),
-        "gloss": gloss_for(piece, glosses or {}, lexicon, meanings),
+        "gloss": gloss,
+        "parts": None if gloss or is_name else parts_for(piece, lexicon, meanings),
         "lemma": lemma_for(piece, lexicon),
         "translit": translit_for(piece, translits or {}, lexicon, deck_translits),
         "stretch": (entry or piece) in (stretch or set()),
@@ -201,7 +215,7 @@ def render_line(
                 meanings,
                 deck_translits or {},
                 is_name=is_name,
-                glosses=text.glosses,
+                glosses=text.own_glosses,
                 translits=text.translits,
                 stretch=stretch,
                 point=point,

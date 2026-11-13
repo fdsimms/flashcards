@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WaniKaniError } from '../../src/wanikani/api';
-import { apprenticeBlocks, DEFAULT_PREFS, flushOutbox, lessonsToday, parsePrefs, parseState } from '../../src/wanikani/prefs';
+import { apprenticeBlocks, DEFAULT_PREFS, droppedLine, droppedText, flushOutbox, lessonsToday, parsePrefs, parseState } from '../../src/wanikani/prefs';
 import type { Outcome } from '../../src/wanikani/session';
 
 const review = (id: number): Outcome => ({ kind: 'review', assignmentId: id, subjectId: id, srsStage: 1, wrongMeaning: 0, wrongReading: 0, at: '2026-11-12T12:00:00.000Z' });
@@ -47,9 +47,22 @@ describe('answers waiting to be sent', () => {
   it('reads back what was saved, dropping anything malformed', () => {
     const entry = { at: '2026-11-12T12:00:00.000Z', assignmentId: 1, kind: 'review', wrong: 0, takenMs: 5000 };
     expect(parseState(JSON.stringify({ outbox: [review(1), { kind: 'x' }], made: [1, 'a'], log: [entry, { at: 1 }] })))
-      .toEqual({ outbox: [review(1)], sent: [], made: [1], log: [entry] });
+      .toEqual({ outbox: [review(1)], sent: [], made: [1], log: [entry], dropped: 0 });
     expect(parseState(JSON.stringify({ sent: [review(2), 5] })).sent).toEqual([review(2)]);
-    expect(parseState(null)).toEqual({ outbox: [], sent: [], made: [], log: [] });
+    expect(parseState(null)).toEqual({ outbox: [], sent: [], made: [], log: [], dropped: 0 });
+  });
+
+  it('keeps the count of refused answers not yet shown', () => {
+    expect(parseState(JSON.stringify({ dropped: 3 })).dropped).toBe(3);
+    expect(parseState(JSON.stringify({ dropped: -1 })).dropped).toBe(0);
+    expect(parseState(JSON.stringify({ dropped: 'x' })).dropped).toBe(0);
+  });
+
+  it('says how many refused answers were dropped and why, with nothing to do', () => {
+    expect(droppedText(1)).toBe("1 answer wasn't sent: WaniKani already had a newer answer for that item, from wanikani.com or another app. WaniKani keeps that one, so there's nothing to do.");
+    expect(droppedText(3)).toBe("3 answers weren't sent: WaniKani already had newer answers for those items, from wanikani.com or another app. WaniKani keeps those, so there's nothing to do.");
+    expect(droppedLine(1)).toBe("1 answer wasn't sent: WaniKani had a newer one");
+    expect(droppedLine(3)).toBe("3 answers weren't sent: WaniKani had newer ones");
   });
 
   it('sends in order, drops what WaniKani refuses, and stops when it cannot reach it', async () => {

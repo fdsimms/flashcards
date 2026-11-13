@@ -17,12 +17,13 @@ import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS,
 import { fuzzSeed } from '../core/ankiFuzz';
 import { balancerFor, buildLoadSnapshot, forgetCard, loadDayIndex, recordAnswer, type LoadSnapshot } from '../core/loadBalance';
 import { ankiToday, fnvHash } from '../core/order';
-import { saveNote, setCardStates, type NoteStore } from '../anki/noteService';
+import { saveLeechHint, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { forgetCards, setDueDates } from '../anki/rescheduleService';
 import { parseDueDate } from '../core/reschedule';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
 import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../core/session';
 import { durationText } from '../core/stats';
+import { wantedLines } from '../core/synonyms';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
 import type { TtsTag } from '../core/tts';
 import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType } from '../core/types';
@@ -45,7 +46,7 @@ import { useSelfRecording } from './useSelfRecording';
 import { htmlToText } from '../core/html';
 import { chooseAgentFlagReason } from './agentFlagSheet';
 import { LeechHintSheet } from './LeechHintSheet';
-import { canAddMnemonic, mnemonicQuestion, withMnemonic, type MnemonicQuestion } from '../core/leechHint';
+import { canAddMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
 import { usePhoneSpeech } from './usePhoneSpeech';
 import { missReasonsFor, missReminder } from '../core/misses';
 import { AgainSplit, MissReminder } from './MissMarks';
@@ -213,8 +214,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   const dark = useColorScheme() === 'dark';
   const [cards, setCards] = useState<Card[] | null>(null);
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
-  // The answer that just made a card a leech asks for a hint to keep in its note's Mnemonic field.
-  const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses: number } | null>(null);
+  // The answer that just made a card a leech asks for a hint to keep in its note's Mnemonic field,
+  // and names the card when that answer suspended it, so saving a hint can bring it back.
+  const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses: number; suspendedCardId?: string } | null>(null);
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
   // While "Read a text with these words" waits for the sync that sends today's answers first.
@@ -332,7 +334,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     };
     return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer, frontAudio: sideAudio(front), backAudio: sideAudio(back) };
   }, [note, noteType, current?.id, current?.kind, dark, c, typedShown]); // eslint-disable-line react-hooks/exhaustive-deps
-  const rendered = current && note && !page ? renderCard(note, current.kind) : undefined;
+  // Which word a reverse card wants when other notes share its meaning (synonyms.ts), from every note loaded.
+  const wanted = useMemo(() => wantedLines(notes.values()), [notes]);
+  const rendered = current && note && !page ? renderCard(note, current.kind, wanted.get(note.id)) : undefined;
   // The fuzz seed and load balancer for answering the current card, as Anki has them: the buttons show what an answer does.
   const baseContext = (card: Card, when: Date): AnswerContext => {
     const seed = fuzzSeed(card.ankiId, card.sched.reps) ?? BigInt.asUintN(64, fnvHash(card.id) + BigInt(card.sched.reps));
@@ -417,14 +421,17 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   const shownAt = useRef(Date.now());
   // One warning per session if answers can't be written into the Anki collection.
   const warnedAnki = useRef(false);
-  useEffect(() => { shownAt.current = Date.now(); }, [current?.id]);
+  // Each showing of a card: the same card back again (after Again, with nothing else left, or an undo)
+  // is a new showing, timed, spoken and faded in afresh, as the WebView's key below does for a template card.
+  const showing = current ? `${current.id}:${history.length}` : undefined;
+  useEffect(() => { shownAt.current = Date.now(); }, [showing]);
   // Each card, and each time a card comes back, starts with an empty box.
-  useEffect(() => { if (!revealed) setTyped(''); }, [current?.id, revealed]);
+  useEffect(() => { if (!revealed) setTyped(''); }, [showing, revealed]);
 
   // Auto-speak the front when a card with audio appears.
   useEffect(() => {
     if (rendered) speak(autoplayFor(rendered, false));
-  }, [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const answer = async (rating: RatingValue, miss?: string) => {
     if (!current || !note || busy.current || current === lastAnswered.current) return;
@@ -494,7 +501,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
           // The answer stands; the tag just isn't added.
         }
       }
-      if (isLeech && canAddMnemonic(note)) setLeechPrompt({ noteId: note.id, misses: res.sched.lapses });
+      if (isLeech && canAddMnemonic(note)) {
+        setLeechPrompt({ noteId: note.id, misses: res.sched.lapses, ...(updated.suspended && !current.suspended ? { suspendedCardId: current.id } : {}) });
+      }
       // Counted in the deck the card is studied in, as Anki counts it (a filtered deck's answers count there).
       // Time capped at a minute, as Anki's maximum answer time is, so a phone put down mid-card doesn't swell the summary.
       const record: AnswerRecord = {
@@ -599,15 +608,32 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
       word={htmlToText(leechNoteNow.fields.Entry ?? '')}
       gloss={[htmlToText(leechNoteNow.fields.Transliteration ?? ''), htmlToText(leechNoteNow.fields.Meaning ?? '')].filter(Boolean).join(' · ')}
       misses={leechPrompt.misses}
+      suspended={!!leechPrompt.suspendedCardId}
       suggest={suggestHints && question ? () => suggestHints(question) : undefined}
       onSkip={() => setLeechPrompt(null)}
       onSave={async (hint) => {
-        const saved = await saveNote(repo as NoteStore, {
-          id: leechNoteNow.id, deck: leechNoteNow.deck, model: leechNoteNow.model,
-          fields: withMnemonic(leechNoteNow.fields, hint), tags: leechNoteNow.tags,
-        });
+        // The card as it is now, captured before the awaits: still suspended, or nothing to bring back.
+        const suspended = cards?.find((c) => c.id === leechPrompt.suspendedCardId && c.suspended);
+        const when = new Date();
+        writes.current++;
+        let result: Awaited<ReturnType<typeof saveLeechHint>>;
+        try {
+          result = await saveLeechHint(repo as NoteStore & AnkiLink, leechNoteNow, hint, suspended, when, H);
+        } finally {
+          writes.current++;
+        }
+        const { note: saved, card, cardError, ankiError } = result;
         setNotes((prev) => new Map(prev).set(saved.id, saved));
+        if (card) {
+          setCards((prev) => prev && prev.map((c) => (c.id === card.id ? card : c)));
+          setNow(when);
+        }
         setLeechPrompt(null);
+        if (cardError) {
+          Alert.alert("Couldn't unsuspend this card", failureText(cardError, { next: 'Your hint is saved. To study the card again, unsuspend it when you edit its note.' }));
+        } else if (ankiError) {
+          Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: "It's made in Franki, but it won't reach Anki." }));
+        }
       }}
     />
   ) : null;
@@ -928,8 +954,8 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
-            {/* Keyed to the card, so each new one fades in rather than swapping. */}
-            <Reveal key={current.id} rise={10} style={{ gap: space.xl }}>
+            {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. */}
+            <Reveal key={showing} rise={10} style={{ gap: space.xl }}>
               <Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} />
               {reminder ? <MissReminder text={reminder} /> : null}
               {canRecordYourself(rendered) ? (

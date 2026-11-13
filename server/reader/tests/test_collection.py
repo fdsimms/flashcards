@@ -169,6 +169,52 @@ def test_reads_the_thai_deck_with_each_notes_tier(desktop: Desktop, deck: AnkiDe
     }
 
 
+def test_reads_which_words_were_answered_today_and_when_each_comes_due(
+    desktop: Desktop, deck: AnkiDeck
+) -> None:
+    from anki.notes import NoteId
+    from anki.scheduler.v3 import CardAnswer, Scheduler
+
+    answered = NoteId(desktop.add(THAI, "ดี", "good", ivl=5, due=True))
+    desktop.add(THAI, "ไป", "go", ivl=5, due=True)
+    desktop.add(THAI, "ฉัน", "I; me", ivl=40)
+    desktop.add(THAI, "มา", "come")
+    # Answered on the computer, Good, as Anki answers: it isn't due today any more.
+    sched = desktop.col.sched
+    assert isinstance(sched, Scheduler)
+    card = desktop.col.get_card(desktop.col.card_ids_of_note(answered)[0])
+    card.start_timer()
+    states = desktop.col._backend.get_scheduling_states(card.id)
+    sched.answer_card(sched.build_answer(card=card, states=states, rating=CardAnswer.GOOD))
+    desktop.sync()
+
+    entries = read(deck)
+
+    assert (entries["ดี"].due, entries["ดี"].reviewed) == (False, True)
+    assert entries["ดี"].due_in is not None and entries["ดี"].due_in > 0
+    assert (entries["ไป"].due, entries["ไป"].reviewed, entries["ไป"].due_in) == (True, False, 0)
+    assert (entries["ฉัน"].due, entries["ฉัน"].reviewed, entries["ฉัน"].due_in) == (False, False, 40)
+    assert entries["มา"].due_in is None  # new
+    db = deck.col.db
+    assert db is not None
+    for table in ("notes", "cards", "revlog", "graves"):
+        assert not db.scalar(f"select count() from {table} where usn = -1"), table
+
+
+def test_a_suspended_leech_is_read_as_unreviewed(desktop: Desktop, deck: AnkiDeck) -> None:
+    desktop.add(THAI, "ฉัน", "I; me", ivl=40)
+    leech = desktop.add(THAI, "ยาก", "hard", ivl=5, due=True)
+    desktop.col.sched.suspend_cards(desktop.col.card_ids_of_note(leech))  # type: ignore[arg-type]
+    desktop.sync()
+
+    entries = read(deck)
+
+    assert {t: (e.tier, e.due) for t, e in entries.items()} == {
+        "ฉัน": ("mature", False),
+        "ยาก": ("unreviewed", False),
+    }
+
+
 def test_reads_each_notes_transliteration(desktop: Desktop, deck: AnkiDeck) -> None:
     desktop.add(THAI, "หนังสือ", "book", ivl=40, translit="nǎng-sǔue")
     desktop.add(THAI, "ไป", "go")
@@ -228,6 +274,8 @@ def test_a_read_leaves_nothing_to_send(desktop: Desktop, deck: AnkiDeck) -> None
     """Read & Listen never grades or adds cards: after a read, the reader's copy holds nothing a sync
     would send to the server."""
     desktop.add(THAI, "ฉัน", "I; me", ivl=40, due=True)
+    leech = desktop.add(THAI, "ยาก", "hard", ivl=5, due=True)
+    desktop.col.sched.suspend_cards(desktop.col.card_ids_of_note(leech))  # type: ignore[arg-type]
     desktop.sync()
     read(deck)
     read(deck)

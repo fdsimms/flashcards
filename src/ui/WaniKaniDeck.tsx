@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ActionSheetIOS, Linking } from 'react-native';
 import type { WaniKaniProblem } from '../wanikani/api';
+import { offlineText } from '../wanikani/offline';
+import { droppedLine } from '../wanikani/prefs';
 import { DeckRowView } from './DeckList';
 import { Group, SwipeAction, SwipeToReveal } from './kit';
 import type { WaniKaniState } from './useWaniKani';
@@ -23,10 +25,14 @@ export function WaniKaniDeck({ wanikani, onOpen, onOptions }: { wanikani: WaniKa
   const due = wanikani.counts?.reviews ?? 0;
   const fresh = wanikani.counts?.lessons ?? 0;
   const unsent = wanikani.unsent ? `, ${wanikani.unsent} ${wanikani.unsent === 1 ? "answer isn't" : "answers aren't"} sent yet` : '';
+  const saved = wanikani.offlineSavedAt;
   const detail = wanikani.offline
-    ? { text: wanikani.unsent ? `Offline. ${wanikani.unsent} ${wanikani.unsent === 1 ? 'answer' : 'answers'} will be sent when WaniKani can be reached` : 'Offline. Studying from the last copy' }
+    ? { text: wanikani.unsent ? `Offline. ${wanikani.unsent} ${wanikani.unsent === 1 ? 'answer' : 'answers'} will be sent when WaniKani can be reached` : saved ? offlineText(saved, new Date(), wanikani.dayStartsAtHour) : 'Offline. Studying from the last copy' }
     : wanikani.problem
     ? { text: PROBLEM_LINE[wanikani.problem] + unsent, warning: true }
+    // Shown until the review screen has said it in full (it marks them seen there).
+    : wanikani.dropped
+    ? { text: droppedLine(wanikani.dropped), warning: true }
     : { text: (wanikani.user ? `Level ${wanikani.user.level}${wanikani.user.onVacation ? ', on vacation' : ''}` : 'Loading…') + unsent };
   const menu = () => {
     const options = ['Options', 'Open wanikani.com', 'Cancel'];
