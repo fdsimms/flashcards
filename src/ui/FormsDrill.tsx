@@ -84,12 +84,22 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   const current = answered.length > index ? answered[index] : undefined;
   const picking = mode === 'pick' && !!prompt?.choices;
 
+  // The rows already written for the prompt on screen: a save that fails partway, then answered
+  // again, writes only the forms it hadn't reached, rather than the first ones twice.
+  const written = useRef<{ prompt?: FormPrompt; rows: Map<string, PracticeRecord> }>({ rows: new Map() });
+
   // Under every form the prompt stands for (`promptKeys`), so each keeps its own history.
   const log = async (p: FormPrompt, correct: boolean, given: string) => {
+    if (written.current.prompt !== p) written.current = { prompt: p, rows: new Map() };
+    const { rows } = written.current;
     const practicedAt = new Date().toISOString();
-    const records = promptKeys(p).map((key): PracticeRecord => ({ noteId: p.noteId, key, correct, practicedAt, given }));
-    for (const record of records) await repo.addPractice(record);
-    return records;
+    for (const key of promptKeys(p)) {
+      if (rows.has(key)) continue;
+      const record: PracticeRecord = { noteId: p.noteId, key, correct, practicedAt, given };
+      await repo.addPractice(record);
+      rows.set(key, record);
+    }
+    return [...rows.values()];
   };
 
   const answer = async (given: string, picked = false) => {

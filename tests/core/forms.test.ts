@@ -98,6 +98,13 @@ describe('formsOf', () => {
     expect(gender('un ami', 'french', 'm')).toEqual(['masculine']);
     expect(gender('école', 'french', 'f')).toEqual(['feminine']);
     expect(gender('le livre', 'french', 'm')).toEqual(['le']);
+    // Italian: il and la as the gender gives them; lo and l' (before s + consonant, z, a vowel) as a word.
+    expect(gender('il libro', 'italian', 'm')).toEqual(['il']);
+    expect(gender('la casa', 'italian', 'f')).toEqual(['la']);
+    expect(gender('un libro', 'italian', 'm')).toEqual(['il']);
+    expect(gender('lo zaino', 'italian', 'm')).toEqual(['masculine']);
+    expect(gender('lo studente', 'italian', 'm')).toEqual(['masculine']);
+    expect(gender("l'amica", 'italian', 'f')).toEqual(['feminine']);
     expect(gender('le héros', 'french', 'm')).toEqual(['le']);
     // German, Greek and Polish articles always go with the gender.
     expect(gender('ein Haus', 'german', 'n')).toEqual(['das']);
@@ -258,7 +265,9 @@ describe('againPrompts', () => {
   it('leaves a typed prompt as it is', () => {
     const lone = omniNote({ Entry: 'czekać', Language: 'polish', AspectPartner: 'poczekać' });
     const typed = promptFor(lone, formsOf(lone).forms[0], [], seeded());
-    expect(againPrompts([typed], seeded())).toEqual([typed]);
+    const [again] = againPrompts([typed], seeded());
+    expect(again).toEqual(typed);
+    expect(again).not.toBe(typed); // a new prompt, so the drill logs its answer afresh
   });
 });
 

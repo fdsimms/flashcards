@@ -902,7 +902,8 @@ export function drillPrompts(
  */
 export function againPrompts(missed: FormPrompt[], random: () => number = Math.random): FormPrompt[] {
   return missed.map((p) => {
-    if (!p.choices || p.choices.length < 2) return p;
+    // Always a new prompt, so the drill writes its answer afresh rather than taking it for the one before.
+    if (!p.choices || p.choices.length < 2) return { ...p };
     const was = p.choices.indexOf(p.answers[0]);
     const choices = shuffle(p.choices, random);
     const at = choices.indexOf(p.answers[0]);
