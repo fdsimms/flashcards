@@ -71,6 +71,8 @@ export interface WaniKaniState {
   made: number[];
   /** Answers given here, for Stats. */
   log: LogEntry[];
+  /** Answers WaniKani refused (`FlushResult.dropped`) that the learner hasn't been shown yet (`droppedText`). */
+  dropped: number;
 }
 
 export function parseState(raw: string | null | undefined): WaniKaniState {
@@ -81,9 +83,10 @@ export function parseState(raw: string | null | undefined): WaniKaniState {
       sent: Array.isArray(o?.sent) ? o.sent.filter(isOutcome) : [],
       made: Array.isArray(o?.made) ? o.made.filter((x: unknown) => typeof x === 'number') : [],
       log: parseLog(o?.log),
+      dropped: typeof o?.dropped === 'number' && o.dropped > 0 ? Math.floor(o.dropped) : 0,
     };
   } catch {
-    return { outbox: [], sent: [], made: [], log: [] };
+    return { outbox: [], sent: [], made: [], log: [], dropped: 0 };
   }
 }
 
@@ -123,4 +126,20 @@ export async function flushOutbox(outbox: Outcome[], send: (o: Outcome) => Promi
     }
   }
   return { left: [], sent, dropped };
+}
+
+/**
+ * What the learner is told about answers WaniKani refused: what happened, and that nothing needs
+ * doing. Each was for an item WaniKani no longer had up (reviewed on wanikani.com or in another app
+ * since the offline copy was made, most often), so it kept its own answer and sending again won't help.
+ */
+export function droppedText(n: number): string {
+  return n === 1
+    ? "1 answer wasn't sent: WaniKani already had a newer answer for that item, from wanikani.com or another app. WaniKani keeps that one, so there's nothing to do."
+    : `${n} answers weren't sent: WaniKani already had newer answers for those items, from wanikani.com or another app. WaniKani keeps those, so there's nothing to do.`;
+}
+
+/** The deck list's short line for the same, under WaniKani's name. */
+export function droppedLine(n: number): string {
+  return n === 1 ? "1 answer wasn't sent: WaniKani had a newer one" : `${n} answers weren't sent: WaniKani had newer ones`;
 }
