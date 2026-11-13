@@ -185,10 +185,11 @@ export interface RenderedSide {
     /**
      * What the block is, for layout: `chips` are small tags (`chips` holds them), the `example*`
      * blocks are one example sentence's lines (set tight together), a `note` is set off in a
-     * callout, and `forms` is a labeled list of the word's forms (`rows`). A block with no role is
-     * plain labeled text.
+     * callout, `forms` is a labeled list of the word's forms (`rows`), and `wanted` is the short line
+     * under a reverse card's meaning that says which of the words with that meaning is asked for
+     * (`wantedLine` in synonyms.ts). A block with no role is plain labeled text.
      */
-    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'forms';
+    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'forms' | 'wanted';
     chips?: string[];
     /** A `forms` block's lines: one of the word's forms each, under its label ("plural", "genitive"). */
     rows?: { label: string; value: string }[];

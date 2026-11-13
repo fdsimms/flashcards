@@ -23,6 +23,7 @@ import { parseDueDate } from '../core/reschedule';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
 import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../core/session';
 import { durationText } from '../core/stats';
+import { wantedLines } from '../core/synonyms';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
 import type { TtsTag } from '../core/tts';
 import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType } from '../core/types';
@@ -328,7 +329,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     };
     return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer, frontAudio: sideAudio(front), backAudio: sideAudio(back) };
   }, [note, noteType, current?.id, current?.kind, dark, c, typedShown]); // eslint-disable-line react-hooks/exhaustive-deps
-  const rendered = current && note && !page ? renderCard(note, current.kind) : undefined;
+  // Which word a reverse card wants when other notes share its meaning (synonyms.ts), from every note loaded.
+  const wanted = useMemo(() => wantedLines(notes.values()), [notes]);
+  const rendered = current && note && !page ? renderCard(note, current.kind, wanted.get(note.id)) : undefined;
   // The fuzz seed and load balancer for answering the current card, as Anki has them: the buttons show what an answer does.
   const baseContext = (card: Card, when: Date): AnswerContext => {
     const seed = fuzzSeed(card.ankiId, card.sched.reps) ?? BigInt.asUintN(64, fnvHash(card.id) + BigInt(card.sched.reps));
