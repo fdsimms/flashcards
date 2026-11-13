@@ -125,9 +125,11 @@ export async function selectCards(db: SyncDb, deckIds: number[], study: CustomSt
 }
 
 /**
- * Puts the cards of a filtered deck back in their own decks, as Anki's Empty does: the home deck
- * and due are restored and a preview card goes back to the queue its type puts it in. A card
- * suspended or buried since it was moved keeps that.
+ * Puts the cards of a filtered deck back in their own decks, as Anki's Empty does
+ * (`remove_from_filtered_deck_restoring_queue`): the home deck and due are restored and every card
+ * goes back to the queue its type puts it in, which matters for a deck Anki built without
+ * rescheduling: it puts new cards there in the review queue. A card suspended or buried since it
+ * was moved keeps that.
  */
 export async function emptyFilteredDeck(db: SyncDb, deckId: number, now: Date): Promise<number> {
   const cards = await db.all<{ id: number; type: number; queue: number; due: number; odue: number; odid: number }>(
@@ -136,7 +138,7 @@ export async function emptyFilteredDeck(db: SyncDb, deckId: number, now: Date): 
   const nowSecs = Math.floor(now.getTime() / 1000);
   for (const c of cards) {
     const due = c.odue !== 0 ? c.odue : c.due;
-    const queue = c.queue === 4 ? queueForType(c.type, due) : c.queue;
+    const queue = c.queue >= 0 ? queueForType(c.type, due) : c.queue;
     await db.run('UPDATE cards SET did = ?, odid = 0, odue = 0, due = ?, queue = ?, mod = ?, usn = -1 WHERE id = ?', c.odid, due, queue, nowSecs, c.id);
   }
   return cards.length;

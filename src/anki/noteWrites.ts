@@ -2,6 +2,7 @@ import { decodeMessage, uint, utf8Decode, utf8Encode } from './protobuf';
 import { hasUnicase, registerTag, type SyncDb } from './sync/collectionSync';
 import { parseJson, stringifyJson } from './sync/json';
 import { cleanField, sortFieldAndChecksum } from './sync/noteFields';
+import { queueForType } from './writeback';
 
 /**
  * Notes added, edited and deleted in Franki, written into the kept Anki collection the way Anki
@@ -173,14 +174,21 @@ export async function editAnkiNote(db: SyncDb, w: NoteWrite & { nid: number }): 
 }
 
 /**
- * Moves a note's cards to another deck, as Anki's Change Deck does: a card in a filtered deck
- * keeps its place there and has its home deck changed, so it goes back to the new one.
+ * Moves a note's cards to another deck, as Anki's Change Deck does (`Card::set_deck`): a card in a
+ * filtered deck is first taken out of it, as Empty does (`emptyFilteredDeck`), then moved.
  */
 export async function moveAnkiNote(db: SyncDb, nid: number, deckId: number, now: Date): Promise<void> {
   const nowSecs = Math.floor(now.getTime() / 1000);
   await db.transaction(async () => {
     await db.run('UPDATE cards SET did = ?, mod = ?, usn = -1 WHERE nid = ? AND odid = 0 AND did != ?', deckId, nowSecs, nid, deckId);
-    await db.run('UPDATE cards SET odid = ?, mod = ?, usn = -1 WHERE nid = ? AND odid != 0 AND odid != ?', deckId, nowSecs, nid, deckId);
+    const filtered = await db.all<{ id: number; type: number; queue: number; due: number; odue: number }>(
+      'SELECT id, type, queue, due, odue FROM cards WHERE nid = ? AND odid != 0', nid,
+    );
+    for (const c of filtered) {
+      const due = c.odue !== 0 ? c.odue : c.due;
+      const queue = c.queue >= 0 ? queueForType(c.type, due) : c.queue;
+      await db.run('UPDATE cards SET did = ?, odid = 0, odue = 0, due = ?, queue = ?, mod = ?, usn = -1 WHERE id = ?', deckId, due, queue, nowSecs, c.id);
+    }
     await db.run('UPDATE col SET mod = ?', now.getTime());
   });
 }

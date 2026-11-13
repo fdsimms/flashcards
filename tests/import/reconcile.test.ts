@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import type { Note } from '../../src/core/types';
-import { matchKey, reconcileIds } from '../../src/import/reconcile';
+import { leaveAnkiNotes, matchKey, reconcileIds } from '../../src/import/reconcile';
 import type { ImportResult } from '../../src/import/tsv';
 import { NOW } from '../support/fixtures';
 
@@ -18,6 +18,11 @@ describe('reconcileIds', () => {
     expect(res.notes[0].id).toBe('1700000000');
     expect(res.notes[0].deck).toBe('Trivia::New');
     expect(res.cards.map((c) => [c.id, c.noteId])).toEqual([['1700000000:forward', '1700000000']]);
+  });
+  it('matches a front written with a character reference to the same text stored plainly', () => {
+    const stored = basic('tsv:Fr:l\'eau', 'Fr', "l'eau");
+    const res = reconcileIds(resultOf([basic('tsv:Fr:l&#x27;eau', 'Fr', 'l&#x27;eau', 'water')]), [stored]);
+    expect(res.notes[0].id).toBe("tsv:Fr:l'eau");
   });
   it('keeps an id that is already stored', () => {
     const stored = basic('a', 'D', 'Q');
@@ -40,5 +45,18 @@ describe('reconcileIds', () => {
     expect(matchKey(basic('a', 'D', '<b>Weg</b>  '))).toBe(matchKey(basic('b', 'E', 'Weg')));
     expect(matchKey(basic('a', 'D', 'Weg'))).not.toBe(matchKey(basic('b', 'D', 'weg')));
     expect(matchKey({ ...basic('a', 'D', 'Weg'), model: 'Other' })).not.toBe(matchKey(basic('b', 'D', 'Weg')));
+  });
+});
+
+describe('leaveAnkiNotes', () => {
+  it("leaves a TSV row that matches a note from Anki as it is, and says so", () => {
+    const fromAnki = basic('1700000000', 'Polski', 'kot', 'cat');
+    const res = leaveAnkiNotes(
+      reconcileIds(resultOf([basic('tsv:Imported:kot', 'Imported', 'kot', 'cat'), basic('tsv:Imported:pies', 'Imported', 'pies', 'dog')]), [fromAnki]),
+      new Set(['1700000000']),
+    );
+    expect(res.notes.map((n) => n.id)).toEqual(['tsv:Imported:pies']);
+    expect(res.cards.every((c) => c.noteId === 'tsv:Imported:pies')).toBe(true);
+    expect(res.warnings).toEqual(['"kot" is a note from Anki, so it was left as it is. Change it in the note editor or in Anki.']);
   });
 });

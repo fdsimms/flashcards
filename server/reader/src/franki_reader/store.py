@@ -14,7 +14,7 @@ from franki_reader import grammar
 from franki_reader.difficulty import Difficulty
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Choice, Form, Generated, Line
-from franki_reader.languages import LANGUAGES, VOICE_SLOTS, Code, with_deck
+from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, VOICE_SLOTS, Code, with_deck
 from franki_reader.lexicon import Entry, ReadDeck
 from franki_reader.study_day import DEFAULT_ROLLOVER, study_day
 from franki_reader.wanikani import ReadWaniKani, WaniKaniUnavailable, WaniKaniWord
@@ -1462,7 +1462,9 @@ def load_settings(conn: sqlite3.Connection) -> Settings:
         kept = {slot: name for slot, name in chosen.items() if slot in slots}
         if kept:
             voices[code] = kept
-    return replace(settings, voices=voices)
+    # A hidden language chosen before it was hidden is read as Thai, so the app never gets it.
+    language = "th" if settings.language in HIDDEN_LANGUAGES else settings.language
+    return replace(settings, voices=voices, language=language)
 
 
 def save_settings(conn: sqlite3.Connection, settings: Settings) -> None:

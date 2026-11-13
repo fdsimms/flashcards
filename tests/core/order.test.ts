@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { ankiToday, cardOrd, fnvHash, gatherNew, intersperse, mix, sortNew, sortReviews, type SortContext } from '../../src/core/order';
+import { ankiDayStart, ankiToday, cardOrd, fnvHash, gatherNew, intersperse, mix, sortNew, sortReviews, type SortContext } from '../../src/core/order';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -103,5 +103,20 @@ describe("Anki's own shuffles, reproduced", () => {
     expect(ankiToday(new Date(2026, 10, 20, 12, 0), 4, crt, 0)).toBe(9);
     expect(ankiToday(new Date(2026, 10, 20, 3, 0), 4, crt, 0)).toBe(8);
     expect(ankiToday(NOW, 4, undefined)).toBeUndefined();
+    // Anki stamps the creation at 4 AM whatever the rollover; the creation's date counts as it is.
+    expect(ankiToday(new Date(2026, 10, 20, 12, 0), 6, crt, 0)).toBe(9);
+    expect(ankiToday(new Date(2026, 10, 20, 5, 0), 6, crt, 0)).toBe(8);
+  });
+
+  it('places each Anki day at the start of the study day it numbers, across daylight saving', () => {
+    const crt = Math.floor(new Date(2025, 6, 1, 4).getTime() / 1000);
+    for (const h of [0, 4, 6]) {
+      for (let day = 0; day < 500; day += 7) {
+        const start = ankiDayStart(day, h, crt);
+        expect(start.getHours()).toBe(h);
+        expect(ankiToday(start, h, crt)).toBe(day);
+        expect(ankiToday(new Date(start.getTime() - 1), h, crt)).toBe(day - 1);
+      }
+    }
   });
 });

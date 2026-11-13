@@ -11,6 +11,20 @@ const UNSPACED = /[฀-๿぀-ヿ㐀-鿿]/;
 const isWordChar = (ch: string | undefined) => !!ch && /[\p{L}\p{N}]/u.test(ch);
 
 /**
+ * Where `needle` first appears in `haystack` from `from` on, as a word: in a spaced script, with no
+ * letter or digit either side ("να" isn't found in "ένα"); in Thai and the like, anywhere. -1 if
+ * it doesn't. Case is the caller's to fold.
+ */
+export function wordIndex(haystack: string, needle: string, from = 0): number {
+  if (!needle) return -1;
+  for (let i = from; ; i++) {
+    const at = haystack.indexOf(needle, i);
+    if (at < 0 || UNSPACED.test(needle) || (!isWordChar(haystack[at - 1]) && !isWordChar(haystack[at + needle.length]))) return at;
+    i = at;
+  }
+}
+
+/**
  * Splits `text` around the first place `target` (a card's word, or any of several separated by
  * `;`, `,` or `/`) appears in it, so a card can highlight the word inside its example sentence.
  * In a spaced script the match has to be a whole word ("to" is not found in "tomato"); in Thai
@@ -23,18 +37,14 @@ export function markSegments(text: string, target: string): Segment[] {
   const haystack = lower.length === text.length ? lower : text;
   for (const part of target.split(/[;,/]/).map((p) => p.trim()).filter(Boolean)) {
     const needle = haystack === lower ? part.toLowerCase() : part;
-    for (let from = 0; ; ) {
-      const at = haystack.indexOf(needle, from);
-      if (at < 0) break;
+    const at = wordIndex(haystack, needle);
+    if (at >= 0) {
       const end = at + needle.length;
-      if (UNSPACED.test(needle) || (!isWordChar(text[at - 1]) && !isWordChar(text[end]))) {
-        return [
-          { text: text.slice(0, at), marked: false },
-          { text: text.slice(at, end), marked: true },
-          { text: text.slice(end), marked: false },
-        ].filter((s) => s.text);
-      }
-      from = at + 1;
+      return [
+        { text: text.slice(0, at), marked: false },
+        { text: text.slice(at, end), marked: true },
+        { text: text.slice(end), marked: false },
+      ].filter((s) => s.text);
     }
   }
   return [{ text, marked: false }];

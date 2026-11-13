@@ -1,6 +1,7 @@
 // The grammar row on the topics screen, each point's line on the Grammar screen, in words, and the
 // points practiced in Read & Listen that Forms practice asks first (docs/grammar.md).
 import { studyDayStart } from '../core/day';
+import { wordIndex } from '../core/highlight';
 import type { Api, GrammarChoice, GrammarPoint, GrammarSeen, GrammarState } from './api';
 
 /** The three choices, as the Grammar screen and Explain offer them. */
@@ -95,14 +96,15 @@ export async function practicingPoints(api: Pick<Api, 'grammarChoices'> | null, 
 /**
  * An example line split so the words the server's finder matched can be underlined: each match
  * found in turn, ignoring case (the server lowercases a spaced language's words), from where the
- * last one ended. A match it can't find is left out rather than guessed at.
+ * last one ended, as a whole word in a spaced script (`wordIndex`). A match it can't find is left
+ * out rather than guessed at.
  */
 export function markedParts(line: string, words: string[]): { text: string; marked: boolean }[] {
   const out: { text: string; marked: boolean }[] = [];
   const lower = line.toLocaleLowerCase();
   let at = 0;
   for (const w of words) {
-    const i = w ? lower.indexOf(w.toLocaleLowerCase(), at) : -1;
+    const i = wordIndex(lower, w.toLocaleLowerCase(), at);
     if (i < 0 || w.toLocaleLowerCase().length !== w.length) continue;
     if (i > at) out.push({ text: line.slice(at, i), marked: false });
     out.push({ text: line.slice(i, i + w.length), marked: true });

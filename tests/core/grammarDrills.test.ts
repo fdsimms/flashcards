@@ -29,8 +29,9 @@ describe('when a point is next drilled', () => {
     expect(pointSchedule('es.preterite', 'practice', answers, NOW, H)).toMatchObject({ due: day(9), step: 0 });
   });
 
-  it('spaces a known point further', () => {
+  it('spaces a known point further, and still brings it back the next day after a drill that went badly', () => {
     expect(pointSchedule('es.preterite', 'normal', drill('es.preterite', 'a', 1, 5), NOW, H).due).toEqual(day(8));
+    expect(pointSchedule('es.preterite', 'normal', drill('es.preterite', 'a', 10, 1), NOW, H)).toMatchObject({ due: day(11), step: 0 });
   });
 
   it('counts a drill on its study day, and only its own point', () => {
@@ -85,6 +86,11 @@ describe("a drill's questions as the screen asks them", () => {
     const [p] = drillPrompts([{ kind: 'which', point: 'es.preterite', line: 'Ayer Fuimos al mercado.', words: ['fuimos'], english: 'Yesterday we went.', title: 'Al mercado', choices: ['es.preterite', 'es.imperfect', 'es.present_perfect'] }], random);
     expect(p).toMatchObject({ kind: 'which', before: 'Ayer ', middle: 'Fuimos', after: ' al mercado.', answer: 'Preterite', source: 'From Al mercado', typable: false });
     expect([...p.choices].sort()).toEqual(['Imperfect', 'Present perfect', 'Preterite']);
+  });
+
+  it('underlines the matched word itself, not the same letters inside another word', () => {
+    const [p] = drillPrompts([{ kind: 'which', point: 'es.preterite', line: 'Fuera de casa, fue al mercado.', words: ['fue'], english: '', title: 'T', choices: ['es.preterite', 'es.imperfect'] }], random);
+    expect(p).toMatchObject({ before: 'Fuera de casa, ', middle: 'fue', after: ' al mercado.' });
   });
 
   it('fills a gap, naming the point and the hint, but not a Thai point, which would give it away', () => {

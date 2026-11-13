@@ -78,7 +78,7 @@ function franki(server: AnkiServer, collated: boolean) {
         const crt = (await db.first<{ crt: number }>('SELECT crt FROM col'))!.crt;
         const id = nextRevlogId(now.getTime(), (await db.first<{ m: number }>('SELECT MAX(id) AS m FROM revlog'))!.m);
         await db.transaction(async () => {
-          await db.run(CARD_UPDATE_SQL, ...cardUpdateParams(cardUpdate(after, row, { crt, now }), cid));
+          await db.run(CARD_UPDATE_SQL, ...cardUpdateParams(cardUpdate(after, row, { clock: { crt, dayStartsAtHour: 4 }, now }), cid));
           await db.run(REVLOG_INSERT_SQL, ...revlogParams(revlogEntry(before, after, rating, { id, cid, previousIvl: row.ivl, now, takenMs: 4000 })));
           await db.run(COL_MODIFIED_SQL, now.getTime());
         });

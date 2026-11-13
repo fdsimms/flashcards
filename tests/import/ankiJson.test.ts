@@ -71,8 +71,19 @@ describe('Anki JSON import', () => {
   });
   it('reads a learning card\'s due as a timestamp and a review card\'s as a day number', () => {
     const at = Math.floor(new Date(2026, 10, 11, 12, 10).getTime() / 1000);
-    expect(ankiDueDate({ cardId: 1, note: 1, deckName: 'D', type: 1, queue: 1, due: at }, created, NOW).getTime()).toBe(at * 1000);
-    expect(ankiDueDate({ cardId: 1, note: 1, deckName: 'D', type: 1, queue: 3, due: 10 }, created, NOW).getTime()).toBe((created + 10 * 86400) * 1000);
+    const days = { collectionCreated: created, dayStartsAtHour: 4 };
+    expect(ankiDueDate({ cardId: 1, note: 1, deckName: 'D', type: 1, queue: 1, due: at }, days, NOW).getTime()).toBe(at * 1000);
+    expect(ankiDueDate({ cardId: 1, note: 1, deckName: 'D', type: 1, queue: 3, due: 10 }, days, NOW)).toEqual(new Date(2025, 0, 11, 4));
+  });
+  it('places a day number on its calendar date, across daylight saving and with a later rollover', () => {
+    // Created in summer, due in winter: counted in calendar days, not 86400-second ones, so the
+    // card isn't due an hour before its study day starts (the day before, in a zone with DST).
+    const summer = Math.floor(new Date(2025, 6, 1, 4).getTime() / 1000);
+    const due = Math.round((Date.UTC(2025, 10, 20) - Date.UTC(2025, 6, 1)) / 86400000);
+    const card = { cardId: 1, note: 1, deckName: 'D', type: 2, queue: 2, due };
+    expect(ankiDueDate(card, { collectionCreated: summer, dayStartsAtHour: 4 }, NOW)).toEqual(new Date(2025, 10, 20, 4));
+    // Anki stamps the creation at 4 AM whatever the rollover is; a day starting at 6 starts at 6.
+    expect(ankiDueDate(card, { collectionCreated: summer, dayStartsAtHour: 6 }, NOW)).toEqual(new Date(2025, 10, 20, 6));
   });
   it('uses the real last-review time when the export has it', () => {
     const lrt = Math.floor(new Date(2026, 10, 1, 9).getTime() / 1000);

@@ -52,13 +52,21 @@ async function source(api: WaniKaniApi, wanikani: WaniKaniState): Promise<Source
     if (d) return d;
   }
   try {
+    // Read before and after: one sent while WaniKani's list was being read may or may not be in it.
+    const waitingBefore = wanikani.unsentAssignments();
     const user = wanikani.user ?? await api.user();
     const [reviews, lessons, started, apprentice] = await Promise.all([
       api.reviewsAvailable(user.maxLevel), api.lessonsAvailable(user.maxLevel),
       api.lessonsStartedSince(studyDayStart(new Date(), wanikani.dayStartsAtHour)),
       api.apprenticeCount(user.maxLevel),
     ]);
-    return { user, reviews, lessons, started, apprentice, subjects: api.subjects, synonyms: api.synonyms };
+    // An answer still waiting to be sent hasn't reached WaniKani, which lists its item as up: it's
+    // left out, as the offline copy leaves it out, so it isn't asked (and logged) a second time.
+    const waiting = new Set([...waitingBefore, ...wanikani.unsentAssignments()]);
+    return {
+      user, reviews: reviews.filter((a) => !waiting.has(a.id)), lessons: lessons.filter((a) => !waiting.has(a.id)), started, apprentice,
+      subjects: api.subjects, synonyms: api.synonyms,
+    };
   } catch (e) {
     const d = e instanceof WaniKaniError && e.problem !== 'unavailable' ? null : copy();
     if (d) return d;

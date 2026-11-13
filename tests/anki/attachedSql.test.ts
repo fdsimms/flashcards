@@ -76,7 +76,7 @@ describe('the app\'s SQL against attached Anki collections', () => {
       const row = db.prepare(SQL.cardRow).get(cid) as unknown as AnkiCardRow & { mod: number; usn: number };
       const id = nextRevlogId(now.getTime(), (db.prepare(SQL.maxRevlogId).get() as any).m);
       db.exec('BEGIN');
-      db.prepare(SQL.cardUpdate).run(...cardUpdateParams(cardUpdate(after, row, { crt, now }), cid));
+      db.prepare(SQL.cardUpdate).run(...cardUpdateParams(cardUpdate(after, row, { clock: { crt, dayStartsAtHour: 4 }, now }), cid));
       db.prepare(SQL.revlogInsert).run(...revlogParams(revlogEntry(before, after, rating, { id, cid, previousIvl: row.ivl, now, takenMs: 3000 })));
       db.exec('COMMIT');
       return { cid, row, id, rating };

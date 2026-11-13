@@ -1,5 +1,6 @@
 import type { RatingValue } from '../core/scheduler';
 import type { CardState } from '../core/cardState';
+import { ankiToday } from '../core/order';
 import type { Card } from '../core/types';
 
 /**
@@ -12,7 +13,7 @@ import type { Card } from '../core/types';
  * - type 0 new, 1 learning, 2 review, 3 relearning (the same numbers as ts-fsrs's states).
  * - queue -1 suspended, 0 new, 1 learning due within the day (due = unix seconds), 2 review,
  *   3 learning due on a later day (due = day number).
- * - Day numbers count days since the collection was created (`col.crt`, at the rollover hour).
+ * - Day numbers count calendar days since the date the collection was created (`ankiToday`).
  * - `data` is JSON: `s` stability, `d` difficulty (1-10), `dr` desired retention, `lrt` last
  *   review (unix seconds). Other keys there are Anki's and are kept.
  * - revlog: `ivl`/`lastIvl` in days when positive, seconds when negative; `factor` holds FSRS
@@ -66,13 +67,15 @@ export interface AnkiRevlogRow {
 const DEFAULT_STEP_COUNTS = { learn: 2, relearn: 1 };
 /** Anki caps a review's recorded time at a minute by default ("Maximum answer seconds"). */
 const MAX_ANSWER_MS = 60_000;
-const DAY_SECS = 86400;
 
 const secs = (iso: string) => Math.floor(new Date(iso).getTime() / 1000);
 
-/** The day number a moment falls on, counted from the collection's creation at the rollover hour. */
-export function ankiDayNumber(unixSecs: number, crt: number): number {
-  return Math.floor((unixSecs - crt) / DAY_SECS);
+/** What Anki's day numbers are counted from: the collection's creation (`col.crt`), its time zone then, and the hour its day starts. */
+export interface AnkiClock { crt: number; dayStartsAtHour: number; creationOffset?: number }
+
+/** The day number a moment falls on, as Anki numbers it (`ankiToday`). */
+export function ankiDayNumber(unixSecs: number, clock: AnkiClock): number {
+  return ankiToday(new Date(unixSecs * 1000), clock.dayStartsAtHour, clock.crt, clock.creationOffset)!;
 }
 
 /** Anki's revlog `factor` under FSRS: difficulty (1-10) normalized to 100-1100. */
@@ -85,7 +88,7 @@ export function cardUpdate(
   card: Card,
   current: AnkiCardRow,
   ctx: {
-    crt: number; now: Date; desiredRetention?: number;
+    clock: AnkiClock; now: Date; desiredRetention?: number;
     /** How many learning and relearning steps the card's deck has: Anki's `left` counts the steps still to go. */
     steps?: { learn: number; relearn: number };
   },
@@ -107,14 +110,14 @@ export function cardUpdate(
     due = current.odid ? current.odue : current.due; // a new card's position stays
   } else if (s.state === 2) {
     queue = 2;
-    due = ankiDayNumber(dueSecs, ctx.crt);
+    due = ankiDayNumber(dueSecs, ctx.clock);
     ivl = Math.max(1, s.scheduledDays);
   } else {
     // Learning or relearning: a step that ends today keeps its exact time (queue 1); one that
     // crosses into a later day is due on that day (queue 3), as Anki's maybe_as_days does.
-    const intraday = ankiDayNumber(dueSecs, ctx.crt) === ankiDayNumber(nowSecs, ctx.crt);
+    const intraday = ankiDayNumber(dueSecs, ctx.clock) === ankiDayNumber(nowSecs, ctx.clock);
     queue = intraday ? 1 : 3;
-    due = intraday ? dueSecs : ankiDayNumber(dueSecs, ctx.crt);
+    due = intraday ? dueSecs : ankiDayNumber(dueSecs, ctx.clock);
     const steps = ctx.steps ?? DEFAULT_STEP_COUNTS;
     left = Math.max(1, (s.state === 1 ? steps.learn : steps.relearn) - s.learningSteps);
     if (s.state === 1) ivl = 0;
@@ -145,19 +148,19 @@ export function cardUpdate(
 }
 
 /** The interval Anki records for a state: days for a review, negative seconds until due otherwise. */
-function revlogInterval(card: Card, now: Date, crt?: number): number {
+function revlogInterval(card: Card, now: Date, clock?: AnkiClock): number {
   if (card.sched.state === 2) return Math.max(1, card.sched.scheduledDays);
   if (card.sched.state === 0) return 0;
-  return stepInterval(Math.floor(now.getTime() / 1000), secs(card.sched.due), crt);
+  return stepInterval(Math.floor(now.getTime() / 1000), secs(card.sched.due), clock);
 }
 
 /**
  * A learning step as the review log records it (rslib's `as_revlog_interval`): negative seconds
  * for one that ends the same day, positive days for one that crosses into a later day.
  */
-function stepInterval(fromSecs: number, toSecs: number, crt?: number): number {
-  if (crt !== undefined) {
-    const days = ankiDayNumber(toSecs, crt) - ankiDayNumber(fromSecs, crt);
+function stepInterval(fromSecs: number, toSecs: number, clock?: AnkiClock): number {
+  if (clock !== undefined) {
+    const days = ankiDayNumber(toSecs, clock) - ankiDayNumber(fromSecs, clock);
     if (days > 0) return days;
   }
   return -Math.max(1, toSecs - fromSecs);
@@ -168,16 +171,20 @@ export function revlogEntry(
   before: Card,
   after: Card,
   rating: RatingValue,
-  ctx: { id: number; cid: number; previousIvl: number; now: Date; takenMs: number; crt?: number },
+  ctx: { id: number; cid: number; previousIvl: number; now: Date; takenMs: number; clock?: AnkiClock },
 ): AnkiRevlogRow {
-  const type = before.sched.state === 2 ? 1 : before.sched.state === 3 ? 2 : 0;
-  const lastIvl = before.sched.state === 2 ? Math.max(1, ctx.previousIvl) : learningStepIvl(before, ctx.crt);
+  // A review answered before its day (only a filtered deck shows one) is logged as filtered,
+  // as Anki's ReviewState::revlog_kind does when days_late is negative.
+  const early = before.sched.state === 2 && ctx.clock !== undefined
+    && ankiDayNumber(secs(before.sched.due), ctx.clock) > ankiDayNumber(Math.floor(ctx.now.getTime() / 1000), ctx.clock);
+  const type = early ? 3 : before.sched.state === 2 ? 1 : before.sched.state === 3 ? 2 : 0;
+  const lastIvl = before.sched.state === 2 ? Math.max(1, ctx.previousIvl) : learningStepIvl(before, ctx.clock);
   return {
     id: ctx.id,
     cid: ctx.cid,
     usn: -1,
     ease: rating,
-    ivl: revlogInterval(after, ctx.now, ctx.crt),
+    ivl: revlogInterval(after, ctx.now, ctx.clock),
     lastIvl,
     factor: revlogDifficulty(after.sched.difficulty),
     time: Math.min(MAX_ANSWER_MS, Math.max(0, Math.round(ctx.takenMs))),
@@ -191,10 +198,10 @@ export function revlogEntry(
  * `as_revlog_interval`), so a step 10 minutes after the last answer is -600. Only a new card's
  * first answer records 0, which is how a review log tells a new card from a learning step.
  */
-function learningStepIvl(before: Card, crt?: number): number {
+function learningStepIvl(before: Card, clock?: AnkiClock): number {
   const s = before.sched;
   if ((s.state !== 1 && s.state !== 3) || !s.lastReview) return 0;
-  return stepInterval(secs(s.lastReview), secs(s.due), crt);
+  return stepInterval(secs(s.lastReview), secs(s.due), clock);
 }
 
 /**
@@ -221,6 +228,17 @@ export function previewAgain(current: AnkiCardRow, dueSecs: number, now: Date): 
     type: current.type, queue: 4, due: dueSecs, ivl: current.ivl, factor: current.factor, reps: current.reps, lapses: current.lapses,
     left: current.left, data: current.data ?? '', mod: Math.floor(now.getTime() / 1000), usn: -1,
   };
+}
+
+/**
+ * The review log row for an answer in a preview deck, as Anki logs one (rslib answering/preview.rs):
+ * kind 3 (filtered) with factor 0, which is how Anki's FSRS tells a preview from a real review
+ * and leaves it out of the card's memory state; the interval is the delay until it's shown again
+ * in negative seconds, or 0 once it's finished.
+ */
+export function previewRevlogEntry(entry: AnkiRevlogRow, current: AnkiCardRow, again: Date | undefined, now: Date): AnkiRevlogRow {
+  const ivl = again ? -Math.max(1, Math.round((again.getTime() - now.getTime()) / 1000)) : 0;
+  return { ...entry, type: 3, factor: 0, ivl, lastIvl: current.ivl };
 }
 
 /** The queue a card's type and due put it in: a learning card due as a timestamp is queue 1, as a day number queue 3. */

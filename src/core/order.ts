@@ -48,18 +48,33 @@ const cmpBig = (a: bigint, b: bigint) => (a < b ? -1 : a > b ? 1 : 0);
 const signed = (h: bigint) => BigInt.asIntN(64, h);
 
 /**
- * Anki's day number for `now` (`sched.today`), as rslib's timing does it: the days between the
- * study day the collection was created on, dated in the time zone it was created in
- * (`creationOffset`, minutes west), and today's study day here. Undefined without the creation time.
+ * Anki's day number for `now` (`sched.today`), as rslib's timing does it (`days_elapsed` in
+ * scheduler/timing.rs): the calendar days between the date the collection was created on, dated
+ * in the time zone it was created in (`creationOffset`, minutes west), and today's study day here.
+ * The creation's date is taken as it is, with no rollover subtracted: Anki stamps `crt` at 4 AM
+ * whatever "Next day starts at" says. Undefined without the creation time.
  */
 export function ankiToday(now: Date, dayStartsAtHour: number, collectionCreated: number | undefined, creationOffset?: number): number | undefined {
   if (collectionCreated === undefined) return undefined;
-  const west = creationOffset ?? new Date(collectionCreated * 1000).getTimezoneOffset();
-  // The creation's local wall clock, read through UTC fields, less the rollover hour.
-  const created = new Date((collectionCreated - dayStartsAtHour * 3600 - west * 60) * 1000);
-  const createdDay = Date.UTC(created.getUTCFullYear(), created.getUTCMonth(), created.getUTCDate());
   const [y, m, d] = studyDayKey(now, dayStartsAtHour).split('-').map(Number);
-  return Math.round((Date.UTC(y, m - 1, d) - createdDay) / 86400000);
+  const created = createdDate(collectionCreated, creationOffset);
+  return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(created.getUTCFullYear(), created.getUTCMonth(), created.getUTCDate())) / 86400000);
+}
+
+/**
+ * When Anki's day number `day` starts here: the start of the study day `ankiToday` gives that
+ * number, so a card Anki has due on that day is due here from then. Counted in calendar days, so
+ * a daylight saving change in between doesn't move it into the day before or after.
+ */
+export function ankiDayStart(day: number, dayStartsAtHour: number, collectionCreated: number, creationOffset?: number): Date {
+  const created = createdDate(collectionCreated, creationOffset);
+  return new Date(created.getUTCFullYear(), created.getUTCMonth(), created.getUTCDate() + day, dayStartsAtHour);
+}
+
+/** The collection's creation as the wall clock read in its own time zone, through the Date's UTC fields. */
+function createdDate(collectionCreated: number, creationOffset?: number): Date {
+  const west = creationOffset ?? new Date(collectionCreated * 1000).getTimezoneOffset();
+  return new Date((collectionCreated - west * 60) * 1000);
 }
 
 /** Anki's `knuth_salt`: the day number times 2654435761, as a wrapping u32. */

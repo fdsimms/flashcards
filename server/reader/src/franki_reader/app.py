@@ -166,7 +166,14 @@ from franki_reader.explain import (
 )
 from franki_reader.gateway import AnkiUnavailable, ReadDue, due_with_timeout, with_timeout
 from franki_reader.generator import Ask, Form, Usage, claude_ask
-from franki_reader.languages import LANGUAGES, Code, CommonCount, VoiceSlot, with_deck
+from franki_reader.languages import (
+    HIDDEN_LANGUAGES,
+    LANGUAGES,
+    Code,
+    CommonCount,
+    VoiceSlot,
+    with_deck,
+)
 from franki_reader.lexicon import Entry
 from franki_reader.mnemonics import (
     MakeMnemonics,
@@ -1401,6 +1408,7 @@ def _shelf(engine: Engine) -> dict[str, Any]:
         "languages": [
             {"code": code, "name": info.name, "ready": counts.get(code, 0)}
             for code, info in LANGUAGES.items()
+            if code not in HIDDEN_LANGUAGES
         ],
         "texts": [_shelf_text(t, engine) for t in store.shelf_texts(engine.conn, language)],
         "writing": [

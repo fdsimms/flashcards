@@ -3,14 +3,14 @@ import { inSchema, keptSql, stripUnicaseIn } from '../anki/attachedSql';
 import { COLLECTION_QUERIES, type CollectionRows } from '../anki/collection';
 import { ankiFolder, keptCollectionFile, pathOf, workFolder } from '../anki/files';
 import {
-  cardRestoreParams, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, previewAgain, previewReturn, revlogEntry, revlogParams, type AnkiCardRow, type AnkiUndo,
+  cardRestoreParams, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, previewAgain, previewReturn, previewRevlogEntry, revlogEntry, revlogParams, type AnkiCardRow, type AnkiUndo,
 } from '../anki/writeback';
 import type { SqlValue, SyncDb } from '../anki/sync/collectionSync';
 import type { MediaState } from '../anki/sync/mediaSync';
 import type { RatingValue } from '../core/scheduler';
 import type { RevlogRow } from '../core/stats';
 import type { CardState } from '../core/cardState';
-import type { Card } from '../core/types';
+import type { Card, CollectionSettings } from '../core/types';
 import { File } from 'expo-file-system';
 import { fileUriToPath } from './backup';
 
@@ -117,7 +117,8 @@ const SYNC = {
 
 const SQL = keptSql('anki');
 
-export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
+/** `collectionSettings` reads the collection's settings as the repo keeps them, so Anki's day numbers are counted as the rest of the app counts them. */
+export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () => Promise<CollectionSettings>): AnkiLink {
   let attached = false;
   // One holder of the kept collection at a time, in the order they asked.
   let queue: Promise<unknown> = Promise.resolve();
@@ -219,6 +220,8 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
       const row = await db.getFirstAsync<AnkiCardRow & { mod: number; usn: number }>(SQL.cardRow, cid);
       if (!row) return undefined; // the card isn't in this collection (it came from an older one)
       const crt = (await db.getFirstAsync<{ crt: number }>(SQL.crt))!.crt;
+      const cs = await collectionSettings();
+      const clock = { crt, dayStartsAtHour: cs.dayStartsAtHour, creationOffset: cs.creationOffset };
       const latest = await db.getFirstAsync<{ m: number | null }>(SQL.maxRevlogId);
       const revlogId = nextRevlogId(now.getTime(), latest?.m ?? null);
       const buried: AnkiUndo['buried'] = [];
@@ -227,13 +230,12 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase): AnkiLink {
         if (sibling) buried.push({ cid: Number(s.ankiId), row: sibling });
       }
       await db.withTransactionAsync(async () => {
-        const update = !preview ? cardUpdate(after, row, { crt, now, desiredRetention, steps })
+        const update = !preview ? cardUpdate(after, row, { clock, now, desiredRetention, steps })
           : preview.again ? previewAgain(row, Math.floor(preview.again.getTime() / 1000), now)
           : previewReturn(row, now);
         await db.runAsync(SQL.cardUpdate, ...cardUpdateParams(update, cid));
-        const entry = revlogEntry(before, after, rating, { id: revlogId, cid, previousIvl: row.ivl, now, takenMs, crt });
-        // A preview is logged as Anki logs one: kind 3 (filtered), with no change of interval.
-        await db.runAsync(SQL.revlogInsert, ...revlogParams(preview ? { ...entry, type: 3, ivl: row.ivl, lastIvl: row.ivl } : entry));
+        const entry = revlogEntry(before, after, rating, { id: revlogId, cid, previousIvl: row.ivl, now, takenMs, clock });
+        await db.runAsync(SQL.revlogInsert, ...revlogParams(preview ? previewRevlogEntry(entry, row, preview.again, now) : entry));
         for (const b of buried) await db.runAsync(SQL.buryCard, Math.floor(now.getTime() / 1000), b.cid);
         await db.runAsync(SQL.colModified, now.getTime());
       });

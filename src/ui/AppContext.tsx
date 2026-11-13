@@ -1,7 +1,7 @@
 import { setAudioModeAsync } from 'expo-audio';
 import { usePathname, useRouter } from 'expo-router';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, View } from 'react-native';
+import { AppState, View } from 'react-native';
 import { DAY_STARTS_AT_HOUR } from '../core/config';
 import { studyDayStart } from '../core/day';
 import { listedDecks } from '../core/deckNames';
@@ -11,7 +11,7 @@ import type { Note } from '../core/types';
 import { backupStatus } from '../db/backup';
 import type { AnkiLink, SyncSettings } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
-import { openRepo, type BackupStore } from '../db/sqliteRepo';
+import type { BackupStore } from '../db/sqliteRepo';
 import { useTheme } from './theme';
 import { boostFor } from '../core/priority';
 import { applyPriorityStamps } from '../db/priorityStamps';
@@ -21,7 +21,9 @@ import { useReader, type ReaderState } from './useReader';
 import { useCountsReport } from './useCountsReport';
 import { useStudyReminder } from './studyReminder';
 import { useDeckSnapshot } from './useDeckSnapshot';
+import { Loading } from './kit';
 import { useLoadProblem } from './useLoadProblem';
+import { useOpenRepo } from './useOpenRepo';
 import { useSync } from './useSync';
 import { useWaniKani, type WaniKaniState } from './useWaniKani';
 
@@ -80,7 +82,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const c = useTheme();
   const router = useRouter();
   const pathname = usePathname();
-  const [repo, setRepo] = useState<AppRepo | null>(null);
+  const opened = useOpenRepo();
+  const repo = opened.repo;
   const [decks, setDecks] = useState<DeckRow[]>([]);
   const [backup, setBackup] = useState<{ text: string; overdue: boolean }>();
   const [ankiUnsent, setAnkiUnsent] = useState(0);
@@ -90,7 +93,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // The collection's "Next day starts at", for counting marked words added per study day.
   const [dayStartsAtHour, setDayStartsAtHour] = useState(DAY_STARTS_AT_HOUR);
 
-  useEffect(() => { openRepo().then(setRepo); }, []);
   // Card audio plays with the ring/silent switch on: it only ever plays because you opened a card
   // with audio or pressed Play (and by the reader, which also plays in the background while it's
   // open: src/ui/Reader.tsx). iOS mutes an app's audio in silent mode unless it asks for this,
@@ -162,7 +164,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   if (!value) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', backgroundColor: c.bg }}>
-        <ActivityIndicator color={c.accent} />
+        <Loading error={opened.error} onRetry={opened.retry} />
       </View>
     );
   }

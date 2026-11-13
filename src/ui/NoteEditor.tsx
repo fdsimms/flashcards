@@ -7,7 +7,7 @@ import { failureText } from '../core/failure';
 import type { AnkiLink } from '../db/ankiLink';
 import { isOmnilanguage } from '../core/cards';
 import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, type Selection } from '../core/formatting';
-import { duplicateOf, editTextToField, fieldToEditText, parseTags } from '../core/noteEditing';
+import { asEdited, duplicateOf, editTextToField, fieldToEditText, parseTags } from '../core/noteEditing';
 import type { Note, NoteType } from '../core/types';
 import type { NoteEditorResult } from './AppContext';
 import type { RecordDeps, Recording } from '../anki/recordService';
@@ -136,12 +136,16 @@ export function NoteEditor(props: {
   }, [stored, model, noteTypes]); // eslint-disable-line react-hooks/exhaustive-deps
   const duplicate = fieldNames[0] ? duplicateOf(notes, { id: original?.id, model, fields: stored }, fieldNames[0]) : undefined;
   const changed = editing
-    ? !!original && (deck !== original.deck || JSON.stringify(stored) !== JSON.stringify(Object.fromEntries(fieldNames.map((f) => [f, original.fields[f] ?? ''])))
+    ? !!original && (deck !== original.deck || JSON.stringify(stored) !== JSON.stringify(Object.fromEntries(fieldNames.map((f) => [f, asEdited(original.fields[f] ?? '')])))
       || parseTags(tags).join(' ') !== original.tags.join(' '))
     : Object.values(fields).some((v) => v.trim()) || tags.trim() !== '';
 
+  // A ref, not `busy`: a second tap on the header's Save can land before the re-render that disables
+  // it reaches the native button, and would add the note twice.
+  const saving = useRef(false);
   const save = async () => {
-    if (busy) return;
+    if (saving.current) return;
+    saving.current = true;
     setBusy(true);
     setError(undefined);
     try {
@@ -152,6 +156,7 @@ export function NoteEditor(props: {
     } catch (e) {
       setError(failureText(e, { what: "Couldn't save the note.", next: 'Try again.' }));
     } finally {
+      saving.current = false;
       setBusy(false);
     }
   };
