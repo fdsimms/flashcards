@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { omnilanguageFieldNames } from '../../src/import/models';
-import { importTsv, parseDelimited } from '../../src/import/tsv';
+import { guessSeparator, importTsv, parseDelimited } from '../../src/import/tsv';
 import type { NoteType } from '../../src/core/types';
 import { NOW } from '../support/fixtures';
 
@@ -61,7 +61,30 @@ describe('TSV import', () => {
     }
     const unknown = importTsv('#separator:foo\n#notetype:Basic\nQ1\tA1\n', { noteTypes, now: NOW });
     expect(unknown.notes[0].fields).toEqual({ Front: 'Q1', Back: 'A1' });
-    expect(unknown.warnings[0]).toMatch(/^The file's separator "foo" isn't one Anki writes, so it was read as tab-separated\./);
+    expect(unknown.warnings[0]).toMatch(/^The file's separator "foo" isn't one Anki writes, so it was guessed from the text\./);
+  });
+
+  it('guesses the separator as Anki does when the file names none: the first of its delimiters found', () => {
+    const basic = (body: string) => importTsv(`#notetype:Basic\n${body}`, { noteTypes, now: NOW }).notes.map((n) => n.fields);
+    expect(basic('Q1;A1\nQ2,x;A2\n')).toEqual([{ Front: 'Q1', Back: 'A1' }, { Front: 'Q2,x', Back: 'A2' }]);
+    expect(basic('Hello there,Hi\n')).toEqual([{ Front: 'Hello there', Back: 'Hi' }]); // comma before space
+    expect(basic('Q1\tA, B\n')).toEqual([{ Front: 'Q1', Back: 'A, B' }]);
+    // Only the first 8 KB is looked at.
+    expect(guessSeparator(`${'a'.repeat(9000)}\nx;y`)).toBe(' ');
+  });
+
+  it('escapes a file that says it isn\'t HTML, and takes one with no #html line as HTML only when it holds a tag', () => {
+    const front = (text: string) => importTsv(`#separator:Comma\n#notetype:Basic\n${text}`, { noteTypes, now: NOW }).notes[0].fields.Front;
+    expect(front('#html:false\na <b>x</b> & "y",A\n')).toBe('a &lt;b&gt;x&lt;/b&gt; &amp; &quot;y&quot;');
+    expect(front('#html:true\na <b>x</b> & y,A\n')).toBe('a <b>x</b> & y');
+    expect(front('a <b>x</b> & y,A\n')).toBe('a <b>x</b> & y');
+    expect(front('x < y & z,A\n')).toBe('x &lt; y &amp; z');
+    expect(front('#html:false\n"l1\nl2",A\n')).toBe('l1<br>l2');
+  });
+
+  it('puts the file\'s #tags on every note, with any in its tags column', () => {
+    const res = importTsv('#separator:Comma\n#notetype:Basic\n#tags:polish verbs\n#tags column:3\nQ1,A1,irregular\nQ2,A2,\n', { noteTypes, now: NOW });
+    expect(res.notes.map((n) => n.tags)).toEqual([['polish', 'verbs', 'irregular'], ['polish', 'verbs']]);
   });
 
   it('keeps both rows that share a first field, the later under a derived suffix, and says so', () => {

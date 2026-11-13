@@ -60,6 +60,25 @@ export function separatorFrom(value: string): string | undefined {
   return Object.values(SEPARATORS).find((ch) => normed === ch);
 }
 
+/**
+ * The separator Anki guesses for a file with no #separator line: the first of its delimiters, in
+ * its order, found in the first 8 KB after the header lines; a space when none is. Checked against
+ * the anki package (`get_csv_metadata`).
+ */
+export function guessSeparator(body: string): string {
+  const sample = new TextDecoder().decode(new TextEncoder().encode(body).slice(0, 8192));
+  return Object.values(SEPARATORS).find((ch) => sample.includes(ch)) ?? ' ';
+}
+
+/** Whether Anki takes a file with no #html line as HTML: it is when it holds a tag. */
+export const looksLikeHtml = (body: string) => /<\/?[A-Za-z][^>]*>/.test(body);
+
+/** A field from a file that isn't HTML (#html:false), as Anki stores it: escaped, line breaks as <br>. */
+export function plainToHtml(text: string): string {
+  const escapes: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' };
+  return text.replace(/[&<>"']/g, (c) => escapes[c]).replace(/\r?\n/g, '<br>');
+}
+
 /** A 1-based "#... column:" number as a 0-based index, or -1 without one. */
 function columnIndex(value: string | undefined): number {
   const n = value === undefined ? NaN : parseInt(value.trim(), 10);
@@ -87,12 +106,17 @@ export function importTsv(
     if (m) headers[m[1].trim().toLowerCase()] = m[2];
     bodyStart++;
   }
-  let sep = '\t';
-  if (headers['separator'] !== undefined) {
-    const found = separatorFrom(headers['separator']);
-    if (found) sep = found;
-    else warnings.push(`The file's separator "${headers['separator'].trim()}" isn't one Anki writes, so it was read as tab-separated. In Anki, export with Tab, Comma, Semicolon, Space, Pipe or Colon.`);
+  const body = lines.slice(bodyStart).join('\n');
+  // With no #separator (or one Anki doesn't know), it's guessed from the text, as Anki does.
+  let sep = headers['separator'] !== undefined ? separatorFrom(headers['separator']) : undefined;
+  if (headers['separator'] !== undefined && !sep) {
+    warnings.push(`The file's separator "${headers['separator'].trim()}" isn't one Anki writes, so it was guessed from the text. In Anki, export with Tab, Comma, Semicolon, Space, Pipe or Colon.`);
   }
+  sep ??= guessSeparator(body);
+  // #html:false is plain text, which Anki escapes; with no #html line, Anki decides by whether the text holds a tag.
+  const html = headers['html'] !== undefined ? headers['html'].trim().toLowerCase() !== 'false' : looksLikeHtml(body);
+  // #tags: go on every note, besides any in the tags column.
+  const fileTags = (headers['tags'] ?? '').split(/\s+/).filter(Boolean);
   const header = (key: string) => headers[key]?.trim();
   const fileModel = header('notetype') || 'Omnilanguage';
   const defaultDeck = header('deck') || opts.fallbackDeck || 'Imported';
@@ -113,7 +137,6 @@ export function importTsv(
     throw new Error(`The file has no #columns line, and the fields of note type "${fileModel}" aren't known here yet. Import your collection from AnkiMobile first, or export with columns.`);
   }
 
-  const body = lines.slice(bodyStart).join('\n');
   const rows = parseDelimited(body, sep).filter((r) => r.some((c) => c.trim() !== ''));
   const notes: Note[] = [];
   const cards: Card[] = [];
@@ -133,14 +156,15 @@ export function importTsv(
       columns.forEach((name, i) => {
         // Skip the metadata columns when #columns lists them (Tags, Deck, GUID, Note Type…).
         if (meta.has(i) || /^(tags|deck|guid|note ?type)$/i.test(name)) return;
-        fields[name] = row[i] ?? '';
+        fields[name] = html ? row[i] ?? '' : plainToHtml(row[i] ?? '');
       });
     } else {
       // As Anki's map_field_columns_by_index: fields fill the columns that aren't metadata, in order.
       const fieldColumns = row.map((_, i) => i).filter((i) => !meta.has(i));
-      names.forEach((name, k) => { fields[name] = row[fieldColumns[k]] ?? ''; });
+      names.forEach((name, k) => { const v = row[fieldColumns[k]] ?? ''; fields[name] = html ? v : plainToHtml(v); });
     }
-    const tags = tagsCol >= 0 && row[tagsCol] ? row[tagsCol].split(/\s+/).filter(Boolean) : [];
+    const rowTags = tagsCol >= 0 && row[tagsCol] ? row[tagsCol].split(/\s+/).filter(Boolean) : [];
+    const tags = [...new Set([...fileTags, ...rowTags])];
     const deck = deckCol >= 0 && row[deckCol] ? row[deckCol] : defaultDeck;
     const guid = guidCol >= 0 && row[guidCol] ? row[guidCol] : undefined;
     const entry = (fields.Entry ?? Object.values(fields)[0] ?? '').trim();

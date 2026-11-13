@@ -222,6 +222,8 @@ export function DeckList(props: {
    * sync is on: the Anki server then holds the collection, and Backup is still in Settings.
    */
   backup?: { text: string; overdue: boolean };
+  /** Why the decks couldn't be loaded, when the last try failed: the rows shown may be out of date. */
+  loadProblem?: { text: string; onRetry: () => void };
   /** False until the first load of the decks has finished, so an empty list isn't "No decks yet" yet. */
   loaded?: boolean;
   /** Answers given here and not yet in Anki: not synced, or (without sync) not sent back by file. */
@@ -346,6 +348,17 @@ export function DeckList(props: {
                 <View style={{ flex: 1, gap: space.xs }}>
                   <Text style={{ ...type.headline, color: c.warning }}>{backup.text}</Text>
                   <Text style={{ ...type.subhead, color: c.textSecondary }}>Everything is stored only on this iPhone. Tap to back up now.</Text>
+                </View>
+              </View>
+            </Pressable>
+          ) : null}
+          {props.loadProblem ? (
+            <Pressable onPress={props.loadProblem.onRetry} accessibilityRole="button" accessibilityHint="Loads the decks again" style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
+              <View style={{ flexDirection: 'row', gap: space.m, alignItems: 'flex-start', borderRadius: radius.l, ...smooth, borderWidth: 1, borderColor: c.warning, backgroundColor: c.surface, padding: space.m }}>
+                <Icon name="exclamationmark.triangle.fill" size={22} color={c.warning} />
+                <View style={{ flex: 1, gap: space.xs }}>
+                  <Text style={{ ...type.headline, color: c.warning }}>Couldn't load your decks</Text>
+                  <Text style={{ ...type.subhead, color: c.textSecondary }}>{props.loadProblem.text}</Text>
                 </View>
               </View>
             </Pressable>
