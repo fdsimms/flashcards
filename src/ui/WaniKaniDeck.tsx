@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { ActionSheetIOS, Linking, Pressable, Text } from 'react-native';
+import { ActionSheetIOS, Linking } from 'react-native';
 import type { WaniKaniProblem } from '../wanikani/api';
 import { DeckRowView } from './DeckList';
-import { Group, Icon, SwipeToReveal } from './kit';
+import { Group, SwipeAction, SwipeToReveal } from './kit';
 import type { WaniKaniState } from './useWaniKani';
-import { space, type, useTheme } from './theme';
 
 /** The line under the name when the last read failed: short, since Options says the rest. */
 const PROBLEM_LINE: Record<WaniKaniProblem, string> = {
@@ -20,7 +19,6 @@ const PROBLEM_LINE: Record<WaniKaniProblem, string> = {
  * today's lessons as new. Swipe for Options, as on any deck; the menu also opens wanikani.com.
  */
 export function WaniKaniDeck({ wanikani, onOpen, onOptions }: { wanikani: WaniKaniState; onOpen: () => void; onOptions: () => void }) {
-  const c = useTheme();
   const [open, setOpen] = useState(false);
   const due = wanikani.counts?.reviews ?? 0;
   const fresh = wanikani.counts?.lessons ?? 0;
@@ -42,17 +40,7 @@ export function WaniKaniDeck({ wanikani, onOpen, onOptions }: { wanikani: WaniKa
       <SwipeToReveal
         open={open}
         onOpenChange={setOpen}
-        action={
-          <Pressable
-            onPress={() => { setOpen(false); onOptions(); }}
-            accessibilityRole="button"
-            accessibilityLabel="Options for WaniKani"
-            style={({ pressed }) => ({ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.xs, backgroundColor: c.accent, opacity: pressed ? 0.8 : 1 })}
-          >
-            <Icon name="gearshape" size={22} color={c.onAccent} />
-            <Text style={{ ...type.footnote, color: c.onAccent, fontWeight: '600' }}>Options</Text>
-          </Pressable>
-        }
+        action={<SwipeAction icon="gearshape" label="Options" accessibilityLabel="Options for WaniKani" onPress={() => { setOpen(false); onOptions(); }} />}
       >
         <DeckRowView
           row={{ deck: 'WaniKani', name: 'WaniKani', depth: 0, due, fresh, total: 0, hasSubdecks: false, collapsed: false }}

@@ -71,7 +71,7 @@ export function LeechHintSheet({ word, misses, suggest, onSave, onSkip }: {
             {suggest ? (
               <Tappable onPress={ask} disabled={asking} accessibilityRole="button" accessibilityLabel="Suggest hints" style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: 36 }}>
                 <Icon name="sparkles" size={18} color={c.accent} />
-                <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>{asking ? 'Asking Claude...' : ideas.length ? 'Suggest more hints' : 'Suggest hints'}</Text>
+                <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>{asking ? 'Asking Claude…' : ideas.length ? 'Suggest more hints' : 'Suggest hints'}</Text>
               </Tappable>
             ) : null}
             {ideas.map((idea) => (

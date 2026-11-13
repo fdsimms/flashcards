@@ -96,6 +96,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
     busy.current = true;
     try {
       await log(current.prompt, true, current.given);
+      haptic.success();
       setAnswered((a) => a.map((x, i) => (i === index ? { ...x, counted: true } : x)));
     } finally {
       busy.current = false;
