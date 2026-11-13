@@ -9,6 +9,7 @@ import { haptic } from './haptics';
 import { Button, Card, Group, Icon, NavRow, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
 import { useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
+import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
 import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
@@ -260,6 +261,8 @@ export function DeckList(props: {
   onOptions: (deck: string) => void;
   /** Makes a deck (DeckActions.tsx). */
   onNewDeck: () => void;
+  /** Quick add (ReadQuickAdd.tsx); present while Read & Listen is on, since Claude fills the notes in there. */
+  onQuickAdd?: () => void;
   /** The menu on a deck's row: add a note, rename, options, delete (DeckActions.tsx). */
   onDeckMenu: (deck: string) => void;
   /** A deck dragged to a new place: reordered, nested or unnested (`deckMove`, DeckActions.tsx). */
@@ -276,6 +279,7 @@ export function DeckList(props: {
   const c = useTheme();
   const header = useHeaderInset();
   const { banner: vocabReady } = useVocabReady();
+  const noteQueue = useNoteQueueBanner();
   const shown = useMemo(() => shownDeckRows(props.decks, props.collapsed ?? new Set()), [props.decks, props.collapsed]);
   const groups = useMemo(() => groupByTopLevel(shown), [shown]);
   const allDecks = useMemo(() => props.decks.map((r) => r.deck), [props.decks]);
@@ -336,6 +340,7 @@ export function DeckList(props: {
           {props.sync ? (
             <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={syncShown} accessibilityLabel={syncShown ? 'Syncing' : 'Sync now'} onPress={syncTapped} />
           ) : null}
+          {props.onQuickAdd ? <Stack.Toolbar.Button icon="plus" accessibilityLabel="Quick add notes" onPress={props.onQuickAdd} /> : null}
           <Stack.Toolbar.Button icon="rectangle.stack.badge.plus" accessibilityLabel="New deck" onPress={props.onNewDeck} />
           <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} />
           <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={props.onSettings} />
@@ -370,6 +375,7 @@ export function DeckList(props: {
             <WarningBanner title="Couldn't load your decks" detail={props.loadProblem.text} action="Tap to try again" hint="Loads the decks again" onPress={props.loadProblem.onRetry} />
           ) : null}
           {vocabReady ? <VocabReadyCard banner={vocabReady} /> : null}
+          {noteQueue ? <NoteQueueCard banner={noteQueue} /> : null}
           {props.sync?.failed ? (
             // A failed sync is shown first, where it can't be scrolled past; a tap tries again.
             <WarningBanner title="Sync didn't finish" detail={props.sync.status} action="Tap to try again" hint="Syncs now" onPress={syncTapped} />
