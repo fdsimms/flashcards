@@ -338,6 +338,8 @@ export interface DeckRow extends DeckNode {
   fresh: number;
   /** Cards that can be studied in the deck and its subdecks. */
   total: number;
+  /** Cards in the deck and its subdecks that were never studied and aren't suspended: all of them, not just today's new cards. */
+  unstudied: number;
   /** For a gated deck: cards in progress under it, and its cap. */
   gate?: { inProgress: number; cap: number };
 }
@@ -405,12 +407,16 @@ export function deckRows(input: TreeQueueInput, listed: Iterable<string> = [], p
   return deckTree([...input.cardsByDeck.keys(), ...listed], position).map((node) => {
     const q = treeQueue(node.deck, input);
     let total = 0;
+    let unstudied = 0;
     for (const [deck, cards] of input.cardsByDeck) {
-      if (isInDeck(deck, node.deck)) total += studiable(cards).length;
+      if (!isInDeck(deck, node.deck)) continue;
+      const open = studiable(cards);
+      total += open.length;
+      unstudied += open.filter((c) => c.sched.state === 0).length;
     }
     const cap = input.gateFor?.(node.deck);
     const gate = cap === undefined ? undefined : { inProgress: inProgressCount(node.deck, input.cardsByDeck), cap };
-    return { ...node, due: q.due.length, fresh: q.fresh.length, total, ...(gate ? { gate } : {}) };
+    return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, ...(gate ? { gate } : {}) };
   });
 }
 

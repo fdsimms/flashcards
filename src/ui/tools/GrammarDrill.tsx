@@ -1,3 +1,4 @@
+import * as Speech from 'expo-speech';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
@@ -6,11 +7,13 @@ import { grammarPoint } from '../../core/grammar';
 import { DRILL_QUESTIONS, drillPrompts, missingNote, type DrillPrompt } from '../../core/grammarDrills';
 import type { Repo } from '../../db/repo';
 import { ApiError, type Api } from '../../reader/api';
+import { LANGUAGES } from '../../reader/languages';
 import { ChoiceButton, type ChoiceState } from '../FormsDrill';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Field, Help, Loading, Screen, Segments } from '../kit';
-import { radius, space, type, useTheme } from '../theme';
+import { Button, Card, ErrorNote, Field, Help, Icon, Loading, Screen, Segments, Tappable } from '../kit';
+import { MIN_TAP, radius, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
+import { usePhoneSpeech } from '../usePhoneSpeech';
 import { Status } from './ToolScreen';
 
 type AnswerMode = 'pick' | 'type';
@@ -42,6 +45,10 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
   const drillId = useRef(`${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
   // Set while an answer is being written: a second tap must not answer the same question twice.
   const busy = useRef(false);
+  const speech = usePhoneSpeech(repo);
+  // The question whose translation was tapped open; any other question starts with it hidden.
+  const [translated, setTranslated] = useState(-1);
+  useEffect(() => () => { Speech.stop(); }, []);
 
   const load = async () => {
     setError(null);
@@ -108,6 +115,11 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
 
   const picking = mode === 'pick' || !prompt.typable;
 
+  // The whole sentence with its answer in, so it isn't read before the question is answered.
+  const say = (p: DrillPrompt) => {
+    Speech.stop();
+    speech.sayWord(p.before + p.middle + p.after, LANGUAGES[grammarPoint(p.pointId)?.language ?? 'es'].speech);
+  };
   const answer = async (given: string, picked: boolean) => {
     if (current || busy.current) return;
     busy.current = true;
@@ -117,6 +129,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
       await repo.addGrammarAnswer({ pointId: prompt.pointId, drillId: drillId.current, kind: prompt.kind, correct: right, answeredAt: new Date().toISOString() });
       if (right) haptic.success(); else haptic.select();
       setAnswered((a) => [...a, { prompt, given, right, almost: verdict === 'almost' }]);
+      say(prompt);
     } catch (e) {
       Alert.alert("Couldn't save this answer", failureText(e, { next: 'The question is still here: answer it again.' }));
     } finally {
@@ -171,8 +184,29 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
             )}
             {prompt.after}
           </Text>
-          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{prompt.english}</Text>
+          {current || translated === index ? (
+            <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{prompt.english}</Text>
+          ) : (
+            <Tappable
+              accessibilityRole="button"
+              accessibilityLabel="Show translation"
+              onPress={() => { haptic.tap(); setTranslated(index); }}
+              style={{ minHeight: MIN_TAP, justifyContent: 'center' }}
+            >
+              <Text style={{ ...type.subhead, color: c.accent }}>Show translation</Text>
+            </Tappable>
+          )}
           {prompt.source ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{prompt.source}</Text> : null}
+          {current ? (
+            <Tappable
+              accessibilityRole="button"
+              accessibilityLabel="Play the sentence"
+              onPress={() => { haptic.tap(); say(prompt); }}
+              style={{ minWidth: MIN_TAP, minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Icon name="speaker.wave.2.fill" size={24} color={c.accent} />
+            </Tappable>
+          ) : null}
         </View>
 
         {picking ? (

@@ -103,6 +103,13 @@ describe("a drill's questions as the screen asks them", () => {
     expect(th.label).toBe('');
   });
 
+  it('leaves out a point name that contains the answer, in any language', () => {
+    const [el] = drillPrompts([
+      { kind: 'gap', id: 4, point: 'el.na', before: 'Προσπαθώ ', answer: 'να', after: ' γράψω ένα ποίημα.', english: 'I am trying to write a poem.', wrong: ['και', 'θα', 'πως'], hint: '' },
+    ], random);
+    expect(el.label).toBe('');
+  });
+
   it("leaves out a question it can't ask", () => {
     expect(drillPrompts([
       { kind: 'which', point: 'es.preterite', line: 'Hoy como.', words: ['fuimos'], english: '', title: '', choices: ['es.preterite', 'es.imperfect'] },

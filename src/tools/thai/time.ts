@@ -22,7 +22,8 @@ const KHRUENG: Word = ['ครึ่ง', 'khrûeng'];
 const NAATHII: Word = ['นาที', 'naa-thii'];
 const NAALIGAA: Word = ['นาฬิกา', 'naa-li-gaa'];
 
-const OLD_COUNT = 'The older count from 6 a.m.';
+/** The older count starts the morning's hours at 6 a.m.: 7 is "1 o'clock morning", usually with the 1 left out. */
+const oldCount = (n: number) => `Older style, counting hours from 6 a.m.: ${n} o'clock in the morning${n === 1 ? ' (the 1 is usually left out)' : ''}`;
 /** โมงเช้า and โมงเย็น usually drop เช้า and เย็น once minutes follow: เก้าโมงครึ่ง, ห้าโมงครึ่ง. */
 const DROPS_PERIOD = (h: number) => (h >= 6 && h <= 11) || h === 17 || h === 18;
 
@@ -46,8 +47,8 @@ function hourFormsOnTheHour(h: number): HourForm[] {
   if (h <= 5) return [{ words: [DTII, ...n(h)] }];
   if (h <= 11) {
     const forms: HourForm[] = [{ words: [...n(h), MOHNG, CHAO] }, { words: [...n(h), MOHNG] }];
-    if (h === 7) forms.push({ words: [MOHNG, CHAO], note: OLD_COUNT });
-    else if (h > 7) forms.push({ words: [...n(h - 6), MOHNG, CHAO], note: OLD_COUNT });
+    if (h === 7) forms.push({ words: [MOHNG, CHAO], note: oldCount(1) });
+    else if (h > 7) forms.push({ words: [...n(h - 6), MOHNG, CHAO], note: oldCount(h - 6) });
     return forms;
   }
   if (h === 12) return [{ words: [THIANG] }, { words: [THIANG, WAN], onTheHour: true }];
