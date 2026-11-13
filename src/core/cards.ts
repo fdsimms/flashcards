@@ -172,9 +172,9 @@ function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
   if (kind === 'forward') {
     pushEntry(front);
     pushIf(front, t(note, 'LeechHint'), undefined);
+    pushIf(back, meaning, undefined, true);
     pushIf(back, translit, undefined, undefined, 'Show transliteration');
     pushIf(back, kana, undefined, undefined, 'Show reading');
-    pushIf(back, meaning, undefined, true);
     back.push(...detail());
     return { front: { blocks: front, speak: entry }, back: { blocks: back }, speechLang };
   }
@@ -192,9 +192,9 @@ function renderOmnilanguage(note: Note, kind: CardKind): RenderedCard {
   // audio: hear it, recall the meaning
   front.push({ text: 'Listen', emphasis: true, icon: 'speaker.wave.2.fill' });
   pushEntry(back);
+  pushIf(back, meaning, undefined, true);
   pushIf(back, translit, undefined, undefined, 'Show transliteration');
   pushIf(back, kana, undefined, undefined, 'Show reading');
-  pushIf(back, meaning, undefined, true);
   back.push(...detail());
   return { front: { blocks: front, speak: entry }, back: { blocks: back }, speechLang };
 }
