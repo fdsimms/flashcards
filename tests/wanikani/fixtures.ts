@@ -102,6 +102,15 @@ export const kanaVocabResource = {
   },
 };
 
+/** A radical or kanji as a part of another subject: only what a "Made of" row reads. */
+export function partResource(id: number, object: 'radical' | 'kanji', characters: string | null, meaning: string, data: Record<string, unknown> = {}) {
+  return {
+    id,
+    object,
+    data: { level: 1, characters, hidden_at: null, meanings: [{ meaning, primary: true, accepted_answer: true }], auxiliary_meanings: [], ...data },
+  };
+}
+
 export function assignmentResource(id: number, subjectId: number, data: Record<string, unknown> = {}) {
   return {
     id,

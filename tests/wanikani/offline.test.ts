@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { WaniKaniError, type WaniKaniApi, type WaniKaniUser } from '../../src/wanikani/api';
-import { dataUri, inlineImages, offlineData, parseSnapshot, wantedAudio, type Snapshot } from '../../src/wanikani/offline';
+import { copyAge, dataUri, inlineImages, offlineData, offlineText, parseSnapshot, wantedAudio, type Snapshot } from '../../src/wanikani/offline';
 import { makeSnapshot } from '../../src/wanikani/offlineService';
 import { audioFileName, audioFor } from '../../src/wanikani/production';
 import type { Outcome } from '../../src/wanikani/session';
 import { parseAssignment, parseSubject } from '../../src/wanikani/subjects';
-import { assignmentResource, kanjiResource, radicalResource, vocabResource } from './fixtures';
+import { assignmentResource, kanjiResource, partResource, radicalResource, vocabResource } from './fixtures';
 
 const HOUR = 4;
 const user: WaniKaniUser = { username: 'u', level: 5, maxLevel: 60, onVacation: false, lessonBatch: 5 };
@@ -115,9 +115,35 @@ describe('making the copy', () => {
     expect(s).toMatchObject({ version: 1, apprentice: 7, started: 2, savedAt: opts.now.toISOString(), synonyms: [[2467, ['grown-up']]] });
     expect(s.reviews.map((x) => x.id)).toEqual([1]);
     expect(s.lessons.map((x) => x.id)).toEqual([3, 4]);
+    // The parts (12, 440, 453) are asked for too; this fake API has none of them.
     expect(s.subjects.map((x) => x.id).sort((p, q) => p - q)).toEqual([450, 2467, 8762]);
     expect(s.subjects.find((x) => x.id === 8762)?.image?.url).toMatch(/^data:/);
     expect(parseSnapshot(JSON.stringify(s))).toEqual(s);
+  });
+
+  it('keeps the parts the items are made of, read in one batch, so an offline card shows them', async () => {
+    const parts = [parseSubject(partResource(453, 'kanji', '大', 'Big'))!, parseSubject(partResource(440, 'kanji', '人', 'Person'))!, parseSubject(partResource(12, 'radical', '力', 'Power'))!];
+    const own = [parseSubject(vocabResource)!, parseSubject(kanjiResource)!, parseSubject(radicalResource)!];
+    const asked: number[][] = [];
+    const subjects = async (ids: number[]) => { asked.push(ids); return [...own, ...parts].filter((s) => ids.includes(s.id)); };
+    const s = await makeSnapshot({ api: fakeApi({ subjects }) }, opts);
+    expect(asked).toEqual([[2467, 8762, 450], [453, 440, 12]]);
+    expect(s.subjects.map((x) => x.id)).toEqual([2467, 450, 8762, 453, 440, 12]);
+    // Through a save and a read, as an offline session gets it.
+    const d = offlineData(parseSnapshot(JSON.stringify(s))!, [], new Date(2026, 10, 12, 13), HOUR);
+    expect(d.subjects.get(453)?.characters).toBe('大');
+    expect(d.reviews.map((x) => x.subjectId)).toEqual([2467]);
+  });
+
+  it('still makes a copy when the parts cannot be read', async () => {
+    const own = [parseSubject(vocabResource)!, parseSubject(kanjiResource)!, parseSubject(radicalResource)!];
+    let calls = 0;
+    const subjects = async (ids: number[]) => {
+      if (calls++) throw new WaniKaniError('unavailable');
+      return own.filter((s) => ids.includes(s.id));
+    };
+    const s = await makeSnapshot({ api: fakeApi({ subjects }) }, opts);
+    expect(s.subjects.map((x) => x.id)).toEqual([2467, 450, 8762]);
   });
 
   it('keeps only the lessons a day can offer, in lesson order', async () => {
@@ -133,5 +159,39 @@ describe('making the copy', () => {
 
   it('fails when the reviews cannot be read, so the last copy stays', async () => {
     await expect(makeSnapshot({ api: fakeApi({ reviewsAvailable: async () => { throw new WaniKaniError('unavailable'); } }) }, opts)).rejects.toBeInstanceOf(WaniKaniError);
+  });
+});
+
+describe('how old the copy is', () => {
+  // A fixed clock, so the test doesn't depend on the machine's locale.
+  const time = (d: Date) => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const saved = new Date(2026, 10, 12, 9, 14);
+
+  it('gives the time on the day it was made and the day after, then the days since', () => {
+    expect(copyAge(saved, new Date(2026, 10, 12, 18), HOUR, time)).toBe('today at 9:14');
+    expect(copyAge(saved, new Date(2026, 10, 13, 9), HOUR, time)).toBe('yesterday at 9:14');
+    expect(copyAge(saved, new Date(2026, 10, 14, 9), HOUR, time)).toBe('2 days ago');
+    expect(copyAge(saved, new Date(2026, 10, 22, 9), HOUR, time)).toBe('10 days ago');
+  });
+
+  it('counts by study days: before the day starts, it is still the day before', () => {
+    // 2 AM on the 13th is still the 12th's study day.
+    expect(copyAge(saved, new Date(2026, 10, 13, 2), HOUR, time)).toBe('today at 9:14');
+    // Made at 1 AM on the 13th: that's the 12th's study day, so "yesterday" from 5 AM on the 13th.
+    expect(copyAge(new Date(2026, 10, 13, 1, 5), new Date(2026, 10, 13, 5), HOUR, time)).toBe('yesterday at 1:05');
+    // With the day starting at midnight, it's today.
+    expect(copyAge(new Date(2026, 10, 13, 1, 5), new Date(2026, 10, 13, 5), 0, time)).toBe('today at 1:05');
+  });
+
+  it('counts across a change of clocks, and treats a copy from the future as today', () => {
+    // Daylight saving ends on 2026-11-01 in North America: the day is 25 hours long there.
+    expect(copyAge(new Date(2026, 9, 31, 12), new Date(2026, 10, 2, 12), HOUR, time)).toBe('2 days ago');
+    expect(copyAge(new Date(2026, 10, 12, 20), new Date(2026, 10, 12, 10), HOUR, time)).toBe('today at 20:00');
+  });
+
+  it('says where the session comes from', () => {
+    expect(offlineText(saved, new Date(2026, 10, 14, 9), HOUR, time)).toBe('Offline. Studying from the copy saved 2 days ago');
+    // The phone's own clock format, whatever it is.
+    expect(offlineText(saved, new Date(2026, 10, 12, 10), HOUR)).toMatch(/^Offline\. Studying from the copy saved today at \S/);
   });
 });

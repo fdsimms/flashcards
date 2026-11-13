@@ -5,7 +5,7 @@ import type { Assignment, Subject } from './subjects';
 
 /**
  * The offline copy: what a WaniKani session needs (the reviews and lessons that were up, their
- * subjects and the user's synonyms), saved whenever WaniKani is reached, so a session can be
+ * subjects and the radicals and kanji those are made of, and the user's synonyms), saved whenever WaniKani is reached, so a session can be
  * studied with no connection. Answers given from it go to the outbox like any other and are sent
  * when WaniKani can be reached again (useWaniKani).
  *
@@ -27,6 +27,7 @@ export interface Snapshot {
   started: number;
   reviews: Assignment[];
   lessons: Assignment[];
+  /** The items' subjects, then the parts they're made of (a copy made before parts were kept has none). */
   subjects: Subject[];
   synonyms: [number, string[]][];
 }
@@ -77,6 +78,24 @@ export function offlineData(s: Snapshot, answered: readonly Outcome[], now: Date
     subjects: new Map(s.subjects.map((x) => [x.id, x])),
     synonyms: new Map(s.synonyms),
   };
+}
+
+/** A time as the phone writes times, "9:14 AM". */
+const phoneTime = (d: Date) => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
+/**
+ * When the copy was made, by study days as the rest of the app counts them: "today at 9:14 AM",
+ * "yesterday at 6:02 PM", "3 days ago". Items reviewed on wanikani.com since then are still asked
+ * offline, and WaniKani refuses those answers, so how old the copy is matters to the learner.
+ */
+export function copyAge(savedAt: Date, now: Date, dayStartsAtHour: number, time: (d: Date) => string = phoneTime): string {
+  const days = Math.round((studyDayStart(now, dayStartsAtHour).getTime() - studyDayStart(savedAt, dayStartsAtHour).getTime()) / 86400000);
+  return days <= 0 ? `today at ${time(savedAt)}` : days === 1 ? `yesterday at ${time(savedAt)}` : `${days} days ago`;
+}
+
+/** What the deck list and the review screen say while studying from the copy. */
+export function offlineText(savedAt: Date, now: Date, dayStartsAtHour: number, time?: (d: Date) => string): string {
+  return `Offline. Studying from the copy saved ${copyAge(savedAt, now, dayStartsAtHour, time)}`;
 }
 
 /** The recordings the copy's reviews and lessons play (see `audioFor`), by file name, with where to get each. */
