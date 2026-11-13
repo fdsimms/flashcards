@@ -14,15 +14,15 @@ import { CommonWords } from './ReadCommonWords';
 import { radius, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
+/** The card a change was made in, where its failure is shown. */
+type Section = 'words' | 'story' | 'themes' | 'stretch';
+
 /**
  * One language's Read & Listen settings, the ones set once and rarely changed
  * (docs/read-and-listen/architecture.md, Shelf): its deck, common words, voices and grammar, the
  * ongoing story, the themes the shelf writes from, practice words, and how reading is going.
  * Opened from the shelf's sliders button; the language is the one the shelf is showing.
  */
-/** The card a change was made in, where its failure is shown. */
-type Section = 'words' | 'story' | 'themes' | 'stretch';
-
 export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, onVocabCheck, onEpisodes }: {
   api: Api;
   /** Franki's decks, to choose the language's deck from. */
