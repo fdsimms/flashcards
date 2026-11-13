@@ -32,6 +32,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "stretch": True,
         "deck": True,
         "wanikani": False,
+        "rank": None,
         "grammar": None,
     }
     assert words[4] == {
@@ -43,6 +44,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "stretch": False,
         "deck": False,
         "wanikani": False,
+        "rank": None,
         "grammar": None,
     }
     assert out["lines"][0]["english"] == "I'd like mango sticky rice."
@@ -75,6 +77,8 @@ def test_a_word_off_the_list_takes_the_models_gloss() -> None:
         7, 1, "t", (Line("B", "ทอน|ครับ", "Here's your change."),), TEXT.glosses, (), 0.5
     )
     words = render(text, lexicon_from(ENTRIES), MEANINGS)["lines"][0]["words"]
+    # Its place in the list moves whenever the list is rebuilt, so it's only checked to be one.
+    assert isinstance(words[0].pop("rank"), int)
     assert words[0] == {
         "text": "ทอน",
         "status": "unknown",

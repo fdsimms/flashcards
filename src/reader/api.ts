@@ -28,6 +28,7 @@ export type Word = {
   stretch: boolean;
   deck: boolean; // a deck word, as against one known for being common (every language but Thai)
   wanikani?: boolean; // known for being learned in WaniKani (Japanese; absent from a server older than it)
+  rank?: number | null; // its place among the language's 10,000 most common words (1 is the most common); null past the list's end; absent from a server older than it
   grammar: string | null; // the grammar point this word uses, if the text marks it (TextGrammar)
   // When it's spoken in its line's audio, [start, end] in milliseconds (reader/spoken.ts). Absent
   // for spaces and punctuation, a line recorded without timings, and a server older than them.
