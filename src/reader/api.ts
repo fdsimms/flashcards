@@ -421,6 +421,11 @@ export function createApi(
     // Memory hints for a word (a leech), written by Claude on the server: asked only when the owner taps for them.
     mnemonics: async (question: { language: Language; entry: string; meaning: string; transliteration?: string; context?: string }) =>
       (await call<{ hints: string[] }>('POST', '/api/mnemonics', question)).hints,
+    // Cards' example sentences split and glossed as a text's lines are, for the word popovers on a card
+    // (reader/cardGlosses.ts): asked once for a whole study session. `ready` is false until the
+    // language's deck has been read on the server.
+    glosses: (language: Language, sentences: { text: string; english: string }[]) =>
+      call<{ ready: boolean; sentences: Word[][] }>('POST', '/api/glosses', { language, sentences }),
     // A line's grammar and vocabulary explained by Claude on the server: asked on the owner's tap, kept per
     // line there. `simple` is a second, plainer version.
     explainLine: async (textId: number, line: number, simple: boolean) => {

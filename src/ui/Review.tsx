@@ -34,6 +34,7 @@ import { mathjaxUri } from '../media/mathjax';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardWebView } from './CardWebView';
 import { Side } from './CardSide';
+import { useCardGlosses, type CardGlossing } from './useCardGlosses';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
 import { headword, type DrillRequest } from '../core/forms';
@@ -172,7 +173,7 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, onEditNote, onPracticeForms, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
+export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -182,6 +183,8 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   practice?: { languageDeck: string; onRead: (words: string[]) => Promise<void> };
   /** Present while Read & Listen is signed in: asks its server for memory hints, when a leech's hint sheet asks for them. */
   suggestHints?: (question: MnemonicQuestion) => Promise<string[]>;
+  /** Present while Read & Listen is signed in: an example sentence's words can be tapped for their meanings (useCardGlosses). */
+  glossing?: CardGlossing;
   /** Changes when something outside this screen may have changed the deck (custom study): loads the cards again. */
   reloadKey?: number;
   /** Leaves the screen: the deck is done. */
@@ -296,6 +299,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
 
   const current = queue ? currentCard(queue, preferId) : undefined;
   const note = current ? notes.get(current.noteId) : undefined;
+  const glossFor = useCardGlosses(glossing, queue?.order, notes);
   useEffect(() => { forms.showing({ card: current, note, revealed }); }, [current, note, revealed, forms.showing]); // eslint-disable-line react-hooks/exhaustive-deps
   // The card's own deck decides its FSRS settings, not the deck being studied.
   const cardParams = note && current ? paramsForDeck(cardHomeDeck(current, note.deck), allParams) : undefined;
@@ -916,7 +920,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
             {revealed ? (
               <Reveal rise={8} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
-                <Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} />
+                <Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} gloss={note ? glossFor(current, note) : null} />
                 {extras}
               </Reveal>
             ) : null}

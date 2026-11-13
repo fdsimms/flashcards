@@ -98,6 +98,21 @@ def missing(
     return list(found.items())
 
 
+def missing_in_sentences(
+    sentences: Iterable[tuple[str, str]], lexicon: Checker, meanings: dict[str, str]
+) -> list[tuple[str, str]]:
+    """As `missing`, for cards' example sentences, given as (sentence, its English): plain text,
+    split as `reader.render_sentence` splits it, with no glosses of their own."""
+    found: dict[str, str] = {}
+    for sentence, english in sentences:
+        for piece in lexicon.segment(sentence):
+            if not is_word(piece) or key(piece) in found or key(piece) in meanings:
+                continue
+            if gloss_for(piece, {}, lexicon, meanings) is None:
+                found[key(piece)] = english
+    return list(found.items())
+
+
 def _clean(value: object) -> str:
     """A meaning as the reader shows it, or "" when there's nothing usable."""
     if not isinstance(value, str):
@@ -124,7 +139,19 @@ async def fill(
     back. A word it gives nothing usable for is kept without a meaning, so it isn't asked again.
     Returns how many words were asked about; raises `MeaningsFailed` when the call fails, after
     keeping what a paid answer cost as a batch with no words in it, so they're all asked again."""
-    asked = missing(texts, lexicon, meanings)[:MAX_WORDS]
+    return await fill_words(conn, write, language, missing(texts, lexicon, meanings), now)
+
+
+async def fill_words(
+    conn: sqlite3.Connection,
+    write: WriteMeanings,
+    language: Code,
+    words: list[tuple[str, str]],
+    now: Callable[[], datetime],
+) -> int:
+    """`fill` for words already found (`missing`, `missing_in_sentences`), as (word, English of a
+    line it's in): the first `MAX_WORDS` are asked about and kept."""
+    asked = words[:MAX_WORDS]
     if not asked:
         return 0
     try:

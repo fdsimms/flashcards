@@ -168,6 +168,20 @@ Franki's (Client, below).
   Listen off in Settings forgets it too.
 - **Nothing in the app grades or writes cards.** Its code imports nothing that schedules or writes
   them (`tests/reader/noGrading.test.ts`).
+- **Word meanings on a card's example sentence** (13 November 2026, by the owner's decision, from
+  a mock with three ways to show the words). On the back of an Omnilanguage card in a language's
+  deck, each word of the example sentence (Context) can be tapped for the reader's popover: its
+  meaning, play, its pronunciation, and Add to deck for a word not in the deck. Each word has a
+  dotted underline, and where two words touch (Thai, Japanese) a short tick rises from the line
+  between them, so the sentence shows where it splits; the card's own word keeps its highlight.
+  The server splits and glosses the sentences as it does a text's lines (`POST /api/glosses`,
+  `reader.render_sentence`), asked once when a study session starts, for every sentence in it,
+  one call per language (`src/reader/cardGlosses.ts`, `src/ui/useCardGlosses.ts`), and the phone
+  keeps the answers while the app runs. Afterwards, in the background, the server reads that
+  language's deck if it's a day old and has Claude gloss the words that had no meaning (as
+  `meanings.py` does for texts, with the sentence's ContextTranslation as the line's English), so
+  they have one next time. Until then, offline, or with Read & Listen off, the sentence shows as
+  before. Tapping a word grades nothing.
 
 ## Hosting
 
