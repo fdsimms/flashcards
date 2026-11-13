@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { nextDeckToStudy } from '../core/deckTree';
+import { earlierDeckToStudy, nextDeckToStudy } from '../core/deckTree';
 import { languageOfDeck } from '../reader/practice';
 import { useApp } from '../ui/AppContext';
 import { Review } from '../ui/Review';
@@ -40,11 +40,15 @@ export default function ReviewRoute() {
   }, []));
   // The deck list's counts are from when it was last shown, which is current for every other deck.
   const nextDeck = nextDeckToStudy(decks, collapse.collapsed, deck);
+  // With nothing further down the list, offer the first earlier deck that still has cards.
+  const earlierDeck = nextDeck ? undefined : earlierDeckToStudy(decks, collapse.collapsed, deck);
   return (
     <Review
       repo={repo} deck={deck} practice={practice} suggestHints={readerApi ? (q) => readerApi.mnemonics(q) : undefined} reloadKey={reloadKey} onDone={() => router.back()} onEditNote={openNoteEditor}
       nextDeck={nextDeck?.split('::').pop()}
       onNextDeck={nextDeck ? () => router.replace({ pathname: '/review', params: { deck: nextDeck } }) : undefined}
+      earlierDeck={earlierDeck?.split('::').pop()}
+      onEarlierDeck={earlierDeck ? () => router.replace({ pathname: '/review', params: { deck: earlierDeck } }) : undefined}
       onCustomStudy={() => router.push({ pathname: '/custom-study', params: { deck } })}
       onCardInfo={(card) => router.push({ pathname: '/card-info', params: { card } })}
       onPracticeForms={(request) => router.push({ pathname: '/forms-drill', params: { request: JSON.stringify(request) } })}

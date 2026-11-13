@@ -10,6 +10,8 @@ export interface WaniKaniPrefs {
   separate: boolean;
   /** Lessons a study day, counting lessons done on WaniKani itself that day. */
   newPerDay: number;
+  /** Lessons aren't offered while more than this many items are at Apprentice; null for no limit. */
+  maxApprentice: number | null;
   /** Play WaniKani's recording when a vocabulary answer is shown. */
   autoplay: boolean;
   /** Make production cards (production.ts) for words at Guru. */
@@ -18,9 +20,12 @@ export interface WaniKaniPrefs {
   productionDeck?: string;
 }
 
-export const DEFAULT_PREFS: WaniKaniPrefs = { answer: 'type', separate: true, newPerDay: 15, autoplay: true, production: true };
+export const DEFAULT_PREFS: WaniKaniPrefs = { answer: 'type', separate: true, newPerDay: 15, maxApprentice: null, autoplay: true, production: true };
 
 export const NEW_PER_DAY_CHOICES = [0, 5, 10, 15, 20, 30, 50];
+
+/** The Apprentice limits offered in options; null is no limit. */
+export const APPRENTICE_LIMIT_CHOICES: (number | null)[] = [null, 50, 75, 100, 125, 150, 200];
 
 export function parsePrefs(raw: string | null | undefined): WaniKaniPrefs {
   let o: Record<string, unknown> = {};
@@ -34,14 +39,24 @@ export function parsePrefs(raw: string | null | undefined): WaniKaniPrefs {
     answer: o.answer === 'flip' ? 'flip' : o.answer === 'type' ? 'type' : DEFAULT_PREFS.answer,
     separate: typeof o.separate === 'boolean' ? o.separate : DEFAULT_PREFS.separate,
     newPerDay: typeof o.newPerDay === 'number' && o.newPerDay >= 0 ? Math.floor(o.newPerDay) : DEFAULT_PREFS.newPerDay,
+    maxApprentice: typeof o.maxApprentice === 'number' && o.maxApprentice >= 0 ? Math.floor(o.maxApprentice) : null,
     autoplay: typeof o.autoplay === 'boolean' ? o.autoplay : DEFAULT_PREFS.autoplay,
     production: typeof o.production === 'boolean' ? o.production : DEFAULT_PREFS.production,
     ...(typeof o.productionDeck === 'string' && o.productionDeck ? { productionDeck: o.productionDeck } : {}),
   };
 }
 
-/** Lessons still to offer today: the day's limit less those already done (here or on WaniKani), never more than are up. */
-export function lessonsToday(available: number, newPerDay: number, startedToday: number): number {
+/** Whether the Apprentice limit holds lessons back: more items at Apprentice than the limit allows. */
+export function apprenticeBlocks(apprentice: number, maxApprentice: number | null): boolean {
+  return maxApprentice !== null && apprentice > maxApprentice;
+}
+
+/**
+ * Lessons still to offer today: the day's limit less those already done (here or on WaniKani),
+ * never more than are up, and none while the Apprentice limit holds them back.
+ */
+export function lessonsToday(available: number, newPerDay: number, startedToday: number, apprentice = 0, maxApprentice: number | null = null): number {
+  if (apprenticeBlocks(apprentice, maxApprentice)) return 0;
   return Math.max(0, Math.min(available, newPerDay - startedToday));
 }
 
@@ -51,6 +66,8 @@ export function lessonsToday(available: number, newPerDay: number, startedToday:
  */
 export interface WaniKaniState {
   outbox: Outcome[];
+  /** Answers sent since the offline copy was made (offline.ts): the copy still lists their items. */
+  sent: Outcome[];
   made: number[];
   /** Answers given here, for Stats. */
   log: LogEntry[];
@@ -61,11 +78,12 @@ export function parseState(raw: string | null | undefined): WaniKaniState {
     const o = raw ? JSON.parse(raw) : null;
     return {
       outbox: Array.isArray(o?.outbox) ? o.outbox.filter(isOutcome) : [],
+      sent: Array.isArray(o?.sent) ? o.sent.filter(isOutcome) : [],
       made: Array.isArray(o?.made) ? o.made.filter((x: unknown) => typeof x === 'number') : [],
       log: parseLog(o?.log),
     };
   } catch {
-    return { outbox: [], made: [], log: [] };
+    return { outbox: [], sent: [], made: [], log: [] };
   }
 }
 

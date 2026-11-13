@@ -5,15 +5,17 @@ import { ActionSheetIOS, ActivityIndicator, Keyboard, Linking, ScrollView, Text,
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
-import { problemText, WaniKaniError } from '../wanikani/api';
+import { problemText, WaniKaniError, type WaniKaniApi, type WaniKaniUser } from '../wanikani/api';
 import { toKana } from '../wanikani/kana';
-import { lessonsToday } from '../wanikani/prefs';
+import { apprenticeBlocks, lessonsToday } from '../wanikani/prefs';
+import { audioFileName, audioFor } from '../wanikani/production';
 import {
   buildSession, canAskLater, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
   studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
 import { nextStage, outcomeText } from '../wanikani/srs';
-import { SUBJECT_TYPE_NAMES, type Subject } from '../wanikani/subjects';
+import { localAudioUri } from '../wanikani/storage';
+import { SUBJECT_TYPE_NAMES, type Assignment, type Subject } from '../wanikani/subjects';
 import { haptic } from './haptics';
 import { Button, Count, ErrorNote, Icon, Screen, Tappable } from './kit';
 import { Reveal } from './motion';
@@ -23,8 +25,50 @@ import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './them
 import { useHeaderInset } from './useHeaderInset';
 import { SubjectDetails, SubjectFront } from './WaniKaniCard';
 
+/** What a session is built from: WaniKani itself, or the offline copy when it can't be reached. */
+interface Source {
+  user: WaniKaniUser;
+  reviews: Assignment[];
+  lessons: Assignment[];
+  started: number;
+  apprentice: number;
+  subjects: (ids: number[]) => Promise<Subject[]>;
+  synonyms: (ids: number[]) => Promise<Map<number, string[]>>;
+}
+
+async function source(api: WaniKaniApi, wanikani: WaniKaniState): Promise<Source> {
+  const copy = () => {
+    const d = wanikani.offlineData();
+    if (!d) return null;
+    return {
+      user: d.user, reviews: d.reviews, lessons: d.lessons, started: d.started, apprentice: d.apprentice,
+      subjects: async (ids: number[]) => ids.flatMap((id) => d.subjects.get(id) ?? []),
+      synonyms: async (ids: number[]) => new Map(ids.flatMap((id): [number, string[]][] => (d.synonyms.has(id) ? [[id, d.synonyms.get(id)!]] : []))),
+    };
+  };
+  // Already known to be out of reach: no waiting on requests that won't be answered.
+  if (wanikani.offline) {
+    const d = copy();
+    if (d) return d;
+  }
+  try {
+    const user = wanikani.user ?? await api.user();
+    const [reviews, lessons, started, apprentice] = await Promise.all([
+      api.reviewsAvailable(user.maxLevel), api.lessonsAvailable(user.maxLevel),
+      api.lessonsStartedSince(studyDayStart(new Date(), wanikani.dayStartsAtHour)),
+      api.apprenticeCount(user.maxLevel),
+    ]);
+    return { user, reviews, lessons, started, apprentice, subjects: api.subjects, synonyms: api.synonyms };
+  } catch (e) {
+    const d = e instanceof WaniKaniError && e.problem !== 'unavailable' ? null : copy();
+    if (d) return d;
+    throw e;
+  }
+}
+
 /**
- * Studies WaniKani: today's reviews, then today's lessons, as a deck. Answers are typed or rated
+ * Studies WaniKani, as a deck: today's reviews, or, when none are up or after they're done and
+ * "Start lessons" is tapped, today's lessons. The two are never mixed in one session. Answers are typed or rated
  * (WaniKani's options), checked here, and sent to WaniKani as each item finishes, the latest held
  * back so it can be undone (src/wanikani/session.ts). WaniKani does the scheduling.
  */
@@ -37,6 +81,11 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const [study, setStudy] = useState<Study | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loads, setLoads] = useState(0);
+  // Reviews and lessons are separate sessions: the lessons one is started from the end of the reviews.
+  const [lessonsOnly, setLessonsOnly] = useState(false);
+  const [kind, setKind] = useState<'reviews' | 'lessons'>('reviews');
+  // What the lessons are, once this session is done: how many are offered, and whether the Apprentice limit holds them back.
+  const [next, setNext] = useState<{ lessons: number; held: boolean; apprentice: number }>({ lessons: 0, held: false, apprentice: 0 });
   // The current question's state: the answer shown, what was typed, and how it was judged.
   const [revealed, setRevealed] = useState(false);
   const [typed, setTyped] = useState('');
@@ -59,27 +108,33 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     setError(null);
     (async () => {
       try {
-        const user = wanikani.user ?? await api.user();
-        const [reviews, lessons, started] = await Promise.all([
-          api.reviewsAvailable(user.maxLevel), api.lessonsAvailable(user.maxLevel),
-          api.lessonsStartedSince(studyDayStart(new Date(), wanikani.dayStartsAtHour)),
-        ]);
-        const read = new Map((await api.subjects([...reviews, ...lessons].map((a) => a.subjectId))).map((s) => [s.id, s]));
-        const items = sessionItems(reviews, lessons, read, lessonsToday(lessons.length, prefs.newPerDay, started));
+        const src = await source(api, wanikani);
+        const { user, reviews, lessons, started, apprentice } = src;
+        // Reviews first; lessons only when none are up or they were asked for.
+        const lessonKind = lessonsOnly || reviews.length === 0;
+        const offered = lessonsToday(lessons.length, prefs.newPerDay, started);
+        const held = apprenticeBlocks(apprentice, prefs.maxApprentice) && offered > 0;
+        const lessonCount = held ? 0 : offered;
+        const read = new Map((await src.subjects((lessonKind ? lessons : reviews).map((a) => a.subjectId))).map((s) => [s.id, s]));
+        const items = lessonKind ? sessionItems([], lessons, read, lessonCount) : sessionItems(reviews, [], read, 0);
         // The user's own synonyms count as right answers when typing; without them, only WaniKani's do.
         const typed = prefs.answer === 'type';
-        const syn = typed ? await api.synonyms(items.map((i) => i.subjectId)).catch(() => new Map<number, string[]>()) : new Map<number, string[]>();
+        const syn = typed ? await src.synonyms(items.map((i) => i.subjectId)).catch(() => new Map<number, string[]>()) : new Map<number, string[]>();
         if (gone) return;
         setSubjects(read);
         setSynonyms(syn);
+        setKind(lessonKind ? 'lessons' : 'reviews');
+        setNext({ lessons: lessonKind ? 0 : lessonCount, held, apprentice });
         setTyping(typed);
         setStudy(startStudy(buildSession(items, { mode: questionMode(prefs.answer, prefs.separate), lessonBatch: user.lessonBatch })));
       } catch (e) {
-        if (!gone) setError(problemText(e instanceof WaniKaniError ? e.problem : 'unavailable'));
+        if (gone) return;
+        const why = e instanceof WaniKaniError ? e.problem : 'unavailable';
+        setError(why === 'unavailable' ? `${problemText(why)} No offline copy has been saved yet: Franki makes one each time it reaches WaniKani.` : problemText(why));
       }
     })();
     return () => { gone = true; };
-  }, [api, loads]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [api, loads, lessonsOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The typing box sits in the footer, so the screen is padded by the keyboard, as in Review.
   const insets = useSafeAreaInsets();
@@ -94,7 +149,11 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   // One player for WaniKani's recordings, released when the screen closes.
   const player = useRef<AudioPlayer | null>(null);
   useEffect(() => () => { player.current?.remove(); player.current = null; }, []);
-  const audioUrl = (s: Subject | undefined) => s?.audio.find((a) => a.contentType === 'audio/mpeg')?.url;
+  // The recording kept on this phone when there is one (offline.ts), else WaniKani's.
+  const audioUrl = (s: Subject | undefined) => {
+    const a = s && audioFor(s);
+    return a ? localAudioUri(audioFileName(s.id, a)) ?? a.url : undefined;
+  };
   const play = useCallback((url: string | undefined) => {
     if (!url) return;
     player.current ??= createAudioPlayer(null, { keepAudioSessionActive: true });
@@ -218,14 +277,34 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
 
   if (!question || !item || !subject) {
     const done = study.session.finished.length;
+    // Lessons wait for a tap rather than following the reviews on their own. Held answers are sent
+    // and counts read again first, so the Apprentice limit is checked against the reviews just done.
+    const startLessons = async () => {
+      send(studyFlush(study).send);
+      setStudy(null);
+      await wanikani.refresh(true);
+      setLessonsOnly(true);
+    };
+    const offer = kind === 'reviews' && next.lessons > 0;
+    const footer = offer ? (
+      <>
+        <Button label={`Start ${next.lessons} ${next.lessons === 1 ? 'lesson' : 'lessons'}`} onPress={startLessons} />
+        <Button label="Back to decks" variant="secondary" onPress={onDone} />
+      </>
+    ) : <Button label="Back to decks" onPress={onDone} />;
     return (
-      <Screen title={title} largeTitle={false} toolbar={toolbar} footer={<Button label="Back to decks" onPress={onDone} />}>
+      <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
         <Reveal style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
           <Icon name="checkmark.circle.fill" size={56} color={c.countDue} weight="regular" />
           <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>All done for now</Text>
           <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>
-            {done ? `${done} ${done === 1 ? 'item' : 'items'} this session. ` : ''}Nothing else is up on WaniKani right now.
+            {done ? `${done} ${done === 1 ? 'item' : 'items'} this session. ` : ''}{kind === 'reviews' && offer ? 'Your lessons are ready when you want them.' : 'Nothing else is up on WaniKani right now.'}
           </Text>
+          {next.held && prefs.maxApprentice !== null ? (
+            <Text style={{ ...type.subhead, color: c.warning, textAlign: 'center' }}>
+              {`Lessons are paused: ${next.apprentice} items are at Apprentice, over your limit of ${prefs.maxApprentice}.`}
+            </Text>
+          ) : null}
         </Reveal>
       </Screen>
     );
@@ -303,9 +382,11 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
       <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
-          <Count value={left.reviews} label="due" color={c.countDue} />
-          <Count value={left.lessons} label="new" color={c.countNew} />
+          {kind === 'reviews' ? <Count value={left.reviews} label="due" color={c.countDue} /> : <Count value={left.lessons} label="new" color={c.countNew} />}
         </View>
+        {wanikani.offline ? (
+          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>Offline. Answers are sent when WaniKani can be reached.</Text>
+        ) : null}
         <ProgressBar value={sessionProgress(study.session)} />
         <CardSurface>
           <ScrollView

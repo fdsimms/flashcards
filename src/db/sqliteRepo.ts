@@ -101,6 +101,9 @@ export interface BackupStore {
   sqliteFileKind(path: string): Promise<'backup' | 'other'>;
   /** When `backupTo` last succeeded (ISO), or null. Kept outside what a restore replaces. */
   lastBackupAt(): Promise<string | null>;
+  /** The deck list as last loaded (`encodeDeckSnapshot`), for the next cold start to show at once. Not in a backup. */
+  deckListSnapshot(): Promise<string | null>;
+  saveDeckListSnapshot(json: string): Promise<void>;
 }
 
 // The file keeps its first name: renaming it would leave an installed copy's data behind.
@@ -438,6 +441,13 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     async lastBackupAt() {
       const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'last_backup_at'");
       return r?.value ?? null;
+    },
+    async deckListSnapshot() {
+      const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'deck_list_snapshot'");
+      return r?.value ?? null;
+    },
+    async saveDeckListSnapshot(json) {
+      await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('deck_list_snapshot', ?)", json);
     },
     async restoreFrom(path) {
       const columnsOf = async (schema: 'main' | 'backup') => {

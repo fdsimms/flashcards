@@ -3,16 +3,21 @@ import { studyDayStart } from '../core/day';
 import { hasMedia, readMedia, writeMedia } from '../media/mediaFiles';
 import { createWaniKaniApi, WaniKaniError, type WaniKaniApi, type WaniKaniProblem, type WaniKaniUser } from '../wanikani/api';
 import { logOutcomes, type LogEntry } from '../wanikani/log';
+import { offlineData, wantedAudio, type OfflineData, type Snapshot } from '../wanikani/offline';
+import { makeSnapshot } from '../wanikani/offlineService';
 import { DEFAULT_PREFS, flushOutbox, lessonsToday, type WaniKaniPrefs } from '../wanikani/prefs';
-import { suggestedDeck } from '../wanikani/production';
+import { audioFileName, audioFor, suggestedDeck } from '../wanikani/production';
 import { makeProductionNotes } from '../wanikani/productionService';
 import type { Outcome } from '../wanikani/session';
+import type { Subject } from '../wanikani/subjects';
 import { DEFAULT_SRS, type SrsSystem } from '../wanikani/srs';
-import { clearToken, loadPrefs, loadState, loadToken, savePrefs, saveState, saveToken } from '../wanikani/storage';
+import { clearOffline, clearToken, keepAudio, loadPrefs, loadSnapshot, loadState, loadToken, savePrefs, saveSnapshot, saveState, saveToken } from '../wanikani/storage';
 import type { AppRepo } from './AppContext';
 
 /** The deck list asks again at most this often; opening WaniKani or pulling to sync asks right away. */
 const COUNTS_EVERY_MS = 60_000;
+/** The offline copy is made again at most this often, unless a session just closed or the app just opened. */
+const COPY_EVERY_MS = 10 * 60_000;
 /** Production notes are looked for at most this often. */
 const PRODUCTION_EVERY_MS = 10 * 60_000;
 
@@ -21,8 +26,10 @@ export interface WaniKaniState {
   on: boolean | null;
   api: WaniKaniApi | null;
   user: WaniKaniUser | null;
-  /** Reviews up now, and lessons left to offer today; null until read. */
+  /** Reviews up now, and lessons left to offer today (none while the Apprentice limit holds them back); null until read. */
   counts: { reviews: number; lessons: number } | null;
+  /** Items at Apprentice as last read; null until read. */
+  apprentice: number | null;
   /** Why the last read or send failed; null when it worked. */
   problem: WaniKaniProblem | null;
   prefs: WaniKaniPrefs;
@@ -44,6 +51,10 @@ export interface WaniKaniState {
   productionDeck?: string;
   /** Production notes: how many words still wait for one, and why none could be made. */
   production: { waiting: number; refused?: string };
+  /** WaniKani couldn't be reached and the offline copy is standing in for it. */
+  offline: boolean;
+  /** The offline copy as it stands now (answers since removed), or null when none has been made. */
+  offlineData: () => OfflineData | null;
   /** Lessons done since the study day began, here or on WaniKani. */
   startedToday: number;
   dayStartsAtHour: number;
@@ -58,7 +69,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   const [token, setToken] = useState<string | null>();
   const [prefs, setPrefsState] = useState<WaniKaniPrefs>(DEFAULT_PREFS);
   const [user, setUser] = useState<WaniKaniUser | null>(null);
-  const [counts, setCounts] = useState<{ available: number; reviews: number } | null>(null);
+  const [counts, setCounts] = useState<{ available: number; reviews: number; apprentice: number } | null>(null);
   const [startedToday, setStartedToday] = useState(0);
   const [problem, setProblem] = useState<WaniKaniProblem | null>(null);
   const [srs, setSrs] = useState<Map<number, SrsSystem>>(DEFAULT_SRS);
@@ -66,16 +77,22 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   const [production, setProduction] = useState<{ waiting: number; refused?: string }>({ waiting: 0 });
   const [decks, setDecks] = useState<string[]>([]);
   const [log, setLog] = useState<LogEntry[]>([]);
+  const [offline, setOffline] = useState(false);
   // What's kept in the state file, read once; written back on every change.
-  const stored = useRef<{ outbox: Outcome[]; made: Set<number>; log: LogEntry[] } | null>(null);
+  const stored = useRef<{ outbox: Outcome[]; sent: Outcome[]; made: Set<number>; log: LogEntry[] } | null>(null);
+  // The offline copy: read at launch, replaced each time WaniKani is reached.
+  const snapshot = useRef<Snapshot | null>(null);
+  const lastCopy = useRef(0);
+  const copying = useRef(false);
   const lastCounts = useRef(0);
   const lastProduction = useRef(0);
   const flushing = useRef<Promise<void> | null>(null);
   const producing = useRef(false);
 
   useEffect(() => {
-    Promise.all([loadToken(), loadPrefs(), loadState()]).then(([t, p, s]) => {
-      stored.current = { outbox: s.outbox, made: new Set(s.made), log: s.log };
+    Promise.all([loadToken(), loadPrefs(), loadState(), loadSnapshot()]).then(([t, p, s, copy]) => {
+      stored.current = { outbox: s.outbox, sent: s.sent, made: new Set(s.made), log: s.log };
+      snapshot.current = copy;
       setUnsent(s.outbox.length);
       setLog(s.log);
       setPrefsState(p);
@@ -86,7 +103,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   const api = useMemo(() => (token ? createWaniKaniApi(token) : null), [token]);
   const persist = () => {
     const s = stored.current;
-    if (s) saveState({ outbox: s.outbox, made: [...s.made], log: s.log });
+    if (s) saveState({ outbox: s.outbox, sent: s.sent, made: [...s.made], log: s.log });
   };
 
   const setPrefs = useCallback((change: Partial<WaniKaniPrefs>) => {
@@ -108,6 +125,8 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
         const result = await flushOutbox(batch, (o) => api.send(o));
         // Anything added while this ran stays, after what's left of the batch.
         s.outbox = [...result.left, ...s.outbox.slice(batch.length)];
+        // The offline copy still lists these items; they're left out of it (offline.ts).
+        s.sent = [...s.sent, ...result.sent, ...result.dropped];
         persist();
         setUnsent(s.outbox.length);
         if (result.problem) {
@@ -162,6 +181,44 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   produceRef.current = produce;
   const srsRead = useRef(false);
 
+  /** The offline copy as it stands: answers given or sent since it was made are left out. */
+  const copyData = useCallback((): OfflineData | null => {
+    const copy = snapshot.current;
+    const s = stored.current;
+    return copy && s ? offlineData(copy, [...s.sent, ...s.outbox], new Date(), dayStartsAtHour) : null;
+  }, [dayStartsAtHour]);
+
+  /** Reads what a session needs and keeps it, so one can be studied with no connection. Recordings follow, in the background. */
+  const makeCopy = useCallback(async (u: WaniKaniUser, apprentice: number, started: number, force: boolean) => {
+    if (!api || !stored.current || copying.current) return;
+    if (!force && snapshot.current && Date.now() - lastCopy.current < COPY_EVERY_MS) return;
+    copying.current = true;
+    lastCopy.current = Date.now();
+    // Answers sent before this read began are already out of what it reads; later ones stay listed.
+    const cut = stored.current.sent.length;
+    try {
+      const next = await makeSnapshot({ api }, { user: u, apprentice, started, previous: snapshot.current, now: new Date() });
+      await saveSnapshot(next);
+      snapshot.current = next;
+      if (stored.current) {
+        stored.current.sent = stored.current.sent.slice(cut);
+        persist();
+      }
+      const audioOf = (subject: Subject) => {
+        const a = audioFor(subject);
+        return a ? { name: audioFileName(subject.id, a), url: a.url } : undefined;
+      };
+      keepAudio(wantedAudio(next, audioOf), api.download).catch(() => undefined);
+    } catch {
+      // Not reached, or the file couldn't be written: the last copy stays, and the next refresh tries again.
+      lastCopy.current = 0;
+    } finally {
+      copying.current = false;
+    }
+  }, [api]); // eslint-disable-line react-hooks/exhaustive-deps
+  const makeCopyRef = useRef(makeCopy);
+  makeCopyRef.current = makeCopy;
+
   const refresh = useCallback(async (force = false) => {
     if (!api) return;
     if (!force && Date.now() - lastCounts.current < COUNTS_EVERY_MS) return;
@@ -174,9 +231,11 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
         api.lessonsStartedSince(studyDayStart(new Date(), dayStartsAtHour)),
       ]);
       setUser(u);
-      setCounts({ available: c.lessons, reviews: c.reviews });
+      setCounts({ available: c.lessons, reviews: c.reviews, apprentice: c.apprentice });
       setStartedToday(started);
       setProblem(null);
+      setOffline(false);
+      makeCopyRef.current(u, c.apprentice, started, force);
       if (!srsRead.current) {
         srsRead.current = true;
         api.srsSystems().then((list) => { if (list.length) setSrs(new Map(list.map((s) => [s.id, s]))); }, () => { srsRead.current = false; });
@@ -185,9 +244,18 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
       setDecks(names);
       produceRef.current(u.maxLevel, names);
     } catch (e) {
-      setProblem(e instanceof WaniKaniError ? e.problem : 'unavailable');
+      const why = e instanceof WaniKaniError ? e.problem : 'unavailable';
+      setProblem(why);
+      // Out of reach: the offline copy gives the counts, less what was answered since it was made.
+      const copy = why === 'unavailable' ? copyData() : null;
+      setOffline(!!copy);
+      if (copy) {
+        setUser((before) => before ?? copy.user);
+        setCounts({ available: copy.lessons.length, reviews: copy.reviews.length, apprentice: copy.apprentice });
+        setStartedToday(copy.started);
+      }
     }
-  }, [api, flush, repo, dayStartsAtHour]);
+  }, [api, flush, repo, dayStartsAtHour, copyData]);
 
   // At launch, and whenever the token changes.
   useEffect(() => { if (api) refresh(true); }, [api]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -207,12 +275,17 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     setUser(null);
     setCounts(null);
     setProblem(null);
+    setOffline(false);
+    snapshot.current = null;
+    clearOffline();
   }, []);
 
   return useMemo(() => ({
     on: token === undefined ? null : !!token,
     api, user,
-    counts: counts ? { reviews: counts.reviews, lessons: lessonsToday(counts.available, prefs.newPerDay, startedToday) } : null,
+    counts: counts ? { reviews: counts.reviews, lessons: lessonsToday(counts.available, prefs.newPerDay, startedToday, counts.apprentice, prefs.maxApprentice) } : null,
+    apprentice: counts ? counts.apprentice : null,
     problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, log, productionDeck, production, startedToday, dayStartsAtHour,
-  }), [token, api, user, counts, problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, log, productionDeck, production, startedToday, dayStartsAtHour]);
+    offline, offlineData: copyData,
+  }), [token, api, user, counts, problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, log, productionDeck, production, startedToday, dayStartsAtHour, offline, copyData]);
 }

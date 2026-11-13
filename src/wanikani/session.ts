@@ -5,7 +5,10 @@ import { asksReading, type Assignment, type Subject } from './subjects';
  * a wrong answer puts the question back a few cards later, and the item's review goes to WaniKani
  * once both its meaning and reading are right, with how many times each was missed.
  *
- * Lessons come after the reviews in batches (WaniKani's lesson batch size): each item of a batch
+ * Reviews and lessons are never in one session in the app (the screen builds one or the other, so
+ * a lesson isn't shown in the middle of reviews); `buildSession` can still take both, reviews first.
+ *
+ * Lessons come in batches (WaniKani's lesson batch size): each item of a batch
  * is shown (a `lesson` question), then the batch is quizzed like a review, and an item starts on
  * WaniKani once its quiz answers are right. Quiz misses don't count against it, as on WaniKani.
  *

@@ -188,7 +188,7 @@ export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, o
     >
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
+        contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: space.l, gap: space.m }}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
@@ -311,11 +311,10 @@ function StoryCard({ api, shelf, onOpen, onStarted }: { api: Api; shelf: Shelf; 
     return (
       <Card>
         <Text style={{ ...type.headline, color: c.text }}>Start an ongoing story</Text>
-        <Help>Each episode picks up where the last one ended, with the same people and places, so the same words keep coming back.</Help>
-        <Field label="What should it be about?" placeholder="For example, a noodle stall in Bangkok" value={about} onChangeText={setAbout} returnKeyType="done" onSubmitEditing={start} />
+        <Help>Each episode picks up where the last one ended, with the same people and places, so the same words keep coming back. Leave the topic empty and the story is up to the writer.</Help>
+        <Field label="What should it be about?" placeholder="e.g., a small café on a rainy day" value={about} onChangeText={setAbout} returnKeyType="done" onSubmitEditing={start} />
         {error ? <ErrorNote message={error} /> : null}
         <Button label="Start a story" variant="secondary" onPress={start} busy={starting} />
-        <Help>Leave it empty and the story is up to the writer.</Help>
       </Card>
     );
   }

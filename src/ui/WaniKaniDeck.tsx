@@ -25,7 +25,9 @@ export function WaniKaniDeck({ wanikani, onOpen, onOptions }: { wanikani: WaniKa
   const due = wanikani.counts?.reviews ?? 0;
   const fresh = wanikani.counts?.lessons ?? 0;
   const unsent = wanikani.unsent ? `, ${wanikani.unsent} ${wanikani.unsent === 1 ? "answer isn't" : "answers aren't"} sent yet` : '';
-  const detail = wanikani.problem
+  const detail = wanikani.offline
+    ? { text: wanikani.unsent ? `Offline. ${wanikani.unsent} ${wanikani.unsent === 1 ? 'answer' : 'answers'} will be sent when WaniKani can be reached` : 'Offline. Studying from the last copy' }
+    : wanikani.problem
     ? { text: PROBLEM_LINE[wanikani.problem] + unsent, warning: true }
     : { text: (wanikani.user ? `Level ${wanikani.user.level}${wanikani.user.onVacation ? ', on vacation' : ''}` : 'Loading…') + unsent };
   const menu = () => {

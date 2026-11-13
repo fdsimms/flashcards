@@ -367,6 +367,18 @@ export function nextDeckToStudy(rows: DeckRow[], collapsed: Set<string>, deck: s
 }
 
 /**
+ * Where to go once nothing is left below `deck`: the first deck from the top of the list (as
+ * shown) that has something to study. Only decks before `deck` count, and not its parents, whose
+ * counts still include the cards just studied. Undefined when the top of the list has nothing.
+ */
+export function earlierDeckToStudy(rows: DeckRow[], collapsed: Set<string>, deck: string): string | undefined {
+  const shown = shownDeckRows(rows, collapsed);
+  const at = shown.findIndex((r) => r.deck === deck);
+  if (at < 0) return undefined;
+  return shown.slice(0, at).find((r) => !isInDeck(deck, r.deck) && r.due + r.fresh > 0)?.deck;
+}
+
+/**
  * What's waiting across the whole deck list. A top-level row's counts already include its
  * subdecks, so adding every row would count a subdeck's cards twice: only the top ones are summed.
  */
