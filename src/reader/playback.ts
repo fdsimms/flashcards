@@ -1,7 +1,22 @@
 // Which line plays next. 'Play' runs the dialogue from a line to the end, skipping lines with no
-// audio; a line's own replay button plays that line alone. With 'Repeat line' on, the line that
-// just finished plays again, until it's turned off.
+// audio; a line's own replay button plays that line alone. 'Repeat line' plays the line that just
+// finished again until it has played the chosen number of times (or until it's turned off, for ∞).
 type HasAudio = { audio: boolean };
+
+/** Plays per line the repeat chip steps through: 1 is off, Infinity is until turned off. */
+export const REPEAT_COUNTS = [1, 2, 3, 5, Infinity] as const;
+export type RepeatCount = (typeof REPEAT_COUNTS)[number];
+
+/** The count after `count` when the chip is tapped, wrapping from ∞ back to off. */
+export function nextRepeatCount(count: number): RepeatCount {
+  const at = REPEAT_COUNTS.findIndex((c) => c === count);
+  return REPEAT_COUNTS[(at + 1) % REPEAT_COUNTS.length];
+}
+
+/** The chip's text: 'Repeat: Off', '3×' or '∞'. */
+export function repeatChipLabel(count: number): string {
+  return count <= 1 ? 'Repeat: Off' : count === Infinity ? '∞' : `${count}×`;
+}
 
 /** A run of lines, by index, both ends included. */
 export type Range = { start: number; end: number };
@@ -35,9 +50,11 @@ export function nextLine(
   lines: HasAudio[],
   finished: number,
   playingAll: boolean,
-  repeat = false,
+  repeat: number = 1,
+  /** How many times the line that just finished has played in this round, counting that play. */
+  played: number = 1,
 ): number | null {
-  if (repeat) return finished;
+  if (played < repeat) return finished;
   return playingAll ? firstLine(lines, finished + 1) : null;
 }
 

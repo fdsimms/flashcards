@@ -99,8 +99,10 @@ Franki's (Client, below).
   text" brings the words back. The reading is then logged with `listen_only` true. The brief's
   "unlocks for a text" is read as "for the text just rated", since a text is never served twice.
 - While audio plays, the text scrolls to keep the line being spoken in view.
-- **Repeat line** in the player plays the current line over and over, for shadowing, until it's
-  turned off.
+- **Repeat line** in the player plays the current line again, for shadowing. One chip steps through
+  Off, 2×, 3×, 5× and ∞ (a count is the line's total plays; ∞ goes until turned off). The count isn't
+  kept: it starts at Off each time a text opens, and a line started fresh (Play, a skip, a line's own
+  replay button) begins its count again.
 - **Past texts**: texts read to the end, newest first (the last 50), opened in the same reader to
   read or listen to again. Reading one again isn't logged: the log is one row per text, and a reread
   shouldn't count toward the exit check or move difficulty. So there's no Done or rating, and words
