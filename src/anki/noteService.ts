@@ -79,14 +79,16 @@ export async function saveNote(store: NoteStore, draft: NoteDraft, now: Date = n
         const nt = await ankiNoteType(db, note.model, fieldOrder);
         if (!nt) return null;
         if (existing) {
+          const nid = await ankiNoteIdOf(db, oldCards);
+          if (nid === null) return { refused: "This note's cards aren't in the Anki collection any more, so it can't be changed there. Sync, then try again." };
           // Moved first, so a card the edit adds lands in the new deck.
           if (note.deck !== existing.deck) {
             const deckId = await ankiDeckId(db, note.deck);
             if (deckId === null) return { refused: `The Anki collection has no deck called "${note.deck}", so the note can't move there.` };
-            await moveAnkiNote(db, Number(existing.id), deckId, now);
+            await moveAnkiNote(db, nid, deckId, now);
           }
-          const added = await editAnkiNote(db, { nid: Number(existing.id), noteType: nt, fields: note.fields, tags: note.tags, ords, now });
-          return { nid: Number(existing.id), added };
+          const added = await editAnkiNote(db, { nid, noteType: nt, fields: note.fields, tags: note.tags, ords, now });
+          return { nid, added };
         }
         const deckId = await ankiDeckId(db, note.deck);
         if (deckId === null) return null;
@@ -118,12 +120,30 @@ export async function saveNote(store: NoteStore, draft: NoteDraft, now: Date = n
   return note;
 }
 
+/**
+ * The Anki note a Franki note is, found through its cards' Anki ids. Usually the same number as
+ * Franki's id, but not always: a note an import matched to one already here (`reconcileIds`, a
+ * TSV note later found in the collection) keeps the id Franki gave it.
+ */
+async function ankiNoteIdOf(db: SyncDb, cards: Card[]): Promise<number | null> {
+  for (const c of cards) {
+    if (!c.ankiId) continue;
+    const row = await db.first<{ nid: number }>('SELECT nid FROM cards WHERE id = ?', Number(c.ankiId));
+    if (row) return row.nid;
+  }
+  return null;
+}
+
 export async function deleteNote(store: NoteStore, noteId: string, now: Date = new Date()): Promise<void> {
   const note = await store.getNote(noteId);
   if (!note) return;
   const cards = (await store.listCards(note.deck)).filter((c) => c.noteId === noteId);
   if (cards.some((c) => c.ankiId) && (await store.keptCollection())) {
-    await store.lockAnki(() => store.withSyncConnection((db) => deleteAnkiNotes(db, [Number(noteId)], now)));
+    await store.lockAnki(() => store.withSyncConnection(async (db) => {
+      const nid = await ankiNoteIdOf(db, cards);
+      // None of its cards left in Anki: the note is already gone there.
+      if (nid !== null) await deleteAnkiNotes(db, [nid], now);
+    }));
   }
   await store.deleteNote(noteId);
 }

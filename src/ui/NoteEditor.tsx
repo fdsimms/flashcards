@@ -259,7 +259,14 @@ export function NoteEditor(props: {
               nameOf={(kind) => (original && isOmnilanguage(original) ? OMNI_CARD_NAMES[kind] ?? kind : noteTypes.get(model)?.templates.find((t) => `t${t.ord}` === kind)?.name ?? 'Card')}
               dayStartsAtHour={dayStartsAtHour}
               onChange={async (card, change) => {
-                const { cards, ankiError } = await setCardStates(props.repo, [card], change, new Date(), dayStartsAtHour);
+                let result: Awaited<ReturnType<typeof setCardStates>>;
+                try {
+                  result = await setCardStates(props.repo, [card], change, new Date(), dayStartsAtHour);
+                } catch (e) {
+                  setError(`Couldn't change this card. ${e instanceof Error ? e.message : String(e)} Try again.`);
+                  return;
+                }
+                const { cards, ankiError } = result;
                 props.onCardsChanged?.();
                 setNoteCardList((list) => list.map((x) => (x.id === card.id ? cards[0] : x)));
                 if (ankiError) setError(`Changed in Franki, but it won't reach Anki. ${(ankiError as any)?.message ?? ankiError}`);

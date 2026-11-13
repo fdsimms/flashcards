@@ -10,7 +10,7 @@ import type { Card, DeckParams, Note } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { WANIKANI_SCOPE } from '../wanikani/log';
-import { Card as Box, Chip, Help, Screen } from './kit';
+import { Card as Box, Chip, ErrorNote, Help, Screen } from './kit';
 import { haptic } from './haptics';
 import { AnswerCalendar } from './StatsCalendar';
 import { hairline, space, type, useTheme } from './theme';
@@ -33,8 +33,11 @@ export function Stats({ repo, wanikani = [] }: { repo: Repo & AnkiLink; wanikani
   const c = useTheme();
   const [data, setData] = useState<{ notes: Note[]; cards: Card[]; answers: Answer[]; params: Map<string, DeckParams>; now: Date; dayStartsAtHour: number }>();
   const [scope, setScope] = useState<string | null>(null);
+  const [error, setError] = useState<string>();
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    setError(undefined);
     (async () => {
       const now = new Date();
       const { dayStartsAtHour } = await repo.collectionSettings();
@@ -45,8 +48,8 @@ export function Stats({ repo, wanikani = [] }: { repo: Repo & AnkiLink; wanikani
         repo.listNotes(), repo.listCards(), repo.listReviews(since), repo.ankiReviewLog(since), repo.listDeckParams(),
       ]);
       setData({ notes, cards, answers: answersFrom({ revlog, reviews, cards }), params, now, dayStartsAtHour });
-    })();
-  }, [repo]);
+    })().catch((e) => setError(`Couldn't load the stats. ${e instanceof Error ? e.message : String(e)}`));
+  }, [repo, attempt]);
 
   const tops = useMemo(() => [
     ...[...new Set((data?.notes ?? []).map((n) => n.deck.split('::')[0]))].sort((a, b) => a.localeCompare(b)),
@@ -72,6 +75,11 @@ export function Stats({ repo, wanikani = [] }: { repo: Repo & AnkiLink; wanikani
 
   return (
     <Screen title="Stats">
+      {error && !stats ? (
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l }}>
+          <ErrorNote message={error} onRetry={() => setAttempt((n) => n + 1)} />
+        </ScrollView>
+      ) : null}
       {!stats ? null : (
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
           {tops.length > 1 ? (

@@ -136,6 +136,9 @@ export function studiedToday(input: {
   const out = new Map<string, StudiedToday>();
   for (const a of answersFrom(input)) {
     if (a.at.getTime() < start) continue;
+    // A preview uses no limits, as in Anki, and its card is back home by now: counted by where it
+    // is, 50 previews took 50 off the home deck's review room.
+    if (a.preview) continue;
     const deck = deckOf.get(a.cardId);
     if (!deck) continue;
     const s = out.get(deck) ?? { introduced: 0, reviewed: 0 };
@@ -144,8 +147,8 @@ export function studiedToday(input: {
       seen.add(a.cardId);
       introduced.set(deck, seen);
       s.introduced = seen.size;
-    } else if (a.kind === 'review' || (a.lastIntervalDays ?? 0) > 0) {
-      // A review, or an answer to a learning card on a day-long step (its last interval in days).
+    } else if (a.kind === 'review' || a.interday) {
+      // A review, or an answer to a learning card on a day-long step (Anki's queue 3).
       s.reviewed++;
     } else {
       continue;

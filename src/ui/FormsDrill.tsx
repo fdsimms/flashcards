@@ -46,6 +46,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   const [mode, setMode] = useState<AnswerMode>('pick');
   // Set while an answer is being written: a second tap must not answer the same prompt twice.
   const busy = useRef(false);
+  const answeredIndex = useRef(-1);
 
   useEffect(() => {
     (async () => {
@@ -72,7 +73,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   };
 
   const answer = async (given: string, picked = false) => {
-    if (!prompt || current || busy.current) return;
+    if (!prompt || current || busy.current || answeredIndex.current === index) return;
     busy.current = true;
     try {
       // A pick is the form or it isn't: a choice one accent away is another form, not a typo.
@@ -80,6 +81,8 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
       await log(prompt, verdict === 'right', given);
       if (verdict === 'right') haptic.success(); else haptic.select();
       setAnswered((a) => [...a, { prompt, given, verdict, counted: false }]);
+      // `busy` clears before the answer is drawn: a tap in between mustn't log this prompt again.
+      answeredIndex.current = index;
     } finally {
       busy.current = false;
     }
@@ -106,6 +109,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
     setPrompts(missed.map((a) => a.prompt));
     setAnswered([]);
     setIndex(0);
+    answeredIndex.current = -1;
     setTyped('');
   };
 
