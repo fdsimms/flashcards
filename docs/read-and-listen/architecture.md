@@ -691,6 +691,11 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
     up to 3 times as usual; if none reaches the target, the closest attempt at 85% or more is served
     with the reader's "fewer than usual" note, and under that the text is dropped and the topic waits
     `FAILURE_COOLDOWN`, like any other miss. Nothing waits for the reviews to be done first.
+  - *Reviewing first.* So the shelf suggests it: while the language's deck has reviews due, a card
+    at the top says how many ("12 Thai reviews due. Review them first, and new texts can use those
+    words.") and opens that deck's review (`ReadReviewFirst`, `src/reader/reviewFirst.ts`). The count
+    is the deck list's own row, so it never says 12 and opens a deck with none. It's a suggestion,
+    never a gate: nothing on the shelf waits for it.
 - **Stretch words come back on later days** (brief, design principle 4). A word that was a stretch
   word in a text read on an earlier study day goes ahead of other reviewed and young words, until it
   has been one on 3 different study days (Anki's, in `TZ` from its "Next day starts at"; `study_day.py`)
