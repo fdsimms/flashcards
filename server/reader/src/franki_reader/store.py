@@ -1226,7 +1226,7 @@ def explanation_spending(
 
 # What a row of `call_costs` was for. A failed "explain", "phrase" or "natural" call counts with
 # the answers kept for those (`explanation_spending`).
-CallFeature = Literal["explain", "phrase", "natural", "mnemonics", "recording"]
+CallFeature = Literal["explain", "phrase", "natural", "mnemonics", "recording", "note_queue"]
 
 
 def save_call_cost(
@@ -1788,7 +1788,15 @@ def queued_note(conn: sqlite3.Connection, note_id: int) -> QueuedNote | None:
 
 
 def delete_queued(conn: sqlite3.Connection, note_id: int) -> bool:
+    """Takes a word off the queue (saved or removed). What filling it cost moves to `call_costs`,
+    dated when it was last tried, so `queue_spending` still counts it."""
     with conn:
+        conn.execute(
+            "INSERT INTO call_costs (feature, language, created_at, cost_usd)"
+            " SELECT 'note_queue', language, tried_at, cost_usd FROM note_queue"
+            " WHERE id = ? AND tried_at IS NOT NULL",
+            (note_id,),
+        )
         return conn.execute("DELETE FROM note_queue WHERE id = ?", (note_id,)).rowcount > 0
 
 
@@ -1808,15 +1816,17 @@ def retry_queued(conn: sqlite3.Connection, note_id: int) -> bool:
 def save_queue_result(
     conn: sqlite3.Connection,
     note_id: int,
+    language: Code,
     fields: dict[str, str] | None,
     error: str,
     now: datetime,
     cost_usd: float,
 ) -> None:
     """What came of one word's turn: its filled fields (ready), or why not (failed). A word still waiting
-    or failed only: one the owner removed meanwhile is gone, and a ready one stays as it is."""
+    or failed only: one the owner removed meanwhile is gone, and a ready one stays as it is. The
+    turn's cost is kept either way: in `call_costs` when the word is no longer waiting for it."""
     with conn:
-        conn.execute(
+        updated = conn.execute(
             "UPDATE note_queue SET state = ?, fields = ?, error = ?, attempts = attempts + 1,"
             " tried_at = ?, cost_usd = cost_usd + ? WHERE id = ? AND state IN ('waiting', 'failed')",
             (
@@ -1827,16 +1837,26 @@ def save_queue_result(
                 cost_usd,
                 note_id,
             ),
-        )
+        ).rowcount
+        if not updated and cost_usd:
+            conn.execute(
+                "INSERT INTO call_costs (feature, language, created_at, cost_usd)"
+                " VALUES ('note_queue', ?, ?, ?)",
+                (language, now.isoformat(), cost_usd),
+            )
 
 
 def queue_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
-    """Each language with words filled in since `since`: how many were tried and what they cost."""
+    """Each language with words filled in since `since`: how many were tried and what they cost,
+    words since taken off the queue (saved or removed) included, from `call_costs`."""
     return {
         language: (count, cost)
         for language, count, cost in conn.execute(
-            "SELECT language, COUNT(*), SUM(cost_usd) FROM note_queue WHERE tried_at >= ?"
-            " GROUP BY language ORDER BY SUM(cost_usd) DESC",
+            """SELECT language, COUNT(*), SUM(cost_usd) FROM (
+                   SELECT language, tried_at AS at, cost_usd FROM note_queue WHERE tried_at IS NOT NULL
+                   UNION ALL SELECT language, created_at, cost_usd FROM call_costs
+                       WHERE feature = 'note_queue'
+               ) WHERE at >= ? GROUP BY language ORDER BY SUM(cost_usd) DESC""",
             (since.isoformat(),),
         )
     }

@@ -244,6 +244,27 @@ def test_a_failed_call_claude_answered_shares_its_cost_among_its_words() -> None
     assert store.queue_spending(conn, NOW - timedelta(days=1)) == {"fr": (2, 4.0)}
 
 
+def test_a_word_taken_off_the_queue_keeps_what_filling_it_cost() -> None:
+    conn = conn_with(("ricane", ""), ("bouder", ""))
+    run(conn, Writer())
+    saved, _ = store.queued_notes(conn)
+    assert store.delete_queued(conn, saved.id)
+    assert store.queue_spending(conn, NOW - timedelta(days=1)) == {"fr": (2, 2.0)}
+
+
+def test_a_word_removed_while_it_was_filled_keeps_the_cost_of_its_turn() -> None:
+    conn = conn_with(("ricane", ""), ("bouder", ""))
+
+    class RemovesOne(Writer):
+        async def __call__(self, language: Any, asked: list[tuple[str, str]]) -> Any:
+            store.delete_queued(conn, store.queued_notes(conn)[0].id)  # removed mid-call
+            return await super().__call__(language, asked)
+
+    run(conn, RemovesOne())
+    assert len(store.queued_notes(conn)) == 1
+    assert store.queue_spending(conn, NOW - timedelta(days=1)) == {"fr": (2, 2.0)}
+
+
 def test_a_call_claude_never_answered_costs_nothing() -> None:
     conn = conn_with(("ricane", ""))
     run(conn, Writer(fail="Claude didn't answer (APIError)."))

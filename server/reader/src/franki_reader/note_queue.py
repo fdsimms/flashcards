@@ -231,7 +231,7 @@ async def fill_pending(
             log.warning("Couldn't fill in %s notes: %s", language, e)
             failed_cost = e.usage.cost_usd() / len(batch)
             for n in batch:
-                store.save_queue_result(conn, n.id, None, str(e), now(), failed_cost)
+                store.save_queue_result(conn, n.id, language, None, str(e), now(), failed_cost)
             continue
         results = dict(r for r in (check(x, asked, language) for x in raw) if r is not None)
         cost = used.cost_usd() / len(batch)
@@ -241,6 +241,7 @@ async def fill_pending(
                 store.save_queue_result(
                     conn,
                     n.id,
+                    language,
                     None,
                     "Claude's answer for this one didn't pass the checks.",
                     now(),
@@ -249,7 +250,7 @@ async def fill_pending(
             else:
                 # The owner's meaning for this copy of the word, when two were queued with different ones.
                 fields = {**fields, "Meaning": n.meaning or fields["Meaning"]}
-                store.save_queue_result(conn, n.id, fields, "", now(), cost)
+                store.save_queue_result(conn, n.id, language, fields, "", now(), cost)
                 filled += 1
 
 
