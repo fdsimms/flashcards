@@ -269,6 +269,22 @@ export type ReadingLog = {
   seconds: number;
 };
 
+// A word queued for Claude to fill in (src/reader/noteQueue.ts). `fields` is what it wrote, by Anki field
+// name, once the word is `ready`; `error` says why a `failed` one failed.
+export type QueuedNote = {
+  id: number;
+  language: Language;
+  deck: string;
+  entry: string;
+  meaning: string;
+  state: 'waiting' | 'ready' | 'failed';
+  fields: Record<string, string>;
+  error: string;
+};
+
+// `available` is false when the server has no Claude key, so nothing can be queued.
+export type NoteQueue = { available: boolean; items: QueuedNote[] };
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -326,6 +342,14 @@ export function createApi(
     markedWords: () => call<MarkedWord[]>('GET', '/api/words'),
     grammar: () => call<GrammarList>('GET', '/api/grammar'),
     drills: (points: string[], count: number) => call<DrillSet>('POST', '/api/drills', { points, count }),
+    // The queued words. Asking also starts filling in any that are due, so ask again while some are waiting.
+    noteQueue: () => call<NoteQueue>('GET', '/api/note-queue'),
+    // These answer 202 with the queue, which `call` would drop.
+    queueNotes: async (language: Language, deck: string, entries: { entry: string; meaning: string }[]) =>
+      (await send('POST', '/api/note-queue', { language, deck, entries })).json() as Promise<NoteQueue>,
+    retryQueuedNote: async (id: number) => (await send('POST', `/api/note-queue/${id}/retry`)).json() as Promise<NoteQueue>,
+    // After the note is saved in the editor, or when the owner removes the word.
+    removeQueuedNote: (id: number) => call<void>('DELETE', `/api/note-queue/${id}`),
     vocabCheck: (language: Language) => call<VocabBank>('GET', `/api/vocab-check?language=${language}`),
     grammarPoint: (id: string) => call<GrammarPointPage>('GET', `/api/grammar/${encodeURIComponent(id)}`),
     // Every language's choices by point id (a point not set isn't listed), for Forms practice.

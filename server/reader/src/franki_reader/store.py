@@ -160,6 +160,23 @@ CREATE TABLE IF NOT EXISTS vocab_items (
     batch_id INTEGER NOT NULL REFERENCES vocab_batches(id),
     PRIMARY KEY (language, lemma)
 );
+-- The note queue (note_queue.py): words the owner typed in the app, for Claude to fill in the other
+-- fields of in the background. `fields` is what passed the checks (Anki field name -> value), and a
+-- row is deleted once the owner saves the note, or removes it, in the app. Nothing here is an Anki note.
+CREATE TABLE IF NOT EXISTS note_queue (
+    id INTEGER PRIMARY KEY,
+    language TEXT NOT NULL,
+    deck TEXT NOT NULL,
+    entry TEXT NOT NULL,
+    meaning TEXT NOT NULL DEFAULT '',
+    state TEXT NOT NULL DEFAULT 'waiting',
+    fields TEXT NOT NULL DEFAULT '{}',
+    error TEXT NOT NULL DEFAULT '',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    tried_at TEXT,
+    cost_usd REAL NOT NULL DEFAULT 0
+);
 -- English meanings for words in texts that have no gloss from the deck or the text (meanings.py):
 -- common words are known without being in the deck, so the model isn't asked to gloss them. A word is
 -- asked about once and kept, as written in lower case; an empty meaning is a word Claude gave none for.
@@ -1570,6 +1587,131 @@ def vocab_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tupl
         language: (count, cost)
         for language, count, cost in conn.execute(
             "SELECT language, COUNT(*), SUM(cost_usd) FROM vocab_batches WHERE created_at >= ?"
+            " GROUP BY language ORDER BY SUM(cost_usd) DESC",
+            (since.isoformat(),),
+        )
+    }
+
+
+# ==== The note queue ====
+
+
+@dataclass(frozen=True)
+class QueuedNote:
+    id: int
+    language: Code
+    deck: str
+    entry: str
+    meaning: str  # the owner's own, empty when they left it to Claude
+    state: str  # "waiting", "ready" or "failed"
+    fields: dict[str, str]  # what Claude wrote and passed the checks, by Anki field name
+    error: str
+    attempts: int
+    tried_at: datetime | None
+
+
+_QUEUE_COLUMNS = "id, language, deck, entry, meaning, state, fields, error, attempts, tried_at"
+
+
+def _queued(row: tuple[Any, ...]) -> QueuedNote:
+    return QueuedNote(
+        row[0],
+        row[1],
+        row[2],
+        row[3],
+        row[4],
+        row[5],
+        json.loads(row[6]),
+        row[7],
+        row[8],
+        datetime.fromisoformat(row[9]) if row[9] else None,
+    )
+
+
+def add_queued(
+    conn: sqlite3.Connection,
+    language: Code,
+    deck: str,
+    entries: list[tuple[str, str]],
+    now: datetime,
+) -> list[int]:
+    """Words to be filled in, as (entry, the owner's own meaning or ""), in the order given."""
+    ids: list[int] = []
+    with conn:
+        for entry, meaning in entries:
+            cursor = conn.execute(
+                "INSERT INTO note_queue (language, deck, entry, meaning, created_at)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (language, deck, entry, meaning, now.isoformat()),
+            )
+            assert cursor.lastrowid is not None
+            ids.append(cursor.lastrowid)
+    return ids
+
+
+def queued_notes(conn: sqlite3.Connection) -> list[QueuedNote]:
+    """Every queued word, oldest first."""
+    return [
+        _queued(row) for row in conn.execute(f"SELECT {_QUEUE_COLUMNS} FROM note_queue ORDER BY id")
+    ]
+
+
+def queued_note(conn: sqlite3.Connection, note_id: int) -> QueuedNote | None:
+    row = conn.execute(
+        f"SELECT {_QUEUE_COLUMNS} FROM note_queue WHERE id = ?", (note_id,)
+    ).fetchone()
+    return _queued(row) if row else None
+
+
+def delete_queued(conn: sqlite3.Connection, note_id: int) -> bool:
+    with conn:
+        return conn.execute("DELETE FROM note_queue WHERE id = ?", (note_id,)).rowcount > 0
+
+
+def retry_queued(conn: sqlite3.Connection, note_id: int) -> bool:
+    """Puts a failed word back to waiting, with its attempts counted afresh."""
+    with conn:
+        return (
+            conn.execute(
+                "UPDATE note_queue SET state = 'waiting', error = '', attempts = 0"
+                " WHERE id = ? AND state = 'failed'",
+                (note_id,),
+            ).rowcount
+            > 0
+        )
+
+
+def save_queue_result(
+    conn: sqlite3.Connection,
+    note_id: int,
+    fields: dict[str, str] | None,
+    error: str,
+    now: datetime,
+    cost_usd: float,
+) -> None:
+    """What came of one word's turn: its filled fields (ready), or why not (failed). A word still waiting
+    or failed only: one the owner removed meanwhile is gone, and a ready one stays as it is."""
+    with conn:
+        conn.execute(
+            "UPDATE note_queue SET state = ?, fields = ?, error = ?, attempts = attempts + 1,"
+            " tried_at = ?, cost_usd = cost_usd + ? WHERE id = ? AND state IN ('waiting', 'failed')",
+            (
+                "ready" if fields is not None else "failed",
+                json.dumps(fields or {}, ensure_ascii=False),
+                "" if fields is not None else error,
+                now.isoformat(),
+                cost_usd,
+                note_id,
+            ),
+        )
+
+
+def queue_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
+    """Each language with words filled in since `since`: how many were tried and what they cost."""
+    return {
+        language: (count, cost)
+        for language, count, cost in conn.execute(
+            "SELECT language, COUNT(*), SUM(cost_usd) FROM note_queue WHERE tried_at >= ?"
             " GROUP BY language ORDER BY SUM(cost_usd) DESC",
             (since.isoformat(),),
         )
