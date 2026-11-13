@@ -110,13 +110,33 @@ def marks(plain: str, lexicon: Checker, point_ids: tuple[str, ...]) -> dict[int,
 # ==== Thai ====
 
 
-def _thai(marker: str, *not_these: str) -> Finder:
+def _thai(
+    marker: str,
+    *not_these: str,
+    not_first: bool = False,
+    not_before: tuple[str, ...] = (),
+    not_after: tuple[str, ...] = (),
+) -> Finder:
+    """The marker as a word, or a word that starts with it, except `not_these` (words that merely
+    start with it). Where the same word means something else, by its neighbors: `not_first` skips
+    it as a line's first word (แล้วคุณล่ะ, "and you?", isn't "already"), `not_before` and
+    `not_after` skip it next to the words listed (เสียงเพราะ, "a sweet voice", isn't "because")."""
+
     def find(ws: list[str]) -> list[Span]:
-        return [
-            (i, i + 1)
-            for i, w in enumerate(ws)
-            if w == marker or (w.startswith(marker) and not w.startswith(not_these or ("\0",)))
-        ]
+        out = []
+        for i, w in enumerate(ws):
+            if not (
+                w == marker or (w.startswith(marker) and not w.startswith(not_these or ("\0",)))
+            ):
+                continue
+            if (
+                (not_first and i == 0)
+                or (i + 1 < len(ws) and ws[i + 1] in not_before)
+                or (i > 0 and ws[i - 1] in not_after)
+            ):
+                continue
+            out.append((i, i + 1))
+        return out
 
     return find
 
@@ -169,7 +189,10 @@ _PARTICIPLE_IRREGULAR = frozenset(
 
 
 def _participle(word: str) -> bool:
-    return word.endswith(("ado", "ido", "ído")) or word in _PARTICIPLE_IRREGULAR
+    # A regular one is a form of a verb: ruido and pescado, nouns that end like one, aren't.
+    return word in _PARTICIPLE_IRREGULAR or (
+        word.endswith(("ado", "ido", "ído")) and _verb_lemma(word) is not None
+    )
 
 
 def _after_aux(aux: frozenset[str]) -> Finder:
@@ -189,7 +212,8 @@ def _progressive(ws: list[str]) -> list[Span]:
     return [
         (i, i + 2)
         for i in range(len(ws) - 1)
-        if _GERUND.search(ws[i + 1]) and _lemma(ws[i]) == "estar"
+        # A form of a verb: blando and cuando only end in -ando.
+        if _GERUND.search(ws[i + 1]) and _lemma(ws[i]) == "estar" and _verb_lemma(ws[i + 1])
     ]
 
 
@@ -376,7 +400,10 @@ def _present_subjunctive(ws: list[str], i: int) -> bool:
         return False
     if w.endswith(("ida", "idas", "ada", "adas") + _CONDITIONAL_ENDINGS):
         return False
+    # hablaste is the preterite and hablaremos the future, though both end like a subjunctive.
     if _imperfect(ws, i) or _conditional(ws, i) or _imperfect_subjunctive(ws, i):
+        return False
+    if _preterite(ws, i) or _future(ws, i):
         return False
     lem = _verb_lemma(w)
     if lem is None:
@@ -402,14 +429,20 @@ _FINDERS: dict[str, Finder] = {
     "es.present_subjunctive": _each(_present_subjunctive),
     "es.imperfect_subjunctive": _each(_imperfect_subjunctive),
     "th.ever": _thai("เคย"),
-    "th.ongoing": _thai("กำลัง"),
+    # Not the nouns: กำลังใจ is encouragement, กำลังกาย exercise, กำลังซื้อ buying power.
+    "th.ongoing": _thai(
+        "กำลัง", "กำลังใจ", "กำลังกาย", "กำลังซื้อ", "กำลังคน", "กำลังสอง", "กำลังไฟ", "กำลังงาน"
+    ),
     "th.future": _thai("จะ"),
-    "th.already": _thai("แล้ว"),
-    "th.must": _thai("ต้อง", "ต้องการ"),
-    "th.comparison": _thai("กว่า"),
+    # Not แล้วแต่ ("it depends") or แล้วก็ ("and then"), nor แล้ว opening a line ("and you?").
+    "th.already": _thai("แล้ว", "แล้วแต่", "แล้วก็", "แล้วกัน", not_first=True),
+    "th.must": _thai("ต้อง", "ต้องการ", "ต้องห้าม", "ต้องตา", "ต้องใจ", "ต้องโทษ", "ต้องหา"),
+    # กว่าจะ is "by the time", not a comparison.
+    "th.comparison": _thai("กว่า", "กว่าจะ", not_before=("จะ",)),
     "th.superlative": _thai("ที่สุด"),
     "th.if": _thai("ถ้า"),
-    "th.because": _thai("เพราะ"),
+    # เพราะ also means "sweet-sounding": เสียงเพราะ, เพราะมาก.
+    "th.because": _thai("เพราะ", not_after=("เสียง", "เพลง"), not_before=("มาก", "จัง", "จริง")),
     "th.yes_no": _thai_any("ไหม", "มั้ย", "หรือเปล่า"),
 }
 
