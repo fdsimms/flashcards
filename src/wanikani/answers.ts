@@ -77,17 +77,19 @@ function closeEnough(answer: string, meaning: string): boolean {
   const typed = answer.split(' ');
   const words = meaning.split(' ');
   if (typed.length !== words.length) {
-    // Split differently ("grown up" for "grownup"), so words can't be paired: an exact-only word
-    // on either side has to be on the other too.
-    return words.every((w) => !EXACT_WORDS.has(w) || typed.includes(w)) && typed.every((t) => !EXACT_WORDS.has(t) || words.includes(t));
+    // Split differently ("grown up" for "grownup"), so words can't be paired: a typed exact-only
+    // word has to be in the meaning too.
+    return typed.every((t) => !EXACT_WORDS.has(t) || words.includes(t));
   }
-  return words.every((w, i) => typed[i] === w || (!EXACT_WORDS.has(w) && !EXACT_WORDS.has(typed[i]) && levenshtein(typed[i], w) <= typoAllowance(w.length)));
+  // A typed word that is itself another of these words is a different answer, not a typo; a typo
+  // of one ("rigth" for Right) is still a typo.
+  return words.every((w, i) => typed[i] === w || (!EXACT_WORDS.has(typed[i]) && levenshtein(typed[i], w) <= typoAllowance(w.length)));
 }
 
 /**
  * Words a typo allowance would turn into another real word: "fire" passed for Five, "monday" for
- * Sunday, "mouth" for Month, "hour" for Four. Where one of these is the typed word or the meaning's
- * word at the same place, the two must match exactly.
+ * Sunday, "mouth" for Month, "hour" for Four. Where one of these is typed in place of a different
+ * word, it's wrong rather than close.
  */
 const EXACT_WORDS = new Set([
   'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',

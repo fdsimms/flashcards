@@ -65,6 +65,9 @@ describe('meanings', () => {
     expect(checkMeaning(meaning('Sunday Morning'), [], 'monday mor ning')).toEqual({ result: 'wrong' });
     // Words outside the set keep their typo allowance.
     expect(checkMeaning(meaning('Mountain'), [], 'mountian')).toEqual({ result: 'correct', close: true });
+    // A typo of one of these words (righ) is still a typo: only another real word in its place is refused.
+    expect(checkMeaning(meaning('Right'), [], 'righ')).toEqual({ result: 'correct', close: true });
+    expect(checkMeaning(meaning('Seventeen'), [], 'seventen')).toEqual({ result: 'correct', close: true });
   });
 
   it('asks again for kana typed as a meaning, or nothing at all', () => {
