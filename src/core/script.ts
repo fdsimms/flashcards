@@ -19,6 +19,15 @@ export function thaiTextStyle(size: ThaiTextSize): { fontSize: number; lineHeigh
   return { fontSize: choice.fontSize, lineHeight: choice.lineHeight };
 }
 
+/**
+ * `base` with a line height tall enough for Thai when `text` has any. A text style that sets only a
+ * font size gets the font's default line box, which clips Thai's lower vowels and ฎ/ฏ tails; the
+ * headings on a card (`type.cardFront`) set no line height, so they go through this.
+ */
+export function withThaiLineHeight<T extends { fontSize: number }>(base: T, text: string): T | (T & { lineHeight: number }) {
+  return hasThai(text) ? { ...base, lineHeight: Math.round(base.fontSize * 1.5) } : base;
+}
+
 /** A stored setting read back; anything unrecognized is the default. */
 export function parseThaiTextSize(raw: string | null | undefined): ThaiTextSize {
   return THAI_TEXT_CHOICES.some((c) => c.value === raw) ? (raw as ThaiTextSize) : DEFAULT_THAI_TEXT_SIZE;
