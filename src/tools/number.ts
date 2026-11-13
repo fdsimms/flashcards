@@ -13,10 +13,6 @@ import { buddhistYear } from './thai/date';
 export const NUMBER_KINDS = ['number', 'phone', 'year', 'age'] as const;
 export type NumberKind = (typeof NUMBER_KINDS)[number];
 
-/** Say it aloud and show the answer, or hear it and type the digits. */
-export const NUMBER_MODES = ['say', 'listen'] as const;
-export type NumberMode = (typeof NUMBER_MODES)[number];
-
 /**
  * A question. A phone number is kept as written (`0X XX XX XX XX`), since its groups are how it's
  * read; the rest are a number. A year is the Christian year, whatever the language counts from.
