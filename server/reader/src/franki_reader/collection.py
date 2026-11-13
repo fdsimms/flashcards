@@ -32,6 +32,7 @@ from franki_reader.gateway import AnkiUnavailable
 from franki_reader.languages import Language
 from franki_reader.lexicon import CardRow, Entry, NoteRow, build_entries
 from franki_reader.status import DueStatus, read_due
+from franki_reader.study_day import DEFAULT_ROLLOVER
 
 log = logging.getLogger(__name__)
 
@@ -57,6 +58,8 @@ class AnkiDeck:
         self._col: Collection | None = None
         self._auth: Any = None
         self._lock = threading.Lock()
+        # The collection's "Next day starts at", as last read (study_day.py).
+        self.rollover = DEFAULT_ROLLOVER
 
     @property
     def col(self) -> Collection:
@@ -77,6 +80,7 @@ class AnkiDeck:
     def _read(self, language: Language) -> list[Entry]:
         with self._lock:
             self._sync()
+            self.rollover = self.col.get_preferences().scheduling.rollover
             return read_entries(self.col, language)
 
     async def due(self) -> DueStatus:
@@ -86,6 +90,7 @@ class AnkiDeck:
     def _due(self) -> DueStatus:
         with self._lock:
             self._sync()
+            self.rollover = self.col.get_preferences().scheduling.rollover
             return read_due(self.col, int(time.time()))
 
     # ---- sync ----

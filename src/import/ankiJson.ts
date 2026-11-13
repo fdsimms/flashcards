@@ -1,5 +1,5 @@
 import { isOmnilanguage, makeCards } from '../core/cards';
-import { dayKeyOf } from '../core/day';
+import { addCalendarDays, dayKeyOf } from '../core/day';
 import { newSchedState, paramsForDeck } from '../core/scheduler';
 import type { Card, CardKind, CollectionSettings, DeckParams, DayLimit, Note, NoteType, SchedState } from '../core/types';
 import { omnilanguageKindByOrd } from './models';
@@ -199,7 +199,7 @@ export function schedFromAnki(c: AnkiCardInfo, collectionCreated: number | undef
   const stability = c.memoryState?.stability ?? interval;
   const difficulty = c.memoryState?.difficulty ?? easeToDifficulty(c.factor);
   // The real last answer when the export has it; otherwise estimated as one interval before due.
-  const lastReview = c.lastReview ? new Date(c.lastReview * 1000) : new Date(due.getTime() - interval * 86400000);
+  const lastReview = c.lastReview ? new Date(c.lastReview * 1000) : addCalendarDays(due, -interval);
   return {
     due: due.toISOString(),
     stability,

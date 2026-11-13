@@ -10,7 +10,7 @@ import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
 import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayStart } from '../core/day';
-import { nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
+import { isInterdayLearning, nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type AnswerContext, type RatingValue } from '../core/scheduler';
 import { fuzzSeed } from '../core/ankiFuzz';
@@ -29,6 +29,7 @@ import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
+import { mathjaxUri } from '../media/mathjax';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardWebView } from './CardWebView';
 import { Side } from './CardSide';
@@ -223,6 +224,9 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   // Set while an answer or an undo is being written. A second tap during the await would
   // otherwise act on the same card again from its old state.
   const busy = useRef(false);
+  // The card last answered, as it was shown. `busy` is cleared before React has drawn the next card,
+  // so a tap landing in between still sees this one: it mustn't be answered twice from its old state.
+  const lastAnswered = useRef<Card | null>(null);
   // Anki's load balancer works from a snapshot of the days ahead, taken when the session is built.
   const loadSnapshot = useRef<LoadSnapshot>(new Map());
 
@@ -238,6 +242,8 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       ]);
       const today = studiedToday({ notes: n, cards: c, reviews, revlog, now, dayStartsAtHour: cs.dayStartsAtHour });
       setCollection(cs);
+      // The queue reads the day from `now`: a reload after a while away (or past the day's start) needs it fresh too.
+      setNow(now);
       setAnswerButtons(buttons);
       setSwipeOn(swipe);
       setShowHints(hints);
@@ -291,7 +297,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
     const ord = Number(current.kind.slice(1));
     const { front, back, typeAnswer } = renderTemplateCard(note, noteType, ord, typedShown);
     const opts = {
-      css: noteType.css, ord, dark, autoplay: true, mediaBase: mediaBaseUri(),
+      css: noteType.css, ord, dark, autoplay: true, mediaBase: mediaBaseUri(), mathjax: mathjaxUri(),
       colors: { background: c.surface, text: c.text, cloze: c.countNew },
     };
     return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer, frontAudio: sideAudio(front), backAudio: sideAudio(back) };
@@ -376,7 +382,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   }, [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const answer = async (rating: RatingValue) => {
-    if (!current || !note || busy.current) return;
+    if (!current || !note || busy.current || current === lastAnswered.current) return;
     busy.current = true;
     haptic.answer();
     try {
@@ -405,7 +411,8 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       const buried = siblings.map((s): Card => ({ ...s, buriedAt: when.toISOString(), ankiMod: s.ankiId ? Math.floor(when.getTime() / 1000) : s.ankiMod }));
       await repo.saveCard(updated);
       for (const b of buried) await repo.saveCard(b);
-      const reviewId = await repo.addReview({ cardId: current.id, ...res.log });
+      // Whether it was a day-long step goes in the row, so today's counts read it back after a reload.
+      const reviewId = await repo.addReview({ cardId: current.id, ...res.log, interday: !preview && isInterdayLearning(current, H) });
       // Into the kept Anki collection too, so "Send to Anki" carries this answer. If that write
       // fails, the answer still counts here, and you're told rather than it going missing.
       let anki: AnkiUndo | undefined;
@@ -425,11 +432,11 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
           );
         }
       }
-      let leechNote: Note | undefined;
+      let leechNoteId: string | undefined;
       if (isLeech && !note.tags.includes('leech')) {
         try {
           const tagged = await saveNote(repo as NoteStore, { id: note.id, deck: note.deck, model: note.model, fields: note.fields, tags: [...note.tags, 'leech'] }, when);
-          leechNote = note;
+          leechNoteId = note.id;
           setNotes((prev) => new Map(prev).set(tagged.id, tagged));
         } catch {
           // The answer stands; the tag just isn't added.
@@ -439,7 +446,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       // Counted in the deck the card is studied in, as Anki counts it (a filtered deck's answers count there).
       // Time capped at a minute, as Anki's maximum answer time is, so a phone put down mid-card doesn't swell the summary.
       const record: AnswerRecord = {
-        before: current, reviewId, deck: cardDeck(current, note.deck), anki, buried: siblings, leechNote,
+        before: current, reviewId, deck: cardDeck(current, note.deck), anki, buried: siblings, leechNoteId,
         rating, takenMs: Math.min(when.getTime() - shownAt.current, 60000),
       };
       // Now a review, it weighs on the days the load balancer spreads later answers over, as in Anki.
@@ -450,9 +457,12 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       // Functional update: `cards` from this render's closure is stale once the awaits return.
       const changed = new Map([updated, ...buried].map((c) => [c.id, c]));
       setCards((prev) => prev && prev.map((c) => changed.get(c.id) ?? c));
+      lastAnswered.current = current;
       setPreferId(undefined);
       setRevealed(false);
       setNow(when);
+    } catch (e) {
+      Alert.alert("Couldn't save this answer", `${e instanceof Error ? e.message : String(e)} The card is still here: answer it again.`);
     } finally {
       busy.current = false;
     }
@@ -473,10 +483,12 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       }
       await repo.saveCard(last.before);
       for (const s of last.buried) await repo.saveCard(s);
-      if (last.leechNote) {
-        const n = last.leechNote;
+      // The note as it is now, not as it was before the answer: a hint typed in the leech sheet
+      // since then stays, and only the tag comes off.
+      const n = last.leechNoteId ? await repo.getNote(last.leechNoteId) : undefined;
+      if (n) {
         try {
-          const restored = await saveNote(repo as NoteStore, { id: n.id, deck: n.deck, model: n.model, fields: n.fields, tags: n.tags });
+          const restored = await saveNote(repo as NoteStore, { id: n.id, deck: n.deck, model: n.model, fields: n.fields, tags: n.tags.filter((t) => t !== 'leech') });
           setNotes((prev) => new Map(prev).set(restored.id, restored));
         } catch { /* the tag stays */ }
       }
@@ -487,9 +499,13 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       setStudied((s) => bumpStudied(s, last.deck, studiedKind(last.before, H), -1));
       const restored = new Map([last.before, ...last.buried].map((c) => [c.id, c]));
       setCards((prev) => prev && prev.map((c) => restored.get(c.id) ?? c));
+      // The card shown again is the very one answered: it can be answered again now.
+      lastAnswered.current = null;
       setPreferId(last.before.id);
       setRevealed(false);
       setNow(new Date());
+    } catch (e) {
+      Alert.alert("Couldn't undo that answer", `${e instanceof Error ? e.message : String(e)} Try again.`);
     } finally {
       busy.current = false;
     }
@@ -674,6 +690,8 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       setCards((prev) => prev && prev.map((c) => byId.get(c.id) ?? c));
       setRevealed(false);
       setNow(when);
+    } catch (e) {
+      Alert.alert("Couldn't change this card", `${e instanceof Error ? e.message : String(e)} Try again.`);
     } finally {
       busy.current = false;
     }

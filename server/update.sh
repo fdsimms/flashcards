@@ -16,21 +16,39 @@ if [ -n "$reader" ] && [ "$(docker inspect -f '{{.State.Health.Status}}' "$reade
 fi
 
 git -C "$repo" fetch --quiet origin main
-if git -C "$repo" diff --quiet HEAD origin/main -- server/; then
+target=$(git -C "$repo" rev-parse origin/main)
+
+# The commit last deployed, written only once everything below has worked, so a failed build (which
+# stops this script) is tried again at the next run rather than passed over because HEAD has already
+# moved. Kept in the repository's .git folder: outside the tree and the images' build context. No
+# record (the first run) means deploy.
+record="$(git -C "$repo" rev-parse --absolute-git-dir)/franki-deployed"
+deployed=$(cat "$record" 2>/dev/null || true)
+if [ -n "$deployed" ] && ! git -C "$repo" cat-file -e "$deployed^{commit}" 2>/dev/null; then
+  deployed=
+fi
+if [ -n "$deployed" ] && git -C "$repo" diff --quiet "$deployed" "$target" -- server/; then
   exit 0
 fi
 
-echo "Updating to $(git -C "$repo" log -1 --format='%h %s' origin/main)"
+echo "Updating to $(git -C "$repo" log -1 --format='%h %s' "$target")"
 # Caddy reads its Caddyfile only when it starts, and `up` doesn't restart it for a changed file, so
-# a new route (say, /reader) would otherwise wait for the next reboot.
-caddyfile_changed=$(git -C "$repo" diff --quiet HEAD origin/main -- server/Caddyfile || echo yes)
-# Fast-forward only: if the copy here was edited by hand, stop rather than merge over it.
-git -C "$repo" merge --ff-only --quiet origin/main
+# a new route (say, /reader) would otherwise wait for the next reboot. With no record of what's
+# running, it's recreated to be sure.
+if [ -n "$deployed" ]; then
+  caddyfile_changed=$(git -C "$repo" diff --quiet "$deployed" "$target" -- server/Caddyfile || echo yes)
+else
+  caddyfile_changed=yes
+fi
+# Fast-forward only: if the copy here was edited by hand, stop rather than merge over it. A no-op
+# when an earlier run already merged and then failed to build.
+git -C "$repo" merge --ff-only --quiet "$target"
 docker compose up -d --build --remove-orphans
 if [ -n "$caddyfile_changed" ]; then
   # Recreated, not reloaded: git writes the file anew, and the container's mount still shows the old one.
   docker compose up -d --force-recreate caddy
 fi
+echo "$target" > "$record.tmp" && mv "$record.tmp" "$record"
 # The images the rebuild replaced, which otherwise fill the disk a few hundred MB at a time.
 docker image prune -f >/dev/null
 echo "Updated."

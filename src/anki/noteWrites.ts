@@ -162,7 +162,8 @@ export async function editAnkiNote(db: SyncDb, w: NoteWrite & { nid: number }): 
     if (current.flds !== flds || current.tags !== tags) {
       await db.run('UPDATE notes SET flds = ?, sfld = ?, csum = ?, tags = ?, mod = ?, usn = -1 WHERE id = ?', flds, sfld, csum, tags, Math.floor(w.now.getTime() / 1000), w.nid);
     }
-    const existing = await db.all<{ ord: number; did: number }>('SELECT ord, did FROM cards WHERE nid = ? ORDER BY ord', w.nid);
+    // A card in a filtered deck has its home in odid: Anki generates a new card there, never into a filtered deck.
+    const existing = await db.all<{ ord: number; did: number }>('SELECT ord, CASE odid WHEN 0 THEN did ELSE odid END AS did FROM cards WHERE nid = ? ORDER BY ord', w.nid);
     const have = new Set(existing.map((c) => c.ord));
     const missing = w.ords.filter((o) => !have.has(o));
     if (missing.length) added = await addCards(db, w.nid, existing[0]?.did ?? 1, missing, w.now);

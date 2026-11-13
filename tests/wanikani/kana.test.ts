@@ -14,6 +14,8 @@ describe('romaji to kana', () => {
   it('doubles a consonant into a small tsu', () => {
     expect(toKana('kitte')).toBe('きって');
     expect(toKana('zasshi')).toBe('ざっし');
+    expect(toKana('matcha')).toBe('まっちゃ');
+    expect(toKana('icchi')).toBe('いっち');
   });
 
   it('reads n before a consonant as ん, but not before a vowel or y', () => {

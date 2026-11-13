@@ -6,7 +6,7 @@ import logging
 import sqlite3
 import statistics
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Any, Literal
 
@@ -15,6 +15,7 @@ from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Form, Generated, Line
 from franki_reader.languages import LANGUAGES, VOICE_SLOTS, Code, with_deck
 from franki_reader.lexicon import Entry, ReadDeck
+from franki_reader.study_day import DEFAULT_ROLLOVER, study_day
 
 SNAPSHOT_MAX_AGE = timedelta(hours=24)
 # How the reading log names each language (it said "thai" before there was a second one).
@@ -885,7 +886,11 @@ def log_reading(conn: sqlite3.Connection, text_id: int, reading: Reading, now: d
                 reading.seconds,
             ),
         )
-        conn.execute("UPDATE texts SET status = 'read' WHERE id = ?", (text_id,))
+        # Only a text that was served: a dropped or skipped one keeps its status, so the costs
+        # still count it as what it was.
+        conn.execute(
+            "UPDATE texts SET status = 'read' WHERE id = ? AND status = 'ready'", (text_id,)
+        )
 
 
 def reading_seconds(conn: sqlite3.Connection, start: datetime, end: datetime) -> int:
@@ -1104,17 +1109,22 @@ def explanation_spending(
 
 
 def practiced_days(
-    conn: sqlite3.Connection, before: datetime, language: Code = "th"
+    conn: sqlite3.Connection,
+    before: datetime,
+    language: Code = "th",
+    rollover: int = DEFAULT_ROLLOVER,
+    zone: tzinfo | None = None,
 ) -> dict[str, int]:
     """For each word that was a stretch word in a text read before `before`, the number of
-    different days it was one."""
+    different study days it was one (study_day.py: the owner's day, not UTC's)."""
     rows = conn.execute(
-        """SELECT DISTINCT substr(r.logged_at, 1, 10), x.stretch FROM readings r
+        """SELECT r.logged_at, x.stretch FROM readings r
            JOIN texts x ON x.id = r.text_id WHERE r.logged_at < ? AND x.language = ?""",
         (before.isoformat(), language),
     )
-    days: dict[str, set[str]] = {}
-    for day, stretch in rows:
+    days: dict[str, set[date]] = {}
+    for logged_at, stretch in rows:
+        day = study_day(datetime.fromisoformat(logged_at), rollover, zone)
         for word in json.loads(stretch):
             days.setdefault(word, set()).add(day)
     return {word: len(d) for word, d in days.items()}
@@ -1514,9 +1524,15 @@ def meaning_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tu
 
 
 def vocab_asked(conn: sqlite3.Connection, language: Code) -> int:
-    """How many words Claude has been asked to gloss for a language, passed or not."""
+    """How many words Claude has been asked to gloss for a language, passed or not, in batches
+    that were kept. A first write that left a band short kept nothing (vocab_check.write_bank), so
+    its words count as never asked: they're asked again, and a bank that later gains a band is
+    still topped up. A batch was kept when it kept a word, or when the bank already had words (a
+    top-up keeps what passes, even nothing)."""
     row = conn.execute(
-        "SELECT SUM(asked) FROM vocab_batches WHERE language = ?", (language,)
+        """SELECT SUM(asked) FROM vocab_batches b WHERE language = ? AND (kept > 0 OR EXISTS
+               (SELECT 1 FROM vocab_items i WHERE i.language = b.language AND i.batch_id < b.id))""",
+        (language,),
     ).fetchone()
     return int(row[0] or 0)
 

@@ -283,6 +283,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     setRating(null);
     setWriting(false);
     setLineEnglish([]);
+    // The next text is a different one: an explanation left open would ask the server for the
+    // same line of it, and a gloss would sit over a word that's gone.
+    setExplained([]);
+    setTapped(null);
     setPhrase(null);
     setListenOnly(false);
     setUpNext(null);
@@ -292,7 +296,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     autoPlayed.current = false;
     baseLength.current = settings?.lines ?? 8;
     lineBoxes.current = [];
-    scrollY.current = 0;
+    scrollY.current = null; // back at the top, which is at minus the header's overlap
     logged.current = false;
     try {
       if (source.kind === 'past' || source.kind === 'shelf') {
@@ -483,7 +487,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     setListenOnly(true);
     setPhrase(null);
     setEnded(false);
-    scrollY.current = 0; // the lines' scroll view is mounted fresh
+    scrollY.current = null; // the lines' scroll view is mounted fresh, at the top
     const start = firstLine(text.lines);
     if (start !== null) playLine(start, true);
   };

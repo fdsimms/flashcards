@@ -445,8 +445,9 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   The deck's meaning wins over a kept one.
 - **Stretch words** are 1-3 words due today or still young. No random assignment.
 - **Stretch words come back on later days** (brief, design principle 4). A word that was a stretch
-  word in a text read on an earlier day goes ahead of other due and young words, until it has been
-  one on 3 different days (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be due
+  word in a text read on an earlier study day goes ahead of other due and young words, until it has
+  been one on 3 different study days (Anki's, in `TZ` from its "Next day starts at"; `study_day.py`)
+  (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be due
   or young, so a word that has matured since is left alone. In "Fit the topic" it's offered first,
   and the model may still pass it over if it doesn't fit.
 - **Short stories** as well as dialogues: a "Text type" setting (`form` in `/api/settings`),
@@ -558,9 +559,11 @@ next episode is the top of the shelf.
   `writing`, `failed`, `idle`) for the app to show.
 - A text is stored as `pending` until its audio is made, then `ready`; one left pending by a
   restart is made ready at startup. A text whose every attempt was under 90% is stored as
-  `dropped`, never served, so its cost is still on record.
+  `dropped`, never served, so its cost is still on record; so is a first attempt Claude answered
+  with nothing usable (a refusal, a cut-off, invalid JSON), as a dropped row with no text.
 - A text leaves the queue once a reading is logged for it, rated or not, so the same text is never
-  served twice.
+  served twice. Only a `ready` text becomes `read`: a dropped or skipped one keeps its status, so
+  the costs still count it as what it was.
 - **Topic ideas**, so topics don't all have to be thought up. About 30 everyday situations
   (`server/reader/src/franki_reader/suggestions.py`), each with six Thai words it's likely to need, offered on
   the topics screen a few at a time (until the shelf, which now writes from them itself), ordered by how many of those words the deck knows: the best fit

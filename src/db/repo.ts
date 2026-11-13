@@ -118,10 +118,12 @@ export class MemoryRepo implements Repo {
         this.cards.set(c.id, {
           ...existing, retired: false, buriedAt: c.buriedAt, deck: c.deck, filteredDeck: c.filteredDeck, position: c.position,
           ankiMod: c.ankiMod, filteredDue: c.filteredDue, previewDue: c.previewDue, flag: c.flag,
+          // As the SQLite repo's COALESCE: an import that doesn't carry the Anki id (a TSV) keeps it.
+          ankiId: c.ankiId ?? existing.ankiId,
         });
         continue;
       }
-      this.cards.set(c.id, { ...c, retired: false });
+      this.cards.set(c.id, { ...c, retired: false, ankiId: c.ankiId ?? existing?.ankiId });
     }
   }
   async applyAnkiCollection(notes: Note[], cards: Card[]) {

@@ -22,7 +22,7 @@ export function norwegianYear(year: number): string {
   if (year < 2000) return `${norwegianNumber(Math.floor(year / 100))}hundre${rest ? `og${norwegianNumber(rest)}` : ''}`;
   const afterThousands = year % 1000;
   const hundreds = Math.floor(afterThousands / 100);
-  return `${norwegianNumber(Math.floor(year / 1000))}tusen${hundreds ? `${norwegianNumber(hundreds)}hundre` : ''}${rest ? `og${norwegianNumber(rest)}` : ''}`;
+  return `${norwegianNumber(Math.floor(year / 1000))}tusen${hundreds ? `${hundreds === 1 ? 'ett' : norwegianNumber(hundreds)}hundre` : ''}${rest ? `og${norwegianNumber(rest)}` : ''}`;
 }
 
 /** The shorter year heard in speech, two numbers run together, when there is one: nittenfemti, tjuetjueseks. */

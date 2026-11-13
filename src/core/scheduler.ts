@@ -9,7 +9,7 @@ import {
 } from 'ts-fsrs';
 import { fsrsGraduatingDays, fsrsReviewDays, fuzzFactor, learningStepWithFuzz, type Balancer } from './ankiFuzz';
 import { DAY_STARTS_AT_HOUR } from './config';
-import { nextStudyDayStart } from './day';
+import { addCalendarDays, nextStudyDayStart } from './day';
 import type { DeckParams, ReviewLogEntry, SchedState } from './types';
 
 type Engine = ReturnType<typeof fsrs>;
@@ -188,13 +188,13 @@ export function review(sched: SchedState, rating: RatingValue, now: Date = new D
   const maxInterval = params?.maxInterval ?? 36500;
   const factor = ctx.seed !== undefined ? fuzzFactor(ctx.seed) : undefined;
   const raw = (r: RatingValue) => rawInterval(outcomes[r as Grade].card.stability, retention, weights);
-  const DAY = 86400000;
-  const onDay = (days: number) => new Date(now.getTime() + days * DAY).toISOString();
+  // Calendar days, not 24-hour blocks (addCalendarDays).
+  const onDay = (days: number) => addCalendarDays(now, days).toISOString();
   /** A wait of `secs`: fuzzed within the day, or a day-long step from the start of the day it lands on. */
   const step = (secs: number) => {
     const nextDay = nextStudyDayStart(now, ctx.dayStartsAtHour ?? DAY_STARTS_AT_HOUR).getTime();
     const untilRollover = Math.floor((nextDay - now.getTime()) / 1000);
-    if (secs >= untilRollover) return new Date(nextDay + Math.floor((secs - untilRollover) / 86400) * DAY).toISOString();
+    if (secs >= untilRollover) return addCalendarDays(new Date(nextDay), Math.floor((secs - untilRollover) / 86400)).toISOString();
     return new Date(now.getTime() + learningStepWithFuzz(ctx.seed, secs) * 1000).toISOString();
   };
 
