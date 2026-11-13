@@ -53,7 +53,7 @@ GOOD = draft("ฉัน|อยาก|กิน|*ข้าวเหนียว�
 class ScriptedModel:
     """Returns the given drafts in order and records every conversation it was sent."""
 
-    def __init__(self, *drafts: dict[str, Any]) -> None:
+    def __init__(self, *drafts: dict[str, Any] | Exception) -> None:
         self.drafts = list(drafts)
         self.sent: list[list[dict[str, Any]]] = []
 
@@ -62,6 +62,8 @@ class ScriptedModel:
     ) -> tuple[dict[str, Any], list[Any], Usage]:
         self.sent.append(list(messages))
         d = self.drafts.pop(0)
+        if isinstance(d, Exception):
+            raise d
         return d, [{"type": "text", "text": "draft"}], Usage(100, 50, 1000, 0)
 
 
@@ -204,8 +206,9 @@ def test_claude_ask_turns_bad_responses_into_generation_failed(
     stop_reason: str, text: str | None
 ) -> None:
     ask = claude_ask(FakeClient(response(stop_reason, text)), ENTRIES)  # type: ignore[arg-type]
-    with pytest.raises(GenerationFailed):
+    with pytest.raises(GenerationFailed) as failed:
         asyncio.run(ask([{"role": "user", "content": "hi"}]))
+    assert failed.value.usage.output_tokens == 900  # the call is still paid for
 
 
 def test_usage_adds_up_across_attempts() -> None:
@@ -371,6 +374,33 @@ def test_when_every_attempt_misses_the_closest_one_over_the_minimum_is_kept() ->
     )  # every attempt is paid for
 
 
+CUT_OFF = Usage(100, 4000, 1000, 0)
+
+
+def test_a_revision_that_fails_keeps_the_closest_earlier_draft_and_its_cost() -> None:
+    model = ScriptedModel(NEAR, GenerationFailed("The response was cut off", CUT_OFF))
+    result = run(model, TextRequest("food", floor=0.95))
+    assert result.passed and not result.floor_met
+    assert round(result.coverage.ratio, 3) == 0.923
+    assert result.attempts == 2
+    assert result.usage == Usage(100, 50, 1000, 0) + CUT_OFF
+
+
+def test_a_revision_that_fails_with_nothing_kept_is_returned_unpassed_with_its_cost() -> None:
+    bad = draft("ทอน|ทอน|ฉัน")
+    model = ScriptedModel(bad, bad, GenerationFailed("Claude didn't answer"))
+    result = run(model, TextRequest("food"))
+    assert not result.passed and result.attempts == MAX_ATTEMPTS
+    assert result.usage == Usage(200, 100, 2000, 0)  # stored as dropped, so its cost is on record
+
+
+def test_a_first_attempt_that_fails_raises_with_its_cost() -> None:
+    model = ScriptedModel(GenerationFailed("The response was cut off", CUT_OFF))
+    with pytest.raises(GenerationFailed, match="cut off") as failed:
+        run(model, TextRequest("food"))
+    assert failed.value.usage == CUT_OFF
+
+
 def test_a_text_that_meets_the_floor_says_so() -> None:
     assert run(ScriptedModel(GOOD), TextRequest("food", (MANGO,))).floor_met
 
@@ -432,6 +462,60 @@ def test_a_story_episode_asks_to_carry_the_story_on() -> None:
     )
     assert 'episode 3 of an ongoing story, "Noi\'s stall"' in later
     assert "Noi sells noodles." in later and "- One.\n- Two." in later
+
+
+def _episode_draft(*choices: tuple[str, str]) -> dict[str, Any]:
+    return dict(GOOD, choices=[{"text": t, "english": e} for t, e in choices])
+
+
+def _episode() -> TextRequest:
+    from franki_reader.generator import StoryContext
+
+    return TextRequest("a noodle stall", story=StoryContext(2, "", "Noi's stall"))
+
+
+def test_a_story_episode_asks_for_choices_and_is_told_what_was_chosen() -> None:
+    from franki_reader.generator import StoryContext
+
+    first = request_message(TextRequest("a stall", story=StoryContext(1, "a stall")))
+    assert '"choices"' in first
+    chose = request_message(
+        TextRequest("a stall", story=StoryContext(2, "", "Noi's stall", chosen="Noi calls Ton."))
+    )
+    assert 'chose what happens next: "Noi calls Ton."' in chose
+    unchosen = request_message(TextRequest("a stall", story=StoryContext(2, "", "Noi's stall")))
+    assert "chose what happens next" not in unchosen
+
+
+def test_a_story_episodes_choices_are_kept() -> None:
+    d = _episode_draft(("ฉัน|กิน", "I eat."), ("อยาก|กิน", "I want to eat."))
+    result = run(ScriptedModel(d), _episode())
+    assert [(c.text, c.english) for c in result.choices] == [
+        ("ฉัน|กิน", "I eat."),
+        ("อยาก|กิน", "I want to eat."),
+    ]
+
+
+def test_choices_are_counted_in_coverage_and_sent_back_when_a_word_is_unknown() -> None:
+    hard = _episode_draft(("ฉัน|กิน", "I eat."), ("ฉัน|ทอน", "I give change."))
+    model = ScriptedModel(hard, _episode_draft(("ฉัน|กิน", "I eat."), ("อยาก|กิน", "Want.")))
+    result = run(model, TextRequest("food", (MANGO,), story=_episode().story, floor=0.99))
+    assert result.passed and result.attempts == 2
+    assert "ทอน" in model.sent[1][-1]["content"]
+
+
+def test_fewer_than_two_choices_is_no_choice_and_more_than_three_are_cut() -> None:
+    one = run(ScriptedModel(_episode_draft(("ฉัน|กิน", "I eat."))), _episode())
+    assert one.passed and one.choices == ()
+    many = run(ScriptedModel(_episode_draft(*[("ฉัน|กิน", str(i)) for i in range(5)])), _episode())
+    assert len(many.choices) == 3
+
+
+def test_a_text_that_is_not_a_story_episode_has_no_choices() -> None:
+    result = run(
+        ScriptedModel(_episode_draft(("ฉัน|กิน", "I eat."), ("กิน", "Eat."))), TextRequest("food")
+    )
+    assert result.choices == ()
 
 
 def test_a_draft_with_a_line_that_does_not_fit_its_speaker_is_sent_back() -> None:

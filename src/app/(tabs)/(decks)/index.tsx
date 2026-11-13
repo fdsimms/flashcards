@@ -10,7 +10,7 @@ import { WaniKaniDeck } from '../../../ui/WaniKaniDeck';
 /** The deck list: the first screen, and where every other one leads back to. */
 export default function DecksRoute() {
   const router = useRouter();
-  const { decks, backup, ankiUnsent, syncSettings, syncing, sync, refresh, collapse, wanikani } = useApp();
+  const { decks, backup, ankiUnsent, syncSettings, syncing, sync, refresh, loadProblem, collapse, wanikani, reader } = useApp();
   // Counts change while studying, so load them again each time this screen comes back into view.
   // `decks` starts empty until the first load from the database finishes, which is not the same as
   // having no decks: the empty state waits for it.
@@ -23,6 +23,7 @@ export default function DecksRoute() {
       decks={decks}
       loaded={loaded}
       backup={backup}
+      loadProblem={loadProblem ? { text: loadProblem, onRetry: refresh } : undefined}
       ankiUnsent={ankiUnsent}
       onOpen={(deck) => router.push({ pathname: '/review', params: { deck } })}
       onImport={() => router.push('/anki')}
@@ -31,6 +32,7 @@ export default function DecksRoute() {
       onBrowse={() => router.push('/browse')}
       onOptions={openOptions}
       onNewDeck={deckActions.create}
+      onQuickAdd={reader.api ? () => router.push('/read-quick-add') : undefined}
       onDeckMenu={deckActions.menu}
       onMoveDeck={deckActions.move}
       collapsed={collapse.collapsed}

@@ -9,6 +9,7 @@ import { haptic } from './haptics';
 import { Button, Card, Group, Icon, NavRow, Screen, SwipeToReveal, Tappable } from './kit';
 import { useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
+import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
 import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
@@ -222,6 +223,8 @@ export function DeckList(props: {
    * sync is on: the Anki server then holds the collection, and Backup is still in Settings.
    */
   backup?: { text: string; overdue: boolean };
+  /** Why the decks couldn't be loaded, when the last try failed: the rows shown may be out of date. */
+  loadProblem?: { text: string; onRetry: () => void };
   /** False until the first load of the decks has finished, so an empty list isn't "No decks yet" yet. */
   loaded?: boolean;
   /** Answers given here and not yet in Anki: not synced, or (without sync) not sent back by file. */
@@ -236,6 +239,8 @@ export function DeckList(props: {
   onOptions: (deck: string) => void;
   /** Makes a deck (DeckActions.tsx). */
   onNewDeck: () => void;
+  /** Quick add (ReadQuickAdd.tsx); present while Read & Listen is on, since Claude fills the notes in there. */
+  onQuickAdd?: () => void;
   /** The menu on a deck's row: add a note, rename, options, delete (DeckActions.tsx). */
   onDeckMenu: (deck: string) => void;
   /** A deck dragged to a new place: reordered, nested or unnested (`deckMove`, DeckActions.tsx). */
@@ -252,6 +257,7 @@ export function DeckList(props: {
   const c = useTheme();
   const header = useHeaderInset();
   const { banner: vocabReady } = useVocabReady();
+  const noteQueue = useNoteQueueBanner();
   const shown = useMemo(() => shownDeckRows(props.decks, props.collapsed ?? new Set()), [props.decks, props.collapsed]);
   const groups = useMemo(() => groupByTopLevel(shown), [shown]);
   const allDecks = useMemo(() => props.decks.map((r) => r.deck), [props.decks]);
@@ -312,6 +318,7 @@ export function DeckList(props: {
           {props.sync ? (
             <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={syncShown} accessibilityLabel={syncShown ? 'Syncing' : 'Sync now'} onPress={syncTapped} />
           ) : null}
+          {props.onQuickAdd ? <Stack.Toolbar.Button icon="plus" accessibilityLabel="Quick add notes" onPress={props.onQuickAdd} /> : null}
           <Stack.Toolbar.Button icon="rectangle.stack.badge.plus" accessibilityLabel="New deck" onPress={props.onNewDeck} />
           <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} />
           <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={props.onSettings} />
@@ -350,7 +357,19 @@ export function DeckList(props: {
               </View>
             </Pressable>
           ) : null}
+          {props.loadProblem ? (
+            <Pressable onPress={props.loadProblem.onRetry} accessibilityRole="button" accessibilityHint="Loads the decks again" style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
+              <View style={{ flexDirection: 'row', gap: space.m, alignItems: 'flex-start', borderRadius: radius.l, ...smooth, borderWidth: 1, borderColor: c.warning, backgroundColor: c.surface, padding: space.m }}>
+                <Icon name="exclamationmark.triangle.fill" size={22} color={c.warning} />
+                <View style={{ flex: 1, gap: space.xs }}>
+                  <Text style={{ ...type.headline, color: c.warning }}>Couldn't load your decks</Text>
+                  <Text style={{ ...type.subhead, color: c.textSecondary }}>{props.loadProblem.text}</Text>
+                </View>
+              </View>
+            </Pressable>
+          ) : null}
           {vocabReady ? <VocabReadyCard banner={vocabReady} /> : null}
+          {noteQueue ? <NoteQueueCard banner={noteQueue} /> : null}
           {props.sync?.failed ? (
             // A failed sync is shown first, where it can't be scrolled past; a tap tries again.
             <Pressable onPress={syncTapped} accessibilityRole="button" accessibilityHint="Syncs now" style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>

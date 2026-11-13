@@ -97,6 +97,15 @@ test('clearing a marked word posts it, and skipping a text posts to it', async (
   expect(calls[1].init.method).toBe('POST');
 });
 
+test("a story episode's pick for what happens next is sent as an index", async () => {
+  const { impl, calls } = fakeFetch(new Response(null, { status: 204 }));
+  const api = createApi('https://x', 'p', impl);
+  await api.chooseNext(7, 1);
+  expect(calls[0].url).toBe('https://x/api/texts/7/choice');
+  expect(calls[0].init.method).toBe('POST');
+  expect(JSON.parse(calls[0].init.body as string)).toEqual({ choice: 1 });
+});
+
 test('the shelf writes a typed topic, starts a story and lists a story\'s episodes', async () => {
   const { impl, calls } = fakeFetch(new Response(null, { status: 202 }));
   const api = createApi('https://x', 'p', impl);

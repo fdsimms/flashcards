@@ -99,8 +99,10 @@ Franki's (Client, below).
   text" brings the words back. The reading is then logged with `listen_only` true. The brief's
   "unlocks for a text" is read as "for the text just rated", since a text is never served twice.
 - While audio plays, the text scrolls to keep the line being spoken in view.
-- **Repeat line** in the player plays the current line over and over, for shadowing, until it's
-  turned off.
+- **Repeat line** in the player plays the current line again, for shadowing. One chip steps through
+  Off, 2×, 3×, 5× and ∞ (a count is the line's total plays; ∞ goes until turned off). The count isn't
+  kept: it starts at Off each time a text opens, and a line started fresh (Play, a skip, a line's own
+  replay button) begins its count again.
 - **Past texts**: texts read to the end, newest first (the last 50), opened in the same reader to
   read or listen to again. Reading one again isn't logged: the log is one row per text, and a reread
   shouldn't count toward the exit check or move difficulty. So there's no Done or rating, and words
@@ -108,8 +110,8 @@ Franki's (Client, below).
   away, since that's when the brief unlocks it.
 - The reader's playback speed and the highlight switch are kept between launches, in the Keychain
   next to the passphrase (`src/reader/storage.ts`).
-- **Progress** on the language's settings page (on the topics screen before the shelf): finished texts over the last 14 days against the Milestone 1
-  exit check (10 texts, median coverage 95% or more, most rated "about right"), and the coverage
+- **Progress** on the language's settings page (on the topics screen before the shelf): finished texts over the last 14 days with their median coverage and
+  ratings (no goal is set; the Milestone 1 exit check's 10 texts was dropped), and the coverage
   target and practice word count new texts are written at, so the effect of a rating is visible.
   Only finished readings count.
 - **Marked words**: every word marked unknown in a reading, newest first, with its gloss and whether
@@ -487,8 +489,9 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   The deck's meaning wins over a kept one.
 - **Stretch words** are 1-3 words due today or still young. No random assignment.
 - **Stretch words come back on later days** (brief, design principle 4). A word that was a stretch
-  word in a text read on an earlier day goes ahead of other due and young words, until it has been
-  one on 3 different days (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be due
+  word in a text read on an earlier study day goes ahead of other due and young words, until it has
+  been one on 3 different study days (Anki's, in `TZ` from its "Next day starts at"; `study_day.py`)
+  (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be due
   or young, so a word that has matured since is left alone. In "Fit the topic" it's offered first,
   and the model may still pass it over if it doesn't fit.
 - **Short stories** as well as dialogues: a "Text type" setting (`form` in `/api/settings`),
@@ -583,6 +586,15 @@ next episode is the top of the shelf.
 - **An episode is a story-form text like any other**: the same coverage target, revision loop and
   stretch words, filed under the story's own hidden topic. The next one is written only once the
   last has been read, so at most one waits.
+- **An episode ends on a choice** (added 13 November 2026). The same request asks for two or three
+  `choices`: short options for what happens next, written like lines (`|` between words, English
+  beside each) and counted in the text's coverage, so one with a word outside the deck is sent back
+  like any other draft. Fewer than two is no choice, and the story carries on as before. They're
+  stored on the episode (`choices`, and `chosen`, the index picked) and sent with it as segmented
+  words. The app saves the pick when it's tapped (`POST /api/texts/{id}/choice`), which can change
+  until the episode is read: reading is what writes the next episode, and its request then says
+  "the reader chose X". No pick means no line saying so. A read episode refuses a new pick (409).
+  Play all stops at an episode that has choices. Not built: a typed option of the reader's own.
 
 ## Topics
 
@@ -600,9 +612,11 @@ next episode is the top of the shelf.
   `writing`, `failed`, `idle`) for the app to show.
 - A text is stored as `pending` until its audio is made, then `ready`; one left pending by a
   restart is made ready at startup. A text whose every attempt was under 90% is stored as
-  `dropped`, never served, so its cost is still on record.
+  `dropped`, never served, so its cost is still on record; so is a first attempt Claude answered
+  with nothing usable (a refusal, a cut-off, invalid JSON), as a dropped row with no text.
 - A text leaves the queue once a reading is logged for it, rated or not, so the same text is never
-  served twice.
+  served twice. Only a `ready` text becomes `read`: a dropped or skipped one keeps its status, so
+  the costs still count it as what it was.
 - **Topic ideas**, so topics don't all have to be thought up. About 30 everyday situations
   (`server/reader/src/franki_reader/suggestions.py`), each with six Thai words it's likely to need, offered on
   the topics screen a few at a time (until the shelf, which now writes from them itself), ordered by how many of those words the deck knows: the best fit
@@ -806,3 +820,25 @@ in the current language, with when one was last read to the end. Nothing else le
   was within one setting step of the right one 98% of the time (95% at 12 questions, 99% at 40) and
   exactly right 62% of the time (69% at 40), so more questions buy little. Not tried on a real
   learner.
+
+- **The note queue fills in notes from a typed word** (`server/reader/.../note_queue.py`,
+  `src/reader/noteQueue.ts`; 13 November 2026, the owner's idea: "I'm never gonna fill these fields out
+  by hand"). Quick add takes words, one per line (with the owner's own meaning after a spaced dash), and
+  the server's `note_queue` table holds them as `waiting`, `ready` or `failed`. A background pass sends
+  the due words to Claude a language and ten at a time, never a call per word, and writes the Meaning
+  (unless the owner gave one), a Context sentence with the word in `<b>`, its translation, the
+  romanization of the sentence and word in Thai, Russian and Greek (`ContextRomanized`,
+  `Transliteration`), and a Register when the word isn't plain. Generate, then verify: a word is kept
+  only if it was asked for and its fields pass `check` (one sentence, balanced bold, no other markup,
+  no `|`, `*` or em dashes); anything else is `failed` with the reason, never repaired, and a failed word
+  is tried again after ten minutes, up to three tries, then waits for the owner's Try again. Which
+  words are due is read at each `GET /api/note-queue`, so a server restart picks up where it left off;
+  the app asks every few seconds only while some word is waiting (`useNoteQueue`, one poller for every
+  screen showing the queue). **Nothing here writes an Anki note.** The server can't write notes or media
+  to Anki, and the approval rule stands: a ready word opens in the note editor with its fields filled
+  in, and saving there is the approval, after which the app deletes the word from the queue. The Audio
+  field is the one the server doesn't write: the app records it as it does for any note when it's saved
+  (`src/core/recording.ts`). The spend is the `note_queue` block of `/api/costs`. Not done: PartOfSpeech
+  and Gender (their values in the owner's notes aren't written down anywhere to match), a check that
+  the sentence uses only known words (it's one sentence, not a text), and a note that says it was
+  filled in by Claude in the editor.

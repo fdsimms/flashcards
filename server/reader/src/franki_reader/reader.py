@@ -91,15 +91,11 @@ def render(
     review = tuple(p for p in text.grammar.get("review", []) if p not in practice + avoid)
     unset = tuple(p for p in unset if p not in practice + avoid + review)
     used: set[str] = set()
-    lines = []
-    for line in text.lines:
-        plain, _ = parse_line(line.text, lexicon.spaced)
-        # Which words use a marked point, by index among the line's words; the first role wins.
-        marked = grammar.marks(plain, lexicon, practice + avoid + review + unset)
-        used.update(marked.values())
+
+    def render_words(source: str, marked: dict[int, str]) -> list[dict[str, Any]]:
         at = 0
         words = []
-        for piece, is_name in segment_line(line.text, lexicon):
+        for piece, is_name in segment_line(source, lexicon):
             if not is_word(piece):
                 words.append(
                     {
@@ -133,13 +129,21 @@ def render(
                     "grammar": point,
                 }
             )
+        return words
+
+    lines = []
+    for line in text.lines:
+        plain, _ = parse_line(line.text, lexicon.spaced)
+        # Which words use a marked point, by index among the line's words; the first role wins.
+        marked = grammar.marks(plain, lexicon, practice + avoid + review + unset)
+        used.update(marked.values())
         lines.append(
             {
                 "speaker": line.speaker,
                 "english": line.english,
                 "paragraph": line.paragraph,
                 "register": line.register,
-                "words": words,
+                "words": render_words(line.text, marked),
             }
         )
     return {
@@ -172,4 +176,10 @@ def render(
             if pid in grammar.POINTS
         ],
         "lines": lines,
+        # What the reader can pick to happen in the next episode (a story episode only), as words
+        # like a line's but with no grammar marks, and the index picked so far.
+        "choices": [
+            {"english": c.english, "words": render_words(c.text, {})} for c in text.choices
+        ],
+        "chosen": text.chosen,
     }

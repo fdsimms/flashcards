@@ -15,6 +15,13 @@ describe('numbers in Norwegian, past 99', () => {
     expect(norwegianCardinal(10_000)).toBe('ti tusen');
     expect(() => norwegianCardinal(1_000_000)).toThrow(RangeError);
   });
+  it('says ett hundre after thousands', () => {
+    expect(norwegianCardinal(1100)).toBe('tusen ett hundre');
+    expect(norwegianCardinal(1150)).toBe('tusen ett hundre og femti');
+    expect(norwegianCardinal(21_100)).toBe('tjueen tusen ett hundre');
+    expect(norwegianCardinal(100_100)).toBe('hundre tusen ett hundre');
+    expect(norwegianCardinal(150)).toBe('hundre og femti');
+  });
 });
 
 describe('an amount of kroner in Norwegian', () => {
@@ -28,6 +35,8 @@ describe('an amount of kroner in Norwegian', () => {
     expect(say(127700).also.map((p) => p.text)).toEqual(['ett tusen to hundre og syttisju kroner']);
     expect(say(15000).also.map((p) => p.text)).toEqual(['ett hundre og femti kroner']);
     expect(say(2100).also).toEqual([]);
+    expect(say(115000).everyday.text).toBe('tusen ett hundre og femti kroner');
+    expect(say(115000).also.map((p) => p.text)).toEqual(['ett tusen ett hundre og femti kroner']);
   });
 
   it('says øre after the kroner, or shorter at a till', () => {

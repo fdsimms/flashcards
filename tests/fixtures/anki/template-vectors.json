@@ -1,0 +1,6310 @@
+{
+ "cloze": [
+  {
+   "text": "{{c1::Lima}} is the capital of {{c2::Peru::country}}",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"Lima\" data-ordinal=\"1\">[...]</span> is the capital of <span class=\"cloze-inactive\" data-ordinal=\"2\">Peru</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">Lima</span> is the capital of <span class=\"cloze-inactive\" data-ordinal=\"2\">Peru</span>",
+     "frontOnly": "...",
+     "backOnly": "Lima"
+    },
+    "1": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">Lima</span> is the capital of <span class=\"cloze\" data-cloze=\"Peru\" data-ordinal=\"2\">[country]</span>",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">Lima</span> is the capital of <span class=\"cloze\" data-ordinal=\"2\">Peru</span>",
+     "frontOnly": "country",
+     "backOnly": "Peru"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "Lima",
+    "2": "Peru",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::Paris {{c2::France}}}}",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"Paris&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;2&quot;&gt;France&lt;&#x2F;span&gt;\" data-ordinal=\"1\">[...]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">Paris <span class=\"cloze-inactive\" data-ordinal=\"2\">France</span></span>",
+     "frontOnly": "...",
+     "backOnly": "Paris France"
+    },
+    "1": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">Paris <span class=\"cloze\" data-cloze=\"France\" data-ordinal=\"2\">[...]</span></span>",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">Paris <span class=\"cloze\" data-ordinal=\"2\">France</span></span>",
+     "frontOnly": "...",
+     "backOnly": "France"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "Paris France",
+    "2": "France",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "foo {{c1::bar {{c2::baz}}::qux}}",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "foo <span class=\"cloze\" data-cloze=\"bar&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;2&quot;&gt;baz&lt;&#x2F;span&gt;\" data-ordinal=\"1\">[qux]</span>",
+     "back": "foo <span class=\"cloze\" data-ordinal=\"1\">bar <span class=\"cloze-inactive\" data-ordinal=\"2\">baz</span></span>",
+     "frontOnly": "qux",
+     "backOnly": "bar baz"
+    },
+    "1": {
+     "front": "foo <span class=\"cloze-inactive\" data-ordinal=\"1\">bar <span class=\"cloze\" data-cloze=\"baz\" data-ordinal=\"2\">[...]</span></span>",
+     "back": "foo <span class=\"cloze-inactive\" data-ordinal=\"1\">bar <span class=\"cloze\" data-ordinal=\"2\">baz</span></span>",
+     "frontOnly": "...",
+     "backOnly": "baz"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "bar baz",
+    "2": "baz",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::a::h1 {{c2::b}}::h2}}",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"a&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;2&quot;&gt;b&lt;&#x2F;span&gt;\" data-ordinal=\"1\">[h2]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">a<span class=\"cloze-inactive\" data-ordinal=\"2\">b</span></span>",
+     "frontOnly": "h2",
+     "backOnly": "ab"
+    },
+    "1": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">a<span class=\"cloze\" data-cloze=\"b\" data-ordinal=\"2\">[...]</span></span>",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">a<span class=\"cloze\" data-ordinal=\"2\">b</span></span>",
+     "frontOnly": "...",
+     "backOnly": "b"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "ab",
+    "2": "b",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::outer {{c1::inner}} end}}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"outer&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&quot;&#x20;data&#x2D;cloze&#x3D;&quot;inner&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;1&quot;&gt;&#x5B;&#x2E;&#x2E;&#x2E;&#x5D;&lt;&#x2F;span&gt;&#x20;end\" data-ordinal=\"1\">[...]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">outer <span class=\"cloze\" data-ordinal=\"1\">inner</span> end</span>",
+     "frontOnly": "..., ...",
+     "backOnly": "outer inner end, inner"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "outer inner end, inner",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c2::te{{c1::s}}}}t{{",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"2\">te<span class=\"cloze\" data-cloze=\"s\" data-ordinal=\"1\">[...]</span></span>t{{",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"2\">te<span class=\"cloze\" data-ordinal=\"1\">s</span></span>t{{",
+     "frontOnly": "...",
+     "backOnly": "s"
+    },
+    "1": {
+     "front": "<span class=\"cloze\" data-cloze=\"te&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;1&quot;&gt;s&lt;&#x2F;span&gt;\" data-ordinal=\"2\">[...]</span>t{{",
+     "back": "<span class=\"cloze\" data-ordinal=\"2\">te<span class=\"cloze-inactive\" data-ordinal=\"1\">s</span></span>t{{",
+     "frontOnly": "...",
+     "backOnly": "tes"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "s",
+    "2": "tes",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1,2::shared}} and {{c3::three}}",
+   "extra": "",
+   "ords": [
+    0,
+    1,
+    2
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"shared\" data-ordinal=\"1,2\">[...]</span> and <span class=\"cloze-inactive\" data-ordinal=\"3\">three</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1,2\">shared</span> and <span class=\"cloze-inactive\" data-ordinal=\"3\">three</span>",
+     "frontOnly": "...",
+     "backOnly": "shared"
+    },
+    "1": {
+     "front": "<span class=\"cloze\" data-cloze=\"shared\" data-ordinal=\"1,2\">[...]</span> and <span class=\"cloze-inactive\" data-ordinal=\"3\">three</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1,2\">shared</span> and <span class=\"cloze-inactive\" data-ordinal=\"3\">three</span>",
+     "frontOnly": "...",
+     "backOnly": "shared"
+    },
+    "2": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1,2\">shared</span> and <span class=\"cloze\" data-cloze=\"three\" data-ordinal=\"3\">[...]</span>",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1,2\">shared</span> and <span class=\"cloze\" data-ordinal=\"3\">three</span>",
+     "frontOnly": "...",
+     "backOnly": "three"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "shared",
+    "2": "shared",
+    "3": "three",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c0::zero}} {{c2::two}}",
+   "extra": "",
+   "ords": [
+    1
+   ],
+   "cards": {
+    "1": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"0\">zero</span> <span class=\"cloze\" data-cloze=\"two\" data-ordinal=\"2\">[...]</span>",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"0\">zero</span> <span class=\"cloze\" data-ordinal=\"2\">two</span>",
+     "frontOnly": "...",
+     "backOnly": "two"
+    }
+   },
+   "typing": {
+    "0": "zero",
+    "1": "",
+    "2": "two",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "a }} b {{c1::x}} {{c",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "a }} b <span class=\"cloze\" data-cloze=\"x\" data-ordinal=\"1\">[...]</span> {{c",
+     "back": "a }} b <span class=\"cloze\" data-ordinal=\"1\">x</span> {{c",
+     "frontOnly": "...",
+     "backOnly": "x"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "x",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::unclosed {{c2::two}}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "empty": true
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::a}} {{c1::b}} {{c1::a}}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"a\" data-ordinal=\"1\">[...]</span> <span class=\"cloze\" data-cloze=\"b\" data-ordinal=\"1\">[...]</span> <span class=\"cloze\" data-cloze=\"a\" data-ordinal=\"1\">[...]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">a</span> <span class=\"cloze\" data-ordinal=\"1\">b</span> <span class=\"cloze\" data-ordinal=\"1\">a</span>",
+     "frontOnly": "..., ..., ...",
+     "backOnly": "a, b, a"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "a, b, a",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::x::hint with <b>&amp;</b> \"q\"}}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"x\" data-ordinal=\"1\">[hint with <b>&amp;</b> \"q\"]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">x</span>",
+     "frontOnly": "hint with <b>&amp;</b> \"q\"",
+     "backOnly": "x"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "x",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::<b>bold</b> & \"q\" 'a' <x> é Ł\n1/2}}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"&lt;b&gt;bold&lt;&#x2F;b&gt;&#x20;&amp;&#x20;&quot;q&quot;&#x20;&#x27;a&#x27;&#x20;&lt;x&gt;&#x20;&#xE9;&#x20;Ł&#x0A;1&#x2F;2\" data-ordinal=\"1\">[...]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\"><b>bold</b> & \"q\" 'a' <x> é Ł\n1/2</span>",
+     "frontOnly": "...",
+     "backOnly": "<b>bold</b> & \"q\" 'a' <x> é Ł\n1/2"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "<b>bold</b> & \"q\" 'a' <x> é Ł\n1/2",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::}} {{c1:: }}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"\" data-ordinal=\"1\">[...]</span> <span class=\"cloze\" data-cloze=\"&#x20;\" data-ordinal=\"1\">[...]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\"></span> <span class=\"cloze\" data-ordinal=\"1\"> </span>",
+     "frontOnly": "..., ...",
+     "backOnly": ",  "
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": ",  ",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::::}} {{c2::a::}}",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"\" data-ordinal=\"1\">[]</span> <span class=\"cloze-inactive\" data-ordinal=\"2\">a</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\"></span> <span class=\"cloze-inactive\" data-ordinal=\"2\">a</span>",
+     "frontOnly": "",
+     "backOnly": ""
+    },
+    "1": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\"></span> <span class=\"cloze\" data-cloze=\"a\" data-ordinal=\"2\">[]</span>",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\"></span> <span class=\"cloze\" data-ordinal=\"2\">a</span>",
+     "frontOnly": "",
+     "backOnly": "a"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "",
+    "2": "a",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{C1::upper}} {{c01::leading zero}} {{c::none}} {{c1,::comma}}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "{{C1::upper}} <span class=\"cloze\" data-cloze=\"leading&#x20;zero\" data-ordinal=\"1\">[...]</span> {{c::none}} <span class=\"cloze\" data-cloze=\"comma\" data-ordinal=\"1\">[...]</span>",
+     "back": "{{C1::upper}} <span class=\"cloze\" data-ordinal=\"1\">leading zero</span> {{c::none}} <span class=\"cloze\" data-ordinal=\"1\">comma</span>",
+     "frontOnly": "..., ...",
+     "backOnly": "leading zero, comma"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "leading zero, comma",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c3::only three}}",
+   "extra": "",
+   "ords": [
+    2
+   ],
+   "cards": {
+    "2": {
+     "front": "<span class=\"cloze\" data-cloze=\"only&#x20;three\" data-ordinal=\"3\">[...]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"3\">only three</span>",
+     "frontOnly": "...",
+     "backOnly": "only three"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "",
+    "2": "",
+    "3": "only three",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::Text}}",
+   "extra": "{{c2::in the other field}}",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"Text\" data-ordinal=\"1\">[...]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">Text</span>",
+     "frontOnly": "...",
+     "backOnly": "Text"
+    },
+    "1": {
+     "front": "",
+     "back": "",
+     "frontOnly": "",
+     "backOnly": ""
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "Text",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::x}}}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"x\" data-ordinal=\"1\">[...]</span>}",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">x</span>}",
+     "frontOnly": "...",
+     "backOnly": "x"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "x",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::1 {{c2::2 {{c3::3 {{c4::4 {{c5::5 {{c6::6 {{c7::7 {{c8::8 {{c9::9 {{c10::10 {{c11::11 {{c12::12 end}}}}}}}}}}}}}}}}}}}}}}}}",
+   "extra": "",
+   "ords": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"1&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;2&quot;&gt;2&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;3&quot;&gt;3&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;4&quot;&gt;4&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;5&quot;&gt;5&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;6&quot;&gt;6&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;7&quot;&gt;7&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;8&quot;&gt;8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"1\">[...]</span>}}}}",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "1 2 3 4 5 6 7 8 9 10 11 12 end"
+    },
+    "1": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze\" data-cloze=\"2&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;3&quot;&gt;3&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;4&quot;&gt;4&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;5&quot;&gt;5&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;6&quot;&gt;6&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;7&quot;&gt;7&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;8&quot;&gt;8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"2\">[...]</span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "2 3 4 5 6 7 8 9 10 11 12 end"
+    },
+    "2": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze\" data-cloze=\"3&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;4&quot;&gt;4&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;5&quot;&gt;5&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;6&quot;&gt;6&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;7&quot;&gt;7&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;8&quot;&gt;8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"3\">[...]</span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "3 4 5 6 7 8 9 10 11 12 end"
+    },
+    "3": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze\" data-cloze=\"4&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;5&quot;&gt;5&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;6&quot;&gt;6&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;7&quot;&gt;7&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;8&quot;&gt;8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"4\">[...]</span></span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "4 5 6 7 8 9 10 11 12 end"
+    },
+    "4": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze\" data-cloze=\"5&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;6&quot;&gt;6&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;7&quot;&gt;7&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;8&quot;&gt;8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"5\">[...]</span></span></span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "5 6 7 8 9 10 11 12 end"
+    },
+    "5": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze\" data-cloze=\"6&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;7&quot;&gt;7&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;8&quot;&gt;8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"6\">[...]</span></span></span></span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "6 7 8 9 10 11 12 end"
+    },
+    "6": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze\" data-cloze=\"7&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;8&quot;&gt;8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"7\">[...]</span></span></span></span></span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "7 8 9 10 11 12 end"
+    },
+    "7": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze\" data-cloze=\"8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"8\">[...]</span></span></span></span></span></span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "8 9 10 11 12 end"
+    },
+    "8": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze\" data-cloze=\"9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;\" data-ordinal=\"9\">[...]</span></span></span></span></span></span></span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "9 10 11 12 end"
+    },
+    "9": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze\" data-cloze=\"10&#x20;11&#x20;12&#x20;end\" data-ordinal=\"10\">[...]</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "10 11 12 end"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "1 2 3 4 5 6 7 8 9 10 11 12 end",
+    "2": "2 3 4 5 6 7 8 9 10 11 12 end",
+    "3": "3 4 5 6 7 8 9 10 11 12 end",
+    "4": "4 5 6 7 8 9 10 11 12 end"
+   }
+  },
+  {
+   "text": "\\({{c1::x^2}}\\) and {{c2::y::why}}",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "\\([...]\\) and <span class=\"cloze-inactive\" data-ordinal=\"2\">y</span>",
+     "back": "\\(x^2\\) and <span class=\"cloze-inactive\" data-ordinal=\"2\">y</span>",
+     "frontOnly": "...",
+     "backOnly": "x^2"
+    },
+    "1": {
+     "front": "\\(x^2\\) and <span class=\"cloze\" data-cloze=\"y\" data-ordinal=\"2\">[why]</span>",
+     "back": "\\(x^2\\) and <span class=\"cloze\" data-ordinal=\"2\">y</span>",
+     "frontOnly": "why",
+     "backOnly": "y"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "x^2",
+    "2": "y",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "\\({{c1::x::<i>h</i>}} + {{c2::<b>z</b>}}\\)",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "\\([h] + z\\)",
+     "back": "\\(x + z\\)",
+     "frontOnly": "<i>h</i>",
+     "backOnly": "x"
+    },
+    "1": {
+     "front": "\\(x + [...]\\)",
+     "back": "\\(x + z\\)",
+     "frontOnly": "...",
+     "backOnly": "<b>z</b>"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "x",
+    "2": "<b>z</b>",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "\\[<b>a</b> {{c1::<span style=\"color:red\">b</span> &lt; c&nbsp;d}}\\]",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "\\[a [...]\\]",
+     "back": "\\[a b &lt; c&nbsp;d\\]",
+     "frontOnly": "...",
+     "backOnly": "<span style=\"color:red\">b</span> &lt; c&nbsp;d"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "<span style=\"color:red\">b</span> &lt; c&nbsp;d",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::\\(a\\)}} {{c2::a \\(b}} <i>c</i>\\)",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"&#x5C;&#x28;a&#x5C;&#x29;\" data-ordinal=\"1\">[...]</span> <span class=\"cloze-inactive\" data-ordinal=\"2\">a \\(b c\\)",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">\\(a\\)</span> <span class=\"cloze-inactive\" data-ordinal=\"2\">a \\(b c\\)",
+     "frontOnly": "...",
+     "backOnly": "\\(a\\)"
+    },
+    "1": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">\\(a\\)</span> <span class=\"cloze\" data-cloze=\"a&#x20;&#x5C;&#x28;b\" data-ordinal=\"2\">[...]</span> <i>c</i>\\)",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">\\(a\\)</span> <span class=\"cloze\" data-ordinal=\"2\">a \\(b c\\)",
+     "frontOnly": "...",
+     "backOnly": "a \\(b"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "\\(a\\)",
+    "2": "a \\(b",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "\\(\n<!-- {{c2::note}} -->{{c1::x<br>y}}\n\\]",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "\\(\n[...]\n\\]",
+     "back": "\\(\nxy\n\\]",
+     "frontOnly": "...",
+     "backOnly": "x<br>y"
+    },
+    "1": {
+     "front": "\\(\nxy\n\\]",
+     "back": "\\(\nxy\n\\]",
+     "frontOnly": "...",
+     "backOnly": "note"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "x<br>y",
+    "2": "note",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "\\(<STYLE>p{}</STYLE><script>1<2</script>{{c1::a}}\\) \\(unclosed {{c2::<b>b</b>}}",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "\\([...]\\) \\(unclosed <span class=\"cloze-inactive\" data-ordinal=\"2\"><b>b</b></span>",
+     "back": "\\(a\\) \\(unclosed <span class=\"cloze-inactive\" data-ordinal=\"2\"><b>b</b></span>",
+     "frontOnly": "...",
+     "backOnly": "a"
+    },
+    "1": {
+     "front": "\\(a\\) \\(unclosed <span class=\"cloze\" data-cloze=\"&lt;b&gt;b&lt;&#x2F;b&gt;\" data-ordinal=\"2\">[...]</span>",
+     "back": "\\(a\\) \\(unclosed <span class=\"cloze\" data-ordinal=\"2\"><b>b</b></span>",
+     "frontOnly": "...",
+     "backOnly": "<b>b</b>"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "a",
+    "2": "<b>b</b>",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "\\\\({{c1::<b>x</b>}}\\\\) \\)<b>{{c2::y}}</b>\\(",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "\\\\([...]\\\\) \\)<b><span class=\"cloze-inactive\" data-ordinal=\"2\">y</span></b>\\(",
+     "back": "\\\\(x\\\\) \\)<b><span class=\"cloze-inactive\" data-ordinal=\"2\">y</span></b>\\(",
+     "frontOnly": "...",
+     "backOnly": "<b>x</b>"
+    },
+    "1": {
+     "front": "\\\\(x\\\\) \\)<b><span class=\"cloze\" data-cloze=\"y\" data-ordinal=\"2\">[...]</span></b>\\(",
+     "back": "\\\\(x\\\\) \\)<b><span class=\"cloze\" data-ordinal=\"2\">y</span></b>\\(",
+     "frontOnly": "...",
+     "backOnly": "y"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "<b>x</b>",
+    "2": "y",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::image-occlusion:rect:left=.2:top=.3:width=.1:height=.1:oi=1}}{{c2::image-occlusion:ellipse:left=.5:top=.5:width=.2:height=.1:rx=.1:ry=.05:oi=1}}",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "<div class=\"cloze\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".2\" data-top=\".3\" data-width=\".1\" data-height=\".1\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"2\" data-shape=\"ellipse\" data-left=\".5\" data-top=\".5\" data-width=\".2\" data-height=\".1\" data-rx=\".1\" data-ry=\".05\" data-occludeInactive=\"1\" ></div>",
+     "back": "<div class=\"cloze-highlight\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".2\" data-top=\".3\" data-width=\".1\" data-height=\".1\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"2\" data-shape=\"ellipse\" data-left=\".5\" data-top=\".5\" data-width=\".2\" data-height=\".1\" data-rx=\".1\" data-ry=\".05\" data-occludeInactive=\"1\" ></div>",
+     "frontOnly": "...",
+     "backOnly": "image-occlusion:rect:left=.2:top=.3:width=.1:height=.1:oi=1"
+    },
+    "1": {
+     "front": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".2\" data-top=\".3\" data-width=\".1\" data-height=\".1\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"2\" data-shape=\"ellipse\" data-left=\".5\" data-top=\".5\" data-width=\".2\" data-height=\".1\" data-rx=\".1\" data-ry=\".05\" data-occludeInactive=\"1\" ></div>",
+     "back": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".2\" data-top=\".3\" data-width=\".1\" data-height=\".1\" data-occludeInactive=\"1\" ></div><div class=\"cloze-highlight\" data-ordinal=\"2\" data-shape=\"ellipse\" data-left=\".5\" data-top=\".5\" data-width=\".2\" data-height=\".1\" data-rx=\".1\" data-ry=\".05\" data-occludeInactive=\"1\" ></div>",
+     "frontOnly": "...",
+     "backOnly": "image-occlusion:ellipse:left=.5:top=.5:width=.2:height=.1:rx=.1:ry=.05:oi=1"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "image-occlusion:rect:left=.2:top=.3:width=.1:height=.1:oi=1",
+    "2": "image-occlusion:ellipse:left=.5:top=.5:width=.2:height=.1:rx=.1:ry=.05:oi=1",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::image-occlusion:polygon:left=.1:top=.1:points=.1,.1 .3,.1 .2,.4:oi=1}}{{c1::image-occlusion:rect:left=.6:top=.6:width=.1:height=.1:angle=1250:fill=#ff0000:oi=1}}{{c0::image-occlusion:text:left=.4:top=.05:text=Label \\: <b>&\"x\"</b> \\\\ é:scale=1.5:fs=.04:oi=1}}{{c2,3::image-occlusion:rect:left=.0:top=.0:width=.05:height=.05}}",
+   "extra": "",
+   "ords": [
+    0,
+    1,
+    2
+   ],
+   "cards": {
+    "0": {
+     "front": "<div class=\"cloze\" data-ordinal=\"1\" data-shape=\"polygon\" data-left=\".1\" data-top=\".1\" data-points=\".1,.1 .3,.1 .2,.4\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".6\" data-top=\".6\" data-width=\".1\" data-height=\".1\" data-angle=\"1250\" data-fill=\"#ff0000\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"0\" data-shape=\"text\" data-left=\".4\" data-top=\".05\" data-text=\"Label&#x20;&#x3A;&#x20;&lt;b&gt;&amp;&quot;x&quot;&lt;&#x2F;b&gt;&#x20;&#x5C;&#x20;&#xE9;\" data-scale=\"1.5\" data-font-size=\".04\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"2,3\" data-shape=\"rect\" data-left=\".0\" data-top=\".0\" data-width=\".05\" data-height=\".05\" ></div>",
+     "back": "<div class=\"cloze-highlight\" data-ordinal=\"1\" data-shape=\"polygon\" data-left=\".1\" data-top=\".1\" data-points=\".1,.1 .3,.1 .2,.4\" data-occludeInactive=\"1\" ></div><div class=\"cloze-highlight\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".6\" data-top=\".6\" data-width=\".1\" data-height=\".1\" data-angle=\"1250\" data-fill=\"#ff0000\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"0\" data-shape=\"text\" data-left=\".4\" data-top=\".05\" data-text=\"Label&#x20;&#x3A;&#x20;&lt;b&gt;&amp;&quot;x&quot;&lt;&#x2F;b&gt;&#x20;&#x5C;&#x20;&#xE9;\" data-scale=\"1.5\" data-font-size=\".04\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"2,3\" data-shape=\"rect\" data-left=\".0\" data-top=\".0\" data-width=\".05\" data-height=\".05\" ></div>",
+     "frontOnly": "..., ...",
+     "backOnly": "image-occlusion:polygon:left=.1:top=.1:points=.1,.1 .3,.1 .2,.4:oi=1, image-occlusion:rect:left=.6:top=.6:width=.1:height=.1:angle=1250:fill=#ff0000:oi=1"
+    },
+    "1": {
+     "front": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"polygon\" data-left=\".1\" data-top=\".1\" data-points=\".1,.1 .3,.1 .2,.4\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".6\" data-top=\".6\" data-width=\".1\" data-height=\".1\" data-angle=\"1250\" data-fill=\"#ff0000\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"0\" data-shape=\"text\" data-left=\".4\" data-top=\".05\" data-text=\"Label&#x20;&#x3A;&#x20;&lt;b&gt;&amp;&quot;x&quot;&lt;&#x2F;b&gt;&#x20;&#x5C;&#x20;&#xE9;\" data-scale=\"1.5\" data-font-size=\".04\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"2,3\" data-shape=\"rect\" data-left=\".0\" data-top=\".0\" data-width=\".05\" data-height=\".05\" ></div>",
+     "back": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"polygon\" data-left=\".1\" data-top=\".1\" data-points=\".1,.1 .3,.1 .2,.4\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".6\" data-top=\".6\" data-width=\".1\" data-height=\".1\" data-angle=\"1250\" data-fill=\"#ff0000\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"0\" data-shape=\"text\" data-left=\".4\" data-top=\".05\" data-text=\"Label&#x20;&#x3A;&#x20;&lt;b&gt;&amp;&quot;x&quot;&lt;&#x2F;b&gt;&#x20;&#x5C;&#x20;&#xE9;\" data-scale=\"1.5\" data-font-size=\".04\" data-occludeInactive=\"1\" ></div><div class=\"cloze-highlight\" data-ordinal=\"2,3\" data-shape=\"rect\" data-left=\".0\" data-top=\".0\" data-width=\".05\" data-height=\".05\" ></div>",
+     "frontOnly": "...",
+     "backOnly": "image-occlusion:rect:left=.0:top=.0:width=.05:height=.05"
+    },
+    "2": {
+     "front": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"polygon\" data-left=\".1\" data-top=\".1\" data-points=\".1,.1 .3,.1 .2,.4\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".6\" data-top=\".6\" data-width=\".1\" data-height=\".1\" data-angle=\"1250\" data-fill=\"#ff0000\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"0\" data-shape=\"text\" data-left=\".4\" data-top=\".05\" data-text=\"Label&#x20;&#x3A;&#x20;&lt;b&gt;&amp;&quot;x&quot;&lt;&#x2F;b&gt;&#x20;&#x5C;&#x20;&#xE9;\" data-scale=\"1.5\" data-font-size=\".04\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"2,3\" data-shape=\"rect\" data-left=\".0\" data-top=\".0\" data-width=\".05\" data-height=\".05\" ></div>",
+     "back": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"polygon\" data-left=\".1\" data-top=\".1\" data-points=\".1,.1 .3,.1 .2,.4\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".6\" data-top=\".6\" data-width=\".1\" data-height=\".1\" data-angle=\"1250\" data-fill=\"#ff0000\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"0\" data-shape=\"text\" data-left=\".4\" data-top=\".05\" data-text=\"Label&#x20;&#x3A;&#x20;&lt;b&gt;&amp;&quot;x&quot;&lt;&#x2F;b&gt;&#x20;&#x5C;&#x20;&#xE9;\" data-scale=\"1.5\" data-font-size=\".04\" data-occludeInactive=\"1\" ></div><div class=\"cloze-highlight\" data-ordinal=\"2,3\" data-shape=\"rect\" data-left=\".0\" data-top=\".0\" data-width=\".05\" data-height=\".05\" ></div>",
+     "frontOnly": "...",
+     "backOnly": "image-occlusion:rect:left=.0:top=.0:width=.05:height=.05"
+    }
+   },
+   "typing": {
+    "0": "image-occlusion:text:left=.4:top=.05:text=Label \\: <b>&\"x\"</b> \\\\ é:scale=1.5:fs=.04:oi=1",
+    "1": "image-occlusion:polygon:left=.1:top=.1:points=.1,.1 .3,.1 .2,.4:oi=1, image-occlusion:rect:left=.6:top=.6:width=.1:height=.1:angle=1250:fill=#ff0000:oi=1",
+    "2": "image-occlusion:rect:left=.0:top=.0:width=.05:height=.05",
+    "3": "image-occlusion:rect:left=.0:top=.0:width=.05:height=.05",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::image-occlusion:rect:left=:top=.2:width=0:height=.1}} {{c2::image-occlusion:circle:left=.1:foo=bar:rx=0:ry=:points=1 2,3 4,5,6:text=:fs=:scale=0}} {{c3::image-occlusion:rect:left=a\\x:top=.1}} {{c4::image-occlusion:rect::left=.1:top=.2::hint}} {{c5::image-occlusion:}} {{c6::image-occlusion:rect:left=.1\\}} {{c7::image-occlusion:rect}} {{c8::image-occlusion:rect:left=\\:x=1:top=a=b:x:y=2:points=}}",
+   "extra": "",
+   "ords": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "cards": {
+    "0": {
+     "front": "<div class=\"cloze\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"5\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"7\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "back": "<div class=\"cloze-highlight\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"5\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"7\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "frontOnly": "...",
+     "backOnly": "image-occlusion:rect:left=:top=.2:width=0:height=.1"
+    },
+    "1": {
+     "front": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"5\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"7\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "back": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze-highlight\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"5\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"7\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "frontOnly": "...",
+     "backOnly": "image-occlusion:circle:left=.1:foo=bar:rx=0:ry=:points=1 2,3 4,5,6:text=:fs=:scale=0"
+    },
+    "2": {
+     "front": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"5\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"7\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "back": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze-highlight\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"5\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"7\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "frontOnly": "...",
+     "backOnly": "image-occlusion:rect:left=a\\x:top=.1"
+    },
+    "3": {
+     "front": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"5\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"7\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "back": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze-highlight\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"5\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"7\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "frontOnly": "...",
+     "backOnly": "image-occlusion:rect::left=.1:top=.2::hint"
+    },
+    "4": {
+     "front": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze\" data-ordinal=\"5\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"7\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "back": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze-highlight\" data-ordinal=\"5\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"7\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "frontOnly": "...",
+     "backOnly": "image-occlusion:"
+    },
+    "5": {
+     "front": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"5\" ></div> <div class=\"cloze\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"7\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "back": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"5\" ></div> <div class=\"cloze-highlight\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"7\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "frontOnly": "...",
+     "backOnly": "image-occlusion:rect:left=.1\\"
+    },
+    "6": {
+     "front": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"5\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze\" data-ordinal=\"7\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "back": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"5\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze-highlight\" data-ordinal=\"7\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "frontOnly": "...",
+     "backOnly": "image-occlusion:rect"
+    },
+    "7": {
+     "front": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"5\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"7\" ></div> <div class=\"cloze\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "back": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"2\" data-left=\".1\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"4\" data-shape=\"rect\" data-top=\".2\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"5\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"6\" data-shape=\"rect\" ></div> <div class=\"cloze-inactive\" data-ordinal=\"7\" ></div> <div class=\"cloze-highlight\" data-ordinal=\"8\" data-shape=\"rect\" data-left=\":x=1\" data-top=\"a=b\" ></div>",
+     "frontOnly": "...",
+     "backOnly": "image-occlusion:rect:left=\\:x=1:top=a=b:x:y=2:points="
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "image-occlusion:rect:left=:top=.2:width=0:height=.1",
+    "2": "image-occlusion:circle:left=.1:foo=bar:rx=0:ry=:points=1 2,3 4,5,6:text=:fs=:scale=0",
+    "3": "image-occlusion:rect:left=a\\x:top=.1",
+    "4": "image-occlusion:rect::left=.1:top=.2::hint"
+   }
+  },
+  {
+   "text": "{{c1::image-occlusion:rect:left=.1:top=.1:width=.1:height=.1 {{c2::nested}}}} {{c2::two}} \\({{c3::image-occlusion:text:text=<b>m</b>}}\\)",
+   "extra": "",
+   "ords": [
+    0,
+    1,
+    2
+   ],
+   "cards": {
+    "0": {
+     "front": "<div class=\"cloze\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".1\" data-height=\".1 \" ></div> <span class=\"cloze-inactive\" data-ordinal=\"2\">two</span> \\(\\)",
+     "back": "<div class=\"cloze-highlight\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".1\" data-height=\".1 \" ></div> <span class=\"cloze-inactive\" data-ordinal=\"2\">two</span> \\(\\)",
+     "frontOnly": "...",
+     "backOnly": "image-occlusion:rect:left=.1:top=.1:width=.1:height=.1 nested"
+    },
+    "1": {
+     "front": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".1\" data-height=\".1 \" ></div> <span class=\"cloze\" data-cloze=\"two\" data-ordinal=\"2\">[...]</span> \\(\\)",
+     "back": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".1\" data-height=\".1 \" ></div> <span class=\"cloze\" data-ordinal=\"2\">two</span> \\(\\)",
+     "frontOnly": "..., ...",
+     "backOnly": "nested, two"
+    },
+    "2": {
+     "front": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".1\" data-height=\".1 \" ></div> <span class=\"cloze-inactive\" data-ordinal=\"2\">two</span> \\(\\)",
+     "back": "<div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".1\" data-height=\".1 \" ></div> <span class=\"cloze-inactive\" data-ordinal=\"2\">two</span> \\(\\)",
+     "frontOnly": "...",
+     "backOnly": "image-occlusion:text:text=<b>m</b>"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "image-occlusion:rect:left=.1:top=.1:width=.1:height=.1 nested",
+    "2": "nested, two",
+    "3": "image-occlusion:text:text=<b>m</b>",
+    "4": ""
+   }
+  }
+ ],
+ "cardgen": [
+  {
+   "front": "{{Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  }
+ ],
+ "conditionals": [
+  {
+   "value": "",
+   "front": "a|no B"
+  },
+  {
+   "value": "&nbsp;",
+   "front": "a|has B"
+  },
+  {
+   "value": " ",
+   "front": "a|has B"
+  },
+  {
+   "value": "<br>",
+   "front": "a|no B"
+  },
+  {
+   "value": " ",
+   "front": "a|no B"
+  },
+  {
+   "value": " ",
+   "front": "a|has B"
+  },
+  {
+   "value": "<div></div>",
+   "front": "a|no B"
+  },
+  {
+   "value": "<img src=x.png>",
+   "front": "a|has B"
+  }
+ ],
+ "imageOcclusion": {
+  "noteType": {
+   "name": "Image Occlusion",
+   "fields": [
+    "Occlusion",
+    "Image",
+    "Header",
+    "Back Extra",
+    "Comments"
+   ],
+   "css": "#image-occlusion-canvas {\n    --inactive-shape-color: #ffeba2;\n    --active-shape-color: #ff8e8e;\n    --inactive-shape-border: 1px #212121;\n    --active-shape-border: 1px #212121;\n    --highlight-shape-color: #ff8e8e00;\n    --highlight-shape-border: 1px #ff8e8e;\n}\n\n.card {\n    font-family: arial;\n    font-size: 20px;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+   "front": "{{#Header}}<div>{{Header}}</div>{{/Header}}\n<div style=\"display: none\">{{cloze:Occlusion}}</div>\n<div id=\"err\"></div>\n<div id=\"image-occlusion-container\">\n    {{Image}}\n    <canvas id=\"image-occlusion-canvas\"></canvas>\n</div>\n<script>\ntry {\n    anki.imageOcclusion.setup();\n} catch (exc) {\n    document.getElementById(\"err\").innerHTML = `Error loading image occlusion. Is your Anki version up to date?<br><br>${exc}`;\n}\n</script>\n",
+   "back": "{{#Header}}<div>{{Header}}</div>{{/Header}}\n<div style=\"display: none\">{{cloze:Occlusion}}</div>\n<div id=\"err\"></div>\n<div id=\"image-occlusion-container\">\n    {{Image}}\n    <canvas id=\"image-occlusion-canvas\"></canvas>\n</div>\n<script>\ntry {\n    anki.imageOcclusion.setup();\n} catch (exc) {\n    document.getElementById(\"err\").innerHTML = `Error loading image occlusion. Is your Anki version up to date?<br><br>${exc}`;\n}\n</script>\n\n<div><button id=\"toggle\">Toggle Masks</button></div>\n{{#Back Extra}}<div>{{Back Extra}}</div>{{/Back Extra}}\n"
+  },
+  "notes": [
+   {
+    "fields": {
+     "Occlusion": "{{c1::image-occlusion:rect:left=.1:top=.1:width=.2:height=.2:oi=1}}{{c2::image-occlusion:ellipse:left=.5:top=.2:width=.2:height=.1:rx=.1:ry=.05:oi=1}}{{c3::image-occlusion:polygon:left=.1:top=.6:points=.1,.6 .3,.6 .2,.9:oi=1}}{{c0::image-occlusion:text:left=.6:top=.7:text=Label:scale=1:fs=.05:oi=1}}",
+     "Image": "<img src=\"io.png\">",
+     "Header": "Header",
+     "Back Extra": "Extra",
+     "Comments": ""
+    },
+    "cards": {
+     "0": {
+      "front": "<div>Header</div>\n<div style=\"display: none\"><div class=\"cloze\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".2\" data-height=\".2\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"2\" data-shape=\"ellipse\" data-left=\".5\" data-top=\".2\" data-width=\".2\" data-height=\".1\" data-rx=\".1\" data-ry=\".05\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"polygon\" data-left=\".1\" data-top=\".6\" data-points=\".1,.6 .3,.6 .2,.9\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"0\" data-shape=\"text\" data-left=\".6\" data-top=\".7\" data-text=\"Label\" data-scale=\"1\" data-font-size=\".05\" data-occludeInactive=\"1\" ></div></div>\n<div id=\"err\"></div>\n<div id=\"image-occlusion-container\">\n    <img src=\"io.png\">\n    <canvas id=\"image-occlusion-canvas\"></canvas>\n</div>\n<script>\ntry {\n    anki.imageOcclusion.setup();\n} catch (exc) {\n    document.getElementById(\"err\").innerHTML = `Error loading image occlusion. Is your Anki version up to date?<br><br>${exc}`;\n}\n</script>\n",
+      "back": "<div>Header</div>\n<div style=\"display: none\"><div class=\"cloze-highlight\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".2\" data-height=\".2\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"2\" data-shape=\"ellipse\" data-left=\".5\" data-top=\".2\" data-width=\".2\" data-height=\".1\" data-rx=\".1\" data-ry=\".05\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"polygon\" data-left=\".1\" data-top=\".6\" data-points=\".1,.6 .3,.6 .2,.9\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"0\" data-shape=\"text\" data-left=\".6\" data-top=\".7\" data-text=\"Label\" data-scale=\"1\" data-font-size=\".05\" data-occludeInactive=\"1\" ></div></div>\n<div id=\"err\"></div>\n<div id=\"image-occlusion-container\">\n    <img src=\"io.png\">\n    <canvas id=\"image-occlusion-canvas\"></canvas>\n</div>\n<script>\ntry {\n    anki.imageOcclusion.setup();\n} catch (exc) {\n    document.getElementById(\"err\").innerHTML = `Error loading image occlusion. Is your Anki version up to date?<br><br>${exc}`;\n}\n</script>\n\n<div><button id=\"toggle\">Toggle Masks</button></div>\n<div>Extra</div>\n"
+     },
+     "1": {
+      "front": "<div>Header</div>\n<div style=\"display: none\"><div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".2\" data-height=\".2\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"2\" data-shape=\"ellipse\" data-left=\".5\" data-top=\".2\" data-width=\".2\" data-height=\".1\" data-rx=\".1\" data-ry=\".05\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"polygon\" data-left=\".1\" data-top=\".6\" data-points=\".1,.6 .3,.6 .2,.9\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"0\" data-shape=\"text\" data-left=\".6\" data-top=\".7\" data-text=\"Label\" data-scale=\"1\" data-font-size=\".05\" data-occludeInactive=\"1\" ></div></div>\n<div id=\"err\"></div>\n<div id=\"image-occlusion-container\">\n    <img src=\"io.png\">\n    <canvas id=\"image-occlusion-canvas\"></canvas>\n</div>\n<script>\ntry {\n    anki.imageOcclusion.setup();\n} catch (exc) {\n    document.getElementById(\"err\").innerHTML = `Error loading image occlusion. Is your Anki version up to date?<br><br>${exc}`;\n}\n</script>\n",
+      "back": "<div>Header</div>\n<div style=\"display: none\"><div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".2\" data-height=\".2\" data-occludeInactive=\"1\" ></div><div class=\"cloze-highlight\" data-ordinal=\"2\" data-shape=\"ellipse\" data-left=\".5\" data-top=\".2\" data-width=\".2\" data-height=\".1\" data-rx=\".1\" data-ry=\".05\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"3\" data-shape=\"polygon\" data-left=\".1\" data-top=\".6\" data-points=\".1,.6 .3,.6 .2,.9\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"0\" data-shape=\"text\" data-left=\".6\" data-top=\".7\" data-text=\"Label\" data-scale=\"1\" data-font-size=\".05\" data-occludeInactive=\"1\" ></div></div>\n<div id=\"err\"></div>\n<div id=\"image-occlusion-container\">\n    <img src=\"io.png\">\n    <canvas id=\"image-occlusion-canvas\"></canvas>\n</div>\n<script>\ntry {\n    anki.imageOcclusion.setup();\n} catch (exc) {\n    document.getElementById(\"err\").innerHTML = `Error loading image occlusion. Is your Anki version up to date?<br><br>${exc}`;\n}\n</script>\n\n<div><button id=\"toggle\">Toggle Masks</button></div>\n<div>Extra</div>\n"
+     },
+     "2": {
+      "front": "<div>Header</div>\n<div style=\"display: none\"><div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".2\" data-height=\".2\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"2\" data-shape=\"ellipse\" data-left=\".5\" data-top=\".2\" data-width=\".2\" data-height=\".1\" data-rx=\".1\" data-ry=\".05\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"3\" data-shape=\"polygon\" data-left=\".1\" data-top=\".6\" data-points=\".1,.6 .3,.6 .2,.9\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"0\" data-shape=\"text\" data-left=\".6\" data-top=\".7\" data-text=\"Label\" data-scale=\"1\" data-font-size=\".05\" data-occludeInactive=\"1\" ></div></div>\n<div id=\"err\"></div>\n<div id=\"image-occlusion-container\">\n    <img src=\"io.png\">\n    <canvas id=\"image-occlusion-canvas\"></canvas>\n</div>\n<script>\ntry {\n    anki.imageOcclusion.setup();\n} catch (exc) {\n    document.getElementById(\"err\").innerHTML = `Error loading image occlusion. Is your Anki version up to date?<br><br>${exc}`;\n}\n</script>\n",
+      "back": "<div>Header</div>\n<div style=\"display: none\"><div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".2\" data-height=\".2\" data-occludeInactive=\"1\" ></div><div class=\"cloze-inactive\" data-ordinal=\"2\" data-shape=\"ellipse\" data-left=\".5\" data-top=\".2\" data-width=\".2\" data-height=\".1\" data-rx=\".1\" data-ry=\".05\" data-occludeInactive=\"1\" ></div><div class=\"cloze-highlight\" data-ordinal=\"3\" data-shape=\"polygon\" data-left=\".1\" data-top=\".6\" data-points=\".1,.6 .3,.6 .2,.9\" data-occludeInactive=\"1\" ></div><div class=\"cloze\" data-ordinal=\"0\" data-shape=\"text\" data-left=\".6\" data-top=\".7\" data-text=\"Label\" data-scale=\"1\" data-font-size=\".05\" data-occludeInactive=\"1\" ></div></div>\n<div id=\"err\"></div>\n<div id=\"image-occlusion-container\">\n    <img src=\"io.png\">\n    <canvas id=\"image-occlusion-canvas\"></canvas>\n</div>\n<script>\ntry {\n    anki.imageOcclusion.setup();\n} catch (exc) {\n    document.getElementById(\"err\").innerHTML = `Error loading image occlusion. Is your Anki version up to date?<br><br>${exc}`;\n}\n</script>\n\n<div><button id=\"toggle\">Toggle Masks</button></div>\n<div>Extra</div>\n"
+     }
+    }
+   },
+   {
+    "fields": {
+     "Occlusion": "{{c1::image-occlusion:rect:left=.1:top=.1:width=.2:height=.2}}{{c2::image-occlusion:rect:left=.5:top=.5:width=.2:height=.2:angle=1250}}{{c2::image-occlusion:rect:left=.7:top=.1:width=.1:height=.1}}",
+     "Image": "<img src=\"io.png\">",
+     "Header": "",
+     "Back Extra": "",
+     "Comments": ""
+    },
+    "cards": {
+     "0": {
+      "front": "\n<div style=\"display: none\"><div class=\"cloze\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".2\" data-height=\".2\" ></div><div class=\"cloze-inactive\" data-ordinal=\"2\" data-shape=\"rect\" data-left=\".5\" data-top=\".5\" data-width=\".2\" data-height=\".2\" data-angle=\"1250\" ></div><div class=\"cloze-inactive\" data-ordinal=\"2\" data-shape=\"rect\" data-left=\".7\" data-top=\".1\" data-width=\".1\" data-height=\".1\" ></div></div>\n<div id=\"err\"></div>\n<div id=\"image-occlusion-container\">\n    <img src=\"io.png\">\n    <canvas id=\"image-occlusion-canvas\"></canvas>\n</div>\n<script>\ntry {\n    anki.imageOcclusion.setup();\n} catch (exc) {\n    document.getElementById(\"err\").innerHTML = `Error loading image occlusion. Is your Anki version up to date?<br><br>${exc}`;\n}\n</script>\n",
+      "back": "\n<div style=\"display: none\"><div class=\"cloze-highlight\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".2\" data-height=\".2\" ></div><div class=\"cloze-inactive\" data-ordinal=\"2\" data-shape=\"rect\" data-left=\".5\" data-top=\".5\" data-width=\".2\" data-height=\".2\" data-angle=\"1250\" ></div><div class=\"cloze-inactive\" data-ordinal=\"2\" data-shape=\"rect\" data-left=\".7\" data-top=\".1\" data-width=\".1\" data-height=\".1\" ></div></div>\n<div id=\"err\"></div>\n<div id=\"image-occlusion-container\">\n    <img src=\"io.png\">\n    <canvas id=\"image-occlusion-canvas\"></canvas>\n</div>\n<script>\ntry {\n    anki.imageOcclusion.setup();\n} catch (exc) {\n    document.getElementById(\"err\").innerHTML = `Error loading image occlusion. Is your Anki version up to date?<br><br>${exc}`;\n}\n</script>\n\n<div><button id=\"toggle\">Toggle Masks</button></div>\n\n"
+     },
+     "1": {
+      "front": "\n<div style=\"display: none\"><div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".2\" data-height=\".2\" ></div><div class=\"cloze\" data-ordinal=\"2\" data-shape=\"rect\" data-left=\".5\" data-top=\".5\" data-width=\".2\" data-height=\".2\" data-angle=\"1250\" ></div><div class=\"cloze\" data-ordinal=\"2\" data-shape=\"rect\" data-left=\".7\" data-top=\".1\" data-width=\".1\" data-height=\".1\" ></div></div>\n<div id=\"err\"></div>\n<div id=\"image-occlusion-container\">\n    <img src=\"io.png\">\n    <canvas id=\"image-occlusion-canvas\"></canvas>\n</div>\n<script>\ntry {\n    anki.imageOcclusion.setup();\n} catch (exc) {\n    document.getElementById(\"err\").innerHTML = `Error loading image occlusion. Is your Anki version up to date?<br><br>${exc}`;\n}\n</script>\n",
+      "back": "\n<div style=\"display: none\"><div class=\"cloze-inactive\" data-ordinal=\"1\" data-shape=\"rect\" data-left=\".1\" data-top=\".1\" data-width=\".2\" data-height=\".2\" ></div><div class=\"cloze-highlight\" data-ordinal=\"2\" data-shape=\"rect\" data-left=\".5\" data-top=\".5\" data-width=\".2\" data-height=\".2\" data-angle=\"1250\" ></div><div class=\"cloze-highlight\" data-ordinal=\"2\" data-shape=\"rect\" data-left=\".7\" data-top=\".1\" data-width=\".1\" data-height=\".1\" ></div></div>\n<div id=\"err\"></div>\n<div id=\"image-occlusion-container\">\n    <img src=\"io.png\">\n    <canvas id=\"image-occlusion-canvas\"></canvas>\n</div>\n<script>\ntry {\n    anki.imageOcclusion.setup();\n} catch (exc) {\n    document.getElementById(\"err\").innerHTML = `Error loading image occlusion. Is your Anki version up to date?<br><br>${exc}`;\n}\n</script>\n\n<div><button id=\"toggle\">Toggle Masks</button></div>\n\n"
+     }
+    }
+   }
+  ]
+ }
+}

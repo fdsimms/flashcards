@@ -53,6 +53,10 @@ marked words, ideas) is in the current language, the `language` setting.
                                       ?story=<id>, that story's episodes, first to last
     GET   /api/texts/{id}             one text, in the same shape as /next; reading it again isn't logged
     POST  /api/texts/{id}/reading     logs a session with a text and adjusts difficulty
+    POST  /api/texts/{id}/choice      {choice} the option picked at the end of a story episode, as an
+                                      index into its choices; it can be changed until the episode is
+                                      read, which is when the next one is written from it (404 for
+                                      no such text or choice, 409 once it's read)
     GET   /api/progress               finished texts, coverage and ratings over the last 14 days,
                                       and the difficulty the next text is written at
     GET   /api/costs?days=30          what Claude cost over the last `days` days, per language:
@@ -79,6 +83,15 @@ marked words, ideas) is in the current language, the `language` setting.
                                       again soon), "failed" or "unavailable"; not for Thai or
                                       Japanese. The
                                       quiz and its scoring are in the app
+    GET   /api/note-queue             the owner's queued words (note_queue.py): {available, items: [{id,
+                                      language, deck, entry, meaning, state: "waiting" | "ready" |
+                                      "failed", fields, error}]}. `fields` is what Claude filled in,
+                                      by Anki field name, for a ready word. Starts filling any that are
+                                      due; the app asks again every few seconds while some are waiting
+    POST  /api/note-queue             {language, deck, entries: [{entry, meaning?}]} queues words for
+                                      Claude to fill in; 503 without a Claude key
+    POST  /api/note-queue/{id}/retry  a failed word waiting to be filled again
+    DELETE /api/note-queue/{id}       takes a word off the queue (after the app saves it, or on remove)
     GET   /api/grammar/{id}           one point's page: {id, state, seen, choices (its language's,
                                       for the related points), examples: [{text_id, title, line,
                                       english, words}]}, lines from texts read, the latest first
@@ -125,6 +138,7 @@ from franki_reader import (
     exposure,
     grammar,
     meanings,
+    note_queue,
     store,
     timing,
     vocab_check,
@@ -156,12 +170,14 @@ from franki_reader.mnemonics import (
 )
 from franki_reader.reader import from_wanikani, gloss_for, lemma_for, render
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
+from franki_reader.study_day import DEFAULT_ROLLOVER
 from franki_reader.suggestions import suggest
 from franki_reader.tts import AudioCache, Speech, azure_synthesize, azure_usd
 from franki_reader.wanikani import wanikani_reader
 
 # The window the progress summary covers: the Milestone 1 exit check's two weeks.
 VOCAB_RETRY = timedelta(minutes=10)  # before a vocabulary check bank that failed is written again
+MAX_QUEUED = 50  # words one Quick add can queue
 PROGRESS_DAYS = 14
 # How many past texts the list shows.
 PAST_TEXTS = 50
@@ -203,6 +219,17 @@ class SpeechIn(BaseModel):
     text: str = Field(min_length=1, max_length=MAX_SPEECH_CHARS)
     voice: str = Field(min_length=1, max_length=100)
     rate: float = Field(default=1.0, ge=0.5, le=2.0)
+
+
+class QueuedEntry(BaseModel):
+    entry: str = Field(min_length=1, max_length=200)
+    meaning: str = Field(default="", max_length=300)
+
+
+class NoteQueueIn(BaseModel):
+    language: Code
+    deck: str = Field(min_length=1, max_length=500)
+    entries: list[QueuedEntry] = Field(min_length=1, max_length=MAX_QUEUED)
 
 
 class MnemonicIn(BaseModel):
@@ -249,6 +276,10 @@ class FrankiCountsIn(BaseModel):
     # The deck list's totals across the top-level decks: due (reviews and learning) and new.
     due: int = Field(ge=0, le=1_000_000)
     new: int = Field(ge=0, le=1_000_000)
+
+
+class ChoiceIn(BaseModel):
+    choice: int = Field(ge=0)
 
 
 class ReadingIn(BaseModel):
@@ -329,6 +360,7 @@ def create_app(
     read_due: ReadDue | None = None,
     write_drills: drills.WriteDrills | None = None,
     write_vocab: vocab_check.WriteVocab | None = None,
+    write_notes: note_queue.WriteNotes | None = None,
     check_natural: CheckNatural | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
@@ -338,6 +370,9 @@ def create_app(
     # language Claude can't gloss isn't asked again on every poll of the quiz.
     vocab_writing: set[Code] = set()
     vocab_failed: dict[Code, datetime] = {}
+    # Whether the note queue is being filled in, so a poll or a second Quick add doesn't start a
+    # second pass (the running one picks up whatever was added meanwhile).
+    queue_filling: list[bool] = [False]
 
     def given_key(authorization: str | None) -> bytes:
         # Header values arrive decoded as latin-1, so turn them back into the bytes that were sent
@@ -800,6 +835,17 @@ def create_app(
             raise HTTPException(503, str(e)) from e
         return {"hints": hints}
 
+    @app.post("/api/texts/{text_id}/choice", status_code=204, dependencies=authed)
+    async def choose(text_id: int, body: ChoiceIn) -> Response:
+        match store.set_choice(engine.conn, text_id, body.choice):
+            case "unknown":
+                raise HTTPException(404, "That choice isn't on this text.")
+            case "read":
+                raise HTTPException(
+                    409, "This episode is already read, so its choice can't change."
+                )
+        return Response(status_code=204)
+
     @app.post("/api/texts/{text_id}/reading", status_code=204, dependencies=authed)
     async def reading(text_id: int, body: ReadingIn, background: BackgroundTasks) -> Response:
         try:
@@ -841,6 +887,7 @@ def create_app(
         explained = store.explanation_spending(engine.conn, since)
         drilled = store.drill_spending(engine.conn, since)
         vocab = store.vocab_spending(engine.conn, since)
+        queued = store.queue_spending(engine.conn, since)
         glossed = store.meaning_spending(engine.conn, since)
         rows = by_language.values()
         total = store.Spending(
@@ -914,6 +961,20 @@ def create_app(
                         "cost_usd": round(c, 4),
                     }
                     for code, (n, c) in vocab.items()
+                ],
+            },
+            # Words the owner queued in the app, filled in by Claude (note_queue.py).
+            "note_queue": {
+                "notes": sum(n for n, _ in queued.values()),
+                "cost_usd": round(sum(c for _, c in queued.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "notes": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in queued.items()
                 ],
             },
         }
@@ -1041,6 +1102,81 @@ def create_app(
         background.add_task(write_vocab_bank, language)
         return {"state": "preparing", "items": []}
 
+    async def fill_note_queue() -> None:
+        assert write_notes is not None
+        queue_filling[0] = True
+        try:
+            await note_queue.fill_pending(engine.conn, write_notes, engine.clock)
+        finally:
+            queue_filling[0] = False
+
+    def start_filling(background: BackgroundTasks) -> None:
+        """Starts a pass over the words that are due, unless one is running or there's nothing to do."""
+        if (
+            write_notes is not None
+            and not queue_filling[0]
+            and note_queue.pending(engine.conn, engine.clock())
+        ):
+            queue_filling[0] = True  # before the response, so the next poll sees it
+            background.add_task(fill_note_queue)
+
+    def queue_view() -> dict[str, Any]:
+        return {
+            "available": write_notes is not None,
+            "items": [
+                {
+                    "id": n.id,
+                    "language": n.language,
+                    "deck": n.deck,
+                    "entry": n.entry,
+                    "meaning": n.meaning,
+                    "state": n.state,
+                    "fields": n.fields,
+                    "error": n.error,
+                }
+                for n in store.queued_notes(engine.conn)
+            ],
+        }
+
+    @app.get("/api/note-queue", dependencies=authed)
+    async def get_note_queue(background: BackgroundTasks) -> dict[str, Any]:
+        """The queued words (note_queue.py). Also the way a pass starts again after the server
+        restarted, or a failed word's wait is over."""
+        start_filling(background)
+        return queue_view()
+
+    @app.post("/api/note-queue", dependencies=authed, status_code=202)
+    async def add_to_note_queue(body: NoteQueueIn, background: BackgroundTasks) -> dict[str, Any]:
+        if write_notes is None:
+            raise HTTPException(
+                503, "Claude isn't set up on the server, so notes can't be filled in for you."
+            )
+        seen: set[str] = set()
+        entries: list[tuple[str, str]] = []
+        for e in body.entries:
+            entry = " ".join(e.entry.split())
+            if entry and entry not in seen:
+                seen.add(entry)
+                entries.append((entry, " ".join(e.meaning.split())))
+        if not entries:
+            raise HTTPException(422, "Type at least one word.")
+        store.add_queued(engine.conn, body.language, body.deck, entries, engine.clock())
+        start_filling(background)
+        return queue_view()
+
+    @app.post("/api/note-queue/{note_id}/retry", dependencies=authed, status_code=202)
+    async def retry_queued_note(note_id: int, background: BackgroundTasks) -> dict[str, Any]:
+        if not store.retry_queued(engine.conn, note_id):
+            raise HTTPException(404, "That word isn't waiting to be tried again.")
+        start_filling(background)
+        return queue_view()
+
+    @app.delete("/api/note-queue/{note_id}", dependencies=authed, status_code=204)
+    async def remove_queued_note(note_id: int) -> Response:
+        # Asking again for one already gone (a save that was sent twice) is fine.
+        store.delete_queued(engine.conn, note_id)
+        return Response(status_code=204)
+
     @app.get("/api/grammar/{point_id}", dependencies=authed)
     async def get_grammar_point(point_id: str) -> dict[str, Any]:
         # After /api/grammar/choices, so "choices" isn't taken for a point's id.
@@ -1052,6 +1188,7 @@ def create_app(
         return {
             "id": point.id,
             "state": choices.get(point.id, "unset"),
+            "max_practice": grammar.MAX_PRACTICE,
             "seen": _seen(engine.grammar_exposure(point.language)[point.id]),
             "choices": {
                 p.id: choices.get(p.id, "unset") for p in grammar.points_for(point.language)
@@ -1141,10 +1278,31 @@ def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
     return out
 
 
-def _shelf_text(text: StoredText, engine: Engine) -> dict[str, Any]:
-    """A text on the shelf as a card shows it, without its words (they come with /api/texts/{id})."""
+def _practice_words(text: StoredText, engine: Engine) -> list[dict[str, Any]]:
+    """The text's practice words as the reader draws them (meaning, dictionary form, status), in
+    the order of `text.stretch`, so a card can open a word's popover without fetching the whole text.
+    A practice word that doesn't turn up as a word of the text is left out."""
+    entries, lexicon = engine.snapshot(text.language)
+    out = render(
+        text,
+        lexicon,
+        engine.meanings(text.language),
+        {e.text: e.translit for e in entries if e.translit},
+    )
+    first: dict[str, dict[str, Any]] = {}
+    for line in out["lines"]:
+        for word in line["words"]:
+            if word["status"] is not None:
+                first.setdefault(word["text"], word)
+    return [first[w] for w in text.stretch if w in first]
+
+
+def _shelf_text(text: StoredText, engine: Engine, practice: bool = False) -> dict[str, Any]:
+    """A text on the shelf as a card shows it, without its words (they come with /api/texts/{id}).
+    `practice` adds its practice words' meanings, for the card that lists them."""
     topic = store.get_topic(engine.conn, text.topic_id, text.language, include_removed=True)
     return {
+        **({"practice": _practice_words(text, engine)} if practice else {}),
         "id": text.id,
         "title": text.title,
         "topic": topic.name if topic else "",
@@ -1174,7 +1332,7 @@ def _shelf(engine: Engine) -> dict[str, Any]:
             "about": story.about,
             "read": len(read),
             "last_recap": read[-1].recap if read else "",
-            "next": _shelf_text(waiting, engine) if waiting else None,
+            "next": _shelf_text(waiting, engine, practice=True) if waiting else None,
             "writing": any(j.story_id == story.id for j in writing),
             "failed": engine.failure(story.topic_id, language),
         }
@@ -1225,6 +1383,7 @@ def production_app() -> FastAPI:
     check_natural: CheckNatural | None = None
     write_drills: drills.WriteDrills | None = None
     write_vocab: vocab_check.WriteVocab | None = None
+    write_notes: note_queue.WriteNotes | None = None
     write_meanings: meanings.WriteMeanings | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
@@ -1234,6 +1393,7 @@ def production_app() -> FastAPI:
         check_natural = claude_check(client)
         write_drills = drills.claude_drills(client)
         write_vocab = vocab_check.claude_vocab(client)
+        write_notes = note_queue.claude_notes(client)
         write_meanings = meanings.claude_meanings(client)
 
         def ask_for(entries: list[Entry], language: Code) -> Ask:
@@ -1280,6 +1440,7 @@ def production_app() -> FastAPI:
         synthesize=synthesize,
         audio=AudioCache(settings.audio_dir),
         voices=settings.voices,
+        rollover=lambda: anki.rollover if anki else DEFAULT_ROLLOVER,
         write_meanings=write_meanings,
         read_wanikani=wanikani_reader(wanikani_token) if wanikani_token else None,
     )
@@ -1295,5 +1456,6 @@ def production_app() -> FastAPI:
         read_due=due_with_timeout(anki.due) if anki else None,
         write_drills=write_drills,
         write_vocab=write_vocab,
+        write_notes=write_notes,
         check_natural=check_natural,
     )

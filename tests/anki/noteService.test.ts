@@ -82,6 +82,36 @@ describe('saving a note', () => {
   });
 });
 
+describe('a note kept under an id that isn\'t Anki\'s (matched to a TSV note on import)', () => {
+  /** The fixture's note as `reconcileIds` leaves it when a TSV note was there first: Franki's id, Anki's cards. */
+  async function rekeyed() {
+    const f = await franki();
+    const n = [...f.store.notes.values()].find((x) => x.fields.Front === 'Capital of Bolivia?')!;
+    const id = `tsv:${n.deck}:Capital of Bolivia?`;
+    const cards = [...f.store.cards.values()].filter((c) => c.noteId === n.id).map((c) => ({ ...c, id: `${id}:${c.kind}`, noteId: id }));
+    await f.store.deleteNote(n.id);
+    await f.store.upsertNotesAndCards([{ ...n, id }], cards);
+    return { ...f, id, nid: Number(n.id) };
+  }
+
+  it('edits the Anki note its cards belong to', async () => {
+    const { store, anki, id, nid } = await rekeyed();
+    const n = (await store.getNote(id))!;
+    await saveNote(store, { id, deck: n.deck, model: n.model, fields: { ...n.fields, Back: 'Sucre (and La Paz)' }, tags: n.tags }, NOW);
+    const db = await anki();
+    expect(String((await db.first<{ flds: string }>('SELECT flds FROM notes WHERE id = ?', nid))!.flds)).toContain('Sucre (and La Paz)');
+    db.close();
+  });
+
+  it('deletes the Anki note its cards belong to', async () => {
+    const { store, anki, id, nid } = await rekeyed();
+    await deleteNote(store, id, NOW);
+    const db = await anki();
+    expect(await db.first('SELECT id FROM notes WHERE id = ?', nid)).toBeNull();
+    db.close();
+  });
+});
+
 describe('deleting a note', () => {
   it('removes it from Franki and the Anki collection, cards and all', async () => {
     const { store, anki } = await franki();

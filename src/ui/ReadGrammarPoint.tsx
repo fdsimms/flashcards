@@ -6,7 +6,7 @@ import { knowItReason, pointPractice, POINT_PRACTICE_DAYS, practiceSince, sugges
 import type { GrammarAnswer } from '../core/grammarDrills';
 import type { Note } from '../core/types';
 import { ApiError, type Api, type GrammarChoice, type GrammarPointPage } from '../reader/api';
-import { GRAMMAR_CHOICES, grammarStateWord, markedParts, seenLine } from '../reader/grammar';
+import { DEFAULT_MAX_PRACTICE, grammarChoiceOptions, grammarStateWord, markedParts, seenLine } from '../reader/grammar';
 import { haptic } from './haptics';
 import { Button, Card, ErrorNote, HeaderAction, Help, Screen, SectionTitle, Segments, Tappable } from './kit';
 import { radius, space, type, useTheme } from './theme';
@@ -92,6 +92,8 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
     ? suggestKnowIt({ state: page.state, pointId: id, notes: local.notes, practice: local.practice, now, dayStartsAtHour, dismissedAt: local.dismissed[id], drillAnswers: local.drills })
     : undefined;
   const seen = page ? seenLine(page.seen, page.state, now, dayStartsAtHour) : null;
+  const maxPractice = page?.max_practice ?? DEFAULT_MAX_PRACTICE;
+  const practicingCount = Object.values(page?.choices ?? {}).filter((s) => s === 'practice').length;
   const related = point.related.map((r) => grammarPoint(r)).filter((r) => r !== undefined);
 
   return (
@@ -104,11 +106,15 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
           <View style={{ gap: space.s }}>
             {/* A point not set yet has no segment selected. */}
             <Segments<GrammarChoice | 'unset'>
-              options={GRAMMAR_CHOICES.map((s) => ({ ...s, accessibilityLabel: `${point.name}: ${s.label}` }))}
+              options={grammarChoiceOptions(point.name, page.state, practicingCount, maxPractice)}
               value={page.state}
               onChange={(state) => { if (state !== 'unset') choose(state); }}
             />
-            <Help>Applies from the next text written.</Help>
+            <Help>
+              {page.state !== 'practice' && practicingCount >= maxPractice
+                ? `You're already practicing ${maxPractice} points. Set one to Know it on the Grammar screen to practice this one. Applies from the next text written.`
+                : 'Applies from the next text written.'}
+            </Help>
             {choiceError ? <ErrorNote message={choiceError} /> : null}
             <Button label="Drill this point" variant="secondary" onPress={() => onDrill(id)} />
           </View>

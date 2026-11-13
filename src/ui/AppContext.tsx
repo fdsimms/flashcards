@@ -20,6 +20,7 @@ import { useCollapsedDecks, type CollapsedDecks } from './useCollapsedDecks';
 import { useReader, type ReaderState } from './useReader';
 import { useCountsReport } from './useCountsReport';
 import { useDeckSnapshot } from './useDeckSnapshot';
+import { useLoadProblem } from './useLoadProblem';
 import { useSync } from './useSync';
 import { useWaniKani, type WaniKaniState } from './useWaniKani';
 
@@ -47,8 +48,10 @@ interface AppValue {
   syncing: boolean;
   sync: () => Promise<string | undefined>;
   reloadSync: () => Promise<void>;
-  /** Loads the deck list's rows again. */
+  /** Loads the deck list's rows again. A failure is kept in `loadProblem`, not thrown. */
   refresh: () => Promise<void>;
+  /** Why the deck list's last load failed, with what to do (useLoadProblem). */
+  loadProblem?: string;
   /** The deck list's collapsed decks (useCollapsedDecks). */
   collapse: CollapsedDecks;
   /**
@@ -81,6 +84,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [backup, setBackup] = useState<{ text: string; overdue: boolean }>();
   const [ankiUnsent, setAnkiUnsent] = useState(0);
   const collapse = useCollapsedDecks(repo);
+  const load = useLoadProblem();
   const snapshot = useDeckSnapshot(repo, setDecks, collapse);
   // The collection's "Next day starts at", for counting marked words added per study day.
   const [dayStartsAtHour, setDayStartsAtHour] = useState(DAY_STARTS_AT_HOUR);
@@ -92,7 +96,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // which silenced recordings, text-to-speech and the play buttons on template cards alike.
   useEffect(() => { setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined); }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(() => load.guard(async () => {
     if (!repo) return;
     const now = new Date();
     const collection = await repo.collectionSettings();
@@ -112,7 +116,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setBackup(backupStatus(lastBackup, now, cards.length > 0));
     setAnkiUnsent((await repo.ankiStatus()).unsent);
     collapse.load();
-  }, [repo, collapse.load, snapshot.save]); // eslint-disable-line react-hooks/exhaustive-deps
+  }), [repo, collapse.load, snapshot.save, load.guard]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync, when it's on: at launch, on coming back to the app (from the deck list, so a deck being
   // studied isn't changed under it), after studying a deck (Review's screen asks), and on leaving the app.
@@ -150,8 +154,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AppValue | null>(() => repo && {
     repo, decks, backup, ankiUnsent, syncSettings, syncing,
-    sync, reloadSync, refresh, collapse, openNoteEditor, finishNoteEditor, reader, wanikani,
-  }, [repo, decks, backup, ankiUnsent, syncSettings, syncing, sync, reloadSync, refresh, collapse, openNoteEditor, finishNoteEditor, reader, wanikani]);
+    sync, reloadSync, refresh, loadProblem: load.problem, collapse, openNoteEditor, finishNoteEditor, reader, wanikani,
+  }, [repo, decks, backup, ankiUnsent, syncSettings, syncing, sync, reloadSync, refresh, load.problem, collapse, openNoteEditor, finishNoteEditor, reader, wanikani]);
 
   if (!value) {
     return (

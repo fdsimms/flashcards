@@ -56,6 +56,8 @@ export type GrammarPointPage = {
   state: GrammarState;
   seen: GrammarSeen;
   choices: Record<string, GrammarState>;
+  /** How many points may be practiced at once. Absent from a server older than it. */
+  max_practice?: number;
   examples: GrammarExample[];
 };
 
@@ -100,6 +102,10 @@ export type PhraseExplanation = { meaning: string; points: ExplainPoint[] };
 // A grammar point found in an explained line, with the owner's choice as it stands (docs/grammar.md, step 3).
 export type LineGrammar = { id: string; name: string; note: string; state: GrammarState };
 
+// One thing the reader can pick to happen in a story's next episode: written like a line (its
+// words come segmented), with its English beside it.
+export type TextChoice = { english: string; words: Word[] };
+
 export type ReaderText = {
   id: number;
   topicId: number;
@@ -121,6 +127,10 @@ export type ReaderText = {
   liked?: boolean;
   reason?: ShelfReason;
   episode?: number;
+  // A story episode's options for what happens next, and the index of the one picked (null until
+  // one is). Missing from a server older than story choices, and empty for any other text.
+  choices?: TextChoice[];
+  chosen?: number | null;
 };
 
 // Why a text is on the shelf: written around words due today, on a liked theme, an idea not
@@ -137,6 +147,9 @@ export type ShelfText = {
   form: Form;
   lines: number;
   stretch: string[];
+  // The practice words as the reader draws them, to open their popovers, in the order of `stretch`.
+  // Only on a story's next episode, and missing from a server older than it.
+  practice?: Word[];
   reason: ShelfReason;
   coverage: number;
   episode: number;
@@ -258,6 +271,22 @@ export type ReadingLog = {
   seconds: number;
 };
 
+// A word queued for Claude to fill in (src/reader/noteQueue.ts). `fields` is what it wrote, by Anki field
+// name, once the word is `ready`; `error` says why a `failed` one failed.
+export type QueuedNote = {
+  id: number;
+  language: Language;
+  deck: string;
+  entry: string;
+  meaning: string;
+  state: 'waiting' | 'ready' | 'failed';
+  fields: Record<string, string>;
+  error: string;
+};
+
+// `available` is false when the server has no Claude key, so nothing can be queued.
+export type NoteQueue = { available: boolean; items: QueuedNote[] };
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -315,6 +344,14 @@ export function createApi(
     markedWords: () => call<MarkedWord[]>('GET', '/api/words'),
     grammar: () => call<GrammarList>('GET', '/api/grammar'),
     drills: (points: string[], count: number) => call<DrillSet>('POST', '/api/drills', { points, count }),
+    // The queued words. Asking also starts filling in any that are due, so ask again while some are waiting.
+    noteQueue: () => call<NoteQueue>('GET', '/api/note-queue'),
+    // These answer 202 with the queue, which `call` would drop.
+    queueNotes: async (language: Language, deck: string, entries: { entry: string; meaning: string }[]) =>
+      (await send('POST', '/api/note-queue', { language, deck, entries })).json() as Promise<NoteQueue>,
+    retryQueuedNote: async (id: number) => (await send('POST', `/api/note-queue/${id}/retry`)).json() as Promise<NoteQueue>,
+    // After the note is saved in the editor, or when the owner removes the word.
+    removeQueuedNote: (id: number) => call<void>('DELETE', `/api/note-queue/${id}`),
     vocabCheck: (language: Language) => call<VocabBank>('GET', `/api/vocab-check?language=${language}`),
     grammarPoint: (id: string) => call<GrammarPointPage>('GET', `/api/grammar/${encodeURIComponent(id)}`),
     // Every language's choices by point id (a point not set isn't listed), for Forms practice.
@@ -344,6 +381,10 @@ export function createApi(
     text: (textId: number) => call<ReaderText>('GET', `/api/texts/${textId}`),
     logReading: (textId: number, log: ReadingLog) =>
       call<void>('POST', `/api/texts/${textId}/reading`, log),
+    // The option picked at the end of a story episode (an index into its choices). The server
+    // writes the next episode from it once this one is logged as read, so it's sent when tapped.
+    chooseNext: (textId: number, choice: number) =>
+      call<void>('POST', `/api/texts/${textId}/choice`, { choice }),
     // Azure's voices in a language (any code: th, pl, es-MX), every region included.
     azureVoices: async (language: string) =>
       (await call<{ voices: AzureVoice[] }>('GET', `/api/voices?language=${encodeURIComponent(language)}`)).voices,
