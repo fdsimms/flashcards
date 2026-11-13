@@ -10,9 +10,10 @@ import { ApiError, type Api } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { ChoiceButton, type ChoiceState } from '../FormsDrill';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Field, Help, Icon, Loading, Screen, Segments, Tappable } from '../kit';
+import { Button, Card, ErrorNote, Field, Help, Loading, Screen, Segments, Tappable } from '../kit';
 import { MIN_TAP, radius, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
+import { PlayPill } from '../PlayButton';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { Status } from './ToolScreen';
 
@@ -31,6 +32,9 @@ interface Answered {
  * picked or typed, each answer written to the phone as it's given (`addGrammarAnswer`), then how
  * it went. Nothing here touches a card.
  */
+/** The language a prompt's sentence is read in. */
+const promptSpeech = (p: DrillPrompt) => LANGUAGES[grammarPoint(p.pointId)?.language ?? 'es'].speech;
+
 export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Repo; points: string[]; onDone: () => void }) {
   const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
@@ -118,7 +122,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
   // The whole sentence with its answer in, so it isn't read before the question is answered.
   const say = (p: DrillPrompt) => {
     Speech.stop();
-    speech.sayWord(p.before + p.middle + p.after, LANGUAGES[grammarPoint(p.pointId)?.language ?? 'es'].speech);
+    speech.sayWord(p.before + p.middle + p.after, promptSpeech(p));
   };
   const answer = async (given: string, picked: boolean) => {
     if (current || busy.current) return;
@@ -198,14 +202,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
           )}
           {prompt.source ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{prompt.source}</Text> : null}
           {current ? (
-            <Tappable
-              accessibilityRole="button"
-              accessibilityLabel="Play the sentence"
-              onPress={() => { haptic.tap(); say(prompt); }}
-              style={{ minWidth: MIN_TAP, minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Icon name="speaker.wave.2.fill" size={24} color={c.accent} />
-            </Tappable>
+            <PlayPill label="Play the sentence" onPlay={() => say(prompt)} speech={promptSpeech(prompt)} />
           ) : null}
         </View>
 
