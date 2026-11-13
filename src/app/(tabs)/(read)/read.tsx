@@ -35,6 +35,7 @@ export default function ReadRoute() {
       }}
       onLanguagePage={() => router.push('/read-language')}
       onPast={() => router.push('/read-past')}
+      onEpisodes={(story) => router.push({ pathname: '/read-past', params: { story: String(story) } })}
       onWords={() => router.push('/read-words')}
       onLanguage={() => { api.settings().then(reader.setSettings, () => undefined); }}
     />
