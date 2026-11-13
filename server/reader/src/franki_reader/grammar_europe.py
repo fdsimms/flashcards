@@ -50,6 +50,10 @@ def _each(test: Callable[[list[str], int], bool]) -> Finder:
     return lambda ws: [(i, i + 1) for i in range(len(ws)) if test(ws, i)]
 
 
+def _either(*finders: Finder) -> Finder:
+    return lambda ws: sorted({span for f in finders for span in f(ws)})
+
+
 def _words(*groups: str) -> frozenset[str]:
     return frozenset(w for g in groups for w in g.split())
 
@@ -118,8 +122,16 @@ _DE_GE_PARTICIPLE = re.compile(
     r"^(?:ab|an|auf|aus|bei|ein|mit|nach|vor|zu|zurück|weg|her|hin|los|fest|fort|um|wieder"
     r"|zusammen|vorbei|weiter|heraus|hinaus|herein|hinein|heim|statt|teil|frei|dar)?ge"
 )
-# Strong participles simplemma can't give a verb for (gefahren is also the noun Gefahren).
-_DE_PARTICIPLE_UNLEMMATIZED = _words("gefahren gefangen gebacken gefallen geschehen")
+# Strong participles simplemma can't give a verb for (gefahren is also the noun Gefahren), with
+# their infinitives.
+_DE_PARTICIPLE_UNLEMMATIZED = {
+    "gefahren": "fahren",
+    "gefangen": "fangen",
+    "gebacken": "backen",
+    "gefallen": "fallen",
+    "geschehen": "geschehen",
+    "erschienen": "erscheinen",
+}
 
 
 def _de_participle(word: str) -> bool:
@@ -142,8 +154,45 @@ def _de_infinitive(word: str) -> bool:
     return word.endswith("en") and len(word) > 3 and _lemma(word, "de") == word
 
 
-_DE_HABEN_SEIN = _words("habe hast hat haben habt bin bist ist sind seid")
-_DE_HATTE_WAR = _words("hatte hattest hatten hattet war warst waren wart")
+_DE_HABEN = _words("habe hast hat haben habt")
+_DE_SEIN = _words("bin bist ist sind seid")
+_DE_HATTE = _words("hatte hattest hatten hattet")
+_DE_WAR = _words("war warst waren wart")
+
+# Verbs that form the perfect with sein, by infinitive, alone or after a separable prefix
+# (ankommen, abfahren). ist verkauft and ist geöffnet are a state, not a perfect.
+_DE_SEIN_BASES = _words(
+    "sein werden bleiben gehen kommen fahren fliegen laufen rennen reisen wandern schwimmen",
+    "springen fallen steigen sinken sterben wachsen folgen landen reiten klettern fließen",
+    "rutschen stürzen schmelzen gleiten ziehen eilen marschieren biegen treten kehren",
+)
+_DE_SEIN_VERBS = _words(
+    "geschehen passieren gelingen misslingen aufstehen aufwachen erwachen einschlafen",
+    "verschwinden erscheinen entstehen entkommen entfliehen vergehen verreisen begegnen gelangen",
+    "geraten scheitern platzen ertrinken starten erschrecken genesen",
+)
+_DE_SEPARABLE = (
+    "ab an auf aus bei ein mit nach vor zu zurück weg her hin los fest fort um wieder zusammen",
+    "vorbei weiter heraus hinaus herein hinein heim hoch herunter hinunter hinauf herauf",
+)
+
+
+def _de_sein_participle(word: str) -> bool:
+    """A participle of a verb that takes sein (gegangen, angekommen, passiert)."""
+    if not _de_participle(word):
+        return False
+    lem = _de_verb(word) or _DE_PARTICIPLE_UNLEMMATIZED.get(word)
+    if lem is None:
+        return False
+    if lem in _DE_SEIN_VERBS or lem in _DE_SEIN_BASES:
+        return True
+    return any(
+        lem.startswith(prefix) and lem[len(prefix) :] in _DE_SEIN_BASES
+        for group in _DE_SEPARABLE
+        for prefix in group.split()
+    )
+
+
 _DE_WERDEN = _words("werde wirst wird werden werdet")
 _DE_PASSIVE = _DE_WERDEN | _words("wurde wurdest wurden wurdet worden")
 _DE_PAST_IRREGULAR = _words(
@@ -180,10 +229,14 @@ _DE_CONJUNCTIONS = _words("weil dass obwohl ob nachdem bevor")
 _DE_NEW_CLAUSE = _DE_CONJUNCTIONS | _words("und aber oder denn sondern wenn als während damit")
 
 _GERMAN: dict[str, Finder] = {
-    "de.perfect": _aux_then(_DE_HABEN_SEIN, _de_participle, 8, mark="target", stop=_DE_NEW_CLAUSE),
+    "de.perfect": _either(
+        _aux_then(_DE_HABEN, _de_participle, 8, mark="target", stop=_DE_NEW_CLAUSE),
+        _aux_then(_DE_SEIN, _de_sein_participle, 8, mark="target", stop=_DE_NEW_CLAUSE),
+    ),
     "de.past": _each(_de_past),
-    "de.pluperfect": _aux_then(
-        _DE_HATTE_WAR, _de_participle, 8, mark="target", stop=_DE_NEW_CLAUSE
+    "de.pluperfect": _either(
+        _aux_then(_DE_HATTE, _de_participle, 8, mark="target", stop=_DE_NEW_CLAUSE),
+        _aux_then(_DE_WAR, _de_sein_participle, 8, mark="target", stop=_DE_NEW_CLAUSE),
     ),
     "de.future": _aux_then(_DE_WERDEN, _de_infinitive, 8, mark="aux", stop=_DE_NEW_CLAUSE),
     "de.subjunctive": _marker(_DE_SUBJUNCTIVE),
@@ -222,7 +275,17 @@ def _fr_participle(word: str) -> bool:
     return any(_known(stem + ending, "fr") for ending in infinitives)
 
 
-_FR_AUX = _words("ai as a avons avez ont suis es est sommes êtes sont")
+_FR_AVOIR = _words("ai as a avons avez ont")
+_FR_ETRE = _words("suis es est sommes êtes sont")
+# Participles of the verbs that take être (aller, venir, arriver, partir...), as the lemmatizer
+# leaves some of them (parti, mort, revenu). est fatigué and est fini are a state, not a perfect.
+_FR_ETRE_PARTICIPLES = _words(
+    "allé venu arrivé parti sorti entré rentré resté retourné tombé monté descendu né mort",
+    "devenu revenu parvenu survenu intervenu décédé passé apparu reparti ressorti retombé",
+    "remonté redescendu redevenu arrivé",
+)
+# se lever, s'est levée: a reflexive verb takes être, so any participle counts after one.
+_FR_REFLEXIVE = _words("se s' me m' te t'")
 _FR_ADVERBS = _words("pas jamais déjà bien encore toujours plus rien tout beaucoup trop vraiment")
 # A noun comes after one of these (J'ai une pensée, I have a thought), so what follows isn't a
 # participle.
@@ -289,6 +352,35 @@ def _fr_imperfect(ws: list[str], i: int) -> bool:
     return True
 
 
+def _fr_etre_participle(word: str) -> bool:
+    """A participle of an être verb, with its agreement (allée, venus, nées)."""
+    return any(
+        word.endswith(agreement) and word[: len(word) - len(agreement)] in _FR_ETRE_PARTICIPLES
+        for agreement in ("", "e", "s", "es")
+    )
+
+
+def _fr_etre_perfect(ws: list[str]) -> list[Span]:
+    """être and then a participle: only of an être verb (il est parti), or after a reflexive
+    pronoun (elle s'est levée, nous nous sommes lavés)."""
+    out: list[Span] = []
+    for i, w in enumerate(ws):
+        if w not in _FR_ETRE:
+            continue
+        reflexive = i > 0 and (
+            ws[i - 1] in _FR_REFLEXIVE
+            or (ws[i - 1] in ("nous", "vous") and i > 1 and ws[i - 2] in ("nous", "vous"))
+        )
+        for j in range(i + 1, min(len(ws), i + 4)):
+            if ws[j] in _FR_DETERMINERS or ws[j] in _FR_AVOIR | _FR_ETRE:
+                break
+            if _fr_participle(ws[j]) and (reflexive or _fr_etre_participle(ws[j])):
+                direct = all(b in _FR_ADVERBS for b in ws[i + 1 : j])
+                out.append((i, j + 1) if direct else (j, j + 1))
+                break
+    return out
+
+
 def _fr_infinitive(word: str) -> bool:
     return word.endswith(("er", "ir", "re", "oir")) and _lemma(word, "fr") == word
 
@@ -311,7 +403,10 @@ def _fr_subjunctive(ws: list[str]) -> list[Span]:
 
 
 _FRENCH: dict[str, Finder] = {
-    "fr.passe_compose": _aux_then(_FR_AUX, _fr_participle, 3, _FR_ADVERBS, stop=_FR_DETERMINERS),
+    "fr.passe_compose": _either(
+        _aux_then(_FR_AVOIR, _fr_participle, 3, _FR_ADVERBS, stop=_FR_DETERMINERS),
+        _fr_etre_perfect,
+    ),
     "fr.imperfect": _each(_fr_imperfect),
     "fr.future": _each(_fr_future),
     # Only pronouns and adverbs come between: va à la mer, va chez sa mère are a place, not a verb.

@@ -53,6 +53,14 @@ CASES: list[tuple[Code, str, str, list[str]]] = [
         ["gekauft", "gehört"],
     ),
     ("de", "Wir sind spät aufgestanden und gegangen.", "de.perfect", ["aufgestanden"]),
+    # sein: only verbs of movement and change (ist gegangen), not a state (ist verkauft).
+    (
+        "de",
+        "Er ist gestern gegangen, wir sind angekommen und es ist passiert.",
+        "de.perfect",
+        ["gegangen", "angekommen", "passiert"],
+    ),
+    ("de", "Sie war gegangen und er hatte gegessen.", "de.pluperfect", ["gegangen", "gegessen"]),
     # French
     (
         "fr",
@@ -90,6 +98,14 @@ CASES: list[tuple[Code, str, str, list[str]]] = [
         ["appellerions", "achèterais"],
     ),
     ("fr", "Je connaissais Marc, mais je ne le connais plus.", "fr.imperfect", ["connaissais"]),
+    # être: verbs of movement and change, and reflexive verbs; not a state (est fatiguée).
+    (
+        "fr",
+        "Il est parti, elle s'est levée et nous nous sommes lavés.",
+        "fr.passe_compose",
+        ["est parti", "est levée", "sommes lavés"],
+    ),
+    ("fr", "Il n'est pas encore revenu.", "fr.passe_compose", ["est pas encore revenu"]),
     (
         "fr",
         "Je vais le voir et elle va bien chercher du pain.",
@@ -162,6 +178,13 @@ def test_each_point_is_found(language: Code, text: str, point: str, matches: lis
         ("el", "Όταν έρθει η μέρα.", "el.past"),
         ("pl", "To jest mała szkoła.", "pl.past"),
         ("nb", "Eplet er rødt.", "nb.past"),  # a noun's -et
+        # A participle after sein or être is a state, not a perfect: only verbs of movement and
+        # change (and reflexive ones) form it that way.
+        ("de", "Das Auto ist verkauft und die Tür ist geöffnet.", "de.perfect"),
+        ("de", "Der Tisch ist gedeckt, und das Geschäft ist geschlossen.", "de.perfect"),
+        ("de", "Das Haus war verkauft.", "de.pluperfect"),
+        ("fr", "Elle est fatiguée et il est fini.", "fr.passe_compose"),
+        ("fr", "La porte est fermée et il est surpris.", "fr.passe_compose"),
         # German: present tenses of ge- and prefixed verbs end like a participle (geht, beginnt),
         # and a plural verb after werden is a present tense, not an infinitive.
         ("de", "Das Wetter ist schön, und es geht mir gut.", "de.perfect"),
