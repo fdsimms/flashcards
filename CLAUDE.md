@@ -308,6 +308,12 @@ import replaces it. A setting the user makes here goes in the first.
 (`bumpStudied`). The undone card is shown next. As in Anki, undo stops at the last sync: a synced
 answer is already in the server's history (`undoAnkiAnswer` refuses it, under `lockAnki`).
 
+**A miss reason is a reminder, never an input to scheduling.** Again's menu (`src/core/misses.ts`)
+saves what went wrong in the answer's own review row (`ReviewLogEntry.miss`), which is why undo
+takes it back with the answer. The "Last time" line is read from those rows each time, never
+stored. Nothing in `src/core/scheduler.ts` or the queue may read it, and it isn't written into the
+Anki collection.
+
 ### Import
 
 - **Ids are derived, never random.** A note's id comes from its source (Anki's note id, the TSV
@@ -477,7 +483,7 @@ and never the server's files, so searches, note adds, scheduling and sync behave
 ### Read & Listen (`server/reader/`, `src/reader/`)
 
 Texts (dialogues, short stories) written by Claude from the words already in the language decks
-(Thai, Spanish, German, French, Russian, Greek, Polish, Norwegian, Japanese), checked in code to be 95-98% known words, recorded with Azure's voices, read in the app with
+(Thai, Spanish, German, French, Russian, Greek, Polish, Norwegian, Japanese, English), checked in code to be 95-98% known words, recorded with Azure's voices, read in the app with
 a gloss on every word. **`docs/read-and-listen/brief.md` is the spec, with the evidence behind each
 rule; `architecture.md` beside it has every decision since.** Where they and this file disagree,
 they win and this is stale. The rules that must not break:

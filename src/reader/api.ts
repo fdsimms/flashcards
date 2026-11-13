@@ -92,7 +92,7 @@ export type FormPrimer = {
 };
 
 // The languages texts are written in. Topics are shared; the rest is per language.
-export type Language = 'th' | 'es' | 'de' | 'fr' | 'ru' | 'el' | 'pl' | 'nb' | 'ja';
+export type Language = 'th' | 'es' | 'de' | 'fr' | 'ru' | 'el' | 'pl' | 'nb' | 'ja' | 'en';
 
 // Every language but Thai counts this many of its most common words as known, as well as its deck.
 export type CommonCount = 0 | 250 | 500 | 1000 | 2000 | 3000 | 5000 | 10000;

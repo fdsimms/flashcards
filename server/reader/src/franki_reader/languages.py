@@ -16,12 +16,12 @@ from typing import Literal
 
 from franki_speech import locale_of
 
-Code = Literal["th", "es", "de", "fr", "ru", "el", "pl", "nb", "ja"]
+Code = Literal["th", "es", "de", "fr", "ru", "el", "pl", "nb", "ja", "en"]
 
 # Languages kept out of what the app is shown, for a build of the app from before they were added
 # (its language table has no entry for them, and the Read & Listen screen crashes on one). Empty
 # this once the app is rebuilt with the language.
-HIDDEN_LANGUAGES: frozenset[Code] = frozenset({"ja"})
+HIDDEN_LANGUAGES: frozenset[Code] = frozenset({"ja", "en"})
 
 # How many of a language's most common words can be counted as known (the `common` setting).
 CommonCount = Literal[0, 250, 500, 1000, 2000, 3000, 5000, 10000]
@@ -229,6 +229,29 @@ LANGUAGES: dict[Code, Language] = {
         ),
         # The owner's Japanese notes keep the reading in KanaReading, not Transliteration.
         translit_field="KanaReading",
+    ),
+    # Added on 13 November 2026, by the owner's request: texts written around the deck's rare
+    # words (chiliastic, velleity), to read them in use. The deck is the learner's own words, and
+    # `common` counts the everyday ones as known.
+    "en": Language(
+        code="en",
+        name="English",
+        deck=_LANGUAGES + "🗽 English",
+        voices={
+            "male": "en-US-GuyNeural",
+            "male2": "en-US-DavisNeural",
+            "female": "en-US-JennyNeural",
+            "female2": "en-US-AriaNeural",
+        },
+        spaced=True,
+        example="She|felt|a|*velleity*|to|leave.",
+        # The deck holds rare words and no everyday ones, so the common words carry the text.
+        common=5000,
+        variety=(
+            'Write American English. The learner reads English already, so in "english" give the '
+            'line in plainer words (a paraphrase, not a copy of the line), and in "glosses" give a '
+            "short definition or synonym."
+        ),
     ),
 }
 

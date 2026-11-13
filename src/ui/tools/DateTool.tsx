@@ -58,7 +58,7 @@ export function DateTool({ tool, repo }: ToolScreenProps) {
         {tapping ? (
           <CalendarMonth
             date={quiz.view}
-            weekStartsOn={WEEK_STARTS_ON[language]}
+            weekStartsOn={WEEK_STARTS_ON[language]!}
             selected={quiz.tapped}
             onChange={quiz.tap}
             onNavigate={quiz.setView}
@@ -67,7 +67,7 @@ export function DateTool({ tool, repo }: ToolScreenProps) {
             locked={!!quiz.tapped || quiz.revealed}
           />
         ) : (
-          <CalendarMonth date={date} onChange={change} weekStartsOn={WEEK_STARTS_ON[language]} />
+          <CalendarMonth date={date} onChange={change} weekStartsOn={WEEK_STARTS_ON[language]!} />
         )}
       </Card>
 
