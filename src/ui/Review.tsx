@@ -334,16 +334,23 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   }, [note, noteType, current?.id, current?.kind, dark, c, typedShown]); // eslint-disable-line react-hooks/exhaustive-deps
   const rendered = current && note && !page ? renderCard(note, current.kind) : undefined;
   // The fuzz seed and load balancer for answering the current card, as Anki has them: the buttons show what an answer does.
-  const answerContext = (card: Card, when: Date): AnswerContext => {
+  const baseContext = (card: Card, when: Date): AnswerContext => {
     const seed = fuzzSeed(card.ankiId, card.sched.reps) ?? BigInt.asUintN(64, fnvHash(card.id) + BigInt(card.sched.reps));
     // A card in a filtered deck has no preset there, so Anki fuzzes it without balancing.
     const balance = collection.loadBalancer === false || card.filteredDeck ? undefined : balancerFor(loadSnapshot.current, card, {
       preset: cardParams?.presetId, seed, easyDays: cardParams?.easyDays, buryReviews: !!cardParams?.bury?.reviews,
       nextDayAt: nextStudyDayStart(when, H),
     });
-    // A lookalike may have given the answer away: counted from when it was seen, unless turned off.
-    return { seed, dayStartsAtHour: H, balance, countFrom: card.id === current?.id ? forms.countFrom : undefined };
+    return { seed, dayStartsAtHour: H, balance };
   };
+  // What Good would bring the current card back in, counted from `from` (a lookalike) or its last review.
+  const goodFrom = (from?: Date) => (current ? previewIntervals(current.sched, now, cardParams, { ...baseContext(current, now), countFrom: from })[3] : '');
+  // A lookalike may have given the answer away: counted from when it was seen, unless turned off, or unless
+  // that wouldn't change Good's interval (the offer isn't shown then, so it mustn't apply unseen).
+  const soonerApplies = !!forms.countFrom && goodFrom(forms.countFrom) !== goodFrom();
+  const answerContext = (card: Card, when: Date): AnswerContext => ({
+    ...baseContext(card, when), countFrom: card.id === current?.id && soonerApplies ? forms.countFrom : undefined,
+  });
   const intervals = current && revealed ? previewIntervals(current.sched, now, cardParams, answerContext(current, now)) : undefined;
 
   // One player for the session's recorded audio, released when the screen closes.
@@ -675,7 +682,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   const extras = revealed ? (
     <AnswerExtras
       word={headword(note)}
-      offer={forms.offerView((from) => previewIntervals(current.sched, now, cardParams, { ...answerContext(current, now), countFrom: from })[3])}
+      offer={forms.offerView(goodFrom)}
       onSooner={forms.setSooner}
       suggestion={forms.suggestion}
       onPractice={() => onPracticeForms(forms.drillFor([note.id], note.deck))}

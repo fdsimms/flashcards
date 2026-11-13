@@ -7,8 +7,9 @@ import { cardDetail, playMinutes, playOrder, reasonLabel, surprisePick } from '.
 import { haptic } from './haptics';
 import { Button, Card, Divider, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
 import { PracticeWordPill } from './PracticeWordPill';
+import { ReadRecap } from './ReadRecap';
 import { GlossPopover, type Tapped } from './Reader';
-import { hairline, MIN_TAP, space, type, useTheme } from './theme';
+import { MIN_TAP, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
@@ -31,7 +32,7 @@ const SHELF_SIZE = 3;
 
 export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 
-export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLanguagePage, onPast, onWords, onLanguage }: {
+export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLanguagePage, onPast, onEpisodes, onWords, onLanguage }: {
   api: Api;
   /** Opened from Review's "Read a text with these words": offers a text written to practice them. */
   practice?: { language: Language; count: number; onCancel: () => void };
@@ -42,6 +43,8 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
   onPractice: (topic: { id: number; name: string }) => void;
   onLanguagePage: () => void;
   onPast: () => void;
+  /** Lists the ongoing story's episodes, first to last. */
+  onEpisodes: (storyId: number) => void;
   onWords: () => void;
   /** The language was changed here; the app-wide settings follow. */
   onLanguage: () => void;
@@ -219,7 +222,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
 
         {shelf ? (
           <>
-            <StoryCard api={api} shelf={shelf} onPlayWord={onPlayWord} onOpen={(id) => open(id)} onStarted={refresh} />
+            <StoryCard api={api} shelf={shelf} onPlayWord={onPlayWord} onOpen={(id) => open(id)} onEpisodes={onEpisodes} onStarted={refresh} />
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: space.s }}>
               <Text accessibilityRole="header" style={{ ...type.title, color: c.text }}>Ready for you</Text>
@@ -295,12 +298,12 @@ function ShelfRow({ text, first, onPress, onLongPress }: { text: ShelfText; firs
 }
 
 /** The ongoing story: its next episode, the one being written, or a way to start one. */
-function StoryCard({ api, shelf, onPlayWord, onOpen, onStarted }: { api: Api; shelf: Shelf; onPlayWord: (word: string, language: Language) => void; onOpen: (textId: number) => void; onStarted: () => void }) {
+function StoryCard({ api, shelf, onPlayWord, onOpen, onEpisodes, onStarted }: { api: Api; shelf: Shelf; onPlayWord: (word: string, language: Language) => void; onOpen: (textId: number) => void; onEpisodes: (storyId: number) => void; onStarted: () => void }) {
   const c = useTheme();
   const [about, setAbout] = useState('');
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // A practice word's popover: its meaning, as on the card's own text.
+  // A practice word's or a recap word's popover: its meaning, as on the card's own text.
   const [tapped, setTapped] = useState<Tapped | null>(null);
   const story = shelf.story;
 
@@ -354,20 +357,6 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onStarted }: { api: Api; sh
             </View>
           ) : null}
           <Button label="Read and listen" onPress={() => onOpen(next.id)} />
-          <GlossPopover
-            tapped={tapped}
-            translitLabel={LANGUAGES[shelf.language].translitLabel}
-            grammar={null}
-            api={api}
-            grammarChosen={{}}
-            onGrammarChosen={() => undefined}
-            flagged={false}
-            onToggleFlag={null}
-            onPlay={() => { if (tapped) onPlayWord(tapped.word.text, shelf.language); }}
-            onSelectPhrase={null}
-            onAddToDeck={null}
-            onClose={() => setTapped(null)}
-          />
         </>
       ) : story.writing ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
@@ -379,12 +368,28 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onStarted }: { api: Api; sh
       ) : (
         <Help>The next episode is written when you pull down or come back here.</Help>
       )}
-      {story.last_recap ? (
-        <View style={{ marginTop: space.s, paddingTop: space.m, gap: space.xs, borderTopWidth: hairline, borderTopColor: c.border }}>
-          <Text style={{ ...type.overline, color: c.textSecondary }}>Last time</Text>
-          <Help>{story.last_recap}</Help>
-        </View>
-      ) : null}
+      {story.read > 0 ? <Button label="Past episodes" variant="secondary" onPress={() => onEpisodes(story.id)} /> : null}
+      <ReadRecap
+        recap={story.last_recap}
+        line={story.last_recap_line}
+        language={shelf.language}
+        tapped={tapped?.word ?? null}
+        onTap={(word, x, y) => { haptic.tap(); setTapped({ word, x, y }); }}
+      />
+      <GlossPopover
+        tapped={tapped}
+        translitLabel={LANGUAGES[shelf.language].translitLabel}
+        grammar={null}
+        api={api}
+        grammarChosen={{}}
+        onGrammarChosen={() => undefined}
+        flagged={false}
+        onToggleFlag={null}
+        onPlay={() => { if (tapped) onPlayWord(tapped.word.text, shelf.language); }}
+        onSelectPhrase={null}
+        onAddToDeck={null}
+        onClose={() => setTapped(null)}
+      />
     </Card>
   );
 }
