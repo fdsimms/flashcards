@@ -52,13 +52,16 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/texts                  texts read to the end, newest first, to read again; with
                                       ?story=<id>, that story's episodes, first to last
     GET   /api/texts/{id}             one text, in the same shape as /next; reading it again isn't logged
-    POST  /api/texts/{id}/reading     logs a session with a text and adjusts difficulty
+    POST  /api/texts/{id}/reading     logs a session with a text and adjusts difficulty, from its
+                                      rating and the check after reading's score (check_right of
+                                      check_asked, both left out when it wasn't taken)
     POST  /api/texts/{id}/choice      {choice} the option picked at the end of a story episode, as an
                                       index into its choices; it can be changed until the episode is
                                       read, which is when the next one is written from it (404 for
                                       no such text or choice, 409 once it's read)
     GET   /api/progress               finished texts, coverage and ratings over the last 14 days,
-                                      and the difficulty the next text is written at
+                                      the check after reading's answers over them, and the
+                                      difficulty the next text is written at
     GET   /api/costs?days=30          what Claude cost over the last `days` days, per language:
                                       texts read, waiting, dropped and skipped, attempts and dollars,
                                       plus Azure's audio estimated from the characters it spoke (every
@@ -67,14 +70,17 @@ marked words, ideas) is in the current language, the `language` setting.
                                       apart from the texts: `explanations`, what Explain's calls
                                       (lines and phrases) and the naturalness check cost;
                                       `drills`, `meanings` (glossing common words), `vocab_checks`
-                                      and `note_queue`; `mnemonics`, memory hints; and
+                                      and `note_queue`; `mnemonics`, memory hints; `questions`,
+                                      the check after reading's questions (comprehension.py); and
                                       `recordings`, the cards recorded through /api/speech, as
                                       Azure's characters and their estimate. A call that failed
                                       after Claude answered was still paid for, and counts in its
                                       feature's figure
     GET   /api/grammar                the current language's grammar points, each practice, avoid,
                                       normal ("Know it") or unset, with how often each came up in
-                                      texts read; `least`, the known ones worked in next
+                                      texts read; `least`, the known ones worked in next;
+                                      `stretch`: {uses, next}, how many times a text may use
+                                      grammar not set, and the easiest point to practice next
     GET   /api/grammar/choices        {choices}: every language's choices by point id (practice,
                                       avoid or normal; a point not set isn't listed), for the
                                       app's Forms practice (docs/grammar.md)
@@ -100,6 +106,9 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/grammar/{id}           one point's page: {id, state, seen, choices (its language's,
                                       for the related points), examples: [{text_id, title, line,
                                       english, words}]}, lines from texts read, the latest first
+    PUT   /api/grammar/stretch        {uses: 1 to 4}: how many times the next texts may use grammar
+                                      not set (the Grammar dial on the wrap-up screen); answers as
+                                      GET /api/grammar does
     PUT   /api/grammar/{id}           {state}; at most 2 practiced at once; from the next text
     GET   /api/words                  words marked unknown and not cleared, newest first
     POST  /api/words/clear            {word} takes a word off that list until it's marked again
@@ -139,6 +148,7 @@ marked words, ideas) is in the current language, the `language` setting.
 
 import hmac
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 
@@ -149,6 +159,7 @@ from franki_speech import SpeechClient, SpeechError, is_multilingual, locale_of,
 from pydantic import BaseModel, Field
 
 from franki_reader import (
+    comprehension,
     config,
     drills,
     exposure,
@@ -221,6 +232,10 @@ class TopicUpdate(BaseModel):
 
 class GrammarChoice(BaseModel):
     state: Literal["practice", "avoid", "normal"]
+
+
+class GrammarStretchIn(BaseModel):
+    uses: int = Field(ge=grammar.MIN_UNSET_USES, le=grammar.MAX_UNSET_USES)
 
 
 class ClearWord(BaseModel):
@@ -329,6 +344,9 @@ class ReadingIn(BaseModel):
     audio_speed: float | None = Field(default=None, ge=0.5, le=1.5)
     listen_only: bool = False
     seconds: int = Field(default=0, ge=0)
+    # The check after reading, when it was taken: answers right, of those asked.
+    check_right: int | None = Field(default=None, ge=0)
+    check_asked: int | None = Field(default=None, ge=1, le=20)
 
 
 def _check_voice(name: str, code: Code) -> None:
@@ -941,6 +959,10 @@ def create_app(
 
     @app.post("/api/texts/{text_id}/reading", status_code=204, dependencies=authed)
     async def reading(text_id: int, body: ReadingIn, background: BackgroundTasks) -> Response:
+        right, asked = body.check_right, body.check_asked
+        checked = right is not None and asked is not None
+        if right is not None and asked is not None and right > asked:
+            raise HTTPException(422, "check_right can't be more than check_asked.")
         try:
             engine.record_reading(
                 text_id,
@@ -952,6 +974,8 @@ def create_app(
                     audio_speed=body.audio_speed,
                     listen_only=body.listen_only,
                     seconds=body.seconds,
+                    check_right=right if checked else None,
+                    check_asked=asked if checked else None,
                 ),
             )
         except NotFound as e:
@@ -970,6 +994,8 @@ def create_app(
             "finished": done.finished,
             "median_coverage": done.median_coverage,
             "ratings": done.ratings,
+            # The check after reading, over the finished texts it was taken with.
+            "check": {"texts": done.checked, "right": done.check_right, "asked": done.check_asked},
             "next": {"floor": difficulty.floor, "stretch": difficulty.stretch},
         }
 
@@ -983,6 +1009,7 @@ def create_app(
         queued = store.queue_spending(engine.conn, since)
         glossed = store.meaning_spending(engine.conn, since)
         hinted = store.mnemonic_spending(engine.conn, since)
+        questioned = store.question_spending(engine.conn, since)
         recorded, recorded_chars = store.recording_spending(engine.conn, since)
         rows = by_language.values()
         total = store.Spending(
@@ -1087,6 +1114,21 @@ def create_app(
                     for code, (n, c) in hinted.items()
                 ],
             },
+            # Questions for the check after reading, one call per text (comprehension.py), failed
+            # calls included.
+            "questions": {
+                "asked": sum(n for n, _ in questioned.values()),
+                "cost_usd": round(sum(c for _, c in questioned.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "asked": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in questioned.items()
+                ],
+            },
             # Cards recorded by an Azure voice in the app (POST /api/speech): Azure's alone, an
             # estimate like the texts' audio. Not per language: the app doesn't say which.
             "recordings": {
@@ -1123,6 +1165,16 @@ def create_app(
             "max_practice": grammar.MAX_PRACTICE,
             # The known points the next texts are asked to work in, least seen first.
             "least": list(engine.review_points(language)),
+            "stretch": {
+                "uses": store.load_difficulty(engine.conn, language).unset_uses,
+                # What to suggest practicing when the dial goes up, null when every point is
+                # practiced or known.
+                "next": (
+                    {"id": nxt.id, "name": nxt.name}
+                    if (nxt := grammar.next_to_learn(language, choices))
+                    else None
+                ),
+            },
             "points": [
                 {
                     "id": p.id,
@@ -1316,6 +1368,14 @@ def create_app(
             ],
         }
 
+    # Before /api/grammar/{point_id}, which would take "stretch" for a point.
+    @app.put("/api/grammar/stretch", dependencies=authed)
+    async def set_grammar_stretch(body: GrammarStretchIn) -> dict[str, Any]:
+        language = engine.language()
+        current = store.load_difficulty(engine.conn, language)
+        store.save_difficulty(engine.conn, replace(current, unset_uses=body.uses), language)
+        return grammar_points()
+
     @app.put("/api/grammar/{point_id}", dependencies=authed)
     async def choose_grammar(
         point_id: str, body: GrammarChoice, background: BackgroundTasks
@@ -1497,6 +1557,7 @@ def production_app() -> FastAPI:
     write_vocab: vocab_check.WriteVocab | None = None
     write_notes: note_queue.WriteNotes | None = None
     write_meanings: meanings.WriteMeanings | None = None
+    write_questions: comprehension.WriteQuestions | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
@@ -1507,6 +1568,7 @@ def production_app() -> FastAPI:
         write_vocab = vocab_check.claude_vocab(client)
         write_notes = note_queue.claude_notes(client)
         write_meanings = meanings.claude_meanings(client)
+        write_questions = comprehension.claude_questions(client)
 
         def ask_for(entries: list[Entry], language: Code) -> Ask:
             return claude_ask(client, entries, language)
@@ -1554,6 +1616,7 @@ def production_app() -> FastAPI:
         voices=settings.voices,
         rollover=lambda: anki.rollover if anki else DEFAULT_ROLLOVER,
         write_meanings=write_meanings,
+        write_questions=write_questions,
         read_wanikani=wanikani_reader(wanikani_token) if wanikani_token else None,
     )
     engine.count_existing_audio()

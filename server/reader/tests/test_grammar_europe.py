@@ -77,6 +77,12 @@ CASES: list[tuple[Code, str, str, list[str]]] = [
     ("ru", "Читая книгу, он улыбался; прочитав её, ушёл.", "ru.gerund", ["читая", "прочитав"]),
     (
         "ru",
+        "Улыбаясь, она вернулась; вернувшись домой, неся сумку.",
+        "ru.gerund",
+        ["улыбаясь", "вернувшись", "неся"],
+    ),
+    (
+        "ru",
         "Этот поезд быстрее и лучше, более удобный.",
         "ru.comparative",
         ["быстрее", "лучше", "более"],
@@ -117,6 +123,7 @@ def test_each_point_is_found(language: Code, text: str, point: str, matches: lis
         ("fr", "Il parle et elle chante.", "fr.subjunctive"),  # present looks like subjunctive
         ("ru", "Вы говорите по-русски.", "ru.imperative"),  # you speak
         ("ru", "У матери нет радости.", "ru.imperative"),
+        ("ru", "Вдруг слышится шум. Он учится, а они находятся дома.", "ru.gerund"),  # -ся
         ("el", "Όταν έρθει η μέρα.", "el.past"),
         ("pl", "To jest mała szkoła.", "pl.past"),
         ("nb", "Eplet er rødt.", "nb.past"),  # a noun's -et

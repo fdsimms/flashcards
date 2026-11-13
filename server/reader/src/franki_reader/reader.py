@@ -2,6 +2,7 @@
 tap always lands on something the lexicon or the gloss list knows about (docs/read-and-listen/architecture.md,
 Generation and coverage)."""
 
+import re
 from typing import Any
 
 from franki_reader import grammar
@@ -128,6 +129,28 @@ def render_sentence(
     return [word_out(p, lexicon, meanings, deck_translits) for p in lexicon.segment(sentence)]
 
 
+_REFLEXIVE_PRONOUNS = frozenset({"me", "te", "se", "nos", "os"})
+
+
+def mark_reflexive_pronouns(words: list[dict[str, Any]], lexicon: Checker) -> None:
+    """A practice word that's a reflexive verb (agacharse) also marks the pronoun just before its
+    form ("se agacha"), since the pronoun is part of the word. A form that's joined to its pronoun
+    (agacharse, agáchate) is one token already, so only a separate pronoun needs this."""
+    reflexive = getattr(getattr(lexicon, "rules", None), "reflexive", "")
+    if not reflexive:
+        return
+    for i, word in enumerate(words):
+        if not word["stretch"] or not word["lemma"]:
+            continue
+        if not re.search(rf"[aei]r{reflexive}$", word["lemma"].lower()):
+            continue
+        before = i - 1
+        while before >= 0 and words[before]["text"].isspace():
+            before -= 1
+        if before >= 0 and words[before]["text"].lower() in _REFLEXIVE_PRONOUNS:
+            words[before]["stretch"] = True
+
+
 def render(
     text: StoredText,
     lexicon: Checker,
@@ -166,6 +189,7 @@ def render(
                     point=point,
                 )
             )
+        mark_reflexive_pronouns(words, lexicon)
         return words
 
     lines = []
@@ -219,4 +243,7 @@ def render(
             {"english": c.english, "words": render_words(c.text, {})} for c in text.choices
         ],
         "chosen": text.chosen,
+        # Questions about what happens, for the check after reading (comprehension.py): each in the
+        # text's language with its English, the line that answers it (from 0), and the right choice.
+        "questions": [q.as_json() for q in text.questions],
     }

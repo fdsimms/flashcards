@@ -322,12 +322,19 @@ def _ru_imperative(ws: list[str], i: int) -> bool:
     return base in forms
 
 
-_RU_GERUND = re.compile(r"(я|ясь|в|вши|вшись)$")
+_RU_GERUND = re.compile(r"(я|в|вши)$")
+_RU_GERUND_REFLEXIVE = re.compile(r"(ясь|вшись)$")
 
 
 def _ru_gerund(ws: list[str], i: int) -> bool:
     w = ws[i]
-    return bool(_RU_GERUND.search(w)) and not _RU_PAST.search(w) and _ru_verb(w) is not None
+    lem = _ru_verb(w)
+    if lem is None or _RU_PAST.search(w):
+        return False
+    # A reflexive verb's verbal adverb ends in -сь (улыбаясь). Its present forms end in -ся
+    # (слышится, учатся), which the plain -я ending would otherwise take for one.
+    pattern = _RU_GERUND_REFLEXIVE if lem.endswith(("ся", "сь")) else _RU_GERUND
+    return bool(pattern.search(w))
 
 
 _RU_COMPARATIVE_IRREGULAR = _words(
