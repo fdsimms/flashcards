@@ -1,3 +1,4 @@
+import { useFocusEffect, useNavigation } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
 import { View } from 'react-native';
@@ -20,5 +21,14 @@ export function useHeaderInset() {
   // onLayout alone isn't enough: the header's height is often 0 when the screen first lays out and
   // only settles afterward, with no new layout to trigger onLayout, so the inset stayed 0.
   useEffect(onLayout, [onLayout]);
+  // A push from the deck list can measure the frame mid-transition, with the header's height not yet
+  // settled, and nothing lays out again once it lands, leaving the inset at 0 and the screen's top
+  // under the header. Measure again when the transition ends and whenever the screen regains focus.
+  const navigation = useNavigation();
+  useEffect(() => {
+    const listen = navigation.addListener as (event: string, cb: () => void) => () => void;
+    return listen.call(navigation, 'transitionEnd', onLayout);
+  }, [navigation, onLayout]);
+  useFocusEffect(onLayout);
   return { ref, onLayout, top };
 }
