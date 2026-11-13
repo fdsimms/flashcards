@@ -34,6 +34,11 @@ describe('lookalikeForm / wordsLookAlike', () => {
     expect(lookalikeForm('søster', 'nb-NO')).toBe('søster');
     expect(lookalikeForm('žena', undefined)).toBe('žena');
   });
+  it('takes stress marks off a Russian word, but keeps й and ё', () => {
+    expect(lookalikeForm('молоко́', 'ru-RU')).toBe('молоко');
+    expect(lookalikeForm('мой', 'ru-RU')).toBe('мой');
+    expect(lookalikeForm('ёлка', 'ru-RU')).toBe('ёлка');
+  });
   it('needs most of the shorter word in common', () => {
     expect(wordsLookAlike('esperar', 'espero')).toBe(true);
     expect(wordsLookAlike('esperar', 'esperanza')).toBe(true);

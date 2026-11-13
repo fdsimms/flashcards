@@ -39,10 +39,16 @@ const unmarked = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').norma
  * A word as it's compared: lower case, no article, nothing after a bracket or dash, and no accents
  * in a language whose accents don't change the letter (`lang` is a speech tag, `speechLangFor`).
  */
+const STRESS_MARKED = new Set(['ru', 'uk']);
+const withoutStress = (s: string) => s.normalize('NFD').replace(/[\u0300\u0301]/g, '').normalize('NFC');
+
 export function lookalikeForm(word: string, lang: string | undefined): string {
   const head = word.split(/\s[(—–-]|\(|,/)[0].trim();
   const lower = withoutArticle(head).toLocaleLowerCase().normalize('NFC');
-  const form = lang && ACCENTS_IGNORED.has(lang.split('-')[0].toLowerCase()) ? unmarked(lower) : lower;
+  const code = lang?.split('-')[0].toLowerCase() ?? '';
+  // Stress marks added to a Russian or Ukrainian word for learning (молоко́) aren't spelling: they
+  // come off, while й, ё and ї, which are letters, stay.
+  const form = ACCENTS_IGNORED.has(code) ? unmarked(lower) : STRESS_MARKED.has(code) ? withoutStress(lower) : lower;
   return form.replace(/\s+/g, ' ').trim();
 }
 
