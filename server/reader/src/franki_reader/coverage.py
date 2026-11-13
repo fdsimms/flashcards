@@ -53,7 +53,7 @@ _BESIDE_BAR = re.compile(r"\s*\|\s*")
 # A connective that opens a clause is written against what it joins (แล้วเดินมา), so a space right
 # after one, with a space or the line start before it, is the model's slip, and the voice would pause
 # there. One ending a clause (ไปแล้ว ผม...) has no space before it and is left alone.
-_CONNECTIVE_GAP = re.compile(r"(?:(?<=\s)|^)(แล้ว|และ|แต่|หรือ|เพราะ|ถ้า)\s+(?=\S)")
+_CONNECTIVE_GAP = re.compile(r"(?:(?<=\s)|^)(แล้ว|และ|แต่|หรือ|เพราะ|ถ้า|ก็|จึง)\s+(?=\S)")
 # In a spaced language, the space a `|` became before closing punctuation or after opening.
 _SPACE_BEFORE_CLOSING = re.compile(r"\s+(?=[.,;:!?)\]»…])")
 _SPACE_AFTER_OPENING = re.compile(r"(?<=[¿¡(\[«])\s+")

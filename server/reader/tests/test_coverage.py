@@ -106,6 +106,8 @@ def test_a_space_after_a_clause_opening_connective_is_dropped() -> None:
     assert parse_line("เขา|ดู|เด็ก แล้ว เดิน|มา")[0] == "เขาดูเด็ก แล้วเดินมา"
     assert parse_line("แต่ เขา|หิว")[0] == "แต่เขาหิว"
     assert parse_line("*แล้ว* เดิน")[0] == "แล้วเดิน"
+    assert parse_line("ถ้า|ฝน|ตก ก็ ไม่|ไป")[0] == "ถ้าฝนตก ก็ไม่ไป"
+    assert parse_line("เขา|หิว จึง กิน")[0] == "เขาหิว จึงกิน"
     # Ending a clause, it keeps the space after it.
     assert parse_line("กิน|ข้าว|แล้ว เขา|ไป")[0] == "กินข้าวแล้ว เขาไป"
 
