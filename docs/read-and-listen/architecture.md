@@ -722,8 +722,12 @@ in the current language, with when one was last read to the end. Nothing else le
   vocabCheck.ts`, pure and tested): it starts at the 251 to 500 band, goes up a band after a right
   answer and down after a wrong one or "I don't know", and scores each band with a wrong answer
   taking a third of a right one (a guess among four). It suggests the largest setting at which at
-  least 90% of the words it would count as known are known, by each band's share, taking an unasked
-  band below the lowest asked as known and nothing above the highest asked. The owner accepts it or
+  least 90% of the words it would count as known are likely known, from one curve fitted to all the
+  answers (the chance of knowing a word falls with the log of its rank at a fixed slope, so only where
+  it crosses 50% is fitted; a wrong answer is partly a guess, a skip is not), and nothing above the
+  highest band asked. Each band's own score is still shown, but doesn't decide the suggestion: scoring
+  bands one by one (13 November 2026) let one miss in a four-question band outweigh nine right answers
+  in the band above it, and suggested 1,000 for a learner who knew about 3,000. The owner accepts it or
   keeps their setting; it never writes a card or changes anything else, except that after a wrong or skipped answer the word can be added to the deck through the note editor (saving is the approval). Each answer is marked right or wrong at once, and the question stays until Next; marking changes no score. The result lists the words missed (wrong or skipped) with their meaning and what was chosen. The 5,001 to 10,000 band was added on 13 November 2026 so 10,000 can be suggested; a bank stored without it is served as it is and topped up in the background with the new band's words. Twenty questions was checked
   by simulation against a learner whose chance of knowing a word falls with its rank: the suggestion
   was within one setting step of the right one 98% of the time (95% at 12 questions, 99% at 40) and

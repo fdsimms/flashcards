@@ -87,6 +87,8 @@ test('every band right suggests the top setting', () => {
   expect(estimate(all).suggested).toBe(10000);
 });
 
+const at = (rank: number, reply: Reply): Asked => ({ item: { word: `r${rank}`, rank, meaning: '', wrong: ['x', 'y', 'z'] }, reply });
+
 test('the suggestion is the largest setting whose words are known at the target share', () => {
   // Right through 1,000, then half of the 1,001 to 2,000 band, none of the rest.
   const asked = [
@@ -96,15 +98,29 @@ test('the suggestion is the largest setting whose words are known at the target 
     ...asks(5, ['skipped', 'skipped']),
   ];
   const { suggested } = estimate(asked);
-  // 1,000 words at 100% is above the target; 2,000 is (1,000 + 500) / 2,000 = 75%, below it.
-  expect(suggested).toBe(1000);
+  expect(suggested).toBeGreaterThanOrEqual(500);
+  expect(suggested).toBeLessThanOrEqual(1000);
   expect(KNOWN_SHARE).toBe(0.9);
 });
 
-test('a few misses in a big band still pass when the commoner bands are all known', () => {
-  // 500 words known at 100%; the 501 to 1,000 band at 80% still leaves 1,000 at 90%.
-  const asked = [...asks(0, ['right']), ...asks(1, ['right']), ...asks(2, ['right']), ...asks(3, ['right', 'right', 'right', 'right', 'skipped'])];
-  expect(estimate(asked).suggested).toBe(1000);
+test('one miss in a small band does not outweigh a band of right answers above it', () => {
+  // A real result: right through 2,000 bar one wrong, 9 of 9 in 2,001 to 3,000, 3 of 5 in 3,001 to 5,000.
+  // Scoring each band alone suggested 1,000 here.
+  const asked = [
+    at(300, 'right'), at(700, 'right'),
+    at(1100, 'right'), at(1300, 'right'), at(1500, 'right'), at(1800, 'wrong'),
+    ...[2100, 2200, 2400, 2500, 2600, 2700, 2800, 2900, 2950].map((r) => at(r, 'right')),
+    at(3100, 'right'), at(3500, 'right'), at(4000, 'right'), at(4300, 'wrong'), at(4800, 'skipped'),
+  ];
+  expect(estimate(asked).suggested).toBe(3000);
+});
+
+test('missing everything past a point suggests a setting below it', () => {
+  const asked = [
+    ...asks(1, ['right', 'right']), ...asks(2, ['right', 'right']), ...asks(3, ['right', 'right']),
+    ...asks(4, ['wrong', 'skipped', 'wrong']), ...asks(5, ['skipped', 'wrong']),
+  ];
+  expect(estimate(asked).suggested).toBeLessThanOrEqual(1000);
 });
 
 test('too little known suggests none, and no answers suggest none', () => {
@@ -112,13 +128,8 @@ test('too little known suggests none, and no answers suggest none', () => {
   expect(estimate([]).suggested).toBe(0);
 });
 
-test('a band never asked takes the commoner one as known, or the average of its neighbors', () => {
-  // Only band 3 (501 to 1,000) asked, all right: bands 0 to 2 are taken as known too.
+test('only an easy band asked and all right suggests up to that band', () => {
   expect(estimate(asks(3, ['right', 'right'])).suggested).toBe(1000);
-  // Bands 2 and 4 asked, 2 all right and 4 none right, so band 3 between them is taken at 50%.
-  const between = [...asks(2, ['right', 'right']), ...asks(4, ['wrong', 'wrong'])];
-  // 1,000 would be 250 + 250 + 250 (half of 500) = 750 of 1,000, under the target; 500 is all known.
-  expect(estimate(between).suggested).toBe(500);
 });
 
 test('nothing above the highest band asked is suggested', () => {
