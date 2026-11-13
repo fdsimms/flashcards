@@ -11,14 +11,15 @@ import { Card, Field, Icon, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import { hairline, radius, smooth, space, type, useTheme } from '../theme';
 import { dateLabel } from './CalendarMonth';
-import { ChipChoice, PlayButton, Status, Ways, type ToolActions } from './ToolScreen';
+import { ChipChoice, PlayButton, RuleLine, Status, Ways, type ToolActions } from './ToolScreen';
 
 /**
  * Saying dates besides saying it aloud: pick the phrase, type it, or read the phrase and tap the
  * date. `useDateQuiz` holds what each one needs and gives the footer's buttons; the parts below
  * draw them. Nothing is scheduled: a new date or a new setting starts the question over, and the
  * first answer to each question (or asking for the answer) is passed to `onResult`, which only leans
- * what comes up next (useMarks).
+ * what comes up next (useMarks). A miss shows the rule behind the answer (`rule`, rules.ts) where
+ * there's one.
  */
 
 /** State that goes back to `initial` as soon as `key` (the question) changes, with no render in between showing the old answer. */
@@ -169,10 +170,18 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 }
 
 /** Type it: the field, then, once checked, what was right and what to fix. */
-export function TypeAnswer({ quiz, saying, language, onPlay }: { quiz: DateQuiz; saying: DateSaying | undefined; language: Language; onPlay: (p: Phrase) => void }) {
+export function TypeAnswer({ quiz, saying, language, rule, onPlay }: {
+  quiz: DateQuiz;
+  saying: DateSaying | undefined;
+  language: Language;
+  rule: string | undefined;
+  onPlay: (p: Phrase) => void;
+}) {
   const c = useTheme();
   const input = useRef<TextInputInstance>(null);
   const { checked } = quiz;
+  // Japanese is checked in kana only (acceptedForms): kanji typed through the IME can't show the reading.
+  const kana = language === 'ja';
   // Focused when the question comes up and again after Try again, so the keyboard is already there.
   useEffect(() => { if (!checked) input.current?.focus(); }, [checked]);
   return (
@@ -180,7 +189,7 @@ export function TypeAnswer({ quiz, saying, language, onPlay }: { quiz: DateQuiz;
       <Field
         ref={input}
         label="Your answer"
-        placeholder={`Type the date in ${LANGUAGES[language].name}`}
+        placeholder={kana ? 'Type the date in kana' : `Type the date in ${LANGUAGES[language].name}`}
         value={quiz.typed}
         onChangeText={quiz.setTyped}
         editable={!checked}
@@ -209,22 +218,27 @@ export function TypeAnswer({ quiz, saying, language, onPlay }: { quiz: DateQuiz;
                 {checked.verdict === 'exact' ? <Marked segments={checked.correct} color={c.countDue} /> : (
                   <Block title="Correct"><Marked segments={checked.correct} color={c.countDue} /></Block>
                 )}
-                {checked.expected.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{checked.expected.roman}</Text> : null}
+                {checked.expected.roman || checked.expected.note ? (
+                  <Text style={{ ...type.subhead, color: c.textSecondary }}>{[checked.expected.roman, checked.expected.note].filter(Boolean).join(' · ')}</Text>
+                ) : null}
               </View>
               <PlayButton label="Play the answer" onPress={() => onPlay(checked.expected)} />
             </View>
+            {checked.verdict !== 'exact' && rule ? <RuleLine rule={rule} /> : null}
             <Ways title="Also accepted" phrases={acceptedForms(saying).filter((p) => p.text !== checked.expected.text)} onPlay={onPlay} />
           </Card>
         </Reveal>
       ) : (
-        <Text style={{ ...type.footnote, color: c.textSecondary, paddingHorizontal: space.xs }}>Spaces and punctuation don't matter. Digits are accepted too.</Text>
+        <Text style={{ ...type.footnote, color: c.textSecondary, paddingHorizontal: space.xs }}>
+          {`Spaces and punctuation don't matter. ${kana ? 'Type it in kana.' : 'Write the numbers as words.'}`}
+        </Text>
       )}
     </View>
   );
 }
 
 /** Pick the phrase: the right one among phrases for nearby dates. A wrong pick says which date it was. */
-export function PickAnswer({ quiz }: { quiz: DateQuiz }) {
+export function PickAnswer({ quiz, rule }: { quiz: DateQuiz; rule: string | undefined }) {
   const c = useTheme();
   const answered = quiz.picked !== null || quiz.revealed;
   const wrong = quiz.picked !== null && quiz.picked !== quiz.correct ? quiz.options[quiz.picked] : undefined;
@@ -264,6 +278,7 @@ export function PickAnswer({ quiz }: { quiz: DateQuiz }) {
           {wrong ? <Status tone="bad">{`Not quite. That phrase is ${dateLabel(wrong.date)}.`}</Status> : <Status tone="good">Right.</Status>}
         </Reveal>
       ) : null}
+      {(wrong || quiz.revealed) && rule ? <Reveal><RuleLine rule={rule} /></Reveal> : null}
     </View>
   );
 }
@@ -287,17 +302,26 @@ export function TapQuestion({ quiz, saying, onPlay }: { quiz: DateQuiz; saying: 
 }
 
 /** What tapping the date came to. */
-export function TapResult({ quiz, date }: { quiz: DateQuiz; date: CalendarDate }) {
+export function TapResult({ quiz, date, rule }: { quiz: DateQuiz; date: CalendarDate; rule: string | undefined }) {
   const c = useTheme();
   if (quiz.tapped) {
+    const right = sameDate(quiz.tapped, date);
     return (
-      <Reveal>
-        {sameDate(quiz.tapped, date)
+      <Reveal style={{ gap: space.m }}>
+        {right
           ? <Status tone="good">Right.</Status>
           : <Status tone="bad">{`Not quite. You tapped ${dateLabel(quiz.tapped)}. The phrase is ${dateLabel(date)}.`}</Status>}
+        {!right && rule ? <RuleLine rule={rule} /> : null}
       </Reveal>
     );
   }
-  if (quiz.revealed) return <Text style={{ ...type.subhead, color: c.textSecondary, paddingHorizontal: space.xs }}>{`That's ${dateLabel(date)}.`}</Text>;
+  if (quiz.revealed) {
+    return (
+      <View style={{ gap: space.m }}>
+        <Text style={{ ...type.subhead, color: c.textSecondary, paddingHorizontal: space.xs }}>{`That's ${dateLabel(date)}.`}</Text>
+        {rule ? <RuleLine rule={rule} /> : null}
+      </View>
+    );
+  }
   return <Text style={{ ...type.footnote, color: c.textSecondary, paddingHorizontal: space.xs }}>Move to the right month and tap the date.</Text>;
 }

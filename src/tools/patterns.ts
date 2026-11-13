@@ -12,7 +12,7 @@ import type { ClockTime } from './time';
  */
 
 /** Thai's six-hour clock (thai/time.ts): the part of the day an hour is said in. */
-function thaiHourBand(h: number): string {
+export function thaiHourBand(h: number): string {
   if (h === 0) return 'midnight';
   if (h <= 5) return 'dtii';
   if (h <= 11) return 'chao';
