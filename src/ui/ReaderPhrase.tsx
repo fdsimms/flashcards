@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import type { Api, Language, PhraseExplanation as Explained } from '../reader/api';
-import { MINING_PER_DAY } from '../reader/mining';
 import { Icon, Tappable, ErrorNote } from './kit';
 import { haptic } from './haptics';
 import { MIN_TAP, radius, space, type, useTheme } from './theme';
@@ -11,7 +10,6 @@ export type PhraseMining = {
   /** The language whose deck it is: a phrase from a text in another language isn't offered. */
   language: Language;
   deck: string;
-  left: number;
   /** Opens the note editor; true once the note is saved. */
   onAdd: (entry: string, meaning: string) => Promise<boolean>;
 };
@@ -119,7 +117,7 @@ export function PhraseExplanation({ api, textId, line, phrase, mining, onClose }
                 <Text style={{ ...type.footnote, color: c.text }}>Explain more simply</Text>
               </Tappable>
             )}
-            {mining && !added && mining.left > 0 ? (
+            {mining && !added ? (
               <Tappable
                 onPress={() => { haptic.tap(); add(); }}
                 accessibilityRole="button"
@@ -132,10 +130,6 @@ export function PhraseExplanation({ api, textId, line, phrase, mining, onClose }
           </View>
           {mining && added ? (
             <Text style={{ ...type.footnote, color: c.textSecondary }}>{`Added to ${mining.deck}.`}</Text>
-          ) : mining && mining.left === 0 ? (
-            <Text style={{ ...type.footnote, color: c.textSecondary }}>
-              {`You've added ${MINING_PER_DAY} notes today, the most for one day, so your reviews stay manageable. Add more tomorrow.`}
-            </Text>
           ) : null}
         </>
       )}

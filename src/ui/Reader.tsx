@@ -21,6 +21,7 @@ import { haptic } from './haptics';
 import { LineExplanation } from './ReaderExplain';
 import { PhraseExplanation, PhrasePickBanner, type PhraseMining } from './ReaderPhrase';
 import { ReadGrammarNote } from './ReadGrammarNote';
+import { WordActionGroup, WordActionRow, WordPlayButton } from './ReadWordActions';
 import { Speaker, speakerSize } from './ReadSpeaker';
 import { useSpokenWords } from './useSpokenWords';
 import { Button, Card, Chip, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
@@ -872,7 +873,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
             if (saved) setSession((s) => (s && isFlagged(s, word) ? toggleFlag(s, word) : s));
           });
         } : null}
-        addsLeft={mining?.left ?? 0}
         onClose={() => setTapped(null)}
       />
     </Screen>
@@ -1082,7 +1082,7 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, addsLeft, onClose }: {
+function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, onClose }: {
   tapped: Tapped | null;
   grammar: TextGrammar | null;
   api: Api;
@@ -1097,7 +1097,6 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
   /** Opens the note editor on this word; null when the word is in the deck or isn't in the language being read. */
   onAddToDeck: (() => void) | null;
   /** How many more words can be added to the deck today. */
-  addsLeft: number;
   onClose: () => void;
 }) {
   const c = useTheme();
@@ -1115,6 +1114,11 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
   // otherwise below it, and never past the bottom edge.
   const above = tapped.y - POPOVER_GAP - popHeight;
   const top = Math.min(above >= insets.top + space.s ? above : tapped.y + POPOVER_GAP, height - popHeight - insets.bottom - space.s);
+  const actions: Parameters<typeof WordActionRow>[0][] = [];
+  if (tapped.word.translit && !showTranslit) actions.push({ icon: 'eye', label: 'Show transliteration', onPress: () => setShowTranslit(true) });
+  if (onSelectPhrase) actions.push({ icon: 'text.cursor', label: 'Select a phrase', accessibilityLabel: `Select a phrase starting from ${tapped.word.text}`, onPress: onSelectPhrase });
+  if (onAddToDeck) actions.push({ icon: 'plus.circle', label: 'Add to deck', accessibilityLabel: `Add ${tapped.word.text} to your deck`, onPress: onAddToDeck });
+  if (onToggleFlag) actions.push({ icon: flagged ? 'flag.slash' : 'flag', label: flagged ? 'Unmark' : 'Mark as unknown', onPress: onToggleFlag, chevron: false });
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
@@ -1126,37 +1130,21 @@ function GlossPopover({ tapped, grammar, api, grammarChosen, onGrammarChosen, fl
           padding: space.l, gap: space.xs, ...lift(c, 'high'),
         }}
       >
-        <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
-        {tapped.word.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {tapped.word.lemma}</Text> : null}
-        <Text style={{ ...type.body, color: c.text }}>{tapped.word.gloss ?? 'No meaning available'}</Text>
-        <View style={{ alignItems: 'flex-start' }}>
-          <HeaderAction label="Play word" onPress={onPlay} />
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
+          <View style={{ flex: 1, gap: space.xs }}>
+            <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
+            {tapped.word.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {tapped.word.lemma}</Text> : null}
+            <Text style={{ ...type.body, color: c.text }}>{tapped.word.gloss ?? 'No meaning available'}</Text>
+            {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
+            <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
+          </View>
+          <WordPlayButton onPress={onPlay} />
         </View>
-        {tapped.word.translit ? (
-          showTranslit ? (
-            <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text>
-          ) : (
-            <View style={{ alignItems: 'flex-start' }}>
-              <HeaderAction label="Show transliteration" onPress={() => setShowTranslit(true)} />
-            </View>
-          )
-        ) : null}
-        <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
         {grammar ? <ReadGrammarNote grammar={grammar} api={api} chosen={grammarChosen[grammar.id]} onChosen={onGrammarChosen} /> : null}
-        {onSelectPhrase ? (
-          <View style={{ alignItems: 'flex-start' }}>
-            <HeaderAction label="Select a phrase" accessibilityLabel={`Select a phrase starting from ${tapped.word.text}`} onPress={onSelectPhrase} />
-          </View>
-        ) : null}
-        {onAddToDeck && addsLeft > 0 ? (
-          <View style={{ alignItems: 'flex-start' }}>
-            <HeaderAction label="Add to deck" accessibilityLabel={`Add ${tapped.word.text} to your deck`} onPress={onAddToDeck} />
-          </View>
-        ) : null}
-        {onToggleFlag ? (
-          <View style={{ alignItems: 'flex-start' }}>
-            <HeaderAction label={flagged ? 'Unmark' : 'Mark as unknown'} onPress={onToggleFlag} />
-          </View>
+        {actions.length > 0 ? (
+          <WordActionGroup>
+            {actions.map((a, i) => <WordActionRow key={a.label} first={i === 0} {...a} />)}
+          </WordActionGroup>
         ) : null}
       </View>
     </Modal>

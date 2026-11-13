@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import {
-  BANDS, KNOWN_SHARE, START_BAND, bandLabel, bandOf, bandResults, choicesFor, estimate, nextBand, nextItem,
+  BANDS, KNOWN_SHARE, START_BAND, bandLabel, bandOf, bandResults, choicesFor, estimate, missedWords, parseSeen, rememberSeen, nextBand, nextItem,
   type Asked, type Reply, type VocabItem,
 } from '../../src/reader/vocabCheck';
 
@@ -27,7 +27,9 @@ test('a rank belongs to the band that holds it, and a band is labeled with its r
   expect(bandOf(250)).toBe(1);
   expect(bandOf(251)).toBe(2);
   expect(bandOf(5000)).toBe(6);
-  expect(bandOf(5001)).toBe(-1);
+  expect(bandOf(5001)).toBe(7);
+  expect(bandOf(10000)).toBe(7);
+  expect(bandOf(10001)).toBe(-1);
   expect(bandLabel(4)).toBe('1,001 to 2,000');
 });
 
@@ -82,7 +84,7 @@ test('a band reports how many were right, with a guess allowed for', () => {
 
 test('every band right suggests the top setting', () => {
   const all = BANDS.flatMap((_, band) => asks(band, ['right', 'right']));
-  expect(estimate(all).suggested).toBe(5000);
+  expect(estimate(all).suggested).toBe(10000);
 });
 
 test('the suggestion is the largest setting whose words are known at the target share', () => {
@@ -121,4 +123,51 @@ test('a band never asked takes the commoner one as known, or the average of its 
 
 test('nothing above the highest band asked is suggested', () => {
   expect(estimate(asks(1, ['right', 'right'])).suggested).toBe(250);
+});
+
+test('the 3,001 to 5,000 band right but nothing asked above it suggests 5,000', () => {
+  const asked = BANDS.slice(0, 7).flatMap((_, band) => asks(band, ['right', 'right']));
+  expect(estimate(asked).suggested).toBe(5000);
+});
+
+test('missed words are the wrong and skipped answers in order, with the meaning picked for a wrong one', () => {
+  const asked: Asked[] = [
+    ask(2, 'right'),
+    { ...ask(3, 'wrong'), picked: 'x' },
+    ask(2, 'skipped', 1),
+  ];
+  expect(missedWords(asked)).toEqual([
+    { item: inBand(3), band: 3, picked: 'x' },
+    { item: inBand(2, 1), band: 2, picked: undefined },
+  ]);
+  expect(missedWords([ask(2, 'right')])).toEqual([]);
+});
+
+test('a retake asks words not seen before while any are left within a band of the next one', () => {
+  const seen = new Set(bank.filter((i) => bandOf(i.rank) === 2).slice(0, 7).map((i) => i.word));
+  for (let n = 0; n < 20; n++) expect(nextItem(bank, [], seeded(n), seen)!.word).toBe(inBand(2, 7).word);
+  // With band 2 all seen, band 1 or 3 (a band away) has unseen words, and is used before a seen band 2 word.
+  const all2 = new Set(bank.filter((i) => bandOf(i.rank) === 2).map((i) => i.word));
+  for (let n = 0; n < 20; n++) expect([1, 3]).toContain(bandOf(nextItem(bank, [], seeded(n), all2)!.rank));
+});
+
+test('seen words are used when nothing unseen is left near the level, and are never required', () => {
+  const near = bank.filter((i) => Math.abs(bandOf(i.rank) - START_BAND) <= 1);
+  const seen = new Set(near.map((i) => i.word));
+  expect(bandOf(nextItem(bank, [], seeded(1), seen)!.rank)).toBe(START_BAND);
+  expect(nextItem(bank, [], seeded(1), new Set())).toBeDefined();
+});
+
+test('the words asked are remembered, kept to the bank, and start over once every word has been seen', () => {
+  const some = bank.slice(0, 3);
+  expect(rememberSeen(['gone', some[0].word], some.map((item) => ({ item, reply: 'right' as Reply })), bank).sort()).toEqual(some.map((i) => i.word).sort());
+  expect(rememberSeen(bank.slice(1).map((i) => i.word), [{ item: bank[0], reply: 'right' }], bank)).toEqual([]);
+});
+
+test('saved words that are not a list of words read as none seen', () => {
+  expect(parseSeen('["a","b"]')).toEqual(['a', 'b']);
+  expect(parseSeen('["a",3]')).toEqual(['a']);
+  expect(parseSeen('{"a":1}')).toEqual([]);
+  expect(parseSeen('nope')).toEqual([]);
+  expect(parseSeen(null)).toEqual([]);
 });

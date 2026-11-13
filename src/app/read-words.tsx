@@ -18,11 +18,8 @@ export default function ReadWordsRoute() {
       api={reader.api}
       mining={deck ? {
         deck,
-        left: reader.miningLeft,
         onAdd: (w) => new Promise<boolean>((resolve) => openNoteEditor(minedNote(w.word, w.gloss, deck), (result) => {
-          const saved = !!result && 'saved' in result;
-          if (saved) reader.recordMined();
-          resolve(saved);
+          resolve(!!result && 'saved' in result);
         })),
       } : undefined}
     />
