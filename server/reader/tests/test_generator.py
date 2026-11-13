@@ -1,6 +1,7 @@
 import asyncio
+from collections.abc import Awaitable
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, TypeVar
 
 import pytest
 
@@ -20,6 +21,8 @@ from franki_reader.generator import (
     system_prompt,
 )
 from franki_reader.lexicon import Entry
+
+T = TypeVar("T")
 
 ENTRIES = [
     Entry(1, "ฉัน", "I; me", "mature"),
@@ -165,6 +168,15 @@ class FakeClient:
     async def create(self, **kwargs: Any) -> Any:
         self.calls.append(kwargs)
         return self.response
+
+
+def finish(call: Awaitable[T]) -> T:
+    """Runs one call of a `claude_*` writer, which is typed as an awaitable, not a coroutine."""
+
+    async def wait() -> T:
+        return await call
+
+    return asyncio.run(wait())
 
 
 def response(stop_reason: str, text: str | None) -> Any:

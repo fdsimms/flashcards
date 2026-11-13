@@ -6,8 +6,10 @@ import random
 from datetime import datetime, timedelta
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from test_app import AUTH, started
+from test_generator import FakeClient, finish, response
 
 from franki_reader import store
 from franki_reader.app import VOCAB_RETRY, create_app
@@ -24,6 +26,7 @@ from franki_reader.vocab_check import (
     VocabItem,
     band_of,
     check,
+    claude_vocab,
     is_giveaway,
     request_message,
     sample,
@@ -177,6 +180,46 @@ def test_a_failed_call_stores_nothing() -> None:
     assert store.vocab_spending(conn, NOW - timedelta(days=1)) == {}
 
 
+BILLED = Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")  # $2
+
+
+def test_a_failed_call_claude_answered_keeps_its_cost_and_the_bank_is_written_later() -> None:
+    conn = store.connect(":memory:")
+    refused = Writer(VocabFailed("No words (refusal)", BILLED), whole_bank())
+    assert not asyncio.run(write_bank(conn, refused, "pl", lambda: NOW))
+    assert store.vocab_items(conn, "pl") == [] and store.vocab_asked(conn, "pl") == 0
+    assert store.vocab_spending(conn, NOW - timedelta(days=1)) == {"pl": (1, 2.0)}
+    assert asyncio.run(write_bank(conn, refused, "pl", lambda: NOW))
+    assert store.vocab_spending(conn, NOW - timedelta(days=1)) == {"pl": (2, 4.0)}
+
+
+def test_a_failed_top_up_doesnt_count_its_words_as_asked() -> None:
+    conn = store.connect(":memory:")
+    ranks = {word: rank for rank, word in sample("pl")}
+    stored = [
+        VocabItem(w["word"], ranks[w["word"]], w["meaning"], tuple(w["wrong"]))
+        for w in whole_bank()[:70]
+    ]
+    store.save_vocab_batch(conn, "pl", stored, 70, NOW, 0.0)
+    writer = Writer(VocabFailed("No words (max_tokens)", BILLED))
+    assert not asyncio.run(write_bank(conn, writer, "pl", lambda: NOW))
+    assert store.vocab_asked(conn, "pl") == 70  # the rest are still asked for later
+    assert store.vocab_spending(conn, NOW - timedelta(days=1)) == {"pl": (2, 2.0)}
+
+
+@pytest.mark.parametrize(
+    ("stop_reason", "text"),
+    [("refusal", None), ("max_tokens", '{"words"'), ("end_turn", None), ("end_turn", "not json")],
+)
+def test_claude_vocab_keeps_the_usage_of_an_answer_it_cant_use(
+    stop_reason: str, text: str | None
+) -> None:
+    write = claude_vocab(FakeClient(response(stop_reason, text)))  # type: ignore[arg-type]
+    with pytest.raises(VocabFailed) as failed:
+        finish(write("pl", [(3, "i")]))
+    assert failed.value.usage.output_tokens == 900  # the call is still paid for
+
+
 def vocab_client(
     writer: Writer | None, deck: list[Entry] | None = None, stored: list[Any] | None = None
 ) -> TestClient:
@@ -319,6 +362,14 @@ def test_the_cost_shows_in_the_costs() -> None:
     assert costs["languages"] == [
         {"language": "pl", "name": "Polish", "batches": 1, "cost_usd": 2.0}
     ]
+
+
+def test_a_failed_call_shows_in_the_costs() -> None:
+    c = vocab_client(Writer(VocabFailed("No words (refusal)", BILLED)))
+    get(c)
+    assert get(c).json()["state"] == "failed"
+    costs = c.get("/api/costs", headers=AUTH).json()["vocab_checks"]
+    assert costs["batches"] == 1 and costs["cost_usd"] == 2.0
 
 
 def test_a_bank_written_before_the_top_band_is_served_and_topped_up() -> None:

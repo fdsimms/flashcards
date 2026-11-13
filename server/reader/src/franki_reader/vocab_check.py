@@ -27,7 +27,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader import store
 from franki_reader.coverage import Checker
-from franki_reader.generator import MODEL, Usage
+from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.japanese import quiz_word
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.reader import from_wanikani
@@ -97,7 +97,12 @@ SCHEMA: dict[str, Any] = {
 
 
 class VocabFailed(Exception):
-    """Claude couldn't write the words; logged, and tried again later."""
+    """Claude couldn't write the words; logged, and tried again later. `usage` is what the failed
+    call was billed for, when Claude answered at all."""
+
+    def __init__(self, message: str, usage: Usage | None = None) -> None:
+        super().__init__(message)
+        self.usage = usage or Usage()
 
 
 # Writes the meanings and wrong choices for (rank, word) pairs, and what that cost.
@@ -194,6 +199,10 @@ async def write_bank(
         raw, used = await write(language, asked)
     except VocabFailed as e:
         log.warning("Couldn't write vocabulary check words for %s: %s", language, e)
+        if e.usage != Usage():
+            # Its cost, as a batch with nothing asked or kept: none of its words count as asked
+            # (store.vocab_asked), so they're all asked again.
+            store.save_vocab_batch(conn, language, [], 0, now(), e.usage.cost_usd())
         return False
     lookup = {word: rank for rank, word in asked}
     kept = [i for i in (check(r, lookup) for r in raw) if i is not None]
@@ -386,21 +395,14 @@ def claude_vocab(client: anthropic.AsyncAnthropic) -> WriteVocab:
             )
         except anthropic.APIError as e:
             raise VocabFailed(f"Claude didn't answer ({type(e).__name__})") from e
+        used = usage_of(response)
         text = next((b.text for b in response.content if b.type == "text"), None)
         if response.stop_reason in ("refusal", "max_tokens") or text is None:
-            raise VocabFailed(f"No words ({response.stop_reason})")
+            raise VocabFailed(f"No words ({response.stop_reason})", used)
         try:
             words = json.loads(text).get("words")
         except (json.JSONDecodeError, AttributeError) as e:
-            raise VocabFailed("The answer wasn't valid JSON") from e
-        u = response.usage
-        used = Usage(
-            u.input_tokens,
-            u.output_tokens,
-            u.cache_read_input_tokens or 0,
-            u.cache_creation_input_tokens or 0,
-            response.model,
-        )
+            raise VocabFailed("The answer wasn't valid JSON", used) from e
         return (words if isinstance(words, list) else []), used
 
     return write

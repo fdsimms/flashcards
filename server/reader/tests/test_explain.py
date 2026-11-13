@@ -2,11 +2,12 @@ import random
 from datetime import datetime
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from scripted import ENTRIES, IN_RANGE
 from scripted import ScriptedModel as AppModel
 from test_app import AUTH, NOW, started
-from test_generator import GOOD, MANGO, ScriptedModel, draft, run
+from test_generator import GOOD, MANGO, FakeClient, ScriptedModel, draft, finish, response, run
 
 from franki_reader import store
 from franki_reader.app import create_app
@@ -17,6 +18,9 @@ from franki_reader.explain import (
     ExplainRequest,
     PhraseRequest,
     check_message,
+    claude_check,
+    claude_explain,
+    claude_explain_phrase,
     clean,
     clean_check,
     clean_phrase,
@@ -381,3 +385,87 @@ def test_the_check_request_names_the_language_speaker_and_register() -> None:
     assert "- Salut." in message
     bare = check_message(CheckRequest("fr", "Salut.", "Hi."))
     assert "Spoken by" not in bare and "written as" not in bare
+
+
+# ==== A failed call's cost ====
+
+
+def test_a_failed_call_claude_answered_counts_with_the_explanations_but_isnt_kept() -> None:
+    failures = {"explain": 1, "phrase": 1, "natural": 1}
+
+    def failing_once(kind: str, answer: Any) -> Any:
+        async def ask(request: Any) -> Any:
+            if failures[kind]:
+                failures[kind] -= 1
+                raise ExplainFailed("Claude didn't explain this line. Try again.", COST)
+            return answer, COST
+
+        return ask
+
+    c, text_id = client(
+        failing_once("explain", POINTS),
+        failing_once("phrase", ANSWER),
+        check_natural=failing_once("natural", VERDICT),
+    )
+    phrase = {"phrase": line_text(c, text_id, 0)[:2]}
+    assert c.post(url(text_id), json={}, headers=AUTH).status_code == 503
+    assert c.post(phrase_url(text_id), json=phrase, headers=AUTH).status_code == 503
+    assert c.post(natural_url(text_id), headers=AUTH).status_code == 503
+    spent = c.get("/api/costs", headers=AUTH).json()["explanations"]
+    assert spent["asked"] == 3 and spent["cost_usd"] == 6.0
+    assert spent["languages"] == [{"language": "th", "name": "Thai", "asked": 3, "cost_usd": 6.0}]
+    # Nothing was kept, so each is asked again, and those answers count too.
+    assert c.post(url(text_id), json={}, headers=AUTH).json()["points"] == POINTS
+    assert c.post(phrase_url(text_id), json=phrase, headers=AUTH).json() == ANSWER
+    assert c.post(natural_url(text_id), headers=AUTH).json() == VERDICT
+    spent = c.get("/api/costs", headers=AUTH).json()["explanations"]
+    assert spent["asked"] == 6 and spent["cost_usd"] == 12.0
+
+
+def test_a_call_claude_never_answered_costs_nothing() -> None:
+    async def explain(request: ExplainRequest) -> tuple[list[dict[str, str]], Usage]:
+        raise ExplainFailed("Claude didn't answer (APIError). Try again in a moment.")
+
+    c, text_id = client(explain)
+    assert c.post(url(text_id), json={}, headers=AUTH).status_code == 503
+    assert c.get("/api/costs", headers=AUTH).json()["explanations"]["asked"] == 0
+
+
+BAD_ANSWERS = [("refusal", None), ("max_tokens", '{"points"'), ("end_turn", None)]
+
+
+@pytest.mark.parametrize(
+    ("stop_reason", "text"),
+    [*BAD_ANSWERS, ("end_turn", "not json"), ("end_turn", "[]"), ("end_turn", '{"points": []}')],
+)
+def test_claude_explain_keeps_the_usage_of_an_answer_it_cant_use(
+    stop_reason: str, text: str | None
+) -> None:
+    explain = claude_explain(FakeClient(response(stop_reason, text)))  # type: ignore[arg-type]
+    with pytest.raises(ExplainFailed) as failed:
+        finish(explain(ExplainRequest("th", "ฉัน", "I")))
+    assert failed.value.usage.output_tokens == 900  # the call is still paid for
+
+
+@pytest.mark.parametrize(
+    ("stop_reason", "text"), [*BAD_ANSWERS, ("end_turn", '{"meaning": "", "points": []}')]
+)
+def test_claude_explain_phrase_keeps_the_usage_of_an_answer_it_cant_use(
+    stop_reason: str, text: str | None
+) -> None:
+    explain = claude_explain_phrase(FakeClient(response(stop_reason, text)))  # type: ignore[arg-type]
+    with pytest.raises(ExplainFailed) as failed:
+        finish(explain(PhraseRequest("th", "ฉัน", "ฉัน", "I")))
+    assert failed.value.usage.output_tokens == 900
+
+
+@pytest.mark.parametrize(
+    ("stop_reason", "text"), [*BAD_ANSWERS, ("end_turn", '{"verdict": "fine", "reason": "x"}')]
+)
+def test_claude_check_keeps_the_usage_of_an_answer_it_cant_use(
+    stop_reason: str, text: str | None
+) -> None:
+    check = claude_check(FakeClient(response(stop_reason, text)))  # type: ignore[arg-type]
+    with pytest.raises(ExplainFailed) as failed:
+        finish(check(CheckRequest("th", "ฉัน", "I")))
+    assert failed.value.usage.output_tokens == 900

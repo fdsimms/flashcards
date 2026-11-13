@@ -6,8 +6,10 @@ import random
 from datetime import datetime, timedelta
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from test_app import AUTH, started
+from test_generator import FakeClient, finish, response
 
 from franki_reader import store
 from franki_reader.app import create_app
@@ -15,7 +17,13 @@ from franki_reader.coverage import check
 from franki_reader.engine import FAILURE_COOLDOWN, Engine
 from franki_reader.generator import Generated, Line, Usage
 from franki_reader.lexicon import Entry, lexicon_from
-from franki_reader.meanings import MeaningsFailed, fill, missing, request_message
+from franki_reader.meanings import (
+    MeaningsFailed,
+    claude_meanings,
+    fill,
+    missing,
+    request_message,
+)
 from franki_reader.reader import render
 
 NOW = datetime(2026, 11, 13, 9, 0)
@@ -157,3 +165,65 @@ def test_a_pass_fills_texts_already_read_and_the_cost_is_reported() -> None:
     asyncio.run(engine.fill_meanings(store.recent_texts(conn, "nb", 30), "nb"))
     costs = c.get("/api/costs", headers=AUTH).json()["meanings"]
     assert costs["batches"] == 1 and costs["languages"][0]["language"] == "nb"
+
+
+# ==== A failed call's cost ====
+
+BILLED = Usage(1_000_000, 0, 0, 0)  # $2
+
+
+def test_a_failed_call_keeps_its_cost_and_its_words_are_asked_again() -> None:
+    conn = store.connect(":memory:")
+    text = stored_text(conn)
+    lexicon = lexicon_from(DECK, "nb", 1000)
+
+    async def refused(language: str, asked: list[tuple[str, str]]) -> Any:
+        raise MeaningsFailed("No meanings (refusal)", BILLED)
+
+    with pytest.raises(MeaningsFailed):
+        asyncio.run(fill(conn, refused, "nb", [text], lexicon, {}, lambda: NOW))
+    assert store.word_meanings(conn, "nb") == {}  # no word marked as asked
+    assert store.meaning_spending(conn, NOW - timedelta(days=1)) == {"nb": (1, 2.0)}
+
+    writer = Writer()
+    asyncio.run(fill(conn, writer, "nb", [text], lexicon, {}, lambda: NOW))
+    assert "varm" in dict(writer.asked[0])  # asked again
+    assert store.word_meanings(conn, "nb")["varm"] == "meaning of varm"
+    assert store.meaning_spending(conn, NOW - timedelta(days=1)) == {"nb": (2, 4.0)}
+
+
+def test_a_call_claude_never_answered_costs_nothing() -> None:
+    conn = store.connect(":memory:")
+    text = stored_text(conn)
+    lexicon = lexicon_from(DECK, "nb", 1000)
+    with pytest.raises(MeaningsFailed):
+        asyncio.run(fill(conn, Writer(fail=True), "nb", [text], lexicon, {}, lambda: NOW))
+    assert store.meaning_spending(conn, NOW - timedelta(days=1)) == {}
+
+
+def test_a_failing_pass_shows_its_cost_in_the_costs() -> None:
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, DECK, NOW, "nb")
+    text = stored_text(conn)
+
+    async def cut_off(language: str, asked: list[tuple[str, str]]) -> Any:
+        raise MeaningsFailed("No meanings (max_tokens)", BILLED)
+
+    engine = Engine(conn, None, None, lambda: NOW, random.Random(1), write_meanings=cut_off)
+    c: TestClient = started(create_app(engine, "open sesame"))
+    asyncio.run(engine.fill_meanings([text], "nb"))
+    costs = c.get("/api/costs", headers=AUTH).json()["meanings"]
+    assert costs["batches"] == 1 and costs["cost_usd"] == 2.0
+
+
+@pytest.mark.parametrize(
+    ("stop_reason", "text"),
+    [("refusal", None), ("max_tokens", '{"words"'), ("end_turn", None), ("end_turn", "not json")],
+)
+def test_claude_meanings_keeps_the_usage_of_an_answer_it_cant_use(
+    stop_reason: str, text: str | None
+) -> None:
+    write = claude_meanings(FakeClient(response(stop_reason, text)))  # type: ignore[arg-type]
+    with pytest.raises(MeaningsFailed) as failed:
+        finish(write("nb", [("varm", "Warm food!")]))
+    assert failed.value.usage.output_tokens == 900  # the call is still paid for

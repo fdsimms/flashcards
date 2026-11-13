@@ -29,7 +29,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam, BetaTe
 
 from franki_reader import grammar, store
 from franki_reader.coverage import Checker, is_word, parse_line
-from franki_reader.generator import MODEL, Usage, system_prompt
+from franki_reader.generator import MODEL, Usage, system_prompt, usage_of
 from franki_reader.grammar import Point
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry
@@ -40,7 +40,7 @@ STOCK = 24  # fill-the-gap questions kept for a point
 BATCH = 12  # asked for in one call
 MAX_UNKNOWN = 1  # words in a question outside the known ones
 BATCHES_PER_DAY = 2  # calls a point may make in a day, so a point whose questions keep failing
-# their checks doesn't spend on every drill
+# their checks, or whose call keeps failing after Claude answered, doesn't spend on every drill
 MAX_TOKENS = 8000
 WRONG = 3  # wrong choices a question carries
 
@@ -87,7 +87,12 @@ SCHEMA: dict[str, Any] = {
 
 
 class DrillsFailed(Exception):
-    """Claude couldn't write a batch; logged, and tried again on a later drill."""
+    """Claude couldn't write a batch; logged, and tried again on a later drill. `usage` is what the
+    failed call was billed for, when Claude answered at all."""
+
+    def __init__(self, message: str, usage: Usage | None = None) -> None:
+        super().__init__(message)
+        self.usage = usage or Usage()
 
 
 # Writes up to `count` raw questions for a point from the language's entries, and what that cost.
@@ -165,7 +170,9 @@ async def top_up(
     writing: set[str],
 ) -> None:
     """Writes a batch for each point under `STOCK`, one point at a time, skipping a point already
-    being written (`writing`, shared between requests) or that made `BATCHES_PER_DAY` calls today."""
+    being written (`writing`, shared between requests) or that made `BATCHES_PER_DAY` calls today.
+    A call that failed after Claude answered is kept as a batch with no questions, for its cost, and
+    counts as one of the day's calls."""
     for pid in point_ids:
         point = grammar.POINTS.get(pid)
         if point is None or pid in writing or store.drill_stock(conn, pid) >= STOCK:
@@ -182,6 +189,8 @@ async def top_up(
             )
         except DrillsFailed as e:
             log.warning("Couldn't write drill questions for %s: %s", pid, e)
+            if e.usage != Usage():
+                store.save_drill_batch(conn, pid, point.language, [], 0, now(), e.usage.cost_usd())
         finally:
             writing.discard(pid)
 
@@ -324,21 +333,14 @@ def claude_drills(client: anthropic.AsyncAnthropic) -> WriteDrills:
             )
         except anthropic.APIError as e:
             raise DrillsFailed(f"Claude didn't answer ({type(e).__name__})") from e
+        used = usage_of(response)
         text = next((b.text for b in response.content if b.type == "text"), None)
         if response.stop_reason in ("refusal", "max_tokens") or text is None:
-            raise DrillsFailed(f"No questions ({response.stop_reason})")
+            raise DrillsFailed(f"No questions ({response.stop_reason})", used)
         try:
             questions = json.loads(text).get("questions")
         except (json.JSONDecodeError, AttributeError) as e:
-            raise DrillsFailed("The answer wasn't valid JSON") from e
-        u = response.usage
-        used = Usage(
-            u.input_tokens,
-            u.output_tokens,
-            u.cache_read_input_tokens or 0,
-            u.cache_creation_input_tokens or 0,
-            response.model,
-        )
+            raise DrillsFailed("The answer wasn't valid JSON", used) from e
         return (questions if isinstance(questions, list) else []), used
 
     return write

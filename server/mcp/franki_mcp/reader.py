@@ -38,9 +38,11 @@ def register(server: MCPServer, settings: ReaderSettings | None, http: httpx.Asy
         `total_per_read_text_usd` add Azure's audio, which is an estimate: the characters Azure
         spoke for each text at a fixed list price per character, not Azure's bill. Audio made
         before characters were counted is estimated from the lines still stored, so those texts
-        can read low. Also `explanations`, `drills`, `meanings` and `vocab_checks`: what those
-        Claude calls cost, apart from the texts. Voice previews and recordings the MCP makes into notes are
-        not in any of it."""
+        can read low. Also `explanations`, `drills`, `meanings`, `vocab_checks`, `note_queue` and
+        `mnemonics`: what those Claude calls cost, apart from the texts. Every figure includes calls
+        that failed after Claude answered, which were still paid for. `recordings` is the cards the
+        app recorded with an Azure voice, as characters and the same estimate, in total only. Voice
+        previews and recordings the MCP makes into notes are not in any of it."""
         if settings is None:
             raise ToolError(
                 "Read & Listen isn't connected to the MCP. It needs READER_PASSPHRASE in server/.env "

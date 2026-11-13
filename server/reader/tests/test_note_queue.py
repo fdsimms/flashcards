@@ -6,8 +6,10 @@ import sqlite3
 from datetime import datetime, timedelta
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from test_app import AUTH, started
+from test_generator import FakeClient, finish, response
 
 from franki_reader import store
 from franki_reader.app import create_app
@@ -19,6 +21,7 @@ from franki_reader.note_queue import (
     RETRY_AFTER,
     FillFailed,
     check,
+    claude_notes,
     fill_pending,
     request_message,
 )
@@ -44,15 +47,18 @@ def filled(entry: str, **over: Any) -> dict[str, Any]:
 class Writer:
     """Answers each call with `answer(language, asked)`, or raises what it's given."""
 
-    def __init__(self, answer: Any = None, fail: str | None = None) -> None:
+    def __init__(
+        self, answer: Any = None, fail: str | None = None, billed: Usage | None = None
+    ) -> None:
         self.answer = answer or (lambda language, asked: [filled(e) for e, _ in asked])
         self.fail = fail
+        self.billed = billed  # what a failed call was billed for, when Claude answered
         self.calls: list[tuple[str, list[tuple[str, str]]]] = []
 
     async def __call__(self, language: Any, asked: list[tuple[str, str]]) -> Any:
         self.calls.append((language, asked))
         if self.fail:
-            raise FillFailed(self.fail)
+            raise FillFailed(self.fail, self.billed)
         return self.answer(language, asked), COST
 
 
@@ -228,6 +234,56 @@ def test_a_retry_after_failing_fills_the_word() -> None:
     assert store.queued_notes(conn)[0].state == "ready"
 
 
+def test_a_failed_call_claude_answered_shares_its_cost_among_its_words() -> None:
+    conn = conn_with(("ricane", ""), ("bouder", ""))
+    run(conn, Writer(fail="Claude didn't write these (refusal).", billed=COST))
+    assert [n.state for n in store.queued_notes(conn)] == ["failed", "failed"]
+    assert store.queue_spending(conn, NOW - timedelta(days=1)) == {"fr": (2, 2.0)}
+    # The retry's cost adds to it, and the words are filled.
+    assert run(conn, Writer(), NOW + RETRY_AFTER) == 2
+    assert store.queue_spending(conn, NOW - timedelta(days=1)) == {"fr": (2, 4.0)}
+
+
+def test_a_word_taken_off_the_queue_keeps_what_filling_it_cost() -> None:
+    conn = conn_with(("ricane", ""), ("bouder", ""))
+    run(conn, Writer())
+    saved, _ = store.queued_notes(conn)
+    assert store.delete_queued(conn, saved.id)
+    assert store.queue_spending(conn, NOW - timedelta(days=1)) == {"fr": (2, 2.0)}
+
+
+def test_a_word_removed_while_it_was_filled_keeps_the_cost_of_its_turn() -> None:
+    conn = conn_with(("ricane", ""), ("bouder", ""))
+
+    class RemovesOne(Writer):
+        async def __call__(self, language: Any, asked: list[tuple[str, str]]) -> Any:
+            store.delete_queued(conn, store.queued_notes(conn)[0].id)  # removed mid-call
+            return await super().__call__(language, asked)
+
+    run(conn, RemovesOne())
+    assert len(store.queued_notes(conn)) == 1
+    assert store.queue_spending(conn, NOW - timedelta(days=1)) == {"fr": (2, 2.0)}
+
+
+def test_a_call_claude_never_answered_costs_nothing() -> None:
+    conn = conn_with(("ricane", ""))
+    run(conn, Writer(fail="Claude didn't answer (APIError)."))
+    assert store.queue_spending(conn, NOW - timedelta(days=1)) == {"fr": (1, 0.0)}
+
+
+@pytest.mark.parametrize(
+    ("stop_reason", "text"),
+    [("refusal", None), ("max_tokens", '{"notes"'), ("end_turn", None), ("end_turn", "not json")],
+)
+def test_claude_notes_keeps_the_usage_of_an_answer_it_cant_use(
+    stop_reason: str, text: str | None
+) -> None:
+    write = claude_notes(FakeClient(response(stop_reason, text)))  # type: ignore[arg-type]
+    with pytest.raises(FillFailed) as failed:
+        finish(write("fr", [("ricane", "")]))
+    assert failed.value.usage.output_tokens == 900  # the call is still paid for
+
+
 def test_a_ready_word_is_not_asked_for_again() -> None:
     conn = conn_with(("ricane", ""))
     run(conn, Writer())
@@ -334,3 +390,11 @@ def test_the_costs_report_the_queue() -> None:
     block = c.get("/api/costs", headers=AUTH).json()["note_queue"]
     assert block["notes"] == 2 and block["cost_usd"] == 2.0
     assert block["languages"] == [{"language": "fr", "name": "French", "notes": 2, "cost_usd": 2.0}]
+
+
+def test_the_costs_report_a_failed_call_on_the_queue() -> None:
+    c = queue_client(Writer(fail="Claude didn't write these (max_tokens).", billed=COST))
+    add(c, {"entry": "ricane"})
+    assert items(c)[0]["state"] == "failed"
+    block = c.get("/api/costs", headers=AUTH).json()["note_queue"]
+    assert block["notes"] == 1 and block["cost_usd"] == 2.0

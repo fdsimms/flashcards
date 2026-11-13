@@ -128,7 +128,8 @@ CREATE TABLE IF NOT EXISTS phrase_explanations (
     PRIMARY KEY (text_id, line, phrase, simple)
 );
 -- Grammar drills' fill-the-gap questions (drills.py): each batch Claude wrote, for its cost, and
--- the questions from it that passed the checks, served oldest-served first.
+-- the questions from it that passed the checks, served oldest-served first. A call that failed after
+-- Claude answered is a batch with nothing asked or kept, for its cost (and the day's call count).
 CREATE TABLE IF NOT EXISTS drill_batches (
     id INTEGER PRIMARY KEY,
     point_id TEXT NOT NULL,
@@ -152,7 +153,8 @@ CREATE TABLE IF NOT EXISTS drill_questions (
 );
 CREATE INDEX IF NOT EXISTS drill_questions_point ON drill_questions(point_id);
 -- The vocabulary check's questions (vocab_check.py): each batch Claude glossed for a language, for its
--- cost, and the words from it that passed the checks. A word is written once and kept.
+-- cost, and the words from it that passed the checks. A word is written once and kept. A call that
+-- failed after Claude answered is a batch with nothing asked or kept, for its cost.
 CREATE TABLE IF NOT EXISTS vocab_batches (
     id INTEGER PRIMARY KEY,
     language TEXT NOT NULL,
@@ -190,6 +192,8 @@ CREATE TABLE IF NOT EXISTS note_queue (
 -- English meanings for words in texts that have no gloss from the deck or the text (meanings.py):
 -- common words are known without being in the deck, so the model isn't asked to gloss them. A word is
 -- asked about once and kept, as written in lower case; an empty meaning is a word Claude gave none for.
+-- A call that failed after Claude answered is a batch with nothing asked or kept, for its cost, and
+-- its words are asked again.
 CREATE TABLE IF NOT EXISTS meaning_batches (
     id INTEGER PRIMARY KEY,
     language TEXT NOT NULL,
@@ -214,6 +218,19 @@ CREATE TABLE IF NOT EXISTS stories (
     cast_ TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
     active INTEGER NOT NULL DEFAULT 1
+);
+-- What a call cost when nothing else keeps it: an explanation, a phrase's or a naturalness check
+-- that failed after Claude answered (their caches hold answers only, so the line can be asked
+-- again), memory hints (mnemonics.py; the app keeps the hints, in the note), and a card recorded by
+-- an Azure voice (POST /api/speech), as the characters Azure billed. A recording's language is
+-- empty: the app doesn't say it, and a Multilingual voice speaks any.
+CREATE TABLE IF NOT EXISTS call_costs (
+    id INTEGER PRIMARY KEY,
+    feature TEXT NOT NULL,
+    language TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    cost_usd REAL NOT NULL DEFAULT 0,
+    audio_chars INTEGER NOT NULL DEFAULT 0
 );
 """
 
@@ -1188,21 +1205,70 @@ def explanation_spending(
     conn: sqlite3.Connection, since: datetime
 ) -> dict[Code, tuple[int, float]]:
     """Each language with a line or a phrase explained, or a line checked for sounding natural,
-    since `since`: how many answers were asked for (a plainer version counts again) and what they
-    cost Claude."""
+    since `since`: how many answers were asked for (a plainer version counts again, and so does a
+    call that failed after Claude answered, from `call_costs`) and what they cost Claude."""
     return {
         language: (count, cost)
         for language, count, cost in conn.execute(
-            """SELECT t.language, COUNT(*), SUM(e.cost_usd) FROM (
-                   SELECT text_id, created_at, cost_usd FROM explanations
-                   UNION ALL SELECT text_id, created_at, cost_usd FROM phrase_explanations
-                   UNION ALL SELECT text_id, created_at, cost_usd FROM naturalness
-               ) e
-               JOIN texts t ON t.id = e.text_id WHERE e.created_at >= ? GROUP BY t.language
-               ORDER BY SUM(e.cost_usd) DESC""",
+            """SELECT language, COUNT(*), SUM(cost_usd) FROM (
+                   SELECT t.language, e.created_at, e.cost_usd FROM (
+                       SELECT text_id, created_at, cost_usd FROM explanations
+                       UNION ALL SELECT text_id, created_at, cost_usd FROM phrase_explanations
+                       UNION ALL SELECT text_id, created_at, cost_usd FROM naturalness
+                   ) e JOIN texts t ON t.id = e.text_id
+                   UNION ALL SELECT language, created_at, cost_usd FROM call_costs
+                       WHERE feature IN ('explain', 'phrase', 'natural')
+               ) WHERE created_at >= ? GROUP BY language ORDER BY SUM(cost_usd) DESC""",
             (since.isoformat(),),
         )
     }
+
+
+# What a row of `call_costs` was for. A failed "explain", "phrase" or "natural" call counts with
+# the answers kept for those (`explanation_spending`).
+CallFeature = Literal["explain", "phrase", "natural", "mnemonics", "recording", "note_queue"]
+
+
+def save_call_cost(
+    conn: sqlite3.Connection,
+    feature: CallFeature,
+    language: str,
+    now: datetime,
+    cost_usd: float = 0.0,
+    audio_chars: int = 0,
+) -> None:
+    """What one call cost, when nothing else keeps it (the `call_costs` table). `language` is a
+    language code, or empty for a recording."""
+    with conn:
+        conn.execute(
+            "INSERT INTO call_costs (feature, language, created_at, cost_usd, audio_chars)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (feature, language, now.isoformat(), cost_usd, audio_chars),
+        )
+
+
+def mnemonic_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
+    """Each language with memory hints asked for since `since`: how many calls (failed ones
+    included) and what they cost Claude."""
+    return {
+        language: (count, cost)
+        for language, count, cost in conn.execute(
+            "SELECT language, COUNT(*), SUM(cost_usd) FROM call_costs"
+            " WHERE feature = 'mnemonics' AND created_at >= ?"
+            " GROUP BY language ORDER BY SUM(cost_usd) DESC",
+            (since.isoformat(),),
+        )
+    }
+
+
+def recording_spending(conn: sqlite3.Connection, since: datetime) -> tuple[int, int]:
+    """Cards recorded by an Azure voice since `since`, and the characters Azure billed for them."""
+    count, chars = conn.execute(
+        "SELECT COUNT(*), SUM(audio_chars) FROM call_costs"
+        " WHERE feature = 'recording' AND created_at >= ?",
+        (since.isoformat(),),
+    ).fetchone()
+    return int(count), int(chars or 0)
 
 
 def practiced_days(
@@ -1722,7 +1788,15 @@ def queued_note(conn: sqlite3.Connection, note_id: int) -> QueuedNote | None:
 
 
 def delete_queued(conn: sqlite3.Connection, note_id: int) -> bool:
+    """Takes a word off the queue (saved or removed). What filling it cost moves to `call_costs`,
+    dated when it was last tried, so `queue_spending` still counts it."""
     with conn:
+        conn.execute(
+            "INSERT INTO call_costs (feature, language, created_at, cost_usd)"
+            " SELECT 'note_queue', language, tried_at, cost_usd FROM note_queue"
+            " WHERE id = ? AND tried_at IS NOT NULL",
+            (note_id,),
+        )
         return conn.execute("DELETE FROM note_queue WHERE id = ?", (note_id,)).rowcount > 0
 
 
@@ -1742,15 +1816,17 @@ def retry_queued(conn: sqlite3.Connection, note_id: int) -> bool:
 def save_queue_result(
     conn: sqlite3.Connection,
     note_id: int,
+    language: Code,
     fields: dict[str, str] | None,
     error: str,
     now: datetime,
     cost_usd: float,
 ) -> None:
     """What came of one word's turn: its filled fields (ready), or why not (failed). A word still waiting
-    or failed only: one the owner removed meanwhile is gone, and a ready one stays as it is."""
+    or failed only: one the owner removed meanwhile is gone, and a ready one stays as it is. The
+    turn's cost is kept either way: in `call_costs` when the word is no longer waiting for it."""
     with conn:
-        conn.execute(
+        updated = conn.execute(
             "UPDATE note_queue SET state = ?, fields = ?, error = ?, attempts = attempts + 1,"
             " tried_at = ?, cost_usd = cost_usd + ? WHERE id = ? AND state IN ('waiting', 'failed')",
             (
@@ -1761,16 +1837,26 @@ def save_queue_result(
                 cost_usd,
                 note_id,
             ),
-        )
+        ).rowcount
+        if not updated and cost_usd:
+            conn.execute(
+                "INSERT INTO call_costs (feature, language, created_at, cost_usd)"
+                " VALUES ('note_queue', ?, ?, ?)",
+                (language, now.isoformat(), cost_usd),
+            )
 
 
 def queue_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
-    """Each language with words filled in since `since`: how many were tried and what they cost."""
+    """Each language with words filled in since `since`: how many were tried and what they cost,
+    words since taken off the queue (saved or removed) included, from `call_costs`."""
     return {
         language: (count, cost)
         for language, count, cost in conn.execute(
-            "SELECT language, COUNT(*), SUM(cost_usd) FROM note_queue WHERE tried_at >= ?"
-            " GROUP BY language ORDER BY SUM(cost_usd) DESC",
+            """SELECT language, COUNT(*), SUM(cost_usd) FROM (
+                   SELECT language, tried_at AS at, cost_usd FROM note_queue WHERE tried_at IS NOT NULL
+                   UNION ALL SELECT language, created_at, cost_usd FROM call_costs
+                       WHERE feature = 'note_queue'
+               ) WHERE at >= ? GROUP BY language ORDER BY SUM(cost_usd) DESC""",
             (since.isoformat(),),
         )
     }

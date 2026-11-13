@@ -5,7 +5,9 @@ import random
 from datetime import datetime, timedelta
 from typing import Any
 
+import pytest
 from test_exposure import connect, read, write
+from test_generator import FakeClient, finish, response
 from test_grammar import ES
 
 from franki_reader import store
@@ -15,6 +17,7 @@ from franki_reader.drills import (
     STOCK,
     DrillsFailed,
     check,
+    claude_drills,
     request_message,
     top_up,
     which_questions,
@@ -139,6 +142,36 @@ def test_a_failed_batch_is_logged_and_kept_nothing() -> None:
     conn = connect()
     run_top_up(conn, Writer(DrillsFailed("overloaded")), "es.preterite")
     assert store.drill_stock(conn, "es.preterite") == 0
+    assert store.drill_spending(conn, NOW - timedelta(days=1)) == {}  # Claude never answered
+
+
+BILLED = Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")  # $2
+
+
+def test_a_failed_call_claude_answered_keeps_its_cost_and_counts_toward_the_day() -> None:
+    conn = connect()
+    writer = Writer(*[DrillsFailed("No questions (max_tokens)", BILLED)] * BATCHES_PER_DAY, [q()])
+    for _ in range(BATCHES_PER_DAY + 1):
+        run_top_up(conn, writer, "es.preterite")
+    assert len(writer.calls) == BATCHES_PER_DAY  # a call that keeps failing stops for the day
+    assert store.drill_stock(conn, "es.preterite") == 0
+    assert store.drill_spending(conn, NOW - timedelta(days=1)) == {"es": (BATCHES_PER_DAY, 4.0)}
+    # Tried again the next day, and what passes is kept.
+    run_top_up(conn, writer, "es.preterite", at=NOW + timedelta(days=1, minutes=1))
+    assert store.drill_stock(conn, "es.preterite") == 1
+
+
+@pytest.mark.parametrize(
+    ("stop_reason", "text"),
+    [("refusal", None), ("max_tokens", '{"questions"'), ("end_turn", None), ("end_turn", "x")],
+)
+def test_claude_drills_keeps_the_usage_of_an_answer_it_cant_use(
+    stop_reason: str, text: str | None
+) -> None:
+    write = claude_drills(FakeClient(response(stop_reason, text)))  # type: ignore[arg-type]
+    with pytest.raises(DrillsFailed) as failed:
+        finish(write([], "es", PRETERITE, BATCH))
+    assert failed.value.usage.output_tokens == 900  # the call is still paid for
 
 
 def test_questions_are_served_never_served_first_then_oldest() -> None:
@@ -205,6 +238,13 @@ def test_a_drill_mixes_lines_read_and_gap_questions_then_writes_more() -> None:
     assert gap["answer"] == "fuimos" and gap["wrong"] == ["íbamos", "vamos", "iremos"]
     spent = c.get("/api/costs", headers=AUTH).json()["drills"]
     assert spent["batches"] == 2 and spent["languages"][0]["language"] == "es"
+
+
+def test_a_failed_batch_shows_in_the_costs() -> None:
+    c, _ = drill_client(Writer(DrillsFailed("No questions (refusal)", BILLED)))
+    c.post("/api/drills", json={"points": ["es.preterite"], "count": 4}, headers=AUTH)
+    spent = c.get("/api/costs", headers=AUTH).json()["drills"]
+    assert spent["batches"] == 1 and spent["cost_usd"] == 2.0
 
 
 def test_points_with_nothing_to_ask_are_named() -> None:
