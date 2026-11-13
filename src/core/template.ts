@@ -1,5 +1,6 @@
 import { ttsFilter, ttsTags, withoutTts, TTS_NO_LANGUAGE, type TtsTag } from './tts';
 import { clozeForTyping, clozeNumbers, clozeOnly, renderCloze } from './cloze';
+import { occlusionPlan, occlusionScript } from './imageOcclusion';
 import { compareAnswer } from './typeAnswer';
 import type { Note, NoteType } from './types';
 
@@ -352,7 +353,8 @@ export function sideAudio(html: string): { tts: TtsTag[]; hasSound: boolean } {
 
 /**
  * A complete page for the WebView: the note type's CSS, Anki's body classes (`card cardN`, and
- * `nightMode night_mode` in dark mode, which many decks style), and the sound player. Relative
+ * `nightMode night_mode` in dark mode, which many decks style), the sound player, and Anki's
+ * `anki.imageOcclusion` for an image occlusion card's own script to call. Relative
  * media paths ("flag.svg") resolve against `mediaBase`, the media folder's URI.
  */
 export function cardDocument(
@@ -382,8 +384,14 @@ code#typeans { display: inline-block; white-space: pre-wrap; font-family: ui-mon
 .typeGood { color: black; background: #afa; }
 .typeBad { color: black; background: #faa; }
 .typeMissed { color: black; background: #ccc; }
+/* Image occlusion, as Anki's reviewer lays it out (review.scss): the image and the canvas its masks
+   are drawn on fill a box that the page's script gives the image's shape. */
+#image-occlusion-container { position: relative; margin: 0 auto; max-height: calc(95vh - 40px); }
+#image-occlusion-container img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; max-width: unset; max-height: unset; }
+#image-occlusion-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 ${opts.css}
-</style></head>
+</style>
+<script>${occlusionScript(occlusionPlan(html))}</script></head>
 <body class="card card${opts.ord + 1}${night}"><div id="qa" style="width:100%">${ttsButtons(soundButtons(html))}</div>
 <script>
 var player = null;

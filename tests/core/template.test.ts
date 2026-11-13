@@ -189,6 +189,20 @@ describe('cardDocument', () => {
     expect(doc).toContain('playSound(first.dataset.sound)');
   });
 
+  it("defines anki.imageOcclusion before the card's own script calls it, with Anki's layout for it", () => {
+    const { noteType, notes } = vectors.imageOcclusion;
+    const front = notes[0].cards[0].front;
+    const doc = cardDocument(front, { css: noteType.css, ord: 0, dark: false, autoplay: false });
+    const head = doc.slice(0, doc.indexOf('<body'));
+    expect(head).toContain('#image-occlusion-container img { position: absolute; top: 0; left: 0; width: 100%; height: 100%;');
+    expect(head.indexOf('#image-occlusion-canvas {')).toBeLessThan(head.indexOf(noteType.css));
+    const script = /<script>([\s\S]*?)<\/script><\/head>/.exec(doc)![1];
+    const win: { anki?: { imageOcclusion: { setup: unknown } } } = {};
+    new Function('window', 'document', script)(win, {});
+    expect(typeof win.anki?.imageOcclusion.setup).toBe('function');
+    expect(doc.indexOf('anki.imageOcclusion.setup();')).toBeGreaterThan(doc.indexOf('<body'));
+  });
+
   it("paints the page in the app's colors when given them", () => {
     const doc = cardDocument('Hi', { css: '', ord: 0, dark: true, autoplay: false, colors: { background: '#123456', text: '#abcdef', cloze: '#fedcba' } });
     expect(doc).toContain('background: #123456; color: #abcdef;');
