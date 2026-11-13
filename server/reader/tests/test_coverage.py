@@ -102,6 +102,14 @@ def test_a_space_beside_a_bar_is_dropped() -> None:
     assert parse_line("ฉัน | ต้องการ| *น้ำ* ") == ("ฉันต้องการน้ำ", ["น้ำ"])
 
 
+def test_a_space_after_a_clause_opening_connective_is_dropped() -> None:
+    assert parse_line("เขา|ดู|เด็ก แล้ว เดิน|มา")[0] == "เขาดูเด็ก แล้วเดินมา"
+    assert parse_line("แต่ เขา|หิว")[0] == "แต่เขาหิว"
+    assert parse_line("*แล้ว* เดิน")[0] == "แล้วเดิน"
+    # Ending a clause, it keeps the space after it.
+    assert parse_line("กิน|ข้าว|แล้ว เขา|ไป")[0] == "กินข้าวแล้ว เขาไป"
+
+
 def test_a_clause_break_is_not_counted_as_a_word(lexicon: Lexicon) -> None:
     result = check(["ฉัน|อยาก|กิน ไป|ไหน|ครับ"], lexicon)
     assert [t.text for t in result.tokens] == ["ฉัน", "อยาก", "กิน", "ไป", "ไหน", "ครับ"]

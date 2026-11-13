@@ -50,6 +50,10 @@ _NOT_A_WORD = re.compile(r"^[\W_ๆฯ]+$")
 # there (franki_speech's ssml). So in Thai a space the model writes on its own is kept, while one
 # beside a `|`, which already marks the word boundary, is noise and dropped.
 _BESIDE_BAR = re.compile(r"\s*\|\s*")
+# A connective that opens a clause is written against what it joins (แล้วเดินมา), so a space right
+# after one, with a space or the line start before it, is the model's slip, and the voice would pause
+# there. One ending a clause (ไปแล้ว ผม...) has no space before it and is left alone.
+_CONNECTIVE_GAP = re.compile(r"(?:(?<=\s)|^)(แล้ว|และ|แต่|หรือ|เพราะ|ถ้า)\s+(?=\S)")
 # In a spaced language, the space a `|` became before closing punctuation or after opening.
 _SPACE_BEFORE_CLOSING = re.compile(r"\s+(?=[.,;:!?)\]»…])")
 _SPACE_AFTER_OPENING = re.compile(r"(?<=[¿¡(\[«])\s+")
@@ -191,7 +195,7 @@ class Lexicon:
 def _join(text: str, spaced: bool) -> str:
     text = text.replace("*", "").replace("~", "")
     if not spaced:
-        return " ".join(_BESIDE_BAR.sub("", text).split())
+        return _CONNECTIVE_GAP.sub(r"\1", " ".join(_BESIDE_BAR.sub("", text).split()))
     text = " ".join(text.replace("|", " ").split())
     return _SPACE_AFTER_OPENING.sub("", _SPACE_BEFORE_CLOSING.sub("", text))
 
