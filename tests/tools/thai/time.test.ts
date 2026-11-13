@@ -38,7 +38,10 @@ describe('a time in Thai', () => {
     expect(also(16)).toEqual(['สี่โมงเย็น']);
     expect(also(17, 30)).toEqual(['ห้าโมงเย็นครึ่ง', 'บ่ายห้าโมงครึ่ง']);
     expect(also(14, 10)).toEqual(['บ่ายสองโมงสิบ']);
-    expect(sayThaiTime({ hour: 9, minute: 0 }).also.find((p) => p.text === 'สามโมงเช้า')?.note).toBe('The older count from 6 a.m.');
+    expect(sayThaiTime({ hour: 9, minute: 0 }).also.find((p) => p.text === 'สามโมงเช้า')?.note).toBe("Older style, counting hours from 6 a.m.: 3 o'clock in the morning");
+    expect(sayThaiTime({ hour: 7, minute: 3 }).also.find((p) => p.text === 'โมงเช้าสามนาที')?.note).toBe(
+      "Older style, counting hours from 6 a.m.: 1 o'clock in the morning (the 1 is usually left out)",
+    );
   });
 
   it('keeps forms said only on the hour off a time with minutes', () => {

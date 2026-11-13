@@ -6,7 +6,7 @@ import { NOW } from '../support/fixtures';
 const H = 4;
 const row = (deck: string, due: number, fresh: number): DeckRow => {
   const parts = deck.split('::');
-  return { deck, name: parts[parts.length - 1], depth: parts.length - 1, due, fresh, total: due + fresh };
+  return { deck, name: parts[parts.length - 1], depth: parts.length - 1, due, fresh, total: due + fresh, unstudied: fresh };
 };
 const rows = [
   row('🧠 Trivia', 64, 1),

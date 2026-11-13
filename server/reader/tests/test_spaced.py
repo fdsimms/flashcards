@@ -185,6 +185,39 @@ def test_a_spanish_text_renders_with_spaces_deck_flags_and_glosses_from_the_entr
     assert out["language"] == "es"
 
 
+def test_a_reflexive_practice_word_also_marks_its_pronoun() -> None:
+    text = StoredText(
+        1,
+        1,
+        "t",
+        (Line("A", "Diego|se|*cerciora*|y|se|va.", "..."),),
+        {},
+        ("cerciorarse",),
+        1.0,
+        language="es",
+    )
+    words = render(text, LEXICON, {})["lines"][0]["words"]
+    marked = [w["text"] for w in words if w["stretch"]]
+    # The "se" right before the verb, not the one before "va".
+    assert marked == ["se", "cerciora"]
+    assert [w["text"] for w in words if w["text"] == "se"] == ["se", "se"]
+
+
+def test_a_pronoun_is_not_marked_for_a_practice_word_that_isnt_reflexive() -> None:
+    text = StoredText(
+        1,
+        1,
+        "t",
+        (Line("A", "Ella|se|*diezma*.", "..."),),
+        {},
+        ("diezmar",),
+        1.0,
+        language="es",
+    )
+    words = render(text, LEXICON, {})["lines"][0]["words"]
+    assert [w["text"] for w in words if w["stretch"]] == ["diezma"]
+
+
 # ==== Snapshot, storage and the engine ====
 
 
