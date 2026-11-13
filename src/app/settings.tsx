@@ -17,6 +17,7 @@ export default function SettingsRoute() {
       onAnki={() => router.push('/anki')}
       onBackup={() => router.push('/backup')}
       onVoices={() => router.push('/voices')}
+      onReminder={() => router.push('/reminder')}
     />
   );
 }
