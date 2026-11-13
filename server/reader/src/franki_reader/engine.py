@@ -23,26 +23,29 @@ import random
 import sqlite3
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Literal
 
 from franki_reader import exposure, grammar, meanings, store
-from franki_reader.coverage import Checker, parse_line
+from franki_reader.coverage import Checker, Coverage, parse_line
 from franki_reader.difficulty import Difficulty, adapt
 from franki_reader.gender import full_voices, voice_for
 from franki_reader.generator import (
     Ask,
     Form,
+    Generated,
     GenerationFailed,
     StoryContext,
     TextRequest,
+    Usage,
     generate,
 )
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.store import Reading, Reason, StoredText, Story, Topic
 from franki_reader.stretch import pick_stretch
+from franki_reader.study_day import DEFAULT_ROLLOVER, study_day_start
 from franki_reader.suggestions import suggest
 from franki_reader.tts import DEFAULT_VOICES, AudioCache, Synthesize, TtsFailed
 
@@ -136,6 +139,8 @@ class Engine:
         synthesize: Synthesize | None = None,
         audio: AudioCache | None = None,
         voices: dict[str, str] | None = None,
+        rollover: Callable[[], int] = lambda: DEFAULT_ROLLOVER,
+        zone: tzinfo | None = None,
         write_meanings: meanings.WriteMeanings | None = None,
     ) -> None:
         self.conn = conn
@@ -147,6 +152,10 @@ class Engine:
         self.synthesize = synthesize
         self.audio = audio
         self.voices = voices or DEFAULT_VOICES
+        # Which study day it is (study_day.py): the collection's "Next day starts at" as last read,
+        # in `zone`, the process's own (TZ) when None.
+        self.rollover = rollover
+        self.zone = zone
         self.write_meanings = write_meanings
         # When Claude last failed to write word meanings, by language, so a pass that keeps failing
         # doesn't keep asking.
@@ -315,12 +324,34 @@ class Engine:
                 any_words=job.any_words,
                 story=context,
             )
-            result = await generate(self.ask_for(entries, language), lexicon, request)
             extra = {
                 "reason": job.reason,
                 "story_id": story.id if story else None,
                 "episode": context.episode if context else 0,
             }
+            try:
+                result = await generate(self.ask_for(entries, language), lexicon, request)
+            except GenerationFailed as e:
+                if e.usage != Usage():
+                    # The first attempt got an answer but nothing usable (a refusal, a cut-off,
+                    # invalid JSON): stored as dropped with no text, never served, so what it
+                    # cost is still on record. A call that got no answer cost nothing.
+                    empty = Generated("", (), {}, Coverage((), ()), 1, False, (), usage=e.usage)
+                    store.save_text(
+                        self.conn,
+                        topic_id,
+                        empty,
+                        [],
+                        difficulty.floor,
+                        self.clock(),
+                        "dropped",
+                        request.form,
+                        language,
+                        _grammar_record(request),
+                        focus,
+                        **extra,  # type: ignore[arg-type]
+                    )
+                raise
             words = list(result.stretch)
             if not result.passed:
                 # Stored as dropped, never served, so its cost is still on record.
@@ -392,8 +423,9 @@ class Engine:
     ) -> TextRequest:
         language = language or self.language()
         settings = store.load_settings(self.conn)
-        start_of_today = self.clock().replace(hour=0, minute=0, second=0, microsecond=0)
-        practiced = store.practiced_days(self.conn, start_of_today, language)
+        rollover = self.rollover()
+        start_of_today = study_day_start(self.clock(), rollover, self.zone)
+        practiced = store.practiced_days(self.conn, start_of_today, language, rollover, self.zone)
         chosen = store.load_grammar(self.conn)
         mine = [p.id for p in grammar.points_for(language)]
         practice = tuple(p for p in mine if chosen.get(p) == "practice")
@@ -703,12 +735,16 @@ class Engine:
 
     def _story_context(self, story: Story) -> StoryContext:
         told = store.episodes(self.conn, story.id)
+        chosen = ""
+        if told and told[-1].chosen is not None and told[-1].chosen < len(told[-1].choices):
+            chosen = told[-1].choices[told[-1].chosen].english
         return StoryContext(
             episode=max((t.episode for t in told), default=0) + 1,
             about=story.about,
             title=story.title,
             cast=story.cast,
             recaps=tuple(t.recap for t in told if t.recap),
+            chosen=chosen,
         )
 
     def record_reading(self, text_id: int, reading: Reading) -> None:

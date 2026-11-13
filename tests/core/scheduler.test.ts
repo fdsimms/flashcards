@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { becameLeech, paramsForDeck, previewIntervals, review, newSchedState, stepOutcome } from '../../src/core/scheduler';
+import { studyDayKey } from '../../src/core/day';
 import type { DeckParams } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -66,6 +67,34 @@ describe('scheduler', () => {
     const s = review(card.sched, 3, NOW).sched;
     const at = new Date(2026, 10, 14, 12);
     expect(review(s, 3, at, undefined, { countFrom: new Date(2026, 10, 1) }).sched.stability).toBe(review(s, 3, at).sched.stability);
+  });
+});
+
+describe('across a DST change', () => {
+  // North American DST ends on Nov 1 2026; `npm run test:tz` runs this in Newfoundland, which has it.
+  const days = (from: Date, to: Date) => {
+    const [a, b] = [studyDayKey(from, 4), studyDayKey(to, 4)].map((k) => Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)));
+    return Math.round((b - a) / 86400000);
+  };
+
+  it('lands a review on the study day its interval says, not an hour into the one before', () => {
+    const [card] = makeCards(omniNote(), NOW);
+    const now = new Date(2026, 9, 31, 4, 30);
+    const sched = { ...card.sched, state: 2, stability: 5, difficulty: 5, reps: 3, scheduledDays: 4,
+      lastReview: new Date(2026, 9, 27, 12).toISOString(), due: new Date(2026, 9, 31, 12).toISOString() };
+    const next = review(sched, 3, now, undefined, { dayStartsAtHour: 4 }).sched;
+    expect(next.scheduledDays).toBeGreaterThan(1);
+    expect(days(now, new Date(next.due))).toBe(next.scheduledDays);
+  });
+
+  it('starts a day-long learning step at the start of the day it lands on', () => {
+    const [card] = makeCards(omniNote(), NOW);
+    const params = { learnSteps: [1, 2880], relearnSteps: [10], weights: [], desiredRetention: 0.9, maxInterval: 36500 } as unknown as DeckParams;
+    const now = new Date(2026, 9, 30, 12);
+    // Good on a new card moves it to the second step, two days out.
+    const next = review(card.sched, 3, now, params, { dayStartsAtHour: 4 }).sched;
+    expect(studyDayKey(new Date(next.due), 4)).toBe('2026-11-01');
+    expect(new Date(next.due).getHours()).toBe(4);
   });
 });
 

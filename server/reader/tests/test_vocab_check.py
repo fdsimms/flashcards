@@ -129,6 +129,27 @@ def test_a_bank_with_a_band_too_thin_keeps_nothing_but_the_cost() -> None:
     assert store.vocab_spending(conn, NOW - timedelta(days=1)) == {"pl": (1, 2.0)}
 
 
+def test_only_a_kept_batch_counts_its_words_as_asked() -> None:
+    conn = store.connect(":memory:")
+    thin = whole_bank(per_band=MIN_PER_BAND - 1)
+    assert not asyncio.run(write_bank(conn, Writer(thin), "pl", lambda: NOW))
+    assert store.vocab_asked(conn, "pl") == 0  # kept nothing: asked again, and topped up later
+    assert asyncio.run(write_bank(conn, Writer(whole_bank()), "pl", lambda: NOW))
+    assert store.vocab_asked(conn, "pl") == len(sample("pl"))
+
+
+def test_a_top_up_that_keeps_nothing_still_counts_as_asked() -> None:
+    conn = store.connect(":memory:")
+    ranks = {word: rank for rank, word in sample("pl")}
+    stored = [
+        VocabItem(w["word"], ranks[w["word"]], w["meaning"], tuple(w["wrong"]))
+        for w in whole_bank()[:70]
+    ]
+    store.save_vocab_batch(conn, "pl", stored, 70, NOW, 0.0)
+    assert asyncio.run(write_bank(conn, Writer([]), "pl", lambda: NOW))
+    assert store.vocab_asked(conn, "pl") == len(sample("pl"))  # not asked again on every visit
+
+
 def test_a_failed_call_stores_nothing() -> None:
     conn = store.connect(":memory:")
     assert not asyncio.run(write_bank(conn, Writer(VocabFailed("no")), "pl", lambda: NOW))

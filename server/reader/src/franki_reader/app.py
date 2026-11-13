@@ -53,6 +53,10 @@ marked words, ideas) is in the current language, the `language` setting.
                                       ?story=<id>, that story's episodes, first to last
     GET   /api/texts/{id}             one text, in the same shape as /next; reading it again isn't logged
     POST  /api/texts/{id}/reading     logs a session with a text and adjusts difficulty
+    POST  /api/texts/{id}/choice      {choice} the option picked at the end of a story episode, as an
+                                      index into its choices; it can be changed until the episode is
+                                      read, which is when the next one is written from it (404 for
+                                      no such text or choice, 409 once it's read)
     GET   /api/progress               finished texts, coverage and ratings over the last 14 days,
                                       and the difficulty the next text is written at
     GET   /api/costs?days=30          what Claude cost over the last `days` days, per language:
@@ -156,6 +160,7 @@ from franki_reader.mnemonics import (
 )
 from franki_reader.reader import gloss_for, lemma_for, render
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
+from franki_reader.study_day import DEFAULT_ROLLOVER
 from franki_reader.suggestions import suggest
 from franki_reader.tts import AudioCache, Speech, azure_synthesize, azure_usd
 
@@ -248,6 +253,10 @@ class FrankiCountsIn(BaseModel):
     # The deck list's totals across the top-level decks: due (reviews and learning) and new.
     due: int = Field(ge=0, le=1_000_000)
     new: int = Field(ge=0, le=1_000_000)
+
+
+class ChoiceIn(BaseModel):
+    choice: int = Field(ge=0)
 
 
 class ReadingIn(BaseModel):
@@ -813,6 +822,17 @@ def create_app(
             raise HTTPException(503, str(e)) from e
         return {"hints": hints}
 
+    @app.post("/api/texts/{text_id}/choice", status_code=204, dependencies=authed)
+    async def choose(text_id: int, body: ChoiceIn) -> Response:
+        match store.set_choice(engine.conn, text_id, body.choice):
+            case "unknown":
+                raise HTTPException(404, "That choice isn't on this text.")
+            case "read":
+                raise HTTPException(
+                    409, "This episode is already read, so its choice can't change."
+                )
+        return Response(status_code=204)
+
     @app.post("/api/texts/{text_id}/reading", status_code=204, dependencies=authed)
     async def reading(text_id: int, body: ReadingIn, background: BackgroundTasks) -> Response:
         try:
@@ -1058,6 +1078,7 @@ def create_app(
         return {
             "id": point.id,
             "state": choices.get(point.id, "unset"),
+            "max_practice": grammar.MAX_PRACTICE,
             "seen": _seen(engine.grammar_exposure(point.language)[point.id]),
             "choices": {
                 p.id: choices.get(p.id, "unset") for p in grammar.points_for(point.language)
@@ -1147,10 +1168,31 @@ def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
     return out
 
 
-def _shelf_text(text: StoredText, engine: Engine) -> dict[str, Any]:
-    """A text on the shelf as a card shows it, without its words (they come with /api/texts/{id})."""
+def _practice_words(text: StoredText, engine: Engine) -> list[dict[str, Any]]:
+    """The text's practice words as the reader draws them (meaning, dictionary form, status), in
+    the order of `text.stretch`, so a card can open a word's popover without fetching the whole text.
+    A practice word that doesn't turn up as a word of the text is left out."""
+    entries, lexicon = engine.snapshot(text.language)
+    out = render(
+        text,
+        lexicon,
+        engine.meanings(text.language),
+        {e.text: e.translit for e in entries if e.translit},
+    )
+    first: dict[str, dict[str, Any]] = {}
+    for line in out["lines"]:
+        for word in line["words"]:
+            if word["status"] is not None:
+                first.setdefault(word["text"], word)
+    return [first[w] for w in text.stretch if w in first]
+
+
+def _shelf_text(text: StoredText, engine: Engine, practice: bool = False) -> dict[str, Any]:
+    """A text on the shelf as a card shows it, without its words (they come with /api/texts/{id}).
+    `practice` adds its practice words' meanings, for the card that lists them."""
     topic = store.get_topic(engine.conn, text.topic_id, text.language, include_removed=True)
     return {
+        **({"practice": _practice_words(text, engine)} if practice else {}),
         "id": text.id,
         "title": text.title,
         "topic": topic.name if topic else "",
@@ -1180,7 +1222,7 @@ def _shelf(engine: Engine) -> dict[str, Any]:
             "about": story.about,
             "read": len(read),
             "last_recap": read[-1].recap if read else "",
-            "next": _shelf_text(waiting, engine) if waiting else None,
+            "next": _shelf_text(waiting, engine, practice=True) if waiting else None,
             "writing": any(j.story_id == story.id for j in writing),
             "failed": engine.failure(story.topic_id, language),
         }
@@ -1285,6 +1327,7 @@ def production_app() -> FastAPI:
         synthesize=synthesize,
         audio=AudioCache(settings.audio_dir),
         voices=settings.voices,
+        rollover=lambda: anki.rollover if anki else DEFAULT_ROLLOVER,
         write_meanings=write_meanings,
     )
     engine.count_existing_audio()

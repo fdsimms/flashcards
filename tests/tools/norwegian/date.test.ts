@@ -26,6 +26,7 @@ describe('a date in Norwegian', () => {
     expect(norwegianYear(2000)).toBe('totusen');
     expect(norwegianYear(2001)).toBe('totusenogen');
     expect(norwegianYear(2049)).toBe('totusenogførtini');
+    expect(norwegianYear(2150)).toBe('totusenetthundreogfemti');
     expect(() => norwegianYear(999)).toThrow(RangeError);
   });
 

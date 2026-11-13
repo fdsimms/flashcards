@@ -71,7 +71,10 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
 
   const importTsvFile = (picked: File, name: string) => run('import', async () => {
     try {
-      const result = reconcileIds(importTsv(await picked.text(), { noteTypes: await repo.listNoteTypes() }), await repo.listNotes());
+      const notes = await repo.listNotes();
+      // Anki's decks with their ids, and Franki's own by name, for a deck column that gives a deck's id.
+      const decks = [...await repo.ankiDecks(), ...[...new Set(notes.map((n) => n.deck))].map((name) => ({ name }))];
+      const result = reconcileIds(importTsv(await picked.text(), { noteTypes: await repo.listNoteTypes(), decks }), notes);
       await repo.upsertNotesAndCards(result.notes, result.cards);
       say(`Imported ${name}: ${plural(result.notes.length, 'note', 'notes')}. These cards aren't in Anki, so they stay in Franki only.`);
     } catch (e: any) {
@@ -121,7 +124,8 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
 
   const send = () => run('send', async () => {
     try {
-      const out = await buildPackageForAnki(repo);
+      // Under the lock, so a sync can't commit to the collection while it's being packed.
+      const out = await repo.lockAnki(() => buildPackageForAnki(repo));
       if (!(await Sharing.isAvailableAsync())) {
         say(`Couldn't open the share sheet on this device, so ${out.name} wasn't sent anywhere.`);
         return;

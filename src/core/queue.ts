@@ -90,13 +90,17 @@ export function isBuried(card: Card, now: Date, dayStartsAtHour: number): boolea
 /**
  * When the next learning card comes due, for a session that has run out of cards: the review
  * screen waits for it instead of declaring the deck done. Undefined when none is waiting.
+ * Only a step within today counts: a day-long step (Anki's queue 3) comes back on its own day,
+ * under the review limit, so the session is done rather than waiting for it, as in Anki.
  */
 export function nextLearningDue(cards: Card[], opts: QueueOptions): Date | undefined {
   const now = opts.now ?? new Date();
+  const dayEnd = nextStudyDayStart(now, opts.dayStartsAtHour).getTime();
   let best: number | undefined;
   for (const c of studiable(cards)) {
     if (isBuried(c, now, opts.dayStartsAtHour)) continue;
-    if (isLearning(c) && (best === undefined || dueMs(c) < best)) best = dueMs(c);
+    if (!isLearning(c) || isInterdayLearning(c, opts.dayStartsAtHour) || dueMs(c) >= dayEnd) continue;
+    if (best === undefined || dueMs(c) < best) best = dueMs(c);
   }
   return best === undefined ? undefined : new Date(best);
 }
@@ -132,6 +136,9 @@ export function studiedToday(input: {
   const out = new Map<string, StudiedToday>();
   for (const a of answersFrom(input)) {
     if (a.at.getTime() < start) continue;
+    // A preview uses no limits, as in Anki, and its card is back home by now: counted by where it
+    // is, 50 previews took 50 off the home deck's review room.
+    if (a.preview) continue;
     const deck = deckOf.get(a.cardId);
     if (!deck) continue;
     const s = out.get(deck) ?? { introduced: 0, reviewed: 0 };
@@ -140,8 +147,8 @@ export function studiedToday(input: {
       seen.add(a.cardId);
       introduced.set(deck, seen);
       s.introduced = seen.size;
-    } else if (a.kind === 'review' || (a.lastIntervalDays ?? 0) > 0) {
-      // A review, or an answer to a learning card on a day-long step (its last interval in days).
+    } else if (a.kind === 'review' || a.interday) {
+      // A review, or an answer to a learning card on a day-long step (Anki's queue 3).
       s.reviewed++;
     } else {
       continue;
