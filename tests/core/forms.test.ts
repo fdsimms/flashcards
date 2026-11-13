@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  checkAnswer, chooseForms, formGrammar, practicedGroups, practicedGroupsLine, confusedAnswers, confusions, weakForms, formsOf, formsSettings, formsSuggestion, headword, introductions, patternOf, patternPrompts,
+  againPrompts, checkAnswer, chooseForms, formGiven, formGrammar, practicedGroups, practicedGroupsLine, confusedAnswers, confusions, weakForms, formsOf, formsSettings, formsSuggestion, headword, introductions, patternOf, patternPrompts,
   practiceChoices, practicePool, promptFor, drillPrompts, studiedWords, sentenceGap, unreadableNotice, withoutArticle, wordPrompts, type PracticeRecord, type WordForm,
 } from '../../src/core/forms';
 import { newSchedState } from '../../src/core/scheduler';
@@ -110,6 +110,17 @@ describe('checkAnswer', () => {
     expect(checkAnswer('soeurs', ['sœurs'])).toBe('almost');
     expect(checkAnswer('szedl', ['szedł'])).toBe('almost');
   });
+  it("calls another form of the word wrong, not almost: the mark is the ending being drilled", () => {
+    expect(checkAnswer('pisze', ['piszę'], ['pisze', 'piszesz'])).toBe('wrong');
+    expect(checkAnswer('pisze', ['piszę'])).toBe('almost');
+    expect(checkAnswer('piszę', ['piszę'], ['pisze'])).toBe('right');
+  });
+  it("folds what the keyboard decides: a final σ, ss for ß, a curly apostrophe", () => {
+    expect(checkAnswer('παιδιασ', ['παιδιάς'])).toBe('almost');
+    expect(checkAnswer('παιδιάσ', ['παιδιάς'])).toBe('right');
+    expect(checkAnswer('ass', ['aß'])).toBe('right');
+    expect(checkAnswer('j’espère', ["j'espère"])).toBe('right');
+  });
   it('accepts any of the alternatives, and nothing else', () => {
     expect(checkAnswer('esperase', ['esperara', 'esperase'])).toBe('right');
     expect(checkAnswer('esperaban', ['esperarán'])).toBe('wrong');
@@ -124,7 +135,7 @@ describe('chooseForms', () => {
       rec('present · yo', true, at(1)), rec('present · tú', true, at(1)), rec('present · él', true, at(1)),
       rec('present · nosotros', true, at(5)), rec('preterite · yo', false, at(5)),
     ];
-    const keys = chooseForms(forms, history, 4, seeded()).map((f) => f.key);
+    const keys = chooseForms(forms, history, DAY_START, 4, seeded()).map((f) => f.key);
     expect(keys[0]).toBe('preterite · yo');
     expect(keys[1]).toBe('preterite · tú');
     expect(keys.slice(2)).toEqual(expect.arrayContaining([expect.stringMatching(/^present · (yo|tú|él)$/)]));
@@ -132,33 +143,76 @@ describe('chooseForms', () => {
   });
   it('keeps asking a miss from days ago until it is put right twice', () => {
     const base = [rec('preterite · yo', false, at(1)), rec('present · yo', true, at(5)), rec('present · tú', true, at(5))];
-    const first = (history: PracticeRecord[]) => chooseForms(forms, history, 6, seeded()).map((f) => f.key)[0];
+    const first = (history: PracticeRecord[]) => chooseForms(forms, history, DAY_START, 6, seeded()).map((f) => f.key)[0];
     expect(first(base)).toBe('preterite · yo');
     expect(first([...base, rec('preterite · yo', true, at(5))])).toBe('preterite · yo');
-    const cleared = chooseForms(forms, [...base, rec('preterite · yo', true, at(5)), rec('preterite · yo', true, at(6))], 6, seeded()).map((f) => f.key);
+    const cleared = chooseForms(forms, [...base, rec('preterite · yo', true, at(5)), rec('preterite · yo', true, at(6))], DAY_START, 6, seeded()).map((f) => f.key);
     expect(cleared[0]).not.toBe('preterite · yo');
   });
   it('asks the form missed most often first', () => {
     const history = [rec('present · yo', false, at(5)), rec('present · tú', false, at(4)), rec('present · tú', false, at(5))];
-    expect(chooseForms(forms, history, 2, seeded()).map((f) => f.key)).toEqual(['present · tú', 'present · yo']);
+    expect(chooseForms(forms, history, DAY_START, 2, seeded()).map((f) => f.key)).toEqual(['present · tú', 'present · yo']);
   });
   it('asks forms whose answer is often confused before forms never asked', () => {
     const tisch = omniNote({ Entry: 'der Tisch', Language: 'german', Gender: 'm', Plural: 'die Tische' });
     const { forms: f } = formsOf(tisch);
-    const keys = chooseForms(f, [], 2, seeded(), new Set(['der'])).map((x) => x.key);
+    const keys = chooseForms(f, [], DAY_START, 2, seeded(), new Set(['der'])).map((x) => x.key);
     expect(keys[0]).toBe('field:Gender');
   });
 });
 
 describe('weakForms', () => {
   it('owes two right answers per miss, and counts up while misses keep coming', () => {
-    expect([...weakForms([rec('a', false, at(1))])]).toEqual([['a', 2]]);
-    expect([...weakForms([rec('a', false, at(1)), rec('a', true, at(2))])]).toEqual([['a', 1]]);
-    expect([...weakForms([rec('a', false, at(1)), rec('a', false, at(2))])]).toEqual([['a', 4]]);
-    expect(weakForms([rec('a', false, at(1)), rec('a', true, at(2)), rec('a', true, at(3))]).size).toBe(0);
+    expect([...weakForms([rec('a', false, at(1))], DAY_START)]).toEqual([['a', 2]]);
+    expect([...weakForms([rec('a', false, at(1)), rec('a', true, at(2))], DAY_START)]).toEqual([['a', 1]]);
+    expect([...weakForms([rec('a', false, at(1)), rec('a', false, at(2))], DAY_START)]).toEqual([['a', 4]]);
+    expect(weakForms([rec('a', false, at(1)), rec('a', true, at(2)), rec('a', true, at(3))], DAY_START).size).toBe(0);
   });
   it('reads the history in time order whatever order it is given', () => {
-    expect(weakForms([rec('a', true, at(3)), rec('a', false, at(1)), rec('a', true, at(2))]).size).toBe(0);
+    expect(weakForms([rec('a', true, at(3)), rec('a', false, at(1)), rec('a', true, at(2))], DAY_START).size).toBe(0);
+  });
+
+  const t = (d: number, h: number, m = 0) => new Date(2026, 10, d, h, m).toISOString();
+  it('takes nothing off for a right answer straight after a miss the same study day', () => {
+    // The retry at the end of the drill, with the answer just seen.
+    expect([...weakForms([rec('a', false, t(11, 12)), rec('a', true, t(11, 12, 5))], DAY_START)]).toEqual([['a', 2]]);
+    // The right answer after it counts, the same day or later: two of them still clear the miss.
+    const retried = [rec('a', false, t(11, 12)), rec('a', true, t(11, 12, 5)), rec('a', true, t(11, 18))];
+    expect([...weakForms(retried, DAY_START)]).toEqual([['a', 1]]);
+    expect(weakForms([...retried, rec('a', true, t(12, 9))], DAY_START).size).toBe(0);
+  });
+  it('looks only at the same form for what came before', () => {
+    const history = [rec('a', false, t(11, 12)), rec('b', true, t(11, 12, 1)), rec('a', true, t(11, 12, 2))];
+    expect([...weakForms(history, DAY_START)]).toEqual([['a', 2]]);
+  });
+  it('takes the study day from the collection, not midnight', () => {
+    // 1 a.m. still belongs to the day before, so it's a same-day retry.
+    expect([...weakForms([rec('a', false, t(11, 23)), rec('a', true, t(12, 1))], DAY_START)]).toEqual([['a', 2]]);
+    // A miss at 3 a.m. and a right answer at 5 a.m. fall on two study days, unless the day starts at 6.
+    expect([...weakForms([rec('a', false, t(12, 3)), rec('a', true, t(12, 5))], DAY_START)]).toEqual([['a', 1]]);
+    expect([...weakForms([rec('a', false, t(12, 3)), rec('a', true, t(12, 5))], 6)]).toEqual([['a', 2]]);
+  });
+});
+
+describe('againPrompts', () => {
+  const note = esperar();
+  const prompts = formsOf(note).forms.map((f) => promptFor(note, f, [], seeded()));
+  it('moves each answer to another place among the same choices', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const again = againPrompts(prompts, seeded(seed));
+      again.forEach((p, i) => {
+        const before = prompts[i];
+        expect(p).not.toBe(before);
+        expect([...p.choices!].sort()).toEqual([...before.choices!].sort());
+        expect(p.choices!.indexOf(p.answers[0])).not.toBe(before.choices!.indexOf(before.answers[0]));
+        expect({ ...p, choices: undefined }).toEqual({ ...before, choices: undefined });
+      });
+    }
+  });
+  it('leaves a typed prompt as it is', () => {
+    const lone = omniNote({ Entry: 'czekać', Language: 'polish', AspectPartner: 'poczekać' });
+    const typed = promptFor(lone, formsOf(lone).forms[0], [], seeded());
+    expect(againPrompts([typed], seeded())).toEqual([typed]);
   });
 });
 
@@ -193,6 +247,15 @@ describe('promptFor', () => {
     expect(p.choices).toContain('esperamos');
     expect(p.choices!.filter((c) => c !== 'esperamos').every((c) => ['espero', 'esperas', 'espera'].includes(c))).toBe(true);
     expect(p).toMatchObject({ headword: 'esperar', meaning: 'to wait; to hope', label: 'nosotros', group: 'present' });
+  });
+  it("names the word's other forms, so a wrong answer can say which one it was", () => {
+    const note = esperar();
+    const p = promptFor(note, formsOf(note).forms.find((f) => f.key === 'present · nosotros')!, [], seeded());
+    expect(p.otherForms).toContainEqual({ text: 'espero', name: 'present · yo' });
+    expect(p.otherForms!.some((o) => o.text === 'esperamos')).toBe(false);
+    expect(formGiven('Espero', p)).toBe('present · yo');
+    expect(formGiven('esperamos', p)).toBeUndefined();
+    expect(formGiven('xyz', p)).toBeUndefined();
   });
   it('fills in from the same form of other words when the word has too few', () => {
     const tisch = { ...omniNote({ Entry: 'der Tisch', Language: 'german', Plural: 'die Tische' }), id: 'tisch' };
@@ -281,7 +344,7 @@ describe('pattern practice', () => {
     expect(patternOf(omniNote())).toBe('other');
   });
   it('asks only the chosen patterns and groups, and spreads the words out', () => {
-    const ps = patternPrompts(words, { patterns: ['-ar, regular'], groups: ['present'] }, [], 10, seeded());
+    const ps = patternPrompts(words, { patterns: ['-ar, regular'], groups: ['present'] }, [], DAY_START, 10, seeded());
     expect(ps).toHaveLength(6);
     expect(new Set(ps.map((p) => p.noteId))).toEqual(new Set(['esperar', 'hablar']));
     expect(ps.every((p) => p.group === 'present')).toBe(true);
@@ -291,8 +354,15 @@ describe('pattern practice', () => {
     }
   });
   it('puts forms still owed right answers first', () => {
-    const ps = patternPrompts(words, { patterns: ['irregular'], groups: ['present'] }, [rec('present · tú', false, at(9), 'tener')], 1, seeded());
+    const ps = patternPrompts(words, { patterns: ['irregular'], groups: ['present'] }, [rec('present · tú', false, at(9), 'tener')], DAY_START, 1, seeded());
     expect(ps.map((p) => p.key)).toEqual(['present · tú']);
+  });
+  it('then asks the form asked longest ago', () => {
+    const history = [rec('present · yo', true, at(9), 'tener'), rec('present · tú', true, at(2), 'tener')];
+    for (let seed = 1; seed <= 20; seed++) {
+      const ps = patternPrompts(words, { patterns: ['irregular'], groups: ['present'] }, history, DAY_START, 1, seeded(seed * 7919));
+      expect(ps.map((p) => p.key)).toEqual(['present · tú']);
+    }
   });
 });
 
@@ -311,7 +381,7 @@ describe('introductions', () => {
 describe('wordPrompts', () => {
   it("asks each word's forms in turn, up to the number per word", () => {
     const hablar = esperar({ Entry: 'hablar', Forms: 'present · yo: hablo<br>present · tú: hablas' }, 'hablar');
-    const ps = wordPrompts([esperar(), hablar], practicePool([esperar(), hablar]), [], 2, seeded());
+    const ps = wordPrompts([esperar(), hablar], practicePool([esperar(), hablar]), [], DAY_START, 2, seeded());
     expect(ps.map((p) => p.noteId)).toEqual(['esperar', 'hablar', 'esperar', 'hablar']);
   });
 });
@@ -335,7 +405,7 @@ describe('drillPrompts', () => {
   const hablar = esperar({ Entry: 'hablar', Forms: 'present · yo: hablo<br>present · tú: hablas', Context: 'Hablo poco.' }, 'hablar');
   const notes = [esperar(), hablar];
   const studied = (noteId: string) => ({ id: `${noteId}:forward`, noteId, kind: 'forward' as const, suspended: false, retired: false, sched: { ...newSchedState(NOW), state: 2 } });
-  const data = { notes, cards: [studied('esperar')], practice: [] };
+  const data = { notes, cards: [studied('esperar')], practice: [], dayStartsAtHour: DAY_START };
 
   it("asks the words named, up to the number per word", () => {
     const { prompts } = drillPrompts({ kind: 'words', noteIds: ['hablar', 'gone'], perWord: 6 }, data, seeded());
@@ -381,14 +451,14 @@ describe('grammar points in forms practice (docs/grammar.md)', () => {
 
   it("asks a practiced point's forms after the ones still owed, before the rest", () => {
     const practiced = (f: WordForm) => f.group === 'preterite';
-    expect(chooseForms(forms, [], 2, seeded(), new Set(), practiced).map((f) => f.group)).toEqual(['preterite', 'preterite']);
+    expect(chooseForms(forms, [], DAY_START, 2, seeded(), new Set(), practiced).map((f) => f.group)).toEqual(['preterite', 'preterite']);
     // A form still owed right answers comes first all the same.
-    const keys = chooseForms(forms, [rec('present · él', false, at(5))], 3, seeded(), new Set(), practiced).map((f) => f.key);
+    const keys = chooseForms(forms, [rec('present · él', false, at(5))], DAY_START, 3, seeded(), new Set(), practiced).map((f) => f.key);
     expect(keys).toEqual(['present · él', expect.stringMatching(/^preterite/), expect.stringMatching(/^preterite/)]);
   });
 
   it("asks a drill's practiced forms first, by the choices passed in, and not without them", () => {
-    const data = { notes: [esperar()], cards: [], practice: [] };
+    const data = { notes: [esperar()], cards: [], practice: [], dayStartsAtHour: DAY_START };
     const request = { kind: 'words' as const, noteIds: ['esperar'], perWord: 2 };
     const groups = (practicing?: Set<string>) => drillPrompts(request, { ...data, practicing }, seeded()).prompts.map((p) => p.key.split(' · ')[0]);
     expect(groups(preterite)).toEqual(['preterite', 'preterite']);

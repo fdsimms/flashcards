@@ -99,7 +99,9 @@ Franki's (Client, below).
   with the line that answers it (its words, English and audio). Three kinds, built when Done is
   tapped (`src/reader/check.ts`, pure and tested; `src/ui/ReaderCheck.tsx`): up to two about what
   happens, then one line to recognize by ear (two when there are none about what happens), then up to
-  two words (marked unknown first, then looked up, then the practice words). The questions about
+  two words (marked unknown first, then looked up, then the practice words). A line heard is offered
+  with the same speaker's other lines as the wrong choices, and the other speaker's only when there
+  aren't enough (13 November 2026), so in a dialogue the voice alone doesn't rule choices out. The questions about
   what happens are Claude's, in the text's language with an English toggle (kept in the reader's
   prefs), written once the text passes its checks in one call (`comprehension.py`) and kept on the
   text (`texts.questions`); the code keeps a question only if its line exists, its four choices
@@ -107,9 +109,17 @@ Franki's (Client, below).
   failed call leaves the text without them. Their cost is `questions` in `/api/costs`. The listening
   and word questions are built from the text's own lines, audio and glosses, so they cost nothing.
   The score (right of those answered, "I don't know" counting as wrong) is logged with the reading
-  (`check_right`, `check_asked`) and shown in Progress. **A poor score makes the next text easier**
-  (the owner's choice): under 60% right of at least three raises the coverage target a step
-  (`adapt_to_check`), unless the text was rated Too hard, which already did; a good score changes
+  (`check_right`, `check_asked`) and shown in Progress. **Only the questions about what happens and
+  by ear are logged** (13 November 2026, `loggedScore`): the word questions ask about words marked
+  unknown or looked up, which were off the list, so missing them is expected and two misses in a
+  small check made texts easier. They are still asked and marked, and the end view's "right on this
+  text" counts them; the app leaves them out of what it sends, so the server and its API are
+  unchanged (readings before this counted them). Since the server needs three answers, a text with
+  fewer than three questions that count (no questions about what happens, or one) can't move
+  difficulty, and the check's offer then doesn't say a low score makes the next text easier. **A poor score makes the next text easier**
+  (the owner's choice): under 60% right of at least three raises the coverage target a step from
+  the text's own level (`adapt_to_check`, through `after_reading`, as for a rating under Logging),
+  unless the text was rated Too hard, which already did; a good score changes
   nothing, as the rating is what makes texts harder. Nothing is graded or added to the deck. Not done:
   the check on a past text read again (its reading isn't logged), and questions for texts written
   before it.
@@ -219,6 +229,12 @@ Franki's (Client, below).
 - A note's tier comes from its weakest reviewed card: **mature** if the lowest interval is 21 days or
   more, **young** if reviewed but below that, **unreviewed** if no card has been reviewed
   (`server/reader/src/franki_reader/tiers.py`).
+- **A suspended card doesn't count** (13 November 2026, the owner's decision from a review of the
+  teaching). The owner's presets suspend leeches, so a suspended card is the word the learner keeps
+  failing: a note whose reviewed cards are all suspended is unreviewed, so it isn't known for
+  coverage and is never a stretch word, and a note with another unsuspended reviewed card is tiered
+  from that one. The cards' `queue` is read with their type and interval (`collection.py`, -1 is
+  suspended; `build_entries` leaves those cards out).
 - Mature and young both count as known for coverage. The prompt asks the model to favor mature words.
 - **Partial:** a word that only appears inside a longer deck entry (รับ inside รับอะไรดี). It counts as
   unknown for coverage, and its gloss can point at the entry it came from.
@@ -852,6 +868,14 @@ in the current language, with when one was last read to the end. Nothing else le
   stretch words (`server/reader/src/franki_reader/difficulty.py`). A text already waiting in a favorite's queue
   keeps the difficulty it was written at, so a rating shows up one text later; the owner chose that
   over discarding queued texts (19 October 2026). The Milestone 1 exit check reads the log.
+- **A rating steps from the level the rated text was written at** (13 November 2026, the owner's
+  decision from a review of the teaching; `after_reading`). Each text stores its target (`floor`)
+  and stretch word count (`stretch_count`, NULL for texts written before, whose rating steps the
+  stretch words from the current count as before). Too hard leaves the target at the higher of the
+  current one and a step above the text's, and the stretch words at the lower of the current count
+  and one below the text's; too easy is the mirror. Before this each rating stepped from the current
+  level, so three texts written ahead at 92% and all rated too hard moved the target three steps
+  before a text at the new level was read. A poor check steps from the text's level the same way.
 - A reading posted twice for the same text (a retried request) is counted once.
 - Each text also records the model that actually answered (a refusal fallback can change it), its
   tokens and its cost in dollars, dropped texts included, so the real cost per text can be read

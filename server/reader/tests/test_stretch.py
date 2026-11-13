@@ -1,6 +1,8 @@
 import random
 
-from franki_reader.lexicon import Entry
+from fake_anki import card, note
+
+from franki_reader.lexicon import Entry, build_entries
 from franki_reader.stretch import pick_stretch
 
 ENTRIES = [
@@ -42,3 +44,12 @@ def test_a_word_stops_coming_back_after_three_days() -> None:
 def test_a_practiced_word_that_has_matured_is_left_alone() -> None:
     picked = {e.text for e in pick_stretch(ENTRIES, 10, random.Random(1), {"ฉัน": 1})}
     assert "ฉัน" not in picked
+
+
+def test_a_suspended_leech_is_never_a_stretch_word() -> None:
+    entries = build_entries(
+        [note(1, "ยาก", "hard"), note(2, "ไป", "go")],
+        # Young, and practiced on an earlier day, but suspended as a leech (is:due leaves it out).
+        [card(1, 2, 5, suspended=True), card(2, 2, 5)],
+    )
+    assert [e.text for e in pick_stretch(entries, 3, random.Random(1), {"ยาก": 1})] == ["ไป"]

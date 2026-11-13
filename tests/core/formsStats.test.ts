@@ -12,6 +12,7 @@ const noun = (id: string, entry: string, gender: string, plural?: string): Note 
 });
 const at = (d: number, h = 12) => new Date(2026, 10, d, h).toISOString();
 const NOW = new Date(2026, 10, 12, 12);
+const DAY_START = 4;
 const rec = (noteId: string, key: string, correct: boolean, day: number, given?: string): PracticeRecord => ({
   noteId, key, correct, practicedAt: at(day), ...(given ? { given } : {}),
 });
@@ -20,11 +21,11 @@ const notes = [noun('a', 'ta córka', 'f', 'córki'), noun('b', 'ta kuzynka', 'f
 
 describe('practiceStats', () => {
   it('is empty before any practice', () => {
-    expect(practiceStats(DECK, notes, [], NOW)).toEqual({ answers: 0, right: 0, days: 1, weak: [], mixedUp: [], byGroup: [] });
+    expect(practiceStats(DECK, notes, [], NOW, DAY_START)).toEqual({ answers: 0, right: 0, days: 1, weak: [], mixedUp: [], byGroup: [] });
   });
 
   it('counts answers, right answers and the days since the first', () => {
-    const s = practiceStats(DECK, notes, [rec('a', 'field:Gender', true, 2), rec('a', 'field:Gender', false, 5, 'ten'), rec('c', 'field:Gender', true, 8)], NOW);
+    const s = practiceStats(DECK, notes, [rec('a', 'field:Gender', true, 2), rec('a', 'field:Gender', false, 5, 'ten'), rec('c', 'field:Gender', true, 8)], NOW, DAY_START);
     expect([s.answers, s.right, s.days]).toEqual([3, 2, 10]);
   });
 
@@ -34,15 +35,21 @@ describe('practiceStats', () => {
       rec('b', 'field:Gender', false, 4, 'ten'),
       rec('c', 'field:Gender', false, 1, 'to'), rec('c', 'field:Gender', true, 2), rec('c', 'field:Gender', true, 3),
     ];
-    const { weak } = practiceStats(DECK, notes, history, NOW);
+    const { weak } = practiceStats(DECK, notes, history, NOW, DAY_START);
     expect(weak.map((w) => w.name)).toEqual(['córka · gender', 'kuzynka · gender']);
     expect(weak[0]).toMatchObject({ answer: 'ta', attempts: 3, misses: 2, rightSince: 1, owed: 3 });
     expect(weak[1]).toMatchObject({ attempts: 1, misses: 1, rightSince: 0, owed: 2 });
   });
 
+  it("doesn't take a same-day retry off what a form owes", () => {
+    const retry: PracticeRecord = { noteId: 'a', key: 'field:Gender', correct: true, practicedAt: new Date(2026, 10, 5, 13).toISOString() };
+    const { weak } = practiceStats(DECK, notes, [rec('a', 'field:Gender', false, 5, 'ten'), retry], NOW, DAY_START);
+    expect(weak[0]).toMatchObject({ attempts: 2, misses: 1, rightSince: 1, owed: 2 });
+  });
+
   it('keeps a word that has a form in a group on its own and names the group when it differs from the label', () => {
     const verb: Note = { ...omniNote({ Entry: 'esperar', Language: 'spanish', Forms: 'present · yo: espero' }), id: 'v', deck: DECK };
-    const { weak } = practiceStats(DECK, [verb], [rec('v', 'present · yo', false, 1, 'esperas')], NOW);
+    const { weak } = practiceStats(DECK, [verb], [rec('v', 'present · yo', false, 1, 'esperas')], NOW, DAY_START);
     expect(weak[0].name).toBe('esperar · yo · present');
   });
 
@@ -51,7 +58,7 @@ describe('practiceStats', () => {
       rec('a', 'field:Gender', false, 1, 'ten'), rec('b', 'field:Gender', false, 2, 'ten'), rec('d', 'field:Gender', false, 3, 'ten'),
       rec('c', 'field:Gender', true, 3), rec('a', 'field:Plural', true, 4),
     ];
-    const s = practiceStats(DECK, notes, history, NOW);
+    const s = practiceStats(DECK, notes, history, NOW, DAY_START);
     expect(s.mixedUp).toMatchObject([{ expected: 'ta', given: 'ten', misses: 3, words: 3 }]);
     expect(s.byGroup).toEqual([{ group: 'gender', answers: 4, right: 1 }, { group: 'plural', answers: 1, right: 1 }]);
   });
@@ -59,7 +66,7 @@ describe('practiceStats', () => {
   it('leaves out words in other decks and answers for notes that are gone', () => {
     const other: Note = { ...noun('z', 'ten kot', 'm'), deck: 'Other' };
     const history = [rec('z', 'field:Gender', false, 1, 'ta'), rec('gone', 'field:Gender', false, 1), rec('c', 'field:Gender', true, 1)];
-    const s = practiceStats(DECK, [...notes, other], history, NOW);
+    const s = practiceStats(DECK, [...notes, other], history, NOW, DAY_START);
     expect([s.answers, s.right]).toEqual([1, 1]);
   });
 });

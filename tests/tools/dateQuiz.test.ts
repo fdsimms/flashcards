@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { checkTyped } from '../../src/tools/answer';
 import { sayJapaneseDate } from '../../src/tools/japanese/date';
+import { sayPolishDate } from '../../src/tools/polish/date';
 import { sayThaiDate } from '../../src/tools/thai/date';
 import { acceptedForms, addDays, dateOptions, DATE_MODES, nextQuizDraw, quizCalendarStart, quizDate, sameDate } from '../../src/tools/dateQuiz';
 
@@ -20,18 +21,41 @@ describe('the ways to answer a date', () => {
 });
 
 describe('the accepted forms of a date', () => {
-  it('starts with the usual one and ends with the digits as written, with no repeats', () => {
-    const forms = acceptedForms(sayThaiDate({ year: 2044, month: 6, day: 27 }, { weekday: true, year: true }));
+  it('starts with the usual one, has no repeats, and never takes the digits as written', () => {
+    const saying = sayThaiDate({ year: 2044, month: 6, day: 27 }, { weekday: true, year: true });
+    const forms = acceptedForms(saying);
     expect(forms[0].text).toBe('วันจันทร์ที่ยี่สิบเจ็ด มิถุนายน พ.ศ. สองพันห้าร้อยแปดสิบเจ็ด');
-    expect(forms.at(-1)?.text).toBe('วันจันทร์ที่ 27 มิถุนายน พ.ศ. 2587');
     expect(new Set(forms.map((f) => f.text)).size).toBe(forms.length);
+    expect(forms.some((f) => /\d/.test(f.text))).toBe(false);
+    expect(checkTyped(saying.written.text, forms).verdict).toBe('different');
   });
 
-  it('accepts a Japanese date typed in kana, its reading', () => {
+  it('checks the ordinal: the day in digits with the month in words is not right', () => {
+    const forms = acceptedForms(sayPolishDate({ year: 2026, month: 11, day: 12 }, { weekday: false, year: false }));
+    expect(checkTyped('dwunasty listopada', forms).verdict).toBe('exact');
+    expect(checkTyped('dwunastego listopada', forms).verdict).toBe('exact');
+    expect(checkTyped('12 listopada', forms).verdict).toBe('different');
+  });
+
+  it('takes a Japanese date only in kana, its reading, noting the kanji it is written in', () => {
     const forms = acceptedForms(sayJapaneseDate({ year: 2026, month: 4, day: 1 }, { weekday: false, year: false }));
-    expect(forms.map((f) => f.text)).toEqual(['四月一日', '4月1日', 'しがつついたち']);
+    expect(forms).toEqual([{ text: 'しがつついたち', note: '四月一日' }]);
     expect(checkTyped('しがつ ついたち', forms).verdict).toBe('exact');
     expect(checkTyped('しがつ いちにち', forms).verdict).toBe('different');
+    // What いちにち becomes through the IME, and the digits: neither checks the reading.
+    expect(checkTyped('四月一日', forms).verdict).toBe('different');
+    expect(checkTyped('4月1日', forms).verdict).toBe('different');
+  });
+
+  it("takes each of Japanese's other ways in kana too, with its note", () => {
+    const forms = acceptedForms(sayJapaneseDate({ year: 2026, month: 11, day: 13 }, { weekday: true, year: true }));
+    expect(forms.map((f) => f.text)).toEqual([
+      'にせんにじゅうろくねんじゅういちがつじゅうさんにちきんようび',
+      'にせんにじゅうろくねんじゅういちがつじゅうさんにちきんよう',
+      'れいわはちねんじゅういちがつじゅうさんにちきんようび',
+    ]);
+    expect(forms[2].note).toBe('令和八年十一月十三日金曜日 · The year of the era (令和)');
+    expect(checkTyped('2026年11月13日（金）', forms).verdict).toBe('different');
   });
 });
 
