@@ -27,6 +27,9 @@ export type Word = {
   stretch: boolean;
   deck: boolean; // a deck word, as against one known for being common (every language but Thai)
   grammar: string | null; // the grammar point this word uses, if the text marks it (TextGrammar)
+  // When it's spoken in its line's audio, [start, end] in milliseconds (reader/spoken.ts). Absent
+  // for spaces and punctuation, a line recorded without timings, and a server older than them.
+  time?: [number, number];
 };
 
 // Practice: used at least twice in each text. Avoid ("Don't know it" on screen): kept out.

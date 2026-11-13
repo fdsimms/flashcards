@@ -26,6 +26,7 @@ import { WordView } from './ReadWord';
 import { ReaderKey } from './ReaderKey';
 import { WordActionGroup, WordActionRow, WordPlayButton } from './ReadWordActions';
 import { Speaker, speakerSize } from './ReadSpeaker';
+import { useSpokenWords } from './useSpokenWords';
 import { Button, Card, Chip, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { lift, MIN_TAP, radius, space, type, useTheme } from './theme';
 
@@ -165,6 +166,13 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const [rate, setRate] = useState(prefs().rate);
   const [silentLine, setSilentLine] = useState<number | null>(null);
   const [repeat, setRepeat] = useState(false);
+  // The words being spoken in the line playing, lit as the voice reaches them (useSpokenWords.ts),
+  // unless that's turned off in Read & Listen's settings. Read from prefs on each render rather than
+  // kept in state, so a change made there shows here without reopening the text.
+  // Only the line sounding now (`shaded`), so a paused or finished line doesn't keep a word lit.
+  const playingWords = text && shaded !== null && prefs().followWords ? text.lines[shaded]?.words ?? null : null;
+  const spokenNow = useSpokenWords(player, playingWords, status.playing);
+  const spoken = new Set(playingWords ? spokenNow.map((i) => playingWords[i]) : []);
 
   // A story's paragraphs (`marked` is null for a dialogue, or a story written before paragraphs):
   // read as continuous text with no buttons of their own, while the Paragraphs switch is on.
@@ -671,6 +679,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                                 hidden={hiddenMarks}
                                 {...phraseLook(range.start + k, word, l.words)}
                                 playing={shaded === range.start + k}
+                                spoken={spoken.has(word)}
                                 onPress={tap}
                               />
                             ))}
@@ -729,6 +738,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                             selected={tapped?.word === word}
                             hidden={hiddenMarks}
                             {...phraseLook(i, word, line.words)}
+                            spoken={spoken.has(word)}
                             onPress={tap}
                           />
                         ))}

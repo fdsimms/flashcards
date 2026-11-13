@@ -18,6 +18,7 @@ from franki_reader.lexicon import Entry, lexicon_from
 from franki_reader.reader import render
 from franki_reader.spaced import SpacedLexicon, common_words
 from franki_reader.store import StoredText
+from franki_reader.tts import Spoken
 
 ENTRIES = [
     Entry(1, "el blindaje", "armor plating / shielding", "mature"),
@@ -269,9 +270,9 @@ def test_spanish_lines_are_spoken_in_a_mexican_voice(tmp_path: Any) -> None:
 
     spoken: list[tuple[str, str]] = []
 
-    async def voice(text: str, name: str) -> bytes:
+    async def voice(text: str, name: str) -> Spoken:
         spoken.append((text, name))
-        return b"ID3"
+        return Spoken(b"ID3")
 
     e, _ = spanish_engine()
     e.synthesize, e.audio = voice, AudioCache(tmp_path)

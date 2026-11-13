@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ScrollView, Text } from 'react-native';
 import { ApiError, createApi, readerAddress, type Language, type Speakers } from '../reader/api';
 import { LANGUAGE_ORDER, flaggedName } from '../reader/languages';
-import { savePassphrase } from '../reader/storage';
+import { prefs, savePassphrase, savePrefs } from '../reader/storage';
 import { voicesSummary } from '../reader/voiceSlots';
 import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
 import { space, type, useTheme } from './theme';
@@ -32,6 +32,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [followWords, setFollowWords] = useState(prefs().followWords);
   const address = syncServer ? readerAddress(syncServer) : null;
 
   const signIn = async () => {
@@ -109,6 +110,21 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
                 />
               ))}
             </Group>
+            <SectionTitle>Listening</SectionTitle>
+            <Group>
+              <SwitchRow
+                first
+                label="Highlight each word as it's read"
+                value={followWords}
+                onValueChange={(on) => {
+                  savePrefs({ followWords: on });
+                  setFollowWords(on);
+                }}
+              />
+            </Group>
+            <Help>
+              While a line plays, the word being read aloud is shaded. Lines recorded before this was added play without it.
+            </Help>
             <SectionTitle>dundundun</SectionTitle>
             <Group>
               <SwitchRow first label="Share today's counts" value={shareCounts} onValueChange={onShareCounts} />

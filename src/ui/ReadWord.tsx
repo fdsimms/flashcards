@@ -44,7 +44,7 @@ function PhraseOutline({ part }: { part: PhrasePart }) {
 
 export type ReadTextStyle = { fontSize: number; lineHeight: number; font: ReadFont };
 
-export function WordView({ word, grammar, textStyle, flagged, highlighted, named, selected, hidden = [], phrasePart = null, phraseStart = false, dimmed = false, playing = false, onPress }: {
+export function WordView({ word, grammar, textStyle, flagged, highlighted, named, selected, hidden = [], phrasePart = null, phraseStart = false, dimmed = false, playing = false, spoken = false, onPress }: {
   word: Word;
   grammar: TextGrammar | null;
   textStyle: ReadTextStyle;
@@ -63,6 +63,8 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
   dimmed?: boolean;
   /** In the line being played, in a story read as continuous text (a line row is shaded as a whole). */
   playing?: boolean;
+  /** Being spoken now, as the line plays (useSpokenWords). */
+  spoken?: boolean;
   onPress: (word: Word, x: number, y: number) => void;
 }) {
   const c = useTheme();
@@ -73,9 +75,13 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
     const piece = word.text.trim()
       ? <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: c.text }}>{word.text}</Text>
       : <View style={{ width: textStyle.fontSize * 0.3 }} />;
-    if (!phrasePart && !dimmed) return piece;
+    if (!phrasePart && !dimmed && !playing) return piece;
     return (
-      <View style={[{ opacity: dimmed ? 0.35 : 1 }, phrasePart ? { backgroundColor: c.accentFill, height: textStyle.lineHeight + 4.5, justifyContent: 'center' } : null]}>
+      <View style={[
+        { opacity: dimmed ? 0.35 : 1 },
+        phrasePart ? { backgroundColor: c.accentFill, height: textStyle.lineHeight + 4.5, justifyContent: 'center' }
+          : playing ? { backgroundColor: c.fill, height: textStyle.lineHeight + 4.5, justifyContent: 'center' } : null,
+      ]}>
         {piece}
         {phrasePart ? <PhraseOutline part={phrasePart} /> : null}
       </View>
@@ -88,7 +94,8 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
   // A fill behind the glyphs, not the whole box: the box is as tall as Thai's stacked marks need,
   // which is far taller than the letters, so a full-height fill read as a block.
   const bandInset = Math.max(0, (textStyle.lineHeight - textStyle.fontSize * 1.1) / 2);
-  const band = !ringed && !phrasePart && (highlighted || named) ? (highlighted ? c.highlight : c.nameFill) : null;
+  // The word being spoken takes the band over a highlight or a name, as it moves on in a moment.
+  const band = ringed || phrasePart ? null : spoken ? c.spoken : highlighted ? c.highlight : named ? c.nameFill : null;
   return (
     <Pressable
       onPress={(e) => onPress(word, e.nativeEvent.pageX, e.nativeEvent.pageY)}
@@ -100,7 +107,8 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
         // Thai has no spaces between words, so tappable words sit flush and only real spaces in the
         // text show as gaps. The selection ring is an overlay inside the word's own box: a border
         // cancelled by a negative margin pushed each box past its slot and overlapped its neighbors.
-        borderRadius: radius.s - 2, paddingVertical: 1.5, opacity: dimmed ? 0.35 : 1,
+        // A playing line is one band, so its words are square and flush; a phrase or a ring inside it keeps its own corners.
+        borderRadius: playing && !phrasePart && !ringed ? 0 : radius.s - 2, paddingVertical: 1.5, opacity: dimmed ? 0.35 : 1,
         backgroundColor: ringed || phrasePart ? c.accentFill : playing ? c.fill : undefined,
         ...(phrasePart && !ringed ? phraseCorners(phrasePart) : null),
       }}
