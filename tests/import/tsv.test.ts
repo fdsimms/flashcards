@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { omnilanguageFieldNames } from '../../src/import/models';
-import { guessSeparator, importTsv, parseDelimited } from '../../src/import/tsv';
+import { deckFromColumn, guessSeparator, importTsv, parseDelimited } from '../../src/import/tsv';
 import type { NoteType } from '../../src/core/types';
 import { NOW } from '../support/fixtures';
 
@@ -102,5 +102,16 @@ describe('TSV import', () => {
     const res = importTsv('#separator:tab\n#notetype:Cloze\nno clozes here\t\n', { noteTypes, now: NOW });
     expect(res.cards).toEqual([]);
     expect(res.warnings).toEqual([`Row 1: "no clozes here" makes no cards: every card type's front would be blank. Fill in the field its front shows.`]);
+  });
+
+  it("reads a number in the deck column as a deck's id, as Anki does, and skips a row whose deck it can't find", () => {
+    const decks = [{ id: 1794536001046, name: 'Polski::Odmiana' }, { name: '12345' }];
+    expect(deckFromColumn('1794536001046', decks)).toBe('Polski::Odmiana');
+    expect(deckFromColumn('12345', decks)).toBe('12345'); // not an id, but a deck's name
+    expect(deckFromColumn('999', decks)).toBeNull();
+    expect(deckFromColumn('Brand New', decks)).toBe('Brand New');
+    const res = importTsv('#separator:Comma\n#notetype:Basic\n#deck column:3\nQ1,A1,1794536001046\nQ2,A2,999\n', { noteTypes, now: NOW, decks });
+    expect(res.notes.map((n) => n.deck)).toEqual(['Polski::Odmiana']);
+    expect(res.warnings).toEqual([expect.stringMatching(/^Row 2: there's no deck with the id 999/)]);
   });
 });

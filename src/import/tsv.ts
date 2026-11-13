@@ -79,6 +79,18 @@ export function plainToHtml(text: string): string {
   return text.replace(/[&<>"']/g, (c) => escapes[c]).replace(/\r?\n/g, '<br>');
 }
 
+/**
+ * The deck a deck column's value names, as Anki reads it: a number is a deck's id when one has it,
+ * else the name of a deck there already; with neither, null (Anki refuses the row). Anything else
+ * is a deck's name, made if it's new. Checked against the anki package (`import_csv`).
+ */
+export function deckFromColumn(value: string, decks: { id?: number; name: string }[]): string | null {
+  if (!/^\d+$/.test(value)) return value;
+  const byId = decks.find((d) => d.id === Number(value));
+  if (byId) return byId.name;
+  return decks.some((d) => d.name === value) ? value : null;
+}
+
 /** A 1-based "#... column:" number as a 0-based index, or -1 without one. */
 function columnIndex(value: string | undefined): number {
   const n = value === undefined ? NaN : parseInt(value.trim(), 10);
@@ -94,7 +106,11 @@ function columnIndex(value: string | undefined): number {
  */
 export function importTsv(
   text: string,
-  opts: { fallbackDeck?: string; now?: Date; noteTypes?: Map<string, NoteType> } = {},
+  opts: {
+    fallbackDeck?: string; now?: Date; noteTypes?: Map<string, NoteType>;
+    /** The decks there already, Anki's with their ids: a number in the deck column can name one by id. */
+    decks?: { id?: number; name: string }[];
+  } = {},
 ): ImportResult {
   const warnings: string[] = [];
   const headers: Record<string, string> = {};
@@ -165,7 +181,12 @@ export function importTsv(
     }
     const rowTags = tagsCol >= 0 && row[tagsCol] ? row[tagsCol].split(/\s+/).filter(Boolean) : [];
     const tags = [...new Set([...fileTags, ...rowTags])];
-    const deck = deckCol >= 0 && row[deckCol] ? row[deckCol] : defaultDeck;
+    const deckCell = deckCol >= 0 ? row[deckCol]?.trim() : '';
+    const deck = deckCell ? deckFromColumn(deckCell, opts.decks ?? []) : defaultDeck;
+    if (deck === null) {
+      warnings.push(`Row ${idx + 1}: there's no deck with the id ${deckCell}, so the row was skipped. In Anki, export with deck names, or import your collection first.`);
+      return;
+    }
     const guid = guidCol >= 0 && row[guidCol] ? row[guidCol] : undefined;
     const entry = (fields.Entry ?? Object.values(fields)[0] ?? '').trim();
     if (!entry) { warnings.push(`Row ${idx + 1}: empty first field, skipped`); return; }
