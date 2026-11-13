@@ -614,14 +614,15 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
               </Card>
             ) : null}
             {text.roles.A || text.roles.B ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.l }}>
+              <Card style={{ padding: space.m, gap: space.s }}>
+                <Text style={{ ...type.footnote, color: c.textSecondary }}>In this text</Text>
                 {(['A', 'B'] as const).map((who) => text.roles[who] ? (
-                  <View key={who} style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                  <View key={who} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
                     <Speaker text={text} who={who} size={speakerSize(text, who, true)} />
-                    <Text style={{ ...type.subhead, color: c.textSecondary }}>{text.roles[who]}</Text>
+                    <Text style={{ ...type.body, color: c.text, flexShrink: 1 }}>{text.roles[who]}</Text>
                   </View>
                 ) : null)}
-              </View>
+              </Card>
             ) : null}
             {source.kind === 'past' && !listenOnly && source.text.rating === 'about_right' && hasAudio ? (
               <ToggleRow label="You rated this about right">
