@@ -164,6 +164,14 @@ describe('deckRows', () => {
       ['Languages::Thai', 0, 2, 2],
     ]);
   });
+  it('counts every unstudied, unsuspended card, whatever the daily limit lets through', () => {
+    const cards = [...newCards(3), ...reviewCards(2, 10), { ...newCards(1)[0], id: 'sus', noteId: 'sus', suspended: true }];
+    const rows = deckRows(input({ 'Languages::Thai': cards }));
+    expect(rows.map((r) => [r.deck, r.unstudied])).toEqual([
+      ['Languages', 3],
+      ['Languages::Thai', 3],
+    ]);
+  });
   it('lists a deck with no cards when asked to, in its place among the rest', () => {
     const rows = deckRows(input({ 'Languages::Thai': newCards(2) }), ['Languages::Polski', 'Empty']);
     expect(rows.map((r) => [r.deck, r.due, r.fresh, r.total])).toEqual([
@@ -301,7 +309,7 @@ describe('inheritedSetting', () => {
 });
 
 describe('the next deck to study', () => {
-  const row = (deck: string, due: number, fresh = 0) => ({ deck, name: deck.split('::').pop()!, depth: deck.split('::').length - 1, due, fresh, total: due + fresh });
+  const row = (deck: string, due: number, fresh = 0) => ({ deck, name: deck.split('::').pop()!, depth: deck.split('::').length - 1, due, fresh, total: due + fresh, unstudied: fresh });
   const rows = [row('A', 3), row('A::B', 3), row('C', 0), row('D', 0, 2), row('D::E', 0, 2), row('F', 4)];
 
   it('skips the deck\'s own subdecks and decks with nothing to study', () => {
@@ -323,7 +331,7 @@ describe('the next deck to study', () => {
 });
 
 describe('the earlier deck to study', () => {
-  const row = (deck: string, due: number, fresh = 0) => ({ deck, name: deck.split('::').pop()!, depth: deck.split('::').length - 1, due, fresh, total: due + fresh });
+  const row = (deck: string, due: number, fresh = 0) => ({ deck, name: deck.split('::').pop()!, depth: deck.split('::').length - 1, due, fresh, total: due + fresh, unstudied: fresh });
   const rows = [row('A', 0), row('B', 2), row('B::C', 2), row('D', 0, 1), row('E', 0)];
 
   it('is the first deck from the top with something to study', () => {
