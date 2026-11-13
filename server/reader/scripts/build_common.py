@@ -10,10 +10,14 @@ settles spelling variants (できる and 出来る), and each family is written 
 dictionary form. wordfreq's Japanese forms are MeCab's pieces (し, なっ, まし), so a verb's
 conjugated stems count toward it too.
 
+Thai is the exception: wordfreq has no Thai, so its list is ranked from PyThaiNLP's copy of the Thai
+National Corpus word counts (build_thai), words as the corpus segments them. It only ranks words
+for the reader's popup; Thai has no inflection to group and no common-words setting.
+
 Run with the simplemma and Sudachi the server runs (pyproject.toml) and wordfreq 3.1.1, which is
 outside the server's own dependencies:
 
-    uv run --with wordfreq==3.1.1 python scripts/build_common.py de fr ru el pl nb ja
+    uv run --with wordfreq==3.1.1 python scripts/build_common.py de fr ru el pl nb ja th
 
 Rebuild every list after upgrading simplemma, and Japanese's after upgrading Sudachi or its
 dictionary, so the lemmas here match the ones they give at runtime.
@@ -39,8 +43,13 @@ NAMES = {
     "pl": "Polish",
     "nb": "Norwegian (Bokmål)",
     "ja": "Japanese",
+    "th": "Thai",
 }
 _LATIN = re.compile(r"[A-Za-z]")
+# A Thai word: letters, vowels and tone marks only (no digits, ๆ, or the corpus's Latin and noise),
+# and no letter three times running (งงงงง).
+_THAI_WORD = re.compile(r"[\u0e01-\u0e39\u0e40-\u0e4e]+")
+_REPEATED = re.compile(r"(.)\1\1")
 
 
 def build_japanese() -> list[str]:
@@ -63,9 +72,25 @@ def build_japanese() -> list[str]:
     return [max(shown[family], key=lambda f: shown[family][f]) for family in ranked]
 
 
+def build_thai() -> list[str]:
+    from pythainlp.corpus import tnc
+
+    counts = [
+        (word, count)
+        for word, count in tnc.word_freqs()
+        if _THAI_WORD.fullmatch(word) and not _REPEATED.search(word)
+    ]
+    # Ties are common in the tail (122 is where the top 10,000 ends), so order them by word to
+    # make a rebuild give the same file.
+    counts.sort(key=lambda item: (-item[1], item[0]))
+    return [word for word, _ in counts[:KEEP]]
+
+
 def build(code: str) -> list[str]:
     if code == "ja":
         return build_japanese()
+    if code == "th":
+        return build_thai()
     totals: dict[str, float] = {}
     for form in wordfreq.top_n_list(code, FORMS):
         if not any(ch.isalpha() for ch in form):
@@ -79,6 +104,19 @@ def build(code: str) -> list[str]:
 
 
 def header(code: str) -> str:
+    if code == "th":
+        return (
+            f"# The {KEEP:,} most common Thai words, most common first, for showing how common a word"
+            " is in the reader.\n"
+            "# Built by scripts/build_common.py from the word counts of the Thai National Corpus as"
+            " PyThaiNLP\n"
+            f"# {version('pythainlp')} ships them (pythainlp.corpus.tnc.word_freqs()), words as the"
+            " corpus segments them.\n"
+            "# The corpus is mostly written Thai (news, books), so everyday spoken words rank lower"
+            " than in speech.\n"
+            "# Thai counts only its deck as known (architecture.md, Languages): nothing here makes"
+            " a word known.\n"
+        )
     wordfreq_version, simplemma_version = version("wordfreq"), version("simplemma")
     if code == "ja":
         sudachi = (

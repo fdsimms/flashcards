@@ -32,6 +32,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "stretch": True,
         "deck": True,
         "wanikani": False,
+        "rank": None,
         "grammar": None,
     }
     assert words[4] == {
@@ -43,6 +44,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "stretch": False,
         "deck": False,
         "wanikani": False,
+        "rank": None,
         "grammar": None,
     }
     assert out["lines"][0]["english"] == "I'd like mango sticky rice."
@@ -84,6 +86,7 @@ def test_a_word_off_the_list_takes_the_models_gloss() -> None:
         "stretch": False,
         "deck": False,  # unreviewed, so not counted as a deck word
         "wanikani": False,
+        "rank": 4787,
         "grammar": None,
     }
 

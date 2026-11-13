@@ -6,6 +6,7 @@ from typing import Any
 
 from franki_reader import grammar
 from franki_reader.coverage import Checker, is_word, parse_line, segment_line
+from franki_reader.frequency import rank_of
 from franki_reader.japanese import JapaneseLexicon
 from franki_reader.spaced import fold, lemma
 from franki_reader.store import StoredText
@@ -94,7 +95,7 @@ def render(
 
     def render_words(source: str, marked: dict[int, str]) -> list[dict[str, Any]]:
         at = 0
-        words = []
+        words: list[dict[str, Any]] = []
         for piece, is_name in segment_line(source, lexicon):
             if not is_word(piece):
                 words.append(
@@ -107,6 +108,7 @@ def render(
                         "stretch": False,
                         "deck": False,
                         "wanikani": False,
+                        "rank": None,
                         "grammar": None,
                     }
                 )
@@ -126,6 +128,8 @@ def render(
                     # A deck word, as against one known for being common (every language but Thai).
                     "deck": entry is not None,
                     "wanikani": not is_name and from_wanikani(piece, lexicon),
+                    # Its place among the language's most common words; None past the list's end.
+                    "rank": None if is_name else rank_of(piece, lexicon),
                     "grammar": point,
                 }
             )
