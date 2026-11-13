@@ -89,6 +89,10 @@ export type PhraseExplanation = { meaning: string; points: ExplainPoint[] };
 // A grammar point found in an explained line, with the owner's choice as it stands (docs/grammar.md, step 3).
 export type LineGrammar = { id: string; name: string; note: string; state: GrammarState };
 
+// One thing the reader can pick to happen in a story's next episode: written like a line (its
+// words come segmented), with its English beside it.
+export type TextChoice = { english: string; words: Word[] };
+
 export type ReaderText = {
   id: number;
   topicId: number;
@@ -110,6 +114,10 @@ export type ReaderText = {
   liked?: boolean;
   reason?: ShelfReason;
   episode?: number;
+  // A story episode's options for what happens next, and the index of the one picked (null until
+  // one is). Missing from a server older than story choices, and empty for any other text.
+  choices?: TextChoice[];
+  chosen?: number | null;
 };
 
 // Why a text is on the shelf: written around words due today, on a liked theme, an idea not
@@ -332,6 +340,10 @@ export function createApi(
     text: (textId: number) => call<ReaderText>('GET', `/api/texts/${textId}`),
     logReading: (textId: number, log: ReadingLog) =>
       call<void>('POST', `/api/texts/${textId}/reading`, log),
+    // The option picked at the end of a story episode (an index into its choices). The server
+    // writes the next episode from it once this one is logged as read, so it's sent when tapped.
+    chooseNext: (textId: number, choice: number) =>
+      call<void>('POST', `/api/texts/${textId}/choice`, { choice }),
     // Azure's voices in a language (any code: th, pl, es-MX), every region included.
     azureVoices: async (language: string) =>
       (await call<{ voices: AzureVoice[] }>('GET', `/api/voices?language=${encodeURIComponent(language)}`)).voices,

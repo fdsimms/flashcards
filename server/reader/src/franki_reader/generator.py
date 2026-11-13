@@ -97,6 +97,22 @@ class StoryContext:
     title: str = ""  # the story's name, from the first episode on
     cast: str = ""  # its characters and setting, from the first episode
     recaps: tuple[str, ...] = ()  # one sentence for each earlier episode, oldest first
+    # The English of what the reader chose at the end of the last episode, if they chose.
+    chosen: str = ""
+
+
+@dataclass(frozen=True)
+class Choice:
+    """One thing the reader can pick to happen in a story's next episode. Written and checked like
+    a line: `|` between words, counted in the text's coverage."""
+
+    text: str
+    english: str
+
+
+# How many choices an episode ends with, at least and at most. Fewer than the least is no choice.
+MIN_CHOICES = 2
+MAX_CHOICES = 3
 
 
 @dataclass(frozen=True)
@@ -172,6 +188,8 @@ class Generated:
     recap: str = ""
     series: str = ""
     cast: str = ""
+    # What the reader may pick to happen next, for a story episode that ends on a choice.
+    choices: tuple[Choice, ...] = ()
 
 
 DRAFT_SCHEMA: dict[str, Any] = {
@@ -234,6 +252,15 @@ DRAFT_SCHEMA: dict[str, Any] = {
         "recap": {"type": "string"},
         "series": {"type": "string"},
         "cast": {"type": "string"},
+        "choices": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"text": {"type": "string"}, "english": {"type": "string"}},
+                "required": ["text", "english"],
+                "additionalProperties": False,
+            },
+        },
     },
     "required": ["title", "roles", "genders", "characters", "lines", "glosses"],
     "additionalProperties": False,
@@ -442,7 +469,20 @@ def request_message(request: TextRequest) -> str:
 STORY_RECAPS = 12
 
 
+_CHOICES_ASK = (
+    f'In "choices", end the episode on a decision: give {MIN_CHOICES} or {MAX_CHOICES} short '
+    "options for what happens next, each one line of the story's language written like the text "
+    '(| between words, only words the learner knows) with its English in "english". Make the '
+    "options lead to clearly different next episodes, and gloss any word in them that isn't on "
+    "the list, as for the lines."
+)
+
+
 def _story_part(story: StoryContext) -> str:
+    return _story_intro(story) + " " + _CHOICES_ASK
+
+
+def _story_intro(story: StoryContext) -> str:
     if story.episode == 1:
         about = f"It's about: {story.about}" if story.about else "Choose what it's about yourself."
         return (
@@ -455,10 +495,17 @@ def _story_part(story: StoryContext) -> str:
         )
     recent = story.recaps[-STORY_RECAPS:]
     so_far = "\n".join(f"- {r}" for r in recent) if recent else "- (no summary)"
+    picked = (
+        f'The reader chose what happens next: "{story.chosen}". Start this episode from that '
+        "choice.\n"
+        if story.chosen
+        else ""
+    )
     return (
         f'This is episode {story.episode} of an ongoing story, "{story.title}". Keep the same '
         "characters and setting, and pick up where the last episode ended; something new happens "
         "in this one.\n"
+        f"{picked}"
         f"Characters and setting: {story.cast or 'as in the earlier episodes'}\n"
         f"The story so far, one sentence an episode:\n{so_far}\n"
         'In "recap", say in one English sentence what happens in this episode, naming the '
@@ -642,12 +689,15 @@ def _assess(
         recap, series, cast_ = (
             str(draft.get(k) or "").strip() for k in ("recap", "series", "cast")
         )
+        choices = _choices(draft, request)
     except (KeyError, TypeError) as e:
         raise GenerationFailed(f"The draft is missing a field: {e}") from e
     if not lines:
         raise GenerationFailed("The draft has no lines")
 
-    coverage = check([ln.text for ln in lines], lexicon)
+    # The choices are read like lines, so a word outside the deck in one counts against the floor
+    # and is named in the revision message like any other.
+    coverage = check([ln.text for ln in lines] + [c.text for c in choices], lexicon)
     used, problems = _stretch_used(coverage, request, lexicon)
     if request.form == "story":
         genders = {}  # a story has only its narrator
@@ -690,8 +740,22 @@ def _assess(
         recap=recap,
         series=series,
         cast=cast_,
+        choices=choices,
     )
     return generated, problems
+
+
+def _choices(draft: dict[str, Any], request: TextRequest) -> tuple[Choice, ...]:
+    """The choices a story episode ends on. Only a story episode is asked for them, and fewer than
+    `MIN_CHOICES` is no choice, so the episode is kept and the story carries on by itself."""
+    if request.story is None:
+        return ()
+    found = [
+        Choice(str(c["text"]).strip(), str(c["english"]).strip())
+        for c in draft.get("choices") or []
+        if str(c["text"]).strip() and str(c["english"]).strip()
+    ]
+    return tuple(found[:MAX_CHOICES]) if len(found) >= MIN_CHOICES else ()
 
 
 MAX_NAMES = 4

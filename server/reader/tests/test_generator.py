@@ -415,6 +415,60 @@ def test_a_story_episode_asks_to_carry_the_story_on() -> None:
     assert "Noi sells noodles." in later and "- One.\n- Two." in later
 
 
+def _episode_draft(*choices: tuple[str, str]) -> dict[str, Any]:
+    return dict(GOOD, choices=[{"text": t, "english": e} for t, e in choices])
+
+
+def _episode() -> TextRequest:
+    from franki_reader.generator import StoryContext
+
+    return TextRequest("a noodle stall", story=StoryContext(2, "", "Noi's stall"))
+
+
+def test_a_story_episode_asks_for_choices_and_is_told_what_was_chosen() -> None:
+    from franki_reader.generator import StoryContext
+
+    first = request_message(TextRequest("a stall", story=StoryContext(1, "a stall")))
+    assert '"choices"' in first
+    chose = request_message(
+        TextRequest("a stall", story=StoryContext(2, "", "Noi's stall", chosen="Noi calls Ton."))
+    )
+    assert 'chose what happens next: "Noi calls Ton."' in chose
+    unchosen = request_message(TextRequest("a stall", story=StoryContext(2, "", "Noi's stall")))
+    assert "chose what happens next" not in unchosen
+
+
+def test_a_story_episodes_choices_are_kept() -> None:
+    d = _episode_draft(("ฉัน|กิน", "I eat."), ("อยาก|กิน", "I want to eat."))
+    result = run(ScriptedModel(d), _episode())
+    assert [(c.text, c.english) for c in result.choices] == [
+        ("ฉัน|กิน", "I eat."),
+        ("อยาก|กิน", "I want to eat."),
+    ]
+
+
+def test_choices_are_counted_in_coverage_and_sent_back_when_a_word_is_unknown() -> None:
+    hard = _episode_draft(("ฉัน|กิน", "I eat."), ("ฉัน|ทอน", "I give change."))
+    model = ScriptedModel(hard, _episode_draft(("ฉัน|กิน", "I eat."), ("อยาก|กิน", "Want.")))
+    result = run(model, TextRequest("food", (MANGO,), story=_episode().story, floor=0.99))
+    assert result.passed and result.attempts == 2
+    assert "ทอน" in model.sent[1][-1]["content"]
+
+
+def test_fewer_than_two_choices_is_no_choice_and_more_than_three_are_cut() -> None:
+    one = run(ScriptedModel(_episode_draft(("ฉัน|กิน", "I eat."))), _episode())
+    assert one.passed and one.choices == ()
+    many = run(ScriptedModel(_episode_draft(*[("ฉัน|กิน", str(i)) for i in range(5)])), _episode())
+    assert len(many.choices) == 3
+
+
+def test_a_text_that_is_not_a_story_episode_has_no_choices() -> None:
+    result = run(
+        ScriptedModel(_episode_draft(("ฉัน|กิน", "I eat."), ("กิน", "Eat."))), TextRequest("food")
+    )
+    assert result.choices == ()
+
+
 def test_a_draft_with_a_line_that_does_not_fit_its_speaker_is_sent_back() -> None:
     wrong = draft("ฉัน|อยาก|กิน|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ")
     wrong["genders"] = {"A": "male", "B": "female"}  # B says ครับ
