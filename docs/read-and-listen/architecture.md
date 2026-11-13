@@ -168,6 +168,20 @@ Franki's (Client, below).
   Listen off in Settings forgets it too.
 - **Nothing in the app grades or writes cards.** Its code imports nothing that schedules or writes
   them (`tests/reader/noGrading.test.ts`).
+- **Word meanings on a card's example sentence** (13 November 2026, by the owner's decision, from
+  a mock with three ways to show the words). On the back of an Omnilanguage card in a language's
+  deck, each word of the example sentence (Context) can be tapped for the reader's popover: its
+  meaning, play, its pronunciation, and Add to deck for a word not in the deck. Each word has a
+  dotted underline, and where two words touch (Thai, Japanese) a short tick rises from the line
+  between them, so the sentence shows where it splits; the card's own word keeps its highlight.
+  The server splits and glosses the sentences as it does a text's lines (`POST /api/glosses`,
+  `reader.render_sentence`), asked once when a study session starts, for every sentence in it,
+  one call per language (`src/reader/cardGlosses.ts`, `src/ui/useCardGlosses.ts`), and the phone
+  keeps the answers while the app runs. Afterwards, in the background, the server reads that
+  language's deck if it's a day old and has Claude gloss the words that had no meaning (as
+  `meanings.py` does for texts, with the sentence's ContextTranslation as the line's English), so
+  they have one next time. Until then, offline, or with Read & Listen off, the sentence shows as
+  before. Tapping a word grades nothing.
 
 ## Hosting
 
@@ -323,6 +337,22 @@ Thai letters, so none of them is a language here. Each new language works as Spa
 - **In the app**, a word known for being common rather than from the deck says "A common word" in
   its gloss, and outside Thai the highlight's row in the reader's key is "Might be new to you". Every
   language but Thai is set a little smaller than Thai.
+- **How common a word is** (13 November 2026, the owner's idea, to decide what to add to the deck):
+  the word popup shows a four-bar meter, a band (very common up to 1,000, common to 3,000, uncommon
+  to 10,000, rare beyond) and the word's place, "Uncommon · #6,412", from `rank` on each word of a
+  text (`frequency.py`: the place in `data/<code>_common.txt`, by dictionary form, so hablé shows
+  hablar's; `null` past the list's end, which the app calls rare). Thai has a list for this too,
+  `data/th_common.txt`, built by `build_common.py` from two sources (wordfreq has no Thai): the
+  word counts of the Thai National Corpus that PyThaiNLP ships, which is mostly written Thai, and
+  every third line of OpenSubtitles' Thai subtitles from OPUS, which are speech (downloaded on the
+  first run into the temp folder; about a minute on four cores). A word ranks by the average of its
+  frequency in the two, so casual words land where they're said (ครับ from #199 to #49, โอเค from
+  absent to #198, ป่ะ from #7,248 to #4,378). The subtitles are cut into words with the corpus's
+  words added to PyThaiNLP's dictionary, so a casual word the corpus lists isn't split, and words
+  outside that dictionary are dropped (the subtitles leave fragments like ยนะ). Every other
+  language's list is wordfreq's blend, which already includes subtitles and social media. It only
+  ranks: Thai still counts only its deck as known. The licences of the corpus and of OpenSubtitles
+  aren't confirmed. A name shows nothing.
 - **Topic ideas** are ranked by fit for Thai only: their words are Thai, so every other language
   keeps the listed order.
 - The reading log names each language in English, lowercase (`thai`, `spanish`, `german`, `french`,

@@ -2,7 +2,7 @@ from scripted import ENTRIES
 
 from franki_reader.generator import Line
 from franki_reader.lexicon import Entry, lexicon_from
-from franki_reader.reader import render
+from franki_reader.reader import render, render_sentence
 from franki_reader.store import StoredText
 
 TEXT = StoredText(
@@ -32,6 +32,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "stretch": True,
         "deck": True,
         "wanikani": False,
+        "rank": None,
         "grammar": None,
     }
     assert words[4] == {
@@ -43,6 +44,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "stretch": False,
         "deck": False,
         "wanikani": False,
+        "rank": None,
         "grammar": None,
     }
     assert out["lines"][0]["english"] == "I'd like mango sticky rice."
@@ -75,6 +77,8 @@ def test_a_word_off_the_list_takes_the_models_gloss() -> None:
         7, 1, "t", (Line("B", "ทอน|ครับ", "Here's your change."),), TEXT.glosses, (), 0.5
     )
     words = render(text, lexicon_from(ENTRIES), MEANINGS)["lines"][0]["words"]
+    # Its place in the list moves whenever the list is rebuilt, so it's only checked to be one.
+    assert isinstance(words[0].pop("rank"), int)
     assert words[0] == {
         "text": "ทอน",
         "status": "unknown",
@@ -172,3 +176,13 @@ def test_a_line_says_its_register_or_nothing_for_an_older_text() -> None:
     )
     out = render(text, lexicon_from(ENTRIES), MEANINGS)
     assert [ln["register"] for ln in out["lines"]] == ["casual", ""]
+
+
+def test_a_cards_sentence_is_split_and_glossed_like_a_line_and_joins_back_to_itself() -> None:
+    sentence = "ฉันอยากกินข้าวเหนียวมะม่วง *ครับ* ~|"
+    words = render_sentence(sentence, lexicon_from(ENTRIES), MEANINGS, {"กิน": "gin"})
+    assert "".join(w["text"] for w in words) == sentence  # no markup read out of plain text
+    eat = next(w for w in words if w["text"] == "กิน")
+    assert eat["gloss"] == "eat" and eat["translit"] == "gin" and eat["deck"] is True
+    assert eat["stretch"] is False and eat["grammar"] is None
+    assert all(w["status"] is None for w in words if not w["text"].strip())

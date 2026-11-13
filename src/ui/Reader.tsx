@@ -30,6 +30,7 @@ import { CheckCard, ReaderCheck } from './ReaderCheck';
 import { usePhraseDrag } from './usePhraseDrag';
 import { ReadGrammarDial } from './ReadGrammarDial';
 import { ReadGrammarNote } from './ReadGrammarNote';
+import { ReadFrequency } from './ReadFrequency';
 import { PracticeWordPill, TintPill } from './PracticeWordPill';
 import { WordView } from './ReadWord';
 import { ReaderKey } from './ReaderKey';
@@ -1171,6 +1172,7 @@ export function GlossPopover({ tapped, translitLabel, grammar, api, grammarChose
             {tapped.word.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {tapped.word.lemma}</Text> : null}
             <Text style={{ ...type.body, color: c.text }}>{tapped.word.gloss ?? 'No meaning available'}</Text>
             {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
+            <ReadFrequency word={tapped.word} />
             <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
           </View>
           <WordPlayButton onPress={onPlay} />

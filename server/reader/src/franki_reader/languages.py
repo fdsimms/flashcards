@@ -68,8 +68,9 @@ class Language:
 
     @property
     def counts_common(self) -> bool:
-        """Whether some of its most common words count as known (data/<code>_common.txt). Thai has
-        no list: only its deck counts."""
+        """Whether some of its most common words count as known (data/<code>_common.txt). Thai's
+        list (data/th_common.txt) only ranks words for the popup (frequency.py): only its deck
+        counts as known."""
         return self.code != "th"
 
     @property

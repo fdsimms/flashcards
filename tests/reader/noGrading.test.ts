@@ -19,7 +19,7 @@ const FORBIDDEN = /from '[^']*(core\/scheduler|core\/session|anki\/writeback|ank
 describe('Read & Listen', () => {
   const files = [
     ...readdirSync(READER).filter((f) => /\.tsx?$/.test(f)).map((f) => join(READER, f)),
-    ...readdirSync(UI).filter((f) => /^(Read[A-Z]?.*\.tsx|useReader\.ts)$/.test(f)).map((f) => join(UI, f)),
+    ...readdirSync(UI).filter((f) => /^(Read[A-Z]?.*\.tsx|useReader\.ts|useCardGlosses\.ts|CardSentence\.tsx)$/.test(f)).map((f) => join(UI, f)),
     // read-words opens the note editor for a marked word: saving there is the approval step.
     ...readdirSync(ROUTES).filter((f) => /^read(er|-.*)?\.tsx$/.test(f)).map((f) => join(ROUTES, f)),
     // The Read & Listen tab's home (and its stack layout) lives in its own route group.

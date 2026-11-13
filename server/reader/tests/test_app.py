@@ -1207,3 +1207,26 @@ def test_japanese_is_hidden_from_the_app_until_its_build_has_it() -> None:
     shelf = c.get("/api/shelf", headers=AUTH).json()
     assert shelf["language"] == "th"
     assert "ja" not in [language["code"] for language in shelf["languages"]]
+
+
+def test_glosses_split_a_cards_sentences_in_the_order_sent() -> None:
+    c = client()
+    body = {
+        "language": "th",
+        "sentences": [{"text": "ฉันอยากกิน", "english": "I want to eat."}, {"text": "ทอนครับ"}],
+    }
+    out = c.post("/api/glosses", json=body, headers=AUTH).json()
+    assert out["ready"] is True
+    first, second = out["sentences"]
+    assert [w["text"] for w in first] == ["ฉัน", "อยาก", "กิน"]
+    assert first[2]["gloss"] == "eat" and first[2]["status"] == "known"
+    assert "".join(w["text"] for w in second) == "ทอนครับ"
+
+
+def test_glosses_arent_ready_for_a_language_whose_deck_hasnt_been_read() -> None:
+    out = client().post(
+        "/api/glosses",
+        json={"language": "pl", "sentences": [{"text": "Dzień dobry"}]},
+        headers=AUTH,
+    )
+    assert out.json() == {"ready": False, "sentences": []}

@@ -28,6 +28,7 @@ export type Word = {
   stretch: boolean;
   deck: boolean; // a deck word, as against one known for being common (every language but Thai)
   wanikani?: boolean; // known for being learned in WaniKani (Japanese; absent from a server older than it)
+  rank?: number | null; // its place among the language's 10,000 most common words (1 is the most common); null past the list's end; absent from a server older than it
   grammar: string | null; // the grammar point this word uses, if the text marks it (TextGrammar)
   // When it's spoken in its line's audio, [start, end] in milliseconds (reader/spoken.ts). Absent
   // for spaces and punctuation, a line recorded without timings, and a server older than them.
@@ -420,6 +421,11 @@ export function createApi(
     // Memory hints for a word (a leech), written by Claude on the server: asked only when the owner taps for them.
     mnemonics: async (question: { language: Language; entry: string; meaning: string; transliteration?: string; context?: string }) =>
       (await call<{ hints: string[] }>('POST', '/api/mnemonics', question)).hints,
+    // Cards' example sentences split and glossed as a text's lines are, for the word popovers on a card
+    // (reader/cardGlosses.ts): asked once for a whole study session. `ready` is false until the
+    // language's deck has been read on the server.
+    glosses: (language: Language, sentences: { text: string; english: string }[]) =>
+      call<{ ready: boolean; sentences: Word[][] }>('POST', '/api/glosses', { language, sentences }),
     // A line's grammar and vocabulary explained by Claude on the server: asked on the owner's tap, kept per
     // line there. `simple` is a second, plainer version.
     explainLine: async (textId: number, line: number, simple: boolean) => {
