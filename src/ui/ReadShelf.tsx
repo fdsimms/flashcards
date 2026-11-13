@@ -164,6 +164,7 @@ export function ReadShelf({ api, practice, onOpen, onPractice, onLanguagePage, o
   return (
     <Screen
       title={name}
+      largeTitle={false}
       toolbar={(
         <>
           <Stack.Toolbar placement="left">
