@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView, Text } from 'react-native';
 import { ApiError, createApi, readerAddress, type Language, type Speakers } from '../reader/api';
-import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
+import { LANGUAGE_ORDER, flaggedName } from '../reader/languages';
 import { savePassphrase } from '../reader/storage';
 import { voicesSummary } from '../reader/voiceSlots';
 import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
@@ -103,7 +103,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
                 <NavRow
                   key={l}
                   first={i === 0}
-                  label={LANGUAGES[l].name}
+                  label={flaggedName(l)}
                   detail={voicesSummary(voices?.[l]) ?? 'The voices its texts are read in'}
                   onPress={() => onVoices(l)}
                 />

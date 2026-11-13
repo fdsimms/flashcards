@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import type { Repo } from '../../db/repo';
 import type { Language } from '../../reader/api';
-import { LANGUAGES } from '../../reader/languages';
+import { LANGUAGES, flaggedName } from '../../reader/languages';
 import type { Phrase } from '../../tools/phrase';
 import type { ToolPrefs } from '../../tools/prefs';
 import { loadToolPrefs, saveToolPrefs, toolPrefs } from '../../tools/storage';
@@ -94,9 +94,9 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onT
       toolbar={tool.languages.length > 1 ? (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Menu title="Language" accessibilityLabel={`Language: ${name}. Change the language`}>
-            <Stack.Toolbar.Label>{name}</Stack.Toolbar.Label>
+            <Stack.Toolbar.Label>{flaggedName(language)}</Stack.Toolbar.Label>
             {tool.languages.map((l) => (
-              <Stack.Toolbar.MenuAction key={l} isOn={l === language} onPress={() => onLanguage(l)}>{LANGUAGES[l].name}</Stack.Toolbar.MenuAction>
+              <Stack.Toolbar.MenuAction key={l} isOn={l === language} onPress={() => onLanguage(l)}>{flaggedName(l)}</Stack.Toolbar.MenuAction>
             ))}
           </Stack.Toolbar.Menu>
         </Stack.Toolbar>
