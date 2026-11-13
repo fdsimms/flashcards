@@ -25,6 +25,7 @@ describe('bold, italic and underline in the editor', () => {
   });
 
   it('reads a field back as styled runs, nested tags and line breaks included', () => {
+    expect(formattedRuns('l&#x27;eau')).toEqual([{ text: "l'eau", bold: false, italic: false, underline: false }]);
     expect(formattedRuns('plain <b>bold <i>both</i></b> <U>under</U>\nline<br>next &amp; &lt;ok&gt;')).toEqual([
       { text: 'plain ', bold: false, italic: false, underline: false },
       { text: 'bold ', bold: true, italic: false, underline: false },

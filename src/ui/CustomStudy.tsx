@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { refreshFromKeptCollection } from '../anki/transfer';
@@ -43,10 +43,15 @@ export function CustomStudy({ repo, deck, onStarted }: {
     setError(undefined);
   };
 
+  // Set from the first tap until it fails: a second tap landing before the button shows it's busy
+  // would raise the limit twice, or build the deck again, and close the screen behind Review too.
+  const starting = useRef(false);
   const start = async () => {
+    if (starting.current) return;
     const study = customStudyFrom(kind, Number(amount.trim()), { select, include, exclude });
     const problem = customStudyProblem(study);
     if (problem) { setError(problem); return; }
+    starting.current = true;
     setBusy(true);
     setError(undefined);
     try {
@@ -55,6 +60,7 @@ export function CustomStudy({ repo, deck, onStarted }: {
       onStarted(result);
     } catch (e) {
       setError(failureText(e, { what: "Couldn't start custom study.", next: 'Try again.' }));
+      starting.current = false;
       setBusy(false);
     }
   };

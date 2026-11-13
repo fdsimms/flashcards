@@ -116,7 +116,13 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
     }
   };
 
-  const next = () => { setTyped(''); setIndex((i) => i + 1); };
+  // Only from the prompt on screen, once it's answered: a double tap mustn't skip the next one, which
+  // left the drill on an index with no answer to show and no way to answer it.
+  const next = () => {
+    if (!current) return;
+    setTyped('');
+    setIndex((i) => (i === index ? i + 1 : i));
+  };
 
   const switchMode = (m: AnswerMode) => { setMode(m); repo.saveFormsAnswerMode(m); };
 

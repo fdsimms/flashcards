@@ -134,12 +134,17 @@ describe('moving a note to another deck', () => {
     const target = '👅 Languages::🐘 ภาษาไทย';
     await saveNote(store, { id: note.id, deck: target, model: note.model, fields: note.fields, tags: note.tags }, NOW);
     expect((await store.getNote(note.id))!.deck).toBe(target);
-    expect([...store.cards.values()].filter((c) => c.noteId === note.id)).toEqual(before);
+    // A card in a filtered deck (the fixture has one) is taken out of it, as Anki's Change Deck does.
+    expect(before.some((c) => c.filteredDeck)).toBe(true);
+    expect([...store.cards.values()].filter((c) => c.noteId === note.id))
+      .toEqual(before.map((c) => ({ ...c, filteredDeck: undefined, filteredDue: undefined })));
     const db = await anki();
-    // Each card's home deck: a card in a filtered deck (the fixture has one) keeps its place there.
-    const homes = await db.all<{ home: number }>('SELECT CASE WHEN odid != 0 THEN odid ELSE did END AS home FROM cards WHERE nid = ?', Number(note.id));
+    const homes = await db.all<{ did: number; odid: number }>('SELECT did, odid FROM cards WHERE nid = ?', Number(note.id));
     const decks = await db.all<{ id: number; name: string }>('SELECT id, name FROM decks NOT INDEXED');
-    for (const { home } of homes) expect(decks.find((d) => d.id === home)!.name).toBe(target.split('::').join('\x1f'));
+    for (const { did, odid } of homes) {
+      expect(odid).toBe(0);
+      expect(decks.find((d) => d.id === did)!.name).toBe(target.split('::').join('\x1f'));
+    }
     expect(await db.all('SELECT DISTINCT usn FROM cards WHERE nid = ?', Number(note.id))).toEqual([{ usn: -1 }]);
     db.close();
   });

@@ -3,6 +3,7 @@
 // drill undone or restored from a backup reschedules itself. Nothing here touches a card.
 import { studyDayStart } from './day';
 import { grammarPoint } from './grammar';
+import { wordIndex } from './highlight';
 
 /** One answer in a drill, as the phone keeps it (`grammar_answers`). */
 export interface GrammarAnswer {
@@ -58,14 +59,17 @@ export function pointSchedule(pointId: string, state: DrillState, answers: Gramm
   }
   let step = -1;
   let last: Date | undefined;
+  let passed = false;
   for (const d of [...drills.values()].sort((a, b) => a.at.localeCompare(b.at))) {
-    step = d.right >= DRILL_PASS * d.total ? Math.min(step + 1, steps.length - 1) : 0;
+    passed = d.right >= DRILL_PASS * d.total;
+    step = passed ? Math.min(step + 1, steps.length - 1) : 0;
     last = new Date(d.at);
   }
   if (!last) return { pointId, state, due: studyDayStart(now, dayStartsAtHour), step };
   const due = studyDayStart(last, dayStartsAtHour);
-  // A drill that didn't go well brings the point back the next day, as the first step does.
-  due.setDate(due.getDate() + steps[Math.max(step, 0)]);
+  // A drill that didn't go well brings the point back the next day, Know it as well as Practice
+  // (whose first step is a day too); one that did waits its step.
+  due.setDate(due.getDate() + (passed ? steps[step] : 1));
   return { pointId, state, due, step, lastDrilled: last };
 }
 
@@ -163,7 +167,9 @@ export function drillPrompts(questions: DrillQuestionIn[], random: () => number 
     if (q.kind === 'which') {
       const names = q.choices.map((id) => grammarPoint(id)?.name).filter((n): n is string => !!n);
       const word = q.words[0] ?? '';
-      const at = word ? q.line.toLocaleLowerCase().indexOf(word.toLocaleLowerCase()) : -1;
+      const lower = q.line.toLocaleLowerCase();
+      // Offsets in the lowercased line only hold when lowercasing kept its length.
+      const at = lower.length === q.line.length ? wordIndex(lower, word.toLocaleLowerCase()) : wordIndex(q.line, word);
       if (at < 0 || names.length < 2) continue;
       out.push({
         pointId: point.id, kind: 'which',

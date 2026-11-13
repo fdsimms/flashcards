@@ -29,8 +29,11 @@ export function recordingIndex(notes: Note[], language: Language): Map<string, s
   return index;
 }
 
-/** What to play for a word: the deck's recording (`file`), and the text to speak when it isn't here. */
+/**
+ * What to play for a word: the deck's recording (`file`), and the text to speak when it isn't here.
+ * A word capitalized to start a sentence ("Casa") takes the recording of its entry ("casa").
+ */
 export function wordPlayback(index: Map<string, string>, word: string): { file?: string; text: string } {
   const text = entryKey(word);
-  return { file: index.get(text), text };
+  return { file: index.get(text) ?? index.get(text.toLocaleLowerCase()), text };
 }

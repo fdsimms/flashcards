@@ -63,3 +63,22 @@ export function reconcileIds(result: ImportResult, existing: Note[]): ImportResu
     warnings,
   };
 }
+
+/**
+ * Leaves out the notes a TSV import would change that are Anki's (`ankiNoteIds`: the notes here with
+ * a card in the Anki collection), with a warning for each. A TSV import writes Franki's tables only,
+ * so it would move the note, empty the fields the file doesn't have and unsuspend its new card here
+ * and not in Anki. Run after `reconcileIds`, which is what finds them.
+ */
+export function leaveAnkiNotes(result: ImportResult, ankiNoteIds: Set<string>): ImportResult {
+  const left = result.notes.filter((n) => ankiNoteIds.has(n.id));
+  if (!left.length) return result;
+  return {
+    notes: result.notes.filter((n) => !ankiNoteIds.has(n.id)),
+    cards: result.cards.filter((c) => !ankiNoteIds.has(c.noteId)),
+    warnings: [
+      ...result.warnings,
+      ...left.map((n) => `"${htmlToText(n.fields[frontFieldName(n) ?? ''] ?? '')}" is a note from Anki, so it was left as it is. Change it in the note editor or in Anki.`),
+    ],
+  };
+}

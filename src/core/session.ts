@@ -46,6 +46,8 @@ export interface AnswerRecord {
   buried: Card[];
   /** The note the answer tagged as a leech: undo takes the tag back off, leaving anything edited since (a hint). */
   leechNoteId?: string;
+  /** An answer in a filtered deck that only previews: it uses no limits, so it isn't counted in today's. */
+  preview?: boolean;
 }
 
 /** How far through the session is: answers given over those plus the cards still queued. */

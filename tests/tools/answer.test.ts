@@ -3,6 +3,7 @@ import { checkTyped } from '../../src/tools/answer';
 import { sayThaiDate } from '../../src/tools/thai/date';
 import { acceptedForms } from '../../src/tools/dateQuiz';
 import { saySpanishDate } from '../../src/tools/spanish/date';
+import { sayJapaneseDate } from '../../src/tools/japanese/date';
 
 const monday = { year: 2044, month: 6, day: 27 };
 const thai = acceptedForms(sayThaiDate(monday, { weekday: true, year: true }));
@@ -27,6 +28,14 @@ describe('checking a typed answer', () => {
     expect(checkTyped('ΤΡΕΙΣ ΝΟΕΜΒΡΙΟΥ', [{ text: 'τρεις Νοεμβρίου' }]).verdict).toBe('close');
     expect(checkTyped('ΤΡΕΙΣ ΝΟΕΜΒΡΊΟΥ', [{ text: 'τρεις Νοεμβρίου' }]).verdict).toBe('exact');
     expect(checkTyped('einunddreissigste', [{ text: 'einunddreißigste' }]).verdict).toBe('exact');
+  });
+
+  it('takes a Japanese date written with digits, the weekday in parentheses or written out, digits full-width or not', () => {
+    const ja = acceptedForms(sayJapaneseDate({ year: 2026, month: 11, day: 13 }, { weekday: true, year: true }));
+    for (const typed of ['2026年11月13日（金）', '2026年11月13日金曜日', '2026年11月13日金曜', '２０２６年１１月１３日（金）']) {
+      expect(checkTyped(typed, ja).verdict).toBe('exact');
+    }
+    expect(checkTyped('2026年11月14日金曜日', ja).verdict).toBe('different');
   });
 
   it('takes е for ё as Russian writes it, and marks only what else differs', () => {

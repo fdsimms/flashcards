@@ -52,8 +52,10 @@ function tokens(s: string): Token[] {
       last.text += ch;
       last.key += ch.toLocaleLowerCase();
     } else if (/[\p{L}\p{N}\p{M}]/u.test(ch)) {
-      // ё folds in the key, not just the spelling, so the diff doesn't mark е against ё either.
-      out.push({ text: ch, key: foldYo(ch.toLocaleLowerCase()) });
+      // ё folds in the key, not just the spelling, so the diff doesn't mark е against ё either; so
+      // do full-width digits and letters (and half-width kana), which a Japanese keyboard types.
+      const key = /[\uff00-\uffef]/.test(ch) ? ch.normalize('NFKC') : ch;
+      out.push({ text: ch, key: foldYo(key.toLocaleLowerCase()) });
     } else {
       out.push({ text: ch, key: null });
     }

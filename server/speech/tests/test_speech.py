@@ -187,6 +187,22 @@ def test_speak_tries_rest_when_the_sdk_cant_get_through(code: str) -> None:
     assert (audio, marks) == (b"ID3rest", None)
 
 
+def test_speak_tries_rest_when_the_sdk_never_answers() -> None:
+    async def hangs(key: str, region: str, body: str) -> SdkResult:
+        await asyncio.sleep(3600)
+        raise AssertionError("not reached")
+
+    async def go() -> tuple[bytes, list[WordMark] | None]:
+        rest = httpx.MockTransport(lambda r: httpx.Response(200, content=b"ID3rest"))
+        async with httpx.AsyncClient(transport=rest) as http:
+            client = SpeechClient(
+                "k", "eastus", http=http, sleep=no_sleep, sdk_speak=hangs, sdk_timeout=0.01
+            )
+            return await client.speak("สวัสดีครับ", VOICE)
+
+    assert asyncio.run(go()) == (b"ID3rest", None)
+
+
 def test_speak_uses_rest_for_a_custom_endpoint() -> None:
     (audio, marks), sent = speak([], endpoint="https://custom.example")
     assert (audio, marks, sent) == (b"ID3rest", None, [])

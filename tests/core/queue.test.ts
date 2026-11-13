@@ -61,6 +61,12 @@ describe('queue', () => {
     expect(nextLearningDue([base], { dayStartsAtHour: H, now: NOW })).toBeUndefined();
     expect(nextLearningDue([withSched(base, { state: 1, due: at.toISOString() })], { dayStartsAtHour: H, now: NOW })).toEqual(at);
   });
+  it('waits for a card being previewed, which comes back when its preview time comes', () => {
+    const [base] = makeCards(omniNote(), NOW);
+    const at = new Date(NOW.getTime() + 60_000);
+    const previewing = { ...withSched(base, { state: 2, due: new Date(2026, 10, 20, 9).toISOString() }), filteredDeck: 'Preview', previewDue: at.toISOString() };
+    expect(nextLearningDue([previewing], { dayStartsAtHour: H, now: NOW })).toEqual(at);
+  });
   it("doesn't wait for a day-long learning step, which comes back on its own day", () => {
     const [base] = makeCards(omniNote(), NOW);
     // Answered this morning onto a one-day step: due tomorrow, Anki's queue 3.

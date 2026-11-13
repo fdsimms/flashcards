@@ -5,6 +5,8 @@
  * text so the editor can show how it will look.
  */
 
+import { decodeEntities } from './html';
+
 export type Mark = 'b' | 'i' | 'u';
 export interface Selection { start: number; end: number }
 export interface Edit { text: string; selection: Selection }
@@ -67,7 +69,6 @@ export function hasFormatting(text: string): boolean {
 
 export interface Run { text: string; bold: boolean; italic: boolean; underline: boolean }
 
-const ENTITIES: Record<string, string> = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", '#39': "'" };
 
 /**
  * A field's text as styled runs: bold, italic and underline from their tags (nested ones too), a
@@ -87,7 +88,7 @@ export function formattedRuns(html: string): Run[] {
   const tagRe = /<(\/?)([a-z][a-z0-9]*)\b[^>]*>/gi;
   let at = 0;
   for (let m = tagRe.exec(html); m; m = tagRe.exec(html)) {
-    push(decode(html.slice(at, m.index)));
+    push(decodeEntities(html.slice(at, m.index)));
     at = m.index + m[0].length;
     const closing = m[1] === '/';
     const name = m[2].toLowerCase();
@@ -95,10 +96,6 @@ export function formattedRuns(html: string): Run[] {
     if (mark) depth[mark] = Math.max(0, depth[mark] + (closing ? -1 : 1));
     else if (name === 'br' || (closing && (name === 'div' || name === 'p'))) push('\n');
   }
-  push(decode(html.slice(at)));
+  push(decodeEntities(html.slice(at)));
   return runs;
-}
-
-function decode(s: string): string {
-  return s.replace(/&(nbsp|amp|lt|gt|quot|apos|#39);/g, (_, e: string) => ENTITIES[e]);
 }

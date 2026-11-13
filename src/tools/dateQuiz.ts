@@ -19,7 +19,7 @@ const KANA_READING = /^[\p{Script=Hiragana}\p{Script=Katakana}ー\s]+$/u;
  * the digits as written, and in Japanese each of those typed in kana, as its reading.
  */
 export function acceptedForms(saying: DateSaying): Phrase[] {
-  const forms = [saying.everyday, ...saying.also, { ...saying.written, note: saying.written.note ?? 'As written' }];
+  const forms = [saying.everyday, ...saying.also, { ...saying.written, note: saying.written.note ?? 'As written' }, ...(saying.writtenAlso ?? [])];
   const readings = forms.flatMap((f) => (f.roman && KANA_READING.test(f.roman) ? [{ text: f.roman.replace(/\s/g, ''), note: 'In kana' }] : []));
   return distinct([...forms, ...readings]);
 }

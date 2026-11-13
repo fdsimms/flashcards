@@ -37,6 +37,9 @@ TIMEOUT_SECONDS = 30.0
 # voices). A request is retried this many times, after Retry-After seconds (capped) or a growing wait.
 RATE_LIMIT_RETRIES = 3
 MAX_RETRY_WAIT = 10.0
+# The SDK's call has no deadline of its own that's certain to fire; one that never answers would
+# hold the reader's topic lock and stop the shelf filling, so past this the line goes by REST.
+SDK_TIMEOUT_SECONDS = 60.0
 LOCALE = re.compile(r"^([a-z]{2,3}-[A-Z]{2})-")
 # Thai has no commas or periods: a space after Thai text (or its ? or !) and before more Thai ends a
 # clause or sentence. Each becomes an explicit pause, since a voice may run straight through a bare
@@ -87,6 +90,7 @@ class SpeechClient:
     # Makes the Speech SDK's call (`sdk.speak_ssml`: key, region, SSML), off the event loop; tests
     # pass a fake.
     sdk_speak: Callable[[str, str, str], Awaitable[SdkResult]] | None = None
+    sdk_timeout: float = SDK_TIMEOUT_SECONDS
     _voices: list[dict[str, Any]] | None = None
 
     @property
@@ -140,9 +144,15 @@ class SpeechClient:
             body = ssml(text, voice, rate)
             for attempt in range(RATE_LIMIT_RETRIES + 1):
                 try:
-                    r = await (self.sdk_speak or _sdk_in_thread)(self.key, self.region, body)
+                    r = await asyncio.wait_for(
+                        (self.sdk_speak or _sdk_in_thread)(self.key, self.region, body),
+                        self.sdk_timeout,
+                    )
                 except SdkMissing as e:
                     log.warning("Speech SDK unavailable, recording without word timings: %s", e)
+                    break
+                except TimeoutError:
+                    log.warning("Speech SDK gave no answer in %ss, trying REST", self.sdk_timeout)
                     break
                 if r.error is None:
                     if not r.audio:

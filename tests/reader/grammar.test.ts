@@ -76,6 +76,10 @@ test("an example line underlines the finder's words in turn, whatever their case
     { text: 'Ella ', marked: false }, { text: 'había comido', marked: true }, { text: '.', marked: false },
   ]);
   expect(markedParts('เคยไปไหม', ['เคย'])).toEqual([{ text: 'เคย', marked: true }, { text: 'ไปไหม', marked: false }]);
+  // A whole word in a spaced script: not the "να" inside "ένα".
+  expect(markedParts('Έχω ένα σκύλο και θέλω να φύγω.', ['να'])).toEqual([
+    { text: 'Έχω ένα σκύλο και θέλω ', marked: false }, { text: 'να', marked: true }, { text: ' φύγω.', marked: false },
+  ]);
   // A match that isn't in the line is left out, not guessed at.
   expect(markedParts('Hoy como.', ['comí'])).toEqual([{ text: 'Hoy como.', marked: false }]);
 });

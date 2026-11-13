@@ -43,6 +43,12 @@ describe('wordPlayback', () => {
     expect(wordPlayback(index, 'หนังสือ')).toEqual({ file: 'book.mp3', text: 'หนังสือ' });
   });
 
+  it('plays the entry\'s recording for the word capitalized to start a sentence', () => {
+    const spanish = new Map([['casa', 'casa.mp3'], ['Madrid', 'madrid.mp3']]);
+    expect(wordPlayback(spanish, 'Casa')).toEqual({ file: 'casa.mp3', text: 'Casa' });
+    expect(wordPlayback(spanish, 'Madrid').file).toBe('madrid.mp3');
+  });
+
   it('falls back to the text to speak', () => {
     expect(wordPlayback(index, 'ต่อมา')).toEqual({ file: undefined, text: 'ต่อมา' });
   });

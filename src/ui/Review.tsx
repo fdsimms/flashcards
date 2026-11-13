@@ -10,7 +10,7 @@ import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
 import { failureText } from '../core/failure';
 import { boostFor } from '../core/priority';
-import { nextStudyDayStart, studyDayStart } from '../core/day';
+import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
 import { isInterdayLearning, nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type AnswerContext, type RatingValue } from '../core/scheduler';
@@ -234,12 +234,19 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   // The card last answered, as it was shown. `busy` is cleared before React has drawn the next card,
   // so a tap landing in between still sees this one: it mustn't be answered twice from its old state.
   const lastAnswered = useRef<Card | null>(null);
+  // Counts each write's start and end (an answer, an undo, a card change). A load that saw it move
+  // read the cards from before that write, so it's read again rather than put back over the write.
+  const writes = useRef(0);
+  // The study day the last load counted today's answers for.
+  const loadedDay = useRef<string | null>(null);
   // Anki's load balancer works from a snapshot of the days ahead, taken when the session is built.
   const loadSnapshot = useRef<LoadSnapshot>(new Map());
 
   const [loadError, setLoadError] = useState<string | null>(null);
   useEffect(() => {
     setLoadError(null);
+    let stale = false;
+    const seen = writes.current;
     (async () => {
       const now = new Date();
       const cs = await repo.collectionSettings();
@@ -249,7 +256,10 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
         repo.listCards(), repo.listNotes(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
         repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(), repo.swipeToRate(), repo.showCardHints(), repo.thaiTextSize(),
       ]);
+      if (stale) return;
+      if (writes.current !== seen) { setReloads((k) => k + 1); return; }
       const today = studiedToday({ notes: n, cards: c, reviews, revlog, now, dayStartsAtHour: cs.dayStartsAtHour });
+      loadedDay.current = studyDayKey(now, cs.dayStartsAtHour);
       setCollection(cs);
       // The queue reads the day from `now`: a reload after a while away (or past the day's start) needs it fresh too.
       setNow(now);
@@ -269,7 +279,9 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
         (card) => loadDayIndex(card, now, cs.dayStartsAtHour, dayNumber),
       );
       setCards(c);
-    })().catch((e) => setLoadError(failureText(e, { what: "Couldn't load this deck.", next: 'Try again.' })));
+    })().catch((e) => { if (!stale) setLoadError(failureText(e, { what: "Couldn't load this deck.", next: 'Try again.' })); });
+    // A newer load (focus and the note editor closing both start one) supersedes this one.
+    return () => { stale = true; };
   }, [repo, deck, reloads, reloadKey]);
 
   // Forms practice and lookalikes (src/ui/ReviewForms.tsx): held lookalikes, the offer to show a card sooner, suggestions.
@@ -401,6 +413,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   const answer = async (rating: RatingValue) => {
     if (!current || !note || busy.current || current === lastAnswered.current) return;
     busy.current = true;
+    writes.current++;
     haptic.answer();
     try {
       const when = new Date();
@@ -464,11 +477,12 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       // Time capped at a minute, as Anki's maximum answer time is, so a phone put down mid-card doesn't swell the summary.
       const record: AnswerRecord = {
         before: current, reviewId, deck: cardDeck(current, note.deck), anki, buried: siblings, leechNoteId,
-        rating, takenMs: Math.min(when.getTime() - shownAt.current, 60000),
+        rating, takenMs: Math.min(when.getTime() - shownAt.current, 60000), preview,
       };
       // Now a review, it weighs on the days the load balancer spreads later answers over, as in Anki.
       if (updated.sched.state === 2) recordAnswer(loadSnapshot.current, updated, cardParams?.presetId, updated.sched.scheduledDays);
-      setStudied((s) => bumpStudied(s, record.deck, studiedKind(record.before, H), 1));
+      // A preview uses no limits, as in Anki, and a reload (`studiedToday`) doesn't count it either.
+      setStudied((s) => bumpStudied(s, record.deck, record.preview ? null : studiedKind(record.before, H), 1));
       setHistory((h) => [...h, record]);
       forms.answered({ cardId: current.id, ...res.log });
       // Functional update: `cards` from this render's closure is stale once the awaits return.
@@ -482,6 +496,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       Alert.alert("Couldn't save this answer", failureText(e, { next: 'The card is still here: answer it again.' }));
     } finally {
       busy.current = false;
+      writes.current++;
     }
   };
 
@@ -489,6 +504,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
     const last = history[history.length - 1];
     if (!last || busy.current) return;
     busy.current = true;
+    writes.current++;
     haptic.tap();
     try {
       // Out of the Anki collection first: a synced answer is in the server's history, and taking
@@ -513,7 +529,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       forgetCard(loadSnapshot.current, last.before.id);
       setHistory((h) => h.slice(0, -1));
       forms.undone(last.before.id);
-      setStudied((s) => bumpStudied(s, last.deck, studiedKind(last.before, H), -1));
+      setStudied((s) => bumpStudied(s, last.deck, last.preview ? null : studiedKind(last.before, H), -1));
       const restored = new Map([last.before, ...last.buried].map((c) => [c.id, c]));
       setCards((prev) => prev && prev.map((c) => restored.get(c.id) ?? c));
       // The card shown again is the very one answered: it can be answered again now.
@@ -525,8 +541,15 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       Alert.alert("Couldn't undo that answer", failureText(e, { next: 'Try again.' }));
     } finally {
       busy.current = false;
+      writes.current++;
     }
   };
+
+  // A session that runs past the day's start counts the new day's answers from nothing, with the
+  // load balancer's days read afresh: the cards are loaded again once the clock crosses it.
+  useEffect(() => {
+    if (loadedDay.current && studyDayKey(now, H) !== loadedDay.current) setReloads((n) => n + 1);
+  }, [now, H]);
 
   // Out of cards with a learning card still to come: wake when it's within the learn-ahead limit
   // instead of declaring the deck done, which left it waiting until the deck was reopened.
@@ -703,6 +726,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   const setStates = async (targets: Card[], change: (s: CardState) => CardState) => {
     if (busy.current || !targets.length) return;
     busy.current = true;
+    writes.current++;
     try {
       const when = new Date();
       const { cards: updated, ankiError } = await setCardStates(repo, targets, change, when, H);
@@ -718,6 +742,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       Alert.alert("Couldn't change this card", failureText(e, { next: 'Try again.' }));
     } finally {
       busy.current = false;
+      writes.current++;
     }
   };
   const chooseFlag = () => {
@@ -754,6 +779,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   const reschedule = async (run: (when: Date) => Promise<Card[]>, failure: string) => {
     if (busy.current) return;
     busy.current = true;
+    writes.current++;
     try {
       const when = new Date();
       const updated = await run(when);
@@ -766,6 +792,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       Alert.alert(failure, failureText(e, { next: 'Nothing was changed. Try again.' }));
     } finally {
       busy.current = false;
+      writes.current++;
     }
   };
   const chooseForget = () => {

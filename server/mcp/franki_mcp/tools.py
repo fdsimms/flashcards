@@ -20,6 +20,7 @@ from anki.collection import Collection  # first: the anki package's modules impo
 from anki.cards import Card
 from anki.consts import QUEUE_TYPE_DAY_LEARN_RELEARN, QUEUE_TYPE_LRN, QUEUE_TYPE_NEW, QUEUE_TYPE_REV
 from anki.decks_pb2 import Deck as DeckProto
+from anki.errors import InvalidInput
 from anki.notes import Note
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError  # its message reaches the model; any other error doesn't
@@ -316,9 +317,11 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
     async def get_notes(note_ids: list[int]) -> dict[str, Any]:
         """Notes in full: every field (as HTML), tags, and each card with its deck, stage
         (new, learning, review, relearning, suspended, buried), due date, interval and flag."""
+        if len(note_ids) > MAX_NOTES_PER_CALL:
+            raise ToolError(f"Up to {MAX_NOTES_PER_CALL} notes a call; send the rest in another.")
 
         def run(col: Collection) -> dict[str, Any]:
-            return {"notes": [_note_dict(col, _get_note(col, i)) for i in note_ids[:MAX_NOTES_PER_CALL]]}
+            return {"notes": [_note_dict(col, _get_note(col, i)) for i in note_ids]}
 
         return await cm.read(run)
 
@@ -363,10 +366,12 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
     async def update_notes(updates: list[NoteUpdate]) -> dict[str, Any]:
         """Changes notes' fields and tags (up to 100 a call). Only the fields given change. A note
         that now makes a card it didn't gets that card, as in Anki."""
+        if len(updates) > MAX_NOTES_PER_CALL:
+            raise ToolError(f"Up to {MAX_NOTES_PER_CALL} notes a call; send the rest in another.")
 
         def run(col: Collection) -> dict[str, Any]:
             results = []
-            for u in updates[:MAX_NOTES_PER_CALL]:
+            for u in updates:
                 try:
                     note = _get_note(col, u.note_id)
                     if u.fields:
@@ -480,7 +485,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if action == "set_due_date":
                 if not days:
                     raise ToolError('set_due_date needs days, e.g. "0", "5", "5-7" or "5!".')
-                s.set_due_date(ids, days)
+                try:
+                    s.set_due_date(ids, days)
+                except InvalidInput as e:
+                    raise ToolError(f'Anki couldn\'t read days "{days}" ({e}). Use e.g. "0", "5", "5-7" or "5!".') from e
                 return {"changed": len(ids)}
             if action == "forget":
                 s.schedule_cards_as_new(ids, restore_position=True, reset_counts=reset_counts)
@@ -706,7 +714,12 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if params is not None:
                 if len(params) not in (19, 21):
                     raise ToolError("params must be FSRS's 19 or 21 numbers.")
-                conf["fsrsParams6" if len(params) == 21 else "fsrsParams5"] = params
+                if len(params) == 21:
+                    conf["fsrsParams6"] = params
+                else:
+                    # Anki schedules with the 21 FSRS-6 numbers whenever there are any, so 19 take
+                    # effect only once those are cleared.
+                    conf["fsrsParams5"], conf["fsrsParams6"] = params, []
             col.decks.update_config(conf)
             return {"preset": conf["name"], "decks_affected": sharing}
 
@@ -907,10 +920,12 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         """FSRS's view of cards: stability (days until recall drops to 90%), difficulty (1 to 10,
         and as Anki shows it, 0 to 100%), and retrievability (the chance of recalling it now),
         with the deck preset's desired retention. Cards never reviewed under FSRS have none."""
+        if len(card_ids) > MAX_NOTES_PER_CALL:
+            raise ToolError(f"Up to {MAX_NOTES_PER_CALL} cards a call; send the rest in another.")
 
         def run(col: Collection) -> dict[str, Any]:
             out = []
-            for cid in card_ids[:MAX_NOTES_PER_CALL]:
+            for cid in card_ids:
                 _get_card(col, cid)
                 stats = col.card_stats_data(cid)
                 entry: dict[str, Any] = {"card_id": cid, "preset": stats.preset,
@@ -1149,7 +1164,12 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             for it in items:
                 if "leveled" not in it:
                     continue
-                note = _get_note(col, it["note_id"])
+                try:
+                    note = _get_note(col, it["note_id"])
+                except ToolError as e:
+                    it.pop("leveled")
+                    it["error"] = str(e)
+                    continue
                 old = f"[sound:{it['file']}]"
                 if old not in note[it["field"]]:
                     it["error"] = "The note changed while the audio was being leveled. Nothing was saved; try it again."

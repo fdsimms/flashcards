@@ -33,6 +33,8 @@ export interface DateSaying {
   also: Phrase[];
   /** As it's written in the language, with digits: "jeudi 12 novembre 2026". */
   written: Phrase;
+  /** Other ways it's written with digits, accepted as a typed answer but not shown: 2026年11月13日金曜日. */
+  writtenAlso?: Phrase[];
 }
 
 /** The years a random date comes from. */
