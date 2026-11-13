@@ -278,6 +278,10 @@ class StoredText:
     story_id: int | None = None
     episode: int = 0
     recap: str = ""  # a story episode's one sentence about what happened in it
+    # The recap as the shelf shows it: a line in the text's language and its English (empty for an
+    # episode written before these, which shows `recap`).
+    recap_line: str = ""
+    recap_english: str = ""
     # What the reader can pick to happen next, for an episode that ends on a choice, and the
     # index of the one they picked (None until they do, and for good if they never do).
     choices: tuple[Choice, ...] = ()
@@ -390,6 +394,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # The stretch word count it was written at (Difficulty.stretch; the floor column is the
         # target), so a rating steps from it (difficulty.after_reading). NULL before 13 November 2026.
         ("stretch_count", "stretch_count INTEGER"),
+        # A story episode's recap in its own language, written like a line, and that line's English.
+        ("recap_line", "recap_line TEXT NOT NULL DEFAULT ''"),
+        ("recap_english", "recap_english TEXT NOT NULL DEFAULT ''"),
     ):
         if column not in texts_columns:
             conn.execute(f"ALTER TABLE texts ADD COLUMN {sql}")
@@ -651,9 +658,9 @@ def save_text(
                    coverage, token_count, floor, attempts, model, input_tokens, output_tokens,
                    cache_read_tokens, cache_write_tokens, cost_usd, roles, form, language, grammar,
                    focus, translits, reason, story_id, episode, recap, genders, characters,
-                   choices, stretch_count)
+                   choices, stretch_count, recap_line, recap_english)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                   ?, ?, ?, ?, ?, ?)""",
+                   ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 topic_id,
                 now.isoformat(),
@@ -686,6 +693,8 @@ def save_text(
                 json.dumps(generated.characters),
                 json.dumps([c.__dict__ for c in generated.choices], ensure_ascii=False),
                 stretch_count,
+                generated.recap_line,
+                generated.recap_english,
             ),
         )
     assert cur.lastrowid is not None
@@ -762,7 +771,7 @@ def get_text(conn: sqlite3.Connection, text_id: int) -> StoredText | None:
 _TEXT_COLUMNS = (
     "id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar,"
     " translits, reason, story_id, episode, recap, genders, characters, choices, chosen,"
-    " questions"
+    " questions, recap_line, recap_english"
 )
 
 
@@ -789,6 +798,8 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         choices,
         chosen,
         questions,
+        recap_line,
+        recap_english,
     ) = row
     return StoredText(
         id=text_id,
@@ -812,6 +823,8 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         choices=tuple(Choice(**c) for c in json.loads(choices)),
         chosen=chosen,
         questions=tuple(from_json(q) for q in json.loads(questions)),
+        recap_line=recap_line,
+        recap_english=recap_english,
     )
 
 

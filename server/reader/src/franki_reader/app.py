@@ -203,7 +203,14 @@ from franki_reader.mnemonics import (
     MnemonicsFailed,
     claude_mnemonics,
 )
-from franki_reader.reader import from_wanikani, gloss_for, lemma_for, render, render_sentence
+from franki_reader.reader import (
+    from_wanikani,
+    gloss_for,
+    lemma_for,
+    render,
+    render_line,
+    render_sentence,
+)
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
 from franki_reader.study_day import DEFAULT_ROLLOVER
 from franki_reader.suggestions import suggest
@@ -1488,6 +1495,19 @@ def _shelf_text(text: StoredText, engine: Engine, practice: bool = False) -> dic
     }
 
 
+def _recap_line(text: StoredText, engine: Engine) -> dict[str, Any] | None:
+    """An episode's recap in its own language, split and glossed as a choice is, or None when it
+    has none (written before the recap was asked for in the story's language)."""
+    if not text.recap_line:
+        return None
+    entries, lexicon = engine.snapshot(text.language)
+    deck_translits = {e.text: e.translit for e in entries if e.translit}
+    words = render_line(
+        text.recap_line, text, lexicon, engine.meanings(text.language), deck_translits
+    )
+    return {"english": text.recap_english, "words": words}
+
+
 def _shelf(engine: Engine) -> dict[str, Any]:
     language = engine.language()
     writing = engine.writing(language)
@@ -1503,6 +1523,9 @@ def _shelf(engine: Engine) -> dict[str, Any]:
             "about": story.about,
             "read": len(read),
             "last_recap": read[-1].recap if read else "",
+            # The same in the story's language, as the reader's words, with that line's English;
+            # null for an episode written before it was asked for.
+            "last_recap_line": _recap_line(read[-1], engine) if read else None,
             "next": _shelf_text(waiting, engine, practice=True) if waiting else None,
             "writing": any(j.story_id == story.id for j in writing),
             "failed": engine.failure(story.topic_id, language),

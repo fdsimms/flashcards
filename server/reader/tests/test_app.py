@@ -948,7 +948,13 @@ def test_a_typed_topic_is_written_and_joins_the_shelf() -> None:
 
 def test_a_story_is_started_and_its_episodes_are_listed_once_read() -> None:
     model = ScriptedModel(
-        {**IN_RANGE, "series": "Noi's stall", "cast": "Noi.", "recap": "Noi opens."}
+        {
+            **IN_RANGE,
+            "series": "Noi's stall",
+            "cast": "Noi.",
+            "recap": "Noi opens.",
+            "recap_line": {"text": "ฉัน|กิน", "english": "I eat."},
+        }
     )
     c = client(model)
     started_story = c.post("/api/story", json={"about": "a noodle stall"}, headers=AUTH)
@@ -974,6 +980,10 @@ def test_a_story_is_started_and_its_episodes_are_listed_once_read() -> None:
     c.post(f"/api/texts/{episode['id']}/reading", json=body, headers=AUTH)
     story = c.get("/api/shelf", headers=AUTH).json()["story"]
     assert (story["read"], story["last_recap"]) == (1, "Noi opens.")
+    # The recap in the story's language, as words like a choice's, with that line's English.
+    line = story["last_recap_line"]
+    assert line["english"] == "I eat." and "".join(w["text"] for w in line["words"]) == "ฉันกิน"
+    assert line["words"][0]["gloss"] == "I; me"
     past = c.get("/api/texts", params={"story": story["id"]}, headers=AUTH).json()
     assert [(t["topic"], t["episode"]) for t in past] == [("Noi's stall", 1)]
 
@@ -1015,6 +1025,8 @@ def test_a_story_episodes_choices_are_shown_and_the_pick_is_recorded_until_it_is
 
     c.post(f"/api/texts/{episode_id}/reading", json={"finished": True}, headers=AUTH)
     assert c.post(url, json={"choice": 0}, headers=AUTH).status_code == 409
+    # An episode written without a recap line shows only the English recap.
+    assert c.get("/api/shelf", headers=AUTH).json()["story"]["last_recap_line"] is None
     assert c.get(f"/api/texts/{episode_id}", headers=AUTH).json()["chosen"] == 1
 
 

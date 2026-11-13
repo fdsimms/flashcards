@@ -692,6 +692,13 @@ next episode is the top of the shelf.
   until the episode is read: reading is what writes the next episode, and its request then says
   "the reader chose X". No pick means no line saying so. A read episode refuses a new pick (409).
   Play all stops at an episode that has choices. Not built: a typed option of the reader's own.
+- **Last time is shown in the story's language** (added 13 November 2026). The same request asks
+  for `recap_line`: the recap as one line of the story's language, written like a line and counted
+  in coverage like the choices, with its own English. It's stored beside the English `recap`
+  (`recap_line`, `recap_english`), which stays what the next episode's request carries. The shelf
+  sends it as words (`last_recap_line`), and the card shows them to tap, with the English behind
+  Show English, hidden again each time the shelf is left. An episode written before it shows the
+  English recap.
 
 ## Topics
 
