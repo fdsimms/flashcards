@@ -5,15 +5,17 @@ import { ActionSheetIOS, ActivityIndicator, Keyboard, Linking, ScrollView, Text,
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
-import { problemText, WaniKaniError } from '../wanikani/api';
+import { problemText, WaniKaniError, type WaniKaniApi, type WaniKaniUser } from '../wanikani/api';
 import { toKana } from '../wanikani/kana';
 import { apprenticeBlocks, lessonsToday } from '../wanikani/prefs';
+import { audioFileName, audioFor } from '../wanikani/production';
 import {
   buildSession, canAskLater, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
   studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
 import { nextStage, outcomeText } from '../wanikani/srs';
-import { SUBJECT_TYPE_NAMES, type Subject } from '../wanikani/subjects';
+import { localAudioUri } from '../wanikani/storage';
+import { SUBJECT_TYPE_NAMES, type Assignment, type Subject } from '../wanikani/subjects';
 import { haptic } from './haptics';
 import { Button, Count, ErrorNote, Icon, Screen, Tappable } from './kit';
 import { Reveal } from './motion';
@@ -22,6 +24,47 @@ import type { WaniKaniState } from './useWaniKani';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 import { SubjectDetails, SubjectFront } from './WaniKaniCard';
+
+/** What a session is built from: WaniKani itself, or the offline copy when it can't be reached. */
+interface Source {
+  user: WaniKaniUser;
+  reviews: Assignment[];
+  lessons: Assignment[];
+  started: number;
+  apprentice: number;
+  subjects: (ids: number[]) => Promise<Subject[]>;
+  synonyms: (ids: number[]) => Promise<Map<number, string[]>>;
+}
+
+async function source(api: WaniKaniApi, wanikani: WaniKaniState): Promise<Source> {
+  const copy = () => {
+    const d = wanikani.offlineData();
+    if (!d) return null;
+    return {
+      user: d.user, reviews: d.reviews, lessons: d.lessons, started: d.started, apprentice: d.apprentice,
+      subjects: async (ids: number[]) => ids.flatMap((id) => d.subjects.get(id) ?? []),
+      synonyms: async (ids: number[]) => new Map(ids.flatMap((id): [number, string[]][] => (d.synonyms.has(id) ? [[id, d.synonyms.get(id)!]] : []))),
+    };
+  };
+  // Already known to be out of reach: no waiting on requests that won't be answered.
+  if (wanikani.offline) {
+    const d = copy();
+    if (d) return d;
+  }
+  try {
+    const user = wanikani.user ?? await api.user();
+    const [reviews, lessons, started, apprentice] = await Promise.all([
+      api.reviewsAvailable(user.maxLevel), api.lessonsAvailable(user.maxLevel),
+      api.lessonsStartedSince(studyDayStart(new Date(), wanikani.dayStartsAtHour)),
+      api.apprenticeCount(user.maxLevel),
+    ]);
+    return { user, reviews, lessons, started, apprentice, subjects: api.subjects, synonyms: api.synonyms };
+  } catch (e) {
+    const d = e instanceof WaniKaniError && e.problem !== 'unavailable' ? null : copy();
+    if (d) return d;
+    throw e;
+  }
+}
 
 /**
  * Studies WaniKani, as a deck: today's reviews, or, when none are up or after they're done and
@@ -65,22 +108,18 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     setError(null);
     (async () => {
       try {
-        const user = wanikani.user ?? await api.user();
-        const [reviews, lessons, started, apprentice] = await Promise.all([
-          api.reviewsAvailable(user.maxLevel), api.lessonsAvailable(user.maxLevel),
-          api.lessonsStartedSince(studyDayStart(new Date(), wanikani.dayStartsAtHour)),
-          api.apprenticeCount(user.maxLevel),
-        ]);
+        const src = await source(api, wanikani);
+        const { user, reviews, lessons, started, apprentice } = src;
         // Reviews first; lessons only when none are up or they were asked for.
         const lessonKind = lessonsOnly || reviews.length === 0;
         const offered = lessonsToday(lessons.length, prefs.newPerDay, started);
         const held = apprenticeBlocks(apprentice, prefs.maxApprentice) && offered > 0;
         const lessonCount = held ? 0 : offered;
-        const read = new Map((await api.subjects((lessonKind ? lessons : reviews).map((a) => a.subjectId))).map((s) => [s.id, s]));
+        const read = new Map((await src.subjects((lessonKind ? lessons : reviews).map((a) => a.subjectId))).map((s) => [s.id, s]));
         const items = lessonKind ? sessionItems([], lessons, read, lessonCount) : sessionItems(reviews, [], read, 0);
         // The user's own synonyms count as right answers when typing; without them, only WaniKani's do.
         const typed = prefs.answer === 'type';
-        const syn = typed ? await api.synonyms(items.map((i) => i.subjectId)).catch(() => new Map<number, string[]>()) : new Map<number, string[]>();
+        const syn = typed ? await src.synonyms(items.map((i) => i.subjectId)).catch(() => new Map<number, string[]>()) : new Map<number, string[]>();
         if (gone) return;
         setSubjects(read);
         setSynonyms(syn);
@@ -89,7 +128,9 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         setTyping(typed);
         setStudy(startStudy(buildSession(items, { mode: questionMode(prefs.answer, prefs.separate), lessonBatch: user.lessonBatch })));
       } catch (e) {
-        if (!gone) setError(problemText(e instanceof WaniKaniError ? e.problem : 'unavailable'));
+        if (gone) return;
+        const why = e instanceof WaniKaniError ? e.problem : 'unavailable';
+        setError(why === 'unavailable' ? `${problemText(why)} No offline copy has been saved yet: Franki makes one each time it reaches WaniKani.` : problemText(why));
       }
     })();
     return () => { gone = true; };
@@ -108,7 +149,11 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   // One player for WaniKani's recordings, released when the screen closes.
   const player = useRef<AudioPlayer | null>(null);
   useEffect(() => () => { player.current?.remove(); player.current = null; }, []);
-  const audioUrl = (s: Subject | undefined) => s?.audio.find((a) => a.contentType === 'audio/mpeg')?.url;
+  // The recording kept on this phone when there is one (offline.ts), else WaniKani's.
+  const audioUrl = (s: Subject | undefined) => {
+    const a = s && audioFor(s);
+    return a ? localAudioUri(audioFileName(s.id, a)) ?? a.url : undefined;
+  };
   const play = useCallback((url: string | undefined) => {
     if (!url) return;
     player.current ??= createAudioPlayer(null, { keepAudioSessionActive: true });
@@ -339,6 +384,9 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
           {kind === 'reviews' ? <Count value={left.reviews} label="due" color={c.countDue} /> : <Count value={left.lessons} label="new" color={c.countNew} />}
         </View>
+        {wanikani.offline ? (
+          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>Offline. Answers are sent when WaniKani can be reached.</Text>
+        ) : null}
         <ProgressBar value={sessionProgress(study.session)} />
         <CardSurface>
           <ScrollView

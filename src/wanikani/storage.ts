@@ -1,5 +1,6 @@
-import { File, Paths } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
+import { parseSnapshot, type Snapshot } from './offline';
 import { parsePrefs, parseState, type WaniKaniPrefs, type WaniKaniState } from './prefs';
 
 /**
@@ -48,5 +49,76 @@ export function saveState(state: WaniKaniState): void {
     f.writeSync(JSON.stringify(state));
   } catch {
     // Nothing to do: answers still in memory are tried again while the app is open.
+  }
+}
+
+const OFFLINE_FILE = 'wanikani-offline.json';
+const AUDIO_FOLDER = 'wanikani-audio';
+
+/** The offline copy (offline.ts), in the documents folder: a few megabytes, too big for the Keychain. */
+export async function loadSnapshot(): Promise<Snapshot | null> {
+  try {
+    const f = new File(Paths.document, OFFLINE_FILE);
+    return parseSnapshot(f.exists ? await f.text() : null);
+  } catch {
+    return null;
+  }
+}
+
+export async function saveSnapshot(snapshot: Snapshot): Promise<void> {
+  const f = new File(Paths.document, OFFLINE_FILE);
+  if (!f.exists) f.create();
+  await f.write(JSON.stringify(snapshot));
+}
+
+function audioFolder(): Directory {
+  const dir = new Directory(Paths.document, AUDIO_FOLDER);
+  dir.create({ idempotent: true, intermediates: true });
+  return dir;
+}
+
+/** A kept recording's address on this phone, or undefined when it isn't kept. */
+export function localAudioUri(name: string): string | undefined {
+  try {
+    const f = new File(audioFolder(), name);
+    return f.exists ? f.uri : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Downloads the recordings not kept yet, a few at a time, and deletes the ones no longer wanted. A failed one is tried at the next copy. */
+export async function keepAudio(wanted: Map<string, string>, download: (url: string) => Promise<Uint8Array>): Promise<void> {
+  const dir = audioFolder();
+  for (const e of dir.list()) {
+    if (e instanceof File && !wanted.has(e.name)) e.delete();
+  }
+  const todo = [...wanted].filter(([name]) => !new File(dir, name).exists);
+  let next = 0;
+  const worker = async () => {
+    while (next < todo.length) {
+      const [name, url] = todo[next++];
+      try {
+        const bytes = await download(url);
+        const f = new File(dir, name);
+        f.create({ overwrite: true });
+        await f.write(bytes);
+      } catch {
+        // Offline again, or the file is gone: left for the next copy.
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: 4 }, worker));
+}
+
+/** Signing out: the copy and its recordings go too. */
+export function clearOffline(): void {
+  try {
+    const f = new File(Paths.document, OFFLINE_FILE);
+    if (f.exists) f.delete();
+    const dir = new Directory(Paths.document, AUDIO_FOLDER);
+    if (dir.exists) dir.delete();
+  } catch {
+    // Nothing to do: the next sign-in overwrites them.
   }
 }

@@ -66,6 +66,8 @@ export function lessonsToday(available: number, newPerDay: number, startedToday:
  */
 export interface WaniKaniState {
   outbox: Outcome[];
+  /** Answers sent since the offline copy was made (offline.ts): the copy still lists their items. */
+  sent: Outcome[];
   made: number[];
   /** Answers given here, for Stats. */
   log: LogEntry[];
@@ -76,11 +78,12 @@ export function parseState(raw: string | null | undefined): WaniKaniState {
     const o = raw ? JSON.parse(raw) : null;
     return {
       outbox: Array.isArray(o?.outbox) ? o.outbox.filter(isOutcome) : [],
+      sent: Array.isArray(o?.sent) ? o.sent.filter(isOutcome) : [],
       made: Array.isArray(o?.made) ? o.made.filter((x: unknown) => typeof x === 'number') : [],
       log: parseLog(o?.log),
     };
   } catch {
-    return { outbox: [], made: [], log: [] };
+    return { outbox: [], sent: [], made: [], log: [] };
   }
 }
 
