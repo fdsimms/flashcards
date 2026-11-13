@@ -21,7 +21,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader import store
 from franki_reader.coverage import Checker, is_word, segment_line
-from franki_reader.generator import MODEL, Usage
+from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.reader import gloss_for
 from franki_reader.store import StoredText
@@ -65,7 +65,12 @@ SCHEMA: dict[str, Any] = {
 
 
 class MeaningsFailed(Exception):
-    """Claude couldn't write the meanings; logged, and tried again later."""
+    """Claude couldn't write the meanings; logged, and tried again later. `usage` is what the failed
+    call was billed for, when Claude answered at all."""
+
+    def __init__(self, message: str, usage: Usage | None = None) -> None:
+        super().__init__(message)
+        self.usage = usage or Usage()
 
 
 # Writes the meanings for (word, line in English) pairs, and what that cost.
@@ -117,11 +122,17 @@ async def fill(
 ) -> int:
     """Has Claude gloss the words in `texts` that have none, up to `MAX_WORDS`, and keeps what comes
     back. A word it gives nothing usable for is kept without a meaning, so it isn't asked again.
-    Returns how many words were asked about; raises `MeaningsFailed` when the call fails."""
+    Returns how many words were asked about; raises `MeaningsFailed` when the call fails, after
+    keeping what a paid answer cost as a batch with no words in it, so they're all asked again."""
     asked = missing(texts, lexicon, meanings)[:MAX_WORDS]
     if not asked:
         return 0
-    raw, used = await write(language, asked)
+    try:
+        raw, used = await write(language, asked)
+    except MeaningsFailed as e:
+        if e.usage != Usage():
+            store.save_meaning_batch(conn, language, {}, now(), e.usage.cost_usd())
+        raise
     wanted = {word for word, _ in asked}
     answered: dict[str, str] = {}
     for item in raw:
@@ -155,21 +166,14 @@ def claude_meanings(client: anthropic.AsyncAnthropic) -> WriteMeanings:
             )
         except anthropic.APIError as e:
             raise MeaningsFailed(f"Claude didn't answer ({type(e).__name__})") from e
+        used = usage_of(response)
         text = next((b.text for b in response.content if b.type == "text"), None)
         if response.stop_reason in ("refusal", "max_tokens") or text is None:
-            raise MeaningsFailed(f"No meanings ({response.stop_reason})")
+            raise MeaningsFailed(f"No meanings ({response.stop_reason})", used)
         try:
             words = json.loads(text).get("words")
         except (json.JSONDecodeError, AttributeError) as e:
-            raise MeaningsFailed("The answer wasn't valid JSON") from e
-        u = response.usage
-        used = Usage(
-            u.input_tokens,
-            u.output_tokens,
-            u.cache_read_input_tokens or 0,
-            u.cache_creation_input_tokens or 0,
-            response.model,
-        )
+            raise MeaningsFailed("The answer wasn't valid JSON", used) from e
         return (words if isinstance(words, list) else []), used
 
     return write

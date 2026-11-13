@@ -13,7 +13,7 @@ from typing import Any, cast
 import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
-from franki_reader.generator import MODEL
+from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 
 COUNT = 3
@@ -39,7 +39,12 @@ SCHEMA: dict[str, Any] = {
 
 
 class MnemonicsFailed(Exception):
-    """Written to be shown as it is."""
+    """Written to be shown as it is. `usage` is what the failed call was billed for, when Claude
+    answered at all."""
+
+    def __init__(self, message: str, usage: Usage | None = None) -> None:
+        super().__init__(message)
+        self.usage = usage or Usage()
 
 
 @dataclass(frozen=True)
@@ -51,7 +56,8 @@ class MnemonicRequest:
     context: str = ""
 
 
-MakeMnemonics = Callable[[MnemonicRequest], Awaitable[list[str]]]
+# The hints, and what asking for them cost.
+MakeMnemonics = Callable[[MnemonicRequest], Awaitable[tuple[list[str], Usage]]]
 
 
 def request_message(request: MnemonicRequest) -> str:
@@ -84,7 +90,7 @@ def claude_mnemonics(client: anthropic.AsyncAnthropic) -> MakeMnemonics:
         "format": {"type": "json_schema", "schema": SCHEMA},
     }
 
-    async def make(request: MnemonicRequest) -> list[str]:
+    async def make(request: MnemonicRequest) -> tuple[list[str], Usage]:
         messages = [{"role": "user", "content": request_message(request)}]
         try:
             response = await client.beta.messages.create(
@@ -100,15 +106,20 @@ def claude_mnemonics(client: anthropic.AsyncAnthropic) -> MakeMnemonics:
             raise MnemonicsFailed(
                 f"Claude didn't answer ({type(e).__name__}). Try again in a moment."
             ) from e
+        used = usage_of(response)
         text = next((b.text for b in response.content if b.type == "text"), None)
         if response.stop_reason in ("refusal", "max_tokens") or text is None:
-            raise MnemonicsFailed("Claude didn't give any hints for this word. Write your own.")
+            raise MnemonicsFailed(
+                "Claude didn't give any hints for this word. Write your own.", used
+            )
         try:
             hints = clean(json.loads(text).get("hints"))
         except (json.JSONDecodeError, AttributeError) as e:
-            raise MnemonicsFailed("Claude's answer couldn't be read. Try again.") from e
+            raise MnemonicsFailed("Claude's answer couldn't be read. Try again.", used) from e
         if not hints:
-            raise MnemonicsFailed("Claude didn't give any hints for this word. Write your own.")
-        return hints
+            raise MnemonicsFailed(
+                "Claude didn't give any hints for this word. Write your own.", used
+            )
+        return hints, used
 
     return make

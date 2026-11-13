@@ -63,9 +63,15 @@ marked words, ideas) is in the current language, the `language` setting.
                                       texts read, waiting, dropped and skipped, attempts and dollars,
                                       plus Azure's audio estimated from the characters it spoke (every
                                       language, not just the current one; the MCP's
-                                      read_and_listen_costs reads it), and `explanations`: what
-                                      Explain's calls, lines and phrases, cost over the same days,
-                                      and `meanings`: what glossing common words cost
+                                      read_and_listen_costs reads it). Then, over the same days,
+                                      apart from the texts: `explanations`, what Explain's calls
+                                      (lines and phrases) and the naturalness check cost;
+                                      `drills`, `meanings` (glossing common words), `vocab_checks`
+                                      and `note_queue`; `mnemonics`, memory hints; and
+                                      `recordings`, the cards recorded through /api/speech, as
+                                      Azure's characters and their estimate. A call that failed
+                                      after Claude answered was still paid for, and counts in its
+                                      feature's figure
     GET   /api/grammar                the current language's grammar points, each practice, avoid,
                                       normal ("Know it") or unset, with how often each came up in
                                       texts read; `least`, the known ones worked in next
@@ -159,7 +165,7 @@ from franki_reader.explain import (
     claude_explain_phrase,
 )
 from franki_reader.gateway import AnkiUnavailable, ReadDue, due_with_timeout, with_timeout
-from franki_reader.generator import Ask, Form, claude_ask
+from franki_reader.generator import Ask, Form, Usage, claude_ask
 from franki_reader.languages import LANGUAGES, Code, CommonCount, VoiceSlot, with_deck
 from franki_reader.lexicon import Entry
 from franki_reader.mnemonics import (
@@ -172,7 +178,7 @@ from franki_reader.reader import from_wanikani, gloss_for, lemma_for, render
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
 from franki_reader.study_day import DEFAULT_ROLLOVER
 from franki_reader.suggestions import suggest
-from franki_reader.tts import AudioCache, Speech, azure_synthesize, azure_usd
+from franki_reader.tts import AudioCache, Speech, azure_synthesize, azure_usd, billed_chars
 from franki_reader.wanikani import wanikani_reader
 
 # The window the progress summary covers: the Milestone 1 exit check's two weeks.
@@ -381,6 +387,12 @@ def create_app(
     # Whether the note queue is being filled in, so a poll or a second Quick add doesn't start a
     # second pass (the running one picks up whatever was added meanwhile).
     queue_filling: list[bool] = [False]
+
+    def keep_failed_cost(feature: store.CallFeature, language: Code, used: Usage) -> None:
+        """What a call that failed after Claude answered cost: no answer is kept to carry it, so
+        it goes in `call_costs`. A call Claude never answered cost nothing."""
+        if used != Usage():
+            store.save_call_cost(engine.conn, feature, language, engine.clock(), used.cost_usd())
 
     def given_key(authorization: str | None) -> bytes:
         # Header values arrive decoded as latin-1, so turn them back into the bytes that were sent
@@ -630,6 +642,7 @@ def create_app(
                 )
             )
         except ExplainFailed as e:
+            keep_failed_cost("explain", text.language, e.usage)
             # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
             raise HTTPException(503, str(e)) from e
         store.save_explanation(
@@ -670,6 +683,7 @@ def create_app(
                 )
             )
         except ExplainFailed as e:
+            keep_failed_cost("phrase", text.language, e.usage)
             # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
             raise HTTPException(503, str(e)) from e
         store.save_phrase_explanation(
@@ -706,6 +720,7 @@ def create_app(
                 )
             )
         except ExplainFailed as e:
+            keep_failed_cost("natural", text.language, e.usage)
             # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
             raise HTTPException(503, str(e)) from e
         store.save_naturalness(engine.conn, text_id, line, answer, engine.clock(), used.cost_usd())
@@ -821,11 +836,17 @@ def create_app(
             locale_of(body.voice)
         except SpeechError as e:
             raise HTTPException(400, str(e)) from e
+        spoken = body.text.strip()
         try:
-            mp3 = await need_speech().synthesize(body.text.strip(), body.voice, body.rate)
+            mp3 = await need_speech().synthesize(spoken, body.voice, body.rate)
         except SpeechError as e:
             # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
             raise HTTPException(503, str(e)) from e
+        # Counted as a text's lines are (Engine.line_audio): only a recording Azure made, which is
+        # what it bills.
+        store.save_call_cost(
+            engine.conn, "recording", "", engine.clock(), audio_chars=billed_chars(spoken)
+        )
         return Response(mp3, media_type="audio/mpeg")
 
     @app.post("/api/mnemonics", dependencies=authed)
@@ -837,7 +858,7 @@ def create_app(
                 " (ANTHROPIC_API_KEY in server/.env turns suggestions on).",
             )
         try:
-            hints = await mnemonics(
+            hints, used = await mnemonics(
                 MnemonicRequest(
                     body.language,
                     body.entry.strip(),
@@ -847,8 +868,12 @@ def create_app(
                 )
             )
         except MnemonicsFailed as e:
+            keep_failed_cost("mnemonics", body.language, e.usage)
             # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
             raise HTTPException(503, str(e)) from e
+        store.save_call_cost(
+            engine.conn, "mnemonics", body.language, engine.clock(), used.cost_usd()
+        )
         return {"hints": hints}
 
     @app.post("/api/texts/{text_id}/choice", status_code=204, dependencies=authed)
@@ -905,6 +930,8 @@ def create_app(
         vocab = store.vocab_spending(engine.conn, since)
         queued = store.queue_spending(engine.conn, since)
         glossed = store.meaning_spending(engine.conn, since)
+        hinted = store.mnemonic_spending(engine.conn, since)
+        recorded, recorded_chars = store.recording_spending(engine.conn, since)
         rows = by_language.values()
         total = store.Spending(
             sum(r.read for r in rows),
@@ -923,7 +950,8 @@ def create_app(
                 for code, r in by_language.items()
             ],
             "total": _spent(total),
-            # Explain's calls (lines and phrases), apart from the texts above (they aren't in per_text_usd).
+            # Explain's calls (lines and phrases) and the naturalness check, failed calls included,
+            # apart from the texts above (they aren't in per_text_usd).
             "explanations": {
                 "asked": sum(n for n, _ in explained.values()),
                 "cost_usd": round(sum(c for _, c in explained.values()), 4),
@@ -992,6 +1020,27 @@ def create_app(
                     }
                     for code, (n, c) in queued.items()
                 ],
+            },
+            # Memory hints for a word the owner keeps forgetting (mnemonics.py), failed calls included.
+            "mnemonics": {
+                "asked": sum(n for n, _ in hinted.values()),
+                "cost_usd": round(sum(c for _, c in hinted.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "asked": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in hinted.items()
+                ],
+            },
+            # Cards recorded by an Azure voice in the app (POST /api/speech): Azure's alone, an
+            # estimate like the texts' audio. Not per language: the app doesn't say which.
+            "recordings": {
+                "recordings": recorded,
+                "audio_chars": recorded_chars,
+                "azure_usd": round(azure_usd(recorded_chars), 4),
             },
         }
 

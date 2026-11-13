@@ -25,7 +25,7 @@ import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader import store
-from franki_reader.generator import MODEL, Usage
+from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 
 log = logging.getLogger(__name__)
@@ -100,7 +100,12 @@ SCHEMA: dict[str, Any] = {
 
 
 class FillFailed(Exception):
-    """Claude couldn't write the fields; logged, and tried again later."""
+    """Claude couldn't write the fields; logged, and tried again later. `usage` is what the failed
+    call was billed for, when Claude answered at all."""
+
+    def __init__(self, message: str, usage: Usage | None = None) -> None:
+        super().__init__(message)
+        self.usage = usage or Usage()
 
 
 # Writes the fields for (entry, the owner's meaning or "") pairs in a language, and what that cost.
@@ -204,7 +209,8 @@ async def fill_pending(
 ) -> int:
     """Has Claude fill in every word that's due, a language and a batch at a time, and stores what
     came of each. Returns how many words were filled. A failed call fails its batch's words, which wait
-    out `RETRY_AFTER` and are tried again until `MAX_ATTEMPTS`."""
+    out `RETRY_AFTER` and are tried again until `MAX_ATTEMPTS`; what it cost, when Claude answered, is
+    shared among them like a good batch's."""
     filled = 0
     tried: set[int] = set()
     while True:
@@ -223,8 +229,9 @@ async def fill_pending(
             raw, used = await write(language, list(asked.items()))
         except FillFailed as e:
             log.warning("Couldn't fill in %s notes: %s", language, e)
+            failed_cost = e.usage.cost_usd() / len(batch)
             for n in batch:
-                store.save_queue_result(conn, n.id, None, str(e), now(), 0.0)
+                store.save_queue_result(conn, n.id, None, str(e), now(), failed_cost)
             continue
         results = dict(r for r in (check(x, asked, language) for x in raw) if r is not None)
         cost = used.cost_usd() / len(batch)
@@ -266,21 +273,14 @@ def claude_notes(client: anthropic.AsyncAnthropic) -> WriteNotes:
             )
         except anthropic.APIError as e:
             raise FillFailed(f"Claude didn't answer ({type(e).__name__}).") from e
+        used = usage_of(response)
         text = next((b.text for b in response.content if b.type == "text"), None)
         if response.stop_reason in ("refusal", "max_tokens") or text is None:
-            raise FillFailed(f"Claude didn't write these ({response.stop_reason}).")
+            raise FillFailed(f"Claude didn't write these ({response.stop_reason}).", used)
         try:
             notes = json.loads(text).get("notes")
         except (json.JSONDecodeError, AttributeError) as e:
-            raise FillFailed("Claude's answer wasn't valid JSON.") from e
-        u = response.usage
-        used = Usage(
-            u.input_tokens,
-            u.output_tokens,
-            u.cache_read_input_tokens or 0,
-            u.cache_creation_input_tokens or 0,
-            response.model,
-        )
+            raise FillFailed("Claude's answer wasn't valid JSON.", used) from e
         return (notes if isinstance(notes, list) else []), used
 
     return write

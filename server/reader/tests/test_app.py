@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from franki_speech import WordMark
+from franki_speech import SpeechError, WordMark
 from scripted import BAD, ENTRIES, IN_RANGE, ScriptedModel
 
 from franki_reader import store
@@ -721,6 +721,30 @@ def test_speaks_a_cards_text_as_mp3() -> None:
         c.post("/api/speech", json={"text": "kot", "voice": "Zofia"}, headers=AUTH).status_code
         == 400
     )
+
+
+def test_a_cards_recording_counts_in_the_costs_and_a_failed_one_doesnt() -> None:
+    speech = FakeSpeech()
+    c = voice_client(speech)
+    empty = c.get("/api/costs", headers=AUTH).json()["recordings"]
+    assert empty == {"recordings": 0, "audio_chars": 0, "azure_usd": 0}
+    sentence = " kot" * 100  # 399 characters once trimmed
+    c.post("/api/speech", json={"text": sentence, "voice": "pl-PL-ZofiaNeural"}, headers=AUTH)
+    # Azure bills kana and kanji as two characters each (tts.billed_chars).
+    c.post("/api/speech", json={"text": "猫", "voice": "ja-JP-NanamiNeural"}, headers=AUTH)
+
+    async def down(text: str, voice: str, rate: float = 1.0) -> bytes:
+        raise SpeechError("Azure didn't answer.")
+
+    speech.synthesize = down  # type: ignore[method-assign]
+    assert (
+        c.post("/api/speech", json={"text": "pies", "voice": "pl-PL-ZofiaNeural"}, headers=AUTH)
+    ).status_code == 503
+    assert c.get("/api/costs", headers=AUTH).json()["recordings"] == {
+        "recordings": 2,
+        "audio_chars": 401,
+        "azure_usd": 0.006,  # $15 per million characters
+    }
 
 
 def test_says_what_to_set_when_there_is_no_azure_key() -> None:

@@ -21,7 +21,12 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Literal, cast
 
 import anthropic
-from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam, BetaTextBlockParam
+from anthropic.types.beta import (
+    BetaMessage,
+    BetaMessageParam,
+    BetaOutputConfigParam,
+    BetaTextBlockParam,
+)
 
 from franki_reader import grammar
 from franki_reader.characters import CHARACTERS
@@ -74,6 +79,20 @@ class Usage:
             + self.cache_read_tokens * read
             + self.cache_write_tokens * write
         ) / 1_000_000
+
+
+def usage_of(response: BetaMessage) -> Usage:
+    """What a response from Claude was billed for, whatever came of it: a refusal, an answer cut
+    off or one that can't be read is paid for like any other, so each caller keeps this even when
+    it raises."""
+    u = response.usage
+    return Usage(
+        u.input_tokens,
+        u.output_tokens,
+        u.cache_read_input_tokens or 0,
+        u.cache_creation_input_tokens or 0,
+        response.model,
+    )
 
 
 # Sent as a list of message dicts; returns the parsed draft, the assistant content to append, and
@@ -881,14 +900,7 @@ def claude_ask(
         except anthropic.APIError as e:
             # Overloaded, rate limited, unreachable: say so rather than failing the request.
             raise GenerationFailed(f"Claude didn't answer ({type(e).__name__})") from e
-        u = response.usage
-        used = Usage(
-            u.input_tokens,
-            u.output_tokens,
-            u.cache_read_input_tokens or 0,
-            u.cache_creation_input_tokens or 0,
-            response.model,
-        )
+        used = usage_of(response)
         if response.stop_reason == "refusal":
             raise GenerationFailed("Claude declined to write this text", used)
         if response.stop_reason == "max_tokens":

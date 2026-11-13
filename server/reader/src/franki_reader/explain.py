@@ -15,7 +15,7 @@ from typing import Any, cast
 import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
-from franki_reader.generator import MODEL, Usage
+from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 
 MAX_POINTS = 6
@@ -107,7 +107,12 @@ CHECK_SCHEMA: dict[str, Any] = {
 
 
 class ExplainFailed(Exception):
-    """Written to be shown as it is."""
+    """Written to be shown as it is. `usage` is what the failed call was billed for, when Claude
+    answered at all: the caller keeps it (store.save_call_cost), since nothing goes in the cache."""
+
+    def __init__(self, message: str, usage: Usage | None = None) -> None:
+        super().__init__(message)
+        self.usage = usage or Usage()
 
 
 @dataclass(frozen=True)
@@ -236,23 +241,16 @@ async def _ask(
         raise ExplainFailed(
             f"Claude didn't answer ({type(e).__name__}). Try again in a moment."
         ) from e
+    used = usage_of(response)
     text = next((b.text for b in response.content if b.type == "text"), None)
     if response.stop_reason in ("refusal", "max_tokens") or text is None:
-        raise ExplainFailed(f"Claude didn't explain {what}. Try again in a moment.")
+        raise ExplainFailed(f"Claude didn't explain {what}. Try again in a moment.", used)
     try:
         answer = json.loads(text)
     except json.JSONDecodeError as e:
-        raise ExplainFailed("Claude's answer couldn't be read. Try again.") from e
+        raise ExplainFailed("Claude's answer couldn't be read. Try again.", used) from e
     if not isinstance(answer, dict):
-        raise ExplainFailed("Claude's answer couldn't be read. Try again.")
-    u = response.usage
-    used = Usage(
-        u.input_tokens,
-        u.output_tokens,
-        u.cache_read_input_tokens or 0,
-        u.cache_creation_input_tokens or 0,
-        response.model,
-    )
+        raise ExplainFailed("Claude's answer couldn't be read. Try again.", used)
     return answer, used
 
 
@@ -262,7 +260,7 @@ def claude_explain(client: anthropic.AsyncAnthropic) -> Explain:
         answer, used = await _ask(client, system, request_message(request), SCHEMA, "this line")
         points = clean(answer.get("points"))
         if not points:
-            raise ExplainFailed("Claude didn't explain this line. Try again in a moment.")
+            raise ExplainFailed("Claude didn't explain this line. Try again in a moment.", used)
         return points, used
 
     return explain
@@ -275,7 +273,7 @@ def claude_check(client: anthropic.AsyncAnthropic) -> CheckNatural:
         )
         cleaned = clean_check(answer)
         if cleaned is None:
-            raise ExplainFailed("Claude didn't check this line. Try again in a moment.")
+            raise ExplainFailed("Claude didn't check this line. Try again in a moment.", used)
         return cleaned, used
 
     return check
@@ -297,7 +295,7 @@ def claude_explain_phrase(client: anthropic.AsyncAnthropic) -> ExplainPhrase:
         )
         cleaned = clean_phrase(answer)
         if cleaned is None:
-            raise ExplainFailed("Claude didn't explain this phrase. Try again in a moment.")
+            raise ExplainFailed("Claude didn't explain this phrase. Try again in a moment.", used)
         return cleaned, used
 
     return explain

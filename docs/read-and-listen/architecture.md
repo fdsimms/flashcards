@@ -743,7 +743,7 @@ in the current language, with when one was last read to the end. Nothing else le
   gender they were.
 - The same server also speaks a card's word for the app (`POST /api/speech`,
   Settings > Voices in Franki), which keeps the MP3 in the note, so each recording is asked for
-  once. Azure is
+  once. Its characters count under `recordings` in `/api/costs` (Logging). Azure is
   called through the client shared with the MCP (`server/speech`, `franki_speech`, since 12 November
   2026), whose docstring says which parts of the API were checked; the first real call is the check
   for the rest.
@@ -794,7 +794,22 @@ in the current language, with when one was last read to the end. Nothing else le
   straight from the `texts` table. `GET /api/costs` sums it per language over a number of days,
   and the MCP's `read_and_listen_costs` asks that route (`server/mcp/franki_mcp/reader.py`, with
   `READER_PASSPHRASE` over the compose network), so Claude can answer "what is this costing?".
-  Azure's audio isn't counted: its cost isn't recorded per text.
+  Azure's audio is counted as the characters it billed (`audio_chars` on each text, re-recordings
+  included, `tts.billed_chars`) and reported as an estimate at a list price per character
+  (`tts.AZURE_USD_PER_MILLION_CHARS`), not Azure's bill. Cards recorded in the app
+  (`POST /api/speech`) count the same way, under `recordings`, in total only: the app doesn't say
+  which language a card is in.
+- **A call that failed after Claude answered is still counted**, since it was paid for (a refusal, an
+  answer cut off at `max_tokens`, one with no text or that can't be read or used). Each feature's
+  `...Failed` exception carries the call's `Usage` (`generator.usage_of`), empty when Claude never
+  answered, which costs nothing and is recorded nowhere. Where the cost is kept: a dropped text's in
+  `texts`, like any other; a failed batch of meanings, vocabulary check words or drill questions as
+  a batch row with nothing asked or kept, so no word or point counts as done and it is asked again
+  (a drill's failed batch counts toward `BATCHES_PER_DAY`, which is what caps a point whose call
+  keeps failing); a failed note-queue batch shared among its words' `cost_usd`, as a good batch's
+  is. Explanations, phrases and the naturalness check cache answers only, so a failed one goes in
+  `call_costs` and counts under `explanations`; memory hints, which nothing else keeps, go there
+  too, failed or not, under `mnemonics`.
 - **Dropped:** the brief's randomized experiment (exposed versus held-back words, Anki outcome
   comparison, kill criterion). The owner decided on 19 October 2026 not to build it.
 
