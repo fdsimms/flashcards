@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type CommonCount, type Language, type Settings, type VocabBank } from '../reader/api';
 import { LANGUAGES, commonLabel } from '../reader/languages';
 import {
   KNOWN_SHARE, QUESTIONS, bandLabel, choicesFor, estimate, nextItem, type Asked, type Reply, type VocabItem,
 } from '../reader/vocabCheck';
+import { vocabWatch } from '../reader/vocabWatch';
 import { haptic } from './haptics';
 import { Button, Card, ErrorNote, Group, Help, Icon, Screen, Tappable } from './kit';
 import { radius, smooth, space, type, useTheme } from './theme';
@@ -38,13 +39,17 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
   const [saving, setSaving] = useState(false);
 
   // The server writes the questions the first time, which takes a minute: ask again until they're ready.
+  // Leaving while they're still being written hands the wait to the banner (VocabReadyBanner).
+  const preparing = useRef(false);
   useEffect(() => {
+    vocabWatch.clear();
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const load = async () => {
       try {
         const next = await api.vocabCheck(language);
         if (cancelled) return;
+        preparing.current = next.state === 'preparing';
         setBank(next);
         setError(null);
         if (next.state === 'preparing') timer = setTimeout(load, POLL_MS);
@@ -53,7 +58,11 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
       }
     };
     load();
-    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      if (preparing.current) vocabWatch.start(language);
+    };
   }, [api, language, attempt]);
 
   const choices = useMemo(() => (item ? choicesFor(item, Math.random) : []), [item]);
