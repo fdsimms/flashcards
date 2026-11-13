@@ -6,6 +6,7 @@ import re
 from typing import Any
 
 from franki_reader import form_primers, grammar
+from franki_reader.capitalized import demote_capitalized_nouns
 from franki_reader.coverage import Checker, is_word, parse_line, segment_line
 from franki_reader.frequency import rank_of
 from franki_reader.japanese import JapaneseLexicon
@@ -136,6 +137,7 @@ def render_sentence(
     popovers. The sentence is plain text, not a model line: `|`, `*` and `~` mean nothing in it.
     The pieces join back to the sentence as segmented, which the app checks before using them."""
     words = [word_out(p, lexicon, meanings, deck_translits) for p in lexicon.segment(sentence)]
+    demote_capitalized_nouns(words, lexicon, {})
     join_split_verbs(words, lexicon, meanings, deck_translits, set())
     return words
 
@@ -209,6 +211,7 @@ def render_line(
             )
         )
     mark_reflexive_pronouns(words, lexicon)
+    demote_capitalized_nouns(words, lexicon, text.glosses)
     join_split_verbs(words, lexicon, meanings, deck_translits or {}, stretch)
     return words
 

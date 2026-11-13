@@ -540,6 +540,22 @@ def test_forms_simplemma_takes_to_the_wrong_verb() -> None:
     assert lemma("verse", "es") == "verse"
 
 
+def test_french_and_english_forms_simplemma_takes_to_the_wrong_word() -> None:
+    from franki_reader.spaced import lemma
+
+    assert lemma("lève", "fr") == "lever"
+    assert lemma("paye", "fr") == "payer"
+    assert lemma("gone", "en") == "go"
+    assert lemma("worse", "en") == "bad"
+    # a form that is also a common noun or adjective isn't forced to the verb
+    assert lemma("left", "en") == "left"
+
+
+def test_a_reflexive_french_verb_is_found_from_its_form_after_me() -> None:
+    lexicon = lexicon_from([Entry(1, "se lever", "to get up", "mature")], "fr")
+    assert lexicon.entry_of("lève") == "se lever"
+
+
 def test_spanish_subjunctives_match_a_deck_infinitive() -> None:
     deck = SpacedLexicon("es", ["abrir", "sacar", "alcanzar", "escoger"])  # no common words
     for form, entry in [
