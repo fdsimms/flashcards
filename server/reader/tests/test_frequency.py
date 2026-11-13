@@ -25,6 +25,11 @@ def test_thai_is_ranked_by_the_word_and_still_counts_only_its_deck_as_known() ->
     lexicon = lexicon_from([], "th")
     assert rank_of("ที่", lexicon) == 1
     assert 1 < (rank_of("กิน", lexicon) or 0) < 1000
+    # Spoken Thai counts as much as written: the polite particles and a loan word said every day.
+    assert (rank_of("ครับ", lexicon) or 10**6) < 100
+    assert (rank_of("โอเค", lexicon) or 10**6) < 500
+    assert (rank_of("ป่ะ", lexicon) or 10**6) < 10000
+    assert rank_of("ๆ", lexicon) is None
     assert rank_of("เชียร์ลีดเดอร์", lexicon) is None
     assert lexicon.status("กิน") == "unknown"  # ranked, but not known without the deck
     assert not LANGUAGES["th"].counts_common

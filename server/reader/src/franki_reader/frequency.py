@@ -2,7 +2,8 @@
 (data/<code>_common.txt, 10,000 long, most common first), for the reader's word popup.
 
 Every language but Thai lists word families, so a form is looked up by its dictionary form
-(hablé finds hablar); Thai's list is of words as its corpus segments them. This only ranks a word.
+(hablé finds hablar); Thai's list is of words as its corpora segment them, blending written Thai with subtitles so
+casual words rank where they're said (scripts/build_common.py). This only ranks a word.
 What counts as known is decided elsewhere, and Thai still counts only its deck.
 """
 
