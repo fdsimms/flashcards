@@ -5,16 +5,29 @@ import { WebView } from 'react-native-webview';
 
 let pageCount = 0;
 
+const TAP_MESSAGE = '{"tap":true}';
+// Posts a tap that isn't on something with its own action (a link, the tts play button, a field, media).
+const TAP_SCRIPT = `
+document.addEventListener('click', function (e) {
+  if (e.defaultPrevented || window.getSelection().toString()) return;
+  if (e.target.closest('a, button, input, select, textarea, label, audio, video, [onclick], [contenteditable]')) return;
+  window.ReactNativeWebView.postMessage('${TAP_MESSAGE}');
+});
+true;
+`;
+
 /**
  * Shows one side of an Anki-template card. The page is written to a file and loaded from it,
  * because iOS's WebView only reads local files (the card's images and sounds in the media folder)
  * for a page that itself came from a file URL, with read access granted to the folder above both.
  * An HTML string with a file:// baseUrl doesn't get that access.
  */
-export function CardWebView({ html, onMessage }: {
+export function CardWebView({ html, onMessage, onTap }: {
   html: string;
   /** What the page posts: a tts play button's `{"tts": i}` (cardDocument's speakTts). */
   onMessage?: (data: string) => void;
+  /** A tap on the page that wasn't on a link, button or field. Setting it makes the page post `{"tap": true}`. */
+  onTap?: () => void;
 }) {
   const [uri, setUri] = useState<string>();
   const seq = useRef(0);
@@ -51,7 +64,12 @@ export function CardWebView({ html, onMessage }: {
       allowFileAccess
       allowFileAccessFromFileURLs
       mediaPlaybackRequiresUserAction={false}
-      onMessage={(e) => onMessage?.(e.nativeEvent.data)}
+      injectedJavaScript={onTap ? TAP_SCRIPT : undefined}
+      onMessage={(e) => {
+        const data = e.nativeEvent.data;
+        if (onTap && data === TAP_MESSAGE) onTap();
+        else onMessage?.(data);
+      }}
       style={{ flex: 1, backgroundColor: 'transparent' }}
     />
   );

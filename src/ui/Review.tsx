@@ -164,7 +164,7 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, onEditNote, onPracticeForms, onNextDeck, nextDeck, onCustomStudy, onCardInfo }: {
+export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, onEditNote, onPracticeForms, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -186,6 +186,10 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
   onNextDeck?: () => void;
   /** That deck's name, for the button. */
   nextDeck?: string;
+  /** Replaces this screen with the first deck at the top of the list that still has cards; only given when there is no next deck. */
+  onEarlierDeck?: () => void;
+  /** That deck's name, for the button. */
+  earlierDeck?: string;
   /** Opens Custom Study for this deck (src/ui/CustomStudy.tsx), which can raise today's limits or pick more cards to study. */
   onCustomStudy: () => void;
   /** Opens Card Info (src/ui/CardInfo.tsx) for a card. */
@@ -556,9 +560,10 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
           />
         ) : null}
         {onNextDeck ? <Button label={`Study ${nextDeck}`} variant={reading || checking ? 'secondary' : 'primary'} onPress={onNextDeck} /> : null}
+        {onEarlierDeck ? <Button label={`Back to the top: ${earlierDeck}`} variant={reading || checking ? 'secondary' : 'primary'} onPress={onEarlierDeck} /> : null}
         {/* An Anki filtered deck has no limits or cards of its own to add to. */}
         {paramsForDeck(deck, allParams)?.filtered ? null : <Button label="Custom study" variant="secondary" onPress={onCustomStudy} />}
-        <Button label="Back to decks" variant={reading || checking || onNextDeck ? 'secondary' : 'primary'} onPress={onDone} />
+        <Button label="Back to decks" variant={reading || checking || onNextDeck || onEarlierDeck ? 'secondary' : 'primary'} onPress={onDone} />
       </>
     );
     return (
@@ -816,7 +821,7 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} /> : null}
       {page ? (
         <CardSurface>
-          <CardWebView key={`${current.id}:${revealed ? 'back' : 'front'}`} html={revealed ? page.back : page.front} onMessage={onPageMessage} />
+          <CardWebView key={`${current.id}:${revealed ? 'back' : 'front'}`} html={revealed ? page.back : page.front} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} />
         </CardSurface>
       ) : null}
       {page && extras ? (
