@@ -35,6 +35,15 @@ from .server import build_server
 from .speech import SpeechClient
 
 
+# Who may say, in X-Forwarded-For and X-Forwarded-Proto, whose request it passes on: Caddy, which reaches
+# the MCP over the compose network, a private address (the port isn't published). uvicorn takes the
+# client as the last address in the header that isn't on these networks, so an address a client wrote
+# in front of the real one is skipped, and a request from anywhere else keeps its own address. The
+# approval page's wrong-password limit counts by that address (auth._source). ("*" believed any sender
+# and took the first address, which is the client's own to write.)
+PROXY_NETWORKS = "127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7"
+
+
 def env(name: str, default: str | None = None, environ=os.environ) -> str:
     value = environ.get(name, default)
     if not value:
@@ -103,7 +112,7 @@ def build_app(environ=os.environ) -> tuple[Starlette, CollectionManager]:
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     app, _ = build_app()
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", "8000")), proxy_headers=True, forwarded_allow_ips="*")
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", "8000")), proxy_headers=True, forwarded_allow_ips=PROXY_NETWORKS)
 
 
 if __name__ == "__main__":
