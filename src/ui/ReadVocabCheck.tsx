@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type CommonCount, type Language, type Settings, type VocabBank } from '../reader/api';
 import { LANGUAGES, commonLabel } from '../reader/languages';
+import { MINING_PER_DAY } from '../reader/mining';
 import {
   KNOWN_SHARE, QUESTIONS, bandLabel, choicesFor, estimate, missedWords, nextItem, rememberSeen, type Asked, type Reply, type VocabItem,
 } from '../reader/vocabCheck';
@@ -15,11 +16,12 @@ const POLL_MS = 3000;
 
 /**
  * The vocabulary check (reader/vocabCheck.ts): 20 questions on the language's most common words,
- * from the server's bank, that suggest the "Common words counted as known" setting. Answers aren't
- * marked as you go, and nothing here touches the deck or any card: the result is only a suggestion,
- * and the setting changes when you tap Use.
+ * from the server's bank, that suggest the "Common words counted as known" setting. After each answer
+ * the right meaning is shown until Next, and the word can be added to the deck: that opens the note
+ * editor (the read-vocab-check route), where saving is the approval. Nothing else here touches the
+ * deck or a card: the result is only a suggestion, and the setting changes when you tap Use.
  */
-export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord, onDone }: {
+export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord, mining, onDone }: {
   api: Api;
   language: Language;
   /** The language's setting now. */
@@ -27,6 +29,8 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
   /** The settings as the server has them after the suggestion is used. */
   onSettings: (settings: Settings) => void;
   onPlayWord: (word: string, language: Language) => void;
+  /** Present when words can be added to the deck: its name, how many more today, and what opens the note editor, resolving true once the note is saved. */
+  mining?: { deck: string; left: number; onAdd: (word: string, meaning: string) => Promise<boolean> };
   onDone: () => void;
 }) {
   const c = useTheme();
@@ -38,6 +42,10 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
   const [asked, setAsked] = useState<Asked[]>([]);
   const [item, setItem] = useState<VocabItem | null>(null);
   const [saving, setSaving] = useState(false);
+  // The answer just given, shown (right meaning marked) until Next; and the words added to the deck from here.
+  const [feedback, setFeedback] = useState<{ reply: Reply; picked?: string } | null>(null);
+  const [added, setAdded] = useState<string[]>([]);
+  const adding = useRef(false);
   // Words asked in earlier checks, which a retake leaves for last (vocabCheck.ts).
   const [seen, setSeen] = useState<string[]>([]);
   useEffect(() => { loadVocabSeen(language).then(setSeen); }, [language]);
@@ -76,21 +84,40 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
   const begin = () => {
     haptic.tap();
     setAsked([]);
+    setFeedback(null);
     setItem(nextItem(items, [], Math.random, new Set(seen)) ?? null);
     setStarted(true);
   };
 
   const answer = (reply: Reply, picked?: string) => {
-    if (!item) return;
+    if (!item || feedback) return;
     haptic.select();
-    const done = [...asked, { item, reply, picked }];
+    setFeedback({ reply, picked });
+  };
+
+  const next = () => {
+    if (!item || !feedback) return;
+    haptic.tap();
+    const done = [...asked, { item, reply: feedback.reply, picked: feedback.picked }];
+    setFeedback(null);
     setAsked(done);
-    const next = done.length >= QUESTIONS ? null : nextItem(items, done, Math.random, new Set(seen)) ?? null;
-    setItem(next);
-    if (!next) {
+    const upcoming = done.length >= QUESTIONS ? null : nextItem(items, done, Math.random, new Set(seen)) ?? null;
+    setItem(upcoming);
+    if (!upcoming) {
       const remembered = rememberSeen(seen, done, items);
       setSeen(remembered);
       saveVocabSeen(language, remembered);
+    }
+  };
+
+  // Opens the note editor with the word and its meaning; the word counts as added only once saved there.
+  const add = async (word: VocabItem) => {
+    if (!mining || adding.current) return;
+    adding.current = true;
+    try {
+      if (await mining.onAdd(word.word, word.meaning)) setAdded((a) => [...a, word.word]);
+    } finally {
+      adding.current = false;
     }
   };
 
@@ -147,7 +174,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
         {scroll(
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>{`${QUESTIONS} questions on common ${name} words`}</Text>
-            <Help>It takes about two minutes. You pick the meaning of each word, and the questions get harder or easier as you go.</Help>
+            <Help>It takes about two minutes. You pick the meaning of each word, and the questions get harder or easier as you go. After each answer you see the right meaning, and can add the word to your deck.</Help>
             <Help>Words from your deck are left out, since they already count as known. If you aren't sure of a word, choose "I don't know this word" instead of guessing: a wrong guess counts against you.</Help>
             <Help>At the end it suggests a setting for common words counted as known. It changes nothing until you choose it.</Help>
           </Card>,
@@ -256,25 +283,59 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
             <Icon name="speaker.wave.2.fill" size={18} color={c.accent} />
           </Tappable>
         </Card>
-        {choices.map((choice) => (
+        {choices.map((choice) => {
+          const right = choice === item.meaning;
+          const wrongPick = !!feedback && feedback.picked === choice && !right;
+          const mark = feedback && right ? c.good : wrongPick ? c.danger : null;
+          return (
+            <Tappable
+              key={choice}
+              onPress={() => answer(right ? 'right' : 'wrong', choice)}
+              disabled={!!feedback}
+              accessibilityRole="button"
+              accessibilityLabel={`${choice}${feedback && right ? '. Right answer' : wrongPick ? '. Your answer' : ''}`}
+              style={{
+                minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.s,
+                paddingHorizontal: space.l, paddingVertical: space.m, borderRadius: radius.m, ...smooth,
+                backgroundColor: feedback && right ? c.goodFill : wrongPick ? c.dangerFill : c.surface,
+                borderColor: mark ?? c.border, borderWidth: mark ? 1 : 0.5,
+                opacity: feedback && !mark ? 0.55 : 1,
+              }}
+            >
+              <Text style={{ ...type.body, color: c.text, flexShrink: 1 }}>{choice}</Text>
+              {mark ? <Text style={{ ...type.footnote, fontWeight: '600', color: mark }}>{right ? 'Right answer' : 'Your answer'}</Text> : null}
+            </Tappable>
+          );
+        })}
+        {feedback ? (
+          <>
+            {mining && feedback.reply !== 'right' ? (
+              <>
+                <Button
+                  label={added.includes(item.word) ? 'Added to deck' : 'Add to deck'}
+                  variant="secondary"
+                  onPress={() => add(item)}
+                  disabled={added.includes(item.word) || mining.left === 0}
+                />
+                <Help>
+                  {mining.left === 0
+                    ? `You've added ${MINING_PER_DAY} words today, the most for one day, so your reviews stay manageable. Add more tomorrow.`
+                    : `Add to deck opens a new note in ${mining.deck} with the word and its meaning, to check before saving. Up to ${MINING_PER_DAY} a day; ${mining.left} left today.`}
+                </Help>
+              </>
+            ) : null}
+            <Button label={asked.length + 1 >= QUESTIONS ? 'See result' : 'Next'} onPress={next} />
+          </>
+        ) : (
           <Tappable
-            key={choice}
-            onPress={() => answer(choice === item.meaning ? 'right' : 'wrong', choice)}
+            onPress={() => answer('skipped')}
             accessibilityRole="button"
-            accessibilityLabel={choice}
-            style={{ minHeight: 52, justifyContent: 'center', paddingHorizontal: space.l, paddingVertical: space.m, borderRadius: radius.m, ...smooth, backgroundColor: c.surface, borderColor: c.border, borderWidth: 0.5 }}
+            accessibilityLabel="I don't know this word"
+            style={{ minHeight: 52, justifyContent: 'center', paddingHorizontal: space.l, paddingVertical: space.m, borderRadius: radius.m, ...smooth, borderColor: c.border, borderWidth: 1, borderStyle: 'dashed' }}
           >
-            <Text style={{ ...type.body, color: c.text }}>{choice}</Text>
+            <Text style={{ ...type.body, color: c.textSecondary }}>I don't know this word</Text>
           </Tappable>
-        ))}
-        <Tappable
-          onPress={() => answer('skipped')}
-          accessibilityRole="button"
-          accessibilityLabel="I don't know this word"
-          style={{ minHeight: 52, justifyContent: 'center', paddingHorizontal: space.l, paddingVertical: space.m, borderRadius: radius.m, ...smooth, borderColor: c.border, borderWidth: 1, borderStyle: 'dashed' }}
-        >
-          <Text style={{ ...type.body, color: c.textSecondary }}>I don't know this word</Text>
-        </Tappable>
+        )}
       </ScrollView>
     </Screen>
   );

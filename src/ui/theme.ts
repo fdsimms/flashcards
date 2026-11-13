@@ -55,6 +55,9 @@ const light = {
   onCash: '#1b1b1b',
   /** A quiet accent fill: a chosen word, a practice word's chip, speaker A in Read & Listen. */
   accentFill: 'rgba(138, 109, 31, 0.13)',
+  /** Quiet fills for a right and a wrong choice once it's marked (the vocabulary check). */
+  goodFill: 'rgba(67, 131, 90, 0.15)',
+  dangerFill: 'rgba(179, 68, 59, 0.12)',
   /** Speaker B's badge in Read & Listen, and the text on it. */
   speakerB: '#d2e6db',
   onSpeakerB: '#24563f',
@@ -108,6 +111,8 @@ const dark: typeof light = {
   cashCoin: '#4a4e57',
   onCash: '#f1f1f1',
   accentFill: 'rgba(212, 180, 106, 0.18)',
+  goodFill: 'rgba(95, 176, 124, 0.18)',
+  dangerFill: 'rgba(224, 118, 108, 0.16)',
   speakerB: '#22392f',
   onSpeakerB: '#9fd6bb',
   speakerAFace: '#70613f',
