@@ -7,7 +7,7 @@ import type { CommonCount } from './api';
 
 export type VocabItem = { word: string; rank: number; meaning: string; wrong: string[] };
 export type Reply = 'right' | 'wrong' | 'skipped';
-export type Asked = { item: VocabItem; reply: Reply };
+export type Asked = { item: VocabItem; reply: Reply; /** The meaning picked, when the answer was a choice. */ picked?: string };
 
 /** Ranks in the language's common-word list, as the server samples them. Each setting from 250 up lands on a band's edge. */
 export const BANDS: readonly { from: number; to: number }[] = [
@@ -18,6 +18,7 @@ export const BANDS: readonly { from: number; to: number }[] = [
   { from: 1001, to: 2000 },
   { from: 2001, to: 3000 },
   { from: 3001, to: 5000 },
+  { from: 5001, to: 10000 },
 ];
 
 export const QUESTIONS = 20;
@@ -26,7 +27,7 @@ export const START_BAND = 2;
 /** A setting is suggested while at least this share of the words it counts as known are ones the learner knows. Texts are checked at 95 to 98%, so this leaves them room. */
 export const KNOWN_SHARE = 0.9;
 /** The settings the quiz can suggest, each ending on a band. Below the first is None. */
-export const SUGGESTABLE: readonly CommonCount[] = [250, 500, 1000, 2000, 3000, 5000];
+export const SUGGESTABLE: readonly CommonCount[] = [250, 500, 1000, 2000, 3000, 5000, 10000];
 /** A wrong answer picked from four choices is a guess a quarter of the time, so each wrong answer takes a third of a right one away. */
 const GUESS_PENALTY = 1 / 3;
 
@@ -117,4 +118,13 @@ export function estimate(asked: Asked[]): Estimate {
     if (words / count >= KNOWN_SHARE) suggested = count;
   }
   return { bands, suggested };
+}
+
+export type Missed = { item: VocabItem; band: number; picked?: string };
+
+/** The words answered wrong or skipped, in the order asked, each with its band and the meaning picked (none for a skip). */
+export function missedWords(asked: Asked[]): Missed[] {
+  return asked
+    .filter((a) => a.reply !== 'right')
+    .map((a) => ({ item: a.item, band: bandOf(a.item.rank), picked: a.reply === 'wrong' ? a.picked : undefined }));
 }

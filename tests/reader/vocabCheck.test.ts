@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import {
-  BANDS, KNOWN_SHARE, START_BAND, bandLabel, bandOf, bandResults, choicesFor, estimate, nextBand, nextItem,
+  BANDS, KNOWN_SHARE, START_BAND, bandLabel, bandOf, bandResults, choicesFor, estimate, missedWords, nextBand, nextItem,
   type Asked, type Reply, type VocabItem,
 } from '../../src/reader/vocabCheck';
 
@@ -27,7 +27,9 @@ test('a rank belongs to the band that holds it, and a band is labeled with its r
   expect(bandOf(250)).toBe(1);
   expect(bandOf(251)).toBe(2);
   expect(bandOf(5000)).toBe(6);
-  expect(bandOf(5001)).toBe(-1);
+  expect(bandOf(5001)).toBe(7);
+  expect(bandOf(10000)).toBe(7);
+  expect(bandOf(10001)).toBe(-1);
   expect(bandLabel(4)).toBe('1,001 to 2,000');
 });
 
@@ -82,7 +84,7 @@ test('a band reports how many were right, with a guess allowed for', () => {
 
 test('every band right suggests the top setting', () => {
   const all = BANDS.flatMap((_, band) => asks(band, ['right', 'right']));
-  expect(estimate(all).suggested).toBe(5000);
+  expect(estimate(all).suggested).toBe(10000);
 });
 
 test('the suggestion is the largest setting whose words are known at the target share', () => {
@@ -121,4 +123,22 @@ test('a band never asked takes the commoner one as known, or the average of its 
 
 test('nothing above the highest band asked is suggested', () => {
   expect(estimate(asks(1, ['right', 'right'])).suggested).toBe(250);
+});
+
+test('the 3,001 to 5,000 band right but nothing asked above it suggests 5,000', () => {
+  const asked = BANDS.slice(0, 7).flatMap((_, band) => asks(band, ['right', 'right']));
+  expect(estimate(asked).suggested).toBe(5000);
+});
+
+test('missed words are the wrong and skipped answers in order, with the meaning picked for a wrong one', () => {
+  const asked: Asked[] = [
+    ask(2, 'right'),
+    { ...ask(3, 'wrong'), picked: 'x' },
+    ask(2, 'skipped', 1),
+  ];
+  expect(missedWords(asked)).toEqual([
+    { item: inBand(3), band: 3, picked: 'x' },
+    { item: inBand(2, 1), band: 2, picked: undefined },
+  ]);
+  expect(missedWords([ask(2, 'right')])).toEqual([]);
 });

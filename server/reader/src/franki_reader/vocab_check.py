@@ -32,7 +32,16 @@ log = logging.getLogger(__name__)
 
 # Ranks in the language's common-word list: the bands the quiz samples, and the choices of the
 # common-words setting that fall on their edges (the app scores by these, src/reader/vocabCheck.ts).
-BANDS = ((1, 100), (101, 250), (251, 500), (501, 1000), (1001, 2000), (2001, 3000), (3001, 5000))
+BANDS = (
+    (1, 100),
+    (101, 250),
+    (251, 500),
+    (501, 1000),
+    (1001, 2000),
+    (2001, 3000),
+    (3001, 5000),
+    (5001, 10000),
+)
 PER_BAND = (
     8  # words kept for each band, so 20 questions never run out even with deck words left out
 )
@@ -98,6 +107,13 @@ class VocabItem:
 
 def band_of(rank: int) -> int | None:
     return next((i for i, (lo, hi) in enumerate(BANDS) if lo <= rank <= hi), None)
+
+
+def complete(items: list[tuple[str, int, str, list[str]]]) -> bool:
+    """Whether a stored bank reaches every band. A bank written before a band was added doesn't, and
+    is written again whole (the sample's earlier bands are unchanged, so they're glossed the same words)."""
+    per_band = [sum(1 for _, rank, _, _ in items if band_of(rank) == b) for b in range(len(BANDS))]
+    return all(n >= MIN_PER_BAND for n in per_band)
 
 
 def sample(language: Code) -> list[tuple[int, str]]:

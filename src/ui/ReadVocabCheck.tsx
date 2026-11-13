@@ -3,7 +3,7 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type CommonCount, type Language, type Settings, type VocabBank } from '../reader/api';
 import { LANGUAGES, commonLabel } from '../reader/languages';
 import {
-  KNOWN_SHARE, QUESTIONS, bandLabel, choicesFor, estimate, nextItem, type Asked, type Reply, type VocabItem,
+  KNOWN_SHARE, QUESTIONS, bandLabel, choicesFor, estimate, missedWords, nextItem, type Asked, type Reply, type VocabItem,
 } from '../reader/vocabCheck';
 import { haptic } from './haptics';
 import { Button, Card, ErrorNote, Group, Help, Icon, Screen, Tappable } from './kit';
@@ -67,15 +67,16 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
     setStarted(true);
   };
 
-  const answer = (reply: Reply) => {
+  const answer = (reply: Reply, picked?: string) => {
     if (!item) return;
     haptic.select();
-    const done = [...asked, { item, reply }];
+    const done = [...asked, { item, reply, picked }];
     setAsked(done);
     setItem(done.length >= QUESTIONS ? null : nextItem(items, done, Math.random) ?? null);
   };
 
   const result = useMemo(() => (finished ? estimate(asked) : null), [finished, asked]);
+  const missed = useMemo(() => missedWords(asked), [asked]);
 
   const use = async (count: CommonCount) => {
     setSaving(true);
@@ -178,6 +179,29 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
                 </View>
               ))}
             </Group>
+            {missed.length ? (
+              <>
+                <Text style={{ ...type.footnote, color: c.textSecondary, textTransform: 'uppercase', paddingHorizontal: space.xs }}>{`Missed (${missed.length})`}</Text>
+                <Group>
+                  {missed.map((m, i) => (
+                    <View
+                      key={m.item.word}
+                      accessible
+                      accessibilityLabel={`${m.item.word}, ${m.item.meaning}. ${m.picked ? `You chose ${m.picked}.` : 'Skipped.'}`}
+                      style={{ gap: 2, paddingVertical: space.m, paddingHorizontal: space.l, borderTopWidth: i ? 0.5 : 0, borderColor: c.border }}
+                    >
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.m }}>
+                        <Text selectable style={{ ...type.callout, color: c.text, flexShrink: 1 }}>{m.item.word}</Text>
+                        <Text style={{ ...type.callout, color: c.textSecondary, flexShrink: 1, textAlign: 'right' }}>{m.item.meaning}</Text>
+                      </View>
+                      <Text style={{ ...type.footnote, color: c.textSecondary }}>
+                        {`${m.picked ? `You chose ${m.picked}` : 'Skipped'} · Words ${bandLabel(m.band)}`}
+                      </Text>
+                    </View>
+                  ))}
+                </Group>
+              </>
+            ) : null}
             <Help>
               {same
                 ? `This matches your setting of ${commonLabel(current)}. `
@@ -216,7 +240,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
         {choices.map((choice) => (
           <Tappable
             key={choice}
-            onPress={() => answer(choice === item.meaning ? 'right' : 'wrong')}
+            onPress={() => answer(choice === item.meaning ? 'right' : 'wrong', choice)}
             accessibilityRole="button"
             accessibilityLabel={choice}
             style={{ minHeight: 52, justifyContent: 'center', paddingHorizontal: space.l, paddingVertical: space.m, borderRadius: radius.m, ...smooth, backgroundColor: c.surface, borderColor: c.border, borderWidth: 0.5 }}

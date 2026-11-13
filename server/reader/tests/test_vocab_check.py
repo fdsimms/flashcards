@@ -21,8 +21,10 @@ from franki_reader.vocab_check import (
     MIN_PER_BAND,
     PER_BAND,
     VocabFailed,
+    VocabItem,
     band_of,
     check,
+    complete,
     request_message,
     sample,
     write_bank,
@@ -134,8 +136,12 @@ def test_a_failed_call_stores_nothing() -> None:
     assert store.vocab_spending(conn, NOW - timedelta(days=1)) == {}
 
 
-def vocab_client(writer: Writer | None, deck: list[Entry] | None = None) -> TestClient:
+def vocab_client(
+    writer: Writer | None, deck: list[Entry] | None = None, stored: list[Any] | None = None
+) -> TestClient:
     conn = store.connect(":memory:")
+    if stored:
+        store.save_vocab_batch(conn, "pl", stored, len(stored), NOW, 0.0)
     now = [NOW]
     store.save_snapshot(conn, deck or [], NOW, "pl")
     engine = Engine(conn, None, None, lambda: now[0], random.Random(1))
@@ -198,3 +204,27 @@ def test_the_cost_shows_in_the_costs() -> None:
     assert costs["languages"] == [
         {"language": "pl", "name": "Polish", "batches": 1, "cost_usd": 2.0}
     ]
+
+
+def test_a_bank_written_before_the_top_band_is_served_and_written_again() -> None:
+    ranks = {word: rank for rank, word in sample("pl")}
+    legacy = [
+        VocabItem(w["word"], ranks[w["word"]], w["meaning"], tuple(w["wrong"]))
+        for w in whole_bank()
+        if band_of(ranks[w["word"]]) != len(BANDS) - 1
+    ]
+    writer = Writer(whole_bank())
+    c = vocab_client(writer, stored=legacy)
+    first = get(c).json()  # served as it is, and written again behind the response
+    assert first["state"] == "ready" and not any(i["rank"] > 5000 for i in first["items"])
+    assert writer.calls == 1
+    assert any(i["rank"] > 5000 for i in get(c).json()["items"])
+    assert get(c).json()["state"] == "ready" and writer.calls == 1
+
+
+def test_a_bank_is_complete_only_when_every_band_has_enough_words() -> None:
+    conn = store.connect(":memory:")
+    asyncio.run(write_bank(conn, Writer(whole_bank()), "pl", lambda: NOW))
+    items = store.vocab_items(conn, "pl")
+    assert complete(items)
+    assert not complete([i for i in items if band_of(i[1]) != len(BANDS) - 1])

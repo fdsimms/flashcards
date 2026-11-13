@@ -688,8 +688,8 @@ in the current language, with when one was last read to the end. Nothing else le
 
 - **The vocabulary check suggests the common-words setting** (12 November 2026, the owner's idea, for
   every language but Thai): 20 questions on a language's most common words, from its settings page.
-  The server keeps a bank (`vocab_check.py`): `PER_BAND` words from each of seven rank bands (1 to 100
-  up to 3,001 to 5,000), a fixed sample per language, glossed by Claude once with three wrong choices
+  The server keeps a bank (`vocab_check.py`): `PER_BAND` words from each of eight rank bands (1 to 100
+  up to 5,001 to 10,000), a fixed sample per language, glossed by Claude once with three wrong choices
   and checked in code (a word it didn't ask for, or a wrong choice that could also be right, is
   dropped). It is written in the background the first time (`GET /api/vocab-check` answers
   "preparing" until then), its cost is in `/api/costs` as `vocab_checks`, and words already in the
@@ -699,7 +699,7 @@ in the current language, with when one was last read to the end. Nothing else le
   taking a third of a right one (a guess among four). It suggests the largest setting at which at
   least 90% of the words it would count as known are known, by each band's share, taking an unasked
   band below the lowest asked as known and nothing above the highest asked. The owner accepts it or
-  keeps their setting; it never writes a card or changes anything else. Twenty questions was checked
+  keeps their setting; it never writes a card or changes anything else. The result lists the words missed (wrong or skipped) with their meaning and what was chosen. The 5,001 to 10,000 band was added on 13 November 2026 so 10,000 can be suggested; a bank stored without it is served as it is and written again in the background (`vocab_check.complete`). Twenty questions was checked
   by simulation against a learner whose chance of knowing a word falls with its rank: the suggestion
   was within one setting step of the right one 98% of the time (95% at 12 questions, 99% at 40) and
   exactly right 62% of the time (69% at 40), so more questions buy little. Not tried on a real
