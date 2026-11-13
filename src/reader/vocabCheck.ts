@@ -117,34 +117,63 @@ export function bandResults(asked: Asked[]): BandResult[] {
 export type Estimate = { bands: BandResult[]; suggested: CommonCount };
 
 /**
+ * How fast the chance of knowing a word falls with its rank, in natural-log units: it goes from 90%
+ * to 10% over a span of about ln(rank) 2.6 at 0.6, a factor of 13 in rank.
+ */
+const SLOPE = 0.6;
+/** Of the words the learner doesn't know, the share they answer by guessing (the rest are skipped with "I don't know"). */
+const GUESS_RATE = 0.5;
+const MU_FROM = Math.log(20);
+const MU_TO = Math.log(100000);
+const MU_STEP = 0.02;
+
+/** The chance a word of this rank is known, for a learner whose 50% point is at ln(rank) `mu`. */
+function knownAt(rank: number, mu: number): number {
+  return 1 / (1 + Math.exp((Math.log(rank) - mu) / SLOPE));
+}
+
+/** How likely one reply is, if the learner's 50% point is at `mu`: a right answer is knowing the word or guessing it from four, a wrong one a missed guess, a skip an unknown word not guessed. */
+function replyLikelihood(a: Asked, mu: number): number {
+  const known = knownAt(a.item.rank, mu);
+  const unknown = 1 - known;
+  if (a.reply === 'right') return known + (unknown * GUESS_RATE) / 4;
+  if (a.reply === 'wrong') return (unknown * GUESS_RATE * 3) / 4;
+  return unknown * (1 - GUESS_RATE);
+}
+
+/** The 50% point (in ln rank) that makes all the answers most likely, over a grid. Ties go to the lowest. */
+function fitMu(asked: Asked[]): number {
+  let best = MU_FROM;
+  let bestLog = -Infinity;
+  for (let mu = MU_FROM; mu <= MU_TO; mu += MU_STEP) {
+    let log = 0;
+    for (const a of asked) log += Math.log(Math.max(replyLikelihood(a, mu), 1e-12));
+    if (log > bestLog + 1e-9) { bestLog = log; best = mu; }
+  }
+  return best;
+}
+
+/**
  * The largest setting at which at least KNOWN_SHARE of the words it counts as known are likely
- * known, or None (0) when even the first 250 fall short. A band never asked takes its neighbors'
- * share: the one below the lowest asked is taken as known (commoner words are known at least as
- * well), one between two asked bands the average of them. Nothing above the highest asked band is
- * suggested, since no answer says how well those words are known.
+ * known, or None (0) when even the first 250 fall short. One curve of "chance of knowing a word at
+ * this rank" is fitted to every answer at once (a fixed slope, so only where it crosses 50% is
+ * fitted), rather than scoring each band by itself: a band of four questions is too noisy to carry
+ * the result alone, and one miss in it used to outweigh nine right answers in the band above.
+ * Nothing above the highest asked band is suggested, since no answer says how well those words are known.
  */
 export function estimate(asked: Asked[]): Estimate {
   const bands = bandResults(asked);
   if (!bands.length) return { bands, suggested: 0 };
-  const share = new Map(bands.map((b) => [b.band, b.known]));
-  const lowest = bands[0].band;
   const highest = bands[bands.length - 1].band;
-  const known = (band: number): number => {
-    const direct = share.get(band);
-    if (direct !== undefined) return direct;
-    if (band < lowest) return 1;
-    let below = band - 1;
-    while (!share.has(below)) below--;
-    let above = band + 1;
-    while (!share.has(above)) above++;
-    return ((share.get(below) ?? 0) + (share.get(above) ?? 0)) / 2;
-  };
+  const mu = fitMu(asked);
   let suggested: CommonCount = 0;
+  let sum = 0;
+  let rank = 0;
   for (const count of SUGGESTABLE) {
-    const covered = BANDS.map((b, i) => ({ ...b, i })).filter((b) => b.to <= count);
-    if (!covered.length || covered[covered.length - 1].i > highest) break;
-    const words = covered.reduce((n, b) => n + known(b.i) * (b.to - b.from + 1), 0);
-    if (words / count >= KNOWN_SHARE) suggested = count;
+    if (bandOf(count) > highest) break;
+    for (rank++; rank <= count; rank++) sum += knownAt(rank, mu);
+    rank = count;
+    if (sum / count >= KNOWN_SHARE) suggested = count;
   }
   return { bands, suggested };
 }
