@@ -442,7 +442,12 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       await repo.saveCard(updated);
       for (const b of buried) await repo.saveCard(b);
       // Whether it was a day-long step goes in the row, so today's counts read it back after a reload.
-      const reviewId = await repo.addReview({ cardId: current.id, ...res.log, interday: !preview && isInterdayLearning(current, H) });
+      // So does the filtered deck it was answered in, which a rescheduling one sends the card out of
+      // once it's a review: today's counts keep it there, as Anki counts it.
+      const reviewId = await repo.addReview({
+        cardId: current.id, ...res.log, interday: !preview && isInterdayLearning(current, H),
+        ...(current.filteredDeck ? { deck: current.filteredDeck } : {}),
+      });
       // Into the kept Anki collection too, so "Send to Anki" carries this answer. If that write
       // fails, the answer still counts here, and you're told rather than it going missing.
       let anki: AnkiUndo | undefined;

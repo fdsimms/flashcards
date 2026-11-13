@@ -143,7 +143,8 @@ export function studiedToday(input: {
     // A preview uses no limits, as in Anki, and its card is back home by now: counted by where it
     // is, 50 previews took 50 off the home deck's review room.
     if (a.preview) continue;
-    const deck = deckOf.get(a.cardId);
+    // Where it was answered, when that was a filtered deck the card has since left (`Answer.deck`).
+    const deck = a.deck ?? deckOf.get(a.cardId);
     if (!deck) continue;
     const s = out.get(deck) ?? { introduced: 0, reviewed: 0 };
     if (a.wasNew) {
