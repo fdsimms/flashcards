@@ -63,6 +63,39 @@ def test_a_snapshot_from_before_transliterations_is_refreshed(tmp_path) -> None:
     assert is_stale(taken_at, NOW)
 
 
+def test_whats_due_and_reviewed_survives_a_round_trip(conn) -> None:  # type: ignore[no-untyped-def]
+    entries = [
+        Entry(1, "ฉัน", "I; me", "mature", due=True, due_in=0),
+        Entry(2, "ดี", "good", "young", reviewed=True, due_in=3),
+        Entry(3, "ไป", "go", "unreviewed"),
+    ]
+    save_snapshot(conn, entries, NOW)
+    assert load_snapshot(conn)[0] == entries
+
+
+def test_a_snapshot_from_before_due_dates_is_refreshed(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    path = tmp_path / "old.db"
+    first = connect(path)
+    save_snapshot(first, OLD, NOW)
+    first.execute("ALTER TABLE lexicon DROP COLUMN due_in")
+    first.execute("ALTER TABLE lexicon DROP COLUMN reviewed")
+    first.commit()
+    first.close()
+    migrated = connect(path)
+    # The words still serve, but the missing time makes the next refresh read the deck again.
+    assert load_snapshot(migrated) == (OLD, None)
+    save_snapshot(migrated, OLD, NOW)
+    migrated.close()
+    assert load_snapshot(connect(path)) == (OLD, NOW)  # only the first time
+
+
+def test_a_caller_can_ask_for_a_fresher_snapshot(conn) -> None:  # type: ignore[no-untyped-def]
+    save_snapshot(conn, OLD, NOW - timedelta(minutes=40))
+    anki = FakeDeck([note(2, "ดี", "good")], [card(2, 2, 30)])
+    assert not asyncio.run(refresh_if_stale(conn, anki, NOW))
+    assert asyncio.run(refresh_if_stale(conn, anki, NOW, max_age=timedelta(minutes=30)))
+
+
 def test_a_new_snapshot_replaces_the_old_one(conn) -> None:  # type: ignore[no-untyped-def]
     save_snapshot(conn, OLD, NOW)
     save_snapshot(conn, [Entry(2, "ดี", "good", "young")], NOW)
@@ -280,6 +313,28 @@ def test_a_word_marked_again_after_clearing_is_listed_again(conn) -> None:  # ty
     reading_at(NOW + timedelta(days=1))
     [word] = marked_words(conn)
     assert (word.word, word.times, word.glosses["ทอน"]) == ("ทอน", 1, "change")
+
+
+def test_a_marked_word_carries_the_meanings_asked_for_its_text(conn) -> None:  # type: ignore[no-untyped-def]
+    from scripted import GOOD
+
+    from franki_reader.coverage import check
+    from franki_reader.generator import Generated, Line
+    from franki_reader.lexicon import lexicon_from
+    from franki_reader.store import Reading, log_reading, marked_words, save_meaning_batch
+
+    topic = add_topic(conn, "Food", True, NOW)
+    lines = tuple(Line(ln["speaker"], ln["text"], ln["english"]) for ln in GOOD["lines"])
+    coverage = check([ln.text for ln in lines], lexicon_from(OLD))
+    generated = Generated("t", lines, {"ทอน": "change"}, coverage, 1, True, ())
+    text_id = save_text(conn, topic.id, generated, [], 0.95, NOW)
+    save_meaning_batch(conn, "th", {}, NOW, 0, {text_id: {"กิน": "to eat", "ครับ": ""}})
+    log_reading(conn, text_id, Reading(None, True, (), ("กิน",), None, False, 10), NOW)
+
+    [word] = marked_words(conn)
+    assert word.glosses == {"ทอน": "change", "กิน": "to eat"}  # none for one given no meaning
+    text = get_text(conn, text_id)
+    assert text is not None and text.meanings == {"กิน": "to eat", "ครับ": ""}
 
 
 def test_a_database_from_before_removing_topics_gains_the_column(tmp_path) -> None:  # type: ignore[no-untyped-def]

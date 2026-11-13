@@ -191,10 +191,12 @@ CREATE TABLE IF NOT EXISTS note_queue (
     cost_usd REAL NOT NULL DEFAULT 0
 );
 -- English meanings for words in texts that have no gloss from the deck or the text (meanings.py):
--- common words are known without being in the deck, so the model isn't asked to gloss them. A word is
--- asked about once and kept, as written in lower case; an empty meaning is a word Claude gave none for.
--- A call that failed after Claude answered is a batch with nothing asked or kept, for its cost, and
--- its words are asked again.
+-- common words are known without being in the deck, so the model isn't asked to gloss them. Each text
+-- asks for its own, in the sense of its line, and keeps them (texts.meanings); a language keeps the
+-- first meaning each word was given, as written in lower case, as the fallback for a text or a card's
+-- sentence with none of its own. An empty meaning is a word Claude gave none for. A call that failed
+-- after Claude answered is a batch with nothing asked or kept, for its cost, and its words are asked
+-- again.
 CREATE TABLE IF NOT EXISTS meaning_batches (
     id INTEGER PRIMARY KEY,
     language TEXT NOT NULL,
@@ -246,8 +248,9 @@ class Topic:
 
 
 # Why a text is on the shelf (docs/read-and-listen/architecture.md, Shelf): "liked", a theme the
-# owner likes; "due", written around words due today; "new", an idea not tried before; "asked",
-# a topic typed in; "story", an episode of the ongoing story. "" for texts from before the shelf.
+# owner likes; "due", written around words due today and already reviewed (stretch.py); "new", an
+# idea not tried before; "asked", a topic typed in; "story", an episode of the ongoing story. ""
+# for texts from before the shelf.
 Reason = Literal["liked", "due", "new", "asked", "story", ""]
 
 
@@ -285,9 +288,24 @@ class StoredText:
     # Questions about what happens in it, for the check after reading (comprehension.py); none for
     # a text written before them, or whose call failed.
     questions: tuple[Question, ...] = ()
+    # Meanings asked for its words that nothing else glossed, each in its line here (meanings.py), by
+    # lower-case word; "" for a word Claude gave none for, so it isn't asked again.
+    meanings: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def own_glosses(self) -> dict[str, str]:
+        """Every gloss the text has of its own: the model's, then the meanings asked for it."""
+        return own_glosses(self.glosses, self.meanings)
 
 
-# "topic": the model chooses stretch words that fit the topic from a list of due and young words.
+def own_glosses(glosses: dict[str, str], meanings: dict[str, str]) -> dict[str, str]:
+    """A text's glosses (the model's, by the word as it wrote it) with the meanings asked for its
+    words (by lower-case word) under them. The reader looks a word up as written, then in lower case."""
+    return {**{word: m for word, m in meanings.items() if m}, **glosses}
+
+
+# "topic": the model chooses stretch words that fit the topic from a list of words reviewed today
+# and young words (stretch.py: never one due today and not reviewed yet).
 # "any": the stretch words are picked at random from that list and the model has to use them.
 StretchWords = Literal["topic", "any"]
 
@@ -368,6 +386,21 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # The words a text was asked to practice (the app's "Read a text with these words"),
         # sorted and joined by newlines; empty for the texts the queue writes on its own.
         conn.execute("ALTER TABLE texts ADD COLUMN focus TEXT NOT NULL DEFAULT ''")
+    lexicon_columns = {r[1] for r in conn.execute("PRAGMA table_info(lexicon)")}
+    added = False
+    for column, sql in (
+        # When a note's soonest card comes due, in study days after the snapshot's, and whether one
+        # was answered that day, so a word due today and not yet reviewed is never a practice word
+        # (stretch.py). `due` then means due and not yet answered.
+        ("due_in", "due_in INTEGER"),
+        ("reviewed", "reviewed INTEGER NOT NULL DEFAULT 0"),
+    ):
+        if column not in lexicon_columns:
+            conn.execute(f"ALTER TABLE lexicon ADD COLUMN {sql}")
+            added = True
+    if added:
+        # With no snapshot time, the next refresh reads the deck again to fill them in.
+        conn.execute("DELETE FROM meta WHERE key LIKE 'snapshot_taken_at%'")
     if "removed" not in {r[1] for r in conn.execute("PRAGMA table_info(topics)")}:
         # A removed topic is hidden, not deleted, since its texts and readings point at it.
         conn.execute("ALTER TABLE topics ADD COLUMN removed INTEGER NOT NULL DEFAULT 0")
@@ -390,6 +423,10 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # The stretch word count it was written at (Difficulty.stretch; the floor column is the
         # target), so a rating steps from it (difficulty.after_reading). NULL before 13 November 2026.
         ("stretch_count", "stretch_count INTEGER"),
+        # Meanings Claude gave for the text's words that nothing else glossed, each asked with the
+        # English of its line (meanings.py), by lower-case word; "" for one it gave none for. A
+        # text's own, so a word glossed in one sense elsewhere shows the sense it has here.
+        ("meanings", "meanings TEXT NOT NULL DEFAULT '{}'"),
     ):
         if column not in texts_columns:
             conn.execute(f"ALTER TABLE texts ADD COLUMN {sql}")
@@ -420,10 +457,21 @@ def save_snapshot(
         conn.execute("DELETE FROM lexicon WHERE language = ?", (language,))
         conn.executemany(
             # OR REPLACE: a note moved to the other language's deck belongs to the newer snapshot.
-            "INSERT OR REPLACE INTO lexicon (note_id, entry, meaning, tier, due, language, translit)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO lexicon"
+            " (note_id, entry, meaning, tier, due, language, translit, due_in, reviewed)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
-                (e.note_id, e.text, e.meaning, e.tier, int(e.due), language, e.translit)
+                (
+                    e.note_id,
+                    e.text,
+                    e.meaning,
+                    e.tier,
+                    int(e.due),
+                    language,
+                    e.translit,
+                    e.due_in,
+                    int(e.reviewed),
+                )
                 for e in entries
             ],
         )
@@ -434,13 +482,13 @@ def load_snapshot(
     conn: sqlite3.Connection, language: Code = "th"
 ) -> tuple[list[Entry], datetime | None]:
     rows = conn.execute(
-        "SELECT note_id, entry, meaning, tier, due, translit FROM lexicon WHERE language = ?"
-        " ORDER BY note_id",
+        "SELECT note_id, entry, meaning, tier, due, translit, due_in, reviewed FROM lexicon"
+        " WHERE language = ? ORDER BY note_id",
         (language,),
     )
     entries = [
-        Entry(nid, entry, meaning, tier, bool(due), translit)
-        for nid, entry, meaning, tier, due, translit in rows
+        Entry(nid, entry, meaning, tier, bool(due), translit, due_in, bool(reviewed))
+        for nid, entry, meaning, tier, due, translit, due_in, reviewed in rows
     ]
     taken_at = _get_meta(conn, _per_language("snapshot_taken_at", language))
     return entries, datetime.fromisoformat(taken_at) if taken_at else None
@@ -456,8 +504,10 @@ def clear_snapshot(conn: sqlite3.Connection, language: Code) -> None:
         )
 
 
-def is_stale(taken_at: datetime | None, now: datetime) -> bool:
-    return taken_at is None or now - taken_at >= SNAPSHOT_MAX_AGE
+def is_stale(
+    taken_at: datetime | None, now: datetime, max_age: timedelta = SNAPSHOT_MAX_AGE
+) -> bool:
+    return taken_at is None or now - taken_at >= max_age
 
 
 async def refresh_if_stale(
@@ -466,12 +516,13 @@ async def refresh_if_stale(
     now: datetime,
     language: Code = "th",
     force: bool = False,
+    max_age: timedelta = SNAPSHOT_MAX_AGE,
 ) -> bool:
-    """Takes a new snapshot of one language's deck when the last one is a day old, or now with
-    `force`. If Anki can't be reached, the old snapshot stays in place and the app keeps running on
-    it. Returns whether it refreshed."""
+    """Takes a new snapshot of one language's deck when the last one is `max_age` old (a day unless
+    the caller needs a fresher one), or now with `force`. If Anki can't be reached, the old snapshot
+    stays in place and the app keeps running on it. Returns whether it refreshed."""
     _, taken_at = load_snapshot(conn, language)
-    if not force and not is_stale(taken_at, now):
+    if not force and not is_stale(taken_at, now, max_age):
         return False
     name = LANGUAGES[language].name
     try:
@@ -762,7 +813,7 @@ def get_text(conn: sqlite3.Connection, text_id: int) -> StoredText | None:
 _TEXT_COLUMNS = (
     "id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar,"
     " translits, reason, story_id, episode, recap, genders, characters, choices, chosen,"
-    " questions"
+    " questions, meanings"
 )
 
 
@@ -789,6 +840,7 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         choices,
         chosen,
         questions,
+        meanings,
     ) = row
     return StoredText(
         id=text_id,
@@ -812,6 +864,7 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         choices=tuple(Choice(**c) for c in json.loads(choices)),
         chosen=chosen,
         questions=tuple(from_json(q) for q in json.loads(questions)),
+        meanings=json.loads(meanings),
     )
 
 
@@ -1408,7 +1461,7 @@ class MarkedWord:
     word: str
     times: int  # readings it was marked in since it was last cleared
     last_marked: datetime
-    glosses: dict[str, str]  # the glosses of the last text it was marked in
+    glosses: dict[str, str]  # the glosses of the last text it was marked in (`own_glosses`)
 
 
 def marked_words(conn: sqlite3.Connection, language: Code = "th") -> list[MarkedWord]:
@@ -1419,18 +1472,20 @@ def marked_words(conn: sqlite3.Connection, language: Code = "th") -> list[Marked
         for word, at in conn.execute("SELECT word, cleared_at FROM cleared_words")
     }
     rows = conn.execute(
-        """SELECT r.logged_at, r.words_flagged, x.glosses FROM readings r
+        """SELECT r.logged_at, r.words_flagged, x.glosses, x.meanings FROM readings r
            JOIN texts x ON x.id = r.text_id WHERE x.language = ? ORDER BY r.id""",
         (language,),
     )
     found: dict[str, MarkedWord] = {}
-    for logged_at, flagged, glosses in rows:
+    for logged_at, flagged, glosses, meanings in rows:
         at = datetime.fromisoformat(logged_at)
         for word in json.loads(flagged):
             if word in cleared and at <= cleared[word]:
                 continue
             times = found[word].times + 1 if word in found else 1
-            found[word] = MarkedWord(word, times, at, json.loads(glosses))
+            found[word] = MarkedWord(
+                word, times, at, own_glosses(json.loads(glosses), json.loads(meanings))
+            )
     return sorted(found.values(), key=lambda w: w.last_marked, reverse=True)
 
 
@@ -1720,17 +1775,32 @@ def save_meaning_batch(
     meanings: dict[str, str],
     now: datetime,
     cost_usd: float,
+    texts: dict[int, dict[str, str]] | None = None,
+    counts: tuple[int, int] | None = None,
 ) -> None:
     """A batch of words Claude glossed for a language, as {lower-case word: meaning}, with its cost.
-    A word it gave no usable meaning for is kept with an empty one, so it isn't asked again."""
+    A word it gave no usable meaning for is kept with an empty one, so it isn't asked again. The
+    language keeps the first meaning a word was given, as the fallback for a text or a card's
+    sentence with none of its own. `texts` is the meanings each text was asked for, by text id,
+    added to that text's own (`StoredText.meanings`). `counts` is how many words the call asked about
+    and how many it gave a meaning for, when one word was asked for in more than one text."""
+    texts = texts or {}
     with conn:
+        for text_id, own in texts.items():
+            row = conn.execute("SELECT meanings FROM texts WHERE id = ?", (text_id,)).fetchone()
+            if row is None:
+                continue
+            conn.execute(
+                "UPDATE texts SET meanings = ? WHERE id = ?",
+                (json.dumps({**json.loads(row[0]), **own}, ensure_ascii=False), text_id),
+            )
         batch = conn.execute(
             "INSERT INTO meaning_batches (language, asked, kept, created_at, cost_usd)"
             " VALUES (?, ?, ?, ?, ?)",
             (
                 language,
-                len(meanings),
-                sum(1 for m in meanings.values() if m),
+                len(meanings) if counts is None else counts[0],
+                sum(1 for m in meanings.values() if m) if counts is None else counts[1],
                 now.isoformat(),
                 cost_usd,
             ),

@@ -205,21 +205,21 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
                 <Help>None yet.</Help>
               )}
               {failure('themes')}
-              <Help>Choosing More like this at the end of a text, or holding a text on the shelf and choosing Write more about this topic, adds its theme. The shelf writes from these, today's due words, and new ideas. Themes are shared by every language.</Help>
+              <Help>Choosing More like this at the end of a text, or holding a text on the shelf and choosing Write more about this topic, adds its theme. The shelf writes from these, the words you reviewed today, and new ideas. Themes are shared by every language.</Help>
             </Card>
 
             <SectionTitle>Practice words</SectionTitle>
             <Card>
               <Segments<StretchWords>
-                options={[{ value: 'topic', label: 'Fit the text' }, { value: 'any', label: 'Any due word' }]}
+                options={[{ value: 'topic', label: 'Fit the text' }, { value: 'any', label: 'Any word' }]}
                 value={settings.stretch_words}
                 onChange={(stretch_words) => change({ stretch_words }, 'stretch')}
               />
               {failure('stretch')}
               <Help>
                 {settings.stretch_words === 'topic'
-                  ? 'Picked from your due and newer cards to fit each text. One text on the shelf always uses words due today.'
-                  : "Any of your due and newer cards, even ones that don't fit the text. Applies from the next text written."}
+                  ? 'Picked from your newer cards and the ones you reviewed today, to fit each text. A card due today is used only after you review it. One text on the shelf uses words you reviewed today.'
+                  : "Any of your newer cards and the ones you reviewed today, even ones that don't fit the text. A card due today is used only after you review it. Applies from the next text written."}
               </Help>
             </Card>
 

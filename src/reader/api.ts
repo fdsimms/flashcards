@@ -23,6 +23,9 @@ export type Word = {
   text: string;
   status: 'known' | 'partial' | 'unknown' | 'name' | null; // 'name': a name the model marked; null for spaces and punctuation
   gloss: string | null;
+  // A compound known from deck words it splits into (เข้าใจ, from เข้า and ใจ) with no gloss of its
+  // own: its parts' meanings ("to enter + heart"), which are not its meaning. Absent from a server older than it.
+  parts?: string | null;
   lemma?: string | null; // the dictionary form, when it differs from the word (every language but Thai)
   translit?: string | null; // the pronunciation, when there is one (Thai's in Latin letters, Japanese's in kana)
   stretch: boolean;
@@ -152,7 +155,7 @@ export type ReaderText = {
   questions?: TextQuestion[];
 };
 
-// Why a text is on the shelf: written around words due today, on a liked theme, an idea not
+// Why a text is on the shelf: written around words reviewed today, on a liked theme, an idea not
 // tried before, a topic typed in, or the ongoing story. '' for texts from before the shelf.
 export type ShelfReason = 'due' | 'liked' | 'new' | 'asked' | 'story' | '';
 
@@ -198,7 +201,8 @@ export type Shelf = {
   themes: { id: number; name: string }[];
 };
 
-// 'topic': the model picks stretch words that suit the topic from a list of due and newer words.
+// 'topic': the model picks stretch words that suit the topic from a list of newer words and words
+// reviewed today (never one due today and not reviewed yet).
 // 'any': it's given words from that list at random and has to fit them in.
 export type StretchWords = 'topic' | 'any';
 
@@ -274,6 +278,7 @@ export type PastText = {
 export type MarkedWord = {
   word: string;
   gloss: string | null;
+  parts?: string | null; // as Word's
   lemma?: string | null; // the dictionary form, when it differs from the word (absent from a server older than it)
   status: 'known' | 'partial' | 'unknown';
   deck: boolean;

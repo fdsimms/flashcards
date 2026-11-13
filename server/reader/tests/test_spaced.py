@@ -22,7 +22,7 @@ from franki_reader.tts import Spoken
 
 ENTRIES = [
     Entry(1, "el blindaje", "armor plating / shielding", "mature"),
-    Entry(2, "mantener a raya", "to keep at bay / to keep in check", "young", due=True),
+    Entry(2, "mantener a raya", "to keep at bay / to keep in check", "young", reviewed=True),
     Entry(3, "a quemarropa", "point-blank", "mature"),
     Entry(4, "cerciorarse", "to make sure", "mature"),
     Entry(5, "diezmar", "to decimate", "young"),
@@ -183,6 +183,7 @@ def test_a_spanish_text_renders_with_spaces_deck_flags_and_glosses_from_the_entr
         "text": "ojivas",
         "status": "known",
         "gloss": "warhead",
+        "parts": None,
         "lemma": "la ojiva",
         "translit": None,
         "stretch": True,

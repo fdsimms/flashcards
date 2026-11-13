@@ -27,6 +27,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "text": "ข้าวเหนียวมะม่วง",
         "status": "known",
         "gloss": "mango sticky rice",
+        "parts": None,
         "lemma": None,
         "translit": None,
         "stretch": True,
@@ -39,6 +40,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "text": "!",
         "status": None,
         "gloss": None,
+        "parts": None,
         "lemma": None,
         "translit": None,
         "stretch": False,
@@ -83,6 +85,7 @@ def test_a_word_off_the_list_takes_the_models_gloss() -> None:
         "text": "ทอน",
         "status": "unknown",
         "gloss": "give change",
+        "parts": None,
         "lemma": None,
         "translit": None,
         "stretch": False,
@@ -92,14 +95,39 @@ def test_a_word_off_the_list_takes_the_models_gloss() -> None:
     }
 
 
-def test_a_compound_of_deck_words_is_glossed_from_its_pieces() -> None:
-    entries = [*ENTRIES, Entry(10, "ร้าน", "shop", "mature"), Entry(11, "อาหาร", "food", "mature")]
-    text = StoredText(7, 1, "t", (Line("A", "ร้านอาหาร", "A restaurant."),), {}, (), 1.0)
-    meanings = {e.text: e.meaning for e in entries}
-    word = render(text, lexicon_from(entries), meanings)["lines"][0]["words"][0]
-    assert word["text"] == "ร้านอาหาร"
+COMPOUND_ENTRIES = [
+    *ENTRIES,
+    Entry(10, "เข้า", "to enter", "mature"),
+    Entry(11, "ใจ", "heart", "mature"),
+]
+COMPOUND_MEANINGS = {e.text: e.meaning for e in COMPOUND_ENTRIES}
+
+
+def compound_text(
+    glosses: dict[str, str] | None = None, meanings: dict[str, str] | None = None
+) -> StoredText:
+    line = Line("A", "ฉัน|เข้าใจ", "I understand.")
+    return StoredText(7, 1, "t", (line,), glosses or {}, (), 1.0, meanings=meanings or {})
+
+
+def test_a_compound_known_by_its_parts_shows_its_parts_labeled_not_as_its_meaning() -> None:
+    lexicon = lexicon_from(COMPOUND_ENTRIES)
+    word = render(compound_text(), lexicon, COMPOUND_MEANINGS)["lines"][0]["words"][1]
+    assert word["text"] == "เข้าใจ"
     assert word["status"] == "known"
-    assert word["gloss"] == "shop + food"
+    # "enter + heart" isn't what it means, so it's not its gloss: the app labels the parts as parts.
+    assert word["gloss"] is None
+    assert word["parts"] == "to enter + heart"
+
+
+def test_a_compounds_own_gloss_wins_over_its_parts() -> None:
+    lexicon = lexicon_from(COMPOUND_ENTRIES)
+    for text in (
+        compound_text(glosses={"เข้าใจ": "to understand"}),  # the model glossed it
+        compound_text(meanings={"เข้าใจ": "to understand"}),  # asked for after (meanings.py)
+    ):
+        word = render(text, lexicon, COMPOUND_MEANINGS)["lines"][0]["words"][1]
+        assert (word["gloss"], word["parts"]) == ("to understand", None)
 
 
 def test_a_word_off_the_list_takes_the_models_transliteration() -> None:

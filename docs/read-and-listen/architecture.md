@@ -238,6 +238,22 @@ Franki's (Client, below).
 - Mature and young both count as known for coverage. The prompt asks the model to favor mature words.
 - **Partial:** a word that only appears inside a longer deck entry (รับ inside รับอะไรดี). It counts as
   unknown for coverage, and its gloss can point at the entry it came from.
+- **A compound known by splitting is glossed as itself, never as its parts** (13 November 2026). A
+  word that splits cleanly into deck entries counts as known (เข้าใจ from เข้า and ใจ, ลูกน้ำ, หน้าที่;
+  Japanese compounds Sudachi keeps whole the same way), but the reader used to gloss it part by part
+  ("enter + heart"), which misleads for an opaque compound. Such a word now needs a gloss of its own:
+  Thai's prompt asks the model to gloss every word it joins from two list words, and any it doesn't
+  is asked for with the text's other unglossed words (Generation and coverage, the meanings pass). If
+  there's still none, the app shows the parts' meanings labeled as parts ("Parts: to enter + heart",
+  `parts` beside `gloss` in the API, `meaningOf` in src/reader/languages.ts), so they aren't read as
+  its meaning, aren't put in a new note's Meaning, and aren't a word question's answer.
+- **What's due and reviewed** (13 November 2026). Each note keeps, from the snapshot's study day,
+  whether a card was due and not yet answered that day (`due`: Anki's `is:due` without `rated:1`),
+  whether one was answered that day on any device (`reviewed`, `rated:1`), and how many study days
+  after it the soonest card comes due (`due_in`, from the cards' due day or learning step). A
+  snapshot can be from an earlier study day than today, so on a later day a word is taken as waiting
+  once `due_in` says it has come due, and nothing is known to be reviewed. Stretch words read these
+  (Generation and coverage). Still read only: `test_collection.py` checks a read leaves nothing to send.
 - Only the latest snapshot is kept. No history.
 - **Transliteration** (Thai): a word's popover hides it behind "Show transliteration". A deck word shows
   its note's `Transliteration` field, kept in the snapshot. A word off the list shows the one the model
@@ -584,13 +600,39 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   texts, up to 150 words a call, so texts written before this are filled in. A failed call waits
   `FAILURE_COOLDOWN` and never keeps a text from being served. The cost is `meanings` in `/api/costs`.
   The deck's meaning wins over a kept one.
-- **Stretch words** are 1-3 words due today or still young. No random assignment.
+- **A text's meanings are its own** (13 November 2026, changing the item above). A word was glossed
+  once, from the first line it turned up in, and that meaning was kept for the language and shown in
+  every later text, so Spanish vino ("came" or "wine"), cara ("face" or "expensive") and sobre
+  ("envelope" or "about") showed their first sense everywhere, and the check after reading marked the
+  learner wrong for knowing the word. Now the meanings asked for a text are kept with that text
+  (`texts.meanings`, by lower-case word, a column added at startup) and shown there, after the
+  model's own gloss and before the deck's. Every new text asks for each of its words that has no gloss
+  from the text or the deck, whatever was kept for the language, so a text pays for its own common
+  words: one call per text when it's written (up to 150 words), never one per word. Answers are
+  numbered, so one call can ask for a word in two texts and keep each one's sense. `word_meanings`
+  still keeps the first meaning each word got, only as the fallback for a text with none of its own
+  (a failed call) and for cards' example sentences, which have no text and still ask once per word.
+  The check's word questions take their answers from the text's words as the server glosses them,
+  so they use the text's own meaning. The top-up pass now also asks, once, for the words of the 30
+  newest texts that only had the language's meaning, so texts waiting to be read get their own sense
+  too.
+- **Stretch words** are 1-3 words reviewed today or still young. No random assignment.
+- **Never a word due today that isn't reviewed yet** (13 November 2026, the owner's decision, from
+  brief principles 4 and 9). Reading a due word in context with its gloss, before its Anki review
+  that day, turns the review into short-term recall: it's rated Good and FSRS lengthens an interval
+  the learner didn't earn, the corruption principle 9 prevents, by priming rather than grading. So
+  no stretch pick (the shelf's texts, a story episode, a typed topic, either practice-word setting)
+  takes a word with a card due today and not answered today on any device; a word answered today is
+  fine and goes first, then young words not due (`stretch.py`, from the snapshot's `due`, `reviewed`
+  and `due_in`, Lexicon). A mature word counts only once reviewed today. "Read a text with these
+  words" from Review is unchanged: its words were just reviewed. A text already written waits on the
+  shelf as it is; its practice words aren't checked again when it's opened.
 - **Stretch words come back on later days** (brief, design principle 4). A word that was a stretch
-  word in a text read on an earlier study day goes ahead of other due and young words, until it has
-  been one on 3 different study days (Anki's, in `TZ` from its "Next day starts at"; `study_day.py`)
-  (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be due
-  or young, so a word that has matured since is left alone. In "Fit the topic" it's offered first,
-  and the model may still pass it over if it doesn't fit.
+  word in a text read on an earlier study day goes ahead of other reviewed and young words, until it
+  has been one on 3 different study days (Anki's, in `TZ` from its "Next day starts at"; `study_day.py`)
+  (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be reviewed today
+  or young, and not waiting for its review, so a word that has matured since is left alone. In "Fit
+  the topic" it's offered first, and the model may still pass it over if it doesn't fit.
 - **Short stories** as well as dialogues: a "Text type" setting (`form` in `/api/settings`),
   applying from the next text written. A story is told by a narrator (speaker `N`), one or two plain
   sentences a line, and is spoken in voice A. The brief's feasibility test found narrative drops
@@ -609,12 +651,12 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   (on by default, kept in the reader's prefs) turns paragraph mode off for a story, giving the line-by-line view.
 - **Dialogue length** is a setting: 6, 8 or 12 lines (`lines` in `/api/settings`), applying from the
   next text written. Longer dialogues have more room for unknown words before missing the floor.
-- **The model chooses stretch words to fit the topic** (the default). It gets 15 due or young
+- **The model chooses stretch words to fit the topic** (the default). It gets 15 reviewed or young
   words and uses 1 to the current stretch count of them, so a dialogue about ordering food isn't
   bent around "tiger" because tiger happens to be due. The text records the ones it used. A text
   that uses none, too many, or one fewer than 2 times goes back for revision. The other setting,
-  "Any due word", hands the model that many words to use, which keeps every due word in rotation at
-  the cost of odder dialogues. It's a setting on the Topics screen (`GET`/`PATCH /api/settings`),
+  "Any word" ("Any due word" until 13 November 2026), hands the model that many words to use, which
+  keeps every word in rotation at the cost of odder dialogues. It's a setting on the Topics screen (`GET`/`PATCH /api/settings`),
   stored on the server so background writes follow it, and like ratings it applies from the next
   text written. It's separate from difficulty on purpose: ratings decide how many stretch words and
   how much coverage; this decides only which words.
@@ -639,10 +681,18 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   being read is ever written for.
 - **The shelf keeps `SHELF_SIZE` (3) texts written ahead** in that language (`_next_shelf_job` in
   `engine.py`), each for a reason stored on the text (`texts.reason`) and shown on its card: one
-  written around words due today (`due`: the due words are handed to the model, as "Any due word"
-  does), one on a liked theme (`liked`), and one on an idea not tried before (`new`, from the topic
-  ideas, best fit first, filed as a hidden topic so it's never offered again). With no liked theme
-  free, ideas fill the gap. Dialogues and stories alternate, so the shelf has both without a setting.
+  written around words due today (`due`: the words are handed to the model, as "Any word" does), one
+  on a liked theme (`liked`), and one on an idea not tried before (`new`, from the topic ideas, best
+  fit first, filed as a hidden topic so it's never offered again). With no liked theme free, ideas
+  fill the gap. Dialogues and stories alternate, so the shelf has both without a setting.
+- **The "due" text waits for words reviewed today** (13 November 2026; see Generation and coverage,
+  Never a word due today that isn't reviewed yet). Its words are only ones already answered today,
+  and its card says "Uses 2 words you reviewed today". Until there's one, the shelf doesn't write it:
+  the slot goes to a liked theme or a new idea, and the due text is written the next time a slot is
+  free and a word has been reviewed, rather than falling back to young words under a label that
+  would be wrong. While the shelf has room for it, the top-up reads Anki again when the snapshot is
+  30 minutes old (`DUE_SNAPSHOT_AGE`, a sync with the owner's own server, no API call) rather than
+  daily, so a review done elsewhere shows within the half hour after it's synced.
 - **Spending.** Texts are written only after the app asks for the shelf, only for the current
   language, and never more than the shelf is short. A text left unread stays on the shelf rather
   than being written again. A failed shelf text stops the pass and pauses that language's shelf for

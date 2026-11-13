@@ -10,7 +10,7 @@ import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../reader/d
 import { marksIn, withMark, type HideableMark, type Mark } from '../reader/marks';
 import { scrollTarget, type Box } from '../reader/follow';
 import { THAI_FONTS, THAI_FONT_LABELS, readFont, type ThaiFont } from '../reader/fonts';
-import { LANGUAGES, wordStatus } from '../reader/languages';
+import { LANGUAGES, meaningOf, wordStatus } from '../reader/languages';
 import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf, repeatChipLabel } from '../reader/playback';
 import { RATES } from '../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, type LengthStep } from '../reader/shelf';
@@ -1170,7 +1170,7 @@ export function GlossPopover({ tapped, translitLabel, grammar, api, grammarChose
           <View style={{ flex: 1, gap: space.xs }}>
             <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
             {tapped.word.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {tapped.word.lemma}</Text> : null}
-            <Text style={{ ...type.body, color: c.text }}>{tapped.word.gloss ?? 'No meaning available'}</Text>
+            <Text style={{ ...type.body, color: c.text }}>{meaningOf(tapped.word)}</Text>
             {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
             <ReadFrequency word={tapped.word} />
             <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>

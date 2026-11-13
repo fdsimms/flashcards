@@ -85,6 +85,20 @@ test('words come from those marked, then looked up, then practiced, at most two,
   expect(words.map((q) => q.kind === 'word' && q.word)).toEqual(['cinco', 'coche']);
 });
 
+test("a word is asked with the gloss its text gives it, and a compound's parts are never an answer", () => {
+  // The server sends each word with its own text's gloss (the sense of its line here), so vino is
+  // "came" in this text whatever it meant in another.
+  const lines = LINES.map((l, i) => (i === 3 ? line("Don't worry, he came.", [word('No', 'no'), word('preocupe', 'worry'), word('vino', 'came')]) : l));
+  const marked = buildCheck(text([], lines), toggleFlag(startSession(text(), 0), 'vino'), seeded()).find((q) => q.kind === 'word');
+  expect(marked && right(marked)).toBe('came');
+  // A compound with no gloss of its own: its parts' meanings aren't its meaning, so it isn't asked
+  // about, and they're never a wrong choice either.
+  const parts = LINES.map((l, i) => (i === 3 ? line('I understand.', [word('เข้าใจ', null, { parts: 'to enter + heart' })]) : l));
+  const check = buildCheck(text([], parts), toggleFlag(startSession(text(), 0), 'เข้าใจ'), seeded());
+  expect(check.some((q) => q.kind === 'word' && q.word === 'เข้าใจ')).toBe(false);
+  expect(check.some((q) => q.choices.some((c) => typeof c === 'string' && c.includes('enter')))).toBe(false);
+});
+
 test('a question that does not fit the text is left out', () => {
   const broken = [{ ...QUESTION, line: 9 }, { ...QUESTION, choices: QUESTION.choices.slice(1) }, { ...QUESTION, answer: 4 }];
   expect(buildCheck(text(broken), startSession(text(), 0), seeded()).some((q) => q.kind === 'text')).toBe(false);

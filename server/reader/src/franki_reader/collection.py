@@ -30,7 +30,7 @@ from anki.utils import ids2str
 
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.languages import Language
-from franki_reader.lexicon import CardRow, Entry, NoteRow, build_entries
+from franki_reader.lexicon import CardRow, Entry, NoteRow, build_entries, days_until_due
 from franki_reader.status import DueStatus, read_due
 from franki_reader.study_day import DEFAULT_ROLLOVER
 
@@ -137,7 +137,8 @@ class AnkiDeck:
 
 def read_entries(col: Collection, language: Language) -> list[Entry]:
     """Every note in the language's query with its Entry, Meaning and pronunciation
-    (`Language.translit_field`), and its cards' state."""
+    (`Language.translit_field`), and its cards' state: tier, whether one is due today and not yet
+    answered, whether one was answered today, and when the soonest comes due. Reads only."""
     note_ids = list(col.find_notes(language.notes_query))
     notes = []
     for nid in note_ids:
@@ -155,13 +156,25 @@ def read_entries(col: Collection, language: Language) -> list[Entry]:
     if not notes:
         return []
     due = set(col.find_cards(f"({language.notes_query}) is:due"))
+    # Answered today on any device, by the collection's "Next day starts at" (as Anki's rated:1 is).
+    rated = set(col.find_cards(f"({language.notes_query}) rated:1"))
+    today, cutoff = col.sched.today, col.sched.day_cutoff
     assert col.db is not None  # open: find_notes just used it
     rows = col.db.all(
-        "select id, nid, type, ivl, queue from cards"
+        # A card in a filtered deck keeps its own due date in odue, as Anki's is:due reads it.
+        "select id, nid, type, ivl, queue, (case when odue != 0 then odue else due end) from cards"
         f" where nid in {ids2str(n.note_id for n in notes)}"
     )
     cards = [
-        CardRow(nid, card_type, ivl, cid in due, suspended=queue == -1)
-        for cid, nid, card_type, ivl, queue in rows
+        CardRow(
+            nid,
+            card_type,
+            ivl,
+            cid in due,
+            suspended=queue == -1,
+            rated=cid in rated,
+            due_in=days_until_due(card_type, queue, card_due, today, cutoff),
+        )
+        for cid, nid, card_type, ivl, queue, card_due in rows
     ]
     return build_entries(notes, cards)
