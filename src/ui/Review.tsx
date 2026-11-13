@@ -47,6 +47,9 @@ import { chooseAgentFlagReason } from './agentFlagSheet';
 import { LeechHintSheet } from './LeechHintSheet';
 import { canAddMnemonic, mnemonicQuestion, withMnemonic, type MnemonicQuestion } from '../core/leechHint';
 import { usePhoneSpeech } from './usePhoneSpeech';
+import { missReasonsFor, missReminder } from '../core/misses';
+import { AgainSplit, MissReminder } from './MissMarks';
+import { useMissMarks } from './useMissMarks';
 import { Button, Count, Icon, Loading, Screen, Tappable } from './kit';
 import { Reveal, useReduceMotion } from './motion';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
@@ -289,6 +292,8 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
 
   // Forms practice and lookalikes (src/ui/ReviewForms.tsx): held lookalikes, the offer to show a card sooner, suggestions.
   const forms = useReviewForms(repo, { cards, notes, deckSettings, now, dayStartsAtHour: H });
+  // The reasons chosen on Again, and the "Last time" reminder they bring back (src/core/misses.ts).
+  const misses = useMissMarks(repo);
   const deckOf = useMemo(() => new Map([...notes.values()].map((n) => [n.id, n.deck])), [notes]);
   const queue = useMemo(() => {
     if (!cards) return null;
@@ -414,7 +419,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     if (rendered) speak(autoplayFor(rendered, false));
   }, [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const answer = async (rating: RatingValue) => {
+  const answer = async (rating: RatingValue, miss?: string) => {
     if (!current || !note || busy.current || current === lastAnswered.current) return;
     busy.current = true;
     writes.current++;
@@ -450,6 +455,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
       // once it's a review: today's counts keep it there, as Anki counts it.
       const reviewId = await repo.addReview({
         cardId: current.id, ...res.log, interday: !preview && isInterdayLearning(current, H),
+        ...(rating === 1 && miss ? { miss } : {}),
         ...(current.filteredDeck ? { deck: current.filteredDeck } : {}),
       });
       // Into the kept Anki collection too, so "Send to Anki" carries this answer. If that write
@@ -493,6 +499,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
       // A preview uses no limits, as in Anki, and a reload (`studiedToday`) doesn't count it either.
       setStudied((s) => bumpStudied(s, record.deck, record.preview ? null : studiedKind(record.before, H), 1));
       setHistory((h) => [...h, record]);
+      misses.answered(current.id, rating === 1 ? miss : undefined);
       forms.answered({ cardId: current.id, ...res.log });
       // Functional update: `cards` from this render's closure is stale once the awaits return.
       const changed = new Map([updated, ...buried].map((c) => [c.id, c]));
@@ -535,6 +542,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
         } catch { /* the tag stays */ }
       }
       await repo.deleteReview(last.reviewId);
+      misses.undone(last.before.id);
       forgetCard(loadSnapshot.current, last.before.id);
       setHistory((h) => h.slice(0, -1));
       forms.undone(last.before.id);
@@ -675,6 +683,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     />
   ) : null;
   const shown = ratingsShown(answerButtons);
+  // Again's menu of what can go wrong, for the languages that have one; other cards get a plain Again.
+  const missReasons = note ? missReasonsFor(note) : [];
+  const reminder = current && missReasons.length ? missReminder(misses.log.get(current.id) ?? [], missReasons) : null;
   const buttons = ([
     { r: 1, label: 'Again', color: c.again },
     { r: 2, label: 'Hard', color: c.hard, on: c.onHard },
@@ -684,7 +695,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
 
   const footer = revealed ? (
     <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
-      {buttons.map((b) => (
+      {buttons.map((b) => b.r === 1 && missReasons.length ? (
+        <AgainSplit key={b.r} interval={intervals?.[1]} reasons={missReasons} onAnswer={(miss) => answer(1, miss)} />
+      ) : (
         <Tappable
           key={b.r}
           onPress={() => answer(b.r)}
@@ -911,6 +924,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
             {/* Keyed to the card, so each new one fades in rather than swapping. */}
             <Reveal key={current.id} rise={10} style={{ gap: space.xl }}>
               <Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} />
+              {reminder ? <MissReminder text={reminder} /> : null}
               {canRecordYourself(rendered) ? (
                 <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
                   <RecordYourself rec={self} label="Record" size="card" />

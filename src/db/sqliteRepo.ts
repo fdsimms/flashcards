@@ -75,6 +75,7 @@ const MIGRATIONS: { table: string; column: string; sql: string }[] = [
   { table: 'form_practice', column: 'given', sql: 'ALTER TABLE form_practice ADD COLUMN given TEXT' },
   { table: 'reviews', column: 'interday', sql: 'ALTER TABLE reviews ADD COLUMN interday INTEGER NOT NULL DEFAULT 0' },
   { table: 'reviews', column: 'deck', sql: 'ALTER TABLE reviews ADD COLUMN deck TEXT' },
+  { table: 'reviews', column: 'miss', sql: 'ALTER TABLE reviews ADD COLUMN miss TEXT' },
 ];
 
 async function migrate(db: SQLite.SQLiteDatabase) {
@@ -276,8 +277,8 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async addReview(e: ReviewLogEntry) {
       const r = await db.runAsync(
-        'INSERT INTO reviews (card_id, rating, reviewed_at, state, due, stability, difficulty, interday, deck) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        e.cardId, e.rating, e.reviewedAt, e.state, e.due, e.stability, e.difficulty, e.interday ? 1 : 0, e.deck ?? null,
+        'INSERT INTO reviews (card_id, rating, reviewed_at, state, due, stability, difficulty, interday, deck, miss) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        e.cardId, e.rating, e.reviewedAt, e.state, e.due, e.stability, e.difficulty, e.interday ? 1 : 0, e.deck ?? null, e.miss ?? null,
       );
       return r.lastInsertRowId;
     },
@@ -377,6 +378,14 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
         cardId: r.card_id, rating: r.rating as ReviewLogEntry['rating'], reviewedAt: r.reviewed_at,
         state: r.state, due: r.due, stability: r.stability, difficulty: r.difficulty, interday: !!r.interday, deck: r.deck ?? undefined,
       }));
+    },
+    async listMissAnswers() {
+      // Every answer on a card that has had a reason chosen, oldest first: the reminder counts the
+      // answers that came after it. The id orders them, as a review's time can repeat to the second.
+      const rows = await db.getAllAsync<{ card_id: string; miss: string | null }>(
+        'SELECT card_id, miss FROM reviews WHERE card_id IN (SELECT card_id FROM reviews WHERE miss IS NOT NULL) ORDER BY id',
+      );
+      return rows.map((r) => ({ cardId: r.card_id, ...(r.miss != null ? { miss: r.miss } : {}) }));
     },
     async saveDeckParams(params) {
       await db.withTransactionAsync(async () => {
