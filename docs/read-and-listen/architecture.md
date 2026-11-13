@@ -645,7 +645,8 @@ in the current language, with when one was last read to the end. Nothing else le
   two words Azure spoke as one light up together. Each word goes to the app with its `time`; the
   app reads the player's position every 50 ms while a timed line plays (`useSpokenWords`) and fills
   the word's background (`spoken` in the theme), chosen over fading the rest of the line or a
-  karaoke-style "read so far". A word stays lit through the pause after it. Where the SDK can't be
+  karaoke-style "read so far". A word stays lit through the pause after it. It's on unless turned
+  off in Read & Listen's settings (Listening, `followWords` in `src/reader/prefs.ts`). Where the SDK can't be
   used (a custom `AZURE_SPEECH_ENDPOINT`, the SDK not loading, Azure unreachable over its
   connection) the line is recorded through REST as before, with no timings, and plays unlit. The
   texts waiting to be read when this came in are re-recorded with timings once

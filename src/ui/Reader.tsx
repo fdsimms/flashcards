@@ -157,8 +157,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const [rate, setRate] = useState(prefs().rate);
   const [silentLine, setSilentLine] = useState<number | null>(null);
   const [repeat, setRepeat] = useState(false);
-  // The words being spoken in the line playing, lit as the voice reaches them (useSpokenWords.ts).
-  const playingWords = text && current !== null ? text.lines[current]?.words ?? null : null;
+  // The words being spoken in the line playing, lit as the voice reaches them (useSpokenWords.ts),
+  // unless that's turned off in Read & Listen's settings. Read from prefs on each render rather than
+  // kept in state, so a change made there shows here without reopening the text.
+  const playingWords = text && current !== null && prefs().followWords ? text.lines[current]?.words ?? null : null;
   const spokenNow = useSpokenWords(player, playingWords, status.playing);
   const spoken = new Set(playingWords ? spokenNow.map((i) => playingWords[i]) : []);
 
