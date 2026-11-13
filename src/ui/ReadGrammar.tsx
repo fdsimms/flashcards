@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type GrammarChoice, type GrammarList } from '../reader/api';
-import { GRAMMAR_CHOICES, seenLine } from '../reader/grammar';
+import { DEFAULT_MAX_PRACTICE, grammarChoiceOptions, seenLine } from '../reader/grammar';
 import { Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { space, type, useTheme } from './theme';
 
@@ -46,7 +46,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
   const least = (list?.least ?? []).map((id) => points?.find((p) => p.id === id)).filter((p) => p !== undefined);
   // At the limit the server refuses another Practice, so the suggestions don't offer one.
   const practicing = (points ?? []).filter((p) => p.state === 'practice');
-  const max = list?.max_practice ?? 2;
+  const max = list?.max_practice ?? DEFAULT_MAX_PRACTICE;
   const full = practicing.length >= max;
   return (
     <Screen title="Grammar">
@@ -123,7 +123,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
                   {/* A point not set yet has no segment selected. */}
                   <Segments<GrammarChoice | 'unset'>
                     style={{ marginTop: space.s }}
-                    options={GRAMMAR_CHOICES.map((s) => ({ ...s, accessibilityLabel: `${p.name}: ${s.label}` }))}
+                    options={grammarChoiceOptions(p.name, p.state, practicing.length, max)}
                     value={p.state}
                     onChange={(state) => { if (state !== 'unset') choose(p.id, state); }}
                   />

@@ -488,7 +488,8 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
 
 /** A row of equal segments, one of them chosen: a speed, a length, a text type. */
 export function Segments<T extends string | number>({ options, value, onChange, style }: {
-  options: { value: T; label: string; accessibilityLabel?: string }[];
+  /** `disabled`: shown dimmed and not tappable, for a choice that can't be made right now. */
+  options: { value: T; label: string; accessibilityLabel?: string; disabled?: boolean }[];
   value: T;
   onChange: (value: T) => void;
   style?: StyleProp<ViewStyle>;
@@ -502,11 +503,12 @@ export function Segments<T extends string | number>({ options, value, onChange, 
           <Pressable
             key={o.value}
             onPress={() => onChange(o.value)}
+            disabled={o.disabled}
             accessibilityRole="radio"
-            accessibilityState={{ selected }}
+            accessibilityState={{ selected, disabled: o.disabled }}
             accessibilityLabel={o.accessibilityLabel ?? o.label}
             hitSlop={{ top: 4, bottom: 4 }}
-            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 36, borderRadius: radius.s - 2, backgroundColor: selected ? c.surface : 'transparent' }}
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 36, borderRadius: radius.s - 2, backgroundColor: selected ? c.surface : 'transparent', opacity: o.disabled ? 0.4 : 1 }}
           >
             <Text style={{ ...type.subhead, fontWeight: '600', color: selected ? c.text : c.textSecondary }}>{o.label}</Text>
           </Pressable>

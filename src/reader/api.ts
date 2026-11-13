@@ -55,6 +55,8 @@ export type GrammarPointPage = {
   state: GrammarState;
   seen: GrammarSeen;
   choices: Record<string, GrammarState>;
+  /** How many points may be practiced at once. Absent from a server older than it. */
+  max_practice?: number;
   examples: GrammarExample[];
 };
 

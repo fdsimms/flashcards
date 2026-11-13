@@ -134,6 +134,7 @@ def test_a_points_page_from_the_api() -> None:
     auth = {"Authorization": "Bearer p"}
     body = c.get("/api/grammar/es.preterite", headers=auth).json()
     assert body["id"] == "es.preterite" and body["state"] == "unset"
+    assert body["max_practice"] == 2  # so the point's page can turn Practice off at the limit
     assert body["seen"]["texts"] == 1 and body["seen"]["uses"] == 1
     assert body["choices"]["es.imperfect"] == "normal" and "th.ever" not in body["choices"]
     assert [(e["line"], e["words"]) for e in body["examples"]] == [
