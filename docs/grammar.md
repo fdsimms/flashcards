@@ -35,7 +35,8 @@ Each point has:
   owner to check, each a few short paragraphs; keep a new one in the same style.
 - **`related`**: points worth comparing it with, by id, in the same language (the test checks).
 
-Each point's **finder** stays code, in `grammar.py` and `grammar_europe.py`, keyed by id. The server
+Each point's **finder** stays code, in `grammar.py`, `grammar_europe.py` and `grammar_japanese.py`,
+keyed by id. The server
 won't start if a point has no finder or a finder has no point (`_load`), so a point can't be offered
 for texts and then never found.
 

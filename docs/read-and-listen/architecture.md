@@ -307,8 +307,8 @@ Thai letters, so none of them is a language here. Each new language works as Spa
 
 ### Japanese
 
-Added on 13 November 2026, by the owner's decision, Read & Listen first and the Practice tools
-after. The deck is `👅 Languages::🍥 日本語` (about 390 notes, 189 studied when added: intermediate
+Added on 13 November 2026, by the owner's decision, with its grammar points, vocabulary check,
+Quick add and Practice tools. The deck is `👅 Languages::🍥 日本語` (about 390 notes, 189 studied when added: intermediate
 words and phrases like 劇団, 約束を破る, 見せびらかす, 経験する), with the reading in `KanaReading`
 rather than `Transliteration` (`Language.translit_field`).
 
@@ -340,15 +340,33 @@ rather than `Transliteration` (`Language.translit_field`).
 - **Common words**: `data/ja_common.txt`, built by `build_common.py` from wordfreq's Japanese list,
   each form grouped by Sudachi's normalized form and shown as its most frequent dictionary form.
   wordfreq's forms are MeCab's pieces (し, なっ, まし), so a few of the listed words are fragments;
-  they still count their family. There's **no vocabulary check** for Japanese yet: those
-  fragments and the particles near the top of the list would make poor questions.
+  they still count their family.
+- **The vocabulary check** asks only content words in their dictionary form (`japanese.quiz_word`:
+  no particles, auxiliaries, names, numbers, lone kana or pieces ending in っ), and Claude gives an
+  empty meaning, so the word is dropped, for a piece Sudachi reads as a word (まし, あり). Words
+  learned in WaniKani are left out like deck words, and a word written only in katakana is a
+  giveaway, as most are English loanwords. The ranks stay the list's, so a score maps to the
+  setting as in the other languages.
+- **Quick add** (`note_queue.py`) writes a Japanese word's reading into `KanaReading`, in kana,
+  and refuses one with kanji or Latin letters; Japanese has no romanized sentence.
 - **The prompt** is the template the spaced languages share, with Japanese's own rule for `|`
   (between words, and never a space) and its variety: standard Japanese, kanji where a native
   speaker would use them, never romaji.
 - **Voices**: `ja-JP-KeitaNeural` and `ja-JP-DaichiNeural` (men), `ja-JP-NanamiNeural` and
   `ja-JP-AoiNeural` (women). Azure bills a Japanese character as two (`tts.billed_chars`), which
   the cost figures count.
-- **No grammar points yet**: the Grammar screen says so.
+- **Grammar points** (ten: polite ます, past, ている, たい, てください, the volitional,
+  conditionals, the causative, てしまう, keigo) are found from Sudachi's morphemes in
+  `grammar_japanese.py`: the auxiliary ます, た by its normalized form (読んだ's だ is た), the
+  volitional by its conjugation form. The potential and the passive share られる, so neither is a
+  point. Like every language's, points not set are capped at two uses a text, and ます and the
+  past are in almost every Japanese line, so marking those two Know it lets texts read naturally.
+- **Practice** (`src/tools/japanese/`): telling the time, dates and money, each answer in kanji
+  with its reading in hiragana where the other languages show a romanization. The counters' sound
+  changes are worked out in `numbers.ts` (四時 よじ, 六分 ろっぷん, 一日 ついたち, 四円 よえん). A
+  date's other forms are the short weekday and the era year (令和, 平成, 昭和, by the day each
+  began, first year 元年), and a date typed in kana is accepted as its reading. Prices are whole
+  yen.
 
 ## Grammar
 

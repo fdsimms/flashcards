@@ -10,6 +10,9 @@ import { sayGermanTime } from './german/time';
 import { sayGreekDate } from './greek/date';
 import { sayGreekMoney } from './greek/money';
 import { sayGreekTime } from './greek/time';
+import { sayJapaneseDate } from './japanese/date';
+import { sayJapaneseMoney } from './japanese/money';
+import { sayJapaneseTime } from './japanese/time';
 import { sayNorwegianDate } from './norwegian/date';
 import { sayNorwegianMoney } from './norwegian/money';
 import { sayNorwegianTime } from './norwegian/time';
@@ -56,6 +59,7 @@ export const TIME_SAYERS: Partial<Record<Language, (t: ClockTime) => TimeSaying>
   fr: sayFrenchTime,
   de: sayGermanTime,
   el: sayGreekTime,
+  ja: sayJapaneseTime,
   nb: sayNorwegianTime,
   pl: sayPolishTime,
   ru: sayRussianTime,
@@ -68,6 +72,7 @@ export const DATE_SAYERS: Partial<Record<Language, (d: CalendarDate, parts: Date
   fr: sayFrenchDate,
   de: sayGermanDate,
   el: sayGreekDate,
+  ja: sayJapaneseDate,
   nb: sayNorwegianDate,
   pl: sayPolishDate,
   ru: sayRussianDate,
@@ -80,6 +85,7 @@ export const MONEY_SAYERS: Partial<Record<Language, (amount: number) => MoneySay
   fr: sayFrenchMoney,
   de: sayGermanMoney,
   el: sayGreekMoney,
+  ja: sayJapaneseMoney,
   nb: sayNorwegianMoney,
   pl: sayPolishMoney,
   ru: sayRussianMoney,
