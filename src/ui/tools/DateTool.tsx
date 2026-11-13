@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { LANGUAGES } from '../../reader/languages';
 import { randomDate, type CalendarDate } from '../../tools/date';
 import { sameDate } from '../../tools/dateQuiz';
+import { datePatterns } from '../../tools/patterns';
 import { DATE_SAYERS, WEEK_STARTS_ON } from '../../tools/tools';
 import { Card, Chip } from '../kit';
 import { space } from '../theme';
@@ -10,16 +11,20 @@ import { CalendarMonth } from './CalendarMonth';
 import type { ToolScreenProps } from './index';
 import { ModeChips, PickAnswer, TapQuestion, TapResult, TypeAnswer, useDateQuiz } from './DateQuiz';
 import { AnswerCard, ControlLabel, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
+import { useMarks } from './useMarks';
 
 /**
  * Saying dates: a month calendar to pick a day on, or a date at random, then the date said in the
  * chosen language, with the weekday and the year when they're turned on. It's answered by saying
  * it and showing the answer, or (DateQuiz.tsx) by picking the phrase, typing it, or reading the
- * phrase and tapping the date. Changing the date or what is said hides the answer again.
+ * phrase and tapping the date. Saying it aloud is marked Missed it or Got it; the other ways mark
+ * themselves. A random date leans toward the kinds missed lately (useMarks). Changing the date or
+ * what is said hides the answer again.
  */
 export function DateTool({ tool, repo }: ToolScreenProps) {
   const [language, setLanguage] = useToolLanguage(tool);
   const answer = useAnswer(repo, language);
+  const marks = useMarks(tool.id, language);
   const [weekday, setWeekday] = useToolPref('dateWeekday');
   const [year, setYear] = useToolPref('dateYear');
   const [mode, setMode] = useToolPref('dateMode');
@@ -28,7 +33,9 @@ export function DateTool({ tool, repo }: ToolScreenProps) {
   const saying = useMemo(() => DATE_SAYERS[language]?.(date, { weekday, year }), [language, date, weekday, year]);
   const change = (next: CalendarDate) => { answer.hide(); setDate(next); };
   const parts = { weekday, year };
-  const quiz = useDateQuiz({ mode, language, date, parts, saying, sayer: DATE_SAYERS[language], speak: answer.speak, next: () => change(randomDate(date)) });
+  const next = () => change(marks.pick(() => randomDate(date), (d) => datePatterns(d, parts)));
+  const mark = (right: boolean) => marks.mark(datePatterns(date, parts), right);
+  const quiz = useDateQuiz({ mode, language, date, parts, saying, sayer: DATE_SAYERS[language], speak: answer.speak, next, onResult: mark });
   const tapping = mode === 'tap';
 
   return (
@@ -37,8 +44,9 @@ export function DateTool({ tool, repo }: ToolScreenProps) {
       language={language}
       onLanguage={(l) => { setLanguage(l); answer.hide(); }}
       shown={answer.shown}
-      onRandomize={() => change(randomDate(date))}
-      onToggle={() => answer.toggle(saying?.everyday)}
+      onRandomize={next}
+      onShow={() => answer.show(saying?.everyday)}
+      onMark={(right) => { mark(right); next(); }}
       actions={quiz.actions}
     >
       {tapping ? <TapQuestion quiz={quiz} saying={saying} onPlay={answer.speak} /> : null}

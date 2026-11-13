@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { parseMarks, type Marks } from './marks';
 import { DEFAULT_TOOL_PREFS, parseToolPrefs, type ToolPrefs } from './prefs';
 
 /**
@@ -35,4 +36,26 @@ export function saveToolPrefs(change: Partial<ToolPrefs>): void {
   if (early) early = { ...early, ...change };
   current = { ...current, ...change };
   SecureStore.setItemAsync(KEY, JSON.stringify(current)).catch(() => undefined);
+}
+
+/**
+ * What each tool and language has missed lately (marks.ts), kept the same way: read once, then
+ * held here. A failed save only means the lean is lost next launch.
+ */
+
+const MARKS_KEY = 'tools.marks';
+
+let marks: Marks = {};
+let marksLoaded: Promise<Marks> | undefined;
+
+export function loadToolMarks(): Promise<Marks> {
+  marksLoaded ??= SecureStore.getItemAsync(MARKS_KEY).then(parseMarks, () => ({})).then((m) => (marks = m));
+  return marksLoaded;
+}
+
+export const toolMarks = (): Marks => marks;
+
+export function saveToolMarks(next: Marks): void {
+  marks = next;
+  SecureStore.setItemAsync(MARKS_KEY, JSON.stringify(next)).catch(() => undefined);
 }
