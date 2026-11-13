@@ -11,7 +11,7 @@ import type { Card, DeckParams, Note } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { WANIKANI_SCOPE } from '../wanikani/log';
-import { Card as Box, Chip, Help, Loading, Screen } from './kit';
+import { Card as Box, Chip, Group, Help, Loading, NavRow, Screen } from './kit';
 import { haptic } from './haptics';
 import { AnswerCalendar } from './StatsCalendar';
 import { hairline, space, type, useTheme } from './theme';
@@ -26,11 +26,11 @@ const dayLabel = (d: Date) => d.toLocaleDateString(undefined, { weekday: 'short'
  * Study statistics for the whole collection or one top-level deck with its subdecks: today, the
  * next 30 days' reviews, the last 30 days' answers, a year's calendar of answers, cards by stage
  * and by interval, and retention. The numbers come from src/core/stats.ts; this screen only
- * gathers and shows them. WaniKani's answers given here (`wanikani`, src/wanikani/log.ts) count
+ * gathers and shows them, and opens Trouble cards. WaniKani's answers given here (`wanikani`, src/wanikani/log.ts) count
  * with the rest and have a chip of their own; its items aren't cards, so the charts about cards
  * leave them out.
  */
-export function Stats({ repo, wanikani = [] }: { repo: Repo & AnkiLink; wanikani?: Answer[] }) {
+export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLink; wanikani?: Answer[]; onTrouble: () => void }) {
   const c = useTheme();
   const [data, setData] = useState<{ notes: Note[]; cards: Card[]; answers: Answer[]; params: Map<string, DeckParams>; now: Date; dayStartsAtHour: number }>();
   const [scope, setScope] = useState<string | null>(null);
@@ -173,6 +173,12 @@ export function Stats({ repo, wanikani = [] }: { repo: Repo & AnkiLink; wanikani
             {onWaniKani ? null : <Rated label={`Mature cards, last ${DAYS} days`} rate={stats.retention.matureMonth} />}
             {target ? <Help>This deck aims for {Math.round(target * 100)}% (its desired retention in Anki).</Help> : null}
           </Box>
+
+          {onWaniKani ? null : (
+            <Group>
+              <NavRow first icon={{ name: 'exclamationmark.triangle.fill', color: c.again }} label="Trouble cards" detail="The cards you forget most, and what to do about them" onPress={onTrouble} />
+            </Group>
+          )}
         </ScrollView>
       )}
     </Screen>
