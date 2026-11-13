@@ -8,6 +8,8 @@ export interface CollapsedDecks {
   toggle: (deck: string) => void;
   /** Reads them again (the deck list's refresh calls this). */
   load: () => void;
+  /** Shows these until a real read lands (the deck list's saved copy, shown at launch). */
+  seed: (decks: Set<string>) => void;
 }
 
 /**
@@ -18,11 +20,13 @@ export interface CollapsedDecks {
 export function useCollapsedDecks(repo: NoteStore | null): CollapsedDecks {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const seq = useRef(0);
+  const read = useRef(false);
   const load = useCallback(() => {
     if (!repo) return;
     const started = seq.current;
-    collapsedDecks(repo).then((s) => { if (started === seq.current) setCollapsed(s); }).catch(() => undefined);
+    collapsedDecks(repo).then((s) => { if (started === seq.current) { read.current = true; setCollapsed(s); } }).catch(() => undefined);
   }, [repo]);
+  const seed = useCallback((decks: Set<string>) => { if (!read.current && seq.current === 0) setCollapsed(decks); }, []);
   const toggle = useCallback((deck: string) => {
     if (!repo) return;
     const next = !collapsed.has(deck);
@@ -33,5 +37,5 @@ export function useCollapsedDecks(repo: NoteStore | null): CollapsedDecks {
       load();
     });
   }, [repo, collapsed, load]);
-  return useMemo(() => ({ collapsed, toggle, load }), [collapsed, toggle, load]);
+  return useMemo(() => ({ collapsed, toggle, load, seed }), [collapsed, toggle, load, seed]);
 }
