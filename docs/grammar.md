@@ -34,6 +34,10 @@ Each point has:
   checks every point has one, with marked words, closed `**` and no em dashes. Written for the
   owner to check, each a few short paragraphs; keep a new one in the same style.
 - **`related`**: points worth comparing it with, by id, in the same language (the test checks).
+- **`level`**: the point's place in its language's order of difficulty, 1 the easiest and each
+  number used once per language (the server refuses to start without one, and a test checks the
+  numbers). The Grammar dial (architecture.md, Grammar) suggests the lowest-level point not yet
+  practiced or known. The order is the owner's to correct.
 - **`known`** (optional): the point reads as Know it until the owner chooses otherwise
   (`store.load_grammar`). For grammar in nearly every line, which the cap on points not set would
   otherwise keep out of texts: Japanese's ます and past.

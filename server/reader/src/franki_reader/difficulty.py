@@ -9,6 +9,7 @@ is revised, which the 95% floor alone never caught.
 from dataclasses import dataclass, replace
 
 from franki_reader.coverage import CEILING_GAP, FLOOR
+from franki_reader.grammar import UNSET_USES
 
 # Where a new language starts: about 1 word in 12 new to the learner.
 DEFAULT_FLOOR = 0.92
@@ -24,6 +25,9 @@ RATINGS = ("too_easy", "about_right", "too_hard")
 class Difficulty:
     floor: float = DEFAULT_FLOOR
     stretch: int = 2
+    # How many times a text may use grammar the owner hasn't marked. Not moved by a rating: the
+    # Grammar dial on the wrap-up screen sets it (app.py, PUT /api/grammar/stretch).
+    unset_uses: int = UNSET_USES
 
     @property
     def ceiling(self) -> float:

@@ -462,6 +462,7 @@ class Engine:
                 avoid=avoid,
                 review=review,
                 unset=unset,
+                unset_uses=difficulty.unset_uses,
                 story=story,
             )
 

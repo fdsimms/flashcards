@@ -74,7 +74,9 @@ marked words, ideas) is in the current language, the `language` setting.
                                       feature's figure
     GET   /api/grammar                the current language's grammar points, each practice, avoid,
                                       normal ("Know it") or unset, with how often each came up in
-                                      texts read; `least`, the known ones worked in next
+                                      texts read; `least`, the known ones worked in next;
+                                      `stretch`: {uses, next}, how many times a text may use
+                                      grammar not set, and the easiest point to practice next
     GET   /api/grammar/choices        {choices}: every language's choices by point id (practice,
                                       avoid or normal; a point not set isn't listed), for the
                                       app's Forms practice (docs/grammar.md)
@@ -100,6 +102,9 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/grammar/{id}           one point's page: {id, state, seen, choices (its language's,
                                       for the related points), examples: [{text_id, title, line,
                                       english, words}]}, lines from texts read, the latest first
+    PUT   /api/grammar/stretch        {uses: 1 to 4}: how many times the next texts may use grammar
+                                      not set (the Grammar dial on the wrap-up screen); answers as
+                                      GET /api/grammar does
     PUT   /api/grammar/{id}           {state}; at most 2 practiced at once; from the next text
     GET   /api/words                  words marked unknown and not cleared, newest first
     POST  /api/words/clear            {word} takes a word off that list until it's marked again
@@ -131,6 +136,7 @@ marked words, ideas) is in the current language, the `language` setting.
 
 import hmac
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 
@@ -212,6 +218,10 @@ class TopicUpdate(BaseModel):
 
 class GrammarChoice(BaseModel):
     state: Literal["practice", "avoid", "normal"]
+
+
+class GrammarStretchIn(BaseModel):
+    uses: int = Field(ge=grammar.MIN_UNSET_USES, le=grammar.MAX_UNSET_USES)
 
 
 class ClearWord(BaseModel):
@@ -1080,6 +1090,16 @@ def create_app(
             "max_practice": grammar.MAX_PRACTICE,
             # The known points the next texts are asked to work in, least seen first.
             "least": list(engine.review_points(language)),
+            "stretch": {
+                "uses": store.load_difficulty(engine.conn, language).unset_uses,
+                # What to suggest practicing when the dial goes up, null when every point is
+                # practiced or known.
+                "next": (
+                    {"id": nxt.id, "name": nxt.name}
+                    if (nxt := grammar.next_to_learn(language, choices))
+                    else None
+                ),
+            },
             "points": [
                 {
                     "id": p.id,
@@ -1272,6 +1292,14 @@ def create_app(
                 for e in exposure.examples(engine.conn, lexicon, point.id)
             ],
         }
+
+    # Before /api/grammar/{point_id}, which would take "stretch" for a point.
+    @app.put("/api/grammar/stretch", dependencies=authed)
+    async def set_grammar_stretch(body: GrammarStretchIn) -> dict[str, Any]:
+        language = engine.language()
+        current = store.load_difficulty(engine.conn, language)
+        store.save_difficulty(engine.conn, replace(current, unset_uses=body.uses), language)
+        return grammar_points()
 
     @app.put("/api/grammar/{point_id}", dependencies=authed)
     async def choose_grammar(
