@@ -29,3 +29,9 @@ def test_repeated_steps_land_on_round_numbers() -> None:
 def test_the_ceiling_is_four_points_above_the_floor() -> None:
     assert Difficulty(0.92, 2).ceiling == 0.96
     assert Difficulty(0.99, 1).ceiling == 1.0
+
+
+def test_grammar_allowance_defaults_to_two_and_a_rating_leaves_it_alone() -> None:
+    assert Difficulty().unset_uses == 2
+    assert adapt(Difficulty(unset_uses=4), "too_hard").unset_uses == 4
+    assert adapt(Difficulty(unset_uses=1), "too_easy").unset_uses == 1

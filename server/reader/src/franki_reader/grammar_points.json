@@ -5,6 +5,7 @@
       "id": "es.preterite",
       "language": "es",
       "name": "Preterite",
+      "level": 1,
       "note": "Finished past events: hablé, comió, fueron",
       "forms": [
         "preterite"
@@ -19,6 +20,7 @@
       "id": "es.imperfect",
       "language": "es",
       "name": "Imperfect",
+      "level": 4,
       "note": "Ongoing or habitual past: hablaba, comía, era",
       "forms": [
         "imperfect"
@@ -33,6 +35,7 @@
       "id": "es.present_perfect",
       "language": "es",
       "name": "Present perfect",
+      "level": 3,
       "note": "Has done: he hablado, ha comido",
       "explanation": "The present perfect is **haber** in the present plus a past participle: **he hablado**, \"I have spoken\"; **ha comido**, \"she has eaten\". The forms of haber are **he, has, ha, hemos, habéis, han**.\n\nIt's for the past seen from now: something in a period that isn't over (**esta semana he trabajado mucho**, \"I've worked a lot this week\") or an experience up to now (**¿has estado en México?**, \"have you been to Mexico?\").\n\nIn most of Spain it's also used for things that happened earlier today, where Latin America mostly uses the preterite: **hoy he visto a Ana** or **hoy vi a Ana**, \"I saw Ana today\".\n\nParticiples end in **-ado** or **-ido**, with some irregulars: **hecho, dicho, visto, escrito, puesto, vuelto, abierto, roto**. Nothing comes between haber and the participle: **lo he visto**, \"I've seen it\".",
       "related": [
@@ -44,6 +47,7 @@
       "id": "es.pluperfect",
       "language": "es",
       "name": "Pluperfect",
+      "level": 8,
       "note": "Had done: había hablado, habían comido",
       "explanation": "The pluperfect is **haber** in the imperfect plus a past participle: **había hablado**, \"I had spoken\". The forms are **había, habías, había, habíamos, habíais, habían**.\n\nIt puts one past event before another: **cuando llegué, ya se habían ido**, \"when I arrived, they had already left\".\n\nIt's common for reporting what someone said had happened: **me dijo que había perdido las llaves**, \"she told me she had lost her keys\".\n\nThe participle is the same as in the present perfect, irregulars included: **había hecho, había visto**.",
       "related": [
@@ -55,6 +59,7 @@
       "id": "es.future",
       "language": "es",
       "name": "Future",
+      "level": 5,
       "note": "Will do: hablaré, tendrá, iremos",
       "forms": [
         "future"
@@ -68,6 +73,7 @@
       "id": "es.conditional",
       "language": "es",
       "name": "Conditional",
+      "level": 6,
       "note": "Would do: hablaría, tendría, iríamos",
       "forms": [
         "conditional"
@@ -82,6 +88,7 @@
       "id": "es.progressive",
       "language": "es",
       "name": "Progressive",
+      "level": 2,
       "note": "Be doing: estoy hablando, estaba comiendo",
       "explanation": "**Estar** plus a gerund says something is in progress: **estoy hablando**, \"I'm speaking\"; **estaba comiendo**, \"I was eating\".\n\nThe gerund ends in **-ando** for -ar verbs and **-iendo** for -er and -ir verbs (hablando, comiendo, viviendo). After a vowel -iendo becomes **-yendo** (leyendo, oyendo), and some -ir verbs change their stem (**durmiendo, pidiendo, diciendo**).\n\nSpanish uses it less than English: the simple present often does the job (**¿qué haces?** can mean \"what are you doing?\"). It isn't used for plans: **mañana salgo**, not estoy saliendo, for \"I'm leaving tomorrow\".\n\nObject pronouns go before estar or join the end of the gerund: **lo estoy leyendo** or **estoy leyéndolo**.",
       "related": [
@@ -92,6 +99,7 @@
       "id": "es.present_subjunctive",
       "language": "es",
       "name": "Present subjunctive",
+      "level": 7,
       "note": "quiero que vengas, ojalá llueva",
       "forms": [
         "present subjunctive"
@@ -105,6 +113,7 @@
       "id": "es.imperfect_subjunctive",
       "language": "es",
       "name": "Imperfect subjunctive",
+      "level": 9,
       "note": "si tuviera tiempo, quería que vinieras",
       "explanation": "The imperfect subjunctive is the subjunctive in the past and in unreal conditions: **quería que vinieras**, \"I wanted you to come\"; **si tuviera tiempo, iría**, \"if I had time, I'd go\".\n\nTake the ellos form of the preterite, drop **-ron**, and add **-ra, -ras, -ra, -ramos, -rais, -ran**: **hablaron** gives **hablara**, **tuvieron** gives **tuviera**, **fueron** gives **fuera**. The nosotros form has an accent: **habláramos**.\n\nThere's a second set of endings in **-se** (**hablase, tuviese**), more common in Spain and in writing. Both mean the same.\n\n**Quisiera** is a polite \"I would like\": **quisiera un café**.",
       "related": [
@@ -116,6 +125,7 @@
       "id": "th.ever",
       "language": "th",
       "name": "เคย (have ever)",
+      "level": 6,
       "note": "Experience: เคยไป, have been",
       "explanation": "**เคย** before a verb says something has happened at least once, as an experience: **เคยไปเชียงใหม่**, \"I've been to Chiang Mai\".\n\n**ไม่เคย** means \"never\": **ไม่เคยกินทุเรียน**, \"I've never eaten durian\".\n\nTo ask, add ไหม or หรือเปล่า: **เคยไปญี่ปุ่นไหม**, \"have you ever been to Japan?\" The answer is **เคย** (\"yes\") or **ไม่เคย** (\"no\").\n\nเคย can also mean \"used to\": **เคยอยู่ที่นี่**, \"I used to live here\".",
       "related": [
@@ -126,6 +136,7 @@
       "id": "th.ongoing",
       "language": "th",
       "name": "กำลัง (in the middle of)",
+      "level": 2,
       "note": "Ongoing: กำลังกิน, is eating",
       "explanation": "**กำลัง** before a verb says the action is going on right now: **กำลังกินข้าว**, \"I'm eating\".\n\nIt's often paired with **อยู่** after the verb: **กำลังทำงานอยู่**, \"I'm working (right now)\". อยู่ alone can do the same job: **ทำงานอยู่**.\n\n**กำลังจะ** means \"about to\": **กำลังจะไป**, \"I'm about to go\".\n\nThai verbs don't change, so without กำลัง the time comes from the context: **กินข้าว** can be \"eat\", \"ate\" or \"am eating\".",
       "related": [
@@ -136,6 +147,7 @@
       "id": "th.future",
       "language": "th",
       "name": "จะ (will)",
+      "level": 3,
       "note": "Future or intention: จะไป, will go",
       "explanation": "**จะ** before a verb marks the future or an intention: **พรุ่งนี้จะไปตลาด**, \"I'll go to the market tomorrow\".\n\nThai verbs don't change for time, so จะ is often left out when a time word already says it: **พรุ่งนี้ไปตลาด**.\n\nThe negative is **จะไม่**: **จะไม่ไป**, \"I won't go\".\n\nWith **กำลัง** in front it means \"about to\": **กำลังจะออก**, \"about to leave\".",
       "related": [
@@ -146,6 +158,7 @@
       "id": "th.already",
       "language": "th",
       "name": "แล้ว (already, now)",
+      "level": 4,
       "note": "Done or changed: กินแล้ว, have eaten",
       "explanation": "After a verb, **แล้ว** says something has happened or a change has taken place: **กินแล้ว**, \"I've eaten (already)\". At the end of a sentence it often means a new situation, \"now\": **ฝนตกแล้ว**, \"it's raining now\".\n\nBetween two actions it means \"and then\": **อาบน้ำแล้วไปนอน**, \"shower and then go to bed\".\n\n**...หรือยัง** asks whether something has happened yet: **กินข้าวหรือยัง**, \"have you eaten yet?\" The answer is **กินแล้ว** (\"yes, I have\") or **ยัง** (\"not yet\").",
       "related": [
@@ -157,6 +170,7 @@
       "id": "th.must",
       "language": "th",
       "name": "ต้อง (must, have to)",
+      "level": 5,
       "note": "Obligation: ต้องไป, have to go",
       "explanation": "**ต้อง** before a verb means \"must\" or \"have to\": **ต้องไปทำงาน**, \"I have to go to work\".\n\n**ไม่ต้อง** means \"don't have to\" or \"no need\": **ไม่ต้องจ่าย**, \"you don't need to pay\". It's a common polite refusal: **ไม่ต้องครับ**, \"no need\".\n\nDon't confuse it with **ต้องการ**, \"to want or need\" something: **ต้องการน้ำ**, \"I need water\".\n\nต้อง can also be a confident guess, \"must be\": **ต้องเหนื่อยแน่ๆ**, \"you must be tired\".",
       "related": []
@@ -165,6 +179,7 @@
       "id": "th.comparison",
       "language": "th",
       "name": "กว่า (more than)",
+      "level": 9,
       "note": "Comparing: แพงกว่า, more expensive",
       "explanation": "**กว่า** after an adjective or verb makes a comparison: **แพงกว่า**, \"more expensive\"; **ร้อนกว่าเมื่อวาน**, \"hotter than yesterday\".\n\nThe thing compared with comes straight after กว่า, with no word for \"than\": **เขาสูงกว่าฉัน**, \"he's taller than me\".\n\n**ดีกว่า** often means \"better\" or \"it would be better to\": **ไปพรุ่งนี้ดีกว่า**, \"better to go tomorrow\".\n\n**มากกว่า** and **น้อยกว่า** are \"more than\" and \"less than\": **มากกว่าสิบคน**, \"more than ten people\".",
       "related": [
@@ -175,6 +190,7 @@
       "id": "th.superlative",
       "language": "th",
       "name": "ที่สุด (the most)",
+      "level": 10,
       "note": "Superlative: ดีที่สุด, the best",
       "explanation": "**ที่สุด** after an adjective or verb makes a superlative: **ดีที่สุด**, \"the best\"; **ใหญ่ที่สุด**, \"the biggest\".\n\nThe group it's compared within comes after **ใน**: **ร้านที่อร่อยที่สุดในซอย**, \"the tastiest place on the street\".\n\n**มากที่สุด** means \"the most\" or \"best of all\": **ชอบอันนี้มากที่สุด**, \"I like this one best\".\n\nIn speech it's also used loosely for emphasis: **สวยที่สุดเลย**, \"so beautiful\".",
       "related": [
@@ -185,6 +201,7 @@
       "id": "th.if",
       "language": "th",
       "name": "ถ้า (if)",
+      "level": 8,
       "note": "Conditions: ถ้าฝนตก, if it rains",
       "explanation": "**ถ้า** starts a condition: **ถ้าฝนตก จะไม่ไป**, \"if it rains, I won't go\".\n\nThe result often starts with **ก็**: **ถ้าว่าง ก็มาได้**, \"if you're free, you can come\".\n\nThai doesn't change the verb for an unreal condition. A word like **คง** (probably) often marks the result instead: **ถ้ามีเงิน คงซื้อไปแล้ว**, \"if I'd had the money, I'd probably have bought it\".\n\n**ถ้าอย่างนั้น** means \"in that case\", often shortened to **งั้น** in speech.",
       "related": [
@@ -195,6 +212,7 @@
       "id": "th.because",
       "language": "th",
       "name": "เพราะ (because)",
+      "level": 7,
       "note": "Reasons: เพราะว่า, because",
       "explanation": "**เพราะ** or **เพราะว่า** gives a reason: **ไม่ไปเพราะฝนตก**, \"I'm not going because it's raining\".\n\nThe reason can come first, with **ก็เลย** or **เลย** for \"so\" in the result: **ฝนตก ก็เลยไม่ไป**, \"it rained, so I didn't go\".\n\n**ทำไม** asks \"why\", and the answer often starts with เพราะ: **ทำไมมาสาย**, \"why are you late?\" **เพราะรถติด**, \"because of the traffic\".\n\n**เพราะฉะนั้น** means \"so\" or \"therefore\", at the start of a sentence.",
       "related": [
@@ -205,6 +223,7 @@
       "id": "th.yes_no",
       "language": "th",
       "name": "ไหม, หรือเปล่า (yes or no questions)",
+      "level": 1,
       "note": "ไปไหม, are you going?",
       "explanation": "**ไหม** at the end turns a statement into a yes or no question: **ไปไหม**, \"are you going?\"; **เผ็ดไหม**, \"is it spicy?\" In speech it's often said and written **มั้ย**.\n\nTo answer, repeat the verb: **ไป** (\"yes\") or **ไม่ไป** (\"no\"). There's no single word for yes or no.\n\n**หรือเปล่า** (often **รึเปล่า**) asks \"or not?\", and is the usual choice about something that has already happened: **เขาโทรมาหรือเปล่า**, \"did he call?\" The answer **เปล่า** means \"no\".\n\n**หรือยัง** asks \"yet?\": **กินข้าวหรือยัง**, \"have you eaten yet?\"",
       "related": [
@@ -215,6 +234,7 @@
       "id": "de.perfect",
       "language": "de",
       "name": "Perfect",
+      "level": 2,
       "note": "Has done: ich habe gesagt, sie ist gegangen",
       "explanation": "The perfect is the usual past in speech: **haben** or **sein** in the present, plus a past participle at the end of the clause: **ich habe Kaffee getrunken**, \"I drank coffee\" or \"I've drunk coffee\". It covers both.\n\nMost verbs take haben. Verbs of movement or of a change of state take sein (**ich bin nach Hause gegangen**, **sie ist eingeschlafen**), and so do **sein** and **bleiben** (**ich bin dort gewesen**, **wir sind geblieben**).\n\nRegular participles are **ge-...-t** (**gemacht, gekauft**); many common verbs end in **-en** and change their vowel (**getrunken, gegangen, geschrieben**).\n\nSeparable verbs put ge- in the middle (**eingekauft**), and verbs in -ieren or with be-, ver- or er- have no ge- at all (**studiert, verstanden**).",
       "related": [
@@ -226,6 +246,7 @@
       "id": "de.past",
       "language": "de",
       "name": "Simple past",
+      "level": 3,
       "note": "Did: ich war, er ging, wir machten",
       "explanation": "The simple past is the past of written stories and the news: **es war einmal**, \"once upon a time there was\"; **er ging nach Hause**, \"he went home\".\n\nIn speech it's used mostly for **sein**, **haben** and the modal verbs: **ich war müde**, **wir hatten Zeit**, **ich musste arbeiten**. Most other verbs use the perfect in conversation.\n\nRegular verbs add **-te**: **machte, kaufte, wir machten**. Strong verbs change their vowel instead: **ging, kam, sah, trank, schrieb**.\n\nThe ich and er forms are the same: **ich war, er war**.",
       "related": [
@@ -236,6 +257,7 @@
       "id": "de.pluperfect",
       "language": "de",
       "name": "Pluperfect",
+      "level": 7,
       "note": "Had done: ich hatte gesagt, sie war gegangen",
       "explanation": "The pluperfect is **hatte** or **war** plus a past participle: **ich hatte gegessen**, \"I had eaten\"; **sie war gegangen**, \"she had gone\". Verbs that take sein in the perfect take war here.\n\nIt puts one past event before another: **als ich ankam, war der Zug schon abgefahren**, \"when I arrived, the train had already left\".\n\nIt often follows **nachdem** (after): **nachdem wir gegessen hatten, gingen wir spazieren**, \"after we had eaten, we went for a walk\".",
       "related": [
@@ -247,6 +269,7 @@
       "id": "de.future",
       "language": "de",
       "name": "Future",
+      "level": 5,
       "note": "Will do: ich werde gehen, es wird regnen",
       "explanation": "The future is **werden** plus an infinitive at the end: **ich werde morgen arbeiten**, \"I'll work tomorrow\". The forms are **werde, wirst, wird, werden, werdet, werden**.\n\nIn everyday German the present often does the job when a time is given: **morgen fahre ich nach Berlin**, \"I'm going to Berlin tomorrow\".\n\nwerden with an infinitive also makes a guess about now: **er wird schon zu Hause sein**, \"he'll be home by now\".\n\nOn its own, werden means \"to become\": **es wird kalt**, \"it's getting cold\". With a participle instead of an infinitive it's the passive: **das wird gemacht**, \"that's being done\".",
       "related": [
@@ -258,6 +281,7 @@
       "id": "de.subjunctive",
       "language": "de",
       "name": "Subjunctive II",
+      "level": 8,
       "note": "Would, could: ich würde gehen, wenn ich Zeit hätte",
       "explanation": "Subjunctive II says what would be or could be: unreal conditions, wishes and polite requests. **Wenn ich Zeit hätte, würde ich kommen**, \"if I had time, I'd come\".\n\nMost verbs use **würde** plus an infinitive: **ich würde gehen**, \"I'd go\". A few common verbs have their own forms, used more than würde: **wäre** (sein), **hätte** (haben), **könnte, müsste, dürfte, möchte** and **wüsste**.\n\nFor polite requests: **könnten Sie mir helfen?**, \"could you help me?\"; **ich hätte gern einen Kaffee**, \"I'd like a coffee\".\n\nThe umlaut matters: **ich hatte** is \"I had\", **ich hätte** \"I would have\".",
       "related": [
@@ -269,6 +293,7 @@
       "id": "de.passive",
       "language": "de",
       "name": "Passive",
+      "level": 6,
       "note": "Is done: das Haus wird gebaut, er wurde gefragt",
       "explanation": "The passive is **werden** plus a past participle at the end: **das Haus wird gebaut**, \"the house is being built\"; **er wurde gefragt**, \"he was asked\".\n\nThe past uses **wurde**; the perfect is **ist ... worden**, not geworden: **das Haus ist gebaut worden**.\n\nThe doer, when named, comes with **von**: **das Buch wurde von ihr geschrieben**, \"the book was written by her\".\n\n**Sein** plus a participle describes the result rather than the action: **die Tür ist geschlossen**, \"the door is closed\", against **die Tür wird geschlossen**, \"the door is being closed\". Spoken German often uses **man** instead: **man sagt**, \"people say\".",
       "related": [
@@ -279,6 +304,7 @@
       "id": "de.modals",
       "language": "de",
       "name": "Modal verbs",
+      "level": 1,
       "note": "kann, muss, darf, soll, will, möchte + infinitive",
       "explanation": "Modal verbs go with an infinitive at the end of the clause: **ich kann schwimmen**, \"I can swim\"; **wir müssen gehen**, \"we have to go\".\n\nThey are **können** (can), **müssen** (must, have to), **dürfen** (may, be allowed to), **sollen** (should, be supposed to), **wollen** (want to), **mögen** (like) and **möchte** (would like).\n\nIn the singular most change their vowel, and the ich and er forms are the same: **ich kann, er kann**; **ich will, er will**; **ich muss, er muss**.\n\n**Nicht müssen** means \"not have to\", not \"mustn't\": **du musst nicht kommen**, \"you don't have to come\". For \"mustn't\", use **nicht dürfen**: **du darfst nicht rauchen**, \"you mustn't smoke\".",
       "related": [
@@ -290,6 +316,7 @@
       "id": "de.subordinate",
       "language": "de",
       "name": "Verb last after weil, dass, obwohl",
+      "level": 4,
       "note": "Subordinate clauses: weil ich müde bin, dass er kommt",
       "explanation": "After **weil** (because), **dass** (that), **obwohl** (although) and similar words, the conjugated verb goes to the end of its clause: **Ich bleibe zu Hause, weil ich müde bin**, \"I'm staying home because I'm tired\".\n\nWith two verbs, the conjugated one comes last: **…, dass er kommen kann**; **…, weil ich es gesehen habe**.\n\nWhen this clause comes first, the main clause starts with its verb: **Weil ich müde bin, bleibe ich zu Hause.**\n\n**Denn** also means \"because\" but keeps normal word order: **Ich bleibe zu Hause, denn ich bin müde.**",
       "related": [
@@ -300,6 +327,7 @@
       "id": "fr.passe_compose",
       "language": "fr",
       "name": "Passé composé",
+      "level": 2,
       "note": "Did, has done: j'ai parlé, elle est partie",
       "explanation": "The passé composé is the usual past in speech: **avoir** or **être** in the present plus a past participle: **j'ai mangé**, \"I ate\" or \"I've eaten\"; **elle est partie**, \"she left\".\n\nMost verbs take avoir. Être goes with about fifteen verbs of movement and change (**aller, venir, partir, arriver, rester, naître, mourir** and their relatives) and with every reflexive verb: **je me suis levé**, \"I got up\".\n\nWith être, the participle agrees with the subject: **elle est allée**, **ils sont partis**.\n\nRegular participles end in **-é** (parlé), **-i** (fini) or **-u** (vendu); common irregulars are **fait, dit, pris, mis, vu, eu, été, pu, voulu**.",
       "related": [
@@ -310,6 +338,7 @@
       "id": "fr.imperfect",
       "language": "fr",
       "name": "Imperfect",
+      "level": 3,
       "note": "Was doing, used to: je parlais, il était",
       "explanation": "The imparfait describes the past as it was going on: background, states and habits: **il faisait beau**, \"the weather was nice\"; **quand j'étais petit, je jouais au foot**, \"when I was little, I used to play soccer\".\n\nTake the nous form of the present, drop **-ons**, and add **-ais, -ais, -ait, -ions, -iez, -aient**: **nous parlons** gives **je parlais**, **nous finissons** gives **je finissais**. Only **être** is irregular: **j'étais**.\n\nThe je, tu, il and ils forms all sound the same.\n\nThe passé composé says what happened; the imparfait sets the scene: **je lisais quand il est arrivé**, \"I was reading when he arrived\".",
       "related": [
@@ -320,6 +349,7 @@
       "id": "fr.future",
       "language": "fr",
       "name": "Future",
+      "level": 4,
       "note": "Will do: je parlerai, il sera, nous irons",
       "explanation": "The future adds **-ai, -as, -a, -ons, -ez, -ont** to the infinitive: **je parlerai**, \"I'll speak\"; **nous finirons**, \"we'll finish\". Verbs in -re drop their final e: **je prendrai**.\n\nCommon irregular stems: **ser-** (être), **aur-** (avoir), **ir-** (aller), **fer-** (faire), **pourr-** (pouvoir), **viendr-** (venir), **verr-** (voir), **voudr-** (vouloir), **devr-** (devoir).\n\nIn speech, **aller** plus an infinitive is more common for plans: **je vais partir**.\n\nAfter **quand** about the future, French uses the future where English uses the present: **quand j'arriverai, je t'appellerai**, \"when I arrive, I'll call you\".",
       "related": [
@@ -331,6 +361,7 @@
       "id": "fr.near_future",
       "language": "fr",
       "name": "Near future",
+      "level": 1,
       "note": "Going to: je vais partir, on va manger",
       "explanation": "**Aller** in the present plus an infinitive says what's going to happen: **je vais partir**, \"I'm going to leave\"; **on va manger**, \"we're going to eat\". The forms are **vais, vas, va, allons, allez, vont**.\n\nIt's the everyday way to talk about plans and what's about to happen, more common in speech than the future tense.\n\nObject pronouns go before the infinitive: **je vais le faire**, \"I'm going to do it\". The negative wraps aller: **je ne vais pas venir**.\n\nIn the imparfait it means \"was about to\": **j'allais partir**, \"I was about to leave\".",
       "related": [
@@ -341,6 +372,7 @@
       "id": "fr.conditional",
       "language": "fr",
       "name": "Conditional",
+      "level": 5,
       "note": "Would do: je parlerais, il serait, nous pourrions",
       "explanation": "The conditional says what would happen: **j'aimerais venir**, \"I'd like to come\"; **ce serait bien**, \"that would be nice\".\n\nIt uses the future's stem with the imparfait's endings, **-ais, -ais, -ait, -ions, -iez, -aient**: **je parlerais**, **il serait**, **nous pourrions**.\n\nWith **si** (if), the si part takes the imparfait: **si j'avais le temps, je viendrais**, \"if I had time, I'd come\". It's also the polite way to ask: **je voudrais un café**, \"I'd like a coffee\".\n\n**Je parlerai** (\"I'll speak\") and **je parlerais** (\"I'd speak\") sound almost the same, so the context usually tells them apart.",
       "related": [
@@ -352,6 +384,7 @@
       "id": "fr.subjunctive",
       "language": "fr",
       "name": "Subjunctive",
+      "level": 6,
       "note": "After que: il faut que je sois, qu'il fasse",
       "explanation": "The subjunctive follows **que** after a need, a wish, a feeling or a doubt: **il faut que je parte**, \"I have to leave\"; **je veux que tu viennes**, \"I want you to come\". It also follows **pour que** (so that), **bien que** (although) and **avant que** (before).\n\nFor most verbs, take the ils form of the present, drop **-ent**, and add **-e, -es, -e, -ions, -iez, -ent**: **ils finissent** gives **que je finisse**. For regular -er verbs the singular looks like the present (**que je parle**), so only forms you can see are subjunctive are counted in your texts.\n\nIrregular: **sois** (être), **aie** (avoir), **aille** (aller), **fasse** (faire), **puisse** (pouvoir), **sache** (savoir), **veuille** (vouloir).\n\nAfter **penser** and **croire**, the indicative is used, and the subjunctive only in the negative: **je pense qu'il vient**, but **je ne pense pas qu'il vienne**.",
       "related": [
@@ -362,6 +395,7 @@
       "id": "ru.past",
       "language": "ru",
       "name": "Past tense",
+      "level": 1,
       "note": "Did, was doing: он читал, она пошла",
       "forms": [
         "past"
@@ -375,6 +409,7 @@
       "id": "ru.future",
       "language": "ru",
       "name": "Future with буду",
+      "level": 2,
       "note": "Will be doing: я буду читать, он будет работать",
       "explanation": "**Буду** plus an imperfective infinitive makes the future of an action in progress or repeated: **я буду читать**, \"I'll be reading\" or \"I'll read\". The forms are **буду, будешь, будет, будем, будете, будут**.\n\nPerfective verbs have no буду future: their present forms already mean the future, **я прочитаю**, \"I'll read (it through)\". So буду never goes with a perfective verb.\n\nOn its own, буду is the future of быть, \"to be\": **я буду дома**, \"I'll be at home\".",
       "related": [
@@ -385,6 +420,7 @@
       "id": "ru.conditional",
       "language": "ru",
       "name": "Conditional (бы)",
+      "level": 5,
       "note": "Would: я бы пошёл, если бы знал",
       "explanation": "**Бы** with a past tense verb says what would happen or would have happened: **я бы пошёл**, \"I'd go\" or \"I'd have gone\". There's no separate tense; the past form with бы covers both.\n\nIn a condition, both halves usually have бы, and **если бы** starts the if part: **если бы я знал, я бы сказал**, \"if I'd known, I'd have said\".\n\nIt's also used for wishes and gentle suggestions: **я бы хотел кофе**, \"I'd like a coffee\"; **ты бы отдохнул**, \"you should rest\".\n\nБы usually comes after the first word or the verb, and shortens to **б** after a vowel in speech.",
       "related": [
@@ -395,6 +431,7 @@
       "id": "ru.imperative",
       "language": "ru",
       "name": "Imperative",
+      "level": 4,
       "note": "Commands: читай, скажите, идите",
       "explanation": "The imperative gives commands and requests: **читай**, \"read\"; **скажите**, \"tell (me)\"; **идите**, \"go\".\n\nIt's made from the present stem: after a vowel add **-й** (**читать → читай**); after a consonant add **-и** (**говорить → говори**), or **-ь** when the stress stays on the stem (**встать → встань**).\n\nAdd **-те** for вы, to one person politely or to several: **читайте, говорите**.\n\nImperfective imperatives are for invitations and ongoing actions (**садитесь**, \"do sit down\"); perfective ones for a single action (**закройте дверь**, \"close the door\"). With **не**, use the imperfective: **не говори**, \"don't say it\".",
       "related": []
@@ -403,6 +440,7 @@
       "id": "ru.gerund",
       "language": "ru",
       "name": "Verbal adverbs",
+      "level": 6,
       "note": "While or after doing: читая, прочитав, улыбаясь",
       "explanation": "Verbal adverbs say what else the subject was doing: **читая, он улыбался**, \"reading, he smiled\"; **прочитав письмо, она ушла**, \"having read the letter, she left\".\n\nImperfective verbs give an action at the same time, with **-я** or **-а** on the present stem: **читая, говоря, улыбаясь**.\n\nPerfective verbs give an action finished first, with **-в** or **-вшись** on the past stem: **прочитав, вернувшись**.\n\nThey never change for person or gender, and their subject must be the main verb's. They're more common in writing than in speech.",
       "related": [
@@ -413,6 +451,7 @@
       "id": "ru.comparative",
       "language": "ru",
       "name": "Comparatives",
+      "level": 3,
       "note": "Than: быстрее, лучше, более интересный",
       "explanation": "The short comparative ends in **-ее** (often **-ей** in speech): **быстрее**, \"faster\"; **интереснее**, \"more interesting\". It doesn't change for gender or number.\n\nSome are irregular: **лучше** (better), **хуже** (worse), **больше** (bigger, more), **меньше** (smaller, less), **дороже** (more expensive), **дешевле** (cheaper), **проще** (simpler).\n\n\"Than\" is **чем**, or the thing compared goes in the genitive: **он старше, чем я** or **он старше меня**, \"he's older than me\".\n\nThe long form puts **более** before the adjective, which then agrees: **более интересная книга**, \"a more interesting book\".",
       "related": []
@@ -421,6 +460,7 @@
       "id": "el.tha",
       "language": "el",
       "name": "θα (will, would)",
+      "level": 2,
       "note": "θα πάω, I'll go; θα ήθελα, I'd like",
       "explanation": "**Θα** before a verb makes the future: **θα πάω**, \"I'll go\"; **θα γράφω**, \"I'll be writing\".\n\nWith the perfective stem it's one action (**θα γράψω**, \"I'll write (it)\"); with the present stem it's ongoing or repeated (**θα γράφω**, \"I'll be writing\" or \"I'll write regularly\").\n\nWith a past imperfective form, θα makes the conditional: **θα ήθελα**, \"I'd like\"; **θα πήγαινα**, \"I'd go\".\n\nThe negative comes before θα: **δεν θα έρθω**, \"I won't come\".",
       "related": [
@@ -431,6 +471,7 @@
       "id": "el.na",
       "language": "el",
       "name": "να (to, so that)",
+      "level": 3,
       "note": "θέλω να πάω, πρέπει να φύγω",
       "explanation": "**Να** plus a verb does the work of the English infinitive, which Greek doesn't have: **θέλω να πάω**, \"I want to go\"; **πρέπει να φύγω**, \"I must leave\".\n\nThe verb after να has its own subject: **θέλω να έρθεις**, \"I want you to come\".\n\nLike θα, it takes the perfective stem for one action (**να γράψω**) and the present stem for an ongoing one (**να γράφω**).\n\nOn its own it makes a suggestion or a wish: **να πάμε;**, \"shall we go?\" The negative is **να μην**: **να μην αργήσεις**, \"don't be late\".",
       "related": [
@@ -441,6 +482,7 @@
       "id": "el.past",
       "language": "el",
       "name": "Past tense",
+      "level": 1,
       "note": "Did, was doing: έγραψα, πήγαμε, ήταν",
       "explanation": "Greek has two past tenses. The simple past says something happened and finished: **έγραψα**, \"I wrote\"; **πήγαμε**, \"we went\". The imperfect says it was going on or used to happen: **έγραφα**, \"I was writing\".\n\nBoth take the endings **-α, -ες, -ε, -αμε, -ατε, -αν**.\n\nThe stress goes three syllables from the end, so a short past form adds a stressed **ε-** at the front: **γράφω → έγραψα**. Longer verbs don't need it: **διαβάζω → διάβασα**.\n\nCommon irregulars: **ήμουν** (I was), **είχα** (I had), **πήγα** (I went), **ήρθα** (I came), **είδα** (I saw), **είπα** (I said).",
       "related": [
@@ -451,6 +493,7 @@
       "id": "el.perfect",
       "language": "el",
       "name": "Perfect",
+      "level": 4,
       "note": "Have done: έχω γράψει, έχει πάει",
       "explanation": "The perfect is **έχω** plus a fixed form ending in **-ει**, the same as the perfective future's third person without θα (θα γράψει): **έχω γράψει**, \"I have written\"; **έχει πάει**, \"he has gone\". The forms of έχω are **έχω, έχεις, έχει, έχουμε, έχετε, έχουν**.\n\nThe second part never changes: **έχουμε φάει**, \"we've eaten\".\n\nGreek uses it less than English. For something that just happened, the simple past is common: **μόλις έφαγα**, \"I've just eaten\".\n\nIt's natural for experience up to now: **έχεις πάει στην Κρήτη;**, \"have you been to Crete?\"",
       "related": [
@@ -462,6 +505,7 @@
       "id": "el.pluperfect",
       "language": "el",
       "name": "Pluperfect",
+      "level": 5,
       "note": "Had done: είχα γράψει, είχαν φύγει",
       "explanation": "The pluperfect is **είχα** plus the same fixed form as the perfect: **είχα γράψει**, \"I had written\"; **είχαν φύγει**, \"they had left\". The forms are **είχα, είχες, είχε, είχαμε, είχατε, είχαν**.\n\nIt puts one past event before another: **όταν έφτασα, είχαν φύγει**, \"when I arrived, they had left\".\n\nWith θα it means \"would have\": **θα είχα έρθει**, \"I would have come\".",
       "related": [
@@ -472,6 +516,7 @@
       "id": "pl.past",
       "language": "pl",
       "name": "Past tense",
+      "level": 1,
       "note": "Did: byłem, poszła, czytaliśmy",
       "forms": [
         "past"
@@ -485,6 +530,7 @@
       "id": "pl.future",
       "language": "pl",
       "name": "Future with będę",
+      "level": 4,
       "note": "Will be doing: będę czytać, będzie padać",
       "explanation": "**Będę** with an imperfective verb makes the future of an action in progress or repeated: **będę czytać**, \"I'll be reading\". The forms are **będę, będziesz, będzie, będziemy, będziecie, będą**.\n\nAfter będę you can use the infinitive or the past form that agrees with the subject: **będę pracować** or **będę pracowała**. Both are correct.\n\nPerfective verbs make their future without będę: their present forms already mean the future, **przeczytam**, \"I'll read (it through)\".\n\nOn its own, będę is the future of być, \"to be\": **będę w domu**, \"I'll be at home\".",
       "related": [
@@ -495,6 +541,7 @@
       "id": "pl.conditional",
       "language": "pl",
       "name": "Conditional (by)",
+      "level": 5,
       "note": "Would: chciałbym, gdyby",
       "explanation": "The conditional adds **-by-** and a person ending to the past form: **chciałbym**, \"I'd like\" (said by a man); **chciałabym** (by a woman); **zrobiłby**, \"he would do\".\n\nIn a condition, **gdyby** starts the if part, also with the past form: **gdybym miał czas, poszedłbym**, \"if I had time, I'd go\".\n\nThe by can move forward in the sentence: **ja bym chciał** means the same as **chciałbym**.\n\nIt's the polite way to ask: **czy mógłby pan mi pomóc?**, \"could you help me, sir?\"",
       "related": [
@@ -505,6 +552,7 @@
       "id": "pl.czy",
       "language": "pl",
       "name": "Questions with czy",
+      "level": 3,
       "note": "Yes or no questions: czy masz czas?",
       "explanation": "**Czy** at the start turns a statement into a yes or no question: **czy masz czas?**, \"do you have time?\"; **czy to daleko?**, \"is it far?\"\n\nThe word order stays as in the statement. In speech czy is often dropped and the voice rises instead: **masz czas?**\n\nInside a sentence, czy means \"whether\": **nie wiem, czy przyjdzie**, \"I don't know whether he'll come\".\n\nBetween two choices it means \"or\": **kawa czy herbata?**, \"coffee or tea?\"",
       "related": []
@@ -513,6 +561,7 @@
       "id": "pl.modals",
       "language": "pl",
       "name": "Want, must, can + infinitive",
+      "level": 2,
       "note": "chcę iść, muszę pracować, mogę pomóc",
       "explanation": "**Chcieć** (want), **musieć** (must, have to) and **móc** (can) go with an infinitive: **chcę iść**, \"I want to go\"; **muszę pracować**, \"I have to work\"; **mogę pomóc**, \"I can help\".\n\nTheir present forms: **chcę, chcesz, chce**; **muszę, musisz, musi**; **mogę, możesz, może**.\n\n**Nie musieć** means \"not have to\": **nie musisz przychodzić**, \"you don't have to come\". For \"mustn't\", Polish uses **nie wolno**: **tu nie wolno palić**, \"you can't smoke here\".\n\n**Umieć** is \"can\" for a skill: **umiem pływać**, \"I can swim\".",
       "related": [
@@ -523,6 +572,7 @@
       "id": "nb.past",
       "language": "nb",
       "name": "Past tense",
+      "level": 1,
       "note": "Did: var, gikk, spiste, bodde",
       "explanation": "The past tense says something happened at a time that's over: **i går spiste vi fisk**, \"yesterday we ate fish\".\n\nRegular verbs add **-et**, **-te**, **-de** or **-dde**: **snakket, spiste, prøvde, bodde**. Many can take more than one (**kastet** or **kasta**).\n\nStrong verbs change their vowel: **var** (være), **gikk** (gå), **kom** (komme), **fikk** (få), **sa** (si), **tok** (ta).\n\nThe verb is the same for every person: **jeg var, du var, de var**.",
       "related": [
@@ -533,6 +583,7 @@
       "id": "nb.perfect",
       "language": "nb",
       "name": "Present perfect",
+      "level": 2,
       "note": "Has done: har vært, har spist",
       "explanation": "The present perfect is **har** plus a past participle: **jeg har vært i Bergen**, \"I've been to Bergen\"; **har du spist?**, \"have you eaten?\"\n\nIt's for the past seen from now: experience up to now, and things that matter now. With a time that's over (**i går**, \"yesterday\"), use the past instead: **jeg spiste i går**.\n\nRegular participles end in **-et**, **-t** or **-d**: **snakket, spist, prøvd, bodd**. Strong ones vary: **vært, gått, kommet, tatt**.\n\nWith verbs of movement, **er** is sometimes used instead of har: **han er reist**, \"he has left\".",
       "related": [
@@ -544,6 +595,7 @@
       "id": "nb.pluperfect",
       "language": "nb",
       "name": "Past perfect",
+      "level": 4,
       "note": "Had done: hadde vært, hadde spist",
       "explanation": "The past perfect is **hadde** plus a past participle: **jeg hadde spist**, \"I had eaten\".\n\nIt puts one past event before another: **da vi kom, hadde toget gått**, \"when we arrived, the train had left\".\n\nIt's also used for unreal conditions in the past: **hvis jeg hadde visst det, hadde jeg kommet**, \"if I'd known, I'd have come\".",
       "related": [
@@ -554,6 +606,7 @@
       "id": "nb.future",
       "language": "nb",
       "name": "Future",
+      "level": 3,
       "note": "skal reise, kommer til å regne",
       "explanation": "Norwegian has no future ending. It uses **skal**, **kommer til å** or the present with a time word.\n\n**Skal** plus an infinitive is for plans and intentions: **jeg skal reise i morgen**, \"I'm going to travel tomorrow\".\n\n**Kommer til å** plus an infinitive is for predictions, what will happen whatever anyone plans: **det kommer til å regne**, \"it's going to rain\".\n\n**Vil** can also mean \"will\", but more often it means \"want to\": **jeg vil hjem**, \"I want to go home\".",
       "related": []
@@ -562,6 +615,7 @@
       "id": "nb.passive",
       "language": "nb",
       "name": "Passive",
+      "level": 5,
       "note": "Is done: blir solgt, selges",
       "explanation": "Norwegian has two passives. **Bli** plus a participle is the usual one in speech: **huset blir solgt**, \"the house is being sold\"; **han ble spurt**, \"he was asked\".\n\nAdding **-s** to the infinitive is the other, for general statements, instructions and writing: **huset selges**, \"the house is for sale\"; **det kan gjøres**, \"it can be done\". It's used mostly in the present and after modal verbs.\n\nThe doer, when named, comes with **av**: **boka ble skrevet av henne**, \"the book was written by her\".",
       "related": []
@@ -570,6 +624,7 @@
       "id": "ja.masu",
       "language": "ja",
       "name": "Polite ます form",
+      "level": 1,
       "note": "Polite verbs: 行きます, 食べました, 飲みません",
       "known": true,
       "explanation": "Adding **ます** to a verb's stem makes it polite, the way you talk to strangers, colleagues and shop staff: **行きます**, \"I go\" or \"I'll go\". Friends and family use the plain form instead (**行く**).\n\nIt has its own past and negative: **行きました** (went), **行きません** (don't go), **行きませんでした** (didn't go). **行きましょう** is \"let's go\".\n\nThe stem is the form before ます: **食べる** gives **食べます**, **飲む** gives **飲みます**, and the two irregular verbs give **します** (する) and **来ます** (来る).",
@@ -582,6 +637,7 @@
       "id": "ja.past",
       "language": "ja",
       "name": "Past tense",
+      "level": 2,
       "note": "Finished events: 行った, 食べた, 高かった",
       "known": true,
       "explanation": "The past ends in **た** (or **だ** after some verbs): **食べた**, \"ate\"; **読んだ**, \"read\". The polite past is **ました**: **食べました**.\n\nIt's formed like the て form, with た in place of て: **行って** becomes **行った**, **書いて** becomes **書いた**, **飲んで** becomes **飲んだ**.\n\nAdjectives take it too: **高い** becomes **高かった**, \"was expensive\". After a noun or a な adjective it's **だった** (plain) or **でした** (polite): **静かだった**, \"it was quiet\".",
@@ -594,6 +650,7 @@
       "id": "ja.te_iru",
       "language": "ja",
       "name": "ている",
+      "level": 5,
       "note": "Going on, or a state: 食べている, 住んでいる",
       "explanation": "A verb's て form plus **いる** says something is going on right now: **ご飯を食べている**, \"I'm eating\". In speech it's often shortened to **てる**: **食べてる**.\n\nWith a verb of change it describes the state that the change left: **結婚している**, \"is married\"; **窓が開いている**, \"the window is open\". With **住む** it's where someone lives: **東京に住んでいる**.\n\nThe polite form is **ています**: **待っています**, \"I'm waiting\".",
       "related": [
@@ -605,6 +662,7 @@
       "id": "ja.tai",
       "language": "ja",
       "name": "Want to (たい)",
+      "level": 4,
       "note": "Wanting to do: 行きたい, 食べたくない",
       "explanation": "**たい** on a verb's stem says what you want to do: **日本に行きたい**, \"I want to go to Japan\"; **何か飲みたい**, \"I want something to drink\".\n\nIt changes like an い adjective: **食べたくない** (don't want to eat), **見たかった** (wanted to see). Add **です** to be polite: **行きたいです**.\n\nIt's for your own wishes, or a question to the person you're talking to. For someone else, Japanese says **行きたがっている** or **行きたいそうです** instead.",
       "related": [
@@ -616,6 +674,7 @@
       "id": "ja.te_kudasai",
       "language": "ja",
       "name": "てください",
+      "level": 3,
       "note": "Polite requests: 待ってください, 見てください",
       "explanation": "A verb's て form plus **ください** asks someone politely to do something: **ちょっと待ってください**, \"please wait a moment\"; **ここに名前を書いてください**, \"please write your name here\".\n\nThe negative asks someone not to: **ないでください**: **触らないでください**, \"please don't touch\".\n\nAmong friends it's just the て form: **待って**, \"wait\". **てくださいませんか** is more polite still.",
       "related": [
@@ -627,6 +686,7 @@
       "id": "ja.volitional",
       "language": "ja",
       "name": "Let's (volitional)",
+      "level": 6,
       "note": "Let's, I'll: 行こう, 食べよう, 行きましょう",
       "explanation": "The volitional is \"let's\" or \"I'll\": **行こう**, \"let's go\"; **食べよう**, \"let's eat\". The polite form is **ましょう**: **行きましょう**.\n\nGroup 1 verbs change their last sound to **o** and add **う** (**会う** to **会おう**, **書く** to **書こう**); group 2 verbs take **よう** (**見る** to **見よう**). する and 来る give **しよう** and **来よう**.\n\nWith **と思う** it's a plan: **明日行こうと思う**, \"I think I'll go tomorrow\". **ましょうか** offers help: **持ちましょうか**, \"shall I carry it?\"",
       "related": [
@@ -638,6 +698,7 @@
       "id": "ja.conditional",
       "language": "ja",
       "name": "Conditionals (たら, ば)",
+      "level": 7,
       "note": "If, when: 行ったら, 雨だったら, 行けば",
       "explanation": "**たら** is the everyday \"if\" or \"when\", made like the past with ら: **雨が降ったら**, \"if it rains\"; **家に着いたら電話して**, \"call me when you get home\". After a noun it's **だったら**.\n\n**ば** is a little more about the condition itself, often with advice or what follows naturally: **早く行けば間に合う**, \"if you go early you'll make it\". Verbs change their last sound to **e** and add ば: **行く** to **行けば**; い adjectives take **ければ**: **安ければ**.\n\nWhen both work, たら is the safer choice in conversation.",
       "related": [
@@ -648,6 +709,7 @@
       "id": "ja.causative",
       "language": "ja",
       "name": "Causative",
+      "level": 9,
       "note": "Make or let someone do: 食べさせる, 行かせる",
       "explanation": "The causative says someone makes or lets another person do something: **子供に野菜を食べさせる**, \"make the children eat vegetables\". The person made to act takes **に** (or **を** with a verb of motion).\n\nGroup 1 verbs change their last sound to **a** and add **せる** (**行く** to **行かせる**); group 2 verbs add **させる** (**食べる** to **食べさせる**); する becomes **させる** and 来る **来させる**.\n\nWith **てください** it asks permission: **私に払わせてください**, \"please let me pay\".",
       "related": [
@@ -658,6 +720,7 @@
       "id": "ja.te_shimau",
       "language": "ja",
       "name": "てしまう",
+      "level": 8,
       "note": "Done completely, or by mistake: 忘れてしまった, 食べちゃった",
       "explanation": "A verb's て form plus **しまう** says something is done completely, or happened when it shouldn't have: **宿題を全部やってしまった**, \"I finished all the homework\"; **財布を忘れてしまった**, \"I (stupidly) forgot my wallet\".\n\nIn speech it shrinks to **ちゃう** (or **じゃう** after で): **忘れちゃった**, **読んじゃった**.\n\nWhich meaning it has comes from the situation: finishing a task, or regret about what happened.",
       "related": [
@@ -669,6 +732,7 @@
       "id": "ja.keigo",
       "language": "ja",
       "name": "Respectful and humble verbs",
+      "level": 10,
       "note": "Keigo: いらっしゃる, おっしゃる, 申す, いただく",
       "explanation": "Keigo replaces everyday verbs with special ones. Respectful verbs raise the other person: **いらっしゃる** (to be, come or go), **おっしゃる** (to say), **召し上がる** (to eat or drink), **なさる** (to do).\n\nHumble verbs lower yourself: **申す** (to say; **田中と申します**, \"my name is Tanaka\"), **参る** (to go or come), **いただく** (to receive or eat), **おる** (to be), **致す** (to do).\n\n**ございます** is a very polite **あります**. You hear keigo from shop staff, at work and in formal speech, and it's usually in the ます form.",
       "related": [

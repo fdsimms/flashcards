@@ -402,6 +402,15 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   page (`GET /api/grammar/{id}`; docs/grammar.md, step 4), opened from its name here. Points set to
   Practice or Know it are drilled from the Practice tab, with questions from texts read and ones
   Claude writes ahead (`POST /api/drills`, `drills.py`; docs/grammar.md, step 5).
+- **The Grammar dial** (owner's request, 13 November 2026). The end view's "For the next ones"
+  card has a Grammar row beside Length: Simpler, Same or Harder, stepped from where it was when the
+  view opened. It sets how many times a text may use points not set (`Difficulty.unset_uses`, per
+  language, 1 to 4, 2 by default, `PUT /api/grammar/stretch`), which the generator reads in place of
+  `UNSET_USES`; a rating never moves it. Harder also suggests the easiest point (the catalog's
+  `level`) that isn't practiced or known, with a Practice it button that sets it to Practice, so
+  the owner approves every change and nothing is scheduled or graded. Not a second rating: it sits
+  with Length because grammar has no dial a rating could move, and a "too hard" caused by grammar
+  still moves only the words. Texts already on the shelf keep the allowance they were written with.
 - **Generate, then verify, as for coverage.** The request names the points to practice and avoid,
   and the server finds them in the draft. A practiced point used fewer than twice, or an avoided one
   used at all, sends the draft back with the words named ("Don't use the Preterite; this draft has:

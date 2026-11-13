@@ -65,7 +65,10 @@ export type GrammarPointPage = {
 export type GrammarPoint = { id: string; name: string; note: string; state: GrammarState; seen?: GrammarSeen };
 
 // `least`: the known points the next texts are asked to work in, least seen first.
-export type GrammarList = { max_practice: number; points: GrammarPoint[]; least?: string[] };
+// `stretch`: how many times a text may use grammar not set (1 to 4), and the easiest point not yet
+// practiced or known, to suggest when that goes up; missing from a server older than the Grammar dial.
+export type GrammarStretch = { uses: number; next: { id: string; name: string } | null };
+export type GrammarList = { max_practice: number; points: GrammarPoint[]; least?: string[]; stretch?: GrammarStretch };
 
 // A grammar point a text marks: written to practice or avoid, a known one worked in for review,
 // or one never marked that turned up.
@@ -359,6 +362,8 @@ export function createApi(
     grammarChoices: () => call<{ choices: Record<string, GrammarChoice> }>('GET', '/api/grammar/choices'),
     setGrammar: (id: string, state: GrammarChoice) =>
       call<GrammarList>('PUT', `/api/grammar/${id}`, { state }),
+    // How many times the next texts may use grammar not set (the Grammar dial on the wrap-up screen).
+    setGrammarStretch: (uses: number) => call<GrammarList>('PUT', '/api/grammar/stretch', { uses }),
     clearWord: (word: string) => call<void>('POST', '/api/words/clear', { word }),
     settings: () => call<Settings>('GET', '/api/settings'),
     // The deck list's totals, for dundundun's Franki task to read from /api/status (countsReport.ts).
