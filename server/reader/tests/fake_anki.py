@@ -9,8 +9,8 @@ def note(note_id: int, entry: str, meaning: str) -> NoteRow:
     return NoteRow(note_id, entry, meaning)
 
 
-def card(nid: int, card_type: int, ivl: int, due: bool = False) -> CardRow:
-    return CardRow(nid, card_type, ivl, due)
+def card(nid: int, card_type: int, ivl: int, due: bool = False, suspended: bool = False) -> CardRow:
+    return CardRow(nid, card_type, ivl, due, suspended)
 
 
 class FakeDeck:

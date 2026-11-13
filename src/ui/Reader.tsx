@@ -17,7 +17,7 @@ import { minutesFor, nextInOrder, playOrder, stepLength, type LengthStep } from 
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
 import { locate, phrasePart, phraseText, pickEnd, type PhrasePick } from '../reader/phrase';
 import { choicesView, holdsPlayAll } from '../reader/choices';
-import { buildCheck, checkScore, type CheckPicks, type CheckQuestion } from '../reader/check';
+import { buildCheck, loggedScore, type CheckPicks, type CheckQuestion } from '../reader/check';
 import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
@@ -479,7 +479,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
       logged.current = true;
       setLeaving(then);
       try {
-        await api.logReading(text.id, toLog(session, Date.now(), rating, true, checkPicks ? checkScore(check, checkPicks) : null));
+        await api.logReading(text.id, toLog(session, Date.now(), rating, true, checkPicks ? loggedScore(check, checkPicks) : null));
       } catch {
         // The reading is lost, not your place: carry on either way.
       } finally {

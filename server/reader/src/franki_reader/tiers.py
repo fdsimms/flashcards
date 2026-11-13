@@ -1,4 +1,6 @@
-"""Lexicon tiers. Rule: a note is only as known as its weakest reviewed card."""
+"""Lexicon tiers. Rule: a note is only as known as its weakest reviewed card. Suspended cards are
+left out before this (`build_entries`), so a note whose reviewed cards are all suspended (a leech)
+is unreviewed."""
 
 from collections.abc import Iterable
 from typing import Literal
