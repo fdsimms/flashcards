@@ -2,8 +2,8 @@
 background, so a note is a word to type and a minute to check instead of a form.
 
 Claude writes each word's Meaning (unless the owner gave one), a Context sentence with the word in bold,
-its English translation, the romanization of the sentence and word where the language needs one, and a
-Register when it isn't plain. The Audio field isn't written here: the app records it when the owner
+its English translation, the romanization of the sentence and word where the language needs one (a
+Japanese word's reading in kana instead, its KanaReading), and a Register when it isn't plain. The Audio field isn't written here: the app records it when the owner
 saves the note, as it does for any note (src/core/recording.ts). Nothing here creates an Anki note or
 grades a card. A word that has been filled in waits in `ready` until the owner opens it in the note
 editor in the app, where saving is the approval.
@@ -15,6 +15,7 @@ never one call per word.
 
 import json
 import logging
+import re
 import sqlite3
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
@@ -40,6 +41,8 @@ MAX_REGISTER = 24
 # Languages whose Context sentence and word get a romanization (the Omnilanguage fields
 # ContextRomanized and Transliteration): the ones not written in Latin letters.
 ROMANIZED: frozenset[Code] = frozenset({"th", "ru", "el"})
+# Kana, and the long-vowel mark: what a Japanese reading is written in.
+_KANA = re.compile(r"^[\u3041-\u309f\u30a0-\u30ffー・ ]+$")
 
 _SYSTEM = """\
 You fill in flashcard notes for an English-speaking learner of {language}. For each word or phrase you \
@@ -107,6 +110,16 @@ WriteNotes = Callable[[Code, list[tuple[str, str]]], Awaitable[tuple[list[Any], 
 def request_message(language: Code, asked: list[tuple[str, str]]) -> str:
     name = LANGUAGES[language].name
     romanized = language in ROMANIZED
+    if romanized:
+        transliteration = "the entry alone in Latin letters, the same system"
+    elif language == "ja":
+        # The owner's Japanese notes keep a reading in kana, not a romanization.
+        transliteration = (
+            "the entry's reading in hiragana (a word written in katakana as it's written), with "
+            "no kanji, Latin letters or spaces"
+        )
+    else:
+        transliteration = "an empty string"
     return _REQUEST.format(
         language=name,
         romanization=(
@@ -114,9 +127,7 @@ def request_message(language: Code, asked: list[tuple[str, str]]) -> str:
             if romanized
             else "an empty string"
         ),
-        transliteration=(
-            "the entry alone in Latin letters, the same system" if romanized else "an empty string"
-        ),
+        transliteration=transliteration,
         entries="\n".join(
             f"{i}. {entry}" + (f" (the learner's meaning: {meaning})" if meaning else "")
             for i, (entry, meaning) in enumerate(asked, 1)
@@ -161,6 +172,11 @@ def check(raw: object, asked: dict[str, str], language: Code) -> tuple[str, dict
             return None
         fields["ContextRomanized"] = romanization
         fields["Transliteration"] = transliteration
+    elif language == "ja":
+        reading = _plain(raw.get("transliteration"), MAX_MEANING)
+        if not reading or not _KANA.match(reading):
+            return None
+        fields[LANGUAGES[language].translit_field] = reading
     register = _plain(raw.get("register"), MAX_REGISTER)
     if register:
         fields["Register"] = register.casefold()

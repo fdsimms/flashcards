@@ -28,7 +28,9 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 from franki_reader import store
 from franki_reader.coverage import Checker
 from franki_reader.generator import MODEL, Usage
+from franki_reader.japanese import quiz_word
 from franki_reader.languages import LANGUAGES, Code
+from franki_reader.reader import from_wanikani
 from franki_reader.spaced import common_lemmas
 
 log = logging.getLogger(__name__)
@@ -68,7 +70,7 @@ For each word below, give:
 - wrong: {wrong} English meanings that other common {language} words have, each clearly different \
 from the word's meaning (never a synonym, a near synonym or another sense of the word) and the same \
 kind of word (a verb's wrong choices are verbs, a noun's are nouns)
-
+{pieces}
 Plain text only: no `|`, no asterisks, no em dashes. Words, most common first:
 {words}"""
 
@@ -116,19 +118,30 @@ def band_of(rank: int) -> int | None:
 
 def sample(language: Code) -> list[tuple[int, str]]:
     """`ASKED_PER_BAND` words from each band as (rank, word), the same ones every time for a language
-    (the list is fixed, and so is the seed), so a word is glossed once. Single plain words only."""
+    (the list is fixed, and so is the seed), so a word is glossed once. Single plain words only
+    (in Japanese, `quiz_word`'s: no particles, names or pieces of a word)."""
     words = common_lemmas(language)
     rng = random.Random(f"vocab-check:{language}")
     out: list[tuple[int, str]] = []
     for lo, hi in BANDS:
         pool = [(r, words[r - 1]) for r in range(lo, min(hi, len(words)) + 1)]
-        pool = [(r, w) for r, w in pool if w.isalpha()]
+        pool = [(r, w) for r, w in pool if (quiz_word(w) if language == "ja" else w.isalpha())]
         out += sorted(rng.sample(pool, min(ASKED_PER_BAND, len(pool))))
     return out
 
 
+# Japanese's list is wordfreq's MeCab pieces grouped by Sudachi, and a few are pieces of a conjugated
+# word (まし, あり) that no learner would be asked about. Claude leaves those out with an empty
+# meaning, which `check` drops.
+_PIECES = (
+    "If a listed word isn't a word on its own but a piece of a longer one (a verb's stem, like まし or "
+    "あり), give it an empty meaning and no wrong choices.\n"
+)
+
+
 def request_message(language: Code, asked: list[tuple[int, str]]) -> str:
     return _REQUEST.format(
+        pieces=_PIECES if language == "ja" else "",
         wrong=WRONG,
         language=LANGUAGES[language].name,
         words="\n".join(f"{rank}. {word}" for rank, word in asked),
@@ -276,6 +289,9 @@ _GREEK = dict(
 )
 
 
+_KATAKANA = re.compile(r"^[\u30a0-\u30ffー]+$")
+
+
 def _latin(word: str) -> str:
     """A Cyrillic or Greek word in Latin letters ("телефон" as "telefon"), so it can be compared with
     its English meaning; other letters are kept."""
@@ -312,8 +328,11 @@ def is_giveaway(lemma: str, meaning: str) -> bool:
     English speaker reads without studying (the word and its meaning share most of their letters,
     "legislador" and "legislator"). Checked here rather than left to Claude, and on what's stored, so a
     bank written before this check is cleaned when it's served. Russian and Greek words are compared
-    with their Latin spelling ("телефон" as "telefon"), both sides respelled by sound."""
+    with their Latin spelling ("телефон" as "telefon"), both sides respelled by sound. A Japanese word
+    written only in katakana is a giveaway too: most are English loanwords (ホテル, ゲーム)."""
     if meaning[:1].isupper() and meaning != "I":
+        return True
+    if _KATAKANA.match(lemma):
         return True
     folded = _fold(lemma)
     text = _fold(meaning)
@@ -336,11 +355,12 @@ def is_giveaway(lemma: str, meaning: str) -> bool:
 
 def serve(conn: sqlite3.Connection, lexicon: Checker, language: Code) -> list[dict[str, Any]]:
     """The language's bank for the quiz, every stored word, without words already in the
-    deck (they count as known) and without proper nouns and obvious cognates (`is_giveaway`), most
-    common first. Empty until the bank is written."""
+    deck or learned in WaniKani (they count as known) and without proper nouns and obvious cognates
+    (`is_giveaway`), most common first. Empty until the bank is written."""
     out: list[dict[str, Any]] = []
     for lemma, rank, meaning, wrong in store.vocab_items(conn, language):
-        if lexicon.entry_of(lemma) is not None or is_giveaway(lemma, meaning):
+        known = lexicon.entry_of(lemma) is not None or from_wanikani(lemma, lexicon)
+        if known or is_giveaway(lemma, meaning):
             continue
         out.append({"word": lemma, "rank": rank, "meaning": meaning, "wrong": wrong})
     return out

@@ -22,8 +22,8 @@ describe('the grammar catalog', () => {
     }
   });
 
-  it('has points for every language but Japanese, which has none yet', () => {
-    for (const language of LANGUAGES) expect(grammarPointsFor(language).length > 0).toBe(language !== 'ja');
+  it('has points for every language', () => {
+    for (const language of LANGUAGES) expect(grammarPointsFor(language).length).toBeGreaterThan(0);
   });
 
   it('links a Forms group to one point at most in each language', () => {

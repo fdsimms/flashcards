@@ -565,6 +565,114 @@
       "note": "Is done: blir solgt, selges",
       "explanation": "Norwegian has two passives. **Bli** plus a participle is the usual one in speech: **huset blir solgt**, \"the house is being sold\"; **han ble spurt**, \"he was asked\".\n\nAdding **-s** to the infinitive is the other, for general statements, instructions and writing: **huset selges**, \"the house is for sale\"; **det kan gjøres**, \"it can be done\". It's used mostly in the present and after modal verbs.\n\nThe doer, when named, comes with **av**: **boka ble skrevet av henne**, \"the book was written by her\".",
       "related": []
+    },
+    {
+      "id": "ja.masu",
+      "language": "ja",
+      "name": "Polite ます form",
+      "note": "Polite verbs: 行きます, 食べました, 飲みません",
+      "explanation": "Adding **ます** to a verb's stem makes it polite, the way you talk to strangers, colleagues and shop staff: **行きます**, \"I go\" or \"I'll go\". Friends and family use the plain form instead (**行く**).\n\nIt has its own past and negative: **行きました** (went), **行きません** (don't go), **行きませんでした** (didn't go). **行きましょう** is \"let's go\".\n\nThe stem is the form before ます: **食べる** gives **食べます**, **飲む** gives **飲みます**, and the two irregular verbs give **します** (する) and **来ます** (来る).",
+      "related": [
+        "ja.past",
+        "ja.keigo"
+      ]
+    },
+    {
+      "id": "ja.past",
+      "language": "ja",
+      "name": "Past tense",
+      "note": "Finished events: 行った, 食べた, 高かった",
+      "explanation": "The past ends in **た** (or **だ** after some verbs): **食べた**, \"ate\"; **読んだ**, \"read\". The polite past is **ました**: **食べました**.\n\nIt's formed like the て form, with た in place of て: **行って** becomes **行った**, **書いて** becomes **書いた**, **飲んで** becomes **飲んだ**.\n\nAdjectives take it too: **高い** becomes **高かった**, \"was expensive\". After a noun or a な adjective it's **だった** (plain) or **でした** (polite): **静かだった**, \"it was quiet\".",
+      "related": [
+        "ja.masu",
+        "ja.te_iru"
+      ]
+    },
+    {
+      "id": "ja.te_iru",
+      "language": "ja",
+      "name": "ている",
+      "note": "Going on, or a state: 食べている, 住んでいる",
+      "explanation": "A verb's て form plus **いる** says something is going on right now: **ご飯を食べている**, \"I'm eating\". In speech it's often shortened to **てる**: **食べてる**.\n\nWith a verb of change it describes the state that the change left: **結婚している**, \"is married\"; **窓が開いている**, \"the window is open\". With **住む** it's where someone lives: **東京に住んでいる**.\n\nThe polite form is **ています**: **待っています**, \"I'm waiting\".",
+      "related": [
+        "ja.past",
+        "ja.te_shimau"
+      ]
+    },
+    {
+      "id": "ja.tai",
+      "language": "ja",
+      "name": "Want to (たい)",
+      "note": "Wanting to do: 行きたい, 食べたくない",
+      "explanation": "**たい** on a verb's stem says what you want to do: **日本に行きたい**, \"I want to go to Japan\"; **何か飲みたい**, \"I want something to drink\".\n\nIt changes like an い adjective: **食べたくない** (don't want to eat), **見たかった** (wanted to see). Add **です** to be polite: **行きたいです**.\n\nIt's for your own wishes, or a question to the person you're talking to. For someone else, Japanese says **行きたがっている** or **行きたいそうです** instead.",
+      "related": [
+        "ja.masu",
+        "ja.volitional"
+      ]
+    },
+    {
+      "id": "ja.te_kudasai",
+      "language": "ja",
+      "name": "てください",
+      "note": "Polite requests: 待ってください, 見てください",
+      "explanation": "A verb's て form plus **ください** asks someone politely to do something: **ちょっと待ってください**, \"please wait a moment\"; **ここに名前を書いてください**, \"please write your name here\".\n\nThe negative asks someone not to: **ないでください**: **触らないでください**, \"please don't touch\".\n\nAmong friends it's just the て form: **待って**, \"wait\". **てくださいませんか** is more polite still.",
+      "related": [
+        "ja.keigo",
+        "ja.te_iru"
+      ]
+    },
+    {
+      "id": "ja.volitional",
+      "language": "ja",
+      "name": "Let's (volitional)",
+      "note": "Let's, I'll: 行こう, 食べよう, 行きましょう",
+      "explanation": "The volitional is \"let's\" or \"I'll\": **行こう**, \"let's go\"; **食べよう**, \"let's eat\". The polite form is **ましょう**: **行きましょう**.\n\nGroup 1 verbs change their last sound to **o** and add **う** (**会う** to **会おう**, **書く** to **書こう**); group 2 verbs take **よう** (**見る** to **見よう**). する and 来る give **しよう** and **来よう**.\n\nWith **と思う** it's a plan: **明日行こうと思う**, \"I think I'll go tomorrow\". **ましょうか** offers help: **持ちましょうか**, \"shall I carry it?\"",
+      "related": [
+        "ja.tai",
+        "ja.masu"
+      ]
+    },
+    {
+      "id": "ja.conditional",
+      "language": "ja",
+      "name": "Conditionals (たら, ば)",
+      "note": "If, when: 行ったら, 雨だったら, 行けば",
+      "explanation": "**たら** is the everyday \"if\" or \"when\", made like the past with ら: **雨が降ったら**, \"if it rains\"; **家に着いたら電話して**, \"call me when you get home\". After a noun it's **だったら**.\n\n**ば** is a little more about the condition itself, often with advice or what follows naturally: **早く行けば間に合う**, \"if you go early you'll make it\". Verbs change their last sound to **e** and add ば: **行く** to **行けば**; い adjectives take **ければ**: **安ければ**.\n\nWhen both work, たら is the safer choice in conversation.",
+      "related": [
+        "ja.past"
+      ]
+    },
+    {
+      "id": "ja.causative",
+      "language": "ja",
+      "name": "Causative",
+      "note": "Make or let someone do: 食べさせる, 行かせる",
+      "explanation": "The causative says someone makes or lets another person do something: **子供に野菜を食べさせる**, \"make the children eat vegetables\". The person made to act takes **に** (or **を** with a verb of motion).\n\nGroup 1 verbs change their last sound to **a** and add **せる** (**行く** to **行かせる**); group 2 verbs add **させる** (**食べる** to **食べさせる**); する becomes **させる** and 来る **来させる**.\n\nWith **てください** it asks permission: **私に払わせてください**, \"please let me pay\".",
+      "related": [
+        "ja.te_kudasai"
+      ]
+    },
+    {
+      "id": "ja.te_shimau",
+      "language": "ja",
+      "name": "てしまう",
+      "note": "Done completely, or by mistake: 忘れてしまった, 食べちゃった",
+      "explanation": "A verb's て form plus **しまう** says something is done completely, or happened when it shouldn't have: **宿題を全部やってしまった**, \"I finished all the homework\"; **財布を忘れてしまった**, \"I (stupidly) forgot my wallet\".\n\nIn speech it shrinks to **ちゃう** (or **じゃう** after で): **忘れちゃった**, **読んじゃった**.\n\nWhich meaning it has comes from the situation: finishing a task, or regret about what happened.",
+      "related": [
+        "ja.te_iru",
+        "ja.past"
+      ]
+    },
+    {
+      "id": "ja.keigo",
+      "language": "ja",
+      "name": "Respectful and humble verbs",
+      "note": "Keigo: いらっしゃる, おっしゃる, 申す, いただく",
+      "explanation": "Keigo replaces everyday verbs with special ones. Respectful verbs raise the other person: **いらっしゃる** (to be, come or go), **おっしゃる** (to say), **召し上がる** (to eat or drink), **なさる** (to do).\n\nHumble verbs lower yourself: **申す** (to say; **田中と申します**, \"my name is Tanaka\"), **参る** (to go or come), **いただく** (to receive or eat), **おる** (to be), **致す** (to do).\n\n**ございます** is a very polite **あります**. You hear keigo from shop staff, at work and in formal speech, and it's usually in the ます form.",
+      "related": [
+        "ja.masu",
+        "ja.te_kudasai"
+      ]
     }
   ]
 }

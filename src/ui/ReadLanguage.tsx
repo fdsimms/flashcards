@@ -117,7 +117,6 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
   const name = language ? LANGUAGES[language].name : '';
   const story = shelf?.story ?? null;
   const voices = language ? settings?.voices?.[language] : undefined;
-  const vocabCheck = !!language && settings?.common?.[language] !== undefined && LANGUAGES[language].vocabCheck;
 
   return (
     <Screen title={name ? `${name} settings` : 'Settings'}>
@@ -149,11 +148,11 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
               <CommonWords settings={settings} onChange={(count) => change({ common: { [language]: count } })} />
             </Card>
             <Group>
-              {/* Thai counts only its deck, so it has no common words to check, and Japanese has no check yet. */}
-              {vocabCheck ? (
+              {/* Thai counts only its deck, so it has no common words to check. */}
+              {settings.common?.[language] !== undefined ? (
                 <NavRow first label="Vocabulary check" detail="20 questions to find how many common words to count" onPress={onVocabCheck} />
               ) : null}
-              <NavRow first={!vocabCheck} label="Voices" detail={voicesSummary(voices) ?? 'The voices texts are read in'} onPress={onVoices} />
+              <NavRow first={settings.common?.[language] === undefined} label="Voices" detail={voicesSummary(voices) ?? 'The voices texts are read in'} onPress={onVoices} />
               <NavRow label="Grammar" detail={grammar ?? 'Practice or avoid'} onPress={onGrammar} />
             </Group>
 

@@ -154,10 +154,9 @@ def test_a_participle_after_its_auxiliary_is_a_verb_even_when_it_is_also_a_noun(
     assert found("Ich habe das Buch gelesen.", "de")["de.perfect"] == ["gelesen"]
 
 
-def test_every_language_but_japanese_has_points_with_names_and_notes() -> None:
-    # Japanese has none yet: its Grammar screen says so.
+def test_every_language_but_english_has_points_with_names_and_notes() -> None:
     for code in LANGUAGES:
-        assert bool(points_for(code)) == (code != "ja"), code
+        assert points_for(code), code
     for p in POINTS.values():
         assert p.name and p.note and "—" not in p.name + p.note
         assert p.id.startswith(p.language + ".")

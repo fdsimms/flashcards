@@ -12,13 +12,12 @@ type LanguageInfo = {
   highlightLabel: string; // what the highlighted words are, as the key names them
   speech: string; // the phone voice's language for a tapped word, the same as Review reads these decks in
   translitLabel: string; // the gloss popover's button that shows a word's pronunciation
-  vocabCheck: boolean; // whether the server has a vocabulary check for its common words
 };
 
-const SPACED = { fontSize: 20, lineHeight: 1.5, highlightLabel: 'Might be new to you', translitLabel: 'Show transliteration', vocabCheck: true };
+const SPACED = { fontSize: 20, lineHeight: 1.5, highlightLabel: 'Might be new to you', translitLabel: 'Show transliteration' };
 
 export const LANGUAGES: Record<Language, LanguageInfo> = {
-  th: { name: 'Thai', flag: '🇹🇭', fontSize: 23, lineHeight: 1.75, highlightLabel: 'Not in your deck', speech: 'th-TH', translitLabel: 'Show transliteration', vocabCheck: false },
+  th: { name: 'Thai', flag: '🇹🇭', fontSize: 23, lineHeight: 1.75, highlightLabel: 'Not in your deck', speech: 'th-TH', translitLabel: 'Show transliteration' },
   es: { name: 'Spanish', flag: '🇲🇽', ...SPACED, speech: 'es-MX' },
   de: { name: 'German', flag: '🇩🇪', ...SPACED, speech: 'de-DE' },
   fr: { name: 'French', flag: '🇫🇷', ...SPACED, speech: 'fr-FR' },
@@ -27,7 +26,7 @@ export const LANGUAGES: Record<Language, LanguageInfo> = {
   pl: { name: 'Polish', flag: '🇵🇱', ...SPACED, speech: 'pl-PL' },
   nb: { name: 'Norwegian', flag: '🇳🇴', ...SPACED, speech: 'nb-NO' },
   // Written without spaces, and kanji want room for their strokes; a word's reading is its kana.
-  ja: { name: 'Japanese', flag: '🇯🇵', fontSize: 21, lineHeight: 1.7, highlightLabel: 'Might be new to you', speech: 'ja-JP', translitLabel: 'Show reading', vocabCheck: false },
+  ja: { name: 'Japanese', flag: '🇯🇵', fontSize: 21, lineHeight: 1.7, highlightLabel: 'Might be new to you', speech: 'ja-JP', translitLabel: 'Show reading' },
 };
 
 // Thai and Spanish came first; the rest are in alphabetical order.

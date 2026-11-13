@@ -80,8 +80,7 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/vocab-check?language=pl   the vocabulary check's questions (vocab_check.py): {state:
                                       "ready", items: [{word, rank, meaning, wrong}]} without the
                                       deck's words, or "preparing" (Claude is writing them, ask
-                                      again soon), "failed" or "unavailable"; not for Thai or
-                                      Japanese. The
+                                      again soon), "failed" or "unavailable"; not for Thai. The
                                       quiz and its scoring are in the app
     GET   /api/note-queue             the owner's queued words (note_queue.py): {available, items: [{id,
                                       language, deck, entry, meaning, state: "waiting" | "ready" |
@@ -1068,12 +1067,6 @@ def create_app(
         when it couldn't (not asked again for `VOCAB_RETRY`), or "unavailable" with no Claude key."""
         if not LANGUAGES[language].counts_common:
             raise HTTPException(422, f"{LANGUAGES[language].name} counts only its deck.")
-        if not LANGUAGES[language].spaced:
-            # Japanese's list holds MeCab's pieces (なっ, まし) and its particles near the top, which
-            # make poor questions; it has no check until the bank is built for it.
-            raise HTTPException(
-                422, f"There's no vocabulary check for {LANGUAGES[language].name} yet."
-            )
         stored = store.vocab_items(engine.conn, language)
         retry_due = (failed := vocab_failed.get(language)) is None or (
             engine.clock() - failed >= VOCAB_RETRY

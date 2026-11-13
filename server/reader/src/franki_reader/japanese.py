@@ -63,6 +63,7 @@ class Morpheme:
     reading: str  # katakana, as Sudachi gives it
     pos: str
     pos2: str
+    form: str = ""  # the conjugation form (意志推量形 for 会おう), for grammar_japanese.py
 
     @property
     def forms(self) -> tuple[str, ...]:
@@ -132,6 +133,7 @@ def morphemes(text: str, short: bool = False) -> list[Morpheme]:
             m.reading_form(),
             m.part_of_speech()[0],
             m.part_of_speech()[1],
+            m.part_of_speech()[5],
         )
         for m in _tokenizer().tokenize(text, mode)
     ]
@@ -142,6 +144,28 @@ def lemma_key(word: str) -> str:
     word itself when it isn't one (scripts/build_common.py writes the list by the same rule)."""
     found = [m for m in morphemes(word) if m.is_word]
     return found[0].normalized if len(found) == 1 else word
+
+
+# The kinds of word the vocabulary check can ask about: not particles, auxiliaries or affixes.
+_CONTENT = {"名詞", "動詞", "形容詞", "副詞", "形状詞", "連体詞", "感動詞", "代名詞"}
+_ONE_KANA = re.compile(r"^[\u3041-\u30ff]$")
+
+
+def quiz_word(word: str) -> bool:
+    """Whether a common word can be a vocabulary check question: one content word written in its
+    dictionary form, not a name, a number, a lone kana or a piece of a conjugated word that wordfreq
+    listed on its own (なっ). Sudachi reads some pieces as words (まし, あり), so the request also
+    lets Claude leave out what isn't a word (vocab_check.py)."""
+    found = [m for m in morphemes(word) if m.is_word]
+    if len(found) != 1 or _ONE_KANA.match(word) or word.endswith("っ"):
+        return False
+    m = found[0]
+    return (
+        m.surface == word
+        and m.dictionary == word
+        and m.pos in _CONTENT
+        and m.pos2 not in ("固有名詞", "数詞", "非自立可能")
+    )
 
 
 def hiragana(katakana: str) -> str:
@@ -378,8 +402,8 @@ def _conjugates(m: Morpheme, before: Morpheme) -> bool:
         return True
     if m.pos == _PARTICLE and m.surface in _JOINING:
         return before.pos in (_VERB, _ADJECTIVE, _AUXILIARY)
-    # 高くない: ない after an adjective is an adjective itself.
-    return m.pos == _ADJECTIVE and m.pos2 == "非自立可能" and before.pos == _ADJECTIVE
+    # 高くない, 飲みたくない: ない after an adjective, or after たく, is an adjective itself.
+    return m.pos == _ADJECTIVE and m.pos2 == "非自立可能" and before.pos in (_ADJECTIVE, _AUXILIARY)
 
 
 def _is_number(token: str) -> bool:
