@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { ShelfText } from '../../src/reader/api';
-import { cardDetail, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, stepLength, surprisePick } from '../../src/reader/shelf';
+import type { GrammarList, ShelfText } from '../../src/reader/api';
+import { cardDetail, grammarStepNote, hasPracticeRoom, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, stepGrammarUses, stepLength, surprisePick } from '../../src/reader/shelf';
 
 const text = (over: Partial<ShelfText> = {}): ShelfText => ({
   id: 1, title: 'At the stall', topic: 'Food stall', topic_id: 1, liked: false, form: 'dialogue', lines: 8,
@@ -45,6 +45,33 @@ describe('the shelf', () => {
     expect(stepLength(6, 'shorter')).toBe(6);
     expect(stepLength(12, 'longer')).toBe(12);
     expect(stepLength(8, 'same')).toBe(8);
+  });
+});
+
+describe('the grammar dial', () => {
+  it('steps the allowance for grammar not marked and holds it between 1 and 4', () => {
+    expect(stepGrammarUses(2, 'harder')).toBe(3);
+    expect(stepGrammarUses(2, 'simpler')).toBe(1);
+    expect(stepGrammarUses(2, 'same')).toBe(2);
+    expect(stepGrammarUses(4, 'harder')).toBe(4);
+    expect(stepGrammarUses(1, 'simpler')).toBe(1);
+  });
+
+  it('says what a step means, and nothing for Same', () => {
+    expect(grammarStepNote(2, 2, 'same')).toBeNull();
+    expect(grammarStepNote(2, 3, 'harder')).toBe("Texts can use grammar you haven't marked 3 times, up from 2.");
+    expect(grammarStepNote(2, 1, 'simpler')).toBe("Texts can use grammar you haven't marked once, down from 2.");
+    expect(grammarStepNote(4, 4, 'harder')).toBe("That's as far as it goes: 4 times a text.");
+    expect(grammarStepNote(1, 1, 'simpler')).toBe("That's as low as it goes: once a text.");
+  });
+
+  it('offers Practice only while fewer than the limit are practiced', () => {
+    const list = (states: ('practice' | 'avoid' | 'normal' | 'unset')[]): GrammarList => ({
+      max_practice: 2,
+      points: states.map((state, i) => ({ id: `es.p${i}`, name: `P${i}`, note: '', state })),
+    });
+    expect(hasPracticeRoom(list(['practice', 'normal', 'unset']))).toBe(true);
+    expect(hasPracticeRoom(list(['practice', 'practice', 'unset']))).toBe(false);
   });
 });
 

@@ -94,6 +94,25 @@ Franki's (Client, below).
   on every line when a text is written (a cost on every text for lines never questioned), to be
   reconsidered if the taps show lines are often off, and coloring the chip when it disagrees with the
   situation.
+- **Check what you understood** (13 November 2026, the owner chose from a mock). After Done, the end
+  view offers a few multiple-choice questions above the rating, one at a time, each marked at once
+  with the line that answers it (its words, English and audio). Three kinds, built when Done is
+  tapped (`src/reader/check.ts`, pure and tested; `src/ui/ReaderCheck.tsx`): up to two about what
+  happens, then one line to recognize by ear (two when there are none about what happens), then up to
+  two words (marked unknown first, then looked up, then the practice words). The questions about
+  what happens are Claude's, in the text's language with an English toggle (kept in the reader's
+  prefs), written once the text passes its checks in one call (`comprehension.py`) and kept on the
+  text (`texts.questions`); the code keeps a question only if its line exists, its four choices
+  differ in both languages, and it uses at most one word that is neither known nor in the text, and a
+  failed call leaves the text without them. Their cost is `questions` in `/api/costs`. The listening
+  and word questions are built from the text's own lines, audio and glosses, so they cost nothing.
+  The score (right of those answered, "I don't know" counting as wrong) is logged with the reading
+  (`check_right`, `check_asked`) and shown in Progress. **A poor score makes the next text easier**
+  (the owner's choice): under 60% right of at least three raises the coverage target a step
+  (`adapt_to_check`), unless the text was rated Too hard, which already did; a good score changes
+  nothing, as the rating is what makes texts harder. Nothing is graded or added to the deck. Not done:
+  the check on a past text read again (its reading isn't logged), and questions for texts written
+  before it.
 - **Listen only** (brief, design principle 6). Once a text is rated "About right", the end view
   offers to play it again with the Thai hidden; the lines show who's speaking instead, and "Show the
   text" brings the words back. The reading is then logged with `listen_only` true. The brief's
@@ -418,6 +437,15 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   page (`GET /api/grammar/{id}`; docs/grammar.md, step 4), opened from its name here. Points set to
   Practice or Know it are drilled from the Practice tab, with questions from texts read and ones
   Claude writes ahead (`POST /api/drills`, `drills.py`; docs/grammar.md, step 5).
+- **The Grammar dial** (owner's request, 13 November 2026). The end view's "For the next ones"
+  card has a Grammar row beside Length: Simpler, Same or Harder, stepped from where it was when the
+  view opened. It sets how many times a text may use points not set (`Difficulty.unset_uses`, per
+  language, 1 to 4, 2 by default, `PUT /api/grammar/stretch`), which the generator reads in place of
+  `UNSET_USES`; a rating never moves it. Harder also suggests the easiest point (the catalog's
+  `level`) that isn't practiced or known, with a Practice it button that sets it to Practice, so
+  the owner approves every change and nothing is scheduled or graded. Not a second rating: it sits
+  with Length because grammar has no dial a rating could move, and a "too hard" caused by grammar
+  still moves only the words. Texts already on the shelf keep the allowance they were written with.
 - **Generate, then verify, as for coverage.** The request names the points to practice and avoid,
   and the server finds them in the draft. A practiced point used fewer than twice, or an avoided one
   used at all, sends the draft back with the words named ("Don't use the Preterite; this draft has:

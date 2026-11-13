@@ -52,3 +52,10 @@ test('a listen-only pass is logged', () => {
   expect(toLog(s, 0, null, false).listen_only).toBe(false);
   expect(toLog(listenedOnly(s), 0, 'about_right', true).listen_only).toBe(true);
 });
+
+test('the log carries the check after reading only when it was taken', () => {
+  const s = startSession(TEXT, 0);
+  expect(toLog(s, 0, null, true, { right: 3, asked: 5 })).toMatchObject({ check_right: 3, check_asked: 5 });
+  expect(toLog(s, 0, null, true, { right: 0, asked: 0 })).not.toHaveProperty('check_asked');
+  expect(toLog(s, 0, null, true)).not.toHaveProperty('check_asked');
+});

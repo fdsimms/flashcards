@@ -66,7 +66,10 @@ export type GrammarPointPage = {
 export type GrammarPoint = { id: string; name: string; note: string; state: GrammarState; seen?: GrammarSeen };
 
 // `least`: the known points the next texts are asked to work in, least seen first.
-export type GrammarList = { max_practice: number; points: GrammarPoint[]; least?: string[] };
+// `stretch`: how many times a text may use grammar not set (1 to 4), and the easiest point not yet
+// practiced or known, to suggest when that goes up; missing from a server older than the Grammar dial.
+export type GrammarStretch = { uses: number; next: { id: string; name: string } | null };
+export type GrammarList = { max_practice: number; points: GrammarPoint[]; least?: string[]; stretch?: GrammarStretch };
 
 // A grammar point a text marks: written to practice or avoid, a known one worked in for review,
 // or one never marked that turned up.
@@ -108,6 +111,17 @@ export type LineGrammar = { id: string; name: string; note: string; state: Gramm
 // words come segmented), with its English beside it.
 export type TextChoice = { english: string; words: Word[] };
 
+// A question about what happens in a text, for the check after reading (reader/check.ts), written by
+// Claude with the text: in the text's language with its English, the line that answers it (from 0),
+// and the index of the right choice.
+export type TextQuestion = {
+  line: number;
+  question: string;
+  english: string;
+  choices: { text: string; english: string }[];
+  answer: number;
+};
+
 export type ReaderText = {
   id: number;
   topicId: number;
@@ -133,6 +147,9 @@ export type ReaderText = {
   // one is). Missing from a server older than story choices, and empty for any other text.
   choices?: TextChoice[];
   chosen?: number | null;
+  // Questions about what happens, for the check after reading. Missing from a server older than
+  // them, and empty for a text written before them or whose questions couldn't be written.
+  questions?: TextQuestion[];
 };
 
 // Why a text is on the shelf: written around words due today, on a liked theme, an idea not
@@ -233,6 +250,8 @@ export type Progress = {
   finished: number;
   median_coverage: number | null;
   ratings: Record<Rating | 'none', number>;
+  // The check after reading, over the finished texts it was taken with. Missing from a server older than it.
+  check?: { texts: number; right: number; asked: number };
   next: { floor: number; stretch: number };
 };
 
@@ -271,6 +290,9 @@ export type ReadingLog = {
   audio_speed: number | null;
   listen_only: boolean;
   seconds: number;
+  // The check after reading, when it was taken: answers right, of those asked.
+  check_right?: number;
+  check_asked?: number;
 };
 
 // A word queued for Claude to fill in (src/reader/noteQueue.ts). `fields` is what it wrote, by Anki field
@@ -360,6 +382,8 @@ export function createApi(
     grammarChoices: () => call<{ choices: Record<string, GrammarChoice> }>('GET', '/api/grammar/choices'),
     setGrammar: (id: string, state: GrammarChoice) =>
       call<GrammarList>('PUT', `/api/grammar/${id}`, { state }),
+    // How many times the next texts may use grammar not set (the Grammar dial on the wrap-up screen).
+    setGrammarStretch: (uses: number) => call<GrammarList>('PUT', '/api/grammar/stretch', { uses }),
     clearWord: (word: string) => call<void>('POST', '/api/words/clear', { word }),
     settings: () => call<Settings>('GET', '/api/settings'),
     // The deck list's totals, for dundundun's Franki task to read from /api/status (countsReport.ts).

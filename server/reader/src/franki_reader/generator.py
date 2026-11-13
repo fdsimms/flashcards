@@ -162,8 +162,9 @@ class TextRequest:
     avoid: tuple[str, ...] = ()
     # Known points to work in where they fit, with no minimum and no check (exposure.py).
     review: tuple[str, ...] = ()
-    # Points the owner hasn't marked: at most grammar.UNSET_USES uses in all, as they may be new.
+    # Points the owner hasn't marked: at most `unset_uses` uses in all, as they may be new.
     unset: tuple[str, ...] = ()
+    unset_uses: int = grammar.UNSET_USES
     story: StoryContext | None = None
 
     def __post_init__(self) -> None:
@@ -502,7 +503,7 @@ def request_message(request: TextRequest) -> str:
     if request.unset:
         parts.append(
             "Grammar the learner may not know yet: use these at most "
-            f"{grammar.UNSET_USES} times in the whole text, all of them together, or not at all; "
+            f"{_times(request.unset_uses)} in the whole text, all of them together, or not at all; "
             "the reader explains any that appear:\n" + _grammar_list(request.unset)
         )
     return "\n".join(parts)
@@ -557,6 +558,10 @@ def _story_intro(story: StoryContext) -> str:
     )
 
 
+def _times(n: int) -> str:
+    return "once" if n == 1 else f"{n} times"
+
+
 def _grammar_list(point_ids: tuple[str, ...]) -> str:
     return "\n".join(f"- {grammar.POINTS[p].name} ({grammar.POINTS[p].note})" for p in point_ids)
 
@@ -586,10 +591,10 @@ def grammar_problems(
                 + ". Say those another way."
             )
     unset = [(pid, w) for pid in request.unset for w in found[pid]]
-    if (n := len(unset)) > grammar.UNSET_USES:
-        misses += n - grammar.UNSET_USES
+    if (n := len(unset)) > request.unset_uses:
+        misses += n - request.unset_uses
         problems.append(
-            f"Use grammar the learner may not know at most {grammar.UNSET_USES} times in all; "
+            f"Use grammar the learner may not know at most {_times(request.unset_uses)} in all; "
             "this draft has: "
             + "; ".join(
                 f"{grammar.POINTS[pid].name} ({', '.join(dict.fromkeys(w for p, w in unset if p == pid))})"

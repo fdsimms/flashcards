@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from franki_reader import grammar
+from franki_reader.comprehension import Question, from_json
 from franki_reader.difficulty import Difficulty
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Choice, Form, Generated, Line
@@ -221,7 +222,8 @@ CREATE TABLE IF NOT EXISTS stories (
 );
 -- What a call cost when nothing else keeps it: an explanation, a phrase's or a naturalness check
 -- that failed after Claude answered (their caches hold answers only, so the line can be asked
--- again), memory hints (mnemonics.py; the app keeps the hints, in the note), and a card recorded by
+-- again), memory hints (mnemonics.py; the app keeps the hints, in the note), questions for the check
+-- after reading (comprehension.py; every call, as the questions are kept on the text), and a card recorded by
 -- an Azure voice (POST /api/speech), as the characters Azure billed. A recording's language is
 -- left empty: recordings are counted all together, and an older app doesn't say it.
 CREATE TABLE IF NOT EXISTS call_costs (
@@ -280,6 +282,9 @@ class StoredText:
     # index of the one they picked (None until they do, and for good if they never do).
     choices: tuple[Choice, ...] = ()
     chosen: int | None = None
+    # Questions about what happens in it, for the check after reading (comprehension.py); none for
+    # a text written before them, or whose call failed.
+    questions: tuple[Question, ...] = ()
 
 
 # "topic": the model chooses stretch words that fit the topic from a list of due and young words.
@@ -319,6 +324,9 @@ class Reading:
     audio_speed: float | None
     listen_only: bool
     seconds: int
+    # The check after reading: questions answered right, of those asked. None when it wasn't taken.
+    check_right: int | None = None
+    check_asked: int | None = None
 
 
 def connect(path: Path | str) -> sqlite3.Connection:
@@ -377,9 +385,16 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # Characters Azure has spoken for the text, each time its lines were recorded (a
         # re-recording counts again); what its audio cost is worked out from this.
         ("audio_chars", "audio_chars INTEGER NOT NULL DEFAULT 0"),
+        # Questions about the text for the check after reading (JSON, comprehension.py).
+        ("questions", "questions TEXT NOT NULL DEFAULT '[]'"),
     ):
         if column not in texts_columns:
             conn.execute(f"ALTER TABLE texts ADD COLUMN {sql}")
+    readings_columns = {r[1] for r in conn.execute("PRAGMA table_info(readings)")}
+    for column in ("check_right", "check_asked"):
+        # The check after reading, when it was taken; NULL for readings before it and when it wasn't.
+        if column not in readings_columns:
+            conn.execute(f"ALTER TABLE readings ADD COLUMN {column} INTEGER")
     with conn:
         # A text left pending by a restart mid-audio: its missing lines are made on request.
         conn.execute("UPDATE texts SET status = 'ready' WHERE status = 'pending'")
@@ -731,7 +746,8 @@ def get_text(conn: sqlite3.Connection, text_id: int) -> StoredText | None:
 
 _TEXT_COLUMNS = (
     "id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar,"
-    " translits, reason, story_id, episode, recap, genders, characters, choices, chosen"
+    " translits, reason, story_id, episode, recap, genders, characters, choices, chosen,"
+    " questions"
 )
 
 
@@ -757,6 +773,7 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         characters,
         choices,
         chosen,
+        questions,
     ) = row
     return StoredText(
         id=text_id,
@@ -779,7 +796,16 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         characters=json.loads(characters),
         choices=tuple(Choice(**c) for c in json.loads(choices)),
         chosen=chosen,
+        questions=tuple(from_json(q) for q in json.loads(questions)),
     )
+
+
+def save_questions(conn: sqlite3.Connection, text_id: int, questions: tuple[Question, ...]) -> None:
+    with conn:
+        conn.execute(
+            "UPDATE texts SET questions = ? WHERE id = ?",
+            (json.dumps([q.as_json() for q in questions], ensure_ascii=False), text_id),
+        )
 
 
 # ==== Explanations ====
@@ -984,8 +1010,9 @@ def log_reading(conn: sqlite3.Connection, text_id: int, reading: Reading, now: d
     with conn:
         conn.execute(
             """INSERT INTO readings (text_id, logged_at, language, mode, rating, finished,
-                   words_glossed, words_flagged, audio_speed, listen_only, seconds)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   words_glossed, words_flagged, audio_speed, listen_only, seconds, check_right,
+                   check_asked)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 text_id,
                 now.isoformat(),
@@ -998,6 +1025,8 @@ def log_reading(conn: sqlite3.Connection, text_id: int, reading: Reading, now: d
                 reading.audio_speed,
                 int(reading.listen_only),
                 reading.seconds,
+                reading.check_right,
+                reading.check_asked,
             ),
         )
         # Only a text that was served: a dropped or skipped one keeps its status, so the costs
@@ -1064,20 +1093,34 @@ class Progress:
     finished: int
     median_coverage: float | None
     ratings: dict[str, int]  # too_easy, about_right, too_hard, and none for unrated
+    # The check after reading, over the readings it was taken with: how many, and the answers right
+    # of those asked (None when it wasn't taken).
+    checked: int = 0
+    check_right: int = 0
+    check_asked: int = 0
 
 
 def progress(conn: sqlite3.Connection, since: datetime, language: Code = "th") -> Progress:
     rows = conn.execute(
-        """SELECT x.coverage, r.rating FROM readings r JOIN texts x ON x.id = r.text_id
+        """SELECT x.coverage, r.rating, r.check_right, r.check_asked
+           FROM readings r JOIN texts x ON x.id = r.text_id
            WHERE r.finished = 1 AND r.logged_at >= ? AND x.language = ?""",
         (since.isoformat(), language),
     ).fetchall()
     ratings = {"too_easy": 0, "about_right": 0, "too_hard": 0, "none": 0}
-    for _, rating in rows:
+    for _, rating, _, _ in rows:
         ratings[rating or "none"] += 1
-    coverages = [coverage for coverage, _ in rows]
+    coverages = [row[0] for row in rows]
     median = statistics.median(coverages) if coverages else None
-    return Progress(len(rows), median, ratings)
+    checks = [(right, asked) for _, _, right, asked in rows if asked]
+    return Progress(
+        len(rows),
+        median,
+        ratings,
+        len(checks),
+        sum(right for right, _ in checks),
+        sum(asked for _, asked in checks),
+    )
 
 
 @dataclass(frozen=True)
@@ -1226,7 +1269,9 @@ def explanation_spending(
 
 # What a row of `call_costs` was for. A failed "explain", "phrase" or "natural" call counts with
 # the answers kept for those (`explanation_spending`).
-CallFeature = Literal["explain", "phrase", "natural", "mnemonics", "recording", "note_queue"]
+CallFeature = Literal[
+    "explain", "phrase", "natural", "mnemonics", "recording", "note_queue", "questions"
+]
 
 
 def save_call_cost(
@@ -1250,13 +1295,25 @@ def save_call_cost(
 def mnemonic_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
     """Each language with memory hints asked for since `since`: how many calls (failed ones
     included) and what they cost Claude."""
+    return _feature_spending(conn, "mnemonics", since)
+
+
+def question_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
+    """Each language with questions written for the check after reading since `since`: how many
+    calls (failed ones included) and what they cost Claude."""
+    return _feature_spending(conn, "questions", since)
+
+
+def _feature_spending(
+    conn: sqlite3.Connection, feature: CallFeature, since: datetime
+) -> dict[Code, tuple[int, float]]:
     return {
         language: (count, cost)
         for language, count, cost in conn.execute(
             "SELECT language, COUNT(*), SUM(cost_usd) FROM call_costs"
-            " WHERE feature = 'mnemonics' AND created_at >= ?"
+            " WHERE feature = ? AND created_at >= ?"
             " GROUP BY language ORDER BY SUM(cost_usd) DESC",
-            (since.isoformat(),),
+            (feature, since.isoformat()),
         )
     }
 
