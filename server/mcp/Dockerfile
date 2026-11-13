@@ -4,7 +4,10 @@
 FROM python:3.13-slim
 COPY mcp/requirements.txt /app/requirements.txt
 COPY speech /speech
-RUN pip install --no-cache-dir -r /app/requirements.txt /speech \
+# ffmpeg levels the loudness of recorded audio (franki_speech.loudness).
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+ && rm -rf /var/lib/apt/lists/* \
+ && pip install --no-cache-dir -r /app/requirements.txt /speech \
  && useradd --create-home --uid 1000 franki \
  && mkdir /data && chown franki:franki /data
 COPY mcp/franki_mcp /app/franki_mcp

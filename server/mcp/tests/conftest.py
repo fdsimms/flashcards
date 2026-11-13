@@ -87,6 +87,7 @@ class FakeAzure:
     def __init__(self):
         self.requests: list[httpx.Request] = []
         self.status = 200
+        self.audio: bytes | None = None  # what to answer with instead of the stand-in text
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
@@ -97,7 +98,7 @@ class FakeAzure:
                 {"ShortName": "th-TH-PremwadeeNeural", "Locale": "th-TH", "LocaleName": "Thai (Thailand)", "Gender": "Female", "DisplayName": "Premwadee"},
                 {"ShortName": "pl-PL-ZofiaNeural", "Locale": "pl-PL", "LocaleName": "Polish (Poland)", "Gender": "Female", "DisplayName": "Zofia"},
             ])
-        return httpx.Response(200, content=b"MP3:" + request.content)
+        return httpx.Response(200, content=self.audio or b"MP3:" + request.content)
 
 
 @pytest.fixture

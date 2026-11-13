@@ -15,7 +15,6 @@ export default function SettingsRoute() {
       wanikaniOn={!!wanikani.on}
       onWaniKani={() => router.push('/wanikani-settings')}
       onAnki={() => router.push('/anki')}
-      onStats={() => router.push('/stats')}
       onBackup={() => router.push('/backup')}
       onVoices={() => router.push('/voices')}
     />

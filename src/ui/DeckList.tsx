@@ -261,6 +261,7 @@ export function DeckList(props: {
   onBackup: () => void;
   onSettings: () => void;
   onBrowse: () => void;
+  onStats: () => void;
   onOptions: (deck: string) => void;
   /** Makes a deck (DeckActions.tsx). */
   onNewDeck: () => void;
@@ -345,6 +346,7 @@ export function DeckList(props: {
           ) : null}
           {props.onQuickAdd ? <Stack.Toolbar.Button icon="plus" accessibilityLabel="Quick add notes" onPress={props.onQuickAdd} /> : null}
           <Stack.Toolbar.Button icon="rectangle.stack.badge.plus" accessibilityLabel="New deck" onPress={props.onNewDeck} />
+          <Stack.Toolbar.Button icon="chart.bar" accessibilityLabel="Stats" onPress={props.onStats} />
           <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} />
           <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={props.onSettings} />
         </Stack.Toolbar>

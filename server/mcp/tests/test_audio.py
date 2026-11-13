@@ -58,3 +58,75 @@ async def test_says_what_went_wrong(client, azure):
     azure.status = 401
     out = await call(client, "add_tts_audio", note_ids=[WATER], source_fields=["Front"], target_field="Back", voice=VOICE)
     assert out["added"] == 0 and "refused the key" in out["results"][0]["error"]
+
+
+# ---- loudness: real audio, real ffmpeg ----
+
+import base64
+import shutil
+import subprocess
+
+from franki_mcp.speech import TARGET_LUFS, measure_loudness
+
+needs_ffmpeg = pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="needs ffmpeg")
+
+
+def tone(volume: float) -> bytes:
+    return subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=300:duration=1.5", "-af", f"volume={volume}",
+         "-ar", "24000", "-ac", "1", "-f", "mp3", "pipe:1"], check=True, capture_output=True).stdout
+
+
+async def field_audio(client, nid: int, field: str = "Back") -> list[str]:
+    back = (await call(client, "get_notes", note_ids=[nid]))["notes"][0]["fields"][field]
+    return [p.split("]")[0] for p in back.split("[sound:")[1:]]
+
+
+@needs_ffmpeg
+async def test_a_new_recording_is_leveled(client, cm, azure, desktop):
+    azure.audio = tone(0.03)
+    out = await call(client, "add_tts_audio", note_ids=[WATER], source_fields=["Front"], target_field="Back", voice=VOICE)
+    assert "warning" not in out["results"][0]
+    cm.wait_for_media()
+    desktop.run("sync", "+", "media-sync")
+    sound = (await field_audio(client, WATER))[0]
+    level = await measure_loudness((desktop.path.parent / "collection.media" / sound).read_bytes())
+    assert level is not None and abs(level - TARGET_LUFS) < 1.0
+
+
+async def test_a_recording_that_cant_be_leveled_is_still_saved_and_says_so(client, azure):
+    out = await call(client, "add_tts_audio", note_ids=[WATER], source_fields=["Front"], target_field="Back", voice=VOICE)
+    assert out["added"] == 1 and "Saved without leveling" in out["results"][0]["warning"]
+
+
+@needs_ffmpeg
+async def test_levels_audio_a_note_already_has(client, cm, desktop):
+    loud, quiet = tone(0.8), tone(0.03)
+    names = [(await call(client, "store_media", filename=f, data_base64=base64.b64encode(d).decode()))["filename"]
+             for f, d in (("loud.mp3", loud), ("quiet.mp3", quiet))]
+    await call(client, "update_notes", updates=[{"note_id": WATER, "fields": {"Back": f"[sound:{names[0]}]"}},
+                                                {"note_id": BOOK, "fields": {"Back": f"[sound:{names[1]}] meaning"}}])
+    seen = await call(client, "normalize_audio", note_ids=[WATER, BOOK], preview=True)
+    assert seen["changed"] == 0 and {r["status"] for r in seen["results"]} == {"would be leveled"}
+    assert await field_audio(client, WATER) == [names[0]]  # a preview changes nothing
+
+    out = await call(client, "normalize_audio", note_ids=[WATER, BOOK, 5])
+    assert out["changed"] == 2 and "no note 5" in out["results"][2]["error"]
+    cm.wait_for_media()
+    desktop.run("sync", "+", "media-sync")
+    for nid in (WATER, BOOK):
+        (sound,) = await field_audio(client, nid)
+        assert sound.startswith("franki-level-")
+        level = await measure_loudness((desktop.path.parent / "collection.media" / sound).read_bytes())
+        assert abs(level - TARGET_LUFS) < 1.0
+    assert (await call(client, "get_notes", note_ids=[BOOK]))["notes"][0]["fields"]["Back"].endswith("meaning")
+
+    again = await call(client, "normalize_audio", note_ids=[WATER, BOOK])  # already at the target: left alone
+    assert again["changed"] == 0 and {r["status"] for r in again["results"]} == {"already at the target level"}
+
+
+async def test_normalize_audio_says_what_it_cant_do(client):
+    assert "Up to 20" in await call_error(client, "normalize_audio", note_ids=list(range(21)))
+    out = await call(client, "normalize_audio", note_ids=[WATER, BOOK], field="Back")
+    assert out["changed"] == 0 and all("no audio" in r["error"] for r in out["results"])
+    assert "has no field 'Word'" in (await call(client, "normalize_audio", note_ids=[WATER], field="Word"))["results"][0]["error"]

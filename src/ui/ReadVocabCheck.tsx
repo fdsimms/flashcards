@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type CommonCount, type Language, type Settings, type VocabBank } from '../reader/api';
+import { withThaiLineHeight } from '../core/script';
 import { LANGUAGES, commonLabel } from '../reader/languages';
 import {
   KNOWN_SHARE, QUESTIONS, bandLabel, choicesFor, estimate, missedWords, nextItem, rememberSeen, type Asked, type Reply, type VocabItem,
@@ -277,7 +278,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
         <Reveal key={item.word} rise={10} style={{ gap: space.m }}>
           <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.xs }}>
             <Text style={{ ...type.footnote, color: c.textSecondary }}>What does this mean?</Text>
-            <Text selectable style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>{item.word}</Text>
+            <Text selectable style={{ ...withThaiLineHeight(type.cardFront, item.word), color: c.text, textAlign: 'center' }}>{item.word}</Text>
             <Tappable
               onPress={() => { haptic.tap(); onPlayWord(item.word, language); }}
               accessibilityRole="button"
