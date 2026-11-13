@@ -78,6 +78,15 @@ describe('withoutArticle / headword', () => {
     expect(withoutArticle('ten pies')).toBe('pies');
     expect(withoutArticle('la')).toBe('la');
   });
+  it('knows the Greek plural and genitive articles, French une and German ein and des', () => {
+    expect(['τα παιδιά', 'οι άντρες', 'του παιδιού', 'της γυναίκας', 'των παιδιών'].map(withoutArticle)).toEqual(['παιδιά', 'άντρες', 'παιδιού', 'γυναίκας', 'παιδιών']);
+    expect(['une table', 'un livre', "l'arbre", 'l’école', 'les tables'].map(withoutArticle)).toEqual(['table', 'livre', 'arbre', 'école', 'tables']);
+    expect(['ein Tisch', 'eine Frau', 'des Tisches'].map(withoutArticle)).toEqual(['Tisch', 'Frau', 'Tisches']);
+  });
+  it('takes only a whole article, never the start of a word', () => {
+    const words = ['unité', 'einer', 'eines Tages', 'ταξί', 'τουρίστας', 'οικογένεια', 'desde luego'];
+    expect(words.map(withoutArticle)).toEqual(words);
+  });
   it('reads the Entry as plain text', () => {
     expect(headword(esperar({ Entry: '<b>esperar</b>' }))).toBe('esperar');
   });
@@ -89,7 +98,17 @@ describe('checkAnswer', () => {
   });
   it('calls a missing accent almost, since it is often another form', () => {
     expect(checkAnswer('espere', ['esperé'])).toBe('almost');
-    expect(checkAnswer('елка', ['ёлка'])).toBe('almost');
+    expect(checkAnswer('елки', ['ёлка'])).toBe('wrong');
+  });
+  it('takes е for ё, as Russian usually writes it', () => {
+    expect(checkAnswer('елка', ['ёлка'])).toBe('right');
+    expect(checkAnswer('Ёлка', ['елка'])).toBe('right');
+  });
+  it('calls ø, æ, œ and ł typed without the mark almost, like a missing accent', () => {
+    expect(checkAnswer('brodet', ['brødet'])).toBe('almost');
+    expect(checkAnswer('aerlig', ['ærlig'])).toBe('almost');
+    expect(checkAnswer('soeurs', ['sœurs'])).toBe('almost');
+    expect(checkAnswer('szedl', ['szedł'])).toBe('almost');
   });
   it('accepts any of the alternatives, and nothing else', () => {
     expect(checkAnswer('esperase', ['esperara', 'esperase'])).toBe('right');
@@ -194,6 +213,13 @@ describe('promptFor', () => {
     expect(p.headword).toBe('Tisch');
     expect([...p.choices!].sort()).toEqual(['das', 'der', 'die']);
     expect(p.sentence).toBeUndefined();
+    const table = omniNote({ Entry: 'une table', Language: 'french', Gender: 'f' });
+    expect(promptFor(table, formsOf(table).forms[0], [], seeded()).headword).toBe('table');
+  });
+  it('accepts a listed form without its article', () => {
+    const paidi = omniNote({ Entry: 'το παιδί', Language: 'greek', Gender: 'n', Plural: 'τα παιδιά' });
+    const plural = formsOf(paidi).forms.find((f) => f.key === 'field:Plural')!;
+    expect(checkAnswer('παιδιά', plural.answers)).toBe('right');
   });
 });
 

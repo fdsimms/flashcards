@@ -29,6 +29,24 @@ describe('checking a typed answer', () => {
     expect(checkTyped('einunddreissigste', [{ text: 'einunddreißigste' }]).verdict).toBe('exact');
   });
 
+  it('takes е for ё as Russian writes it, and marks only what else differs', () => {
+    expect(checkTyped('четвертое', [{ text: 'четвёртое' }]).verdict).toBe('exact');
+    expect(checkTyped('ЧЕТВЁРТОЕ', [{ text: 'четвертое' }]).verdict).toBe('exact');
+    const c = checkTyped('четвертыи', [{ text: 'четвёртый' }]);
+    expect(c.verdict).toBe('close');
+    expect(marked(c.correct)).toEqual(['й']);
+  });
+
+  it('calls ø, æ, œ and ł typed without the mark close, like a missing accent', () => {
+    const c = checkTyped('tolv kroner og nitti ore', [{ text: 'tolv kroner og nitti øre' }]);
+    expect(c.verdict).toBe('close');
+    expect(marked(c.correct)).toEqual(['ø']);
+    expect(checkTyped('aerlig', [{ text: 'ærlig' }]).verdict).toBe('close');
+    expect(checkTyped('arlig', [{ text: 'ærlig' }]).verdict).toBe('different');
+    expect(checkTyped('soeur', [{ text: 'sœur' }]).verdict).toBe('close');
+    expect(checkTyped('dwa zlote', [{ text: 'dwa złote' }]).verdict).toBe('close');
+  });
+
   it('accepts the other forms of the date: shortened, without the era, in digits', () => {
     const checked = (s: string) => checkTyped(s, thai);
     expect(checked('วันจันทร์ที่ยี่สิบเจ็ด มิถุนา พ.ศ. สองพันห้าร้อยแปดสิบเจ็ด').verdict).toBe('exact');
