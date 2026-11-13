@@ -5,7 +5,8 @@ import { hourOrdinal, hourOrdinalOblique, polishNumber } from './numbers';
 /**
  * A time of day in Polish, on the 12-hour clock, the hour as a feminine ordinal (godzina): druga
  * (2:00). Minutes past take po and the hour in the locative: dziesięć po drugiej, kwadrans po
- * drugiej. Half past counts toward the next hour: wpół do trzeciej (2:30). After half past, za and
+ * drugiej. Half past counts toward the next hour: wpół do trzeciej (2:30). Just after it the clock is
+ * read as it shows (druga trzydzieści dwie, 2:32); from 2:35, za and
  * the minutes left, then the next hour: za dziesięć trzecia, za kwadrans trzecia. The part of the
  * day follows: w nocy, rano, przed południem, po południu, wieczorem. The formal form is the
  * 24-hour one: czternasta trzydzieści.
@@ -66,6 +67,10 @@ export function sayPolishTime(t: ClockTime): TimeSaying {
   } else if (m < 30) {
     everyday = `${minutesPast(m)} po ${hourOrdinalOblique(h12)}`;
     if (m === 20 || m === 25) alts.push(say(`za ${minutesLeft(30 - m)} wpół do ${hourOrdinalOblique(next)}`, FROM_HALF));
+  } else if (m < 35) {
+    // Just past half, the clock is read as it shows: za dwadzieścia dziewięć is rarely heard.
+    everyday = `${hourOrdinal(h12)} ${minuteDigits(m)}`;
+    alts.push(say(`za ${minutesLeft(60 - m)} ${hourOrdinal(next)}`));
   } else {
     everyday = `za ${minutesLeft(60 - m)} ${hourOrdinal(next)}`;
     if (m === 35 || m === 40) alts.push(say(`${minutesPast(m - 30)} po wpół do ${hourOrdinalOblique(next)}`, FROM_HALF));

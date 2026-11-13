@@ -76,7 +76,17 @@ export type CommonCount = 0 | 250 | 500 | 1000 | 2000 | 3000 | 5000 | 10000;
 
 // A and B are a dialogue's two speakers; N is a story's narrator. `paragraph`: this line opens a
 // paragraph of a story (missing from a server older than paragraphs).
-export type TextLine = { speaker: 'A' | 'B' | 'N'; english: string; words: Word[]; audio: boolean; paragraph?: boolean };
+// `register`: how the text was written to be said (casual, formal...); '' for a text written before the
+// server was asked, and missing from a server older than that.
+export type TextLine = { speaker: 'A' | 'B' | 'N'; english: string; words: Word[]; audio: boolean; paragraph?: boolean; register?: Register | '' };
+
+// How a line is said by a native speaker in its situation.
+export type Register = 'casual' | 'neutral' | 'formal' | 'slang';
+
+// Claude's answer to "Does this sound natural?" on a line: `alternative` is what a native speaker would
+// more likely say, and empty when the line is natural.
+export type NaturalVerdict = 'natural' | 'stiff' | 'unusual';
+export type NaturalCheck = { verdict: NaturalVerdict; reason: string; alternative: string };
 
 // A dialogue between two speakers, or a short story told by a narrator.
 export type Form = 'dialogue' | 'story';
@@ -360,6 +370,10 @@ export function createApi(
       // A server older than step 3 sends no grammar.
       return { points: answer.points, grammar: answer.grammar ?? [] };
     },
+    // Whether a native speaker would say a line, judged by Claude on the server: asked on the owner's tap and
+    // kept per line there.
+    checkNatural: (textId: number, line: number) =>
+      call<NaturalCheck>('POST', `/api/texts/${textId}/lines/${line}/natural`),
     // A phrase selected in a line (as it appears there), explained the same way and kept per phrase.
     explainPhrase: (textId: number, line: number, phrase: string, simple: boolean) =>
       call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple }),

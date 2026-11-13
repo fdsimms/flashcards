@@ -155,3 +155,17 @@ def test_a_form_is_sent_with_its_dictionary_form_and_thai_has_none() -> None:
     assert lemma_for("rozumieć", polish) is None  # already the dictionary form
     assert lemma_for("ptak", polish) is None
     assert lemma_for("ฉัน", lexicon_from(ENTRIES)) is None
+
+
+def test_a_line_says_its_register_or_nothing_for_an_older_text() -> None:
+    text = StoredText(
+        7,
+        1,
+        "t",
+        (Line("A", "ฉัน", "I.", False, "casual"), Line("B", "กิน", "Eat.")),
+        {},
+        (),
+        1.0,
+    )
+    out = render(text, lexicon_from(ENTRIES), MEANINGS)
+    assert [ln["register"] for ln in out["lines"]] == ["casual", ""]

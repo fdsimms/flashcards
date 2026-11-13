@@ -6,9 +6,11 @@ import pytest
 
 from franki_reader.coverage import Lexicon
 from franki_reader.generator import (
+    DRAFT_SCHEMA,
     MAX_ATTEMPTS,
     MAX_NAMES,
     MODEL,
+    REGISTERS,
     GenerationFailed,
     TextRequest,
     Usage,
@@ -51,7 +53,7 @@ GOOD = draft("ฉัน|อยาก|กิน|*ข้าวเหนียว�
 class ScriptedModel:
     """Returns the given drafts in order and records every conversation it was sent."""
 
-    def __init__(self, *drafts: dict[str, Any]) -> None:
+    def __init__(self, *drafts: dict[str, Any] | Exception) -> None:
         self.drafts = list(drafts)
         self.sent: list[list[dict[str, Any]]] = []
 
@@ -60,6 +62,8 @@ class ScriptedModel:
     ) -> tuple[dict[str, Any], list[Any], Usage]:
         self.sent.append(list(messages))
         d = self.drafts.pop(0)
+        if isinstance(d, Exception):
+            raise d
         return d, [{"type": "text", "text": "draft"}], Usage(100, 50, 1000, 0)
 
 
@@ -202,8 +206,9 @@ def test_claude_ask_turns_bad_responses_into_generation_failed(
     stop_reason: str, text: str | None
 ) -> None:
     ask = claude_ask(FakeClient(response(stop_reason, text)), ENTRIES)  # type: ignore[arg-type]
-    with pytest.raises(GenerationFailed):
+    with pytest.raises(GenerationFailed) as failed:
         asyncio.run(ask([{"role": "user", "content": "hi"}]))
+    assert failed.value.usage.output_tokens == 900  # the call is still paid for
 
 
 def test_usage_adds_up_across_attempts() -> None:
@@ -326,6 +331,23 @@ def test_a_dialogue_has_no_paragraphs_even_if_the_model_marks_them() -> None:
     assert [ln.paragraph for ln in result.lines] == [False, False]
 
 
+def test_each_line_keeps_the_register_the_model_gave_it() -> None:
+    d = draft(*["ฉัน|อยาก|กิน|ครับ"] * 4)
+    for line, register in zip(d["lines"], ("casual", "formal", "gibberish"), strict=False):
+        line["register"] = register
+    result = run(ScriptedModel(d), TextRequest("food"))
+    # A word outside the list is dropped, and so is a missing one (a draft from before the field).
+    assert [ln.register for ln in result.lines] == ["casual", "formal", "", ""]
+
+
+def test_the_register_is_asked_for_in_every_language_and_the_schema() -> None:
+    assert '"register"' in system_prompt(ENTRIES, "th")
+    assert '"register"' in system_prompt(ENTRIES, "es")
+    items = DRAFT_SCHEMA["properties"]["lines"]["items"]
+    assert items["properties"]["register"]["enum"] == list(REGISTERS)
+    assert "register" in items["required"]
+
+
 def test_the_system_prompt_is_the_same_for_stories_and_dialogues() -> None:
     # The form goes in the request, so the cached lexicon prefix is shared by both.
     prompt = system_prompt(ENTRIES)
@@ -350,6 +372,33 @@ def test_when_every_attempt_misses_the_closest_one_over_the_minimum_is_kept() ->
     assert (
         result.usage.output_tokens == one.output_tokens * MAX_ATTEMPTS
     )  # every attempt is paid for
+
+
+CUT_OFF = Usage(100, 4000, 1000, 0)
+
+
+def test_a_revision_that_fails_keeps_the_closest_earlier_draft_and_its_cost() -> None:
+    model = ScriptedModel(NEAR, GenerationFailed("The response was cut off", CUT_OFF))
+    result = run(model, TextRequest("food", floor=0.95))
+    assert result.passed and not result.floor_met
+    assert round(result.coverage.ratio, 3) == 0.923
+    assert result.attempts == 2
+    assert result.usage == Usage(100, 50, 1000, 0) + CUT_OFF
+
+
+def test_a_revision_that_fails_with_nothing_kept_is_returned_unpassed_with_its_cost() -> None:
+    bad = draft("ทอน|ทอน|ฉัน")
+    model = ScriptedModel(bad, bad, GenerationFailed("Claude didn't answer"))
+    result = run(model, TextRequest("food"))
+    assert not result.passed and result.attempts == MAX_ATTEMPTS
+    assert result.usage == Usage(200, 100, 2000, 0)  # stored as dropped, so its cost is on record
+
+
+def test_a_first_attempt_that_fails_raises_with_its_cost() -> None:
+    model = ScriptedModel(GenerationFailed("The response was cut off", CUT_OFF))
+    with pytest.raises(GenerationFailed, match="cut off") as failed:
+        run(model, TextRequest("food"))
+    assert failed.value.usage == CUT_OFF
 
 
 def test_a_text_that_meets_the_floor_says_so() -> None:

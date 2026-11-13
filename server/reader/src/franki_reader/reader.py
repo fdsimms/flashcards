@@ -122,6 +122,7 @@ def render(
                 "speaker": line.speaker,
                 "english": line.english,
                 "paragraph": line.paragraph,
+                "register": line.register,
                 "words": render_words(line.text, marked),
             }
         )

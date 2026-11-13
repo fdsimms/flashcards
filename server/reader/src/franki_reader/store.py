@@ -6,7 +6,7 @@ import logging
 import sqlite3
 import statistics
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Any, Literal
 
@@ -15,6 +15,7 @@ from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Choice, Form, Generated, Line
 from franki_reader.languages import LANGUAGES, VOICE_SLOTS, Code, with_deck
 from franki_reader.lexicon import Entry, ReadDeck
+from franki_reader.study_day import DEFAULT_ROLLOVER, study_day
 
 SNAPSHOT_MAX_AGE = timedelta(hours=24)
 # How the reading log names each language (it said "thai" before there was a second one).
@@ -96,6 +97,15 @@ CREATE TABLE IF NOT EXISTS explanations (
     created_at TEXT NOT NULL,
     cost_usd REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (text_id, line, simple)
+);
+-- Claude's answer to "Does this sound natural?" on a line, asked once per line on the owner's tap.
+CREATE TABLE IF NOT EXISTS naturalness (
+    text_id INTEGER NOT NULL REFERENCES texts(id),
+    line INTEGER NOT NULL,
+    answer TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    cost_usd REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (text_id, line)
 );
 CREATE TABLE IF NOT EXISTS phrase_explanations (
     text_id INTEGER NOT NULL REFERENCES texts(id),
@@ -722,6 +732,29 @@ def save_explanation(
         )
 
 
+def get_naturalness(conn: sqlite3.Connection, text_id: int, line: int) -> dict[str, str] | None:
+    row = conn.execute(
+        "SELECT answer FROM naturalness WHERE text_id = ? AND line = ?", (text_id, line)
+    ).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def save_naturalness(
+    conn: sqlite3.Connection,
+    text_id: int,
+    line: int,
+    answer: dict[str, str],
+    now: datetime,
+    cost_usd: float = 0.0,
+) -> None:
+    with conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO naturalness (text_id, line, answer, created_at, cost_usd)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (text_id, line, json.dumps(answer, ensure_ascii=False), now.isoformat(), cost_usd),
+        )
+
+
 # ==== Shelf ====
 
 
@@ -880,7 +913,11 @@ def log_reading(conn: sqlite3.Connection, text_id: int, reading: Reading, now: d
                 reading.seconds,
             ),
         )
-        conn.execute("UPDATE texts SET status = 'read' WHERE id = ?", (text_id,))
+        # Only a text that was served: a dropped or skipped one keeps its status, so the costs
+        # still count it as what it was.
+        conn.execute(
+            "UPDATE texts SET status = 'read' WHERE id = ? AND status = 'ready'", (text_id,)
+        )
 
 
 def reading_seconds(conn: sqlite3.Connection, start: datetime, end: datetime) -> int:
@@ -1080,14 +1117,16 @@ def save_phrase_explanation(
 def explanation_spending(
     conn: sqlite3.Connection, since: datetime
 ) -> dict[Code, tuple[int, float]]:
-    """Each language with a line or a phrase explained since `since`: how many explanations were
-    asked for (a plainer version counts again) and what they cost Claude."""
+    """Each language with a line or a phrase explained, or a line checked for sounding natural,
+    since `since`: how many answers were asked for (a plainer version counts again) and what they
+    cost Claude."""
     return {
         language: (count, cost)
         for language, count, cost in conn.execute(
             """SELECT t.language, COUNT(*), SUM(e.cost_usd) FROM (
                    SELECT text_id, created_at, cost_usd FROM explanations
                    UNION ALL SELECT text_id, created_at, cost_usd FROM phrase_explanations
+                   UNION ALL SELECT text_id, created_at, cost_usd FROM naturalness
                ) e
                JOIN texts t ON t.id = e.text_id WHERE e.created_at >= ? GROUP BY t.language
                ORDER BY SUM(e.cost_usd) DESC""",
@@ -1097,17 +1136,22 @@ def explanation_spending(
 
 
 def practiced_days(
-    conn: sqlite3.Connection, before: datetime, language: Code = "th"
+    conn: sqlite3.Connection,
+    before: datetime,
+    language: Code = "th",
+    rollover: int = DEFAULT_ROLLOVER,
+    zone: tzinfo | None = None,
 ) -> dict[str, int]:
     """For each word that was a stretch word in a text read before `before`, the number of
-    different days it was one."""
+    different study days it was one (study_day.py: the owner's day, not UTC's)."""
     rows = conn.execute(
-        """SELECT DISTINCT substr(r.logged_at, 1, 10), x.stretch FROM readings r
+        """SELECT r.logged_at, x.stretch FROM readings r
            JOIN texts x ON x.id = r.text_id WHERE r.logged_at < ? AND x.language = ?""",
         (before.isoformat(), language),
     )
-    days: dict[str, set[str]] = {}
-    for day, stretch in rows:
+    days: dict[str, set[date]] = {}
+    for logged_at, stretch in rows:
+        day = study_day(datetime.fromisoformat(logged_at), rollover, zone)
         for word in json.loads(stretch):
             days.setdefault(word, set()).add(day)
     return {word: len(d) for word, d in days.items()}
@@ -1507,9 +1551,15 @@ def meaning_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tu
 
 
 def vocab_asked(conn: sqlite3.Connection, language: Code) -> int:
-    """How many words Claude has been asked to gloss for a language, passed or not."""
+    """How many words Claude has been asked to gloss for a language, passed or not, in batches
+    that were kept. A first write that left a band short kept nothing (vocab_check.write_bank), so
+    its words count as never asked: they're asked again, and a bank that later gains a band is
+    still topped up. A batch was kept when it kept a word, or when the bank already had words (a
+    top-up keeps what passes, even nothing)."""
     row = conn.execute(
-        "SELECT SUM(asked) FROM vocab_batches WHERE language = ?", (language,)
+        """SELECT SUM(asked) FROM vocab_batches b WHERE language = ? AND (kept > 0 OR EXISTS
+               (SELECT 1 FROM vocab_items i WHERE i.language = b.language AND i.batch_id < b.id))""",
+        (language,),
     ).fetchone()
     return int(row[0] or 0)
 

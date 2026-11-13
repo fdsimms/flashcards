@@ -73,6 +73,17 @@ for (const unicase of [false, true]) {
       expect(await db.first('SELECT did, usn FROM cards WHERE id = ?', added[0].id)).toEqual({ did, usn: -1 });
     });
 
+    it("adds a card the note now generates in its home deck, not the filtered deck its card is in", async () => {
+      const db = await collection(unicase);
+      const nt = (await ankiNoteType(db, 'Basic (and reversed card)', ['Front', 'Back']))!;
+      const did = (await ankiDeckId(db, '🧠 Trivia'))!;
+      const { nid } = await addAnkiNote(db, { noteType: nt, deckId: did, fields: { Front: 'Capital of Chile?', Back: '' }, tags: [], ords: [0], now: NOW });
+      // Moved into a filtered deck, as Custom Study moves it.
+      await db.run('UPDATE cards SET odid = did, odue = due, did = 999, due = -100000 WHERE nid = ?', nid);
+      const added = await editAnkiNote(db, { nid, noteType: nt, fields: { Front: 'Capital of Chile?', Back: 'Santiago' }, tags: [], ords: [0, 1], now: NOW });
+      expect(await db.first('SELECT did, odid FROM cards WHERE id = ?', added[0].id)).toEqual({ did, odid: 0 });
+    });
+
     it('leaves a note alone when nothing about it changed', async () => {
       const db = await collection(unicase);
       const nt = (await ankiNoteType(db, 'Basic', ['Front', 'Back']))!;

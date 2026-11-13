@@ -1,4 +1,4 @@
-import { nextStudyDayStart, studyDayStart } from './day';
+import { addCalendarDays, nextStudyDayStart, studyDayStart } from './day';
 import { newSchedState } from './scheduler';
 import type { Card } from './types';
 
@@ -85,7 +85,7 @@ export function setDueCard(card: Card, days: number, now: Date, dayStartsAtHour:
       learningSteps: 0,
       stability: fresh || s.stability <= 0 ? interval : s.stability,
       difficulty: fresh || s.difficulty <= 0 ? 5 : s.difficulty,
-      lastReview: s.lastReview ?? new Date(due.getTime() - interval * DAY_MS).toISOString(),
+      lastReview: s.lastReview ?? addCalendarDays(due, -interval).toISOString(),
     },
   };
 }

@@ -63,9 +63,12 @@ Franki's (Client, below).
   Under the explanation, the grammar points the finders find in the line show as chips that can be
   set to Practice, Know it or Don't know it there (docs/grammar.md, step 3).
 - **Explain a phrase** (12 November 2026, by the owner's decision, for idioms and set phrases like
-  "ya lo sé"). A word's gloss has "Select a phrase": the word becomes the phrase's first, the other
-  lines dim, and tapping another word in the same line ends it (either way round; Cancel in the bar
-  above the player). The phrase is drawn as one band and Claude's note on it opens under the line:
+  "ya lo sé"). Hold a word and drag to the phrase's last word (13 November 2026, by the owner's
+  request; `usePhraseDrag.ts`): the hold starts it, so a quick swipe still scrolls, and the text's
+  scrolling is off until the finger lifts; held and let go on the same word, it's a tap. Or a
+  word's gloss has "Select a phrase": the word becomes the phrase's first, the other lines dim, and
+  tapping another word in the same line ends it (either way round; Cancel in the bar above the
+  player, which also mentions the hold). The phrase is drawn as one band and Claude's note on it opens under the line:
   what it means there, then a few points on its parts (a set expression, how the words combine,
   tone), with "Explain more simply". A phrase stays within one line, so it has the line's context
   and the server can check it's there: the app sends it as it appears (the pieces joined, spaces
@@ -74,15 +77,32 @@ Franki's (Client, below).
   phrase and version in `phrase_explanations`; its cost counts under `explanations` in
   `/api/costs`. **Add to deck** on the note opens the note editor with the phrase and its meaning
   in the language's deck, the same approval step and daily limit as a marked word (`mining.ts`),
-  and only for a text in the language being read. Hold-and-drag selection was considered and left
-  out: it's hidden, and dragging inside the scrolling text fights the scroll.
+  and only for a text in the language being read.
+- **Register and naturalness** (13 November 2026, by the owner's decision). Texts are written by a
+  model, and a line that is grammatical but stiff passes every check in code, so two things show how
+  a line is said, and neither grades or adds anything. (1) Each line carries a **register** chip
+  (casual, neutral, formal or slang) at the end of its buttons. The generator asks for it with the
+  line (`Line.register`, `REGISTERS`, `generator.py`), so it costs no extra call and is kept in the
+  text's `lines`; a text written before it, or an answer outside the list, shows no chip. (2) The
+  explanation has **Does this sound natural?**, asked only on the tap
+  (`POST /api/texts/{id}/lines/{n}/natural`, `explain.py`) and kept per line in `naturalness`, so
+  asking again costs nothing; its cost counts under `explanations` in `/api/costs`. It is a second,
+  separate call that judges the line as a native speaker with who says it and the lines around it
+  (a model grading its own draft in the same call mostly approves it), and answers natural, stiff or
+  unusual with a reason and, unless natural, what a native speaker would more likely say. That is
+  text only: the line's recorded audio is unchanged. Tried and left out for now: running the review
+  on every line when a text is written (a cost on every text for lines never questioned), to be
+  reconsidered if the taps show lines are often off, and coloring the chip when it disagrees with the
+  situation.
 - **Listen only** (brief, design principle 6). Once a text is rated "About right", the end view
   offers to play it again with the Thai hidden; the lines show who's speaking instead, and "Show the
   text" brings the words back. The reading is then logged with `listen_only` true. The brief's
   "unlocks for a text" is read as "for the text just rated", since a text is never served twice.
 - While audio plays, the text scrolls to keep the line being spoken in view.
-- **Repeat line** in the player plays the current line over and over, for shadowing, until it's
-  turned off.
+- **Repeat line** in the player plays the current line again, for shadowing. One chip steps through
+  Off, 2×, 3×, 5× and ∞ (a count is the line's total plays; ∞ goes until turned off). The count isn't
+  kept: it starts at Off each time a text opens, and a line started fresh (Play, a skip, a line's own
+  replay button) begins its count again.
 - **Past texts**: texts read to the end, newest first (the last 50), opened in the same reader to
   read or listen to again. Reading one again isn't logged: the log is one row per text, and a reread
   shouldn't count toward the exit check or move difficulty. So there's no Done or rating, and words
@@ -425,8 +445,9 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   The deck's meaning wins over a kept one.
 - **Stretch words** are 1-3 words due today or still young. No random assignment.
 - **Stretch words come back on later days** (brief, design principle 4). A word that was a stretch
-  word in a text read on an earlier day goes ahead of other due and young words, until it has been
-  one on 3 different days (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be due
+  word in a text read on an earlier study day goes ahead of other due and young words, until it has
+  been one on 3 different study days (Anki's, in `TZ` from its "Next day starts at"; `study_day.py`)
+  (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be due
   or young, so a word that has matured since is left alone. In "Fit the topic" it's offered first,
   and the model may still pass it over if it doesn't fit.
 - **Short stories** as well as dialogues: a "Text type" setting (`form` in `/api/settings`),
@@ -547,9 +568,11 @@ next episode is the top of the shelf.
   `writing`, `failed`, `idle`) for the app to show.
 - A text is stored as `pending` until its audio is made, then `ready`; one left pending by a
   restart is made ready at startup. A text whose every attempt was under 90% is stored as
-  `dropped`, never served, so its cost is still on record.
+  `dropped`, never served, so its cost is still on record; so is a first attempt Claude answered
+  with nothing usable (a refusal, a cut-off, invalid JSON), as a dropped row with no text.
 - A text leaves the queue once a reading is logged for it, rated or not, so the same text is never
-  served twice.
+  served twice. Only a `ready` text becomes `read`: a dropped or skipped one keeps its status, so
+  the costs still count it as what it was.
 - **Topic ideas**, so topics don't all have to be thought up. About 30 everyday situations
   (`server/reader/src/franki_reader/suggestions.py`), each with six Thai words it's likely to need, offered on
   the topics screen a few at a time (until the shelf, which now writes from them itself), ordered by how many of those words the deck knows: the best fit

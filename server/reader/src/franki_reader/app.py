@@ -103,6 +103,10 @@ marked words, ideas) is in the current language, the `language` setting.
                                       line, as it appears there, explained by Claude:
                                       {meaning, points: [{phrase, note}]}. Kept per phrase, like
                                       the line's
+    POST  /api/texts/{id}/lines/{n}/natural   whether a native speaker would say the line, judged by
+                                      Claude: {verdict, reason, alternative}, verdict one of
+                                      natural, stiff, unusual. Asked on the owner's tap and kept
+                                      per line
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
                                       memory hints for a word the owner keeps forgetting: {hints: [...]}
 """
@@ -132,11 +136,14 @@ from franki_reader.collection import AnkiDeck, SyncSettings
 from franki_reader.coverage import parse_line
 from franki_reader.engine import Engine, NotAvailable, NotFound
 from franki_reader.explain import (
+    CheckNatural,
+    CheckRequest,
     Explain,
     ExplainFailed,
     ExplainPhrase,
     ExplainRequest,
     PhraseRequest,
+    claude_check,
     claude_explain,
     claude_explain_phrase,
 )
@@ -152,6 +159,7 @@ from franki_reader.mnemonics import (
 )
 from franki_reader.reader import gloss_for, lemma_for, render
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
+from franki_reader.study_day import DEFAULT_ROLLOVER
 from franki_reader.suggestions import suggest
 from franki_reader.tts import AudioCache, Speech, azure_synthesize, azure_usd
 
@@ -328,6 +336,7 @@ def create_app(
     read_due: ReadDue | None = None,
     write_drills: drills.WriteDrills | None = None,
     write_vocab: vocab_check.WriteVocab | None = None,
+    check_natural: CheckNatural | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
     # Points whose drill questions are being written, shared by every request (drills.top_up).
@@ -630,6 +639,40 @@ def create_app(
         store.save_phrase_explanation(
             engine.conn, text_id, line, phrase, body.simple, answer, engine.clock(), used.cost_usd()
         )
+        return answer
+
+    @app.post("/api/texts/{text_id}/lines/{line}/natural", dependencies=authed)
+    async def check_line(text_id: int, line: int) -> dict[str, str]:
+        text = store.get_text(engine.conn, text_id)
+        if text is None or not 0 <= line < len(text.lines):
+            raise HTTPException(404, "No such line.")
+        if (kept := store.get_naturalness(engine.conn, text_id, line)) is not None:
+            return kept
+        if check_natural is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't check lines"
+                " (ANTHROPIC_API_KEY in server/.env turns this on).",
+            )
+        spaced = LANGUAGES[text.language].spaced
+        plain = [parse_line(ln.text, spaced)[0] for ln in text.lines]
+        speaker = text.lines[line].speaker
+        role = text.roles.get(speaker, "")
+        try:
+            answer, used = await check_natural(
+                CheckRequest(
+                    text.language,
+                    plain[line],
+                    text.lines[line].english,
+                    f"{speaker} ({role})" if role else "",
+                    text.lines[line].register,
+                    tuple(plain[max(0, line - 3) : line] + plain[line + 1 : line + 3]),
+                )
+            )
+        except ExplainFailed as e:
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_naturalness(engine.conn, text_id, line, answer, engine.clock(), used.cost_usd())
         return answer
 
     def settings_out(current: Settings) -> dict[str, Any]:
@@ -1188,6 +1231,7 @@ def production_app() -> FastAPI:
     mnemonics: MakeMnemonics | None = None
     explain: Explain | None = None
     explain_phrase: ExplainPhrase | None = None
+    check_natural: CheckNatural | None = None
     write_drills: drills.WriteDrills | None = None
     write_vocab: vocab_check.WriteVocab | None = None
     write_meanings: meanings.WriteMeanings | None = None
@@ -1196,6 +1240,7 @@ def production_app() -> FastAPI:
         mnemonics = claude_mnemonics(client)
         explain = claude_explain(client)
         explain_phrase = claude_explain_phrase(client)
+        check_natural = claude_check(client)
         write_drills = drills.claude_drills(client)
         write_vocab = vocab_check.claude_vocab(client)
         write_meanings = meanings.claude_meanings(client)
@@ -1243,6 +1288,7 @@ def production_app() -> FastAPI:
         synthesize=synthesize,
         audio=AudioCache(settings.audio_dir),
         voices=settings.voices,
+        rollover=lambda: anki.rollover if anki else DEFAULT_ROLLOVER,
         write_meanings=write_meanings,
     )
     engine.count_existing_audio()
@@ -1257,4 +1303,5 @@ def production_app() -> FastAPI:
         read_due=due_with_timeout(anki.due) if anki else None,
         write_drills=write_drills,
         write_vocab=write_vocab,
+        check_natural=check_natural,
     )

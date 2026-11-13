@@ -19,7 +19,7 @@ export function norwegianNumber(n: number): string {
  * `n` (0 to 999,999) in words, as Bokmål says them in separate words: hundre, to hundre og
  * syttisju, tusen to hundre og syttisju, tusen og fem. "og" comes before the last part when it's
  * under 100. One hundred and one thousand are hundre and tusen (ett hundre, ett tusen are heard
- * too; the caller offers them).
+ * too; the caller offers them), but a hundred after thousands is ett hundre: tusen ett hundre.
  */
 export function norwegianCardinal(n: number): string {
   if (!Number.isInteger(n) || n < 0 || n > 999_999) throw new RangeError(`Not a whole number from 0 to 999,999: ${n}`);
@@ -29,7 +29,8 @@ export function norwegianCardinal(n: number): string {
   const hundreds = Math.floor((n % 1000) / 100);
   const rest = n % 100;
   if (thousands) parts.push(thousands === 1 ? 'tusen' : `${norwegianCardinal(thousands)} tusen`);
-  if (hundreds) parts.push(hundreds === 1 ? 'hundre' : `${norwegianNumber(hundreds)} hundre`);
+  // A hundred after thousands takes its "ett": tusen ett hundre (1,100), never tusen hundre.
+  if (hundreds) parts.push(hundreds > 1 ? `${norwegianNumber(hundreds)} hundre` : thousands ? 'ett hundre' : 'hundre');
   if (rest) parts.push(`og ${norwegianNumber(rest)}`);
   return parts.join(' ');
 }

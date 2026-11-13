@@ -73,6 +73,7 @@ export function balancerFor(snap: LoadSnapshot, card: Card, o: {
   if (!dayCounts.some((n) => n > 0)) return undefined;
   const seed = o.seed;
   // Monday 0, in this device's time zone, of the day `d` days on (Anki: next_day_at + (d - 1) days).
+  // day-ms-ok: Anki adds seconds here too, and from the day's start an hour either way keeps the date.
   const weekdayOf = o.weekdayOf ?? ((d: number) => (new Date(o.nextDayAt.getTime() + (d - 1) * DAY).getDay() + 6) % 7);
   return (iv, min, max) => balancedInterval(iv, min, max, {
     seed, dayCounts, weekdayOf, easyDays: o.easyDays, siblingDays: o.buryReviews ? siblingDays : undefined,

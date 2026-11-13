@@ -27,6 +27,10 @@ export interface Answer {
   wasNew: boolean;
   /** The interval in days before the answer, when known (Anki's review log has it; Franki's table doesn't). */
   lastIntervalDays?: number;
+  /** An answer to a learning step that had crossed into a later day (Anki's queue 3): it counts as a review. */
+  interday?: boolean;
+  /** An answer in a filtered deck that only previews (review log type 3): it uses no deck's limits. */
+  preview?: boolean;
   takenMs: number;
 }
 
@@ -51,7 +55,7 @@ export function answersFrom(input: { revlog: RevlogRow[]; reviews: ReviewLogEntr
   for (const r of input.revlog) {
     const cardId = byAnkiId.get(r.cid);
     // Ease 0 is a manual reschedule, not an answer, and types 4 and up are resets and reschedules.
-    // Type 3 (a review in a filtered deck) counts as a review.
+    // Type 3 (a preview in a filtered deck) counts as a review here; `preview` marks it for limits.
     if (!cardId || r.ease < 1 || r.ease > 4 || r.type > 3) continue;
     out.push({
       cardId,
@@ -60,6 +64,8 @@ export function answersFrom(input: { revlog: RevlogRow[]; reviews: ReviewLogEntr
       kind: r.type === 0 ? 'learn' : r.type === 2 ? 'relearn' : 'review',
       wasNew: r.type === 0 && r.lastIvl === 0,
       lastIntervalDays: r.lastIvl > 0 ? r.lastIvl : undefined,
+      interday: (r.type === 0 || r.type === 2) && r.lastIvl > 0,
+      preview: r.type === 3,
       takenMs: r.time,
     });
   }
@@ -72,6 +78,7 @@ export function answersFrom(input: { revlog: RevlogRow[]; reviews: ReviewLogEntr
       // The state the card was in when answered.
       kind: r.state === 2 ? 'review' : r.state === 3 ? 'relearn' : 'learn',
       wasNew: r.state === 0,
+      interday: !!r.interday,
       takenMs: 0,
     });
   }

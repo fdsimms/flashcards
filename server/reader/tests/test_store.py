@@ -155,6 +155,43 @@ def test_a_text_keeps_its_speakers_roles(conn) -> None:  # type: ignore[no-untyp
     assert stored is not None and stored.roles == {"A": "Vendor", "B": "Customer"}
 
 
+def test_a_text_keeps_each_lines_register_and_an_older_one_has_none(conn) -> None:  # type: ignore[no-untyped-def]
+    from dataclasses import replace
+
+    from test_generator import GOOD, MANGO, ScriptedModel, run
+
+    from franki_reader.generator import Line, TextRequest
+
+    generated = run(ScriptedModel(GOOD), TextRequest("food", (MANGO,)))
+    lines = (replace(generated.lines[0], register="casual"), generated.lines[1])
+    topic = add_topic(conn, "food", True, NOW)
+    text_id = save_text(conn, topic.id, replace(generated, lines=lines), [], 0.95, NOW)
+    stored = get_text(conn, text_id)
+    assert stored is not None and [ln.register for ln in stored.lines] == ["casual", ""]
+    # A row written before the field has no key for it, and still loads.
+    conn.execute(
+        "UPDATE texts SET lines = ? WHERE id = ?",
+        ('[{"speaker": "A", "text": "ฉัน", "english": "I.", "paragraph": false}]', text_id),
+    )
+    old = get_text(conn, text_id)
+    assert old is not None and old.lines == (Line("A", "ฉัน", "I.", False, ""),)
+
+
+def test_a_naturalness_answer_is_kept_per_line(conn) -> None:  # type: ignore[no-untyped-def]
+    from test_generator import GOOD, MANGO, ScriptedModel, run
+
+    from franki_reader.generator import TextRequest
+    from franki_reader.store import get_naturalness, save_naturalness
+
+    generated = run(ScriptedModel(GOOD), TextRequest("food", (MANGO,)))
+    text_id = save_text(conn, add_topic(conn, "food", True, NOW).id, generated, [], 0.95, NOW)
+    answer = {"verdict": "stiff", "reason": "Too written.", "alternative": "ฉัน กิน"}
+    assert get_naturalness(conn, text_id, 0) is None
+    save_naturalness(conn, text_id, 0, answer, NOW, 0.01)
+    assert get_naturalness(conn, text_id, 0) == answer
+    assert get_naturalness(conn, text_id, 1) is None
+
+
 def test_a_text_keeps_its_speakers_characters(conn) -> None:  # type: ignore[no-untyped-def]
     from test_generator import GOOD, MANGO, ScriptedModel, run
 
@@ -186,6 +223,37 @@ def test_a_database_from_before_roles_gains_the_column(tmp_path) -> None:  # typ
     first.close()
     columns = {r[1] for r in connect(path).execute("PRAGMA table_info(texts)")}
     assert "roles" in columns
+
+
+def test_practiced_days_are_the_owners_study_days(conn) -> None:  # type: ignore[no-untyped-def]
+    from datetime import timezone
+
+    from scripted import GOOD
+
+    from franki_reader.coverage import check
+    from franki_reader.generator import Generated, Line
+    from franki_reader.lexicon import lexicon_from
+    from franki_reader.store import Reading, log_reading, practiced_days
+
+    bangkok = timezone(timedelta(hours=7))
+    topic = add_topic(conn, "Food", True, NOW)
+    lines = tuple(Line(ln["speaker"], ln["text"], ln["english"]) for ln in GOOD["lines"])
+    generated = Generated(
+        "t", lines, {}, check([ln.text for ln in lines], lexicon_from(OLD)), 1, True, ()
+    )
+
+    def reading_at(at: datetime) -> None:
+        text_id = save_text(conn, topic.id, generated, ["ข้าว"], 0.95, at)
+        log_reading(conn, text_id, Reading(None, True, (), (), None, False, 10), at)
+
+    # 06:30 and 07:30 in Bangkok on the 19th, an hour apart either side of UTC's midnight: one day.
+    reading_at(datetime(2026, 10, 18, 23, 30))
+    reading_at(datetime(2026, 10, 19, 0, 30))
+    later = datetime(2026, 10, 25, 9)
+    assert practiced_days(conn, later, "th", 4, bangkok) == {"ข้าว": 1}
+    # 03:30 in Bangkok on the 19th is before 4 AM, so still the 18th's study day: another day.
+    reading_at(datetime(2026, 10, 18, 20, 30))
+    assert practiced_days(conn, later, "th", 4, bangkok) == {"ข้าว": 2}
 
 
 def test_a_word_marked_again_after_clearing_is_listed_again(conn) -> None:  # type: ignore[no-untyped-def]
@@ -293,3 +361,26 @@ def test_spending_counts_every_text_written_since_the_date_by_language(conn) -> 
     assert (es.read, es.waiting, es.dropped, es.attempts) == (0, 1, 0, 1)
     assert es.cost_usd == pytest.approx(0.01)
     assert spending(conn, NOW + timedelta(days=1)) == {}
+
+
+def test_only_a_served_text_becomes_read(conn) -> None:  # type: ignore[no-untyped-def]
+    from franki_reader.coverage import Coverage
+    from franki_reader.generator import Generated
+    from franki_reader.store import Reading, log_reading, spending, text_status
+
+    topic = add_topic(conn, "Food", True, NOW)
+    empty = Generated("t", (), {}, Coverage((), ()), 1, True, ())
+    ids = {
+        status: save_text(conn, topic.id, empty, [], 0.95, NOW, status=status)
+        for status in ("ready", "dropped", "skipped")
+    }
+    for text_id in ids.values():
+        log_reading(conn, text_id, Reading(None, True, (), (), None, False, 10), NOW)
+
+    assert {s: text_status(conn, i) for s, i in ids.items()} == {
+        "ready": "read",
+        "dropped": "dropped",
+        "skipped": "skipped",
+    }
+    th = spending(conn, NOW - timedelta(days=1))["th"]
+    assert (th.read, th.dropped, th.skipped) == (1, 1, 1)

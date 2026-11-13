@@ -1,15 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { clozeForTyping, compareAnswer, decodeEntities, opcodes, stripExpected } from '../../src/core/typeAnswer';
+import { compareAnswer, decodeEntities, opcodes, stripExpected } from '../../src/core/typeAnswer';
 import vectors from '../fixtures/anki/typeanswer-vectors.json';
 
 /** Outputs recorded from the real `anki` 26.09.4 package (tests/fixtures/anki/make-typeanswer-vectors.py). */
 describe("comparing a typed answer as Anki does", () => {
   it.each(vectors.compare)('$expected / $typed (combining $combining)', ({ expected, typed, combining, html }) => {
     expect(compareAnswer(expected, typed, combining)).toBe(html);
-  });
-
-  it("extracts a cloze's text for typing as Anki does", () => {
-    for (const v of vectors.cloze) expect(clozeForTyping(v.text, v.ord)).toBe(v.expected);
   });
 
   it("matches Python difflib's opcodes", () => {

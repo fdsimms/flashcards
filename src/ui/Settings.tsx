@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, Text } from 'react-native';
+import { Alert, ScrollView, Text } from 'react-native';
 import { ANSWER_BUTTON_CHOICES, type AnswerButtons } from '../core/answerButtons';
 import { THAI_TEXT_CHOICES, thaiTextStyle, type ThaiTextSize } from '../core/script';
 import type { Repo } from '../db/repo';
@@ -33,25 +33,19 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onSta
 
   useEffect(() => { repo.answerButtons().then(setButtons); repo.swipeToRate().then(setSwipe); repo.showCardHints().then(setHints); repo.thaiTextSize().then(setThaiSize); }, [repo]);
 
-  const choose = async (value: AnswerButtons) => {
-    setButtons(value);
-    await repo.saveAnswerButtons(value);
+  // Saved first, then shown, so the screen never shows a setting that isn't stored.
+  const save = async (write: () => Promise<void>, show: () => void) => {
+    try {
+      await write();
+      show();
+    } catch (e) {
+      Alert.alert("Couldn't save this setting", `${e instanceof Error ? e.message : String(e)} Try again.`);
+    }
   };
-
-  const chooseSwipe = async (on: boolean) => {
-    setSwipe(on);
-    await repo.saveSwipeToRate(on);
-  };
-
-  const chooseHints = async (on: boolean) => {
-    setHints(on);
-    await repo.saveShowCardHints(on);
-  };
-
-  const chooseThai = async (value: ThaiTextSize) => {
-    setThaiSize(value);
-    await repo.saveThaiTextSize(value);
-  };
+  const choose = (value: AnswerButtons) => save(() => repo.saveAnswerButtons(value), () => setButtons(value));
+  const chooseSwipe = (on: boolean) => save(() => repo.saveSwipeToRate(on), () => setSwipe(on));
+  const chooseHints = (on: boolean) => save(() => repo.saveShowCardHints(on), () => setHints(on));
+  const chooseThai = (value: ThaiTextSize) => save(() => repo.saveThaiTextSize(value), () => setThaiSize(value));
 
   return (
     <Screen title="Settings">
