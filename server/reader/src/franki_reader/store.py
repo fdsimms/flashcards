@@ -5,6 +5,7 @@ import json
 import logging
 import sqlite3
 import statistics
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta, tzinfo
 from pathlib import Path
@@ -1577,6 +1578,14 @@ def load_grammar(conn: sqlite3.Connection) -> dict[str, GrammarState]:
 def set_grammar(conn: sqlite3.Connection, point_id: str, state: GrammarState) -> None:
     choices = load_grammar(conn)
     choices[point_id] = state
+    with conn:
+        _set_meta(conn, "grammar", json.dumps(choices))
+
+
+def set_grammar_many(conn: sqlite3.Connection, changes: Mapping[str, GrammarState]) -> None:
+    """Several points' choices in one write, so a level that sets ten of them never half applies."""
+    choices = load_grammar(conn)
+    choices.update(changes)
     with conn:
         _set_meta(conn, "grammar", json.dumps(choices))
 

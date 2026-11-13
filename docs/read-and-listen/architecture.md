@@ -465,7 +465,12 @@ rather than `Transliteration` (`Language.translit_field`).
   volitional by its conjugation form. The potential and the passive share られる, so neither is a
   point. ます and the past are in almost every Japanese line, so the cap on points not set would
   keep them out of texts: both read as Know it until the owner chooses otherwise (the catalog's
-  `known`, the owner's decision).
+  `known`, the owner's decision). Each point has a JLPT level (`jlpt`: ます, the past, ている, たい and
+  てください N5; the volitional, conditionals, the causative and てしまう N4; keigo N3, the
+  assistant's placement, the owner's to correct), shown as a badge on the Grammar screen, where "I
+  know grammar through N_" sets Know it at that level or easier (Practice kept) and Don't know it
+  above it. The owner chose this over a level stored on the server, so a point added later isn't
+  affected by it. Levels offered are the ones the language's points have.
 - **Practice** (`src/tools/japanese/`): telling the time, dates and money, each answer in kanji
   with its reading in hiragana where the other languages show a romanization. The counters' sound
   changes are worked out in `numbers.ts` (四時 よじ, 六分 ろっぷん, 一日 ついたち, 四円 よえん). A

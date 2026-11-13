@@ -24,7 +24,7 @@ import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast, get_args
+from typing import Literal, cast, get_args
 
 from franki_reader import grammar_europe, grammar_japanese
 from franki_reader.coverage import Checker, is_word, parse_line
@@ -55,6 +55,9 @@ class Point:
     # Where the point comes in its language's order of difficulty, 1 the easiest (the catalog's
     # `level`): the Grammar dial suggests the lowest one not yet learned.
     level: int = 0
+    # The JLPT level the point is taught at, 5 for N5 up to 1 for N1 (the catalog's `jlpt`), or 0
+    # for a language with none. The Grammar screen's "I know through N_" sets points by it.
+    jlpt: int = 0
 
 
 def words(plain: str, lexicon: Checker) -> list[str]:
@@ -466,6 +469,11 @@ def _load(catalog: Path, finders: dict[str, Finder]) -> tuple[Point, ...]:
     ]
     problems += [f"{e['id']} has no level" for e in entries if not isinstance(e.get("level"), int)]
     problems += [
+        f"{e['id']} has a JLPT level that isn't 1 to 5"
+        for e in entries
+        if "jlpt" in e and (not isinstance(e["jlpt"], int) or not 1 <= e["jlpt"] <= 5)
+    ]
+    problems += [
         f"{e['id']} is in {e['language']}, which isn't a language here"
         for e in entries
         if e["language"] not in get_args(Code)
@@ -482,6 +490,7 @@ def _load(catalog: Path, finders: dict[str, Finder]) -> tuple[Point, ...]:
             tuple(e.get("related", ())),
             bool(e.get("known", False)),
             int(e["level"]),
+            int(e.get("jlpt", 0)),
         )
         for e in entries
     )
@@ -494,6 +503,25 @@ POINTS: dict[str, Point] = {p.id: p for p in _ALL}
 
 def points_for(language: Code) -> list[Point]:
     return [p for p in _ALL if p.language == language]
+
+
+def level_choices(
+    language: Code, through: int, choices: Mapping[str, str]
+) -> dict[str, Literal["avoid", "normal"]]:
+    """The choices "I know Japanese grammar through N_" sets (`through` is 5 for N5 up to 1 for N1):
+    each point of the language with a JLPT level at or below it (a level number at or above
+    `through`) becomes Know it unless it's practiced, and each above it becomes Don't know it,
+    practiced or not, since practicing grammar you've said you don't know contradicts itself. A
+    point with no level is left alone."""
+    out: dict[str, Literal["avoid", "normal"]] = {}
+    for p in points_for(language):
+        if not p.jlpt:
+            continue
+        if p.jlpt < through:
+            out[p.id] = "avoid"
+        elif choices.get(p.id) != "practice":
+            out[p.id] = "normal"
+    return out
 
 
 def next_to_learn(language: Code, choices: Mapping[str, str]) -> Point | None:

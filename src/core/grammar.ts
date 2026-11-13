@@ -21,6 +21,8 @@ export interface GrammarPointInfo {
   explanation: string;
   /** Points worth comparing it with, in the same language, by id. */
   related: string[];
+  /** Japanese's JLPT level, 5 for N5 (the easiest) up to 1 for N1; other languages have none. */
+  jlpt?: number;
 }
 
 type CatalogEntry = Omit<GrammarPointInfo, 'language' | 'forms'> & { language: string; forms?: string[] };
