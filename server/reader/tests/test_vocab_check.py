@@ -203,6 +203,21 @@ def test_proper_nouns_and_obvious_cognates_are_giveaways() -> None:
     assert is_giveaway("sí", "si")  # accents don't hide a match
 
 
+def test_russian_and_greek_words_are_compared_by_their_latin_spelling() -> None:
+    for word, meaning in [
+        ("телефон", "telephone"),
+        ("президент", "president"),
+        ("университет", "university"),
+        ("революция", "revolution"),
+        ("музыка", "music"),
+        ("τηλέφωνο", "telephone"),
+        ("πρόβλημα", "problem"),
+        ("θέατρο", "theater"),
+        ("μουσική", "music"),
+    ]:
+        assert is_giveaway(word, meaning), word
+
+
 def test_words_that_need_studying_are_not_giveaways() -> None:
     assert not is_giveaway("alcalde", "mayor")
     assert not is_giveaway("ver", "to see")
@@ -211,6 +226,16 @@ def test_words_that_need_studying_are_not_giveaways() -> None:
     assert not is_giveaway("casa", "house")
     assert not is_giveaway("yo", "I")  # "I" is capitalized but isn't a proper noun
     assert not is_giveaway("работа", "work")
+    for word, meaning in [
+        ("дом", "house"),
+        ("время", "time"),
+        ("говорить", "to speak"),
+        ("мой", "my"),  # short: sharing a sound isn't a cognate
+        ("σπίτι", "house"),
+        ("άνθρωπος", "person"),
+        ("μιλάω", "to speak"),
+    ]:
+        assert not is_giveaway(word, meaning), word
 
 
 def test_giveaways_in_a_stored_bank_are_left_out_when_served() -> None:

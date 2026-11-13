@@ -13,6 +13,7 @@ as known anyway, and so are proper nouns and obvious cognates, which test nothin
 import json
 import logging
 import random
+import re
 import sqlite3
 import unicodedata
 from collections.abc import Awaitable, Callable
@@ -184,17 +185,127 @@ def _fold(text: str) -> str:
     return "".join(c for c in decomposed if not unicodedata.combining(c))
 
 
+_CYRILLIC = dict(
+    zip(
+        "абвгдезийклмнопрстуфхцчшщъыьэюяё",
+        [
+            "a",
+            "b",
+            "v",
+            "g",
+            "d",
+            "e",
+            "z",
+            "i",
+            "i",
+            "k",
+            "l",
+            "m",
+            "n",
+            "o",
+            "p",
+            "r",
+            "s",
+            "t",
+            "u",
+            "f",
+            "h",
+            "ts",
+            "ch",
+            "sh",
+            "sh",
+            "",
+            "i",
+            "",
+            "e",
+            "iu",
+            "ia",
+            "e",
+        ],
+        strict=True,
+    )
+)
+_CYRILLIC["ж"] = "zh"
+_GREEK = dict(
+    zip(
+        "αβγδεζηθικλμνξοπρσςτυφχψω",
+        [
+            "a",
+            "v",
+            "g",
+            "d",
+            "e",
+            "z",
+            "i",
+            "th",
+            "i",
+            "k",
+            "l",
+            "m",
+            "n",
+            "ks",
+            "o",
+            "p",
+            "r",
+            "s",
+            "s",
+            "t",
+            "i",
+            "f",
+            "h",
+            "ps",
+            "o",
+        ],
+        strict=True,
+    )
+)
+
+
+def _latin(word: str) -> str:
+    """A Cyrillic or Greek word in Latin letters ("телефон" as "telefon"), so it can be compared with
+    its English meaning; other letters are kept."""
+    word = word.replace("ου", "u")
+    return "".join(_CYRILLIC.get(c) or _GREEK.get(c) or c for c in word)
+
+
+def _sound(word: str) -> str:
+    """English spelled the way a transliteration spells it ("telephone" as "telefone"): the letters
+    that differ only by spelling convention are made the same, and doubled letters made single."""
+    for old, new in (
+        ("tion", "tsi"),
+        ("ph", "f"),
+        ("ck", "k"),
+        ("th", "t"),
+        ("ch", "h"),
+        ("sh", "h"),
+        ("c", "k"),
+        ("q", "k"),
+        ("y", "i"),
+        ("w", "v"),
+        ("v", "b"),
+        ("x", "ks"),
+    ):
+        word = word.replace(old, new)
+    word = re.sub(r"(.)\1+", r"\1", word)
+    # The ending is the language's own (-o, -os, -ia), unless that would leave too little ("moi").
+    stem = re.sub(r"[aeiou]+s?$", "", word)
+    return stem if len(stem) >= 3 else word
+
+
 def is_giveaway(lemma: str, meaning: str) -> bool:
     """A word that tests nothing: a proper noun (its meaning is capitalized, "Thames") or a cognate an
     English speaker reads without studying (the word and its meaning share most of their letters,
     "legislador" and "legislator"). Checked here rather than left to Claude, and on what's stored, so a
-    bank written before this check is cleaned when it's served. Languages not written in Latin letters
-    share none with English, so only their proper nouns are caught."""
+    bank written before this check is cleaned when it's served. Russian and Greek words are compared
+    with their Latin spelling ("телефон" as "telefon"), both sides respelled by sound."""
     if meaning[:1].isupper() and meaning != "I":
         return True
     folded = _fold(lemma)
     text = _fold(meaning)
     pieces = text.removeprefix("to ").split()
+    if (spelled := _latin(folded)) != folded:  # Cyrillic or Greek: compare by sound
+        folded = _sound(spelled)
+        pieces = [_sound(p) for p in pieces]
     candidates = [" ".join(pieces), *pieces]
     # A verb's ending is its own ("aceptar", "to accept"), so a verb is also compared without it.
     words = [folded, folded[:-2]] if text.startswith("to ") else [folded]
