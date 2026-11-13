@@ -19,6 +19,7 @@ import { loadHeld } from './lookalikeHold';
 import { useCollapsedDecks, type CollapsedDecks } from './useCollapsedDecks';
 import { useReader, type ReaderState } from './useReader';
 import { useCountsReport } from './useCountsReport';
+import { useStudyReminder } from './studyReminder';
 import { useDeckSnapshot } from './useDeckSnapshot';
 import { Loading } from './kit';
 import { useLoadProblem } from './useLoadProblem';
@@ -136,6 +137,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const reader = useReader(syncSettings?.enabled ? syncSettings.server : undefined, dayStartsAtHour);
   useCountsReport(reader, decks, dayStartsAtHour);
+  useStudyReminder(decks, dayStartsAtHour);
   const wanikani = useWaniKani(repo, dayStartsAtHour);
 
   const editorClose = useRef<((result?: NoteEditorResult) => void) | null>(null);
