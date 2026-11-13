@@ -11,8 +11,7 @@ const POLL_MS = 50;
 const NONE: number[] = [];
 
 /**
- * The indices of the words being spoken in `words`, the line the player is on (null when none is).
- * Read once more when playback pauses, so a paused line keeps its word lit.
+ * The indices of the words being spoken in `words`, the line sounding now (null when none is).
  */
 export function useSpokenWords(player: AudioPlayer, words: Word[] | null, playing: boolean): number[] {
   const [lit, setLit] = useState<number[]>(NONE);
@@ -26,7 +25,7 @@ export function useSpokenWords(player: AudioPlayer, words: Word[] | null, playin
       setLit((prev) => (prev.length === next.length && prev.every((i, k) => i === next[k]) ? prev : next));
     };
     read();
-    if (!playing) return;
+    if (!playing) return; // buffering, or the gap between two lines of Play all: hold the word read
     const id = setInterval(read, POLL_MS);
     return () => clearInterval(id);
   }, [player, words, playing]);
