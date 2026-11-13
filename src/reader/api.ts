@@ -189,6 +189,9 @@ export type ShelfText = {
   episode: number;
 };
 
+// A story episode's recap in its own language: words like a line's, and the line's English.
+export type RecapLine = { english: string; words: Word[] };
+
 // The current language's ongoing story: how many episodes are read, what happened last time,
 // and the next episode once it's written. `failed` says why the last episode couldn't be written.
 export type ShelfStory = {
@@ -197,6 +200,9 @@ export type ShelfStory = {
   about: string;
   read: number;
   last_recap: string;
+  // The same in the story's language, as words to tap, with that line's English. Null for an
+  // episode written before it was asked for, and missing from a server older than it.
+  last_recap_line?: RecapLine | null;
   next: ShelfText | null;
   writing: boolean;
   failed: string | null;

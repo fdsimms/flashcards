@@ -159,6 +159,56 @@ def mark_reflexive_pronouns(words: list[dict[str, Any]], lexicon: Checker) -> No
             words[before]["stretch"] = True
 
 
+def render_line(
+    source: str,
+    text: StoredText,
+    lexicon: Checker,
+    meanings: dict[str, str],
+    deck_translits: dict[str, str] | None = None,
+    marked: dict[int, str] | None = None,
+    forms: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    """A model line written for `text` (one of its lines, a choice, its recap) as the reader's
+    words, glossed from the text's own glosses and translits first. `marked` is the grammar point
+    each word uses, by index among the line's words. `forms` is the text's picked word forms, for its
+    own lines: a choice or a recap wasn't asked about, so it shows none."""
+    marked = marked or {}
+    stretch = set(text.stretch)
+    form_names = form_primers.names(text.language)
+
+    def form_of(piece: str) -> dict[str, str] | None:
+        """The form a word is marked as in this text, if it's still one the catalog has."""
+        found = (forms or {}).get(piece.casefold())
+        if found is None or found not in form_names:
+            return None
+        return {"id": found, "name": form_names[found]}
+
+    at = 0
+    words: list[dict[str, Any]] = []
+    for piece, is_name in segment_line(source, lexicon):
+        point = None
+        if is_word(piece):
+            covers = grammar.count_words(piece, lexicon.spaced)
+            point = next((marked[i] for i in range(at, at + covers) if i in marked), None)
+            at += covers
+        words.append(
+            word_out(
+                piece,
+                lexicon,
+                meanings,
+                deck_translits or {},
+                is_name=is_name,
+                glosses=text.glosses,
+                translits=text.translits,
+                stretch=stretch,
+                point=point,
+                form=form_of(piece),
+            )
+        )
+    mark_reflexive_pronouns(words, lexicon)
+    return words
+
+
 def render(
     text: StoredText,
     lexicon: Checker,
@@ -168,47 +218,14 @@ def render(
 ) -> dict[str, Any]:
     """`unset` is the language's grammar points the owner hasn't marked, as of now: any that turn
     up are marked and explained like the known ones worked in for review."""
-    stretch = set(text.stretch)
     practice = tuple(text.grammar.get("practice", []))
     avoid = tuple(text.grammar.get("avoid", []))
     review = tuple(p for p in text.grammar.get("review", []) if p not in practice + avoid)
     unset = tuple(p for p in unset if p not in practice + avoid + review)
     used: set[str] = set()
-    form_names = form_primers.names(text.language)
-    forms = text.forms or {}
-
-    def form_of(piece: str) -> dict[str, str] | None:
-        """The form a word is marked as in this text, if it's still one the catalog has."""
-        found = forms.get(piece.casefold())
-        if found is None or found not in form_names:
-            return None
-        return {"id": found, "name": form_names[found]}
 
     def render_words(source: str, marked: dict[int, str]) -> list[dict[str, Any]]:
-        at = 0
-        words: list[dict[str, Any]] = []
-        for piece, is_name in segment_line(source, lexicon):
-            point = None
-            if is_word(piece):
-                covers = grammar.count_words(piece, lexicon.spaced)
-                point = next((marked[i] for i in range(at, at + covers) if i in marked), None)
-                at += covers
-            words.append(
-                word_out(
-                    piece,
-                    lexicon,
-                    meanings,
-                    deck_translits or {},
-                    is_name=is_name,
-                    glosses=text.glosses,
-                    translits=text.translits,
-                    stretch=stretch,
-                    point=point,
-                    form=form_of(piece),
-                )
-            )
-        mark_reflexive_pronouns(words, lexicon)
-        return words
+        return render_line(source, text, lexicon, meanings, deck_translits, marked, text.forms)
 
     lines = []
     for line in text.lines:
