@@ -638,6 +638,22 @@ in the current language, with when one was last read to the end. Nothing else le
   (`READER_AUDIO_DIR/<text>/<line>.mp3`). A new text gets its audio before it counts as ready; a line
   with no audio yet is made when it's first asked for, which covers texts written before the Azure
   key was set. An Azure failure leaves that line silent and never blocks the text.
+- **The word being spoken is lit as a line plays** (since 13 November 2026). Each line is recorded
+  through Azure's Speech SDK (`SpeechClient.speak`), which reports when each word starts and ends;
+  the REST API it was recorded with before gives audio only. The timings are kept beside the MP3
+  (`<line>.json`), and the server matches Azure's words to the line's own (`timing.py`): in Thai
+  Azure segments by itself, so a word here takes the time of every one of Azure's it overlaps, and
+  two words Azure spoke as one light up together. Each word goes to the app with its `time`; the
+  app reads the player's position every 50 ms while a timed line plays (`useSpokenWords`) and fills
+  the word's background (`spoken` in the theme), chosen over fading the rest of the line or a
+  karaoke-style "read so far". A word stays lit through the pause after it. It's on unless turned
+  off in Read & Listen's settings (Listening, `followWords` in `src/reader/prefs.ts`). Where the SDK can't be
+  used (a custom `AZURE_SPEECH_ENDPOINT`, the SDK not loading, Azure unreachable over its
+  connection) the line is recorded through REST as before, with no timings, and plays unlit. The
+  texts waiting to be read when this came in are re-recorded with timings once
+  (`Engine.time_waiting_texts`, on the first top-up, behind the `waiting_texts_timed` flag), as the
+  owner chose; texts already read keep their audio and play unlit. Slower playback needs nothing
+  more: the player's position is in the audio's own time.
 - The 0.7x to 1.0x speed control is the player's rate with pitch kept (`expo-audio`), so there's one
   file per line whatever the speed. "Play" runs the dialogue line by line; each line has its own
   replay button. Playback continues with the ringer on silent and the screen locked; the player
