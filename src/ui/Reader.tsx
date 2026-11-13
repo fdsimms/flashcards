@@ -569,7 +569,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={100}
         >
-          <View style={{ paddingHorizontal: space.l, gap: space.l }}>
+          <View style={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.l }}>
             <View style={{ gap: space.xs }}>
               <Text style={{ ...type.title, color: c.text }}>{text.title}</Text>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>
