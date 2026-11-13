@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { omnilanguageFieldNames } from '../../src/import/models';
 import { importTsv, parseDelimited } from '../../src/import/tsv';
+import type { NoteType } from '../../src/core/types';
 import { NOW } from '../support/fixtures';
 
 describe('TSV import', () => {
@@ -27,5 +28,56 @@ describe('TSV import', () => {
   it('derives the same note id on every import, so a re-import updates rather than duplicates', () => {
     const text = '#separator:tab\n#columns:Front\tBack\n#deck:Trivia\nQ1\tA1\n';
     expect(importTsv(text).notes[0].id).toBe(importTsv(text).notes[0].id);
+  });
+
+  const basic: NoteType = { name: 'Basic', kind: 'normal', fields: ['Front', 'Back'], css: '', templates: [{ ord: 0, name: 'Card 1', front: '{{Front}}', back: '{{Back}}' }] };
+  const clozeType: NoteType = { name: 'Cloze', kind: 'cloze', fields: ['Text', 'Back Extra'], css: '', templates: [{ ord: 0, name: 'Cloze', front: '{{cloze:Text}}', back: '{{cloze:Text}}' }] };
+  const noteTypes = new Map([['Basic', basic], ['Cloze', clozeType]]);
+
+  // Exactly what Anki 26.09.4's "Notes in Plain Text" export writes with every column on.
+  const ankiExport = '#separator:tab\n#html:true\n#guid column:1\n#notetype column:2\n#deck column:3\n#tags column:6\n'
+    + '"JZ!^z#u=To"\tBasic\tTrivia::Geo\tParis\tFrance\teu geo\nz:7;@H|7-2\tCloze\tTrivia::Geo\t{{c1::Paris {{c2::France}}}}\t\t\n';
+
+  it("reads Anki's own export: fields past the metadata columns, each row's note type and deck", () => {
+    const res = importTsv(ankiExport, { noteTypes, now: NOW });
+    expect(res.warnings).toEqual([]);
+    expect(res.notes).toEqual([
+      { id: 'JZ!^z#u=To', deck: 'Trivia::Geo', model: 'Basic', fields: { Front: 'Paris', Back: 'France' }, tags: ['eu', 'geo'] },
+      { id: 'z:7;@H|7-2', deck: 'Trivia::Geo', model: 'Cloze', fields: { Text: '{{c1::Paris {{c2::France}}}}', 'Back Extra': '' }, tags: [] },
+    ]);
+    expect(res.cards.map((c) => c.id)).toEqual(['JZ!^z#u=To:t0', 'z:7;@H|7-2:t0', 'z:7;@H|7-2:t1']);
+  });
+
+  it("skips a row whose note type isn't known here, and says so", () => {
+    const res = importTsv(ankiExport, { noteTypes: new Map([['Basic', basic]]), now: NOW });
+    expect(res.notes.map((n) => n.model)).toEqual(['Basic']);
+    expect(res.warnings).toEqual([`Row 2: note type "Cloze" isn't in Franki yet, so the row was skipped. Import your collection from AnkiMobile first, then import this file again.`]);
+  });
+
+  it("accepts Anki's separator names in any case, and the characters themselves", () => {
+    for (const [value, sep] of [['Comma', ','], ['COMMA', ','], [',', ','], ['Pipe', '|'], ['|', '|'], ['semicolon', ';'], ['Colon', ':'], [':', ':'], ['Space', ' '], [' ', ' '], ['Tab', '\t'], ['\t', '\t'], ['Tab\t\t', '\t']]) {
+      const res = importTsv(`#separator:${value}\n#notetype:Basic\nQ1${sep}A1\n`, { noteTypes, now: NOW });
+      expect([value, res.notes[0]?.fields]).toEqual([value, { Front: 'Q1', Back: 'A1' }]);
+    }
+    const unknown = importTsv('#separator:foo\n#notetype:Basic\nQ1\tA1\n', { noteTypes, now: NOW });
+    expect(unknown.notes[0].fields).toEqual({ Front: 'Q1', Back: 'A1' });
+    expect(unknown.warnings[0]).toMatch(/^The file's separator "foo" isn't one Anki writes, so it was read as tab-separated\./);
+  });
+
+  it('keeps both rows that share a first field, the later under a derived suffix, and says so', () => {
+    const text = '#separator:Comma\n#notetype:Basic\n#deck:Deutsch\nBank,bench\nBank,bank\nBank,riverbank\n';
+    const res = importTsv(text, { noteTypes, now: NOW });
+    expect(res.notes.map((n) => [n.id, n.fields.Back])).toEqual([['tsv:Deutsch:Bank', 'bench'], ['tsv:Deutsch:Bank (2)', 'bank'], ['tsv:Deutsch:Bank (3)', 'riverbank']]);
+    expect(res.warnings).toEqual([
+      'Row 2: "Bank" is also the first field of row 1, so both were imported as separate notes. Keep the rows in this order: if either moves, importing the file again can mix up their progress.',
+      'Row 3: "Bank" is also the first field of row 1, so both were imported as separate notes. Keep the rows in this order: if either moves, importing the file again can mix up their progress.',
+    ]);
+    expect(importTsv(text, { noteTypes, now: NOW }).notes.map((n) => n.id)).toEqual(res.notes.map((n) => n.id));
+  });
+
+  it('warns about a row that makes no cards', () => {
+    const res = importTsv('#separator:tab\n#notetype:Cloze\nno clozes here\t\n', { noteTypes, now: NOW });
+    expect(res.cards).toEqual([]);
+    expect(res.warnings).toEqual([`Row 1: "no clozes here" makes no cards: every card type's front would be blank. Fill in the field its front shows.`]);
   });
 });

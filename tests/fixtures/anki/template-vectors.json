@@ -1,0 +1,5883 @@
+{
+ "cloze": [
+  {
+   "text": "{{c1::Lima}} is the capital of {{c2::Peru::country}}",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"Lima\" data-ordinal=\"1\">[...]</span> is the capital of <span class=\"cloze-inactive\" data-ordinal=\"2\">Peru</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">Lima</span> is the capital of <span class=\"cloze-inactive\" data-ordinal=\"2\">Peru</span>",
+     "frontOnly": "...",
+     "backOnly": "Lima"
+    },
+    "1": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">Lima</span> is the capital of <span class=\"cloze\" data-cloze=\"Peru\" data-ordinal=\"2\">[country]</span>",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">Lima</span> is the capital of <span class=\"cloze\" data-ordinal=\"2\">Peru</span>",
+     "frontOnly": "country",
+     "backOnly": "Peru"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "Lima",
+    "2": "Peru",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::Paris {{c2::France}}}}",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"Paris&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;2&quot;&gt;France&lt;&#x2F;span&gt;\" data-ordinal=\"1\">[...]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">Paris <span class=\"cloze-inactive\" data-ordinal=\"2\">France</span></span>",
+     "frontOnly": "...",
+     "backOnly": "Paris France"
+    },
+    "1": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">Paris <span class=\"cloze\" data-cloze=\"France\" data-ordinal=\"2\">[...]</span></span>",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">Paris <span class=\"cloze\" data-ordinal=\"2\">France</span></span>",
+     "frontOnly": "...",
+     "backOnly": "France"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "Paris France",
+    "2": "France",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "foo {{c1::bar {{c2::baz}}::qux}}",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "foo <span class=\"cloze\" data-cloze=\"bar&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;2&quot;&gt;baz&lt;&#x2F;span&gt;\" data-ordinal=\"1\">[qux]</span>",
+     "back": "foo <span class=\"cloze\" data-ordinal=\"1\">bar <span class=\"cloze-inactive\" data-ordinal=\"2\">baz</span></span>",
+     "frontOnly": "qux",
+     "backOnly": "bar baz"
+    },
+    "1": {
+     "front": "foo <span class=\"cloze-inactive\" data-ordinal=\"1\">bar <span class=\"cloze\" data-cloze=\"baz\" data-ordinal=\"2\">[...]</span></span>",
+     "back": "foo <span class=\"cloze-inactive\" data-ordinal=\"1\">bar <span class=\"cloze\" data-ordinal=\"2\">baz</span></span>",
+     "frontOnly": "...",
+     "backOnly": "baz"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "bar baz",
+    "2": "baz",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::a::h1 {{c2::b}}::h2}}",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"a&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;2&quot;&gt;b&lt;&#x2F;span&gt;\" data-ordinal=\"1\">[h2]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">a<span class=\"cloze-inactive\" data-ordinal=\"2\">b</span></span>",
+     "frontOnly": "h2",
+     "backOnly": "ab"
+    },
+    "1": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">a<span class=\"cloze\" data-cloze=\"b\" data-ordinal=\"2\">[...]</span></span>",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">a<span class=\"cloze\" data-ordinal=\"2\">b</span></span>",
+     "frontOnly": "...",
+     "backOnly": "b"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "ab",
+    "2": "b",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::outer {{c1::inner}} end}}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"outer&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&quot;&#x20;data&#x2D;cloze&#x3D;&quot;inner&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;1&quot;&gt;&#x5B;&#x2E;&#x2E;&#x2E;&#x5D;&lt;&#x2F;span&gt;&#x20;end\" data-ordinal=\"1\">[...]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">outer <span class=\"cloze\" data-ordinal=\"1\">inner</span> end</span>",
+     "frontOnly": "..., ...",
+     "backOnly": "outer inner end, inner"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "outer inner end, inner",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c2::te{{c1::s}}}}t{{",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"2\">te<span class=\"cloze\" data-cloze=\"s\" data-ordinal=\"1\">[...]</span></span>t{{",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"2\">te<span class=\"cloze\" data-ordinal=\"1\">s</span></span>t{{",
+     "frontOnly": "...",
+     "backOnly": "s"
+    },
+    "1": {
+     "front": "<span class=\"cloze\" data-cloze=\"te&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;1&quot;&gt;s&lt;&#x2F;span&gt;\" data-ordinal=\"2\">[...]</span>t{{",
+     "back": "<span class=\"cloze\" data-ordinal=\"2\">te<span class=\"cloze-inactive\" data-ordinal=\"1\">s</span></span>t{{",
+     "frontOnly": "...",
+     "backOnly": "tes"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "s",
+    "2": "tes",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1,2::shared}} and {{c3::three}}",
+   "extra": "",
+   "ords": [
+    0,
+    1,
+    2
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"shared\" data-ordinal=\"1,2\">[...]</span> and <span class=\"cloze-inactive\" data-ordinal=\"3\">three</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1,2\">shared</span> and <span class=\"cloze-inactive\" data-ordinal=\"3\">three</span>",
+     "frontOnly": "...",
+     "backOnly": "shared"
+    },
+    "1": {
+     "front": "<span class=\"cloze\" data-cloze=\"shared\" data-ordinal=\"1,2\">[...]</span> and <span class=\"cloze-inactive\" data-ordinal=\"3\">three</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1,2\">shared</span> and <span class=\"cloze-inactive\" data-ordinal=\"3\">three</span>",
+     "frontOnly": "...",
+     "backOnly": "shared"
+    },
+    "2": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1,2\">shared</span> and <span class=\"cloze\" data-cloze=\"three\" data-ordinal=\"3\">[...]</span>",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1,2\">shared</span> and <span class=\"cloze\" data-ordinal=\"3\">three</span>",
+     "frontOnly": "...",
+     "backOnly": "three"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "shared",
+    "2": "shared",
+    "3": "three",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c0::zero}} {{c2::two}}",
+   "extra": "",
+   "ords": [
+    1
+   ],
+   "cards": {
+    "1": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"0\">zero</span> <span class=\"cloze\" data-cloze=\"two\" data-ordinal=\"2\">[...]</span>",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"0\">zero</span> <span class=\"cloze\" data-ordinal=\"2\">two</span>",
+     "frontOnly": "...",
+     "backOnly": "two"
+    }
+   },
+   "typing": {
+    "0": "zero",
+    "1": "",
+    "2": "two",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "a }} b {{c1::x}} {{c",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "a }} b <span class=\"cloze\" data-cloze=\"x\" data-ordinal=\"1\">[...]</span> {{c",
+     "back": "a }} b <span class=\"cloze\" data-ordinal=\"1\">x</span> {{c",
+     "frontOnly": "...",
+     "backOnly": "x"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "x",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::unclosed {{c2::two}}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "empty": true
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::a}} {{c1::b}} {{c1::a}}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"a\" data-ordinal=\"1\">[...]</span> <span class=\"cloze\" data-cloze=\"b\" data-ordinal=\"1\">[...]</span> <span class=\"cloze\" data-cloze=\"a\" data-ordinal=\"1\">[...]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">a</span> <span class=\"cloze\" data-ordinal=\"1\">b</span> <span class=\"cloze\" data-ordinal=\"1\">a</span>",
+     "frontOnly": "..., ..., ...",
+     "backOnly": "a, b, a"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "a, b, a",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::x::hint with <b>&amp;</b> \"q\"}}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"x\" data-ordinal=\"1\">[hint with <b>&amp;</b> \"q\"]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">x</span>",
+     "frontOnly": "hint with <b>&amp;</b> \"q\"",
+     "backOnly": "x"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "x",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::<b>bold</b> & \"q\" 'a' <x> é Ł\n1/2}}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"&lt;b&gt;bold&lt;&#x2F;b&gt;&#x20;&amp;&#x20;&quot;q&quot;&#x20;&#x27;a&#x27;&#x20;&lt;x&gt;&#x20;&#xE9;&#x20;Ł&#x0A;1&#x2F;2\" data-ordinal=\"1\">[...]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\"><b>bold</b> & \"q\" 'a' <x> é Ł\n1/2</span>",
+     "frontOnly": "...",
+     "backOnly": "<b>bold</b> & \"q\" 'a' <x> é Ł\n1/2"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "<b>bold</b> & \"q\" 'a' <x> é Ł\n1/2",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::}} {{c1:: }}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"\" data-ordinal=\"1\">[...]</span> <span class=\"cloze\" data-cloze=\"&#x20;\" data-ordinal=\"1\">[...]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\"></span> <span class=\"cloze\" data-ordinal=\"1\"> </span>",
+     "frontOnly": "..., ...",
+     "backOnly": ",  "
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": ",  ",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::::}} {{c2::a::}}",
+   "extra": "",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"\" data-ordinal=\"1\">[]</span> <span class=\"cloze-inactive\" data-ordinal=\"2\">a</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\"></span> <span class=\"cloze-inactive\" data-ordinal=\"2\">a</span>",
+     "frontOnly": "",
+     "backOnly": ""
+    },
+    "1": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\"></span> <span class=\"cloze\" data-cloze=\"a\" data-ordinal=\"2\">[]</span>",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\"></span> <span class=\"cloze\" data-ordinal=\"2\">a</span>",
+     "frontOnly": "",
+     "backOnly": "a"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "",
+    "2": "a",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{C1::upper}} {{c01::leading zero}} {{c::none}} {{c1,::comma}}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "{{C1::upper}} <span class=\"cloze\" data-cloze=\"leading&#x20;zero\" data-ordinal=\"1\">[...]</span> {{c::none}} <span class=\"cloze\" data-cloze=\"comma\" data-ordinal=\"1\">[...]</span>",
+     "back": "{{C1::upper}} <span class=\"cloze\" data-ordinal=\"1\">leading zero</span> {{c::none}} <span class=\"cloze\" data-ordinal=\"1\">comma</span>",
+     "frontOnly": "..., ...",
+     "backOnly": "leading zero, comma"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "leading zero, comma",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c3::only three}}",
+   "extra": "",
+   "ords": [
+    2
+   ],
+   "cards": {
+    "2": {
+     "front": "<span class=\"cloze\" data-cloze=\"only&#x20;three\" data-ordinal=\"3\">[...]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"3\">only three</span>",
+     "frontOnly": "...",
+     "backOnly": "only three"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "",
+    "2": "",
+    "3": "only three",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::Text}}",
+   "extra": "{{c2::in the other field}}",
+   "ords": [
+    0,
+    1
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"Text\" data-ordinal=\"1\">[...]</span>",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">Text</span>",
+     "frontOnly": "...",
+     "backOnly": "Text"
+    },
+    "1": {
+     "front": "",
+     "back": "",
+     "frontOnly": "",
+     "backOnly": ""
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "Text",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::x}}}",
+   "extra": "",
+   "ords": [
+    0
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"x\" data-ordinal=\"1\">[...]</span>}",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">x</span>}",
+     "frontOnly": "...",
+     "backOnly": "x"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "x",
+    "2": "",
+    "3": "",
+    "4": ""
+   }
+  },
+  {
+   "text": "{{c1::1 {{c2::2 {{c3::3 {{c4::4 {{c5::5 {{c6::6 {{c7::7 {{c8::8 {{c9::9 {{c10::10 {{c11::11 {{c12::12 end}}}}}}}}}}}}}}}}}}}}}}}}",
+   "extra": "",
+   "ords": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "cards": {
+    "0": {
+     "front": "<span class=\"cloze\" data-cloze=\"1&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;2&quot;&gt;2&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;3&quot;&gt;3&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;4&quot;&gt;4&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;5&quot;&gt;5&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;6&quot;&gt;6&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;7&quot;&gt;7&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;8&quot;&gt;8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"1\">[...]</span>}}}}",
+     "back": "<span class=\"cloze\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "1 2 3 4 5 6 7 8 9 10 11 12 end"
+    },
+    "1": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze\" data-cloze=\"2&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;3&quot;&gt;3&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;4&quot;&gt;4&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;5&quot;&gt;5&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;6&quot;&gt;6&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;7&quot;&gt;7&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;8&quot;&gt;8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"2\">[...]</span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "2 3 4 5 6 7 8 9 10 11 12 end"
+    },
+    "2": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze\" data-cloze=\"3&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;4&quot;&gt;4&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;5&quot;&gt;5&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;6&quot;&gt;6&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;7&quot;&gt;7&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;8&quot;&gt;8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"3\">[...]</span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "3 4 5 6 7 8 9 10 11 12 end"
+    },
+    "3": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze\" data-cloze=\"4&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;5&quot;&gt;5&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;6&quot;&gt;6&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;7&quot;&gt;7&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;8&quot;&gt;8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"4\">[...]</span></span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "4 5 6 7 8 9 10 11 12 end"
+    },
+    "4": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze\" data-cloze=\"5&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;6&quot;&gt;6&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;7&quot;&gt;7&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;8&quot;&gt;8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"5\">[...]</span></span></span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "5 6 7 8 9 10 11 12 end"
+    },
+    "5": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze\" data-cloze=\"6&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;7&quot;&gt;7&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;8&quot;&gt;8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"6\">[...]</span></span></span></span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "6 7 8 9 10 11 12 end"
+    },
+    "6": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze\" data-cloze=\"7&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;8&quot;&gt;8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"7\">[...]</span></span></span></span></span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "7 8 9 10 11 12 end"
+    },
+    "7": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze\" data-cloze=\"8&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;9&quot;&gt;9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;&lt;&#x2F;span&gt;\" data-ordinal=\"8\">[...]</span></span></span></span></span></span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "8 9 10 11 12 end"
+    },
+    "8": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze\" data-cloze=\"9&#x20;&lt;span&#x20;class&#x3D;&quot;cloze&#x2D;inactive&quot;&#x20;data&#x2D;ordinal&#x3D;&quot;10&quot;&gt;10&#x20;11&#x20;12&#x20;end&lt;&#x2F;span&gt;\" data-ordinal=\"9\">[...]</span></span></span></span></span></span></span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze\" data-ordinal=\"9\">9 <span class=\"cloze-inactive\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "9 10 11 12 end"
+    },
+    "9": {
+     "front": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze\" data-cloze=\"10&#x20;11&#x20;12&#x20;end\" data-ordinal=\"10\">[...]</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "back": "<span class=\"cloze-inactive\" data-ordinal=\"1\">1 <span class=\"cloze-inactive\" data-ordinal=\"2\">2 <span class=\"cloze-inactive\" data-ordinal=\"3\">3 <span class=\"cloze-inactive\" data-ordinal=\"4\">4 <span class=\"cloze-inactive\" data-ordinal=\"5\">5 <span class=\"cloze-inactive\" data-ordinal=\"6\">6 <span class=\"cloze-inactive\" data-ordinal=\"7\">7 <span class=\"cloze-inactive\" data-ordinal=\"8\">8 <span class=\"cloze-inactive\" data-ordinal=\"9\">9 <span class=\"cloze\" data-ordinal=\"10\">10 11 12 end</span></span></span></span></span></span></span></span></span></span>}}}}",
+     "frontOnly": "...",
+     "backOnly": "10 11 12 end"
+    }
+   },
+   "typing": {
+    "0": "",
+    "1": "1 2 3 4 5 6 7 8 9 10 11 12 end",
+    "2": "2 3 4 5 6 7 8 9 10 11 12 end",
+    "3": "3 4 5 6 7 8 9 10 11 12 end",
+    "4": "4 5 6 7 8 9 10 11 12 end"
+   }
+  }
+ ],
+ "cardgen": [
+  {
+   "front": "{{Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Extra}}No extra{{/Extra}}{{Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Extra}}static text{{/Extra}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Extra}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{^Back}}{{Front}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{Front}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{#Back}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<img src='x.png'>{{^Back}}{{/Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{text:Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{type:Back}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{ Back }}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "<!-- {{Back}} -->{{#Extra}}{{/Extra}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Deck}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Subdeck}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Card}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{Type}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{CardFlag}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{Tags}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{FrontSide}}",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "empty",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back",
+   "fields": {
+    "Front": "f",
+    "Back": "b",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "extra",
+   "fields": {
+    "Front": "f",
+    "Back": "",
+    "Extra": "x"
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back &nbsp;",
+   "fields": {
+    "Front": "f",
+    "Back": "&nbsp;",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back U+00A0",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <br>",
+   "fields": {
+    "Front": "f",
+    "Back": "<br>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <BR />",
+   "fields": {
+    "Front": "f",
+    "Back": "<BR />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <br  />",
+   "fields": {
+    "Front": "f",
+    "Back": "<br  />",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back divs",
+   "fields": {
+    "Front": "f",
+    "Back": " <div> <br/> </div>\n\t\u000b\f\r",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": false
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back <p></p>",
+   "fields": {
+    "Front": "f",
+    "Back": "<p></p>",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [],
+   "generates": true
+  },
+  {
+   "front": "{{=<% %>=}}<%Back%>",
+   "case": "back U+2003",
+   "fields": {
+    "Front": "f",
+    "Back": " ",
+    "Extra": ""
+   },
+   "tags": [
+    "t"
+   ],
+   "generates": true
+  }
+ ],
+ "conditionals": [
+  {
+   "value": "",
+   "front": "a|no B"
+  },
+  {
+   "value": "&nbsp;",
+   "front": "a|has B"
+  },
+  {
+   "value": " ",
+   "front": "a|has B"
+  },
+  {
+   "value": "<br>",
+   "front": "a|no B"
+  },
+  {
+   "value": " ",
+   "front": "a|no B"
+  },
+  {
+   "value": " ",
+   "front": "a|has B"
+  },
+  {
+   "value": "<div></div>",
+   "front": "a|no B"
+  },
+  {
+   "value": "<img src=x.png>",
+   "front": "a|has B"
+  }
+ ]
+}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { cardDocument, clozeNumbers, fieldIsEmpty, renderTemplate, renderTemplateCard, sideAudio, templateOrdinals } from '../../src/core/template';
+import { cardDocument, fieldIsEmpty, renderTemplate, renderTemplateCard, sideAudio, templateOrdinals } from '../../src/core/template';
 import type { Note, NoteType } from '../../src/core/types';
+import vectors from '../fixtures/anki/template-vectors.json';
 
 const geo: NoteType = {
   name: 'Ultimate Geography', kind: 'normal', fields: ['Country', 'Capital info', 'Capital', 'Flag'], css: '.card { color: red; }',
@@ -21,10 +22,19 @@ describe('renderTemplate', () => {
     expect(front).toBe('Peru');
     expect(back).toBe('Peru<hr id=answer>Lima');
   });
-  it('counts an image as content, and only whitespace, <br> and <div> as empty', () => {
+  it('counts an image and a no-break space as content, and only ASCII whitespace, <br> and <div> as empty', () => {
     expect(fieldIsEmpty('<img src="x.png">')).toBe(false);
-    expect(fieldIsEmpty(' <br> <div></div>&nbsp;')).toBe(true);
+    expect(fieldIsEmpty(' <br> <div></div>\n')).toBe(true);
+    expect(fieldIsEmpty('&nbsp;')).toBe(false);
+    expect(fieldIsEmpty(' ')).toBe(false);
     expect(renderTemplateCard(peru, geo, 1).front).toBe('<img src="ug-flag-peru.svg" />');
+  });
+
+  /** Recorded from the real `anki` 26.09.4 package (tests/fixtures/anki/make-template-vectors.py). */
+  it.each(vectors.conditionals)('shows {{#Field}} for $value as Anki does', ({ value, front }) => {
+    const nt: NoteType = { name: 'Conditional', kind: 'normal', fields: ['A', 'B'], css: '', templates: [{ ord: 0, name: 'T', front: '{{A}}|{{#B}}has B{{/B}}{{^B}}no B{{/B}}', back: 'x' }] };
+    const note: Note = { id: 'n', deck: 'D', model: 'Conditional', tags: [], fields: { A: 'a', B: value } };
+    expect(renderTemplateCard(note, nt, 0).front).toBe(front);
   });
   it('inverts with ^, nests sections, and fills special fields', () => {
     const ctx = { note: peru, noteType: geo, ord: 1, side: 'front' as const };
@@ -113,12 +123,23 @@ describe('reading aloud', () => {
 describe('cloze', () => {
   const note: Note = { id: 'c', deck: 'D', model: 'Cloze', tags: [], fields: { Text: '{{c1::Lima}} is the capital of {{c2::Peru::country}}', Extra: 'South America' } };
   it('hides the active cloze on the front and shows the others', () => {
-    expect(renderTemplateCard(note, cloze, 1).front).toBe('<span class="cloze-inactive">Lima</span> is the capital of <span class="cloze">[country]</span>');
-    expect(renderTemplateCard(note, cloze, 0).back).toContain('<span class="cloze">Lima</span>');
+    expect(renderTemplateCard(note, cloze, 1).front).toBe('<span class="cloze-inactive" data-ordinal="1">Lima</span> is the capital of <span class="cloze" data-cloze="Peru" data-ordinal="2">[country]</span>');
+    expect(renderTemplateCard(note, cloze, 0).back).toContain('<span class="cloze" data-ordinal="1">Lima</span>');
   });
   it('makes one card per cloze number', () => {
-    expect(clozeNumbers(note.fields.Text)).toEqual([1, 2]);
     expect(templateOrdinals(note, cloze)).toEqual([0, 1]);
+  });
+  it('makes a card for a cloze inside another, and for a cloze in any field', () => {
+    expect(templateOrdinals({ ...note, fields: { Text: '{{c1::Paris {{c2::France}}}}', Extra: '' } }, cloze)).toEqual([0, 1]);
+    expect(templateOrdinals({ ...note, fields: { Text: '{{c1::Lima}}', Extra: '{{c3::Peru}}' } }, cloze)).toEqual([0, 2]);
+  });
+
+  /** Recorded from the real `anki` 26.09.4 package (tests/fixtures/anki/make-template-vectors.py). */
+  it.each(vectors.cloze)('makes the cards Anki makes for $text', ({ text, extra, cards }) => {
+    const probe: NoteType = { ...cloze, fields: ['Text', 'Back Extra'] };
+    const generated = templateOrdinals({ ...note, fields: { Text: text, 'Back Extra': extra } }, probe);
+    // A note with no cloze gets card 1 from Anki, only to show an error on; Franki makes none.
+    expect(generated).toEqual(Object.entries(cards).filter(([, c]) => !('empty' in c)).map(([ord]) => Number(ord)));
   });
 });
 
@@ -126,6 +147,24 @@ describe('templateOrdinals', () => {
   it('skips a template whose front stays empty for this note', () => {
     expect(templateOrdinals(peru, geo)).toEqual([0, 1]);
     expect(templateOrdinals({ ...peru, fields: { ...peru.fields, Flag: '' } }, geo)).toEqual([0]);
+  });
+
+  it('makes a card only when the front fills in a non-empty field, whatever text it shows', () => {
+    const nt: NoteType = { ...geo, fields: ['Front', 'Back', 'Extra'], templates: [{ ord: 0, name: 'T', front: '{{^Extra}}No extra{{/Extra}}{{Back}}', back: '' }] };
+    const make = (fields: Record<string, string>) => templateOrdinals({ ...peru, fields: { Front: 'f', ...fields } }, nt);
+    expect(make({ Back: '', Extra: 'x' })).toEqual([]);
+    expect(make({ Back: 'b', Extra: 'x' })).toEqual([0]);
+    expect(make({ Back: '&nbsp;', Extra: '' })).toEqual([0]);
+  });
+
+  /** Recorded from the real `anki` 26.09.4 package (tests/fixtures/anki/make-template-vectors.py). */
+  it.each(vectors.cardgen)('$front with $case, tags $tags: $generates', ({ front, fields, tags, generates }) => {
+    const nt: NoteType = {
+      name: 'Gen', kind: 'normal', fields: ['Front', 'Back', 'Extra'], css: '',
+      templates: [{ ord: 0, name: 'T0', front: '{{Front}}', back: '' }, { ord: 1, name: 'T1', front, back: '' }],
+    };
+    const note: Note = { id: 'n', deck: 'D::E', model: 'Gen', tags, fields };
+    expect(templateOrdinals(note, nt).includes(1)).toBe(generates);
   });
 });
 
