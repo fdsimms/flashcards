@@ -1,5 +1,6 @@
 import { ttsFilter, ttsTags, withoutTts, TTS_NO_LANGUAGE, type TtsTag } from './tts';
-import { clozeForTyping, compareAnswer } from './typeAnswer';
+import { clozeForTyping, clozeNumbers, clozeOnly, renderCloze } from './cloze';
+import { compareAnswer } from './typeAnswer';
 import type { Note, NoteType } from './types';
 
 /**
@@ -24,38 +25,16 @@ export interface RenderContext {
   frontSide?: string;
 }
 
-/** Anki's rule for an empty field: only whitespace, <br> and <div> tags. An image is not empty. */
+/**
+ * Anki's rule for an empty field (rslib template.rs field_is_empty): only ASCII whitespace and
+ * empty <br>/<div> tags. A no-break space (&nbsp; or U+00A0) is content, and so is an image.
+ */
 export function fieldIsEmpty(value: string | undefined): boolean {
-  return !value || /^(?:\s|&nbsp;|<\/?(?:br|div)\s?\/?>)*$/i.test(value);
+  return !value || /^(?:[ \t\n\v\f\r]|<\/?(?:br|div) ?\/?>)*$/i.test(value);
 }
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ');
-}
-
-const CLOZE = /\{\{c(\d+)::([\s\S]*?)(?:::([\s\S]*?))?\}\}/g;
-
-/** The cloze numbers a text uses ("{{c1::...}} {{c3::...}}" -> [1, 3]). */
-export function clozeNumbers(text: string): number[] {
-  const out = new Set<number>();
-  for (const m of text.matchAll(CLOZE)) out.add(Number(m[1]));
-  return [...out].sort((a, b) => a - b);
-}
-
-/**
- * Anki's cloze-only (reveal_cloze_text_only): just the card's cloze, for reading aloud: its hint
- * (or "...") on the question, its text on the answer, several joined with ", ".
- */
-function clozeOnly(text: string, n: number, side: 'front' | 'back'): string {
-  return [...text.matchAll(CLOZE)].filter((m) => Number(m[1]) === n).map((m) => (side === 'front' ? m[3] ?? '...' : m[2])).join(', ');
-}
-
-function renderCloze(text: string, n: number, side: 'front' | 'back'): string {
-  return text.replace(CLOZE, (_, num: string, answer: string, hint?: string) => {
-    if (Number(num) !== n) return `<span class="cloze-inactive">${answer}</span>`;
-    if (side === 'back') return `<span class="cloze">${answer}</span>`;
-    return `<span class="cloze">[${hint ?? '...'}]</span>`;
-  });
 }
 
 /** "漢字[かんじ]" -> ruby; Anki's furigana filter. A leading space separates readings. */
@@ -231,26 +210,120 @@ export function renderTemplateCard(note: Note, noteType: NoteType, ord: number, 
   return { front: question.html, back: typeAnswerAnswer(back, question.ask, typed), typeAnswer: question.ask };
 }
 
+// ==== Card generation ====
+
+type ParsedNode =
+  | { kind: 'text' }
+  | { kind: 'replacement'; key: string }
+  | { kind: 'conditional' | 'negated'; key: string; children: ParsedNode[] };
+
+/**
+ * A template parsed as rslib's ParsedTemplate does, for deciding which cards a note makes:
+ * `{{...}}` up to the first `}}` (or `<%...%>` after Anki's legacy `{{=<% %>=}}`), comments
+ * skipped, a replacement's key the part after its last ":" (filters before it). Undefined when
+ * Anki couldn't parse it (a section left open, or closed without being opened), which makes no card.
+ */
+function parseTemplate(template: string): ParsedNode[] | undefined {
+  let start = '{{', end = '}}';
+  let rest = template;
+  if (template.trimStart().startsWith('{{=<% %>=}}')) {
+    rest = template.trimStart();
+    while (rest.startsWith('{{=<% %>=}}')) rest = rest.slice('{{=<% %>=}}'.length);
+    start = '<%'; end = '%>';
+  }
+  type Tok = { t: 'text' } | { t: 'repl' | 'open' | 'neg' | 'close'; key: string };
+  const toks: Tok[] = [];
+  let i = 0;
+  while (i < rest.length) {
+    let j = i;
+    let tok: Tok | undefined;
+    let after = 0;
+    for (; j < rest.length; j++) {
+      if (rest.startsWith(start, j)) {
+        const close = rest.indexOf(end, j + start.length);
+        if (close >= 0) {
+          // classify_handle
+          const s = rest.slice(j + start.length, close).replace(/^\{+/, '').trim();
+          const lead = s.length < 2 ? '' : s[0];
+          tok = lead === '#' ? { t: 'open', key: s.slice(1).trimStart() }
+            : lead === '/' ? { t: 'close', key: s.slice(1).trimStart() }
+            : lead === '^' ? { t: 'neg', key: s.slice(1).trimStart() }
+            : { t: 'repl', key: s };
+          after = close + end.length;
+          break;
+        }
+      }
+      if (rest.startsWith('<!--', j)) {
+        const close = rest.indexOf('-->', j + 4);
+        if (close >= 0) { tok = { t: 'text' }; after = close + 3; break; }
+      }
+    }
+    if (j > i) toks.push({ t: 'text' });
+    if (!tok) break;
+    toks.push(tok);
+    i = after;
+  }
+
+  let k = 0;
+  const parse = (openKey?: string): ParsedNode[] | undefined => {
+    const nodes: ParsedNode[] = [];
+    while (k < toks.length) {
+      const tok = toks[k++];
+      if (tok.t === 'text') nodes.push({ kind: 'text' });
+      else if (tok.t === 'repl') nodes.push({ kind: 'replacement', key: tok.key.split(':').pop()! });
+      else if (tok.t === 'close') return openKey === tok.key ? nodes : undefined;
+      else {
+        const children = parse(tok.key);
+        if (!children) return undefined;
+        nodes.push({ kind: tok.t === 'open' ? 'conditional' : 'negated', key: tok.key, children });
+      }
+    }
+    return openKey === undefined ? nodes : undefined;
+  };
+  return parse();
+}
+
+/** template_is_empty with check_negated: true unless a non-empty field would be filled in. */
+function templateIsEmpty(nodes: ParsedNode[], nonempty: Set<string>): boolean {
+  for (const node of nodes) {
+    if (node.kind === 'replacement') {
+      if (nonempty.has(node.key)) return false;
+    } else if (node.kind === 'conditional' || node.kind === 'negated') {
+      if ((node.kind === 'conditional') !== nonempty.has(node.key)) continue;
+      if (!templateIsEmpty(node.children, nonempty)) return false;
+    }
+  }
+  return true;
+}
+
+/** Fields that count as filled for card generation: the note's own, and the special fields Anki fills (Tags only when there are tags). */
+function nonemptyFields(note: Note, noteType: NoteType): Set<string> {
+  const set = new Set(Object.entries(note.fields).filter(([, v]) => !fieldIsEmpty(v)).map(([k]) => k));
+  for (const special of ['Card', 'CardFlag', 'Deck', 'Subdeck', 'Type', 'CardID', 'Tags']) {
+    if (noteType.fields.includes(special) || (special === 'Tags' && !note.tags.length)) continue;
+    set.add(special);
+  }
+  return set;
+}
+
 /**
  * The template ordinals a note generates cards for, for an import that has no Anki cards to
- * follow (a TSV). A cloze note gets one per cloze number; a normal note one per template whose
- * front shows something more than it does with every field empty, which is Anki's rule in effect.
+ * follow (a TSV) and a note added here, as Anki decides it (rslib notetype/cardgen.rs). A cloze
+ * note gets one per cloze number in any of its fields; a normal note one per template whose front
+ * would fill in at least one non-empty field (`renders_with_fields`), whatever text it shows around it.
  */
 export function templateOrdinals(note: Note, noteType: NoteType): number[] {
   if (noteType.kind === 'cloze') {
-    const text = Object.values(note.fields).join(' ');
-    return clozeNumbers(text).map((n) => n - 1);
+    const ords = new Set(Object.values(note.fields).flatMap((f) => clozeNumbers(f)).map((n) => Math.min(n - 1, 499)));
+    return [...ords].sort((a, b) => a - b);
   }
-  const blank: Note = { ...note, fields: Object.fromEntries(Object.keys(note.fields).map((k) => [k, ''])) };
-  const visible = (n: Note, ord: number) =>
-    stripHtml(renderTemplateCard(n, noteType, ord).front).replace(/\s+/g, '');
+  const nonempty = nonemptyFields(note, noteType);
   return noteType.templates
-    .map((t) => t.ord)
-    .filter((ord) => {
-      const rendered = renderTemplateCard(note, noteType, ord).front;
-      const hasMedia = /<img|\[sound:/i.test(rendered) && !/<img|\[sound:/i.test(renderTemplateCard(blank, noteType, ord).front);
-      return hasMedia || visible(note, ord) !== visible(blank, ord);
-    });
+    .filter((t) => {
+      const parsed = parseTemplate(t.front);
+      return parsed !== undefined && !templateIsEmpty(parsed, nonempty);
+    })
+    .map((t) => t.ord);
 }
 
 const escapeAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
