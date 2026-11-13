@@ -108,9 +108,11 @@ class CollectionManager:
             await anyio.to_thread.run_sync(self._start_media_sync)
             return result
 
-    async def sync_now(self) -> str:
+    async def sync_now(self, *, take_server: bool = False) -> str:
+        """Syncs now. With `take_server`, a full sync the server asks for is taken as a download
+        even when this copy holds changes that never reached it (they're lost)."""
         async with self._lock:
-            await anyio.to_thread.run_sync(self._sync)
+            await anyio.to_thread.run_sync(lambda: self._sync(take_server=take_server))
             await anyio.to_thread.run_sync(self._start_media_sync)
             return "Synced."
 
@@ -129,7 +131,7 @@ class CollectionManager:
         if self.sync_settings and time.monotonic() - self._synced_at > self.sync_settings.fresh_seconds:
             self._sync()
 
-    def _sync(self) -> None:
+    def _sync(self, *, take_server: bool = False) -> None:
         if self.sync_settings is None:
             return
         auth = self._login()
@@ -149,12 +151,14 @@ class CollectionManager:
             )
         else:
             # FULL_DOWNLOAD, or FULL_SYNC (the two have different histories): the server's wins,
-            # unless this copy holds changes that never reached it.
-            if self._unsent and self._has_local_changes():
+            # unless this copy holds changes that never reached it and the caller hasn't said to
+            # take the server's anyway.
+            if not take_server and self._unsent and self._has_local_changes():
                 raise SyncProblem(
                     "The sync server's collection was replaced (a full sync from another device), and "
                     "changes made here haven't reached it. Nothing was overwritten; check the server's "
-                    "collection, then run sync_now again to take the server's copy."
+                    "collection, then run sync_now with take_server=true to replace this copy with the "
+                    "server's (the changes made here are lost)."
                 )
             self._full_download(auth)
         self._unsent = False

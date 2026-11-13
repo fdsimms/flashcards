@@ -80,7 +80,12 @@ Ask = Callable[[list[dict[str, Any]]], Coroutine[Any, Any, tuple[dict[str, Any],
 
 
 class GenerationFailed(Exception):
-    """The model refused, ran out of tokens, or returned something unusable."""
+    """The model refused, ran out of tokens, or returned something unusable. `usage` is what the
+    failed call was billed for, when it got an answer at all."""
+
+    def __init__(self, message: str, usage: Usage | None = None) -> None:
+        super().__init__(message)
+        self.usage = usage or Usage()
 
 
 # A dialogue between A and B, or a short story told by a narrator (N), one sentence or two a line.
@@ -547,10 +552,19 @@ async def generate(ask: Ask, lexicon: Checker, request: TextRequest) -> Generate
     best: Generated | None = None  # the attempt with the highest coverage, the later one on a tie
     usage = Usage()
     for attempt in range(1, MAX_ATTEMPTS + 1):
-        draft, content, used = await ask(messages)
-        usage += used
-        result, problems = _assess(draft, lexicon, request, attempt)
-        result = replace(result, usage=usage)
+        try:
+            draft, content, used = await ask(messages)
+            usage += used
+            assessed, problems = _assess(draft, lexicon, request, attempt)
+        except GenerationFailed as e:
+            usage += e.usage
+            if result is None:
+                raise GenerationFailed(str(e), usage) from e
+            # A revision failed: what the earlier attempts wrote (and cost) is still kept below,
+            # so a good enough draft is served and a dropped one still has its cost on record.
+            result = replace(result, attempts=attempt, usage=usage)
+            break
+        result = replace(assessed, usage=usage)
         if result.passed:
             return result
         # Fewer grammar problems first, then closer to the target; the later attempt on a tie.
@@ -770,17 +784,6 @@ def claude_ask(
         except anthropic.APIError as e:
             # Overloaded, rate limited, unreachable: say so rather than failing the request.
             raise GenerationFailed(f"Claude didn't answer ({type(e).__name__})") from e
-        if response.stop_reason == "refusal":
-            raise GenerationFailed("Claude declined to write this text")
-        if response.stop_reason == "max_tokens":
-            raise GenerationFailed("The response was cut off")
-        text = next((b.text for b in response.content if b.type == "text"), None)
-        if text is None:
-            raise GenerationFailed("The response had no text")
-        try:
-            draft = json.loads(text)
-        except json.JSONDecodeError as e:
-            raise GenerationFailed("The response wasn't valid JSON") from e
         u = response.usage
         used = Usage(
             u.input_tokens,
@@ -789,6 +792,17 @@ def claude_ask(
             u.cache_creation_input_tokens or 0,
             response.model,
         )
+        if response.stop_reason == "refusal":
+            raise GenerationFailed("Claude declined to write this text", used)
+        if response.stop_reason == "max_tokens":
+            raise GenerationFailed("The response was cut off", used)
+        text = next((b.text for b in response.content if b.type == "text"), None)
+        if text is None:
+            raise GenerationFailed("The response had no text", used)
+        try:
+            draft = json.loads(text)
+        except json.JSONDecodeError as e:
+            raise GenerationFailed("The response wasn't valid JSON", used) from e
         return draft, list(response.content), used
 
     return ask

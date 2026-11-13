@@ -23,7 +23,7 @@ import random
 import sqlite3
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Literal
 
@@ -43,6 +43,7 @@ from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.store import Reading, Reason, StoredText, Story, Topic
 from franki_reader.stretch import pick_stretch
+from franki_reader.study_day import DEFAULT_ROLLOVER, study_day_start
 from franki_reader.suggestions import suggest
 from franki_reader.tts import DEFAULT_VOICES, AudioCache, Synthesize, TtsFailed
 
@@ -135,6 +136,8 @@ class Engine:
         synthesize: Synthesize | None = None,
         audio: AudioCache | None = None,
         voices: dict[str, str] | None = None,
+        rollover: Callable[[], int] = lambda: DEFAULT_ROLLOVER,
+        zone: tzinfo | None = None,
     ) -> None:
         self.conn = conn
         self.ask_for = ask_for
@@ -145,6 +148,10 @@ class Engine:
         self.synthesize = synthesize
         self.audio = audio
         self.voices = voices or DEFAULT_VOICES
+        # Which study day it is (study_day.py): the collection's "Next day starts at" as last read,
+        # in `zone`, the process's own (TZ) when None.
+        self.rollover = rollover
+        self.zone = zone
         # All by topic and language: a topic can be writing in one language and failed in another.
         self._topic_locks: dict[tuple[int, Code], asyncio.Lock] = {}
         self._topping_up = asyncio.Lock()
@@ -385,8 +392,9 @@ class Engine:
     ) -> TextRequest:
         language = language or self.language()
         settings = store.load_settings(self.conn)
-        start_of_today = self.clock().replace(hour=0, minute=0, second=0, microsecond=0)
-        practiced = store.practiced_days(self.conn, start_of_today, language)
+        rollover = self.rollover()
+        start_of_today = study_day_start(self.clock(), rollover, self.zone)
+        practiced = store.practiced_days(self.conn, start_of_today, language, rollover, self.zone)
         chosen = store.load_grammar(self.conn)
         mine = [p.id for p in grammar.points_for(language)]
         practice = tuple(p for p in mine if chosen.get(p) == "practice")

@@ -139,6 +139,26 @@ async def test_sees_changes_made_in_anki_and_follows_a_full_sync(client, desktop
     assert types["Basic"]["fields"] == ["Front", "Back", "Extra"]
 
 
+async def test_a_full_sync_with_unsent_changes_is_refused_until_told_to_take_the_server(client, cm, desktop):
+    await call(client, "list_decks")
+
+    def change_here_while_another_device_uploads(col):
+        note = col.new_note(col.models.by_name("Basic"))
+        note["Front"] = "Only on the MCP"
+        col.add_note(note, col.decks.id_for_name(TRIVIA))
+        desktop.run("add-field", "Basic", "Extra", "+", "upload")
+
+    # The sync after the change finds the server's collection replaced: nothing is overwritten.
+    await cm.write(change_here_while_another_device_uploads)
+    for _ in range(2):  # and it stays refused, rather than taking the server's on a second try
+        assert "sync_now with take_server=true" in await call_error(client, "sync_now")
+    await call(client, "sync_now", take_server=True)
+    types = {t["note_type"]: t for t in (await call(client, "list_note_types"))["note_types"]}
+    assert types["Basic"]["fields"] == ["Front", "Back", "Extra"]
+    assert (await call(client, "find_notes", query='"Front:Only on the MCP"'))["total"] == 0
+    await call(client, "sync_now")  # and syncs normally from then on
+
+
 async def test_flagged_cards_are_found_with_their_reason_and_resolved(client, desktop):
     note = (await call(client, "get_notes", note_ids=[1794408858018]))["notes"][0]
     cid = note["cards"][0]["card_id"]

@@ -415,8 +415,9 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   deck's `Meaning`.
 - **Stretch words** are 1-3 words due today or still young. No random assignment.
 - **Stretch words come back on later days** (brief, design principle 4). A word that was a stretch
-  word in a text read on an earlier day goes ahead of other due and young words, until it has been
-  one on 3 different days (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be due
+  word in a text read on an earlier study day goes ahead of other due and young words, until it has
+  been one on 3 different study days (Anki's, in `TZ` from its "Next day starts at"; `study_day.py`)
+  (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be due
   or young, so a word that has matured since is left alone. In "Fit the topic" it's offered first,
   and the model may still pass it over if it doesn't fit.
 - **Short stories** as well as dialogues: a "Text type" setting (`form` in `/api/settings`),
