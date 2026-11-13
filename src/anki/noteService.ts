@@ -1,6 +1,7 @@
 import { isOmnilanguage, makeCards } from '../core/cards';
 import { cardStateOf, withCardState, type CardState } from '../core/cardState';
 import { Refusal } from '../core/failure';
+import { withMnemonic } from '../core/leechHint';
 import type { Card, Note, NoteType } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
 import { ankiCollapsedDecks, setAnkiDeckCollapsed } from './deckWrites';
@@ -169,6 +170,26 @@ export async function setCardStates(
     return { cards, ankiError: e };
   }
   return { cards };
+}
+
+/**
+ * Saves the hint written for a leech in its note's Mnemonic field (`withMnemonic`) and, when the
+ * answer suspended the card (its preset's leech action), unsuspends it as Unsuspend does
+ * (`setCardStates`), so it's studied again. The hint is saved first: a card that then couldn't be
+ * unsuspended comes back as `cardError` with the hint kept, so trying again wouldn't add it twice.
+ */
+export async function saveLeechHint(
+  store: NoteStore & Pick<AnkiLink, 'setAnkiCardStates'>,
+  note: Note, hint: string, suspended: Card | undefined, now: Date, dayStartsAtHour: number,
+): Promise<{ note: Note; card?: Card; cardError?: unknown; ankiError?: unknown }> {
+  const saved = await saveNote(store, { id: note.id, deck: note.deck, model: note.model, fields: withMnemonic(note.fields, hint), tags: note.tags }, now);
+  if (!suspended) return { note: saved };
+  try {
+    const { cards, ankiError } = await setCardStates(store, [suspended], (s) => ({ ...s, suspended: false }), now, dayStartsAtHour);
+    return { note: saved, card: cards[0], ankiError };
+  } catch (e) {
+    return { note: saved, cardError: e };
+  }
 }
 
 /**

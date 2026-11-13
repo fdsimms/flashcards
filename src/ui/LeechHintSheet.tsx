@@ -9,6 +9,8 @@ import { failureText } from '../core/failure';
 /**
  * Opens over the review screen when an answer makes a card a leech, asking for a hint to save in
  * the note's Mnemonic field (src/core/leechHint.ts). Skip leaves the card tagged and goes on.
+ * When the deck's options suspended the card (`suspended`), the sheet says so, and saving a hint
+ * also unsuspends it (`saveLeechHint`), so the hint gets its chance; Skip leaves it suspended.
  * `suggest` is present only while Read & Listen is signed in; it asks that server for ideas, and
  * only when the button is tapped.
  *
@@ -16,13 +18,15 @@ import { failureText } from '../core/failure';
  * Skip does. Not while a hint is written or being saved: then the sheet springs back, as iOS
  * does for a sheet with changes that would be lost.
  */
-export function LeechHintSheet({ word, gloss, misses, suggest, onSave, onSkip }: {
+export function LeechHintSheet({ word, gloss, misses, suspended, suggest, onSave, onSkip }: {
   word: string;
   /** What the word means (with its transliteration), so the sheet makes sense without the card behind it. */
   gloss?: string;
   misses: number;
+  /** The answer suspended the card, as the deck's options say for a leech; saving a hint unsuspends it. */
+  suspended?: boolean;
   suggest?: () => Promise<string[]>;
-  /** Saves the hint on the note; throws when it can't, and the sheet says why. */
+  /** Saves the hint on the note (and unsuspends the card, when `suspended`); throws when it can't, and the sheet says why. */
   onSave: (hint: string) => Promise<void>;
   onSkip: () => void;
 }) {
@@ -82,9 +86,15 @@ export function LeechHintSheet({ word, gloss, misses, suggest, onSave, onSkip }:
           <Text style={{ ...type.headline, color: c.text }}>{`You've missed ${word} ${misses} times`}</Text>
           {gloss ? <Text style={{ ...type.callout, color: c.textSecondary }}>{gloss}</Text> : null}
         </View>
-        <Text style={{ ...type.footnote, color: c.textSecondary }}>
-          Write a hint to see on the back of this card next time. It's saved on the note and synced to Anki. Swipe down to skip.
-        </Text>
+        {suspended ? (
+          <Text style={{ ...type.footnote, color: c.textSecondary }}>
+            This card is now suspended, as this deck's options say for a leech. Save a hint to see on the back of this card, and the card goes back into your reviews. The hint is saved on the note and synced to Anki. If you skip, the card stays suspended.
+          </Text>
+        ) : (
+          <Text style={{ ...type.footnote, color: c.textSecondary }}>
+            Write a hint to see on the back of this card next time. It's saved on the note and synced to Anki. Swipe down to skip.
+          </Text>
+        )}
         <Field label="Hint" value={hint} onChangeText={setHint} placeholder="A sound-alike, a picture, anything that sticks" multiline autoFocus />
         {suggest ? (
           <Tappable onPress={ask} disabled={asking} accessibilityRole="button" accessibilityLabel="Suggest hints" accessibilityState={{ busy: asking, disabled: asking }} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP }}>
@@ -104,10 +114,18 @@ export function LeechHintSheet({ word, gloss, misses, suggest, onSave, onSkip }:
           </Tappable>
         ))}
         {error ? <ErrorNote message={error} /> : null}
-        <View style={{ flexDirection: 'row', gap: space.m }}>
-          <Button label="Skip" variant="secondary" onPress={onSkip} style={{ flex: 1 }} disabled={saving} />
-          <Button label="Save hint" onPress={save} style={{ flex: 1 }} busy={saving} disabled={!hint.trim()} />
-        </View>
+        {suspended ? (
+          // The longer label gets the whole width, the main action on top.
+          <View style={{ gap: space.s }}>
+            <Button label="Save hint and keep studying" onPress={save} busy={saving} disabled={!hint.trim()} />
+            <Button label="Skip" variant="secondary" onPress={onSkip} disabled={saving} />
+          </View>
+        ) : (
+          <View style={{ flexDirection: 'row', gap: space.m }}>
+            <Button label="Skip" variant="secondary" onPress={onSkip} style={{ flex: 1 }} disabled={saving} />
+            <Button label="Save hint" onPress={save} style={{ flex: 1 }} busy={saving} disabled={!hint.trim()} />
+          </View>
+        )}
       </ScrollView>
     </Modal>
   );

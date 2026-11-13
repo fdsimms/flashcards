@@ -32,8 +32,12 @@ export async function runCustomStudy(store: NoteStore, deck: string, study: Cust
 
   if (isLimitChange(study)) {
     const settings = await store.listDeckSettings();
-    if (study.kind === 'moreNew' && deckLineage(deck).some((d) => settings.get(d)?.gateCap !== undefined)) {
-      throw new CustomStudyRefused('This deck uses a progress gate instead of a daily new card limit. Change the gate in Deck options to let in more new cards.');
+    // Under a progress gate only the gated deck's own daily new limit counts (`treeQueue`), so
+    // raising a subdeck's would change nothing.
+    const gatedAbove = deckLineage(deck).slice(0, -1).reverse().find((d) => settings.get(d)?.gateCap !== undefined);
+    if (study.kind === 'moreNew' && gatedAbove && settings.get(deck)?.gateCap === undefined) {
+      const name = gatedAbove.split('::').pop();
+      throw new CustomStudyRefused(`This deck's new cards are limited by the progress gate on ${name}. Use Custom study on ${name} to let in more new cards today.`);
     }
     const todayKey = studyDayKey(now, H);
     const params = await store.listDeckParams();
