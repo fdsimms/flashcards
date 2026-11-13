@@ -538,16 +538,12 @@ export function Review({ repo, deck, practice, suggestHints, reloadKey, onDone, 
       suggest={suggestHints && question ? () => suggestHints(question) : undefined}
       onSkip={() => setLeechPrompt(null)}
       onSave={async (hint) => {
-        try {
-          const saved = await saveNote(repo as NoteStore, {
-            id: leechNoteNow.id, deck: leechNoteNow.deck, model: leechNoteNow.model,
-            fields: withMnemonic(leechNoteNow.fields, hint), tags: leechNoteNow.tags,
-          });
-          setNotes((prev) => new Map(prev).set(saved.id, saved));
-          setLeechPrompt(null);
-        } catch (e) {
-          throw new Error(failureText(e, { what: "Couldn't save the hint.", next: 'Try again, or skip it.' }));
-        }
+        const saved = await saveNote(repo as NoteStore, {
+          id: leechNoteNow.id, deck: leechNoteNow.deck, model: leechNoteNow.model,
+          fields: withMnemonic(leechNoteNow.fields, hint), tags: leechNoteNow.tags,
+        });
+        setNotes((prev) => new Map(prev).set(saved.id, saved));
+        setLeechPrompt(null);
       }}
     />
   ) : null;

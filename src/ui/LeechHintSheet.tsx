@@ -16,7 +16,7 @@ export function LeechHintSheet({ word, misses, suggest, onSave, onSkip }: {
   word: string;
   misses: number;
   suggest?: () => Promise<string[]>;
-  /** Saves the hint on the note; throws with a sentence to show when it can't. */
+  /** Saves the hint on the note; throws when it can't, and the sheet says why. */
   onSave: (hint: string) => Promise<void>;
   onSkip: () => void;
 }) {
@@ -49,7 +49,7 @@ export function LeechHintSheet({ word, misses, suggest, onSave, onSkip }: {
     try {
       await onSave(hint);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(failureText(e, { what: "Couldn't save the hint.", next: 'Try again, or skip it.' }));
       setSaving(false);
     }
   };
