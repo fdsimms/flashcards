@@ -138,7 +138,7 @@ export interface DrillPrompt {
   middle: string;
   after: string;
   english: string;
-  /** Shown above the sentence: for a gap, the point and the hint ("Preterite · ir, nosotros"); Thai's points name the answer, so only the hint. */
+  /** Shown above the sentence: for a gap, the point and the hint ("Preterite · ir, nosotros"); a point whose name holds the answer (all of Thai's, Greek να) is left out, so only the hint. */
   label: string;
   /** "From Al mercado", for a line read. */
   source?: string;
@@ -178,7 +178,9 @@ export function drillPrompts(questions: DrillQuestionIn[], random: () => number 
         choices: shuffled(names, random), answer: point.name, typable: false,
       });
     } else {
-      const names = point.language === 'th' ? [] : [point.name];
+      // A point named after its word ("να (to, so that)", "Conditional (бы)") would print the answer above the gap.
+      const gives = point.language === 'th' || point.name.toLocaleLowerCase().includes(q.answer.trim().toLocaleLowerCase());
+      const names = gives ? [] : [point.name];
       out.push({
         pointId: point.id, kind: 'gap', before: q.before, middle: q.answer, after: q.after, english: q.english,
         label: [...names, q.hint].filter(Boolean).join(' · '),

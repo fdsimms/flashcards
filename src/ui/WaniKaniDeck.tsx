@@ -43,7 +43,7 @@ export function WaniKaniDeck({ wanikani, onOpen, onOptions }: { wanikani: WaniKa
         action={<SwipeAction icon="gearshape" label="Options" accessibilityLabel="Options for WaniKani" onPress={() => { setOpen(false); onOptions(); }} />}
       >
         <DeckRowView
-          row={{ deck: 'WaniKani', name: 'WaniKani', depth: 0, due, fresh, total: 0, hasSubdecks: false, collapsed: false }}
+          row={{ deck: 'WaniKani', name: 'WaniKani', depth: 0, due, fresh, total: 0, unstudied: 0, hasSubdecks: false, collapsed: false }}
           first
           detail={detail}
           menuHint="Options, or open wanikani.com"

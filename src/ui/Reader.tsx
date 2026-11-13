@@ -740,8 +740,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                   <View {...phraseDrag.lineProps} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
                     {lines.map((l, k) => (
                       <React.Fragment key={k}>
-                        {k > 0 ? <View style={{ width: readStyle(text, thaiFont).fontSize * 0.5 }} /> : null}
-                        {wrapGroups(l.words).map((chunk, j) => (
+                        {wrapGroups(l.words).map((chunk, j, chunks) => (
                           <View key={j} style={{ flexDirection: 'row', alignItems: 'center' }}>
                             {chunk.map((word, m) => (
                               <WordView
@@ -762,6 +761,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                                 viewRef={phraseDrag.wordRef(word)}
                               />
                             ))}
+                            {/* The gap before the next sentence trails this one's last chunk, never starts a row of its own:
+                                a lone spacer that wrapped to a new row indented that row. */}
+                            {j === chunks.length - 1 && k < lines.length - 1
+                              ? <View style={{ width: readStyle(text, thaiFont).fontSize * 0.5 }} /> : null}
                           </View>
                         ))}
                       </React.Fragment>

@@ -3,8 +3,8 @@ import { decodeDeckSnapshot, encodeDeckSnapshot } from '../../src/core/deckSnaps
 import type { DeckRow } from '../../src/core/deckTree';
 
 const rows: DeckRow[] = [
-  { deck: 'Thai', name: 'Thai', depth: 0, due: 12, fresh: 5, total: 300 },
-  { deck: 'Thai::Verbs', name: 'Verbs', depth: 1, due: 4, fresh: 2, total: 80, gate: { inProgress: 3, cap: 10 } },
+  { deck: 'Thai', name: 'Thai', depth: 0, due: 12, fresh: 5, total: 300, unstudied: 40 },
+  { deck: 'Thai::Verbs', name: 'Verbs', depth: 1, due: 4, fresh: 2, total: 80, unstudied: 10, gate: { inProgress: 3, cap: 10 } },
 ];
 
 describe('deck list snapshot', () => {
