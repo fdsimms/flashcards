@@ -5,7 +5,8 @@ A form's `id` is what the server stores and what Claude is asked to choose from 
 can only be one the catalog has a primer for. Its `name` is what the app's chip says. A primer is
 `summary`, an optional `table` (a `head` row and `rows`) and `examples`, each with its English. Text in
 `*asterisks*` is the part to highlight (an ending), as in the model's lines. Thai has no file: it has no
-inflection, so a word is never a form of another.
+inflection, so a word is never a form of another. English has none either: it is read by someone
+who already knows its grammar.
 """
 
 import json

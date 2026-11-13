@@ -308,14 +308,17 @@ def test_claude_forms_keeps_the_usage_of_an_answer_it_cant_use(
 # ==== The primers ====
 
 
-def test_every_language_but_thai_has_primers_and_thai_has_none() -> None:
-    assert form_primers.primers("th") == ()
+# Thai has no inflection, and English is read by someone who already knows its grammar: neither is
+# ever asked about its forms.
+NO_FORMS = ("th", "en")
+
+
+def test_every_language_has_primers_except_thai_and_english() -> None:
     for code in LANGUAGES:
-        if code != "th":
-            assert form_primers.primers(code), code
+        assert bool(form_primers.primers(code)) == (code not in NO_FORMS), code
 
 
-@pytest.mark.parametrize("code", [c for c in LANGUAGES if c != "th"])
+@pytest.mark.parametrize("code", [c for c in LANGUAGES if c not in NO_FORMS])
 def test_a_primer_is_well_formed(code: str) -> None:
     primers = form_primers.primers(code)
     ids = [p["id"] for p in primers]
