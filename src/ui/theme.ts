@@ -35,9 +35,10 @@ const light = {
   onHard: '#1b1407',
   /** A settings tile with no rating color to borrow (WaniKani's), white on it as on the rating tiles. */
   violet: '#7a4fb5',
-  /** More settings or Practice tiles with no rating color to borrow (Numbers', Counting things'), white on them too. */
+  /** More settings or Practice tiles with no rating color to borrow (Numbers', Counting things', Reading the script's), white on them too. */
   orange: '#b0601e',
   teal: '#2f7d7a',
+  rose: '#b23a6a',
   /**
    * A chart's bars (Stats): the accent's gold, stepped to pass the dataviz checks for a data mark
    * (lightness band, chroma floor, 3:1 against the surface) in each mode.
@@ -114,6 +115,7 @@ const dark: typeof light = {
   violet: '#694595',
   orange: '#9a521a',
   teal: '#2a6e6b',
+  rose: '#9c3560',
   chart: '#b88d32',
   heat: ['#614e20', '#87692a', '#b38f3e', '#e6c270'],
   cashNotes: ['#4b3f66', '#6a3f38', '#34496a', '#365a40', '#665a33', '#5a4b3c', '#3b5357'],

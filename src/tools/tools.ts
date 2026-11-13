@@ -11,6 +11,7 @@ import { sayGermanMoney } from './german/money';
 import { sayGermanNumber } from './german/number';
 import { sayGermanTime } from './german/time';
 import { GREEK_COUNTING } from './greek/counting';
+import { GREEK_SCRIPT } from './greek/script';
 import { sayGreekDate } from './greek/date';
 import { sayGreekMoney } from './greek/money';
 import { sayGreekNumber } from './greek/number';
@@ -31,6 +32,7 @@ import { sayPolishMoney } from './polish/money';
 import { sayPolishNumber } from './polish/number';
 import { sayPolishTime } from './polish/time';
 import { RUSSIAN_COUNTING } from './russian/counting';
+import { RUSSIAN_SCRIPT } from './russian/script';
 import { sayRussianDate } from './russian/date';
 import { sayRussianMoney } from './russian/money';
 import { sayRussianNumber } from './russian/number';
@@ -40,6 +42,7 @@ import { saySpanishMoney } from './spanish/money';
 import { saySpanishNumber } from './spanish/number';
 import { saySpanishTime } from './spanish/time';
 import { THAI_COUNTING } from './thai/counting';
+import { THAI_SCRIPT } from './thai/script';
 import { sayThaiDate } from './thai/date';
 import { sayThaiMoney } from './thai/money';
 import { sayThaiNumber } from './thai/number';
@@ -47,6 +50,7 @@ import { sayThaiTime } from './thai/time';
 import type { CalendarDate, DateParts, DateSaying } from './date';
 import type { CountingLanguage } from './counting';
 import type { CurrencyCode, MoneySaying } from './money';
+import type { ScriptLanguage } from './script';
 import type { NumberQuestion, NumberSaying } from './number';
 import type { ClockTime, TimeSaying } from './time';
 
@@ -62,7 +66,7 @@ import type { ClockTime, TimeSaying } from './time';
 /** The languages the tools come in: every app language but English, which the app is already in. */
 export const TOOL_LANGUAGES: Language[] = LANGUAGE_ORDER.filter((l) => l !== 'en');
 
-export type ToolId = 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'grammar';
+export type ToolId = 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'grammar';
 
 export interface ToolInfo {
   id: ToolId;
@@ -139,6 +143,16 @@ export const COUNTING: Partial<Record<Language, CountingLanguage>> = {
   ru: RUSSIAN_COUNTING,
 };
 
+/**
+ * Each language Reading the script can be read in: Thai's tones, and Russian's and Greek's
+ * letters and stress. Japanese is left out, as WaniKani covers reading it.
+ */
+export const SCRIPTS: Partial<Record<Language, ScriptLanguage>> = {
+  th: THAI_SCRIPT,
+  el: GREEK_SCRIPT,
+  ru: RUSSIAN_SCRIPT,
+};
+
 /** The money each language is practiced with: Mexican pesos for Spanish, as its voice is Mexican. */
 export const CURRENCY_OF: Partial<Record<Language, CurrencyCode>> = {
   th: 'THB', es: 'MXN', fr: 'EUR', de: 'EUR', el: 'EUR', pl: 'PLN', ru: 'RUB', nb: 'NOK', ja: 'JPY',
@@ -181,6 +195,12 @@ export const TOOLS: ToolInfo[] = [
     title: 'Counting things',
     summary: 'A number with a noun: counters, classifiers and endings.',
     languages: withSayer(COUNTING),
+  },
+  {
+    id: 'script',
+    title: 'Reading the script',
+    summary: 'Read a syllable or a word, then hear it.',
+    languages: withSayer(SCRIPTS),
   },
   {
     // Spaced drills on the grammar points set to Practice or Know it (docs/grammar.md, step 5).

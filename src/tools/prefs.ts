@@ -5,6 +5,7 @@ import { MONEY_MAXES, type MoneyMax } from './money';
 import { COUNT_MAXES, COUNT_MODES, type CountMax, type CountMode } from './counting';
 import { ANSWER_MODES, type AnswerMode } from './listen';
 import { NUMBER_KINDS, type NumberKind } from './number';
+import { SCRIPT_MODES, type ScriptMode } from './script';
 import { MINUTE_STEPS, type MinuteStep } from './time';
 
 /**
@@ -33,11 +34,13 @@ export interface ToolPrefs {
   /** Counting things: said aloud or picked, and how high the number goes. */
   countMode: CountMode;
   countMax: CountMax;
+  /** Reading the script: read a word aloud, or (Thai) name a syllable's tone. */
+  scriptMode: ScriptMode;
 }
 
 export type MoneyMode = 'count' | 'price';
 
-export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, timeMode: 'say', dateWeekday: true, dateYear: false, dateMode: 'say', moneyMode: 'count', moneyMax: 1000, moneyAnswer: 'say', numberKind: 'number', numberMode: 'say', countMode: 'say', countMax: 10 };
+export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, timeMode: 'say', dateWeekday: true, dateYear: false, dateMode: 'say', moneyMode: 'count', moneyMax: 1000, moneyAnswer: 'say', numberKind: 'number', numberMode: 'say', countMode: 'say', countMax: 10, scriptMode: 'tone' };
 
 /** Anything unreadable or out of range falls back to the default for that setting. */
 export function parseToolPrefs(raw: string | null): ToolPrefs {
@@ -63,5 +66,6 @@ export function parseToolPrefs(raw: string | null): ToolPrefs {
     numberMode: ANSWER_MODES.find((m) => m === saved.numberMode) ?? DEFAULT_TOOL_PREFS.numberMode,
     countMode: COUNT_MODES.find((m) => m === saved.countMode) ?? DEFAULT_TOOL_PREFS.countMode,
     countMax: COUNT_MAXES.find((m) => m === saved.countMax) ?? DEFAULT_TOOL_PREFS.countMax,
+    scriptMode: SCRIPT_MODES.find((m) => m === saved.scriptMode) ?? DEFAULT_TOOL_PREFS.scriptMode,
   };
 }

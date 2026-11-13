@@ -60,6 +60,10 @@ describe('the Practice tools', () => {
     }
   });
 
+  it('offers Reading the script in Thai, Greek and Russian, in the app order', () => {
+    expect(toolById('script')!.languages).toEqual(TOOL_LANGUAGES.filter((l) => ['th', 'el', 'ru'].includes(l)));
+  });
+
   it('leaves English out, which the app is already in', () => {
     expect(TOOL_LANGUAGES).not.toContain('en');
     expect(TOOL_LANGUAGES.length).toBe(LANGUAGE_ORDER.length - 1);
