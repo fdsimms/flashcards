@@ -30,10 +30,17 @@ class Entry:
     text: str
     meaning: str
     tier: Tier
-    due: bool = False  # a card of this note is due in Anki today
+    # A card of this note was due on the snapshot's study day and not yet answered that day: it's
+    # never a practice word while that holds (stretch.py).
+    due: bool = False
     # The note's pronunciation (Language.translit_field: Thai's Transliteration, Japanese's
     # KanaReading), empty when it has none
     translit: str = ""
+    # How many study days after the snapshot's its first studied card comes due (0 or less: due
+    # that day already), for a snapshot read on an earlier day; None with no studied card.
+    due_in: int | None = None
+    # A card of this note was answered on the snapshot's study day (Anki's rated:1).
+    reviewed: bool = False
 
 
 @dataclass(frozen=True)
@@ -49,7 +56,7 @@ class NoteRow:
 @dataclass(frozen=True)
 class CardRow:
     """A card's Anki type (0 new, 1 learning, 2 review, 3 relearning), interval in days, whether
-    it's due today, and whether it's suspended (queue -1)."""
+    it's due today (Anki's is:due), and whether it's suspended (queue -1)."""
 
     note_id: int
     type: int
@@ -58,6 +65,10 @@ class CardRow:
     # A suspended card doesn't count toward its note's tier (`note_tier`): the owner's presets
     # suspend leeches, the words they keep failing, which shouldn't count as known or be stretched on.
     suspended: bool = False
+    # Answered today, on any device (Anki's rated:1, by the collection's "Next day starts at").
+    rated: bool = False
+    # Study days from today until it's due (`days_until_due`), None for a new or suspended card.
+    due_in: int | None = None
 
 
 # Reads one language's deck. Raises AnkiUnavailable (gateway.py) when it can't, so the caller keeps
@@ -65,14 +76,39 @@ class CardRow:
 ReadDeck = Callable[[Language], Awaitable[list[Entry]]]
 
 
+# A card's `due` above this is a Unix time (a learning step within the day), as Anki tells them apart;
+# below it, a day number (a review, or a learning step that crossed into a later day).
+_TIMESTAMP = 1_000_000_000
+DAY_SECONDS = 86400
+
+
+def days_until_due(card_type: int, queue: int, due: int, today: int, day_cutoff: int) -> int | None:
+    """How many study days from today a card comes due (0 today, negative overdue), from its Anki
+    columns: `due` (the original deck's, for a card in a filtered deck), the collection's day number
+    `today` and `day_cutoff` (when the next study day starts, Unix seconds). None for a new card and a
+    suspended one, which never come due. A buried card comes due as it would unburied."""
+    if card_type == 0 or queue == -1:
+        return None
+    if due > _TIMESTAMP:
+        return 0 if due < day_cutoff else (due - day_cutoff) // DAY_SECONDS + 1
+    return due - today
+
+
 def build_entries(notes: Iterable[NoteRow], cards: Iterable[CardRow]) -> list[Entry]:
     cards_by_note: dict[int, list[tuple[int, int]]] = {}
-    due_notes: set[int] = set()
+    due_notes: set[int] = set()  # a card due today and not answered yet today
+    reviewed_notes: set[int] = set()
+    due_in: dict[int, int] = {}  # the soonest any studied card comes due
     for card in cards:
         if not card.suspended:
             cards_by_note.setdefault(card.note_id, []).append((card.type, card.ivl))
-        if card.due:
+            if card.due_in is not None:
+                soonest = due_in.get(card.note_id)
+                due_in[card.note_id] = card.due_in if soonest is None else min(soonest, card.due_in)
+        if card.due and not card.rated:
             due_notes.add(card.note_id)
+        if card.rated:
+            reviewed_notes.add(card.note_id)
 
     entries = []
     for note in notes:
@@ -87,6 +123,8 @@ def build_entries(notes: Iterable[NoteRow], cards: Iterable[CardRow]) -> list[En
                 tier=note_tier(cards_by_note.get(note.note_id, [])),
                 due=note.note_id in due_notes,
                 translit=clean(note.translit),
+                due_in=due_in.get(note.note_id),
+                reviewed=note.note_id in reviewed_notes,
             )
         )
     return entries

@@ -16,9 +16,9 @@ describe('the shelf', () => {
   });
 
   it('says why each text is there', () => {
-    expect(reasonLabel(text({ reason: 'due', stretch: ['ร่ม', 'ฝน'] }))).toBe('Uses 2 words due today');
-    expect(reasonLabel(text({ reason: 'due', stretch: ['ร่ม'] }))).toBe('Uses 1 word due today');
-    expect(reasonLabel(text({ reason: 'due' }))).toBe('Written around words due today');
+    expect(reasonLabel(text({ reason: 'due', stretch: ['ร่ม', 'ฝน'] }))).toBe('Uses 2 words you reviewed today');
+    expect(reasonLabel(text({ reason: 'due', stretch: ['ร่ม'] }))).toBe('Uses 1 word you reviewed today');
+    expect(reasonLabel(text({ reason: 'due' }))).toBe('Written around words you reviewed today');
     expect(reasonLabel(text({ reason: 'liked', topic: 'A scary tiger' }))).toBe('Because you liked "A scary tiger"');
     expect(reasonLabel(text({ reason: 'new' }))).toBe('Something new');
     expect(reasonLabel(text({ reason: 'asked' }))).toBe('You asked for this');

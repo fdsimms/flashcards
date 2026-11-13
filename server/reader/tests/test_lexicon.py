@@ -2,7 +2,13 @@ from pathlib import Path
 
 from fake_anki import card, note
 
-from franki_reader.lexicon import THAI_NOTES_QUERY, build_entries, clean, lexicon_from
+from franki_reader.lexicon import (
+    THAI_NOTES_QUERY,
+    build_entries,
+    clean,
+    days_until_due,
+    lexicon_from,
+)
 
 # Real entries and meanings from the Thai deck.
 NOTES = [
@@ -55,6 +61,37 @@ def test_a_suspended_card_leaves_the_tier_to_the_notes_other_cards() -> None:
     # The suspended card was the weakest: the note is as known as its unsuspended one.
     assert build_entries(word, [card(1, 2, 3, suspended=True), card(1, 2, 40)])[0].tier == "mature"
     assert build_entries(word, [card(1, 2, 40, suspended=True), card(1, 2, 3)])[0].tier == "young"
+
+
+TODAY = 400  # the collection's day number
+CUTOFF = 1_800_000_000  # when the next study day starts, Unix seconds
+
+
+def test_days_until_due_reads_a_day_number_or_a_learning_steps_time() -> None:
+    assert days_until_due(2, 2, TODAY, TODAY, CUTOFF) == 0  # a review due today
+    assert days_until_due(2, 2, TODAY - 3, TODAY, CUTOFF) == -3  # overdue
+    assert days_until_due(2, 2, TODAY + 5, TODAY, CUTOFF) == 5
+    assert days_until_due(1, 3, TODAY + 1, TODAY, CUTOFF) == 1  # a step that crossed into tomorrow
+    assert days_until_due(1, 1, CUTOFF - 600, TODAY, CUTOFF) == 0  # a step later today
+    assert days_until_due(3, 1, CUTOFF + 600, TODAY, CUTOFF) == 1  # past the rollover: tomorrow
+    assert days_until_due(2, -2, TODAY + 2, TODAY, CUTOFF) == 2  # buried: due as it would be
+    assert days_until_due(0, 0, 12, TODAY, CUTOFF) is None  # new: its due is a position
+    assert days_until_due(2, -1, TODAY, TODAY, CUTOFF) is None  # suspended
+
+
+def test_an_entry_is_due_until_every_due_card_is_answered_today() -> None:
+    word = [note(1, "ดี", "good")]
+    due = build_entries(word, [card(1, 2, 5, due=True, due_in=0), card(1, 2, 9, due_in=4)])[0]
+    assert (due.due, due.reviewed, due.due_in) == (True, False, 0)
+    # Answered today, and again in relearning (is:due again): reviewed, and no longer waiting.
+    done = build_entries(word, [card(1, 3, 1, due=True, rated=True, due_in=0)])[0]
+    assert (done.due, done.reviewed) == (False, True)
+    # One card answered, its reverse still due: still waiting for that review.
+    half = [card(1, 2, 5, rated=True, due_in=3), card(1, 2, 5, due=True, due_in=0)]
+    assert build_entries(word, half)[0].due
+    # A suspended card never comes due.
+    leech = build_entries(word, [card(1, 2, 5, suspended=True, due_in=0), card(1, 2, 9, due_in=4)])
+    assert leech[0].due_in == 4
 
 
 def test_clean_strips_html_and_entities() -> None:

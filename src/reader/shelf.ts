@@ -21,8 +21,10 @@ export function cardDetail(text: Pick<ShelfText, 'form' | 'lines'>): string {
 export function reasonLabel(text: ShelfText): string {
   switch (text.reason) {
     case 'due': {
+      // Only words already reviewed today: one read before its review would turn that review into
+      // short-term recall (server/reader's stretch.py).
       const n = text.stretch.length;
-      return n === 0 ? 'Written around words due today' : `Uses ${n} ${n === 1 ? 'word' : 'words'} due today`;
+      return n === 0 ? 'Written around words you reviewed today' : `Uses ${n} ${n === 1 ? 'word' : 'words'} you reviewed today`;
     }
     case 'liked':
       return `Because you liked "${text.topic}"`;

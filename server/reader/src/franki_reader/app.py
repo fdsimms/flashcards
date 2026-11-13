@@ -215,6 +215,7 @@ from franki_reader.reader import (
     from_wanikani,
     gloss_for,
     lemma_for,
+    parts_for,
     render,
     render_line,
     render_sentence,
@@ -1177,7 +1178,9 @@ def create_app(
         return [
             {
                 "word": w.word,
-                "gloss": gloss_for(w.word, w.glosses, lexicon, known),
+                "gloss": (gloss := gloss_for(w.word, w.glosses, lexicon, known)),
+                # A compound known from its parts, with no meaning of its own: the parts' meanings.
+                "parts": None if gloss else parts_for(w.word, lexicon, known),
                 "lemma": lemma_for(w.word, lexicon),
                 "status": lexicon.status(w.word),
                 "deck": lexicon.entry_of(w.word) is not None,

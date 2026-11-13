@@ -187,6 +187,7 @@ def test_a_japanese_text_renders_with_readings_lemmas_and_glosses() -> None:
         "text": "約束を破った",
         "status": "known",
         "gloss": "to break a promise",
+        "parts": None,
         "lemma": "約束を破る",
         "translit": "やくそくをやぶった",
         "stretch": True,

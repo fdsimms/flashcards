@@ -53,6 +53,17 @@ export function commonNamed(label: string): CommonCount | undefined {
   return COMMON_COUNTS.find((count) => commonLabel(count) === label);
 }
 
+/**
+ * A word's meaning as the gloss popover and the marked words list show it: its gloss, else, for a
+ * compound known from its parts, the parts' meanings labeled as parts, since what they say together
+ * is often not what the word means (เข้าใจ is "understand", not "enter + heart").
+ */
+export function meaningOf(word: Pick<Word, 'gloss' | 'parts'>): string {
+  if (word.gloss) return word.gloss;
+  if (word.parts) return `Parts: ${word.parts}`;
+  return 'No meaning available';
+}
+
 // For the gloss popover and the marked words list.
 export function wordStatus(word: Pick<Word, 'status' | 'deck' | 'wanikani'>): string {
   if (word.status === 'name') return 'A name';

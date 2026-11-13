@@ -364,7 +364,9 @@ break and nowhere else: never between words of the same clause, never before a p
 or "slang". Write each line in its register, so a chat between friends is casual, and a story's \
 narrator is usually neutral.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
-is not in the list, and for each name ("a girl's name"). For each of those words also give "translit", its pronunciation in Latin letters \
+is not in the list, and for each name ("a girl's name"). Also gloss every word you join from two or \
+more list words, like เข้าใจ ("understand", from เข้า and ใจ) or หน้าที่ ("duty", from หน้า and ที่): \
+such a word often means something its parts don't. For each of those words also give "translit", its pronunciation in Latin letters \
 with tone marks and a hyphen between syllables, as the learner's own cards write it: \
 nǎng-sǔue (หนังสือ), kâao (ข้าว), mâi-pen-rai (ไม่เป็นไร).
 

@@ -9,8 +9,17 @@ def note(note_id: int, entry: str, meaning: str) -> NoteRow:
     return NoteRow(note_id, entry, meaning)
 
 
-def card(nid: int, card_type: int, ivl: int, due: bool = False, suspended: bool = False) -> CardRow:
-    return CardRow(nid, card_type, ivl, due, suspended)
+def card(
+    nid: int,
+    card_type: int,
+    ivl: int,
+    due: bool = False,
+    suspended: bool = False,
+    rated: bool = False,
+    due_in: int | None = None,
+) -> CardRow:
+    """`due`: Anki's is:due; `rated`: answered today (rated:1); `due_in`: study days until due."""
+    return CardRow(nid, card_type, ivl, due, suspended, rated, due_in)
 
 
 class FakeDeck:
