@@ -135,24 +135,35 @@ def lexicon_from(
     language: Code = "th",
     common: int | None = None,
     extra: Iterable[str] = (),
+    withheld: Iterable[str] = (),
 ) -> Checker:
     """Mature and young both count as known for coverage; unreviewed notes don't. `common` is how
     many of the language's most common words count too (the setting), its default if None. `extra`
-    is words known from outside the deck, which aren't deck words (Japanese's from WaniKani)."""
-    known = frozenset(e.text for e in entries if e.tier != "unreviewed")
+    is words known from outside the deck, which aren't deck words (Japanese's from WaniKani).
+    `withheld` is deck entries that count as unknown even so, in every form, common or not: words
+    due today and not reviewed yet, while a text is written (engine.py)."""
+    held = frozenset(withheld)
+    known = frozenset(e.text for e in entries if e.tier != "unreviewed") - held
     count = LANGUAGES[language].common if common is None else common
-    return _lexicon(language, known, count, frozenset(extra))
+    return _lexicon(language, known, count, frozenset(extra), held)
 
 
-@lru_cache(maxsize=4)
-def _lexicon(language: Code, known: frozenset[str], common: int, extra: frozenset[str]) -> Checker:
+@lru_cache(maxsize=8)
+def _lexicon(
+    language: Code,
+    known: frozenset[str],
+    common: int,
+    extra: frozenset[str],
+    withheld: frozenset[str] = frozenset(),
+) -> Checker:
     # Building one costs about a second (the segmenter's dictionary), so the same set of known
-    # words reuses it: once per snapshot in production, once per test module in tests.
+    # words reuses it: once per snapshot in production (and once more for writing, when words are
+    # withheld), once per test module in tests.
     if language == "ja":
-        return JapaneseLexicon(known, common, extra)
+        return JapaneseLexicon(known, common, extra, withheld)
     if LANGUAGES[language].spaced:
-        return SpacedLexicon(language, known, common)
-    return Lexicon(known)
+        return SpacedLexicon(language, known, common, withheld)
+    return Lexicon(known, withheld)
 
 
 def clean(value: str) -> str:

@@ -1,6 +1,7 @@
 import asyncio
 import random
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from datetime import datetime, timedelta
 from functools import partial
 from pathlib import Path
@@ -9,7 +10,7 @@ from typing import Any
 import pytest
 from fake_anki import FakeDeck, card, note
 from franki_speech import WordMark
-from scripted import BAD, ENTRIES, IN_RANGE, ScriptedModel
+from scripted import BAD, ENTRIES, IN_RANGE, PLAIN, WITHOUT_KIN, ScriptedModel
 
 from franki_reader import store
 from franki_reader.difficulty import Difficulty
@@ -262,7 +263,8 @@ def test_the_due_text_waits_for_a_word_reviewed_today_and_anki_is_read_again_mea
     cards = [card(n, 2, 40, due_in=10) for n in (1, 2, 3, 5, 6)] + [card(7, 0, 0)]
     deck = FakeDeck(notes, [*cards, card(4, 2, 5, due=True, due_in=0)])
     clock = Clock()
-    model = ScriptedModel(IN_RANGE)
+    # Every text before the review leaves ข้าวเหนียวมะม่วง out (PLAIN); the due text uses it.
+    model = ScriptedModel(PLAIN, PLAIN, PLAIN, PLAIN, IN_RANGE)
     e = Engine(store.connect(":memory:"), model.ask_for, deck, clock, random.Random(1))
     store.add_topic(e.conn, "Food stall", True, NOW)
     store.add_topic(e.conn, "Taxi", True, NOW)
@@ -294,6 +296,29 @@ def test_the_due_text_waits_for_a_word_reviewed_today_and_anki_is_read_again_mea
     clock.now += DUE_SNAPSHOT_AGE
     run(e.top_up)
     assert len(deck.reads) == 2
+
+
+def test_a_word_due_today_and_not_reviewed_is_left_out_of_a_new_text() -> None:
+    # กิน is due today and not reviewed yet: a new text is written without it, but a text already
+    # written that has it is read as before.
+    entries = [replace(x, due=True, due_in=0) if x.text == "กิน" else x for x in ENTRIES]
+    model = ScriptedModel(IN_RANGE, WITHOUT_KIN)
+    e = engine(model)
+    store.save_snapshot(e.conn, entries, NOW)
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+
+    text = run(lambda: fetch(e, topic.id))
+
+    listed = {x.text for x in model.entries_seen[0]}
+    assert "กิน" not in listed and {"ฉัน", "ข้าวเหนียวมะม่วง"} <= listed
+    revision = str(model.messages_seen[1][-1]["content"])
+    assert "กิน" in revision  # named as a word outside the list, like any other
+    assert model.calls == 2 and all("กิน" not in ln.text for ln in text.lines)
+    assert e.writing_lexicon("th")[1].status("กิน") == "unknown"
+    assert e.snapshot("th")[1].status("กิน") == "known"  # reading, glosses and marks unchanged
+    # A practice word asked for is never withheld, whatever the snapshot says.
+    kept = e.writing_lexicon("th", keep=[x for x in entries if x.text == "กิน"])[1]
+    assert kept.status("กิน") == "known"
 
 
 def test_a_word_that_came_due_since_the_snapshot_is_not_a_practice_word() -> None:

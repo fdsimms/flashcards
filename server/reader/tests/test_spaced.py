@@ -564,3 +564,14 @@ def test_spanish_subjunctives_match_a_deck_infinitive() -> None:
         assert deck.entry_of(form) == entry, form
     # a guess only matches a deck entry, so a word that merely looks like one isn't made known
     assert deck.status("elogie") == "unknown"
+
+
+def test_a_withheld_entry_is_unknown_in_any_form_even_as_a_common_word() -> None:
+    # A word due today and not reviewed yet, while a text is written (engine.writing_lexicon).
+    deck = [Entry(1, "el vino", "wine", "young"), Entry(2, "la casa", "house", "mature")]
+    reading = lexicon_from(deck, "es")
+    writing = lexicon_from(deck, "es", withheld=["el vino"])
+    assert reading.status("vino") == reading.status("vinos") == "known"
+    assert writing.status("vino") == writing.status("vinos") == "unknown"
+    assert writing.entry_of("vino") is None
+    assert writing.status("casa") == writing.status("el") == "known"

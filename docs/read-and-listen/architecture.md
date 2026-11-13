@@ -252,8 +252,8 @@ Franki's (Client, below).
   whether one was answered that day on any device (`reviewed`, `rated:1`), and how many study days
   after it the soonest card comes due (`due_in`, from the cards' due day or learning step). A
   snapshot can be from an earlier study day than today, so on a later day a word is taken as waiting
-  once `due_in` says it has come due, and nothing is known to be reviewed. Stretch words read these
-  (Generation and coverage). Still read only: `test_collection.py` checks a read leaves nothing to send.
+  once `due_in` says it has come due, and nothing is known to be reviewed. Stretch words, and the
+  words a new text may use, read these (Generation and coverage). Still read only: `test_collection.py` checks a read leaves nothing to send.
 - Only the latest snapshot is kept. No history.
 - **Transliteration** (Thai): a word's popover hides it behind "Show transliteration". A deck word shows
   its note's `Transliteration` field, kept in the snapshot. A word off the list shows the one the model
@@ -664,6 +664,33 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   and `due_in`, Lexicon). A mature word counts only once reviewed today. "Read a text with these
   words" from Review is unchanged: its words were just reviewed. A text already written waits on the
   shelf as it is; its practice words aren't checked again when it's opened.
+- **Nor anywhere else in a new text** (13 November 2026, the owner's decision, following the item
+  above). While a text is written, a word with a card due today and not answered today counts as not
+  known (`Engine.writing_lexicon`, by the same `due`, `reviewed` and `due_in` as `stretch.py`, and
+  `snapshot_days` for a snapshot from an earlier day): it's left out of the word list the model is
+  given, and the checker counts it as unknown in any form, even where it's also one of the common
+  words (spaced.py, japanese.py) or splits into known Thai words (`withheld` in `lexicon_from`). A
+  draft that uses it anyway goes back with it named like any other unknown word, and the text's
+  stored coverage is the one measured that way. The text's own practice words are never withheld:
+  the ones picked are never waiting, and those of "Read a text with these words" were just reviewed
+  in Franki, whatever a snapshot read before Franki synced says. Only writing changes: reading a
+  text, its glosses and its known or unknown marks, the vocabulary check and everything else that
+  reads the lexicon use the snapshot as before, so a text written earlier isn't re-marked. Texts
+  already written stay as they are, and cards' example sentences aren't affected.
+  - *Prompt cache.* The list is the cached prefix. The withheld words come from the snapshot and
+    the study day, so the prefix is the same for every text written from one snapshot on one day: a
+    write's revisions and a top-up's texts share it, as before. It changes when the snapshot is read
+    again after reviews (which already changed it whenever a tier did) and at the rollover, and a
+    "Read a text with these words" text, whose words aren't withheld, has its own. Fixing the
+    withheld words for the whole study day was considered and not done: the cache lasts 5 minutes,
+    so it would only keep words out after they'd been reviewed.
+  - *A heavy review day.* With 150 words due, those are out of the list until reviewed (and until
+    a later snapshot shows it). Most are young or recently missed words; the words most texts lean on
+    are mature with long intervals, and in every language but Thai the common words carry most of the
+    coverage, so the target is normally still reached. A draft that leans on withheld words is revised
+    up to 3 times as usual; if none reaches the target, the closest attempt at 85% or more is served
+    with the reader's "fewer than usual" note, and under that the text is dropped and the topic waits
+    `FAILURE_COOLDOWN`, like any other miss. Nothing waits for the reviews to be done first.
 - **Stretch words come back on later days** (brief, design principle 4). A word that was a stretch
   word in a text read on an earlier study day goes ahead of other reviewed and young words, until it
   has been one on 3 different study days (Anki's, in `TZ` from its "Next day starts at"; `study_day.py`)
