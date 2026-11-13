@@ -154,7 +154,7 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
   // What the row sits on is the card's own color at even depths and a well's tint at odd ones; the
   // pressed state and the show/hide button take the other one, so they show.
   const onWell = row.depth % 2 === 1 ? c.surface : c.fill;
-  const line = detail ? detail.text : `${row.total.toLocaleString()} ${row.total === 1 ? 'card' : 'cards'}${row.collapsed && subdecks ? ` · ${subdecks} ${subdecks === 1 ? 'subdeck' : 'subdecks'}` : ''}`;
+  const line = detail ? detail.text : `${row.total.toLocaleString()} ${row.total === 1 ? 'card' : 'cards'}${row.unstudied ? ` · ${row.unstudied.toLocaleString()} not studied yet` : ''}${row.collapsed && subdecks ? ` · ${subdecks} ${subdecks === 1 ? 'subdeck' : 'subdecks'}` : ''}`;
   const gateLine = row.gate ? `${row.gate.inProgress} of ${row.gate.cap} in progress${atCap ? ', new cards wait' : ''}` : null;
   return (
     <Pressable
