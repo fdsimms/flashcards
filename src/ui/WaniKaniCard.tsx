@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Image, Text, useColorScheme, View } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { mnemonicParts, otherMeanings, primaryMeaning, READING_TYPE_NAMES, readingGroups, type Subject } from '../wanikani/subjects';
+import { mnemonicParts, otherMeanings, primaryMeaning, READING_TYPE_NAMES, readingGroups, SUBJECT_TYPE_NAMES, type Part, type Subject } from '../wanikani/subjects';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
@@ -50,6 +50,36 @@ function FieldLabel({ children }: { children: string }) {
   return <Text style={{ ...type.overline, color: c.textTertiary, textAlign: 'center' }}>{children}</Text>;
 }
 
+/**
+ * What a kanji or a word is made of (`madeOf`), as WaniKani's lessons open with: each part's
+ * characters, or a radical's picture, over its meaning. A radical with neither shows its name.
+ */
+function MadeOf({ parts }: { parts: Part[] }) {
+  const c = useTheme();
+  return (
+    <View style={{ alignItems: 'center', gap: space.s }}>
+      <FieldLabel>Made of</FieldLabel>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
+        {parts.map((p) => (
+          <View
+            key={p.id}
+            accessible
+            accessibilityLabel={`${SUBJECT_TYPE_NAMES[p.type]}${p.characters ? ` ${p.characters}` : ''}, ${p.meaning}`}
+            style={{ alignItems: 'center', justifyContent: 'center', gap: 2, minWidth: 64, minHeight: MIN_TAP, paddingHorizontal: space.m, paddingVertical: space.s, borderRadius: radius.m, ...smooth, backgroundColor: c.fill }}
+          >
+            {p.characters ? (
+              <Text accessibilityLanguage="ja-JP" style={{ ...JA, ...type.title, fontWeight: '500', color: c.text }}>{p.characters}</Text>
+            ) : p.image ? (
+              <RadicalImage image={p.image} size={26} />
+            ) : null}
+            <Text style={p.characters || p.image ? { ...type.caption, color: c.textSecondary } : { ...type.callout, fontWeight: '600', color: c.text }}>{p.meaning}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 /** A mnemonic with WaniKani's marked words in bold. */
 function Mnemonic({ title, markup }: { title: string; markup: string }) {
   const c = useTheme();
@@ -68,12 +98,15 @@ function Mnemonic({ title, markup }: { title: string; markup: string }) {
 }
 
 /**
- * The answer side: the meaning and reading (each only once it's no longer being asked, so the
- * meaning's answer never gives the reading away), the recording, mnemonics behind a tap unless
- * it's a lesson, and example sentences.
+ * The answer side: what it's made of and the meaning, then the reading (each only once it's no
+ * longer being asked, so the meaning's answer never gives the reading away), the recording,
+ * mnemonics behind a tap unless it's a lesson, and example sentences. The parts go with the
+ * meaning, since their meanings hint at it.
  */
-export function SubjectDetails({ subject, showMeaning, showReading, synonyms, lesson, onPlay }: {
+export function SubjectDetails({ subject, parts, showMeaning, showReading, synonyms, lesson, onPlay }: {
   subject: Subject;
+  /** What it's made of (`madeOf`); empty for a radical, or when the parts couldn't be read. */
+  parts: Part[];
   showMeaning: boolean;
   showReading: boolean;
   synonyms: string[];
@@ -88,6 +121,7 @@ export function SubjectDetails({ subject, showMeaning, showReading, synonyms, le
   const hasMnemonics = (showMeaning && subject.meaningMnemonic) || (showReading && subject.readingMnemonic);
   return (
     <View style={{ gap: space.l }}>
+      {showMeaning && parts.length ? <MadeOf parts={parts} /> : null}
       {showMeaning ? (
         <View style={{ alignItems: 'center', gap: 2 }}>
           <FieldLabel>Meaning</FieldLabel>

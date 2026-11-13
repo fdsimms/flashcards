@@ -53,7 +53,7 @@ export interface Subject {
   contextSentences: ContextSentence[];
   audio: PronunciationAudio[];
   partsOfSpeech: string[];
-  /** Radicals and kanji that make this up, for a lesson's "made of" line. */
+  /** Radicals and kanji that make this up, for a card's "Made of" row (`madeOf`). */
   componentIds: number[];
   srsId: number;
   /** Where it comes in its level's lessons. */
@@ -199,6 +199,51 @@ export function readingGroups(s: Subject): { type?: Reading['type']; readings: s
     .map((type) => ({ type, readings: s.readings.filter((r) => r.type === type).map((r) => r.reading), primary: type === primaryType }))
     .filter((g) => g.readings.length)
     .sort((a, b) => Number(b.primary) - Number(a.primary));
+}
+
+/**
+ * The radicals and kanji the given subjects are made of that aren't among them already: each once,
+ * in the order they come, so they're read in one batch with the API's ids filter.
+ */
+export function missingComponentIds(subjects: readonly Subject[]): number[] {
+  const have = new Set(subjects.map((s) => s.id));
+  const out = new Set<number>();
+  for (const s of subjects) for (const id of s.componentIds) if (!have.has(id)) out.add(id);
+  return [...out];
+}
+
+/**
+ * The subjects, followed by the parts they're made of (`missingComponentIds`), read with `read`,
+ * which batches by id. The parts only fill a card's "Made of" row, so when they can't be read the
+ * subjects come back on their own rather than failing the session or the offline copy.
+ */
+export async function withComponents(subjects: Subject[], read: (ids: number[]) => Promise<Subject[]>): Promise<Subject[]> {
+  const ids = missingComponentIds(subjects);
+  if (!ids.length) return subjects;
+  const parts = await read(ids).catch((): Subject[] => []);
+  return [...subjects, ...parts];
+}
+
+/** One part in a card's "Made of" row: its characters, or a radical's picture when it has none, and its meaning. */
+export interface Part {
+  id: number;
+  type: SubjectType;
+  characters: string | null;
+  image?: Subject['image'];
+  meaning: string;
+}
+
+/**
+ * What a kanji or a word is made of, in WaniKani's order: a kanji's radicals, a word's kanji.
+ * A part that wasn't read (the read failed, or an offline copy made before parts were kept) is
+ * left out; a radical has none.
+ */
+export function madeOf(s: Subject, subjects: ReadonlyMap<number, Subject>): Part[] {
+  return s.componentIds.flatMap((id): Part[] => {
+    const p = subjects.get(id);
+    if (!p) return [];
+    return [{ id, type: p.type, characters: p.characters, ...(p.image ? { image: p.image } : {}), meaning: primaryMeaning(p) }];
+  });
 }
 
 export const SUBJECT_TYPE_NAMES: Record<SubjectType, string> = {

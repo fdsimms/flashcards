@@ -3,7 +3,7 @@ ready, keep the shelf and the ongoing story topped up, and log readings
 (docs/read-and-listen/architecture.md, Hosting, Shelf and Stories).
 
 The shelf is a few texts written ahead in the language being read (`SHELF_SIZE`), each for a
-reason: around words due today, on a theme the owner likes, or an idea not tried before, with
+reason: around words reviewed today, on a theme the owner likes, or an idea not tried before, with
 dialogues and stories mixed. It's filled only for the current language, only after a request from
 the app, and a text left unread stays on it rather than being written again.
 
@@ -22,14 +22,14 @@ import logging
 import random
 import sqlite3
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Literal
 
 from franki_reader import comprehension, exposure, form_primers, forms, grammar, meanings, store
 from franki_reader.coverage import Checker, Coverage, parse_line
-from franki_reader.difficulty import Difficulty, adapt, adapt_to_check
+from franki_reader.difficulty import Difficulty, after_reading
 from franki_reader.gender import full_voices, voice_for
 from franki_reader.generator import (
     Ask,
@@ -43,9 +43,10 @@ from franki_reader.generator import (
 )
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
+from franki_reader.meanings import Wanted
 from franki_reader.store import Reading, Reason, StoredText, Story, Topic
-from franki_reader.stretch import pick_stretch
-from franki_reader.study_day import DEFAULT_ROLLOVER, study_day_start
+from franki_reader.stretch import pick_stretch, reviewed_words, waiting
+from franki_reader.study_day import DEFAULT_ROLLOVER, study_day, study_day_start
 from franki_reader.suggestions import suggest
 from franki_reader.tts import DEFAULT_VOICES, AudioCache, Synthesize, TtsFailed, billed_chars
 from franki_reader.wanikani import ReadWaniKani, as_entries
@@ -56,9 +57,12 @@ SHELF_SIZE = 3
 SHELF_KINDS: tuple[Reason, ...] = ("due", "liked", "new")
 # A new idea is picked from this many of the best-fitting ones, so the shelf isn't predictable.
 IDEA_CHOICES = 5
-# How many due or young words the model chooses its stretch words from, when it's choosing.
+# How many reviewed or young words the model chooses its stretch words from, when it's choosing.
 STRETCH_CHOICES = 15
 FAILURE_COOLDOWN = timedelta(minutes=30)
+# How old the snapshot may be while the shelf has room for its "due" text, which waits for words
+# reviewed today: Anki is read again (a sync with the owner's own server, no API call) after this.
+DUE_SNAPSHOT_AGE = timedelta(minutes=30)
 BACKFILL_TEXTS = 30  # how many recent texts a pass looks through for words with no meaning
 BACKFILL_FORMS = 3  # how many of them a pass picks word forms for (one Claude call each)
 # Every attempt was under 85% known words (coverage.MINIMUM), too far off to show.
@@ -101,7 +105,8 @@ class Job:
     focus: str = ""
     reason: Reason = ""
     form: Form | None = None  # None: the `form` setting
-    # Hand the model due words to use, rather than letting it choose ones that fit (shelf "due").
+    # Hand the model words reviewed today to use, rather than letting it choose ones that fit
+    # (shelf "due").
     any_words: bool = False
     story_id: int | None = None
 
@@ -203,15 +208,47 @@ class Engine:
     def entries(self, language: Code | None = None) -> list[Entry]:
         return self.snapshot(language)[0]
 
+    def writing_lexicon(
+        self, language: Code, keep: Iterable[Entry] = ()
+    ) -> tuple[list[Entry], Checker]:
+        """The entries and checker a new text is written with: `snapshot`'s, less the words with a
+        card due today and not answered today (`stretch.waiting`: on the snapshot's day, or by due
+        date on a later one). Seen in a text, its gloss a tap away, before its review, a word's
+        review becomes short-term recall and FSRS lengthens an interval the learner didn't earn
+        (brief, principle 9). Such a word isn't in the model's list and counts as unknown in any
+        form, so a draft that uses it goes back naming it. `keep` is the text's practice words,
+        never withheld: the ones picked are never waiting, and those of "Read a text with these
+        words" were just reviewed in Franki, whatever a snapshot read before its sync says.
+        Reading a text, its glosses and its marks still use `snapshot`'s."""
+        entries = self.entries(language)
+        days = self.snapshot_days(language)
+        kept = {e.text for e in keep}
+        held = {
+            e.text
+            for e in entries
+            if e.tier != "unreviewed" and waiting(e, days) and e.text not in kept
+        }
+        common = store.load_settings(self.conn).common_for(language)
+        extra = [e.text for e in self.wanikani_entries(language)]
+        writing = [e for e in entries if e.text not in held]
+        return writing, lexicon_from(entries, language, common, extra, held)
+
     def wanikani_entries(self, language: Code) -> list[Entry]:
         """Japanese's words learned in WaniKani, as the model's word list shows them; none for
         another language. They aren't deck words, so they're kept out of `snapshot`'s entries."""
         return as_entries(store.load_wanikani(self.conn)) if language == "ja" else []
 
-    async def refresh_lexicon(self, language: Code | None = None, force: bool = False) -> None:
+    async def refresh_lexicon(
+        self,
+        language: Code | None = None,
+        force: bool = False,
+        max_age: timedelta = store.SNAPSHOT_MAX_AGE,
+    ) -> None:
         language = language or self.language()
         if self.read_deck is not None:
-            await store.refresh_if_stale(self.conn, self.read_deck, self.clock(), language, force)
+            await store.refresh_if_stale(
+                self.conn, self.read_deck, self.clock(), language, force, max_age
+            )
         if language == "ja" and self.read_wanikani is not None:
             await store.refresh_wanikani_if_stale(
                 self.conn, self.read_wanikani, self.clock(), force
@@ -333,7 +370,7 @@ class Engine:
                 await self.refresh_lexicon(language, force=True)
             self._check_setup(language)
             assert self.ask_for is not None
-            entries, lexicon = self.snapshot(language)
+            entries = self.entries(language)
             difficulty = store.load_difficulty(self.conn, language)
             context = self._story_context(story) if story else None
             request = self._request(
@@ -346,7 +383,10 @@ class Engine:
                 any_words=job.any_words,
                 story=context,
             )
-            known = entries + self.wanikani_entries(language)
+            # Words due today and not reviewed yet are left out of the list and counted as unknown,
+            # so the text doesn't show them before their review (`writing_lexicon`).
+            writing, lexicon = self.writing_lexicon(language, keep=request.stretch)
+            known = writing + self.wanikani_entries(language)
             extra = {
                 "reason": job.reason,
                 "story_id": story.id if story else None,
@@ -372,6 +412,7 @@ class Engine:
                         language,
                         _grammar_record(request),
                         focus,
+                        stretch_count=difficulty.stretch,
                         **extra,  # type: ignore[arg-type]
                     )
                 raise
@@ -390,6 +431,7 @@ class Engine:
                     language,
                     _grammar_record(request),
                     focus,
+                    stretch_count=difficulty.stretch,
                     **extra,  # type: ignore[arg-type]
                 )
                 log.warning(
@@ -422,6 +464,7 @@ class Engine:
                 language,
                 _grammar_record(request),
                 focus,
+                stretch_count=difficulty.stretch,
                 **extra,  # type: ignore[arg-type]
             )
             if story and context and context.episode == 1:
@@ -490,29 +533,54 @@ class Engine:
             self.rng.shuffle(studied)
             picked = studied[:STRETCH_CHOICES]
             return request(picked, min(difficulty.stretch, len(picked)))
-        if any_words or settings.stretch_words == "any":
-            return request(pick_stretch(entries, difficulty.stretch, self.rng, practiced))
-        choices = pick_stretch(entries, STRETCH_CHOICES, self.rng, practiced)
+        days = self.snapshot_days(language)
+        if any_words:
+            # The shelf's "due" text: only words already reviewed today (stretch.py).
+            picked = pick_stretch(entries, difficulty.stretch, self.rng, practiced, days, True)
+            return request(picked)
+        if settings.stretch_words == "any":
+            return request(pick_stretch(entries, difficulty.stretch, self.rng, practiced, days))
+        choices = pick_stretch(entries, STRETCH_CHOICES, self.rng, practiced, days)
         return request(choices, difficulty.stretch) if choices else request([])
+
+    def snapshot_days(self, language: Code) -> int:
+        """How many study days ago the language's snapshot was read (0: today), so what it says is
+        due and reviewed is read for the right day (stretch.py)."""
+        taken_at = store.load_snapshot(self.conn, language)[1]
+        if taken_at is None:
+            return 0
+        rollover = self.rollover()
+        today = study_day(self.clock(), rollover, self.zone)
+        return max(0, (today - study_day(taken_at, rollover, self.zone)).days)
 
     # ==== Word meanings ====
 
-    def meanings(self, language: Code) -> dict[str, str]:
-        """What a word's gloss falls back on: the words asked about in earlier texts (meanings.py),
-        then WaniKani's meanings (Japanese), then the deck's own meanings, which win."""
+    def deck_meanings(self, language: Code) -> dict[str, str]:
+        """The meanings the deck teaches: WaniKani's (Japanese), then the deck's own, which win."""
         entries, _ = self.snapshot(language)
         return {
-            **store.word_meanings(self.conn, language),
             **{e.text: e.meaning for e in self.wanikani_entries(language)},
             **{e.text: e.meaning for e in entries},
         }
 
+    def meanings(self, language: Code) -> dict[str, str]:
+        """What a word's gloss falls back on after a text's own: the deck's meanings, else the first
+        meaning the language kept for the word (meanings.py), for a text with none of its own."""
+        return {**store.word_meanings(self.conn, language), **self.deck_meanings(language)}
+
     async def fill_meanings(self, texts: list[StoredText], language: Code) -> None:
-        """Glosses the words in `texts` that have no gloss (meanings.py). A failure is logged and
-        waits `FAILURE_COOLDOWN`; it never keeps a text from being served."""
+        """Glosses the words in `texts` that have no gloss of the text's own or the deck's, in the
+        sense of their line in that text (meanings.py). A failure is logged and waits
+        `FAILURE_COOLDOWN`; it never keeps a text from being served."""
         if texts:
             await self._fill_words(
-                language, lambda lexicon, known: meanings.missing(texts, lexicon, known)
+                language,
+                lambda lexicon: meanings.missing(
+                    # Read again here: a text the pass before this one filled has its meanings now.
+                    [t for t in (store.get_text(self.conn, x.id) for x in texts) if t],
+                    lexicon,
+                    self.deck_meanings(language),
+                ),
             )
 
     async def fill_sentence_meanings(
@@ -523,14 +591,12 @@ class Engine:
         if sentences:
             await self._fill_words(
                 language,
-                lambda lexicon, known: meanings.missing_in_sentences(sentences, lexicon, known),
+                lambda lexicon: meanings.missing_in_sentences(
+                    sentences, lexicon, self.meanings(language)
+                ),
             )
 
-    async def _fill_words(
-        self,
-        language: Code,
-        find: Callable[[Checker, dict[str, str]], list[tuple[str, str]]],
-    ) -> None:
+    async def _fill_words(self, language: Code, find: Callable[[Checker], list[Wanted]]) -> None:
         if self.write_meanings is None:
             return
         # One pass at a time, so two passes started together don't pay for the same words.
@@ -544,7 +610,7 @@ class Engine:
                     self.conn,
                     self.write_meanings,
                     language,
-                    find(lexicon, self.meanings(language)),
+                    find(lexicon),
                     self.clock,
                 )
             except meanings.MeaningsFailed as e:
@@ -738,7 +804,12 @@ class Engine:
         async with self._topping_up:
             await self.time_waiting_texts()
             language = self.language()
-            await self.refresh_lexicon(language)
+            # While the shelf has room for its "due" text, which waits for words reviewed today,
+            # Anki is read more often than daily, so a review shows soon after it's synced.
+            due_gap = (gap := self._shelf_gap(language)) is not None and "due" not in gap[0]
+            await self.refresh_lexicon(
+                language, max_age=DUE_SNAPSHOT_AGE if due_gap else store.SNAPSHOT_MAX_AGE
+            )
             # Texts written before their common words were glossed, newest first, a batch a pass.
             recent = store.recent_texts(self.conn, language, BACKFILL_TEXTS)
             await self.fill_meanings(recent, language)
@@ -773,16 +844,24 @@ class Engine:
         """The shelf texts and story episodes being written in a language now."""
         return [j for j in self._jobs.values() if j.language == language and not j.focus]
 
-    def _next_shelf_job(self, language: Code) -> Job | None:
-        """The next text the shelf needs, or None when it has `SHELF_SIZE`. Each kind in
-        `SHELF_KINDS` the shelf lacks comes first; dialogues and stories alternate."""
+    def _shelf_gap(self, language: Code) -> tuple[set[Reason], Form] | None:
+        """The kinds of text the shelf has (or is writing) and the form its next one takes, or None
+        when it has `SHELF_SIZE`. Dialogues and stories alternate."""
         on_shelf = [t for t in store.shelf_texts(self.conn, language) if t.reason != "asked"]
         writing = [j for j in self.writing(language) if j.story_id is None and j.reason != "asked"]
         if len(on_shelf) + len(writing) >= SHELF_SIZE:
             return None
         forms = [t.form for t in on_shelf] + [j.form or "dialogue" for j in writing]
         form: Form = "story" if forms.count("dialogue") > forms.count("story") else "dialogue"
-        have = {t.reason for t in on_shelf} | {j.reason for j in writing}
+        return {t.reason for t in on_shelf} | {j.reason for j in writing}, form
+
+    def _next_shelf_job(self, language: Code) -> Job | None:
+        """The next text the shelf needs, or None when it has `SHELF_SIZE`. Each kind in
+        `SHELF_KINDS` the shelf lacks comes first; dialogues and stories alternate."""
+        gap = self._shelf_gap(language)
+        if gap is None:
+            return None
+        have, form = gap
         wanted = [k for k in SHELF_KINDS if k not in have] + ["new", "liked"]
         for kind in wanted:
             job = self._shelf_job(kind, language, form)
@@ -803,6 +882,10 @@ class Engine:
                 return None
             return Job(self.rng.choice(free).id, language, reason="liked", form=form)
         if kind == "due":
+            # Written only around words already reviewed today (stretch.py): until there are some,
+            # the slot goes to the next kind, and the due text is written once one is free again.
+            if not reviewed_words(self.entries(language), self.snapshot_days(language)):
+                return None
             topic = self.rng.choice(free) if free else self._new_topic(language)
             if topic is None:
                 return None
@@ -858,9 +941,10 @@ class Engine:
         )
 
     def record_reading(self, text_id: int, reading: Reading) -> None:
-        """Logs a session and adjusts the difficulty of the text's language. A second reading of a
-        text that's already been read is ignored, so a retried request can't log twice or move
-        difficulty twice."""
+        """Logs a session and adjusts the difficulty of the text's language, stepping from the level
+        the text was written at (difficulty.after_reading). A second reading of a text that's
+        already been read is ignored, so a retried request can't log twice or move difficulty
+        twice."""
         status = store.text_status(self.conn, text_id)
         if status is None:
             raise NotFound(text_id)
@@ -868,10 +952,15 @@ class Engine:
             return
         store.log_reading(self.conn, text_id, reading, self.clock())
         text = store.get_text(self.conn, text_id)
-        if text is not None:
+        written = store.written_at(self.conn, text_id)
+        if text is not None and written is not None:
             current = store.load_difficulty(self.conn, text.language)
-            after = adapt_to_check(
-                adapt(current, reading.rating),
+            floor, stretch = written
+            after = after_reading(
+                current,
+                replace(
+                    current, floor=floor, stretch=current.stretch if stretch is None else stretch
+                ),
                 reading.rating,
                 reading.check_right,
                 reading.check_asked,

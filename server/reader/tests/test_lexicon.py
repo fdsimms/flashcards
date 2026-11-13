@@ -2,7 +2,14 @@ from pathlib import Path
 
 from fake_anki import card, note
 
-from franki_reader.lexicon import THAI_NOTES_QUERY, build_entries, clean, lexicon_from
+from franki_reader.lexicon import (
+    THAI_NOTES_QUERY,
+    Entry,
+    build_entries,
+    clean,
+    days_until_due,
+    lexicon_from,
+)
 
 # Real entries and meanings from the Thai deck.
 NOTES = [
@@ -39,6 +46,63 @@ def test_a_note_with_no_cards_is_unreviewed() -> None:
 def test_unreviewed_notes_are_not_known_for_coverage() -> None:
     known = lexicon_from(build_entries(NOTES, CARDS)).known
     assert known == {"ฉัน", "รับอะไรดี", "ดี"}
+
+
+def test_a_note_whose_reviewed_cards_are_all_suspended_is_unreviewed() -> None:
+    # A leech the preset suspended: the word the learner keeps failing isn't known.
+    leech = [note(1, "ยาก", "hard")]
+    assert build_entries(leech, [card(1, 2, 40, suspended=True)])[0].tier == "unreviewed"
+    relearning = [card(1, 3, 2, suspended=True), card(1, 0, 0)]
+    assert build_entries(leech, relearning)[0].tier == "unreviewed"
+    assert lexicon_from(build_entries(leech, [card(1, 2, 40, suspended=True)])).known == set()
+
+
+def test_a_suspended_card_leaves_the_tier_to_the_notes_other_cards() -> None:
+    word = [note(1, "ยาก", "hard")]
+    # The suspended card was the weakest: the note is as known as its unsuspended one.
+    assert build_entries(word, [card(1, 2, 3, suspended=True), card(1, 2, 40)])[0].tier == "mature"
+    assert build_entries(word, [card(1, 2, 40, suspended=True), card(1, 2, 3)])[0].tier == "young"
+
+
+TODAY = 400  # the collection's day number
+CUTOFF = 1_800_000_000  # when the next study day starts, Unix seconds
+
+
+def test_days_until_due_reads_a_day_number_or_a_learning_steps_time() -> None:
+    assert days_until_due(2, 2, TODAY, TODAY, CUTOFF) == 0  # a review due today
+    assert days_until_due(2, 2, TODAY - 3, TODAY, CUTOFF) == -3  # overdue
+    assert days_until_due(2, 2, TODAY + 5, TODAY, CUTOFF) == 5
+    assert days_until_due(1, 3, TODAY + 1, TODAY, CUTOFF) == 1  # a step that crossed into tomorrow
+    assert days_until_due(1, 1, CUTOFF - 600, TODAY, CUTOFF) == 0  # a step later today
+    assert days_until_due(3, 1, CUTOFF + 600, TODAY, CUTOFF) == 1  # past the rollover: tomorrow
+    assert days_until_due(2, -2, TODAY + 2, TODAY, CUTOFF) == 2  # buried: due as it would be
+    assert days_until_due(0, 0, 12, TODAY, CUTOFF) is None  # new: its due is a position
+    assert days_until_due(2, -1, TODAY, TODAY, CUTOFF) is None  # suspended
+
+
+def test_an_entry_is_due_until_every_due_card_is_answered_today() -> None:
+    word = [note(1, "ดี", "good")]
+    due = build_entries(word, [card(1, 2, 5, due=True, due_in=0), card(1, 2, 9, due_in=4)])[0]
+    assert (due.due, due.reviewed, due.due_in) == (True, False, 0)
+    # Answered today, and again in relearning (is:due again): reviewed, and no longer waiting.
+    done = build_entries(word, [card(1, 3, 1, due=True, rated=True, due_in=0)])[0]
+    assert (done.due, done.reviewed) == (False, True)
+    # One card answered, its reverse still due: still waiting for that review.
+    half = [card(1, 2, 5, rated=True, due_in=3), card(1, 2, 5, due=True, due_in=0)]
+    assert build_entries(word, half)[0].due
+    # A suspended card never comes due.
+    leech = build_entries(word, [card(1, 2, 5, suspended=True, due_in=0), card(1, 2, 9, due_in=4)])
+    assert leech[0].due_in == 4
+
+
+def test_a_withheld_thai_word_is_unknown_even_when_it_splits_into_known_ones() -> None:
+    deck = [Entry(1, "เข้า", "to enter", "mature"), Entry(2, "ใจ", "heart", "mature")]
+    deck.append(Entry(3, "เข้าใจ", "to understand", "young"))
+    writing = lexicon_from(deck, withheld=["เข้าใจ"])
+    assert lexicon_from(deck).status("เข้าใจ") == "known"
+    assert writing.status("เข้าใจ") == "unknown"
+    assert writing.status("เข้า") == "known"
+    assert "เข้าใจ" not in writing.known
 
 
 def test_clean_strips_html_and_entities() -> None:

@@ -2,23 +2,27 @@ import React, { useMemo, useState } from 'react';
 import { Text, useWindowDimensions, View } from 'react-native';
 import { LANGUAGES } from '../../reader/languages';
 import { timePatterns } from '../../tools/patterns';
-import { MINUTE_STEPS, randomTime, type ClockTime, type MinuteStep } from '../../tools/time';
+import { timeRule } from '../../tools/rules';
+import { clockText, MINUTE_STEPS, randomTime, type ClockTime, type MinuteStep } from '../../tools/time';
 import { toolPrefs } from '../../tools/storage';
 import { TIME_SAYERS } from '../../tools/tools';
 import { Card, Segments } from '../kit';
 import { space, type, useTheme } from '../theme';
 import { ClockFace } from './ClockFace';
 import type { ToolScreenProps } from './index';
-import { AnswerCard, ControlLabel, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
+import { AnswerCard, ControlLabel, nextOnly, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
 import { useMarks } from './useMarks';
+import { useRetries } from './useRetries';
 import { useWheelRow, Wheel, WheelBand, wheelScale } from './Wheel';
 
 const STEP_LABELS: Record<MinuteStep, string> = { 1: 'Any minute', 5: '5 min', 15: '15 min', 30: '30 min' };
 
 /**
  * Telling the time: a clock and hour and minute wheels, set by scrolling or at random, then the
- * answer in the chosen language, marked Missed it or Got it. A random time leans toward the kinds
- * missed lately (useMarks). Changing the time hides the answer again.
+ * answer in the chosen language, marked Missed it or Got it. Missed it shows the rule behind the
+ * answer where there's one (rules.ts) before moving on. A random time leans toward the kinds missed
+ * lately (useMarks), and a time missed comes back once a few times later (useRetries). Changing the
+ * time hides the answer again.
  */
 export function TimeTool({ tool, repo }: ToolScreenProps) {
   const c = useTheme();
@@ -27,12 +31,15 @@ export function TimeTool({ tool, repo }: ToolScreenProps) {
   const [language, setLanguage] = useToolLanguage(tool);
   const answer = useAnswer(repo, language);
   const marks = useMarks(tool.id, language);
+  const retries = useRetries<ClockTime>();
   const [step, setStep] = useToolPref('minuteStep');
   const [time, setTime] = useState<ClockTime>(() => randomTime(toolPrefs().minuteStep));
 
   const saying = useMemo(() => TIME_SAYERS[language]?.(time), [language, time]);
+  const rule = useMemo(() => timeRule(language, time), [language, time]);
   const change = (next: ClockTime) => { answer.hide(); setTime(next); };
-  const next = () => change(marks.pick(() => randomTime(step, time), (t) => timePatterns(t, language)));
+  const scope = `${language}|${step}`;
+  const next = () => change(retries.next(scope, clockText(time), () => marks.pick(() => randomTime(step, time), (t) => timePatterns(t, language))));
   const chooseStep = (s: MinuteStep) => setStep(s);
 
   return (
@@ -43,7 +50,13 @@ export function TimeTool({ tool, repo }: ToolScreenProps) {
       shown={answer.shown}
       onRandomize={next}
       onShow={() => answer.show(saying?.everyday)}
-      onMark={(right) => { marks.mark(timePatterns(time, language), right); next(); }}
+      onMark={(right) => {
+        marks.mark(timePatterns(time, language), right);
+        if (!right) retries.missed(scope, clockText(time), time);
+        if (!right && rule) answer.miss();
+        else next();
+      }}
+      actions={answer.missed ? nextOnly(next) : undefined}
     >
       <Card style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: space.l }}>
         <ClockFace time={time} size={Math.max(128, row * 3)} />
@@ -63,6 +76,7 @@ export function TimeTool({ tool, repo }: ToolScreenProps) {
         shown={answer.shown}
         prompt={`Say the time in ${LANGUAGES[language].name} out loud, then show the answer.`}
         answer={saying && { everyday: saying.everyday, also: saying.also, last: { title: 'Formal', phrase: saying.formal } }}
+        rule={answer.missed ? rule : undefined}
         onPlay={answer.speak}
       />
     </ToolScreen>

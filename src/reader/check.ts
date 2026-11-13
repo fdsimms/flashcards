@@ -5,7 +5,8 @@
 // - listen: a line played with its words hidden, to pick its English from four of the text's lines;
 // - word: what a word looked up, marked unknown or practiced means, from four of the text's glosses.
 // The last two are built here from what the text already has, so they cost nothing. Nothing is
-// graded: the score goes with the reading's log, where a poor one makes the next text a little easier.
+// graded: the score on the first two kinds goes with the reading's log (loggedScore), where a poor
+// one makes the next text a little easier.
 // Pure, so it's tested; ReaderCheck.tsx shows it.
 import type { ReaderText, TextLine, Word } from './api';
 import type { Session } from './session';
@@ -64,7 +65,13 @@ function listenQuestions(lines: TextLine[], count: number, avoid: Set<number>, r
   // Lines no other question is about come first, so the check covers more of the text.
   const order = shuffled(distinct.filter(fits), random).sort((a, b) => Number(avoid.has(a)) - Number(avoid.has(b)));
   return order.slice(0, count).map((line) => {
-    const wrong = shuffled(distinct.filter((i) => i !== line), random).slice(0, CHOICES - 1).map((i) => lines[i].english.trim());
+    // The same speaker's other lines first: in a dialogue, the voice alone would otherwise rule
+    // out the other speaker's lines. Theirs fill in only when there aren't enough.
+    const others = distinct.filter((i) => i !== line);
+    const same = others.filter((i) => lines[i].speaker === lines[line].speaker);
+    const wrong = [...shuffled(same, random), ...shuffled(others.filter((i) => !same.includes(i)), random)]
+      .slice(0, CHOICES - 1)
+      .map((i) => lines[i].english.trim());
     const { choices, answer } = withAnswer(lines[line].english.trim(), wrong, random);
     return { kind: 'listen' as const, key: `listen:${line}`, line, choices, answer };
   });
@@ -117,4 +124,28 @@ export function isRight(q: CheckQuestion, picks: CheckPicks): boolean {
 export function checkScore(questions: CheckQuestion[], picks: CheckPicks): { right: number; asked: number } {
   const asked = questions.filter((q) => q.key in picks);
   return { right: asked.filter((q) => isRight(q, picks)).length, asked: asked.length };
+}
+
+/**
+ * Whether a question's answer goes into the score logged with the reading, which can make the next
+ * text easier. A word question doesn't: it asks about words marked unknown or looked up, which were
+ * off the list, so missing them is expected and says nothing about how hard the text was. It is
+ * still asked and marked.
+ */
+export function steersDifficulty(q: CheckQuestion): boolean {
+  return q.kind !== 'word';
+}
+
+// The server moves difficulty on a check only with at least this many answers that count toward it
+// (CHECK_MIN_ASKED in server/reader/src/franki_reader/difficulty.py).
+export const CHECK_MIN_ASKED = 3;
+
+/** Whether a check could make the next text easier: it has enough questions that count. */
+export function canSteer(questions: CheckQuestion[]): boolean {
+  return questions.filter(steersDifficulty).length >= CHECK_MIN_ASKED;
+}
+
+/** The score logged with the reading: right of asked over the questions that steer difficulty. */
+export function loggedScore(questions: CheckQuestion[], picks: CheckPicks): { right: number; asked: number } {
+  return checkScore(questions.filter(steersDifficulty), picks);
 }

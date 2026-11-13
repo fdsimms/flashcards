@@ -75,6 +75,11 @@ def test_a_token_that_splits_into_entries_is_known(lexicon: Lexicon) -> None:
     assert statuses(["ร้านอาหาร"], lexicon) == {"ร้านอาหาร": "known"}
 
 
+def test_a_token_that_splits_into_entries_is_known_even_inside_a_longer_entry() -> None:
+    # With ร้านอาหารไทย in the deck too, ร้านอาหาร is inside a phrase, but it's still ร้าน + อาหาร.
+    assert statuses(["ร้านอาหาร"], Lexicon([*DECK, "ร้านอาหารไทย"])) == {"ร้านอาหาร": "known"}
+
+
 def test_numbers_are_known_and_spaces_and_punctuation_are_not_counted(lexicon: Lexicon) -> None:
     result = check(["25 บาท ครับ!", "๑๐๐ บาท"], lexicon)
     assert [t.text for t in result.tokens] == ["25", "บาท", "ครับ", "๑๐๐", "บาท"]

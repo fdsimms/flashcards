@@ -59,6 +59,12 @@ class Rules:
     suffixes: frozenset[str] = frozenset()
     # Pronouns that join onto the end of a verb, longest first, so "los" is tried before "lo".
     clitics: tuple[str, ...] = ()
+    # What a pronoun joins onto, besides a word with a written accent (dámelo, cómelo): the endings
+    # of an infinitive or gerund (comerlo, haciéndolo), and the short imperatives that take one
+    # without an accent (dime, hazlo, vete). Anything else ending like a pronoun keeps it: tomate
+    # isn't toma + te, nor estante estan + te.
+    clitic_hosts: tuple[str, ...] = ()
+    clitic_imperatives: frozenset[str] = frozenset()
     # An entry ending this way is a reflexive verb, which also matches its forms without it.
     reflexive: str = ""
     # Elided words (l', qu') and the word each stands for, split off as words of their own.
@@ -105,6 +111,8 @@ RULES: dict[str, Rules] = {
     "es": Rules(
         prefixes=frozenset({"el", "la", "los", "las", "un", "una", "unos", "unas", "lo"}),
         clitics=("nos", "les", "los", "las", "me", "te", "se", "le", "lo", "la", "os"),
+        clitic_hosts=("ar", "er", "ir", "ndo"),
+        clitic_imperatives=frozenset({"da", "di", "haz", "pon", "sal", "ten", "ven", "ve"}),
         reflexive="se",
         # simplemma takes the present subjunctive to the noun or the first-person form (abras,
         # saque, alcance, escriba), not the infinitive. -ar verbs take -e, -er and -ir verbs take -a,
@@ -246,10 +254,13 @@ def _is_word(token: str) -> bool:
 class SpacedLexicon:
     spaced = True
 
-    def __init__(self, code: str, known: Iterable[str], common: int = 0) -> None:
+    def __init__(
+        self, code: str, known: Iterable[str], common: int = 0, withheld: Iterable[str] = ()
+    ) -> None:
         self.code = code
         self.rules = RULES[code]
-        self.known = frozenset(e.strip() for e in known if e.strip())
+        held = frozenset(e.strip() for e in withheld if e.strip())
+        self.known = frozenset(e.strip() for e in known if e.strip()) - held
         self.common = _common(code, common) if common else frozenset()
         # key (word, or space-joined phrase) -> the deck entry as written
         self._entries: dict[str, str] = {}
@@ -269,6 +280,17 @@ class SpacedLexicon:
                 if self.rules.reflexive and re.search(rf"[aei]r{self.rules.reflexive}$", word):
                     # A reflexive verb (cerciorarse) also matches its forms without "se".
                     self._entries.setdefault(word[: -len(self.rules.reflexive)], entry)
+        # The words of withheld entries (lexicon_from) and their lemmas: unknown in any form, even
+        # a common word's. Their articles aren't kept as markers.
+        markers = set(self._markers)
+        self._withheld = {
+            form
+            for entry in held
+            for key in self._keys(entry)
+            if len(key) == 1
+            for form in (key[0], self._lemma(key[0]))
+        }
+        self._markers = markers
 
     def _keys(self, entry: str) -> list[tuple[str, ...]]:
         """The ways an entry is matched, each as its words: one per alternative, without the
@@ -391,6 +413,8 @@ class SpacedLexicon:
         if _NUMBER.match(word):
             return True
         forms = self._forms(word)
+        if any(f in self._withheld for f in forms):
+            return False
         if any(f in self.common or f in self._entries or f in self._markers for f in forms):
             return True
         if any(f in self._entries for f in self._guesses(word)):
@@ -415,8 +439,17 @@ class SpacedLexicon:
                 break
             stem = stem[: -len(clitic)]
             bare = _plain(stem)
-            forms += [bare, self._lemma(bare)]
+            if self._hosts_clitic(word, bare):
+                forms += [bare, self._lemma(bare)]
         return forms
+
+    def _hosts_clitic(self, word: str, bare: str) -> bool:
+        """Whether `bare`, `word` with joined pronouns taken off, is a verb form they join onto."""
+        return (
+            _plain(word) != word
+            or bare.endswith(self.rules.clitic_hosts)
+            or bare in self.rules.clitic_imperatives
+        )
 
     def _guesses(self, word: str) -> list[str]:
         """Infinitives the word might be a form of, by its ending (Rules.guesses)."""

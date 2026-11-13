@@ -1,17 +1,21 @@
 import asyncio
 import random
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from datetime import datetime, timedelta
+from functools import partial
 from pathlib import Path
 from typing import Any
 
 import pytest
+from fake_anki import FakeDeck, card, note
 from franki_speech import WordMark
-from scripted import BAD, ENTRIES, IN_RANGE, ScriptedModel
+from scripted import BAD, ENTRIES, IN_RANGE, PLAIN, WITHOUT_KIN, ScriptedModel
 
 from franki_reader import store
 from franki_reader.difficulty import Difficulty
 from franki_reader.engine import (
+    DUE_SNAPSHOT_AGE,
     FAILURE_COOLDOWN,
     MISSED_FLOOR,
     SHELF_SIZE,
@@ -252,6 +256,83 @@ def test_a_text_taken_off_the_shelf_is_replaced_and_counted_as_skipped() -> None
     assert store.spending(e.conn, NOW)["th"].skipped == 1
 
 
+def test_the_due_text_waits_for_a_word_reviewed_today_and_anki_is_read_again_meanwhile() -> None:
+    # ข้าวเหนียวมะม่วง is due today and not reviewed yet; every other studied word is mature and not
+    # due. Reading it in context before its review would make that review short-term recall.
+    notes = [note(e.note_id, e.text, e.meaning) for e in ENTRIES]
+    cards = [card(n, 2, 40, due_in=10) for n in (1, 2, 3, 5, 6)] + [card(7, 0, 0)]
+    deck = FakeDeck(notes, [*cards, card(4, 2, 5, due=True, due_in=0)])
+    clock = Clock()
+    # Every text before the review leaves ข้าวเหนียวมะม่วง out (PLAIN); the due text uses it.
+    model = ScriptedModel(PLAIN, PLAIN, PLAIN, PLAIN, IN_RANGE)
+    e = Engine(store.connect(":memory:"), model.ask_for, deck, clock, random.Random(1))
+    store.add_topic(e.conn, "Food stall", True, NOW)
+    store.add_topic(e.conn, "Taxi", True, NOW)
+
+    run(e.top_up)
+    shelf = store.shelf_texts(e.conn, "th")
+    assert len(shelf) == SHELF_SIZE and "due" not in {t.reason for t in shelf}
+    assert all(t.stretch == () for t in shelf)  # nor any other text's practice word
+    assert e._request("Taxi", e.entries("th"), Difficulty(stretch=1)).stretch == ()
+    assert len(deck.reads) == 1
+
+    # A slot frees up: within DUE_SNAPSHOT_AGE, Anki isn't read again and the slot goes to another kind.
+    store.skip_text(e.conn, shelf[0].id)
+    clock.now = NOW + timedelta(minutes=10)
+    run(e.top_up)
+    assert len(deck.reads) == 1
+    assert "due" not in {t.reason for t in store.shelf_texts(e.conn, "th")}
+
+    # Reviewed (on another device, synced): the next free slot is the due text, written around it.
+    deck.cards[-1] = card(4, 2, 5, rated=True, due_in=3)
+    store.skip_text(e.conn, store.shelf_texts(e.conn, "th")[0].id)
+    clock.now = NOW + DUE_SNAPSHOT_AGE + timedelta(minutes=10)
+    run(e.top_up)
+    assert len(deck.reads) == 2
+    due = [t for t in store.shelf_texts(e.conn, "th") if t.reason == "due"]
+    assert [t.stretch for t in due] == [("ข้าวเหนียวมะม่วง",)]
+
+    # With the due text on the shelf, Anki is read daily again.
+    clock.now += DUE_SNAPSHOT_AGE
+    run(e.top_up)
+    assert len(deck.reads) == 2
+
+
+def test_a_word_due_today_and_not_reviewed_is_left_out_of_a_new_text() -> None:
+    # กิน is due today and not reviewed yet: a new text is written without it, but a text already
+    # written that has it is read as before.
+    entries = [replace(x, due=True, due_in=0) if x.text == "กิน" else x for x in ENTRIES]
+    model = ScriptedModel(IN_RANGE, WITHOUT_KIN)
+    e = engine(model)
+    store.save_snapshot(e.conn, entries, NOW)
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+
+    text = run(lambda: fetch(e, topic.id))
+
+    listed = {x.text for x in model.entries_seen[0]}
+    assert "กิน" not in listed and {"ฉัน", "ข้าวเหนียวมะม่วง"} <= listed
+    revision = str(model.messages_seen[1][-1]["content"])
+    assert "กิน" in revision  # named as a word outside the list, like any other
+    assert model.calls == 2 and all("กิน" not in ln.text for ln in text.lines)
+    assert e.writing_lexicon("th")[1].status("กิน") == "unknown"
+    assert e.snapshot("th")[1].status("กิน") == "known"  # reading, glosses and marks unchanged
+    # A practice word asked for is never withheld, whatever the snapshot says.
+    kept = e.writing_lexicon("th", keep=[x for x in entries if x.text == "กิน"])[1]
+    assert kept.status("กิน") == "known"
+
+
+def test_a_word_that_came_due_since_the_snapshot_is_not_a_practice_word() -> None:
+    clock = Clock()
+    e = engine(ScriptedModel(IN_RANGE), clock=clock)
+    # ข้าวเหนียวมะม่วง was reviewed on the snapshot's day and comes due 3 study days later.
+    clock.now = NOW + timedelta(days=2)
+    assert [x.text for x in e._request("x", ENTRIES, Difficulty(stretch=1)).stretch] == [
+        "ข้าวเหนียวมะม่วง"
+    ]
+    clock.now = NOW + timedelta(days=3)
+    assert e._request("x", ENTRIES, Difficulty(stretch=1)).stretch == ()
+
+
 def test_a_failed_shelf_text_ends_the_pass_and_its_topic_cools_down() -> None:
     clock = Clock()
     model = ScriptedModel(BAD, BAD, BAD, IN_RANGE)
@@ -418,6 +499,43 @@ def test_the_difficulty_follows_the_rating() -> None:
 
     assert store.load_difficulty(e.conn) == Difficulty(0.93, 1)
     assert store.get_topic(e.conn, topic.id).ready == 0  # type: ignore[union-attr]
+
+
+def test_ratings_of_texts_written_ahead_at_the_old_level_do_not_stack() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    topics = [store.add_topic(e.conn, name, True, NOW) for name in ("Food", "Taxi", "Market")]
+    # Three texts written at the starting level before any is read.
+    texts = [run(partial(fetch, e, topic.id)) for topic in topics]
+    assert store.written_at(e.conn, texts[0].id) == (0.92, 2)
+
+    for text in texts:
+        e.record_reading(text.id, reading("too_hard"))
+
+    # One step, as one rating would, not three.
+    assert store.load_difficulty(e.conn) == Difficulty(0.93, 1)
+
+
+def test_too_easy_on_texts_written_ahead_does_not_overshoot() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    topics = [store.add_topic(e.conn, name, True, NOW) for name in ("Food", "Taxi")]
+    texts = [run(partial(fetch, e, topic.id)) for topic in topics]
+
+    for text in texts:
+        e.record_reading(text.id, reading("too_easy"))
+
+    assert store.load_difficulty(e.conn) == Difficulty(0.91, 3)
+
+
+def test_a_text_written_before_its_stretch_count_was_recorded_steps_from_the_current_one() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    text = run(lambda: fetch(e, topic.id))
+    e.conn.execute("UPDATE texts SET stretch_count = NULL")
+    store.save_difficulty(e.conn, Difficulty(0.92, 3))
+
+    e.record_reading(text.id, reading("too_hard"))
+
+    assert store.load_difficulty(e.conn) == Difficulty(0.93, 2)
 
 
 def test_a_repeated_reading_is_ignored() -> None:
@@ -746,7 +864,7 @@ def test_a_stretch_word_from_a_text_read_yesterday_is_offered_again_today() -> N
     topic = store.add_topic(e.conn, "Food stall", True, NOW)
     text = run(lambda: fetch(e, topic.id))
     e.record_reading(text.id, reading("about_right"))
-    young = [Entry(10 + i, f"คำ{i}", "word", "young", due=True) for i in range(20)]
+    young = [Entry(10 + i, f"คำ{i}", "word", "young", reviewed=True, due_in=5) for i in range(20)]
     entries = ENTRIES + young
 
     # Read today: not "an earlier day" yet, so it's only one choice among many.

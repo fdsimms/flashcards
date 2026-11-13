@@ -634,3 +634,24 @@ def test_too_many_names_go_back_to_the_model() -> None:
 def test_the_prompts_state_the_name_limit() -> None:
     for language in ("th", "es"):
         assert f"at most {MAX_NAMES} different names" in system_prompt(ENTRIES, language)
+
+
+def test_a_draft_hiding_words_as_names_is_never_kept_as_the_closest() -> None:
+    names = "|".join(f"~ชื่อ{i}~" for i in range(MAX_NAMES + 1))
+    too_many = draft(f"{names}|กิน|*ข้าวเหนียวมะม่วง*|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ")
+    result = run(ScriptedModel(too_many, too_many, too_many), TextRequest("food", (MANGO,)))
+    assert not result.passed and not result.names_ok
+
+
+def test_a_closest_draft_counts_only_the_stretch_words_it_used_enough() -> None:
+    once = draft("ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ")
+    result = run(ScriptedModel(once, once, once), TextRequest("food", (MANGO,)))
+    assert result.passed and result.stretch == ()
+    assert result.glosses["ข้าวเหนียวมะม่วง"] == MANGO.meaning  # still glossed, from the deck
+
+
+def test_a_stretch_word_is_glossed_with_its_cards_meaning_not_the_models() -> None:
+    own = dict(GOOD, glosses=[{"word": "ข้าวเหนียวมะม่วง", "english": "sweet sticky rice dessert"}])
+    result = run(ScriptedModel(own), TextRequest("food", (MANGO,)))
+    assert result.glosses["ข้าวเหนียวมะม่วง"] == "mango sticky rice"
+    assert result.stretch == ("ข้าวเหนียวมะม่วง",)

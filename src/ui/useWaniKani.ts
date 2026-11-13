@@ -57,6 +57,12 @@ export interface WaniKaniState {
   offline: boolean;
   /** The offline copy as it stands now (answers since removed), or null when none has been made. */
   offlineData: () => OfflineData | null;
+  /** When the offline copy was made, or null when there's none. */
+  offlineSavedAt: Date | null;
+  /** Answers WaniKani refused that the learner hasn't been shown yet (prefs.ts, `droppedText`). */
+  dropped: number;
+  /** Marks that many refused answers as shown, once a screen has said so. */
+  seenDropped: (n: number) => void;
   /** Lessons done since the study day began, here or on WaniKani. */
   startedToday: number;
   dayStartsAtHour: number;
@@ -80,8 +86,10 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   const [decks, setDecks] = useState<string[]>([]);
   const [log, setLog] = useState<LogEntry[]>([]);
   const [offline, setOffline] = useState(false);
+  const [offlineSavedAt, setOfflineSavedAt] = useState<Date | null>(null);
+  const [dropped, setDropped] = useState(0);
   // What's kept in the state file, read once; written back on every change.
-  const stored = useRef<{ outbox: Outcome[]; sent: Outcome[]; made: Set<number>; log: LogEntry[] } | null>(null);
+  const stored = useRef<{ outbox: Outcome[]; sent: Outcome[]; made: Set<number>; log: LogEntry[]; dropped: number } | null>(null);
   // The offline copy: read at launch, replaced each time WaniKani is reached.
   const snapshot = useRef<Snapshot | null>(null);
   const lastCopy = useRef(0);
@@ -93,9 +101,11 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
 
   useEffect(() => {
     Promise.all([loadToken(), loadPrefs(), loadState(), loadSnapshot()]).then(([t, p, s, copy]) => {
-      stored.current = { outbox: s.outbox, sent: s.sent, made: new Set(s.made), log: s.log };
+      stored.current = { outbox: s.outbox, sent: s.sent, made: new Set(s.made), log: s.log, dropped: s.dropped };
       snapshot.current = copy;
+      setOfflineSavedAt(copy ? new Date(copy.savedAt) : null);
       setUnsent(s.outbox.length);
+      setDropped(s.dropped);
       setLog(s.log);
       setPrefsState(p);
       setToken(t ?? null);
@@ -105,7 +115,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   const api = useMemo(() => (token ? createWaniKaniApi(token) : null), [token]);
   const persist = () => {
     const s = stored.current;
-    if (s) saveState({ outbox: s.outbox, sent: s.sent, made: [...s.made], log: s.log });
+    if (s) saveState({ outbox: s.outbox, sent: s.sent, made: [...s.made], log: s.log, dropped: s.dropped });
   };
 
   const setPrefs = useCallback((change: Partial<WaniKaniPrefs>) => {
@@ -129,8 +139,11 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
         s.outbox = [...result.left, ...s.outbox.slice(batch.length)];
         // The offline copy still lists these items; they're left out of it (offline.ts).
         s.sent = [...s.sent, ...result.sent, ...result.dropped];
+        // Kept until a screen has said so, rather than lost without a word.
+        s.dropped += result.dropped.length;
         persist();
         setUnsent(s.outbox.length);
+        setDropped(s.dropped);
         if (result.problem) {
           setProblem(result.problem);
           break;
@@ -183,6 +196,14 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   produceRef.current = produce;
   const srsRead = useRef(false);
 
+  const seenDropped = useCallback((n: number) => {
+    const s = stored.current;
+    if (!s || n <= 0) return;
+    s.dropped = Math.max(0, s.dropped - n);
+    persist();
+    setDropped(s.dropped);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const unsentAssignments = useCallback(() => new Set((stored.current?.outbox ?? []).map((o) => o.assignmentId)), []);
 
   /** The offline copy as it stands: answers given or sent since it was made are left out. */
@@ -204,6 +225,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
       const next = await makeSnapshot({ api }, { user: u, apprentice, started, previous: snapshot.current, now: new Date() });
       await saveSnapshot(next);
       snapshot.current = next;
+      setOfflineSavedAt(new Date(next.savedAt));
       if (stored.current) {
         stored.current.sent = stored.current.sent.slice(cut);
         persist();
@@ -281,6 +303,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     setProblem(null);
     setOffline(false);
     snapshot.current = null;
+    setOfflineSavedAt(null);
     clearOffline();
   }, []);
 
@@ -290,6 +313,6 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     counts: counts ? { reviews: counts.reviews, lessons: lessonsToday(counts.available, prefs.newPerDay, startedToday, counts.apprentice, prefs.maxApprentice) } : null,
     apprentice: counts ? counts.apprentice : null,
     problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, unsentAssignments, log, productionDeck, production, startedToday, dayStartsAtHour,
-    offline, offlineData: copyData,
-  }), [token, api, user, counts, problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, unsentAssignments, log, productionDeck, production, startedToday, dayStartsAtHour, offline, copyData]);
+    offline, offlineData: copyData, offlineSavedAt, dropped, seenDropped,
+  }), [token, api, user, counts, problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, unsentAssignments, log, productionDeck, production, startedToday, dayStartsAtHour, offline, copyData, offlineSavedAt, dropped, seenDropped]);
 }

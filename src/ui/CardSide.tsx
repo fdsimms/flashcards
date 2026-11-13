@@ -143,6 +143,13 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
             </View>
           );
         }
+        if (b.role === 'wanted') {
+          return (
+            <Text key={i} style={{ ...(hasThai(b.text) ? thai : { ...type.subhead, lineHeight: 21 }), color: c.textSecondary, textAlign: 'center' }}>
+              {b.text}
+            </Text>
+          );
+        }
         if (b.role === 'note') {
           return (
             <View key={i} style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.xs }}>

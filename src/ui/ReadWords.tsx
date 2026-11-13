@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type MarkedWord } from '../reader/api';
-import { wordStatus } from '../reader/languages';
+import { meaningOf, wordStatus } from '../reader/languages';
 import { Button, Card, ErrorNote, Help, Screen } from './kit';
 import { hairline, space, type, useTheme } from './theme';
 
@@ -70,7 +70,7 @@ export function ReadWords({ api, mining }: {
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={{ ...type.title, fontWeight: '400', color: c.text }}>{w.word}</Text>
                     {w.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {w.lemma}</Text> : null}
-                    <Text style={{ ...type.body, color: c.text }}>{w.gloss ?? 'No meaning available'}</Text>
+                    <Text style={{ ...type.body, color: c.text }}>{meaningOf(w)}</Text>
                     <Text style={{ ...type.footnote, color: c.textSecondary }}>
                       {wordStatus(w)}{w.times > 1 ? `. Marked ${w.times} times.` : ''}
                     </Text>

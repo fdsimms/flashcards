@@ -206,6 +206,9 @@ class Generated:
     # False when a Thai line uses a word of the other gender than its speaker's, or a dialogue
     # doesn't say who is a man or a woman. Such a draft is never kept.
     gender_ok: bool = True
+    # False when it marks too many names, or words that can't be names. Names leave the coverage
+    # count, so such a draft's coverage isn't to be trusted, and it's never kept as the closest.
+    names_ok: bool = True
     floor_met: bool = True  # False for a closest attempt kept under the floor
     # Uses of a practiced point short of the 2 asked for, plus uses of an avoided one. The
     # closest attempt kept under the rules can have some.
@@ -361,7 +364,9 @@ break and nowhere else: never between words of the same clause, never before a p
 or "slang". Write each line in its register, so a chat between friends is casual, and a story's \
 narrator is usually neutral.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
-is not in the list, and for each name ("a girl's name"). For each of those words also give "translit", its pronunciation in Latin letters \
+is not in the list, and for each name ("a girl's name"). Also gloss every word you join from two or \
+more list words, like เข้าใจ ("understand", from เข้า and ใจ) or หน้าที่ ("duty", from หน้า and ที่): \
+such a word often means something its parts don't. For each of those words also give "translit", its pronunciation in Latin letters \
 with tone marks and a hyphen between syllables, as the learner's own cards write it: \
 nǎng-sǔue (หนังสือ), kâao (ข้าว), mâi-pen-rai (ไม่เป็นไร).
 
@@ -685,9 +690,13 @@ async def generate(ask: Ask, lexicon: Checker, request: TextRequest) -> Generate
             return result
         # Fewer grammar problems first, then closer to the target; the later attempt on a tie.
         rank = (-result.grammar_problems, _closeness(result.coverage.ratio, request))
-        if result.gender_ok and (
-            best is None
-            or rank >= (-best.grammar_problems, _closeness(best.coverage.ratio, request))
+        if (
+            result.gender_ok
+            and result.names_ok
+            and (
+                best is None
+                or rank >= (-best.grammar_problems, _closeness(best.coverage.ratio, request))
+            )
         ):
             best = result
         if attempt < MAX_ATTEMPTS:
@@ -702,8 +711,9 @@ async def generate(ask: Ask, lexicon: Checker, request: TextRequest) -> Generate
             )
     assert result is not None
     if best is None:
-        # Every attempt had a line that doesn't fit its speaker's gender: none is kept, whatever
-        # its coverage. It's returned as not passed, so it's stored as dropped and never served.
+        # Every attempt had a line that doesn't fit its speaker's gender, or names hiding words
+        # from the count: none is kept, whatever its coverage. It's returned as not passed, so
+        # it's stored as dropped and never served.
         return replace(result, passed=False)
     if best.coverage.ratio >= MINIMUM:
         # Every attempt missed (the floor, or only a stretch word rule): keep the closest one.
@@ -782,7 +792,7 @@ def _assess(
     # counts against the floor and is named in the revision message like any other.
     extra = [c.text for c in choices] + ([recap_line] if recap_line else [])
     coverage = check([ln.text for ln in lines] + extra, lexicon)
-    used, problems = _stretch_used(coverage, request, lexicon)
+    used, uses, problems = _stretch_used(coverage, request, lexicon)
     if request.form == "story":
         genders = {}  # a story has only its narrator
         characters = {}
@@ -794,18 +804,22 @@ def _assess(
             request.language, [(ln.speaker, ln.text) for ln in lines], genders
         )
     problems += gender_issues
-    problems += name_problems(coverage, lexicon.spaced)
+    name_issues = name_problems(coverage, lexicon.spaced)
+    problems += name_issues
     grammar_issues, grammar_misses = grammar_problems([ln.text for ln in lines], lexicon, request)
     problems += grammar_issues
-    # Stretch words are glossed from the deck, so only off-list words need the model's gloss.
+    # Stretch words are glossed from the deck, the meaning their card teaches, whatever the model
+    # wrote for them; only off-list words need the model's gloss.
     for word in used:
-        glosses.setdefault(word.text, word.meaning)
+        glosses[word.text] = word.meaning
     missing = tuple(
         w for w in coverage.words("unknown") + coverage.words("partial") if w not in glosses
     )
     in_range = request.ceiling is None or coverage.ratio <= request.ceiling
     passed = coverage.meets(request.floor) and in_range and not problems
-    stretch = tuple(e.text for e in used)
+    # Only a word used as often as asked was practiced: a closest attempt kept with one used once
+    # (or not at all) mustn't count toward the word's days of practice (`practiced_days`).
+    stretch = tuple(e.text for e in used if uses[e.text] >= STRETCH_MIN_USES)
     generated = Generated(
         title,
         lines,
@@ -819,6 +833,7 @@ def _assess(
         genders=genders,
         characters=characters,
         gender_ok=not gender_issues,
+        names_ok=not name_issues,
         grammar_problems=grammar_misses,
         translits=translits,
         recap=recap,
@@ -880,9 +895,10 @@ def name_problems(coverage: Coverage, spaced: bool) -> list[str]:
 
 def _stretch_used(
     coverage: Coverage, request: TextRequest, lexicon: Checker
-) -> tuple[list[Entry], list[str]]:
-    """The stretch words the draft uses, and what's wrong with how it uses them, as sentences for
-    the revision message. A chosen word is one of the offered words the draft put in asterisks."""
+) -> tuple[list[Entry], dict[str, int], list[str]]:
+    """The stretch words the draft uses, how many times each, and what's wrong with how it uses
+    them, as sentences for the revision message. A chosen word is one of the offered words the
+    draft put in asterisks."""
     if request.choose is None:
         used = list(request.stretch)
     else:
@@ -906,7 +922,7 @@ def _stretch_used(
     }
     if short := [word for word, n in uses.items() if n < STRETCH_MIN_USES]:
         problems.append("These stretch words appear fewer than 2 times: " + ", ".join(short) + ".")
-    return used, problems
+    return used, uses, problems
 
 
 def claude_ask(

@@ -7,15 +7,16 @@ import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
 import { problemText, WaniKaniError, type WaniKaniApi, type WaniKaniUser } from '../wanikani/api';
 import { toKana } from '../wanikani/kana';
-import { apprenticeBlocks, lessonsToday } from '../wanikani/prefs';
+import { offlineText } from '../wanikani/offline';
+import { apprenticeBlocks, droppedText, lessonsToday } from '../wanikani/prefs';
 import { audioFileName, audioFor } from '../wanikani/production';
 import {
-  buildSession, canAskLater, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
+  buildSession, canAskLater, canMarkCorrect, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
   studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
 import { nextStage, outcomeText } from '../wanikani/srs';
 import { localAudioUri } from '../wanikani/storage';
-import { SUBJECT_TYPE_NAMES, type Assignment, type Subject } from '../wanikani/subjects';
+import { madeOf, SUBJECT_TYPE_NAMES, withComponents, type Assignment, type Subject } from '../wanikani/subjects';
 import { haptic } from './haptics';
 import { Button, Count, ErrorNote, Icon, Screen, Tappable } from './kit';
 import { Reveal } from './motion';
@@ -34,6 +35,8 @@ interface Source {
   apprentice: number;
   subjects: (ids: number[]) => Promise<Subject[]>;
   synonyms: (ids: number[]) => Promise<Map<number, string[]>>;
+  /** When the offline copy was made, when the session comes from it. */
+  savedAt?: Date;
 }
 
 async function source(api: WaniKaniApi, wanikani: WaniKaniState): Promise<Source> {
@@ -41,7 +44,7 @@ async function source(api: WaniKaniApi, wanikani: WaniKaniState): Promise<Source
     const d = wanikani.offlineData();
     if (!d) return null;
     return {
-      user: d.user, reviews: d.reviews, lessons: d.lessons, started: d.started, apprentice: d.apprentice,
+      user: d.user, reviews: d.reviews, lessons: d.lessons, started: d.started, apprentice: d.apprentice, savedAt: d.savedAt,
       subjects: async (ids: number[]) => ids.flatMap((id) => d.subjects.get(id) ?? []),
       synonyms: async (ids: number[]) => new Map(ids.flatMap((id): [number, string[]][] => (d.synonyms.has(id) ? [[id, d.synonyms.get(id)!]] : []))),
     };
@@ -83,7 +86,7 @@ async function source(api: WaniKaniApi, wanikani: WaniKaniState): Promise<Source
 export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: WaniKaniState; onDone: () => void; onOptions: () => void }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
-  const { api, prefs, srs, send } = wanikani;
+  const { api, prefs, srs, send, seenDropped } = wanikani;
   const [subjects, setSubjects] = useState<Map<number, Subject>>(new Map());
   const [synonyms, setSynonyms] = useState<Map<number, string[]>>(new Map());
   const [study, setStudy] = useState<Study | null>(null);
@@ -101,11 +104,17 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const [retry, setRetry] = useState<string | null>(null);
   // How answers are given is fixed for the session when it's built: its questions were made for it.
   const [typing, setTyping] = useState(prefs.answer === 'type');
+  // When the offline copy this session was built from was made; null when it came from WaniKani.
+  const [copySavedAt, setCopySavedAt] = useState<Date | null>(null);
+  // How many refused answers this screen has said were dropped: marked seen as it closes.
+  const shownDropped = useRef(0);
 
   // Whatever is held when the screen closes goes to WaniKani then, and the deck list's counts are read again.
   const studyRef = useRef(study);
   studyRef.current = study;
   useEffect(() => () => {
+    // Before sending, so any refused in this last send are still shown on the deck list.
+    seenDropped(shownDropped.current);
     if (studyRef.current) send(studyFlush(studyRef.current).send);
     wanikani.refresh(true);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -123,7 +132,9 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         const offered = lessonsToday(lessons.length, prefs.newPerDay, started);
         const held = apprenticeBlocks(apprentice, prefs.maxApprentice) && offered > 0;
         const lessonCount = held ? 0 : offered;
-        const read = new Map((await src.subjects((lessonKind ? lessons : reviews).map((a) => a.subjectId))).map((s) => [s.id, s]));
+        // With the radicals and kanji they're made of, for the "Made of" row: one more batched read.
+        const own = await src.subjects((lessonKind ? lessons : reviews).map((a) => a.subjectId));
+        const read = new Map((await withComponents(own, src.subjects)).map((s) => [s.id, s]));
         const items = lessonKind ? sessionItems([], lessons, read, lessonCount) : sessionItems(reviews, [], read, 0);
         // The user's own synonyms count as right answers when typing; without them, only WaniKani's do.
         const typed = prefs.answer === 'type';
@@ -131,10 +142,11 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         if (gone) return;
         setSubjects(read);
         setSynonyms(syn);
+        setCopySavedAt(src.savedAt ?? null);
         setKind(lessonKind ? 'lessons' : 'reviews');
         setNext({ lessons: lessonKind ? 0 : lessonCount, held, apprentice });
         setTyping(typed);
-        setStudy(startStudy(buildSession(items, { mode: questionMode(prefs.answer, prefs.separate), lessonBatch: user.lessonBatch })));
+        setStudy(startStudy(buildSession(items, { mode: questionMode(prefs.answer, prefs.separate), lessonBatch: user.lessonBatch }), typed));
       } catch (e) {
         if (gone) return;
         const why = e instanceof WaniKaniError ? e.problem : 'unavailable';
@@ -214,7 +226,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   };
 
   const undo = () => {
-    const back = study && studyUndo(study);
+    // A typed answer judged wrong and not yet counted (before Next) still counts as a miss.
+    const back = study && studyUndo(study, verdict?.result === 'wrong');
     if (!back) return;
     haptic.tap();
     answeredFrom.current = null;
@@ -235,6 +248,12 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     setRevealed(true);
     if (prefs.autoplay && asksReading) play(audioUrl(subject));
   };
+
+  // A lesson shows the answer at once, so a word's recording plays as it comes up, as it does on reveal.
+  const lessonKey = lesson && subject && session ? `${subject.id}:${session.finished.length}:${session.queue.length}` : null;
+  useEffect(() => {
+    if (lessonKey && prefs.autoplay) play(audioUrl(subject));
+  }, [lessonKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const check = () => {
     if (!subject || !question) return;
@@ -269,6 +288,13 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
       {menu ? <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="More: ask later, open on wanikani.com or WaniKani's options" onPress={menu} /> : null}
     </Stack.Toolbar>
   );
+
+  // Refused answers are said with the session and at its end; those said are marked seen as the screen closes.
+  const droppedNote = () => {
+    if (!wanikani.dropped) return null;
+    shownDropped.current = wanikani.dropped;
+    return <Text style={{ ...type.subhead, color: c.warning, textAlign: 'center' }}>{droppedText(wanikani.dropped)}</Text>;
+  };
 
   if (!api) {
     return (
@@ -316,6 +342,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>
             {done ? `${done} ${done === 1 ? 'item' : 'items'} this session. ` : ''}{kind === 'reviews' && offer ? 'Your lessons are ready when you want them.' : 'Nothing else is up on WaniKani right now.'}
           </Text>
+          {droppedNote()}
           {next.held && prefs.maxApprentice !== null ? (
             <Text style={{ ...type.subhead, color: c.warning, textAlign: 'center' }}>
               {`Lessons are paused: ${next.apprentice} ${next.apprentice === 1 ? 'item is' : 'items are'} at Apprentice, over your limit of ${prefs.maxApprentice}.`}
@@ -371,7 +398,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             borderColor: result ? 'transparent' : c.border,
           }}
         />
-        {result === 'wrong' ? <Button label="Mark as correct" variant="secondary" onPress={() => answer(true)} /> : null}
+        {result === 'wrong' && canMarkCorrect(question) ? <Button label="Mark as correct" variant="secondary" onPress={() => answer(true)} /> : null}
         <Button
           label={!verdict ? 'Check' : finishes || result === 'wrong' ? 'Next' : 'Next question'}
           onPress={check}
@@ -401,9 +428,12 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
           {kind === 'reviews' ? <Count value={left.reviews} label="due" color={c.countDue} /> : <Count value={left.lessons} label="new" color={c.countNew} />}
         </View>
-        {wanikani.offline ? (
-          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>Offline. Answers are sent when WaniKani can be reached.</Text>
+        {copySavedAt || wanikani.offline ? (
+          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
+            {`${copySavedAt ? `${offlineText(copySavedAt, new Date(), wanikani.dayStartsAtHour)}.` : 'Offline.'} Answers are sent when WaniKani can be reached.`}
+          </Text>
         ) : null}
+        {droppedNote()}
         <ProgressBar value={sessionProgress(study.session)} />
         <CardSurface>
           <ScrollView
@@ -418,6 +448,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
                   <SubjectDetails
                     key={`${subject.id}:${question.kind}`}
                     subject={subject}
+                    parts={madeOf(subject, subjects)}
                     showMeaning={showMeaning}
                     showReading={showReading}
                     synonyms={synonyms.get(subject.id) ?? []}

@@ -10,14 +10,14 @@ import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../reader/d
 import { marksIn, withMark, type HideableMark, type Mark } from '../reader/marks';
 import { scrollTarget, type Box } from '../reader/follow';
 import { THAI_FONTS, THAI_FONT_LABELS, readFont, type ThaiFont } from '../reader/fonts';
-import { LANGUAGES, wordStatus } from '../reader/languages';
+import { LANGUAGES, meaningOf, wordStatus } from '../reader/languages';
 import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf, repeatChipLabel } from '../reader/playback';
 import { RATES } from '../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, type LengthStep } from '../reader/shelf';
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
 import { locate, phrasePart, phraseText, pickEnd, type PhrasePick } from '../reader/phrase';
 import { choicesView, holdsPlayAll } from '../reader/choices';
-import { buildCheck, checkScore, type CheckPicks, type CheckQuestion } from '../reader/check';
+import { buildCheck, loggedScore, type CheckPicks, type CheckQuestion } from '../reader/check';
 import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
@@ -480,7 +480,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
       logged.current = true;
       setLeaving(then);
       try {
-        await api.logReading(text.id, toLog(session, Date.now(), rating, true, checkPicks ? checkScore(check, checkPicks) : null));
+        await api.logReading(text.id, toLog(session, Date.now(), rating, true, checkPicks ? loggedScore(check, checkPicks) : null));
       } catch {
         // The reading is lost, not your place: carry on either way.
       } finally {
@@ -1039,9 +1039,9 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
 }
 
 const RATINGS: { value: Rating; label: string; hint: string }[] = [
-  { value: 'too_easy', label: 'Too easy', hint: 'More new words next time' },
+  { value: 'too_easy', label: 'Too easy', hint: 'More unfamiliar words next time' },
   { value: 'about_right', label: 'About right', hint: 'Keep it like this' },
-  { value: 'too_hard', label: 'Too hard', hint: 'Fewer new words next time' },
+  { value: 'too_hard', label: 'Too hard', hint: 'Fewer unfamiliar words next time' },
 ];
 
 /** The reading size for a text's language. */
@@ -1177,7 +1177,7 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
           <View style={{ flex: 1, gap: space.xs }}>
             <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
             {tapped.word.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {tapped.word.lemma}</Text> : null}
-            <Text style={{ ...type.body, color: c.text }}>{tapped.word.gloss ?? 'No meaning available'}</Text>
+            <Text style={{ ...type.body, color: c.text }}>{meaningOf(tapped.word)}</Text>
             {tapped.word.form && language ? <ReadFormChip name={tapped.word.form.name} onPress={() => setShowForm(true)} /> : null}
             {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
             <ReadFrequency word={tapped.word} />

@@ -240,10 +240,18 @@ class JapaneseLexicon:
     spaced = False
     code = "ja"
 
-    def __init__(self, known: Iterable[str], common: int = 0, extra: Iterable[str] = ()) -> None:
+    def __init__(
+        self,
+        known: Iterable[str],
+        common: int = 0,
+        extra: Iterable[str] = (),
+        withheld: Iterable[str] = (),
+    ) -> None:
         """`known` is the studied deck entries; `extra` other words that count as known without
-        being deck words (WaniKani's)."""
-        self.known = frozenset(e.strip() for e in known if e.strip())
+        being deck words (WaniKani's); `withheld` deck entries that count as unknown in any form,
+        even a common word's (lexicon_from)."""
+        self.withheld = frozenset(e.strip() for e in withheld if e.strip())
+        self.known = frozenset(e.strip() for e in known if e.strip()) - self.withheld
         self.common = _common(common) if common else frozenset()
         self._index = _Index()
         for entry in sorted(self.known):
@@ -354,6 +362,8 @@ class JapaneseLexicon:
         return any(self._form_known(f) for f in word.forms)
 
     def _form_known(self, form: str) -> bool:
+        if form in self.withheld:
+            return False
         return form in self._index.singles or form in self.common
 
     def known_pieces(self, token: str) -> list[str] | None:

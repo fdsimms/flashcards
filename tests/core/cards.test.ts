@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { autoplayFor, canRecordYourself, cardKindsFor, playbackFor, renderCard } from '../../src/core/cards';
+import { autoplayFor, canRecordYourself, cardKindsFor, playbackFor, renderCard, speechLangFor } from '../../src/core/cards';
 import type { Note } from '../../src/core/types';
 import { omniNote } from '../support/fixtures';
 
@@ -94,6 +94,58 @@ describe('cards', () => {
     expect(renderCard(note, 'reverse').back.blocks[0]).toMatchObject({ text: 'кошка', prefix: 'моя' });
     expect(renderCard({ ...note, fields: { ...note.fields, Language: 'polish' } }, 'forward').front.blocks[0].prefix).toBeUndefined();
   });
+  it("shows which word is wanted under a reverse card's meaning, and nowhere else", () => {
+    const note = omniNote({ Entry: 'esperar', Meaning: 'to wait', Language: 'Spanish', LeechHint: 'hint' });
+    expect(renderCard(note, 'reverse', 'Not: aguardar').front.blocks.map((b) => [b.text, b.role]))
+      .toEqual([['to wait', undefined], ['Not: aguardar', 'wanted'], ['hint', undefined]]);
+    expect(renderCard(note, 'reverse').front.blocks.map((b) => b.text)).toEqual(['to wait', 'hint']);
+    for (const kind of ['forward', 'audio'] as const) {
+      expect(renderCard(note, kind, 'Not: aguardar').front.blocks.some((b) => b.role === 'wanted')).toBe(false);
+    }
+  });
+  describe("a note's language", () => {
+    const inDeck = (deck: string, over: Record<string, string> = {}) => ({ ...omniNote({ Language: '', ...over }), deck });
+    it('reads the Language field, in English or as the language writes itself', () => {
+      expect(speechLangFor(omniNote({ Language: 'Italian' }))).toBe('it-IT');
+      expect(speechLangFor(omniNote({ Language: 'Türkçe' }))).toBe('tr-TR');
+      expect(speechLangFor(omniNote({ Language: 'čeština' }))).toBe('cs-CZ');
+      expect(speechLangFor(omniNote({ Language: 'Bahasa Indonesia' }))).toBe('id-ID');
+    });
+    it('finds the language in the deck name when the note has no Language field', () => {
+      const cases: [string, string][] = [
+        ['Languages::Italiano', 'it-IT'], ['Português::Verbos', 'pt-BR'], ['Languages::中文', 'zh-CN'], ['한국어 단어', 'ko-KR'],
+        ['Dutch', 'nl-NL'], ['Svenska', 'sv-SE'], ['Dansk', 'da-DK'], ['Czech vocab', 'cs-CZ'], ['Arabic', 'ar-SA'],
+        ['Hebrew', 'he-IL'], ['Hindi', 'hi-IN'], ['Vietnamese', 'vi-VN'], ['Indonesian', 'id-ID'], ['Українська', 'uk-UA'],
+        ['👅 Languages::🐘 ภาษาไทย', 'th-TH'],
+      ];
+      for (const [deck, lang] of cases) expect(speechLangFor(inDeck(deck)), deck).toBe(lang);
+      expect(speechLangFor(inDeck('Languages::Klingon'))).toBeUndefined();
+    });
+    it("doesn't speak a word whose language isn't known, but still plays its recording", () => {
+      const note = inDeck('Languages::Klingon', { Entry: 'Qapla’', GenerateReverse: 'y', GenerateAudioCard: 'y' });
+      for (const kind of ['forward', 'reverse', 'audio'] as const) {
+        const r = renderCard(note, kind);
+        expect(r.speechLang).toBeUndefined();
+        for (const revealed of [false, true]) {
+          expect(autoplayFor(r, revealed), `${kind} ${revealed}`).toBeUndefined();
+          expect(playbackFor(r, revealed), `${kind} ${revealed}`).toBeUndefined();
+        }
+      }
+      const recorded = { ...note, fields: { ...note.fields, Audio: '[sound:q.mp3]' } };
+      expect(autoplayFor(renderCard(recorded, 'audio'), false)).toEqual({ text: undefined, file: 'q.mp3' });
+      expect(autoplayFor(renderCard(recorded, 'reverse'), true)).toEqual({ text: undefined, file: 'q.mp3' });
+      expect(playbackFor(renderCard(recorded, 'forward'), false)).toEqual({ text: undefined, file: 'q.mp3' });
+    });
+    it("says so on an audio card's front when there is nothing to play", () => {
+      const note = inDeck('Languages::Klingon', { Entry: 'Qapla’', GenerateAudioCard: 'y' });
+      const front = renderCard(note, 'audio').front.blocks;
+      expect(front[1]).toMatchObject({ role: 'note' });
+      expect(front[1].text).toContain("its language isn't known");
+      const recorded = { ...note, fields: { ...note.fields, Audio: '[sound:q.mp3]' } };
+      expect(renderCard(recorded, 'audio').front.blocks).toHaveLength(1);
+      expect(renderCard(omniNote({ GenerateAudioCard: 'y' }), 'audio').front.blocks).toHaveLength(1);
+    });
+  });
   it('leaves out tags and the example when the note has none', () => {
     const back = renderCard(omniNote({ Meaning: 'book' }), 'forward').back.blocks;
     expect(back.some((b) => b.role)).toBe(false);
@@ -134,18 +186,29 @@ describe('cards', () => {
       expect(canRecordYourself(renderCard(omniNote({ Entry: 'kot' }), 'forward'))).toBe(false);
     });
 
-    it('keeps the recording off the Play button until the answer is shown', () => {
-      const r = renderCard(note, 'forward');
-      expect(playbackFor(r, false)?.file).toBeUndefined();
-      expect(playbackFor(r, true)?.file).toBe(FILE);
+    it('keeps the recording off the Play button on the front of a reverse card until the answer is shown', () => {
       expect(playbackFor(renderCard(note, 'reverse'), false)).toBeUndefined();
+      expect(playbackFor(renderCard(note, 'reverse'), true)?.file).toBe(FILE);
     });
 
-    it('speaks the front aloud when there is no recording, and the reverse word when its answer is shown', () => {
+    it('plays the recording from Play on the front of a forward card, which already shows the word', () => {
+      const r = renderCard(note, 'forward');
+      expect(playbackFor(r, false)?.file).toBe(FILE);
+      expect(playbackFor(r, true)?.file).toBe(FILE);
+    });
+
+    it('speaks nothing by itself on the front of a forward card, and the word when its answer is shown', () => {
       const plain = omniNote({ Entry: 'kot', GenerateReverse: 'y' });
-      expect(autoplayFor(renderCard(plain, 'forward'), false)?.text).toBe('kot');
-      expect(autoplayFor(renderCard(plain, 'forward'), true)).toBeUndefined();
+      expect(autoplayFor(renderCard(plain, 'forward'), false)).toBeUndefined();
+      expect(autoplayFor(renderCard(plain, 'forward'), true)?.text).toBe('kot');
+      expect(playbackFor(renderCard(plain, 'forward'), false)).toEqual({ text: 'kot', file: undefined });
+    });
+
+    it('speaks the reverse word when its answer is shown, and the audio card its word as it comes up', () => {
+      const plain = omniNote({ Entry: 'kot', GenerateReverse: 'y', GenerateAudioCard: 'y' });
+      expect(autoplayFor(renderCard(plain, 'reverse'), false)).toBeUndefined();
       expect(autoplayFor(renderCard(plain, 'reverse'), true)?.text).toBe('kot');
+      expect(autoplayFor(renderCard(plain, 'audio'), false)?.text).toBe('kot');
     });
   });
 });

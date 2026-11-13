@@ -38,6 +38,7 @@ export default function ReadRoute() {
       onEpisodes={(story) => router.push({ pathname: '/read-past', params: { story: String(story) } })}
       onWords={() => router.push('/read-words')}
       onLanguage={() => { api.settings().then(reader.setSettings, () => undefined); }}
+      onReview={(deck) => router.push({ pathname: '/review', params: { deck } })}
     />
   );
 }

@@ -110,7 +110,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
               </Text>
             ))}
           </Card>
-          <Help>A point with 8 in 10 right comes back later than last time; one with fewer comes back tomorrow. Answers stay on this phone and never change a card.</Help>
+          <Help>A point with 8 in 10 right, or all but one of 3 or 4 questions, comes back later than last time; one with fewer comes back tomorrow. Answers stay on this phone and never change a card.</Help>
           {note ? <Help>{note}</Help> : null}
         </ScrollView>
       </Screen>
