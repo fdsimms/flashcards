@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
+import { failureText } from '../core/failure';
 import type { Api, NaturalCheck } from '../reader/api';
 import { isOff, registerLabel, verdictLabel } from '../reader/register';
 import { ErrorNote, Icon, Tappable } from './kit';
@@ -52,7 +53,7 @@ export function useNaturalCheck(api: Api, textId: number, line: number) {
       const check = await api.checkNatural(textId, line);
       if (latest.current === mine) setState({ status: 'done', check });
     } catch (e) {
-      if (latest.current === mine) setState({ status: 'error', message: e instanceof Error ? e.message : String(e) });
+      if (latest.current === mine) setState({ status: 'error', message: failureText(e, { what: "Couldn't check this line.", next: 'Try again.' }) });
     } finally {
       busy.current = false;
     }

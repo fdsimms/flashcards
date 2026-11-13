@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View, type TextInputInstance } from 'react-native';
 import { cardsFor, deleteNote, NoteRefused, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { cardStateOf, FLAG_NAMES, type CardState } from '../core/cardState';
+import { failureText } from '../core/failure';
 import type { AnkiLink } from '../db/ankiLink';
 import { isOmnilanguage } from '../core/cards';
 import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, type Selection } from '../core/formatting';
@@ -141,7 +142,7 @@ export function NoteEditor(props: {
       stopAsking();
       props.onClose({ saved });
     } catch (e) {
-      setError(e instanceof NoteRefused ? e.message : `Couldn't save the note. ${e instanceof Error ? e.message : String(e)}`);
+      setError(e instanceof NoteRefused ? e.message : failureText(e, { what: "Couldn't save the note.", next: 'Try again.' }));
     } finally {
       setBusy(false);
     }
@@ -172,7 +173,7 @@ export function NoteEditor(props: {
               stopAsking();
               props.onClose({ deleted: original.id });
             } catch (e) {
-              setError(`Couldn't delete the note. ${e instanceof Error ? e.message : String(e)}`);
+              setError(failureText(e, { what: "Couldn't delete the note.", next: 'Try again.' }));
               setBusy(false);
             }
           },
@@ -265,13 +266,13 @@ export function NoteEditor(props: {
                 try {
                   result = await setCardStates(props.repo, [card], change, new Date(), dayStartsAtHour);
                 } catch (e) {
-                  setError(`Couldn't change this card. ${e instanceof Error ? e.message : String(e)} Try again.`);
+                  setError(failureText(e, { what: "Couldn't change this card.", next: 'Try again.' }));
                   return;
                 }
                 const { cards, ankiError } = result;
                 props.onCardsChanged?.();
                 setNoteCardList((list) => list.map((x) => (x.id === card.id ? cards[0] : x)));
-                if (ankiError) setError(`Changed in Franki, but it won't reach Anki. ${(ankiError as any)?.message ?? ankiError}`);
+                if (ankiError) setError(failureText(ankiError, { next: "Changed in Franki, but it won't reach Anki." }));
               }}
             />
           ) : null}

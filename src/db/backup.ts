@@ -1,3 +1,5 @@
+import { Refusal } from '../core/failure';
+
 /**
  * Backup and restore. A backup is a copy of the whole SQLite database (`VACUUM INTO`), which the
  * share sheet saves to Files or iCloud Drive. A restore replaces every table's rows with the
@@ -23,7 +25,7 @@ export interface TableRestore {
   columns: string[];
 }
 
-export class NotABackupError extends Error {}
+export class NotABackupError extends Refusal {}
 
 /**
  * What a restore does, from the columns of each table here and in the backup. Copying only the

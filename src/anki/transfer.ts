@@ -1,5 +1,6 @@
 import { File, Paths } from 'expo-file-system';
 import { dayKeyOf } from '../core/day';
+import { Refusal } from '../core/failure';
 import type { Repo } from '../db/repo';
 import type { AnkiLink } from '../db/ankiLink';
 import { importAnkiJson } from '../import/ankiJson';
@@ -18,7 +19,7 @@ import { LATEST_VERSION } from './packageFormat';
  */
 
 /** A package that can't be taken in, with what to do about it. */
-export class PackageRefused extends Error {}
+export class PackageRefused extends Refusal {}
 
 export interface ImportSummary {
   notes: number;

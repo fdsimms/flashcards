@@ -7,6 +7,7 @@ import type { DeckMove } from '../core/deckOrder';
 import { isInDeck } from '../core/deckTree';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
+import { failureText } from '../core/failure';
 
 /**
  * Making, renaming, moving and deleting decks from the deck list (src/anki/deckService.ts): "New
@@ -26,7 +27,7 @@ export function useDeckActions(onOptions: (deck: string) => void) {
       haptic.success();
     } catch (e) {
       if (e instanceof DeckRefused && askAgain) askAgain(e.message);
-      else Alert.alert(failed, e instanceof Error ? e.message : String(e));
+      else Alert.alert(failed, failureText(e, { next: 'Try again.' }));
     } finally {
       busy.current = false;
       await refresh();
@@ -61,7 +62,7 @@ export function useDeckActions(onOptions: (deck: string) => void) {
     try {
       preview = await deckDeletionPreview(repo, deck);
     } catch (e) {
-      Alert.alert("Couldn't delete the deck.", e instanceof Error ? e.message : String(e));
+      Alert.alert("Couldn't delete the deck.", failureText(e, { next: 'Try again.' }));
       return;
     }
     const subdecks = decks.filter((r) => r.deck !== deck && isInDeck(r.deck, deck)).length;

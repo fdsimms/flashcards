@@ -661,6 +661,13 @@ in the current language, with when one was last read to the end. Nothing else le
   man in Thai, Russian, Greek, Polish or Norwegian; no second woman in Greek) reads two speakers
   of that gender in the same voice until one is chosen. Azure's newer Dragon and MAI voices are
   offered in the picker, but none is a default, as they haven't been tried through this client.
+  Azure's Multilingual voices (en-US-AvaMultilingualNeural) are listed under one locale but read
+  any language, so `GET /api/voices` adds them after a language's own voices and the settings
+  accept them for any language (`_is_multilingual`); every other voice still has to speak the
+  language. This is how Greek, which has one standard voice of each gender, gets second voices.
+  The speech request's `xml:lang` is the voice's own locale (en-US), and Azure reads the text in
+  its language; a Multilingual voice for Thai also skips the Thai pause and pronunciation fixes,
+  which apply only to th- voices.
   Since 12 November 2026 each slot can be chosen in the app (Read & Listen's settings, from
   `GET /api/voices`, filtered to the slot's gender by `voiceSlots.ts`; `PATCH /api/settings`
   refuses a voice of the other gender), stored in the `voices` setting over those defaults. A
@@ -776,3 +783,25 @@ in the current language, with when one was last read to the end. Nothing else le
   was within one setting step of the right one 98% of the time (95% at 12 questions, 99% at 40) and
   exactly right 62% of the time (69% at 40), so more questions buy little. Not tried on a real
   learner.
+
+- **The note queue fills in notes from a typed word** (`server/reader/.../note_queue.py`,
+  `src/reader/noteQueue.ts`; 13 November 2026, the owner's idea: "I'm never gonna fill these fields out
+  by hand"). Quick add takes words, one per line (with the owner's own meaning after a spaced dash), and
+  the server's `note_queue` table holds them as `waiting`, `ready` or `failed`. A background pass sends
+  the due words to Claude a language and ten at a time, never a call per word, and writes the Meaning
+  (unless the owner gave one), a Context sentence with the word in `<b>`, its translation, the
+  romanization of the sentence and word in Thai, Russian and Greek (`ContextRomanized`,
+  `Transliteration`), and a Register when the word isn't plain. Generate, then verify: a word is kept
+  only if it was asked for and its fields pass `check` (one sentence, balanced bold, no other markup,
+  no `|`, `*` or em dashes); anything else is `failed` with the reason, never repaired, and a failed word
+  is tried again after ten minutes, up to three tries, then waits for the owner's Try again. Which
+  words are due is read at each `GET /api/note-queue`, so a server restart picks up where it left off;
+  the app asks every few seconds only while some word is waiting (`useNoteQueue`, one poller for every
+  screen showing the queue). **Nothing here writes an Anki note.** The server can't write notes or media
+  to Anki, and the approval rule stands: a ready word opens in the note editor with its fields filled
+  in, and saving there is the approval, after which the app deletes the word from the queue. The Audio
+  field is the one the server doesn't write: the app records it as it does for any note when it's saved
+  (`src/core/recording.ts`). The spend is the `note_queue` block of `/api/costs`. Not done: PartOfSpeech
+  and Gender (their values in the owner's notes aren't written down anywhere to match), a check that
+  the sentence uses only known words (it's one sentence, not a text), and a note that says it was
+  filled in by Claude in the editor.

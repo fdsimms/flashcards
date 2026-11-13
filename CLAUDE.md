@@ -132,6 +132,9 @@ jokey metaphors or cutesy voice. Read each line aloud and rewrite it if nobody w
 
 **An error says what happened, then what to do.** "Couldn't import deck.apkg. Anki package files
 can't be read yet. In Anki, export as..." rather than "failed: <exception>". Buttons name the action.
+Screens build it with `failureText` (`src/core/failure.ts`): an error written for a person extends
+`Refusal` and is shown as it is; any other error's text goes last, in parentheses.
+`tests/noRawErrors.test.ts` fails the build on a screen showing an error's text another way.
 
 **American English** in anything a user sees. **No em dashes** in UI text, alerts, commit messages,
 PR descriptions or issue bodies: use a period, colon, comma or parentheses. Code comments are

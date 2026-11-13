@@ -6,9 +6,10 @@ import { deckListTotals, isInDeck, shownDeckRows, type DeckRow } from '../core/d
 import { useDeckDrag } from './DeckDrag';
 import { DISCLOSURE, ROW_PAD, WELL_EDGE, WELL_INSET } from './deckLayout';
 import { haptic } from './haptics';
-import { Button, Card, Group, Icon, NavRow, Screen, SwipeToReveal, Tappable } from './kit';
+import { Button, Card, Group, Icon, NavRow, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
 import { useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
+import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
 import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
@@ -183,15 +184,17 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
       </View>
       <Stat value={row.due} label="due" color={c.countDue} />
       <Stat value={row.fresh} label="new" color={c.countNew} />
-      <Pressable
-        onPress={onMenu}
+      <Tappable
+        onPress={() => { haptic.tap(); onMenu(); }}
         accessibilityRole="button"
         accessibilityLabel={`More for ${row.name}`}
         accessibilityHint={menuHint}
-        style={({ pressed }) => ({ width: MIN_TAP - 4, height: MIN_TAP, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.4 : 1 })}
+        scaleTo={0.85}
+        dimTo={0.4}
+        style={{ width: MIN_TAP - 4, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
       >
         <Icon name="ellipsis" size={18} color={c.textTertiary} weight="semibold" />
-      </Pressable>
+      </Tappable>
       {row.hasSubdecks && onToggle ? (
         // Over the gutter before the name. Last in the row: a later sibling is hit-tested first, so
         // earlier it would hide the hit slop under the name.
@@ -209,6 +212,26 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
         </Tappable>
       ) : null}
     </Pressable>
+  );
+}
+
+/**
+ * Something on the deck list that needs doing (a backup overdue, a sync or a load that failed):
+ * a card edged in the warning color, with what to tap for in the accent color. The whole card is the button.
+ */
+function WarningBanner({ title, detail, action, hint, onPress }: { title: string; detail: string; action: string; hint?: string; onPress: () => void }) {
+  const c = useTheme();
+  return (
+    <Tappable onPress={() => { haptic.tap(); onPress(); }} accessibilityRole="button" accessibilityLabel={`${title}. ${detail}`} accessibilityHint={hint} scaleTo={0.98}>
+      <View style={{ flexDirection: 'row', gap: space.m, alignItems: 'flex-start', borderRadius: radius.l, ...smooth, borderWidth: 1, borderColor: c.warning, backgroundColor: c.surface, padding: space.m }}>
+        <Icon name="exclamationmark.triangle.fill" size={22} color={c.warning} />
+        <View style={{ flex: 1, gap: space.xs }}>
+          <Text style={{ ...type.headline, color: c.warning }}>{title}</Text>
+          <Text style={{ ...type.subhead, color: c.textSecondary }}>{detail}</Text>
+          <Text style={{ ...type.subhead, color: c.accent, fontWeight: '600' }}>{action}</Text>
+        </View>
+      </View>
+    </Tappable>
   );
 }
 
@@ -238,6 +261,8 @@ export function DeckList(props: {
   onOptions: (deck: string) => void;
   /** Makes a deck (DeckActions.tsx). */
   onNewDeck: () => void;
+  /** Quick add (ReadQuickAdd.tsx); present while Read & Listen is on, since Claude fills the notes in there. */
+  onQuickAdd?: () => void;
   /** The menu on a deck's row: add a note, rename, options, delete (DeckActions.tsx). */
   onDeckMenu: (deck: string) => void;
   /** A deck dragged to a new place: reordered, nested or unnested (`deckMove`, DeckActions.tsx). */
@@ -254,6 +279,7 @@ export function DeckList(props: {
   const c = useTheme();
   const header = useHeaderInset();
   const { banner: vocabReady } = useVocabReady();
+  const noteQueue = useNoteQueueBanner();
   const shown = useMemo(() => shownDeckRows(props.decks, props.collapsed ?? new Set()), [props.decks, props.collapsed]);
   const groups = useMemo(() => groupByTopLevel(shown), [shown]);
   const allDecks = useMemo(() => props.decks.map((r) => r.deck), [props.decks]);
@@ -314,6 +340,7 @@ export function DeckList(props: {
           {props.sync ? (
             <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={syncShown} accessibilityLabel={syncShown ? 'Syncing' : 'Sync now'} onPress={syncTapped} />
           ) : null}
+          {props.onQuickAdd ? <Stack.Toolbar.Button icon="plus" accessibilityLabel="Quick add notes" onPress={props.onQuickAdd} /> : null}
           <Stack.Toolbar.Button icon="rectangle.stack.badge.plus" accessibilityLabel="New deck" onPress={props.onNewDeck} />
           <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} />
           <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={props.onSettings} />
@@ -342,40 +369,16 @@ export function DeckList(props: {
         {/* Everything in one view, which a drag measures the rows against and draws its card in. */}
         <View {...drag.contentProps} style={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
           {backup?.overdue ? (
-            <Pressable onPress={props.onBackup} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
-              <View style={{ flexDirection: 'row', gap: space.m, alignItems: 'center', borderRadius: radius.l, ...smooth, borderWidth: 1, borderColor: c.warning, backgroundColor: c.surface, padding: space.m }}>
-                <Icon name="exclamationmark.triangle.fill" size={22} color={c.warning} />
-                <View style={{ flex: 1, gap: space.xs }}>
-                  <Text style={{ ...type.headline, color: c.warning }}>{backup.text}</Text>
-                  <Text style={{ ...type.subhead, color: c.textSecondary }}>Everything is stored only on this iPhone. Tap to back up now.</Text>
-                </View>
-              </View>
-            </Pressable>
+            <WarningBanner title={backup.text} detail="Everything is stored only on this iPhone." action="Tap to back up now" hint="Opens Backup" onPress={props.onBackup} />
           ) : null}
           {props.loadProblem ? (
-            <Pressable onPress={props.loadProblem.onRetry} accessibilityRole="button" accessibilityHint="Loads the decks again" style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
-              <View style={{ flexDirection: 'row', gap: space.m, alignItems: 'flex-start', borderRadius: radius.l, ...smooth, borderWidth: 1, borderColor: c.warning, backgroundColor: c.surface, padding: space.m }}>
-                <Icon name="exclamationmark.triangle.fill" size={22} color={c.warning} />
-                <View style={{ flex: 1, gap: space.xs }}>
-                  <Text style={{ ...type.headline, color: c.warning }}>Couldn't load your decks</Text>
-                  <Text style={{ ...type.subhead, color: c.textSecondary }}>{props.loadProblem.text}</Text>
-                </View>
-              </View>
-            </Pressable>
+            <WarningBanner title="Couldn't load your decks" detail={props.loadProblem.text} action="Tap to try again" hint="Loads the decks again" onPress={props.loadProblem.onRetry} />
           ) : null}
           {vocabReady ? <VocabReadyCard banner={vocabReady} /> : null}
+          {noteQueue ? <NoteQueueCard banner={noteQueue} /> : null}
           {props.sync?.failed ? (
             // A failed sync is shown first, where it can't be scrolled past; a tap tries again.
-            <Pressable onPress={syncTapped} accessibilityRole="button" accessibilityHint="Syncs now" style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
-              <View style={{ flexDirection: 'row', gap: space.m, alignItems: 'flex-start', borderRadius: radius.l, ...smooth, borderWidth: 1, borderColor: c.warning, backgroundColor: c.surface, padding: space.m }}>
-                <Icon name="exclamationmark.triangle.fill" size={22} color={c.warning} />
-                <View style={{ flex: 1, gap: space.xs }}>
-                  <Text style={{ ...type.headline, color: c.warning }}>Sync didn't finish</Text>
-                  <Text style={{ ...type.subhead, color: c.textSecondary }}>{props.sync.status}</Text>
-                  <Text style={{ ...type.subhead, color: c.accent, fontWeight: '600' }}>Tap to try again</Text>
-                </View>
-              </View>
-            </Pressable>
+            <WarningBanner title="Sync didn't finish" detail={props.sync.status} action="Tap to try again" hint="Syncs now" onPress={syncTapped} />
           ) : null}
           {groups.length || props.extra ? <TodaySummary due={totals.due} fresh={totals.fresh} /> : null}
           {groups.length === 0 ? (props.loaded === false ? null : (
@@ -397,17 +400,7 @@ export function DeckList(props: {
                     <SwipeToReveal
                       open={openDeck === row.deck}
                       onOpenChange={(open) => setOpenDeck(open ? row.deck : null)}
-                      action={
-                        <Pressable
-                          onPress={() => { setOpenDeck(null); props.onOptions(row.deck); }}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Options for ${row.name}`}
-                          style={({ pressed }) => ({ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.xs, backgroundColor: c.accent, opacity: pressed ? 0.8 : 1 })}
-                        >
-                          <Icon name="gearshape" size={22} color={c.onAccent} />
-                          <Text style={{ ...type.footnote, color: c.onAccent, fontWeight: '600' }}>Options</Text>
-                        </Pressable>
-                      }
+                      action={<SwipeAction icon="gearshape" label="Options" accessibilityLabel={`Options for ${row.name}`} onPress={() => { setOpenDeck(null); props.onOptions(row.deck); }} />}
                     >
                       <DeckRowView
                         row={row}
