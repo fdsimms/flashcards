@@ -56,6 +56,8 @@ export type GrammarPointPage = {
   state: GrammarState;
   seen: GrammarSeen;
   choices: Record<string, GrammarState>;
+  /** How many points may be practiced at once. Absent from a server older than it. */
+  max_practice?: number;
   examples: GrammarExample[];
 };
 
@@ -145,6 +147,9 @@ export type ShelfText = {
   form: Form;
   lines: number;
   stretch: string[];
+  // The practice words as the reader draws them, to open their popovers, in the order of `stretch`.
+  // Only on a story's next episode, and missing from a server older than it.
+  practice?: Word[];
   reason: ShelfReason;
   coverage: number;
   episode: number;

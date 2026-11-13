@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import type { GrammarPoint } from '../../src/reader/api';
-import { GRAMMAR_CHOICES, grammarStateWord, grammarSummary, markedParts, practicingPoints, seenLine } from '../../src/reader/grammar';
+import { GRAMMAR_CHOICES, grammarChoiceOptions, grammarStateWord, grammarSummary, markedParts, practicingPoints, seenLine } from '../../src/reader/grammar';
 
 const point = (id: string, state: GrammarPoint['state']): GrammarPoint => ({ id, name: id, note: '', state });
 
@@ -78,4 +78,16 @@ test("an example line underlines the finder's words in turn, whatever their case
   expect(markedParts('เคยไปไหม', ['เคย'])).toEqual([{ text: 'เคย', marked: true }, { text: 'ไปไหม', marked: false }]);
   // A match that isn't in the line is left out, not guessed at.
   expect(markedParts('Hoy como.', ['comí'])).toEqual([{ text: 'Hoy como.', marked: false }]);
+});
+
+test('Practice is turned off for a point that is not practiced once the limit is full', () => {
+  const practice = (state: GrammarPoint['state'], practicing: number) =>
+    grammarChoiceOptions('Past tense', state, practicing, 2).find((o) => o.value === 'practice')?.disabled;
+  expect(practice('unset', 1)).toBe(false);
+  expect(practice('normal', 2)).toBe(true);
+  expect(practice('avoid', 2)).toBe(true);
+  // A point already practiced is one of the two, so its own choice stays on.
+  expect(practice('practice', 2)).toBe(false);
+  // Know it and Don't know it are never turned off.
+  expect(grammarChoiceOptions('Past tense', 'normal', 2, 2).filter((o) => o.disabled).map((o) => o.value)).toEqual(['practice']);
 });
