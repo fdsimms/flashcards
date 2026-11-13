@@ -6,9 +6,11 @@ import pytest
 
 from franki_reader.coverage import Lexicon
 from franki_reader.generator import (
+    DRAFT_SCHEMA,
     MAX_ATTEMPTS,
     MAX_NAMES,
     MODEL,
+    REGISTERS,
     GenerationFailed,
     TextRequest,
     Usage,
@@ -327,6 +329,23 @@ def test_a_story_with_no_marks_has_no_paragraphs() -> None:
 def test_a_dialogue_has_no_paragraphs_even_if_the_model_marks_them() -> None:
     result = run(ScriptedModel(_marked(True, True)), TextRequest("food"))
     assert [ln.paragraph for ln in result.lines] == [False, False]
+
+
+def test_each_line_keeps_the_register_the_model_gave_it() -> None:
+    d = draft(*["ฉัน|อยาก|กิน|ครับ"] * 4)
+    for line, register in zip(d["lines"], ("casual", "formal", "gibberish"), strict=False):
+        line["register"] = register
+    result = run(ScriptedModel(d), TextRequest("food"))
+    # A word outside the list is dropped, and so is a missing one (a draft from before the field).
+    assert [ln.register for ln in result.lines] == ["casual", "formal", "", ""]
+
+
+def test_the_register_is_asked_for_in_every_language_and_the_schema() -> None:
+    assert '"register"' in system_prompt(ENTRIES, "th")
+    assert '"register"' in system_prompt(ENTRIES, "es")
+    items = DRAFT_SCHEMA["properties"]["lines"]["items"]
+    assert items["properties"]["register"]["enum"] == list(REGISTERS)
+    assert "register" in items["required"]
 
 
 def test_the_system_prompt_is_the_same_for_stories_and_dialogues() -> None:

@@ -98,6 +98,15 @@ CREATE TABLE IF NOT EXISTS explanations (
     cost_usd REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (text_id, line, simple)
 );
+-- Claude's answer to "Does this sound natural?" on a line, asked once per line on the owner's tap.
+CREATE TABLE IF NOT EXISTS naturalness (
+    text_id INTEGER NOT NULL REFERENCES texts(id),
+    line INTEGER NOT NULL,
+    answer TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    cost_usd REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (text_id, line)
+);
 CREATE TABLE IF NOT EXISTS phrase_explanations (
     text_id INTEGER NOT NULL REFERENCES texts(id),
     line INTEGER NOT NULL,
@@ -696,6 +705,29 @@ def save_explanation(
         )
 
 
+def get_naturalness(conn: sqlite3.Connection, text_id: int, line: int) -> dict[str, str] | None:
+    row = conn.execute(
+        "SELECT answer FROM naturalness WHERE text_id = ? AND line = ?", (text_id, line)
+    ).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def save_naturalness(
+    conn: sqlite3.Connection,
+    text_id: int,
+    line: int,
+    answer: dict[str, str],
+    now: datetime,
+    cost_usd: float = 0.0,
+) -> None:
+    with conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO naturalness (text_id, line, answer, created_at, cost_usd)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (text_id, line, json.dumps(answer, ensure_ascii=False), now.isoformat(), cost_usd),
+        )
+
+
 # ==== Shelf ====
 
 
@@ -1058,14 +1090,16 @@ def save_phrase_explanation(
 def explanation_spending(
     conn: sqlite3.Connection, since: datetime
 ) -> dict[Code, tuple[int, float]]:
-    """Each language with a line or a phrase explained since `since`: how many explanations were
-    asked for (a plainer version counts again) and what they cost Claude."""
+    """Each language with a line or a phrase explained, or a line checked for sounding natural,
+    since `since`: how many answers were asked for (a plainer version counts again) and what they
+    cost Claude."""
     return {
         language: (count, cost)
         for language, count, cost in conn.execute(
             """SELECT t.language, COUNT(*), SUM(e.cost_usd) FROM (
                    SELECT text_id, created_at, cost_usd FROM explanations
                    UNION ALL SELECT text_id, created_at, cost_usd FROM phrase_explanations
+                   UNION ALL SELECT text_id, created_at, cost_usd FROM naturalness
                ) e
                JOIN texts t ON t.id = e.text_id WHERE e.created_at >= ? GROUP BY t.language
                ORDER BY SUM(e.cost_usd) DESC""",

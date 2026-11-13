@@ -37,6 +37,8 @@ MAX_TOKENS = 16000
 MAX_ATTEMPTS = 3
 MAX_STRETCH = 3
 STRETCH_MIN_USES = 2
+# How a line is said; the app shows it as a chip on the line.
+REGISTERS = ("casual", "neutral", "formal", "slang")
 
 # Per million tokens: input, output, cache read, cache write (5-minute cache, 1.25x input). A model
 # not listed here (a refusal fallback) is priced as MODEL, which is close enough for a running total.
@@ -144,6 +146,9 @@ class Line:
     english: str
     # A story's line that opens a paragraph. Older texts and dialogues have none.
     paragraph: bool = False
+    # How a native speaker would say it in that situation, one of REGISTERS. Empty for a text
+    # written before the model was asked, and for an answer outside the list.
+    register: str = ""
 
 
 @dataclass(frozen=True)
@@ -157,7 +162,7 @@ class Generated:
     missing_glosses: tuple[str, ...]
     usage: Usage = Usage()
     stretch: tuple[str, ...] = ()  # the stretch words the text actually uses
-    roles: dict[str, str] = field(default_factory=dict)  # speaker -> who they are, e.g. "Waiter"
+    roles: dict[str, str] = field(default_factory=dict)  # name, job first: "Waiter Nok"
     # speaker -> "male" or "female", for a dialogue (gender.py picks each one's voice)
     genders: dict[str, str] = field(default_factory=dict)
     # speaker -> one of characters.CHARACTERS, for a dialogue; the app draws it in the speaker's gender
@@ -216,8 +221,9 @@ DRAFT_SCHEMA: dict[str, Any] = {
                     "text": {"type": "string"},
                     "english": {"type": "string"},
                     "paragraph": {"type": "boolean"},
+                    "register": {"type": "string", "enum": list(REGISTERS)},
                 },
-                "required": ["speaker", "text", "english", "paragraph"],
+                "required": ["speaker", "text", "english", "paragraph", "register"],
                 "additionalProperties": False,
             },
         },
@@ -259,8 +265,11 @@ any that isn't with a listed word or a simpler way of saying it. Getting this ri
 matters more than a clever text.
 - Write natural Thai, the way a Thai speaker would say it, never a word-for-word translation of an \
 English phrase or idiom. If an English idea has no plain Thai equivalent, say something else.
-- A dialogue is natural, everyday spoken Thai between two speakers, A and B. In "roles", say who \
-A and B are in this situation, in one to three English words each, like "Waiter" and "Customer".
+- A dialogue is natural, everyday spoken Thai between two speakers, A and B. In "roles", give \
+each speaker a first name, written in Latin letters, that suits the speaker and the language, like \
+"Nok" and "Somchai". Where the situation gives them a job (waiter, shopkeeper, doctor, teacher), put it \
+before the name, like "Waiter Nok". A friend, relative or stranger is only a name. Use two \
+different names.
 - In "genders", say whether A and B are a man or a woman ("male" or "female"). The learner hears a \
 man's voice for a man and a woman's voice for a woman, so every line has to fit its speaker. A man \
 says ครับ and ผม; a woman says ค่ะ (statements) or คะ (questions) and ดิฉัน, never ครับ or ผม. \
@@ -290,6 +299,10 @@ break and nowhere else: never between words of the same clause, never before a p
 ครับ, ค่ะ or นะ, and never right after a connective that opens a clause (แล้ว, และ, แต่, หรือ, \
 เพราะ, ถ้า, ก็, จึง): write เขา|ดู|เด็ก แล้ว|เดิน|มา, not เขา|ดู|เด็ก แล้ว เดิน|มา.
 - Give "english", a natural English translation of each line.
+- Give "register" for each line: how a native speaker would say it in that situation: \
+"casual" (everyday speech with friends or family), "neutral", "formal" (polite, official or written) \
+or "slang". Write each line in its register, so a chat between friends is casual, and a story's \
+narrator is usually neutral.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
 is not in the list, and for each name ("a girl's name"). For each of those words also give "translit", its pronunciation in Latin letters \
 with tone marks and a hyphen between syllables, as the learner's own cards write it: \
@@ -324,9 +337,11 @@ doesn't make sense. Replace a word that isn't allowed with an allowed word or a 
 saying it.
 - Write natural {name}, the way a native speaker would say it, never a word-for-word translation \
 of an English phrase or idiom. If an English idea has no plain {name} equivalent, say something else.
-- A dialogue is natural, everyday spoken {name} between two speakers, A and B. In "roles", say \
-who A and B are in this situation, in one to three English words each, like "Waiter" and \
-"Customer".
+- A dialogue is natural, everyday spoken {name} between two speakers, A and B. In "roles", give \
+each speaker a first name, written in Latin letters, that suits the speaker and {name}, like \
+"Camille" and "Luc". Where the situation gives them a job (waiter, shopkeeper, doctor, teacher), put it \
+before the name, like "Waiter Luc". A friend, relative or stranger is only a name. Use two \
+different names.
 - In "genders", say whether A and B are a man or a woman ("male" or "female"). The learner hears a \
 man's voice for a man and a woman's voice for a woman, so every line has to fit its speaker: where \
 {name} shows the speaker's gender (verb endings, adjectives, participles, titles), use the form for \
@@ -352,6 +367,10 @@ and use at most 4 different names in a text.
 who it is the first time (a girl named Kasia, a dog called Burek), and use the name for that same \
 person afterward. Never call someone "the boy" and then switch to a name with nothing linking them.
 - Give "english", a natural English translation of each line.
+- Give "register" for each line: how a native speaker would say it in that situation: \
+"casual" (everyday speech with friends or family), "neutral", "formal" (polite, official or written) \
+or "slang". Write each line in its register, so a chat between friends is casual, and a story's \
+narrator is usually neutral.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
 is neither an allowed common word nor on the list. Also gloss any word whose form matches a listed \
 word but is used here as a different word, such as a verb form that two verbs share.
@@ -630,7 +649,13 @@ def _assess(
     try:
         lines = _paragraphs(
             tuple(
-                Line(ln["speaker"], ln["text"], ln["english"], bool(ln.get("paragraph")))
+                Line(
+                    ln["speaker"],
+                    ln["text"],
+                    ln["english"],
+                    bool(ln.get("paragraph")),
+                    ln["register"] if ln.get("register") in REGISTERS else "",
+                )
                 for ln in draft["lines"]
             ),
             request.form,

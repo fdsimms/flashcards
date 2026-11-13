@@ -20,7 +20,9 @@ import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
 import { LineExplanation } from './ReaderExplain';
+import { RegisterChip } from './ReaderNatural';
 import { PhraseExplanation, PhrasePickBanner, type PhraseMining } from './ReaderPhrase';
+import { usePhraseDrag } from './usePhraseDrag';
 import { ReadGrammarNote } from './ReadGrammarNote';
 import { WordView } from './ReadWord';
 import { ReaderKey } from './ReaderKey';
@@ -445,6 +447,9 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     setTapped({ word, x, y });
   };
 
+  // Holding a word and dragging to the last word of a phrase; held without dragging, it's a tap.
+  const phraseDrag = usePhraseDrag({ lines: text?.lines ?? null, setPhrase, onHeld: tap });
+
   const startPhrase = () => {
     const at = tapped && text ? locate(text.lines, tapped.word) : null;
     if (!at) return;
@@ -513,7 +518,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   };
   const markShown = (mark: Mark) => mark === 'highlight' ? highlight : mark === 'name' ? markNames : !hiddenMarks.includes(mark as HideableMark);
 
-  // The selected phrase's explanation, keyed by the phrase so a new one asks again.
+  // The selected phrase's explanation, keyed by the phrase so a new one asks again. Not while
+  // it's being dragged, or each word passed over would ask.
   const phraseCard = (pick: PhrasePick) => {
     if (!text) return null;
     const said = phraseText(text.lines[pick.line].words, pick);
@@ -594,6 +600,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           }}
           onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={100}
+          // Off while a phrase is dragged, or the scroll takes the finger back on its first move.
+          scrollEnabled={!phraseDrag.dragging}
         >
           <View style={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.l }}>
             <View style={{ gap: space.xs }}>
@@ -618,14 +626,15 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
               </Card>
             ) : null}
             {text.roles.A || text.roles.B ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.l }}>
+              <Card style={{ padding: space.m, gap: space.s }}>
+                <Text style={{ ...type.footnote, color: c.textSecondary }}>In this text</Text>
                 {(['A', 'B'] as const).map((who) => text.roles[who] ? (
-                  <View key={who} style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                  <View key={who} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
                     <Speaker text={text} who={who} size={speakerSize(text, who, true)} />
-                    <Text style={{ ...type.subhead, color: c.textSecondary }}>{text.roles[who]}</Text>
+                    <Text style={{ ...type.body, color: c.text, flexShrink: 1 }}>{text.roles[who]}</Text>
                   </View>
                 ) : null)}
-              </View>
+              </Card>
             ) : null}
             {source.kind === 'past' && !listenOnly && source.text.rating === 'about_right' && hasAudio ? (
               <ToggleRow label="You rated this about right">
@@ -664,7 +673,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                 {listenOnly ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, paddingVertical: space.s }}>{`Paragraph ${g + 1}`}</Text>
                 ) : (
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <View {...phraseDrag.lineProps} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
                     {lines.map((l, k) => (
                       <React.Fragment key={k}>
                         {k > 0 ? <View style={{ width: readStyle(text, thaiFont).fontSize * 0.5 }} /> : null}
@@ -685,6 +694,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                                 playing={shaded === range.start + k}
                                 spoken={spoken.has(word)}
                                 onPress={tap}
+                                onLongPress={phraseDrag.begin}
+                                viewRef={phraseDrag.wordRef(word)}
                               />
                             ))}
                           </View>
@@ -696,7 +707,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                 {!listenOnly && english ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: space.xs }}>{lines.map((l) => l.english).join(' ')}</Text>
                 ) : null}
-                {!listenOnly && phrase && phrase.end !== null && phrase.line >= range.start && phrase.line <= range.end
+                {!listenOnly && !phraseDrag.dragging && phrase && phrase.end !== null && phrase.line >= range.start && phrase.line <= range.end
                   ? phraseCard(phrase) : null}
               </View>
             );
@@ -726,7 +737,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                     {(line.speaker !== 'N' && text.roles[line.speaker]) || `Line ${i + 1}`}
                   </Text>
                 ) : (
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <View {...phraseDrag.lineProps} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
                     {wrapGroups(line.words).map((group, j) => (
                       // A line breaks only between groups, so punctuation never wraps away from its word.
                       <View key={j} style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -744,6 +755,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                             {...phraseLook(i, word, line.words)}
                             spoken={spoken.has(word)}
                             onPress={tap}
+                            onLongPress={phraseDrag.begin}
+                            viewRef={phraseDrag.wordRef(word)}
                           />
                         ))}
                       </View>
@@ -771,12 +784,13 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                       onPress={() => toggleExplained(i)}
                     />
                   ) : null}
+                  {!listenOnly ? <RegisterChip register={line.register} /> : null}
                 </View>
                 {!listenOnly && (english || lineEnglish.includes(i)) ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: 2 }}>{line.english}</Text>
                 ) : null}
                 {!listenOnly && explained.includes(i) ? <LineExplanation api={api} textId={text.id} line={i} grammarChosen={grammarChosen} onGrammarChosen={chooseGrammar} onOpenGrammar={onOpenGrammar} /> : null}
-                {!listenOnly && phrase && phrase.end !== null && phrase.line === i ? phraseCard(phrase) : null}
+                {!listenOnly && !phraseDrag.dragging && phrase && phrase.end !== null && phrase.line === i ? phraseCard(phrase) : null}
               </View>
             </View>
           ))}

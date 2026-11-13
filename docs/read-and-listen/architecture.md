@@ -63,9 +63,12 @@ Franki's (Client, below).
   Under the explanation, the grammar points the finders find in the line show as chips that can be
   set to Practice, Know it or Don't know it there (docs/grammar.md, step 3).
 - **Explain a phrase** (12 November 2026, by the owner's decision, for idioms and set phrases like
-  "ya lo sé"). A word's gloss has "Select a phrase": the word becomes the phrase's first, the other
-  lines dim, and tapping another word in the same line ends it (either way round; Cancel in the bar
-  above the player). The phrase is drawn as one band and Claude's note on it opens under the line:
+  "ya lo sé"). Hold a word and drag to the phrase's last word (13 November 2026, by the owner's
+  request; `usePhraseDrag.ts`): the hold starts it, so a quick swipe still scrolls, and the text's
+  scrolling is off until the finger lifts; held and let go on the same word, it's a tap. Or a
+  word's gloss has "Select a phrase": the word becomes the phrase's first, the other lines dim, and
+  tapping another word in the same line ends it (either way round; Cancel in the bar above the
+  player, which also mentions the hold). The phrase is drawn as one band and Claude's note on it opens under the line:
   what it means there, then a few points on its parts (a set expression, how the words combine,
   tone), with "Explain more simply". A phrase stays within one line, so it has the line's context
   and the server can check it's there: the app sends it as it appears (the pieces joined, spaces
@@ -74,8 +77,23 @@ Franki's (Client, below).
   phrase and version in `phrase_explanations`; its cost counts under `explanations` in
   `/api/costs`. **Add to deck** on the note opens the note editor with the phrase and its meaning
   in the language's deck, the same approval step and daily limit as a marked word (`mining.ts`),
-  and only for a text in the language being read. Hold-and-drag selection was considered and left
-  out: it's hidden, and dragging inside the scrolling text fights the scroll.
+  and only for a text in the language being read.
+- **Register and naturalness** (13 November 2026, by the owner's decision). Texts are written by a
+  model, and a line that is grammatical but stiff passes every check in code, so two things show how
+  a line is said, and neither grades or adds anything. (1) Each line carries a **register** chip
+  (casual, neutral, formal or slang) at the end of its buttons. The generator asks for it with the
+  line (`Line.register`, `REGISTERS`, `generator.py`), so it costs no extra call and is kept in the
+  text's `lines`; a text written before it, or an answer outside the list, shows no chip. (2) The
+  explanation has **Does this sound natural?**, asked only on the tap
+  (`POST /api/texts/{id}/lines/{n}/natural`, `explain.py`) and kept per line in `naturalness`, so
+  asking again costs nothing; its cost counts under `explanations` in `/api/costs`. It is a second,
+  separate call that judges the line as a native speaker with who says it and the lines around it
+  (a model grading its own draft in the same call mostly approves it), and answers natural, stiff or
+  unusual with a reason and, unless natural, what a native speaker would more likely say. That is
+  text only: the line's recorded audio is unchanged. Tried and left out for now: running the review
+  on every line when a text is written (a cost on every text for lines never questioned), to be
+  reconsidered if the taps show lines are often off, and coloring the chip when it disagrees with the
+  situation.
 - **Listen only** (brief, design principle 6). Once a text is rated "About right", the end view
   offers to play it again with the Thai hidden; the lines show who's speaking instead, and "Show the
   text" brings the words back. The reading is then logged with `listen_only` true. The brief's
@@ -564,6 +582,7 @@ A dialogue's speakers are shown as small drawn characters instead of the A and B
 - **The gender picks the version.** A parent is a father or a mother, from `genders`, so there are 20 drawings from 10 keys and no key says a gender.
 - **Two alike.** When A and B share a character and a gender, B is drawn with other hair (or glasses, under a cap), in B's own color.
 - **Drawn in code, from the theme.** `src/reader/characters.ts` is a list of shapes naming tones; `ReadSpeaker.tsx` paints them in the speaker's colors (gold for A, green for B) with `react-native-svg`, so dark mode needs no second set. `test_characters.py` checks the app draws every key the server can pick.
+- **Speakers are named** (13 November 2026). `roles` holds each speaker's first name in Latin letters, with a job first where the situation gives one ("Waiter Luc"); a friend or relative is only a name. Texts written before this keep roles like "Friend". The reader lists them in a card headed "In this text" above the lines, apart from the dialogue.
 - **Older texts keep the badges.** A text with no characters, or a speaker with no gender, shows A or B as before. Texts already written are not redrawn.
 
 ## Server API
