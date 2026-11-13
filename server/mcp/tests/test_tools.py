@@ -62,6 +62,31 @@ async def test_updates_tags_and_deletes(client, desktop):
     assert all(n[0] != nid for n in desktop.run("dump")["dump"]["notes"])
 
 
+async def test_a_note_anki_refuses_doesnt_fail_the_rest_of_an_update(client, monkeypatch):
+    from anki.collection import Collection
+
+    found = (await call(client, "find_notes", query='"deck:🧠 Trivia" Capital'))["notes"]
+    refused, kept = found[0]["note_id"], found[1]["note_id"]
+    update_note = Collection.update_note
+
+    def refusing(self, note, *args, **kwargs):
+        if note.id == refused:
+            raise RuntimeError("the note is broken")
+        return update_note(self, note, *args, **kwargs)
+
+    monkeypatch.setattr(Collection, "update_note", refusing)
+    out = await call(client, "update_notes", updates=[
+        {"note_id": refused, "add_tags": ["checked"]},
+        {"note_id": kept, "add_tags": ["checked"]},
+    ])
+    assert out["results"] == [
+        {"note_id": refused, "error": "Anki refused it: the note is broken"},
+        {"note_id": kept, "updated": True},
+    ]
+    notes = (await call(client, "get_notes", note_ids=[refused, kept]))["notes"]
+    assert ["checked" in n["tags"] for n in notes] == [False, True]
+
+
 async def test_card_actions(client):
     note = (await call(client, "get_notes", note_ids=[1794408858018]))["notes"][0]
     cid = note["cards"][0]["card_id"]

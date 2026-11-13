@@ -1,7 +1,7 @@
 import asyncio
 import random
 from collections.abc import Awaitable, Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +18,7 @@ from franki_reader.engine import (
     NotAvailable,
     NotFound,
 )
-from franki_reader.generator import GenerationFailed
+from franki_reader.generator import GenerationFailed, Usage
 from franki_reader.lexicon import Entry
 from franki_reader.store import Reading, StoredText
 
@@ -162,6 +162,20 @@ def test_a_revision_that_fails_still_stores_the_dropped_text_for_its_cost() -> N
     assert len(rows) == 1 and rows[0][0] == "dropped" and rows[0][1] > 0
 
 
+def test_a_first_attempt_that_fails_with_an_answer_is_stored_dropped_for_its_cost() -> None:
+    cut_off = GenerationFailed("The response was cut off", Usage(100, 500, 2000, 0))
+    e = engine(ScriptedModel(cut_off))
+    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    with pytest.raises(GenerationFailed, match="cut off"):
+        run(lambda: e.make_text(topic.id))
+    rows = e.conn.execute("SELECT status, attempts, cost_usd FROM texts").fetchall()
+    assert len(rows) == 1 and rows[0][:2] == ("dropped", 1) and rows[0][2] > 0
+    assert store.next_ready_text(e.conn, topic.id) is None
+    spent = store.spending(e.conn, NOW - timedelta(days=1))["th"]
+    assert (spent.dropped, spent.texts) == (1, 1)
+    assert spent.cost_usd == pytest.approx(rows[0][2])
+
+
 def test_a_claude_error_is_reported_to_the_next_request() -> None:
     e = engine(ScriptedModel(IN_RANGE))
 
@@ -181,6 +195,8 @@ def test_a_claude_error_is_reported_to_the_next_request() -> None:
             await e.next_text(topic.id)
 
     run(scenario)
+    # No answer, no cost: nothing to keep on record.
+    assert e.conn.execute("SELECT COUNT(*) FROM texts").fetchone()[0] == 0
 
 
 def test_says_what_is_missing() -> None:
