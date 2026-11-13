@@ -1,8 +1,9 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { failureText } from '../core/failure';
 import { recordingName } from '../core/recording';
-import { ApiError, type Api, type AzureVoice } from '../reader/api';
+import type { Api, AzureVoice } from '../reader/api';
 import { CheckRow } from './kit';
 
 /**
@@ -10,7 +11,7 @@ import { CheckRow } from './kit';
  * (ReadVoices) and for recording cards (Voices). Each screen asks for its language's list once.
  */
 
-const errorText = (e: unknown) => (e instanceof ApiError ? e.message : `Couldn't reach Read & Listen's server. ${e instanceof Error ? e.message : String(e)}`);
+const errorText = (e: unknown) => failureText(e, { what: "Couldn't list the voices.", next: 'Try again.' });
 
 /** A language's Azure voices (any code: th, pl, es-MX), or why they couldn't be listed. */
 export function useAzureVoices(api: Api | null, language: string | undefined) {

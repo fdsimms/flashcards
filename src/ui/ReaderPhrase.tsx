@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
+import { failureText } from '../core/failure';
 import type { Api, Language, PhraseExplanation as Explained } from '../reader/api';
 import { Icon, Tappable, ErrorNote } from './kit';
 import { haptic } from './haptics';
@@ -46,7 +47,7 @@ export function PhraseExplanation({ api, textId, line, phrase, mining, onClose }
       const got = await api.explainPhrase(textId, line, phrase, wantSimple);
       if (latest.current === mine) { setAnswer(got); setSimple(wantSimple); }
     } catch (e) {
-      if (latest.current === mine) { setError(e instanceof Error ? e.message : String(e)); setSimple(wantSimple); }
+      if (latest.current === mine) { setError(failureText(e, { what: "Couldn't explain this phrase.", next: 'Try again.' })); setSimple(wantSimple); }
     }
   };
 

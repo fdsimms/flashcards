@@ -5,6 +5,7 @@ import { cardInfo, type CardInfo as Info, type HistoryEntry } from '../core/card
 import { FLAG_NAMES } from '../core/cardState';
 import { studyDayStart } from '../core/day';
 import { cardHomeDeck } from '../core/deckTree';
+import { failureText } from '../core/failure';
 import { paramsForDeck } from '../core/scheduler';
 import { durationText } from '../core/stats';
 import type { AnkiLink } from '../db/ankiLink';
@@ -101,7 +102,7 @@ export function CardInfo({ repo, cardId }: { repo: Repo & AnkiLink; cardId: stri
         const weights = paramsForDeck(cardHomeDeck(card, note.deck), params)?.weights ?? [];
         if (live) setData({ info: cardInfo(card, note, noteTypes.get(note.model), history, { now, weights }), history, dayStartsAtHour: cs.dayStartsAtHour });
       } catch (e) {
-        if (live) setError(`Couldn't read this card's history. ${e instanceof Error ? e.message : ''}`.trim());
+        if (live) setError(failureText(e, { what: "Couldn't read this card's history.", next: 'Try again.' }));
       }
     })();
     return () => { live = false; };

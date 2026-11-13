@@ -2,6 +2,7 @@ import { decodeMessage, MessageWriter, withField } from './protobuf';
 import { hasUnicase, type SyncDb } from './sync/collectionSync';
 import { deckRow } from './sync/deckRows';
 import { filteredPlan, type CustomStudy, type FilteredPlan } from '../core/customStudy';
+import { Refusal } from '../core/failure';
 import { COL_MODIFIED_SQL, queueForType } from './writeback';
 
 /**
@@ -34,7 +35,7 @@ const allDecks = (db: SyncDb) =>
 const isFiltered = (kind: Uint8Array) => decodeMessage(kind).has(KIND.filtered);
 
 /** Why a custom study can't run, with what to do, to show as it is. */
-export class CustomStudyRefused extends Error {}
+export class CustomStudyRefused extends Refusal {}
 
 /** A deck's own today-only limits, as Anki's custom study sets them: the new total for the day, from its day number. */
 export interface DayLimits { newLimit?: number; reviewLimit?: number }

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
+import { failureText } from '../core/failure';
 import { azureVoiceName } from '../core/voices';
-import { ApiError, type Api, type Language, type Settings, type Speakers } from '../reader/api';
+import type { Api, Language, Settings, Speakers } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { hasVoiceSlots, sharesVoice, VOICE_SLOTS } from '../reader/voiceSlots';
 import { ErrorNote, Group, Help, NavRow, Screen } from './kit';
@@ -31,7 +32,7 @@ export function ReadVoices({ api, language, voices, onSettings, onPick }: {
     let live = true;
     api.settings().then(
       (s) => { if (live) onSettings(s); },
-      (e) => { if (live) setError(e instanceof ApiError ? e.message : String(e)); },
+      (e) => { if (live) setError(failureText(e, { what: "Couldn't load the voices.", next: 'Try again.' })); },
     );
     return () => { live = false; };
   }, [api, known]); // eslint-disable-line react-hooks/exhaustive-deps -- onSettings is the app's setter

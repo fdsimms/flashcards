@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView } from 'react-native';
-import { ApiError, type Api, type Language, type Settings, type VoiceSlot } from '../reader/api';
+import { failureText } from '../core/failure';
+import type { Api, Language, Settings, VoiceSlot } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { sampleLine, slotInfo, voicesForSlot } from '../reader/voiceSlots';
 import { AzureVoiceRows, useAzureSample, useAzureVoices } from './AzureVoices';
@@ -35,7 +36,7 @@ export function ReadVoicePick({ api, language, slot, selected, onSettings }: {
       onSettings(await api.updateSettings({ voices: { [language]: { [slot]: voice } } }));
     } catch (e) {
       setChosen(before);
-      setError(e instanceof ApiError ? e.message : `Couldn't save the voice. ${e instanceof Error ? e.message : String(e)}`);
+      setError(failureText(e, { what: "Couldn't save the voice.", next: 'Try again.' }));
     }
   };
 

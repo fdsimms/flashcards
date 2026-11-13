@@ -2,6 +2,7 @@
 // passphrase; the server's own error sentences are passed through, since they're written to be
 // shown as they are.
 
+import { Refusal } from '../core/failure';
 import type { DrillQuestionIn } from '../core/grammarDrills';
 
 /**
@@ -285,7 +286,7 @@ export type QueuedNote = {
 // `available` is false when the server has no Claude key, so nothing can be queued.
 export type NoteQueue = { available: boolean; items: QueuedNote[] };
 
-export class ApiError extends Error {
+export class ApiError extends Refusal {
   constructor(
     message: string,
     readonly status: number,

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from './haptics';
 import { Button, ErrorNote, Field, Icon, Tappable } from './kit';
 import { lift, radius, space, type, useTheme } from './theme';
+import { failureText } from '../core/failure';
 
 /**
  * Opens over the review screen when an answer makes a card a leech, asking for a hint to save in
@@ -15,7 +16,7 @@ export function LeechHintSheet({ word, misses, suggest, onSave, onSkip }: {
   word: string;
   misses: number;
   suggest?: () => Promise<string[]>;
-  /** Saves the hint on the note; throws with a sentence to show when it can't. */
+  /** Saves the hint on the note; throws when it can't, and the sheet says why. */
   onSave: (hint: string) => Promise<void>;
   onSkip: () => void;
 }) {
@@ -35,7 +36,7 @@ export function LeechHintSheet({ word, misses, suggest, onSave, onSkip }: {
     try {
       setIdeas(await suggest());
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(failureText(e, { what: "Couldn't suggest hints.", next: 'Try again, or write your own.' }));
     } finally {
       setAsking(false);
     }
@@ -48,7 +49,7 @@ export function LeechHintSheet({ word, misses, suggest, onSave, onSkip }: {
     try {
       await onSave(hint);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(failureText(e, { what: "Couldn't save the hint.", next: 'Try again, or skip it.' }));
       setSaving(false);
     }
   };
@@ -71,7 +72,7 @@ export function LeechHintSheet({ word, misses, suggest, onSave, onSkip }: {
             {suggest ? (
               <Tappable onPress={ask} disabled={asking} accessibilityRole="button" accessibilityLabel="Suggest hints" style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: 36 }}>
                 <Icon name="sparkles" size={18} color={c.accent} />
-                <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>{asking ? 'Asking Claude...' : ideas.length ? 'Suggest more hints' : 'Suggest hints'}</Text>
+                <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>{asking ? 'Asking Claude…' : ideas.length ? 'Suggest more hints' : 'Suggest hints'}</Text>
               </Tappable>
             ) : null}
             {ideas.map((idea) => (
