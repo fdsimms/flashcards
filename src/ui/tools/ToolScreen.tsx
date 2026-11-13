@@ -48,26 +48,36 @@ export function useToolPref<K extends Exclude<keyof ToolPrefs, 'language'>>(key:
   return [value, choose];
 }
 
-/** Whether the answer is showing, and reading it aloud: showing it reads it once. */
+/**
+ * Whether the answer is showing, and reading it aloud: showing it reads it once. Once it's marked
+ * Missed it, `missed` keeps it up with the rule behind it (rules.ts) until Next.
+ */
 export function useAnswer(repo: Repo, language: Language) {
   const speech = usePhoneSpeech(repo);
   const [shown, setShown] = useState(false);
+  const [missed, setMissed] = useState(false);
   useEffect(() => () => { Speech.stop(); }, []);
   return useMemo(() => {
     const speak = (p: Phrase) => { Speech.stop(); speech.sayWord(p.text, LANGUAGES[language].speech); };
     return {
       shown,
+      missed,
       speak,
       /** Hides it again: the question changed. */
-      hide: () => { Speech.stop(); setShown(false); },
+      hide: () => { Speech.stop(); setShown(false); setMissed(false); },
       /** Show answer: shows it and reads `first` aloud. */
       show: (first: Phrase | undefined) => {
         setShown(true);
         if (first) speak(first);
       },
+      /** Missed it, with a rule to show: the answer stays up, the rule under it. */
+      miss: () => setMissed(true),
     };
-  }, [shown, speech, language]);
+  }, [shown, missed, speech, language]);
 }
+
+/** The footer once Missed it has kept the answer up to show its rule: only Next. */
+export const nextOnly = (next: () => void): ToolActions => ({ primary: { label: 'Next', onPress: next } });
 
 /** The footer's two buttons when a tool needs other than Randomize and Show answer (a quiz's Check, Try again, Next). No `secondary` leaves the primary button the whole width. */
 export interface ToolActions {
@@ -82,7 +92,10 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
   shown: boolean;
   onRandomize: () => void;
   onShow: () => void;
-  /** Once the answer is showing, Missed it and Got it take the footer's place: each marks the answer (useMarks) and moves on. */
+  /**
+   * Once the answer is showing, Missed it and Got it take the footer's place: each marks the answer
+   * (useMarks) and moves on, except a miss with a rule to show (`nextOnly` then replaces them).
+   */
   onMark: (right: boolean) => void;
   /** Replaces the footer's Randomize and Show answer. */
   actions?: ToolActions;
@@ -175,8 +188,14 @@ export interface Answer {
   last?: { title: string; phrase: Phrase };
 }
 
-/** The answer, or until it's shown, `prompt` saying what to do. */
-export function AnswerCard({ shown, prompt, answer, onPlay }: { shown: boolean; prompt: string; answer: Answer | undefined; onPlay: (p: Phrase) => void }) {
+/** The answer, or until it's shown, `prompt` saying what to do; after a miss, the `rule` behind it. */
+export function AnswerCard({ shown, prompt, answer, rule, onPlay }: {
+  shown: boolean;
+  prompt: string;
+  answer: Answer | undefined;
+  rule?: string;
+  onPlay: (p: Phrase) => void;
+}) {
   const c = useTheme();
   return (
     <Card style={{ minHeight: 120 }}>
@@ -191,11 +210,23 @@ export function AnswerCard({ shown, prompt, answer, onPlay }: { shown: boolean; 
             </View>
             <PlayButton label="Play the answer" onPress={() => onPlay(answer.everyday)} />
           </View>
+          {rule ? <RuleLine rule={rule} /> : null}
           {answer.also.length ? <Ways title="Also said" phrases={answer.also} onPlay={onPlay} /> : null}
           {answer.last ? <Ways title={answer.last.title} phrases={[answer.last.phrase]} onPlay={onPlay} /> : null}
         </Reveal>
       )}
     </Card>
+  );
+}
+
+/** The rule behind an answer (rules.ts), shown after a miss: why it's said this way. */
+export function RuleLine({ rule }: { rule: string }) {
+  const c = useTheme();
+  return (
+    <View accessible accessibilityRole="text" style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
+      <Icon name="lightbulb" size={16} color={c.textSecondary} />
+      <Text selectable style={{ ...type.subhead, color: c.text, flex: 1 }}>{rule}</Text>
+    </View>
   );
 }
 

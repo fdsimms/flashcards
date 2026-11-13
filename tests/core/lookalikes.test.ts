@@ -20,17 +20,42 @@ function card(noteId: string, sched: Partial<SchedState> = {}): Card {
 const review = (lastReview: Date): Partial<SchedState> => ({ state: 2, lastReview: lastReview.toISOString(), due: NOW.toISOString(), scheduledDays: 10 });
 
 describe('lookalikeForm / wordsLookAlike', () => {
-  it('compares words without case, accents, articles or what follows a bracket or dash', () => {
-    expect(lookalikeForm('La Esperanza')).toBe('esperanza');
-    expect(lookalikeForm('czekać (to wait) — ja')).toBe('czekac');
-    expect(lookalikeForm('ten pies')).toBe('pies');
+  it('compares words without case, articles or what follows a bracket or dash', () => {
+    expect(lookalikeForm('La Esperanza', 'es-MX')).toBe('esperanza');
+    expect(lookalikeForm('czekać (to wait) — ja', 'pl-PL')).toBe('czekać');
+    expect(lookalikeForm('ten pies', 'pl-PL')).toBe('pies');
+  });
+  it('drops accents only where they mark stress or are routinely left off', () => {
+    expect(lookalikeForm('Habló', 'es-MX')).toBe('hablo');
+    expect(lookalikeForm('Μιλάω', 'el-GR')).toBe('μιλαω');
+    expect(lookalikeForm('Été', 'fr-FR')).toBe('ete');
+    expect(lookalikeForm('dziękuję', 'pl-PL')).toBe('dziękuję');
+    expect(lookalikeForm('schön', 'de-DE')).toBe('schön');
+    expect(lookalikeForm('søster', 'nb-NO')).toBe('søster');
+    expect(lookalikeForm('žena', undefined)).toBe('žena');
+  });
+  it('takes stress marks off a Russian word, but keeps й and ё', () => {
+    expect(lookalikeForm('молоко́', 'ru-RU')).toBe('молоко');
+    expect(lookalikeForm('мой', 'ru-RU')).toBe('мой');
+    expect(lookalikeForm('ёлка', 'ru-RU')).toBe('ёлка');
   });
   it('needs most of the shorter word in common', () => {
     expect(wordsLookAlike('esperar', 'espero')).toBe(true);
     expect(wordsLookAlike('esperar', 'esperanza')).toBe(true);
+    expect(wordsLookAlike('espero', 'esperanza')).toBe(true);
     expect(wordsLookAlike('hablar', 'hacer')).toBe(false);
-    expect(wordsLookAlike('casa', 'casamiento')).toBe(true);
     expect(wordsLookAlike('casa', 'cosa')).toBe(false);
+  });
+  it('links a short word to its inflections, not to every longer word built on it', () => {
+    expect(wordsLookAlike('haus', 'haustür')).toBe(true);
+    expect(wordsLookAlike('haus', 'hausaufgabe')).toBe(false);
+    expect(wordsLookAlike('nach', 'nachricht')).toBe(false);
+    expect(wordsLookAlike('über', 'übermorgen')).toBe(false);
+    expect(wordsLookAlike('przy', 'przyjaciel')).toBe(false);
+    expect(wordsLookAlike('casa', 'casamiento')).toBe(false);
+  });
+  it('keeps marked letters apart in a language where they are letters of their own', () => {
+    expect(wordsLookAlike(lookalikeForm('dziękuję', 'pl-PL'), lookalikeForm('dzień', 'pl-PL'))).toBe(false);
   });
 });
 
@@ -50,6 +75,12 @@ describe('lookalikeIndex', () => {
     const idx = lookalikeIndex([tener, tengo, ser, fui]);
     expect(idx.get('t')).toEqual(new Set(['g']));
     expect(idx.get('s')).toEqual(new Set(['f']));
+  });
+  it('links German words by their umlauts as written', () => {
+    const de = (id: string, entry: string) => word(id, entry, { Language: 'german' }, '👅 Languages::Deutsch');
+    const idx = lookalikeIndex([de('h', 'das Haus'), de('t', 'die Haustür'), de('a', 'die Hausaufgabe'), de('u', 'über'), de('m', 'übermorgen')]);
+    expect(idx.get('h')).toEqual(new Set(['t']));
+    expect(idx.has('u')).toBe(false);
   });
   it("does not link a word to its counting word or gender, which are other words", () => {
     const bike = word('m', 'motorcycle', { Classifier: 'คัน', Gender: 'f' });
@@ -133,6 +164,14 @@ describe('soonerOffer', () => {
     expect(soonerOffer({ ...base, card: card('b', review(new Date(2026, 10, 10, 20))), events })).toBeUndefined();
     expect(soonerOffer({ ...base, card: card('b', review(new Date(2026, 9, 1))), events: [{ noteId: 'a', at: new Date(2026, 10, 5), how: 'review' }] })).toBeUndefined();
     expect(soonerOffer({ ...base, card: card('b', { state: 1 }), events })).toBeUndefined();
+  });
+  it('does not for a lookalike its deck already kept it apart from, only one inside the hold', () => {
+    const c = card('b', review(new Date(2026, 9, 25)));
+    const seenYesterday: SeenEvent[] = [{ noteId: 'a', at: yesterday, how: 'review' }];
+    expect(soonerOffer({ ...base, card: c, events: seenYesterday, heldDays: 1 })).toBeUndefined();
+    expect(soonerOffer({ ...base, card: c, events: seenYesterday, heldDays: 2 })).toEqual(seenYesterday[0]);
+    const seenToday: SeenEvent[] = [{ noteId: 'a', at: new Date(2026, 10, 11, 9), how: 'review' }];
+    expect(soonerOffer({ ...base, card: c, events: seenToday, heldDays: 1 })).toEqual(seenToday[0]);
   });
 });
 

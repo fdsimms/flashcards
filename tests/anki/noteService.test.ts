@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildExport } from '../../src/anki/collection';
-import { collapsedDecks, deleteNote, NoteRefused, saveNote, setCardStates, setDeckCollapsed, type NoteStore } from '../../src/anki/noteService';
+import { collapsedDecks, deleteNote, NoteRefused, saveLeechHint, saveNote, setCardStates, setDeckCollapsed, type NoteStore } from '../../src/anki/noteService';
 import { review } from '../../src/core/scheduler';
 import { MemoryRepo } from '../../src/db/repo';
 import { importAnkiJson } from '../../src/import/ankiJson';
@@ -191,6 +191,49 @@ describe('suspending, burying and flagging a card', () => {
     const { ankiError } = await setCardStates(store, [card], (s) => ({ ...s, suspended: true }), NOW, 4);
     expect((ankiError as Error).message).toBe('locked');
     expect((await repo.listCards()).find((c) => c.id === card.id)!.suspended).toBe(true);
+  });
+});
+
+describe("saving a leech's hint", () => {
+  /**
+   * An Omnilanguage note with its forward card suspended, as a preset that suspends leeches leaves
+   * it. The fixture has no Omnilanguage note type, so the note is Franki's; its card stands in for
+   * an Anki one by its ankiId, which is what decides whether the kept collection is sent the change.
+   */
+  async function leech() {
+    const { store } = await franki({ kept: false });
+    const sent: unknown[] = [];
+    const s = Object.assign(store, { setAnkiCardStates: async (changes: unknown[]) => { sent.push(...changes); } });
+    const note = await saveNote(s, { deck: '🧠 Trivia', model: 'Omnilanguage', fields: { Entry: 'kot', Meaning: 'cat', Mnemonic: '' }, tags: ['leech'] }, NOW);
+    const card = { ...[...s.cards.values()].find((c) => c.noteId === note.id)!, suspended: true, ankiId: '42' };
+    await s.saveCard(card);
+    return { store: s, sent, note, card };
+  }
+
+  it('saves the hint and unsuspends the card the answer suspended, in Franki and for the kept collection', async () => {
+    const { store, sent, note, card } = await leech();
+    const r = await saveLeechHint(store, note, 'a cat on a cot', card, NOW, 4);
+    expect(r.note.fields.Mnemonic).toBe('a cat on a cot');
+    expect(r.card).toMatchObject({ id: card.id, suspended: false });
+    expect((await store.listCards()).find((c) => c.id === card.id)!.suspended).toBe(false);
+    expect(sent).toEqual([{ ankiId: '42', state: { suspended: false, buried: false, flag: 0 } }]);
+  });
+
+  it('only saves the hint when the card was not suspended', async () => {
+    const { store, sent, note, card } = await leech();
+    const r = await saveLeechHint(store, note, 'a cat on a cot', undefined, NOW, 4);
+    expect(r.card).toBeUndefined();
+    expect((await store.getNote(note.id))!.fields.Mnemonic).toBe('a cat on a cot');
+    expect((await store.listCards()).find((c) => c.id === card.id)!.suspended).toBe(true);
+    expect(sent).toEqual([]);
+  });
+
+  it("keeps the hint and reports the card when it can't be unsuspended", async () => {
+    const { store, note, card } = await leech();
+    const failing = Object.assign(Object.create(store), { saveCard: async () => { throw new Error('disk full'); } }) as typeof store;
+    const r = await saveLeechHint(failing, note, 'a cat on a cot', card, NOW, 4);
+    expect((r.cardError as Error).message).toBe('disk full');
+    expect((await store.getNote(note.id))!.fields.Mnemonic).toBe('a cat on a cot');
   });
 });
 

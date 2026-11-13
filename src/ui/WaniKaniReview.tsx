@@ -10,7 +10,7 @@ import { toKana } from '../wanikani/kana';
 import { apprenticeBlocks, lessonsToday } from '../wanikani/prefs';
 import { audioFileName, audioFor } from '../wanikani/production';
 import {
-  buildSession, canAskLater, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
+  buildSession, canAskLater, canMarkCorrect, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
   studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
 import { nextStage, outcomeText } from '../wanikani/srs';
@@ -134,7 +134,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         setKind(lessonKind ? 'lessons' : 'reviews');
         setNext({ lessons: lessonKind ? 0 : lessonCount, held, apprentice });
         setTyping(typed);
-        setStudy(startStudy(buildSession(items, { mode: questionMode(prefs.answer, prefs.separate), lessonBatch: user.lessonBatch })));
+        setStudy(startStudy(buildSession(items, { mode: questionMode(prefs.answer, prefs.separate), lessonBatch: user.lessonBatch }), typed));
       } catch (e) {
         if (gone) return;
         const why = e instanceof WaniKaniError ? e.problem : 'unavailable';
@@ -214,7 +214,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   };
 
   const undo = () => {
-    const back = study && studyUndo(study);
+    // A typed answer judged wrong and not yet counted (before Next) still counts as a miss.
+    const back = study && studyUndo(study, verdict?.result === 'wrong');
     if (!back) return;
     haptic.tap();
     answeredFrom.current = null;
@@ -371,7 +372,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             borderColor: result ? 'transparent' : c.border,
           }}
         />
-        {result === 'wrong' ? <Button label="Mark as correct" variant="secondary" onPress={() => answer(true)} /> : null}
+        {result === 'wrong' && canMarkCorrect(question) ? <Button label="Mark as correct" variant="secondary" onPress={() => answer(true)} /> : null}
         <Button
           label={!verdict ? 'Check' : finishes || result === 'wrong' ? 'Next' : 'Next question'}
           onPress={check}

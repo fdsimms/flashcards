@@ -24,8 +24,8 @@ export function FormsHistory({ repo, deck }: { repo: Repo; deck: string }) {
     let live = true;
     setError(null);
     (async () => {
-      const [notes, practice] = await Promise.all([repo.listNotes(), repo.listPractice()]);
-      if (live) setStats(practiceStats(deck, notes, practice, new Date()));
+      const [notes, practice, { dayStartsAtHour }] = await Promise.all([repo.listNotes(), repo.listPractice(), repo.collectionSettings()]);
+      if (live) setStats(practiceStats(deck, notes, practice, new Date(), dayStartsAtHour));
     })().catch((e) => { if (live) setError(failureText(e, { what: "Couldn't load your practice history.", next: 'Try again.' })); });
     return () => { live = false; };
   }, [repo, deck, loads]);
@@ -70,7 +70,7 @@ function Content({ stats }: { stats: PracticeStats }) {
         <Card><Help>Nothing right now. Every form you missed has been put right.</Help></Card>
       )}
       {hidden > 0 ? <Help>{hidden === 1 ? 'And 1 more form.' : `And ${hidden} more forms.`}</Help> : null}
-      <Help>{`Each miss needs ${FORM_CLEARED_AFTER} right answers to clear. These are asked first in practice.`}</Help>
+      <Help>{`Each miss needs ${FORM_CLEARED_AFTER} right answers to clear, and the first right answer after a miss doesn't count on the same day. These are asked first in practice.`}</Help>
 
       <SectionTitle>Mixed up</SectionTitle>
       {stats.mixedUp.length ? (

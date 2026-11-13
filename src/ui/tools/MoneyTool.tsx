@@ -4,28 +4,33 @@ import { LANGUAGES } from '../../reader/languages';
 import type { MoneyMode } from '../../tools/prefs';
 import { breakDown, CURRENCIES, MONEY_MAXES, randomAmount, type MoneyMax } from '../../tools/money';
 import { moneyPatterns } from '../../tools/patterns';
+import { moneyRule } from '../../tools/rules';
 import { toolPrefs } from '../../tools/storage';
 import { CURRENCY_OF, MONEY_SAYERS, toolLanguage } from '../../tools/tools';
 import { Card } from '../kit';
 import { space, type, useTheme } from '../theme';
 import { Cash } from './Cash';
 import type { ToolScreenProps } from './index';
-import { AnswerCard, ChipChoice, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
+import { AnswerCard, ChipChoice, nextOnly, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
 import { useMarks } from './useMarks';
+import { useRetries } from './useRetries';
 
 const MODES: { value: MoneyMode; label: string }[] = [{ value: 'count', label: 'Counting' }, { value: 'price', label: 'Prices' }];
 
 /**
  * Counting money: an amount in the chosen language's own money, as notes and coins to add up or
- * as a price to read, then said in that language and marked Missed it or Got it. A new amount
- * comes with each Randomize or mark, leaning toward the kinds missed lately (useMarks), and with a
- * change of language, mode or size, since another currency is priced in other steps.
+ * as a price to read, then said in that language and marked Missed it or Got it (Missed it shows
+ * the rule behind the answer first, where there's one: rules.ts). A new amount comes with each
+ * Randomize or mark, leaning toward the kinds missed lately (useMarks), and with a change of
+ * language, mode or size, since another currency is priced in other steps. An amount missed comes
+ * back once a few amounts later (useRetries).
  */
 export function MoneyTool({ tool, repo }: ToolScreenProps) {
   const c = useTheme();
   const [language, setLanguage] = useToolLanguage(tool);
   const answer = useAnswer(repo, language);
   const marks = useMarks(tool.id, language);
+  const retries = useRetries<number>();
   const [mode, setMode] = useToolPref('moneyMode');
   const [max, setMax] = useToolPref('moneyMax');
   const currency = CURRENCIES[CURRENCY_OF[language]];
@@ -35,9 +40,12 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
     return { code, amount: randomAmount(CURRENCIES[code], toolPrefs().moneyMax) };
   });
   const amount = held.code === currency.code ? held.amount : undefined;
+  // A missed amount comes back only in the same money and size.
+  const scope = (m: MoneyMax) => `${currency.code}|${m}`;
   const next = (m: MoneyMax = max) => {
     answer.hide();
-    setHeld({ code: currency.code, amount: marks.pick(() => randomAmount(currency, m, amount), (a) => moneyPatterns(a, currency)) });
+    const draw = () => marks.pick(() => randomAmount(currency, m, amount), (a) => moneyPatterns(a, currency));
+    setHeld({ code: currency.code, amount: retries.next(scope(m), amount === undefined ? undefined : String(amount), draw) });
   };
   // Another language's money (chosen, or the saved language once it's read): a new amount in it.
   useEffect(() => {
@@ -45,6 +53,7 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
   }, [held.code, currency, max]);
 
   const saying = useMemo(() => (amount === undefined ? undefined : MONEY_SAYERS[language]?.(amount)), [language, amount]);
+  const rule = useMemo(() => (amount === undefined ? undefined : moneyRule(language, amount, currency)), [language, amount, currency]);
   const pieces = useMemo(() => (amount === undefined ? [] : breakDown(amount, currency)), [amount, currency]);
 
   return (
@@ -55,7 +64,15 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
       shown={answer.shown}
       onRandomize={() => next()}
       onShow={() => answer.show(saying?.everyday)}
-      onMark={(right) => { if (amount !== undefined) marks.mark(moneyPatterns(amount, currency), right); next(); }}
+      onMark={(right) => {
+        if (amount !== undefined) {
+          marks.mark(moneyPatterns(amount, currency), right);
+          if (!right) retries.missed(scope(max), String(amount), amount);
+        }
+        if (!right && rule) answer.miss();
+        else next();
+      }}
+      actions={answer.missed ? nextOnly(() => next()) : undefined}
     >
       <Card style={{ minHeight: 150, justifyContent: 'center' }}>
         {mode === 'count' ? (
@@ -82,6 +99,7 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
           ? `Add up the notes and coins, say the total in ${LANGUAGES[language].name}, then show the answer.`
           : `Say the price in ${LANGUAGES[language].name} out loud, then show the answer.`}
         answer={saying && { everyday: saying.everyday, also: saying.also, last: mode === 'count' ? { title: 'As written', phrase: saying.written } : undefined }}
+        rule={answer.missed ? rule : undefined}
         onPlay={answer.speak}
       />
     </ToolScreen>

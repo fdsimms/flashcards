@@ -41,6 +41,22 @@ def test_unreviewed_notes_are_not_known_for_coverage() -> None:
     assert known == {"ฉัน", "รับอะไรดี", "ดี"}
 
 
+def test_a_note_whose_reviewed_cards_are_all_suspended_is_unreviewed() -> None:
+    # A leech the preset suspended: the word the learner keeps failing isn't known.
+    leech = [note(1, "ยาก", "hard")]
+    assert build_entries(leech, [card(1, 2, 40, suspended=True)])[0].tier == "unreviewed"
+    relearning = [card(1, 3, 2, suspended=True), card(1, 0, 0)]
+    assert build_entries(leech, relearning)[0].tier == "unreviewed"
+    assert lexicon_from(build_entries(leech, [card(1, 2, 40, suspended=True)])).known == set()
+
+
+def test_a_suspended_card_leaves_the_tier_to_the_notes_other_cards() -> None:
+    word = [note(1, "ยาก", "hard")]
+    # The suspended card was the weakest: the note is as known as its unsuspended one.
+    assert build_entries(word, [card(1, 2, 3, suspended=True), card(1, 2, 40)])[0].tier == "mature"
+    assert build_entries(word, [card(1, 2, 40, suspended=True), card(1, 2, 3)])[0].tier == "young"
+
+
 def test_clean_strips_html_and_entities() -> None:
     assert clean("<b>ไป</b>&nbsp;") == "ไป"
     assert clean("go <br>away") == "go away"

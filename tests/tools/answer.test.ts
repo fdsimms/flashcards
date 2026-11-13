@@ -21,7 +21,7 @@ describe('checking a typed answer', () => {
   it('ignores spaces, punctuation and case, since Thai is written without word spaces', () => {
     expect(checkTyped(right.replace(/ /g, ''), thai).verdict).toBe('exact');
     expect(checkTyped('  วันจันทร์ที่ยี่สิบเจ็ด   มิถุนายน พศ สองพันห้าร้อยแปดสิบเจ็ด ', thai).verdict).toBe('exact');
-    expect(checkTyped('LUNES 27 DE JUNIO'.toLowerCase(), acceptedForms(saySpanishDate(monday, { weekday: true, year: false }))).verdict).toBe('exact');
+    expect(checkTyped('LUNES VEINTISIETE DE JUNIO'.toLowerCase(), acceptedForms(saySpanishDate(monday, { weekday: true, year: false }))).verdict).toBe('exact');
   });
 
   it('takes a final sigma typed in capitals, and ss for ß', () => {
@@ -30,12 +30,17 @@ describe('checking a typed answer', () => {
     expect(checkTyped('einunddreissigste', [{ text: 'einunddreißigste' }]).verdict).toBe('exact');
   });
 
-  it('takes a Japanese date written with digits, the weekday in parentheses or written out, digits full-width or not', () => {
+  it('takes a Japanese date in kana only, never the digits or the kanji an IME writes', () => {
     const ja = acceptedForms(sayJapaneseDate({ year: 2026, month: 11, day: 13 }, { weekday: true, year: true }));
-    for (const typed of ['2026年11月13日（金）', '2026年11月13日金曜日', '2026年11月13日金曜', '２０２６年１１月１３日（金）']) {
-      expect(checkTyped(typed, ja).verdict).toBe('exact');
+    expect(checkTyped('にせんにじゅうろくねん じゅういちがつ じゅうさんにち きんようび', ja).verdict).toBe('exact');
+    for (const typed of ['2026年11月13日（金）', '2026年11月13日金曜日', '二千二十六年十一月十三日金曜日']) {
+      expect(checkTyped(typed, ja).verdict).toBe('different');
     }
-    expect(checkTyped('2026年11月14日金曜日', ja).verdict).toBe('different');
+  });
+
+  it('reads full-width digits and half-width kana as a Japanese keyboard types them', () => {
+    expect(checkTyped('２０２６年', [{ text: '2026年' }]).verdict).toBe('exact');
+    expect(checkTyped('ｷﾝ', [{ text: 'キン' }]).verdict).toBe('exact');
   });
 
   it('takes е for ё as Russian writes it, and marks only what else differs', () => {
@@ -56,11 +61,11 @@ describe('checking a typed answer', () => {
     expect(checkTyped('dwa zlote', [{ text: 'dwa złote' }]).verdict).toBe('close');
   });
 
-  it('accepts the other forms of the date: shortened, without the era, in digits', () => {
+  it('accepts the other forms of the date (shortened, without the era) but not the digits', () => {
     const checked = (s: string) => checkTyped(s, thai);
     expect(checked('วันจันทร์ที่ยี่สิบเจ็ด มิถุนา พ.ศ. สองพันห้าร้อยแปดสิบเจ็ด').verdict).toBe('exact');
     expect(checked('วันจันทร์ที่ยี่สิบเจ็ด มิถุนายน สองพันห้าร้อยแปดสิบเจ็ด').verdict).toBe('exact');
-    expect(checked('วันจันทร์ที่ 27 มิถุนายน พ.ศ. 2587').verdict).toBe('exact');
+    expect(checked('วันจันทร์ที่ 27 มิถุนายน พ.ศ. 2587').verdict).toBe('different');
   });
 
   it('calls a wrong mark close, and marks the letters on both sides', () => {

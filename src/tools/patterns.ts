@@ -12,7 +12,7 @@ import type { ClockTime } from './time';
  */
 
 /** Thai's six-hour clock (thai/time.ts): the part of the day an hour is said in. */
-function thaiHourBand(h: number): string {
+export function thaiHourBand(h: number): string {
   if (h === 0) return 'midnight';
   if (h <= 5) return 'dtii';
   if (h <= 11) return 'chao';
@@ -35,17 +35,28 @@ export function timePatterns(t: ClockTime, language: Language): string[] {
   return [hour, `minutes:${minuteKind(t.minute)}`];
 }
 
+/** How a number ends (11 to 19, 1, 2 to 4, 0, or 5 to 9), which picks the noun's form in Polish and Russian. */
+function endingOf(n: number): string {
+  const lastTwo = n % 100;
+  const last = n % 10;
+  return lastTwo >= 11 && lastTwo <= 19 ? 'teen' : last === 1 ? '1' : last >= 2 && last <= 4 ? '2-4' : last === 0 ? '0' : '5-9';
+}
+
 /**
- * An amount: how many digits its whole part has, whether it has a minor part, and how its whole
- * part ends (11 to 19, 1, 2 to 4, 0, or 5 to 9), which picks the noun's form in Polish and Russian
- * and the number's in most languages.
+ * An amount: how its whole part ends (`endingOf`), which picks the noun's form in Polish and
+ * Russian and the number's in most languages; how its thousands end, which picks the thousands
+ * word's (dwa tysiące, пять тысяч, χίλια or χιλιάδες); and whether it has a minor part.
+ *
+ * Only what sets some amounts apart from the rest: a pattern nearly every question has (how many
+ * digits, a whole amount in a currency with no minor part) would lean toward everything at once,
+ * which is no lean at all.
  */
 export function moneyPatterns(amount: number, currency: Currency): string[] {
   const whole = Math.floor(amount / currency.minorPerMajor);
-  const lastTwo = whole % 100;
-  const last = whole % 10;
-  const ending = lastTwo >= 11 && lastTwo <= 19 ? 'teen' : last === 1 ? '1' : last >= 2 && last <= 4 ? '2-4' : last === 0 ? '0' : '5-9';
-  return [`digits:${String(whole).length}`, `minor:${amount % currency.minorPerMajor !== 0}`, `ends:${ending}`];
+  const patterns = [`ends:${endingOf(whole)}`];
+  if (whole >= 1000) patterns.push(`thousands:${endingOf(Math.floor(whole / 1000))}`);
+  if (amount % currency.minorPerMajor !== 0) patterns.push('minor');
+  return patterns;
 }
 
 /** A date: its month, its day's tens and ones (an ordinal's two parts), and the weekday and decade when they're said. */
