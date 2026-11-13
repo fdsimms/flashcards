@@ -20,6 +20,7 @@ import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
 import { LineExplanation } from './ReaderExplain';
+import { RegisterChip } from './ReaderNatural';
 import { PhraseExplanation, PhrasePickBanner, type PhraseMining } from './ReaderPhrase';
 import { ReadGrammarNote } from './ReadGrammarNote';
 import { WordView } from './ReadWord';
@@ -757,6 +758,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                       onPress={() => toggleExplained(i)}
                     />
                   ) : null}
+                  {!listenOnly ? <RegisterChip register={line.register} /> : null}
                 </View>
                 {!listenOnly && (english || lineEnglish.includes(i)) ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: 2 }}>{line.english}</Text>

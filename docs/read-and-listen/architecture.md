@@ -76,6 +76,22 @@ Franki's (Client, below).
   in the language's deck, the same approval step and daily limit as a marked word (`mining.ts`),
   and only for a text in the language being read. Hold-and-drag selection was considered and left
   out: it's hidden, and dragging inside the scrolling text fights the scroll.
+- **Register and naturalness** (13 November 2026, by the owner's decision). Texts are written by a
+  model, and a line that is grammatical but stiff passes every check in code, so two things show how
+  a line is said, and neither grades or adds anything. (1) Each line carries a **register** chip
+  (casual, neutral, formal or slang) at the end of its buttons. The generator asks for it with the
+  line (`Line.register`, `REGISTERS`, `generator.py`), so it costs no extra call and is kept in the
+  text's `lines`; a text written before it, or an answer outside the list, shows no chip. (2) The
+  explanation has **Does this sound natural?**, asked only on the tap
+  (`POST /api/texts/{id}/lines/{n}/natural`, `explain.py`) and kept per line in `naturalness`, so
+  asking again costs nothing; its cost counts under `explanations` in `/api/costs`. It is a second,
+  separate call that judges the line as a native speaker with who says it and the lines around it
+  (a model grading its own draft in the same call mostly approves it), and answers natural, stiff or
+  unusual with a reason and, unless natural, what a native speaker would more likely say. That is
+  text only: the line's recorded audio is unchanged. Tried and left out for now: running the review
+  on every line when a text is written (a cost on every text for lines never questioned), to be
+  reconsidered if the taps show lines are often off, and coloring the chip when it disagrees with the
+  situation.
 - **Listen only** (brief, design principle 6). Once a text is rated "About right", the end view
   offers to play it again with the Thai hidden; the lines show who's speaking instead, and "Show the
   text" brings the words back. The reading is then logged with `listen_only` true. The brief's

@@ -160,6 +160,15 @@ test("an explanation comes with the line's grammar, and none from an older serve
   expect((await createApi('https://x', 'p', older.impl).explainLine(3, 1, false)).grammar).toEqual([]);
 });
 
+test('a naturalness check is asked of the line and comes back as the server sent it', async () => {
+  const answer = { verdict: 'stiff', reason: 'Too written.', alternative: 'Pourquoi tu regardes ça ?' };
+  const { impl, calls } = fakeFetch(json(answer));
+  const got = await createApi('https://x/reader', 'p', impl).checkNatural(3, 1);
+  expect(calls[0].url).toBe('https://x/reader/api/texts/3/lines/1/natural');
+  expect(calls[0].init.method).toBe('POST');
+  expect(got).toEqual(answer);
+});
+
 test('the deck list totals are put to the counts route', async () => {
   const { impl, calls } = fakeFetch(new Response(null, { status: 204 }));
   await createApi('https://x', 'p', impl).reportCounts({ due: 12, new: 8 });
