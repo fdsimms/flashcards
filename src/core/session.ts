@@ -48,6 +48,8 @@ export interface AnswerRecord {
   leechNoteId?: string;
   /** An answer in a filtered deck that only previews: it uses no limits, so it isn't counted in today's. */
   preview?: boolean;
+  /** What went wrong, chosen from Again's menu (misses.ts), for the session end's list of misses. */
+  miss?: string;
 }
 
 /** How far through the session is: answers given over those plus the cards still queued. */

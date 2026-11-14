@@ -6,6 +6,7 @@ import type { ToolId, ToolInfo } from '../../tools/tools';
 import type { Colors } from '../theme';
 import { CountingTool } from './CountingTool';
 import { DateTool } from './DateTool';
+import { MixupsTool } from './MixupsTool';
 import { MoneyTool } from './MoneyTool';
 import { NumbersTool } from './NumbersTool';
 import { ScriptTool } from './ScriptTool';
@@ -34,6 +35,7 @@ export const TOOL_SCREENS: Record<ToolId, {
   /** The icon tile's color: a theme color white reads on, as NavRow asks. */
   color: (c: Colors) => string;
 }> = {
+  mixups: { Screen: MixupsTool, icon: 'arrow.left.arrow.right', color: (c) => c.indigo },
   time: { Screen: TimeTool, icon: 'clock.fill', color: (c) => c.easy },
   dates: { Screen: DateTool, icon: 'calendar', color: (c) => c.again },
   money: { Screen: MoneyTool, icon: 'banknote.fill', color: (c) => c.good },

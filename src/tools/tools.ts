@@ -66,7 +66,7 @@ import type { ClockTime, TimeSaying } from './time';
 /** The languages the tools come in: every app language but English, which the app is already in. */
 export const TOOL_LANGUAGES: Language[] = LANGUAGE_ORDER.filter((l) => l !== 'en');
 
-export type ToolId = 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'grammar';
+export type ToolId = 'mixups' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'grammar';
 
 export interface ToolInfo {
   id: ToolId;
@@ -166,6 +166,13 @@ export const WEEK_STARTS_ON: Partial<Record<Language, 0 | 1>> = {
 const withSayer = (sayers: Partial<Record<Language, unknown>>) => TOOL_LANGUAGES.filter((l) => !!sayers[l]);
 
 export const TOOLS: ToolInfo[] = [
+  {
+    // Lookalikes and sound-alikes from the learner's own decks (mixups.ts). Every language: a deck with none says so.
+    id: 'mixups',
+    title: 'Words you mix up',
+    summary: 'Tell apart look-alikes and sound-alikes from your decks.',
+    languages: TOOL_LANGUAGES,
+  },
   {
     id: 'time',
     title: 'Telling the time',

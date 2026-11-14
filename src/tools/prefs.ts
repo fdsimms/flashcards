@@ -5,6 +5,7 @@ import { MONEY_MAXES, type MoneyMax } from './money';
 import { COUNT_MAXES, COUNT_MODES, type CountMax, type CountMode } from './counting';
 import { ANSWER_MODES, type AnswerMode } from './listen';
 import { NUMBER_KINDS, type NumberKind } from './number';
+import { MIXUP_MODES, type MixupMode } from './mixups';
 import { SCRIPT_MODES, type ScriptMode } from './script';
 import { MINUTE_STEPS, type MinuteStep } from './time';
 
@@ -36,11 +37,13 @@ export interface ToolPrefs {
   countMax: CountMax;
   /** Reading the script: read a word aloud, or (Thai) name a syllable's tone. */
   scriptMode: ScriptMode;
+  /** Words you mix up: told apart by meaning or by ear. */
+  mixupMode: MixupMode;
 }
 
 export type MoneyMode = 'count' | 'price';
 
-export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, timeMode: 'say', dateWeekday: true, dateYear: false, dateMode: 'say', moneyMode: 'count', moneyMax: 1000, moneyAnswer: 'say', numberKind: 'number', numberMode: 'say', countMode: 'say', countMax: 10, scriptMode: 'tone' };
+export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, timeMode: 'say', dateWeekday: true, dateYear: false, dateMode: 'say', moneyMode: 'count', moneyMax: 1000, moneyAnswer: 'say', numberKind: 'number', numberMode: 'say', countMode: 'say', countMax: 10, scriptMode: 'tone', mixupMode: 'meaning' };
 
 /** Anything unreadable or out of range falls back to the default for that setting. */
 export function parseToolPrefs(raw: string | null): ToolPrefs {
@@ -67,5 +70,6 @@ export function parseToolPrefs(raw: string | null): ToolPrefs {
     countMode: COUNT_MODES.find((m) => m === saved.countMode) ?? DEFAULT_TOOL_PREFS.countMode,
     countMax: COUNT_MAXES.find((m) => m === saved.countMax) ?? DEFAULT_TOOL_PREFS.countMax,
     scriptMode: SCRIPT_MODES.find((m) => m === saved.scriptMode) ?? DEFAULT_TOOL_PREFS.scriptMode,
+    mixupMode: MIXUP_MODES.find((m) => m === saved.mixupMode) ?? DEFAULT_TOOL_PREFS.mixupMode,
   };
 }

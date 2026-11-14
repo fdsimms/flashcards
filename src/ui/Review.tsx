@@ -54,6 +54,7 @@ import { AgainSplit, MissReminder } from './MissMarks';
 import { useMissMarks } from './useMissMarks';
 import { OwnHookField, TypeItButton, useOwnHook } from './ReviewActive';
 import { TypedDiff } from './TypedDiff';
+import { SessionMissList, useSessionMisses, type MixupRequest } from './SessionMisses';
 import { asksOwnHook, typeItAnswer } from '../core/activeRecall';
 import { compareTyped } from '../core/typedCompare';
 import { Button, Count, Icon, Loading, Screen, Tappable } from './kit';
@@ -182,7 +183,7 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
+export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -202,6 +203,8 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void;
   /** Opens a forms drill (src/ui/FormsDrill.tsx) over this screen. */
   onPracticeForms: (request: DrillRequest) => void;
+  /** Opens Words you mix up (src/ui/tools/MixupsTool.tsx) on words missed this session. */
+  onPracticeMixups?: (request: MixupRequest) => void;
   /** Replaces this screen with the next deck in the list that has cards to study; absent when there is none. */
   onNextDeck?: () => void;
   /** That deck's name, for the button. */
@@ -436,6 +439,8 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   const [typing, setTyping] = useState(false);
   useEffect(() => { setTyping(false); }, [showing]);
   const ownHook = useOwnHook(repo, showing, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
+  // The session end's list of misses, and what of them Words you mix up can practice (SessionMisses.tsx).
+  const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups);
 
   // Auto-speak the front when a card with audio appears.
   useEffect(() => {
@@ -517,7 +522,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
       // Time capped at a minute, as Anki's maximum answer time is, so a phone put down mid-card doesn't swell the summary.
       const record: AnswerRecord = {
         before: current, reviewId, deck: cardDeck(current, note.deck), anki, buried: siblings, leechNoteId,
-        rating, takenMs: Math.min(when.getTime() - shownAt.current, 60000), preview,
+        rating, takenMs: Math.min(when.getTime() - shownAt.current, 60000), preview, ...(rating === 1 && miss ? { miss } : {}),
       };
       // Now a review, it weighs on the days the load balancer spreads later answers over, as in Anki.
       if (updated.sched.state === 2) recordAnswer(loadSnapshot.current, updated, cardParams?.presetId, updated.sched.scheduledDays);
@@ -658,25 +663,29 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     const studiedWords = practice ? practiceWords(history.map((h) => ({ noteId: h.before.noteId, deck: h.deck })), notes, practice.languageDeck) : [];
     const reading = !!(studiedWords.length && practice);
     const checking = forms.toCheck.length;
+    const mixing = sessionMisses.practice.length;
     const footer = (
       <>
+        {sessionMisses.practice.map((p) => (
+          <Button key={`${p.request.mode}|${p.request.language}`} label={p.label} onPress={() => onPracticeMixups?.(p.request)} />
+        ))}
         {checking ? (
           <Button
-            label={checking === 1 ? 'Practice its forms' : `Practice these ${checking}`}
+            label={checking === 1 ? 'Practice its forms' : `Practice these ${checking}`} variant={mixing ? 'secondary' : 'primary'}
             onPress={() => onPracticeForms(forms.drillFor(forms.toCheck.map((x) => x.note.id), deck))}
           />
         ) : null}
         {reading ? (
           <Button
-            label="Read a text with these words" variant={checking ? 'secondary' : 'primary'} busy={openingText}
+            label="Read a text with these words" variant={checking || mixing ? 'secondary' : 'primary'} busy={openingText}
             onPress={() => { setOpeningText(true); practice!.onRead(studiedWords).finally(() => setOpeningText(false)); }}
           />
         ) : null}
-        {onNextDeck ? <Button label={`Study ${nextDeck}`} variant={reading || checking ? 'secondary' : 'primary'} onPress={onNextDeck} /> : null}
-        {onEarlierDeck ? <Button label={`Back to the top: ${earlierDeck}`} variant={reading || checking ? 'secondary' : 'primary'} onPress={onEarlierDeck} /> : null}
+        {onNextDeck ? <Button label={`Study ${nextDeck}`} variant={reading || checking || mixing ? 'secondary' : 'primary'} onPress={onNextDeck} /> : null}
+        {onEarlierDeck ? <Button label={`Back to the top: ${earlierDeck}`} variant={reading || checking || mixing ? 'secondary' : 'primary'} onPress={onEarlierDeck} /> : null}
         {/* An Anki filtered deck has no limits or cards of its own to add to. */}
         {paramsForDeck(deck, allParams)?.filtered ? null : <Button label="Custom study" variant="secondary" onPress={onCustomStudy} />}
-        <Button label="Back to decks" variant={reading || checking || onNextDeck || onEarlierDeck ? 'secondary' : 'primary'} onPress={onDone} />
+        <Button label="Back to decks" variant={reading || checking || mixing || onNextDeck || onEarlierDeck ? 'secondary' : 'primary'} onPress={onDone} />
       </>
     );
     return (
@@ -699,6 +708,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
             {waitingFor ? `The next card comes back in about ${minutes} min.` : 'Nothing else is due in this deck today.'}
           </Text>
           {history.length ? <SessionSummary history={history} /> : null}
+          <SessionMissList rows={sessionMisses.rows} practicable={mixing > 0} />
           <FormsCheck items={forms.toCheck} />
           </ScrollView>
         </Reveal>
