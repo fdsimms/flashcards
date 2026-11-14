@@ -20,6 +20,8 @@ export default function SettingsRoute() {
       onReminder={() => router.push('/reminder')}
       onVacation={() => router.push('/vacation')}
       onSpeaking={() => router.push('/speaking')}
+      onAnswerButtons={() => router.push('/answer-buttons')}
+      onThaiSize={() => router.push('/thai-text-size')}
     />
   );
 }

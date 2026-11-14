@@ -14,7 +14,7 @@ import {
   buildSession, canAskLater, canMarkCorrect, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
   studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
-import { nextStage, outcomeText } from '../wanikani/srs';
+import { nextStage, outcomeText, stageChange, type StageChange } from '../wanikani/srs';
 import { localAudioUri } from '../wanikani/storage';
 import { madeOf, SUBJECT_TYPE_NAMES, withComponents, type Assignment, type Subject } from '../wanikani/subjects';
 import { haptic } from './haptics';
@@ -24,6 +24,7 @@ import { CardSurface, ProgressBar } from './Review';
 import type { WaniKaniState } from './useWaniKani';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 import { useHeaderInset } from './useHeaderInset';
+import { StagePopup, stagePopupMs } from './StagePopup';
 import { SubjectDetails, SubjectFront } from './WaniKaniCard';
 
 /** What a session is built from: WaniKani itself, or the offline copy when it can't be reached. */
@@ -108,6 +109,16 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const [copySavedAt, setCopySavedAt] = useState<Date | null>(null);
   // How many refused answers this screen has said were dropped: marked seen as it closes.
   const shownDropped = useRef(0);
+  // The stage popup for the answer just given; `id` replays it, and a timer takes it down.
+  const [popup, setPopup] = useState<{ id: number; change: StageChange } | null>(null);
+  const popupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const popupId = useRef(0);
+  const hidePopup = () => {
+    if (popupTimer.current) clearTimeout(popupTimer.current);
+    popupTimer.current = null;
+    setPopup(null);
+  };
+  useEffect(() => () => { if (popupTimer.current) clearTimeout(popupTimer.current); }, []);
 
   // Whatever is held when the screen closes goes to WaniKani then, and the deck list's counts are read again.
   const studyRef = useRef(study);
@@ -223,7 +234,17 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     send(r.send);
     setStudy({ ...r.study, held });
     resetQuestion();
+    // An item that crossed into another stage group says so, by what WaniKani will do with this answer.
+    const outcome = r.study.held;
+    const change = outcome?.kind === 'review' ? stageChange(outcome.srsStage, outcome.wrongMeaning + outcome.wrongReading, srs.get(subjects.get(outcome.subjectId)?.srsId ?? 1)) : null;
+    hidePopup();
+    if (change) {
+      popupId.current += 1;
+      setPopup({ id: popupId.current, change });
+      popupTimer.current = setTimeout(hidePopup, stagePopupMs(change));
+    }
     if (!currentQuestion(r.study.session)) haptic.success();
+    else if (change) change.burned ? haptic.success() : haptic.select();
   };
 
   const undo = () => {
@@ -234,6 +255,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     answeredFrom.current = null;
     setStudy(back);
     resetQuestion();
+    hidePopup();
   };
 
   // Moves the question to the back of its pile without answering it, so nothing is counted wrong.
@@ -439,7 +461,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         ) : null}
         {droppedNote()}
         <ProgressBar value={sessionProgress(study.session)} />
-        <CardSurface>
+        <CardSurface overlay={popup ? <StagePopup key={popup.id} change={popup.change} /> : null}>
           <ScrollView
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}

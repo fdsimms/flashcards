@@ -1,5 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SRS, intervalText, nextStage, outcomeText, parseSrsSystem, stageName } from '../../src/wanikani/srs';
+import { DEFAULT_SRS, intervalText, nextStage, outcomeText, parseSrsSystem, stageChange, stageName } from '../../src/wanikani/srs';
+
+describe('the popup after an answer', () => {
+  it('says nothing for a move within a group', () => {
+    expect(stageChange(1, 0)).toBeNull();
+    expect(stageChange(5, 0)).toBeNull();
+    expect(stageChange(3, 1)).toBeNull();
+  });
+
+  it('names the group an item moves up into', () => {
+    expect(stageChange(4, 0)).toEqual({ group: 'Guru', up: true, burned: false });
+    expect(stageChange(6, 0)).toEqual({ group: 'Master', up: true, burned: false });
+    expect(stageChange(7, 0)).toEqual({ group: 'Enlightened', up: true, burned: false });
+  });
+
+  it('marks Burned, which ends the item', () => {
+    expect(stageChange(8, 0)).toEqual({ group: 'Burned', up: true, burned: true });
+  });
+
+  it('names the group an item falls back into', () => {
+    expect(stageChange(5, 1)).toEqual({ group: 'Apprentice', up: false, burned: false });
+    expect(stageChange(7, 1)).toEqual({ group: 'Guru', up: false, burned: false });
+    expect(stageChange(7, 3)).toEqual({ group: 'Apprentice', up: false, burned: false });
+  });
+
+  it('says nothing for an item already burned', () => {
+    expect(stageChange(9, 0)).toBeNull();
+  });
+});
 
 describe('where an answer moves an item', () => {
   it('moves up one when right, and stops at Burned', () => {

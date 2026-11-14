@@ -84,7 +84,7 @@ function Disclosure({ open, fill, color }: { open: boolean; fill: string; color:
 }
 
 /** What's waiting across every deck, or that nothing is: the first thing the deck list says. */
-function TodaySummary({ due, fresh }: { due: number; fresh: number }) {
+function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; studied?: string }) {
   const c = useTheme();
   const caughtUp = due + fresh === 0;
   const figure = (value: number, label: string, color: string) => (
@@ -96,12 +96,13 @@ function TodaySummary({ due, fresh }: { due: number; fresh: number }) {
   return (
     <View
       accessible
-      accessibilityLabel={caughtUp ? 'All caught up. Nothing is due today.' : `Today: ${due} due, ${fresh} new`}
+      accessibilityLabel={[caughtUp ? 'All caught up. Nothing is due today.' : `Today: ${due} due, ${fresh} new`, studied].filter(Boolean).join('. ')}
       style={{
-        flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, borderRadius: radius.l, ...smooth,
+        gap: space.m, padding: space.l, borderRadius: radius.l, ...smooth,
         backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border,
       }}
     >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
       {caughtUp ? (
         <>
           <Icon name="checkmark.circle.fill" size={34} color={c.countDue} weight="regular" />
@@ -116,6 +117,12 @@ function TodaySummary({ due, fresh }: { due: number; fresh: number }) {
           {figure(fresh, 'new today', c.countNew)}
         </>
       )}
+      </View>
+      {studied ? (
+        <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center', fontVariant: ['tabular-nums'], borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.s }}>
+          {studied}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -244,6 +251,8 @@ const MIN_SYNC_SHOWN_MS = 1200;
 
 export function DeckList(props: {
   decks: DeckRow[];
+  /** "Studied today: ..." under the due and new figures (useTodaySummary), once something has been answered today. */
+  studied?: string;
   /**
    * When the last backup was made, and whether another is due (`backupStatus`). Not shown while
    * sync is on: the Anki server then holds the collection, and Backup is still in Settings.
@@ -346,11 +355,14 @@ export function DeckList(props: {
           {props.sync ? (
             <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={syncShown} accessibilityLabel={syncShown ? 'Syncing' : 'Sync now'} onPress={syncTapped} />
           ) : null}
-          {props.onQuickAdd ? <Stack.Toolbar.Button icon="plus" accessibilityLabel="Quick add notes" onPress={props.onQuickAdd} /> : null}
-          <Stack.Toolbar.Button icon="rectangle.stack.badge.plus" accessibilityLabel="New deck" onPress={props.onNewDeck} />
-          <Stack.Toolbar.Button icon="chart.bar" accessibilityLabel="Stats" onPress={props.onStats} />
           <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} />
           <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={props.onSettings} />
+          {/* What's used less often than opening a deck, so the bar stays at four buttons. */}
+          <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More: new deck, quick add notes or stats">
+            <Stack.Toolbar.MenuAction icon="rectangle.stack.badge.plus" onPress={props.onNewDeck}>New deck</Stack.Toolbar.MenuAction>
+            {props.onQuickAdd ? <Stack.Toolbar.MenuAction icon="plus" onPress={props.onQuickAdd}>Quick add notes</Stack.Toolbar.MenuAction> : null}
+            <Stack.Toolbar.MenuAction icon="chart.bar" onPress={props.onStats}>Stats</Stack.Toolbar.MenuAction>
+          </Stack.Toolbar.Menu>
         </Stack.Toolbar>
       }
     >
@@ -375,6 +387,8 @@ export function DeckList(props: {
       >
         {/* Everything in one view, which a drag measures the rows against and draws its card in. */}
         <View {...drag.contentProps} style={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+          {/* Today's count first; what needs doing sits under it, so a few banners never push it off the screen. */}
+          {groups.length || props.extra ? <TodaySummary due={totals.due} fresh={totals.fresh} studied={props.studied} /> : null}
           {backup?.overdue ? (
             <WarningBanner title={backup.text} detail="Everything is stored only on this iPhone." action="Tap to back up now" hint="Opens Backup" onPress={props.onBackup} />
           ) : null}
@@ -385,10 +399,9 @@ export function DeckList(props: {
           {noteQueue ? <NoteQueueCard banner={noteQueue} /> : null}
           {vacation ? <VacationCard notice={vacation} due={totals.due} /> : null}
           {props.sync?.failed ? (
-            // A failed sync is shown first, where it can't be scrolled past; a tap tries again.
+            // A failed sync sits right under today's count, where it can't be scrolled past; a tap tries again.
             <WarningBanner title="Sync didn't finish" detail={props.sync.status} action="Tap to try again" hint="Syncs now" onPress={syncTapped} />
           ) : null}
-          {groups.length || props.extra ? <TodaySummary due={totals.due} fresh={totals.fresh} /> : null}
           {groups.length === 0 ? (props.loaded === false ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : (
             <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
               <Icon name="tray" size={40} color={c.textTertiary} weight="regular" />

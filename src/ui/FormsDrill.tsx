@@ -52,7 +52,6 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   const [index, setIndex] = useState(0);
   const [answered, setAnswered] = useState<Answered[]>([]);
   const [typed, setTyped] = useState('');
-  const [topHeight, setTopHeight] = useState(0);
   // "In a sentence" is always typed; otherwise the last choice made, on any drill.
   const typeOnly = request.kind === 'pattern' && request.sentence;
   const [mode, setMode] = useState<AnswerMode>('pick');
@@ -200,7 +199,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
         keyboardShouldPersistTaps="handled"
         {...scrollProps}
       >
-        <View style={{ gap: space.xl }} onLayout={(e) => setTopHeight(e.nativeEvent.layout.height + space.xl)}>
+        <View style={{ gap: space.xl }}>
           <ProgressBar value={index / prompts.length} label="Progress through this practice" style={{ marginHorizontal: 0, marginTop: 0 }} />
           {typeOnly ? null : (
             <Segments<AnswerMode>
@@ -210,11 +209,13 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
             />
           )}
         </View>
-        {/* Padded at the bottom by the height of the controls above, so the question sits in the middle of the screen rather than of what's left under them. */}
-        <View style={{ flex: 1, justifyContent: 'center', gap: space.xl, paddingBottom: topHeight }}>
+        {/* The question is centered in the room between the controls above and the answer below, whatever the answer part's height (choices, the field, or the feedback), so it doesn't ride low when the keyboard is up. */}
+        <View style={{ flex: 1, justifyContent: 'center' }}>
           <Reveal key={index} rise={10}>
             <Question prompt={prompt} reveal={current ? prompt.answers[0] : undefined} />
           </Reveal>
+        </View>
+        <View style={{ gap: space.xl }}>
           {picking ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
               {prompt.choices!.map((choice) => (
@@ -390,31 +391,52 @@ function GrammarLine({ grammar, onOpen }: { grammar?: FormPrompt['grammar']; onO
   );
 }
 
+/**
+ * The answers by what was asked ("counting word", "present"), in the order each kind first came up,
+ * so a heading says it once instead of every row repeating it. Within a kind, the order asked.
+ */
+function summarySections(answered: Answered[]): { title: string; rows: Answered[] }[] {
+  const sections: { title: string; rows: Answered[] }[] = [];
+  for (const a of answered) {
+    const title = a.prompt.group || a.prompt.label;
+    const section = sections.find((s) => s.title === title);
+    if (section) section.rows.push(a); else sections.push({ title, rows: [a] });
+  }
+  return sections;
+}
+
 function Summary({ answered, notice }: { answered: Answered[]; notice?: string }) {
   const c = useTheme();
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
-      <Card style={{ gap: 0, paddingVertical: space.xs }}>
-        {answered.map((a, i) => (
-          <View
-            key={i}
-            accessible
-            accessibilityLabel={`${[a.prompt.headword, a.prompt.label, a.prompt.group].filter(Boolean).join(', ')}: ${a.prompt.answers[0]}. ${isRight(a) ? 'Right' : `Wrong, you answered “${a.given}”`}`}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingVertical: space.s, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}
-          >
-            <Text style={{ ...type.subhead, color: c.textSecondary, width: 130 }}>
-              {[a.prompt.headword, a.prompt.label, a.prompt.group].filter(Boolean).join(' · ')}
-            </Text>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={{ ...type.headline, color: c.text }}>{a.prompt.answers[0]}</Text>
-              {a.verdict === 'almost' && a.counted ? <Text style={{ ...type.footnote, color: c.warning }}>Accent missed, counted as right</Text> : null}
-              {!isRight(a) ? <Text style={{ ...type.footnote, color: c.danger }}>{`You answered “${a.given}”`}</Text> : null}
-            </View>
-            <Icon name={isRight(a) ? 'checkmark' : 'xmark'} size={18} color={isRight(a) ? c.countDue : c.danger} weight="bold" />
-          </View>
-        ))}
-      </Card>
-      <Help>Practice doesn't change when any card is next due.</Help>
+      {summarySections(answered).map(({ title, rows }) => (
+        <View key={title} style={{ gap: space.xs }}>
+          {title ? <Text accessibilityRole="header" style={{ ...type.footnote, fontWeight: '600', color: c.textSecondary, paddingHorizontal: space.xs }}>{title}</Text> : null}
+          <Card style={{ gap: 0, paddingVertical: space.xs }}>
+            {rows.map((a, i) => {
+              // Under a form group ("present"), the form says which one ("yo"); otherwise the heading already said it.
+              const asked = [a.prompt.headword, a.prompt.group ? a.prompt.label : ''].filter(Boolean).join(' · ');
+              return (
+                <View
+                  key={i}
+                  accessible
+                  accessibilityLabel={`${[asked, title].filter(Boolean).join(', ')}: ${a.prompt.answers[0]}. ${isRight(a) ? 'Right' : `Wrong, you answered “${a.given}”`}`}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingVertical: space.s, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}
+                >
+                  <Text style={{ ...type.subhead, color: c.textSecondary, width: 130 }}>{asked}</Text>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{ ...type.headline, color: c.text }}>{a.prompt.answers[0]}</Text>
+                    {a.verdict === 'almost' && a.counted ? <Text style={{ ...type.footnote, color: c.warning }}>Accent missed, counted as right</Text> : null}
+                    {!isRight(a) ? <Text style={{ ...type.footnote, color: c.danger }}>{`You answered “${a.given}”`}</Text> : null}
+                  </View>
+                  <Icon name={isRight(a) ? 'checkmark' : 'xmark'} size={18} color={isRight(a) ? c.countDue : c.danger} weight="bold" />
+                </View>
+              );
+            })}
+          </Card>
+        </View>
+      ))}
+      <Help>Practice doesn't change any card's due date.</Help>
       {notice ? <Help>{notice}</Help> : null}
     </ScrollView>
   );

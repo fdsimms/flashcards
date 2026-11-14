@@ -731,18 +731,18 @@ export function formsSuggestion(input: {
       const detail = form.key.startsWith('field:')
         ? `Last time you missed its ${form.label}.`
         : form.group ? `Last time you missed one of its ${form.group} forms.` : 'Last time you missed one of its forms.';
-      return { reason: 'missed', title: 'Practice its forms again?', detail };
+      return { reason: 'missed', title: 'Practice its grammar again?', detail };
     }
     if (now.getTime() - at.getTime() >= PRACTICE_AGAIN_DAYS * dayMs) {
-      return { reason: 'stale', title: 'Practice its forms?', detail: 'You last practiced them over a month ago.' };
+      return { reason: 'stale', title: 'Practice its grammar?', detail: 'You last practiced them over a month ago.' };
     }
     return undefined;
   }
   if (input.introducedAt && now.getTime() - input.introducedAt.getTime() < NEW_WORD_DAYS * dayMs) {
     return {
       reason: 'new',
-      title: 'New this week: practice its forms?',
-      detail: `You know what ${word} means, but you haven't practiced its forms yet.`,
+      title: 'New this week: practice its grammar?',
+      detail: `You know what ${word} means, but you haven't practiced its grammar yet.`,
     };
   }
   return undefined;
