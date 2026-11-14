@@ -49,6 +49,16 @@ export function bestHeard(guesses: readonly string[], expected?: string): string
   return best;
 }
 
+/**
+ * The note under a spoken answer. Thai gets a line on tones: the recognizer guesses them from the
+ * words around, so a wrong tone can still come back as the right word.
+ */
+export function spokenAnswerNote(speechTag: string | undefined): string {
+  const base = 'The phone hears what you say, not how you say it.';
+  const tones = speechTag?.toLowerCase().startsWith('th') ? ' It also guesses tones from context, so it can miss a wrong one.' : '';
+  return `${base}${tones} Rate it as you would any answer.`;
+}
+
 /** What a recognizer error means for the learner, and what to do. Undefined for one that isn't worth saying (stopped on purpose). */
 export function speakingErrorText(code: string): string | undefined {
   switch (code) {

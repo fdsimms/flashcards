@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { bestHeard, recognitionLocale, speakingErrorText } from '../../src/core/speaking';
+import { bestHeard, recognitionLocale, spokenAnswerNote, speakingErrorText } from '../../src/core/speaking';
+
+describe('spokenAnswerNote', () => {
+  it('mentions tones only for Thai', () => {
+    expect(spokenAnswerNote('th-TH')).toContain('tones');
+    expect(spokenAnswerNote('pl-PL')).not.toContain('tones');
+    expect(spokenAnswerNote(undefined)).not.toContain('tones');
+  });
+});
 
 describe('recognitionLocale', () => {
   const ios = ['de_DE', 'es_ES', 'es_US', 'nb_NO', 'pl_PL', 'th_TH'];
