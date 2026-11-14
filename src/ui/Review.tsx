@@ -69,7 +69,7 @@ import { NextSteps, type NextStep } from './ReviewNextSteps';
 import { asksOwnHook, typeItAnswer } from '../core/activeRecall';
 import { compareTyped } from '../core/typedCompare';
 import { Button, Count, Icon, Loading, Screen, Tappable } from './kit';
-import { Reveal, useReduceMotion } from './motion';
+import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
 import { ChangeRatingStrip, useRatingOffer } from './ChangeRating';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 import { useHeaderInset } from './useHeaderInset';
@@ -121,15 +121,86 @@ export function ProgressBar({ value, label = 'Progress through this session', st
 /** The audio mode Review plays in (AppContext's), put back after Record yourself records. */
 const AUDIO_MODE = { playsInSilentMode: true };
 
-function SwipeCard({ enabled, shown, onRate, children }: { enabled: boolean; shown: RatingValue[]; onRate: (r: RatingValue) => Promise<void>; children: React.ReactNode }) {
+/** What Review asks of the card's motion: fly off for a rating, fly back in after an undo. */
+type CardMotion = {
+  /** Flies the card off toward its rating (Again left, the others right); resolves once it's gone. */
+  exit: (rating: RatingValue) => Promise<void>;
+  /** The next card to show is an undone one: it comes back in from the side it left. */
+  enterFrom: (dir: -1 | 1) => void;
+  /** After an answer: brings the card back if no new card arrived (the write failed). */
+  settleSoon: () => void;
+};
+
+/** The card's color and word for a rating given to the right of the card (Good, or Hard and Easy from the buttons). */
+const RIGHT_WORD = { 2: 'Hard', 3: 'Good', 4: 'Easy' } as const;
+
+function SwipeCard({ enabled, shown, showing, motion, onRate, children }: {
+  enabled: boolean;
+  shown: RatingValue[];
+  /** Changes with each card shown (and each card shown again): the next one rises in from under this one. */
+  showing: string | undefined;
+  motion: React.MutableRefObject<CardMotion | null>;
+  onRate: (r: RatingValue) => Promise<void>;
+  children: React.ReactNode;
+}) {
   const c = useTheme();
+  const reduce = useReduceMotion();
   const { width } = useWindowDimensions();
   const x = useRef(new Animated.Value(0)).current;
+  // 1 at rest; 0 as the next card starts under the one that left, and it grows to full size.
+  const rise = useRef(new Animated.Value(1)).current;
+  // How much of the card underneath shows: while one card is leaving and the next arriving.
+  const veil = useRef(new Animated.Value(0)).current;
+  const [rightRating, setRightRating] = useState<2 | 3 | 4>(3);
   // The responder is made once, so it reads the latest props from here.
-  const latest = useRef({ enabled, shown, onRate, width });
-  latest.current = { enabled, shown, onRate, width };
+  const latest = useRef({ enabled, shown, onRate, width, reduce });
+  latest.current = { enabled, shown, onRate, width, reduce };
   const crossed = useRef(false);
+  // Off screen after an answer, until the next card is shown.
+  const leaving = useRef(false);
+  const entryDir = useRef<-1 | 1 | null>(null);
   const back = () => Animated.spring(x, { toValue: 0, useNativeDriver: false, speed: 20, bounciness: 6 }).start();
+  const fly = (rating: RatingValue) => new Promise<void>((resolve) => {
+    const dir = rating === 1 ? -1 : 1;
+    if (rating !== 1) setRightRating(rating === 2 || rating === 4 ? rating : 3);
+    leaving.current = true;
+    Animated.timing(veil, { toValue: 1, duration: 120, useNativeDriver: false }).start();
+    Animated.timing(x, { toValue: dir * latest.current.width * 1.2, duration: 220, easing: Easing.in(Easing.quad), useNativeDriver: false }).start(() => resolve());
+  });
+  const settleSoon = () => {
+    setTimeout(() => {
+      if (!leaving.current) return;
+      leaving.current = false;
+      setRightRating(3);
+      Animated.timing(veil, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+      back();
+    }, 400);
+  };
+  motion.current = {
+    exit: (rating) => (latest.current.reduce ? Promise.resolve() : fly(rating)),
+    enterFrom: (dir) => { entryDir.current = dir; },
+    settleSoon,
+  };
+  // A new card: from under the one that left, or, after an undo, from the side the old one went.
+  useEffect(() => {
+    const from = entryDir.current;
+    entryDir.current = null;
+    if (latest.current.reduce) { x.setValue(0); veil.setValue(0); rise.setValue(1); leaving.current = false; return; }
+    if (from) {
+      leaving.current = false;
+      setRightRating(3);
+      x.setValue(from * latest.current.width * 1.2);
+      Animated.spring(x, { toValue: 0, useNativeDriver: false, speed: 14, bounciness: 4 }).start();
+      return;
+    }
+    if (!leaving.current) return;
+    leaving.current = false;
+    setRightRating(3);
+    x.setValue(0);
+    rise.setValue(0);
+    Animated.spring(rise, { toValue: 1, useNativeDriver: false, speed: 14, bounciness: 4 }).start();
+    Animated.timing(veil, { toValue: 0, duration: 260, useNativeDriver: false }).start();
+  }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
   const responder = useRef(
     PanResponder.create({
       // Claim only a clearly horizontal drag, so the card's own text still scrolls vertically.
@@ -143,39 +214,59 @@ function SwipeCard({ enabled, shown, onRate, children }: { enabled: boolean; sho
         crossed.current = false;
         const rating = swipeRating(g.dx, g.vx, latest.current.shown);
         if (!rating) { back(); return; }
-        Animated.timing(x, { toValue: Math.sign(g.dx) * latest.current.width * 1.2, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: false }).start(async () => {
+        void fly(rating).then(async () => {
           await latest.current.onRate(rating);
-          x.setValue(0);
+          settleSoon();
         });
       },
       onPanResponderTerminate: () => { crossed.current = false; back(); },
     }),
   ).current;
   const tint = (from: number, to: number) => x.interpolate({ inputRange: [from, to].sort((a, b) => a - b), outputRange: from < to ? [0, 0.22] : [0.22, 0], extrapolate: 'clamp' });
+  const rightColor = rightRating === 2 ? c.hard : rightRating === 4 ? c.easy : c.good;
   return (
-    <Animated.View
-      {...responder.panHandlers}
-      style={{ flex: 1, transform: [{ translateX: x }, { rotate: x.interpolate({ inputRange: [-300, 0, 300], outputRange: ['-5deg', '0deg', '5deg'], extrapolate: 'clamp' }) }] }}
-    >
-      <CardSurface>
-        {children}
-        {/* Tints and words that ramp in as the card is dragged: the answer it would give. */}
-        <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: c.good, opacity: tint(0, SWIPE_DISTANCE) }} />
-        <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: c.again, opacity: tint(0, -SWIPE_DISTANCE) }} />
-        <Animated.Text pointerEvents="none" style={{ ...type.title, position: 'absolute', top: space.l, left: space.xl, color: c.good, opacity: tint(0, SWIPE_DISTANCE).interpolate({ inputRange: [0, 0.22], outputRange: [0, 1] }) }}>Good</Animated.Text>
-        <Animated.Text pointerEvents="none" style={{ ...type.title, position: 'absolute', top: space.l, right: space.xl, color: c.again, opacity: tint(0, -SWIPE_DISTANCE).interpolate({ inputRange: [0, 0.22], outputRange: [0, 1] }) }}>Again</Animated.Text>
-      </CardSurface>
-    </Animated.View>
+    <View style={{ flex: 1 }}>
+      {/* The card underneath, seen only while one card leaves and the next arrives. */}
+      <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, opacity: veil, transform: [{ translateY: 14 }, { scale: 0.94 }] }}>
+        <CardSurface><View /></CardSurface>
+      </Animated.View>
+      <Animated.View
+        {...responder.panHandlers}
+        style={{
+          flex: 1,
+          transform: [
+            { translateX: x },
+            { translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
+            { scale: rise.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) },
+            { rotate: x.interpolate({ inputRange: [-300, 0, 300], outputRange: ['-5deg', '0deg', '5deg'], extrapolate: 'clamp' }) },
+          ],
+        }}
+      >
+        <CardSurface>
+          {children}
+          {/* Tints and words that ramp in as the card is dragged, or sent off by a button: the answer it gives. */}
+          <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: rightColor, opacity: tint(0, SWIPE_DISTANCE) }} />
+          <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: c.again, opacity: tint(0, -SWIPE_DISTANCE) }} />
+          <Animated.Text pointerEvents="none" style={{ ...type.title, position: 'absolute', top: space.l, left: space.xl, color: rightColor, opacity: tint(0, SWIPE_DISTANCE).interpolate({ inputRange: [0, 0.22], outputRange: [0, 1] }) }}>{RIGHT_WORD[rightRating]}</Animated.Text>
+          <Animated.Text pointerEvents="none" style={{ ...type.title, position: 'absolute', top: space.l, right: space.xl, color: c.again, opacity: tint(0, -SWIPE_DISTANCE).interpolate({ inputRange: [0, 0.22], outputRange: [0, 1] }) }}>Again</Animated.Text>
+        </CardSurface>
+      </Animated.View>
+    </View>
   );
 }
 
 /** What this session did, shown when the queue is empty: cards answered, time, and how many were Again. */
-function SessionSummary({ history }: { history: AnswerRecord[] }) {
+function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay?: number }) {
   const c = useTheme();
   const { answered, again, takenMs } = sessionSummary(history);
-  const tile = (value: string, label: string) => (
+  // The counts run up from 0 once the summary has appeared (the end of a session is a small payoff).
+  const [counting, setCounting] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setCounting(true), delay + 80); return () => clearTimeout(t); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const tile = (value: string | number, label: string) => (
     <View style={{ flex: 1, alignItems: 'center', gap: 2 }}>
-      <Text style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{value}</Text>
+      {typeof value === 'number'
+        ? <CountingText value={counting ? value : 0} style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }} />
+        : <Text style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{value}</Text>}
       <Text style={{ ...type.footnote, color: c.textSecondary }}>{label}</Text>
     </View>
   );
@@ -185,9 +276,9 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
       accessibilityLabel={`This session: ${answered} ${answered === 1 ? 'card' : 'cards'}, ${durationText(takenMs)}, ${again} answered Again`}
       style={{ flexDirection: 'row', alignSelf: 'stretch', marginTop: space.xl, paddingVertical: space.l, borderRadius: radius.l, ...smooth, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border }}
     >
-      {tile(String(answered), answered === 1 ? 'card' : 'cards')}
+      {tile(answered, answered === 1 ? 'card' : 'cards')}
       {tile(durationText(takenMs), 'studying')}
-      {tile(String(again), 'Again')}
+      {tile(again, 'Again')}
     </View>
   );
 }
@@ -266,6 +357,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   // Set while an answer or an undo is being written. A second tap during the await would
   // otherwise act on the same card again from its old state.
   const busy = useRef(false);
+  // The card's motion (SwipeCard's): a button rating sends the card off first, then writes the answer.
+  const cardMotion = useRef<CardMotion | null>(null);
+  const rating = useRef(false);
   // The card last answered, as it was shown. `busy` is cleared before React has drawn the next card,
   // so a tap landing in between still sees this one: it mustn't be answered twice from its old state.
   const lastAnswered = useRef<Card | null>(null);
@@ -586,6 +680,19 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     }
   };
 
+  /** An answer from a button: the card leaves toward its rating, then the answer is written. */
+  const rate = async (r: RatingValue, miss?: string) => {
+    if (rating.current || busy.current || !current || current === lastAnswered.current) return;
+    rating.current = true;
+    try {
+      await cardMotion.current?.exit(r);
+      await answer(r, miss);
+    } finally {
+      cardMotion.current?.settleSoon();
+      rating.current = false;
+    }
+  };
+
   const undo = async (): Promise<boolean> => {
     const last = history[history.length - 1];
     if (!last || busy.current) return false;
@@ -614,6 +721,8 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
       }
       await repo.deleteReview(last.reviewId);
       misses.undone(last.before.id);
+      // The undone card comes back in from the side it left.
+      cardMotion.current?.enterFrom(last.rating === 1 ? -1 : 1);
       forgetCard(loadSnapshot.current, last.before.id);
       setHistory((h) => h.slice(0, -1));
       forms.undone(last.before.id);
@@ -762,9 +871,10 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     // The next deck, or back to the top, is the one thing to do next; Back to decks is always there.
     const footer = (
       <>
-        {onNextDeck ? <Button label={`Next up: study ${nextDeck}`} onPress={onNextDeck} /> : null}
-        {onEarlierDeck ? <Button label={`Back to the top: ${earlierDeck}`} variant={onNextDeck ? 'secondary' : 'primary'} onPress={onEarlierDeck} /> : null}
-        <Button label="Back to decks" variant={onNextDeck || onEarlierDeck ? 'secondary' : 'primary'} onPress={onDone} />
+        {/* Rise in one after another once the summary has settled. */}
+        {onNextDeck ? <Reveal rise={12} delay={820}><Button label={`Next up: study ${nextDeck}`} onPress={onNextDeck} /></Reveal> : null}
+        {onEarlierDeck ? <Reveal rise={12} delay={onNextDeck ? 910 : 820}><Button label={`Back to the top: ${earlierDeck}`} variant={onNextDeck ? 'secondary' : 'primary'} onPress={onEarlierDeck} /></Reveal> : null}
+        <Reveal rise={12} delay={820 + (onNextDeck ? 90 : 0) + (onEarlierDeck ? 90 : 0)}><Button label="Back to decks" variant={onNextDeck || onEarlierDeck ? 'secondary' : 'primary'} onPress={onDone} /></Reveal>
       </>
     );
     return (
@@ -776,22 +886,33 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
         toolbar={undoButton ? <Stack.Toolbar placement="right">{undoButton}</Stack.Toolbar> : undefined}
         footer={footer}
       >
-        <Reveal style={{ flex: 1 }}>
+        <View style={{ flex: 1 }}>
           {/* Scrolls when the summary, the forms check and the next steps outgrow the space above the buttons. */}
           <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
-          <Icon name={waitingFor ? 'clock' : 'checkmark.circle.fill'} size={56} color={waitingFor ? c.textTertiary : c.countDue} weight="regular" />
-          <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>
-            {waitingFor ? 'Nothing due right now' : 'All done for now'}
-          </Text>
-          <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>
-            {waitingFor ? `The next card comes back in about ${minutes} min.` : 'Nothing else is due in this deck today.'}
-          </Text>
-          {history.length ? <SessionSummary history={history} /> : null}
-          <SessionMissList rows={sessionMisses.rows} practicable={mixing > 0} />
-          <FormsCheck items={forms.toCheck} />
-          <NextSteps steps={steps} />
+          {/* The end of a session arrives in order: the mark, the words, the figures, then what to do next. */}
+          <Pop from={0} bounciness={10}>
+            <Icon name={waitingFor ? 'clock' : 'checkmark.circle.fill'} size={56} color={waitingFor ? c.textTertiary : c.countDue} weight="regular" />
+          </Pop>
+          <Reveal rise={8} delay={380}>
+            <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>
+              {waitingFor ? 'Nothing due right now' : 'All done for now'}
+            </Text>
+          </Reveal>
+          <Reveal rise={8} delay={460}>
+            <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>
+              {waitingFor ? `The next card comes back in about ${minutes} min.` : 'Nothing else is due in this deck today.'}
+            </Text>
+          </Reveal>
+          {history.length ? <Reveal rise={8} delay={560} style={{ alignSelf: 'stretch' }}><SessionSummary history={history} delay={560} /></Reveal> : null}
+          {sessionMisses.rows.length || forms.toCheck.length || steps.length ? (
+            <Reveal rise={8} delay={760} style={{ alignSelf: 'stretch', gap: space.s }}>
+              <SessionMissList rows={sessionMisses.rows} practicable={mixing > 0} />
+              <FormsCheck items={forms.toCheck} />
+              <NextSteps steps={steps} />
+            </Reveal>
+          ) : null}
           </ScrollView>
-        </Reveal>
+        </View>
       </Screen>
       </>
     );
@@ -837,11 +958,11 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   const footer = revealed ? (
     <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
       {buttons.map((b) => b.r === 1 && missReasons.length ? (
-        <AgainSplit key={b.r} interval={intervals?.[1]} reasons={missReasons} onAnswer={(miss) => answer(1, miss)} />
+        <AgainSplit key={b.r} interval={intervals?.[1]} reasons={missReasons} onAnswer={(miss) => rate(1, miss)} />
       ) : (
         <Tappable
           key={b.r}
-          onPress={() => answer(b.r)}
+          onPress={() => rate(b.r)}
           accessibilityRole="button"
           accessibilityLabel={`${b.label}, next in ${intervals?.[b.r] ?? ''}`}
           scaleTo={0.95}
@@ -1060,19 +1181,19 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} /> : null}
       {page && current.sched.state === 0 ? <NewCardChip /> : null}
       {page ? (
-        <CardSurface>
+        <SwipeCard enabled={false} shown={shown} showing={showing} motion={cardMotion} onRate={answer}>
           {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
               blanking the card while a new one starts. Keyed to the card and the answers given, so a card shown
               again (after Again, or an undo) starts fresh instead of showing its back while its front loads. */}
           <CardWebView key={`${current.id}:${history.length}`} html={revealed ? page.back : page.front} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} />
-        </CardSurface>
+        </SwipeCard>
       ) : null}
       {page && extras ? (
         <ScrollView style={{ flexGrow: 0, maxHeight: '45%' }} contentContainerStyle={{ paddingHorizontal: space.l, paddingVertical: space.s }}>{extras}</ScrollView>
       ) : null}
       {page ? null : rendered ? (
         <View style={{ flex: 1 }}>
-        <SwipeCard enabled={swipeOn && revealed} shown={shown} onRate={answer}>
+        <SwipeCard enabled={swipeOn && revealed} shown={shown} showing={showing} motion={cardMotion} onRate={answer}>
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
@@ -1089,7 +1210,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
               ) : null}
             </Reveal>
             {revealed ? (
-              <Reveal rise={8} style={{ gap: space.xl }}>
+              <Reveal rise={14} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
                 <Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} gloss={note ? glossFor(current, note) : null} />
                 {extras}
