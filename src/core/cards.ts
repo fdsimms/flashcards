@@ -241,7 +241,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     });
   }
   pushEntry(back);
-  pushIf(back, meaning, undefined, true);
+  // The word is the answer here, so the meaning under it is a gloss, not a second headline.
+  pushIf(back, meaning, undefined, undefined, undefined, { role: 'gloss' });
   pushIf(back, translit, undefined, undefined, 'Show transliteration');
   pushIf(back, kana, undefined, undefined, 'Show reading');
   back.push(...detail());
