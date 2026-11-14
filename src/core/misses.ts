@@ -34,6 +34,21 @@ const GENDERED: MissReason[] = [
   MEANING,
 ];
 
+// Languages where stress isn't the usual slip: gender, the written form (Spanish accents, French and
+// Norwegian spelling), and the ending a verb or noun takes.
+const WRITTEN: MissReason[] = [
+  { key: 'gender', label: 'Gender' },
+  { key: 'spelling', label: 'Spelling' },
+  { key: 'ending', label: 'Ending' },
+  MEANING,
+];
+
+const JAPANESE: MissReason[] = [
+  { key: 'reading', label: 'Reading' },
+  { key: 'pitch', label: 'Pitch accent' },
+  MEANING,
+];
+
 /**
  * The reasons offered, by the language's code. A fixed list for now; a language with none gets a
  * plain Again button. Add a language here, not in a screen.
@@ -43,6 +58,11 @@ const REASONS_BY_LANGUAGE: Record<string, MissReason[]> = {
   de: GENDERED,
   pl: GENDERED,
   ru: GENDERED,
+  el: GENDERED,
+  es: WRITTEN,
+  fr: WRITTEN,
+  nb: WRITTEN,
+  ja: JAPANESE,
 };
 
 /** The reasons Again's menu offers for this note: only Omnilanguage notes in a language listed above. */

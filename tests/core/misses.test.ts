@@ -9,14 +9,24 @@ describe('which notes offer reasons', () => {
     expect(THAI.map((r) => r.key)).toEqual(['tone', 'vowel-length', 'spelling', 'meaning']);
   });
 
-  it('gives German, Polish and Russian gender, stress, ending and meaning', () => {
-    for (const language of ['German', 'Polish', 'Russian']) {
+  it('gives German, Polish, Russian and Greek gender, stress, ending and meaning', () => {
+    for (const language of ['German', 'Polish', 'Russian', 'Greek']) {
       expect(missReasonsFor(omniNote({ Language: language, deck: 'x' })).map((r) => r.key)).toEqual(['gender', 'stress', 'ending', 'meaning']);
     }
   });
 
+  it('gives Spanish, French and Norwegian gender, spelling, ending and meaning', () => {
+    for (const language of ['Spanish', 'French', 'Norwegian']) {
+      expect(missReasonsFor(omniNote({ Language: language, deck: 'x' })).map((r) => r.key)).toEqual(['gender', 'spelling', 'ending', 'meaning']);
+    }
+  });
+
+  it('gives Japanese reading, pitch accent and meaning', () => {
+    expect(missReasonsFor(omniNote({ Language: 'Japanese', deck: 'x' })).map((r) => r.key)).toEqual(['reading', 'pitch', 'meaning']);
+  });
+
   it('offers none for a language not listed, or a note that is not Omnilanguage', () => {
-    expect(missReasonsFor(omniNote({ Language: 'French' }))).toEqual([]);
+    expect(missReasonsFor(omniNote({ Language: 'Italian' }))).toEqual([]);
     const basic = { ...omniNote(), model: 'Basic', fields: { Front: 'a', Back: 'b' } };
     expect(missReasonsFor(basic)).toEqual([]);
   });
