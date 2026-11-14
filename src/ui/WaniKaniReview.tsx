@@ -428,7 +428,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
 
   return (
     <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
-      <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
+      <Screen title={title} largeTitle={false} floatingHeader toolbar={toolbar} footer={footer}>
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
           {kind === 'reviews' ? <Count value={left.reviews} label="due" color={c.countDue} /> : <Count value={left.lessons} label="new" color={c.countNew} />}
         </View>
