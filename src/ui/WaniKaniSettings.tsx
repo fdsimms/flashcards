@@ -86,6 +86,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
               label="API token"
               value={value}
               onChangeText={setValue}
+              secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="go"
