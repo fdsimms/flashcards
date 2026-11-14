@@ -81,12 +81,25 @@ export function Screen(props: {
   footer?: React.ReactNode;
   /** Turns off swiping the screen away: a sheet with changes that would be lost, or a screen with its own sideways swipe. */
   lockGesture?: boolean;
+  /**
+   * For a fixed layout that isn't a list (a study screen): the header buttons float over the screen
+   * on their own glass, with no bar, divider or edge blur behind them. iOS 26 otherwise draws a
+   * scroll edge effect under the header, which reads as a slab the buttons are stuck in.
+   */
+  floatingHeader?: boolean;
   children: React.ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   const head = (
     <>
-      <Stack.Screen options={{ title: props.title ?? '', headerLargeTitleEnabled: !!props.title && props.largeTitle !== false, gestureEnabled: !props.lockGesture }} />
+      <Stack.Screen
+        options={{
+          title: props.title ?? '',
+          headerLargeTitleEnabled: !!props.title && props.largeTitle !== false,
+          gestureEnabled: !props.lockGesture,
+          ...(props.floatingHeader ? { headerShadowVisible: false, scrollEdgeEffects: { top: 'hidden' as const } } : null),
+        }}
+      />
       {props.toolbar}
     </>
   );

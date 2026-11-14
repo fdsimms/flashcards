@@ -996,6 +996,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     <Screen
       title={title}
       largeTitle={false}
+      floatingHeader
       // The stack's swipe-back would take a rightward drag before the card's own swipe sees it.
       lockGesture={swipeOn && revealed && !page && !!rendered}
       toolbar={
