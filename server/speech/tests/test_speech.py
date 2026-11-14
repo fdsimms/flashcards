@@ -1,6 +1,9 @@
 """The shared Azure client, against a faked Azure: what it sends, and how each failure reads."""
 
 import asyncio
+import base64
+import json
+from typing import Any
 
 import httpx
 import pytest
@@ -340,3 +343,81 @@ def test_an_sdk_rate_limit_is_retried_then_gives_up_with_the_message() -> None:
 def test_an_sdk_answer_with_no_audio_is_an_error() -> None:
     with pytest.raises(SpeechError, match="no audio"):
         speak([SdkResult(audio=b"")])
+
+
+# ==== Pronunciation assessment ====
+
+ASSESSED = {
+    "RecognitionStatus": "Success",
+    "DisplayText": "Poproszę kawę z mlekiem.",
+    "NBest": [
+        {
+            "Display": "Poproszę kawę z mlekiem.",
+            "AccuracyScore": 82.0,
+            "FluencyScore": 90.0,
+            "CompletenessScore": 100.0,
+            "Words": [
+                {"Word": "poproszę", "AccuracyScore": 95.0, "ErrorType": "None"},
+                {
+                    "Word": "mlekiem",
+                    "PronunciationAssessment": {
+                        "AccuracyScore": 48.0,
+                        "ErrorType": "Mispronunciation",
+                    },
+                    "Syllables": [
+                        {"Syllable": "mle", "AccuracyScore": 70},
+                        {"Syllable": "kiem", "AccuracyScore": 30},
+                    ],
+                },
+            ],
+        }
+    ],
+}
+
+
+def assess(handler: httpx.MockTransport) -> Any:
+    async def go() -> Any:
+        client = SpeechClient(
+            "k", "westeurope", http=httpx.AsyncClient(transport=handler), sleep=no_sleep
+        )
+        return await client.assess(b"RIFFwav", "Poproszę kawę z mlekiem.", "pl-PL")
+
+    return asyncio.run(go())
+
+
+def test_assess_posts_the_wav_with_the_reference_and_reads_both_shapes_of_scores() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=ASSESSED)
+
+    got = assess(httpx.MockTransport(handler))
+    request = seen[0]
+    assert request.url.host == "westeurope.stt.speech.microsoft.com"
+    assert request.url.params["language"] == "pl-PL" and request.url.params["format"] == "detailed"
+    assert request.headers["Content-Type"].startswith("audio/wav")
+    settings = json.loads(base64.b64decode(request.headers["Pronunciation-Assessment"]))
+    assert (
+        settings["ReferenceText"] == "Poproszę kawę z mlekiem."
+        and settings["GradingSystem"] == "HundredMark"
+    )
+    assert request.content == b"RIFFwav"
+    assert (got.accuracy, got.fluency, got.completeness) == (82.0, 90.0, 100.0)
+    assert [(w.word, w.accuracy, w.error) for w in got.words] == [
+        ("poproszę", 95.0, "None"),
+        ("mlekiem", 48.0, "Mispronunciation"),
+    ]
+    assert got.words[1].syllables == (("mle", 70.0), ("kiem", 30.0))
+
+
+def test_assess_says_when_nothing_was_heard_or_the_language_is_refused() -> None:
+    with pytest.raises(SpeechError, match="heard nothing"):
+        assess(
+            httpx.MockTransport(
+                lambda r: httpx.Response(200, json={"RecognitionStatus": "NoMatch"})
+            )
+        )
+    with pytest.raises(SpeechError) as e:
+        assess(httpx.MockTransport(lambda r: httpx.Response(400, text="unsupported")))
+    assert e.value.status == 400

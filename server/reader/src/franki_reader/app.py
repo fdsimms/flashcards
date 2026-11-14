@@ -171,6 +171,12 @@ marked words, ideas) is in the current language, the `language` setting.
                                       owner's lines checked {index, verdict, corrected, note}, and
                                       words worth adding {word, english, why: asked | heard}
     GET   /api/situations/audio/{key} a clip of one of the other person's lines (MP3)
+    POST  /api/pronunciation          {language, reference, audio} a take of the owner's (base64 WAV,
+                                      16 kHz mono) scored against `reference` by Azure's
+                                      pronunciation assessment: {accuracy, fluency, completeness,
+                                      heard, words: [{word, accuracy, band, error, syllables,
+                                      weakest}]}. 422 for a language Azure doesn't score. The take
+                                      isn't kept
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
                                       memory hints for a word the owner keeps forgetting: {hints: [...]}
     POST  /api/glosses                {language, sentences: [{text, english?}]} cards' example
@@ -206,6 +212,7 @@ from franki_reader import (
     meanings,
     note_queue,
     production,
+    pronunciation,
     sentences,
     situations,
     store,
@@ -391,6 +398,13 @@ class SituationIn(BaseModel):
         return situations.Conversation(self.language, self.scene.strip(), roles, lines)
 
 
+class TakeIn(BaseModel):
+    language: Code
+    reference: str = Field(min_length=1, max_length=600)
+    # Base64 of the WAV: at most `pronunciation.MAX_WAV_BYTES`, so a third more as text.
+    audio: str = Field(min_length=1, max_length=pronunciation.MAX_WAV_BYTES * 4 // 3 + 8)
+
+
 class SentencesIn(BaseModel):
     language: Code
     count: int = Field(default=10, ge=1, le=20)
@@ -529,6 +543,7 @@ def create_app(
     play: situations.Play | None = None,
     give_feedback: situations.GiveFeedback | None = None,
     clips: ClipCache | None = None,
+    assess: pronunciation.Assess | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
     # Points whose drill questions are being written, shared by every request (drills.top_up).
@@ -1178,6 +1193,40 @@ def create_app(
             raise HTTPException(404, "No such clip.")
         return FileResponse(path, media_type="audio/mpeg")
 
+    @app.post("/api/pronunciation", dependencies=authed)
+    async def score_take(body: TakeIn) -> dict[str, Any]:
+        """Never writes to Anki or grades a card, and keeps nothing of the take."""
+        if assess is None:
+            raise HTTPException(
+                503,
+                "Azure isn't set up on the server, so it can't score a recording"
+                " (AZURE_SPEECH_KEY and AZURE_SPEECH_REGION in server/.env turn this on).",
+            )
+        try:
+            wav = pronunciation.wav_of(body.audio)
+        except pronunciation.TakeRefused as e:
+            raise HTTPException(422, str(e)) from e
+        info = LANGUAGES[body.language]
+        try:
+            assessed = await assess(wav, body.reference.strip(), info.locale)
+        except SpeechError as e:
+            if e.status == 400:
+                raise HTTPException(
+                    422,
+                    f"Azure didn't score this. It may not score {info.name}: compare your take with"
+                    " the recording yourself instead.",
+                ) from e
+            raise HTTPException(503, str(e)) from e
+        seconds = pronunciation.seconds_of(wav)
+        store.save_call_cost(
+            engine.conn,
+            "pronunciation",
+            body.language,
+            engine.clock(),
+            pronunciation.azure_stt_usd(seconds),
+        )
+        return pronunciation.result(assessed)
+
     @app.post("/api/mnemonics", dependencies=authed)
     async def make_mnemonics(body: MnemonicIn) -> dict[str, list[str]]:
         if mnemonics is None:
@@ -1296,6 +1345,7 @@ def create_app(
         produced = store.production_spending(engine.conn, since)
         sentenced = store.sentence_spending(engine.conn, since)
         situated, situated_chars = store.situation_spending(engine.conn, since)
+        scored = store.pronunciation_spending(engine.conn, since)
         recorded, recorded_chars = store.recording_spending(engine.conn, since)
         rows = by_language.values()
         total = store.Spending(
@@ -1475,6 +1525,12 @@ def create_app(
                     }
                     for code, (n, c) in situated.items()
                 ],
+            },
+            # Takes scored by Azure's pronunciation assessment (pronunciation.py): Azure's alone, an
+            # estimate from the seconds sent.
+            "pronunciation": {
+                "scored": sum(n for n, _ in scored.values()),
+                "azure_usd": round(sum(c for _, c in scored.values()), 4),
             },
             # Cards recorded by an Azure voice in the app (POST /api/speech): Azure's alone, an
             # estimate like the texts' audio. Not per language: the app doesn't say which.
@@ -2032,4 +2088,5 @@ def production_app() -> FastAPI:
         give_feedback=give_feedback,
         # Beside the texts' audio: a text's folder is its id, so "situations" can't be one.
         clips=ClipCache(settings.audio_dir / "situations"),
+        assess=speech.assess if speech else None,
     )

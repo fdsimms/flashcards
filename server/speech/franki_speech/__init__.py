@@ -11,6 +11,13 @@ checked against Microsoft's own Speech SDK source; the `/cognitiveservices/v1` p
 given (`ssml`) are unverified until the first call with a live key. The endpoint is configurable (AZURE_SPEECH_ENDPOINT) in case a region or a custom domain
 needs another host.
 
+`assess` scores a recording's pronunciation against the text it should say, through the speech to
+text REST API's short-audio endpoint with a `Pronunciation-Assessment` header. Open risk: its host
+(`<region>.stt.speech.microsoft.com`), path, header (base64 JSON), WAV content type and the answer's
+fields are written from Microsoft's documentation as remembered, not checked against a live key or
+the docs (which weren't reachable when it was written); `_assessed` reads both shapes the scores are
+known to come in.
+
 `speak` records through Azure's Speech SDK instead (sdk.py, the `timings` extra), for the word
 timings the REST API doesn't return, and falls back to REST where the SDK can't be used.
 """
@@ -18,6 +25,8 @@ timings the REST API doesn't return, and falls back to REST where the SDK can't 
 from __future__ import annotations
 
 import asyncio
+import base64
+import json
 import logging
 import re
 from collections.abc import Awaitable, Callable
@@ -64,6 +73,8 @@ __all__ = [
     "OUTPUT_FORMAT",
     "THAI_PAUSE",
     "THAI_PRONUNCIATIONS",
+    "AssessedWord",
+    "Assessment",
     "SpeechClient",
     "SpeechError",
     "WordMark",
@@ -81,6 +92,26 @@ class SpeechError(Exception):
     def __init__(self, message: str, status: int | None = None) -> None:
         super().__init__(message)
         self.status = status
+
+
+@dataclass(frozen=True)
+class AssessedWord:
+    word: str
+    accuracy: float
+    # Azure's word error: None, Mispronunciation, Omission, Insertion and others.
+    error: str
+    syllables: tuple[tuple[str, float], ...] = ()
+
+
+@dataclass(frozen=True)
+class Assessment:
+    """How a recording said its text: scores out of 100, and each word's."""
+
+    accuracy: float
+    fluency: float
+    completeness: float
+    words: tuple[AssessedWord, ...]
+    heard: str  # what Azure heard
 
 
 @dataclass
@@ -220,6 +251,47 @@ class SpeechClient:
                 raise self._refused(_SDK_STATUS.get(r.error), f"{r.error}: {r.details[:200]}")
         return await self._synthesize(text, voice, rate, language), None
 
+    async def assess(self, wav: bytes, reference: str, locale: str) -> Assessment:
+        """Scores a recording (16 kHz, 16-bit mono WAV) against `reference`, the text it should
+        say, in `locale` (pl-PL). A language Azure doesn't assess is refused like any request (400)."""
+        settings = {
+            "ReferenceText": reference,
+            "GradingSystem": "HundredMark",
+            "Granularity": "Phoneme",
+            "Dimension": "Comprehensive",
+            "EnableMiscue": True,
+        }
+        header = base64.b64encode(json.dumps(settings, ensure_ascii=False).encode()).decode()
+        url = (
+            f"https://{self.region}.stt.speech.microsoft.com"
+            "/speech/recognition/conversation/cognitiveservices/v1"
+        )
+        for attempt in range(RATE_LIMIT_RETRIES + 1):
+            try:
+                r = await self.http.post(
+                    url,
+                    params={"language": locale, "format": "detailed"},
+                    headers=self._headers(
+                        **{
+                            "Content-Type": "audio/wav; codecs=audio/pcm; samplerate=16000",
+                            "Accept": "application/json",
+                            "Pronunciation-Assessment": header,
+                        }
+                    ),
+                    content=wav,
+                    timeout=TIMEOUT_SECONDS,
+                )
+            except httpx.HTTPError as e:
+                raise SpeechError(f"Couldn't reach Azure Speech: {e}") from e
+            if r.status_code != 429 or attempt == RATE_LIMIT_RETRIES:
+                break
+            await self.sleep(_retry_wait(r, attempt))
+        if r.status_code >= 300:
+            if r.status_code == 400:
+                raise SpeechError(f"Azure Speech didn't assess this ({locale}).", 400)
+            raise self._refused(r.status_code, f"{r.status_code}: {r.text[:200]}")
+        return _assessed(r.json())
+
     async def _send(self, method: str, path: str, **kw: Any) -> httpx.Response:
         for attempt in range(RATE_LIMIT_RETRIES + 1):
             try:
@@ -245,6 +317,41 @@ class SpeechClient:
         if status == 429:
             return SpeechError("Azure Speech is limiting requests. Wait a minute and try again.")
         return SpeechError(f"Azure Speech answered {what}")
+
+
+def _score(item: dict[str, Any], name: str) -> float:
+    """A score from Azure's answer, which has it on the item itself or in `PronunciationAssessment`."""
+    nested = item.get("PronunciationAssessment")
+    value = (nested if isinstance(nested, dict) else {}).get(name, item.get(name))
+    return float(value) if isinstance(value, (int, float)) else 0.0
+
+
+def _assessed(answer: Any) -> Assessment:
+    """The pronunciation scores from Azure's detailed answer: the best result's, or a
+    SpeechError when nothing was heard."""
+    if not isinstance(answer, dict) or answer.get("RecognitionStatus") != "Success":
+        status = answer.get("RecognitionStatus") if isinstance(answer, dict) else None
+        raise SpeechError(f"Azure heard nothing to score ({status or 'no answer'}).")
+    best = (answer.get("NBest") or [{}])[0]
+    words = []
+    for w in best.get("Words") or []:
+        if not isinstance(w, dict) or not isinstance(w.get("Word"), str):
+            continue
+        nested = w.get("PronunciationAssessment")
+        error = (nested if isinstance(nested, dict) else w).get("ErrorType") or "None"
+        syllables = tuple(
+            (str(s.get("Syllable", "")), _score(s, "AccuracyScore"))
+            for s in w.get("Syllables") or []
+            if isinstance(s, dict) and s.get("Syllable")
+        )
+        words.append(AssessedWord(w["Word"], _score(w, "AccuracyScore"), str(error), syllables))
+    return Assessment(
+        _score(best, "AccuracyScore"),
+        _score(best, "FluencyScore"),
+        _score(best, "CompletenessScore"),
+        tuple(words),
+        str(best.get("Display") or answer.get("DisplayText") or ""),
+    )
 
 
 # The SDK's `CancellationErrorCode`s that mean what these HTTP statuses do.

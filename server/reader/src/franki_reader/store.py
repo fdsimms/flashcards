@@ -1366,6 +1366,7 @@ CallFeature = Literal[
     "forms",
     "production",
     "situations",
+    "pronunciation",
 ]
 
 
@@ -1415,6 +1416,13 @@ def situation_spending(
         (since.isoformat(),),
     ).fetchone()
     return _feature_spending(conn, "situations", since), int(chars or 0)
+
+
+def pronunciation_spending(
+    conn: sqlite3.Connection, since: datetime
+) -> dict[Code, tuple[int, float]]:
+    """Each language's takes scored since `since` (pronunciation.py) and Azure's estimated cost."""
+    return _feature_spending(conn, "pronunciation", since)
 
 
 def form_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
