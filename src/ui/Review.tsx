@@ -63,6 +63,7 @@ import { mixupLanguage } from '../tools/mixups';
 import { languageName } from '../core/voices';
 import { TypedDiff } from './TypedDiff';
 import { SessionMissList, useSessionMisses, type MixupRequest } from './SessionMisses';
+import { NextSteps, type NextStep } from './ReviewNextSteps';
 import { asksOwnHook, typeItAnswer } from '../core/activeRecall';
 import { compareTyped } from '../core/typedCompare';
 import { Button, Count, Icon, Loading, Screen, Tappable } from './kit';
@@ -700,40 +701,37 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     ) : [];
     const checking = forms.toCheck.length;
     const mixing = sessionMisses.practice.length;
+    // What can be done with the session just finished: rows in the list, so the footer stays two buttons.
+    const steps: NextStep[] = [
+      ...sessionMisses.practice.map((p) => ({
+        key: `${p.request.mode}|${p.request.language}`, label: p.label, icon: { name: 'shuffle' as const, color: c.violet }, onPress: () => onPracticeMixups?.(p.request),
+      })),
+      ...(checking ? [{
+        key: 'forms', label: checking === 1 ? 'Practice its forms' : `Practice these ${checking}`, icon: { name: 'list.bullet' as const, color: c.teal },
+        onPress: () => onPracticeForms(forms.drillFor(forms.toCheck.map((x) => x.note.id), deck)),
+      }] : []),
+      ...(reading ? [{
+        key: 'read', label: 'Read a text with these words', icon: { name: 'book' as const, color: c.easy }, busy: openingText,
+        onPress: () => {
+          if (openingRef.current) return;
+          openingRef.current = true;
+          setOpeningText(true);
+          practice!.onRead(studiedWords).catch(() => undefined).finally(() => { openingRef.current = false; setOpeningText(false); });
+        },
+      }] : []),
+      ...(newWords.length ? [{
+        key: 'write', label: newWords.length === 1 ? 'Write a sentence with the new word' : `Write sentences with the ${newWords.length} new words`,
+        icon: { name: 'square.and.pencil' as const, color: c.orange }, onPress: () => practice?.onUseWords?.(newWords),
+      }] : []),
+      // An Anki filtered deck has no limits or cards of its own to add to.
+      ...(paramsForDeck(deck, allParams)?.filtered ? [] : [{ key: 'custom', label: 'Custom study', icon: { name: 'slider.horizontal.3' as const, color: c.indigo }, onPress: onCustomStudy }]),
+    ];
+    // The next deck, or back to the top, is the one thing to do next; Back to decks is always there.
     const footer = (
       <>
-        {sessionMisses.practice.map((p) => (
-          <Button key={`${p.request.mode}|${p.request.language}`} label={p.label} onPress={() => onPracticeMixups?.(p.request)} />
-        ))}
-        {checking ? (
-          <Button
-            label={checking === 1 ? 'Practice its forms' : `Practice these ${checking}`} variant={mixing ? 'secondary' : 'primary'}
-            onPress={() => onPracticeForms(forms.drillFor(forms.toCheck.map((x) => x.note.id), deck))}
-          />
-        ) : null}
-        {reading ? (
-          <Button
-            label="Read a text with these words" variant={checking || mixing ? 'secondary' : 'primary'} busy={openingText}
-            onPress={() => {
-              if (openingRef.current) return;
-              openingRef.current = true;
-              setOpeningText(true);
-              practice!.onRead(studiedWords).catch(() => undefined).finally(() => { openingRef.current = false; setOpeningText(false); });
-            }}
-          />
-        ) : null}
-        {newWords.length ? (
-          <Button
-            label={newWords.length === 1 ? 'Write a sentence with the new word' : `Write sentences with the ${newWords.length} new words`}
-            variant="secondary"
-            onPress={() => practice?.onUseWords?.(newWords)}
-          />
-        ) : null}
-        {onNextDeck ? <Button label={`Study ${nextDeck}`} variant={reading || checking || mixing ? 'secondary' : 'primary'} onPress={onNextDeck} /> : null}
-        {onEarlierDeck ? <Button label={`Back to the top: ${earlierDeck}`} variant={reading || checking || mixing ? 'secondary' : 'primary'} onPress={onEarlierDeck} /> : null}
-        {/* An Anki filtered deck has no limits or cards of its own to add to. */}
-        {paramsForDeck(deck, allParams)?.filtered ? null : <Button label="Custom study" variant="secondary" onPress={onCustomStudy} />}
-        <Button label="Back to decks" variant={reading || checking || mixing || onNextDeck || onEarlierDeck ? 'secondary' : 'primary'} onPress={onDone} />
+        {onNextDeck ? <Button label={`Study ${nextDeck}`} onPress={onNextDeck} /> : null}
+        {onEarlierDeck ? <Button label={`Back to the top: ${earlierDeck}`} variant={onNextDeck ? 'secondary' : 'primary'} onPress={onEarlierDeck} /> : null}
+        <Button label="Back to decks" variant={onNextDeck || onEarlierDeck ? 'secondary' : 'primary'} onPress={onDone} />
       </>
     );
     return (
@@ -746,7 +744,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
         footer={footer}
       >
         <Reveal style={{ flex: 1 }}>
-          {/* Scrolls when the summary and the forms check outgrow the space above the buttons. */}
+          {/* Scrolls when the summary, the forms check and the next steps outgrow the space above the buttons. */}
           <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
           <Icon name={waitingFor ? 'clock' : 'checkmark.circle.fill'} size={56} color={waitingFor ? c.textTertiary : c.countDue} weight="regular" />
           <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>
@@ -758,6 +756,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
           {history.length ? <SessionSummary history={history} /> : null}
           <SessionMissList rows={sessionMisses.rows} practicable={mixing > 0} />
           <FormsCheck items={forms.toCheck} />
+          <NextSteps steps={steps} />
           </ScrollView>
         </Reveal>
       </Screen>

@@ -52,7 +52,7 @@ Changes to an Anki note go into your Anki collection as Anki would make them, so
 
 ## Decks
 
-The deck list shows every deck in your Anki collection, empty ones too (all but Anki's Default deck when it has nothing in it). **New deck** in the top right makes one; "::" puts it inside another, as in `Polski::Verbs`, and makes any deck above it that's missing. The **…** button on a deck's row opens its menu:
+The deck list shows every deck in your Anki collection, empty ones too (all but Anki's Default deck when it has nothing in it). **New deck**, in the **…** menu at the top right, makes one; "::" puts it inside another, as in `Polski::Verbs`, and makes any deck above it that's missing. The **…** button on a deck's row opens its menu:
 
 - **Add note** opens the note editor in that deck, which is how to fill a deck you just made.
 - **Rename** renames it and every deck inside it. "::" moves it inside another deck. A name another deck has (in any capitalization) is refused, as is one inside the deck itself.
@@ -65,7 +65,7 @@ These changes go into your Anki collection as Anki would make them, so the next 
 
 ## Stats
 
-**Stats** (the chart button on the deck list) shows today's answers, time spent, new cards and Agains; what comes due over the next 30 days; answers over the last 30; a calendar of the last year's answers, a square per study day, darker for more (like Anki's Calendar); cards by stage (new, learning, young, mature, suspended); review cards by interval, from a day to over two years (like Anki's Card Intervals); and how often reviews were remembered, against the deck's desired retention. Pick a top-level deck at the top, or all of them. It counts your whole history from Anki, not just answers given in Franki. Tap a bar or a square to see its count.
+**Stats** (in the **…** menu at the top of the deck list) shows today's answers, time spent, new cards and Agains; what comes due over the next 30 days; answers over the last 30; a calendar of the last year's answers, a square per study day, darker for more (like Anki's Calendar); cards by stage (new, learning, young, mature, suspended); review cards by interval, from a day to over two years (like Anki's Card Intervals); and how often reviews were remembered, against the deck's desired retention. Pick a top-level deck at the top, or all of them. It counts your whole history from Anki, not just answers given in Franki. Tap a bar or a square to see its count.
 
 ## Backing up
 
