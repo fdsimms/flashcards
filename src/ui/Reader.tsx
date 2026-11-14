@@ -902,7 +902,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
       ) : null}
 
       {text && session && ended && drilling === 'retell' ? (
-        <ReadRetell api={api} text={text} textStyle={readStyle(text, thaiFont)} onDone={() => setDrilling(null)} />
+        <ReadRetell api={api} text={text} textStyle={readStyle(text, thaiFont, textSize)} onDone={() => setDrilling(null)} />
       ) : null}
 
       {text && session && ended && drilling && drilling !== 'retell' ? (
