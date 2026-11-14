@@ -36,6 +36,13 @@ describe('cards', () => {
       expect(renderCard(note, kind).back.blocks.map((b) => b.text).slice(0, 2)).toEqual(kind === 'audio' ? ['หนังสือ', 'book'] : ['book', 'nang-suu']);
     }
   });
+  it("shows the audio card's meaning as a gloss under the word, and the forward card's as the headline", () => {
+    const note = omniNote({ Entry: 'หนังสือ', Meaning: 'book' });
+    const audio = renderCard(note, 'audio').back.blocks;
+    expect(audio.find((b) => b.text === 'book')).toMatchObject({ role: 'gloss', emphasis: undefined });
+    expect(audio.find((b) => b.text === 'หนังสือ')?.emphasis).toBe(true);
+    expect(renderCard(note, 'forward').back.blocks.find((b) => b.text === 'book')?.emphasis).toBe(true);
+  });
   it("shows a Japanese word's kana after the word on every card's back, behind a tap as in Anki", () => {
     const note = omniNote({ Entry: '大人', Meaning: 'adult', KanaReading: 'おとな', Language: 'Japanese' });
     for (const kind of ['forward', 'reverse', 'audio'] as const) {
