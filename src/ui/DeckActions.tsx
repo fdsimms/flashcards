@@ -6,6 +6,7 @@ import { deckDeletionWarning } from '../core/deckNames';
 import type { DeckMove } from '../core/deckOrder';
 import { isInDeck } from '../core/deckTree';
 import { useApp } from './AppContext';
+import { shareDeckNotes } from './exportDeck';
 import { haptic } from './haptics';
 import { failureText } from '../core/failure';
 
@@ -80,18 +81,19 @@ export function useDeckActions(onOptions: (deck: string) => void) {
     });
   }, [repo, run, fromAnki, collapse]);
 
-  /** The menu on a deck's row: add a note to it, rename it, its options, delete it. */
+  /** The menu on a deck's row: add a note to it, rename it, its options, export its notes, delete it. */
   const menu = useCallback((deck: string) => {
     haptic.tap();
-    const options = ['Add note', 'Rename', 'Deck options', 'Delete', 'Cancel'];
-    ActionSheetIOS.showActionSheetWithOptions({ title: deck, options, cancelButtonIndex: 4, destructiveButtonIndex: 3 }, (i) => {
+    const options = ['Add note', 'Rename', 'Deck options', 'Export notes', 'Delete', 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({ title: deck, options, cancelButtonIndex: 5, destructiveButtonIndex: 4 }, (i) => {
       // The note editor starts in this deck, which may have no notes yet (one just made).
       if (i === 0) openNoteEditor({ deck }, (result) => { if (result) refresh(); });
       if (i === 1) rename(deck);
       if (i === 2) onOptions(deck);
-      if (i === 3) remove(deck);
+      if (i === 3) shareDeckNotes(repo, deck).catch((e) => Alert.alert("Couldn't export the notes", failureText(e, { next: 'Try again.' })));
+      if (i === 4) remove(deck);
     });
-  }, [openNoteEditor, refresh, rename, onOptions, remove]);
+  }, [openNoteEditor, refresh, rename, onOptions, remove, repo]);
 
   return { create: () => create(), menu, move };
 }
