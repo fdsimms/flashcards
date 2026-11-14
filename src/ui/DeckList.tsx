@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
+import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
 import { siblingStep, type DeckMove } from '../core/deckOrder';
 import { deckListTotals, isInDeck, shownDeckRows, type DeckRow } from '../core/deckTree';
 import { useDeckDrag } from './DeckDrag';
@@ -291,6 +291,7 @@ export function DeckList(props: {
   extra?: { node: React.ReactNode; due: number; fresh: number; refresh: () => Promise<unknown> };
 }) {
   const c = useTheme();
+  const reduce = useReduceMotion();
   const header = useHeaderInset();
   const { banner: vocabReady } = useVocabReady();
   const noteQueue = useNoteQueueBanner();
@@ -431,7 +432,11 @@ export function DeckList(props: {
                         // Tapping a row that's slid open closes it, rather than opening the deck.
                         onOpen={() => (openDeck === row.deck ? setOpenDeck(null) : props.onOpen(row.deck))}
                         onMenu={() => props.onDeckMenu(row.deck)}
-                        onToggle={props.onToggleCollapsed ? () => props.onToggleCollapsed!(row.deck) : undefined}
+                        onToggle={props.onToggleCollapsed ? () => {
+                          // The rows below slide into place instead of jumping.
+                          if (!reduce) LayoutAnimation.configureNext(LayoutAnimation.create(220, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
+                          props.onToggleCollapsed!(row.deck);
+                        } : undefined}
                         onLift={(e) => { setOpenDeck(null); drag.begin(row.deck, e); }}
                         onStep={(by) => step(row.deck, by)}
                       />
@@ -467,10 +472,12 @@ export function DeckList(props: {
       {syncShown ? (
         // Over the list, not in it, so the rows don't move when it comes and goes; taps pass through.
         <View pointerEvents="none" style={{ position: 'absolute', top: header.top + space.s, left: 0, right: 0, alignItems: 'center' }}>
+          <Reveal rise={-8}>
           <View accessibilityRole="progressbar" accessibilityLabel="Syncing" style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.pill, paddingVertical: space.s, paddingHorizontal: space.m, ...lift(c, 'high') }}>
             <ActivityIndicator size="small" color={c.textSecondary} />
             <Text style={{ ...type.footnote, color: c.text }}>Syncing…</Text>
           </View>
+          </Reveal>
         </View>
       ) : null}
       </View>
