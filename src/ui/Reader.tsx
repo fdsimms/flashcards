@@ -40,7 +40,7 @@ import { Speaker, speakerSize } from './ReadSpeaker';
 import { useSpokenWords } from './useSpokenWords';
 import { RecordYourself } from './RecordYourself';
 import { useSelfRecording, type SelfRecording } from './useSelfRecording';
-import { Button, Card, Chip, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
+import { Button, Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
@@ -163,7 +163,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const [upNext, setUpNext] = useState<UpNext | null | undefined>(undefined);
   const [nextFailed, setNextFailed] = useState(false);
   const [lengthStep, setLengthStep] = useState<LengthStep>('same');
-  const [liked, setLiked] = useState<boolean | null>(null);
   const [steerError, setSteerError] = useState<string | null>(null);
   // A story episode's pick for what happens next (an index into text.choices), and why saving it failed.
   const [chosen, setChosen] = useState<number | null>(null);
@@ -333,7 +332,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     setUpNext(undefined);
     setNextFailed(false);
     setLengthStep('same');
-    setLiked(null);
     setSteerError(null);
     setChosen(null);
     setChoiceError(null);
@@ -348,7 +346,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
         const opened = await api.text(source.kind === 'past' ? source.text.id : source.textId);
         if (!stillWanted()) return;
         setText(opened);
-        setLiked(opened.liked ?? null);
         setChosen(opened.chosen ?? null);
         setSession(startSession(opened, Date.now()));
         return;
@@ -441,19 +438,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     try {
       onSettings(await api.updateSettings({ lines: stepLength(baseLength.current, step) }));
     } catch (e) {
-      setSteerError(e instanceof ApiError ? e.message : "Couldn't change that. Try again.");
-    }
-  };
-
-  const chooseLiked = async (like: boolean) => {
-    if (!text) return;
-    const before = liked;
-    setLiked(like);
-    setSteerError(null);
-    try {
-      await api.setFavorite(text.topicId, like);
-    } catch (e) {
-      setLiked(before);
       setSteerError(e instanceof ApiError ? e.message : "Couldn't change that. Try again.");
     }
   };
@@ -964,15 +948,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                   />
                 </View>
                 <ReadGrammarDial api={api} />
-                {liked !== null && !text.episode ? (
-                  <View style={{ gap: space.xs }}>
-                    <Text style={{ ...type.footnote, color: c.textSecondary }}>{`This theme: ${text.topic}`}</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-                      <Chip label="More like this" selected={liked} onPress={() => chooseLiked(true)} />
-                      <Chip label="Fewer like this" selected={!liked} onPress={() => chooseLiked(false)} />
-                    </View>
-                  </View>
-                ) : null}
                 {steerError ? <ErrorNote message={steerError} /> : null}
               </Card>
             ) : null}

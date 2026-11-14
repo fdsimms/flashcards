@@ -8,19 +8,18 @@ import { grammarSummary } from '../reader/grammar';
 import { LANGUAGES } from '../reader/languages';
 import { describeProgress } from '../reader/progress';
 import { voicesSummary } from '../reader/voiceSlots';
-import { haptic } from './haptics';
-import { Button, Card, ErrorNote, Field, Group, Help, Icon, NavRow, Screen, SectionTitle, Segments, Select, Tappable } from './kit';
+import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle, Segments, Select } from './kit';
 import { CommonWords } from './ReadCommonWords';
-import { radius, space, type, useTheme } from './theme';
+import { space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /** The card a change was made in, where its failure is shown. */
-type Section = 'words' | 'story' | 'themes' | 'stretch';
+type Section = 'words' | 'story' | 'stretch';
 
 /**
  * One language's Read & Listen settings, the ones set once and rarely changed
  * (docs/read-and-listen/architecture.md, Shelf): its deck, common words, voices and grammar, the
- * ongoing story, the themes the shelf writes from, practice words, and how reading is going.
+ * ongoing story, practice words, and how reading is going.
  * Opened from the shelf's sliders button; the language is the one the shelf is showing.
  */
 export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, onVocabCheck, onEpisodes }: {
@@ -82,17 +81,6 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
       if (mine !== settingSeq.current) return;
       setSettings(before);
       setFailed({ at, message: e instanceof ApiError ? e.message : "Couldn't change that setting. Try again." });
-    }
-  };
-
-  const unlike = async (id: number) => {
-    setShelf((s) => (s ? { ...s, themes: s.themes.filter((t) => t.id !== id) } : s));
-    setFailed(null);
-    try {
-      await api.setFavorite(id, false);
-    } catch (e) {
-      setFailed({ at: 'themes', message: e instanceof ApiError ? e.message : "Couldn't remove that theme. Try again." });
-      load();
     }
   };
 
@@ -182,32 +170,6 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
               <Help>A new story keeps the same people and places from one episode to the next.</Help>
             </Card>
 
-            <SectionTitle>Themes you like</SectionTitle>
-            <Card>
-              {shelf && shelf.themes.length > 0 ? (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-                  {shelf.themes.map((t) => (
-                    <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center', minHeight: 36, paddingLeft: space.m, borderRadius: radius.pill, backgroundColor: c.fill }}>
-                      <Text style={{ ...type.subhead, color: c.text }}>{t.name}</Text>
-                      <Tappable
-                        onPress={() => { haptic.tap(); unlike(t.id); }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Remove ${t.name}`}
-                        hitSlop={{ top: 6, bottom: 6, right: 6 }}
-                        style={{ width: 36, minHeight: 36, alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        <Icon name="xmark" size={12} color={c.textSecondary} weight="semibold" />
-                      </Tappable>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <Help>None yet.</Help>
-              )}
-              {failure('themes')}
-              <Help>Choosing More like this at the end of a text, or holding a text on the shelf and choosing Write more about this topic, adds its theme. The shelf writes from these, the words you reviewed today, and new ideas. Themes are shared by every language.</Help>
-            </Card>
-
             <SectionTitle>Practice words</SectionTitle>
             <Card>
               <Segments<StretchWords>
@@ -218,7 +180,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
               {failure('stretch')}
               <Help>
                 {settings.stretch_words === 'topic'
-                  ? 'Picked from your newer cards and the ones you reviewed today, to fit each text. A card due today is used only after you review it. One text on the shelf uses words you reviewed today.'
+                  ? 'Picked from your newer cards and the ones you reviewed today, to fit each text. A card due today is used only after you review it.'
                   : "Any of your newer cards and the ones you reviewed today, even ones that don't fit the text. A card due today is used only after you review it. Applies from the next text written."}
               </Help>
             </Card>

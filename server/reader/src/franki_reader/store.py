@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS wanikani (
 CREATE TABLE IF NOT EXISTS topics (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL UNIQUE COLLATE NOCASE,
-    favorite INTEGER NOT NULL DEFAULT 1,
+    favorite INTEGER NOT NULL DEFAULT 1,  -- no longer read or written; kept so old databases match
     created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS texts (
@@ -245,14 +245,13 @@ CREATE TABLE IF NOT EXISTS call_costs (
 class Topic:
     id: int
     name: str
-    favorite: bool
     ready: int  # texts waiting to be read
 
 
-# Why a text is on the shelf (docs/read-and-listen/architecture.md, Shelf): "liked", a theme the
-# owner likes; "due", written around words due today and already reviewed (stretch.py); "new", an
-# idea not tried before; "asked", a topic typed in; "story", an episode of the ongoing story. ""
-# for texts from before the shelf.
+# Why a text is on the shelf (docs/read-and-listen/architecture.md, Shelf): "asked", a topic typed in
+# or a Surprise me; "story", an episode of the ongoing story. "liked", "due" and "new" are from
+# the days the shelf wrote ahead on its own, and are no longer written. "" for texts from before
+# the shelf.
 Reason = Literal["liked", "due", "new", "asked", "story", ""]
 
 
@@ -598,26 +597,18 @@ async def refresh_wanikani_if_stale(
 # ==== Topics ====
 
 
-def add_topic(
-    conn: sqlite3.Connection, name: str, favorite: bool, now: datetime, hidden: bool = False
-) -> Topic:
+def add_topic(conn: sqlite3.Connection, name: str, now: datetime) -> Topic:
     """Adds a topic, or returns the existing one with that name (ignoring case). A removed topic
-    with that name comes back, with any text it still had ready. A `hidden` one is added removed:
-    the shelf files its own ideas that way, so they're never listed or offered again, until More
-    like this makes one a liked theme (`set_favorite`)."""
+    with that name comes back, with any text it still had ready."""
     name = " ".join(name.split())
     if not name:
         raise ValueError("A topic needs a name")
     with conn:
         conn.execute(
-            "INSERT OR IGNORE INTO topics (name, favorite, created_at, removed) VALUES (?, ?, ?, ?)",
-            (name, int(favorite), now.isoformat(), int(hidden)),
+            "INSERT OR IGNORE INTO topics (name, created_at, removed) VALUES (?, ?, 0)",
+            (name, now.isoformat()),
         )
-        if not hidden:
-            conn.execute(
-                "UPDATE topics SET removed = 0, favorite = ? WHERE name = ? AND removed = 1",
-                (int(favorite), name),
-            )
+        conn.execute("UPDATE topics SET removed = 0 WHERE name = ? AND removed = 1", (name,))
     row = conn.execute("SELECT id FROM topics WHERE name = ?", (name,)).fetchone()
     topic = get_topic(conn, row[0], include_removed=True)
     assert topic is not None
@@ -632,44 +623,25 @@ def get_topic(
     if found is not None or not include_removed:
         return found
     row = conn.execute(
-        """SELECT t.id, t.name, t.favorite,
+        """SELECT t.id, t.name,
                   (SELECT COUNT(*) FROM texts x WHERE x.topic_id = t.id AND x.status = 'ready'
                    AND x.language = ? AND x.focus = '')
            FROM topics t WHERE t.id = ?""",
         (language, topic_id),
     ).fetchone()
-    return Topic(row[0], row[1], bool(row[2]), row[3]) if row else None
+    return Topic(row[0], row[1], row[2]) if row else None
 
 
 def list_topics(conn: sqlite3.Connection, language: Code = "th") -> list[Topic]:
     """Topics are shared by every language; `ready` counts the texts waiting in this one."""
     rows = conn.execute(
-        """SELECT t.id, t.name, t.favorite,
+        """SELECT t.id, t.name,
                   (SELECT COUNT(*) FROM texts x WHERE x.topic_id = t.id AND x.status = 'ready'
                    AND x.language = ? AND x.focus = '')
-           FROM topics t WHERE t.removed = 0 ORDER BY t.favorite DESC, t.name""",
+           FROM topics t WHERE t.removed = 0 ORDER BY t.name""",
         (language,),
     )
-    return [Topic(i, name, bool(fav), ready) for i, name, fav, ready in rows]
-
-
-def set_favorite(conn: sqlite3.Connection, topic_id: int, favorite: bool) -> Topic | None:
-    """Likes a topic or stops liking it. Liking one the shelf filed away (hidden) lists it again,
-    since it's now a theme; a topic removed from the list stays removed either way."""
-    with conn:
-        conn.execute(
-            "UPDATE topics SET favorite = ? WHERE id = ? AND removed = 0", (int(favorite), topic_id)
-        )
-        if favorite:
-            # A shelf idea is hidden, never removed by hand: no reading of it was a removal.
-            conn.execute(
-                "UPDATE topics SET favorite = 1, removed = 0 WHERE id = ? AND removed = 1"
-                " AND id NOT IN (SELECT topic_id FROM stories)",
-                (topic_id,),
-            )
-    # A shelf idea is filed away (hidden), so Fewer like this on its text finds a removed topic:
-    # that's already as unliked as it gets, not a missing topic.
-    return get_topic(conn, topic_id, include_removed=True)
+    return [Topic(i, name, ready) for i, name, ready in rows]
 
 
 def topic_names(conn: sqlite3.Connection) -> set[str]:
@@ -1003,15 +975,6 @@ def skip_text(conn: sqlite3.Connection, text_id: int) -> bool:
 def topic_name(conn: sqlite3.Connection, topic_id: int) -> str:
     row = conn.execute("SELECT name FROM topics WHERE id = ?", (topic_id,)).fetchone()
     return row[0] if row else ""
-
-
-def liked_topics(conn: sqlite3.Connection) -> list[Topic]:
-    """The themes the owner likes (favorite topics), shared by every language, by name. Their
-    ready count isn't filled in."""
-    rows = conn.execute(
-        "SELECT id, name FROM topics WHERE favorite = 1 AND removed = 0 ORDER BY name"
-    )
-    return [Topic(i, name, True, 0) for i, name in rows]
 
 
 # ==== Stories ====

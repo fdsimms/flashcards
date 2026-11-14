@@ -15,21 +15,16 @@ import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
  * Read & Listen's home: one language's shelf (docs/read-and-listen/architecture.md, Shelf). On top,
- * the ongoing story's next episode; under it the texts written ahead, each saying why it's there;
- * then a field to have one written on any topic. Opening a text never waits, since it's written
- * already. The language is a menu in the header, and its settings are behind the sliders button.
+ * the ongoing story's next episode; under it the texts already written, each saying why it's there;
+ * then a way to have one written, on a topic typed in or a surprise. Nothing is written unasked,
+ * so opening a text never waits, since it's written already. The language is a menu in the header, and its settings are behind the sliders button.
  *
- * The server fills the shelf in the background after each request, so this asks again while
- * something is being written, and briefly while the shelf isn't full, to show texts as they land.
+ * A text is written in the background after it's asked for, so this asks again while something is
+ * being written, to show it as it lands.
  */
 
 // While something is being written, check back this often.
 const POLL_MS = 10_000;
-// A shelf that isn't full with nothing being written is asked again this many times, in case the
-// background top-up hadn't started when it was last asked; then it waits for a refresh.
-const IDLE_POLLS = 2;
-// The server's SHELF_SIZE (server/reader/src/franki_reader/engine.py).
-const SHELF_SIZE = 3;
 
 export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 
@@ -63,7 +58,6 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
 
   // Bumped when the language changes, so a load started before it is dropped rather than shown.
   const loadSeq = useRef(0);
-  const idlePolls = useRef(0);
   const load = useCallback(async () => {
     const started = loadSeq.current;
     try {
@@ -80,26 +74,18 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
   // Not only on mount: the reader opens on top of this screen, so what was just finished (the story's
   // next episode, the texts left on the shelf) is only known to the server until this asks again.
   useFocusEffect(useCallback(() => {
-    idlePolls.current = 0;
     load();
   }, [load]));
 
   const busy = !!shelf && (shelf.writing.length > 0 || !!shelf.story?.writing);
-  const short = !!shelf && shelf.texts.length < SHELF_SIZE;
   useEffect(() => {
-    if (!shelf) return;
-    if (busy) idlePolls.current = 0;
-    else if (!short || idlePolls.current >= IDLE_POLLS) return;
-    const id = setTimeout(() => {
-      if (!busy) idlePolls.current++;
-      load();
-    }, busy ? POLL_MS : POLL_MS / 3);
+    if (!shelf || !busy) return;
+    const id = setTimeout(load, POLL_MS);
     return () => clearTimeout(id);
-  }, [shelf, busy, short, load]);
+  }, [shelf, busy, load]);
 
   const refresh = async () => {
     setRefreshing(true);
-    idlePolls.current = 0;
     await load();
     setRefreshing(false);
   };
@@ -117,7 +103,6 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
       // Not `error`: the reload below clears that once the shelf (still the old language's) loads.
       setActionError(e instanceof ApiError ? e.message : "Couldn't switch the language. Try again.");
     }
-    idlePolls.current = 0;
     await load();
   };
 
@@ -133,20 +118,17 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
   const open = (textId: number, playAll = false) => onOpen({ textId, order, playAll });
 
   const textActions = (text: ShelfText) => {
-    const like = text.liked ? 'Stop writing about this topic' : 'Write more about this topic';
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: text.title, options: [like, 'Remove from shelf', 'Cancel'], cancelButtonIndex: 2, destructiveButtonIndex: 1 },
+      { title: text.title, options: ['Remove from shelf', 'Cancel'], cancelButtonIndex: 1, destructiveButtonIndex: 0 },
       async (i) => {
         setActionError(null);
         try {
-          if (i === 0) await api.setFavorite(text.topic_id, !text.liked);
-          else if (i === 1) await api.skip(text.id);
+          if (i === 0) await api.skip(text.id);
           else return;
           haptic.tap();
         } catch (e) {
           setActionError(e instanceof ApiError ? e.message : "Couldn't change that. Try again.");
         }
-        idlePolls.current = 0;
         load();
       },
     );
@@ -158,14 +140,10 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
     setPracticeBusy(true);
     setActionError(null);
     try {
-      // A theme the owner likes, else the idea that best fits the deck.
-      const theme = shelf.themes.length ? shelf.themes[Math.floor(Math.random() * shelf.themes.length)] : null;
-      if (theme) onPractice(theme);
-      else {
-        const [idea] = await api.suggestions();
-        if (!idea) throw new ApiError('There are no topic ideas left. Type a topic below and write a text on it instead.', 0);
-        onPractice(await api.addTopic(idea.name, false));
-      }
+      // The idea that best fits the deck.
+      const [idea] = await api.suggestions();
+      if (!idea) throw new ApiError('There are no topic ideas left. Type a topic below and write a text on it instead.', 0);
+      onPractice(await api.addTopic(idea.name));
     } catch (e) {
       setActionError(e instanceof ApiError ? e.message : "Couldn't start that text. Try again.");
     } finally {
@@ -259,9 +237,9 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
                 ))}
               </Group>
             ) : (
-              <Help>Texts are written here a few at a time, from the words in your deck. Pull down to check for them.</Help>
+              <Help>Nothing is written until you ask. Tap Surprise me below, or type a topic, and the text appears here when it's ready.</Help>
             )}
-            {shelf.texts.length > 0 ? <Help>Press and hold a text to write more about its topic or remove it from the shelf. Texts are only written for a language you open here, and at most 3 wait at a time.</Help> : null}
+            {shelf.texts.length > 0 ? <Help>Press and hold a text to remove it from the shelf.</Help> : null}
 
             <WriteCard api={api} onWriting={refresh} />
 
@@ -286,7 +264,7 @@ function ShelfRow({ text, first, onPress, onLongPress }: { text: ShelfText; firs
       accessibilityRole="button"
       accessibilityLabel={`${text.title}. ${cardDetail(text)}. ${reason}`}
       accessibilityHint="Opens the text"
-      accessibilityActions={[{ name: 'more', label: 'Change this topic, or remove from shelf' }]}
+      accessibilityActions={[{ name: 'more', label: 'Remove from shelf' }]}
       onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'more') onLongPress(); }}
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, backgroundColor: pressed ? c.fill : 'transparent' })}
     >

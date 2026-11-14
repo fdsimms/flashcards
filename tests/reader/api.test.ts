@@ -17,7 +17,7 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 test('sends the passphrase and the body to the right route', async () => {
-  const { impl, calls } = fakeFetch(json({ id: 1, name: 'Taxi', favorite: true, ready: 0 }));
+  const { impl, calls } = fakeFetch(json({ id: 1, name: 'Taxi', ready: 0 }));
   const api = createApi('https://anki.example.com/reader/', 'open sesame', impl);
 
   const topic = await api.addTopic('Taxi');
@@ -26,7 +26,7 @@ test('sends the passphrase and the body to the right route', async () => {
   expect(calls[0].url).toBe('https://anki.example.com/reader/api/topics');
   expect(calls[0].init.method).toBe('POST');
   expect((calls[0].init.headers as Record<string, string>).Authorization).toBe('Bearer open sesame');
-  expect(JSON.parse(calls[0].init.body as string)).toEqual({ name: 'Taxi', favorite: true });
+  expect(JSON.parse(calls[0].init.body as string)).toEqual({ name: 'Taxi' });
 });
 
 test('a 204 resolves with nothing', async () => {

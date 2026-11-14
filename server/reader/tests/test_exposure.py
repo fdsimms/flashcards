@@ -25,7 +25,7 @@ def write(
     conn: sqlite3.Connection, *lines: str, at: datetime = NOW, review: tuple[str, ...] = ()
 ) -> int:
     generated = asyncio.run(generate(Model(draft(*lines)), ES, TextRequest("t", language="es")))
-    topic = store.add_topic(conn, "t", False, at)
+    topic = store.add_topic(conn, "t", at)
     grammar = {"practice": [], "avoid": [], "review": list(review)}
     return store.save_text(conn, topic.id, generated, [], 0.9, at, language="es", grammar=grammar)
 

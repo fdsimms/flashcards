@@ -182,7 +182,7 @@ def test_a_text_keeps_its_speakers_roles(conn) -> None:  # type: ignore[no-untyp
     from franki_reader.generator import TextRequest
 
     generated = run(ScriptedModel(GOOD), TextRequest("food", (MANGO,)))
-    topic = add_topic(conn, "food", True, NOW)
+    topic = add_topic(conn, "food", NOW)
     text_id = save_text(conn, topic.id, generated, [], 0.95, NOW)
     stored = get_text(conn, text_id)
     assert stored is not None and stored.roles == {"A": "Vendor", "B": "Customer"}
@@ -197,7 +197,7 @@ def test_a_text_keeps_each_lines_register_and_an_older_one_has_none(conn) -> Non
 
     generated = run(ScriptedModel(GOOD), TextRequest("food", (MANGO,)))
     lines = (replace(generated.lines[0], register="casual"), generated.lines[1])
-    topic = add_topic(conn, "food", True, NOW)
+    topic = add_topic(conn, "food", NOW)
     text_id = save_text(conn, topic.id, replace(generated, lines=lines), [], 0.95, NOW)
     stored = get_text(conn, text_id)
     assert stored is not None and [ln.register for ln in stored.lines] == ["casual", ""]
@@ -217,7 +217,7 @@ def test_a_naturalness_answer_is_kept_per_line(conn) -> None:  # type: ignore[no
     from franki_reader.store import get_naturalness, save_naturalness
 
     generated = run(ScriptedModel(GOOD), TextRequest("food", (MANGO,)))
-    text_id = save_text(conn, add_topic(conn, "food", True, NOW).id, generated, [], 0.95, NOW)
+    text_id = save_text(conn, add_topic(conn, "food", NOW).id, generated, [], 0.95, NOW)
     answer = {"verdict": "stiff", "reason": "Too written.", "alternative": "ฉัน กิน"}
     assert get_naturalness(conn, text_id, 0) is None
     save_naturalness(conn, text_id, 0, answer, NOW, 0.01)
@@ -231,7 +231,7 @@ def test_a_text_keeps_its_speakers_characters(conn) -> None:  # type: ignore[no-
     from franki_reader.generator import TextRequest
 
     generated = run(ScriptedModel(GOOD), TextRequest("food", (MANGO,)))
-    topic = add_topic(conn, "food", True, NOW)
+    topic = add_topic(conn, "food", NOW)
     stored = get_text(conn, save_text(conn, topic.id, generated, [], 0.95, NOW))
     assert stored is not None
     assert stored.characters == {"A": "shopkeeper", "B": "friend"}
@@ -269,7 +269,7 @@ def test_practiced_days_are_the_owners_study_days(conn) -> None:  # type: ignore
     from franki_reader.store import Reading, log_reading, practiced_days
 
     bangkok = timezone(timedelta(hours=7))
-    topic = add_topic(conn, "Food", True, NOW)
+    topic = add_topic(conn, "Food", NOW)
     lines = tuple(Line(ln["speaker"], ln["text"], ln["english"]) for ln in GOOD["lines"])
     generated = Generated(
         "t", lines, {}, check([ln.text for ln in lines], lexicon_from(OLD)), 1, True, ()
@@ -297,7 +297,7 @@ def test_a_word_marked_again_after_clearing_is_listed_again(conn) -> None:  # ty
     from franki_reader.lexicon import lexicon_from
     from franki_reader.store import Reading, clear_word, log_reading, marked_words
 
-    topic = add_topic(conn, "Food", True, NOW)
+    topic = add_topic(conn, "Food", NOW)
     lines = tuple(Line(ln["speaker"], ln["text"], ln["english"]) for ln in GOOD["lines"])
     coverage = check([ln.text for ln in lines], lexicon_from(OLD))
     generated = Generated("t", lines, {"ทอน": "change"}, coverage, 1, True, ())
@@ -323,7 +323,7 @@ def test_a_marked_word_carries_the_meanings_asked_for_its_text(conn) -> None:  #
     from franki_reader.lexicon import lexicon_from
     from franki_reader.store import Reading, log_reading, marked_words, save_meaning_batch
 
-    topic = add_topic(conn, "Food", True, NOW)
+    topic = add_topic(conn, "Food", NOW)
     lines = tuple(Line(ln["speaker"], ln["text"], ln["english"]) for ln in GOOD["lines"])
     coverage = check([ln.text for ln in lines], lexicon_from(OLD))
     generated = Generated("t", lines, {"ทอน": "change"}, coverage, 1, True, ())
@@ -360,7 +360,7 @@ def test_a_database_from_before_stories_reads_its_texts_as_dialogues(tmp_path) -
 
     path = tmp_path / "old.db"
     conn = connect(path)
-    topic = add_topic(conn, "Food", True, NOW)
+    topic = add_topic(conn, "Food", NOW)
     conn.execute("ALTER TABLE texts DROP COLUMN form")
     conn.execute(
         "INSERT INTO texts (topic_id, created_at, title, lines, glosses, stretch, coverage,"
@@ -387,7 +387,7 @@ def test_spending_counts_every_text_written_since_the_date_by_language(conn) -> 
     from franki_reader.lexicon import lexicon_from
     from franki_reader.store import Reading, log_reading, spending
 
-    topic = add_topic(conn, "Food", True, NOW)
+    topic = add_topic(conn, "Food", NOW)
     lines = tuple(Line(ln["speaker"], ln["text"], ln["english"]) for ln in GOOD["lines"])
     base = Generated(
         "t", lines, {}, check([ln.text for ln in lines], lexicon_from(OLD)), 1, True, ()
@@ -423,7 +423,7 @@ def test_only_a_served_text_becomes_read(conn) -> None:  # type: ignore[no-untyp
     from franki_reader.generator import Generated
     from franki_reader.store import Reading, log_reading, spending, text_status
 
-    topic = add_topic(conn, "Food", True, NOW)
+    topic = add_topic(conn, "Food", NOW)
     empty = Generated("t", (), {}, Coverage((), ()), 1, True, ())
     ids = {
         status: save_text(conn, topic.id, empty, [], 0.95, NOW, status=status)
