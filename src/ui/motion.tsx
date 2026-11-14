@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, type StyleProp, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 
 /**
  * Motion, kept short and kept off for anyone who asked the system for less of it (Settings,
@@ -17,6 +17,28 @@ export function useReduceMotion(): boolean {
   return reduce;
 }
 
+/**
+ * A number that counts to its new value when it changes (the deck list's counts after a session),
+ * and shows the first value as it is. The text is redrawn each frame, so it's JS-driven; only
+ * counts that changed run.
+ */
+export function CountingText({ value, style }: { value: number; style?: StyleProp<TextStyle> }) {
+  const reduce = useReduceMotion();
+  const v = useRef(new Animated.Value(value)).current;
+  const [shown, setShown] = useState(value);
+  useEffect(() => {
+    const id = v.addListener(({ value: n }) => setShown(Math.round(n)));
+    return () => v.removeListener(id);
+  }, [v]);
+  useEffect(() => {
+    if (reduce) { v.setValue(value); return undefined; }
+    const run = Animated.timing(v, { toValue: value, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: false });
+    run.start();
+    return () => run.stop();
+  }, [value, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <Text style={style}>{shown}</Text>;
+}
+
 /** Fades its content in, rising a few points, when it first appears. Key it to replay. */
 export function Reveal({ children, style, rise = 8, delay = 0 }: {
   children: React.ReactNode;
@@ -31,41 +53,6 @@ export function Reveal({ children, style, rise = 8, delay = 0 }: {
   }, [reduce]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Animated.View style={[style, { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [rise, 0] }) }] }]}>
-      {children}
-    </Animated.View>
-  );
-}
-
-/** A whole number counted up to `value` once it's on screen, from `from`. Off (the value at once) with Reduce Motion. */
-export function useCountUp(value: number, { duration = 500, delay = 0, from = 0 }: { duration?: number; delay?: number; from?: number } = {}): number {
-  const reduce = useReduceMotion();
-  const [shown, setShown] = useState(reduce ? value : from);
-  useEffect(() => {
-    if (reduce || value === from) { setShown(value); return; }
-    const v = new Animated.Value(0);
-    const id = v.addListener(({ value: k }) => setShown(Math.round(from + (value - from) * k)));
-    Animated.timing(v, { toValue: 1, duration, delay, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(() => setShown(value));
-    return () => { v.removeListener(id); v.stopAnimation(); };
-  }, [value, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
-  return shown;
-}
-
-/**
- * Wraps a number (or anything) that changes in place: when `value` changes after the first
- * render it dips and settles, so a count that just went down is seen to. Nothing on first render.
- */
-export function Tick({ value, children, style }: { value: unknown; children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
-  const reduce = useReduceMotion();
-  const v = useRef(new Animated.Value(1)).current;
-  const first = useRef(true);
-  useEffect(() => {
-    if (first.current) { first.current = false; return; }
-    if (reduce) return;
-    v.setValue(0);
-    Animated.timing(v, { toValue: 1, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
-  return (
-    <Animated.View style={[style, { opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1] }), transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }] }]}>
       {children}
     </Animated.View>
   );
