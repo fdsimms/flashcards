@@ -113,6 +113,11 @@ class GenerationFailed(Exception):
 Form = Literal["dialogue", "story"]
 
 
+# A story runs in seasons of this many episodes, each building to a finale, and the episode after
+# a finale opens a new season with the same characters.
+SEASON_EPISODES = 8
+
+
 @dataclass(frozen=True)
 class StoryContext:
     """An episode of an ongoing story (docs/read-and-listen/architecture.md, Stories): the same
@@ -125,6 +130,17 @@ class StoryContext:
     recaps: tuple[str, ...] = ()  # one sentence for each earlier episode, oldest first
     # The English of what the reader chose at the end of the last episode, if they chose.
     chosen: str = ""
+    # Where the model last said the season was heading, replaced by every episode's own.
+    plan: str = ""
+
+    @property
+    def season(self) -> int:
+        return (self.episode - 1) // SEASON_EPISODES + 1
+
+    @property
+    def season_episode(self) -> int:
+        """This episode's place in its season, 1 to SEASON_EPISODES."""
+        return (self.episode - 1) % SEASON_EPISODES + 1
 
 
 @dataclass(frozen=True)
@@ -221,6 +237,8 @@ class Generated:
     recap: str = ""
     series: str = ""
     cast: str = ""
+    # Where the season is heading, in a few sentences, as of this episode (StoryContext.plan).
+    plan: str = ""
     # The recap as the reader sees it on the shelf: a line in the text's language (`|` between
     # words, counted in coverage) and its English. Empty when the model gave none.
     recap_line: str = ""
@@ -290,6 +308,7 @@ DRAFT_SCHEMA: dict[str, Any] = {
         "recap": {"type": "string"},
         "series": {"type": "string"},
         "cast": {"type": "string"},
+        "plan": {"type": "string"},
         "recap_line": {
             "type": "object",
             "properties": {"text": {"type": "string"}, "english": {"type": "string"}},
@@ -550,16 +569,33 @@ def _story_part(story: StoryContext) -> str:
     return _story_intro(story) + " " + _RECAP_LINE_ASK + " " + _CHOICES_ASK
 
 
+# Said of every episode: the reader has the last recap on screen, so an episode that opens by
+# retelling it, or replays its beat, reads as nothing happening.
+_STORY_RULES = (
+    "Open in the new scene: don't introduce the characters or the setting again, and don't retell "
+    "what happened before (the reader has just been shown it). Don't repeat a beat from the last "
+    "episodes either, such as a character staying silent or holding the same object in the same "
+    "place. Make something interesting happen that moves the story toward the season's end."
+)
+
+
 def _story_intro(story: StoryContext) -> str:
+    last = SEASON_EPISODES
+    plan_ask = (
+        'In "plan", say in two or three English sentences where this season is heading and how it '
+        f"ends in its finale (episode {last}), updated for what happens in this episode"
+        + (" and what the reader chose." if story.chosen else ".")
+    )
     if story.episode == 1:
         about = f"It's about: {story.about}" if story.about else "Choose what it's about yourself."
         return (
             "This is the first episode of an ongoing story that will run for many episodes, one "
-            f"text at a time. {about} Invent two to four characters with names and a place they "
-            "keep coming back to, and end the episode with something that can carry on next time. "
+            f"text at a time, in seasons of {last} episodes that each build to a finale. {about} "
+            "Invent two to four characters with names and a place they keep coming back to, and "
+            "end the episode with something that can carry on next time. "
             'In "series", give the story a short English name. In "cast", describe the characters '
             'and the setting in one or two English sentences. In "recap", say in one English '
-            "sentence what happens in this episode, naming the characters."
+            f"sentence what happens in this episode, naming the characters. {plan_ask}"
         )
     recent = story.recaps[-STORY_RECAPS:]
     so_far = "\n".join(f"- {r}" for r in recent) if recent else "- (no summary)"
@@ -569,15 +605,40 @@ def _story_intro(story: StoryContext) -> str:
         if story.chosen
         else ""
     )
+    where = f'episode {story.episode} of an ongoing story, "{story.title}"'
+    if story.season_episode == 1:
+        place = (
+            f"This is {where}, and the first episode of season {story.season}: the last season "
+            "has ended. Keep the same characters and setting, and open a new problem for them."
+            f" Plan how this season will build to a finale in episode {last}."
+        )
+        plan = ""
+    else:
+        place = (
+            f"This is {where}, episode {story.season_episode} of {last} in season "
+            f"{story.season}. Keep the same characters and setting, and pick up where the last "
+            "episode ended."
+        )
+        if story.season_episode == last:
+            place += (
+                " This is the season finale: bring what has been building to its climax and "
+                "resolve the season's main question, with no cliffhanger. The choices at the end "
+                "are what the next season could be about."
+            )
+        elif story.season_episode == last - 1:
+            place += " The next episode is the finale, so bring the story to its turning point."
+        plan = (
+            f"The season's plan so far: {story.plan}\n"
+            if story.plan
+            else "The season has no plan yet: decide how it ends in its finale.\n"
+        )
     return (
-        f'This is episode {story.episode} of an ongoing story, "{story.title}". Keep the same '
-        "characters and setting, and pick up where the last episode ended; something new happens "
-        "in this one.\n"
-        f"{picked}"
+        f"{place}\n{plan}{picked}"
         f"Characters and setting: {story.cast or 'as in the earlier episodes'}\n"
         f"The story so far, one sentence an episode:\n{so_far}\n"
+        f"{_STORY_RULES}\n"
         'In "recap", say in one English sentence what happens in this episode, naming the '
-        'characters. Leave "series" and "cast" empty.'
+        f'characters. {plan_ask} Leave "series" and "cast" empty.'
     )
 
 
@@ -778,8 +839,8 @@ def _assess(
             for k, v in (draft.get("characters") or {}).items()
             if k in ("A", "B") and v in CHARACTERS
         }
-        recap, series, cast_ = (
-            str(draft.get(k) or "").strip() for k in ("recap", "series", "cast")
+        recap, series, cast_, plan = (
+            str(draft.get(k) or "").strip() for k in ("recap", "series", "cast", "plan")
         )
         choices = _choices(draft, request)
         recap_line, recap_english = _recap_line(draft, request)
@@ -839,6 +900,7 @@ def _assess(
         recap=recap,
         series=series,
         cast=cast_,
+        plan=plan,
         recap_line=recap_line,
         recap_english=recap_english,
         choices=choices,

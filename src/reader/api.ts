@@ -165,6 +165,9 @@ export type ReaderText = {
   // one is). Missing from a server older than story choices, and empty for any other text.
   choices?: TextChoice[];
   chosen?: number | null;
+  // A story episode's "Last time": what happened in the episode before it, shown above the text.
+  // Missing for a first episode, any other text, and a server older than this.
+  last_time?: { recap: string; line: RecapLine | null };
   // Questions about what happens, for the check after reading. Missing from a server older than
   // them, and empty for a text written before them or whose questions couldn't be written.
   questions?: TextQuestion[];

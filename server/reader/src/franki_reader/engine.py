@@ -455,6 +455,8 @@ class Engine:
             )
             if story and context and context.episode == 1:
                 store.name_story(self.conn, story.id, result.series, result.cast)
+            if story:
+                store.set_story_plan(self.conn, story.id, result.plan)
             text = store.get_text(self.conn, text_id)
             assert text is not None
             await self.fill_meanings([text], language)
@@ -852,6 +854,7 @@ class Engine:
             cast=story.cast,
             recaps=tuple(t.recap for t in told if t.recap),
             chosen=chosen,
+            plan=story.plan,
         )
 
     def record_reading(self, text_id: int, reading: Reading) -> None:

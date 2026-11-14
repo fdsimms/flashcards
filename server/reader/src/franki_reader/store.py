@@ -413,6 +413,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
     if "removed" not in {r[1] for r in conn.execute("PRAGMA table_info(topics)")}:
         # A removed topic is hidden, not deleted, since its texts and readings point at it.
         conn.execute("ALTER TABLE topics ADD COLUMN removed INTEGER NOT NULL DEFAULT 0")
+    if "plan" not in {r[1] for r in conn.execute("PRAGMA table_info(stories)")}:
+        # Where a story's season is heading, in a few sentences; empty until an episode gives one.
+        conn.execute("ALTER TABLE stories ADD COLUMN plan TEXT NOT NULL DEFAULT ''")
     texts_columns = {r[1] for r in conn.execute("PRAGMA table_info(texts)")}
     for column, sql in (
         # Why a text is on the shelf (Reason); empty for texts written before it.
@@ -988,6 +991,7 @@ class Story:
     about: str
     title: str
     cast: str
+    plan: str  # where the season is heading, from the latest episode
 
 
 def start_story(conn: sqlite3.Connection, language: Code, about: str, now: datetime) -> Story:
@@ -1015,7 +1019,7 @@ def start_story(conn: sqlite3.Connection, language: Code, about: str, now: datet
 
 def get_story(conn: sqlite3.Connection, story_id: int) -> Story | None:
     row = conn.execute(
-        "SELECT id, language, topic_id, about, title, cast_ FROM stories WHERE id = ?",
+        "SELECT id, language, topic_id, about, title, cast_, plan FROM stories WHERE id = ?",
         (story_id,),
     ).fetchone()
     return Story(*row) if row else None
@@ -1037,6 +1041,14 @@ def name_story(conn: sqlite3.Connection, story_id: int, title: str, cast: str) -
             " cast_ = CASE WHEN cast_ = '' THEN ? ELSE cast_ END WHERE id = ?",
             (title, cast, story_id),
         )
+
+
+def set_story_plan(conn: sqlite3.Connection, story_id: int, plan: str) -> None:
+    """Replaces where the season is heading with the latest episode's; an episode that gave none
+    leaves the last in place."""
+    if plan:
+        with conn:
+            conn.execute("UPDATE stories SET plan = ? WHERE id = ?", (plan, story_id))
 
 
 def waiting_episode(

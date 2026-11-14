@@ -473,7 +473,37 @@ def test_a_story_episode_asks_to_carry_the_story_on() -> None:
         )
     )
     assert 'episode 3 of an ongoing story, "Noi\'s stall"' in later
+    assert "episode 3 of 8 in season 1" in later
     assert "Noi sells noodles." in later and "- One.\n- Two." in later
+
+
+def test_a_story_episode_is_told_not_to_retell_and_where_the_season_is_going() -> None:
+    from franki_reader.generator import SEASON_EPISODES, StoryContext
+
+    def ask(episode: int, plan: str = "") -> str:
+        return request_message(
+            TextRequest("a stall", story=StoryContext(episode, "", "Noi's stall", plan=plan))
+        )
+
+    first = ask(1)
+    assert '"plan"' in first and f"seasons of {SEASON_EPISODES} episodes" in first
+    mid = ask(4, "Noi finds out who Ton's uncle is.")
+    assert "Don't repeat a beat" in mid and "don't retell" in mid
+    assert "season's plan so far: Noi finds out who Ton's uncle is." in mid
+    assert '"plan"' in mid
+    assert "decide how it ends" in ask(4)
+    assert "next episode is the finale" in ask(SEASON_EPISODES - 1)
+    finale = ask(SEASON_EPISODES)
+    assert "season finale" in finale and "no cliffhanger" in finale
+    opener = ask(SEASON_EPISODES + 1, "The old season's plan.")
+    assert "first episode of season 2" in opener and "open a new problem" in opener
+    assert "The old season's plan." not in opener
+
+
+def test_a_story_episodes_plan_is_kept() -> None:
+    result = run(ScriptedModel(dict(GOOD, plan=" Noi meets Ton's uncle. ")), _episode())
+    assert result.plan == "Noi meets Ton's uncle."
+    assert run(ScriptedModel(GOOD), TextRequest("food")).plan == ""
 
 
 def _episode_draft(*choices: tuple[str, str]) -> dict[str, Any]:
