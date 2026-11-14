@@ -395,6 +395,10 @@ code#typeans { display: inline-block; white-space: pre-wrap; font-family: ui-mon
 #image-occlusion-container img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; max-width: unset; max-height: unset; }
 #image-occlusion-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 ${opts.css}
+${opts.dark ? `/* A deck's plain \`.card { background: white; color: black }\` (Ultimate Geography's) would leave a white
+   card in dark mode. \`body.card\` outranks \`.card\` but not a deck's own \`.nightMode .card\`, so a deck
+   that styles night mode itself keeps its colors. */
+body.card { background: ${colors.background}; color: ${colors.text}; }` : ''}
 </style>
 <script>${occlusionScript(occlusionPlan(html))}</script></head>
 <body class="card card${opts.ord + 1}${night}"><div id="qa" style="width:100%${math ? ';opacity:0' : ''}">${ttsButtons(soundButtons(html))}</div>

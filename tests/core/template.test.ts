@@ -208,4 +208,11 @@ describe('cardDocument', () => {
     expect(doc).toContain('background: #123456; color: #abcdef;');
     expect(doc).toContain('.cloze { font-weight: bold; color: #fedcba; }');
   });
+
+  it('keeps a deck\'s white .card background out of dark mode, after the deck\'s own CSS', () => {
+    const css = '.card { background-color: white; color: black; }';
+    const dark = cardDocument('Hi', { css, ord: 0, dark: true, autoplay: false, colors: { background: '#123456', text: '#abcdef', cloze: '#fedcba' } });
+    expect(dark.indexOf('body.card { background: #123456; color: #abcdef; }')).toBeGreaterThan(dark.indexOf(css));
+    expect(cardDocument('Hi', { css, ord: 0, dark: false, autoplay: false })).not.toContain('body.card {');
+  });
 });
