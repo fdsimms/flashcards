@@ -72,7 +72,7 @@ import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from '
 import { useHeaderInset } from './useHeaderInset';
 
 /** The card itself: a raised sheet that fills the space between the header and the buttons. */
-export function CardSurface({ children }: { children: React.ReactNode }) {
+export function CardSurface({ children, overlay }: { children: React.ReactNode; overlay?: React.ReactNode }) {
   const c = useTheme();
   return (
     <View
@@ -83,6 +83,8 @@ export function CardSurface({ children }: { children: React.ReactNode }) {
     >
       {/* Clipped inside the shadow's box: a view that clips can't also cast one. */}
       <View style={{ flex: 1, borderRadius: radius.xl, ...smooth, overflow: 'hidden' }}>{children}</View>
+      {/* Drawn over the card's lower edge, outside the clip. */}
+      {overlay}
     </View>
   );
 }
