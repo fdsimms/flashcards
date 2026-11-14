@@ -232,7 +232,8 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
   // The answer that just made a card a leech asks for a hint to keep in its note's Mnemonic field,
   // and names the card when that answer suspended it, so saving a hint can bring it back.
-  const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses: number; suspendedCardId?: string } | null>(null);
+  // The same sheet opens from the lightbulb button in the header, with no misses to report.
+  const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses?: number; suspendedCardId?: string } | null>(null);
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
   // While "Read a text with these words" waits for the sync that sends today's answers first.
@@ -1004,6 +1005,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
             <Stack.Toolbar.Button icon="flag.fill" tintColor={c.flags[current.flag]} accessibilityLabel={`Flagged ${FLAG_NAMES[current.flag]}. Change the flag`} onPress={chooseFlag} />
           ) : null}
           {undoButton}
+          {canAddMnemonic(note) ? (
+            <Stack.Toolbar.Button icon="lightbulb" accessibilityLabel="Write a mnemonic for this word" onPress={() => setLeechPrompt({ noteId: note.id })} />
+          ) : null}
           <Stack.Toolbar.Button
             icon="pencil"
             accessibilityLabel="Edit this card's note"
