@@ -186,7 +186,7 @@ export function FormsCheck({ items }: { items: { note: Note; suggestion: FormsSu
       <Text style={{ ...type.headline, color: c.text }}>
         {items.length === 1 ? '1 word from today could use some grammar practice' : `${items.length} words from today could use some grammar practice`}
       </Text>
-      <Help>{`About ${items.length === 1 ? 'a minute' : `${items.length} minutes`}. It doesn't change when any card is due.`}</Help>
+      <Help>{`About ${items.length === 1 ? 'a minute' : `${items.length} minutes`}. It doesn't change any card's due date.`}</Help>
       {items.map(({ note, suggestion }) => (
         <View key={note.id} style={{ gap: 2, paddingTop: space.s }}>
           <Text style={{ ...type.headline, color: c.text }}>{headword(note)}</Text>
