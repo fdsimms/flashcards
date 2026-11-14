@@ -44,7 +44,7 @@ const withoutStress = (s: string) => s.normalize('NFD').replace(/[\u0300\u0301]/
 
 export function lookalikeForm(word: string, lang: string | undefined): string {
   const head = word.split(/\s[(—–-]|\(|,/)[0].trim();
-  const lower = withoutArticle(head).toLocaleLowerCase().normalize('NFC');
+  const lower = withoutArticle(head, lang).toLocaleLowerCase().normalize('NFC');
   const code = lang?.split('-')[0].toLowerCase() ?? '';
   // Stress marks added to a Russian or Ukrainian word for learning (молоко́) aren't spelling: they
   // come off, while й, ё and ї, which are letters, stay.

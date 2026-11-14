@@ -47,7 +47,7 @@ function letters(s: string): string[] {
 const isWordy = (cluster: string) => /[\p{L}\p{N}]/u.test(cluster);
 const bare = (s: string) => s.normalize('NFKD').replace(/\p{M}/gu, '');
 /** The letters and digits only, lower case: for sameWords (with marks) and sameLetters (without). */
-const wordsOf = (s: string) => Array.from(s.normalize('NFC').toLocaleLowerCase()).filter((ch) => /[\p{L}\p{N}\p{M}]/u.test(ch)).join('');
+const wordsOf = (s: string) => Array.from(folded(s)).filter((ch) => /[\p{L}\p{N}\p{M}]/u.test(ch)).join('');
 
 /** Joins neighboring parts of the same kind, so a screen draws one span per run. */
 function push(parts: DiffPart[], text: string, kind: DiffKind) {
@@ -57,9 +57,19 @@ function push(parts: DiffPart[], text: string, kind: DiffKind) {
   else parts.push({ text, kind });
 }
 
+/**
+ * Spelling variants every other answer check accepts (tools/answer.ts, forms.ts): ß written ss, and
+ * a final ς written σ. Folded only to ask whether that is the sole difference.
+ */
+const folded = (s: string) => s.normalize('NFC').toLocaleLowerCase().replace(/ς/g, 'σ').replace(/ß/g, 'ss');
+
 export function compareTyped(expected: string, typedRaw: string): TypedComparison {
   const want = expected.trim();
   const typedText = typedRaw.trim();
+  if (typedText && folded(typedText) === folded(want)) {
+    // Straße typed as Strasse: right, and shown as it was expected.
+    return { typed: [{ text: typedText, kind: 'same' }], expected: [{ text: want, kind: 'same' }], exact: true, sameWords: true, sameLetters: true, off: 0 };
+  }
   const e = letters(want);
   const t = letters(typedText);
   const key = (cluster: string) => cluster.toLocaleLowerCase();

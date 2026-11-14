@@ -236,6 +236,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
   // While "Read a text with these words" waits for the sync that sends today's answers first.
   const [openingText, setOpeningText] = useState(false);
+  const openingRef = useRef(false); // set at once, where the state only shows after a render
   // The Anki collection's day start, learn-ahead limit and v3 options.
   const [collection, setCollection] = useState<CollectionSettings>(DEFAULT_COLLECTION_SETTINGS);
   const H = collection.dayStartsAtHour;
@@ -514,6 +515,11 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
           preview: preview ? { again: previewAgainAt } : undefined,
           steps: { learn: (cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS).length, relearn: (cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS).length },
         });
+        // The write above waits on `lockAnki`. A sync that held it meanwhile reads the kept collection,
+        // which didn't have this answer yet, back over the rows saved before it. Saved again now that the
+        // collection has it, so both agree (a no-op when nothing came between).
+        await repo.saveCard(updated);
+        for (const b of buried) await repo.saveCard(b);
       } catch (e: any) {
         if (!warnedAnki.current) {
           warnedAnki.current = true;
@@ -706,7 +712,12 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
         {reading ? (
           <Button
             label="Read a text with these words" variant={checking || mixing ? 'secondary' : 'primary'} busy={openingText}
-            onPress={() => { setOpeningText(true); practice!.onRead(studiedWords).finally(() => setOpeningText(false)); }}
+            onPress={() => {
+              if (openingRef.current) return;
+              openingRef.current = true;
+              setOpeningText(true);
+              practice!.onRead(studiedWords).catch(() => undefined).finally(() => { openingRef.current = false; setOpeningText(false); });
+            }}
           />
         ) : null}
         {newWords.length ? (

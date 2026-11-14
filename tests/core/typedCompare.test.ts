@@ -56,3 +56,16 @@ describe('compareTyped', () => {
     expect(c.typed.find((p) => p.kind === 'extra')?.text).toBe('s');
   });
 });
+
+describe('compareTyped spelling variants', () => {
+  it('accepts ss for ß and σ for a final ς, as the other answer checks do', () => {
+    expect(compareTyped('Straße', 'Strasse')).toMatchObject({ exact: true, off: 0 });
+    expect(compareTyped('οδός', 'οδόσ')).toMatchObject({ exact: true, off: 0 });
+    // Missing the accent as well: that is what's reported, not a wrong letter.
+    expect(comparisonLine(compareTyped('οδός', 'οδοσ'))).toMatch(/wrong accent/);
+    expect(comparisonLine(compareTyped('Straße', 'strasse'))).toBe('Exactly right.');
+  });
+  it('still marks a real difference', () => {
+    expect(compareTyped('Straße', 'Strase').exact).toBe(false);
+  });
+});

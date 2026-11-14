@@ -228,6 +228,29 @@ def test_clips_are_found_by_key_and_old_ones_dropped(tmp_path: Path) -> None:
     assert clips.path(key) is None and clips.path(other) is not None
 
 
+def test_clip_cleanup_reads_the_engine_clock_as_utc_whatever_the_process_zone(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    import os
+    import time
+    from datetime import UTC, timedelta
+
+    monkeypatch.setenv("TZ", "America/Los_Angeles")
+    time.tzset()
+    try:
+        clips = ClipCache(tmp_path)
+        recent = ClipCache.key("recent", "v")
+        clips.write(recent, b"mp3", NOW)
+        # Written an hour inside the keep window, by the UTC clock.
+        stamp = (NOW.replace(tzinfo=UTC) - ClipCache.KEEP + timedelta(hours=1)).timestamp()
+        os.utime(tmp_path / f"{recent}.mp3", (stamp, stamp))
+        clips.write(ClipCache.key("next", "v"), b"mp3", NOW)
+        assert clips.path(recent) is not None
+    finally:
+        monkeypatch.delenv("TZ")
+        time.tzset()
+
+
 # ==== The API ====
 
 
