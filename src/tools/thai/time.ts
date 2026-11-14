@@ -20,7 +20,7 @@ const KHUEN: Word = ['คืน', 'khuen'];
 const WAN: Word = ['วัน', 'wan'];
 const KHRUENG: Word = ['ครึ่ง', 'khrûeng'];
 const NAATHII: Word = ['นาที', 'naa-thii'];
-const NAALIGAA: Word = ['นาฬิกา', 'naa-li-gaa'];
+const NAALIGAA: Word = ['นาฬิกา', 'naa-lí-gaa'];
 
 /** The older count starts the morning's hours at 6 a.m.: 7 is "1 o'clock morning", usually with the 1 left out. */
 const oldCount = (n: number) => `Older style, counting hours from 6 a.m.: ${n} o'clock in the morning${n === 1 ? ' (the 1 is usually left out)' : ''}`;

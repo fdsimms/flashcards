@@ -39,8 +39,8 @@ const MONTHS: [full: Word, short: Word][] = [
 const WAN: Word = ['วัน', 'wan'];
 const THII: Word = ['ที่', 'thîi'];
 /** The Buddhist Era and the Christian Era, said before a year. */
-export const BE: Word = ['พ.ศ.', 'phor-sor'];
-export const CE: Word = ['ค.ศ.', 'khor-sor'];
+export const BE: Word = ['พ.ศ.', 'phor-sǒr'];
+export const CE: Word = ['ค.ศ.', 'khor-sǒr'];
 
 /** The year counted from the Buddha. */
 export const buddhistYear = (year: number) => year + 543;
