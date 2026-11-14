@@ -526,8 +526,26 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
         // as they were. A backup made before media was backed up has no table and keeps the files.
         await anki.detachAnki();
         const kept = keptCollectionFile();
-        if (kept.exists) kept.delete();
-        if (hasAnki) await incoming.move(kept);
+        // The current collection is copied aside until the backup's is in place, so a failed move
+        // puts it back instead of leaving this phone with no collection (and its unsent answers gone).
+        const aside = new File(ankiFolder(), 'restoring-previous.anki2');
+        if (aside.exists) aside.delete();
+        const hadKept = kept.exists;
+        if (hadKept) {
+          await kept.copy(aside);
+          kept.delete();
+        }
+        try {
+          if (hasAnki) await incoming.move(kept);
+        } catch (e) {
+          if (hadKept && aside.exists) {
+            if (kept.exists) kept.delete();
+            await aside.copy(kept);
+          }
+          throw e;
+        } finally {
+          if (aside.exists) aside.delete();
+        }
         // The collection's own settings (its day start, creation time) go with it, as what was sent does.
         for (const key of [...ANKI_SETTING_KEYS, 'collection_settings']) {
           await db.runAsync('DELETE FROM main.settings WHERE key = ?', key);

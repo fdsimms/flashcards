@@ -50,8 +50,11 @@ export function useSync(repo: (Repo & AnkiLink) | null, onSynced: () => void) {
     } finally {
       running.current = false;
       setSyncing(false);
-      await reload();
-      onSynced();
+      try {
+        await reload();
+      } finally {
+        onSynced();
+      }
     }
   }, [repo, reload, onSynced]);
 

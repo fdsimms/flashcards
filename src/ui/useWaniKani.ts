@@ -214,8 +214,11 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   }, [dayStartsAtHour]);
 
   /** Reads what a session needs and keeps it, so one can be studied with no connection. Recordings follow, in the background. */
+  // Bumped by signOut: a copy or a refresh begun before it must not write what it read after it.
+  const generation = useRef(0);
   const makeCopy = useCallback(async (u: WaniKaniUser, apprentice: number, started: number, force: boolean) => {
     if (!api || !stored.current || copying.current) return;
+    const gen = generation.current;
     if (!force && snapshot.current && Date.now() - lastCopy.current < COPY_EVERY_MS) return;
     copying.current = true;
     lastCopy.current = Date.now();
@@ -223,7 +226,9 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     const cut = stored.current.sent.length;
     try {
       const next = await makeSnapshot({ api }, { user: u, apprentice, started, previous: snapshot.current, now: new Date() });
+      if (gen !== generation.current) return;
       await saveSnapshot(next);
+      if (gen !== generation.current) { clearOffline(); return; }
       snapshot.current = next;
       setOfflineSavedAt(new Date(next.savedAt));
       if (stored.current) {
@@ -249,6 +254,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     if (!api) return;
     if (!force && Date.now() - lastCounts.current < COUNTS_EVERY_MS) return;
     lastCounts.current = Date.now();
+    const gen = generation.current;
     try {
       await flush();
       const u = await api.user();
@@ -256,6 +262,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
         api.counts(u.maxLevel),
         api.lessonsStartedSince(studyDayStart(new Date(), dayStartsAtHour)),
       ]);
+      if (gen !== generation.current) return;
       setUser(u);
       setCounts({ available: c.lessons, reviews: c.reviews, apprentice: c.apprentice });
       setStartedToday(started);
@@ -267,9 +274,11 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
         api.srsSystems().then((list) => { if (list.length) setSrs(new Map(list.map((s) => [s.id, s]))); }, () => { srsRead.current = false; });
       }
       const names = repo ? (await repo.ankiDecks()).map((d) => d.name) : [];
+      if (gen !== generation.current) return;
       setDecks(names);
       produceRef.current(u.maxLevel, names);
     } catch (e) {
+      if (gen !== generation.current) return;
       const why = e instanceof WaniKaniError ? e.problem : 'unavailable';
       setProblem(why);
       // Out of reach: the offline copy gives the counts, less what was answered since it was made.
@@ -296,6 +305,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   }, []);
 
   const signOut = useCallback(() => {
+    generation.current++;
     clearToken().catch(() => undefined);
     setToken(null);
     setUser(null);

@@ -41,6 +41,13 @@ describe('answers for stats', () => {
 });
 
 describe('stats', () => {
+  it('starts every past day at the day-start hour, even across a spring-forward gap', () => {
+    // In a zone where 2 AM doesn't exist on the change day, the days before it still start at 2 AM.
+    const s = computeStats({ cards: [], answers: [], now: new Date(2026, 2, 12, 12), dayStartsAtHour: 2, days: 30 });
+    const early = s.past.slice(0, 5);
+    expect(early.map((d) => d.start.getHours())).toEqual([2, 2, 2, 2, 2]);
+  });
+
   it('counts today from the start of the study day, not midnight', () => {
     const answers = [
       answer('x', new Date(2026, 10, 11, 2), { kind: 'learn', wasNew: true }), // 2 AM: still yesterday

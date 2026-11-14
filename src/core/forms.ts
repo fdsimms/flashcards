@@ -105,7 +105,7 @@ function genderAnswers(note: Note, g: Gender): string[] {
   const accepted = ARTICLES[lang]?.[g];
   if (!accepted) return [GENDER_WORDS[g]];
   const own = entryArticle(note, lang);
-  if (takesOtherArticle(lang, g, own?.rest ?? withoutArticle(headword(note)))) return [GENDER_WORDS[g]];
+  if (takesOtherArticle(lang, g, own?.rest ?? withoutArticle(headword(note), lang))) return [GENDER_WORDS[g]];
   if (!own) return accepted;
   const fits = accepted.filter((a) => own.goesWith.includes(a));
   return fits.length ? [...fits, ...accepted.filter((a) => !fits.includes(a))] : [GENDER_WORDS[g]];
@@ -115,7 +115,7 @@ const isGenderWord = (answer: string) => (Object.values(GENDER_WORDS) as string[
 
 /** The word a gender prompt shows: without its article, which is what's asked or would mislead ("el agua", feminine). */
 export function genderHeadword(note: Note): string {
-  return entryArticle(note, langOf(note) ?? '')?.rest ?? withoutArticle(headword(note));
+  return entryArticle(note, langOf(note) ?? '')?.rest ?? withoutArticle(headword(note), langOf(note));
 }
 
 /**
@@ -129,12 +129,31 @@ const LEADING_ARTICLES = [
   'o ', 'a ',
 ].sort((a, b) => b.length - a.length);
 
+/** The same articles by language, for a word whose language is known: "en fait" is French, not an article and a word. */
+const ARTICLES_BY_LANG: Record<string, string[]> = {
+  de: ['der ', 'die ', 'das ', 'des ', 'ein ', 'eine '],
+  es: ['los ', 'las ', 'el ', 'la ', 'un ', 'una '],
+  fr: ['les ', 'une ', 'le ', 'la ', "l'", 'l’', 'un '],
+  it: ['il ', 'lo ', 'la ', "l'", 'l’', 'un ', 'una '],
+  pt: ['o ', 'a '],
+  pl: ['ten ', 'tej ', 'ta ', 'to '],
+  el: ['του ', 'της ', 'των ', 'οι ', 'τα ', 'το ', 'ο ', 'η '],
+  nb: ['en ', 'ei ', 'et '],
+};
+const BY_LANG_LONGEST_FIRST = new Map(Object.entries(ARTICLES_BY_LANG).map(([l, list]) => [l, [...list].sort((a, b) => b.length - a.length)]));
+
 const langOf = (note: Note) => speechLangFor(note)?.split('-')[0];
 
-/** The word without a leading article: "el blindaje" -> "blindaje", "der Tisch" -> "Tisch". */
-export function withoutArticle(word: string): string {
+/**
+ * The word without a leading article: "el blindaje" -> "blindaje", "der Tisch" -> "Tisch". With the
+ * word's language (a code or a speech tag) only that language's articles are taken, so French "en
+ * fait" and Spanish "a pesar" stay whole; a language with no article list here, or none given,
+ * takes any of them.
+ */
+export function withoutArticle(word: string, lang?: string): string {
   const lower = word.toLocaleLowerCase();
-  for (const a of LEADING_ARTICLES) {
+  const articles = (lang && BY_LANG_LONGEST_FIRST.get(lang.split('-')[0].toLowerCase())) || LEADING_ARTICLES;
+  for (const a of articles) {
     // Only when something follows, so the article "la" on its own stays "la".
     if (lower.startsWith(a) && word.length > a.length) return word.slice(a.length).trim();
   }
@@ -156,10 +175,10 @@ function answersOf(text: string): string[] {
 }
 
 /** A form as written plus, when it starts with an article, the form without it. */
-function withBare(answers: string[]): string[] {
+function withBare(answers: string[], lang?: string): string[] {
   const out = [...answers];
   for (const a of answers) {
-    const bare = withoutArticle(a);
+    const bare = withoutArticle(a, lang);
     if (bare !== a && !out.includes(bare)) out.push(bare);
   }
   return out;
@@ -205,7 +224,7 @@ export function formsOf(note: Note): NoteForms {
   }
   for (const { field, label } of FIELD_FORMS) {
     const text = htmlToText(note.fields[field] ?? '').replace(/\s+/g, ' ').trim();
-    if (text) add({ key: `field:${field}`, group: label, label, answers: withBare(answersOf(text)) });
+    if (text) add({ key: `field:${field}`, group: label, label, answers: withBare(answersOf(text), langOf(note)) });
   }
   return { forms, unreadable };
 }

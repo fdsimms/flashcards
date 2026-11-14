@@ -19,7 +19,7 @@ import re
 import shutil
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -150,7 +150,9 @@ class ClipCache:
 
     def write(self, key: str, audio: bytes, now: datetime) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
-        cutoff = (now - self.KEEP).timestamp()
+        # The engine's clock is naive UTC; `.timestamp()` on a naive datetime would read it as local time.
+        aware = now if now.tzinfo else now.replace(tzinfo=UTC)
+        cutoff = (aware - self.KEEP).timestamp()
         for old in self.root.glob("*.mp3"):
             try:
                 if old.stat().st_mtime < cutoff:

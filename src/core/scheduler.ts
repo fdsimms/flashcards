@@ -250,14 +250,16 @@ export function previewIntervals(sched: SchedState, now: Date = new Date(), para
 }
 
 export function formatInterval(ms: number): string {
+  // Each unit is chosen by its rounded value, so 23.7 hours reads "1d" rather than "24h".
   const min = ms / 60000;
   if (min < 1) return '<1m';
-  if (min < 60) return `${Math.round(min)}m`;
+  if (Math.round(min) < 60) return `${Math.round(min)}m`;
   const h = min / 60;
-  if (h < 24) return `${Math.round(h)}h`;
+  if (Math.round(h) < 24) return `${Math.round(h)}h`;
   const d = h / 24;
-  if (d < 30) return `${Math.round(d)}d`;
-  if (d < 365) return `${(d / 30).toFixed(1).replace(/\.0$/, '')}mo`;
+  if (Math.round(d) < 30) return `${Math.round(d)}d`;
+  const months = Number((d / 30).toFixed(1));
+  if (d < 365 && months < 12) return `${String(months)}mo`;
   return `${(d / 365).toFixed(1).replace(/\.0$/, '')}y`;
 }
 

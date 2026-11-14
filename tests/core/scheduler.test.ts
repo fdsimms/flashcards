@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { becameLeech, paramsForDeck, previewIntervals, review, newSchedState, stepOutcome } from '../../src/core/scheduler';
+import { becameLeech, formatInterval, paramsForDeck, previewIntervals, review, newSchedState, stepOutcome } from '../../src/core/scheduler';
 import { studyDayKey } from '../../src/core/day';
 import type { DeckParams } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
@@ -147,5 +147,20 @@ describe('leeches', () => {
     const learning = { ...reviewWith(7), state: 1 };
     expect(becameLeech(learning, review(learning, 1, at).sched)).toBe(false);
     expect(becameLeech(reviewWith(7), review(reviewWith(7), 3, at).sched)).toBe(false);
+  });
+});
+
+describe('formatInterval', () => {
+  const MIN = 60000;
+  it('moves to the next unit when the rounded value reaches it', () => {
+    expect(formatInterval(59.7 * MIN)).toBe('1h');
+    expect(formatInterval(23.7 * 60 * MIN)).toBe('1d');
+    expect(formatInterval(29.7 * 1440 * MIN)).toBe('1mo');
+    expect(formatInterval(364.9 * 1440 * MIN)).toBe('1y');
+  });
+  it('keeps the smaller unit below the boundary', () => {
+    expect(formatInterval(59.2 * MIN)).toBe('59m');
+    expect(formatInterval(23.2 * 60 * MIN)).toBe('23h');
+    expect(formatInterval(45 * 1440 * MIN)).toBe('1.5mo');
   });
 });

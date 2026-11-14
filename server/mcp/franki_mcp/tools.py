@@ -95,7 +95,10 @@ def _due(col: Collection, card: Card) -> str | int | None:
         return datetime.fromtimestamp(card.due).isoformat(timespec="minutes")
     if card.queue in (QUEUE_TYPE_REV, QUEUE_TYPE_DAY_LEARN_RELEARN) or card.odid:
         days = (card.odue if card.odid else card.due) - col.sched.today
-        return (date.today() + timedelta(days=days)).isoformat()
+        # Anki's day numbers count study days, which roll over at its "next day starts at" hour: between
+        # midnight and then it is still the day before, so date.today() would name tomorrow.
+        study_day = datetime.fromtimestamp(col.sched.day_cutoff - 86400).date()
+        return (study_day + timedelta(days=days)).isoformat()
     return None
 
 
@@ -130,6 +133,12 @@ def _note_dict(col: Collection, note: Note, full: bool = True) -> dict[str, Any]
     else:
         out["preview"] = _text(col, note.fields[nt["sortf"]] if nt else note.fields[0])
     return out
+
+
+def _search_text(text: str) -> str:
+    """`text` as a literal inside a quoted Anki search term: \\ " * _ are escaped, so a deck called
+    "A_B" or one with a quote in it matches itself and doesn't raise a search error."""
+    return re.sub(r'([\\"*_])', r"\\\1", text)
 
 
 def _deck_id(col: Collection, name: str) -> int:
@@ -268,6 +277,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
     @server.tool(annotations=WRITE)
     async def create_deck(name: str) -> dict[str, Any]:
         """Creates a deck ("Polski::Odmiana" makes it under Polski). Does nothing if it exists."""
+
+        parts = [p.strip() for p in name.split("::")]
+        if not name.strip() or not all(parts):
+            raise ToolError('A deck name can\'t be empty or have an empty level ("A::" or "::B"). Use e.g. "Polski::Odmiana".')
 
         def run(col: Collection) -> dict[str, Any]:
             existing = col.decks.id_for_name(name)
@@ -482,7 +495,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if action == "change_deck":
                 if not deck:
                     raise ToolError("change_deck needs deck.")
-                return {"changed": col.set_deck(ids, _deck_id(col, deck)).count}
+                did = _deck_id(col, deck)
+                if col.decks.is_filtered(did):
+                    raise ToolError(f'"{deck}" is a filtered deck, and Anki doesn\'t let cards be moved into one by hand. Move them to a regular deck instead.')
+                return {"changed": col.set_deck(ids, did).count}
             if action == "set_due_date":
                 if not days:
                     raise ToolError('set_due_date needs days, e.g. "0", "5", "5-7" or "5!".')
@@ -510,7 +526,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         def run(col: Collection) -> dict[str, Any]:
             query = f"flag:{AGENT_FLAG}"
             if deck:
-                query += f' "deck:{_deck_name(col, _deck_id(col, deck))}"'
+                query += f' "deck:{_search_text(_deck_name(col, _deck_id(col, deck)))}"'
             ids = list(col.find_cards(query))
             page = ids[: max(1, min(limit, 100))]
             out = []
@@ -626,7 +642,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         remembered (not Again) over the last 30 days, mature cards (interval 21+ days) apart."""
 
         def run(col: Collection) -> dict[str, Any]:
-            search = f'"deck:{deck}"' if deck else ""
+            search = f'"deck:{_search_text(deck)}"' if deck else ""
             if deck:
                 _deck_id(col, deck)
             cids = list(col.find_cards(search))
@@ -1029,7 +1045,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 language = text_locale(language)
         except SpeechError as e:
             raise ToolError(str(e)) from e
-        overrides = {int(k): v for k, v in (text_overrides or {}).items()}
+        try:
+            overrides = {int(k): v for k, v in (text_overrides or {}).items()}
+        except ValueError as e:
+            raise ToolError("text_overrides keys must be note ids (numbers), each mapped to the text to record.") from e
 
         def spoken(col: Collection, note: Note) -> str:
             if note.id in overrides:
@@ -1132,6 +1151,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 for f in [field] if field is not None else note.keys():
                     for name in dict.fromkeys(m[len("[sound:"):-1] for m in SOUND.findall(note[f])):
                         found = True
+                        if os.path.basename(name) != name:
+                            # A name with a path in it would read outside the media folder.
+                            out.append({"note_id": nid, "field": f, "file": name, "error": "The file name has a path in it, so it isn't in the media folder."})
+                            continue
                         path = os.path.join(media, name)
                         entry: dict[str, Any] = {"note_id": nid, "field": f, "file": name}
                         if not os.path.isfile(path):

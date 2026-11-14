@@ -36,12 +36,16 @@ export function useCardGlosses(glossing: CardGlossing | undefined, cards: Card[]
   useEffect(() => {
     if (!glossing || !cards?.length) return;
     for (const request of glossRequests(cards, notes, glossing.decks, asked.current)) {
-      for (const s of request.sentences) asked.current.add(glossKey(request.language, s.text));
+      const keys = request.sentences.map((s) => glossKey(request.language, s.text));
+      for (const key of keys) asked.current.add(key);
+      // A sentence the server couldn't answer yet (its deck isn't read) or that failed offline is
+      // asked about again on the next change, not skipped for the rest of the session.
+      const askAgain = () => { for (const key of keys) asked.current.delete(key); };
       glossing.api.glosses(request.language, request.sentences).then((answer) => {
-        if (!answer.ready) return;
+        if (!answer.ready) { askAgain(); return; }
         for (const [key, words] of glossesOf(request, answer.sentences)) kept.set(key, words);
         if (mounted.current) setVersion((v) => v + 1);
-      }, () => undefined);
+      }, askAgain);
     }
   }, [glossing, cards, notes]);
 

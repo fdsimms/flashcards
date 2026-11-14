@@ -1,4 +1,4 @@
-import { isOmnilanguage } from './cards';
+import { isOmnilanguage, speechLangFor } from './cards';
 import { headword, withoutArticle } from './forms';
 import { htmlToText } from './html';
 import { noteLanguage } from './lookalikes';
@@ -33,7 +33,7 @@ export function sameMeaning(a: Set<string>, b: Set<string>): boolean {
 
 /** The word as "Not:" names it: the Entry as text, without its article. */
 export function bareEntry(note: Note): string {
-  return withoutArticle(headword(note));
+  return withoutArticle(headword(note), speechLangFor(note));
 }
 
 /**

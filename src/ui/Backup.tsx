@@ -54,7 +54,13 @@ export function Backup({ store, syncOn }: {
   });
 
   const restore = async () => {
-    const res = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: false });
+    let res: Awaited<ReturnType<typeof DocumentPicker.getDocumentAsync>>;
+    try {
+      res = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: false });
+    } catch (e: any) {
+      say(failureText(e, { what: "Couldn't open that file.", next: 'Try again.' }));
+      return;
+    }
     if (res.canceled) return;
     const asset = res.assets[0];
     Alert.alert(

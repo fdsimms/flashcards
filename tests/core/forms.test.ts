@@ -132,13 +132,13 @@ describe('withoutArticle / headword', () => {
     expect(withoutArticle('la')).toBe('la');
   });
   it('knows the Greek plural and genitive articles, French une and German ein and des', () => {
-    expect(['τα παιδιά', 'οι άντρες', 'του παιδιού', 'της γυναίκας', 'των παιδιών'].map(withoutArticle)).toEqual(['παιδιά', 'άντρες', 'παιδιού', 'γυναίκας', 'παιδιών']);
-    expect(['une table', 'un livre', "l'arbre", 'l’école', 'les tables'].map(withoutArticle)).toEqual(['table', 'livre', 'arbre', 'école', 'tables']);
-    expect(['ein Tisch', 'eine Frau', 'des Tisches'].map(withoutArticle)).toEqual(['Tisch', 'Frau', 'Tisches']);
+    expect(['τα παιδιά', 'οι άντρες', 'του παιδιού', 'της γυναίκας', 'των παιδιών'].map((w) => withoutArticle(w))).toEqual(['παιδιά', 'άντρες', 'παιδιού', 'γυναίκας', 'παιδιών']);
+    expect(['une table', 'un livre', "l'arbre", 'l’école', 'les tables'].map((w) => withoutArticle(w))).toEqual(['table', 'livre', 'arbre', 'école', 'tables']);
+    expect(['ein Tisch', 'eine Frau', 'des Tisches'].map((w) => withoutArticle(w))).toEqual(['Tisch', 'Frau', 'Tisches']);
   });
   it('takes only a whole article, never the start of a word', () => {
     const words = ['unité', 'einer', 'eines Tages', 'ταξί', 'τουρίστας', 'οικογένεια', 'desde luego'];
-    expect(words.map(withoutArticle)).toEqual(words);
+    expect(words.map((w) => withoutArticle(w))).toEqual(words);
   });
   it('reads the Entry as plain text', () => {
     expect(headword(esperar({ Entry: '<b>esperar</b>' }))).toBe('esperar');
@@ -642,5 +642,19 @@ describe('grammar points in forms practice (docs/grammar.md)', () => {
     expect(chosen.groups).toEqual(['preterite', 'past']);
     expect(practicedGroupsLine(chosen.points)).toBe("Chosen because you're practicing the preterite and the past tense in Read & Listen.");
     expect(practicedGroupsLine([])).toBeUndefined();
+  });
+});
+
+describe('withoutArticle with a language', () => {
+  it("takes only that language's articles", () => {
+    expect(withoutArticle('en fait', 'fr-FR')).toBe('en fait');
+    expect(withoutArticle('a pesar', 'es')).toBe('a pesar');
+    expect(withoutArticle('en bok', 'nb-NO')).toBe('bok');
+    expect(withoutArticle('el blindaje', 'es-MX')).toBe('blindaje');
+    expect(withoutArticle("l'arbre", 'fr')).toBe('arbre');
+  });
+  it('takes any article for a language with no list, or none given', () => {
+    expect(withoutArticle('to wait', 'en-US')).toBe('wait');
+    expect(withoutArticle('en fait')).toBe('fait');
   });
 });
