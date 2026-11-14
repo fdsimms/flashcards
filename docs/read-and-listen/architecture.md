@@ -123,6 +123,18 @@ Franki's (Client, below).
   nothing, as the rating is what makes texts harder. Nothing is graded or added to the deck. Not done:
   the check on a past text read again (its reading isn't logged), and questions for texts written
   before it.
+- **Use the lines yourself** (14 November 2026, the owner chose from a mock). Under the check, the
+  end view offers two ways to make the text's lines again, each in place of the end view until it's
+  done or stopped (`src/reader/lineDrill.ts`, pure and tested; `src/ui/ReadLineDrill.tsx`): **Say it
+  back** shows a line's English (and who says it), to say aloud or type in the language, and **Write
+  what you hear** plays a line (at 0.7x to start, 1x a tap away) to type. Check shows the line with
+  what was typed against it, letter by letter (`src/core/typedCompare.ts`, shared with Review's Type
+  it), plays it, and offers Record yourself and the line's Explain; the reader then marks it Missed
+  it or Got it, and a missed line comes back at the end of the round, at most twice. Lines with
+  fewer than two words or no English are left out, and Write what you hear needs the line's
+  recording. Built from the text's own lines, English and audio, so it costs nothing (Explain asks
+  only when tapped, as in the reader), and nothing is logged, sent or graded: the score at the end
+  ("right the first time") is shown and forgotten.
 - **Listen only** (brief, design principle 6). Once a text is rated "About right", the end view
   offers to play it again with the Thai hidden; the lines show who's speaking instead, and "Show the
   text" brings the words back. The reading is then logged with `listen_only` true. The brief's
