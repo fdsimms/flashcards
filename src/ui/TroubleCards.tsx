@@ -94,7 +94,7 @@ export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints }: {
   const open = (row: TroubleRow) => {
     const options = [
       ...(canAddMnemonic(row.note) ? ['Write a memory hint'] : []),
-      'Flag for an agent', 'Edit note', 'Card info', 'Suspend card', 'Cancel',
+      'Flag for Claude to check', 'Edit note', 'Card info', 'Suspend card', 'Cancel',
     ];
     const at = (label: string) => options.indexOf(label);
     ActionSheetIOS.showActionSheetWithOptions({
@@ -102,7 +102,7 @@ export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints }: {
       options, cancelButtonIndex: at('Cancel'), destructiveButtonIndex: at('Suspend card'),
     }, (i) => {
       if (i === at('Write a memory hint')) setHintFor(row);
-      if (i === at('Flag for an agent')) flag(row);
+      if (i === at('Flag for Claude to check')) flag(row);
       if (i === at('Edit note')) onEditNote({ noteId: row.note.id }, (result) => { if (result) reload(); });
       if (i === at('Card info')) onCardInfo(row.card.id);
       if (i === at('Suspend card')) act("Couldn't suspend this card", () => setState(row.card, (s) => ({ ...s, suspended: true })));
