@@ -409,8 +409,8 @@ describe('formsSuggestion', () => {
   const base = { note, forms, now: NOW, dayStartsAtHour: DAY_START };
   it('suggests a word met this week whose forms were never practiced', () => {
     const s = formsSuggestion({ ...base, history: [], introducedAt: new Date(2026, 10, 8, 9) });
-    expect(s).toMatchObject({ reason: 'new', title: 'New this week: practice its forms?' });
-    expect(s!.detail).toBe("You know what esperar means, but you haven't practiced it yet.");
+    expect(s).toMatchObject({ reason: 'new', title: 'New this week: practice its grammar?' });
+    expect(s!.detail).toBe("You know what esperar means, but you haven't practiced its grammar yet.");
   });
   it('says nothing for an older word never practiced, or a note without forms', () => {
     expect(formsSuggestion({ ...base, history: [], introducedAt: new Date(2026, 9, 1) })).toBeUndefined();
@@ -418,7 +418,7 @@ describe('formsSuggestion', () => {
   });
   it('names the tense of a form missed last time, never the form', () => {
     const s = formsSuggestion({ ...base, history: [rec('preterite · yo', false, at(9)), rec('present · yo', true, at(9))] });
-    expect(s).toEqual({ reason: 'missed', title: 'Practice its forms again?', detail: 'Last time you missed one of its preterite forms.' });
+    expect(s).toEqual({ reason: 'missed', title: 'Practice its grammar again?', detail: 'Last time you missed one of its preterite forms.' });
     expect(s!.detail).not.toContain('esperé');
   });
   it('suggests again after a month, and never twice in a study day', () => {
