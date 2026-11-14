@@ -35,6 +35,7 @@ import { mathjaxUri } from '../media/mathjax';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardWebView } from './CardWebView';
 import { Side } from './CardSide';
+import { NewCardChip } from './NewCardChip';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
 import { useVacationPrefs } from './vacationPrefs';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
@@ -1032,6 +1033,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
         </View>
       ) : null}
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} /> : null}
+      {page && current.sched.state === 0 ? <NewCardChip /> : null}
       {page ? (
         <CardSurface>
           {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
@@ -1051,6 +1053,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
           <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. */}
             <Reveal key={showing} rise={10} style={{ gap: space.xl }}>
+              {current.sched.state === 0 ? <NewCardChip /> : null}
               <Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} />
               {reminder ? <MissReminder text={reminder} /> : null}
               {canRecordYourself(rendered) ? (
