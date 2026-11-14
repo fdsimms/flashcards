@@ -2,6 +2,7 @@ import React from 'react';
 import { Text, View, type TextStyle } from 'react-native';
 import { comparisonLine, type DiffPart, type TypedComparison } from '../core/typedCompare';
 import { hasThai, thaiTextStyle } from '../core/script';
+import { Reveal } from './motion';
 import { space, type, useTheme } from './theme';
 
 /** One line of a comparison: matched text plain, the rest picked out (red and struck through where typed, green where missed). */
@@ -53,18 +54,19 @@ export function TypedDiff({ comparison, showExpected, size = 'title', lang, expe
   return (
     <View style={{ gap: space.s }}>
       {comparison.typed.length ? (
-        <View style={{ gap: space.xs }}>
+        <Reveal rise={4} style={{ gap: space.xs }}>
           <Text style={label}>{typedLabel}</Text>
           <Parts parts={comparison.typed} typed lang={lang} style={{ ...base, color: c.text }} />
-        </View>
+        </Reveal>
       ) : null}
       {showExpected && !comparison.exact ? (
-        <View style={{ gap: space.xs }}>
+        // Follows what was typed, so the eye goes from the mistake to the fix.
+        <Reveal rise={4} delay={220} style={{ gap: space.xs }}>
           <Text style={label}>{expectedLabel}</Text>
           <Parts parts={comparison.expected} typed={false} lang={lang} style={{ ...base, color: c.text, fontWeight: '600' }} />
-        </View>
+        </Reveal>
       ) : null}
-      {showLine ? <Text style={{ ...type.footnote, color: comparison.exact || comparison.sameWords ? c.good : c.textSecondary }}>{comparisonLine(comparison)}</Text> : null}
+      {showLine ? <Reveal rise={0} delay={400}><Text style={{ ...type.footnote, color: comparison.exact || comparison.sameWords ? c.good : c.textSecondary }}>{comparisonLine(comparison)}</Text></Reveal> : null}
     </View>
   );
 }

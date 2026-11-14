@@ -13,6 +13,7 @@ import type { Repo } from '../db/repo';
 import { WANIKANI_SCOPE } from '../wanikani/log';
 import { Card as Box, Chip, Group, Help, Loading, NavRow, Screen } from './kit';
 import { haptic } from './haptics';
+import { Grow } from './motion';
 import { AnswerCalendar } from './StatsCalendar';
 import { hairline, space, type, useTheme } from './theme';
 
@@ -273,11 +274,15 @@ function Bars<T extends { value: number }>({ bars, describe, first, last, peak: 
             style={{ flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' }}
           >
             {d.value > 0 ? (
-              <View style={{
-                width: '100%', maxWidth: 24, height: Math.max(2, (d.value / max) * CHART_HEIGHT),
-                backgroundColor: c.chart, borderTopLeftRadius: 5, borderTopRightRadius: 5,
-                opacity: picked === null || picked === i ? 1 : 0.35,
-              }} />
+              <Grow
+                // Grows from the baseline, left to right, the first time the chart is drawn.
+                delay={Math.min(i, 30) * 12}
+                style={{
+                  width: '100%', maxWidth: 24, height: Math.max(2, (d.value / max) * CHART_HEIGHT),
+                  backgroundColor: c.chart, borderTopLeftRadius: 5, borderTopRightRadius: 5,
+                  opacity: picked === null || picked === i ? 1 : 0.35,
+                }}
+              />
             ) : null}
           </Pressable>
         ))}
