@@ -2,6 +2,7 @@ import * as Speech from 'expo-speech';
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Repo } from '../../db/repo';
 import type { Language } from '../../reader/api';
 import { LANGUAGES, flaggedName } from '../../reader/languages';
@@ -102,9 +103,13 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
   actions?: ToolActions;
   children: React.ReactNode;
 }) {
-  const { scrollProps, bottomPadding } = useKeyboardScroll();
+  // The keyboard's height pads the whole screen, not just the list, so Check and Next in the footer
+  // stay above it: the number and decimal pads have no Return key to submit with.
+  const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
+  const insets = useSafeAreaInsets();
   const name = LANGUAGES[language].name;
   return (
+    <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
     <Screen
       title={tool.title}
       largeTitle={false}
@@ -139,10 +144,11 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
         </View>
       )}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, paddingBottom: space.l + bottomPadding, gap: space.l }} keyboardShouldPersistTaps="handled" {...scrollProps}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.l }} keyboardShouldPersistTaps="handled" {...scrollProps}>
         <ToolLanguage.Provider value={language}>{children}</ToolLanguage.Provider>
       </ScrollView>
     </Screen>
+    </View>
   );
 }
 
