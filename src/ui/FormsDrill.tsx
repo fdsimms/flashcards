@@ -52,7 +52,6 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   const [index, setIndex] = useState(0);
   const [answered, setAnswered] = useState<Answered[]>([]);
   const [typed, setTyped] = useState('');
-  const [topHeight, setTopHeight] = useState(0);
   // "In a sentence" is always typed; otherwise the last choice made, on any drill.
   const typeOnly = request.kind === 'pattern' && request.sentence;
   const [mode, setMode] = useState<AnswerMode>('pick');
@@ -200,7 +199,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
         keyboardShouldPersistTaps="handled"
         {...scrollProps}
       >
-        <View style={{ gap: space.xl }} onLayout={(e) => setTopHeight(e.nativeEvent.layout.height + space.xl)}>
+        <View style={{ gap: space.xl }}>
           <ProgressBar value={index / prompts.length} label="Progress through this practice" style={{ marginHorizontal: 0, marginTop: 0 }} />
           {typeOnly ? null : (
             <Segments<AnswerMode>
@@ -210,11 +209,13 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
             />
           )}
         </View>
-        {/* Padded at the bottom by the height of the controls above, so the question sits in the middle of the screen rather than of what's left under them. */}
-        <View style={{ flex: 1, justifyContent: 'center', gap: space.xl, paddingBottom: topHeight }}>
+        {/* The question is centered in the room between the controls above and the answer below, whatever the answer part's height (choices, the field, or the feedback), so it doesn't ride low when the keyboard is up. */}
+        <View style={{ flex: 1, justifyContent: 'center' }}>
           <Reveal key={index} rise={10}>
             <Question prompt={prompt} reveal={current ? prompt.answers[0] : undefined} />
           </Reveal>
+        </View>
+        <View style={{ gap: space.xl }}>
           {picking ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
               {prompt.choices!.map((choice) => (
