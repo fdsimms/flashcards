@@ -25,6 +25,7 @@ import { Loading } from './kit';
 import { useLoadProblem } from './useLoadProblem';
 import { useOpenRepo } from './useOpenRepo';
 import { useSync } from './useSync';
+import { loadVacation, useVacationRefresh } from './vacationPrefs';
 import { useWaniKani, type WaniKaniState } from './useWaniKani';
 
 /**
@@ -113,7 +114,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const studied = studiedToday({ notes, cards, reviews, revlog, now, dayStartsAtHour: collection.dayStartsAtHour });
     const settings = await applyPriorityStamps(repo, notes, savedSettings, now);
     const held = await loadHeld(repo, { notes, cards, settings, now, dayStartsAtHour: collection.dayStartsAtHour });
-    const rows = deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now, held, boostFor: boostFor({ notes, settings, now }) }), listedDecks(ankiDecks, settings), (d) => settings.get(d)?.position);
+    const vacation = await loadVacation();
+    const rows = deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now, held, vacation, boostFor: boostFor({ notes, settings, now }) }), listedDecks(ankiDecks, settings), (d) => settings.get(d)?.position);
     setDecks(rows);
     snapshot.save(rows, now, collection.dayStartsAtHour);
     setBackup(backupStatus(lastBackup, now, cards.length > 0));
@@ -138,6 +140,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const reader = useReader(syncSettings?.enabled ? syncSettings.server : undefined, dayStartsAtHour);
   useCountsReport(reader, decks, dayStartsAtHour);
   useStudyReminder(decks, dayStartsAtHour);
+  useVacationRefresh(refresh);
   const wanikani = useWaniKani(repo, dayStartsAtHour);
 
   const editorClose = useRef<((result?: NoteEditorResult) => void) | null>(null);
