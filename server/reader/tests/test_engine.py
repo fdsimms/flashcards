@@ -71,7 +71,7 @@ def reading(rating: str | None) -> Reading:
 def test_asking_for_a_topic_with_nothing_ready_writes_one_in_the_background() -> None:
     model = ScriptedModel(IN_RANGE)
     e = engine(model)
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
 
     async def scenario() -> tuple[StoredText | None, str, StoredText]:
         first = await e.next_text(topic.id)
@@ -90,7 +90,7 @@ def test_asking_for_a_topic_with_nothing_ready_writes_one_in_the_background() ->
 def test_asking_again_while_writing_does_not_start_a_second_write() -> None:
     model = ScriptedModel(IN_RANGE)
     e = engine(model)
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
 
     async def scenario() -> None:
         assert await e.next_text(topic.id) is None
@@ -105,7 +105,7 @@ def test_asking_again_while_writing_does_not_start_a_second_write() -> None:
 def test_a_caller_waiting_on_the_lock_takes_the_text_just_written() -> None:
     model = ScriptedModel(IN_RANGE)
     e = engine(model)
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
 
     async def scenario() -> tuple[StoredText | None, StoredText | None]:
         a, b = await asyncio.gather(e.make_text(topic.id), e.make_text(topic.id))
@@ -119,7 +119,7 @@ def test_a_caller_waiting_on_the_lock_takes_the_text_just_written() -> None:
 def test_a_ready_text_is_served_without_calling_the_model() -> None:
     model = ScriptedModel(IN_RANGE)
     e = engine(model)
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     made = run(lambda: e.make_text(topic.id))
 
     served = run(lambda: e.next_text(topic.id))
@@ -131,7 +131,7 @@ def test_a_ready_text_is_served_without_calling_the_model() -> None:
 def test_a_text_that_misses_the_floor_is_reported_once_then_retried() -> None:
     model = ScriptedModel(BAD)
     e = engine(model)
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
 
     async def scenario() -> None:
         assert await e.next_text(topic.id) is None
@@ -149,7 +149,7 @@ def test_a_text_that_misses_the_floor_is_reported_once_then_retried() -> None:
 
 def test_a_dropped_text_is_kept_for_its_cost_but_never_served() -> None:
     e = engine(ScriptedModel(BAD))
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     assert run(lambda: e.make_text(topic.id)) is None
     rows = e.conn.execute("SELECT status, cost_usd FROM texts").fetchall()
     assert len(rows) == 1 and rows[0][0] == "dropped" and rows[0][1] > 0
@@ -158,7 +158,7 @@ def test_a_dropped_text_is_kept_for_its_cost_but_never_served() -> None:
 
 def test_a_revision_that_fails_still_stores_the_dropped_text_for_its_cost() -> None:
     e = engine(ScriptedModel(BAD, GenerationFailed("The response was cut off")))
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     assert run(lambda: e.make_text(topic.id)) is None
     rows = e.conn.execute("SELECT status, cost_usd FROM texts").fetchall()
     assert len(rows) == 1 and rows[0][0] == "dropped" and rows[0][1] > 0
@@ -167,7 +167,7 @@ def test_a_revision_that_fails_still_stores_the_dropped_text_for_its_cost() -> N
 def test_a_first_attempt_that_fails_with_an_answer_is_stored_dropped_for_its_cost() -> None:
     cut_off = GenerationFailed("The response was cut off", Usage(100, 500, 2000, 0))
     e = engine(ScriptedModel(cut_off))
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     with pytest.raises(GenerationFailed, match="cut off"):
         run(lambda: e.make_text(topic.id))
     rows = e.conn.execute("SELECT status, attempts, cost_usd FROM texts").fetchall()
@@ -188,7 +188,7 @@ def test_a_claude_error_is_reported_to_the_next_request() -> None:
         return ask
 
     e.ask_for = failing
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
 
     async def scenario() -> None:
         await e.next_text(topic.id)
@@ -203,12 +203,12 @@ def test_a_claude_error_is_reported_to_the_next_request() -> None:
 
 def test_says_what_is_missing() -> None:
     no_key = engine(None)
-    topic = store.add_topic(no_key.conn, "Food stall", True, NOW)
+    topic = store.add_topic(no_key.conn, "Food stall", NOW)
     with pytest.raises(NotAvailable, match="no Claude API key"):
         run(lambda: no_key.next_text(topic.id))
 
     no_words = engine(ScriptedModel(IN_RANGE), with_lexicon=False)
-    topic = store.add_topic(no_words.conn, "Food stall", True, NOW)
+    topic = store.add_topic(no_words.conn, "Food stall", NOW)
     with pytest.raises(NotAvailable, match="no Thai word list"):
         run(lambda: no_words.next_text(topic.id))
 
@@ -221,7 +221,7 @@ def test_an_unknown_topic_is_not_found() -> None:
 def test_top_up_writes_no_text_unasked() -> None:
     model = ScriptedModel(IN_RANGE)
     e = engine(model)
-    store.add_topic(e.conn, "Food stall", True, NOW)
+    store.add_topic(e.conn, "Food stall", NOW)
 
     run(e.top_up)
     run(e.top_up)
@@ -257,7 +257,7 @@ def test_a_word_due_today_and_not_reviewed_is_left_out_of_a_new_text() -> None:
     model = ScriptedModel(IN_RANGE, WITHOUT_KIN)
     e = engine(model)
     store.save_snapshot(e.conn, entries, NOW)
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
 
     text = run(lambda: fetch(e, topic.id))
 
@@ -417,14 +417,14 @@ def test_a_new_story_retires_the_old_one() -> None:
 
 def test_top_up_stops_quietly_without_a_key() -> None:
     e = engine(None)
-    store.add_topic(e.conn, "Food stall", True, NOW)
+    store.add_topic(e.conn, "Food stall", NOW)
     run(e.top_up)  # no exception
     assert e.topic_state(store.list_topics(e.conn)[0]) == "idle"
 
 
 def test_the_difficulty_follows_the_rating() -> None:
     e = engine(ScriptedModel(IN_RANGE))
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
 
     e.record_reading(text.id, reading("too_hard"))
@@ -435,7 +435,7 @@ def test_the_difficulty_follows_the_rating() -> None:
 
 def test_ratings_of_texts_written_ahead_at_the_old_level_do_not_stack() -> None:
     e = engine(ScriptedModel(IN_RANGE))
-    topics = [store.add_topic(e.conn, name, True, NOW) for name in ("Food", "Taxi", "Market")]
+    topics = [store.add_topic(e.conn, name, NOW) for name in ("Food", "Taxi", "Market")]
     # Three texts written at the starting level before any is read.
     texts = [run(partial(fetch, e, topic.id)) for topic in topics]
     assert store.written_at(e.conn, texts[0].id) == (0.92, 2)
@@ -449,7 +449,7 @@ def test_ratings_of_texts_written_ahead_at_the_old_level_do_not_stack() -> None:
 
 def test_too_easy_on_texts_written_ahead_does_not_overshoot() -> None:
     e = engine(ScriptedModel(IN_RANGE))
-    topics = [store.add_topic(e.conn, name, True, NOW) for name in ("Food", "Taxi")]
+    topics = [store.add_topic(e.conn, name, NOW) for name in ("Food", "Taxi")]
     texts = [run(partial(fetch, e, topic.id)) for topic in topics]
 
     for text in texts:
@@ -460,7 +460,7 @@ def test_too_easy_on_texts_written_ahead_does_not_overshoot() -> None:
 
 def test_a_text_written_before_its_stretch_count_was_recorded_steps_from_the_current_one() -> None:
     e = engine(ScriptedModel(IN_RANGE))
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
     e.conn.execute("UPDATE texts SET stretch_count = NULL")
     store.save_difficulty(e.conn, Difficulty(0.92, 3))
@@ -472,7 +472,7 @@ def test_a_text_written_before_its_stretch_count_was_recorded_steps_from_the_cur
 
 def test_a_repeated_reading_is_ignored() -> None:
     e = engine(ScriptedModel(IN_RANGE))
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
 
     e.record_reading(text.id, reading("too_hard"))
@@ -484,7 +484,7 @@ def test_a_repeated_reading_is_ignored() -> None:
 
 def test_a_reading_without_a_rating_leaves_difficulty_alone() -> None:
     e = engine(ScriptedModel(IN_RANGE))
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
     e.record_reading(text.id, reading(None))
     assert store.load_difficulty(e.conn) == Difficulty()
@@ -535,7 +535,7 @@ def speaking_engine(tmp_path: Path, voice: FakeVoice | None) -> Engine:
 def test_a_new_text_gets_audio_for_each_line_in_its_speakers_voice(tmp_path: Path) -> None:
     voice = FakeVoice()
     e = speaking_engine(tmp_path, voice)
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
 
     text = run(lambda: fetch(e, topic.id))
 
@@ -558,7 +558,7 @@ def test_a_text_is_not_ready_until_its_audio_is_made(tmp_path: Path) -> None:
         return Spoken(b"mp3")
 
     e.synthesize = voice
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     run(lambda: e.make_text(topic.id))
 
     assert seen == ["pending", "pending"]
@@ -570,7 +570,7 @@ def test_a_pending_text_left_by_a_restart_becomes_ready(tmp_path: Path) -> None:
     e = engine(ScriptedModel(IN_RANGE))
     e.conn = store.connect(db)
     store.save_snapshot(e.conn, ENTRIES, NOW)
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     run(lambda: e.make_text(topic.id))
     e.conn.execute("UPDATE texts SET status = 'pending'")
     e.conn.commit()
@@ -580,7 +580,7 @@ def test_a_pending_text_left_by_a_restart_becomes_ready(tmp_path: Path) -> None:
 
 def test_a_failed_line_stays_silent_and_the_text_is_still_served(tmp_path: Path) -> None:
     e = speaking_engine(tmp_path, FakeVoice(fail_on="ข้าวเหนียวมะม่วงครับ!ฉันอยากกินครับฉันอยากกินครับ"))
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
 
     text = run(lambda: fetch(e, topic.id))
 
@@ -590,7 +590,7 @@ def test_a_failed_line_stays_silent_and_the_text_is_still_served(tmp_path: Path)
 
 def test_missing_audio_is_made_on_request_and_then_cached(tmp_path: Path) -> None:
     e = speaking_engine(tmp_path, None)
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
     assert run(lambda: e.line_audio(text, 0)) is None  # no text to speech yet
 
@@ -614,7 +614,7 @@ def audio_chars(e: Engine, text_id: int) -> int:
 def test_the_characters_azure_speaks_for_a_text_are_counted(tmp_path: Path) -> None:
     voice = FakeVoice()
     e = speaking_engine(tmp_path, voice)
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
 
     text = run(lambda: fetch(e, topic.id))
     spoken = sum(len(t) for t, _ in voice.calls)
@@ -633,7 +633,7 @@ def test_a_line_azure_refused_is_not_counted(tmp_path: Path) -> None:
     refused = "ข้าวเหนียวมะม่วงครับ!ฉันอยากกินครับฉันอยากกินครับ"
     voice = FakeVoice(fail_on=refused)
     e = speaking_engine(tmp_path, voice)
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
 
     text = run(lambda: fetch(e, topic.id))
 
@@ -643,7 +643,7 @@ def test_a_line_azure_refused_is_not_counted(tmp_path: Path) -> None:
 
 def test_audio_recorded_before_counting_is_estimated_once_from_the_volume(tmp_path: Path) -> None:
     e = speaking_engine(tmp_path, FakeVoice())
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
     counted = audio_chars(e, text.id)
     e.conn.execute("UPDATE texts SET audio_chars = 0")  # as before this was recorded
@@ -661,7 +661,7 @@ def test_audio_recorded_before_counting_is_estimated_once_from_the_volume(tmp_pa
 
 def test_spending_adds_up_each_languages_audio_characters(tmp_path: Path) -> None:
     e = speaking_engine(tmp_path, FakeVoice())
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
 
     spent = store.spending(e.conn, datetime(2020, 1, 1))
@@ -672,8 +672,8 @@ def test_spending_adds_up_each_languages_audio_characters(tmp_path: Path) -> Non
 def test_a_newer_voice_change_supersedes_a_running_rerecord(tmp_path: Path) -> None:
     voice = FakeVoice()
     e = speaking_engine(tmp_path, voice)
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
-    other = store.add_topic(e.conn, "Bus stop", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    other = store.add_topic(e.conn, "Bus stop", NOW)
     run(lambda: e.make_text(topic.id))
     run(lambda: e.make_text(other.id))  # two texts waiting
     voice.calls.clear()
@@ -698,8 +698,8 @@ def test_texts_waiting_from_before_timings_are_re_recorded_with_them_once(tmp_pa
     voice = FakeVoice()
     e = speaking_engine(tmp_path, voice)
     assert e.audio is not None
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
-    other = store.add_topic(e.conn, "Bus stop", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    other = store.add_topic(e.conn, "Bus stop", NOW)
     run(lambda: e.make_text(topic.id))
     run(lambda: e.make_text(other.id))
     read, waiting = store.ready_texts(e.conn, "th")
@@ -730,7 +730,7 @@ def test_texts_waiting_from_before_timings_are_re_recorded_with_them_once(tmp_pa
 def test_a_pass_where_azure_gave_no_timings_isnt_repeated(tmp_path: Path) -> None:
     voice = FakeVoice()
     e = speaking_engine(tmp_path, voice)
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     run(lambda: e.make_text(topic.id))
     voice.calls.clear()
 
@@ -744,8 +744,8 @@ def test_a_pass_cut_short_skips_the_texts_it_already_timed(tmp_path: Path) -> No
     voice = FakeVoice()
     e = speaking_engine(tmp_path, voice)
     assert e.audio is not None
-    food = store.add_topic(e.conn, "Food stall", True, NOW)
-    bus = store.add_topic(e.conn, "Bus stop", True, NOW)
+    food = store.add_topic(e.conn, "Food stall", NOW)
+    bus = store.add_topic(e.conn, "Bus stop", NOW)
     run(lambda: e.make_text(food.id))
     run(lambda: e.make_text(bus.id))
     first, second = store.ready_texts(e.conn, "th")
@@ -781,7 +781,7 @@ def test_set_to_any_the_stretch_words_are_given() -> None:
 
 def test_a_text_records_the_stretch_words_the_model_chose() -> None:
     e = engine(ScriptedModel(IN_RANGE))
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
     assert text.stretch == ("ข้าวเหนียวมะม่วง",)
 
@@ -793,7 +793,7 @@ def test_a_stretch_word_from_a_text_read_yesterday_is_offered_again_today() -> N
 
     clock = Clock()
     e = engine(ScriptedModel(IN_RANGE), clock=clock)
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
     e.record_reading(text.id, reading("about_right"))
     young = [Entry(10 + i, f"คำ{i}", "word", "young", reviewed=True, due_in=5) for i in range(20)]
@@ -816,7 +816,7 @@ def test_a_stretch_word_read_earlier_the_same_study_day_is_not_from_an_earlier_d
     clock.now = datetime(2026, 10, 18, 23, 30)  # 06:30 in Bangkok on the 19th
     e = engine(ScriptedModel(IN_RANGE), clock=clock)
     e.zone = timezone(timedelta(hours=7))
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
     e.record_reading(text.id, reading("about_right"))
 
@@ -854,7 +854,7 @@ def test_the_form_setting_asks_for_a_story_and_the_text_keeps_it() -> None:
     store.save_settings(e.conn, store.Settings(form="story"))
     assert e._request("Food stall", ENTRIES, Difficulty()).form == "story"
 
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
     assert text.form == "story"
     assert {line.speaker for line in text.lines} == {"N"}
@@ -882,7 +882,7 @@ def test_chosen_words_not_yet_studied_are_left_out_and_none_says_so() -> None:
 def test_a_text_for_chosen_words_is_its_own_and_not_the_queues() -> None:
     model = ScriptedModel(IN_RANGE, IN_RANGE)
     e = engine(model)
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
 
     async def scenario() -> tuple[StoredText, int, StoredText]:
         queued = await fetch(e, topic.id)  # the queue's own text, still unread
@@ -914,7 +914,7 @@ def test_chosen_words_read_the_deck_again_first() -> None:
 
     e = engine(ScriptedModel(IN_RANGE))
     e.read_deck = read
-    topic = store.add_topic(e.conn, "Food stall", True, NOW)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: e.make_text(topic.id, "th", "ทอน"))
     assert text is not None
     assert reads == ["👅 Languages::🐘 ภาษาไทย"]  # though today's snapshot wasn't a day old

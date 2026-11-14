@@ -78,7 +78,7 @@ def stored_text(
     lexicon = lexicon_from(deck, language, 1000)
     coverage = check([ln.text for ln in lines], lexicon)
     generated = Generated("t", lines, {"vann": "water"}, coverage, 1, True, ())
-    topic = store.add_topic(conn, f"Food {len(store.topic_names(conn))}", True, NOW)
+    topic = store.add_topic(conn, f"Food {len(store.topic_names(conn))}", NOW)
     text_id = store.save_text(
         conn, topic.id, generated, [], 0.95, NOW, status, "dialogue", language
     )

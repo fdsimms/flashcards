@@ -160,7 +160,7 @@ Franki's (Client, below).
 - **Practice words after studying** (12 November 2026, by the owner's decision). When a Review
   session in a Read & Listen language's deck ends, **Read a text with these words** opens the
   shelf with the words just studied (each note's Entry, `src/reader/practice.ts`), which offers a
-  text written to practice them, on a liked theme or else the best-fitting idea (before the shelf,
+  text written to practice them, on the best-fitting idea (on a liked theme before 14 November 2026; before the shelf,
   the topic opened next was written for them). The app syncs before opening the shelf, so the answers
   just given are on the sync server. The server reads the deck again first, so a card first learned
   today counts as studied, offers the studied words as the stretch words to choose from (up to the
@@ -763,12 +763,14 @@ topics, favorites and constant setting changes awkward, though the texts themsel
 - **Spending.** A text is written only because it was asked for, in the language being read. Nothing
   waits unread unless it was asked for. A failed text is reported to the next request for its topic
   and that topic waits out `FAILURE_COOLDOWN` before it's tried again.
-- **Steering instead of settings.** Press and hold a card for More like this (its topic becomes a
-  liked theme) or Not this (the text is taken off unread: status `skipped`, counted in the costs).
-  The end of a text has the same theme choice and Shorter, Same or Longer, which sets the length
-  (`lines`) the next texts are written at. Starred topics from before the shelf are the liked
-  themes; themes are shared by every language and listed on the language's settings page, where one
-  can be removed.
+- **Steering instead of settings.** Press and hold a card for Remove from shelf (the text is taken
+  off unread: status `skipped`, counted in the costs). The end of a text has Shorter, Same or
+  Longer, which sets the length (`lines`) the next texts are written at. **There are no liked
+  themes** (14 November 2026, by the owner): "More like this", "Write more about this topic" and
+  the settings page's "Themes you like" are gone, because a liked topic quietly steered everything
+  written toward it, and every text should come from something asked for that time. The topics
+  table's `favorite` column is no longer read or written, and `PATCH /api/topics/{id}` is gone. A
+  text written under the old shelf keeps its `liked` reason, shown as it was.
 - **Write one about anything.** A typed topic is written in the background (`/api/shelf/write`,
   with Dialogue or Story chosen there) and joins the shelf when it's ready, beyond the 3
   (`asked`). The owner still picks whenever they want to (brief, principle 10); the shelf only means
@@ -778,7 +780,7 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   opens. Whether iOS keeps the app running across the gap between two texts with the screen locked
   is unverified.
 - **The language's settings page** (the shelf's sliders button) holds what's set once: the deck,
-  common words, voices, grammar, the story, the liked themes, practice words, and the progress
+  common words, voices, grammar, the story, practice words, and the progress
   summary (moved off the home screen). The `form` setting is no longer shown: the shelf varies it.
 
 ## Stories
@@ -818,9 +820,9 @@ next episode is the top of the shelf.
 
 ## Topics
 
-- Topics now sit behind the shelf: a liked theme is a favorite topic, and the old topic routes
-  (`/api/topics`, `/next`) stay for Review's "Read a text with these words", which asks for a text on
-  a liked theme (or the best-fitting idea) written to practice the words just studied.
+- Topics now sit behind the shelf, and the old topic routes (`/api/topics`, `/next`) stay for
+  Review's "Read a text with these words", which asks for a text on the best-fitting idea written to
+  practice the words just studied.
 - **A text is written in the background, never inside a request.** Three attempts and the audio
   can take longer than an iPhone waits on one request, so `/next` answers 202 while a text is being
   written and the app asks again every few seconds. One write per topic at a time; a request that
@@ -842,12 +844,10 @@ next episode is the top of the shelf.
   the topics screen a few at a time (until the shelf, which now writes from them itself), ordered by how many of those words the deck knows: the best fit
   is most likely to clear the floor on the first try. The owner still picks (brief, principle 10).
   A fixed list rather than generated ideas, so offering them costs nothing. Tapping one adds it as a
-  topic that isn't a favorite and opens it, so trying an idea doesn't start a queue of texts for it;
-  starring it does. Topics already added, or added and removed, aren't offered again.
+  topic and opens it, so trying an idea doesn't start a queue of texts for it. Topics already added, or added and removed, aren't offered again.
 - **Removing a topic** (press and hold it) hides it from the list and the background top-up. It's
   a flag on the row, not a delete, since its texts and readings point at it. Adding a topic with the
-  same name brings it back, with any text it still had ready. The shelf's own ideas are filed the
-  same way from the start, so they're never listed; More like this lists one again, as a theme.
+  same name brings it back, with any text it still had ready. 
 
 ## Characters
 

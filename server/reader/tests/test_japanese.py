@@ -237,7 +237,7 @@ def japanese_engine(wanikani: list[WaniKaniWord] | None = None) -> tuple[Engine,
 
 def test_a_japanese_text_is_written_and_checked_with_the_japanese_checker() -> None:
     e, model = japanese_engine()
-    topic = store.add_topic(e.conn, "The theater", True, e.clock())
+    topic = store.add_topic(e.conn, "The theater", e.clock())
     text = asyncio.run(e.make_text(topic.id))
     assert text is not None and text.language == "ja"
     assert model.languages_seen == ["ja"]
@@ -252,7 +252,7 @@ def test_wanikani_words_join_the_checker_the_word_list_and_the_meanings() -> Non
     assert all(entry.note_id > 0 for entry in entries)  # not a deck word
     assert lx.status("公演") == "known" and lx.entry_of("公演") is None
     assert e.meanings("ja")["公演"] == "performance"
-    topic = store.add_topic(e.conn, "The theater", True, e.clock())
+    topic = store.add_topic(e.conn, "The theater", e.clock())
     asyncio.run(e.make_text(topic.id))
     seen = model.entries_seen[0]
     assert any(entry.text == "公演" and entry.tier == "mature" for entry in seen)

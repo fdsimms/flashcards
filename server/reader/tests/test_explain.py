@@ -42,9 +42,7 @@ def client(
     store.save_snapshot(conn, ENTRIES, NOW)
     # The same draft for each attempt, so one under the floor is kept as the closest.
     generated = run(ScriptedModel(text, text, text), TextRequest("food", (MANGO,)))
-    text_id = store.save_text(
-        conn, store.add_topic(conn, "food", True, NOW).id, generated, [], 0.95, NOW
-    )
+    text_id = store.save_text(conn, store.add_topic(conn, "food", NOW).id, generated, [], 0.95, NOW)
     engine = Engine(
         conn,
         AppModel(IN_RANGE).ask_for,

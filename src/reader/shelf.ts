@@ -36,7 +36,7 @@ export function reasonLabel(text: ShelfText): string {
       return `Episode ${text.episode}`;
     default:
       // Written for a topic before the shelf existed.
-      return text.liked ? `Because you liked "${text.topic}"` : text.topic;
+      return text.topic;
   }
 }
 

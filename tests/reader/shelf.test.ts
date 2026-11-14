@@ -3,7 +3,7 @@ import type { GrammarList, ShelfText } from '../../src/reader/api';
 import { cardDetail, grammarStepNote, hasPracticeRoom, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, stepGrammarUses, stepLength, surprisePick } from '../../src/reader/shelf';
 
 const text = (over: Partial<ShelfText> = {}): ShelfText => ({
-  id: 1, title: 'At the stall', topic: 'Food stall', topic_id: 1, liked: false, form: 'dialogue', lines: 8,
+  id: 1, title: 'At the stall', topic: 'Food stall', topic_id: 1, form: 'dialogue', lines: 8,
   stretch: [], reason: 'new', coverage: 0.95, episode: 0, ...over,
 });
 
@@ -24,7 +24,6 @@ describe('the shelf', () => {
     expect(reasonLabel(text({ reason: 'asked' }))).toBe('You asked for this');
     expect(reasonLabel(text({ reason: 'story', episode: 7 }))).toBe('Episode 7');
     // A text written for a topic before the shelf.
-    expect(reasonLabel(text({ reason: '', liked: true }))).toBe('Because you liked "Food stall"');
     expect(reasonLabel(text({ reason: '' }))).toBe('Food stall');
   });
 

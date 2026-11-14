@@ -291,7 +291,7 @@ def spanish_engine() -> tuple[Engine, ScriptedSpanish]:
 
 def test_with_spanish_chosen_a_topic_gets_a_spanish_text_and_thai_is_left_alone() -> None:
     e, model = spanish_engine()
-    topic = store.add_topic(e.conn, "Guard duty", True, e.clock())
+    topic = store.add_topic(e.conn, "Guard duty", e.clock())
 
     text = asyncio.run(e.make_text(topic.id))
 
@@ -303,7 +303,7 @@ def test_with_spanish_chosen_a_topic_gets_a_spanish_text_and_thai_is_left_alone(
 
 def test_a_rating_moves_the_difficulty_of_the_texts_language_only() -> None:
     e, _ = spanish_engine()
-    topic = store.add_topic(e.conn, "Guard duty", True, e.clock())
+    topic = store.add_topic(e.conn, "Guard duty", e.clock())
     text = asyncio.run(e.make_text(topic.id))
     assert text is not None
     e.record_reading(text.id, store.Reading("too_hard", True, (), (), None, False, 60))
@@ -326,7 +326,7 @@ def test_spanish_lines_are_spoken_in_a_mexican_voice(tmp_path: Any) -> None:
 
     e, _ = spanish_engine()
     e.synthesize, e.audio = voice, AudioCache(tmp_path)
-    topic = store.add_topic(e.conn, "Guard duty", True, e.clock())
+    topic = store.add_topic(e.conn, "Guard duty", e.clock())
     asyncio.run(e.make_text(topic.id))
     assert spoken[0] == ("¿Lograron mantener a raya al enemigo?", "es-MX-JorgeNeural")
     assert spoken[1][1] == "es-MX-DaliaNeural"
@@ -344,7 +344,7 @@ def test_switching_language_through_the_api_keeps_topics_and_separates_everythin
     store.save_settings(e.conn, store.Settings(language="th"))
     auth = {"Authorization": "Bearer p"}
     with TestClient(create_app(e, "p")) as c:
-        topic = c.post("/api/topics", json={"name": "Guard duty", "favorite": False}, headers=auth)
+        topic = c.post("/api/topics", json={"name": "Guard duty"}, headers=auth)
         topic_id = topic.json()["id"]
 
         assert (

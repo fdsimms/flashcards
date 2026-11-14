@@ -824,7 +824,7 @@ class Engine:
         written yet."""
         language = self.language()
         self._check_setup(language)
-        topic = store.add_topic(self.conn, name, False, self.clock())
+        topic = store.add_topic(self.conn, name, self.clock())
         job = Job(topic.id, language, reason="asked", form=form)
         if job.key not in self._writing:
             self._failures.pop(job.key, None)

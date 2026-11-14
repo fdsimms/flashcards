@@ -118,14 +118,12 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
   const open = (textId: number, playAll = false) => onOpen({ textId, order, playAll });
 
   const textActions = (text: ShelfText) => {
-    const like = text.liked ? 'Stop writing about this topic' : 'Write more about this topic';
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: text.title, options: [like, 'Remove from shelf', 'Cancel'], cancelButtonIndex: 2, destructiveButtonIndex: 1 },
+      { title: text.title, options: ['Remove from shelf', 'Cancel'], cancelButtonIndex: 1, destructiveButtonIndex: 0 },
       async (i) => {
         setActionError(null);
         try {
-          if (i === 0) await api.setFavorite(text.topic_id, !text.liked);
-          else if (i === 1) await api.skip(text.id);
+          if (i === 0) await api.skip(text.id);
           else return;
           haptic.tap();
         } catch (e) {
@@ -142,14 +140,10 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
     setPracticeBusy(true);
     setActionError(null);
     try {
-      // A theme the owner likes, else the idea that best fits the deck.
-      const theme = shelf.themes.length ? shelf.themes[Math.floor(Math.random() * shelf.themes.length)] : null;
-      if (theme) onPractice(theme);
-      else {
-        const [idea] = await api.suggestions();
-        if (!idea) throw new ApiError('There are no topic ideas left. Type a topic below and write a text on it instead.', 0);
-        onPractice(await api.addTopic(idea.name, false));
-      }
+      // The idea that best fits the deck.
+      const [idea] = await api.suggestions();
+      if (!idea) throw new ApiError('There are no topic ideas left. Type a topic below and write a text on it instead.', 0);
+      onPractice(await api.addTopic(idea.name));
     } catch (e) {
       setActionError(e instanceof ApiError ? e.message : "Couldn't start that text. Try again.");
     } finally {
@@ -245,7 +239,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
             ) : (
               <Help>Nothing is written until you ask. Tap Surprise me below, or type a topic, and the text appears here when it's ready.</Help>
             )}
-            {shelf.texts.length > 0 ? <Help>Press and hold a text to write more about its topic or remove it from the shelf.</Help> : null}
+            {shelf.texts.length > 0 ? <Help>Press and hold a text to remove it from the shelf.</Help> : null}
 
             <WriteCard api={api} onWriting={refresh} />
 
@@ -270,7 +264,7 @@ function ShelfRow({ text, first, onPress, onLongPress }: { text: ShelfText; firs
       accessibilityRole="button"
       accessibilityLabel={`${text.title}. ${cardDetail(text)}. ${reason}`}
       accessibilityHint="Opens the text"
-      accessibilityActions={[{ name: 'more', label: 'Change this topic, or remove from shelf' }]}
+      accessibilityActions={[{ name: 'more', label: 'Remove from shelf' }]}
       onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'more') onLongPress(); }}
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, backgroundColor: pressed ? c.fill : 'transparent' })}
     >

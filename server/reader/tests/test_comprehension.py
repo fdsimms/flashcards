@@ -144,7 +144,7 @@ class Writer:
 def stored_text(conn: Any) -> store.StoredText:
     coverage = coverage_of([ln.text for ln in LINES], LEXICON)
     generated = Generated("t", LINES, {}, coverage, 1, True, ())
-    topic = store.add_topic(conn, "Coffee", True, NOW)
+    topic = store.add_topic(conn, "Coffee", NOW)
     text_id = store.save_text(conn, topic.id, generated, [], 0.92, NOW, "ready", "dialogue", "nb")
     text = store.get_text(conn, text_id)
     assert text is not None

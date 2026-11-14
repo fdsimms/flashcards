@@ -17,8 +17,7 @@ serves all of it under /reader (../../Caddyfile), so the app's address ends in /
     PUT   /api/franki-counts          {due, new} the app's deck list totals, sent after each sync
                                       while the app's "Share today's counts" setting is on
     GET   /api/topics                 topics with their state and ready count; tops up in the background
-    POST  /api/topics                 {name, favorite?} adds a topic (or returns the existing one)
-    PATCH /api/topics/{id}            {favorite}
+    POST  /api/topics                 {name} adds a topic (or returns the existing one)
     DELETE /api/topics/{id}           removes a topic from the list (adding it again brings it back)
     GET   /api/suggestions            topic ideas not yet added, the best fit for the deck first
     POST  /api/topics/{id}/next       the next text for a topic; 202 {"writing": true} while one is
@@ -39,9 +38,9 @@ marked words, ideas) is in the current language, the `language` setting.
     PATCH /api/settings               the same fields; takes effect from the next text written. A
                                       changed deck is read again at once; texts waiting to be read
                                       are spoken again in changed voices
-    GET   /api/shelf                  the current language's shelf: the texts written ahead (each
+    GET   /api/shelf                  the current language's shelf: the texts waiting (each
                                       with why it's there), the ongoing story and its next episode,
-                                      what's being written, the liked themes, and each language's
+                                      what's being written, and each language's
                                       count of texts waiting; tops up in the background
     POST  /api/shelf/write            {name, form} writes a text on a topic typed in; it joins the
                                       shelf when it's ready (202)
@@ -243,11 +242,6 @@ MAX_SPEECH_CHARS = 500
 
 class NewTopic(BaseModel):
     name: str = Field(min_length=1, max_length=100)
-    favorite: bool = True
-
-
-class TopicUpdate(BaseModel):
-    favorite: bool
 
 
 class GrammarChoice(BaseModel):
@@ -571,17 +565,10 @@ def create_app(
     @app.post("/api/topics", dependencies=authed)
     async def add_topic(body: NewTopic, background: BackgroundTasks) -> dict[str, Any]:
         try:
-            topic = store.add_topic(engine.conn, body.name, body.favorite, engine.clock())
+            topic = store.add_topic(engine.conn, body.name, engine.clock())
         except ValueError as e:
             raise HTTPException(422, str(e)) from e
         background.add_task(engine.top_up)
-        return _topic(topic, engine, engine.language())
-
-    @app.patch("/api/topics/{topic_id}", dependencies=authed)
-    async def update_topic(topic_id: int, body: TopicUpdate) -> dict[str, Any]:
-        topic = store.set_favorite(engine.conn, topic_id, body.favorite)
-        if topic is None:
-            raise HTTPException(404, "No such topic.")
         return _topic(topic, engine, engine.language())
 
     @app.delete("/api/topics/{topic_id}", status_code=204, dependencies=authed)
@@ -1501,9 +1488,8 @@ def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
         timing.add_times(line["words"], engine.audio.marks(text.id, i) if engine.audio else None)
     topic = store.get_topic(engine.conn, text.topic_id, text.language, include_removed=True)
     story = store.get_story(engine.conn, text.story_id) if text.story_id else None
-    # What the reader shows under the title, and whether More like this is already on.
+    # What the reader shows under the title.
     out["topic"] = (story.title or "Your story") if story else (topic.name if topic else "")
-    out["liked"] = bool(topic and topic.favorite)
     out["reason"] = text.reason
     out["episode"] = text.episode
     return out
@@ -1538,7 +1524,6 @@ def _shelf_text(text: StoredText, engine: Engine, practice: bool = False) -> dic
         "title": text.title,
         "topic": topic.name if topic else "",
         "topic_id": text.topic_id,
-        "liked": bool(topic and topic.favorite),
         "form": text.form,
         "lines": len(text.lines),
         "stretch": list(text.stretch),
@@ -1602,7 +1587,6 @@ def _shelf(engine: Engine) -> dict[str, Any]:
             if j.story_id is None
         ],
         "story": story_out,
-        "themes": [{"id": t.id, "name": t.name} for t in store.liked_topics(engine.conn)],
     }
 
 
@@ -1612,7 +1596,6 @@ def _topic(t: Topic, engine: Engine, language: Code) -> dict[str, Any]:
     return {
         "id": t.id,
         "name": t.name,
-        "favorite": t.favorite,
         "ready": t.ready,
         "state": engine.topic_state(t, language),
     }

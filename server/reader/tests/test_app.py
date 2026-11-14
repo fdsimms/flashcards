@@ -90,7 +90,6 @@ def test_adding_a_topic_writes_nothing_until_asked() -> None:
     added = c.post("/api/topics", json={"name": "  Food   stall "}, headers=AUTH).json()
 
     assert added["name"] == "Food stall"
-    assert added["favorite"] is True
     # Nothing is written unasked, the shelf included.
     assert c.get("/api/topics", headers=AUTH).json()[0]["ready"] == 0
     assert model.calls == 0
@@ -101,23 +100,6 @@ def test_adding_the_same_topic_twice_returns_the_first() -> None:
     first = c.post("/api/topics", json={"name": "Taxi"}, headers=AUTH).json()
     second = c.post("/api/topics", json={"name": "taxi"}, headers=AUTH).json()
     assert first["id"] == second["id"]
-
-
-def test_a_topic_can_be_unfavorited() -> None:
-    c = client()
-    topic = c.post("/api/topics", json={"name": "Taxi"}, headers=AUTH).json()
-    updated = c.patch(f"/api/topics/{topic['id']}", json={"favorite": False}, headers=AUTH)
-    assert updated.json()["favorite"] is False
-    assert c.patch("/api/topics/99", json={"favorite": False}, headers=AUTH).status_code == 404
-
-
-def test_unliking_a_hidden_shelf_topic_is_not_an_error() -> None:
-    c = client()
-    topic = c.post("/api/topics", json={"name": "Taxi", "favorite": False}, headers=AUTH).json()
-    c.delete(f"/api/topics/{topic['id']}", headers=AUTH)
-    updated = c.patch(f"/api/topics/{topic['id']}", json={"favorite": False}, headers=AUTH)
-    assert updated.status_code == 200
-    assert updated.json()["favorite"] is False
 
 
 def test_next_text_returns_the_server_split_lines() -> None:
@@ -234,7 +216,7 @@ def test_a_lines_audio_is_served_as_mp3(tmp_path: Path) -> None:
 
 def test_a_topic_with_nothing_ready_answers_202_then_the_text() -> None:
     c = client()
-    topic = c.post("/api/topics", json={"name": "Taxi", "favorite": False}, headers=AUTH).json()
+    topic = c.post("/api/topics", json={"name": "Taxi"}, headers=AUTH).json()
     assert topic["state"] == "idle"
 
     first = c.post(f"/api/topics/{topic['id']}/next", headers=AUTH)
@@ -249,7 +231,7 @@ def test_a_topic_with_nothing_ready_answers_202_then_the_text() -> None:
 def test_topics_report_their_state() -> None:
     c = client()
     c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH)
-    c.post("/api/topics", json={"name": "Taxi", "favorite": False}, headers=AUTH)
+    c.post("/api/topics", json={"name": "Taxi"}, headers=AUTH)
     food = c.get("/api/topics", headers=AUTH).json()[0]
     next_text(c, food["id"])  # a text written for it waits to be read
     states = {t["name"]: t["state"] for t in c.get("/api/topics", headers=AUTH).json()}
@@ -402,7 +384,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
 
 def test_a_removed_topic_leaves_the_list_and_comes_back_when_added_again() -> None:
     c = client()
-    topic = c.post("/api/topics", json={"name": "Taxi", "favorite": False}, headers=AUTH).json()
+    topic = c.post("/api/topics", json={"name": "Taxi"}, headers=AUTH).json()
 
     assert c.delete(f"/api/topics/{topic['id']}", headers=AUTH).status_code == 204
     assert c.get("/api/topics", headers=AUTH).json() == []
@@ -411,7 +393,6 @@ def test_a_removed_topic_leaves_the_list_and_comes_back_when_added_again() -> No
 
     again = c.post("/api/topics", json={"name": "taxi"}, headers=AUTH).json()
     assert again["id"] == topic["id"]
-    assert again["favorite"] is True
     assert [t["name"] for t in c.get("/api/topics", headers=AUTH).json()] == ["Taxi"]
 
 
@@ -454,7 +435,7 @@ def test_costs_count_every_text_written_and_what_each_read_one_cost() -> None:
     assert costs["days"] == 7
     [thai] = costs["languages"]
     assert (thai["language"], thai["name"], thai["read"]) == ("th", "Thai", 2)
-    # Texts written for the favorite in the background count too, read or not.
+    # Texts written and not read count too.
     assert thai["texts"] == thai["read"] + thai["waiting"] + thai["dropped"] >= 2
     assert thai["cost_usd"] > 0
     assert thai["per_read_text_usd"] == pytest.approx(thai["cost_usd"] / 2, abs=1e-4)
@@ -916,7 +897,7 @@ def test_the_shelf_is_empty_until_a_text_is_asked_for_and_says_why_it_is_there()
     first = c.get("/api/shelf", headers=AUTH).json()
     assert first["language"] == "th" and first["story"] is None
     assert first["texts"] == [] and first["writing"] == []
-    assert first["themes"] == [{"id": 1, "name": "Food stall"}]
+    assert "themes" not in first
     assert [lang["code"] for lang in first["languages"]][:2] == ["th", "es"]
     assert model.calls == 0
 
@@ -929,19 +910,18 @@ def test_the_shelf_is_empty_until_a_text_is_asked_for_and_says_why_it_is_there()
         "title",
         "topic",
         "topic_id",
-        "liked",
         "form",
         "lines",
         "stretch",
         "coverage",
     } <= set(card)
-    assert card["lines"] == 2 and card["topic"] == "Food stall" and card["liked"] is True
+    assert card["lines"] == 2 and card["topic"] == "Food stall"
     thai = next(lang for lang in shelf["languages"] if lang["code"] == "th")
     assert thai["ready"] == len(shelf["texts"])
 
-    # Opened from the shelf, a text says its topic and whether it's liked.
+    # Opened from the shelf, a text says its topic.
     text = c.get(f"/api/texts/{card['id']}", headers=AUTH).json()
-    assert (text["topic"], text["liked"], text["reason"]) == ("Food stall", True, "asked")
+    assert (text["topic"], text["reason"]) == ("Food stall", "asked")
     assert c.get("/api/shelf").status_code == 401
     assert model.calls == 1
 

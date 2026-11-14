@@ -17,7 +17,7 @@ export function readerAddress(syncServer: string): string {
 // waiting before it tries that topic again by itself.
 export type TopicState = 'ready' | 'writing' | 'failed' | 'idle';
 
-export type Topic = { id: number; name: string; favorite: boolean; ready: number; state: TopicState };
+export type Topic = { id: number; name: string; ready: number; state: TopicState };
 
 export type Word = {
   text: string;
@@ -157,9 +157,8 @@ export type ReaderText = {
   grammar: TextGrammar[];
   lines: TextLine[];
   // Missing from a server older than the shelf: the topic (a story's name for an episode), whether
-  // it's a liked theme, why it's on the shelf, and a story episode's number (0 otherwise).
+  // why it's on the shelf, and a story episode's number (0 otherwise).
   topic?: string;
-  liked?: boolean;
   reason?: ShelfReason;
   episode?: number;
   // A story episode's options for what happens next, and the index of the one picked (null until
@@ -171,8 +170,9 @@ export type ReaderText = {
   questions?: TextQuestion[];
 };
 
-// Why a text is on the shelf: written around words reviewed today, on a liked theme, an idea not
-// tried before, a topic typed in, or the ongoing story. '' for texts from before the shelf.
+// Why a text is on the shelf: a topic typed in or a surprise ('asked'), or the ongoing story. 'due',
+// 'liked' and 'new' are from when the shelf wrote ahead on its own, and are no longer written.
+// '' for texts from before the shelf.
 export type ShelfReason = 'due' | 'liked' | 'new' | 'asked' | 'story' | '';
 
 // A text waiting on the shelf, as its card shows it; its words come with api.text(id).
@@ -181,7 +181,6 @@ export type ShelfText = {
   title: string;
   topic: string;
   topic_id: number;
-  liked: boolean;
   form: Form;
   lines: number;
   stretch: string[];
@@ -219,8 +218,6 @@ export type Shelf = {
   // Shelf texts being written now (a typed topic shows here until it's ready).
   writing: { topic: string; reason: ShelfReason; form: Form }[];
   story: ShelfStory | null;
-  // The liked themes the shelf writes from (shared by every language).
-  themes: { id: number; name: string }[];
 };
 
 // 'topic': the model picks stretch words that suit the topic from a list of newer words and words
@@ -387,10 +384,8 @@ export function createApi(
 
   return {
     check: () => call<void>('GET', '/api/check'),
-    addTopic: (name: string, favorite = true) => call<Topic>('POST', '/api/topics', { name, favorite }),
+    addTopic: (name: string) => call<Topic>('POST', '/api/topics', { name }),
     suggestions: () => call<Suggestion[]>('GET', '/api/suggestions'),
-    setFavorite: (id: number, favorite: boolean) =>
-      call<Topic>('PATCH', `/api/topics/${id}`, { favorite }),
     progress: () => call<Progress>('GET', '/api/progress'),
     markedWords: () => call<MarkedWord[]>('GET', '/api/words'),
     grammar: () => call<GrammarList>('GET', '/api/grammar'),

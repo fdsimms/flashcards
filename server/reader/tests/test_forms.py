@@ -58,7 +58,7 @@ def stored_text(conn: Any, language: str = "nb", status: str = "ready") -> store
     lexicon = lexicon_from(DECK, "nb", 1000)
     coverage = check([ln.text for ln in LINES], lexicon)
     generated = Generated("t", LINES, {}, coverage, 1, True, ())
-    topic = store.add_topic(conn, "Food", True, NOW)
+    topic = store.add_topic(conn, "Food", NOW)
     text_id = store.save_text(
         conn,
         topic.id,
@@ -161,7 +161,7 @@ def test_a_text_with_no_inflected_words_costs_no_call() -> None:
     lexicon = lexicon_from(DECK, "nb", 1000)
     only = (Line("A", "Mat|og|vann.", "Food and water."),)
     generated = Generated("t", only, {}, check(["Mat|og|vann."], lexicon), 1, True, ())
-    topic = store.add_topic(conn, "Food", True, NOW)
+    topic = store.add_topic(conn, "Food", NOW)
     text_id = store.save_text(conn, topic.id, generated, [], 0.95, NOW, "ready", "dialogue", "nb")
     text = store.get_text(conn, text_id)
     assert text is not None
