@@ -70,6 +70,7 @@ import { asksOwnHook, typeItAnswer } from '../core/activeRecall';
 import { compareTyped } from '../core/typedCompare';
 import { Button, Count, Icon, Loading, Screen, Tappable } from './kit';
 import { Reveal, useReduceMotion } from './motion';
+import { ChangeRatingStrip, useRatingOffer } from './ChangeRating';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 
@@ -259,6 +260,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   const [now, setNow] = useState(() => new Date());
   const [history, setHistory] = useState<AnswerRecord[]>([]);
   const [preferId, setPreferId] = useState<string>();
+  // The strip offering to change the last answer to Again (ChangeRating.tsx), and the card it's undone for.
+  const ratingOffer = useRatingOffer();
+  const [againFor, setAgainFor] = useState<string | null>(null);
   // Set while an answer or an undo is being written. A second tap during the await would
   // otherwise act on the same card again from its old state.
   const busy = useRef(false);
@@ -568,6 +572,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
       const changed = new Map([updated, ...buried].map((c) => [c.id, c]));
       setCards((prev) => prev && prev.map((c) => changed.get(c.id) ?? c));
       lastAnswered.current = current;
+      // Hard, Good and Easy can be changed to Again from the next card for a few seconds.
+      const word = htmlToText(note.fields.Entry ?? '');
+      ratingOffer.show(rating > 1 && !preview ? { cardId: current.id, rating, interval: intervals?.[rating], ...(word ? { word } : {}) } : null);
       setPreferId(undefined);
       setRevealed(false);
       setNow(when);
@@ -579,9 +586,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     }
   };
 
-  const undo = async () => {
+  const undo = async (): Promise<boolean> => {
     const last = history[history.length - 1];
-    if (!last || busy.current) return;
+    if (!last || busy.current) return false;
     busy.current = true;
     writes.current++;
     haptic.tap();
@@ -590,8 +597,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
       // it back here alone would leave the two disagreeing. As in Anki, undo stops at the last sync.
       if (last.anki && !(await repo.undoAnkiAnswer(last.anki))) {
         setHistory([]);
+        ratingOffer.show(null);
         Alert.alert("Couldn't undo that answer", 'It has already been synced to your Anki server. Undo only goes back to the last sync.');
-        return;
+        return false;
       }
       await repo.saveCard(last.before);
       for (const s of last.buried) await repo.saveCard(s);
@@ -617,13 +625,33 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
       setPreferId(last.before.id);
       setRevealed(false);
       setNow(new Date());
+      ratingOffer.show(null);
+      return true;
     } catch (e) {
       Alert.alert("Couldn't undo that answer", failureText(e, { next: 'Try again.' }));
+      return false;
     } finally {
       busy.current = false;
       writes.current++;
     }
   };
+
+  // Change to Again: take the last answer back, then answer the same card Again once it's the current one again.
+  const changeToAgain = async () => {
+    const o = ratingOffer.offer;
+    const last = history[history.length - 1];
+    if (!o || !last || last.before.id !== o.cardId) { ratingOffer.show(null); return; }
+    if (await undo()) setAgainFor(o.cardId);
+  };
+  useEffect(() => {
+    if (!againFor || !current || current.id !== againFor || !note) return;
+    setAgainFor(null);
+    (async () => {
+      await answer(1);
+      // `lastAnswered` is set only once the answer is saved, so a failed one (which alerts) isn't confirmed.
+      if (lastAnswered.current?.id === againFor) ratingOffer.show({ cardId: againFor, rating: 1, changed: true });
+    })();
+  }, [againFor, current, note]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A session that runs past the day's start counts the new day's answers from nothing, with the
   // load balancer's days read afresh: the cards are loaded again once the clock crosses it.
@@ -1020,7 +1048,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
           />
         </Stack.Toolbar>
       }
-      footer={footer}
+      footer={<>{ratingOffer.offer && !revealed ? <ChangeRatingStrip offer={ratingOffer.offer} onChange={changeToAgain} /> : null}{footer}</>}
     >
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
