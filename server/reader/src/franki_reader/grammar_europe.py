@@ -695,7 +695,7 @@ def _nb_past(ws: list[str], i: int) -> bool:
 
 _NB_PARTICIPLE_IRREGULAR = _words(
     "vært hatt gått kommet sett fått sagt tatt blitt gjort visst villet kunnet skullet måttet",
-    "stått sittet ligget drukket spist skrevet funnet gitt sovet løpt flydd dratt holdt ledd",
+    "stått sittet ligget drukket spist skrevet funnet gitt sovet løpt flydd fløyet dratt holdt ledd",
     "sunget truffet vunnet solgt fortalt spurt lagt bodd lest",
 )
 

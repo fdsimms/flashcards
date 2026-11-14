@@ -13,11 +13,12 @@ describe('counting things in Japanese', () => {
     expect(ja.say(find('pencil'), 3).also[0]).toEqual({ text: '三本の鉛筆', roman: 'さんぼんのえんぴつ' });
   });
 
-  it('doubles the sound of 百 before a p: ひゃっぽん, ひゃっぴき, ひゃっぱい', () => {
+  it('doubles the sound of 百 before a p: ひゃっぽん, ひゃっぴき, ひゃっぱい, ひゃっこ', () => {
     expect([100, 101].map((n) => reading('pencil', n))).toEqual(['えんぴつがひゃっぽん', 'えんぴつがひゃくいっぽん']);
     expect(ja.say(find('cat'), 100).everyday.text).toBe('猫が百匹');
     expect(reading('cat', 100)).toBe('ねこがひゃっぴき');
     expect(reading('coffee', 100)).toBe('コーヒーがひゃっぱい');
+    expect(reading('apple', 100)).toBe('りんごがひゃっこ');
     expect(reading('book', 100)).toBe('ほんがひゃくさつ');
     expect(ja.wrong(find('pencil'), 100).map((p) => p.roman)).toContain('えんぴつがひゃくほん');
   });

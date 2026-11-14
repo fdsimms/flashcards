@@ -53,8 +53,8 @@ const NOUNS: { word: Word; meaning: string; counter: keyof typeof COUNTERS }[] =
 export function countWord(n: number, c: Counter): Word {
   if (c.kanji === '人' && n === 1) return ['一人', 'ひとり'];
   if (c.kanji === '人' && n === 2) return ['二人', 'ふたり'];
-  // 百 doubles its last sound before a p, as 十 does: 百本 ひゃっぽん, 百匹 ひゃっぴき, 百杯 ひゃっぱい (not ひゃくほん).
-  if (n === 100 && c.tens && /^じゅっ[ぱぴぽ]/.test(c.tens)) return [`百${c.kanji}`, `ひゃっ${c.tens.slice('じゅっ'.length)}`];
+  // 百 doubles its last sound before a p or k, as 十 does: 百本 ひゃっぽん, 百匹 ひゃっぴき, 百杯 ひゃっぱい, 百個 ひゃっこ (not ひゃくほん).
+  if (n === 100 && c.tens && /^じゅっ[ぱぴぽこ]/.test(c.tens)) return [`百${c.kanji}`, `ひゃっ${c.tens.slice('じゅっ'.length)}`];
   return counted(n, c.kanji, c.plain, c.units, c.tens);
 }
 

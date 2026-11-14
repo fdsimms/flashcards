@@ -154,6 +154,7 @@ CASES: list[tuple[Code, str, str, list[str]]] = [
     ("nb", "Jeg var hjemme og spiste; vi bodde der.", "nb.past", ["var", "spiste", "bodde"]),
     ("nb", "Jeg snakket med henne.", "nb.past", ["snakket"]),
     ("nb", "Jeg har vært der og har ikke spist.", "nb.perfect", ["har vært", "har ikke spist"]),
+    ("nb", "Vi har fløyet til Oslo.", "nb.perfect", ["har fløyet"]),
     ("nb", "Hun hadde gått.", "nb.pluperfect", ["hadde gått"]),
     ("nb", "Vi skal reise, og det kommer til å regne.", "nb.future", ["skal", "kommer til å"]),
     ("nb", "Huset blir solgt, og bilen selges.", "nb.passive", ["blir solgt", "selges"]),

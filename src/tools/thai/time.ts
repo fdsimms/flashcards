@@ -9,7 +9,7 @@ import { thaiNumber } from './numbers';
  * right; the one shown first is the one heard most.
  */
 
-const MOHNG: Word = ['โมง', 'mohng'];
+const MOHNG: Word = ['โมง', 'moong'];
 const CHAO: Word = ['เช้า', 'cháo'];
 const BAAI: Word = ['บ่าย', 'bàai'];
 const YEN: Word = ['เย็น', 'yen'];

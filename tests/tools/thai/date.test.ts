@@ -9,7 +9,7 @@ describe('a date in Thai', () => {
   it('says the weekday, the day, the month and the Buddhist year, set apart by spaces', () => {
     const s = sayThaiDate(nov12, all);
     expect(s.everyday.text).toBe('วันพฤหัสบดีที่สิบสอง พฤศจิกายน พ.ศ. สองพันห้าร้อยหกสิบเก้า');
-    expect(s.everyday.roman).toBe('wan phá-rúe-hàt-sà-bor-dii thîi sìp sǒng phrúet-sà-jì-gaa-yon phor-sǒr sǒng phan hâa rói hòk sìp gâo');
+    expect(s.everyday.roman).toBe('wan phá-rúe-hàt-sà-baaw-dii thîi sìp sǎawng phrúet-sà-jì-gaa-yon phaaw-sǎaw sǎawng phan hâa ráawy hòk sìp gâo');
     expect(s.written.text).toBe('วันพฤหัสบดีที่ 12 พฤศจิกายน พ.ศ. 2569');
   });
 

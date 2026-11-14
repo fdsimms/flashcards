@@ -55,9 +55,9 @@ export function sayNorwegianTime(t: ClockTime): TimeSaying {
   const [everyday, ...others] = forms(t);
   const withPart = { text: `${everyday.text} ${partOfDay(t.hour)}` };
   const n = norwegianNumber;
-  const hourDigits = t.hour === 0 ? 'null null' : n(t.hour);
+  const hourDigits = t.hour === 0 ? 'null null' : t.hour === 1 ? 'ett' : n(t.hour);
   const minuteDigits = t.minute < 10 ? `null ${n(t.minute)}` : n(t.minute);
-  // On the hour, one o'clock is "klokka ett", as it's said; read as digits it's "en".
-  const formal = { text: t.minute ? `${hourDigits} ${minuteDigits}` : `klokka ${t.hour === 1 ? 'ett' : hourDigits}` };
+  // One o'clock is "ett" in a formal reading too, on the hour or not (klokka ett, ett femten).
+  const formal = { text: t.minute ? `${hourDigits} ${minuteDigits}` : `klokka ${hourDigits}` };
   return { everyday, also: distinct([everyday, withPart, ...others]).slice(1), formal };
 }

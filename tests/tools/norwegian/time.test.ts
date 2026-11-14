@@ -71,7 +71,7 @@ describe('a time in Norwegian', () => {
     expect(formal(14, 5)).toBe('fjorten null fem');
     expect(formal(14)).toBe('klokka fjorten');
     expect(formal(1)).toBe('klokka ett');
-    expect(formal(1, 15)).toBe('en femten');
+    expect(formal(1, 15)).toBe('ett femten');
     expect(formal(0)).toBe('klokka null null');
     expect(formal(0, 30)).toBe('null null tretti');
     expect(formal(21, 45)).toBe('tjueen førtifem');

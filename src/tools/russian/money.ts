@@ -11,7 +11,7 @@ import { russianTranslit } from './translit';
  */
 
 const NARROW_SPACE = ' ';
-const TILL = 'As said at a till';
+const TILL = 'As said at a checkout';
 
 /** A phrase, romanized when it has Cyrillic in it (a price tag's digits don't). */
 function ru(text: string, note?: string): Phrase {
