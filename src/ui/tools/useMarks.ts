@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import type { Language } from '../../reader/api';
+import { recordExtraAnswer } from '../../tools/extrasStorage';
 import { markList, pickWeighted, recordMark } from '../../tools/marks';
 import { loadToolMarks, saveToolMarks, toolMarks } from '../../tools/storage';
 import type { ToolId } from '../../tools/tools';
@@ -15,6 +16,8 @@ export function useMarks(tool: ToolId, language: Language) {
     return {
       pick: <T>(draw: () => T, patternsOf: (item: T) => string[]): T => pickWeighted(draw, patternsOf, toolMarks()[list], Date.now()),
       mark: (patterns: string[], right: boolean) => {
+        // Every answer counts toward today's extra for this drill (Daily extras).
+        recordExtraAnswer(tool, language);
         // After the stored tallies are in, so a mark made while they load isn't overwritten by them.
         loadToolMarks().then(() => saveToolMarks(recordMark(toolMarks(), list, patterns, right, Date.now())));
       },

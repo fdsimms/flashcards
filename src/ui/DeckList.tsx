@@ -289,6 +289,8 @@ export function DeckList(props: {
    * in today's totals. `refresh` reads its counts again: on a pull, and with the sync button.
    */
   extra?: { node: React.ReactNode; due: number; fresh: number; refresh: () => Promise<unknown> };
+  /** Today's extras (DailyExtras.tsx), under the day's count. */
+  extrasStrip?: React.ReactNode;
 }) {
   const c = useTheme();
   const header = useHeaderInset();
@@ -389,6 +391,7 @@ export function DeckList(props: {
         <View {...drag.contentProps} style={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
           {/* Today's count first; what needs doing sits under it, so a few banners never push it off the screen. */}
           {groups.length || props.extra ? <TodaySummary due={totals.due} fresh={totals.fresh} studied={props.studied} /> : null}
+          {props.extrasStrip}
           {backup?.overdue ? (
             <WarningBanner title={backup.text} detail="Everything is stored only on this iPhone." action="Tap to back up now" hint="Opens Backup" onPress={props.onBackup} />
           ) : null}

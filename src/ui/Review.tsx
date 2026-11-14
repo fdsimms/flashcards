@@ -196,7 +196,7 @@ function SessionSummary({ history }: { history: AnswerRecord[] }) {
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
+export function Review({ repo, deck, practice, extraCard, suggestHints, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -204,6 +204,8 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
    * ends, it offers a text that practices the words just studied.
    */
   practice?: { languageDeck: string; onRead: (words: string[]) => Promise<void>; onUseWords?: (words: WordToUse[]) => void };
+  /** Today's extra for this deck's language (DailyExtras.tsx), shown above the next steps when the session ends. */
+  extraCard?: React.ReactNode;
   /** Present while Read & Listen is signed in: asks its server for memory hints, when a leech's hint sheet asks for them. */
   suggestHints?: (question: MnemonicQuestion) => Promise<string[]>;
   /** Present while Read & Listen is signed in: an example sentence's words can be tapped for their meanings (useCardGlosses). */
@@ -761,6 +763,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
           {history.length ? <SessionSummary history={history} /> : null}
           <SessionMissList rows={sessionMisses.rows} practicable={mixing > 0} />
           <FormsCheck items={forms.toCheck} />
+          {extraCard}
           <NextSteps steps={steps} />
           </ScrollView>
         </Reveal>

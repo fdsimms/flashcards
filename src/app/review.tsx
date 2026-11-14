@@ -5,7 +5,9 @@ import { minedNote } from '../reader/mining';
 import { languageOfDeck } from '../reader/practice';
 import type { WordToUse } from '../reader/production';
 import { useApp } from '../ui/AppContext';
+import { ExtraCard } from '../ui/DailyExtras';
 import { Review } from '../ui/Review';
+import { useDailyExtras } from '../ui/useDailyExtras';
 import type { CardGlossing } from '../ui/useCardGlosses';
 import { useWordAudio } from '../ui/useWordAudio';
 
@@ -25,6 +27,7 @@ export default function ReviewRoute() {
   // A Read & Listen language's deck: the session can end with a text practicing its words.
   // (`decks` is missing from a server older than the deck setting.)
   const language = readerSettings?.decks ? languageOfDeck(deck, readerSettings.decks) : null;
+  const extras = useDailyExtras();
   const practice = readerSettings?.decks && language ? {
     languageDeck: readerSettings.decks[language],
     onRead: async (words: string[]) => {
@@ -62,7 +65,7 @@ export default function ReviewRoute() {
   const earlierDeck = nextDeck ? undefined : earlierDeckToStudy(decks, collapse.collapsed, deck);
   return (
     <Review
-      repo={repo} deck={deck} practice={practice} glossing={glossing} suggestHints={readerApi ? (q) => readerApi.mnemonics(q) : undefined} reloadKey={reloadKey} onDone={() => router.back()} onEditNote={openNoteEditor}
+      repo={repo} deck={deck} practice={practice} extraCard={language ? <ExtraCard extras={extras} language={language} /> : undefined} glossing={glossing} suggestHints={readerApi ? (q) => readerApi.mnemonics(q) : undefined} reloadKey={reloadKey} onDone={() => router.back()} onEditNote={openNoteEditor}
       nextDeck={nextDeck?.split('::').pop()}
       onNextDeck={nextDeck ? () => router.replace({ pathname: '/review', params: { deck: nextDeck } }) : undefined}
       earlierDeck={earlierDeck?.split('::').pop()}
