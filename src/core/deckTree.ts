@@ -1,10 +1,11 @@
 import { NEW_PER_DAY, REVIEWS_PER_DAY } from './config';
 import { nextStudyDayStart, studyDayKey } from './day';
-import { ankiToday, DEFAULT_ORDER, gatherNew, inFilteredOrder, mix, sortNew, sortReviews, type SortContext } from './order';
+import { ankiToday, DEFAULT_ORDER, gatherNew, inFilteredOrder, mix, REVIEW, sortNew, sortReviews, type SortContext } from './order';
 import { boostCap, type Boost } from './priority';
 import { isInProgress } from './progress';
 import { isBuried, isDue, isInterdayLearning, isLearning, studiable, type Queue, type StudiedToday } from './queue';
 import { paramsForDeck } from './scheduler';
+import { scaleLimits, vacationPlan, type VacationPlan, type VacationPrefs } from './vacation';
 import type { BurySettings, Card, CollectionSettings, DeckParams, DeckSettings, Note, StudyOrder } from './types';
 
 /**
@@ -122,6 +123,8 @@ export interface TreeQueueInput {
   held?: Set<string>;
   /** Tagged cards that come first when `root` is studied (`boostFor`, priority.ts). */
   boostFor?: (root: string) => Boost | undefined;
+  /** Vacation mode, resolved (`vacationPlan`): paused shows nothing, weakest first overrides the review order. The limits are scaled in `queueInput`. */
+  vacation?: VacationPlan;
 }
 
 const dueMs = (c: Card) => new Date(c.sched.due).getTime();
@@ -188,6 +191,7 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const h = input.dayStartsAtHour;
   const cap = !input.newCardsIgnoreReviewLimit;
   const paramsFor = input.paramsFor ?? (() => undefined);
+  if (input.vacation?.paused) return { due: [], fresh: [], order: [] };
 
   // ---- the limit tree ----
   const top = input.applyAllParentLimits ? deckLineage(root)[0] : root;
@@ -240,7 +244,9 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   // ---- gathering ----
   const rootFiltered = paramsFor(root)?.filtered;
   // A filtered deck keeps its own order: Anki builds it with no sort, by its cards' places in it.
-  const order: StudyOrder = rootFiltered ? { ...DEFAULT_ORDER, newSortOrder: 1 } : paramsFor(root)?.order ?? DEFAULT_ORDER;
+  const ownOrder: StudyOrder = rootFiltered ? { ...DEFAULT_ORDER, newSortOrder: 1 } : paramsFor(root)?.order ?? DEFAULT_ORDER;
+  // Vacation mode's weakest-first order, but never over a filtered deck's own place order.
+  const order: StudyOrder = input.vacation?.weakestFirst && !rootFiltered ? { ...ownOrder, reviewOrder: REVIEW.relativeOverdueness } : ownOrder;
   const homeDeckOf = input.homeDeckOf ?? ((c: Card) => deckOfCard.get(c.id)!);
   const ctx: SortContext = {
     now, dayStartsAtHour: h, ankiToday: input.ankiToday, deckOf: (c) => deckOfCard.get(c.id)!, noteOf: (c) => c.noteId,
@@ -319,12 +325,19 @@ export function queueInput(a: {
   held?: Set<string>;
   /** Tagged cards first (`boostFor`). */
   boostFor?: (root: string) => Boost | undefined;
+  /** Vacation mode's setting (`VacationPrefs`), resolved here so the deck list and the review screen both apply it. */
+  vacation?: VacationPrefs;
 }): TreeQueueInput {
   const deckOfNote = new Map([...a.notes].map((n) => [n.id, n.deck]));
   const todayKey = studyDayKey(a.now, a.collection.dayStartsAtHour);
+  const vacation = vacationPlan(a.vacation, a.cards, a.now, a.collection.dayStartsAtHour);
   return {
     cardsByDeck: groupByDeck(a.cards, deckOfNote),
-    limitsFor: (d) => deckLimits(paramsForDeck(d, a.params), { newPerDay: NEW_PER_DAY, reviewsPerDay: REVIEWS_PER_DAY }, todayKey),
+    limitsFor: (d) => {
+      const p = paramsForDeck(d, a.params);
+      const limits = deckLimits(p, { newPerDay: NEW_PER_DAY, reviewsPerDay: REVIEWS_PER_DAY }, todayKey);
+      return scaleLimits(limits, vacation, { new: p?.newLimitToday?.day === todayKey, review: p?.reviewLimitToday?.day === todayKey });
+    },
     paramsFor: (d) => paramsForDeck(d, a.params),
     homeDeckOf: (c) => cardHomeDeck(c, deckOfNote.get(c.noteId) ?? 'Imported'),
     studiedByDeck: a.studied,
@@ -337,6 +350,7 @@ export function queueInput(a: {
     now: a.now,
     held: a.held,
     boostFor: a.boostFor,
+    vacation,
   };
 }
 

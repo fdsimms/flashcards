@@ -20,7 +20,7 @@ export const DEFAULT_ORDER: StudyOrder = { newMix: 0, interdayLearningMix: 0, ne
 const MIX = { withReviews: 0, afterReviews: 1, beforeReviews: 2 } as const;
 const NEW_SORT = { template: 0, noSort: 1, templateThenRandom: 2, randomNoteThenTemplate: 3, randomCard: 4 } as const;
 const GATHER = { deck: 0, lowestPosition: 1, highestPosition: 2, randomNotes: 3, randomCards: 4, deckThenRandomNotes: 5 } as const;
-const REVIEW = {
+export const REVIEW = {
   day: 0, dayThenDeck: 1, deckThenDay: 2, intervalsAscending: 3, intervalsDescending: 4, easeAscending: 5, easeDescending: 6,
   retrievabilityAscending: 7, random: 8, added: 9, reverseAdded: 10, retrievabilityDescending: 11, relativeOverdueness: 12,
 } as const;

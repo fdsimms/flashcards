@@ -36,6 +36,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardWebView } from './CardWebView';
 import { Side } from './CardSide';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
+import { useVacationPrefs } from './vacationPrefs';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
 import { wordsToUse, type WordToUse } from '../reader/production';
@@ -312,13 +313,14 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   const forms = useReviewForms(repo, { cards, notes, deckSettings, now, dayStartsAtHour: H });
   // The reasons chosen on Again, and the "Last time" reminder they bring back (src/core/misses.ts).
   const misses = useMissMarks(repo);
+  const vacation = useVacationPrefs();
   const deckOf = useMemo(() => new Map([...notes.values()].map((n) => [n.id, n.deck])), [notes]);
   const queue = useMemo(() => {
     if (!cards) return null;
     return treeQueue(deck, queueInput({
-      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, collection, now, held: forms.held, boostFor: boostFor({ notes: notes.values(), settings: deckSettings, now }),
+      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, collection, now, held: forms.held, vacation, boostFor: boostFor({ notes: notes.values(), settings: deckSettings, now }),
     }));
-  }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held]);
+  }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held, vacation]);
 
   const current = queue ? currentCard(queue, preferId) : undefined;
   const note = current ? notes.get(current.noteId) : undefined;
