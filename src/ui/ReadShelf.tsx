@@ -10,6 +10,7 @@ import { Button, Card, Divider, ErrorNote, Field, Group, HeaderAction, Help, Ico
 import { PracticeWordPill } from './PracticeWordPill';
 import { ReadRecap } from './ReadRecap';
 import { GlossPopover, type Tapped } from './Reader';
+import { SkeletonList } from './Skeleton';
 import { MIN_TAP, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
@@ -202,7 +203,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
 
         {error ? <ErrorNote message={error} onRetry={refresh} /> : null}
         {actionError ? <ErrorNote message={actionError} /> : null}
-        {!shelf && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+        {!shelf && !error ? <SkeletonList /> : null}
 
         {shelf ? (
           <>
