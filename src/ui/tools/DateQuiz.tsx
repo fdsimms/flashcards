@@ -119,7 +119,7 @@ export function useDateQuiz({ mode, language, date, parts, saying, sayer, speak,
     speak(saying.everyday);
   };
 
-  const randomize = { label: 'Randomize', onPress: next };
+  const randomize = { label: 'Another one', onPress: next };
   const showAnswer = { label: 'Show answer', onPress: reveal };
   let actions: ToolActions | undefined;
   if (mode === 'type') {

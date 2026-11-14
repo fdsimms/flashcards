@@ -7,7 +7,7 @@ import { useApp } from './AppContext';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { Reveal } from './motion';
-import { lift, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
 
 /**
  * The shelf's card while the language's deck has reviews due (`reviewFirst`): a word due today and
@@ -28,7 +28,7 @@ export function ReadReviewFirst({ language, onReview }: { language: Language; on
         accessibilityLabel={`${due.message}. ${due.hint}`}
         style={{
           flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 56, paddingVertical: space.m, paddingHorizontal: space.l,
-          borderRadius: radius.l, ...smooth, backgroundColor: c.surface, borderColor: c.border, borderWidth: 0.5, ...lift(c, 'high'),
+          borderRadius: radius.l, ...smooth, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, ...lift(c, 'high'),
         }}
       >
         <Icon name="rectangle.stack" size={22} color={c.countDue} />

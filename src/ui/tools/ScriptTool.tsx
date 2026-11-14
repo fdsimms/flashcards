@@ -78,7 +78,7 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
   };
 
   let actions: ToolActions | undefined;
-  if (mode === 'tone') actions = pick ? { primary: { label: 'Next', onPress: next } } : { secondary: { label: 'Randomize', onPress: next }, primary: { label: 'Show answer', onPress: () => chooseTone(null) } };
+  if (mode === 'tone') actions = pick ? { primary: { label: 'Next', onPress: next } } : { secondary: { label: 'Another one', onPress: next }, primary: { label: 'Show answer', onPress: () => chooseTone(null) } };
   else if (answer.missed) actions = nextOnly(next);
 
   return (
@@ -117,7 +117,7 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
                   </View>
                   <PlayButton label={`Play ${word.shown}`} onPress={() => spoken && answer.speak(spoken)} />
                 </View>
-                <View style={{ gap: space.s, borderTopWidth: 0.5, borderTopColor: c.border, paddingTop: space.m }}>
+                <View style={{ gap: space.s, borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.m }}>
                   <Text style={{ ...type.overline, color: c.textSecondary }}>How to tell</Text>
                   {toneSteps(syllable).map((step) => <Text key={step} style={{ ...type.subhead, color: c.text }}>{step}</Text>)}
                 </View>
