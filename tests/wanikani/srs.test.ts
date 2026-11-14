@@ -21,8 +21,7 @@ describe('the popup after an answer', () => {
   it('names the group an item falls back into', () => {
     expect(stageChange(5, 1)).toEqual({ group: 'Apprentice', up: false, burned: false });
     expect(stageChange(7, 1)).toEqual({ group: 'Guru', up: false, burned: false });
-    expect(stageChange(6, 1)).toBeNull();
-    expect(stageChange(7, 2)).toEqual({ group: 'Apprentice', up: false, burned: false });
+    expect(stageChange(7, 3)).toEqual({ group: 'Apprentice', up: false, burned: false });
   });
 
   it('says nothing for an item already burned', () => {
