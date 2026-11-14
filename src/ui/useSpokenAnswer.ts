@@ -48,6 +48,10 @@ export function useSpokenAnswer(speechTag: string | undefined, opts: {
   latest.current = opts;
   // A stop that comes while permission is still being asked (a hold let go at once): start doesn't go on.
   const stopAsked = useRef(false);
+  // Permission is being asked: a second tap in that wait would start the recognizer twice (`listening` is still false).
+  const starting = useRef(false);
+  // Cancelled on purpose (the card changed): a result that still arrives belongs to the old card, so it's dropped.
+  const cancelled = useRef(false);
 
   useEffect(() => {
     let live = true;
@@ -64,8 +68,8 @@ export function useSpokenAnswer(speechTag: string | undefined, opts: {
 
   const mine = () => owner === id.current;
   useSpeechRecognitionEvent('result', (e) => {
-    if (!mine()) return;
-    const guesses = e.results.map((r) => r.transcript);
+    if (!mine() || cancelled.current) return;
+    const guesses =e.results.map((r) => r.transcript);
     latest.current.onHeard(e.isFinal ? bestHeard(guesses, latest.current.expected) : guesses[0]?.trim() ?? '', e.isFinal);
   });
   useSpeechRecognitionEvent('error', (e) => {
@@ -79,14 +83,28 @@ export function useSpokenAnswer(speechTag: string | undefined, opts: {
     setListening(false);
     setAudioModeAsync({ ...PLAYBACK, ...latest.current.mode }).catch(() => undefined);
   });
-  // Leaving the screen mid-sentence stops the recognizer it started.
-  useEffect(() => () => { if (owner === id.current) { owner = 0; ExpoSpeechRecognitionModule.abort(); } }, []);
+  // Leaving the screen mid-sentence stops the recognizer it started. This hook's 'end' listener is gone
+  // by then, so the audio session is put back here: left allowing recording, it holds Bluetooth
+  // headphones in call quality.
+  useEffect(() => () => {
+    if (owner !== id.current) return;
+    owner = 0;
+    ExpoSpeechRecognitionModule.abort();
+    setAudioModeAsync({ ...PLAYBACK, ...latest.current.mode }).catch(() => undefined);
+  }, []);
 
   const start = useCallback(async () => {
-    if (!locale || listening) return;
+    if (!locale || listening || starting.current) return;
+    starting.current = true;
     stopAsked.current = false;
+    cancelled.current = false;
     setProblem(null);
-    const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync().catch(() => null);
+    let permission: { granted: boolean } | null;
+    try {
+      permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync().catch(() => null);
+    } finally {
+      starting.current = false;
+    }
     if (!permission?.granted) {
       setProblem(speakingErrorText('not-allowed') ?? null);
       return;
@@ -108,7 +126,7 @@ export function useSpokenAnswer(speechTag: string | undefined, opts: {
   }, [locale, listening]);
 
   const stop = useCallback(() => { stopAsked.current = true; if (mine()) ExpoSpeechRecognitionModule.stop(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const cancel = useCallback(() => { stopAsked.current = true; if (mine()) ExpoSpeechRecognitionModule.abort(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const cancel = useCallback(() => { stopAsked.current = true; cancelled.current = true; if (mine()) ExpoSpeechRecognitionModule.abort(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { available: on && !!locale, listening, problem, start, stop, cancel, clearProblem: () => setProblem(null) };
 }

@@ -55,6 +55,7 @@ import { AgainSplit, MissReminder } from './MissMarks';
 import { useMissMarks } from './useMissMarks';
 import { OwnHookField, TypeItButton, useOwnHook } from './ReviewActive';
 import { ListeningNote, SpeakButton } from './SpeakButton';
+import { spokenAnswerNote } from '../core/speaking';
 import { useSpeakingOn, useSpokenAnswer } from './useSpokenAnswer';
 import { ScoreTake } from './ScoreTake';
 import { mixupLanguage } from '../tools/mixups';
@@ -765,7 +766,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   const extras = revealed ? (
     <>
       {typing && typeItWord ? <TypedDiff comparison={compareTyped(typeItWord, typed)} showExpected={false} lang={rendered?.speechLang} typedLabel={spokenIn ? 'You said' : 'Yours'} /> : null}
-      {typing && typeItWord && spokenIn ? <Text style={{ ...type.footnote, color: c.textSecondary }}>The phone hears what you say, not how you say it. Rate it as you would any answer.</Text> : null}
+      {typing && typeItWord && spokenIn ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{spokenAnswerNote(rendered?.speechLang)}</Text> : null}
       <AnswerExtras
         word={headword(note)}
         offer={forms.offerView(goodFrom)}
