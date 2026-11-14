@@ -225,7 +225,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
           ) : (
             <Field
               key={index}
-              label="Your answer"
+              label={prompt.typeHint ? `Type ${prompt.typeHint}` : 'Your answer'}
               value={current ? current.given : typed}
               onChangeText={setTyped}
               editable={!current}
@@ -251,10 +251,36 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
 function Question({ prompt, reveal }: { prompt: FormPrompt; reveal?: string }) {
   const c = useTheme();
   const asked = [prompt.group, prompt.label].filter(Boolean).join(' · ');
+  // The meaning is hidden until asked for: it can give the word away. The question is remounted for each prompt, so it hides again.
+  const [showMeaning, setShowMeaning] = useState(false);
   return (
     <View style={{ alignItems: 'center', gap: space.s }}>
-      <Text style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>{prompt.headword}</Text>
-      {prompt.meaning ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{prompt.meaning}</Text> : null}
+      {prompt.gap ? (
+        <Text
+          accessibilityLabel={`${reveal ? reveal : 'blank'} ${prompt.headword}`}
+          style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}
+        >
+          <Text style={{ color: c.accent, textDecorationLine: 'underline' }}>{reveal ?? '___'}</Text>
+          {` ${prompt.headword}`}
+        </Text>
+      ) : (
+        <Text style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>{prompt.headword}</Text>
+      )}
+      {prompt.meaning ? (
+        showMeaning ? (
+          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{prompt.meaning}</Text>
+        ) : (
+          <Tappable
+            onPress={() => { haptic.select(); setShowMeaning(true); }}
+            accessibilityRole="button"
+            accessibilityLabel="Show meaning"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: MIN_TAP, paddingHorizontal: space.m }}
+          >
+            <Icon name="eye" size={16} color={c.textSecondary} />
+            <Text style={{ ...type.subhead, color: c.textSecondary }}>Show meaning</Text>
+          </Tappable>
+        )
+      ) : null}
       <View style={{ paddingHorizontal: space.m, paddingVertical: space.xs, borderRadius: radius.pill, backgroundColor: c.fill }}>
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{asked}</Text>
       </View>
