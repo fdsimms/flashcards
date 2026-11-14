@@ -729,7 +729,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
             onPress={() => practice?.onUseWords?.(newWords)}
           />
         ) : null}
-        {onNextDeck ? <Button label={`Study ${nextDeck}`} variant={reading || checking || mixing ? 'secondary' : 'primary'} onPress={onNextDeck} /> : null}
+        {onNextDeck ? <Button label={`Next up: study ${nextDeck}`} variant={reading || checking || mixing ? 'secondary' : 'primary'} onPress={onNextDeck} /> : null}
         {onEarlierDeck ? <Button label={`Back to the top: ${earlierDeck}`} variant={reading || checking || mixing ? 'secondary' : 'primary'} onPress={onEarlierDeck} /> : null}
         {/* An Anki filtered deck has no limits or cards of its own to add to. */}
         {paramsForDeck(deck, allParams)?.filtered ? null : <Button label="Custom study" variant="secondary" onPress={onCustomStudy} />}
