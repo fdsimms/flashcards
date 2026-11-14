@@ -38,6 +38,7 @@ import { Side } from './CardSide';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
+import { wordsToUse, type WordToUse } from '../reader/production';
 import { headword, type DrillRequest } from '../core/forms';
 import { AnswerExtras, FormsCheck, useReviewForms } from './ReviewForms';
 import { haptic } from './haptics';
@@ -190,7 +191,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
    * Present when the deck is a Read & Listen language's (src/reader/practice.ts): once the session
    * ends, it offers a text that practices the words just studied.
    */
-  practice?: { languageDeck: string; onRead: (words: string[]) => Promise<void> };
+  practice?: { languageDeck: string; onRead: (words: string[]) => Promise<void>; onUseWords?: (words: WordToUse[]) => void };
   /** Present while Read & Listen is signed in: asks its server for memory hints, when a leech's hint sheet asks for them. */
   suggestHints?: (question: MnemonicQuestion) => Promise<string[]>;
   /** Present while Read & Listen is signed in: an example sentence's words can be tapped for their meanings (useCardGlosses). */
@@ -662,6 +663,16 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     const minutes = waitingFor ? Math.max(1, Math.ceil((waitingFor.getTime() - Date.now()) / 60000) - collection.learnAheadMinutes) : 0;
     const studiedWords = practice ? practiceWords(history.map((h) => ({ noteId: h.before.noteId, deck: h.deck })), notes, practice.languageDeck) : [];
     const reading = !!(studiedWords.length && practice);
+    // Use today's words (reader/production.ts): the language's notes answered while new, to write a sentence with.
+    const newWords = practice?.onUseWords ? wordsToUse(
+      history.map((h) => ({ noteId: h.before.noteId, wasNew: h.before.sched.state === 0 })),
+      (id) => {
+        const n = notes.get(id);
+        return n && isOmnilanguage(n) && isInDeck(n.deck, practice.languageDeck)
+          ? { word: headword(n), meaning: htmlToText(n.fields.Meaning ?? '').replace(/\s+/g, ' ').trim() }
+          : undefined;
+      },
+    ) : [];
     const checking = forms.toCheck.length;
     const mixing = sessionMisses.practice.length;
     const footer = (
@@ -679,6 +690,13 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
           <Button
             label="Read a text with these words" variant={checking || mixing ? 'secondary' : 'primary'} busy={openingText}
             onPress={() => { setOpeningText(true); practice!.onRead(studiedWords).finally(() => setOpeningText(false)); }}
+          />
+        ) : null}
+        {newWords.length ? (
+          <Button
+            label={newWords.length === 1 ? 'Write a sentence with the new word' : `Write sentences with the ${newWords.length} new words`}
+            variant="secondary"
+            onPress={() => practice?.onUseWords?.(newWords)}
           />
         ) : null}
         {onNextDeck ? <Button label={`Study ${nextDeck}`} variant={reading || checking || mixing ? 'secondary' : 'primary'} onPress={onNextDeck} /> : null}

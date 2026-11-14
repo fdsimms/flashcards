@@ -143,6 +143,21 @@ marked words, ideas) is in the current language, the `language` setting.
                                       Claude: {verdict, reason, alternative}, verdict one of
                                       natural, stiff, unusual. Asked on the owner's tap and kept
                                       per line
+    POST  /api/production/check       {kind, language, attempt, word?, meaning?, english?, reference?}
+                                      the owner's own writing checked by Claude (production.py):
+                                      a sentence with `word` (kind "sentence") or their way of
+                                      saying `english` (kind "translate", `reference` the sentence
+                                      written for it): {verdict, corrected, english, notes,
+                                      used_word}, verdict one of right, almost, wrong. Asked on the
+                                      owner's tap, never kept
+    POST  /api/texts/{id}/retell      {attempt} the owner's retelling of the text, checked the same
+                                      way, plus {words: [{word, english, line}], left_out}: words
+                                      from the text it could have used, and what it left out
+    POST  /api/sentences              {language, count?} sentences to say (sentences.py), one a
+                                      word, reviewed-today words first: {sentences: [{id, word,
+                                      meaning, sentence, english, reviewed_today}], writing}. More
+                                      are written in the background; never a word waiting for its
+                                      review
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
                                       memory hints for a word the owner keeps forgetting: {hints: [...]}
     POST  /api/glosses                {language, sentences: [{text, english?}]} cards' example
@@ -177,6 +192,8 @@ from franki_reader import (
     grammar,
     meanings,
     note_queue,
+    production,
+    sentences,
     store,
     timing,
     vocab_check,
@@ -224,6 +241,8 @@ from franki_reader.reader import (
     render_sentence,
 )
 from franki_reader.store import Length, Reading, Settings, StoredText, StretchWords, Topic
+from franki_reader.stretch import reviewed_words
+from franki_reader.stretch import waiting as waiting_for_review
 from franki_reader.study_day import DEFAULT_ROLLOVER
 from franki_reader.suggestions import suggest
 from franki_reader.tts import AudioCache, Speech, azure_synthesize, azure_usd, billed_chars
@@ -310,6 +329,25 @@ class GlossSentence(BaseModel):
 class GlossesIn(BaseModel):
     language: Code
     sentences: list[GlossSentence] = Field(max_length=MAX_GLOSS_SENTENCES)
+
+
+class AttemptIn(BaseModel):
+    kind: production.Kind
+    language: Code
+    attempt: str = Field(min_length=1, max_length=production.MAX_ATTEMPT)
+    word: str = Field(default="", max_length=200)
+    meaning: str = Field(default="", max_length=300)
+    english: str = Field(default="", max_length=500)
+    reference: str = Field(default="", max_length=500)
+
+
+class RetellIn(BaseModel):
+    attempt: str = Field(min_length=1, max_length=production.MAX_ATTEMPT)
+
+
+class SentencesIn(BaseModel):
+    language: Code
+    count: int = Field(default=10, ge=1, le=20)
 
 
 class DrillsIn(BaseModel):
@@ -439,6 +477,9 @@ def create_app(
     write_vocab: vocab_check.WriteVocab | None = None,
     write_notes: note_queue.WriteNotes | None = None,
     check_natural: CheckNatural | None = None,
+    check_attempt: production.CheckAttempt | None = None,
+    check_retell: production.CheckRetell | None = None,
+    write_sentences: sentences.WriteSentences | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
     # Points whose drill questions are being written, shared by every request (drills.top_up).
@@ -450,6 +491,8 @@ def create_app(
     # Whether the note queue is being filled in, so a poll or a second Quick add doesn't start a
     # second pass (the running one picks up whatever was added meanwhile).
     queue_filling: list[bool] = [False]
+    # Languages whose sentences are being written (sentences.top_up).
+    sentences_writing: set[Code] = set()
 
     def keep_failed_cost(feature: store.CallFeature, language: Code, used: Usage) -> None:
         """What a call that failed after Claude answered cost: no answer is kept to carry it, so
@@ -907,6 +950,99 @@ def create_app(
         )
         return Response(mp3, media_type="audio/mpeg")
 
+    no_claude = (
+        "Claude isn't set up on the server, so it can't check your writing"
+        " (ANTHROPIC_API_KEY in server/.env turns this on)."
+    )
+
+    @app.post("/api/production/check", dependencies=authed)
+    async def check_attempt_route(body: AttemptIn) -> dict[str, Any]:
+        """Never writes to Anki or grades a card: it only answers."""
+        if check_attempt is None:
+            raise HTTPException(503, no_claude)
+        if body.kind == "sentence" and not body.word.strip():
+            raise HTTPException(422, "A sentence is checked for a word: send `word`.")
+        if body.kind == "translate" and not body.english.strip():
+            raise HTTPException(422, "A translation is checked against `english`: send it.")
+        request = production.AttemptRequest(
+            body.language,
+            body.kind,
+            body.attempt.strip(),
+            body.word.strip(),
+            body.meaning.strip(),
+            body.english.strip(),
+            body.reference.strip(),
+        )
+        try:
+            answer, used = await check_attempt(request)
+        except production.ProductionFailed as e:
+            keep_failed_cost("production", body.language, e.usage)
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(
+            engine.conn, "production", body.language, engine.clock(), used.cost_usd()
+        )
+        return answer
+
+    @app.post("/api/texts/{text_id}/retell", dependencies=authed)
+    async def retell(text_id: int, body: RetellIn) -> dict[str, Any]:
+        text = store.get_text(engine.conn, text_id)
+        if text is None:
+            raise HTTPException(404, "No such text.")
+        if check_retell is None:
+            raise HTTPException(503, no_claude)
+        spaced = LANGUAGES[text.language].spaced
+        lines = tuple((parse_line(ln.text, spaced)[0], ln.english) for ln in text.lines)
+        try:
+            answer, used = await check_retell(
+                production.RetellRequest(text.language, body.attempt.strip(), lines)
+            )
+        except production.ProductionFailed as e:
+            keep_failed_cost("production", text.language, e.usage)
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(
+            engine.conn, "production", text.language, engine.clock(), used.cost_usd()
+        )
+        return answer
+
+    async def top_up_sentences(language: Code, words: list[Entry]) -> None:
+        if write_sentences is None:
+            return
+        await engine.refresh_lexicon(language)
+        entries, full = engine.snapshot(language)
+        days = engine.snapshot_days(language)
+        held = frozenset(
+            e.text
+            for e in entries
+            if e.tier != "unreviewed"
+            and waiting_for_review(e, days)
+            and e.text not in {w.text for w in words}
+        )
+        await sentences.top_up(
+            engine.conn,
+            language,
+            words,
+            lambda code, keep: engine.writing_lexicon(code, keep),
+            full,
+            held,
+            write_sentences,
+            engine.clock,
+            sentences_writing,
+        )
+
+    @app.post("/api/sentences", dependencies=authed)
+    async def sentences_route(body: SentencesIn, background: BackgroundTasks) -> dict[str, Any]:
+        """Never writes to Anki or grades a card: it only reads the snapshot of the deck."""
+        entries, _ = engine.snapshot(body.language)
+        days = engine.snapshot_days(body.language)
+        words = sentences.candidates(entries, days, engine.rng)
+        reviewed = frozenset(e.text for e in reviewed_words(entries, days))
+        served = sentences.serve(
+            engine.conn, body.language, words, body.count, engine.clock(), reviewed
+        )
+        background.add_task(top_up_sentences, body.language, words)
+        return {"sentences": served, "writing": write_sentences is not None}
+
     @app.post("/api/mnemonics", dependencies=authed)
     async def make_mnemonics(body: MnemonicIn) -> dict[str, list[str]]:
         if mnemonics is None:
@@ -1022,6 +1158,8 @@ def create_app(
         hinted = store.mnemonic_spending(engine.conn, since)
         questioned = store.question_spending(engine.conn, since)
         formed = store.form_spending(engine.conn, since)
+        produced = store.production_spending(engine.conn, since)
+        sentenced = store.sentence_spending(engine.conn, since)
         recorded, recorded_chars = store.recording_spending(engine.conn, since)
         rows = by_language.values()
         total = store.Spending(
@@ -1154,6 +1292,35 @@ def create_app(
                         "cost_usd": round(c, 4),
                     }
                     for code, (n, c) in formed.items()
+                ],
+            },
+            # The owner's own writing checked (production.py): Use today's words, Check mine and
+            # Retell it, one call each, failed calls included.
+            "production": {
+                "asked": sum(n for n, _ in produced.values()),
+                "cost_usd": round(sum(c for _, c in produced.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "asked": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in produced.items()
+                ],
+            },
+            # Sentences to say, written a batch at a time (sentences.py).
+            "sentences": {
+                "batches": sum(n for n, _ in sentenced.values()),
+                "cost_usd": round(sum(c for _, c in sentenced.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "batches": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in sentenced.items()
                 ],
             },
             # Cards recorded by an Azure voice in the app (POST /api/speech): Azure's alone, an
@@ -1617,6 +1784,9 @@ def production_app() -> FastAPI:
     explain: Explain | None = None
     explain_phrase: ExplainPhrase | None = None
     check_natural: CheckNatural | None = None
+    check_attempt: production.CheckAttempt | None = None
+    check_retell: production.CheckRetell | None = None
+    write_sentences: sentences.WriteSentences | None = None
     write_drills: drills.WriteDrills | None = None
     write_vocab: vocab_check.WriteVocab | None = None
     write_notes: note_queue.WriteNotes | None = None
@@ -1629,6 +1799,9 @@ def production_app() -> FastAPI:
         explain = claude_explain(client)
         explain_phrase = claude_explain_phrase(client)
         check_natural = claude_check(client)
+        check_attempt = production.claude_attempt(client)
+        check_retell = production.claude_retell(client)
+        write_sentences = sentences.claude_sentences(client)
         write_drills = drills.claude_drills(client)
         write_vocab = vocab_check.claude_vocab(client)
         write_notes = note_queue.claude_notes(client)
@@ -1700,4 +1873,7 @@ def production_app() -> FastAPI:
         write_vocab=write_vocab,
         write_notes=write_notes,
         check_natural=check_natural,
+        check_attempt=check_attempt,
+        check_retell=check_retell,
+        write_sentences=write_sentences,
     )

@@ -159,7 +159,7 @@ src/reader   Read & Listen's side of the app: its server's API, the reading sess
              tested; storage.ts keeps the passphrase in the Keychain)
 src/wanikani WaniKani as a deck: its API, the study session (undo holds the latest answer), answer
              checking, kana input, production notes (pure, tested; storage.ts keeps the token in the Keychain)
-src/tools    the Practice tab's tools (words you mix up, time, dates, money, numbers, counting, script, grammar): the list (tools.ts), each tool's logic, and each
+src/tools    the Practice tab's tools (words you mix up, sentences, time, dates, money, numbers, counting, script, grammar): the list (tools.ts), each tool's logic, and each
              language's under its own folder (thai/, spanish/...); pure, tested, except storage.ts. A tool
              comes in every app language unless it doesn't apply, and never schedules or writes a card
              (tests/tools/noGrading.test.ts). It may check an answer, or take Missed it / Got it, and keep only a
@@ -312,9 +312,10 @@ answer is already in the server's history (`undoAnkiAnswer` refuses it, under `l
 
 **Producing an answer is practice, never a rating.** Type it on a reverse card and the hook asked
 on a new word's first answer (`src/core/activeRecall.ts`), Words you mix up (`src/tools/mixups.ts`)
-and Read & Listen's Say it back and Write what you hear compare what was typed
-(`src/core/typedCompare.ts`) but leave the rating to the learner: nothing feeds FSRS but the
-answer button pressed.
+Read & Listen's Say it back and Write what you hear, and what Claude checks (Use today's words,
+Sentences, Retell it: `server/reader/.../production.py`) compare what was typed
+(`src/core/typedCompare.ts`) or correct it, but leave the rating to the learner: nothing feeds FSRS
+but the answer button pressed.
 
 **A miss reason is a reminder, never an input to scheduling.** Again's menu (`src/core/misses.ts`)
 saves what went wrong in the answer's own review row (`ReviewLogEntry.miss`), which is why undo

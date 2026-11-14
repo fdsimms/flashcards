@@ -66,7 +66,7 @@ import type { ClockTime, TimeSaying } from './time';
 /** The languages the tools come in: every app language but English, which the app is already in. */
 export const TOOL_LANGUAGES: Language[] = LANGUAGE_ORDER.filter((l) => l !== 'en');
 
-export type ToolId = 'mixups' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'grammar';
+export type ToolId = 'mixups' | 'sentences' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'grammar';
 
 export interface ToolInfo {
   id: ToolId;
@@ -171,6 +171,14 @@ export const TOOLS: ToolInfo[] = [
     id: 'mixups',
     title: 'Words you mix up',
     summary: 'Tell apart look-alikes and sound-alikes from your decks.',
+    languages: TOOL_LANGUAGES,
+  },
+  {
+    // English sentences around words reviewed today or young, to say in the language (server/reader
+    // sentences.py). Needs Read & Listen's server; the Practice list says so while it's off.
+    id: 'sentences',
+    title: 'Sentences',
+    summary: "Say a sentence with a word you've just reviewed, then compare.",
     languages: TOOL_LANGUAGES,
   },
   {

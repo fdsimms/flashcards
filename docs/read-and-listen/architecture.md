@@ -205,6 +205,39 @@ Franki's (Client, below).
   they have one next time. Until then, offline, or with Read & Listen off, the sentence shows as
   before. Tapping a word grades nothing.
 
+## Using the language
+
+Decided 14 November 2026, the owner choosing from a mock (active learning, phase 2). Reading and
+listening consolidate words; these make the owner produce them, which retrieval research says
+teaches more (brief, Evidence base). **Nothing here grades FSRS or writes a note**, and Claude's
+answers aren't kept.
+
+- **One check for the owner's own writing** (`production.py`, `POST /api/production/check`): a
+  sentence with a word (`kind: "sentence"`, which also says whether the word was used) or their own
+  way of saying a Sentences prompt (`kind: "translate"`, the stored sentence sent as a reference that
+  theirs needn't match). Claude gives a verdict (right, almost, wrong), their writing with only the
+  mistakes fixed (theirs as written when right), its English and up to three notes. One call per tap,
+  `effort: low`; the cost is `production` in `/api/costs`, failed calls included. The app draws the
+  correction against what was typed with Review's own comparison (`src/core/typedCompare.ts`).
+- **Use today's words** (`src/ui/ReadUseWords.tsx`, the `read-use-words` route): offered at the end
+  of a review session of a language's deck while Read & Listen is on, with the notes answered while
+  new in it (`wordsToUse`), one at a time, to write a sentence with. Placed after the session rather
+  than on the answer side (the owner's choice): it doesn't slow reviewing, and recalling the word a
+  few minutes later is the better practice.
+- **Retell it** (`POST /api/texts/{id}/retell`, `src/ui/ReadRetell.tsx`): the third row of the end
+  view's "Use the lines yourself". The same check, with the text's lines and English sent, plus up to
+  four words from the text the retelling could have used (each kept only if it is in the text and not
+  already in the retelling, with the line it's in, which a tap shows and plays) and what it left out.
+- **Sentences** (`sentences.py`, `POST /api/sentences`, the Practice tab's Sentences tool): an
+  English sentence built around a word, to say or type, then compared with the sentence written for
+  it; Check mine asks the check above when one's own wording differs. The words are a text's stretch
+  words' (`pick_stretch`): reviewed today first, then young, **never one waiting for its review**,
+  neither as the word asked nor anywhere in a sentence (checked with the writing lexicon, and with the
+  full snapshot for forms of a held word). Written in the background, ten words a call, two
+  sentences a word, at most three calls a language a day; generate, then verify (the word used, at
+  most one other word outside the known ones), never repaired. The round, with a missed sentence
+  coming back at the end, is the line drills' (`src/reader/lineDrill.ts`). Its cost is `sentences`.
+
 ## Hosting
 
 - **Beside the Anki sync server** (11 November 2026, by the owner's decision, moved from Fly.io),

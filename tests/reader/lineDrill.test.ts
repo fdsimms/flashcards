@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ReaderText, TextLine } from '../../src/reader/api';
-import { drillLines, lineText, markLine, MAX_RETURNS, roundLine, roundProgress, roundScore, startRound } from '../../src/reader/lineDrill';
+import { drillLines, lineText, markLine, MAX_RETURNS, roundLine, roundProgress, roundScore, skipLine, startRound } from '../../src/reader/lineDrill';
 
 const line = (words: string[], over: Partial<TextLine> = {}): TextLine =>
   ({ speaker: 'A', english: 'English', words: words.map((text) => ({ text })) as TextLine['words'], audio: true, ...over });
@@ -61,5 +61,14 @@ describe('a round', () => {
   it('counts where the round is by distinct lines', () => {
     const r = startRound([0, 2, 4]);
     expect(roundProgress(r)).toEqual({ done: 1, total: 3 });
+  });
+
+  it('skips a line without counting it', () => {
+    let r = startRound([0, 2]);
+    r = skipLine(r);
+    expect(roundLine(r)).toBe(2);
+    r = markLine(r, true);
+    expect(roundScore(r)).toEqual({ right: 1, asked: 1 });
+    expect(skipLine(r)).toBe(r);
   });
 });

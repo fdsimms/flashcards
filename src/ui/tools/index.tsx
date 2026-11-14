@@ -10,6 +10,7 @@ import { MixupsTool } from './MixupsTool';
 import { MoneyTool } from './MoneyTool';
 import { NumbersTool } from './NumbersTool';
 import { ScriptTool } from './ScriptTool';
+import { SentencesTool } from './SentencesTool';
 import { GrammarTool } from './GrammarTool';
 import { TimeTool } from './TimeTool';
 
@@ -36,6 +37,7 @@ export const TOOL_SCREENS: Record<ToolId, {
   color: (c: Colors) => string;
 }> = {
   mixups: { Screen: MixupsTool, icon: 'arrow.left.arrow.right', color: (c) => c.indigo },
+  sentences: { Screen: SentencesTool, icon: 'text.bubble.fill', color: (c) => c.hard },
   time: { Screen: TimeTool, icon: 'clock.fill', color: (c) => c.easy },
   dates: { Screen: DateTool, icon: 'calendar', color: (c) => c.again },
   money: { Screen: MoneyTool, icon: 'banknote.fill', color: (c) => c.good },
