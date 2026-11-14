@@ -26,7 +26,7 @@ export function sayGreekMoney(amount: number): MoneySaying {
     ? [say(centWords)]
     : !cents
       ? [say(`${greekCardinal(euros)} ευρώ`)]
-      : [say(`${greekCardinal(euros)} ευρώ και ${centWords}`), say(`${greekCardinal(euros)} και ${greekCardinal(cents)}`, 'Shorter, as at a till')];
+      : [say(`${greekCardinal(euros)} ευρώ και ${centWords}`), say(`${greekCardinal(euros)} και ${greekCardinal(cents)}`, 'Shorter, as at a checkout')];
   const written = cents ? `${digits(euros)},${String(cents).padStart(2, '0')}${NBSP}€` : `${digits(euros)}${NBSP}€`;
   return { everyday: forms[0], also: distinct(forms).slice(1), written: say(written) };
 }

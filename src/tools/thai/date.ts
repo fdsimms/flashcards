@@ -15,7 +15,7 @@ const WEEKDAYS: [full: Word, short: Word][] = [
   [['จันทร์', 'jan'], ['จันทร์', 'jan']],
   [['อังคาร', 'ang-khaan'], ['อังคาร', 'ang-khaan']],
   [['พุธ', 'phút'], ['พุธ', 'phút']],
-  [['พฤหัสบดี', 'phá-rúe-hàt-sà-bor-dii'], ['พฤหัส', 'phá-rúe-hàt']],
+  [['พฤหัสบดี', 'phá-rúe-hàt-sà-baaw-dii'], ['พฤหัส', 'phá-rúe-hàt']],
   [['ศุกร์', 'sùk'], ['ศุกร์', 'sùk']],
   [['เสาร์', 'sǎo'], ['เสาร์', 'sǎo']],
 ];
@@ -39,8 +39,8 @@ const MONTHS: [full: Word, short: Word][] = [
 const WAN: Word = ['วัน', 'wan'];
 const THII: Word = ['ที่', 'thîi'];
 /** The Buddhist Era and the Christian Era, said before a year. */
-export const BE: Word = ['พ.ศ.', 'phor-sor'];
-export const CE: Word = ['ค.ศ.', 'khor-sor'];
+export const BE: Word = ['พ.ศ.', 'phaaw-sǎaw'];
+export const CE: Word = ['ค.ศ.', 'khaaw-sǎaw'];
 
 /** The year counted from the Buddha. */
 export const buddhistYear = (year: number) => year + 543;

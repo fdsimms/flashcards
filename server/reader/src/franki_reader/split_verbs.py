@@ -28,6 +28,7 @@ PARTICLES = frozenset(
         *("hinaus", "hinein", "hinunter", "hinüber", "hoch", "los", "mit", "nach", "nieder"),
         *("raus", "rein", "rüber", "runter", "um", "vor", "voran", "voraus", "vorbei"),
         *("vorüber", "weg", "weiter", "wieder", "zu", "zurecht", "zurück", "zusammen"),
+        *("statt", "teil", "heim", "dar", "hinzu", "auseinander", "aneinander"),
     }
 )
 

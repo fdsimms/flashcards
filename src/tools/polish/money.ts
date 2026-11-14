@@ -10,7 +10,7 @@ import { polishCardinal, polishCountForm } from './numbers';
  */
 
 const NARROW_SPACE = ' ';
-const TILL = 'As said at a till';
+const TILL = 'As said at a checkout';
 
 const pl = (text: string, note?: string): Phrase => ({ text, ...(note ? { note } : {}) });
 const zloty = (n: number) => `${polishCardinal(n)} ${polishCountForm(n, 'złoty', 'złote', 'złotych')}`;

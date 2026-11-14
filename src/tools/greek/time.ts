@@ -24,7 +24,7 @@ function hour12(h: number): string {
 function partOfDay(t: ClockTime): string {
   const h = t.hour;
   if (h === 0 && t.minute === 0) return 'τα μεσάνυχτα';
-  if (h <= 4 || h === 23) return 'τη νύχτα';
+  if (h <= 4) return 'τη νύχτα';
   if (h <= 11) return 'το πρωί';
   if (h <= 13) return 'το μεσημέρι';
   if (h <= 17) return 'το απόγευμα';

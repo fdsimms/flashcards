@@ -25,6 +25,18 @@ def test_a_split_verb_shows_the_joined_verb_on_both_parts() -> None:
         assert w[part]["deck"] is True
 
 
+def test_statt_and_teil_split_off_like_any_other_prefix() -> None:
+    entries = [
+        Entry(5, "stattfinden", "to take place", "mature"),
+        Entry(6, "teilnehmen", "to take part", "mature"),
+    ]
+    w = words("Das Konzert findet heute statt. Oma nimmt teil.", entries)
+    for part in ("findet", "statt"):
+        assert w[part]["lemma"] == "stattfinden"
+    for part in ("nimmt", "teil"):
+        assert w[part]["lemma"] == "teilnehmen"
+
+
 def test_the_verb_alone_keeps_its_own_dictionary_form() -> None:
     assert words("Oma schaut Kalila.")["schaut"]["lemma"] == "schauen"
 

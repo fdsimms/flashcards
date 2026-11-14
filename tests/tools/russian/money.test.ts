@@ -36,7 +36,7 @@ describe('rubles in Russian', () => {
     expect(rub(3, 1).everyday.text).toBe('три рубля одна копейка');
     expect(rub(3, 2).everyday.text).toBe('три рубля две копейки');
     expect(rub(0, 50).everyday.text).toBe('пятьдесят копеек');
-    expect(rub(12, 50).also).toEqual([{ text: 'двенадцать пятьдесят', roman: 'dvenadtsat\' pyat\'desyat', note: 'As said at a till' }]);
+    expect(rub(12, 50).also).toEqual([{ text: 'двенадцать пятьдесят', roman: 'dvenadtsat\' pyat\'desyat', note: 'As said at a checkout' }]);
   });
 
   it('writes a price tag, with a narrow space between thousands', () => {

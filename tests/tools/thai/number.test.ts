@@ -3,13 +3,13 @@ import { sayThaiNumber } from '../../../src/tools/thai/number';
 
 describe('a number in Thai', () => {
   it('says a plain number, with a romanization', () => {
-    expect(sayThaiNumber({ kind: 'number', n: 1971 }).everyday).toEqual({ text: 'หนึ่งพันเก้าร้อยเจ็ดสิบเอ็ด', roman: 'nùeng phan gâo rói jèt sìp èt' });
+    expect(sayThaiNumber({ kind: 'number', n: 1971 }).everyday).toEqual({ text: 'หนึ่งพันเก้าร้อยเจ็ดสิบเอ็ด', roman: 'nùeng phan gâo ráawy jèt sìp èt' });
   });
 
   it('reads a phone number digit by digit, a pause between its groups', () => {
     expect(sayThaiNumber({ kind: 'phone', written: '081 234 5670' }).everyday).toEqual({
       text: 'ศูนย์แปดหนึ่ง สองสามสี่ ห้าหกเจ็ดศูนย์',
-      roman: 'sǔun bpàet nùeng, sǒng sǎam sìi, hâa hòk jèt sǔun',
+      roman: 'sǔun bpàet nùeng, sǎawng sǎam sìi, hâa hòk jèt sǔun',
     });
   });
 

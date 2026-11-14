@@ -8,7 +8,7 @@ import type { Word } from '../phrase';
 export const SUUN: Word = ['ศูนย์', 'sǔun'];
 
 const DIGITS: Word[] = [
-  SUUN, ['หนึ่ง', 'nùeng'], ['สอง', 'sǒng'], ['สาม', 'sǎam'], ['สี่', 'sìi'],
+  SUUN, ['หนึ่ง', 'nùeng'], ['สอง', 'sǎawng'], ['สาม', 'sǎam'], ['สี่', 'sìi'],
   ['ห้า', 'hâa'], ['หก', 'hòk'], ['เจ็ด', 'jèt'], ['แปด', 'bpàet'], ['เก้า', 'gâo'],
 ];
 const SIP: Word = ['สิบ', 'sìp'];
@@ -16,7 +16,7 @@ const YII: Word = ['ยี่', 'yîi'];
 const ET: Word = ['เอ็ด', 'èt'];
 const LAAN: Word = ['ล้าน', 'láan'];
 /** Hundred, thousand, ten thousand, hundred thousand. */
-const PLACES: Word[] = [['ร้อย', 'rói'], ['พัน', 'phan'], ['หมื่น', 'mùen'], ['แสน', 'sǎen']];
+const PLACES: Word[] = [['ร้อย', 'ráawy'], ['พัน', 'phan'], ['หมื่น', 'mùen'], ['แสน', 'sǎen']];
 
 /**
  * `n` (a whole number from 0) in words: 21 is ยี่สิบเอ็ด, 100 หนึ่งร้อย, 1,000,000 หนึ่งล้าน.

@@ -26,7 +26,7 @@ export function sayNorwegianMoney(amount: number): MoneySaying {
   const said = (words: string): Phrase[] => {
     if (!kroner) return [say(oreWords)];
     if (!ore) return [say(krone(words))];
-    return [say(`${krone(words)} og ${oreWords}`), say(`${kroner === 1 ? 'en' : words} ${norwegianCardinal(ore)}`, 'Shorter, as at a till')];
+    return [say(`${krone(words)} og ${oreWords}`), say(`${kroner === 1 ? 'en' : words} ${norwegianCardinal(ore)}`, 'Shorter, as at a checkout')];
   };
   const plain = norwegianCardinal(kroner);
   const withEtt = plain.replace(/^tusen/, 'ett tusen').replace(/^hundre/, 'ett hundre');

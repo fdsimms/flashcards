@@ -58,7 +58,7 @@ describe('a time in Thai', () => {
   });
 
   it('romanizes word by word', () => {
-    expect(sayThaiTime({ hour: 14, minute: 30 }).everyday.roman).toBe('bàai sǒng mohng khrûeng');
+    expect(sayThaiTime({ hour: 14, minute: 30 }).everyday.roman).toBe('bàai sǎawng moong khrûeng');
     expect(sayThaiTime({ hour: 21, minute: 15 }).everyday.roman).toBe('sǎam thûm sìp hâa naa-thii');
   });
 

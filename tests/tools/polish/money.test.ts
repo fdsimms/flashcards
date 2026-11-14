@@ -33,7 +33,7 @@ describe('złoty in Polish', () => {
     expect(zl(2, 1).everyday.text).toBe('dwa złote jeden grosz');
     expect(zl(2, 3).everyday.text).toBe('dwa złote trzy grosze');
     expect(zl(0, 50).everyday.text).toBe('pięćdziesiąt groszy');
-    expect(zl(12, 50).also).toEqual([{ text: 'dwanaście pięćdziesiąt', note: 'As said at a till' }]);
+    expect(zl(12, 50).also).toEqual([{ text: 'dwanaście pięćdziesiąt', note: 'As said at a checkout' }]);
     expect(zl(12).also).toEqual([]);
   });
 
