@@ -52,6 +52,10 @@ import { usePhoneSpeech } from './usePhoneSpeech';
 import { missReasonsFor, missReminder } from '../core/misses';
 import { AgainSplit, MissReminder } from './MissMarks';
 import { useMissMarks } from './useMissMarks';
+import { OwnHookField, TypeItButton, useOwnHook } from './ReviewActive';
+import { TypedDiff } from './TypedDiff';
+import { asksOwnHook, typeItAnswer } from '../core/activeRecall';
+import { compareTyped } from '../core/typedCompare';
 import { Button, Count, Icon, Loading, Screen, Tappable } from './kit';
 import { Reveal, useReduceMotion } from './motion';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
@@ -428,6 +432,10 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   useEffect(() => { shownAt.current = Date.now(); }, [showing]);
   // Each card, and each time a card comes back, starts with an empty box.
   useEffect(() => { if (!revealed) setTyped(''); }, [showing, revealed]);
+  // Type it (activeRecall.ts): the box a reverse card's word is typed into, opened from beside Show answer.
+  const [typing, setTyping] = useState(false);
+  useEffect(() => { setTyping(false); }, [showing]);
+  const ownHook = useOwnHook(repo, showing, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
 
   // Auto-speak the front when a card with audio appears.
   useEffect(() => {
@@ -517,6 +525,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
       setStudied((s) => bumpStudied(s, record.deck, record.preview ? null : studiedKind(record.before, H), 1));
       setHistory((h) => [...h, record]);
       misses.answered(current.id, rating === 1 ? miss : undefined);
+      void ownHook.answered(note);
       forms.answered({ cardId: current.id, ...res.log });
       // Functional update: `cards` from this render's closure is stale once the awaits return.
       const changed = new Map([updated, ...buried].map((c) => [c.id, c]));
@@ -705,16 +714,23 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     setRevealed(true);
     if (rendered) speak(autoplayFor(rendered, true));
   };
-  // Under the answer: the offer to show the card sooner, and the suggestion to practice its forms.
+  // Type it and the learner's own hook (activeRecall.ts), for a native Omnilanguage card.
+  const typeItWord = rendered ? typeItAnswer(note, current) : undefined;
+  const asksHook = !!rendered && ownHook.on && asksOwnHook(note, current, noteCards(current, cards));
+  // Under the answer: what was typed against the word, the offer to show the card sooner, the suggestion to practice its forms, and the hook.
   const extras = revealed ? (
-    <AnswerExtras
-      word={headword(note)}
-      offer={forms.offerView(goodFrom)}
-      onSooner={forms.setSooner}
-      suggestion={forms.suggestion}
-      onPractice={() => onPracticeForms(forms.drillFor([note.id], note.deck))}
-      onLater={() => forms.putOff(note.id)}
-    />
+    <>
+      {typing && typeItWord ? <TypedDiff comparison={compareTyped(typeItWord, typed)} showExpected={false} lang={rendered?.speechLang} /> : null}
+      <AnswerExtras
+        word={headword(note)}
+        offer={forms.offerView(goodFrom)}
+        onSooner={forms.setSooner}
+        suggestion={forms.suggestion}
+        onPractice={() => onPracticeForms(forms.drillFor([note.id], note.deck))}
+        onLater={() => forms.putOff(note.id)}
+      />
+      {asksHook ? <OwnHookField value={ownHook.text} onChange={ownHook.setText} /> : null}
+    </>
   ) : null;
   const shown = ratingsShown(answerButtons);
   // Again's menu of what can go wrong, for the languages that have one; other cards get a plain Again.
@@ -752,7 +768,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     </Reveal>
   ) : (
     <>
-      {page?.typeAnswer ? (
+      {page?.typeAnswer || (typing && typeItWord) ? (
         <TextInput
           key={current.id}
           value={typed}
@@ -763,8 +779,8 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
           autoCorrect={false}
           spellCheck={false}
           returnKeyType="done"
-          placeholder="Type the answer"
-          accessibilityLabel="Type the answer"
+          placeholder={page?.typeAnswer ? 'Type the answer' : 'Type the word'}
+          accessibilityLabel={page?.typeAnswer ? 'Type the answer' : 'Type the word'}
           placeholderTextColor={c.textTertiary}
           selectionColor={c.accent}
           keyboardAppearance={dark ? 'dark' : 'light'}
@@ -774,7 +790,14 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
           }}
         />
       ) : null}
-      <Button label="Show answer" onPress={reveal} />
+      {typeItWord && !typing ? (
+        <View style={{ flexDirection: 'row', gap: space.s }}>
+          <TypeItButton onPress={() => setTyping(true)} />
+          <Button label="Show answer" onPress={reveal} style={{ flex: 1 }} />
+        </View>
+      ) : (
+        <Button label={typing ? 'Check' : 'Show answer'} onPress={reveal} />
+      )}
     </>
   );
 

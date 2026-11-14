@@ -31,10 +31,11 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
   const [buttons, setButtons] = useState<AnswerButtons>();
   const [swipe, setSwipe] = useState<boolean>();
   const [hints, setHints] = useState<boolean>();
+  const [hook, setHook] = useState<boolean>();
   const [thaiSize, setThaiSize] = useState<ThaiTextSize>();
   const reminder = useReminderPrefs();
 
-  useEffect(() => { repo.answerButtons().then(setButtons); repo.swipeToRate().then(setSwipe); repo.showCardHints().then(setHints); repo.thaiTextSize().then(setThaiSize); }, [repo]);
+  useEffect(() => { repo.answerButtons().then(setButtons); repo.swipeToRate().then(setSwipe); repo.showCardHints().then(setHints); repo.askOwnHook().then(setHook); repo.thaiTextSize().then(setThaiSize); }, [repo]);
 
   // Saved first, then shown, so the screen never shows a setting that isn't stored.
   const save = async (write: () => Promise<void>, show: () => void) => {
@@ -48,6 +49,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
   const choose = (value: AnswerButtons) => save(() => repo.saveAnswerButtons(value), () => setButtons(value));
   const chooseSwipe = (on: boolean) => save(() => repo.saveSwipeToRate(on), () => setSwipe(on));
   const chooseHints = (on: boolean) => save(() => repo.saveShowCardHints(on), () => setHints(on));
+  const chooseHook = (on: boolean) => save(() => repo.saveAskOwnHook(on), () => setHook(on));
   const chooseThai = (value: ThaiTextSize) => save(() => repo.saveThaiTextSize(value), () => setThaiSize(value));
 
   return (
@@ -74,6 +76,12 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
             hint="On the answer, show a word's romanization and its example sentence's romanization and translation without tapping. Off, each one waits for a tap on every card. Only for Omnilanguage cards."
             value={!!hints}
             onValueChange={chooseHints}
+          />
+          <SwitchRow
+            label="Ask for your own hook"
+            hint="The first time a new word's answer is shown, offer a line for a mnemonic of your own, saved to the note's Mnemonic. Only for Omnilanguage cards."
+            value={!!hook}
+            onValueChange={chooseHook}
           />
           <NavRow label="Voices" detail="The voices each language is recorded and read aloud with" onPress={onVoices} />
           <NavRow
