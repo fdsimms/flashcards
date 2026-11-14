@@ -85,6 +85,8 @@ const light = {
   nameFill: '#cfe3f2',
   /** Behind the word being spoken as a Read & Listen line plays. */
   spoken: '#e4ddcb',
+  /** The outline of WaniKani's stage popup: on a white card its colored pill needs one to stand out, on dark it doesn't. */
+  stageRing: 'rgba(27, 27, 27, 0.4)',
   /** A soft drop shadow under a raised surface (the review card). Near-invisible on dark, so it's heavier there. */
   shadow: '#2a2113',
   shadowOpacity: 0.08,
@@ -138,6 +140,7 @@ const dark: typeof light = {
   highlight: '#4d3a14',
   nameFill: '#1f3a4f',
   spoken: '#3b4252',
+  stageRing: 'transparent',
   shadow: '#000000',
   shadowOpacity: 0.45,
   flags: ['', '#ee6b63', '#f0984f', '#62bd7b', '#6ba2ec', '#e486cb', '#4cc4c4', '#a989e6'],

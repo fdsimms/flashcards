@@ -90,6 +90,26 @@ export function intervalText(seconds: number | null): string {
   return `${Math.round(days / 365)}y`;
 }
 
+/** A finished item's move into another stage group (Apprentice, Guru, Master, Enlightened, Burned). */
+export interface StageChange {
+  /** The group it moved into, named as the stage shows it. */
+  group: string;
+  up: boolean;
+  burned: boolean;
+}
+
+/**
+ * What the popup after an answer says: set only when the item crossed into another group, so
+ * Apprentice 1 to 2 and Guru 1 to 2 stay silent and the popup stays rare enough to mean something.
+ * A drop out of a group (Guru back to Apprentice) counts too. `incorrect` is the item's misses,
+ * meaning and reading together, as `nextStage` takes it.
+ */
+export function stageChange(stage: number, incorrect: number, system?: SrsSystem): StageChange | null {
+  const to = nextStage(stage, incorrect, system);
+  if (stageGroup(to) === stageGroup(stage)) return null;
+  return { group: stageGroup(to), up: to > stage, burned: to === (system?.burningStage ?? 9) };
+}
+
 /** What a button's answer does, for the line over it: "Guru · 1w", or "Burned" when it leaves the reviews. */
 export function outcomeText(stage: number, system?: SrsSystem): string {
   const sys = system ?? DEFAULT_SRS.get(1)!;
