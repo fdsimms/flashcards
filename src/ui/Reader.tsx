@@ -22,7 +22,7 @@ import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
 import { ReadRecap } from './ReadRecap';
-import { Reveal } from './motion';
+import { Pop, Reveal } from './motion';
 import { LineExplanation } from './ReaderExplain';
 import { RegisterChip } from './ReaderNatural';
 import { PhraseExplanation, PhrasePickBanner, type PhraseMining } from './ReaderPhrase';
@@ -1197,8 +1197,12 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
       <View
         onLayout={(e) => setPopHeight(e.nativeEvent.layout.height)}
         onAccessibilityEscape={onClose}
+        style={{ position: 'absolute', top, left, width: popWidth, opacity: popHeight > 0 ? 1 : 0 }}
+      >
+      {/* Springs up from the word once measured; the box that measures is the one around it. */}
+      <Pop
+        ready={popHeight > 0}
         style={{
-          position: 'absolute', top, left, width: popWidth, opacity: popHeight > 0 ? 1 : 0,
           backgroundColor: c.surface, borderColor: c.border, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.l,
           padding: space.l, gap: space.xs, ...lift(c, 'high'),
         }}
@@ -1221,6 +1225,7 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
             {actions.map((a, i) => <WordActionRow key={a.label} first={i === 0} {...a} />)}
           </WordActionGroup>
         ) : null}
+      </Pop>
       </View>
     </Modal>
   );

@@ -3,6 +3,7 @@ import { Pressable, Text, View, type GestureResponderEvent, type ViewInstance } 
 import type { TextGrammar, Word } from '../reader/api';
 import type { ReadFont } from '../reader/fonts';
 import type { HideableMark } from '../reader/marks';
+import { FadeIn } from './motion';
 import { radius, useTheme } from './theme';
 
 /**
@@ -112,10 +113,8 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
       }}
     >
       {band ? (
-        <View
-          pointerEvents="none"
-          style={{ position: 'absolute', top: bandInset, bottom: bandInset, left: 0, right: 0, borderRadius: radius.s - 2, backgroundColor: band }}
-        />
+        // Fades in as the voice reaches the word; it clears when the next one takes over.
+        <FadeIn style={{ position: 'absolute', top: bandInset, bottom: bandInset, left: 0, right: 0, borderRadius: radius.s - 2, backgroundColor: band }} />
       ) : null}
       {phrasePart && !ringed ? <PhraseBar /> : null}
       {ringed ? (
