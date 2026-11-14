@@ -106,11 +106,14 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
     await load();
   };
 
-  // Words just studied are in one language: switch to it, once, so the text is written in it.
-  const switched = useRef(false);
+  // Words just studied are in one language: switch to it, once per offer, so the text is written in
+  // it. This screen stays mounted as a tab, so the record of the switch is cleared when the offer
+  // goes (Not now, or a text started), or the next offer would find the shelf still on the old language.
+  const switchedTo = useRef<Language | null>(null);
   useEffect(() => {
-    if (!practice || !shelf || switched.current) return;
-    switched.current = true;
+    if (!practice) { switchedTo.current = null; return; }
+    if (!shelf || switchedTo.current === practice.language) return;
+    switchedTo.current = practice.language;
     if (shelf.language !== practice.language) changeLanguage(practice.language);
   }, [practice, shelf]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -192,7 +195,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
           <Card style={{ gap: space.s }}>
             <Text style={{ ...type.headline, color: c.text }}>{`Practice the ${practice.count} ${practice.count === 1 ? 'word' : 'words'} you just studied`}</Text>
             <Help>A text is written with as many of them as fit. It takes about half a minute.</Help>
-            <Button label="Write a text with them" onPress={startPractice} busy={practiceBusy} disabled={!shelf} />
+            <Button label="Write a text with them" onPress={startPractice} busy={practiceBusy} disabled={!shelf || shelf.language !== practice.language} />
             <View style={{ alignItems: 'flex-start' }}><HeaderAction label="Not now" onPress={practice.onCancel} /></View>
           </Card>
         ) : null}

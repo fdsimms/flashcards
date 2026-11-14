@@ -364,30 +364,51 @@ function GrammarLine({ grammar, onOpen }: { grammar?: FormPrompt['grammar']; onO
   );
 }
 
+/**
+ * The answers by what was asked ("counting word", "present"), in the order each kind first came up,
+ * so a heading says it once instead of every row repeating it. Within a kind, the order asked.
+ */
+function summarySections(answered: Answered[]): { title: string; rows: Answered[] }[] {
+  const sections: { title: string; rows: Answered[] }[] = [];
+  for (const a of answered) {
+    const title = a.prompt.group || a.prompt.label;
+    const section = sections.find((s) => s.title === title);
+    if (section) section.rows.push(a); else sections.push({ title, rows: [a] });
+  }
+  return sections;
+}
+
 function Summary({ answered, notice }: { answered: Answered[]; notice?: string }) {
   const c = useTheme();
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
-      <Card style={{ gap: 0, paddingVertical: space.xs }}>
-        {answered.map((a, i) => (
-          <View
-            key={i}
-            accessible
-            accessibilityLabel={`${[a.prompt.headword, a.prompt.label, a.prompt.group].filter(Boolean).join(', ')}: ${a.prompt.answers[0]}. ${isRight(a) ? 'Right' : `Wrong, you answered “${a.given}”`}`}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingVertical: space.s, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}
-          >
-            <Text style={{ ...type.subhead, color: c.textSecondary, width: 130 }}>
-              {[a.prompt.headword, a.prompt.label, a.prompt.group].filter(Boolean).join(' · ')}
-            </Text>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={{ ...type.headline, color: c.text }}>{a.prompt.answers[0]}</Text>
-              {a.verdict === 'almost' && a.counted ? <Text style={{ ...type.footnote, color: c.warning }}>Accent missed, counted as right</Text> : null}
-              {!isRight(a) ? <Text style={{ ...type.footnote, color: c.danger }}>{`You answered “${a.given}”`}</Text> : null}
-            </View>
-            <Icon name={isRight(a) ? 'checkmark' : 'xmark'} size={18} color={isRight(a) ? c.countDue : c.danger} weight="bold" />
-          </View>
-        ))}
-      </Card>
+      {summarySections(answered).map(({ title, rows }) => (
+        <View key={title} style={{ gap: space.xs }}>
+          {title ? <Text accessibilityRole="header" style={{ ...type.footnote, fontWeight: '600', color: c.textSecondary, paddingHorizontal: space.xs }}>{title}</Text> : null}
+          <Card style={{ gap: 0, paddingVertical: space.xs }}>
+            {rows.map((a, i) => {
+              // Under a form group ("present"), the form says which one ("yo"); otherwise the heading already said it.
+              const asked = [a.prompt.headword, a.prompt.group ? a.prompt.label : ''].filter(Boolean).join(' · ');
+              return (
+                <View
+                  key={i}
+                  accessible
+                  accessibilityLabel={`${[asked, title].filter(Boolean).join(', ')}: ${a.prompt.answers[0]}. ${isRight(a) ? 'Right' : `Wrong, you answered “${a.given}”`}`}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingVertical: space.s, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}
+                >
+                  <Text style={{ ...type.subhead, color: c.textSecondary, width: 130 }}>{asked}</Text>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{ ...type.headline, color: c.text }}>{a.prompt.answers[0]}</Text>
+                    {a.verdict === 'almost' && a.counted ? <Text style={{ ...type.footnote, color: c.warning }}>Accent missed, counted as right</Text> : null}
+                    {!isRight(a) ? <Text style={{ ...type.footnote, color: c.danger }}>{`You answered “${a.given}”`}</Text> : null}
+                  </View>
+                  <Icon name={isRight(a) ? 'checkmark' : 'xmark'} size={18} color={isRight(a) ? c.countDue : c.danger} weight="bold" />
+                </View>
+              );
+            })}
+          </Card>
+        </View>
+      ))}
       <Help>Practice doesn't change any card's due date.</Help>
       {notice ? <Help>{notice}</Help> : null}
     </ScrollView>
