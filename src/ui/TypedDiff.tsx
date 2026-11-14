@@ -30,9 +30,11 @@ function Parts({ parts, style, typed, lang }: { parts: DiffPart[]; style: TextSt
  * `showExpected` adds the expected text with what was missed picked out; Review leaves it off when
  * the card itself already shows the word.
  */
-export function TypedDiff({ comparison, showExpected, size = 'title', lang, expectedLabel = 'Expected', showLine = true }: {
+export function TypedDiff({ comparison, showExpected, size = 'title', lang, expectedLabel = 'Expected', typedLabel = 'Yours', showLine = true }: {
   comparison: TypedComparison;
   showExpected: boolean;
+  /** The heading over what was typed: "Yours", or "You said" when it was spoken. */
+  typedLabel?: string;
   /** The heading over the expected text: "The line", "Corrected". */
   expectedLabel?: string;
   /** The line on how close it was ("1 letter off."); off where a check says it instead. */
@@ -52,7 +54,7 @@ export function TypedDiff({ comparison, showExpected, size = 'title', lang, expe
     <View style={{ gap: space.s }}>
       {comparison.typed.length ? (
         <View style={{ gap: space.xs }}>
-          <Text style={label}>Yours</Text>
+          <Text style={label}>{typedLabel}</Text>
           <Parts parts={comparison.typed} typed lang={lang} style={{ ...base, color: c.text }} />
         </View>
       ) : null}

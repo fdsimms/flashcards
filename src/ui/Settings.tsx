@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, Text } from 'react-native';
 import { ANSWER_BUTTON_CHOICES, type AnswerButtons } from '../core/answerButtons';
 import { failureText } from '../core/failure';
@@ -12,7 +13,7 @@ import { space, useTheme } from './theme';
  * App-wide settings: the screens that aren't about studying (Anki, Backup, Read & Listen, WaniKani), the
  * voices cards are read aloud with, the study reminder, and which answer buttons Review shows.
  */
-export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBackup, onRead, onWaniKani, onVoices, onReminder }: {
+export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBackup, onRead, onWaniKani, onVoices, onReminder, onSpeaking }: {
   repo: Repo;
   /** When the last backup was made (`backupStatus`). */
   backupText?: string;
@@ -26,14 +27,18 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
   onBackup: () => void;
   onVoices: () => void;
   onReminder: () => void;
+  onSpeaking: () => void;
 }) {
   const c = useTheme();
   const [buttons, setButtons] = useState<AnswerButtons>();
   const [swipe, setSwipe] = useState<boolean>();
   const [hints, setHints] = useState<boolean>();
   const [hook, setHook] = useState<boolean>();
+  const [speaking, setSpeaking] = useState<boolean>();
   const [thaiSize, setThaiSize] = useState<ThaiTextSize>();
   const reminder = useReminderPrefs();
+  // Read each time Settings shows: it's changed on the Speaking screen, over this one.
+  useFocusEffect(useCallback(() => { repo.answerBySpeaking().then(setSpeaking).catch(() => undefined); }, [repo]));
 
   useEffect(() => { repo.answerButtons().then(setButtons); repo.swipeToRate().then(setSwipe); repo.showCardHints().then(setHints); repo.askOwnHook().then(setHook); repo.thaiTextSize().then(setThaiSize); }, [repo]);
 
@@ -83,6 +88,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
             value={!!hook}
             onValueChange={chooseHook}
           />
+          <NavRow label="Speaking" detail={speaking === undefined ? undefined : speaking ? 'On. Answer by speaking' : 'Off. Answer by speaking instead of typing'} onPress={onSpeaking} />
           <NavRow label="Voices" detail="The voices each language is recorded and read aloud with" onPress={onVoices} />
           <NavRow
             label="Study reminder"

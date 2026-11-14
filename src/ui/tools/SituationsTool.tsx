@@ -14,6 +14,8 @@ import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../the
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import type { ToolScreenProps } from './index';
 import { MyLine, SituationResult, TheirLine } from './SituationParts';
+import { HoldToTalk, ListeningNote } from '../SpeakButton';
+import { useSpokenAnswer } from '../useSpokenAnswer';
 import { ControlLabel, ToolScreen, useToolLanguage } from './ToolScreen';
 
 /**
@@ -158,6 +160,17 @@ function Talk({ api, chat, onChat, heardOnly, feedback, onFeedback, onAgain, onD
   const fontSize = scaledFontSize(info.fontSize, textSize);
   const look = { fontSize, lineHeight: fontSize * info.lineHeight, fontFamily: readFont(chat.language, thaiFont).fontFamily };
   const [draft, setDraft] = useState('');
+  // Hold to talk (Answer by speaking): what's heard fills the box, and letting go sends it once listening has ended.
+  const [typingMode, setTypingMode] = useState(false);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const sendWhenHeard = useRef(false);
+  const spoken = useSpokenAnswer(info.speech, {
+    continuous: true,
+    onBeforeListen: () => { player.pause(); setDraft(''); },
+    onHeard: (heard) => setDraft(heard),
+  });
+  const holding = spoken.available && !typingMode;
   const [waiting, setWaiting] = useState(false);
   // What went wrong, and what Try again does: none when the owner's line went back in the box to send again.
   const [problem, setProblem] = useState<{ message: string; retry?: () => void } | null>(null);
@@ -204,10 +217,17 @@ function Talk({ api, chat, onChat, heardOnly, feedback, onFeedback, onAgain, onD
   // The first line is theirs.
   useEffect(() => { if (!chat.lines.length && !feedback) void turn(chat); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const send = () => {
-    if (!canSend(chat, draft) || waiting) return;
+  // Once a hold is let go and listening has ended, what was heard is sent (or nothing, if nothing was).
+  useEffect(() => {
+    if (spoken.listening || !sendWhenHeard.current) return;
+    sendWhenHeard.current = false;
+    sendText(draftRef.current);
+  }, [spoken.listening]); // eslint-disable-line react-hooks/exhaustive-deps
+  const send = () => sendText(draft);
+  const sendText = (text: string) => {
+    if (!canSend(chat, text) || waiting) return;
     haptic.tap();
-    const next = withMine(chat, draft);
+    const next = withMine(chat, text);
     setDraft('');
     onChat(next);
     void turn(next);
@@ -272,6 +292,27 @@ function Talk({ api, chat, onChat, heardOnly, feedback, onFeedback, onAgain, onD
           <Button label="See how it went" busy={waiting} onPress={() => void finish()} />
         ) : (
           <View style={{ gap: space.xs }}>
+            {holding ? (
+              <>
+                {draft ? <Text accessibilityLanguage={info.speech} style={{ ...type.body, color: c.text }}>{draft}</Text> : null}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+                  <View style={{ flex: 1 }}>
+                    <HoldToTalk spoken={spoken} disabled={waiting || !canSend(chat, 'x')} onRelease={() => { sendWhenHeard.current = true; }} />
+                  </View>
+                  <Tappable
+                    onPress={() => { haptic.select(); setTypingMode(true); }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Type instead"
+                    style={{ width: 52, height: 52, borderRadius: radius.pill, backgroundColor: c.fill, alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Icon name="keyboard" size={18} color={c.text} />
+                  </Tappable>
+                </View>
+                <ListeningNote spoken={spoken} language={info.name} />
+                <Text style={{ ...type.caption, color: c.textSecondary }}>Hold to talk, let go to send. To write a word in [brackets], type instead.</Text>
+              </>
+            ) : (
+            <>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.s }}>
               <TextInput
                 value={draft}
@@ -299,8 +340,20 @@ function Talk({ api, chat, onChat, heardOnly, feedback, onFeedback, onAgain, onD
               >
                 <Icon name="arrow.up" size={18} color={c.onAccent} weight="bold" />
               </Tappable>
+              {spoken.available ? (
+                <Tappable
+                  onPress={() => { haptic.select(); setTypingMode(false); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Speak instead"
+                  style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.fill, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Icon name="mic.fill" size={17} color={c.text} />
+                </Tappable>
+              ) : null}
             </View>
             <Text style={{ ...type.caption, color: c.textSecondary }}>{"Don't know a word? Write it in English in [brackets]. Tap a highlighted word for its meaning."}</Text>
+            </>
+            )}
           </View>
         )}
       >

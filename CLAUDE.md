@@ -206,7 +206,10 @@ reader turns on, while it's open (`shouldPlayInBackground`), so listening goes o
 voices, chosen per language in Settings, Voices) and storage is local SQLite. The network calls are
 sync with the user's own Anki sync server (`src/anki/sync/`), off until they sign in, and Read &
 Listen, which talks to its server beside the sync server and is off until its passphrase is entered
-(Settings, Read & Listen). WaniKani talks to api.wanikani.com only once its token is entered
+(Settings, Read & Listen). **Answer by speaking** (Settings, Speaking; `src/core/speaking.ts`, `useSpokenAnswer`) is off
+until turned on: iOS's recognizer runs with on-device required, which iOS keeps on the phone where
+it can for a language and otherwise sends to Apple. iOS doesn't say which, so the app doesn't
+either; it only says whether a language can be heard at all. WaniKani talks to api.wanikani.com only once its token is entered
 (Settings, WaniKani); its answers go to WaniKani, which schedules them, and only its production
 notes enter the collection. It keeps an offline copy of what's up (`offline.ts`: reviews, lessons, subjects, synonyms, and
 recordings as files), made each time WaniKani is reached, so a session can be studied with no connection: its answers go to the
@@ -315,7 +318,9 @@ on a new word's first answer (`src/core/activeRecall.ts`), Words you mix up (`sr
 Read & Listen's Say it back and Write what you hear, and what Claude checks (Use today's words,
 Sentences, Retell it, Situations: `server/reader/.../production.py`, `situations.py`) compare what was typed
 (`src/core/typedCompare.ts`) or correct it, but leave the rating to the learner: nothing feeds FSRS
-but the answer button pressed.
+but the answer button pressed. A spoken answer is compared as typing is, the recognizer's guess closest
+to the answer taken (`bestHeard`), since telling homophones apart is the recognizer's job; the phone
+hears what was said, not how.
 
 **A miss reason is a reminder, never an input to scheduling.** Again's menu (`src/core/misses.ts`)
 saves what went wrong in the answer's own review row (`ReviewLogEntry.miss`), which is why undo
