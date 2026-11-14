@@ -185,3 +185,24 @@ test('the deck list totals are put to the counts route', async () => {
   expect(calls[0].init.method).toBe('PUT');
   expect(JSON.parse(calls[0].init.body as string)).toEqual({ due: 12, new: 8 });
 });
+
+test("the owner's writing is posted to be checked, and a retelling to its text", async () => {
+  const answer = { verdict: 'almost', corrected: 'Potrzebuję narzędzia.', english: 'I need a tool.', notes: ['Genitive.'], used_word: true };
+  const { impl, calls } = fakeFetch(json(answer));
+  const api = createApi('https://x/reader', 'p', impl);
+  const request = { kind: 'sentence' as const, language: 'pl' as const, attempt: 'Potrzebuję narzędzie.', word: 'narzędzie', meaning: 'tool' };
+  expect(await api.checkWriting(request)).toEqual(answer);
+  expect(calls[0].url).toBe('https://x/reader/api/production/check');
+  expect(JSON.parse(String(calls[0].init.body))).toEqual(request);
+  const retold = fakeFetch(json({ ...answer, words: [], left_out: '' }));
+  await createApi('https://x/reader', 'p', retold.impl).retell(7, 'Marta perdió su perro.');
+  expect(retold.calls[0].url).toBe('https://x/reader/api/texts/7/retell');
+  expect(JSON.parse(String(retold.calls[0].init.body))).toEqual({ attempt: 'Marta perdió su perro.' });
+});
+
+test('sentences are asked for by language and count', async () => {
+  const { impl, calls } = fakeFetch(json({ sentences: [], writing: true }));
+  expect(await createApi('https://x', 'p', impl).sentences('de', 10)).toEqual({ sentences: [], writing: true });
+  expect(calls[0].url).toBe('https://x/api/sentences');
+  expect(JSON.parse(String(calls[0].init.body))).toEqual({ language: 'de', count: 10 });
+});

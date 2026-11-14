@@ -110,6 +110,19 @@ export type TextLine = { speaker: 'A' | 'B' | 'N'; english: string; words: Word[
 // How a line is said by a native speaker in its situation.
 export type Register = 'casual' | 'neutral' | 'formal' | 'slang';
 
+// Claude's check of the owner's own writing (server/reader production.py): a sentence with a word, their
+// way of saying a Sentences prompt, or a retelling of a text. `corrected` is theirs with only the mistakes
+// fixed, and theirs as written when it's right. Never kept, never graded.
+export type WritingVerdict = 'right' | 'almost' | 'wrong';
+export type WritingCheck = { verdict: WritingVerdict; corrected: string; english: string; notes: string[]; used_word?: boolean };
+// A retelling's check adds words from the text it could have used (each with the line it's in) and what it left out.
+export type RetellCheck = WritingCheck & { words: { word: string; english: string; line: number }[]; left_out: string };
+export type WritingRequest =
+  | { kind: 'sentence'; language: Language; attempt: string; word: string; meaning: string }
+  | { kind: 'translate'; language: Language; attempt: string; english: string; reference: string };
+// A sentence to say (server/reader sentences.py), built around a word reviewed today or still young.
+export type SentencePrompt = { id: number; word: string; meaning: string; sentence: string; english: string; reviewed_today: boolean };
+
 // Claude's answer to "Does this sound natural?" on a line: `alternative` is what a native speaker would
 // more likely say, and empty when the line is natural.
 export type NaturalVerdict = 'natural' | 'stiff' | 'unusual';
@@ -464,6 +477,12 @@ export function createApi(
     // kept per line there.
     checkNatural: (textId: number, line: number) =>
       call<NaturalCheck>('POST', `/api/texts/${textId}/lines/${line}/natural`),
+    // The owner's own writing, checked by Claude on their tap (production.py). Never kept, never graded.
+    checkWriting: (request: WritingRequest) => call<WritingCheck>('POST', '/api/production/check', request),
+    retell: (textId: number, attempt: string) => call<RetellCheck>('POST', `/api/texts/${textId}/retell`, { attempt }),
+    // Sentences to say, one a word; more are written in the background. `writing` is false when the server can't write any.
+    sentences: (language: Language, count: number) =>
+      call<{ sentences: SentencePrompt[]; writing: boolean }>('POST', '/api/sentences', { language, count }),
     // A phrase selected in a line (as it appears there), explained the same way and kept per phrase.
     explainPhrase: (textId: number, line: number, phrase: string, simple: boolean) =>
       call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple }),
