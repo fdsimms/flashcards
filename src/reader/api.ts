@@ -123,6 +123,29 @@ export type WritingRequest =
 // A sentence to say (server/reader sentences.py), built around a word reviewed today or still young.
 export type SentencePrompt = { id: number; word: string; meaning: string; sentence: string; english: string; reviewed_today: boolean };
 
+// Situations (server/reader situations.py): a scene talked through with Claude. The app holds the conversation
+// and sends it with each turn; the server keeps nothing. `roles` come with the first turn and go back with every
+// one after it.
+export type SituationRoles = { you: string; them: string; name: string; gender: 'male' | 'female' };
+export type SituationLine = { speaker: 'them' | 'you'; text: string };
+export type SituationConversation = { language: Language; scene: string; roles: SituationRoles | null; lines: SituationLine[] };
+// One of their lines: its words split and glossed as a text's are, the words that count as unknown, whether it
+// ends the scene, and its recording's key (null without one).
+export type SituationTurn = { line: string; english: string; words: Word[]; unknown: string[]; done: boolean; audio: string | null; roles?: SituationRoles };
+export type SituationFeedback = {
+  lines: { index: number; verdict: WritingVerdict; corrected: string; note: string }[];
+  words: { word: string; english: string; why: 'asked' | 'heard' }[];
+};
+
+// A take scored by Azure's pronunciation assessment (server/reader pronunciation.py): scores out of 100, and
+// each word's, banded for coloring (good, close, again). `weakest` is a word's lowest syllable, when it has two or more.
+export type ScoreBand = 'good' | 'close' | 'again';
+export type ScoredWord = {
+  word: string; accuracy: number; band: ScoreBand; error: string | null;
+  syllables: { text: string; accuracy: number }[]; weakest: { text: string; accuracy: number } | null;
+};
+export type TakeScore = { accuracy: number; fluency: number; completeness: number; heard: string; words: ScoredWord[] };
+
 // Claude's answer to "Does this sound natural?" on a line: `alternative` is what a native speaker would
 // more likely say, and empty when the line is natural.
 export type NaturalVerdict = 'natural' | 'stiff' | 'unusual';
@@ -483,6 +506,15 @@ export function createApi(
     // Sentences to say, one a word; more are written in the background. `writing` is false when the server can't write any.
     sentences: (language: Language, count: number) =>
       call<{ sentences: SentencePrompt[]; writing: boolean }>('POST', '/api/sentences', { language, count }),
+    // A take of the owner's (base64 WAV) scored against the text it should say. The take isn't kept.
+    scoreTake: (language: Language, reference: string, audio: string) => call<TakeScore>('POST', '/api/pronunciation', { language, reference, audio }),
+    situationScenes: (language: Language) => call<string[]>('GET', `/api/situations/scenes?language=${language}`),
+    situationTurn: (conversation: SituationConversation) => call<SituationTurn>('POST', '/api/situations/turn', conversation),
+    situationFeedback: (conversation: SituationConversation) => call<SituationFeedback>('POST', '/api/situations/feedback', conversation),
+    situationAudio: (key: string) => ({
+      uri: `${root}/api/situations/audio/${encodeURIComponent(key)}`,
+      headers: { Authorization: `Bearer ${passphrase}` },
+    }),
     // A phrase selected in a line (as it appears there), explained the same way and kept per phrase.
     explainPhrase: (textId: number, line: number, phrase: string, simple: boolean) =>
       call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple }),

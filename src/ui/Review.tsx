@@ -54,6 +54,11 @@ import { missReasonsFor, missReminder } from '../core/misses';
 import { AgainSplit, MissReminder } from './MissMarks';
 import { useMissMarks } from './useMissMarks';
 import { OwnHookField, TypeItButton, useOwnHook } from './ReviewActive';
+import { ListeningNote, SpeakButton } from './SpeakButton';
+import { useSpeakingOn, useSpokenAnswer } from './useSpokenAnswer';
+import { ScoreTake } from './ScoreTake';
+import { mixupLanguage } from '../tools/mixups';
+import { languageName } from '../core/voices';
 import { TypedDiff } from './TypedDiff';
 import { SessionMissList, useSessionMisses, type MixupRequest } from './SessionMisses';
 import { asksOwnHook, typeItAnswer } from '../core/activeRecall';
@@ -377,7 +382,10 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
    */
   const ttsRunning = useRef(false);
   // Record yourself: a take of your own voice for this card, played back next to its recording.
+  // A take is recorded so Azure can score it (Score it) while Answer by speaking is on.
+  const speakingOn = useSpeakingOn();
   const self = useSelfRecording(current?.id ?? null, AUDIO_MODE, {
+    scorable: speakingOn,
     onBeforeAudio: () => {
       if (ttsRunning.current) { Speech.stop(); ttsRunning.current = false; }
       player.current?.pause();
@@ -438,7 +446,15 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   useEffect(() => { if (!revealed) setTyped(''); }, [showing, revealed]);
   // Type it (activeRecall.ts): the box a reverse card's word is typed into, opened from beside Show answer.
   const [typing, setTyping] = useState(false);
-  useEffect(() => { setTyping(false); }, [showing]);
+  // Whether the box was last filled by speaking (Answer by speaking, src/core/speaking.ts), for "You said".
+  const [spokenIn, setSpokenIn] = useState(false);
+  useEffect(() => { setTyping(false); setSpokenIn(false); }, [showing]);
+  const spoken = useSpokenAnswer(rendered?.speechLang, {
+    expected: rendered && note && current ? typeItAnswer(note, current) : undefined,
+    onBeforeListen: () => { Keyboard.dismiss(); self.stop(false); },
+    onHeard: (text) => { setTyping(true); setSpokenIn(true); setTyped(text); },
+  });
+  useEffect(() => { spoken.cancel(); }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
   const ownHook = useOwnHook(repo, showing, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
   // The session end's list of misses, and what of them Words you mix up can practice (SessionMisses.tsx).
   const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups);
@@ -748,7 +764,8 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   // Under the answer: what was typed against the word, the offer to show the card sooner, the suggestion to practice its forms, and the hook.
   const extras = revealed ? (
     <>
-      {typing && typeItWord ? <TypedDiff comparison={compareTyped(typeItWord, typed)} showExpected={false} lang={rendered?.speechLang} /> : null}
+      {typing && typeItWord ? <TypedDiff comparison={compareTyped(typeItWord, typed)} showExpected={false} lang={rendered?.speechLang} typedLabel={spokenIn ? 'You said' : 'Yours'} /> : null}
+      {typing && typeItWord && spokenIn ? <Text style={{ ...type.footnote, color: c.textSecondary }}>The phone hears what you say, not how you say it. Rate it as you would any answer.</Text> : null}
       <AnswerExtras
         word={headword(note)}
         offer={forms.offerView(goodFrom)}
@@ -800,9 +817,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
         <TextInput
           key={current.id}
           value={typed}
-          onChangeText={setTyped}
+          onChangeText={(t) => { setTyped(t); setSpokenIn(false); }}
           onSubmitEditing={reveal}
-          autoFocus
+          autoFocus={!spokenIn}
           autoCapitalize="none"
           autoCorrect={false}
           spellCheck={false}
@@ -818,10 +835,17 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
           }}
         />
       ) : null}
+      {typeItWord ? <ListeningNote spoken={spoken} language={rendered?.speechLang ? languageName(rendered.speechLang.split('-')[0]) : 'the word'} /> : null}
       {typeItWord && !typing ? (
         <View style={{ flexDirection: 'row', gap: space.s }}>
           <TypeItButton onPress={() => setTyping(true)} />
+          <SpeakButton spoken={spoken} />
           <Button label="Show answer" onPress={reveal} style={{ flex: 1 }} />
+        </View>
+      ) : typeItWord ? (
+        <View style={{ flexDirection: 'row', gap: space.s }}>
+          <SpeakButton spoken={spoken} />
+          <Button label="Check" onPress={() => { spoken.cancel(); reveal(); }} style={{ flex: 1 }} />
         </View>
       ) : (
         <Button label={typing ? 'Check' : 'Show answer'} onPress={reveal} />
@@ -1011,8 +1035,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
               <Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} />
               {reminder ? <MissReminder text={reminder} /> : null}
               {canRecordYourself(rendered) ? (
-                <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
                   <RecordYourself rec={self} label="Record" size="card" />
+                  <ScoreTake rec={self} reference={headword(note)} language={mixupLanguage(note)} />
                 </View>
               ) : null}
             </Reveal>

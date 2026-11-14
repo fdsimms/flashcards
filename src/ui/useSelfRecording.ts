@@ -1,6 +1,6 @@
 import {
-  getRecordingPermissionsAsync, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync,
-  useAudioPlayer, useAudioRecorder, type AudioMode, type RecordingStatus,
+  AudioQuality, getRecordingPermissionsAsync, IOSOutputFormat, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync,
+  useAudioPlayer, useAudioRecorder, type AudioMode, type RecordingOptions, type RecordingStatus,
 } from 'expo-audio';
 import { File } from 'expo-file-system';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -29,11 +29,36 @@ export interface SelfRecording {
   playTake: () => void;
   /** Stops the take playing, before the screen plays something else. */
   stopTake: () => void;
+  /** The take's file, for Score it to send; null with none. */
+  takeUri: string | null;
 }
+
+/**
+ * A take Azure can score (Score it, server/reader pronunciation.py): 16 kHz, 16-bit mono WAV, which
+ * its speech to text takes as is. Used only while Answer by speaking is on; otherwise a take is the
+ * higher quality AAC it always was, since it's only played back.
+ */
+const SCORABLE: RecordingOptions = {
+  extension: '.wav',
+  sampleRate: 16000,
+  numberOfChannels: 1,
+  bitRate: 256000,
+  android: { outputFormat: 'default', audioEncoder: 'default' },
+  ios: {
+    outputFormat: IOSOutputFormat.LINEARPCM,
+    audioQuality: AudioQuality.HIGH,
+    linearPCMBitDepth: 16,
+    linearPCMIsBigEndian: false,
+    linearPCMIsFloat: false,
+  },
+  web: {},
+};
 
 export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, opts: {
   /** Called before recording or playing a take, so the screen can stop its own audio first. */
   onBeforeAudio: () => void;
+  /** Record in a format Azure can score (Answer by speaking is on). */
+  scorable?: boolean;
 }): SelfRecording {
   const [take, setTake] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
@@ -58,7 +83,7 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
 
   // A take ends here whichever way it stopped: Stop, the time limit, or iOS ending it (a call).
   const finished = useRef<(status?: RecordingStatus) => void>(() => undefined);
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY, (status) => {
+  const recorder = useAudioRecorder(opts.scorable ? SCORABLE : RecordingPresets.HIGH_QUALITY, (status) => {
     if (status.isFinished || status.hasError) finished.current(status);
   });
   // The Stop chip's clock, counted here rather than by polling the recorder while nothing records.
@@ -159,6 +184,7 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
     stop,
     playTake: () => { if (take) { haptic.tap(); playUri(take); } },
     stopTake,
+    takeUri: take,
   };
 }
 

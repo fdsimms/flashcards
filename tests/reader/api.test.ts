@@ -206,3 +206,14 @@ test('sentences are asked for by language and count', async () => {
   expect(calls[0].url).toBe('https://x/api/sentences');
   expect(JSON.parse(String(calls[0].init.body))).toEqual({ language: 'de', count: 10 });
 });
+
+test('a situation turn posts the whole conversation, and its clip is fetched with the passphrase', async () => {
+  const turn = { line: 'รับอะไรดีคะ', english: 'What would you like?', words: [], unknown: [], done: false, audio: 'abc' };
+  const { impl, calls } = fakeFetch(json(turn));
+  const api = createApi('https://x/reader', 'p', impl);
+  const conversation = { language: 'th' as const, scene: 'Ordering street food', roles: null, lines: [] };
+  expect(await api.situationTurn(conversation)).toEqual(turn);
+  expect(calls[0].url).toBe('https://x/reader/api/situations/turn');
+  expect(JSON.parse(String(calls[0].init.body))).toEqual(conversation);
+  expect(api.situationAudio('abc')).toEqual({ uri: 'https://x/reader/api/situations/audio/abc', headers: { Authorization: 'Bearer p' } });
+});

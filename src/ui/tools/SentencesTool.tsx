@@ -10,6 +10,8 @@ import { Reveal } from '../motion';
 import { WritingResult } from '../ReadWritingResult';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { TypedDiff } from '../TypedDiff';
+import { ListeningNote, SpeakButton } from '../SpeakButton';
+import { useSpokenAnswer } from '../useSpokenAnswer';
 import type { ToolScreenProps } from './index';
 import { PlayButton, ToolScreen, useAnswer, useToolLanguage, type ToolActions } from './ToolScreen';
 
@@ -58,10 +60,17 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
   const at = roundLine(round);
   const prompt = loaded && at !== undefined ? loaded.sentences[at] : undefined;
   // Each sentence starts with an empty box.
-  useEffect(() => { setTyped(''); setShown(false); setCheck(null); setCheckError(null); setChecking(false); }, [round.at, loaded]);
+  // The sentence can be spoken (Answer by speaking): what's heard fills the box.
+  const spoken = useSpokenAnswer(LANGUAGES[language].speech, {
+    expected: prompt?.sentence,
+    onBeforeListen: () => answer.hide(),
+    onHeard: (heard) => setTyped(heard),
+  });
+  useEffect(() => { spoken.cancel(); setTyped(''); setShown(false); setCheck(null); setCheckError(null); setChecking(false); }, [round.at, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   const comparison = useMemo(() => (prompt ? compareTyped(prompt.sentence, typed) : null), [prompt, typed]);
 
   const show = () => {
+    spoken.cancel();
     setShown(true);
     if (prompt) answer.speak({ text: prompt.sentence });
   };
@@ -152,6 +161,8 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
               {checkError ? <ErrorNote message={checkError} onRetry={checkMine} /> : null}
             </Card>
           ) : (
+            <View style={{ gap: space.s }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
             <TextInput
               value={typed}
               onChangeText={setTyped}
@@ -165,9 +176,13 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
               keyboardAppearance={dark ? 'dark' : 'light'}
               style={{
                 ...type.body, fontSize: 20, lineHeight: 28, color: c.text, backgroundColor: c.surface, ...smooth, borderRadius: radius.m,
-                borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP * 2,
+                borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP * 2, flex: 1,
               }}
             />
+            <SpeakButton spoken={spoken} />
+            </View>
+            <ListeningNote spoken={spoken} language={name} />
+            </View>
           )}
           {shown ? <Help>A sentence you miss comes back at the end of the round.</Help> : null}
         </Reveal>

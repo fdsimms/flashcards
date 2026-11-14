@@ -238,6 +238,59 @@ answers aren't kept.
   most one other word outside the known ones), never repaired. The round, with a missed sentence
   coming back at the end, is the line drills' (`src/reader/lineDrill.ts`). Its cost is `sentences`.
 
+## Situations
+
+Decided 14 November 2026, the owner choosing from a mock (active learning, phase 2): the brief's
+Situations mode, made live. A scene (one of the topic ideas, `suggestions.py`, best fit first, or one
+typed in English) talked through with Claude, who plays the other person from the deck's words; the
+Practice tab's Situations tool (`src/ui/tools/SituationsTool.tsx`).
+
+- **Nothing is kept on the server** (`situations.py`). The app holds the conversation
+  (`src/reader/situations.ts`) and sends all of it with each turn (`POST /api/situations/turn`); the
+  first turn also chooses the two parts, a first name and a gender for the other person, which the app
+  sends back from then on. At most 40 lines.
+- **One call a turn, only when the owner sends a line.** The word list is the texts' (studied words,
+  with meanings), without the texts' writing rules, and is cached with the scene. **Generate, then
+  verify:** each of their lines is re-segmented with the writing lexicon, so a word due today and not
+  yet reviewed counts as unknown, and sent back once naming its words if it has more than
+  `MAX_UNKNOWN` (2) outside the known ones; the second try is kept either way (a conversation can't wait
+  for a third), with its unknown words picked out in the app and glossed from Claude's glosses.
+- **Their lines are spoken by Azure** (the owner's choice over the phone's voice), in the language's
+  voice for their gender, as each arrives, and kept as clips for two days (`ClipCache`,
+  `GET /api/situations/audio/{key}`) so a replay costs nothing. A failed recording leaves the line
+  without audio. "Heard only" hides their words behind Show the text.
+- **The owner's lines** may hold an English word in [brackets] for a word they don't know; Claude
+  answers as a helpful native speaker would. No correction during the conversation.
+- **Finish** (`POST /api/situations/feedback`): each of the owner's lines with a verdict, the line
+  with only its mistakes fixed (brackets put in the language) and a note, and up to six words worth
+  adding, each kept only if the deck doesn't know it and, for a word heard, if it was in their lines.
+  **Add** puts a word in the note queue (Quick add's), where it's filled in and saved, or not, in
+  the note editor: nothing reaches the deck without that.
+- **Cost:** `situations` in `/api/costs`, Claude's calls (failed ones included) and Azure's estimate
+  for the lines spoken. No daily cap (the owner's choice); the costs page shows it.
+
+## Speaking
+
+Decided 14 November 2026, the owner choosing from a mock (active learning, phase 3), with one setting
+for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
+
+- **Speech to text is the iPhone's** (`expo-speech-recognition`, `src/core/speaking.ts`,
+  `src/ui/useSpokenAnswer.ts`), never this server's. It runs with on-device required, which iOS keeps
+  on the phone where it can for a language and otherwise sends to Apple; iOS reports on-device support
+  only for the phone's own language, so the app says only whether a language can be heard at all.
+  Tap to start, stopping by itself on a pause (Review's Type it, Say it back, Sentences); hold to
+  talk in Situations. What's heard fills the box and is compared like typing, the recognizer's guess
+  closest to the answer taken (`bestHeard`).
+- **Score it** (`POST /api/pronunciation`, `pronunciation.py`, `franki_speech.SpeechClient.assess`):
+  a Record yourself take, scored against its line or word by Azure's pronunciation assessment on the
+  owner's tap. The take is 16 kHz WAV while speaking is on, sent as base64 JSON, and not kept. Each
+  word gets a band the app colors (good from 80, close from 60, again below, or left out or added),
+  with its weakest syllable. A language Azure won't assess is refused with that said plainly. Its
+  cost is Azure's estimate from the seconds sent, `pronunciation` in `/api/costs`. Open risks: the
+  request shape, the answer's fields and the price are from memory (Microsoft's pages weren't
+  reachable), and which of the app's languages Azure scores is unknown until it's asked; tones aren't
+  scored as such.
+
 ## Hosting
 
 - **Beside the Anki sync server** (11 November 2026, by the owner's decision, moved from Fly.io),

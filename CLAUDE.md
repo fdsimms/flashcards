@@ -159,7 +159,7 @@ src/reader   Read & Listen's side of the app: its server's API, the reading sess
              tested; storage.ts keeps the passphrase in the Keychain)
 src/wanikani WaniKani as a deck: its API, the study session (undo holds the latest answer), answer
              checking, kana input, production notes (pure, tested; storage.ts keeps the token in the Keychain)
-src/tools    the Practice tab's tools (words you mix up, sentences, time, dates, money, numbers, counting, script, grammar): the list (tools.ts), each tool's logic, and each
+src/tools    the Practice tab's tools (words you mix up, sentences, situations, time, dates, money, numbers, counting, script, grammar): the list (tools.ts), each tool's logic, and each
              language's under its own folder (thai/, spanish/...); pure, tested, except storage.ts. A tool
              comes in every app language unless it doesn't apply, and never schedules or writes a card
              (tests/tools/noGrading.test.ts). It may check an answer, or take Missed it / Got it, and keep only a
@@ -197,7 +197,9 @@ the review. `MemoryRepo` is the reference implementation and must behave like th
 `src/ui/AppContext.tsx`): iOS otherwise mutes an app's recordings, TTS and WebView audio alike, which made every
 play button look broken. `expo-audio`'s config plugin asks for the microphone only for Record
 yourself (`useSelfRecording`): a take of your own voice to play next to a card's or a line's
-recording, kept in the caches folder until you move on and never saved, synced or sent. The session
+recording, kept in the caches folder until you move on and never saved or synced. It's sent only on
+Score it's tap (Answer by speaking on), to Azure through Read & Listen's server, which keeps nothing;
+while speaking is on a take is 16 kHz WAV, the format Azure scores (`useSelfRecording`'s `scorable`). The session
 allows recording only while a take is made, since iOS's play-and-record category puts Bluetooth
 headphones into call quality. The plugin also allows background audio, which only Read & Listen's
 reader turns on, while it's open (`shouldPlayInBackground`), so listening goes on with the screen locked.
@@ -206,7 +208,10 @@ reader turns on, while it's open (`shouldPlayInBackground`), so listening goes o
 voices, chosen per language in Settings, Voices) and storage is local SQLite. The network calls are
 sync with the user's own Anki sync server (`src/anki/sync/`), off until they sign in, and Read &
 Listen, which talks to its server beside the sync server and is off until its passphrase is entered
-(Settings, Read & Listen). WaniKani talks to api.wanikani.com only once its token is entered
+(Settings, Read & Listen). **Answer by speaking** (Settings, Speaking; `src/core/speaking.ts`, `useSpokenAnswer`) is off
+until turned on: iOS's recognizer runs with on-device required, which iOS keeps on the phone where
+it can for a language and otherwise sends to Apple. iOS doesn't say which, so the app doesn't
+either; it only says whether a language can be heard at all. WaniKani talks to api.wanikani.com only once its token is entered
 (Settings, WaniKani); its answers go to WaniKani, which schedules them, and only its production
 notes enter the collection. It keeps an offline copy of what's up (`offline.ts`: reviews, lessons, subjects, synonyms, and
 recordings as files), made each time WaniKani is reached, so a session can be studied with no connection: its answers go to the
@@ -313,9 +318,11 @@ answer is already in the server's history (`undoAnkiAnswer` refuses it, under `l
 **Producing an answer is practice, never a rating.** Type it on a reverse card and the hook asked
 on a new word's first answer (`src/core/activeRecall.ts`), Words you mix up (`src/tools/mixups.ts`)
 Read & Listen's Say it back and Write what you hear, and what Claude checks (Use today's words,
-Sentences, Retell it: `server/reader/.../production.py`) compare what was typed
+Sentences, Retell it, Situations: `server/reader/.../production.py`, `situations.py`) compare what was typed
 (`src/core/typedCompare.ts`) or correct it, but leave the rating to the learner: nothing feeds FSRS
-but the answer button pressed.
+but the answer button pressed. A spoken answer is compared as typing is, the recognizer's guess closest
+to the answer taken (`bestHeard`), since telling homophones apart is the recognizer's job; the phone
+hears what was said, not how.
 
 **A miss reason is a reminder, never an input to scheduling.** Again's menu (`src/core/misses.ts`)
 saves what went wrong in the answer's own review row (`ReviewLogEntry.miss`), which is why undo

@@ -158,6 +158,25 @@ marked words, ideas) is in the current language, the `language` setting.
                                       meaning, sentence, english, reviewed_today}], writing}. More
                                       are written in the background; never a word waiting for its
                                       review
+    GET   /api/situations/scenes      ?language= scenes to pick from for Situations (situations.py):
+                                      everyday situations, best fit to the deck first (Thai)
+    POST  /api/situations/turn        {language, scene, roles?, lines: [{speaker, text}]} the other
+                                      person's next line, written by Claude from the deck's words:
+                                      {line, english, words: [word], unknown, done, roles?, audio}.
+                                      The first turn (no lines) also sets `roles` {you, them, name,
+                                      gender}, which the app sends back on every turn after. `audio`
+                                      is a clip's key, or null. Nothing is kept: the app holds the
+                                      conversation
+    POST  /api/situations/feedback    {language, scene, roles, lines} at the end: each of the
+                                      owner's lines checked {index, verdict, corrected, note}, and
+                                      words worth adding {word, english, why: asked | heard}
+    GET   /api/situations/audio/{key} a clip of one of the other person's lines (MP3)
+    POST  /api/pronunciation          {language, reference, audio} a take of the owner's (base64 WAV,
+                                      16 kHz mono) scored against `reference` by Azure's
+                                      pronunciation assessment: {accuracy, fluency, completeness,
+                                      heard, words: [{word, accuracy, band, error, syllables,
+                                      weakest}]}. 422 for a language Azure doesn't score. The take
+                                      isn't kept
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
                                       memory hints for a word the owner keeps forgetting: {hints: [...]}
     POST  /api/glosses                {language, sentences: [{text, english?}]} cards' example
@@ -193,7 +212,9 @@ from franki_reader import (
     meanings,
     note_queue,
     production,
+    pronunciation,
     sentences,
+    situations,
     store,
     timing,
     vocab_check,
@@ -245,7 +266,15 @@ from franki_reader.stretch import reviewed_words
 from franki_reader.stretch import waiting as waiting_for_review
 from franki_reader.study_day import DEFAULT_ROLLOVER
 from franki_reader.suggestions import suggest
-from franki_reader.tts import AudioCache, Speech, azure_synthesize, azure_usd, billed_chars
+from franki_reader.tts import (
+    AudioCache,
+    ClipCache,
+    Speech,
+    TtsFailed,
+    azure_synthesize,
+    azure_usd,
+    billed_chars,
+)
 from franki_reader.wanikani import wanikani_reader
 
 # The window the progress summary covers: the Milestone 1 exit check's two weeks.
@@ -343,6 +372,37 @@ class AttemptIn(BaseModel):
 
 class RetellIn(BaseModel):
     attempt: str = Field(min_length=1, max_length=production.MAX_ATTEMPT)
+
+
+class SituationRoles(BaseModel):
+    you: str = Field(min_length=1, max_length=80)
+    them: str = Field(min_length=1, max_length=80)
+    name: str = Field(min_length=1, max_length=80)
+    gender: Literal["male", "female"]
+
+
+class SituationLine(BaseModel):
+    speaker: situations.Speaker
+    text: str = Field(min_length=1, max_length=situations.MAX_LINE)
+
+
+class SituationIn(BaseModel):
+    language: Code
+    scene: str = Field(min_length=1, max_length=200)
+    roles: SituationRoles | None = None
+    lines: list[SituationLine] = Field(default_factory=list, max_length=situations.MAX_LINES)
+
+    def conversation(self) -> situations.Conversation:
+        roles = situations.Roles(**self.roles.model_dump()) if self.roles else None
+        lines = tuple(situations.Line(ln.speaker, " ".join(ln.text.split())) for ln in self.lines)
+        return situations.Conversation(self.language, self.scene.strip(), roles, lines)
+
+
+class TakeIn(BaseModel):
+    language: Code
+    reference: str = Field(min_length=1, max_length=600)
+    # Base64 of the WAV: at most `pronunciation.MAX_WAV_BYTES`, so a third more as text.
+    audio: str = Field(min_length=1, max_length=pronunciation.MAX_WAV_BYTES * 4 // 3 + 8)
 
 
 class SentencesIn(BaseModel):
@@ -480,6 +540,10 @@ def create_app(
     check_attempt: production.CheckAttempt | None = None,
     check_retell: production.CheckRetell | None = None,
     write_sentences: sentences.WriteSentences | None = None,
+    play: situations.Play | None = None,
+    give_feedback: situations.GiveFeedback | None = None,
+    clips: ClipCache | None = None,
+    assess: pronunciation.Assess | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
     # Points whose drill questions are being written, shared by every request (drills.top_up).
@@ -1043,6 +1107,126 @@ def create_app(
         background.add_task(top_up_sentences, body.language, words)
         return {"sentences": served, "writing": write_sentences is not None}
 
+    @app.get("/api/situations/scenes", dependencies=authed)
+    async def situation_scenes(language: Code) -> list[str]:
+        _, lexicon = engine.snapshot(language)
+        return [s.name for s in suggest(lexicon, set(), language)]
+
+    async def speak_clip(language: Code, gender: str, line: str) -> tuple[str | None, int]:
+        """One of their lines spoken in the voice for their gender: the clip's key (None when
+        there's no text to speech or Azure failed) and the characters Azure billed for it."""
+        if clips is None or engine.synthesize is None:
+            return None, 0
+        voice = engine.voices_for(language)["female" if gender == "female" else "male"]
+        key = ClipCache.key(line, voice)
+        if clips.path(key) is not None:
+            return key, 0
+        try:
+            spoken = await engine.synthesize(line, voice, LANGUAGES[language].locale)
+        except TtsFailed:
+            return None, 0
+        clips.write(key, spoken.audio, engine.clock())
+        return key, billed_chars(line)
+
+    @app.post("/api/situations/turn", dependencies=authed)
+    async def situation_turn(body: SituationIn) -> dict[str, Any]:
+        """Never writes to Anki or grades a card: it only reads the snapshot of the deck."""
+        if play is None:
+            raise HTTPException(503, no_claude.replace("check your writing", "play a situation"))
+        conversation = body.conversation()
+        if conversation.lines and conversation.roles is None:
+            raise HTTPException(422, "A conversation under way needs its `roles`.")
+        if conversation.lines and conversation.lines[-1].speaker != "you":
+            raise HTTPException(422, "It's the learner's turn: the last line should be theirs.")
+        language = body.language
+        # Words due today and not yet reviewed count as unknown, as when a text is written.
+        entries, writing = engine.writing_lexicon(language)
+        try:
+            line, unknown, used = await situations.next_line(play, entries, conversation, writing)
+        except situations.SituationFailed as e:
+            keep_failed_cost("situations", language, e.usage)
+            raise HTTPException(503, str(e)) from e
+        roles = line.get("roles") or (body.roles.model_dump() if body.roles else None)
+        audio, chars = await speak_clip(
+            language, roles["gender"] if roles else "male", line["line"]
+        )
+        store.save_call_cost(
+            engine.conn, "situations", language, engine.clock(), used.cost_usd(), chars
+        )
+        snapshot, lexicon = engine.snapshot(language)
+        translits = {e.text: e.translit for e in snapshot if e.translit}
+        meanings = {**engine.meanings(language), **line["glosses"]}
+        out: dict[str, Any] = {
+            "line": line["line"],
+            "english": line["english"],
+            "words": render_sentence(line["line"], lexicon, meanings, translits),
+            "unknown": unknown,
+            "done": line["done"],
+            "audio": audio,
+        }
+        if "roles" in line:
+            out["roles"] = line["roles"]
+        return out
+
+    @app.post("/api/situations/feedback", dependencies=authed)
+    async def situation_feedback(body: SituationIn) -> dict[str, Any]:
+        if give_feedback is None:
+            raise HTTPException(503, no_claude)
+        conversation = body.conversation()
+        if not any(ln.speaker == "you" for ln in conversation.lines):
+            raise HTTPException(422, "There are no lines of yours to check yet.")
+        try:
+            answer, used = await give_feedback(conversation)
+        except situations.SituationFailed as e:
+            keep_failed_cost("situations", body.language, e.usage)
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(
+            engine.conn, "situations", body.language, engine.clock(), used.cost_usd()
+        )
+        _, lexicon = engine.snapshot(body.language)
+        return situations.clean_feedback(answer, conversation, lexicon)
+
+    @app.get("/api/situations/audio/{key}", dependencies=authed)
+    async def situation_audio(key: str) -> FileResponse:
+        path = clips.path(key) if clips is not None else None
+        if path is None:
+            raise HTTPException(404, "No such clip.")
+        return FileResponse(path, media_type="audio/mpeg")
+
+    @app.post("/api/pronunciation", dependencies=authed)
+    async def score_take(body: TakeIn) -> dict[str, Any]:
+        """Never writes to Anki or grades a card, and keeps nothing of the take."""
+        if assess is None:
+            raise HTTPException(
+                503,
+                "Azure isn't set up on the server, so it can't score a recording"
+                " (AZURE_SPEECH_KEY and AZURE_SPEECH_REGION in server/.env turn this on).",
+            )
+        try:
+            wav = pronunciation.wav_of(body.audio)
+        except pronunciation.TakeRefused as e:
+            raise HTTPException(422, str(e)) from e
+        info = LANGUAGES[body.language]
+        try:
+            assessed = await assess(wav, body.reference.strip(), info.locale)
+        except SpeechError as e:
+            if e.status == 400:
+                raise HTTPException(
+                    422,
+                    f"Azure didn't score this. It may not score {info.name}: compare your take with"
+                    " the recording yourself instead.",
+                ) from e
+            raise HTTPException(503, str(e)) from e
+        seconds = pronunciation.seconds_of(wav)
+        store.save_call_cost(
+            engine.conn,
+            "pronunciation",
+            body.language,
+            engine.clock(),
+            pronunciation.azure_stt_usd(seconds),
+        )
+        return pronunciation.result(assessed)
+
     @app.post("/api/mnemonics", dependencies=authed)
     async def make_mnemonics(body: MnemonicIn) -> dict[str, list[str]]:
         if mnemonics is None:
@@ -1160,6 +1344,8 @@ def create_app(
         formed = store.form_spending(engine.conn, since)
         produced = store.production_spending(engine.conn, since)
         sentenced = store.sentence_spending(engine.conn, since)
+        situated, situated_chars = store.situation_spending(engine.conn, since)
+        scored = store.pronunciation_spending(engine.conn, since)
         recorded, recorded_chars = store.recording_spending(engine.conn, since)
         rows = by_language.values()
         total = store.Spending(
@@ -1322,6 +1508,29 @@ def create_app(
                     }
                     for code, (n, c) in sentenced.items()
                 ],
+            },
+            # Situations (situations.py): a call a turn, and one for the feedback at the end, failed
+            # calls included, plus Azure's estimate for the other person's lines.
+            "situations": {
+                "asked": sum(n for n, _ in situated.values()),
+                "cost_usd": round(sum(c for _, c in situated.values()), 4),
+                "audio_chars": situated_chars,
+                "azure_usd": round(azure_usd(situated_chars), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "asked": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in situated.items()
+                ],
+            },
+            # Takes scored by Azure's pronunciation assessment (pronunciation.py): Azure's alone, an
+            # estimate from the seconds sent.
+            "pronunciation": {
+                "scored": sum(n for n, _ in scored.values()),
+                "azure_usd": round(sum(c for _, c in scored.values()), 4),
             },
             # Cards recorded by an Azure voice in the app (POST /api/speech): Azure's alone, an
             # estimate like the texts' audio. Not per language: the app doesn't say which.
@@ -1782,6 +1991,8 @@ def production_app() -> FastAPI:
     check_attempt: production.CheckAttempt | None = None
     check_retell: production.CheckRetell | None = None
     write_sentences: sentences.WriteSentences | None = None
+    play: situations.Play | None = None
+    give_feedback: situations.GiveFeedback | None = None
     write_drills: drills.WriteDrills | None = None
     write_vocab: vocab_check.WriteVocab | None = None
     write_notes: note_queue.WriteNotes | None = None
@@ -1797,6 +2008,8 @@ def production_app() -> FastAPI:
         check_attempt = production.claude_attempt(client)
         check_retell = production.claude_retell(client)
         write_sentences = sentences.claude_sentences(client)
+        play = situations.claude_play(client)
+        give_feedback = situations.claude_feedback(client)
         write_drills = drills.claude_drills(client)
         write_vocab = vocab_check.claude_vocab(client)
         write_notes = note_queue.claude_notes(client)
@@ -1871,4 +2084,9 @@ def production_app() -> FastAPI:
         check_attempt=check_attempt,
         check_retell=check_retell,
         write_sentences=write_sentences,
+        play=play,
+        give_feedback=give_feedback,
+        # Beside the texts' audio: a text's folder is its id, so "situations" can't be one.
+        clips=ClipCache(settings.audio_dir / "situations"),
+        assess=speech.assess if speech else None,
     )

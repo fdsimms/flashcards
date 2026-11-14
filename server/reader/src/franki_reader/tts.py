@@ -13,11 +13,13 @@ SDK), kept beside its MP3 as `<line>.json`, so the reader can light up each word
 couldn't be used, has no timings and plays without them.
 """
 
+import hashlib
 import json
 import re
 import shutil
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -123,6 +125,39 @@ class AudioCache:
             return [WordMark(str(t), int(s), int(e)) for t, s, e in raw]
         except (OSError, ValueError, TypeError):
             return None
+
+
+class ClipCache:
+    """Lines spoken outside a text (Situations): `<dir>/<key>.mp3`, the key a hash of the voice and
+    the words, so the same line in the same voice is spoken once. Clips older than `KEEP` are
+    dropped whenever one is written, since a conversation isn't kept."""
+
+    KEEP = timedelta(days=2)
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+
+    @staticmethod
+    def key(text: str, voice: str) -> str:
+        return hashlib.sha256(f"{voice}\n{text}".encode()).hexdigest()[:32]
+
+    def path(self, key: str) -> Path | None:
+        """The clip's file, or None for a key that isn't one of ours or a clip that isn't there."""
+        if not re.fullmatch(r"[0-9a-f]{32}", key):
+            return None
+        path = self.root / f"{key}.mp3"
+        return path if path.is_file() else None
+
+    def write(self, key: str, audio: bytes, now: datetime) -> None:
+        self.root.mkdir(parents=True, exist_ok=True)
+        cutoff = (now - self.KEEP).timestamp()
+        for old in self.root.glob("*.mp3"):
+            try:
+                if old.stat().st_mtime < cutoff:
+                    old.unlink()
+            except OSError:
+                pass
+        _write_whole(self.root / f"{key}.mp3", audio)
 
 
 def _write_whole(path: Path, data: bytes) -> None:

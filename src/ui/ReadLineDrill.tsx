@@ -16,6 +16,8 @@ import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './them
 import { TypedDiff } from './TypedDiff';
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { useSelfRecording } from './useSelfRecording';
+import { ListeningNote, SpeakButton } from './SpeakButton';
+import { useSpokenAnswer } from './useSpokenAnswer';
 
 const AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: true };
 /** Write what you hear's slower speed, the reader's own slowest. */
@@ -62,6 +64,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
   };
   // Each line starts with an empty box; Write what you hear plays it as it comes up.
   useEffect(() => {
+    spoken.cancel();
     setTyped('');
     setChecked(false);
     setExplaining(false);
@@ -70,8 +73,16 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
   }, [round.at]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const expected = line ? lineText(line) : '';
+  // Say it back can be spoken (Answer by speaking): what's heard fills the box.
+  const spoken = useSpokenAnswer(LANGUAGES[text.language].speech, {
+    expected,
+    mode: AUDIO_MODE,
+    onBeforeListen: () => { player.pause(); self.stop(false); },
+    onHeard: (heard) => setTyped(heard),
+  });
   const comparison = useMemo(() => compareTyped(expected, typed), [expected, typed]);
   const check = () => {
+    spoken.cancel();
     haptic.tap();
     setChecked(true);
     if (kind === 'say') play();
@@ -170,6 +181,8 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
               {explaining ? explain(at) : null}
             </Card>
           ) : (
+            <View style={{ gap: space.s }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
             <TextInput
               value={typed}
               onChangeText={setTyped}
@@ -184,9 +197,13 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
               keyboardAppearance={dark ? 'dark' : 'light'}
               style={{
                 ...readFont, color: c.text, backgroundColor: c.surface, ...smooth, borderRadius: radius.m,
-                borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP * 2,
+                borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP * 2, flex: 1,
               }}
             />
+            {kind === 'say' ? <SpeakButton spoken={spoken} /> : null}
+            </View>
+            {kind === 'say' ? <ListeningNote spoken={spoken} language={LANGUAGES[text.language].name} /> : null}
+            </View>
           )}
           {checked ? <Help>A line you miss comes back at the end of the round.</Help> : null}
         </Reveal>

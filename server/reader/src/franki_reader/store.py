@@ -1365,6 +1365,8 @@ CallFeature = Literal[
     "questions",
     "forms",
     "production",
+    "situations",
+    "pronunciation",
 ]
 
 
@@ -1402,6 +1404,25 @@ def production_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code,
     """Each language with the owner's own writing checked since `since` (production.py): how many
     calls (failed ones included) and what they cost Claude."""
     return _feature_spending(conn, "production", since)
+
+
+def situation_spending(
+    conn: sqlite3.Connection, since: datetime
+) -> tuple[dict[Code, tuple[int, float]], int]:
+    """Situations since `since` (situations.py): each language's calls (a turn, or the feedback at
+    the end, failed calls included) and what they cost Claude, and the characters Azure spoke."""
+    (chars,) = conn.execute(
+        "SELECT SUM(audio_chars) FROM call_costs WHERE feature = 'situations' AND created_at >= ?",
+        (since.isoformat(),),
+    ).fetchone()
+    return _feature_spending(conn, "situations", since), int(chars or 0)
+
+
+def pronunciation_spending(
+    conn: sqlite3.Connection, since: datetime
+) -> dict[Code, tuple[int, float]]:
+    """Each language's takes scored since `since` (pronunciation.py) and Azure's estimated cost."""
+    return _feature_spending(conn, "pronunciation", since)
 
 
 def form_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
