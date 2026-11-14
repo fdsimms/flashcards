@@ -50,6 +50,13 @@ export function recordMark(marks: Marks, list: string, patterns: string[], right
   return next;
 }
 
+/** The misses a tool and language's patterns still count, in all: what Daily extras (extras.ts) reads to see where practice is needed most. */
+export function liveMisses(tallies: Record<string, Tally> | undefined, now: number): number {
+  let misses = 0;
+  for (const t of Object.values(tallies ?? {})) if (live(t, now)) misses += t.misses;
+  return misses;
+}
+
 /** How strongly a question with these patterns is drawn: 1, plus its patterns' live misses, at most 1 + MAX_MISSES. */
 export function weightOf(tallies: Record<string, Tally> | undefined, patterns: string[], now: number): number {
   let misses = 0;
