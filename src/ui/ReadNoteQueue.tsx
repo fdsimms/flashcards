@@ -136,7 +136,7 @@ export function ReadNoteQueue({ queue, error, getItems, onReview, onRetry, onRem
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         {queue && !queue.available ? (
-          <ErrorNote message="Claude isn't set up on the server, so notes can't be filled in. Add its key to the server's .env, then try again." onRetry={onRefresh} />
+          <ErrorNote message="Claude isn't set up on the server, so notes can't be filled in. Add Claude's key to your Read & Listen server, then try again." onRetry={onRefresh} />
         ) : null}
         {error ? <ErrorNote message={error} onRetry={onRefresh} /> : null}
         {problem ? <ErrorNote message={problem} /> : null}

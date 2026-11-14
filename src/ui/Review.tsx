@@ -11,7 +11,7 @@ import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core
 import { failureText } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
-import { isInterdayLearning, nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
+import { dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type AnswerContext, type RatingValue } from '../core/scheduler';
 import { fuzzSeed } from '../core/ankiFuzz';
@@ -36,6 +36,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardWebView } from './CardWebView';
 import { Side } from './CardSide';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
+import { useVacationPrefs } from './vacationPrefs';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
 import { wordsToUse, type WordToUse } from '../reader/production';
@@ -312,13 +313,14 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   const forms = useReviewForms(repo, { cards, notes, deckSettings, now, dayStartsAtHour: H });
   // The reasons chosen on Again, and the "Last time" reminder they bring back (src/core/misses.ts).
   const misses = useMissMarks(repo);
+  const vacation = useVacationPrefs();
   const deckOf = useMemo(() => new Map([...notes.values()].map((n) => [n.id, n.deck])), [notes]);
   const queue = useMemo(() => {
     if (!cards) return null;
     return treeQueue(deck, queueInput({
-      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, collection, now, held: forms.held, boostFor: boostFor({ notes: notes.values(), settings: deckSettings, now }),
+      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, collection, now, held: forms.held, vacation, boostFor: boostFor({ notes: notes.values(), settings: deckSettings, now }),
     }));
-  }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held]);
+  }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held, vacation]);
 
   const current = queue ? currentCard(queue, preferId) : undefined;
   const note = current ? notes.get(current.noteId) : undefined;
@@ -727,7 +729,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
             onPress={() => practice?.onUseWords?.(newWords)}
           />
         ) : null}
-        {onNextDeck ? <Button label={`Study ${nextDeck}`} variant={reading || checking || mixing ? 'secondary' : 'primary'} onPress={onNextDeck} /> : null}
+        {onNextDeck ? <Button label={`Next up: study ${nextDeck}`} variant={reading || checking || mixing ? 'secondary' : 'primary'} onPress={onNextDeck} /> : null}
         {onEarlierDeck ? <Button label={`Back to the top: ${earlierDeck}`} variant={reading || checking || mixing ? 'secondary' : 'primary'} onPress={onEarlierDeck} /> : null}
         {/* An Anki filtered deck has no limits or cards of its own to add to. */}
         {paramsForDeck(deck, allParams)?.filtered ? null : <Button label="Custom study" variant="secondary" onPress={onCustomStudy} />}
@@ -1020,7 +1022,8 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     >
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
-          <Count value={queue.due.length} label="due" color={c.countDue} />
+          <Count value={dueCounts(queue).reviews} label="due" color={c.countDue} />
+          <Count value={dueCounts(queue).learning} label="learning" color={c.countLearn} />
           <Count value={queue.fresh.length} label="new" color={c.countNew} />
         </View>
       ) : null}

@@ -100,7 +100,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
               returnKeyType="go"
               onSubmitEditing={signIn}
             />
-            <Help>{`It's READER_PASSPHRASE in the server's .env. Franki checks it with ${address} and keeps it in the Keychain.`}</Help>
+            <Help>{`It's the passphrase you set on your Read & Listen server. Franki checks it with ${address} and keeps it in the Keychain.`}</Help>
             {error ? <ErrorNote message={error} /> : null}
             <Button label="Turn on" onPress={signIn} busy={busy} disabled={!value.trim()} />
           </Card>

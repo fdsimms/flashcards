@@ -2,6 +2,7 @@ import * as Speech from 'expo-speech';
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Repo } from '../../db/repo';
 import type { Language } from '../../reader/api';
 import { LANGUAGES, flaggedName } from '../../reader/languages';
@@ -12,13 +13,13 @@ import { toolLanguage, type ToolInfo } from '../../tools/tools';
 import { haptic } from '../haptics';
 import { Button, Card, Chip, Help, Icon, Screen, Tappable } from '../kit';
 import { Reveal } from '../motion';
-import { MIN_TAP, space, type, useTheme } from '../theme';
+import { hairline, MIN_TAP, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { PlayPill } from '../PlayButton';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 
 /**
- * What every Practice tool's screen shares: the language menu in the header, Randomize and Show
+ * What every Practice tool's screen shares: the language menu in the header, Another one and Show
  * answer at the bottom (Missed it and Got it once the answer is showing), and the answer card
  * (the usual way to say it, read aloud in the voice chosen in Settings, Voices; other ways it's
  * said; a last form such as the formal or written one). A tool's screen gives only what's in
@@ -80,7 +81,7 @@ export function useAnswer(repo: Repo, language: Language) {
 /** The footer once Missed it has kept the answer up to show its rule: only Next. */
 export const nextOnly = (next: () => void): ToolActions => ({ primary: { label: 'Next', onPress: next } });
 
-/** The footer's two buttons when a tool needs other than Randomize and Show answer (a quiz's Check, Try again, Next). No `secondary` leaves the primary button the whole width. */
+/** The footer's two buttons when a tool needs other than Another one and Show answer (a quiz's Check, Try again, Next). No `secondary` leaves the primary button the whole width. */
 export interface ToolActions {
   secondary?: { label: string; onPress: () => void };
   primary: { label: string; onPress: () => void; disabled?: boolean };
@@ -98,13 +99,17 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
    * (useMarks) and moves on, except a miss with a rule to show (`nextOnly` then replaces them).
    */
   onMark: (right: boolean) => void;
-  /** Replaces the footer's Randomize and Show answer. */
+  /** Replaces the footer's Another one and Show answer. */
   actions?: ToolActions;
   children: React.ReactNode;
 }) {
-  const { scrollProps, bottomPadding } = useKeyboardScroll();
+  // The keyboard's height pads the whole screen, not just the list, so Check and Next in the footer
+  // stay above it: the number and decimal pads have no Return key to submit with.
+  const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
+  const insets = useSafeAreaInsets();
   const name = LANGUAGES[language].name;
   return (
+    <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
     <Screen
       title={tool.title}
       largeTitle={false}
@@ -132,17 +137,18 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
             </>
           ) : (
             <>
-              <Button variant="secondary" label="Randomize" style={{ flex: 1 }} onPress={onRandomize} />
+              <Button variant="secondary" label="Another one" style={{ flex: 1 }} onPress={onRandomize} />
               <Button label="Show answer" style={{ flex: 1 }} onPress={onShow} />
             </>
           )}
         </View>
       )}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, paddingBottom: space.l + bottomPadding, gap: space.l }} keyboardShouldPersistTaps="handled" {...scrollProps}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.l }} keyboardShouldPersistTaps="handled" {...scrollProps}>
         <ToolLanguage.Provider value={language}>{children}</ToolLanguage.Provider>
       </ScrollView>
     </Screen>
+    </View>
   );
 }
 
@@ -244,7 +250,7 @@ export function PlayButton({ label, onPress }: { label: string; onPress: () => v
 export function Ways({ title, phrases, onPlay }: { title: string; phrases: Phrase[]; onPlay: (p: Phrase) => void }) {
   const c = useTheme();
   return (
-    <View style={{ gap: space.s, borderTopWidth: 0.5, borderTopColor: c.border, paddingTop: space.m }}>
+    <View style={{ gap: space.s, borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.m }}>
       <Text style={{ ...type.overline, color: c.textSecondary }}>{title}</Text>
       {phrases.map((p) => (
         <Tappable

@@ -10,6 +10,7 @@ import { Button, Card, Group, Icon, NavRow, Screen, SwipeAction, SwipeToReveal, 
 import { Reveal, useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
+import { VacationCard, useVacationBanner } from './vacationNotice';
 import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
@@ -293,6 +294,7 @@ export function DeckList(props: {
   const header = useHeaderInset();
   const { banner: vocabReady } = useVocabReady();
   const noteQueue = useNoteQueueBanner();
+  const vacation = useVacationBanner();
   const shown = useMemo(() => shownDeckRows(props.decks, props.collapsed ?? new Set()), [props.decks, props.collapsed]);
   const groups = useMemo(() => groupByTopLevel(shown), [shown]);
   const allDecks = useMemo(() => props.decks.map((r) => r.deck), [props.decks]);
@@ -390,6 +392,7 @@ export function DeckList(props: {
           ) : null}
           {vocabReady ? <VocabReadyCard banner={vocabReady} /> : null}
           {noteQueue ? <NoteQueueCard banner={noteQueue} /> : null}
+          {vacation ? <VacationCard notice={vacation} due={totals.due} /> : null}
           {props.sync?.failed ? (
             // A failed sync is shown first, where it can't be scrolled past; a tap tries again.
             <WarningBanner title="Sync didn't finish" detail={props.sync.status} action="Tap to try again" hint="Syncs now" onPress={syncTapped} />

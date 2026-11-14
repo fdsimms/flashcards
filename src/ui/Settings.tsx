@@ -7,13 +7,15 @@ import { THAI_TEXT_CHOICES, thaiTextStyle, type ThaiTextSize } from '../core/scr
 import type { Repo } from '../db/repo';
 import { CheckRow, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
 import { reminderTime, useReminderPrefs } from './studyReminder';
+import { useStudyToday, useVacationPrefs } from './vacationPrefs';
+import { vacationDetail } from './vacationNotice';
 import { space, useTheme } from './theme';
 
 /**
  * App-wide settings: the screens that aren't about studying (Anki, Backup, Read & Listen, WaniKani), the
  * voices cards are read aloud with, the study reminder, and which answer buttons Review shows.
  */
-export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBackup, onRead, onWaniKani, onVoices, onReminder, onSpeaking }: {
+export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBackup, onRead, onWaniKani, onVoices, onReminder, onSpeaking, onVacation }: {
   repo: Repo;
   /** When the last backup was made (`backupStatus`). */
   backupText?: string;
@@ -27,6 +29,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
   onBackup: () => void;
   onVoices: () => void;
   onReminder: () => void;
+  onVacation: () => void;
   onSpeaking: () => void;
 }) {
   const c = useTheme();
@@ -37,6 +40,8 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
   const [speaking, setSpeaking] = useState<boolean>();
   const [thaiSize, setThaiSize] = useState<ThaiTextSize>();
   const reminder = useReminderPrefs();
+  const vacation = useVacationPrefs();
+  const { today } = useStudyToday();
   // Read each time Settings shows: it's changed on the Speaking screen, over this one.
   useFocusEffect(useCallback(() => { repo.answerBySpeaking().then(setSpeaking).catch(() => undefined); }, [repo]));
 
@@ -95,6 +100,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
             detail={!reminder ? undefined : reminder.on ? `Every day at ${reminderTime(reminder)}` : "Off. A notification each day with how many cards are waiting"}
             onPress={onReminder}
           />
+          <NavRow label="Vacation mode" detail={vacation ? vacationDetail(vacation, today) : undefined} onPress={onVacation} />
         </Group>
         <SectionTitle>Thai text size</SectionTitle>
         <Group accessibilityRole="radiogroup">

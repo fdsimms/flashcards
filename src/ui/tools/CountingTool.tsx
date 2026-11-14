@@ -86,7 +86,7 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
   };
 
   let actions: ToolActions | undefined;
-  if (mode === 'pick') actions = pick ? { primary: { label: 'Next', onPress: () => next() } } : { secondary: { label: 'Randomize', onPress: () => next() }, primary: { label: 'Show answer', onPress: reveal } };
+  if (mode === 'pick') actions = pick ? { primary: { label: 'Next', onPress: () => next() } } : { secondary: { label: 'Another one', onPress: () => next() }, primary: { label: 'Show answer', onPress: reveal } };
   else if (answer.missed) actions = nextOnly(() => next());
 
   const noun = question && counting ? counting.nouns[question.noun] : undefined;

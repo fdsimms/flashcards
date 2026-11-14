@@ -310,6 +310,13 @@ opened still applies, so the review screen loads every card, not just the opened
 `DeckSettings` is the app's own and an import never writes it; `DeckParams` is Anki's and every
 import replaces it. A setting the user makes here goes in the first.
 
+**Vacation mode changes what's offered, never a schedule** (`src/core/vacation.ts`, Settings, Vacation mode): Light scales
+each deck's daily limits (new cards to a count, reviews to a share) and puts reviews weakest first
+(`relativeOverdueness`); Paused offers nothing. It enters through `queueInput`, so the deck list and
+the review screen agree, and the setting is the phone's own (Keychain), never written to Anki. Nothing
+shifts a due date or adds a review: FSRS must see the real time since each review. After it ends the
+weakest-first order stays while a review that came due before the end still waits (`CATCH_UP_DAYS`).
+
 **Undo restores the card as it was and deletes the review row** (`AnswerRecord` in
 `src/core/session.ts`), and today's counts go back down by the same rule they went up
 (`bumpStudied`). The undone card is shown next. As in Anki, undo stops at the last sync: a synced

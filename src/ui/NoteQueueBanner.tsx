@@ -6,7 +6,7 @@ import { useApp } from './AppContext';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { Reveal } from './motion';
-import { lift, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
 import { useNoteQueue } from './useNoteQueue';
 
 /** What the deck list's note queue card says, or null with nothing queued (the card hides itself). */
@@ -32,7 +32,7 @@ export function NoteQueueCard({ banner }: { banner: NonNullable<ReturnType<typeo
       accessibilityLabel={`${message}. ${hint}`}
       style={{
         flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 56, paddingVertical: space.m, paddingHorizontal: space.l,
-        borderRadius: radius.l, ...smooth, backgroundColor: c.surface, borderColor: c.border, borderWidth: 0.5, ...lift(c, 'high'),
+        borderRadius: radius.l, ...smooth, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, ...lift(c, 'high'),
       }}
     >
       <Icon name={icon} size={22} color={color} />

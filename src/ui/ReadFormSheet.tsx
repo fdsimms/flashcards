@@ -21,7 +21,7 @@ export function ReadFormChip({ name, onPress }: { name: string; onPress: () => v
       accessibilityRole="button"
       accessibilityLabel={`${name}. Open an explanation.`}
       scaleTo={0.96}
-      hitSlop={{ top: space.s, bottom: space.s }}
+      hitSlop={{ top: space.m, bottom: space.m }}
       style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: space.xs, backgroundColor: c.accentFill, borderRadius: radius.s, paddingHorizontal: space.s, paddingVertical: 2 }}
     >
       <Text style={{ ...type.footnote, color: c.accent }}>{name}</Text>

@@ -24,7 +24,7 @@ const ANSWERS: { value: AnswerMode; label: string }[] = [{ value: 'say', label: 
  * Counting money: an amount in the chosen language's own money, as notes and coins to add up or
  * as a price to read, then said in that language and marked Missed it or Got it (Missed it shows
  * the rule behind the answer first, where there's one: rules.ts). A new amount comes with each
- * Randomize or mark, leaning toward the kinds missed lately (useMarks), and with a change of
+ * Another one or mark, leaning toward the kinds missed lately (useMarks), and with a change of
  * language, mode or size, since another currency is priced in other steps. An amount missed comes
  * back once a few amounts later (useRetries). Listen reads a price aloud instead, and the amount
  * typed is checked against it (Listen.tsx); Counting and Prices don't apply there.

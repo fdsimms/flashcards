@@ -80,6 +80,7 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
                       accessibilityRole="button"
                       accessibilityLabel={`${w.word}, ${w.english}. Show the line it's in`}
                       accessibilityState={{ expanded: opened === w.line }}
+                      hitSlop={{ top: space.xs, bottom: space.xs }}
                       style={{ minHeight: MIN_TAP - 8, justifyContent: 'center', paddingHorizontal: space.m, borderRadius: radius.pill, backgroundColor: c.accentFill }}
                     >
                       <Text style={{ ...type.subhead, color: c.accent }}>{`${w.word} · ${w.english}`}</Text>

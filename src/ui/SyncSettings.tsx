@@ -95,7 +95,7 @@ export function SyncSettings(props: {
             <Text style={{ ...type.headline, color: c.text }}>Sync with your Anki server</Text>
             <Help>
               Franki syncs with an Anki sync server you run yourself, the same one Anki on your computer and AnkiMobile sync
-              with. It can't sync with AnkiWeb. server/README.md in Franki's repository says how to set one up.
+              with. It can't sync with AnkiWeb. The setup steps are in the server folder of Franki's repository, to follow from your computer.
             </Help>
             <Field label="Server address" value={server} onChangeText={setServer} placeholder="For example anki.example.com"
               autoCapitalize="none" autoCorrect={false} keyboardType="url" textContentType="URL" error={!!error && !server.trim()}

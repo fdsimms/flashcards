@@ -76,7 +76,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
               <Text style={{ ...type.subhead, color: c.textSecondary }}>Nothing set to Practice. Pick a point below, or Practice one from the suggestions.</Text>
             ) : (
               <>
-                <Text style={{ ...type.subhead, color: c.textSecondary }}>Used at least twice in every text. Remove sets a point to Know it.</Text>
+                <Text style={{ ...type.subhead, color: c.textSecondary }}>Used at least twice in every text. Know it takes a point out of Practice.</Text>
                 {practicing.map((p) => (
                   <View key={p.id} style={{ gap: space.s, paddingTop: space.s, borderTopWidth: hairline, borderTopColor: c.border }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
@@ -84,7 +84,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
                         <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{p.name}</Text>
                         {p.seen ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{seenLine(p.seen, p.state, now, dayStartsAtHour, true)}</Text> : null}
                       </View>
-                      <HeaderAction label="Remove" accessibilityLabel={`Remove ${p.name} from Practice`} onPress={() => choose(p.id, 'normal', 'practicing')} />
+                      <HeaderAction label="Know it" accessibilityLabel={`Set ${p.name} to Know it`} onPress={() => choose(p.id, 'normal', 'practicing')} />
                     </View>
                     {failure(p.id, 'practicing')}
                   </View>

@@ -1,4 +1,5 @@
 import { useAudioPlayer } from 'expo-audio';
+import { Stack } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, TextInput, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,7 +10,7 @@ import { LANGUAGES } from '../../reader/languages';
 import { canFinish, canSend, conversationOf, startChat, withMine, withoutMine, withTheirs, type Chat } from '../../reader/situations';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
-import { Button, Card, Chip, ErrorNote, Group, Help, HeaderAction, Icon, Loading, NavRow, Screen, Tappable } from '../kit';
+import { Button, Card, Chip, ErrorNote, Group, Help, Icon, Loading, NavRow, Screen, Tappable } from '../kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import type { ToolScreenProps } from './index';
@@ -287,7 +288,11 @@ function Talk({ api, chat, onChat, heardOnly, feedback, onFeedback, onAgain, onD
         title={chat.scene}
         largeTitle={false}
         lockGesture={chat.lines.some((l) => l.speaker === 'you')}
-        toolbar={<HeaderAction label="Finish" onPress={() => void finish()} />}
+        toolbar={(
+          <Stack.Toolbar placement="right">
+            <Stack.Toolbar.Button accessibilityLabel="Finish the conversation and get feedback" onPress={() => void finish()}>Finish</Stack.Toolbar.Button>
+          </Stack.Toolbar>
+        )}
         footer={chat.done ? (
           <Button label="See how it went" busy={waiting} onPress={() => void finish()} />
         ) : (

@@ -1,6 +1,7 @@
 import * as Speech from 'expo-speech';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../../core/failure';
 import { checkAnswer } from '../../core/forms';
 import { grammarPoint } from '../../core/grammar';
@@ -36,7 +37,9 @@ interface Answered {
 const promptSpeech = (p: DrillPrompt) => LANGUAGES[grammarPoint(p.pointId)?.language ?? 'es'].speech;
 
 export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Repo; points: string[]; onDone: () => void }) {
-  const { scrollProps, bottomPadding } = useKeyboardScroll();
+  // The keyboard's height pads the whole screen, not just the list, so Check and Next in the footer stay above it.
+  const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
+  const insets = useSafeAreaInsets();
   const c = useTheme();
   const [prompts, setPrompts] = useState<DrillPrompt[] | null>(null);
   const [note, setNote] = useState<string>();
@@ -150,10 +153,11 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
     : !picking ? <Button label="Check" onPress={() => answer(typed, false)} disabled={!typed.trim()} /> : undefined;
 
   return (
+    <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
     <Screen title={`${index + 1} of ${prompts.length}`} largeTitle={false} footer={footer}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ padding: space.l, paddingBottom: space.l + bottomPadding, gap: space.xl, width: '100%', maxWidth: 640, alignSelf: 'center' }}
+        contentContainerStyle={{ padding: space.l, gap: space.xl, width: '100%', maxWidth: 640, alignSelf: 'center' }}
         keyboardShouldPersistTaps="handled"
         {...scrollProps}
       >
@@ -247,5 +251,6 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
         ) : null}
       </ScrollView>
     </Screen>
+    </View>
   );
 }

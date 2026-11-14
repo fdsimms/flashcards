@@ -319,6 +319,8 @@ export function Button(props: {
   disabled?: boolean;
   /** Shows a spinner in place of the label, and can't be pressed. */
   busy?: boolean;
+  /** What VoiceOver says when the label alone isn't enough: a button repeated down a list names its row. */
+  accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   const c = useTheme();
@@ -330,7 +332,7 @@ export function Button(props: {
       onPress={() => { haptic.tap(); props.onPress(); }}
       disabled={off}
       accessibilityRole="button"
-      accessibilityLabel={props.label}
+      accessibilityLabel={props.accessibilityLabel ?? props.label}
       accessibilityState={{ disabled: !!off, busy: !!props.busy }}
       scaleTo={0.98}
       dimTo={0.85}
