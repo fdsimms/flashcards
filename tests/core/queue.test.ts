@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { treeQueue } from '../../src/core/deckTree';
-import { isBuried, isDue, nextCard, nextLearningDue, siblingsToBury, studiedToday } from '../../src/core/queue';
+import { dueCounts, isBuried, isDue, nextCard, nextLearningDue, siblingsToBury, studiedToday } from '../../src/core/queue';
 import { review } from '../../src/core/scheduler';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
@@ -54,6 +54,17 @@ describe('queue', () => {
     expect(oneDeck([{ ...due, suspended: true }], { dayStartsAtHour: H, now: NOW }).due).toHaveLength(0);
     expect(oneDeck([{ ...due, retired: true }], { dayStartsAtHour: H, now: NOW }).due).toHaveLength(0);
     expect(oneDeck([{ ...base, retired: true }], { dayStartsAtHour: H, now: NOW }).fresh).toHaveLength(0);
+  });
+  it('splits the due cards into learning and reviews', () => {
+    const notes = [1, 2, 3, 4].map((i) => ({ ...omniNote(), id: `n${i}` }));
+    const cards = notes.flatMap((n) => makeCards(n, NOW));
+    const now = new Date(2026, 10, 12, 12);
+    cards[0] = withSched(cards[0], { state: 2, due: new Date(2026, 10, 1).toISOString() });
+    cards[1] = withSched(cards[1], { state: 1, due: new Date(2026, 10, 12, 11).toISOString() });
+    cards[2] = withSched(cards[2], { state: 3, due: new Date(2026, 10, 12, 11, 30).toISOString() });
+    const q = oneDeck(cards, { dayStartsAtHour: H, now });
+    expect(dueCounts(q)).toEqual({ learning: 2, reviews: 1 });
+    expect(q.fresh).toHaveLength(1);
   });
   it('says when the next learning card comes due', () => {
     const [base] = makeCards(omniNote(), NOW);

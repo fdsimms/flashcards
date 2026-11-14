@@ -34,6 +34,12 @@ export function isDue(card: Card, now: Date, dayStartsAtHour: number): boolean {
 
 export const isLearning = (c: Card) => c.sched.state === 1 || c.sched.state === 3;
 
+/** The queue's due cards split as Anki's counts show them: learning (steps, including a card just missed) and reviews. */
+export function dueCounts(queue: Pick<Queue, 'due'>): { learning: number; reviews: number } {
+  const learning = queue.due.filter(isLearning).length;
+  return { learning, reviews: queue.due.length - learning };
+}
+
 /** A learning card on a step of a day or more (Anki's queue 3): it's due on a later study day than its last answer. */
 export function isInterdayLearning(card: Card, dayStartsAtHour: number): boolean {
   if (!isLearning(card) || !card.sched.lastReview) return false;
