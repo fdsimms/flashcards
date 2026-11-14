@@ -64,6 +64,7 @@ import { mixupLanguage } from '../tools/mixups';
 import { languageName } from '../core/voices';
 import { TypedDiff } from './TypedDiff';
 import { SessionMissList, useSessionMisses, type MixupRequest } from './SessionMisses';
+import { ReviewMenu } from './ReviewMenu';
 import { NextSteps, type NextStep } from './ReviewNextSteps';
 import { asksOwnHook, typeItAnswer } from '../core/activeRecall';
 import { compareTyped } from '../core/typedCompare';
@@ -975,22 +976,6 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
       'plain-text', '', 'numbers-and-punctuation',
     );
   };
-  const openMenu = () => {
-    const options = ['Flag', 'Flag for an agent', 'Bury card', 'Bury note', 'Suspend card', 'Set due date', 'Forget card', 'Card info', 'Cancel'];
-    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 8, destructiveButtonIndex: 4 }, (i) => {
-      // Bury holds a card back until the next study day; Bury note does it to every card of the note; Suspend until it's unsuspended.
-      if (i === 0) chooseFlag();
-      if (i === 1) chooseAgentFlag();
-      if (i === 2) setStates([current], (s) => ({ ...s, buried: true }));
-      if (i === 3) setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }));
-      if (i === 4) setStates([current], (s) => ({ ...s, suspended: true }));
-      if (i === 5) chooseDueDate();
-      if (i === 6) chooseForget();
-      // The deck is loaded again when Card Info closes: the same card stays on screen.
-      if (i === 7) { setPreferId(current.id); onCardInfo(current.id); }
-    });
-  };
-
   return (
     <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
     {leechSheet}
@@ -1019,7 +1004,18 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
               setReloads((n) => n + 1);
             })}
           />
-          <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="More for this card: flag, bury, suspend, reschedule or card info" onPress={openMenu} />
+          <ReviewMenu
+            flag={current.flag ?? 0}
+            onFlag={(flag) => setStates([current], (s) => ({ ...s, flag }))}
+            onAgentFlag={chooseAgentFlag}
+            onBuryCard={() => setStates([current], (s) => ({ ...s, buried: true }))}
+            onBuryNote={() => setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }))}
+            onSuspend={() => setStates([current], (s) => ({ ...s, suspended: true }))}
+            onDueDate={chooseDueDate}
+            onForget={chooseForget}
+            // The deck is loaded again when Card Info closes: the same card stays on screen.
+            onCardInfo={() => { setPreferId(current.id); onCardInfo(current.id); }}
+          />
         </Stack.Toolbar>
       }
       footer={footer}
