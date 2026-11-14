@@ -69,6 +69,9 @@ export interface Repo {
   /** Whether a card's romanization and translation show without a tap. Off by default; this phone's own. */
   showCardHints(): Promise<boolean>;
   saveShowCardHints(on: boolean): Promise<void>;
+  /** Whether a new word's first answer side asks for the learner's own hook (`asksOwnHook`). On unless turned off. */
+  askOwnHook(): Promise<boolean>;
+  saveAskOwnHook(on: boolean): Promise<void>;
   /** How large Thai text is drawn on a card. Large by default; this phone's own. */
   thaiTextSize(): Promise<ThaiTextSize>;
   saveThaiTextSize(size: ThaiTextSize): Promise<void>;
@@ -104,6 +107,7 @@ export class MemoryRepo implements Repo {
   answerButtonsSetting: string | null = null;
   swipeToRateSetting = false;
   showCardHintsSetting = false;
+  askOwnHookSetting = true;
   thaiTextSizeSetting: ThaiTextSize = DEFAULT_THAI_TEXT_SIZE;
   practice: PracticeRecord[] = [];
   grammarAnswers: GrammarAnswer[] = [];
@@ -191,6 +195,8 @@ export class MemoryRepo implements Repo {
   async saveSwipeToRate(on: boolean) { this.swipeToRateSetting = on; }
   async showCardHints() { return this.showCardHintsSetting; }
   async saveShowCardHints(on: boolean) { this.showCardHintsSetting = on; }
+  async askOwnHook() { return this.askOwnHookSetting; }
+  async saveAskOwnHook(on: boolean) { this.askOwnHookSetting = on; }
   async thaiTextSize() { return this.thaiTextSizeSetting; }
   async saveThaiTextSize(size: ThaiTextSize) { this.thaiTextSizeSetting = size; }
   async addPractice(record: PracticeRecord) { this.practice.push({ ...record }); }

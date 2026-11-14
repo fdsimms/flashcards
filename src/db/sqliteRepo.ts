@@ -368,6 +368,13 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     async saveShowCardHints(on) {
       await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('show_card_hints', ?)", on ? '1' : '0');
     },
+    async askOwnHook() {
+      const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'ask_own_hook'");
+      return r?.value !== '0';
+    },
+    async saveAskOwnHook(on) {
+      await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('ask_own_hook', ?)", on ? '1' : '0');
+    },
     async thaiTextSize() {
       const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'thai_text_size'");
       return parseThaiTextSize(r?.value);

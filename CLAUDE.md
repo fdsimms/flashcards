@@ -159,7 +159,7 @@ src/reader   Read & Listen's side of the app: its server's API, the reading sess
              tested; storage.ts keeps the passphrase in the Keychain)
 src/wanikani WaniKani as a deck: its API, the study session (undo holds the latest answer), answer
              checking, kana input, production notes (pure, tested; storage.ts keeps the token in the Keychain)
-src/tools    the Practice tab's tools (time, dates, money, numbers, counting, script, grammar): the list (tools.ts), each tool's logic, and each
+src/tools    the Practice tab's tools (words you mix up, time, dates, money, numbers, counting, script, grammar): the list (tools.ts), each tool's logic, and each
              language's under its own folder (thai/, spanish/...); pure, tested, except storage.ts. A tool
              comes in every app language unless it doesn't apply, and never schedules or writes a card
              (tests/tools/noGrading.test.ts). It may check an answer, or take Missed it / Got it, and keep only a
@@ -309,6 +309,12 @@ import replaces it. A setting the user makes here goes in the first.
 `src/core/session.ts`), and today's counts go back down by the same rule they went up
 (`bumpStudied`). The undone card is shown next. As in Anki, undo stops at the last sync: a synced
 answer is already in the server's history (`undoAnkiAnswer` refuses it, under `lockAnki`).
+
+**Producing an answer is practice, never a rating.** Type it on a reverse card and the hook asked
+on a new word's first answer (`src/core/activeRecall.ts`), Words you mix up (`src/tools/mixups.ts`)
+and Read & Listen's Say it back and Write what you hear compare what was typed
+(`src/core/typedCompare.ts`) but leave the rating to the learner: nothing feeds FSRS but the
+answer button pressed.
 
 **A miss reason is a reminder, never an input to scheduling.** Again's menu (`src/core/misses.ts`)
 saves what went wrong in the answer's own review row (`ReviewLogEntry.miss`), which is why undo
