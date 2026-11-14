@@ -16,14 +16,15 @@ export function Practice({ onOpen, readerApi }: { onOpen: (tool: ToolInfo) => vo
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         <Group>
           {TOOLS.map((tool, i) => {
-            const off = tool.id === 'grammar' && grammar.available === false;
+            // Grammar and Sentences need Read & Listen's server.
+            const off = (tool.id === 'grammar' && grammar.available === false) || (tool.id === 'sentences' && !readerApi);
             return (
               <NavRow
                 key={tool.id}
                 first={i === 0}
                 icon={{ name: TOOL_SCREENS[tool.id].icon, color: TOOL_SCREENS[tool.id].color(c) }}
                 label={tool.title}
-                detail={off ? grammar.reason ?? tool.summary : tool.summary}
+                detail={!off ? tool.summary : tool.id === 'sentences' ? 'Off. Turn on Read & Listen in Settings to use it.' : grammar.reason ?? tool.summary}
                 disabled={off}
                 onPress={() => onOpen(tool)}
               />

@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { earlierDeckToStudy, nextDeckToStudy } from '../core/deckTree';
 import { minedNote } from '../reader/mining';
 import { languageOfDeck } from '../reader/practice';
+import type { WordToUse } from '../reader/production';
 import { useApp } from '../ui/AppContext';
 import { Review } from '../ui/Review';
 import type { CardGlossing } from '../ui/useCardGlosses';
@@ -33,6 +34,8 @@ export default function ReviewRoute() {
       if (left.current) return;
       router.dismissTo({ pathname: '/read', params: { practice: JSON.stringify({ language, words }) } });
     },
+    // Use today's words: a sentence of one's own with each word learned in the session, checked by Claude.
+    onUseWords: readerApi ? (words: WordToUse[]) => router.push({ pathname: '/read-use-words', params: { language, words: JSON.stringify(words) } }) : undefined,
   } : undefined;
   // An example sentence's words, tapped for their meanings while Read & Listen is signed in. Add to
   // deck opens the note editor on the word, in its language's deck, as the reader's does.

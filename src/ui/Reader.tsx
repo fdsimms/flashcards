@@ -28,6 +28,7 @@ import { PhraseExplanation, PhrasePickBanner, type PhraseMining } from './Reader
 import { ReadChoices } from './ReadChoices';
 import { CheckCard, ReaderCheck } from './ReaderCheck';
 import { LineDrillCard, ReadLineDrill } from './ReadLineDrill';
+import { ReadRetell } from './ReadRetell';
 import type { LineDrillKind } from '../reader/lineDrill';
 import { usePhraseDrag } from './usePhraseDrag';
 import { ReadGrammarDial } from './ReadGrammarDial';
@@ -157,8 +158,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const [check, setCheck] = useState<CheckQuestion[]>([]);
   const [checkPicks, setCheckPicks] = useState<CheckPicks | null>(null);
   const [checking, setChecking] = useState(false);
-  // Say it back or Write what you hear (ReadLineDrill), in place of the end view while it runs.
-  const [drilling, setDrilling] = useState<LineDrillKind | null>(null);
+  // Say it back or Write what you hear (ReadLineDrill), or Retell it (ReadRetell), in place of the end view while it runs.
+  const [drilling, setDrilling] = useState<LineDrillKind | 'retell' | null>(null);
   // Which way the screen is being left while the reading is logged, for that button's spinner.
   const [leaving, setLeaving] = useState<'next' | 'back' | null>(null);
   const [writing, setWriting] = useState(false);
@@ -889,7 +890,11 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
         />
       ) : null}
 
-      {text && session && ended && drilling ? (
+      {text && session && ended && drilling === 'retell' ? (
+        <ReadRetell api={api} text={text} textStyle={readStyle(text, thaiFont)} onDone={() => setDrilling(null)} />
+      ) : null}
+
+      {text && session && ended && drilling && drilling !== 'retell' ? (
         <ReadLineDrill
           api={api}
           text={text}
@@ -906,7 +911,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
             {check.length ? (
               <CheckCard text={text} questions={check} picks={checkPicks} onStart={() => { setCheckPicks((prev) => prev ?? {}); setChecking(true); }} />
             ) : null}
-            <LineDrillCard text={text} onStart={(kind) => { player.pause(); setDrilling(kind); }} />
+            <LineDrillCard text={text} onStart={(kind) => { player.pause(); setDrilling(kind); }} onRetell={() => { player.pause(); setDrilling('retell'); }} />
             <Card style={{ gap: space.s }}>
               <Text style={{ ...type.title, color: c.text }}>How was this one?</Text>
               <Help>Your answer sets how hard the next text is.</Help>

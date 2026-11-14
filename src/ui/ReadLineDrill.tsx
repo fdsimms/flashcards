@@ -212,16 +212,15 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
  * In the end view: the two ways to use the text's lines, each with how many lines it would ask.
  * Shown when there's at least one line to ask.
  */
-export function LineDrillCard({ text, onStart }: { text: ReaderText; onStart: (kind: LineDrillKind) => void }) {
+export function LineDrillCard({ text, onStart, onRetell }: { text: ReaderText; onStart: (kind: LineDrillKind) => void; onRetell: () => void }) {
   const c = useTheme();
   const say = drillLines(text, 'say').length;
   const hear = drillLines(text, 'hear').length;
-  if (!say && !hear) return null;
   const name = LANGUAGES[text.language].name;
   return (
     <Card style={{ gap: space.s }}>
       <Text accessibilityRole="header" style={{ ...type.title, color: c.text }}>Use the lines yourself</Text>
-      <Help>Make this text's lines yourself, then compare with the original. Nothing here is graded.</Help>
+      <Help>Make this text's lines yourself, then compare with the original, or tell the whole of it again. Nothing here is graded.</Help>
       <View style={{ borderRadius: radius.m, ...smooth, borderWidth: hairline, borderColor: c.border, overflow: 'hidden' }}>
         {say ? (
           <NavRow first icon={{ name: 'mic.fill', color: c.teal }} label="Say it back" detail={`See a line in English, say or type it in ${name}. ${say} ${say === 1 ? 'line' : 'lines'}.`} onPress={() => onStart('say')} />
@@ -229,6 +228,7 @@ export function LineDrillCard({ text, onStart }: { text: ReaderText; onStart: (k
         {hear ? (
           <NavRow first={!say} icon={{ name: 'waveform', color: c.rose }} label="Write what you hear" detail={`Hear a line, type it, see what was off. ${hear} ${hear === 1 ? 'line' : 'lines'}.`} onPress={() => onStart('hear')} />
         ) : null}
+        <NavRow icon={{ name: 'text.alignleft', color: c.violet }} label="Retell it" detail="Tell the story in a few sentences of your own. Claude points out what to fix and words from the text you could use." onPress={onRetell} />
       </View>
     </Card>
   );

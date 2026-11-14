@@ -56,6 +56,11 @@ export function markLine(r: LineRound, right: boolean): LineRound {
   return { queue, at: r.at + 1, first };
 }
 
+/** Moves past the line being asked without marking it: it isn't counted, and doesn't come back. */
+export function skipLine(r: LineRound): LineRound {
+  return roundLine(r) === undefined ? r : { ...r, at: r.at + 1 };
+}
+
 /** How many lines were right the first time, of how many were asked. */
 export function roundScore(r: LineRound): { right: number; asked: number } {
   const answers = Object.values(r.first);
