@@ -269,6 +269,28 @@ Practice tab's Situations tool (`src/ui/tools/SituationsTool.tsx`).
 - **Cost:** `situations` in `/api/costs`, Claude's calls (failed ones included) and Azure's estimate
   for the lines spoken. No daily cap (the owner's choice); the costs page shows it.
 
+## Speaking
+
+Decided 14 November 2026, the owner choosing from a mock (active learning, phase 3), with one setting
+for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
+
+- **Speech to text is the iPhone's** (`expo-speech-recognition`, `src/core/speaking.ts`,
+  `src/ui/useSpokenAnswer.ts`), never this server's. It runs with on-device required, which iOS keeps
+  on the phone where it can for a language and otherwise sends to Apple; iOS reports on-device support
+  only for the phone's own language, so the app says only whether a language can be heard at all.
+  Tap to start, stopping by itself on a pause (Review's Type it, Say it back, Sentences); hold to
+  talk in Situations. What's heard fills the box and is compared like typing, the recognizer's guess
+  closest to the answer taken (`bestHeard`).
+- **Score it** (`POST /api/pronunciation`, `pronunciation.py`, `franki_speech.SpeechClient.assess`):
+  a Record yourself take, scored against its line or word by Azure's pronunciation assessment on the
+  owner's tap. The take is 16 kHz WAV while speaking is on, sent as base64 JSON, and not kept. Each
+  word gets a band the app colors (good from 80, close from 60, again below, or left out or added),
+  with its weakest syllable. A language Azure won't assess is refused with that said plainly. Its
+  cost is Azure's estimate from the seconds sent, `pronunciation` in `/api/costs`. Open risks: the
+  request shape, the answer's fields and the price are from memory (Microsoft's pages weren't
+  reachable), and which of the app's languages Azure scores is unknown until it's asked; tones aren't
+  scored as such.
+
 ## Hosting
 
 - **Beside the Anki sync server** (11 November 2026, by the owner's decision, moved from Fly.io),

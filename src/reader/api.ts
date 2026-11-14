@@ -137,6 +137,15 @@ export type SituationFeedback = {
   words: { word: string; english: string; why: 'asked' | 'heard' }[];
 };
 
+// A take scored by Azure's pronunciation assessment (server/reader pronunciation.py): scores out of 100, and
+// each word's, banded for coloring (good, close, again). `weakest` is a word's lowest syllable, when it has two or more.
+export type ScoreBand = 'good' | 'close' | 'again';
+export type ScoredWord = {
+  word: string; accuracy: number; band: ScoreBand; error: string | null;
+  syllables: { text: string; accuracy: number }[]; weakest: { text: string; accuracy: number } | null;
+};
+export type TakeScore = { accuracy: number; fluency: number; completeness: number; heard: string; words: ScoredWord[] };
+
 // Claude's answer to "Does this sound natural?" on a line: `alternative` is what a native speaker would
 // more likely say, and empty when the line is natural.
 export type NaturalVerdict = 'natural' | 'stiff' | 'unusual';
@@ -497,6 +506,8 @@ export function createApi(
     // Sentences to say, one a word; more are written in the background. `writing` is false when the server can't write any.
     sentences: (language: Language, count: number) =>
       call<{ sentences: SentencePrompt[]; writing: boolean }>('POST', '/api/sentences', { language, count }),
+    // A take of the owner's (base64 WAV) scored against the text it should say. The take isn't kept.
+    scoreTake: (language: Language, reference: string, audio: string) => call<TakeScore>('POST', '/api/pronunciation', { language, reference, audio }),
     situationScenes: (language: Language) => call<string[]>('GET', `/api/situations/scenes?language=${language}`),
     situationTurn: (conversation: SituationConversation) => call<SituationTurn>('POST', '/api/situations/turn', conversation),
     situationFeedback: (conversation: SituationConversation) => call<SituationFeedback>('POST', '/api/situations/feedback', conversation),

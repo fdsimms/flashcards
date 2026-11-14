@@ -197,7 +197,9 @@ the review. `MemoryRepo` is the reference implementation and must behave like th
 `src/ui/AppContext.tsx`): iOS otherwise mutes an app's recordings, TTS and WebView audio alike, which made every
 play button look broken. `expo-audio`'s config plugin asks for the microphone only for Record
 yourself (`useSelfRecording`): a take of your own voice to play next to a card's or a line's
-recording, kept in the caches folder until you move on and never saved, synced or sent. The session
+recording, kept in the caches folder until you move on and never saved or synced. It's sent only on
+Score it's tap (Answer by speaking on), to Azure through Read & Listen's server, which keeps nothing;
+while speaking is on a take is 16 kHz WAV, the format Azure scores (`useSelfRecording`'s `scorable`). The session
 allows recording only while a take is made, since iOS's play-and-record category puts Bluetooth
 headphones into call quality. The plugin also allows background audio, which only Read & Listen's
 reader turns on, while it's open (`shouldPlayInBackground`), so listening goes on with the screen locked.

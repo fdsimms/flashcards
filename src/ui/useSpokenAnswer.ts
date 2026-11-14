@@ -112,3 +112,11 @@ export function useSpokenAnswer(speechTag: string | undefined, opts: {
 
   return { available: on && !!locale, listening, problem, start, stop, cancel, clearProblem: () => setProblem(null) };
 }
+
+/** Whether Answer by speaking is on (Settings, Speaking), read once a screen opens: Score it and a scorable take follow it. */
+export function useSpeakingOn(): boolean {
+  const { repo } = useApp();
+  const [on, setOn] = useState(false);
+  useEffect(() => { repo.answerBySpeaking().then(setOn).catch(() => setOn(false)); }, [repo]);
+  return on;
+}
