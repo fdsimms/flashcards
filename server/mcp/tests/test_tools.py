@@ -289,3 +289,32 @@ async def test_cards_come_as_text_unless_html_is_asked_for(client):
     full = await call(client, "present_card", card_id=card, show_answer=True, include_html=True)
     assert full["answer_html"] and "<style" not in full["question_html"] and "<style" not in full["answer_html"]
     assert "question_html" not in await call(client, "study_next", deck=TRIVIA)
+
+
+async def test_create_deck_refuses_empty_names(client):
+    for name in ("", "  ", "A::", "::B", "A::::B"):
+        assert "empty" in await call_error(client, "create_deck", name=name)
+
+
+async def test_deck_names_with_search_characters_are_matched_literally(client):
+    await call(client, "create_deck", name='Odd_deck "x"')
+    stats = await call(client, "get_stats", deck='Odd_deck "x"')
+    assert stats  # no search error for a quote or an underscore in the name
+    await call(client, "flagged_cards", deck='Odd_deck "x"')
+
+
+async def test_moving_cards_into_a_filtered_deck_says_why(client):
+    found = await call(client, "find_notes", query='"deck:🧠 Trivia" Capital')
+    full = (await call(client, "get_notes", note_ids=[found["notes"][0]["note_id"]]))["notes"][0]
+    card_id = full["cards"][0]["card_id"]
+    err = await call_error(client, "manage_cards", action="change_deck", card_ids=[card_id], deck="Filtered Deck 1")
+    assert "filtered deck" in err
+
+
+async def test_text_overrides_need_note_ids(client):
+    found = await call(client, "find_notes", query='"deck:🧠 Trivia" Capital')
+    err = await call_error(
+        client, "add_tts_audio", note_ids=[found["notes"][0]["note_id"]], source_fields=["Front"],
+        target_field="Back", voice="en-US-JennyNeural", text_overrides={"not-an-id": "x"},
+    )
+    assert "note ids" in err

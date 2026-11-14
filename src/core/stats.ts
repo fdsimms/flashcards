@@ -121,9 +121,10 @@ export function computeStats(input: { cards: Card[]; answers: Answer[]; now: Dat
   // Study day starts: `days` back (ending today) and `days` ahead (starting today).
   const starts: Date[] = [todayStart];
   for (let i = 1; i < days; i++) {
-    const prev = new Date(starts[0]);
-    prev.setDate(prev.getDate() - 1);
-    starts.unshift(prev);
+    // Built from today's date each time, not stepped back from the day before: where the start hour
+    // doesn't exist on a spring-forward day, that day's start lands an hour late and every earlier
+    // start stepped from it would keep the wrong hour.
+    starts.unshift(new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() - i, h));
   }
   const past: DayAnswers[] = starts.map((start) => ({ key: dayKeyOf(start), start, learn: 0, review: 0, relearn: 0, takenMs: 0 }));
   const pastIndex = new Map(past.map((d, i) => [d.key, i]));

@@ -130,6 +130,17 @@ describe('Anki JSON import', () => {
     expect(res.deckParams!.get('Thai')!.newLimitToday).toEqual({ limit: 25, day: '2026-02-01' });
   });
 
+  it("places a today-only limit by the date in the collection's own time zone, whatever zone the phone is in", () => {
+    // Created 04:00 on Jan 1 in UTC+1 (creationOffset is minutes west of UTC, so -60): 03:00 UTC.
+    const created = Date.UTC(2026, 0, 1, 3, 0) / 1000;
+    const res = importAnkiJson({
+      notes: [], cards: [], collectionCreated: created,
+      collectionSettings: { dayStartsAtHour: 4, creationOffset: -60 } as any,
+      deckConfigs: { Thai: { newPerDay: 10, reviewsPerDay: 100, newLimitToday: { limit: 25, today: 31 } } },
+    }, { now: NOW });
+    expect(res.deckParams!.get('Thai')!.newLimitToday).toEqual({ limit: 25, day: '2026-02-01' });
+  });
+
   it('takes per-deck limits and FSRS settings from deckConfigs over fsrsParams', () => {
     const res = importAnkiJson({
       notes: [], cards: [],

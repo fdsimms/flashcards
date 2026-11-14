@@ -121,11 +121,15 @@ export interface AnkiExport {
 }
 
 /** Each deck's settings from the exporter's `deckConfigs`. */
-export function deckParamsFromConfigs(configs: Record<string, AnkiDeckConfig>, collectionCreated?: number): Map<string, DeckParams> {
+export function deckParamsFromConfigs(configs: Record<string, AnkiDeckConfig>, days: AnkiDays): Map<string, DeckParams> {
   const out = new Map<string, DeckParams>();
-  // An Anki day number counts days from the collection's creation, which Anki stamps at the start of a study day.
+  // An Anki day number counts calendar days from the date the collection was created, in its own time
+  // zone (`ankiDayStart`, the inverse of `ankiToday`). Adding 86400-second days to `crt` and reading the
+  // instant in this phone's zone named the next day far east of where the collection was made.
   const dayLimit = (l?: { limit: number; today: number }): DayLimit | undefined =>
-    l && collectionCreated !== undefined ? { limit: l.limit, day: dayKeyOf(new Date((collectionCreated + l.today * 86400 + 43200) * 1000)) } : undefined;
+    l && days.collectionCreated !== undefined
+      ? { limit: l.limit, day: dayKeyOf(ankiDayStart(l.today, days.dayStartsAtHour, days.collectionCreated, days.creationOffset)) }
+      : undefined;
   for (const [deck, c] of Object.entries(configs)) {
     if (c.filtered) {
       out.set(deck, { weights: [], desiredRetention: 0.9, maxInterval: 36500, filtered: c.filtered });
@@ -221,14 +225,14 @@ export function schedFromAnki(c: AnkiCardInfo, days: AnkiDays, now: Date): Sched
 
 export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): ImportResult {
   const now = opts.now ?? new Date();
-  const deckParams = data.deckConfigs
-    ? deckParamsFromConfigs(data.deckConfigs, data.collectionCreated)
-    : data.fsrsParams?.presets ? deckParamsFromPresets(data.fsrsParams.presets) : undefined;
   const days: AnkiDays = {
     collectionCreated: data.collectionCreated,
     dayStartsAtHour: data.collectionSettings?.dayStartsAtHour ?? DAY_STARTS_AT_HOUR,
     creationOffset: data.collectionSettings?.creationOffset,
   };
+  const deckParams = data.deckConfigs
+    ? deckParamsFromConfigs(data.deckConfigs, days)
+    : data.fsrsParams?.presets ? deckParamsFromPresets(data.fsrsParams.presets) : undefined;
   const warnings: string[] = [];
   const notes = new Map<string, Note>();
   const cardsByNote = new Map<string, AnkiCardInfo[]>();

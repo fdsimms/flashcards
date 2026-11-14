@@ -210,6 +210,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   // The session last answered from: two taps before a re-render would both answer it, sending the
   // held answer to WaniKani and logging it twice.
   const answeredFrom = useRef<Study | null>(null);
+  const starting = useRef(false);
   const answer = (correct: boolean) => {
     if (!study || !question || answeredFrom.current === study) return;
     answeredFrom.current = study;
@@ -321,6 +322,9 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     // Lessons wait for a tap rather than following the reviews on their own. Held answers are sent
     // and counts read again first, so the Apprentice limit is checked against the reviews just done.
     const startLessons = async () => {
+      // A second tap before the re-render would send the held answer again.
+      if (starting.current) return;
+      starting.current = true;
       send(studyFlush(study).send);
       setStudy(null);
       await wanikani.refresh(true);

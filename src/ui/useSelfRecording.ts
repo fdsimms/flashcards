@@ -124,19 +124,23 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
 
   // A second tap while the first is still asking for the microphone or preparing does nothing.
   const starting = useRef(false);
+  // The screen can be left while start is awaiting the microphone or the recorder, and the cleanup
+  // below only stops a take already running: this keeps a late start from recording after it.
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const start = useCallback(async () => {
     if (recordingRef.current || starting.current) return;
     starting.current = true;
     haptic.tap();
     const forKey = keyRef.current;
     try {
-      if (!(await microphoneAllowed()) || forKey !== keyRef.current) return;
+      if (!(await microphoneAllowed()) || forKey !== keyRef.current || !mounted.current) return;
       before.current();
       player.pause();
       try {
         await setAudioModeAsync({ ...modeRef.current, allowsRecording: true });
         await recorder.prepareToRecordAsync();
-        if (forKey !== keyRef.current) throw new Error('moved on');
+        if (forKey !== keyRef.current || !mounted.current) throw new Error('moved on');
         recorder.record();
       } catch {
         setAudioModeAsync(modeRef.current).catch(() => undefined);

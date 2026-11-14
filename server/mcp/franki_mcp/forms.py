@@ -386,6 +386,8 @@ def register(server: MCPServer, cm: CollectionManager, unimorph: UniMorph) -> No
             raise ToolError(MissingField.MESSAGE) from e
         except OSError as e:
             raise ToolError(f"Couldn't download Wiktionary's inflection tables (UniMorph): {e}. Try again later.") from e
+        except ToolError:
+            raise  # already says what to change (a sync problem, for one)
         except Exception as e:  # noqa: BLE001 - Anki's search errors
             raise ToolError(f"Anki couldn't read the search: {e}") from e
         p = result.plan
