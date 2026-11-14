@@ -310,8 +310,9 @@ def test_a_story_keeps_its_cast_and_each_episode_hears_the_ones_before() -> None
         "series": "Noi's stall",
         "cast": "Noi sells noodles.",
         "recap": "Noi opens.",
+        "plan": "Noi's stall is threatened.",
     }
-    second = {**IN_RANGE, "recap": "It rains on Noi."}
+    second = {**IN_RANGE, "recap": "It rains on Noi.", "plan": "Noi saves the stall."}
     model = ScriptedModel(first, second)
     e = engine(model)
 
@@ -337,6 +338,9 @@ def test_a_story_keeps_its_cast_and_each_episode_hears_the_ones_before() -> None
     nxt = store.waiting_episode(e.conn, story_id)
     assert nxt is not None and (nxt.episode, nxt.recap) == (2, "It rains on Noi.")
     asked = model.messages_seen[calls][0]["content"]
+    assert "season's plan so far: Noi's stall is threatened." in asked
+    story = store.get_story(e.conn, story_id)
+    assert story is not None and story.plan == "Noi saves the stall."
     assert 'episode 2 of an ongoing story, "Noi\'s stall"' in asked
     assert "Noi opens." in asked and "Noi sells noodles." in asked
 

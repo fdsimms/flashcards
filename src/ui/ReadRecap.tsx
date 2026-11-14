@@ -12,7 +12,7 @@ import { WordView } from './ReadWord';
 import { hairline, MIN_TAP, space, type, useTheme } from './theme';
 
 /**
- * Last time, on the story card: what happened in the episode just read. An episode written since
+ * Last time, on the story card and at the top of an episode in the reader: what happened in the episode just read. An episode written since
  * the recap was asked for in the story's language shows it as words to tap, with its English
  * behind Show English; an older one has only the English recap and shows that.
  */

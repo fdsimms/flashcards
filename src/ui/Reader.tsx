@@ -21,6 +21,7 @@ import { buildCheck, loggedScore, type CheckPicks, type CheckQuestion } from '..
 import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
+import { ReadRecap } from './ReadRecap';
 import { Reveal } from './motion';
 import { LineExplanation } from './ReaderExplain';
 import { RegisterChip } from './ReaderNatural';
@@ -693,6 +694,15 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
               <Text style={{ ...type.footnote, color: c.textSecondary }}>
                 {text.episode ? `${text.topic} · Episode ${text.episode}` : (text.topic ?? (source.kind === 'topic' ? source.topic.name : source.kind === 'past' ? source.text.topic : ''))}
               </Text>
+              {text.last_time ? (
+                <ReadRecap
+                  recap={text.last_time.recap}
+                  line={text.last_time.line}
+                  language={text.language}
+                  tapped={tapped?.word ?? null}
+                  onTap={(word, x, y) => { haptic.tap(); setTapped({ word, x, y }); }}
+                />
+              ) : null}
             </View>
             {text.stretch.length > 0 || practicedGrammar(text).length > 0 || keyMarks.length > 0 ? (
               <Card style={{ padding: space.m, gap: space.m }}>
@@ -1037,7 +1047,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           player.pause();
           onPlayWord(tapped.word.text, text.language);
         }}
-        onSelectPhrase={listenOnly ? null : startPhrase}
+        // A word of "Last time" isn't in the text's lines, so there's no phrase to start from it.
+        onSelectPhrase={listenOnly || (tapped && text && !locate(text.lines, tapped.word)) ? null : startPhrase}
         onAddToDeck={mining?.language === text?.language && mining && tapped && !tapped.word.deck && tapped.word.status !== 'name' ? () => {
           // The popover is a modal, so it closes before the note editor opens over the reader.
           const word = tapped.word.text;

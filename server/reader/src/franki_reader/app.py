@@ -1868,6 +1868,11 @@ def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
     out["topic"] = (story.title or "Your story") if story else (topic.name if topic else "")
     out["reason"] = text.reason
     out["episode"] = text.episode
+    if story and text.episode > 1:
+        # What happened in the episode before, shown above the text so it isn't retold in it.
+        before = [t for t in store.episodes(engine.conn, story.id) if t.episode == text.episode - 1]
+        if before and (before[-1].recap or before[-1].recap_line):
+            out["last_time"] = {"recap": before[-1].recap, "line": _recap_line(before[-1], engine)}
     return out
 
 

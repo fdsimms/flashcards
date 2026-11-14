@@ -916,6 +916,27 @@ next episode is the top of the shelf.
   Show English, hidden again each time the shelf is left. An episode written before it shows the
   English recap.
 
+- **Seasons** (added 14 November 2026). Episodes of one story kept replaying the last one (the same
+  characters doing the same thing with a new stranger), because the request only said "something new
+  happens". A story now runs in seasons of `SEASON_EPISODES` (8) episodes, worked out from the episode
+  number, so a season needs nothing stored but its plan. Every episode returns `plan` (two or three
+  sentences on where the season is heading and how its finale ends), kept on the story
+  (`stories.plan`, replaced each episode, an episode that gives none leaves the last) and sent with
+  the next request. The request says which episode of the season this is, that the next one is the
+  finale, or that this one is the finale (resolve the main question, no cliffhanger, the choices
+  being what the next season could be about). The episode after a finale opens a new season with the
+  same cast and a new problem, and is sent no plan. Every episode's request also says to open in the
+  new scene, not retell what happened or repeat a beat from the last episodes. A story that was
+  already running has no plan until its next episode writes one.
+- **Not the container plot** (added 14 November 2026). With a small vocabulary nearly every text was
+  someone opening a box or drawer, finding something, and a stranger arriving to explain it. Every
+  request, dialogues included, now says that plot is overused unless the topic is about it, and to
+  give the people a want, a choice or a problem instead (`_PLOT_VARIETY`).
+- **"Last time" above the text** (added 14 November 2026). The shelf card's recap is also shown at
+  the top of the next episode in the reader (`last_time` on `GET /api/texts/{id}`: the previous
+  episode's `recap` and `recap_line`), so the episode doesn't have to retell it. It's the shelf's
+  `ReadRecap`: the line in the story's language to tap, its English behind Show English.
+
 ## Topics
 
 - Topics now sit behind the shelf, and the old topic routes (`/api/topics`, `/next`) stay for

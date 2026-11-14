@@ -984,6 +984,17 @@ def test_a_story_is_started_and_its_episodes_are_listed_once_read() -> None:
     past = c.get("/api/texts", params={"story": story["id"]}, headers=AUTH).json()
     assert [(t["topic"], t["episode"]) for t in past] == [("Noi's stall", 1)]
 
+    # The first episode has no "Last time"; the next one carries the recap of the one before it,
+    # to show above its text.
+    assert "last_time" not in full
+    deadline = time.time() + 10
+    while (story := c.get("/api/shelf", headers=AUTH).json()["story"])["next"] is None:
+        assert time.time() < deadline
+        time.sleep(0.02)
+    second = c.get(f"/api/texts/{story['next']['id']}", headers=AUTH).json()
+    last_time = second["last_time"]
+    assert last_time["recap"] == "Noi opens." and last_time["line"]["english"] == "I eat."
+
 
 def test_a_story_episodes_choices_are_shown_and_the_pick_is_recorded_until_it_is_read() -> None:
     choices = [
