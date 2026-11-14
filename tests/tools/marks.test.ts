@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CANDIDATES, FADE_DAYS, MAX_MISSES, markList, parseMarks, pickWeighted, recordMark, weightOf, type Marks } from '../../src/tools/marks';
+import { CANDIDATES, FADE_DAYS, MAX_MISSES, liveMisses, markList, parseMarks, pickWeighted, recordMark, weightOf, type Marks } from '../../src/tools/marks';
 
 const NOW = new Date(2026, 10, 13, 12).getTime();
 const DAY = 24 * 60 * 60 * 1000;
@@ -104,5 +104,17 @@ describe('reading the stored tallies', () => {
       b: 'x',
       c: {},
     }))).toEqual({ a: { ok: { misses: MAX_MISSES, at: NOW } } });
+  });
+});
+
+describe('the misses still counting in a list', () => {
+  it('adds up the live patterns and leaves out the faded ones', () => {
+    let marks = recordMark({}, LIST, ['a'], false, NOW - (FADE_DAYS + 1) * DAY);
+    marks = recordMark(marks, LIST, ['b'], false, NOW);
+    marks = recordMark(marks, LIST, ['b', 'c'], false, NOW);
+    // The faded pattern is dropped as the list is written, and the unwritten one counts for nothing.
+    expect(liveMisses(marks[LIST], NOW)).toBe(3);
+    expect(liveMisses({ a: { misses: 2, at: NOW - (FADE_DAYS + 1) * DAY } }, NOW)).toBe(0);
+    expect(liveMisses(undefined, NOW)).toBe(0);
   });
 });

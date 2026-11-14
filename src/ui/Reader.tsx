@@ -44,6 +44,7 @@ import { Speaker, speakerSize } from './ReadSpeaker';
 import { useSpokenWords } from './useSpokenWords';
 import { RecordYourself } from './RecordYourself';
 import { useSelfRecording, type SelfRecording } from './useSelfRecording';
+import { recordExtraRead } from '../tools/extrasStorage';
 import { ScoreTake } from './ScoreTake';
 import { useSpeakingOn } from './useSpokenAnswer';
 import { lineText } from '../reader/lineDrill';
@@ -479,6 +480,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
       setLeaving(then);
       try {
         await api.logReading(text.id, toLog(session, Date.now(), rating, true, checkPicks ? loggedScore(check, checkPicks) : null));
+        // Counts toward today's extra for this language (Daily extras).
+        recordExtraRead(text.language ?? 'th');
       } catch {
         // The reading is lost, not your place: carry on either way.
       } finally {

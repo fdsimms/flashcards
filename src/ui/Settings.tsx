@@ -17,7 +17,7 @@ import { space, useTheme } from './theme';
  * cards look and answer. A choice with an explanation of its own (answer buttons, Thai text size) opens a
  * short screen, so this one stays a list.
  */
-export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBackup, onRead, onWaniKani, onVoices, onReminder, onSpeaking, onVacation, onAnswerButtons, onThaiSize }: {
+export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBackup, onRead, onWaniKani, onVoices, onReminder, onExtras, onSpeaking, onVacation, onAnswerButtons, onThaiSize }: {
   repo: Repo;
   /** When the last backup was made (`backupStatus`). */
   backupText?: string;
@@ -31,6 +31,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
   onBackup: () => void;
   onVoices: () => void;
   onReminder: () => void;
+  onExtras: () => void;
   onVacation: () => void;
   onSpeaking: () => void;
   onAnswerButtons: () => void;
@@ -88,6 +89,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
             detail={!reminder ? undefined : reminder.on ? `Every day at ${reminderTime(reminder)}` : "Off. A notification each day with how many cards are waiting"}
             onPress={onReminder}
           />
+          <NavRow label="Daily extras" detail="Drills and a text to read, besides your cards" onPress={onExtras} />
           <NavRow label="Vacation mode" detail={vacation ? vacationDetail(vacation, today) : undefined} onPress={onVacation} />
         </Group>
         <SectionTitle>Omnilanguage cards</SectionTitle>

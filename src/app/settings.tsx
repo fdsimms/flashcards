@@ -18,6 +18,7 @@ export default function SettingsRoute() {
       onBackup={() => router.push('/backup')}
       onVoices={() => router.push('/voices')}
       onReminder={() => router.push('/reminder')}
+      onExtras={() => router.push('/extras')}
       onVacation={() => router.push('/vacation')}
       onSpeaking={() => router.push('/speaking')}
       onAnswerButtons={() => router.push('/answer-buttons')}
