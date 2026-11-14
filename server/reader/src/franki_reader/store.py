@@ -155,6 +155,28 @@ CREATE TABLE IF NOT EXISTS drill_questions (
     served_at TEXT
 );
 CREATE INDEX IF NOT EXISTS drill_questions_point ON drill_questions(point_id);
+-- Sentences to say (sentences.py): each batch Claude wrote for a language, for its cost, and the
+-- sentences from it that passed the checks, one word each, served least recently served first. A
+-- call that failed after Claude answered is a batch with nothing asked or kept, for its cost.
+CREATE TABLE IF NOT EXISTS sentence_batches (
+    id INTEGER PRIMARY KEY,
+    language TEXT NOT NULL,
+    asked INTEGER NOT NULL,
+    kept INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    cost_usd REAL NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS sentences (
+    id INTEGER PRIMARY KEY,
+    batch_id INTEGER NOT NULL REFERENCES sentence_batches(id),
+    language TEXT NOT NULL,
+    note_id INTEGER NOT NULL,
+    word TEXT NOT NULL,
+    sentence TEXT NOT NULL,
+    english TEXT NOT NULL,
+    served_at TEXT
+);
+CREATE INDEX IF NOT EXISTS sentences_word ON sentences(language, word);
 -- The vocabulary check's questions (vocab_check.py): each batch Claude glossed for a language, for its
 -- cost, and the words from it that passed the checks. A word is written once and kept. A call that
 -- failed after Claude answered is a batch with nothing asked or kept, for its cost.
@@ -1334,7 +1356,15 @@ def explanation_spending(
 # What a row of `call_costs` was for. A failed "explain", "phrase" or "natural" call counts with
 # the answers kept for those (`explanation_spending`).
 CallFeature = Literal[
-    "explain", "phrase", "natural", "mnemonics", "recording", "note_queue", "questions", "forms"
+    "explain",
+    "phrase",
+    "natural",
+    "mnemonics",
+    "recording",
+    "note_queue",
+    "questions",
+    "forms",
+    "production",
 ]
 
 
@@ -1366,6 +1396,12 @@ def question_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, t
     """Each language with questions written for the check after reading since `since`: how many
     calls (failed ones included) and what they cost Claude."""
     return _feature_spending(conn, "questions", since)
+
+
+def production_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
+    """Each language with the owner's own writing checked since `since` (production.py): how many
+    calls (failed ones included) and what they cost Claude."""
+    return _feature_spending(conn, "production", since)
 
 
 def form_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
@@ -1726,6 +1762,95 @@ def drill_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tupl
         language: (count, cost)
         for language, count, cost in conn.execute(
             "SELECT language, COUNT(*), SUM(cost_usd) FROM drill_batches WHERE created_at >= ?"
+            " GROUP BY language ORDER BY SUM(cost_usd) DESC",
+            (since.isoformat(),),
+        )
+    }
+
+
+# ==== Sentences ====
+
+
+@dataclass(frozen=True)
+class StoredSentence:
+    id: int
+    word: str
+    sentence: str
+    english: str
+
+
+def save_sentence_batch(
+    conn: sqlite3.Connection,
+    language: Code,
+    sentences: list[Any],
+    asked: int,
+    now: datetime,
+    cost_usd: float,
+) -> None:
+    """A batch Claude wrote for a language: its cost, and the sentences that passed
+    (sentences.Sentence)."""
+    with conn:
+        batch = conn.execute(
+            "INSERT INTO sentence_batches (language, asked, kept, created_at, cost_usd)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (language, asked, len(sentences), now.isoformat(), cost_usd),
+        ).lastrowid
+        conn.executemany(
+            "INSERT INTO sentences (batch_id, language, note_id, word, sentence, english)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            [(batch, language, x.note_id, x.word, x.sentence, x.english) for x in sentences],
+        )
+
+
+def sentence_stock(conn: sqlite3.Connection, language: Code) -> dict[str, int]:
+    """How many sentences each word of the language has."""
+    return {
+        word: int(count)
+        for word, count in conn.execute(
+            "SELECT word, COUNT(*) FROM sentences WHERE language = ? GROUP BY word", (language,)
+        )
+    }
+
+
+def sentence_batches_since(conn: sqlite3.Connection, language: Code, since: datetime) -> int:
+    return int(
+        conn.execute(
+            "SELECT COUNT(*) FROM sentence_batches WHERE language = ? AND created_at >= ?",
+            (language, since.isoformat()),
+        ).fetchone()[0]
+    )
+
+
+def take_sentences(
+    conn: sqlite3.Connection, language: Code, words: list[str], count: int, now: datetime
+) -> list[StoredSentence]:
+    """Up to `count` sentences, at most one a word, in the order of `words`: each word's never served
+    or served longest ago, marked served now, so the next round gets the word's other one."""
+    out: list[StoredSentence] = []
+    for word in words:
+        if len(out) >= count:
+            break
+        row = conn.execute(
+            "SELECT id, word, sentence, english FROM sentences WHERE language = ? AND word = ?"
+            " ORDER BY served_at IS NOT NULL, served_at, id LIMIT 1",
+            (language, word),
+        ).fetchone()
+        if row is not None:
+            out.append(StoredSentence(row[0], row[1], row[2], row[3]))
+    with conn:
+        conn.executemany(
+            "UPDATE sentences SET served_at = ? WHERE id = ?",
+            [(now.isoformat(), x.id) for x in out],
+        )
+    return out
+
+
+def sentence_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
+    """Each language with sentences written since `since`: how many batches, and their cost."""
+    return {
+        language: (count, cost)
+        for language, count, cost in conn.execute(
+            "SELECT language, COUNT(*), SUM(cost_usd) FROM sentence_batches WHERE created_at >= ?"
             " GROUP BY language ORDER BY SUM(cost_usd) DESC",
             (since.isoformat(),),
         )
