@@ -49,7 +49,7 @@ export function TypedDiff({ comparison, showExpected, size = 'title', lang, expe
   const whole = comparison.typed.map((p) => p.text).join('') + comparison.expected.map((p) => p.text).join('');
   const base: TextStyle = hasThai(whole)
     ? thaiTextStyle('large')
-    : size === 'title' ? { ...type.title, fontWeight: '400', lineHeight: 30 } : { ...type.body, fontSize: 20, lineHeight: 28 };
+    : size === 'title' ? { ...type.title, fontWeight: '400', lineHeight: 30 } : { ...type.reading };
   const label = { ...type.overline, color: c.textSecondary };
   return (
     <View style={{ gap: space.s }}>

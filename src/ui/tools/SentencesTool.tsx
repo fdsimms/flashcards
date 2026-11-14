@@ -146,7 +146,7 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
                   {typed.trim() ? (
                     <TypedDiff comparison={comparison} showExpected size="body" lang={LANGUAGES[language].speech} expectedLabel="The sentence" />
                   ) : (
-                    <Text selectable accessibilityLanguage={LANGUAGES[language].speech} style={{ ...type.body, fontSize: 20, lineHeight: 28, fontWeight: '600', color: c.text }}>{prompt.sentence}</Text>
+                    <Text selectable accessibilityLanguage={LANGUAGES[language].speech} style={{ ...type.reading, fontWeight: '600', color: c.text }}>{prompt.sentence}</Text>
                   )}
                 </View>
                 <PlayButton label="Play the sentence" onPress={() => answer.speak({ text: prompt.sentence })} />
@@ -175,7 +175,7 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
               selectionColor={c.accent}
               keyboardAppearance={dark ? 'dark' : 'light'}
               style={{
-                ...type.body, fontSize: 20, lineHeight: 28, color: c.text, backgroundColor: c.surface, ...smooth, borderRadius: radius.m,
+                ...type.reading, color: c.text, backgroundColor: c.surface, ...smooth, borderRadius: radius.m,
                 borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP * 2, flex: 1,
               }}
             />

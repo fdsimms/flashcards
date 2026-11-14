@@ -89,7 +89,7 @@ function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; stu
   const caughtUp = due + fresh === 0;
   const figure = (value: number, label: string, color: string) => (
     <View style={{ flex: 1, gap: 2, alignItems: 'center' }}>
-      <CountingText value={value} style={{ ...type.largeTitle, color: value ? color : c.textTertiary, fontVariant: ['tabular-nums'] }} />
+      <CountingText value={value} style={{ ...type.largeTitle, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }} />
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
     </View>
   );
@@ -132,7 +132,7 @@ function Stat({ value, label, color }: { value: number; label: string; color: st
   const c = useTheme();
   return (
     <View style={{ minWidth: 40, alignItems: 'center' }}>
-      <CountingText value={value} style={{ ...type.headline, color: value ? color : c.textTertiary, fontVariant: ['tabular-nums'] }} />
+      <CountingText value={value} style={{ ...type.headline, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }} />
       <Text style={{ ...type.caption, color: c.textSecondary }}>{label}</Text>
     </View>
   );
@@ -453,6 +453,8 @@ export function DeckList(props: {
           {props.extra?.node}
           {props.sync && (!props.sync.failed || props.ankiUnsent) ? (
             <Pressable onPress={syncTapped} accessibilityRole="button" accessibilityHint="Syncs now"
+              // A line of footnote text is about 18pt tall; the slop makes it a full tap target without moving the list.
+              hitSlop={{ top: space.l, bottom: space.l }}
               style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
               <Text style={{ ...type.footnote, color: props.sync.failed ? c.warning : c.textSecondary, textAlign: 'center' }}>
                 {props.sync.failed ? '' : props.sync.status}
@@ -460,7 +462,7 @@ export function DeckList(props: {
               </Text>
             </Pressable>
           ) : props.ankiUnsent ? (
-            <Pressable onPress={props.onImport} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+            <Pressable onPress={props.onImport} accessibilityRole="button" hitSlop={{ top: space.l, bottom: space.l }} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
               <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>
                 {props.ankiUnsent} {props.ankiUnsent === 1 ? "answer isn't" : "answers aren't"} in Anki yet. Tap to send.
               </Text>

@@ -976,7 +976,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
           }}
         >
           {/* The interval sits above the label, as in Anki, so the eye lands on when it's next due. */}
-          <Text style={{ ...type.caption, color: b.on ?? c.onRating, fontVariant: ['tabular-nums'] }}>{intervals?.[b.r]}</Text>
+          <Text style={{ ...type.footnote, color: b.on ?? c.onRating, fontVariant: ['tabular-nums'] }}>{intervals?.[b.r]}</Text>
           <Text style={{ ...type.headline, color: b.on ?? c.onRating }}>{b.label}</Text>
         </Tappable>
       ))}
