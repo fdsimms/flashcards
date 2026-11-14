@@ -51,7 +51,10 @@ describe('a time in Spanish', () => {
     expect(also(21, 10)).toEqual(['las nueve y diez de la noche']);
     expect(also(14, 35)).toEqual(['las dos y treinta y cinco de la tarde', 'veinticinco para las tres', 'las tres menos veinticinco']);
     expect(also(14, 45)).toEqual(['cuarto para las tres de la tarde', 'las dos y cuarenta y cinco', 'las tres menos cuarto']);
-    expect(also(0, 50)).toEqual(['diez para la una de la noche', 'las doce y cincuenta', 'la una menos diez']);
+    expect(also(0, 50)).toEqual(['diez para la una de la madrugada', 'las doce y cincuenta', 'la una menos diez']);
+    // By the hour that's named: la una is de la tarde, las doce del día.
+    expect(also(12, 45)[0]).toBe('cuarto para la una de la tarde');
+    expect(also(11, 45)[0]).toBe('cuarto para las doce del día');
     expect(saySpanishTime({ hour: 2, minute: 50 }).also[2].note).toBe('In Spain');
     expect(saySpanishTime({ hour: 2, minute: 35 }).also[2].note).toBe('In Spain');
   });

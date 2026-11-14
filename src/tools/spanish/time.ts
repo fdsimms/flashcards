@@ -57,7 +57,8 @@ export function saySpanishTime(t: ClockTime): TimeSaying {
     if (m >= 35) also.push(say(forNext()), say(`${next} ${toNext()}`, SPAIN));
   } else {
     everyday = forNext();
-    also.push(say(`${everyday} ${part}`), say(`${hour} ${past()}`), say(`${next} ${toNext()}`, SPAIN));
+    // The part of the day goes by the hour that's named: 12:45 is la una de la tarde, not del día.
+    also.push(say(`${everyday} ${partOfDay((h + 1) % 24)}`), say(`${hour} ${past()}`), say(`${next} ${toNext()}`, SPAIN));
   }
 
   const formalHour = h === 1 ? 'la una' : `las ${spanishNumber(h, true)}`;
