@@ -9,7 +9,7 @@ import { ApiError, type Api, type GrammarChoice, type Language, type Length, typ
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../reader/deckWords';
 import { marksIn, withMark, type HideableMark, type Mark } from '../reader/marks';
 import { scrollTarget, type Box } from '../reader/follow';
-import { THAI_FONTS, THAI_FONT_LABELS, readFont, type ThaiFont } from '../reader/fonts';
+import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../reader/fonts';
 import { LANGUAGES, meaningOf, wordStatus } from '../reader/languages';
 import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf, repeatChipLabel } from '../reader/playback';
 import { RATES } from '../reader/playbackRate';
@@ -144,6 +144,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const [hiddenMarks, setHiddenMarks] = useState(prefs().hiddenMarks);
   const [paragraphMode, setParagraphMode] = useState(prefs().paragraphs);
   const [thaiFont, setThaiFont] = useState(prefs().thaiFont);
+  const [textSize, setTextSize] = useState(prefs().textSize);
   const [tapped, setTapped] = useState<Tapped | null>(null);
   // A phrase being selected (its last word not tapped yet) or selected, explained under its line.
   const [phrase, setPhrase] = useState<PhrasePick | null>(null);
@@ -562,6 +563,11 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     setThaiFont(font);
   };
 
+  const chooseTextSize = (size: TextSize) => {
+    savePrefs({ textSize: size });
+    setTextSize(size);
+  };
+
   const turnOnHighlight = (on: boolean) => {
     savePrefs({ highlight: on });
     setHighlight(on);
@@ -614,6 +620,11 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
             {marked ? (
               <Stack.Toolbar.MenuAction isOn={paragraphMode} onPress={() => turnOnParagraphs(!paragraphMode)}>Paragraphs</Stack.Toolbar.MenuAction>
             ) : null}
+            <Stack.Toolbar.Menu inline title="Text size">
+              {TEXT_SIZES.map((s) => (
+                <Stack.Toolbar.MenuAction key={s} isOn={textSize === s} onPress={() => chooseTextSize(s)}>{TEXT_SIZE_LABELS[s]}</Stack.Toolbar.MenuAction>
+              ))}
+            </Stack.Toolbar.Menu>
             {text.language === 'th' || text.language === undefined ? (
               <Stack.Toolbar.Menu inline title="Thai letters">
                 {THAI_FONTS.map((f) => (
@@ -687,7 +698,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                     {practicedGrammar(text).map((g) => <TintPill key={g.id} text={g.name} bg={c.speakerB} fg={c.onSpeakerB} />)}
                   </ChipRow>
                 ) : null}
-                <ReaderKey examples={keyMarks} language={text.language ?? 'th'} textStyle={readStyle(text, thaiFont)} shown={markShown} onChange={showMark} />
+                <ReaderKey examples={keyMarks} language={text.language ?? 'th'} textStyle={readStyle(text, thaiFont, textSize)} shown={markShown} onChange={showMark} />
               </Card>
             ) : null}
             {text.roles.A || text.roles.B ? (
@@ -747,7 +758,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                               <WordView
                                 key={m}
                                 word={word}
-                                textStyle={readStyle(text, thaiFont)}
+                                textStyle={readStyle(text, thaiFont, textSize)}
                                 grammar={grammarOf(text, word)}
                                 flagged={isFlagged(session, word.text)}
                                 highlighted={highlight && isOutsideDeck(word)}
@@ -765,7 +776,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                             {/* The gap before the next sentence trails this one's last chunk, never starts a row of its own:
                                 a lone spacer that wrapped to a new row indented that row. */}
                             {j === chunks.length - 1 && k < lines.length - 1
-                              ? <View style={{ width: readStyle(text, thaiFont).fontSize * 0.5 }} /> : null}
+                              ? <View style={{ width: readStyle(text, thaiFont, textSize).fontSize * 0.5 }} /> : null}
                           </View>
                         ))}
                       </React.Fragment>
@@ -795,7 +806,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
               {line.speaker === 'N' ? null : (
                 // Centered on the first line of words, which is a word's line height plus its
                 // padding and underline border (4.5) tall; the speaker's mark is `speakerSize` tall.
-                <View style={{ paddingTop: listenOnly ? space.s : Math.max(0, (readStyle(text, thaiFont).lineHeight + 4.5 - speakerSize(text, line.speaker)) / 2) }}>
+                <View style={{ paddingTop: listenOnly ? space.s : Math.max(0, (readStyle(text, thaiFont, textSize).lineHeight + 4.5 - speakerSize(text, line.speaker)) / 2) }}>
                   <Speaker text={text} who={line.speaker} />
                 </View>
               )}
@@ -813,7 +824,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                           <WordView
                             key={k}
                             word={word}
-                            textStyle={readStyle(text, thaiFont)}
+                            textStyle={readStyle(text, thaiFont, textSize)}
                             grammar={grammarOf(text, word)}
                             flagged={isFlagged(session, word.text)}
                             highlighted={highlight && isOutsideDeck(word)}
@@ -866,7 +877,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           ))}
           {!listenOnly && choicesView(text, review) ? (
             <View style={{ paddingHorizontal: space.l, paddingBottom: space.l }}>
-              <ReadChoices choices={text.choices ?? []} chosen={chosen} textStyle={readStyle(text, thaiFont)} onChoose={review ? null : choose} error={choiceError} />
+              <ReadChoices choices={text.choices ?? []} chosen={chosen} textStyle={readStyle(text, thaiFont, textSize)} onChoose={review ? null : choose} error={choiceError} />
             </View>
           ) : null}
           {review ? null : (
@@ -883,7 +894,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           text={text}
           questions={check}
           picks={checkPicks ?? {}}
-          textStyle={readStyle(text, thaiFont)}
+          textStyle={readStyle(text, thaiFont, textSize)}
           onPick={(key, pick) => setCheckPicks((prev) => ({ ...prev, [key]: pick }))}
           onDone={() => setChecking(false)}
         />
@@ -894,7 +905,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           api={api}
           text={text}
           kind={drilling}
-          textStyle={readStyle(text, thaiFont)}
+          textStyle={readStyle(text, thaiFont, textSize)}
           explain={(line) => <LineExplanation api={api} textId={text.id} line={line} grammarChosen={grammarChosen} onGrammarChosen={chooseGrammar} onOpenGrammar={onOpenGrammar} />}
           onDone={() => setDrilling(null)}
         />
@@ -1037,10 +1048,11 @@ const RATINGS: { value: Rating; label: string; hint: string }[] = [
 ];
 
 /** The reading size for a text's language. */
-function readStyle(text: ReaderText, thaiFont: ThaiFont) {
+function readStyle(text: ReaderText, thaiFont: ThaiFont, textSize: TextSize) {
   const language = text.language ?? 'th';
   const info = LANGUAGES[language];
-  return { fontSize: info.fontSize, lineHeight: info.fontSize * info.lineHeight, font: readFont(language, thaiFont) };
+  const fontSize = scaledFontSize(info.fontSize, textSize);
+  return { fontSize, lineHeight: fontSize * info.lineHeight, font: readFont(language, thaiFont) };
 }
 
 function practicedGrammar(text: ReaderText): TextGrammar[] {

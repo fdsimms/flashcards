@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { DEFAULT_PREFS, parsePrefs } from '../../src/reader/prefs';
 
 test('saved settings come back', () => {
-  expect(parsePrefs(JSON.stringify({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true }))).toEqual({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true });
+  expect(parsePrefs(JSON.stringify({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true }))).toEqual({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true });
 });
 
 test('nothing saved, or something unreadable, gives the defaults', () => {
@@ -18,6 +18,10 @@ test("a speed the reader doesn't offer falls back on its own", () => {
 
 test('a Thai font the reader doesn\'t offer falls back to looped', () => {
   expect(parsePrefs(JSON.stringify({ thaiFont: 'comic' })).thaiFont).toBe('looped');
+});
+
+test('a text size the reader does not offer falls back to the default', () => {
+  expect(parsePrefs(JSON.stringify({ textSize: 'huge' })).textSize).toBe('default');
 });
 
 test('names are marked unless the reader turned that off', () => {
