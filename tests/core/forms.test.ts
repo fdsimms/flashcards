@@ -410,7 +410,7 @@ describe('formsSuggestion', () => {
   it('suggests a word met this week whose forms were never practiced', () => {
     const s = formsSuggestion({ ...base, history: [], introducedAt: new Date(2026, 10, 8, 9) });
     expect(s).toMatchObject({ reason: 'new', title: 'New this week: practice its forms?' });
-    expect(s!.detail).toBe("You know what esperar means, but you haven't practiced its forms yet.");
+    expect(s!.detail).toBe("You know what esperar means, but you haven't practiced it yet.");
   });
   it('says nothing for an older word never practiced, or a note without forms', () => {
     expect(formsSuggestion({ ...base, history: [], introducedAt: new Date(2026, 9, 1) })).toBeUndefined();

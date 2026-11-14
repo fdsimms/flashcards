@@ -734,7 +734,7 @@ export function formsSuggestion(input: {
     return {
       reason: 'new',
       title: 'New this week: practice its forms?',
-      detail: `You know what ${word} means, but you haven't practiced its forms yet.`,
+      detail: `You know what ${word} means, but you haven't practiced it yet.`,
     };
   }
   return undefined;
