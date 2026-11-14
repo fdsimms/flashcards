@@ -1,27 +1,32 @@
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { answersFromLog } from '../../../wanikani/log';
 import { syncStatusText } from '../../../anki/sync/runSync';
 import { quickAddDecks } from '../../../reader/noteQueue';
 import { useApp } from '../../../ui/AppContext';
 import { useDeckActions } from '../../../ui/DeckActions';
 import { DeckList } from '../../../ui/DeckList';
+import { useTodaySummary } from '../../../ui/useTodaySummary';
 import { WaniKaniDeck } from '../../../ui/WaniKaniDeck';
 
 /** The deck list: the first screen, and where every other one leads back to. */
 export default function DecksRoute() {
   const router = useRouter();
-  const { decks, backup, ankiUnsent, syncSettings, syncing, sync, refresh, loadProblem, collapse, wanikani, reader } = useApp();
+  const { repo, decks, backup, ankiUnsent, syncSettings, syncing, sync, refresh, loadProblem, collapse, wanikani, reader } = useApp();
   // Counts change while studying, so load them again each time this screen comes back into view.
   // `decks` starts empty until the first load from the database finishes, which is not the same as
   // having no decks: the empty state waits for it.
   const [loaded, setLoaded] = useState(false);
   useFocusEffect(useCallback(() => { refresh().finally(() => setLoaded(true)); wanikani.refresh(); }, [refresh, wanikani.refresh]));
+  const wanikaniAnswers = useMemo(() => answersFromLog(wanikani.log), [wanikani.log]);
+  const studied = useTodaySummary(repo, decks, wanikaniAnswers);
   const openOptions = useCallback((deck: string) => router.push({ pathname: '/deck-options', params: { deck } }), [router]);
   const deckActions = useDeckActions(openOptions);
   return (
     <DeckList
       decks={decks}
+      studied={studied}
       loaded={loaded}
       backup={backup}
       loadProblem={loadProblem ? { text: loadProblem, onRetry: refresh } : undefined}

@@ -22,7 +22,8 @@ export function LeechHintSheet({ word, gloss, misses, suspended, suggest, onSave
   word: string;
   /** What the word means (with its transliteration), so the sheet makes sense without the card behind it. */
   gloss?: string;
-  misses: number;
+  /** How many times the card was missed; absent when the sheet was opened by hand from the review screen, which retitles it and calls the way out Cancel. */
+  misses?: number;
   /** The answer suspended the card, as the deck's options say for a leech; saving a hint unsuspends it. */
   suspended?: boolean;
   suggest?: () => Promise<string[]>;
@@ -83,7 +84,7 @@ export function LeechHintSheet({ word, gloss, misses, suspended, suggest, onSave
         contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.xl, paddingBottom: Math.max(insets.bottom, space.l), gap: space.m }}
       >
         <View style={{ gap: space.xs }}>
-          <Text style={{ ...type.headline, color: c.text }}>{`You've missed ${word} ${misses} times`}</Text>
+          <Text style={{ ...type.headline, color: c.text }}>{misses === undefined ? `Mnemonic for ${word}` : `You've missed ${word} ${misses} times`}</Text>
           {gloss ? <Text style={{ ...type.callout, color: c.textSecondary }}>{gloss}</Text> : null}
         </View>
         {suspended ? (
@@ -122,7 +123,7 @@ export function LeechHintSheet({ word, gloss, misses, suspended, suggest, onSave
           </View>
         ) : (
           <View style={{ flexDirection: 'row', gap: space.m }}>
-            <Button label="Skip" variant="secondary" onPress={onSkip} style={{ flex: 1 }} disabled={saving} />
+            <Button label={misses === undefined ? 'Cancel' : 'Skip'} variant="secondary" onPress={onSkip} style={{ flex: 1 }} disabled={saving} />
             <Button label="Save hint" onPress={save} style={{ flex: 1 }} busy={saving} disabled={!hint.trim()} />
           </View>
         )}

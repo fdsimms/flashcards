@@ -11,7 +11,7 @@ import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core
 import { failureText } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
-import { isInterdayLearning, nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
+import { dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type AnswerContext, type RatingValue } from '../core/scheduler';
 import { fuzzSeed } from '../core/ankiFuzz';
@@ -35,6 +35,7 @@ import { mathjaxUri } from '../media/mathjax';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardWebView } from './CardWebView';
 import { Side } from './CardSide';
+import { NewCardChip } from './NewCardChip';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
 import { useVacationPrefs } from './vacationPrefs';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
@@ -233,7 +234,8 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
   // The answer that just made a card a leech asks for a hint to keep in its note's Mnemonic field,
   // and names the card when that answer suspended it, so saving a hint can bring it back.
-  const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses: number; suspendedCardId?: string } | null>(null);
+  // The same sheet opens from the lightbulb button in the header, with no misses to report.
+  const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses?: number; suspendedCardId?: string } | null>(null);
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
   // While "Read a text with these words" waits for the sync that sends today's answers first.
@@ -729,7 +731,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     // The next deck, or back to the top, is the one thing to do next; Back to decks is always there.
     const footer = (
       <>
-        {onNextDeck ? <Button label={`Study ${nextDeck}`} onPress={onNextDeck} /> : null}
+        {onNextDeck ? <Button label={`Next up: study ${nextDeck}`} onPress={onNextDeck} /> : null}
         {onEarlierDeck ? <Button label={`Back to the top: ${earlierDeck}`} variant={onNextDeck ? 'secondary' : 'primary'} onPress={onEarlierDeck} /> : null}
         <Button label="Back to decks" variant={onNextDeck || onEarlierDeck ? 'secondary' : 'primary'} onPress={onDone} />
       </>
@@ -1003,6 +1005,9 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
             <Stack.Toolbar.Button icon="flag.fill" tintColor={c.flags[current.flag]} accessibilityLabel={`Flagged ${FLAG_NAMES[current.flag]}. Change the flag`} onPress={chooseFlag} />
           ) : null}
           {undoButton}
+          {canAddMnemonic(note) ? (
+            <Stack.Toolbar.Button icon="lightbulb" accessibilityLabel="Write a mnemonic for this word" onPress={() => setLeechPrompt({ noteId: note.id })} />
+          ) : null}
           <Stack.Toolbar.Button
             icon="pencil"
             accessibilityLabel="Edit this card's note"
@@ -1021,11 +1026,13 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     >
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
-          <Count value={queue.due.length} label="due" color={c.countDue} />
+          <Count value={dueCounts(queue).reviews} label="due" color={c.countDue} />
+          <Count value={dueCounts(queue).learning} label="learning" color={c.countLearn} />
           <Count value={queue.fresh.length} label="new" color={c.countNew} />
         </View>
       ) : null}
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} /> : null}
+      {page && current.sched.state === 0 ? <NewCardChip /> : null}
       {page ? (
         <CardSurface>
           {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
@@ -1045,6 +1052,7 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
           <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. */}
             <Reveal key={showing} rise={10} style={{ gap: space.xl }}>
+              {current.sched.state === 0 ? <NewCardChip /> : null}
               <Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} />
               {reminder ? <MissReminder text={reminder} /> : null}
               {canRecordYourself(rendered) ? (
