@@ -7,7 +7,7 @@ import { useDeckDrag } from './DeckDrag';
 import { DISCLOSURE, ROW_PAD, WELL_EDGE, WELL_INSET } from './deckLayout';
 import { haptic } from './haptics';
 import { Button, Card, Group, Icon, NavRow, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
-import { Reveal, useReduceMotion } from './motion';
+import { CountingText, Reveal, useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
 import { VacationCard, useVacationBanner } from './vacationNotice';
@@ -89,7 +89,7 @@ function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; stu
   const caughtUp = due + fresh === 0;
   const figure = (value: number, label: string, color: string) => (
     <View style={{ flex: 1, gap: 2, alignItems: 'center' }}>
-      <Text style={{ ...type.largeTitle, color: value ? color : c.textTertiary, fontVariant: ['tabular-nums'] }}>{value}</Text>
+      <CountingText value={value} style={{ ...type.largeTitle, color: value ? color : c.textTertiary, fontVariant: ['tabular-nums'] }} />
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
     </View>
   );
@@ -132,7 +132,7 @@ function Stat({ value, label, color }: { value: number; label: string; color: st
   const c = useTheme();
   return (
     <View style={{ minWidth: 40, alignItems: 'center' }}>
-      <Text style={{ ...type.headline, color: value ? color : c.textTertiary, fontVariant: ['tabular-nums'] }}>{value}</Text>
+      <CountingText value={value} style={{ ...type.headline, color: value ? color : c.textTertiary, fontVariant: ['tabular-nums'] }} />
       <Text style={{ ...type.caption, color: c.textSecondary }}>{label}</Text>
     </View>
   );
