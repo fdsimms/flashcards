@@ -738,7 +738,9 @@ export function formsSuggestion(input: {
     }
     return undefined;
   }
-  if (input.introducedAt && now.getTime() - input.introducedAt.getTime() < NEW_WORD_DAYS * dayMs) {
+  // Not on the day it was first answered: a word just learned has had no time to need its grammar.
+  if (input.introducedAt && input.introducedAt < studyDayStart(now, dayStartsAtHour)
+    && now.getTime() - input.introducedAt.getTime() < NEW_WORD_DAYS * dayMs) {
     return {
       reason: 'new',
       title: 'New this week: practice its grammar?',

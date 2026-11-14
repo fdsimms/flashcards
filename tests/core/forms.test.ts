@@ -432,6 +432,9 @@ describe('formsSuggestion', () => {
     expect(s).toMatchObject({ reason: 'new', title: 'New this week: practice its grammar?' });
     expect(s!.detail).toBe("You know what esperar means, but you haven't practiced its grammar yet.");
   });
+  it('says nothing for a word first answered today', () => {
+    expect(formsSuggestion({ ...base, history: [], introducedAt: new Date(NOW.getTime() - 60000) })).toBeUndefined();
+  });
   it('says nothing for an older word never practiced, or a note without forms', () => {
     expect(formsSuggestion({ ...base, history: [], introducedAt: new Date(2026, 9, 1) })).toBeUndefined();
     expect(formsSuggestion({ ...base, forms: [], history: [], introducedAt: NOW })).toBeUndefined();
