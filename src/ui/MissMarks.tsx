@@ -39,7 +39,7 @@ export function AgainSplit({ interval, reasons, onAnswer }: {
         style={{ flex: 1, paddingVertical: space.s, alignItems: 'center', justifyContent: 'center', gap: 2 }}
       >
         {/* The interval sits above the label, as on the other buttons. */}
-        <Text style={{ ...type.caption, color: c.onRating, fontVariant: ['tabular-nums'] }}>{interval}</Text>
+        <Text style={{ ...type.footnote, color: c.onRating, fontVariant: ['tabular-nums'] }}>{interval}</Text>
         <Text style={{ ...type.headline, color: c.onRating }}>Again</Text>
       </Tappable>
       <View style={{ width: hairline, marginVertical: space.s, backgroundColor: c.onRating, opacity: 0.3 }} />

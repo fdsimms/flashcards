@@ -86,7 +86,7 @@ export function Wheel({ count, value, onChange, label, format = (i) => String(i)
           <View key={i} style={{ height: row, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.xs }}>
             <Text
               maxFontSizeMultiplier={2}
-              style={{ ...type.title, fontSize: 28, fontVariant: ['tabular-nums'], color: i === value ? c.text : c.textTertiary }}
+              style={{ ...type.title, fontSize: 28, fontVariant: ['tabular-nums'], color: i === value ? c.text : c.textDim }}
             >
               {format(i)}
             </Text>

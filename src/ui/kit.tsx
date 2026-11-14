@@ -377,7 +377,7 @@ export function Help({ children }: { children: React.ReactNode }) {
 export function Count({ value, label, color }: { value: number; label: string; color: string }) {
   const c = useTheme();
   return (
-    <Text style={{ ...type.subhead, color: value ? color : c.textTertiary, fontVariant: ['tabular-nums'] }}>
+    <Text style={{ ...type.subhead, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }}>
       <Text style={{ fontWeight: '700' }}>{value}</Text> {label}
     </Text>
   );

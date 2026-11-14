@@ -114,7 +114,7 @@ export function ReadUseWords({ api, language, words, onPlay, onDone }: {
                 selectionColor={c.accent}
                 keyboardAppearance={dark ? 'dark' : 'light'}
                 style={{
-                  ...type.body, fontSize: 20, lineHeight: 28, color: c.text, backgroundColor: c.surface, ...smooth, borderRadius: radius.m,
+                  ...type.reading, color: c.text, backgroundColor: c.surface, ...smooth, borderRadius: radius.m,
                   borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP * 2,
                 }}
               />

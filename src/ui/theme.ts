@@ -18,6 +18,8 @@ const light = {
   textSecondary: '#5f636b',
   /** Icons, chevrons and a count of zero: things meant to recede, at 3:1 (WCAG's floor for icons). Words that carry information use textSecondary. */
   textTertiary: '#898c95',
+  /** Words that are quiet but still say something (a count of zero, an unselected wheel value), at 4.5:1 on the screen and its wells. Not for icons: those use textTertiary. */
+  textDim: '#656972',
   border: '#e3dfd4',
   accent: '#876a1e',
   /** Text and icons drawn on an accent-colored fill. */
@@ -103,6 +105,7 @@ const dark: typeof light = {
   text: '#f1f1f1',
   textSecondary: '#a2a8b3',
   textTertiary: '#6c727d',
+  textDim: '#8a909b',
   border: '#2a2e38',
   accent: '#d4b46a',
   // Gold is light in dark mode, so what sits on it is dark.
@@ -197,6 +200,8 @@ export const type = {
   /** The word or question on a card. */
   cardFront: { fontSize: 34, fontWeight: '600' },
   cardBack: { fontSize: 26, fontWeight: '600' },
+  /** Text the learner reads or writes in a sentence-length answer (typed or checked), a size up from the body. */
+  reading: { fontSize: 20, lineHeight: 28 },
 } as const;
 
 /** The smallest a tap target gets, per Apple's guidelines. */
