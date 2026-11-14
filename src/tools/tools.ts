@@ -66,7 +66,7 @@ import type { ClockTime, TimeSaying } from './time';
 /** The languages the tools come in: every app language but English, which the app is already in. */
 export const TOOL_LANGUAGES: Language[] = LANGUAGE_ORDER.filter((l) => l !== 'en');
 
-export type ToolId = 'mixups' | 'sentences' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'grammar';
+export type ToolId = 'mixups' | 'sentences' | 'situations' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'grammar';
 
 export interface ToolInfo {
   id: ToolId;
@@ -179,6 +179,14 @@ export const TOOLS: ToolInfo[] = [
     id: 'sentences',
     title: 'Sentences',
     summary: "Say a sentence with a word you've just reviewed, then compare.",
+    languages: TOOL_LANGUAGES,
+  },
+  {
+    // A scene talked through with Claude playing the other person (server/reader situations.py). Needs
+    // Read & Listen's server, like Sentences.
+    id: 'situations',
+    title: 'Situations',
+    summary: 'Talk your way through a scene. Claude plays the other person.',
     languages: TOOL_LANGUAGES,
   },
   {
