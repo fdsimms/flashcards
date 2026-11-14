@@ -400,7 +400,7 @@
       "forms": [
         "past"
       ],
-      "explanation": "The past tense is made from the infinitive: drop **-ть** and add **-л**, then an ending for gender and number: **он читал**, **она читала**, **оно читало**, **они читали**.\n\nIt agrees with the subject's gender, not its person: a woman says **я читала**, a man **я читал**. The plural is always **-ли**.\n\nImperfective verbs say what was going on or used to happen (**я читал книгу**, \"I was reading a book\"); perfective verbs say it was done (**я прочитал книгу**, \"I read the book (to the end)\").\n\nSome are irregular: **шёл, шла** (идти), **мог** (мочь), **ел** (есть).",
+      "explanation": "The past tense is made from the infinitive: drop **-ть** and add **-л**, then an ending for gender and number: **он читал**, **она читала**, **оно читало**, **они читали**.\n\nIt agrees with the subject's gender, not its person: a woman says **я читала**, a man **я читал**. The plural is always **-ли**.\n\nImperfective verbs say what was going on or used to happen (**я читал книгу**, \"I was reading a book\"); perfective verbs say it was done (**я прочитал книгу**, \"I read the book (to the end)\").\n\nSome are irregular: **шёл, шла** (идти), **мог** (мочь).",
       "related": [
         "ru.future"
       ]
