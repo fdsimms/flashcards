@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { Text, View } from 'react-native';
 import type { Language, RecapLine, Word } from '../reader/api';
-import { readFont } from '../reader/fonts';
+import { readFont, scaledFontSize } from '../reader/fonts';
 import { LANGUAGES } from '../reader/languages';
 import { prefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
@@ -31,7 +31,7 @@ export function ReadRecap({ recap, line, language, tapped, onTap }: {
   if (!recap && !line) return null;
   const info = LANGUAGES[language];
   // A little under the reader's own size, as the card's secondary part; Thai stays larger, as there.
-  const fontSize = info.fontSize - 3;
+  const fontSize = scaledFontSize(info.fontSize, prefs().textSize) - 3;
   const textStyle = { fontSize, lineHeight: fontSize * info.lineHeight, font: readFont(language, prefs().thaiFont) };
   return (
     <View style={{ marginTop: space.s, paddingTop: space.m, gap: space.xs, borderTopWidth: hairline, borderTopColor: c.border }}>
