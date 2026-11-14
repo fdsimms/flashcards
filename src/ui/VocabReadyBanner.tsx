@@ -8,7 +8,7 @@ import { useApp } from './AppContext';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { Reveal } from './motion';
-import { lift, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
 
 const POLL_MS = 3000;
 const CHECK_PATH = '/read-vocab-check';
@@ -53,7 +53,7 @@ export function VocabReadyCard({ banner }: { banner: NonNullable<ReturnType<type
     <Reveal
       style={{
         flexDirection: 'row', alignItems: 'center', borderRadius: radius.l, ...smooth,
-        backgroundColor: c.surface, borderColor: c.border, borderWidth: 0.5, ...lift(c, 'high'),
+        backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, ...lift(c, 'high'),
       }}
     >
       <Tappable

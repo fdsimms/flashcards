@@ -12,7 +12,7 @@ import { haptic } from './haptics';
 import { PlayPill } from './PlayButton';
 import { Reveal } from './motion';
 import { Button, Card, Divider, ErrorNote, Group, Help, Screen, SectionTitle, Tappable } from './kit';
-import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 const POLL_MS = 3000;
 
@@ -301,7 +301,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
                       flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center',
                       paddingHorizontal: space.m, paddingVertical: space.m, borderRadius: radius.m, ...smooth,
                       backgroundColor: feedback && right ? c.goodFill : wrongPick ? c.dangerFill : c.surface,
-                      borderColor: mark ?? c.border, borderWidth: mark ? 1 : 0.5,
+                      borderColor: mark ?? c.border, borderWidth: mark ? 1 : hairline,
                       opacity: feedback && !mark ? 0.5 : 1,
                     }}
                   >

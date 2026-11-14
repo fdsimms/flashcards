@@ -77,9 +77,9 @@ export function ReadWords({ api, mining }: {
                   </View>
                   <View style={{ gap: space.s }}>
                     {mining && !w.deck ? (
-                      <Button label="Add to deck" onPress={() => add(w)} />
+                      <Button label="Add to deck" accessibilityLabel={`Add ${w.word} to the deck`} onPress={() => add(w)} />
                     ) : null}
-                    <Button label="Clear" variant="secondary" onPress={() => clear(w.word)} />
+                    <Button label="Clear" accessibilityLabel={`Clear ${w.word} from this list`} variant="secondary" onPress={() => clear(w.word)} />
                   </View>
                 </View>
               ))}

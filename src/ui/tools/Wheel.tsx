@@ -33,7 +33,7 @@ export function Wheel({ count, value, onChange, label, format = (i) => String(i)
   /** The value under the middle as last scrolled to, so a change from outside scrolls and one from here doesn't. */
   const shown = useRef(value);
   const ticked = useRef(value);
-  /** Under the finger, or coasting from it: only then does a row tick, not while Randomize scrolls it. */
+  /** Under the finger, or coasting from it: only then does a row tick, not while Another one scrolls it. */
   const dragging = useRef(false);
 
   useEffect(() => {

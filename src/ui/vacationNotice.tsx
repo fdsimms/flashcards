@@ -5,7 +5,7 @@ import { activeMode, vacationNotice, type VacationNotice, type VacationPrefs } f
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { Reveal } from './motion';
-import { lift, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
 import { useStudyToday, useVacationPrefs } from './vacationPrefs';
 
 /** A study-day key as the phone writes dates, "Sat, Nov 28". */
@@ -47,7 +47,7 @@ export function VacationCard({ notice, due }: { notice: VacationNotice; due: num
     <Reveal
       style={{
         flexDirection: 'row', alignItems: 'center', borderRadius: radius.l, ...smooth,
-        backgroundColor: c.surface, borderColor: c.border, borderWidth: 0.5, ...lift(c, 'high'),
+        backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, ...lift(c, 'high'),
       }}
     >
       <Tappable

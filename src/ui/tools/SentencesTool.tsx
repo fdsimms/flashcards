@@ -121,7 +121,7 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
             <Help>
               {loaded.writing
                 ? `Sentences for the ${name} words you've reviewed today or are still learning are being written. Try again in a minute.`
-                : "Claude isn't set up on Read & Listen's server, so it can't write sentences (ANTHROPIC_API_KEY in server/.env turns this on)."}
+                : "Claude isn't set up on Read & Listen's server, so it can't write sentences. Add Claude's key to your Read & Listen server to turn this on."}
             </Help>
           )}
         </Card>

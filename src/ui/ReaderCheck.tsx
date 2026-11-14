@@ -9,7 +9,7 @@ import { haptic } from './haptics';
 import { Button, Card, Chip, Help, Icon, Tappable } from './kit';
 import { Reveal } from './motion';
 import type { ReadTextStyle } from './ReadWord';
-import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
  * The check after reading (reader/check.ts), one question at a time, in place of the reader's end
@@ -117,7 +117,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
                   minHeight: MIN_TAP, justifyContent: 'center', gap: 2, paddingHorizontal: space.l, paddingVertical: space.m,
                   borderRadius: radius.m, ...smooth,
                   backgroundColor: right ? c.goodFill : wrongPick ? c.dangerFill : c.surface,
-                  borderColor: mark ?? c.border, borderWidth: mark ? 1 : 0.5,
+                  borderColor: mark ?? c.border, borderWidth: mark ? 1 : hairline,
                   opacity: answered && !mark ? 0.5 : 1,
                 }}
               >
@@ -194,6 +194,7 @@ function Evidence({ line, index, word, textStyle, onPlay }: { line: TextLine; in
             onPress={() => { haptic.tap(); onPlay(); }}
             accessibilityRole="button"
             accessibilityLabel={`Play line ${index + 1}`}
+            hitSlop={space.xs}
             style={{ width: 36, height: 36, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
           >
             <Icon name="speaker.wave.2.fill" size={15} color={c.accent} />

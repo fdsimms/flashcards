@@ -5,7 +5,7 @@ import type { SituationFeedback, SituationTurn } from '../../reader/api';
 import { lineParts } from '../../reader/situations';
 import { haptic } from '../haptics';
 import { Button, Card, Icon, Tappable } from '../kit';
-import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { TypedDiff } from '../TypedDiff';
 
 type TextLook = { fontSize: number; lineHeight: number; fontFamily?: string };
@@ -56,6 +56,7 @@ export function TheirLine({ turn, name, look, lang, heardOnly, onPlay }: {
             onPress={() => { haptic.tap(); onPlay(); }}
             accessibilityRole="button"
             accessibilityLabel={`Play ${name}'s line`}
+            hitSlop={space.xs}
             style={{ width: MIN_TAP - 8, height: MIN_TAP - 8, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
           >
             <Icon name="play.fill" size={13} color={c.accent} />
@@ -68,7 +69,7 @@ export function TheirLine({ turn, name, look, lang, heardOnly, onPlay }: {
         </Text>
       ) : null}
       {english ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{turn.english}</Text> : (
-        <Tappable onPress={() => { haptic.select(); setEnglish(true); }} accessibilityRole="button" style={{ alignSelf: 'flex-start', minHeight: 28, justifyContent: 'center' }}>
+        <Tappable onPress={() => { haptic.select(); setEnglish(true); }} accessibilityRole="button" hitSlop={{ top: space.s, bottom: space.s }} style={{ alignSelf: 'flex-start', minHeight: 28, justifyContent: 'center' }}>
           <Text style={{ ...type.footnote, color: c.accent }}>Show English</Text>
         </Tappable>
       )}
@@ -115,7 +116,7 @@ export function SituationResult({ feedback, mine, look, lang, added, onAdd }: {
           const own = mine.get(l.index) ?? '';
           const right = l.verdict === 'right';
           return (
-            <View key={l.index} style={{ gap: space.xs, borderTopWidth: i ? 0.5 : 0, borderTopColor: c.border, paddingTop: i ? space.m : 0 }}>
+            <View key={l.index} style={{ gap: space.xs, borderTopWidth: i ? hairline : 0, borderTopColor: c.border, paddingTop: i ? space.m : 0 }}>
               {right ? (
                 <Text accessibilityLanguage={lang} style={{ ...look, color: c.text }}>{own}</Text>
               ) : (
@@ -140,7 +141,7 @@ export function SituationResult({ feedback, mine, look, lang, added, onAdd }: {
                 <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>{`${w.english} · ${w.why === 'asked' ? 'you asked for it' : 'you heard it'}`}</Text>
                 {onAdd ? (
                   state === 'added' ? <Text style={{ ...type.subhead, color: c.countDue }}>In the queue</Text> : (
-                    <Button variant="secondary" label={state === 'failed' ? 'Try again' : 'Add'} busy={state === 'adding'} onPress={() => onAdd(w)} style={{ minHeight: MIN_TAP - 8, paddingVertical: space.xs }} />
+                    <Button variant="secondary" label={state === 'failed' ? 'Try again' : 'Add'} busy={state === 'adding'} onPress={() => onAdd(w)} style={{ minHeight: MIN_TAP, paddingVertical: space.xs }} />
                   )
                 ) : null}
               </View>

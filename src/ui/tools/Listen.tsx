@@ -31,7 +31,7 @@ export interface ListenCheck {
   retry: () => void;
   /** A new question: unchecked and unmarked, even if it's one asked before (a retry). */
   reset: () => void;
-  /** The footer: Randomize and Check, then Next (and Try again after a miss). */
+  /** The footer: Another one and Check, then Next (and Try again after a miss). */
   actions: (o: { canCheck: boolean; onCheck: () => void; onNext: () => void }) => ToolActions;
 }
 
@@ -54,7 +54,7 @@ export function useListenCheck(key: string, onResult: (right: boolean) => void):
     retry: () => setChecked(null),
     reset: () => { setChecked(null); resulted.current = null; },
     actions: ({ canCheck, onCheck, onNext }) => {
-      if (!verdict) return { secondary: { label: 'Randomize', onPress: onNext }, primary: { label: 'Check', onPress: onCheck, disabled: !canCheck } };
+      if (!verdict) return { secondary: { label: 'Another one', onPress: onNext }, primary: { label: 'Check', onPress: onCheck, disabled: !canCheck } };
       const next = { label: 'Next', onPress: onNext };
       return verdict.right ? { primary: next } : { secondary: { label: 'Try again', onPress: () => setChecked(null) }, primary: next };
     },
