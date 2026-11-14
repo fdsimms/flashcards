@@ -4,13 +4,15 @@ import { FLAG_NAMES } from '../core/cardState';
 
 /**
  * The "…" menu of Review's header: what can be done to the card on screen besides answering it,
- * in four groups (flag, hold back, reschedule, info). Flag is a submenu with the card's current
+ * in groups (mnemonic, flag, hold back, reschedule, info). Flag is a submenu with the card's current
  * color checked, so choosing one doesn't open a second sheet. Forget is the destructive one: it
  * clears the card's memory (and asks first), where Suspend and Bury can be undone in the note editor.
  */
-export function ReviewMenu({ flag, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onDueDate, onForget, onCardInfo }: {
+export function ReviewMenu({ flag, onMnemonic, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onDueDate, onForget, onCardInfo }: {
   /** The card's flag, 0 for none. */
   flag: number;
+  /** Write a mnemonic for the word; missing when the card's note can't take one (`canAddMnemonic`). */
+  onMnemonic?: () => void;
   onFlag: (flag: number) => void;
   onAgentFlag: () => void;
   onBuryCard: () => void;
@@ -21,7 +23,13 @@ export function ReviewMenu({ flag, onFlag, onAgentFlag, onBuryCard, onBuryNote, 
   onCardInfo: () => void;
 }) {
   return (
-    <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More for this card: flag, bury, suspend, reschedule or card info">
+    <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More for this card: mnemonic, flag, bury, suspend, reschedule or card info">
+      {/* Offered for the hard words, not every card, so it lives here and not in the header, which stays at four buttons. */}
+      {onMnemonic ? (
+        <Stack.Toolbar.Menu inline>
+          <Stack.Toolbar.MenuAction icon="lightbulb" onPress={onMnemonic}>Write a mnemonic</Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
+      ) : null}
       <Stack.Toolbar.Menu inline>
         <Stack.Toolbar.Menu title="Flag" icon="flag">
           {FLAG_NAMES.slice(1).map((name, i) => (

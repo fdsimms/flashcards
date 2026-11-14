@@ -20,6 +20,8 @@ const light = {
   textTertiary: '#898c95',
   /** Words that are quiet but still say something (a count of zero, an unselected wheel value), at 4.5:1 on the screen and its wells. Not for icons: those use textTertiary. */
   textDim: '#656972',
+  /** The edge of a control whose fill alone is too faint to show its shape (a secondary button): about 3:1 on the screen and on a card, WCAG's floor for a control's boundary. */
+  controlEdge: '#8c887c',
   border: '#e3dfd4',
   accent: '#876a1e',
   /** Text and icons drawn on an accent-colored fill. */
@@ -106,6 +108,7 @@ const dark: typeof light = {
   textSecondary: '#a2a8b3',
   textTertiary: '#6c727d',
   textDim: '#8a909b',
+  controlEdge: '#6e7480',
   border: '#2a2e38',
   accent: '#d4b46a',
   // Gold is light in dark mode, so what sits on it is dark.
