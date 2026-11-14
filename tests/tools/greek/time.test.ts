@@ -87,7 +87,7 @@ describe('a time in Greek', () => {
     expect(also(9, 15)).toEqual(['εννιά και τέταρτο το πρωί']);
     expect(also(16, 45)).toEqual(['πέντε παρά τέταρτο το απόγευμα']);
     expect(also(20, 10)).toEqual(['οχτώ και δέκα το βράδυ']);
-    expect(also(23, 30)).toEqual(['έντεκα και μισή τη νύχτα']);
+    expect(also(23, 30)).toEqual(['έντεκα και μισή το βράδυ']);
     expect(also(0, 30)).toEqual(['δώδεκα και μισή τη νύχτα']);
   });
 

@@ -63,7 +63,7 @@ describe('a time in Norwegian', () => {
     expect(also(12, 30)).toEqual(['halv ett midt på dagen']);
     expect(also(15)).toEqual(['tre på ettermiddagen']);
     expect(also(20, 45)).toEqual(['kvart på ni om kvelden']);
-    expect(also(23)).toEqual(['elleve om natta']);
+    expect(also(23)).toEqual(['elleve om kvelden']);
   });
 
   it('gives the formal 24-hour form, digit by digit', () => {

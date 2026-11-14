@@ -19,7 +19,7 @@ function hour12(h: number): string {
 
 /** The part of the day a time falls in, said after it. */
 function partOfDay(h: number): string {
-  if (h <= 4 || h === 23) return 'om natta';
+  if (h <= 4) return 'om natta';
   if (h <= 9) return 'om morgenen';
   if (h <= 11) return 'på formiddagen';
   if (h <= 13) return 'midt på dagen';
