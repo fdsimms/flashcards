@@ -11,7 +11,7 @@ import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core
 import { failureText } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
-import { isInterdayLearning, nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
+import { dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type AnswerContext, type RatingValue } from '../core/scheduler';
 import { fuzzSeed } from '../core/ankiFuzz';
@@ -1022,7 +1022,8 @@ export function Review({ repo, deck, practice, suggestHints, glossing, reloadKey
     >
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
-          <Count value={queue.due.length} label="due" color={c.countDue} />
+          <Count value={dueCounts(queue).reviews} label="due" color={c.countDue} />
+          <Count value={dueCounts(queue).learning} label="learning" color={c.countLearn} />
           <Count value={queue.fresh.length} label="new" color={c.countNew} />
         </View>
       ) : null}
