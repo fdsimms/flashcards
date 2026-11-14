@@ -84,7 +84,7 @@ function Disclosure({ open, fill, color }: { open: boolean; fill: string; color:
 }
 
 /** What's waiting across every deck, or that nothing is: the first thing the deck list says. */
-function TodaySummary({ due, fresh }: { due: number; fresh: number }) {
+function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; studied?: string }) {
   const c = useTheme();
   const caughtUp = due + fresh === 0;
   const figure = (value: number, label: string, color: string) => (
@@ -96,12 +96,13 @@ function TodaySummary({ due, fresh }: { due: number; fresh: number }) {
   return (
     <View
       accessible
-      accessibilityLabel={caughtUp ? 'All caught up. Nothing is due today.' : `Today: ${due} due, ${fresh} new`}
+      accessibilityLabel={[caughtUp ? 'All caught up. Nothing is due today.' : `Today: ${due} due, ${fresh} new`, studied].filter(Boolean).join('. ')}
       style={{
-        flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, borderRadius: radius.l, ...smooth,
+        gap: space.m, padding: space.l, borderRadius: radius.l, ...smooth,
         backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border,
       }}
     >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
       {caughtUp ? (
         <>
           <Icon name="checkmark.circle.fill" size={34} color={c.countDue} weight="regular" />
@@ -116,6 +117,12 @@ function TodaySummary({ due, fresh }: { due: number; fresh: number }) {
           {figure(fresh, 'new today', c.countNew)}
         </>
       )}
+      </View>
+      {studied ? (
+        <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center', fontVariant: ['tabular-nums'], borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.s }}>
+          {studied}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -244,6 +251,8 @@ const MIN_SYNC_SHOWN_MS = 1200;
 
 export function DeckList(props: {
   decks: DeckRow[];
+  /** "Studied today: ..." under the due and new figures (useTodaySummary), once something has been answered today. */
+  studied?: string;
   /**
    * When the last backup was made, and whether another is due (`backupStatus`). Not shown while
    * sync is on: the Anki server then holds the collection, and Backup is still in Settings.
@@ -388,7 +397,7 @@ export function DeckList(props: {
             // A failed sync is shown first, where it can't be scrolled past; a tap tries again.
             <WarningBanner title="Sync didn't finish" detail={props.sync.status} action="Tap to try again" hint="Syncs now" onPress={syncTapped} />
           ) : null}
-          {groups.length || props.extra ? <TodaySummary due={totals.due} fresh={totals.fresh} /> : null}
+          {groups.length || props.extra ? <TodaySummary due={totals.due} fresh={totals.fresh} studied={props.studied} /> : null}
           {groups.length === 0 ? (props.loaded === false ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : (
             <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
               <Icon name="tray" size={40} color={c.textTertiary} weight="regular" />

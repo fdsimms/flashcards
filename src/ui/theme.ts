@@ -5,8 +5,8 @@ import { StyleSheet, useColorScheme } from 'react-native';
  * literal: a hard-coded '#fff' is the one that stays white on a dark background.
  *
  * Warm paper and gold in light mode, near-black and the same gold in dark. Card counts follow
- * Anki's colors so they read the same at a glance: new is blue, due green. The deck list and Review
- * count learning cards in due, so `countLearn` (Anki's red) isn't drawn anywhere yet.
+ * Anki's colors so they read the same at a glance: new is blue, due green, learning red. The deck
+ * list counts learning cards in due; Review shows them apart, in `countLearn`.
  */
 
 const light = {
@@ -25,6 +25,8 @@ const light = {
   danger: '#b3443b',
   warning: '#99651a',
   countNew: '#2f6db5',
+  /** A quiet fill behind a new card's chip, in the new count's blue. */
+  countNewFill: 'rgba(47, 109, 181, 0.12)',
   countLearn: '#b5473f',
   countDue: '#3d7a52',
   again: '#c35249',
@@ -108,6 +110,7 @@ const dark: typeof light = {
   danger: '#e0766c',
   warning: '#e0a85a',
   countNew: '#6fa8ec',
+  countNewFill: 'rgba(111, 168, 236, 0.16)',
   countLearn: '#e0766c',
   countDue: '#6cc08a',
   again: '#b5473f',
