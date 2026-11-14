@@ -8,6 +8,20 @@ export const THAI_FONTS: ThaiFont[] = ['looped', 'loopless'];
 
 export const THAI_FONT_LABELS: Record<ThaiFont, string> = { looped: 'Looped', loopless: 'Loopless' };
 
+/** How much bigger or smaller than a language's own reading size the reader draws a text. */
+export type TextSize = 'small' | 'default' | 'large' | 'larger' | 'largest';
+
+export const TEXT_SIZES: TextSize[] = ['small', 'default', 'large', 'larger', 'largest'];
+
+export const TEXT_SIZE_LABELS: Record<TextSize, string> = { small: 'Small', default: 'Default', large: 'Large', larger: 'Larger', largest: 'Largest' };
+
+const TEXT_SIZE_SCALE: Record<TextSize, number> = { small: 0.85, default: 1, large: 1.2, larger: 1.45, largest: 1.75 };
+
+/** A language's base font size at the chosen text size, to the half point. */
+export function scaledFontSize(base: number, size: TextSize): number {
+  return Math.round(base * TEXT_SIZE_SCALE[size] * 2) / 2;
+}
+
 export type ReadFont = {
   /** Unset means the system face. */
   fontFamily?: string;
