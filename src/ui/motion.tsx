@@ -58,17 +58,19 @@ export function Reveal({ children, style, rise = 8, delay = 0 }: {
   );
 }
 
-/** Springs in from slightly smaller, once `ready`: for a popover that's drawn where the finger was. */
-export function Pop({ ready = true, children, style }: { ready?: boolean; children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+/** Springs in from smaller (`from`, a share of full size), once `ready`: a popover drawn where the finger was, or a check mark landing. */
+export function Pop({ ready = true, children, style, from = 0.92, bounciness = 4, delay = 0 }: {
+  ready?: boolean; children: React.ReactNode; style?: StyleProp<ViewStyle>; from?: number; bounciness?: number; delay?: number;
+}) {
   const reduce = useReduceMotion();
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!ready) return;
     if (reduce) { v.setValue(1); return; }
-    Animated.spring(v, { toValue: 1, speed: 22, bounciness: 4, useNativeDriver: true }).start();
+    Animated.spring(v, { toValue: 1, speed: 22, bounciness, delay, useNativeDriver: true }).start();
   }, [ready, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <Animated.View style={[style, { opacity: v.interpolate({ inputRange: [0, 0.6], outputRange: [0, 1], extrapolate: 'clamp' }), transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }]}>
+    <Animated.View style={[style, { opacity: v.interpolate({ inputRange: [0, 0.6], outputRange: [0, 1], extrapolate: 'clamp' }), transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [from, 1] }) }] }]}>
       {children}
     </Animated.View>
   );
