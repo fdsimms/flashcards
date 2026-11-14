@@ -388,7 +388,7 @@ function Summary({ answered, notice }: { answered: Answered[]; notice?: string }
           </View>
         ))}
       </Card>
-      <Help>Practice doesn't change when any card is next due.</Help>
+      <Help>Practice doesn't change any card's due date.</Help>
       {notice ? <Help>{notice}</Help> : null}
     </ScrollView>
   );
