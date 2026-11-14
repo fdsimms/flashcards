@@ -506,6 +506,19 @@ def test_a_story_episodes_plan_is_kept() -> None:
     assert run(ScriptedModel(GOOD), TextRequest("food")).plan == ""
 
 
+def test_every_text_is_asked_not_to_be_about_opening_a_container_and_a_stranger() -> None:
+    from franki_reader.generator import StoryContext
+
+    for request in (
+        TextRequest("food"),
+        TextRequest("food", form="story"),
+        TextRequest("a stall", story=StoryContext(2, "", "Noi's stall")),
+    ):
+        assert "Plot: don't build the situation around someone opening a box" in (
+            request_message(request)
+        )
+
+
 def _episode_draft(*choices: tuple[str, str]) -> dict[str, Any]:
     return dict(GOOD, choices=[{"text": t, "english": e} for t, e in choices])
 

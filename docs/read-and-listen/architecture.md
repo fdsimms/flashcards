@@ -875,6 +875,10 @@ next episode is the top of the shelf.
   same cast and a new problem, and is sent no plan. Every episode's request also says to open in the
   new scene, not retell what happened or repeat a beat from the last episodes. A story that was
   already running has no plan until its next episode writes one.
+- **Not the container plot** (added 14 November 2026). With a small vocabulary nearly every text was
+  someone opening a box or drawer, finding something, and a stranger arriving to explain it. Every
+  request, dialogues included, now says that plot is overused unless the topic is about it, and to
+  give the people a want, a choice or a problem instead (`_PLOT_VARIETY`).
 - **"Last time" above the text** (added 14 November 2026). The shelf card's recap is also shown at
   the top of the next episode in the reader (`last_time` on `GET /api/texts/{id}`: the previous
   episode's `recap` and `recap_line`), so the episode doesn't have to retell it. It's the shelf's

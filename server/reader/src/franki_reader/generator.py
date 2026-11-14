@@ -480,11 +480,23 @@ def system_prompt(entries: list[Entry], language: Code = "th") -> str:
     return _instructions(language) + words
 
 
+# Every kind of text is asked this: with a small vocabulary the easy plot is someone opening a
+# container and finding something, then a stranger arriving to explain it, and nearly every text
+# was that one.
+_PLOT_VARIETY = (
+    "Plot: don't build the situation around someone opening a box, bag, drawer or letter and "
+    "finding something, or around a stranger who turns up to explain an object or its past. That "
+    "plot is overused. Unless the topic is about it, give the people something they want, a choice "
+    "to make or a problem to deal with, so things happen because of what they do."
+)
+
+
 def request_message(request: TextRequest) -> str:
     what = "a dialogue" if request.form == "dialogue" else "a short story"
     parts = [
         f"Topic: {request.topic}",
         f"Write {what} of {request.lines} lines.",
+        _PLOT_VARIETY,
     ]
     if request.language != "th":
         name = LANGUAGES[request.language].name
