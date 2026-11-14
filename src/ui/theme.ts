@@ -25,6 +25,8 @@ const light = {
   danger: '#b3443b',
   warning: '#99651a',
   countNew: '#2f6db5',
+  /** A quiet fill behind a new card's chip, in the new count's blue. */
+  countNewFill: 'rgba(47, 109, 181, 0.12)',
   countLearn: '#b5473f',
   countDue: '#3d7a52',
   again: '#c35249',
@@ -106,6 +108,7 @@ const dark: typeof light = {
   danger: '#e0766c',
   warning: '#e0a85a',
   countNew: '#6fa8ec',
+  countNewFill: 'rgba(111, 168, 236, 0.16)',
   countLearn: '#e0766c',
   countDue: '#6cc08a',
   again: '#b5473f',
