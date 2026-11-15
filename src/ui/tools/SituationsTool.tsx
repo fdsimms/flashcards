@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, TextInput, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../../core/failure';
-import type { Language, SituationFeedback, SituationTurn } from '../../reader/api';
+import type { Language, SituationFeedback, SituationFocus, SituationTurn } from '../../reader/api';
 import { readFont, scaledFontSize } from '../../reader/fonts';
 import { LANGUAGES } from '../../reader/languages';
 import { canFinish, canSend, conversationOf, startChat, withMine, withoutMine, withTheirs, type Chat } from '../../reader/situations';
@@ -30,11 +30,13 @@ import { ControlLabel, ToolScreen, useToolLanguage } from './ToolScreen';
  * goes to the server with each turn; nothing is kept, and nothing grades a card or writes a note (Add
  * only puts a word in the note queue, for the note editor).
  */
-export function SituationsTool({ tool, repo, readerApi, onClose }: ToolScreenProps) {
+export function SituationsTool({ tool, repo, readerApi, params, onClose }: ToolScreenProps) {
   const [language, setLanguage] = useToolLanguage(tool);
   const [chat, setChat] = useState<Chat | null>(null);
   const [heardOnly, setHeardOnly] = useState(false);
   const [feedback, setFeedback] = useState<SituationFeedback | null>(null);
+  // Opened from a grammar topic's page (Your topics): the scene practices that topic.
+  const focus = focusOf(params.focus);
 
   if (!readerApi) {
     return (
@@ -54,7 +56,8 @@ export function SituationsTool({ tool, repo, readerApi, onClose }: ToolScreenPro
         onLanguage={setLanguage}
         heardOnly={heardOnly}
         onHeardOnly={setHeardOnly}
-        onStart={(scene) => { setFeedback(null); setChat(startChat(language, scene)); }}
+        focus={focus}
+        onStart={(scene) => { setFeedback(null); setChat(startChat(language, scene, focus)); }}
       />
     );
   }
@@ -67,7 +70,7 @@ export function SituationsTool({ tool, repo, readerApi, onClose }: ToolScreenPro
       heardOnly={heardOnly}
       feedback={feedback}
       onFeedback={setFeedback}
-      onAgain={() => { setFeedback(null); setChat(startChat(chat.language, chat.scene)); }}
+      onAgain={() => { setFeedback(null); setChat(startChat(chat.language, chat.scene, chat.focus)); }}
       onDone={onClose}
     />
   );
@@ -75,13 +78,24 @@ export function SituationsTool({ tool, repo, readerApi, onClose }: ToolScreenPro
 
 type Api = NonNullable<ToolScreenProps['readerApi']>;
 
-function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, onStart }: {
+/** The topic a scene practices, from the route's `focus` parameter; undefined when absent or unreadable. */
+function focusOf(raw: string | undefined): SituationFocus | undefined {
+  try {
+    const v = raw ? (JSON.parse(raw) as Partial<SituationFocus>) : undefined;
+    return v && typeof v.title === 'string' && v.title ? { title: v.title, lead: typeof v.lead === 'string' ? v.lead : '' } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, focus, onStart }: {
   tool: ToolScreenProps['tool'];
   api: Api;
   language: Language;
   onLanguage: (l: Language) => void;
   heardOnly: boolean;
   onHeardOnly: (on: boolean) => void;
+  focus?: SituationFocus;
   onStart: (scene: string) => void;
 }) {
   const c = useTheme();
@@ -111,6 +125,7 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, on
       actions={{ primary: { label: 'Start', onPress: () => onStart(own), disabled: !own.trim() } }}
     >
       <Help>Talk your way through a scene. Claude plays the other person using words from your deck, and tells you at the end what to fix.</Help>
+      {focus ? <Help>{`Practicing: ${focus.title}. Claude works it into the scene and comments on how you used it at the end.`}</Help> : null}
       <View style={{ gap: space.s }}>
         <ControlLabel>Your own</ControlLabel>
         <TextInput

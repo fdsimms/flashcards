@@ -4,11 +4,11 @@ import { toolById } from '../tools/tools';
 import { useApp } from '../ui/AppContext';
 import { TOOL_SCREENS } from '../ui/tools';
 
-/** One Practice tool, named by the `id` parameter; the others go to the tool (a grammar drill's `points`). */
+/** One Practice tool, named by the `id` parameter; the others go to the tool (a grammar drill's `points`, a topic Situations practices as `focus`). */
 export default function ToolRoute() {
   const router = useRouter();
   const { repo, reader } = useApp();
-  const { id, ...params } = useLocalSearchParams<{ id: string; points?: string }>();
+  const { id, ...params } = useLocalSearchParams<{ id: string; points?: string; focus?: string }>();
   const tool = toolById(id);
   if (!tool) return null;
   const { Screen } = TOOL_SCREENS[tool.id];
