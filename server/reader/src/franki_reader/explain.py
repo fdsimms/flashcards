@@ -8,6 +8,7 @@ grade or write cards: this only shows text.
 """
 
 import json
+import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, cast
@@ -17,6 +18,8 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
+
+log = logging.getLogger(__name__)
 
 MAX_POINTS = 6
 MAX_TOKENS = 1500
@@ -279,6 +282,9 @@ async def _ask(
             fallbacks="default",
         )
     except anthropic.APIError as e:
+        # The person sees only the class name; the API's own message (what a 400 objected to)
+        # is what says why, so it goes in the server log.
+        log.warning("Claude couldn't explain %s: %s: %s", what, type(e).__name__, e)
         raise ExplainFailed(
             f"Claude didn't answer ({type(e).__name__}). Try again in a moment."
         ) from e
