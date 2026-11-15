@@ -41,6 +41,7 @@ from franki_reader.cast import (
     quote_problems,
 )
 from franki_reader.characters import CHARACTERS
+from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import MINIMUM, Checker, Coverage, check
 from franki_reader.crowding import crowding
 from franki_reader.difficulty import DEFAULT_FLOOR
@@ -1162,7 +1163,7 @@ def claude_ask(
             )
         except anthropic.APIError as e:
             # Overloaded, rate limited, unreachable: say so rather than failing the request.
-            raise GenerationFailed(f"Claude didn't answer ({type(e).__name__})") from e
+            raise GenerationFailed(didnt_answer(e)) from e
         used = usage_of(response)
         if response.stop_reason == "refusal":
             raise GenerationFailed("Claude declined to write this text", used)

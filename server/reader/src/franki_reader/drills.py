@@ -36,6 +36,7 @@ import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam, BetaTextBlockParam
 
 from franki_reader import grammar, store
+from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import Checker, is_word, parse_line
 from franki_reader.generator import MODEL, Usage, system_prompt, usage_of
 from franki_reader.grammar import Point
@@ -426,7 +427,7 @@ def claude_drills(client: anthropic.AsyncAnthropic) -> WriteDrills:
                 fallbacks="default",
             )
         except anthropic.APIError as e:
-            raise DrillsFailed(f"Claude didn't answer ({type(e).__name__})") from e
+            raise DrillsFailed(didnt_answer(e)) from e
         used = usage_of(response)
         text = next((b.text for b in response.content if b.type == "text"), None)
         if response.stop_reason in ("refusal", "max_tokens") or text is None:

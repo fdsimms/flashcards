@@ -25,6 +25,7 @@ import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader import store
+from franki_reader.claude_errors import didnt_answer
 from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 
@@ -273,7 +274,7 @@ def claude_notes(client: anthropic.AsyncAnthropic) -> WriteNotes:
                 fallbacks="default",
             )
         except anthropic.APIError as e:
-            raise FillFailed(f"Claude didn't answer ({type(e).__name__}).") from e
+            raise FillFailed(didnt_answer(e, ".")) from e
         used = usage_of(response)
         text = next((b.text for b in response.content if b.type == "text"), None)
         if response.stop_reason in ("refusal", "max_tokens") or text is None:

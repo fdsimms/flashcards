@@ -16,6 +16,7 @@ from typing import Any, cast
 import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
+from franki_reader.claude_errors import didnt_answer
 from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 
@@ -285,9 +286,7 @@ async def _ask(
         # The person sees only the class name; the API's own message (what a 400 objected to)
         # is what says why, so it goes in the server log.
         log.warning("Claude couldn't explain %s: %s: %s", what, type(e).__name__, e)
-        raise ExplainFailed(
-            f"Claude didn't answer ({type(e).__name__}). Try again in a moment."
-        ) from e
+        raise ExplainFailed(didnt_answer(e, ". Try again in a moment.")) from e
     used = usage_of(response)
     text = next((b.text for b in response.content if b.type == "text"), None)
     if response.stop_reason in ("refusal", "max_tokens") or text is None:
