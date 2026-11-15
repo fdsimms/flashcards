@@ -3,7 +3,7 @@ import { Stack, usePreventRemove } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
+import { ActivityIndicator, AppState, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, type Api, type GrammarChoice, type Language, type Length, type PastText, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../reader/deckWords';
@@ -110,6 +110,14 @@ const POLL_MS = 3_000;
 const WRITE_WAIT_MS = 4 * 60_000;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// How long Play all waits on the server between two texts. iOS can drop a connection while the app
+// is in the background, and a request that never answers would leave Play all stuck for good.
+const BETWEEN_TEXTS_MS = 15_000;
+const within = <T,>(work: Promise<T>, ms: number): Promise<T> => new Promise((resolve, reject) => {
+  const timer = setTimeout(() => reject(new Error('Timed out')), ms);
+  work.then((v) => { clearTimeout(timer); resolve(v); }, (e) => { clearTimeout(timer); reject(e); });
+});
 
 /**
  * A text from the shelf (`order`: the shelf's texts as they were listed, for Next; `playAll`: play
@@ -454,6 +462,18 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     }
   };
 
+  // The word popover and the phrase popup are Modals. A Modal closed while the app is in the
+  // background (Play all moving on to the next text) can stay on screen as an invisible layer that
+  // takes every tap, so they're closed on the way out instead.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') return;
+      setTapped(null);
+      setPhrase(null);
+    });
+    return () => sub.remove();
+  }, []);
+
   useEffect(() => { load(); }, [source]); // eslint-disable-line react-hooks/exhaustive-deps -- loads once per source
 
   // A line has played to its end (or has no sound): once every line has, the words appear.
@@ -547,11 +567,11 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     if (!text || !session || logged.current || source.kind !== 'shelf') return;
     logged.current = true;
     try {
-      await api.logReading(text.id, toLog(session, Date.now(), true));
+      await within(api.logReading(text.id, toLog(session, Date.now(), true)), BETWEEN_TEXTS_MS);
     } catch {
       // The reading is lost, not your place: carry on either way.
     }
-    const next = await findNext().catch(() => null);
+    const next = await within(findNext(), BETWEEN_TEXTS_MS).catch(() => null);
     if (!mounted.current) return;
     if (next) onNext({ kind: 'shelf', textId: next.id, order: next.order, playAll: true });
     else setEnded(true);
