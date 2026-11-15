@@ -90,7 +90,7 @@ VERDICTS = ("natural", "stiff", "unusual")
 CHECK_SYSTEM = (
     "You are a native speaker of the language, reviewing one line of a short text written for "
     "learners. Judge whether a native speaker would actually say or write this line in this "
-    "situation, given who is speaking and the lines around it. Answer with `verdict`: "
+    "situation, given who is speaking and the whole text, which is there so you can judge whether the line fits what came before it. Answer with `verdict`: "
     '"natural" (a native speaker would say it), "stiff" (correct, but too formal, too literal or '
     'too written for this situation) or "unusual" (grammatical, but a native speaker would '
     "hardly say it this way). Give `reason`, one or two short plain English sentences naming "
@@ -163,7 +163,10 @@ class CheckRequest:
     english: str
     speaker: str = ""  # who says it, e.g. "A (Waiter)"; empty for a narrator
     register: str = ""  # what the text was written as, when it says
+    # The whole text as for ExplainRequest (this line too); `index` is this line's place in it.
     context: tuple[str, ...] = ()
+    title: str = ""
+    index: int = 0
 
 
 # {verdict, reason, alternative}, and what asking for it cost.
@@ -204,15 +207,14 @@ def phrase_message(request: PhraseRequest) -> str:
 
 
 def check_message(request: CheckRequest) -> str:
-    lines = [f"Language: {LANGUAGES[request.language].name}", f"Line: {request.line}"]
+    lines = [f"Language: {LANGUAGES[request.language].name}"]
+    lines.extend(whole_text(request.context, request.title, request.index))
+    lines.append(f"Line {request.index + 1}: {request.line}")
     if request.speaker:
         lines.append(f"Spoken by: {request.speaker}")
     if request.register:
         lines.append(f"The text was written as: {request.register}")
     lines.append(f"English: {request.english}")
-    if request.context:
-        lines.append("The text around it:")
-        lines.extend(f"- {c}" for c in request.context)
     return "\n".join(lines)
 
 

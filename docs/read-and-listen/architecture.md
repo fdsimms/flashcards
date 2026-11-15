@@ -90,7 +90,7 @@ Franki's (Client, below).
   explanation has **Does this sound natural?**, asked only on the tap
   (`POST /api/texts/{id}/lines/{n}/natural`, `explain.py`) and kept per line in `naturalness`, so
   asking again costs nothing; its cost counts under `explanations` in `/api/costs`. It is a second,
-  separate call that judges the line as a native speaker with who says it and the lines around it
+  separate call that judges the line as a native speaker with who says it and the whole text (the lines around it until 15 November 2026)
   (a model grading its own draft in the same call mostly approves it), and answers natural, stiff or
   unusual with a reason and, unless natural, what a native speaker would more likely say. That is
   text only: the line's recorded audio is unchanged. Tried and left out for now: running the review

@@ -904,7 +904,9 @@ def create_app(
                     text.lines[line].english,
                     f"{speaker} ({role})" if role else "",
                     text.lines[line].register,
-                    tuple(plain[max(0, line - 3) : line] + plain[line + 1 : line + 3]),
+                    whole_text_lines(text, plain),
+                    text.title,
+                    line,
                 )
             )
         except ExplainFailed as e:
