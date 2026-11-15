@@ -6,6 +6,7 @@ import { deckDeletionWarning } from '../core/deckNames';
 import type { DeckMove } from '../core/deckOrder';
 import { isInDeck } from '../core/deckTree';
 import { useApp } from './AppContext';
+import type { DeckAction } from './DeckList';
 import { shareDeckNotes } from './exportDeck';
 import { haptic } from './haptics';
 import { failureText } from '../core/failure';
@@ -81,19 +82,25 @@ export function useDeckActions(onOptions: (deck: string) => void) {
     });
   }, [repo, run, fromAnki, collapse]);
 
-  /** The menu on a deck's row: add a note to it, rename it, its options, export its notes, delete it. */
+  /** One thing done to a deck, from the long-press menu or the ⋯ sheet. */
+  const act = useCallback((deck: string, action: DeckAction) => {
+    // The note editor starts in this deck, which may have no notes yet (one just made).
+    if (action === 'note') openNoteEditor({ deck }, (result) => { if (result) refresh(); });
+    if (action === 'rename') rename(deck);
+    if (action === 'options') onOptions(deck);
+    if (action === 'export') shareDeckNotes(repo, deck).catch((e) => Alert.alert("Couldn't export the notes", failureText(e, { next: 'Try again.' })));
+    if (action === 'delete') remove(deck);
+  }, [openNoteEditor, refresh, rename, onOptions, remove, repo]);
+
+  /** The sheet the ⋯ button on a deck's row opens: the same choices as the long-press menu. */
   const menu = useCallback((deck: string) => {
     haptic.tap();
     const options = ['Add note', 'Rename', 'Deck options', 'Export notes', 'Delete', 'Cancel'];
+    const actions: DeckAction[] = ['note', 'rename', 'options', 'export', 'delete'];
     ActionSheetIOS.showActionSheetWithOptions({ title: deck, options, cancelButtonIndex: 5, destructiveButtonIndex: 4 }, (i) => {
-      // The note editor starts in this deck, which may have no notes yet (one just made).
-      if (i === 0) openNoteEditor({ deck }, (result) => { if (result) refresh(); });
-      if (i === 1) rename(deck);
-      if (i === 2) onOptions(deck);
-      if (i === 3) shareDeckNotes(repo, deck).catch((e) => Alert.alert("Couldn't export the notes", failureText(e, { next: 'Try again.' })));
-      if (i === 4) remove(deck);
+      if (i < actions.length) act(deck, actions[i]);
     });
-  }, [openNoteEditor, refresh, rename, onOptions, remove, repo]);
+  }, [act]);
 
-  return { create: () => create(), menu, move };
+  return { create: () => create(), menu, act, move };
 }

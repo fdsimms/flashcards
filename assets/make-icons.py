@@ -3,8 +3,8 @@ Draws Franki's app icon and splash logo: a gold flashcard with an F, over a seco
 
     python3 assets/make-icons.py        (needs Pillow)
 
-Writes assets/icon.png (1024, opaque, as the App Store wants it; iOS rounds the corners) and
-assets/splash-icon.png (the same mark on transparent, for the launch screen). The colors are the
+Writes assets/icon.png (1024, opaque, as the App Store wants it; iOS rounds the corners),
+assets/icon-tinted.png (the same in grayscale, for iOS's tinted icons) and assets/splash-icon.png (the same mark on transparent, for the launch screen). The colors are the
 theme's (src/ui/theme.ts): the dark background, and the accent's gold. Everything is drawn at 4x and
 scaled down, so the edges are smooth.
 """
@@ -87,6 +87,11 @@ def main():
 
     splash = mark(big).resize((SIZE, SIZE), Image.LANCZOS)
     splash.save(OUT / "splash-icon.png", optimize=True)
+
+    # The tinted home screen icon (iOS 18): iOS colors it by brightness, so a black ground and a
+    # grayscale mark, with the dark ground's gradient pushed to pure black.
+    tinted = Image.open(OUT / "icon.png").convert("L").point(lambda v: 0 if v < 40 else min(255, int((v - 40) * 1.35)))
+    tinted.convert("RGB").save(OUT / "icon-tinted.png", optimize=True)
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { minedNote } from '../reader/mining';
 import { useApp } from '../ui/AppContext';
 import { Reader, type ReaderSource } from '../ui/Reader';
+import { useReaderPlayerHost } from '../ui/useReaderPlayer';
 import { useWordAudio } from '../ui/useWordAudio';
 
 /**
@@ -14,6 +15,7 @@ export default function ReaderRoute() {
   const router = useRouter();
   const { reader, repo, openNoteEditor } = useApp();
   const playWord = useWordAudio(repo);
+  const playerHost = useReaderPlayerHost();
   const readerApi = reader.api;
   const { source: raw } = useLocalSearchParams<{ source: string }>();
   const source = useMemo<ReaderSource | null>(() => {
@@ -26,6 +28,7 @@ export default function ReaderRoute() {
   return (
     <Reader
       api={readerApi}
+      playerHost={playerHost}
       source={source}
       settings={reader.settings}
       onSettings={reader.setSettings}

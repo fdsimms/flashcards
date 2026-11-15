@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Link, Stack } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
 import { siblingStep, type DeckMove } from '../core/deckOrder';
@@ -6,7 +6,7 @@ import { deckListTotals, isInDeck, shownDeckRows, type DeckRow } from '../core/d
 import { useDeckDrag } from './DeckDrag';
 import { DISCLOSURE, ROW_PAD, WELL_EDGE, WELL_INSET } from './deckLayout';
 import { haptic } from './haptics';
-import { Button, Card, Group, Icon, NavRow, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
+import { Button, Card, Group, Icon, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
 import { CountingText, Reveal, useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
@@ -15,6 +15,9 @@ import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 
 type ShownRow = DeckRow & { hasSubdecks: boolean; collapsed: boolean };
+
+/** What a deck's long-press menu and its ⋯ button offer besides studying it. */
+export type DeckAction = 'note' | 'rename' | 'options' | 'export' | 'delete';
 
 /** Rows grouped under their top-level deck, so each family of decks sits in one card. */
 function groupByTopLevel(rows: ShownRow[]): ShownRow[][] {
@@ -105,7 +108,7 @@ function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; stu
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
       {caughtUp ? (
         <>
-          <Icon name="checkmark.circle.fill" size={34} color={c.countDue} weight="regular" />
+          <Icon name="checkmark.circle.fill" size={34} color={c.countDue} weight="regular" effect="bounce" />
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={{ ...type.headline, color: c.text }}>All caught up</Text>
             <Text style={{ ...type.subhead, color: c.textSecondary }}>Nothing is due today.</Text>
@@ -138,7 +141,7 @@ function Stat({ value, label, color }: { value: number; label: string; color: st
   );
 }
 
-export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, menuHint = 'Add a note, rename, options or delete', onOpen, onMenu, onToggle, onLift, onStep }: {
+export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, menuHint = 'Add a note, rename, options or delete', editing = false, onOpen, onPress, onMenu, onToggle, onDelete, onHandle, onStep }: {
   row: ShownRow;
   first: boolean;
   /** Room for the show/hide button before the name, so a deck's name lines up with its siblings'. */
@@ -149,11 +152,17 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
   detail?: { text: string; warning?: boolean };
   /** What the ⋯ menu offers, for VoiceOver. */
   menuHint?: string;
-  onOpen: () => void;
+  /** Edit mode: a delete button before the name and a handle to drag the deck by, in place of the counts and the menu. */
+  editing?: boolean;
+  onOpen?: () => void;
+  /** The press a `Link` hands its trigger (the row is that trigger's element), used in place of `onOpen`. */
+  onPress?: () => void;
   onMenu: () => void;
   onToggle?: () => void;
-  /** Hold to drag the deck (DeckDrag.tsx). */
-  onLift?: (e: GestureResponderEvent) => void;
+  /** Edit mode's delete button. */
+  onDelete?: () => void;
+  /** Touching the handle in Edit mode picks the deck up to drag it (DeckDrag.tsx). */
+  onHandle?: (e: GestureResponderEvent) => void;
   /** Move up or down among its siblings: VoiceOver's way to do what dragging does. */
   onStep?: (by: -1 | 1) => void;
 }) {
@@ -166,9 +175,10 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
   const gateLine = row.gate ? `${row.gate.inProgress} of ${row.gate.cap} in progress${atCap ? ', new cards wait' : ''}` : null;
   return (
     <Pressable
-      onPress={onOpen}
-      onLongPress={onLift}
-      accessibilityRole="button"
+      onPress={editing ? undefined : (onPress ?? onOpen)}
+      disabled={editing}
+      accessibilityRole={editing ? undefined : 'button'}
+      accessible={!editing}
       // The label replaces the text inside, so it says the lines under the name too.
       accessibilityLabel={[`${row.name}: ${row.due} due, ${row.fresh} new`, line.replace(' · ', ', '), gateLine].filter(Boolean).join('. ')}
       accessibilityActions={onStep ? [{ name: 'moveUp', label: 'Move up' }, { name: 'moveDown', label: 'Move down' }] : undefined}
@@ -180,6 +190,18 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
       })}
     >
       {first ? null : <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: space.l, right: 0, height: hairline, backgroundColor: c.border }} />}
+      {editing ? (
+        <Tappable
+          onPress={() => { haptic.tap(); onDelete?.(); }}
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${row.name}`}
+          scaleTo={0.85}
+          hitSlop={space.s}
+          style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Icon name="minus" size={12} color={c.onRating} weight="bold" />
+        </Tappable>
+      ) : null}
       {gutter ? <View style={{ width: DISCLOSURE }} /> : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{row.name}</Text>
@@ -189,6 +211,21 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
           <Text style={{ ...type.footnote, color: atCap ? c.warning : c.textSecondary }}>{gateLine}</Text>
         ) : null}
       </View>
+      {editing ? (
+        // Touching the handle picks the deck up at once; the list's own scrolling gives way to the drag.
+        <Pressable
+          onPressIn={onHandle}
+          accessibilityRole="adjustable"
+          accessibilityLabel={`Move ${row.name}`}
+          accessibilityHint="Swipe up or down to move it among its siblings"
+          accessibilityActions={onStep ? [{ name: 'increment', label: 'Move down' }, { name: 'decrement', label: 'Move up' }] : undefined}
+          onAccessibilityAction={(e) => onStep?.(e.nativeEvent.actionName === 'decrement' ? -1 : 1)}
+          hitSlop={space.s}
+          style={{ width: MIN_TAP, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Icon name="line.3.horizontal" size={18} color={c.textTertiary} weight="semibold" />
+        </Pressable>
+      ) : (<>
       <Stat value={row.due} label="due" color={c.countDue} />
       <Stat value={row.fresh} label="new" color={c.countNew} />
       <Tappable
@@ -204,7 +241,8 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
       >
         <Icon name="ellipsis" size={18} color={c.textTertiary} weight="semibold" />
       </Tappable>
-      {row.hasSubdecks && onToggle ? (
+      </>)}
+      {row.hasSubdecks && onToggle && !editing ? (
         // Over the gutter before the name. Last in the row: a later sibling is hit-tested first, so
         // earlier it would hide the hit slop under the name.
         <Tappable
@@ -266,7 +304,6 @@ export function DeckList(props: {
   ankiUnsent?: number;
   /** Present when sync is on. */
   sync?: { syncing: boolean; status: string; failed: boolean; onSync: () => Promise<unknown> | void };
-  onOpen: (deck: string) => void;
   onImport: () => void;
   onBackup: () => void;
   onSettings: () => void;
@@ -277,8 +314,10 @@ export function DeckList(props: {
   onNewDeck: () => void;
   /** Quick add (ReadQuickAdd.tsx); present while Read & Listen is on, since Claude fills the notes in there. */
   onQuickAdd?: () => void;
-  /** The menu on a deck's row: add a note, rename, options, delete (DeckActions.tsx). */
+  /** The ⋯ button on a deck's row: add a note, rename, options, export, delete (DeckActions.tsx). */
   onDeckMenu: (deck: string) => void;
+  /** One of those, chosen from the menu a long press on the row opens. */
+  onDeckAction: (deck: string, action: DeckAction) => void;
   /** A deck dragged to a new place: reordered, nested or unnested (`deckMove`, DeckActions.tsx). */
   onMoveDeck: (move: DeckMove) => void;
   /** Decks whose subdecks are hidden: Anki's own collapsed state, shared through sync. */
@@ -315,6 +354,8 @@ export function DeckList(props: {
   }, [shown]);
   // The deck whose row is slid open on its Options action; one at a time.
   const [openDeck, setOpenDeck] = useState<string | null>(null);
+  // Edit mode: rows show a delete button and a handle to drag them by, and don't open.
+  const [editing, setEditing] = useState(false);
   // The pull-down spinner is for a pull-down only. Tied to every sync, the one at launch scrolled
   // the list to show the spinner, and the large title flashed open and snapped shut.
   const [pulling, setPulling] = useState(false);
@@ -343,7 +384,7 @@ export function DeckList(props: {
     onMove: props.onMoveDeck,
     renderCard: (deck) => {
       const row = shown.find((r) => r.deck === deck);
-      return row ? <DeckRowView row={row} first onOpen={() => undefined} onMenu={() => undefined} onToggle={() => undefined} /> : null;
+      return row ? <DeckRowView row={row} first editing onMenu={() => undefined} /> : null;
     },
   });
   const step = (deck: string, by: -1 | 1) => {
@@ -355,17 +396,21 @@ export function DeckList(props: {
       title="Decks"
       toolbar={
         <Stack.Toolbar placement="right">
-          {props.sync ? (
+          {editing ? (
+            <Stack.Toolbar.Button accessibilityLabel="Done editing decks" onPress={() => { haptic.tap(); setEditing(false); }}>Done</Stack.Toolbar.Button>
+          ) : null}
+          {!editing && props.sync ? (
             <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={syncShown} accessibilityLabel={syncShown ? 'Syncing' : 'Sync now'} onPress={syncTapped} />
           ) : null}
-          <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} />
-          <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={props.onSettings} />
+          {!editing ? <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} /> : null}
+          {!editing ? <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={props.onSettings} /> : null}
           {/* What's used less often than opening a deck, so the bar stays at four buttons. */}
-          <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More: new deck, quick add notes or stats">
+          {!editing ? <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More: new deck, edit decks, quick add notes or stats">
             <Stack.Toolbar.MenuAction icon="rectangle.stack.badge.plus" onPress={props.onNewDeck}>New deck</Stack.Toolbar.MenuAction>
+            {groups.length ? <Stack.Toolbar.MenuAction icon="arrow.up.arrow.down" onPress={() => { setOpenDeck(null); setEditing(true); }}>Edit decks</Stack.Toolbar.MenuAction> : null}
             {props.onQuickAdd ? <Stack.Toolbar.MenuAction icon="plus" onPress={props.onQuickAdd}>Quick add notes</Stack.Toolbar.MenuAction> : null}
             <Stack.Toolbar.MenuAction icon="chart.bar" onPress={props.onStats}>Stats</Stack.Toolbar.MenuAction>
-          </Stack.Toolbar.Menu>
+          </Stack.Toolbar.Menu> : null}
         </Stack.Toolbar>
       }
     >
@@ -423,28 +468,57 @@ export function DeckList(props: {
                   // Measured by a drag, and dimmed while it, or a deck it's inside, is being dragged.
                   <View key={row.deck} ref={drag.rowRef(row.deck)} collapsable={false} style={{ opacity: drag.dragging !== null && isInDeck(row.deck, drag.dragging) ? 0.35 : 1 }}>
                     <Wells ends={wellEnds(g, i)}>
-                    <SwipeToReveal
-                      open={openDeck === row.deck}
-                      onOpenChange={(open) => setOpenDeck(open ? row.deck : null)}
-                      action={<SwipeAction icon="gearshape" label="Options" accessibilityLabel={`Options for ${row.name}`} onPress={() => { setOpenDeck(null); props.onOptions(row.deck); }} />}
-                    >
+                    {editing ? (
                       <DeckRowView
                         row={row}
                         first={i === 0 || wellEnds(g, i)[row.depth - 1]?.first === true}
                         gutter={!!props.onToggleCollapsed && (row.hasSubdecks || (parentOf(row.deck) !== null && gutterParents.has(parentOf(row.deck)!)))}
-                        subdecks={subdeckCounts.get(row.deck) ?? 0}
-                        // Tapping a row that's slid open closes it, rather than opening the deck.
-                        onOpen={() => (openDeck === row.deck ? setOpenDeck(null) : props.onOpen(row.deck))}
+                        editing
                         onMenu={() => props.onDeckMenu(row.deck)}
-                        onToggle={props.onToggleCollapsed ? () => {
-                          // The rows below slide into place instead of jumping.
-                          if (!reduce) LayoutAnimation.configureNext(LayoutAnimation.create(220, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
-                          props.onToggleCollapsed!(row.deck);
-                        } : undefined}
-                        onLift={(e) => { setOpenDeck(null); drag.begin(row.deck, e); }}
+                        onDelete={() => props.onDeckAction(row.deck, 'delete')}
+                        onHandle={(e) => drag.begin(row.deck, e)}
                         onStep={(by) => step(row.deck, by)}
                       />
+                    ) : (
+                    <SwipeToReveal
+                      open={openDeck === row.deck}
+                      onOpenChange={(open) => setOpenDeck(open ? row.deck : null)}
+                      // A swipe across the whole row opens Options, as a full swipe does in Mail.
+                      onFullSwipe={() => props.onOptions(row.deck)}
+                      action={<SwipeAction icon="gearshape" label="Options" accessibilityLabel={`Options for ${row.name}`} onPress={() => { setOpenDeck(null); props.onOptions(row.deck); }} />}
+                    >
+                      {/* A long press opens iOS's own menu for the deck; a tap studies it (the link). The row takes the link's press itself. */}
+                      <Link
+                        href={{ pathname: '/review', params: { deck: row.deck } }}
+                        asChild
+                        // Tapping a row that's slid open closes it, rather than opening the deck.
+                        onPress={(e) => { if (openDeck === row.deck) { e.preventDefault(); setOpenDeck(null); } }}
+                      >
+                        <Link.Trigger>
+                          <DeckRowView
+                            row={row}
+                            first={i === 0 || wellEnds(g, i)[row.depth - 1]?.first === true}
+                            gutter={!!props.onToggleCollapsed && (row.hasSubdecks || (parentOf(row.deck) !== null && gutterParents.has(parentOf(row.deck)!)))}
+                            subdecks={subdeckCounts.get(row.deck) ?? 0}
+                            onMenu={() => props.onDeckMenu(row.deck)}
+                            onToggle={props.onToggleCollapsed ? () => {
+                              // The rows below slide into place instead of jumping.
+                              if (!reduce) LayoutAnimation.configureNext(LayoutAnimation.create(220, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
+                              props.onToggleCollapsed!(row.deck);
+                            } : undefined}
+                            onStep={(by) => step(row.deck, by)}
+                          />
+                        </Link.Trigger>
+                        <Link.Menu title={row.name}>
+                          <Link.MenuAction icon="plus" onPress={() => props.onDeckAction(row.deck, 'note')}>Add note</Link.MenuAction>
+                          <Link.MenuAction icon="pencil" onPress={() => props.onDeckAction(row.deck, 'rename')}>Rename</Link.MenuAction>
+                          <Link.MenuAction icon="gearshape" onPress={() => props.onDeckAction(row.deck, 'options')}>Deck options</Link.MenuAction>
+                          <Link.MenuAction icon="square.and.arrow.up" onPress={() => props.onDeckAction(row.deck, 'export')}>Export notes</Link.MenuAction>
+                          <Link.MenuAction icon="trash" destructive onPress={() => props.onDeckAction(row.deck, 'delete')}>Delete</Link.MenuAction>
+                        </Link.Menu>
+                      </Link>
                     </SwipeToReveal>
+                    )}
                     </Wells>
                   </View>
                 ))}

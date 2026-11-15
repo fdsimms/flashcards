@@ -13,9 +13,10 @@ import { deckListTotals, type DeckRow } from './deckTree';
  * on today's study day with nothing left to study isn't sent.
  */
 
-export type ReminderPrefs = { on: boolean; hour: number; minute: number };
+/** `badge`: also show how many reviews are due on the app icon, whether or not the reminder is on. */
+export type ReminderPrefs = { on: boolean; hour: number; minute: number; badge: boolean };
 
-export const DEFAULT_REMINDER: ReminderPrefs = { on: false, hour: 20, minute: 0 };
+export const DEFAULT_REMINDER: ReminderPrefs = { on: false, hour: 20, minute: 0, badge: false };
 
 /**
  * How many days ahead reminders are written. Each recount rewrites them, so this only matters
@@ -40,7 +41,17 @@ export function parseReminder(raw: string | null): ReminderPrefs {
     on: typeof saved.on === 'boolean' ? saved.on : DEFAULT_REMINDER.on,
     hour: int(saved.hour, 23) ?? DEFAULT_REMINDER.hour,
     minute: int(saved.minute, 59) ?? DEFAULT_REMINDER.minute,
+    badge: typeof saved.badge === 'boolean' ? saved.badge : DEFAULT_REMINDER.badge,
   };
+}
+
+/**
+ * The number on the app icon: the reviews due across every deck as last counted, none when the
+ * badge is off. New cards aren't in it, since a daily limit decides those and the icon would
+ * always show something.
+ */
+export function badgeCount(rows: DeckRow[], prefs: Pick<ReminderPrefs, 'badge'>): number {
+  return prefs.badge ? deckListTotals(rows).due : 0;
 }
 
 export interface PlannedReminder {

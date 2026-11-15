@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DeckRow } from '../../src/core/deckTree';
-import { DEFAULT_REMINDER, parseReminder, reminderPlan, reminderText } from '../../src/core/reminder';
+import { badgeCount, DEFAULT_REMINDER, parseReminder, reminderPlan, reminderText } from '../../src/core/reminder';
 import { NOW } from '../support/fixtures';
 
 const H = 4;
@@ -14,7 +14,7 @@ const rows = [
   row('👅 Languages::🐘 ภาษาไทย', 216, 10),
   row('💻 System Design', 0, 0),
 ];
-const on = { on: true, hour: 20, minute: 0 };
+const on = { on: true, hour: 20, minute: 0, badge: false };
 
 describe('the reminder setting', () => {
   it('is off until turned on, at 8 PM', () => {
@@ -23,9 +23,22 @@ describe('the reminder setting', () => {
   });
 
   it('keeps what was saved, and falls back to the default for anything unreadable', () => {
-    expect(parseReminder(JSON.stringify({ on: true, hour: 7, minute: 30 }))).toEqual({ on: true, hour: 7, minute: 30 });
+    expect(parseReminder(JSON.stringify({ on: true, hour: 7, minute: 30, badge: true }))).toEqual({ on: true, hour: 7, minute: 30, badge: true });
     expect(parseReminder(JSON.stringify({ on: 'yes', hour: 24, minute: 2.5 }))).toEqual(DEFAULT_REMINDER);
     expect(parseReminder('not json')).toEqual(DEFAULT_REMINDER);
+  });
+});
+
+describe('the app icon badge', () => {
+  it('is off until turned on', () => {
+    expect(DEFAULT_REMINDER.badge).toBe(false);
+    expect(parseReminder(JSON.stringify({ badge: 'yes' })).badge).toBe(false);
+  });
+
+  it('shows the reviews due across the top-level decks, not the new cards, and nothing when off', () => {
+    expect(badgeCount(rows, { badge: true })).toBe(434);
+    expect(badgeCount(rows, { badge: false })).toBe(0);
+    expect(badgeCount([row('A', 0, 5)], { badge: true })).toBe(0);
   });
 });
 

@@ -37,7 +37,6 @@ export default function DecksRoute() {
       backup={backup}
       loadProblem={loadProblem ? { text: loadProblem, onRetry: refresh } : undefined}
       ankiUnsent={ankiUnsent}
-      onOpen={(deck) => router.push({ pathname: '/review', params: { deck } })}
       onImport={() => router.push('/anki')}
       onBackup={() => router.push('/backup')}
       onSettings={() => router.push('/settings')}
@@ -47,6 +46,7 @@ export default function DecksRoute() {
       onNewDeck={deckActions.create}
       onQuickAdd={reader.api && quickAddDecks(reader.settings?.decks, decks.map((d) => d.deck)).length ? () => router.push('/read-quick-add') : undefined}
       onDeckMenu={deckActions.menu}
+      onDeckAction={deckActions.act}
       onMoveDeck={deckActions.move}
       collapsed={collapse.collapsed}
       onToggleCollapsed={collapse.toggle}

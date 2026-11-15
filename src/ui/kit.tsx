@@ -2,11 +2,17 @@ import { Stack } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import React, { useEffect, useRef } from 'react';
 import {
-  ActivityIndicator, Animated, LayoutAnimation, PanResponder, Pressable, Switch, Text, TextInput, useColorScheme, View,
+  ActivityIndicator, Animated, LayoutAnimation, Pressable, Switch, Text, TextInput, useColorScheme, View,
   type PressableProps, type StyleProp, type TextInputInstance, type TextInputProps, type ViewStyle,
 } from 'react-native';
+import { Host, Picker, Text as SwiftText } from '@expo/ui/swift-ui';
+import { accessibilityLabel, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
+import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
+import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { scheduleOnRN } from 'react-native-worklets';
 import { haptic } from './haptics';
+import { useReduceMotion } from './motion';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
@@ -14,8 +20,13 @@ import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './them
  * everywhere. Reach for these before styling a Pressable or a box by hand.
  */
 
-/** An SF Symbol, the icon set iOS itself uses. Decorative: whatever holds it carries the label. */
-export function Icon({ name, size = 20, color, weight = 'medium' }: { name: SFSymbol; size?: number; color: string; weight?: 'regular' | 'medium' | 'semibold' | 'bold' }) {
+/**
+ * An SF Symbol, the icon set iOS itself uses. Decorative: whatever holds it carries the label.
+ * `effect` plays the system's symbol animation once when it appears (a bounce for something
+ * landing, a pulse for something waiting), and not at all with Reduce Motion.
+ */
+export function Icon({ name, size = 20, color, weight = 'medium', effect }: { name: SFSymbol; size?: number; color: string; weight?: 'regular' | 'medium' | 'semibold' | 'bold'; effect?: 'bounce' | 'pulse' }) {
+  const reduce = useReduceMotion();
   return (
     <SymbolView
       name={name}
@@ -23,6 +34,7 @@ export function Icon({ name, size = 20, color, weight = 'medium' }: { name: SFSy
       tintColor={color}
       weight={weight}
       resizeMode="scaleAspectFit"
+      animationSpec={effect && !reduce ? { effect: { type: effect, wholeSymbol: true } } : undefined}
       style={{ width: size, height: size }}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
@@ -230,59 +242,85 @@ export function SwitchRow({ label, hint, value, onValueChange, first }: { label:
 
 /**
  * A row that slides left under the finger to show an action behind it, as a table row does in
- * iOS: dragged past halfway (or flicked) it stays open on `action`, which fills `width`. Whether
- * it's open is the parent's (`open`), so only one row in a list is open at a time. The action
- * must also be reachable another way (a visible button), since a swipe can't be found by
- * VoiceOver or by someone who never tries it.
+ * iOS: dragged past halfway (or flicked) it stays open on `action`, which fills `width`. Dragged
+ * most of the way across (or flicked hard) it runs `onFullSwipe` instead, as a full swipe does in
+ * Mail, and settles shut. Whether it's open is the parent's (`open`), so only one row in a list is
+ * open at a time. The action must also be reachable another way (a visible button), since a swipe
+ * can't be found by VoiceOver or by someone who never tries it.
+ *
+ * The drag runs on the UI thread (Reanimated); only the decision hops back to JS.
  */
-export function SwipeToReveal({ open, onOpenChange, action, width = 92, children }: {
+export function SwipeToReveal({ open, onOpenChange, action, onFullSwipe, width = 92, children }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   action: React.ReactNode;
+  /** What a full swipe does. Without it the row stops at `width`. */
+  onFullSwipe?: () => void;
   width?: number;
   children: React.ReactNode;
 }) {
   const c = useTheme();
-  const x = useRef(new Animated.Value(0)).current;
-  // The responder is made once, so it reads the latest props from here.
-  const latest = useRef({ open, onOpenChange, width });
-  latest.current = { open, onOpenChange, width };
-  const settle = (to: boolean) => Animated.spring(x, { toValue: to ? -latest.current.width : 0, useNativeDriver: true, speed: 24, bounciness: 0 }).start();
-  useEffect(() => { settle(open); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-  const responder = useRef(
-    PanResponder.create({
-      // Claim only a clearly horizontal drag, so the list still scrolls vertically.
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
-      onPanResponderMove: (_, g) => {
-        const { open: isOpen, width: w } = latest.current;
-        x.setValue(Math.max(-w * 1.15, Math.min(0, (isOpen ? -w : 0) + g.dx)));
-      },
-      onPanResponderRelease: (_, g) => {
-        const { open: isOpen, width: w, onOpenChange: change } = latest.current;
-        const end = Math.max(-w, Math.min(0, (isOpen ? -w : 0) + g.dx));
-        const next = g.vx < -0.5 ? true : g.vx > 0.5 ? false : end < -w / 2;
-        if (next !== isOpen) change(next);
-        else settle(isOpen);
-      },
-      // Once the row has the drag it keeps it. By default the responder gives way whenever the
-      // list's ScrollView asks for it, which a little vertical drift in the finger does, so the
-      // row snapped back mid-swipe.
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderTerminate: () => settle(latest.current.open),
-    }),
-  ).current;
+  const x = useSharedValue(0);
+  const rowWidth = useSharedValue(0);
+  const full = useSharedValue(!!onFullSwipe);
+  const crossedFull = useSharedValue(false);
+  const isOpen = useSharedValue(open);
+  const wide = useSharedValue(width);
+  const settle = (to: boolean) => { x.value = withSpring(to ? -width : 0, { damping: 20, stiffness: 260, mass: 1 }); };
+  useEffect(() => { isOpen.value = open; settle(open); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { wide.value = width; }, [width]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The gesture's callbacks reach JS through this, so it reads the latest props.
+  const latest = useRef({ open, onOpenChange, onFullSwipe });
+  latest.current = { open, onOpenChange, onFullSwipe };
+  const finish = (result: 'full' | 'open' | 'close') => {
+    const { open: was, onOpenChange: change, onFullSwipe: runFull } = latest.current;
+    if (result === 'full') { haptic.tap(); settle(false); if (was) change(false); runFull?.(); return; }
+    const next = result === 'open';
+    if (next !== was) change(next);
+    else settle(was);
+  };
+  const tick = () => haptic.select();
+  const pan = usePanGesture({
+    // Claim only a clearly horizontal drag, so the list still scrolls vertically.
+    activeOffsetX: [-10, 10],
+    failOffsetY: [-14, 14],
+    onUpdate: (e) => {
+      const base = isOpen.value ? -wide.value : 0;
+      const canFull = full.value;
+      const min = canFull ? -rowWidth.value : -wide.value * 1.15;
+      const next = Math.max(min, Math.min(0, base + e.translationX));
+      x.value = next;
+      const past = canFull && -next > rowWidth.value * 0.55;
+      if (past !== crossedFull.value) { crossedFull.value = past; if (past) scheduleOnRN(tick); }
+    },
+    onDeactivate: (e) => {
+      crossedFull.value = false;
+      const base = isOpen.value ? -wide.value : 0;
+      const end = Math.max(-rowWidth.value, Math.min(0, base + e.translationX));
+      if (e.canceled) { scheduleOnRN(finish, isOpen.value ? 'open' : 'close'); return; }
+      if (full.value && (-end > rowWidth.value * 0.55 || (e.velocityX < -1600 && -end > wide.value * 1.3))) { scheduleOnRN(finish, 'full'); return; }
+      const next = e.velocityX < -500 ? 'open' : e.velocityX > 500 ? 'close' : end < -wide.value / 2 ? 'open' : 'close';
+      scheduleOnRN(finish, next);
+    },
+  });
+  useEffect(() => { full.value = !!onFullSwipe; }, [onFullSwipe]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+  // The action grows with the drag past its own width, so a full swipe reads as pulling it across.
+  const actionStyle = useAnimatedStyle(() => ({ width: Math.max(wide.value, -x.value) }));
   return (
-    <View style={{ overflow: 'hidden' }}>
-      <View
-        style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width }}
+    <View style={{ overflow: 'hidden' }} onLayout={(e) => { rowWidth.value = e.nativeEvent.layout.width; }}>
+      <Reanimated.View
+        style={[{ position: 'absolute', top: 0, right: 0, bottom: 0 }, actionStyle]}
         accessibilityElementsHidden={!open}
         importantForAccessibility={open ? 'auto' : 'no-hide-descendants'}
       >
         {action}
-      </View>
-      <Animated.View {...responder.panHandlers} style={{ backgroundColor: c.surface, transform: [{ translateX: x }] }}>
-        {children}
-      </Animated.View>
+      </Reanimated.View>
+      <GestureDetector gesture={pan}>
+        <Reanimated.View style={[{ backgroundColor: c.surface }, rowStyle]}>
+          {children}
+        </Reanimated.View>
+      </GestureDetector>
     </View>
   );
 }
@@ -521,9 +559,41 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
   );
 }
 
-/** A row of equal segments, one of them chosen: a speed, a length, a text type. */
-export function Segments<T extends string | number>({ options, value, onChange, style }: {
+/**
+ * A row of equal segments, one of them chosen: a speed, a length, a text type. iOS's own segmented
+ * control, so the thumb slides, it follows the system's look and text size, and VoiceOver treats it
+ * as the system's. It can't dim one segment, so options with `disabled` use the drawn one below.
+ */
+export function Segments<T extends string | number>(props: {
   /** `disabled`: shown dimmed and not tappable, for a choice that can't be made right now. */
+  options: { value: T; label: string; accessibilityLabel?: string; disabled?: boolean }[];
+  value: T;
+  onChange: (value: T) => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const c = useTheme();
+  const dark = useColorScheme() === 'dark';
+  const { options, value, onChange, style } = props;
+  if (options.some((o) => o.disabled)) return <DrawnSegments {...props} />;
+  return (
+    <View style={style}>
+      <Host matchContents={{ vertical: true }} colorScheme={dark ? 'dark' : 'light'} seedColor={c.accent} style={{ alignSelf: 'stretch' }}>
+        <Picker
+          modifiers={[pickerStyle('segmented')]}
+          selection={value}
+          onSelectionChange={(v: T) => { if (v !== value) haptic.select(); onChange(v); }}
+        >
+          {options.map((o) => (
+            <SwiftText key={o.value} modifiers={[tag(o.value), ...(o.accessibilityLabel ? [accessibilityLabel(o.accessibilityLabel)] : [])]}>{o.label}</SwiftText>
+          ))}
+        </Picker>
+      </Host>
+    </View>
+  );
+}
+
+/** The segmented control drawn by hand, for a row with a segment that has to be dimmed. */
+function DrawnSegments<T extends string | number>({ options, value, onChange, style }: {
   options: { value: T; label: string; accessibilityLabel?: string; disabled?: boolean }[];
   value: T;
   onChange: (value: T) => void;
