@@ -42,6 +42,14 @@ test("the server's own sentence becomes the error message", async () => {
   expect(error.status).toBe(503);
 });
 
+test("a validation refusal's list of reasons names the first one", async () => {
+  const detail = [{ type: 'string_too_long', loc: ['body', 'name'], msg: 'String should have at most 150 characters' }];
+  const { impl } = fakeFetch(json({ detail }, 422));
+  await expect(createApi('https://x', 'p', impl).writeAbout('x', 'dialogue')).rejects.toThrow(
+    "The server couldn't accept that (name: String should have at most 150 characters). Change it and try again.",
+  );
+});
+
 test('a wrong passphrase says so', async () => {
   const { impl } = fakeFetch(json({ detail: 'Wrong passphrase.' }, 401));
   await expect(createApi('https://x', 'p', impl).check()).rejects.toThrow("That passphrase isn't right.");

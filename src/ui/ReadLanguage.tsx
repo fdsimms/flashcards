@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Keyboard, ScrollView, Text, View } from 'react-native';
 import {
-  ApiError, type Api, type DifficultyLevel, type Progress, type Settings, type SettingsChange, type Shelf, type StretchWords,
+  ApiError, MAX_STORY_ABOUT_CHARS, type Api, type DifficultyLevel, type Progress, type Settings, type SettingsChange, type Shelf, type StretchWords,
 } from '../reader/api';
 import { LEVEL_HELP, LEVEL_OPTIONS, levelOf } from '../reader/difficulty';
 import { grammarSummary } from '../reader/grammar';
@@ -177,7 +177,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
                 <Help>No story yet. Start one here or on the shelf.</Help>
               )}
               {story && story.read > 0 ? <Button label="Read from the start" variant="secondary" onPress={() => onEpisodes(story.id)} /> : null}
-              <Field label={story ? 'A new story about' : 'A story about'} placeholder="Leave empty to let the writer choose" value={about} onChangeText={setAbout} returnKeyType="done" onSubmitEditing={confirmNewStory} />
+              <Field label={story ? 'A new story about' : 'A story about'} placeholder="Leave empty to let the writer choose" value={about} onChangeText={setAbout} maxLength={MAX_STORY_ABOUT_CHARS} returnKeyType="done" onSubmitEditing={confirmNewStory} />
               {failure('story')}
               <Button label={story ? 'Start a new story' : 'Start a story'} variant="secondary" onPress={confirmNewStory} busy={starting} />
               <Help>A new story keeps the same people and places from one episode to the next.</Help>

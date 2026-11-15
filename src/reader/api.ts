@@ -640,6 +640,11 @@ export function createApi(
 
 export type Api = ReturnType<typeof createApi>;
 
+// The longest a typed topic and a story's subject may be (WriteIn and StoryIn in server/reader app.py).
+// The server refuses longer with a 422 whose detail is a list, so the fields stop at these instead.
+export const MAX_TOPIC_CHARS = 150;
+export const MAX_STORY_ABOUT_CHARS = 200;
+
 export async function errorMessage(response: Response): Promise<string> {
   if (response.status === 401) return "That passphrase isn't right.";
   // Caddy answers 502 when the reader service isn't running beside the sync server.
@@ -649,6 +654,14 @@ export async function errorMessage(response: Response): Promise<string> {
   try {
     const body = (await response.json()) as { detail?: unknown };
     if (typeof body.detail === 'string') return body.detail;
+    // FastAPI's validation refusal (422): a list of { loc, msg }, the first one named.
+    if (Array.isArray(body.detail)) {
+      const first = body.detail[0] as { loc?: unknown; msg?: unknown } | undefined;
+      if (first && typeof first.msg === 'string') {
+        const field = Array.isArray(first.loc) ? first.loc.filter((p) => typeof p === 'string' && p !== 'body').pop() : undefined;
+        return `The server couldn't accept that (${field ? `${field}: ` : ''}${first.msg}). Change it and try again.`;
+      }
+    }
   } catch {
     // Not JSON; fall through to the generic message.
   }

@@ -567,7 +567,7 @@ class PhraseIn(BaseModel):
 
 
 class WriteIn(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
+    name: str = Field(min_length=1, max_length=150)
     form: Form = "dialogue"
 
 
