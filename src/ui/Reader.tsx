@@ -19,7 +19,7 @@ import { locate, phraseRange, phrasePart, phraseText, pickEnd, type PhrasePick }
 import { choicesView, holdsPlayAll } from '../reader/choices';
 import { buildCheck, loggedScore, type CheckPicks, type CheckQuestion } from '../reader/check';
 import { tapMode, type TapMode } from '../reader/guess';
-import { allHeard, listensFirst } from '../reader/listenFirst';
+import { allHeard, listensFirst, listensNeeded } from '../reader/listenFirst';
 import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
@@ -194,9 +194,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   // The past text in view has been counted as heard again (heardThrough), once however it ends.
   const listenLogged = useRef(false);
   // Listen before reading (reader/listenFirst.ts): the words stay hidden until every line has played
-  // to its end. `heardLines` are the lines that have, in this text.
-  const [listenGate, setListenGate] = useState(false);
-  const heardLines = useRef(new Set<number>());
+  // to its end, once or twice (`listenGate` is how many times: 0 when the words show). `heardLines`
+  // is how many times each line has, in this text.
+  const [listenGate, setListenGate] = useState<0 | 1 | 2>(0);
+  const heardLines = useRef(new Map<number, number>());
   const logged = useRef(false);
   const mounted = useRef(true);
   const loadId = useRef(0);
@@ -372,8 +373,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     choiceSeq.current++;
     autoPlayed.current = false;
     listenLogged.current = false;
-    heardLines.current = new Set();
-    setListenGate(false);
+    heardLines.current = new Map();
+    setListenGate(0);
     baseLength.current = settings?.lines ?? 8;
     lineBoxes.current = [];
     scrollY.current = null; // back at the top, which is at minus the header's overlap
@@ -412,12 +413,12 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   // A line has played to its end (or has no sound): once every line has, the words appear.
   const markHeard = (line: number) => {
     if (!listenGate || !text) return;
-    heardLines.current.add(line);
-    if (allHeard(text.lines, heardLines.current)) showText();
+    heardLines.current.set(line, (heardLines.current.get(line) ?? 0) + 1);
+    if (allHeard(text.lines, heardLines.current, listenGate)) showText();
   };
 
   const showText = () => {
-    setListenGate(false);
+    setListenGate(0);
     setListenOnly(false);
     scrollY.current = null; // the lines' scroll view is mounted fresh, at the top
   };
@@ -425,7 +426,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   // A new text opens with its words hidden, with the setting on.
   useEffect(() => {
     if (!text || !listensFirst(prefs().listenFirst, source.kind, source.kind === 'shelf' && !!source.playAll, firstLine(text.lines) !== null)) return;
-    setListenGate(true);
+    setListenGate(listensNeeded(prefs().listenTwice));
     setListenOnly(true);
   }, [text]); // eslint-disable-line react-hooks/exhaustive-deps -- once per text
 
@@ -844,7 +845,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
               </ToggleRow>
             ) : null}
             {listenOnly ? (
-              <ToggleRow label={listenGate ? 'Listen first. The words show once every line has played.' : 'Listening without the text'}>
+              <ToggleRow label={listenGate ? `Listen first. The words show once every line has played ${listenGate === 2 ? 'twice' : 'through'}.` : 'Listening without the text'}>
                 <HeaderAction label={listenGate ? 'Show the text now' : 'Show the text'} onPress={showText} />
               </ToggleRow>
             ) : (
