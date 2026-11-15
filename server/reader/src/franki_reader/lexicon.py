@@ -75,6 +75,9 @@ class CardRow:
     due_in: int | None = None
     # FSRS stability in days, None for a card with no memory state.
     stability: float | None = None
+    # The card's template position in the note type (Anki's `ord`): 0 Front, 1 Reverse, 2 Audio.
+    # None when not known, which counts as a recognition card.
+    ord: int | None = None
 
 
 # Reads one language's deck. Raises AnkiUnavailable (gateway.py) when it can't, so the caller keeps
@@ -100,27 +103,51 @@ def days_until_due(card_type: int, queue: int, due: int, today: int, day_cutoff:
     return due - today
 
 
+# The cards that train what reading and listening use: Front (read it, know the meaning) and Audio
+# (hear it, know the meaning). Reverse is English to the word, a production card, and has little to
+# say about whether the word is recognized in a text.
+RECOGNITION_ORDS = (0, 2)
+_STUDIED_TYPES = (1, 2, 3)
+
+
+def _recognition_cards(cards: list[CardRow]) -> list[CardRow]:
+    """The cards a note's tier and stability are read from: its Front and Audio cards that have been
+    studied, or, when it has none (only Reverse has been), all of its cards, so a word studied only
+    from English still counts as studied."""
+    recognition = [
+        c
+        for c in cards
+        if c.type in _STUDIED_TYPES and (c.ord is None or c.ord in RECOGNITION_ORDS)
+    ]
+    return recognition or cards
+
+
 def build_entries(notes: Iterable[NoteRow], cards: Iterable[CardRow]) -> list[Entry]:
-    cards_by_note: dict[int, list[tuple[int, int]]] = {}
+    cards_by_note: dict[int, list[CardRow]] = {}
     due_notes: set[int] = set()  # a card due today and not answered yet today
     reviewed_notes: set[int] = set()
     due_in: dict[int, int] = {}  # the soonest any studied card comes due
     stability: dict[int, float] = {}  # the lowest of any studied card's
     for card in cards:
         if not card.suspended:
-            cards_by_note.setdefault(card.note_id, []).append((card.type, card.ivl))
+            cards_by_note.setdefault(card.note_id, []).append(card)
             if card.due_in is not None:
                 soonest = due_in.get(card.note_id)
                 due_in[card.note_id] = card.due_in if soonest is None else min(soonest, card.due_in)
-            if card.stability is not None and card.type in (1, 2, 3):
-                lowest = stability.get(card.note_id)
-                stability[card.note_id] = (
-                    card.stability if lowest is None else min(lowest, card.stability)
-                )
         if card.due and not card.rated:
             due_notes.add(card.note_id)
         if card.rated:
             reviewed_notes.add(card.note_id)
+
+    for note_id, note_cards in cards_by_note.items():
+        # Stability is read from the cards the tier is: the most fragile recognition card.
+        found = [
+            c.stability
+            for c in _recognition_cards(note_cards)
+            if c.stability is not None and c.type in _STUDIED_TYPES
+        ]
+        if found:
+            stability[note_id] = min(found)
 
     entries = []
     for note in notes:
@@ -132,7 +159,12 @@ def build_entries(notes: Iterable[NoteRow], cards: Iterable[CardRow]) -> list[En
                 note_id=note.note_id,
                 text=text,
                 meaning=clean(note.meaning),
-                tier=note_tier(cards_by_note.get(note.note_id, [])),
+                tier=note_tier(
+                    [
+                        (c.type, c.ivl)
+                        for c in _recognition_cards(cards_by_note.get(note.note_id, []))
+                    ]
+                ),
                 due=note.note_id in due_notes,
                 translit=clean(note.translit),
                 due_in=due_in.get(note.note_id),
