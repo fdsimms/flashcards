@@ -291,6 +291,7 @@ from franki_reader.tts import (
     Speech,
     TtsFailed,
     azure_synthesize,
+    azure_synthesize_parts,
     azure_usd,
     billed_chars,
 )
@@ -2175,6 +2176,7 @@ def production_app() -> FastAPI:
             return claude_ask(client, entries, language)
 
     synthesize = None
+    synthesize_parts = None
     speech: SpeechClient | None = None
     key, region = (
         settings.secrets.get("AZURE_SPEECH_KEY"),
@@ -2192,6 +2194,7 @@ def production_app() -> FastAPI:
             ),
         )
         synthesize = azure_synthesize(speech)
+        synthesize_parts = azure_synthesize_parts(speech)
 
     # Without the sync server's address and sign-in the lexicon is never refreshed, and the server
     # says it has no word list.
@@ -2213,6 +2216,7 @@ def production_app() -> FastAPI:
         ask_for,
         read_deck=read_deck,
         synthesize=synthesize,
+        synthesize_parts=synthesize_parts,
         audio=AudioCache(settings.audio_dir),
         voices=settings.voices,
         rollover=lambda: anki.rollover if anki else DEFAULT_ROLLOVER,

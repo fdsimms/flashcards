@@ -98,3 +98,26 @@ def gender_problems(
         extra = len(problems) - MAX_PROBLEMS
         problems = [*problems[:MAX_PROBLEMS], f"{extra} more lines have the same problem."]
     return problems
+
+
+def quote_gender_problems(
+    language: Code, quotations: Sequence[tuple[str, Gender, str]]
+) -> list[str]:
+    """`gender_problems` for a story's characters: each quotation is (the character, their gender,
+    the quotation as the model wrote it). Only Thai is checked."""
+    if language != "th":
+        return []
+    problems = []
+    for name, gender, text in quotations:
+        other: Gender = "female" if gender == "male" else "male"
+        if wrong := _thai_markers(text)[other]:
+            problems.append(
+                f"{name} is {'a man' if gender == 'male' else 'a woman'}, but says {wrong[0]}, "
+                f"which is {_FEMALE if other == 'female' else _MALE} word, in: {text}. Rewrite "
+                f"the quotation for {'a man' if gender == 'male' else 'a woman'}, or change "
+                f'{name} in "speakers" and fix all of their quotations to match.'
+            )
+    if len(problems) > MAX_PROBLEMS:
+        extra = len(problems) - MAX_PROBLEMS
+        problems = [*problems[:MAX_PROBLEMS], f"{extra} more quotations have the same problem."]
+    return problems

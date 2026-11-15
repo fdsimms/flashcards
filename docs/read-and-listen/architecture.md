@@ -1200,8 +1200,43 @@ in the current language, with when one was last read to the end. Nothing else le
   and a woman, two men or two women. The text is stored with it (`texts.genders`), and
   `gender.voice_for` picks each speaker's voice: A uses the first voice of their gender, and B the
   same unless A is the same gender, when B uses the second. A story's narrator is read in the
-  man's voice. A text from before this has no genders and is read as it was recorded, A a man and
+  man's voice, and its characters in voices of their own (below). A text from before this has no genders and is read as it was recorded, A a man and
   B a woman.
+- **Story characters have voices of their own** (15 November 2026). A story episode is still told by
+  the narrator (speaker `N`, the man's voice), but what a character says aloud goes in the language's
+  quotation marks inside the narrator's line, and the model names who says each one (`quotes` on the
+  line, in order) and, once for each new character, `speakers`: name, `male` or `female`, and
+  `child`, `adult` or `elder`. Only episodes are asked (`request.story`); the system prompt is
+  untouched, so its cache is shared. Code does the rest (`cast.py`):
+  - `quote_spans` finds the quotations in a line (« », " ", „ " , 「 」 and a straight "); a mark
+    never closed starts nothing. A line whose names don't match its quotations in number, or that
+    names someone not in `speakers`, goes back for revision like a vocabulary miss. A text whose
+    attributions never fit is kept as the closest attempt, its unnamed quotations read by the narrator.
+  - `assign` gives each new character a voice and a pitch no one else in the story has, from the
+    language's voices for their gender (the four slots, as chosen in the app): first an unused
+    voice at the pitch their age asks for (child +18%, adult 0, elder -8%), then the same voices
+    a step higher or lower (`PITCH_STEPS`), and once all are used the least used. The narrator's
+    voice and pitch are taken from the start. A pitch step doesn't make two adults of one gender
+    sound like different people; another voice does, so a language with one voice of a gender
+    (Russian's man, Thai's) runs out sooner, and a Multilingual voice chosen in a slot is the way
+    to add one.
+  - **A character's voice is kept for good** (`stories.voices`, set when the episode is saved,
+    before its audio): the stored voice name and pitch, not the slot, so changing the voices
+    chosen in the app, or `assign`'s rules, never changes how a character in the story sounds. A
+    later episode's request lists the characters who have a voice (name, gender, age) and asks
+    only for new ones; a name told again, or in another case, is not given a second voice. A new
+    story has its own cast, and a story that was running before this has none until its next
+    episode lists its speakers. Not built: renaming or merging characters, or changing one's voice.
+  - **One recording per line still.** A line with a character's quotation is cut into the narrator's
+    parts and the characters' (`cast.line_parts`, which always join back to the spoken text, so the
+    word timings match) and sent as one SSML document with a `<voice>` element for each
+    (`franki_speech.ssml_parts`, `SpeechClient.speak_parts`). The pitch is `<prosody pitch>` inside
+    it. Unchecked against a live key, like the rest of the Azure calls: if Azure refuses
+    several voices in one request, or the SDK's word boundaries stop at the first, look there
+    first. If Azure refuses it, the line is recorded whole in the narrator's voice rather than left
+    silent (logged). A line with no character in it is spoken as before.
+  - In Thai a quotation is checked against its speaker's gender as a dialogue's lines are
+    (`gender.quote_gender_problems`), and a draft that fails it is never kept.
 - **Thai's lines are checked against it in code** (`gender.gender_problems`): a man's line with
   ค่ะ, คะ or ดิฉัน, or a woman's with ครับ or ผม, goes back to the model with the line named, like the
   vocabulary check. ฉัน isn't checked (men say it too), and ผม counts only as a whole word, since it
