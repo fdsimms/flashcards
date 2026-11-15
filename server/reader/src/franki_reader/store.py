@@ -1686,15 +1686,19 @@ def clear_word(conn: sqlite3.Connection, word: str, now: datetime) -> None:
 
 # v2: the range moved down on 12 November 2026 (95% was the old lowest target), so a floor saved
 # before it, which can't go below 95%, starts again at the new default rather than staying there.
-# v3: the range moved up on 15 November 2026 (it can't go below 95% now, and starts there), so a
-# target saved before it starts again at the new default rather than staying at 92%.
-_DIFFICULTY_KEY = "difficulty_v3"
+# v2: the range moved down on 12 November 2026 (95% was the old lowest target). The coverage target
+# no longer moves (difficulty.py), so only the stretch word count and the grammar allowance are read
+# from what's saved: a floor saved before it, at any level, is ignored.
+_DIFFICULTY_KEY = "difficulty_v2"
 
 
 def load_difficulty(conn: sqlite3.Connection, language: Code = "th") -> Difficulty:
-    """Each language has its own, moved by ratings of texts in that language."""
+    """Each language has its own stretch word count, moved by ratings of texts in that language; the
+    coverage target is the same for all (difficulty.DEFAULT_FLOOR)."""
     raw = _get_meta(conn, _per_language(_DIFFICULTY_KEY, language))
-    return Difficulty(**json.loads(raw)) if raw else Difficulty()
+    if not raw:
+        return Difficulty()
+    return Difficulty(**{k: v for k, v in json.loads(raw).items() if k != "floor"})
 
 
 def save_difficulty(

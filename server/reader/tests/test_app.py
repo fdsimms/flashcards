@@ -430,7 +430,7 @@ def test_progress_counts_finished_texts_and_says_how_hard_the_next_is() -> None:
     assert progress["finished"] == 2
     assert progress["median_coverage"] == 0.95
     assert progress["ratings"] == {"too_easy": 0, "about_right": 1, "too_hard": 1, "none": 0}
-    assert progress["next"] == {"floor": 0.96, "stretch": 1}
+    assert progress["next"] == {"floor": 0.95, "stretch": 1}
     assert c.get("/api/progress").status_code == 401
 
 

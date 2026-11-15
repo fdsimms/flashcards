@@ -108,9 +108,8 @@ constraints.
    > rating moves it between 90% and 99%, and a text more than 4 points above the target is too
    > easy and is revised like one under it. The 90% below became 85%. See `architecture.md`.
 
-   > **Changed on 15 November 2026 by the owner.** Back to the research: the target starts at 95%
-   > and can't go below it ("too easy" adds practice words instead), up to 97%, with texts up to 98%. See
-   > `architecture.md`, Generation and coverage.
+   > **Changed on 15 November 2026 by the owner.** Back to the research: the target is 95%, with texts
+   > up to 98%, and it no longer moves with ratings. See `architecture.md`, Generation and coverage.
 
    > **Changed on 26 October 2026 by the owner.** A text under the floor is still revised, but if
    > no attempt reaches it, the closest attempt is shown when it's at least 90% known words, with a
@@ -157,8 +156,13 @@ constraints.
    feeding it to FSRS would corrupt tuned intervals.
 10. **Let Frankie pick the topic.** Scenario and topic choice stay in the user's hands, since
     interest raises learning.
-11. **Adapt from the passage rating.** "Too hard" raises the coverage target and cuts stretch words
-    for the next text; "too easy" does the reverse.
+11. **Adapt from the passage rating.** "Too hard" cuts a stretch word from the next text; "too easy"
+    adds one.
+
+    > **Changed on 15 November 2026 by the owner.** The rating used to move the coverage target as
+    > well. The target is now fixed at 95% to 98% (principle 2), since the research gives the range
+    > and a rating is a feeling; a rating changes only the number of stretch words. See
+    > `architecture.md`, Generation and coverage.
 12. **Cap mining** (*personal*). Tapped words go to a review queue, and at most a set number per day
     go to Anki after Frankie approves them, to protect the ~300 reviews/day ceiling.
 13. **No new review load** (*personal*). Nothing this mode does creates Anki cards or reviews
