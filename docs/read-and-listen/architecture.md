@@ -56,7 +56,8 @@ Franki's (Client, below).
   opens Claude's note on that line's grammar and vocabulary under it: a few points, each a phrase
   from the line and what to know about it, in plain English. "Explain more simply" asks for a plainer
   version. Asked only on the tap (`POST /api/texts/{id}/lines/{n}/explain`, `explain.py`), with the
-  line and the lines around it, and kept per line and per version in `explanations`, so opening a
+  line and the whole text (as for a phrase, below: the prompt says to use it only where it sharpens
+  a point; it was the lines around it until 15 November 2026), and kept per line and per version in `explanations`, so opening a
   line again or rereading a past text costs nothing. It only shows text: nothing is graded or added
   to the deck. Each call's cost is kept with it and reported under `explanations` in `/api/costs`,
   apart from the texts' figures. A free-form "Ask a question" and a per-word explanation were left out for now.
