@@ -462,7 +462,8 @@ export function createApi(
     // With `story`, that story's episodes, first to last.
     pastTexts: (story?: number) => call<PastText[]>('GET', story === undefined ? '/api/texts' : `/api/texts?story=${story}`),
     // Finished texts due to be heard again with their words hidden (server relisten.py), as pastTexts lists them.
-    relisten: () => call<PastText[]>('GET', '/api/relisten'),
+    // `listens`: how many times each text is wanted again, 3 (1, 4 and 10 days), 1 (3 days) or 0.
+    relisten: (listens: 0 | 1 | 3 = 3) => call<PastText[]>('GET', `/api/relisten?listens=${listens}`),
     // A finished text was heard again, through to its last line. Only counted: no reading, no difficulty change.
     logListen: (textId: number) => call<void>('POST', `/api/texts/${textId}/listen`),
     // The current language's shelf; asking also tops it up in the background.

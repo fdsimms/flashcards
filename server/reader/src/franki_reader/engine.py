@@ -44,7 +44,7 @@ from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
 from franki_reader.recognition import measure
-from franki_reader.relisten import Candidate, due
+from franki_reader.relisten import DEFAULT_LISTENS, Candidate, due
 from franki_reader.store import Reading, Reason, StoredText, Story, Topic
 from franki_reader.stretch import pick_stretch, waiting
 from franki_reader.study_day import DEFAULT_ROLLOVER, study_day, study_day_start
@@ -868,8 +868,11 @@ class Engine:
             plan=story.plan,
         )
 
-    def relisten(self, language: Code | None = None) -> list[store.PastText]:
-        """The finished texts to hear again today (relisten.py), oldest read first."""
+    def relisten(
+        self, language: Code | None = None, listens: int = DEFAULT_LISTENS
+    ) -> list[store.PastText]:
+        """The finished texts to hear again today (relisten.py), oldest read first, with `listens`
+        wanted per text."""
         language = language or self.language()
         rollover = self.rollover()
         past = store.past_texts(self.conn, RELISTEN_LOOKBACK, language)
@@ -880,7 +883,7 @@ class Engine:
         ]
         by_id = {t.id: t for t in past}
         today = study_day(self.clock(), rollover, self.zone)
-        return [by_id[i] for i in due(candidates, today)]
+        return [by_id[i] for i in due(candidates, today, listens)]
 
     def record_reading(self, text_id: int, reading: Reading) -> None:
         """Logs a session and adjusts the difficulty of the text's language, stepping from the level
