@@ -244,6 +244,15 @@ CREATE TABLE IF NOT EXISTS word_meanings (
     batch_id INTEGER NOT NULL REFERENCES meaning_batches(id),
     PRIMARY KEY (language, word)
 );
+-- IPA written by Claude for words with none in Wiktionary's tables (ai_ipa.py), kept for the language
+-- by lower-case word. An empty ipa is a word Claude gave nothing usable for, so it isn't asked again.
+CREATE TABLE IF NOT EXISTS word_ipa (
+    language TEXT NOT NULL,
+    word TEXT NOT NULL,
+    ipa TEXT NOT NULL,
+    written_at TEXT NOT NULL,
+    PRIMARY KEY (language, word)
+);
 CREATE TABLE IF NOT EXISTS stories (
     id INTEGER PRIMARY KEY,
     language TEXT NOT NULL,
@@ -1430,6 +1439,7 @@ CallFeature = Literal[
     "production",
     "situations",
     "pronunciation",
+    "ipa",
 ]
 
 
@@ -2099,6 +2109,39 @@ def word_meanings(conn: sqlite3.Connection, language: Code) -> dict[str, str]:
             "SELECT word, meaning FROM word_meanings WHERE language = ?", (language,)
         ).fetchall()
     )
+
+
+def save_word_ipa(
+    conn: sqlite3.Connection,
+    language: Code,
+    ipas: dict[str, str],
+    now: datetime,
+    cost_usd: float,
+) -> None:
+    """A batch of IPA Claude wrote for a language, as {lower-case word: ipa}, with its cost (a
+    `call_costs` row, also for a call that failed after Claude answered, with no words). A word it
+    gave nothing usable for is kept with an empty ipa, so it isn't asked again; a word already kept
+    keeps what it has."""
+    with conn:
+        conn.executemany(
+            "INSERT OR IGNORE INTO word_ipa (language, word, ipa, written_at) VALUES (?, ?, ?, ?)",
+            [(language, word, ipa, now.isoformat()) for word, ipa in ipas.items()],
+        )
+    save_call_cost(conn, "ipa", language, now, cost_usd)
+
+
+def word_ipa(conn: sqlite3.Connection, language: Code) -> dict[str, str]:
+    """Every word of a language that has been asked about, as {lower-case word: ipa}; empty for a
+    word with none."""
+    return dict(
+        conn.execute("SELECT word, ipa FROM word_ipa WHERE language = ?", (language,)).fetchall()
+    )
+
+
+def ipa_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
+    """Each language with IPA written since `since`: how many calls (failed ones included) and what
+    they cost Claude."""
+    return _feature_spending(conn, "ipa", since)
 
 
 def meaning_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:

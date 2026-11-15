@@ -417,16 +417,30 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
   word for it, and a word it gave none for shows no reveal rather than a guess. Texts written before
   this have none for their off-list words. Only Thai's prompt asks for it.
 - **IPA** (15 November 2026, by the owner's decision): the word popover shows a word's IPA beside the word, with where it's from in the
-  status line ("IPA from Wiktionary"), in every language but English (issue #296) and Japanese (no table
-  yet). It's there by default; there is no setting. The tables are Wiktionary's, built from kaikki.org's
-  extracts by `scripts/build_ipa.py` into `data/ipa/<code>.tsv.gz` (`ipa.py`, shown on a token as `ipa` and
-  `ipa_source`), and licensed CC BY-SA 4.0, which Settings, Read & Listen says. **A word is looked up as
-  written, never through its dictionary form**: a form's pronunciation isn't its lemma's (hablé is not
-  hablar), and Russian stress moves between forms, so a form with no entry shows nothing. Russian, Polish and
-  Thai have entries for nearly every form; the other languages mostly have lemmas. A homograph takes the
-  first entry that has IPA, and a phrase has none. Measured on the owner's decks (30 to 60 notes a language),
-  single words had IPA for 100% of Russian, Polish and French, 95% of German, 93% of Spanish, 81% of Greek and
-  24% of Norwegian. Written by AI where Wiktionary has none is planned, labeled as AI wherever it shows.
+  status line ("IPA from Wiktionary"), in every language but English (issue #296). It's there by default;
+  there is no setting. A token carries `ipa` and `ipa_source`, one of three:
+  - **`wiktionary`**: the tables are Wiktionary's, built from kaikki.org's extracts by `scripts/build_ipa.py`
+    into `data/ipa/<code>.tsv.gz` (`ipa.py`), under CC BY-SA 4.0, which Settings, Read & Listen says.
+    **A word is looked up as written, never through its dictionary form**: a form's pronunciation isn't
+    its lemma's (hablé is not hablar), and Russian stress moves between forms, so a form with no entry
+    shows nothing from the table. Russian, Polish and Thai have entries for nearly every form; the
+    others mostly have lemmas. A homograph takes the first entry that has IPA. Measured on the owner's
+    decks (30 to 60 notes a language), single words had IPA for 100% of Russian, Polish and French, 95% of
+    German, 93% of Spanish, 81% of Greek and 24% of Norwegian.
+  - **`rules`** (Japanese): the kana reading (the deck's KanaReading, else Sudachi's) turned into IPA by
+    rule (`kana_ipa.py`), in Wiktionary's phonemic style. Approximate: no pitch accent, no devoicing.
+  - **`ai`**: written by Claude for a word the table has none for (`ai_ipa.py`), shown labeled as AI
+    everywhere (an "AI" chip, "IPA written by AI, may be wrong" in the status line, "Written by AI. Check
+    it before saving." under the note's field), since nothing checks it and stress is where it goes
+    wrong. The table always wins. It's asked after a text is written, in the same background pass as the
+    meanings, one call of up to 150 words with the line each is in, and kept for the language
+    (`word_ipa`), so a tap never makes a call; a word it gives nothing usable for is kept empty and not
+    asked again. A failed call waits `FAILURE_COOLDOWN` and its cost is reported (`/api/costs`, `ipa`).
+  Saving a word to the deck fills the note's **Pronunciation** field with the IPA, to check before saving,
+  and the card back shows that field plainly. The field isn't in `omnilanguageFieldNames` yet: it
+  has to be added to the live note type first (AnkiMCP's `add_field`, which makes every device download the
+  whole collection once, so sync every device first), and only then there. Until then the editor leaves
+  the prefilled key out, since it only shows the note type's fields.
 
 ## Languages
 

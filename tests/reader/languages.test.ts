@@ -20,6 +20,7 @@ test("a word says whether it's a deck word, a common word, or neither", () => {
 test("a word's IPA says where it's from, and AI-written IPA says it may be wrong", () => {
   expect(ipaNote({ ipa: '/ˈdomʲɪ/', ipa_source: 'wiktionary' })).toBe('IPA from Wiktionary');
   expect(ipaNote({ ipa: '/ˈdomʲɪ/', ipa_source: 'ai' })).toBe('IPA written by AI, may be wrong');
+  expect(ipaNote({ ipa: '/ɡekidaɴ/', ipa_source: 'rules' })).toBe('IPA from the kana reading, approximate');
   // A server older than IPA sends neither field; a word with none sends nulls.
   expect(ipaNote({})).toBeNull();
   expect(ipaNote({ ipa: null, ipa_source: null })).toBeNull();

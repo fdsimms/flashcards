@@ -9,21 +9,27 @@ the other languages mostly have the lemmas, so a form there is found only when i
 entry.
 
 Where a word has more than one entry (a homograph) the table keeps the first that has IPA. Only
-this looks a word up: the popup shows what it finds, and where it came from (`SOURCE_WIKTIONARY`),
-so the app can say so. Nothing here grades or writes anything.
+this looks a word up: the popup shows what it finds, and where it came from (`SOURCE_WIKTIONARY`,
+or Japanese's `SOURCE_RULES`), so the app can say so. Nothing here grades or writes anything.
 """
 
 import gzip
 import unicodedata
+from collections.abc import Mapping
 from functools import cache
 from pathlib import Path
 
 from franki_reader.coverage import Checker, is_word
 from franki_reader.japanese import JapaneseLexicon
+from franki_reader.kana_ipa import ipa_of_reading
 
 _DATA = Path(__file__).parent / "data" / "ipa"
 
 SOURCE_WIKTIONARY = "wiktionary"
+# Japanese: written from the word's kana reading by rule (kana_ipa.py), approximate.
+SOURCE_RULES = "rules"
+# Written by Claude where the table has none (ai_ipa.py): the app says so wherever it shows it.
+SOURCE_AI = "ai"
 
 # Shown in the app wherever IPA from Wiktionary is.
 ATTRIBUTION = "Pronunciations from Wiktionary, under CC BY-SA 4.0."
@@ -54,13 +60,25 @@ def ipa_of(word: str, code: str) -> str | None:
     return words.get(word) or words.get(word.casefold())
 
 
-def ipa_for(word: str, lexicon: Checker) -> tuple[str, str] | None:
+def ipa_for(
+    word: str,
+    lexicon: Checker,
+    reading: str | None = None,
+    ai: Mapping[str, str] | None = None,
+) -> tuple[str, str] | None:
     """The IPA for a token and its source, or None when there's none to show: punctuation, a phrase
-    (a deck phrase is one token with spaces), a language with no table, or a word with no entry."""
+    (a deck phrase is one token with spaces), a language with no table, or a word with no entry.
+
+    Japanese is read from `reading` (the kana the popup shows: the deck's), else Sudachi's, or from
+    the word itself when it's written in kana. `ai` is what Claude wrote for words the table has none
+    for (by lower-case word), tried only after the table."""
     if not is_word(word) or " " in word.strip():
         return None
     if isinstance(lexicon, JapaneseLexicon):
-        return None
+        found = ipa_of_reading(reading or lexicon.reading_of(word) or word)
+        return (found, SOURCE_RULES) if found else None
     code: str = getattr(lexicon, "code", "th")  # Thai's lexicon has none, as in frequency.rank_of
-    found = ipa_of(word, code)
-    return (found, SOURCE_WIKTIONARY) if found else None
+    if found := ipa_of(word, code):
+        return found, SOURCE_WIKTIONARY
+    written = (ai or {}).get(word.strip().casefold())
+    return (written, SOURCE_AI) if written else None

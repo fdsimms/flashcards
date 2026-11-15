@@ -58,5 +58,8 @@ def test_punctuation_and_phrases_show_none() -> None:
     assert ipa.ipa_for("a raya", lexicon) is None
 
 
-def test_japanese_has_none_yet() -> None:
-    assert ipa.ipa_for("行く", JapaneseLexicon.__new__(JapaneseLexicon)) is None
+def test_japanese_is_written_from_the_reading_by_rule() -> None:
+    lexicon = JapaneseLexicon.__new__(JapaneseLexicon)
+    assert ipa.ipa_for("劇団", lexicon, "げきだん") == ("/ɡekidaɴ/", "rules")
+    # A word in kana is its own reading; a word with neither has none.
+    assert ipa.ipa_for("ありがとう", lexicon) == ("/aɾiɡatoː/", "rules")

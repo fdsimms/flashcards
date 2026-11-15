@@ -79,5 +79,6 @@ export function wordStatus(word: Pick<Word, 'status' | 'deck' | 'wanikani'>): st
  */
 export function ipaNote(word: Pick<Word, 'ipa' | 'ipa_source'>): string | null {
   if (!word.ipa) return null;
-  return word.ipa_source === 'ai' ? 'IPA written by AI, may be wrong' : 'IPA from Wiktionary';
+  if (word.ipa_source === 'ai') return 'IPA written by AI, may be wrong';
+  return word.ipa_source === 'rules' ? 'IPA from the kana reading, approximate' : 'IPA from Wiktionary';
 }

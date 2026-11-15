@@ -36,6 +36,14 @@ describe('cards', () => {
       expect(renderCard(note, kind).back.blocks.map((b) => b.text).slice(0, 2)).toEqual(kind === 'audio' ? ['หนังสือ', 'book'] : ['book', 'nang-suu']);
     }
   });
+  it("shows the note's Pronunciation plainly on the back, after the answer, and nothing when it has none", () => {
+    const note = omniNote({ Entry: 'дом', Meaning: 'house', Pronunciation: '[dom]' });
+    expect(renderCard(note, 'forward').back.blocks.map((b) => b.text).slice(0, 2)).toEqual(['house', '[dom]']);
+    expect(renderCard(note, 'reverse').back.blocks.map((b) => b.text).slice(0, 2)).toEqual(['дом', '[dom]']);
+    expect(renderCard(note, 'audio').back.blocks.map((b) => b.text)).toContain('[dom]');
+    expect(renderCard(note, 'audio').back.blocks.find((b) => b.text === '[dom]')?.tapLabel).toBeUndefined();
+    expect(renderCard(omniNote({ Entry: 'дом', Meaning: 'house' }), 'forward').back.blocks.map((b) => b.text)).not.toContain('[dom]');
+  });
   it("shows the audio card's meaning as a gloss under the word, and the forward card's as the headline", () => {
     const note = omniNote({ Entry: 'หนังสือ', Meaning: 'book' });
     const audio = renderCard(note, 'audio').back.blocks;

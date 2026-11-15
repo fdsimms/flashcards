@@ -35,7 +35,7 @@ export type Word = {
   // The word's IPA, when there is some, and where it's from: Wiktionary's entry for the word as written, or
   // written by AI where Wiktionary has none. Absent from a server older than it, and null for a word with none.
   ipa?: string | null;
-  ipa_source?: 'wiktionary' | 'ai' | null;
+  ipa_source?: 'wiktionary' | 'rules' | 'ai' | null; // 'rules': Japanese, written from the kana reading by rule
   stretch: boolean;
   deck: boolean; // a deck word, as against one known for being common (every language but Thai)
   wanikani?: boolean; // known for being learned in WaniKani (Japanese; absent from a server older than it)
@@ -353,6 +353,8 @@ export type MarkedWord = {
   status: 'known' | 'partial' | 'unknown';
   deck: boolean;
   wanikani?: boolean; // as Word's
+  ipa?: string | null; // as Word's
+  ipa_source?: Word['ipa_source']; // as Word's
   times: number;
   last_marked: string;
 };

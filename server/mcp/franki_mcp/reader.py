@@ -38,8 +38,8 @@ def register(server: MCPServer, settings: ReaderSettings | None, http: httpx.Asy
         `total_per_read_text_usd` add Azure's audio, which is an estimate: the characters Azure
         spoke for each text at a fixed list price per character, not Azure's bill. Audio made
         before characters were counted is estimated from the lines still stored, so those texts
-        can read low. Also `explanations`, `drills`, `meanings`, `vocab_checks`, `note_queue`,
-        `mnemonics`, `questions` (the check after reading) and `forms` (the grammatical form of a
+        can read low. Also `explanations`, `drills`, `meanings`, `ipa` (IPA Claude wrote for words Wiktionary has none for),
+        `vocab_checks`, `note_queue`, `mnemonics`, `questions` (the check after reading) and `forms` (the grammatical form of a
         text's inflected words): what those Claude calls cost, apart
         from the texts. Every figure includes calls
         that failed after Claude answered, which were still paid for. `recordings` is the cards the

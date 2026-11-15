@@ -177,6 +177,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // English. A recording (`audioFile`) still plays.
   const say = speechLang ? entry : undefined;
   const translit = t(note, 'Transliteration');
+  // The IPA, shown plainly with the word (the note type may not have the field yet: then it's empty).
+  const pronunciation = t(note, 'Pronunciation');
   // A Japanese word's kana, shown on the back after the word as Anki's template does ({{hint:KanaReading}}).
   const kana = t(note, 'KanaReading');
   const meaning = t(note, 'Meaning');
@@ -212,6 +214,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     pushEntry(front);
     pushIf(front, t(note, 'LeechHint'), undefined);
     pushIf(back, meaning, undefined, true);
+    pushIf(back, pronunciation);
     pushIf(back, translit, undefined, undefined, 'Show transliteration');
     pushIf(back, kana, undefined, undefined, 'Show reading');
     back.push(...detail());
@@ -225,6 +228,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     pushIf(front, wanted ?? '', undefined, undefined, undefined, { role: 'wanted' });
     pushIf(front, t(note, 'LeechHint'), undefined);
     pushEntry(back);
+    pushIf(back, pronunciation);
     pushIf(back, translit, undefined, undefined, 'Show transliteration');
     pushIf(back, kana, undefined, undefined, 'Show reading');
     back.push(...detail());
@@ -243,6 +247,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   pushEntry(back);
   // The word is the answer here, so the meaning under it is a gloss, not a second headline.
   pushIf(back, meaning, undefined, undefined, undefined, { role: 'gloss' });
+  pushIf(back, pronunciation);
   pushIf(back, translit, undefined, undefined, 'Show transliteration');
   pushIf(back, kana, undefined, undefined, 'Show reading');
   back.push(...detail());

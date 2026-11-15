@@ -28,6 +28,7 @@ import { ReadRecap } from './ReadRecap';
 import { Pop, Reveal } from './motion';
 import { LineExplanation } from './ReaderExplain';
 import { RegisterChip } from './ReaderNatural';
+import { ReadWordTitle } from './ReadWordTitle';
 import { PhraseExplanation, PhrasePickBanner, type PhraseAnchor, type PhraseMining } from './ReaderPhrase';
 import { ReadChoices } from './ReadChoices';
 import { CheckCard, ReaderCheck } from './ReaderCheck';
@@ -1175,7 +1176,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           // The popover is a modal, so it closes before the note editor opens over the reader.
           const word = tapped.word.text;
           setTapped(null);
-          void mining.onAdd(word, tapped.word.gloss ?? "").then((saved) => {
+          void mining.onAdd(word, tapped.word.gloss ?? "", tapped.word).then((saved) => {
             // In the deck now, so no longer marked unknown.
             if (saved) setSession((s) => (s && isFlagged(s, word) ? toggleFlag(s, word) : s));
           });
@@ -1365,11 +1366,7 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
       >
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
           <View style={{ flex: 1, gap: space.xs }}>
-            {/* The word with its IPA beside it, which wraps under the word when the two don't fit one line. */}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: space.s }}>
-              <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
-              {tapped.word.ipa ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.ipa}</Text> : null}
-            </View>
+            <ReadWordTitle text={tapped.word.text} pronunciation={tapped.word} />
             {trying ? (
               <GuessPrompt
                 mode={mode}
