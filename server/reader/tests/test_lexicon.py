@@ -108,6 +108,43 @@ def test_an_entrys_stability_is_its_most_fragile_studied_cards() -> None:
     assert build_entries(word, [card(1, 2, 9)])[0].stability is None
 
 
+def test_a_word_is_tiered_by_its_reading_and_listening_cards_not_its_production_one() -> None:
+    word = [note(1, "ดี", "good")]
+    # Front and Audio mature, Reverse (English to the word) still young: mature for reading.
+    cards = [card(1, 2, 40, ord=0), card(1, 2, 3, ord=1), card(1, 2, 60, ord=2)]
+    assert build_entries(word, cards)[0].tier == "mature"
+    # The Front card is the weak one: young, whatever the others are.
+    cards = [card(1, 2, 8, ord=0), card(1, 2, 90, ord=1), card(1, 2, 60, ord=2)]
+    assert build_entries(word, cards)[0].tier == "young"
+
+
+def test_a_word_studied_only_from_english_still_counts_as_studied() -> None:
+    word = [note(1, "ดี", "good")]
+    only_reverse = [card(1, 0, 0, ord=0), card(1, 2, 25, ord=1), card(1, 0, 0, ord=2)]
+    assert build_entries(word, only_reverse)[0].tier == "mature"
+    # A suspended Front card (a leech) leaves the others to decide, as before.
+    leech = [card(1, 2, 3, suspended=True, ord=0), card(1, 2, 25, ord=1)]
+    assert build_entries(word, leech)[0].tier == "mature"
+    assert build_entries(word, [card(1, 0, 0, ord=0)])[0].tier == "unreviewed"
+
+
+def test_stability_is_the_most_fragile_recognition_card() -> None:
+    word = [note(1, "ดี", "good")]
+    cards = [
+        card(1, 2, 40, stability=60.0, ord=0),
+        card(1, 2, 3, stability=2.0, ord=1),  # production: not read
+        card(1, 2, 60, stability=30.0, ord=2),
+    ]
+    assert build_entries(word, cards)[0].stability == 30.0
+    # Only Reverse studied: its stability is what there is.
+    assert (
+        build_entries(word, [card(1, 0, 0, ord=0), card(1, 2, 5, stability=7.0, ord=1)])[
+            0
+        ].stability
+        == 7.0
+    )
+
+
 def test_a_withheld_thai_word_is_unknown_even_when_it_splits_into_known_ones() -> None:
     deck = [Entry(1, "เข้า", "to enter", "mature"), Entry(2, "ใจ", "heart", "mature")]
     deck.append(Entry(3, "เข้าใจ", "to understand", "young"))

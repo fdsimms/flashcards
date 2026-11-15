@@ -358,9 +358,16 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
 
 ## Lexicon
 
-- A note's tier comes from its weakest reviewed card: **mature** if the lowest interval is 21 days or
-  more, **young** if reviewed but below that, **unreviewed** if no card has been reviewed
-  (`server/reader/src/franki_reader/tiers.py`).
+- A note's tier comes from its weakest reviewed **reading or listening card**, its Front and Audio
+  cards (15 November 2026, the owner's decision from a review of the learning science): **mature**
+  if the lowest interval is 21 days or more, **young** if reviewed but below that, **unreviewed** if
+  no card has been reviewed (`server/reader/src/franki_reader/tiers.py`). The Reverse card (English to
+  the word) is production, which says little about whether a word is recognized in a text, and used to
+  hold a word young while its Front card was long mature. When a note has no studied Front or Audio
+  card, all its cards decide, so a word studied only from English still counts as studied. What
+  counts as known for coverage is unchanged (any studied card). The tier picks stretch words and marks
+  M or Y in the model's list; `Entry.stability` is read from the same cards. A suspended card is
+  left out first, as below.
 - **A suspended card doesn't count** (13 November 2026, the owner's decision from a review of the
   teaching). The owner's presets suspend leeches, so a suspended card is the word the learner keeps
   failing: a note whose reviewed cards are all suspended is unreviewed, so it isn't known for
