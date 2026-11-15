@@ -17,13 +17,13 @@ import hashlib
 import json
 import re
 import shutil
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Coroutine, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol
 
-from franki_speech import SpeechClient, SpeechError, WordMark
+from franki_speech import Part, SpeechClient, SpeechError, WordMark
 
 # How fast Azure speaks the slow recording (1.0 is normal speed): SSML's prosody rate of -20%.
 SLOW_RATE = 0.8
@@ -66,6 +66,11 @@ class Spoken:
 Synthesize = Callable[..., Coroutine[Any, Any, Spoken]]
 
 
+# Speaks one line in several voices, one after another (a story's quotations, cast.py): the parts
+# and the text's locale, and `rate=SLOW_RATE` for the slow recording, as for `Synthesize`.
+SynthesizeParts = Callable[..., Coroutine[Any, Any, Spoken]]
+
+
 class Speech(Protocol):
     """What the app's voice routes need from Azure: `franki_speech.SpeechClient`, or a fake in tests."""
 
@@ -88,6 +93,16 @@ def azure_synthesize(client: SpeechClient) -> Synthesize:
             raise TtsFailed(str(e)) from e
 
     return synthesize
+
+
+def azure_synthesize_parts(client: SpeechClient) -> SynthesizeParts:
+    async def synthesize_parts(parts: Sequence[Part], language: str, rate: float = 1.0) -> Spoken:
+        try:
+            return Spoken(*await client.speak_parts(parts, rate, language=language))
+        except SpeechError as e:
+            raise TtsFailed(str(e)) from e
+
+    return synthesize_parts
 
 
 class AudioCache:

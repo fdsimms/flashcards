@@ -986,3 +986,132 @@ def test_a_check_from_over_a_week_ago_isnt_counted_with_this_one() -> None:
     clock.now = NOW + timedelta(days=8)
     e.record_reading(second.id, checked(0, 4))
     assert store.load_difficulty(e.conn, "th").floor == 0.95
+
+
+class FakeParts:
+    """Records each line spoken in several voices (a story's quotations)."""
+
+    def __init__(self) -> None:
+        self.calls: list[list[Any]] = []
+
+    async def __call__(self, parts: Any, language: str) -> Spoken:
+        self.calls.append(list(parts))
+        return Spoken(b"mp3")
+
+
+def _quoted(speaker: str, who: list[str], text: str) -> dict[str, Any]:
+    return {**IN_RANGE["lines"][0], "speaker": "N", "text": text, "quotes": who}
+
+
+def _story_episode(*lines: dict[str, Any], speakers: list[dict[str, str]]) -> dict[str, Any]:
+    return {
+        **IN_RANGE,
+        "lines": [*lines, {**IN_RANGE["lines"][1], "speaker": "N"}],
+        "speakers": speakers,
+    }
+
+
+def test_a_story_characters_voice_is_given_once_and_kept_in_every_episode(tmp_path: Path) -> None:
+    from franki_speech import Part
+
+    from franki_reader.tts import AudioCache
+
+    say = "“ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ|ฉัน|อยาก|กิน|ทอน|ครับ”"
+    noi = {"name": "Noi", "gender": "male", "age": "adult"}
+    ploy = {"name": "Ploy", "gender": "female", "age": "child"}
+    first = _story_episode(_quoted("N", ["Noi"], say), speakers=[noi])
+    # Ploy is a girl: no ครับ in her words, which Thai's gender check would send back.
+    girl = "“ฉัน|อยาก|กิน|ทอน|ฉัน|อยาก|กิน|ฉัน|อยาก|กิน”"
+    second = _story_episode(
+        _quoted("N", ["Noi"], say), _quoted("N", ["Ploy"], girl), speakers=[noi, ploy]
+    )
+    model = ScriptedModel(first, second)
+    narrator, parts = FakeVoice(), FakeParts()
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, ENTRIES, NOW)
+    e = Engine(
+        conn,
+        model.ask_for,
+        None,
+        Clock(),
+        random.Random(1),
+        synthesize=narrator,
+        synthesize_parts=parts,
+        audio=AudioCache(tmp_path),
+        voices={"male": "voice-a", "male2": "voice-b", "female": "voice-c", "female2": "voice-d"},
+    )
+
+    async def start() -> int:
+        story = e.start_story("a noodle stall")
+        await settle(e)
+        return story.id
+
+    story_id = run(start)
+    story = store.get_story(e.conn, story_id)
+    assert story is not None
+    # Noi is a man, and the narrator has voice-a: Noi gets the other man's voice.
+    assert {n: (v.voice, v.pitch) for n, v in story.voices.items()} == {"Noi": ("voice-b", 0)}
+    # The quoted line is one recording in Noi's voice, the plain one the narrator's.
+    assert parts.calls == [[Part(say.replace("|", "").replace("*", ""), "voice-b", 0)]]
+    assert [t for t, _ in narrator.calls] == ["ข้าวเหนียวมะม่วงครับ!ฉันอยากกินครับฉันอยากกินครับ"]
+    assert "No character has a voice yet" in model.messages_seen[0][0]["content"]
+
+    episode = store.waiting_episode(e.conn, story_id)
+    assert episode is not None
+    e.record_reading(episode.id, reading(None))
+    run(e.top_up)
+    # The next episode is told Noi has a voice, and only Ploy, who is new, is given one.
+    asked = model.messages_seen[1][0]["content"]
+    assert "- Noi (male, adult)" in asked
+    story = store.get_story(e.conn, story_id)
+    assert story is not None
+    assert {n: (v.voice, v.pitch) for n, v in story.voices.items()} == {
+        "Noi": ("voice-b", 0),
+        "Ploy": ("voice-c", 18),
+    }
+    assert [p[0].voice for p in parts.calls[1:]] == ["voice-b", "voice-c"]
+    assert parts.calls[-1][0].pitch == 18
+
+
+def test_without_a_parts_voice_a_quoted_line_is_read_whole_by_the_narrator(tmp_path: Path) -> None:
+    say = "“ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ|ฉัน|อยาก|กิน|ทอน|ครับ”"
+    noi = {"name": "Noi", "gender": "male", "age": "adult"}
+    model = ScriptedModel(_story_episode(_quoted("N", ["Noi"], say), speakers=[noi]))
+    narrator = FakeVoice()
+    e = speaking_engine(tmp_path, narrator)
+    e.ask_for = model.ask_for
+
+    async def start() -> None:
+        e.start_story("a noodle stall")
+        await settle(e)
+
+    run(start)
+    assert [v for _, v in narrator.calls] == ["voice-a", "voice-a"]
+
+
+def test_a_line_azure_wont_record_in_several_voices_is_read_whole_by_the_narrator(
+    tmp_path: Path,
+) -> None:
+    from franki_reader.tts import TtsFailed
+
+    say = "“ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ|ฉัน|อยาก|กิน|ทอน|ครับ”"
+    noi = {"name": "Noi", "gender": "male", "age": "adult"}
+    model = ScriptedModel(_story_episode(_quoted("N", ["Noi"], say), speakers=[noi]))
+    narrator = FakeVoice()
+    e = speaking_engine(tmp_path, narrator)
+    e.ask_for = model.ask_for
+
+    async def refused(parts: Any, language: str) -> Spoken:
+        raise TtsFailed("Azure answered 400")
+
+    e.synthesize_parts = refused
+
+    async def start() -> int:
+        story = e.start_story("a noodle stall")
+        await settle(e)
+        return story.id
+
+    story_id = run(start)
+    episode = store.waiting_episode(e.conn, story_id)
+    assert episode is not None and e.has_audio(episode.id, 0) and e.has_audio(episode.id, 1)
+    assert narrator.calls[0][1] == "voice-a"

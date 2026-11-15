@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import type { Language } from '../reader/api';
+import { castFor } from '../reader/storyCast';
 import { useApp } from '../ui/AppContext';
 import { ReadVoices } from '../ui/ReadVoices';
 
@@ -19,6 +20,7 @@ export default function ReadVoicesRoute() {
       voices={reader.settings?.voices?.[language]}
       onSettings={reader.setSettings}
       onPick={(slot) => router.push({ pathname: '/read-voice', params: { language, slot } })}
+      onCast={castFor(reader.settings, language) ? () => router.push({ pathname: '/read-cast', params: { language } }) : undefined}
     />
   );
 }

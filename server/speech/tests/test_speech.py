@@ -12,12 +12,14 @@ from franki_speech import (
     OUTPUT_FORMAT,
     THAI_PAUSE,
     THAI_PRONUNCIATIONS,
+    Part,
     SpeechClient,
     SpeechError,
     WordMark,
     is_multilingual,
     locale_of,
     ssml,
+    ssml_parts,
     text_locale,
 )
 from franki_speech.sdk import SdkMissing, SdkResult
@@ -421,3 +423,61 @@ def test_assess_says_when_nothing_was_heard_or_the_language_is_refused() -> None
     with pytest.raises(SpeechError) as e:
         assess(httpx.MockTransport(lambda r: httpx.Response(400, text="unsupported")))
     assert e.value.status == 400
+
+
+RU_MAN = "ru-RU-DmitryNeural"
+RU_GIRL = "ru-RU-DariyaNeural"
+
+
+def test_a_line_of_several_voices_is_one_request_with_a_voice_element_for_each() -> None:
+    out = ssml_parts(
+        [
+            Part("«Мама, туда нельзя!» — говорит ", RU_MAN),
+            Part("Аня", RU_GIRL, 20),
+        ]
+    )
+    assert out.count("<speak") == 1 and out.count("<voice") == 2
+    assert "<voice name='ru-RU-DmitryNeural'><prosody rate='+0%'>«Мама" in out
+    assert "<voice name='ru-RU-DariyaNeural'><prosody rate='+0%' pitch='+20%'>Аня" in out
+    assert out.index("Dmitry") < out.index("Dariya")
+    assert "xml:lang='ru-RU'" in out
+
+
+def test_a_part_with_no_pitch_change_is_written_as_a_single_voice_line_always_was() -> None:
+    assert ssml_parts([Part("x", VOICE)], 0.8) == ssml("x", VOICE, 0.8)
+    assert "pitch" not in ssml("x", VOICE)
+
+
+def test_a_lower_pitch_has_its_sign() -> None:
+    assert "pitch='-8%'" in ssml_parts([Part("x", VOICE, -8)])
+
+
+def test_parts_with_no_text_are_left_out_and_a_line_with_none_is_refused() -> None:
+    out = ssml_parts([Part("", RU_MAN), Part("да", RU_GIRL)])
+    assert "Dmitry" not in out and "Dariya" in out
+    with pytest.raises(SpeechError):
+        ssml_parts([Part("", RU_MAN)])
+
+
+def test_each_part_of_a_multilingual_voice_is_told_the_language_and_others_are_not() -> None:
+    out = ssml_parts([Part("да", MULTI), Part("нет", RU_MAN)], language="ru-RU")
+    assert out.count("<lang xml:lang='ru-RU'>") == 1
+    assert "<lang xml:lang='ru-RU'><prosody rate='+0%'>да</prosody></lang>" in out
+
+
+def test_speak_parts_sends_every_voice_in_one_sdk_call_and_returns_its_timings() -> None:
+    sent: list[str] = []
+
+    async def fake(key: str, region: str, body: str) -> SdkResult:
+        sent.append(body)
+        return SdkResult(audio=b"ID3sdk", marks=MARKS)
+
+    parts = [Part("Да, ", RU_MAN), Part("нет", RU_GIRL, 12)]
+
+    async def go() -> tuple[bytes, list[WordMark] | None]:
+        async with httpx.AsyncClient() as http:
+            client = SpeechClient("k", "eastus", http=http, sleep=no_sleep, sdk_speak=fake)
+            return await client.speak_parts(parts)
+
+    assert asyncio.run(go()) == (b"ID3sdk", MARKS)
+    assert sent == [ssml_parts(parts)]

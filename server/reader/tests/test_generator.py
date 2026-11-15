@@ -707,3 +707,89 @@ def test_a_stretch_word_is_glossed_with_its_cards_meaning_not_the_models() -> No
     result = run(ScriptedModel(own), TextRequest("food", (MANGO,)))
     assert result.glosses["ข้าวเหนียวมะม่วง"] == "mango sticky rice"
     assert result.stretch == ("ข้าวเหนียวมะม่วง",)
+
+
+def _quoted_episode(
+    quotes: list[str], speakers: list[dict[str, str]] | None, text: str
+) -> dict[str, Any]:
+    """A story episode whose first line is one quotation."""
+    d = dict(GOOD)
+    d["lines"] = [
+        {**GOOD["lines"][0], "speaker": "N", "text": text, "quotes": quotes},
+        {**GOOD["lines"][1], "speaker": "N"},
+    ]
+    if speakers is not None:
+        d["speakers"] = speakers
+    return d
+
+
+NOI = {"name": "Noi", "gender": "male", "age": "adult"}
+SAY = "“ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ”"
+
+
+def test_a_story_episode_asks_who_speaks_and_lists_the_voices_the_story_has() -> None:
+    from franki_reader.cast import Speaker
+    from franki_reader.generator import StoryContext
+
+    first = request_message(TextRequest("a stall", story=StoryContext(1, "a stall")))
+    assert '"quotes"' in first and '"speakers"' in first
+    assert "No character has a voice yet" in first
+    later = request_message(
+        TextRequest(
+            "a stall",
+            story=StoryContext(
+                2,
+                "",
+                "Noi's stall",
+                speakers=(Speaker("Noi", "male", "adult"), Speaker("Ploy", "female", "child")),
+            ),
+        )
+    )
+    assert "- Noi (male, adult)\n- Ploy (female, child)" in later
+    assert "No character has a voice yet" not in later
+    # Only a story episode is asked: the system prompt's cached text stays what it was.
+    assert '"speakers"' not in request_message(TextRequest("food"))
+
+
+def test_a_story_episode_keeps_who_says_each_quotation_and_the_speakers_it_adds() -> None:
+    result = run(ScriptedModel(_quoted_episode(["Noi"], [NOI], SAY)), _episode())
+    assert result.passed and result.gender_ok
+    assert [ln.quotes for ln in result.lines] == [("Noi",), ()]
+    assert [(s.name, s.gender, s.age) for s in result.speakers] == [("Noi", "male", "adult")]
+
+
+def test_a_quotation_with_no_one_named_is_sent_back() -> None:
+    model = ScriptedModel(_quoted_episode([], [NOI], SAY), _quoted_episode(["Noi"], [NOI], SAY))
+    result = run(model, _episode())
+    assert result.passed and result.attempts == 2
+    assert "Line 1 has 1 quotation but" in model.sent[1][-1]["content"]
+
+
+def test_a_speaker_nobody_listed_is_sent_back_and_a_known_one_needs_no_listing() -> None:
+    from franki_reader.cast import Speaker
+    from franki_reader.generator import StoryContext
+
+    model = ScriptedModel(_quoted_episode(["Noi"], [], SAY), _quoted_episode(["Noi"], [NOI], SAY))
+    assert run(model, _episode()).attempts == 2
+    assert '"Noi" says a quotation but isn\'t in "speakers"' in model.sent[1][-1]["content"]
+
+    knows = TextRequest(
+        "a stall",
+        story=StoryContext(2, "", "Noi's stall", speakers=(Speaker("Noi", "male", "adult"),)),
+    )
+    assert run(ScriptedModel(_quoted_episode(["Noi"], [], SAY)), knows).attempts == 1
+
+
+def test_a_thai_quotation_with_the_other_genders_word_is_never_kept() -> None:
+    woman = {"name": "Ploy", "gender": "female", "age": "adult"}
+    d = _quoted_episode(["Ploy"], [woman], SAY)  # ครับ in a woman's mouth
+    model = ScriptedModel(d, d, d)
+    result = run(model, _episode())
+    assert not result.passed and not result.gender_ok
+    assert "Ploy is a woman, but says ครับ" in model.sent[1][-1]["content"]
+
+
+def test_who_speaks_is_not_asked_of_a_dialogue_and_is_ignored_there() -> None:
+    d = _quoted_episode(["Noi"], [NOI], SAY)
+    result = run(ScriptedModel(d), TextRequest("food"))
+    assert result.speakers == () and [ln.quotes for ln in result.lines] == [(), ()]

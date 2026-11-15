@@ -300,17 +300,26 @@ export type VocabBank = {
   items: { word: string; rank: number; meaning: string; wrong: string[] }[];
 };
 
+// A kind of story character, and the voice and pitch (a percent change) a story gives the first
+// one of that kind (reader/storyCast.ts).
+export type CastKind = 'man' | 'woman' | 'boy' | 'girl' | 'elder_man' | 'elder_woman';
+export type CastVoice = { voice: string; pitch: number };
+
 export type Settings = {
   stretch_words: StretchWords; lines: Length; form: Form; language: Language;
   decks: Record<Language, string>; voices: Record<Language, Speakers>;
   common?: Partial<Record<Language, CommonCount>>;
+  /** Each language's story characters' voices (the defaults where none were chosen); missing from a server older than story voices. */
+  cast?: Partial<Record<Language, Record<CastKind, CastVoice>>>;
 };
 
-// A change to the settings. A deck or voice named '' goes back to the default.
-export type SettingsChange = Partial<Omit<Settings, 'decks' | 'voices' | 'common'>> & {
+// A change to the settings. A deck or voice named '' goes back to the default, and so does a
+// story character's voice set to null.
+export type SettingsChange = Partial<Omit<Settings, 'decks' | 'voices' | 'common' | 'cast'>> & {
   decks?: Partial<Record<Language, string>>;
   voices?: Partial<Record<Language, Partial<Speakers>>>;
   common?: Partial<Record<Language, CommonCount>>;
+  cast?: Partial<Record<Language, Partial<Record<CastKind, CastVoice | null>>>>;
 };
 
 // One of Azure's voices, as the server lists them.
@@ -536,6 +545,13 @@ export function createApi(
     // the text's (th-TH, or a code: th), which a Multilingual voice would otherwise guess from the text.
     speech: async (text: string, voice: string, rate = 1, language?: string) =>
       new Uint8Array(await (await send('POST', '/api/speech', { text, voice, rate, language })).arrayBuffer()),
+    // One line a story character might say, spoken in `voice` at `pitch` (a percent change), as MP3
+    // bytes: the Story characters screen's way to hear a choice. Thai's line has a man's ending or a woman's.
+    castSample: async (language: Language, voice: string, pitch: number, gender: 'male' | 'female') =>
+      new Uint8Array(await (await send('POST', '/api/cast/sample', { language, voice, pitch, gender })).arrayBuffer()),
+    // A short scene read by the narrator, a girl and a woman in the voices a story would give them now, as MP3 bytes.
+    castScene: async (language: Language) =>
+      new Uint8Array(await (await send('POST', '/api/cast/scene', { language })).arrayBuffer()),
     // Memory hints for a word (a leech), written by Claude on the server: asked only when the owner taps for them.
     mnemonics: async (question: { language: Language; entry: string; meaning: string; transliteration?: string; context?: string }) =>
       (await call<{ hints: string[] }>('POST', '/api/mnemonics', question)).hints,

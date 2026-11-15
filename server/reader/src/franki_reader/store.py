@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from franki_reader import grammar
+from franki_reader.cast import CastVoice, clean_presets
 from franki_reader.comprehension import Question, from_json
 from franki_reader.difficulty import EASIER_FLOOR, STANDARD_FLOOR, Difficulty, nearest_floor
 from franki_reader.gateway import AnkiUnavailable
@@ -389,6 +390,10 @@ class Settings:
     # The Azure voice for each voice slot (male, male2, female, female2: languages.VOICE_SLOTS) by
     # language, where one was chosen in the app.
     voices: dict[str, dict[str, str]] = field(default_factory=dict)
+    # The voice and pitch chosen for each kind of story character (cast.CAST_TYPES) by language:
+    # {"ru": {"girl": {"voice": "ru-RU-DariyaNeural", "pitch": 18}}}. A kind with none chosen is
+    # given what cast.assign would pick.
+    cast: dict[str, dict[str, dict[str, Any]]] = field(default_factory=dict)
     # How many of each language's most common words count as known, where it isn't the default
     # (languages.py). Thai has none: only its deck counts.
     common: dict[str, int] = field(default_factory=dict)
@@ -476,6 +481,10 @@ def connect(path: Path | str) -> sqlite3.Connection:
     if "plan" not in {r[1] for r in conn.execute("PRAGMA table_info(stories)")}:
         # Where a story's season is heading, in a few sentences; empty until an episode gives one.
         conn.execute("ALTER TABLE stories ADD COLUMN plan TEXT NOT NULL DEFAULT ''")
+    if "voices" not in {r[1] for r in conn.execute("PRAGMA table_info(stories)")}:
+        # The voice each of the story's speaking characters was given, by name (JSON, cast.py),
+        # kept for good so a character sounds the same in every episode.
+        conn.execute("ALTER TABLE stories ADD COLUMN voices TEXT NOT NULL DEFAULT '{}'")
     texts_columns = {r[1] for r in conn.execute("PRAGMA table_info(texts)")}
     for column, sql in (
         # Why a text is on the shelf (Reason); empty for texts written before it.
@@ -906,7 +915,9 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         id=text_id,
         topic_id=topic_id,
         title=title,
-        lines=tuple(Line(**ln) for ln in json.loads(lines)),
+        lines=tuple(
+            Line(**{**ln, "quotes": tuple(ln.get("quotes") or ())}) for ln in json.loads(lines)
+        ),
         glosses=json.loads(glosses),
         stretch=tuple(json.loads(stretch)),
         coverage=coverage,
@@ -1063,6 +1074,8 @@ class Story:
     title: str
     cast: str
     plan: str  # where the season is heading, from the latest episode
+    # The voice each speaking character was given, by name: fixed once given, for every episode.
+    voices: dict[str, CastVoice] = field(default_factory=dict)
 
 
 def start_story(conn: sqlite3.Connection, language: Code, about: str, now: datetime) -> Story:
@@ -1090,10 +1103,30 @@ def start_story(conn: sqlite3.Connection, language: Code, about: str, now: datet
 
 def get_story(conn: sqlite3.Connection, story_id: int) -> Story | None:
     row = conn.execute(
-        "SELECT id, language, topic_id, about, title, cast_, plan FROM stories WHERE id = ?",
+        "SELECT id, language, topic_id, about, title, cast_, plan, voices FROM stories"
+        " WHERE id = ?",
         (story_id,),
     ).fetchone()
-    return Story(*row) if row else None
+    if not row:
+        return None
+    voices = {name: CastVoice(**v) for name, v in json.loads(row[7]).items()}
+    story_id, language, topic_id, about, title, cast_, plan, _ = row
+    return Story(story_id, language, topic_id, about, title, cast_, plan, voices)
+
+
+def add_story_voices(conn: sqlite3.Connection, story_id: int, new: dict[str, CastVoice]) -> None:
+    """Gives a story's new characters their voices. A character who has one keeps it."""
+    if not new:
+        return
+    with conn:
+        (voices,) = conn.execute("SELECT voices FROM stories WHERE id = ?", (story_id,)).fetchone()
+        kept = json.loads(voices)
+        for name, voice in new.items():
+            kept.setdefault(name, voice.__dict__)
+        conn.execute(
+            "UPDATE stories SET voices = ? WHERE id = ?",
+            (json.dumps(kept, ensure_ascii=False), story_id),
+        )
 
 
 def active_story(conn: sqlite3.Connection, language: Code) -> Story | None:
@@ -1826,7 +1859,8 @@ def load_settings(conn: sqlite3.Connection) -> Settings:
             voices[code] = kept
     # A hidden language chosen before it was hidden is read as Thai, so the app never gets it.
     language = "th" if settings.language in HIDDEN_LANGUAGES else settings.language
-    return replace(settings, voices=voices, language=language)
+    presets = {c: f for c, raw in settings.cast.items() if (f := clean_presets(raw))}
+    return replace(settings, voices=voices, cast=presets, language=language)
 
 
 def save_settings(conn: sqlite3.Connection, settings: Settings) -> None:

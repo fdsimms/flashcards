@@ -71,7 +71,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
     if (!settings) return;
     const before = settings;
     const mine = ++settingSeq.current;
-    setSettings({ ...settings, ...update, decks: { ...settings.decks, ...update.decks }, voices: settings.voices, common: { ...settings.common, ...update.common } });
+    setSettings({ ...settings, ...update, decks: { ...settings.decks, ...update.decks }, voices: settings.voices, cast: settings.cast, common: { ...settings.common, ...update.common } });
     setFailed(null);
     try {
       const saved = await api.updateSettings(update);

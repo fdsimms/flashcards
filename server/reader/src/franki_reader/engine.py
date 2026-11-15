@@ -26,8 +26,11 @@ from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Literal
 
+from franki_speech import Part
+
 from franki_reader import (
     ai_ipa,
+    cast,
     comprehension,
     exposure,
     form_primers,
@@ -63,6 +66,7 @@ from franki_reader.tts import (
     SLOW_RATE,
     AudioCache,
     Synthesize,
+    SynthesizeParts,
     TtsFailed,
     billed_chars,
 )
@@ -165,6 +169,7 @@ class Engine:
         write_questions: comprehension.WriteQuestions | None = None,
         write_forms: forms.WriteForms | None = None,
         write_ipa: ai_ipa.WriteIpa | None = None,
+        synthesize_parts: SynthesizeParts | None = None,
     ) -> None:
         self.conn = conn
         self.ask_for = ask_for
@@ -174,6 +179,7 @@ class Engine:
         self.rng = rng or random.Random()
         self.grammar_cache: exposure.Cache = {}
         self.synthesize = synthesize
+        self.synthesize_parts = synthesize_parts
         self.audio = audio
         self.voices = voices or DEFAULT_VOICES
         # Which study day it is (study_day.py): the collection's "Next day starts at" as last read,
@@ -488,6 +494,18 @@ class Engine:
                 store.name_story(self.conn, story.id, result.series, result.cast)
             if story:
                 store.set_story_plan(self.conn, story.id, result.plan)
+                # Before the audio, which reads the voices: a new character is given one now and
+                # keeps it in every later episode.
+                store.add_story_voices(
+                    self.conn,
+                    story.id,
+                    cast.assign(
+                        result.speakers,
+                        story.voices,
+                        self.voices_for(language),
+                        self.cast_presets(language),
+                    ),
+                )
             text = store.get_text(self.conn, text_id)
             assert text is not None
             await self.fill_meanings([text], language)
@@ -783,6 +801,12 @@ class Engine:
         base = {**LANGUAGES[language].voices, **(self.voices if language == "th" else {})}
         return full_voices({**base, **store.load_settings(self.conn).voices.get(language, {})})
 
+    def cast_presets(self, language: Code) -> dict[str, cast.Preset]:
+        """The voice and pitch the first character of each kind gets in the language: the ones
+        chosen in the app, else what `cast.assign` picks from the language's voices."""
+        chosen = store.load_settings(self.conn).cast.get(language, {})
+        return cast.presets(self.voices_for(language), chosen)
+
     async def rerecord(self, language: Code) -> None:
         """Speaks the texts waiting to be read again, after their language's voices changed. A text
         already read keeps its audio until it's opened again with none (`line_audio`)."""
@@ -831,14 +855,35 @@ class Engine:
             return None
         spoken, _ = parse_line(text.lines[line].text, LANGUAGES[text.language].spaced)
         voice = voice_for(text.lines[line].speaker, text.genders, self.voices_for(text.language))
+        parts = self._line_parts(text, line, spoken, voice)
         try:
             # The text's language goes too, for a Multilingual voice, which would otherwise guess it.
             locale = LANGUAGES[text.language].locale
-            recorded = await (
-                self.synthesize(spoken, voice, locale, rate=SLOW_RATE)
-                if slow
-                else self.synthesize(spoken, voice, locale)
-            )
+            recorded = None
+            if self.synthesize_parts is not None and any(
+                p.voice != voice or p.pitch for p in parts
+            ):
+                try:
+                    recorded = await (
+                        self.synthesize_parts(parts, locale, rate=SLOW_RATE)
+                        if slow
+                        else self.synthesize_parts(parts, locale)
+                    )
+                except TtsFailed as e:
+                    # Several voices in one request is unchecked against a live key: a line is
+                    # read whole by the narrator rather than left silent if Azure refuses it.
+                    log.warning(
+                        "Text %d line %d: not recorded in several voices (%s); the narrator reads it",
+                        text.id,
+                        line,
+                        e,
+                    )
+            if recorded is None:
+                recorded = await (
+                    self.synthesize(spoken, voice, locale, rate=SLOW_RATE)
+                    if slow
+                    else self.synthesize(spoken, voice, locale)
+                )
         except TtsFailed as e:
             log.warning(
                 "No %saudio for text %d line %d: %s", "slow " if slow else "", text.id, line, e
@@ -849,6 +894,15 @@ class Engine:
         store.add_audio_chars(self.conn, text.id, billed_chars(spoken))
         self.audio.write(text.id, line, recorded, slow)
         return self.audio.path(text.id, line, slow)
+
+    def _line_parts(self, text: StoredText, line: int, spoken: str, narrator: str) -> list[Part]:
+        """A story episode's line as the voices that speak it (cast.py): the narrator's and each
+        character's, from the voices the story gave them. A line with no quotation by a character
+        the story has a voice for is one part, in the narrator's voice."""
+        story = store.get_story(self.conn, text.story_id) if text.story_id else None
+        if story is None or not story.voices:
+            return [Part(spoken, narrator)]
+        return cast.line_parts(spoken, text.lines[line].quotes, story.voices, narrator)
 
     def count_existing_audio(self) -> None:
         """Once: estimates what the audio recorded before characters were counted cost, as the
@@ -950,6 +1004,7 @@ class Engine:
             about=story.about,
             title=story.title,
             cast=story.cast,
+            speakers=tuple(cast.Speaker(name, v.gender, v.age) for name, v in story.voices.items()),
             recaps=tuple(t.recap for t in told if t.recap),
             chosen=chosen,
             plan=story.plan,

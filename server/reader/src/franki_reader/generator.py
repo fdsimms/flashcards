@@ -32,11 +32,19 @@ from anthropic.types.beta import (
 )
 
 from franki_reader import grammar
+from franki_reader.cast import (
+    AGES,
+    Speaker,
+    find,
+    parse_speakers,
+    quotation_texts,
+    quote_problems,
+)
 from franki_reader.characters import CHARACTERS
 from franki_reader.coverage import MINIMUM, Checker, Coverage, check
 from franki_reader.crowding import crowding
 from franki_reader.difficulty import DEFAULT_FLOOR
-from franki_reader.gender import GENDERS, gender_problems
+from franki_reader.gender import GENDERS, gender_problems, quote_gender_problems
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry
 
@@ -136,6 +144,9 @@ class StoryContext:
     chosen: str = ""
     # Where the model last said the season was heading, replaced by every episode's own.
     plan: str = ""
+    # The characters who already have a voice in the story (cast.py): they're kept for good, so
+    # an episode lists only the speakers it adds.
+    speakers: tuple[Speaker, ...] = ()
 
     @property
     def season(self) -> int:
@@ -205,6 +216,9 @@ class Line:
     # How a native speaker would say it in that situation, one of REGISTERS. Empty for a text
     # written before the model was asked, and for an answer outside the list.
     register: str = ""
+    # A story episode's line: who says each quotation in it, in order, by the name of a character
+    # (cast.py). Empty for a line with none, for a dialogue and for an older text.
+    quotes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -251,6 +265,9 @@ class Generated:
     recap_english: str = ""
     # What the reader may pick to happen next, for a story episode that ends on a choice.
     choices: tuple[Choice, ...] = ()
+    # The characters this story episode adds to the story's cast: those who speak in it and had no
+    # voice yet (StoryContext.speakers).
+    speakers: tuple[Speaker, ...] = ()
 
 
 DRAFT_SCHEMA: dict[str, Any] = {
@@ -291,6 +308,8 @@ DRAFT_SCHEMA: dict[str, Any] = {
                     "english": {"type": "string"},
                     "paragraph": {"type": "boolean"},
                     "register": {"type": "string", "enum": list(REGISTERS)},
+                    # Optional, and only asked for in a story episode's request.
+                    "quotes": {"type": "array", "items": {"type": "string"}},
                 },
                 "required": ["speaker", "text", "english", "paragraph", "register"],
                 "additionalProperties": False,
@@ -315,6 +334,19 @@ DRAFT_SCHEMA: dict[str, Any] = {
         "series": {"type": "string"},
         "cast": {"type": "string"},
         "plan": {"type": "string"},
+        "speakers": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "gender": {"type": "string", "enum": list(GENDERS)},
+                    "age": {"type": "string", "enum": list(AGES)},
+                },
+                "required": ["name", "gender", "age"],
+                "additionalProperties": False,
+            },
+        },
         "recap_line": {
             "type": "object",
             "properties": {"text": {"type": "string"}, "english": {"type": "string"}},
@@ -612,8 +644,40 @@ _RECAP_ASK = (
 )
 
 
+def _speakers_ask(story: StoryContext) -> str:
+    """How a story episode says who speaks each quotation, so each character is read in a voice of
+    their own (cast.py). The characters who already have a voice are listed, and the model adds
+    only the new ones: a character's voice is fixed once it's given."""
+    known = (
+        "These characters already have a voice, so don't list them again, and use their names "
+        "exactly:\n" + "\n".join(f"- {s.name} ({s.gender}, {s.age})" for s in story.speakers)
+        if story.speakers
+        else "No character has a voice yet, so list every one who speaks, those in the cast above "
+        "included."
+    )
+    return (
+        "Voices: the learner hears each character in a voice of their own, and the narrator in "
+        "another. Put what a character says aloud in quotation marks inside the narrator's line, "
+        "the language's usual pair of these: « » or “ ” or „ “ or 「 」. Use quotation marks for "
+        'nothing else, and none for thoughts. Then in the line\'s "quotes" list who says each '
+        "quotation, in the order they appear, by name; a line with none has an empty list. In "
+        '"speakers" list each character who speaks in this episode and has no voice yet: "name" '
+        '(a short name or label, the same every time, like Аня or Hoarse voice), "gender" '
+        '("male" or "female") and "age" ("child", "adult" or "elder"). Every quotation has to fit '
+        f"its speaker's gender and age. {known}"
+    )
+
+
 def _story_part(story: StoryContext) -> str:
-    return _story_intro(story) + " " + _RECAP_LINE_ASK + " " + _CHOICES_ASK
+    return (
+        _story_intro(story)
+        + " "
+        + _RECAP_LINE_ASK
+        + " "
+        + _CHOICES_ASK
+        + "\n"
+        + _speakers_ask(story)
+    )
 
 
 # Said of every episode: the reader has the last recap on screen, so an episode that opens by
@@ -846,6 +910,13 @@ def _paragraphs(lines: tuple[Line, ...], form: Form) -> tuple[Line, ...]:
     return (replace(lines[0], paragraph=True), *lines[1:])
 
 
+def _quotes(line: dict[str, Any], request: TextRequest) -> tuple[str, ...]:
+    """Who says each quotation in a line, in order. Only a story episode is asked for it."""
+    if request.story is None or not isinstance(line.get("quotes"), list):
+        return ()
+    return tuple(str(q).strip() for q in line["quotes"])
+
+
 def _closeness(ratio: float, request: TextRequest) -> float:
     """How good a draft's coverage is for choosing the closest attempt: the ratio itself with no
     ceiling, else minus how far it is outside the target range (0 inside it)."""
@@ -866,6 +937,7 @@ def _assess(
                     ln["english"],
                     bool(ln.get("paragraph")),
                     ln["register"] if ln.get("register") in REGISTERS else "",
+                    _quotes(ln, request),
                 )
                 for ln in draft["lines"]
             ),
@@ -894,6 +966,7 @@ def _assess(
         )
         choices = _choices(draft, request)
         recap_line, recap_english = _recap_line(draft, request)
+        speakers = parse_speakers(draft.get("speakers")) if request.story is not None else ()
     except (KeyError, TypeError) as e:
         raise GenerationFailed(f"The draft is missing a field: {e}") from e
     if not lines:
@@ -914,6 +987,10 @@ def _assess(
         gender_issues = gender_problems(
             request.language, [(ln.speaker, ln.text) for ln in lines], genders
         )
+    if request.story is not None:
+        quote_issues, quote_gender_issues = _quote_issues(lines, request, speakers)
+        problems += quote_issues
+        gender_issues += quote_gender_issues
     problems += gender_issues
     name_issues = name_problems(coverage, lexicon.spaced)
     problems += name_issues
@@ -956,8 +1033,26 @@ def _assess(
         recap_line=recap_line,
         recap_english=recap_english,
         choices=choices,
+        speakers=speakers,
     )
     return generated, problems
+
+
+def _quote_issues(
+    lines: tuple[Line, ...], request: TextRequest, speakers: tuple[Speaker, ...]
+) -> tuple[list[str], list[str]]:
+    """What's wrong with who speaks the quotations in a story episode (cast.py): the attributions
+    that don't match the quotations, and, in Thai, a quotation with a word of the other gender than
+    its speaker's, which like a dialogue's is never kept."""
+    assert request.story is not None
+    cast = {s.name: s for s in (*request.story.speakers, *speakers)}
+    problems = quote_problems([(ln.text, ln.quotes) for ln in lines], cast)
+    quotations = []
+    for ln in lines:
+        for name, text in quotation_texts(ln.text, ln.quotes):
+            if (key := find(cast, name)) is not None:
+                quotations.append((name, cast[key].gender, text))
+    return problems, quote_gender_problems(request.language, quotations)
 
 
 def _choices(draft: dict[str, Any], request: TextRequest) -> tuple[Choice, ...]:

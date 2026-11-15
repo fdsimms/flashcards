@@ -14,7 +14,7 @@ import { space, useTheme, readable } from './theme';
  * The server keeps the choice; the texts waiting to be read are recorded again in it, and a text
  * already read keeps its audio.
  */
-export function ReadVoices({ api, language, voices, onSettings, onPick }: {
+export function ReadVoices({ api, language, voices, onSettings, onPick, onCast }: {
   api: Api;
   language: Language;
   /** The language's voices as the app last had them from the server, if it has them yet. */
@@ -22,6 +22,8 @@ export function ReadVoices({ api, language, voices, onSettings, onPick }: {
   /** The settings as the server has them after a load, for the rest of the app. */
   onSettings: (settings: Settings) => void;
   onPick: (slot: keyof Speakers) => void;
+  /** Opens the voices of a story's characters; none from a server that doesn't have them yet. */
+  onCast?: () => void;
 }) {
   const c = useTheme();
   const name = LANGUAGES[language].name;
@@ -57,8 +59,13 @@ export function ReadVoices({ api, language, voices, onSettings, onPick }: {
                 <NavRow key={s.slot} first={i === 0} label={s.label} detail={azureVoiceName(voices[s.slot])} onPress={() => onPick(s.slot)} />
               ))}
             </Group>
+            {onCast ? (
+              <Group>
+                <NavRow first label="Story characters" detail="Voices for the people in a story" onPress={onCast} />
+              </Group>
+            ) : null}
             <Help>
-              {`Each text says whether its speakers are men or women, and reads them in these voices. When both speakers are the same gender, the second one is read in the second voice. A story's narrator uses the man's voice.`}
+              {`Each text says whether its speakers are men or women, and reads them in these voices. When both speakers are the same gender, the second one is read in the second voice. A story's narrator uses the man's voice, and its characters have voices of their own.`}
             </Help>
             {sharesVoice(voices) ? (
               <Help>{`A second voice that's the same as the first reads two men, or two women, in the same voice. Choose a different one to tell them apart.`}</Help>
