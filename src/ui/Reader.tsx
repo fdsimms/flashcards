@@ -9,6 +9,7 @@ import { ApiError, type Api, type GrammarChoice, type Language, type Length, typ
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../reader/deckWords';
 import { marksIn, withMark, type HideableMark, type Mark } from '../reader/marks';
 import { scrollTarget, type Box } from '../reader/follow';
+import { helperNote } from '../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../reader/fonts';
 import { LANGUAGES, meaningOf, wordStatus } from '../reader/languages';
 import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf, repeatChipLabel } from '../reader/playback';
@@ -1386,6 +1387,9 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
                 ) : (
                   <Text style={{ ...type.body, color: c.text }}>{meaningOf(tapped.word)}</Text>
                 )}
+                {(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction ? (
+                  <Text style={{ ...type.subhead, color: c.textSecondary }}>{(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction}</Text>
+                ) : null}
                 <GuessLine guess={guess} />
                 {tapped.word.form && language ? <ReadFormChip name={tapped.word.form.name} onPress={() => setShowForm(true)} /> : null}
                 {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}

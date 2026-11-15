@@ -454,7 +454,9 @@ or "slang". Write each line in its register, so a chat between friends is casual
 narrator is usually neutral.
 - In "glosses", give a short English gloss for each stretch word and for every word you used that \
 is neither an allowed common word nor on the list. Also gloss any word whose form matches a listed \
-word but is used here as a different word, such as a verb form that two verbs share.
+word but is used here as a different word, such as a verb form that two verbs share. A gloss is \
+the word's own meaning: leave out a preposition or auxiliary that goes with it in the line ("hoods", \
+not "in hoods"; "eaten", not "has eaten"), since that is a word of its own.
 
 The learner's flashcard words, one per line as: word | meaning | M (well known) or Y (still being \
 learned)
