@@ -98,7 +98,12 @@ marked words, ideas) is in the current language, the `language` setting.
                                       {kind: "which", point, line, words, english, title, choices}
                                       or {kind: "gap", id, point, before, answer, after, english,
                                       wrong, hint}; `missing` names points that got none. Writes
-                                      more gap questions in the background when Claude is set up
+                                      more gap questions in the background when Claude is set up.
+                                      A word_named point (its name is the word itself: Thai's, Greek
+                                      θα) gets gap questions only, half from its own stock and the
+                                      rest from its related word_named points', each carrying
+                                      "for": the drilled point's id (a rival's question has another
+                                      "point"); the rivals' stock is written too
     GET   /api/vocab-check?language=pl   the vocabulary check's questions (vocab_check.py): {state:
                                       "ready", items: [{word, rank, meaning, wrong}]} without the
                                       deck's words, or "preparing" (Claude is writing them, ask
@@ -115,7 +120,9 @@ marked words, ideas) is in the current language, the `language` setting.
     DELETE /api/note-queue/{id}       takes a word off the queue (after the app saves it, or on remove)
     GET   /api/grammar/{id}           one point's page: {id, state, seen, choices (its language's,
                                       for the related points), examples: [{text_id, title, line,
-                                      english, words}]}, lines from texts read, the latest first
+                                      english, words}]}, lines from texts read, the latest first;
+                                      `?examples=1..6` (default 3) sets how many, and `?shuffle=<int>`
+                                      a random sample of that many instead, from that seed
     PUT   /api/difficulty             {level: harder | standard | easier}: the text difficulty (93%, 95%
                                       or 97% known words) for the language, from the next text written
     PUT   /api/grammar/stretch        {uses: 1 to 4}: how many times the next texts may use grammar
@@ -220,6 +227,7 @@ marked words, ideas) is in the current language, the `language` setting.
 """
 
 import hmac
+import random
 from collections.abc import Callable
 from dataclasses import asdict, replace
 from datetime import UTC, datetime, timedelta
@@ -2016,8 +2024,9 @@ def create_app(
         questions = drills.serve(
             engine.conn, engine.snapshot, points, body.count, engine.clock(), engine.rng
         )
-        background.add_task(top_up_drills, points)
-        asked = {q["point"] for q in questions}
+        # A word_named point's rivals supply some of its questions, so their stock is written too.
+        background.add_task(top_up_drills, drills.with_rivals(points))
+        asked = {q.get("for", q["point"]) for q in questions}
         return {
             "questions": questions,
             # Points that got no question: not in this server's catalog, or nothing read and no
@@ -2154,7 +2163,11 @@ def create_app(
         return Response(status_code=204)
 
     @app.get("/api/grammar/{point_id}", dependencies=authed)
-    async def get_grammar_point(point_id: str) -> dict[str, Any]:
+    async def get_grammar_point(
+        point_id: str,
+        examples: Annotated[int, Query(ge=1, le=6)] = exposure.EXAMPLES,
+        shuffle: int | None = None,
+    ) -> dict[str, Any]:
         # After /api/grammar/choices, so "choices" isn't taken for a point's id.
         point = grammar.POINTS.get(point_id)
         if point is None:
@@ -2177,7 +2190,13 @@ def create_app(
                     "english": e.english,
                     "words": list(e.words),
                 }
-                for e in exposure.examples(engine.conn, lexicon, point.id)
+                for e in exposure.examples(
+                    engine.conn,
+                    lexicon,
+                    point.id,
+                    examples,
+                    None if shuffle is None else random.Random(shuffle),
+                )
             ],
         }
 

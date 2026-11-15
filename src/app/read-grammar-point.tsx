@@ -1,6 +1,7 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import { grammarPoint } from '../core/grammar';
+import { exampleSource } from '../reader/grammar';
 import { useApp } from '../ui/AppContext';
 import { ReadGrammarPoint } from '../ui/ReadGrammarPoint';
 
@@ -33,6 +34,7 @@ export default function ReadGrammarPointRoute() {
       onOpenPoint={(next) => router.push({ pathname: '/read-grammar-point', params: { id: next } })}
       onPracticeForms={(practiceDeck, groups) => router.push({ pathname: '/forms-practice', params: { deck: practiceDeck, groups: JSON.stringify(groups) } })}
       onDrill={(point) => router.push({ pathname: '/tool', params: { id: 'grammar', points: JSON.stringify([point]) } })}
+      onOpenText={(example) => router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'past', text: exampleSource(example) }) } })}
     />
   );
 }

@@ -1,9 +1,9 @@
-import { Stack } from 'expo-router';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
 import { grammarPoint } from '../../core/grammar';
-import { DRILL_POINTS, DRILL_QUESTIONS, duePoints, dueWhen, scheduledPoints, type DrillState, type GrammarAnswer } from '../../core/grammarDrills';
+import { DRILL_POINTS, dueWhen, grammarListGroups, type DrillState, type GrammarAnswer, type GrammarListRow } from '../../core/grammarDrills';
 import { ApiError, type Language } from '../../reader/api';
 import { grammarStateWord } from '../../reader/grammar';
 import { LANGUAGES, flaggedName } from '../../reader/languages';
@@ -16,13 +16,15 @@ import type { ToolScreenProps } from './index';
 import { ControlLabel } from './ToolScreen';
 
 /**
- * Grammar drills (docs/grammar.md, step 5): the points set to Practice or Know it in Read & Listen,
- * in the language chosen in the header's menu, with when each is next due (worked out from the
- * phone's answers, src/core/grammarDrills.ts), and Start for those due today. Opened with `points`
- * (from a point's page), it goes straight to a drill on them and closes after.
+ * The Grammar screen (docs/grammar.md, steps 4 and 5): a language's points, in the language chosen in
+ * the header's menu, grouped as due today, coming up and not practiced (src/core/grammarDrills.ts, worked
+ * out from the phone's answers). A point opens its page, where it's read about and practiced; Practice now
+ * starts a drill on those due today. Opened with `points` (from a point's page), it goes straight to a
+ * drill on them and closes after.
  */
 export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScreenProps) {
   const c = useTheme();
+  const router = useRouter();
   const [language, setLanguage] = useState<Language>(() => toolLanguage(tool, toolPrefs().language));
   const [choices, setChoices] = useState<Record<string, DrillState> | null>(null);
   const [answers, setAnswers] = useState<GrammarAnswer[]>([]);
@@ -51,7 +53,8 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
       setError(e instanceof ApiError ? e.message : failureText(e, { what: "Couldn't load your grammar choices.", next: 'Try again.' }));
     }
   }, [repo, readerApi]);
-  useEffect(() => { if (!drilling) load(); }, [load, drilling]);
+  // Again each time the screen comes back into view: a drill or a choice made on a point's page changes what's due.
+  useFocusEffect(useCallback(() => { if (!drilling) load(); }, [load, drilling]));
 
   if (drilling && readerApi) {
     return (
@@ -66,9 +69,16 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
 
   const chooseLanguage = (l: Language) => { setLanguage(l); saveToolPrefs({ language: l }); };
   const now = new Date();
-  const due = choices ? duePoints(language, choices, answers, now, hour) : [];
-  const scheduled = choices ? scheduledPoints(language, choices, answers, now, hour) : [];
+  const groups = choices ? grammarListGroups(language, choices, answers, now, hour) : null;
   const name = LANGUAGES[language].name;
+  const open = (pointId: string) => router.push({ pathname: '/read-grammar-point', params: { id: pointId } });
+  const rows = (list: GrammarListRow[], detail: (r: GrammarListRow) => string) => (
+    <Group>
+      {list.map((r, i) => (
+        <NavRow key={r.pointId} first={i === 0} label={grammarPoint(r.pointId)?.name ?? r.pointId} detail={detail(r)} onPress={() => open(r.pointId)} />
+      ))}
+    </Group>
+  );
 
   return (
     <Screen
@@ -84,52 +94,46 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
           </Stack.Toolbar.Menu>
         </Stack.Toolbar>
       ) : undefined}
-      footer={due.length ? (
-        <Button label={`Start: ${DRILL_QUESTIONS} questions`} onPress={() => setDrilling(due.slice(0, DRILL_POINTS).map((s) => s.pointId))} />
+      footer={groups?.due.length ? (
+        <Button label="Practice now" onPress={() => setDrilling(groups.due.slice(0, DRILL_POINTS).map((r) => r.pointId))} />
       ) : undefined}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.l }}>
         {!readerApi ? (
           <Card>
-            <Text style={{ ...type.headline, color: c.text }}>Grammar drills need Read & Listen</Text>
+            <Text style={{ ...type.headline, color: c.text }}>Grammar needs Read & Listen</Text>
             <Help>Which grammar you're practicing, and the questions, come from Read & Listen's server. Turn it on in Settings, Read & Listen.</Help>
           </Card>
         ) : error ? (
           <ErrorNote message={error} onRetry={load} />
-        ) : !choices ? (
+        ) : !groups ? (
           <ActivityIndicator color={c.accent} />
-        ) : !scheduled.length ? (
-          <Card>
-            <Text style={{ ...type.headline, color: c.text }}>{`No ${name} grammar to drill yet`}</Text>
-            <Help>{`Set a ${name} grammar point to Practice or Know it on Read & Listen's Grammar screen, and it's drilled here: Practice ones after 1, 3, 7, 14 and 30 days, Know it ones less often.`}</Help>
-          </Card>
         ) : (
           <>
-            <Card style={{ gap: space.xs }}>
-              <Text style={{ ...type.headline, color: c.text }}>
-                {due.length ? `${due.length} due today` : `Nothing due today. Next: ${dueWhen(scheduled[0].due, now, hour).toLocaleLowerCase()}`}
-              </Text>
-              <Help>
-                {due.length > DRILL_POINTS
-                  ? `A drill mixes ${DRILL_POINTS} points, Practice ones first; start another for the rest.`
-                  : "A point that goes well (8 in 10 right, or all but one of 3 or 4 questions) comes back later each time; one that doesn't comes back tomorrow."}
-              </Help>
-            </Card>
-            <View style={{ gap: space.s }}>
-              <ControlLabel>Drilled</ControlLabel>
-              <Group>
-                {scheduled.map((s, i) => (
-                  <NavRow
-                    key={s.pointId}
-                    first={i === 0}
-                    label={grammarPoint(s.pointId)?.name ?? s.pointId}
-                    detail={`${grammarStateWord(s.state)} · ${dueWhen(s.due, now, hour)}`}
-                    onPress={() => setDrilling([s.pointId])}
-                  />
-                ))}
-              </Group>
-              <Help>Tap a point to drill it now. Answers stay on this phone and never change a card.</Help>
-            </View>
+            {groups.due.length ? (
+              <View style={{ gap: space.s }}>
+                <ControlLabel>Due today</ControlLabel>
+                {rows(groups.due, (r) => grammarStateWord(r.state))}
+                {groups.due.length > DRILL_POINTS ? <Help>{`Practice now mixes ${DRILL_POINTS} points, Practice ones first. Start again for the rest.`}</Help> : null}
+              </View>
+            ) : (
+              <Help>{groups.later.length
+                ? `Nothing due today. Next: ${dueWhen(groups.later[0].schedule!.due, now, hour).toLocaleLowerCase()}.`
+                : `Nothing to practice yet. Set a ${name} point to Practice or Know it, and it comes back here.`}</Help>
+            )}
+            {groups.later.length ? (
+              <View style={{ gap: space.s }}>
+                <ControlLabel>Coming up</ControlLabel>
+                {rows(groups.later, (r) => `${grammarStateWord(r.state)} · ${dueWhen(r.schedule!.due, now, hour)}`)}
+              </View>
+            ) : null}
+            {groups.other.length ? (
+              <View style={{ gap: space.s }}>
+                <ControlLabel>Not practicing</ControlLabel>
+                {rows(groups.other, (r) => grammarStateWord(r.state))}
+              </View>
+            ) : null}
+            <Help>Tap a point to read about it and practice it. Practice here never changes your flashcards.</Help>
           </>
         )}
       </ScrollView>

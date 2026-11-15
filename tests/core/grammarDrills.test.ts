@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { anyDrilled, drillPrompts, drillWentWell, dueWhen, duePoints, drillResults, isDrilled, missingNote, namesAnswer, pointSchedule, scheduledPoints, type GrammarAnswer } from '../../src/core/grammarDrills';
+import { grammarPoint } from '../../src/core/grammar';
+import { drillPrompts, drillWentWell, dueByLanguage, dueWhen, duePoints, drillResults, grammarListGroups, hasDrill, isDrilled, missingNote, namesAnswer, pointSchedule, practiceKinds, scheduledPoints, type GrammarAnswer } from '../../src/core/grammarDrills';
 
 const H = 4;
 const NOW = new Date(2026, 10, 12, 12);
@@ -68,14 +69,6 @@ describe('which points are drilled', () => {
     expect(duePoints('es', { 'es.gone': 'practice' }, [], NOW, H)).toEqual([]);
   });
 
-  it('knows whether any language has a drilled point', () => {
-    expect(anyDrilled(['es', 'th'], choices)).toBe(true);
-    expect(anyDrilled(['de'], choices)).toBe(false);
-    expect(anyDrilled(['es'], { 'es.future': 'avoid', 'es.conditional': 'unset' })).toBe(false);
-    expect(anyDrilled(['es'], { 'es.gone': 'practice' })).toBe(false);
-    expect(anyDrilled(['es'], {})).toBe(false);
-  });
-
   it('says when, in study days', () => {
     expect(dueWhen(day(12), NOW, H)).toBe('Due today');
     expect(dueWhen(day(10), NOW, H)).toBe('Due today');
@@ -142,5 +135,80 @@ describe("a drill's questions as the screen asks them", () => {
     expect(missingNote([], true)).toBeUndefined();
     expect(missingNote(['es.preterite', 'es.imperfect'], true)).toBe("No questions for Preterite and Imperfect yet. They're being written now, so try again in a minute.");
     expect(missingNote(['es.preterite'], false)).toContain('add a Claude key');
+  });
+});
+
+describe('what a point can be practiced with', () => {
+  const kinds = (id: string) => practiceKinds(grammarPoint(id)!);
+
+  it('gives a point named after its word practice against its rivals, not a question naming it', () => {
+    expect(kinds('th.already')).toEqual(['contrast']);
+    expect(kinds('el.na')).toEqual(['contrast']);
+  });
+
+  it('gives a word-named point with no word beside it nothing to practice', () => {
+    expect(kinds('th.must')).toEqual([]);
+    expect(hasDrill('th.must')).toBe(false);
+    expect(hasDrill('th.already')).toBe(true);
+  });
+
+  it('gives the others questions, and Forms practice when they have forms', () => {
+    expect(kinds('es.preterite')).toEqual(['questions', 'forms']);
+    expect(kinds('de.perfect')).toEqual(['questions']);
+  });
+
+  it("doesn't schedule a point with nothing to practice", () => {
+    const choices = { 'th.must': 'practice', 'th.already': 'practice' } as const;
+    expect(duePoints('th', choices, [], NOW, H).map((s) => s.pointId)).toEqual(['th.already']);
+    expect(scheduledPoints('th', choices, [], NOW, H).map((s) => s.pointId)).toEqual(['th.already']);
+  });
+});
+
+describe("a drill on a point named after its word", () => {
+  it('never asks which point a line uses, even from a server that sends one', () => {
+    expect(drillPrompts([
+      { kind: 'which', point: 'th.already', line: 'วันนี้ดึกแล้ว', words: ['แล้ว'], english: '', title: 'x', choices: ['th.already', 'th.ever'] },
+    ])).toEqual([]);
+  });
+
+  it("counts a rival word's question for the point whose drill it is", () => {
+    const [own, rival] = drillPrompts([
+      { kind: 'gap', id: 1, point: 'th.already', for: 'th.already', before: 'กินข้าว', answer: 'แล้ว', after: '', english: 'Ate already.', wrong: ['เคย', 'จะ', 'กำลัง'], hint: '' },
+      { kind: 'gap', id: 2, point: 'th.ever', for: 'th.already', before: 'ฉัน', answer: 'เคย', after: 'ไปภูเก็ต', english: 'I have been to Phuket.', wrong: ['แล้ว', 'จะ', 'กำลัง'], hint: '' },
+    ]);
+    expect(own.pointId).toBe('th.already');
+    expect(rival).toMatchObject({ pointId: 'th.already', answer: 'เคย', label: '' });
+  });
+
+  it('leaves a gap on its own point when no point is named', () => {
+    const [q] = drillPrompts([{ kind: 'gap', id: 3, point: 'es.preterite', before: 'Ayer ', answer: 'fui', after: '.', english: '', wrong: ['iba', 'voy', 'iré'], hint: '' }]);
+    expect(q.pointId).toBe('es.preterite');
+  });
+});
+
+describe("the Grammar screen's groups", () => {
+  const choices = { 'th.already': 'normal', 'th.yes_no': 'practice', 'th.ever': 'unset' } as const;
+
+  it('puts what is due first, then what is coming up, then the points not practiced', () => {
+    const answers = drill('th.already', 'a', 12, 5);
+    const groups = grammarListGroups('th', choices, answers, NOW, H);
+    expect(groups.due.map((r) => r.pointId)).toEqual(['th.yes_no']);
+    expect(groups.later.map((r) => r.pointId)).toEqual(['th.already']);
+    expect(groups.other.map((r) => r.pointId)).toContain('th.ever');
+    expect(groups.other.map((r) => r.pointId)).not.toContain('th.already');
+    expect(groups.other.find((r) => r.pointId === 'th.ever')).toMatchObject({ state: 'unset' });
+  });
+
+  it('lists every point once', () => {
+    const { due, later, other } = grammarListGroups('th', choices, [], NOW, H);
+    const ids = [...due, ...later, ...other].map((r) => r.pointId);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.length).toBe(10);
+  });
+
+  it('counts the points due in each language, most first', () => {
+    const many = { 'th.already': 'practice', 'th.yes_no': 'practice', 'es.preterite': 'practice' } as const;
+    expect(dueByLanguage(['es', 'th', 'de'], many, [], NOW, H)).toEqual([{ language: 'th', count: 2 }, { language: 'es', count: 1 }]);
+    expect(dueByLanguage(['es'], {}, [], NOW, H)).toEqual([]);
   });
 });

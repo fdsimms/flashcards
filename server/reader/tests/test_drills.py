@@ -16,11 +16,15 @@ from franki_reader.drills import (
     BATCHES_PER_DAY,
     STOCK,
     DrillsFailed,
+    GapQuestion,
     check,
     claude_drills,
     request_message,
+    rivals_of,
+    serve,
     top_up,
     which_questions,
+    with_rivals,
 )
 from franki_reader.generator import Usage
 from franki_reader.grammar import POINTS
@@ -265,3 +269,104 @@ def test_setting_a_point_to_practice_writes_its_questions_ahead() -> None:
     c.put("/api/grammar/es.imperfect", json={"state": "avoid"}, headers=AUTH)  # not drilled
     assert writer.calls == [("es.preterite", BATCH)]
     assert store.drill_stock(conn, "es.preterite") == 1
+
+
+# ==== Points named by the word itself ====
+
+
+def stock(conn: Any, point_id: str, *befores: str) -> None:
+    """Puts gap questions straight into a point's stock."""
+    store.save_drill_batch(
+        conn,
+        point_id,
+        POINTS[point_id].language,
+        [GapQuestion(b, "x", "", "e", ("a", "b", "c"), "") for b in befores],
+        len(befores),
+        NOW,
+        0.0,
+    )
+
+
+def serve_th(conn: Any, point: str, count: int, at: datetime = NOW) -> list[dict[str, Any]]:
+    return serve(conn, lambda language: ([], ES), (point,), count, at, random.Random(1))
+
+
+def test_a_word_named_point_is_never_asked_which_and_its_questions_say_who_they_are_for() -> None:
+    conn = connect()
+    read(conn, write(conn, "Ayer|fuimos|al|mercado."), NOW)
+    assert POINTS["th.already"].word_named and POINTS["th.already"].related
+    stock(conn, "th.already", "own1", "own2", "own3")
+    stock(conn, "th.ever", "ever1", "ever2")
+    stock(conn, "th.yes_no", "yn1", "yn2")
+    got = serve_th(conn, "th.already", 6)
+    assert [x["kind"] for x in got] == ["gap"] * 6
+    assert all(x["for"] == "th.already" for x in got)
+    by_point = sorted(x["point"] for x in got)
+    # Half (3) its own, the other 3 from its two rivals in turn.
+    assert by_point == ["th.already"] * 3 + ["th.ever"] * 2 + ["th.yes_no"]
+    assert sorted(got[0]) == sorted(
+        ["kind", "id", "point", "for", "before", "answer", "after", "english", "wrong", "hint"]
+    )
+    assert len({x["id"] for x in got}) == 6
+
+
+def test_a_word_named_point_rounds_its_own_share_up_and_never_repeats_a_question() -> None:
+    conn = connect()
+    stock(conn, "th.already", "o1", "o2", "o3", "o4")
+    stock(conn, "th.ever", "e1", "e2", "e3")
+    got = serve_th(conn, "th.already", 5)
+    assert sum(x["point"] == "th.already" for x in got) == 3
+    assert len({x["id"] for x in got}) == 5
+    # Asked again, never-served questions come first, and nothing repeats within the drill.
+    again = serve_th(conn, "th.already", 5, NOW + timedelta(minutes=1))
+    assert len({x["id"] for x in again}) == len(again)
+    assert {"o4", "e3"} <= {x["before"] for x in again}
+
+
+def test_a_word_named_point_with_rivals_out_of_stock_is_filled_from_its_own() -> None:
+    conn = connect()
+    stock(conn, "th.already", "o1", "o2", "o3", "o4")
+    got = serve_th(conn, "th.already", 4)
+    assert [x["point"] for x in got] == ["th.already"] * 4
+    assert all(x["for"] == "th.already" for x in got)
+    # A rival with stock but an own stock that runs short is made up from the rival.
+    conn = connect()
+    stock(conn, "th.already", "o1")
+    stock(conn, "th.ever", "e1", "e2", "e3")
+    got = serve_th(conn, "th.already", 4)
+    assert sorted(x["point"] for x in got) == ["th.already", "th.ever", "th.ever", "th.ever"]
+
+
+def test_a_point_not_named_by_a_word_keeps_its_which_and_gap_questions_unchanged() -> None:
+    conn = connect()
+    read(conn, write(conn, "Ayer|fuimos|al|mercado."), NOW)
+    run_top_up(conn, Writer([q(), q(before="Hoy ")]), "es.preterite")
+    got = serve(conn, lambda language: ([], ES), ("es.preterite",), 3, NOW, random.Random(1))
+    assert sorted(x["kind"] for x in got) == ["gap", "gap", "which"]
+    assert all("for" not in x for x in got)
+
+
+def test_a_word_named_points_rivals_are_the_related_points_that_are_word_named_too() -> None:
+    assert [r.id for r in rivals_of(POINTS["th.already"])] == ["th.ever", "th.yes_no"]
+    assert rivals_of(PRETERITE) == ()
+    assert with_rivals(("th.already", "es.preterite", "th.ever")) == (
+        "th.already",
+        "es.preterite",
+        "th.ever",
+        "th.yes_no",
+    )
+    asked = request_message("th", POINTS["th.already"], 5)
+    assert "rival words that genuinely compete" in asked and POINTS["th.ever"].name in asked
+    assert "rival" not in request_message("es", PRETERITE, 5)
+
+
+def test_drilling_a_word_named_point_also_writes_its_rivals_stock() -> None:
+    writer = Writer([], [], [], [], [], [])
+    c, conn = drill_client(writer)
+    body = c.post("/api/drills", json={"points": ["th.already"], "count": 4}, headers=AUTH).json()
+    assert body["questions"] == [] and body["missing"] == ["th.already"]
+    assert [pid for pid, _ in writer.calls] == ["th.already", "th.ever", "th.yes_no"]
+    # A drill served from a rival's stock alone isn't missing the drilled point.
+    stock(conn, "th.ever", "e1")
+    got = c.post("/api/drills", json={"points": ["th.already"], "count": 4}, headers=AUTH).json()
+    assert got["missing"] == [] and all(x["for"] == "th.already" for x in got["questions"])

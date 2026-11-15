@@ -479,7 +479,12 @@ export function createApi(
     // After the note is saved in the editor, or when the owner removes the word.
     removeQueuedNote: (id: number) => call<void>('DELETE', `/api/note-queue/${id}`),
     vocabCheck: (language: Language) => call<VocabBank>('GET', `/api/vocab-check?language=${language}`),
-    grammarPoint: (id: string) => call<GrammarPointPage>('GET', `/api/grammar/${encodeURIComponent(id)}`),
+    // `examples`: how many lines to send (the server's default is 3). `shuffle`: a number that picks a random
+    // sample from every text read instead of the latest ones; a server older than either ignores it.
+    grammarPoint: (id: string, options: { examples?: number; shuffle?: number } = {}) => {
+      const query = Object.entries(options).filter(([, v]) => v !== undefined).map(([k, v]) => `${k}=${v}`).join('&');
+      return call<GrammarPointPage>('GET', `/api/grammar/${encodeURIComponent(id)}${query ? `?${query}` : ''}`);
+    },
     // Every language's choices by point id (a point not set isn't listed), for Forms practice.
     grammarChoices: () => call<{ choices: Record<string, GrammarChoice> }>('GET', '/api/grammar/choices'),
     setGrammar: (id: string, state: GrammarChoice) =>

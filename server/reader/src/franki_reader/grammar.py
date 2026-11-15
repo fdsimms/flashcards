@@ -58,6 +58,10 @@ class Point:
     # The JLPT level the point is taught at, 5 for N5 up to 1 for N1 (the catalog's `jlpt`), or 0
     # for a language with none. The Grammar screen's "I know through N_" sets points by it.
     jlpt: int = 0
+    # The point's name is the word itself (the catalog's `word_named`: all of Thai's, Greek's θα,
+    # Japanese's ている): tapping the point gives its answer away, so a drill never asks which point
+    # a line uses and sets its gap questions against its related word_named points (drills.py).
+    word_named: bool = False
 
 
 def words(plain: str, lexicon: Checker) -> list[str]:
@@ -474,6 +478,11 @@ def _load(catalog: Path, finders: dict[str, Finder]) -> tuple[Point, ...]:
         if "jlpt" in e and (not isinstance(e["jlpt"], int) or not 1 <= e["jlpt"] <= 5)
     ]
     problems += [
+        f"{e['id']} has a word_named that isn't true or false"
+        for e in entries
+        if "word_named" in e and not isinstance(e["word_named"], bool)
+    ]
+    problems += [
         f"{e['id']} is in {e['language']}, which isn't a language here"
         for e in entries
         if e["language"] not in get_args(Code)
@@ -491,6 +500,7 @@ def _load(catalog: Path, finders: dict[str, Finder]) -> tuple[Point, ...]:
             bool(e.get("known", False)),
             int(e["level"]),
             int(e.get("jlpt", 0)),
+            e.get("word_named", False),
         )
         for e in entries
     )

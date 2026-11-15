@@ -2,7 +2,7 @@
 // points practiced in Read & Listen that Forms practice asks first (docs/grammar.md).
 import { studyDayStart } from '../core/day';
 import { wordIndex } from '../core/highlight';
-import type { Api, GrammarChoice, GrammarPoint, GrammarSeen, GrammarState } from './api';
+import type { Api, GrammarChoice, GrammarPoint, GrammarSeen, GrammarState, PastText } from './api';
 
 /** The three choices, as the Grammar screen and Explain offer them. */
 export const GRAMMAR_CHOICES: { value: GrammarChoice; label: string }[] = [
@@ -130,4 +130,20 @@ export function markedParts(line: string, words: string[]): { text: string; mark
   }
   if (at < line.length) out.push({ text: line.slice(at), marked: false });
   return out;
+}
+
+/**
+ * What the reader needs to open a text an example came from. The reader fetches the text by id, so the
+ * rest (rating, when it was read, coverage) is never shown from here and is left empty.
+ */
+export function exampleSource(example: { text_id: number; title: string }): PastText {
+  return { id: example.text_id, topic: '', title: example.title, rating: null, read_at: '', coverage: 0, form: 'story' };
+}
+
+/** How many examples a point's page shows at once. */
+export const EXAMPLES_SHOWN = 3;
+
+/** Whether there are more texts using the point than the examples shown, so Shuffle would show others. */
+export function canShuffleExamples(seen: GrammarSeen | undefined, shown: number): boolean {
+  return !!seen && seen.texts > shown;
 }

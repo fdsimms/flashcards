@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import type { GrammarPoint } from '../../src/reader/api';
-import { GRAMMAR_CHOICES, grammarChoiceOptions, grammarStateWord, grammarSummary, jlptLevels, jlptName, knownThroughLevel, markedParts, practicingPoints, seenLine } from '../../src/reader/grammar';
+import { canShuffleExamples, exampleSource, GRAMMAR_CHOICES, grammarChoiceOptions, grammarStateWord, grammarSummary, jlptLevels, jlptName, knownThroughLevel, markedParts, practicingPoints, seenLine } from '../../src/reader/grammar';
 
 const point = (id: string, state: GrammarPoint['state']): GrammarPoint => ({ id, name: id, note: '', state });
 
@@ -125,4 +125,15 @@ test('no level is known through when the choices match none, or none are set', (
 
 test('a point with no level is ignored when finding the level', () => {
   expect(knownThroughLevel([leveled('a', 5, 'normal'), leveled('b', 4, 'avoid'), point('x', 'unset')])).toBe(5);
+});
+
+test('an example opens its text from the id and title, which is all the reader needs to fetch it', () => {
+  expect(exampleSource({ text_id: 41, title: "Mali's beach stall" })).toMatchObject({ id: 41, title: "Mali's beach stall" });
+});
+
+test('Shuffle is offered only when more texts use the point than the examples shown', () => {
+  expect(canShuffleExamples({ texts: 6, uses: 9, last: null }, 3)).toBe(true);
+  expect(canShuffleExamples({ texts: 3, uses: 4, last: null }, 3)).toBe(false);
+  expect(canShuffleExamples({ texts: 0, uses: 0, last: null }, 0)).toBe(false);
+  expect(canShuffleExamples(undefined, 3)).toBe(false);
 });

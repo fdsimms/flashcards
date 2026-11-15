@@ -144,3 +144,46 @@ def test_a_points_page_from_the_api() -> None:
     assert c.get("/api/grammar/es.preterite").status_code == 401
     # The route for every choice still answers, not taken for a point's id.
     assert "choices" in c.get("/api/grammar/choices", headers=auth).json()
+
+
+NAMES = ["Ana", "Luis", "Pedro", "Marta", "Sofía", "Carlos"]
+
+
+def test_a_points_examples_can_be_a_random_sample_of_the_lines_read() -> None:
+    conn = connect()
+    for n, name in enumerate(NAMES[:5]):
+        read(conn, write(conn, f"Ayer|hablé|con|{name}."), NOW - timedelta(days=n))
+    read(conn, write(conn, "Ayer|comí|mucho."), NOW, finished=False)
+    sample = examples(conn, ES, "es.preterite", limit=3, rng=random.Random(7))
+    assert len(sample) == 3 and len({e.text_id for e in sample}) == 3
+    assert sample == examples(conn, ES, "es.preterite", limit=3, rng=random.Random(7))
+    assert sample != examples(conn, ES, "es.preterite", limit=3, rng=random.Random(8))
+    assert len(examples(conn, ES, "es.preterite", limit=9, rng=random.Random(1))) == 5
+
+
+def test_a_points_page_takes_how_many_examples_and_a_shuffle_seed() -> None:
+    from fastapi.testclient import TestClient
+
+    from franki_reader.app import create_app
+
+    conn = connect()
+    for n, name in enumerate(NAMES):
+        read(conn, write(conn, f"Ayer|hablé|con|{name}."), NOW - timedelta(days=n))
+    c = TestClient(create_app(Engine(conn, None, None, lambda: NOW, random.Random(1)), "p"))
+    auth = {"Authorization": "Bearer p"}
+    url = "/api/grammar/es.preterite"
+
+    def lines(query: str) -> list[str]:
+        return [e["line"] for e in c.get(url + query, headers=auth).json()["examples"]]
+
+    latest = lines("")
+    assert latest == [f"Ayer hablé con {n}." for n in NAMES[:3]]  # latest read first, 3
+    assert lines("?examples=5") == [f"Ayer hablé con {n}." for n in NAMES[:5]]
+    assert len(lines("?examples=1")) == 1
+    shuffled = lines("?shuffle=4&examples=4")
+    assert len(shuffled) == 4 and len(set(shuffled)) == 4
+    assert shuffled == lines("?shuffle=4&examples=4")  # the same seed gives the same lines
+    assert any(lines(f"?shuffle={s}&examples=4") != shuffled for s in range(5, 15))
+    assert c.get(url + "?examples=0", headers=auth).status_code == 422
+    assert c.get(url + "?examples=7", headers=auth).status_code == 422
+    assert c.get(url + "?shuffle=x", headers=auth).status_code == 422

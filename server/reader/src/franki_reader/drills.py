@@ -13,6 +13,14 @@ Two kinds of question:
   Generate, then verify: a question is kept only if the point's finder finds it in the answer,
   finds it in none of the wrong choices, and the sentence has at most `MAX_UNKNOWN` words outside
   the known ones. Anything else is dropped, never repaired.
+
+A point whose name is the word itself (`Point.word_named`: all of Thai's, Greek θα) gets neither
+kind as above: tapping the point already names the answer, so a "which" question is pointless, and
+a gap whose answer is always that word teaches nothing. Its drill is gap questions only, about
+half (rounded up) from its own stock and the rest from the stock of its related word_named points,
+taken in turn, so the choices are rival words for the same slot. Rival questions are asked and
+marked served as ever, and each carries `for`, the drilled point's id. Where the rivals have no
+stock, its own fills in. Their stock is written whenever the point is drilled (`with_rivals`).
 """
 
 import json
@@ -54,7 +62,7 @@ one gap where the {name} goes. Give:
 - after: the rest of the sentence
 - english: the whole sentence in English
 - wrong: {wrong} other forms that fit the gap's slot but are not the {name} (the same verb in other
-  tenses or moods, or for a particle, other particles), each wrong in this sentence
+  tenses or moods, or for a particle, other particles), each wrong in this sentence{rivals}
 - hint: for a verb, its infinitive and person, like "ir, nosotros"; empty otherwise
 
 before + answer + after must read as the whole sentence{spacing}. Write plain text: no `|`, no
@@ -109,6 +117,40 @@ class GapQuestion:
     hint: str
 
 
+def rivals_of(point: Point) -> tuple[Point, ...]:
+    """The related points of a word_named point that are word_named too: words that compete with it
+    for the same slot. None for any other point."""
+    if not point.word_named:
+        return ()
+    return tuple(
+        r
+        for rid in point.related
+        if (r := grammar.POINTS.get(rid)) is not None and r.word_named and r.id != point.id
+    )
+
+
+def with_rivals(point_ids: tuple[str, ...]) -> tuple[str, ...]:
+    """The points, then the rivals of each word_named one, so a drill's rival questions have stock."""
+    out = list(point_ids)
+    for pid in point_ids:
+        point = grammar.POINTS.get(pid)
+        if point is not None:
+            out += [r.id for r in rivals_of(point)]
+    return tuple(dict.fromkeys(out))
+
+
+def _rivals_note(point: Point) -> str:
+    """For a word_named point, what the wrong choices should be: words that compete for the slot."""
+    if not point.word_named:
+        return ""
+    names = ", ".join(r.name for r in rivals_of(point))
+    return (
+        f". For this point the wrong choices must be rival words that genuinely compete for the "
+        f"slot: other particles or markers of the same kind"
+        f"{f', such as {names}' if names else ''}, never the {point.name} itself"
+    )
+
+
 def request_message(language: Code, point: Point, count: int) -> str:
     spaced = LANGUAGES[language].spaced
     return _REQUEST.format(
@@ -117,6 +159,7 @@ def request_message(language: Code, point: Point, count: int) -> str:
         name=point.name,
         note=point.note,
         wrong=WRONG,
+        rivals=_rivals_note(point),
         spacing=", spaces included" if spaced else ", with no spaces between words",
     )
 
@@ -255,7 +298,8 @@ def serve(
 ) -> list[dict[str, Any]]:
     """A drill's questions: `count` shared among the points in turn, each point's half from lines
     read ("which") and the rest from its stock of gap questions, either kind making up for the
-    other running short, then mixed. A point with neither gets none; the caller says so."""
+    other running short, then mixed. A point with neither gets none; the caller says so. A
+    word_named point gets gap questions only, its own and its rivals' (see the module's docstring)."""
     points = [p for p in dict.fromkeys(point_ids) if p in grammar.POINTS]
     if not points:
         return []
@@ -267,6 +311,9 @@ def serve(
     for pid in points:
         share = shares[pid]
         if not share:
+            continue
+        if grammar.POINTS[pid].word_named:
+            out += _word_named_gaps(conn, pid, share, now)
             continue
         _, lexicon = snapshot(grammar.POINTS[pid].language)
         which = which_questions(conn, lexicon, pid, share, rng)[: (share + 1) // 2]
@@ -285,22 +332,69 @@ def serve(
             }
             for w in which
         ]
-        out += [
-            {
-                "kind": "gap",
-                "id": g.id,
-                "point": g.point_id,
-                "before": g.before,
-                "answer": g.answer,
-                "after": g.after,
-                "english": g.english,
-                "wrong": list(g.wrong),
-                "hint": g.hint,
-            }
-            for g in gaps
-        ]
+        out += [_gap_json(g) for g in gaps]
     rng.shuffle(out)
+    # A question can come up twice when two drilled points are each other's rivals.
+    return _unique(out)
+
+
+def _unique(out: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[int] = set()
+    kept: list[dict[str, Any]] = []
+    for q in out:
+        if q["kind"] == "gap":
+            if q["id"] in seen:
+                continue
+            seen.add(q["id"])
+        kept.append(q)
+    return kept
+
+
+def _gap_json(g: store.StoredGap, drilled: str | None = None) -> dict[str, Any]:
+    out: dict[str, Any] = {
+        "kind": "gap",
+        "id": g.id,
+        "point": g.point_id,
+        "before": g.before,
+        "answer": g.answer,
+        "after": g.after,
+        "english": g.english,
+        "wrong": list(g.wrong),
+        "hint": g.hint,
+    }
+    if drilled is not None:
+        out["for"] = drilled
     return out
+
+
+def _word_named_gaps(
+    conn: sqlite3.Connection, pid: str, share: int, now: datetime
+) -> list[dict[str, Any]]:
+    """`share` gap questions for a word_named point: half (rounded up) its own, the rest its
+    rivals' in turn, any the rivals can't supply its own too. Each rival is asked once for all its
+    questions, so none is served twice in the drill."""
+    mine = (share + 1) // 2
+    rivals = [r.id for r in rivals_of(grammar.POINTS[pid])]
+    room = {r: store.drill_stock(conn, r) for r in rivals}
+    quota = dict.fromkeys(rivals, 0)
+    for _ in range(share - mine):
+        open_ = [r for r in rivals if quota[r] < room[r]]
+        if not open_:
+            break
+        # The rival with the fewest so far, the earlier one first: in turn.
+        quota[min(open_, key=lambda r: quota[r])] += 1
+    # Its own stock covers what's left, and if that runs short the rivals' spare covers the rest.
+    own = min(share - sum(quota.values()), store.drill_stock(conn, pid))
+    for _ in range(share - sum(quota.values()) - own):
+        open_ = [r for r in rivals if quota[r] < room[r]]
+        if not open_:
+            break
+        quota[min(open_, key=lambda r: quota[r])] += 1
+    gaps = store.take_drill_questions(conn, pid, own, now)
+    for r in rivals:
+        if quota[r]:
+            gaps += store.take_drill_questions(conn, r, quota[r], now)
+    return [_gap_json(g, pid) for g in gaps]
 
 
 def claude_drills(client: anthropic.AsyncAnthropic) -> WriteDrills:

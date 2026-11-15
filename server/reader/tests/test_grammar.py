@@ -608,3 +608,37 @@ def test_a_catalog_jlpt_level_outside_one_to_five_stops_the_server(tmp_path: Pat
     catalog.write_text(json.dumps({"points": [entry]}), encoding="utf-8")
     with pytest.raises(ValueError, match="ja.masu has a JLPT level that isn't 1 to 5"):
         g._load(catalog, {"ja.masu": lambda w: []})
+
+
+WORD_NAMED = {
+    *(p.id for p in POINTS.values() if p.id.startswith("th.")),
+    "el.tha",
+    "el.na",
+    "pl.future",
+    "pl.conditional",
+    "pl.czy",
+    "ru.future",
+    "ru.conditional",
+    "ja.te_iru",
+    "ja.tai",
+    "ja.te_kudasai",
+    "ja.te_shimau",
+    "ja.conditional",
+}
+
+
+def test_word_named_points_are_the_ones_whose_name_is_the_word_itself() -> None:
+    assert {p.id for p in POINTS.values() if p.word_named} == WORD_NAMED
+    entries = json.loads(CATALOG.read_text(encoding="utf-8"))["points"]
+    assert all(isinstance(e["word_named"], bool) for e in entries if "word_named" in e)
+    assert {e["id"] for e in entries if e.get("word_named")} == WORD_NAMED
+
+
+def test_a_catalog_word_named_that_isnt_true_or_false_stops_the_server(tmp_path: Path) -> None:
+    from franki_reader import grammar as g
+
+    entry = {"id": "ja.masu", "language": "ja", "name": "x", "note": "x", "level": 1}
+    catalog = tmp_path / "points.json"
+    catalog.write_text(json.dumps({"points": [{**entry, "word_named": "yes"}]}), encoding="utf-8")
+    with pytest.raises(ValueError, match="ja.masu has a word_named that isn't true or false"):
+        g._load(catalog, {"ja.masu": lambda w: []})

@@ -2,7 +2,7 @@
 // point, not by question, and worked out from the drills' answers every time, never stored, so a
 // drill undone or restored from a backup reschedules itself. Nothing here touches a card.
 import { studyDayStart } from './day';
-import { grammarPoint } from './grammar';
+import { grammarPoint, grammarPointsFor, type GrammarPointInfo } from './grammar';
 import { wordIndex } from './highlight';
 
 /** One answer in a drill, as the phone keeps it (`grammar_answers`). */
@@ -59,6 +59,36 @@ export function isDrilled(state: DrillState | undefined): state is 'practice' | 
   return state === 'practice' || state === 'normal';
 }
 
+/** What a point can be practiced with, as its page lists it. */
+export type PracticeKind =
+  /** Spaced questions: name the point in a line read, and fill a gap (the server mixes the two). */
+  | 'questions'
+  /** Fill a gap that needs this word or one of its rivals, for a point named after its word. */
+  | 'contrast'
+  /** Forms practice on the point's verb forms (a tool of its own, not spaced here). */
+  | 'forms';
+
+/**
+ * The practice that makes sense for a point. A point named after its word (Thai's all) isn't asked
+ * as "which is this?" or as a gap that always takes that word: the learner just tapped it, so the
+ * answer is given. It's practiced against the words that compete with it instead, and has nothing
+ * when none of its related points is a word too (ต้อง). Other points get the questions, and Forms
+ * practice when they have forms.
+ */
+export function practiceKinds(point: GrammarPointInfo): PracticeKind[] {
+  if (point.wordNamed) {
+    const rivals = point.related.filter((r) => grammarPoint(r)?.wordNamed);
+    return rivals.length ? ['contrast'] : [];
+  }
+  return point.forms.length ? ['questions', 'forms'] : ['questions'];
+}
+
+/** Whether the spaced drills have anything to ask about a point (not Forms practice, which is its own tool). */
+export function hasDrill(pointId: string): boolean {
+  const point = grammarPoint(pointId);
+  return !!point && practiceKinds(point).some((k) => k !== 'forms');
+}
+
 /** When a point is next due, from its drills' answers (any order; grouped by drill). */
 export function pointSchedule(pointId: string, state: DrillState, answers: GrammarAnswer[], now: Date, dayStartsAtHour: number): PointSchedule {
   const steps = stepsFor(state);
@@ -105,11 +135,6 @@ export function duePoints(
     .sort((a, b) => Number(b.state === 'practice') - Number(a.state === 'practice') || a.due.getTime() - b.due.getTime());
 }
 
-/** Whether any of the languages has a point drilled, which is when the Grammar tool has something to show. */
-export function anyDrilled(languages: readonly string[], choices: Record<string, DrillState>): boolean {
-  return Object.entries(choices).some(([id, state]) => isDrilled(state) && languages.includes(grammarPoint(id)?.language ?? ''));
-}
-
 /** Every point drilled in a language, with when it's next due, soonest first. */
 export function scheduledPoints(
   language: string,
@@ -119,7 +144,7 @@ export function scheduledPoints(
   dayStartsAtHour: number,
 ): PointSchedule[] {
   return Object.entries(choices)
-    .filter(([id, state]) => isDrilled(state) && grammarPoint(id)?.language === language)
+    .filter(([id, state]) => isDrilled(state) && hasDrill(id) && grammarPoint(id)?.language === language)
     .map(([id, state]) => pointSchedule(id, state, answers, now, dayStartsAtHour))
     .sort((a, b) => a.due.getTime() - b.due.getTime() || a.pointId.localeCompare(b.pointId));
 }
@@ -142,7 +167,9 @@ export function drillResults(pointId: string, answers: GrammarAnswer[], since: D
 /** A question as Read & Listen's server sends it (`POST /api/drills`; src/reader/api.ts calls it DrillQuestion). */
 export type DrillQuestionIn =
   | { kind: 'which'; point: string; line: string; words: string[]; english: string; title: string; choices: string[] }
-  | { kind: 'gap'; id: number; point: string; before: string; answer: string; after: string; english: string; wrong: string[]; hint: string };
+  // `for`: the point whose drill it was asked in, when a rival word's question is mixed into it (a
+  // point named after its word); the answer counts for that point. Absent otherwise.
+  | { kind: 'gap'; id: number; point: string; for?: string; before: string; answer: string; after: string; english: string; wrong: string[]; hint: string };
 
 export interface DrillPrompt {
   pointId: string;
@@ -180,6 +207,8 @@ export function drillPrompts(questions: DrillQuestionIn[], random: () => number 
     const point = grammarPoint(q.point);
     if (!point) continue;
     if (q.kind === 'which') {
+      // Never asked for a point named after its word (an older server may still send one).
+      if (point.wordNamed) continue;
       const names = q.choices.map((id) => grammarPoint(id)?.name).filter((n): n is string => !!n);
       const word = q.words[0] ?? '';
       const lower = q.line.toLocaleLowerCase();
@@ -198,7 +227,7 @@ export function drillPrompts(questions: DrillQuestionIn[], random: () => number 
       const gives = point.language === 'th' || namesAnswer(point.name, q.answer);
       const names = gives ? [] : [point.name];
       out.push({
-        pointId: point.id, kind: 'gap', before: q.before, middle: q.answer, after: q.after, english: q.english,
+        pointId: q.for && grammarPoint(q.for) ? q.for : point.id, kind: 'gap', before: q.before, middle: q.answer, after: q.after, english: q.english,
         label: [...names, q.hint].filter(Boolean).join(' · '),
         choices: shuffled([q.answer, ...q.wrong], random), answer: q.answer, typable: true,
       });
@@ -230,4 +259,57 @@ export function missingNote(missing: string[], writing: boolean): string | undef
   return writing
     ? `No questions for ${list} yet. They're being written now, so try again in a minute.`
     : `No questions for ${list} yet. Read a text that uses it, or add a Claude key to Read & Listen's server to have questions written.`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The Grammar screen's list
+
+export interface GrammarListRow {
+  pointId: string;
+  state: DrillState;
+  /** The schedule, for a point that's drilled. */
+  schedule?: PointSchedule;
+}
+
+export interface GrammarListGroups {
+  /** Practice and Know it points due today, Practice first. */
+  due: GrammarListRow[];
+  /** The rest of the drilled ones, soonest first. */
+  later: GrammarListRow[];
+  /** Points not set to Practice or Know it, or with nothing to drill, in the catalog's order. */
+  other: GrammarListRow[];
+}
+
+/** A language's points as the Grammar screen groups them: due today, coming up, and not practiced. */
+export function grammarListGroups(
+  language: string,
+  choices: Record<string, DrillState>,
+  answers: GrammarAnswer[],
+  now: Date,
+  dayStartsAtHour: number,
+): GrammarListGroups {
+  const scheduled = scheduledPoints(language, choices, answers, now, dayStartsAtHour);
+  const row = (s: PointSchedule): GrammarListRow => ({ pointId: s.pointId, state: s.state, schedule: s });
+  const due = duePoints(language, choices, answers, now, dayStartsAtHour);
+  const dueIds = new Set(due.map((s) => s.pointId));
+  const drilled = new Set(scheduled.map((s) => s.pointId));
+  return {
+    due: due.map(row),
+    later: scheduled.filter((s) => !dueIds.has(s.pointId)).map(row),
+    other: grammarPointsFor(language).filter((p) => !drilled.has(p.id)).map((p) => ({ pointId: p.id, state: choices[p.id] ?? 'unset' })),
+  };
+}
+
+/** How many points are due today in each language that has any, most due first (the app's language order breaks ties). */
+export function dueByLanguage(
+  languages: readonly string[],
+  choices: Record<string, DrillState>,
+  answers: GrammarAnswer[],
+  now: Date,
+  dayStartsAtHour: number,
+): { language: string; count: number }[] {
+  return languages
+    .map((language) => ({ language, count: duePoints(language, choices, answers, now, dayStartsAtHour).length }))
+    .filter((d) => d.count > 0)
+    .sort((a, b) => b.count - a.count);
 }
