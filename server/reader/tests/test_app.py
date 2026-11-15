@@ -1347,3 +1347,16 @@ def test_a_text_never_read_to_the_end_cannot_be_counted_as_heard() -> None:
     assert c.post("/api/texts/999/listen", headers=AUTH).status_code == 404
     assert c.post("/api/texts/1/listen").status_code == 401
     assert c.get("/api/relisten").status_code == 401
+
+
+def test_the_listens_wanted_per_text_set_the_schedule() -> None:
+    now = [NOW]
+    c = relisten_client(now)
+    read(c, "about_right", [])
+    now[0] = NOW + timedelta(days=1)
+    assert len(c.get("/api/relisten", headers=AUTH).json()) == 1  # three wanted: due the next day
+    assert c.get("/api/relisten?listens=1", headers=AUTH).json() == []  # one wanted: due at 3 days
+    assert c.get("/api/relisten?listens=0", headers=AUTH).json() == []
+    now[0] = NOW + timedelta(days=3)
+    assert len(c.get("/api/relisten?listens=1", headers=AUTH).json()) == 1
+    assert c.get("/api/relisten?listens=2", headers=AUTH).status_code == 422

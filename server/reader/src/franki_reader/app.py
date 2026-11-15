@@ -58,7 +58,8 @@ marked words, ideas) is in the current language, the `language` setting.
                                       index into its choices; it can be changed until the episode is
                                       read, which is when the next one is written from it (404 for
                                       no such text or choice, 409 once it's read)
-    GET   /api/relisten               finished texts due to be heard again (relisten.py)
+    GET   /api/relisten?listens=3     finished texts due to be heard again (relisten.py); 3, 1 or 0
+                                      listens wanted per text
     POST  /api/texts/{id}/listen      counts a finished text heard again (204; 404 if never read)
     GET   /api/progress               finished texts, coverage and ratings over the last 14 days,
                                       the check after reading's answers over them, how well the
@@ -779,9 +780,14 @@ def create_app(
         ]
 
     @app.get("/api/relisten", dependencies=authed)
-    async def relisten_texts() -> list[dict[str, Any]]:
-        """Finished texts due to be heard again, as `/api/texts` lists them (relisten.py)."""
-        return [past_json(t) for t in engine.relisten()]
+    async def relisten_texts(
+        listens: Annotated[int, Query(ge=0, le=3)] = 3,
+    ) -> list[dict[str, Any]]:
+        """Finished texts due to be heard again, as `/api/texts` lists them (relisten.py), with
+        `listens` wanted per text: 3 (1, 4 and 10 days), 1 (3 days) or 0 (none)."""
+        if listens == 2:
+            raise HTTPException(422, "Ask for 0, 1 or 3 listens.")
+        return [past_json(t) for t in engine.relisten(listens=listens)]
 
     @app.post("/api/texts/{text_id}/listen", status_code=204, dependencies=authed)
     async def listened(text_id: int) -> Response:

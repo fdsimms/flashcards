@@ -146,7 +146,7 @@ constraints.
    1.0x and replay per line. Listen-only unlocks for a text once it's rated "about right".
 
    > **Changed on 15 November 2026 by the owner.** Listen-only also opens for any text already read,
-   > whatever its rating, and the shelf offers finished texts to hear again 1, 4 and 10 days later.
+   > whatever its rating, and the shelf offers finished texts to hear again (once, 3 days later, by default; or at 1, 4 and 10 days).
    > See `architecture.md`, Client, Listen again.
 7. **Two voices.** Use different Thai TTS voices for the two speakers in a dialogue. The benefit is
    small and mixed, but it costs nothing.

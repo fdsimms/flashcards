@@ -166,9 +166,15 @@ Franki's (Client, below).
 - **Listen again** (15 November 2026, the owner chose from a mock). Hearing a text again a few days
   later, with the words hidden, is the spaced, repeated listening the research supports, and by then
   it's easy to follow, so the listen-only gate (rated "About right") is lifted for a text already read.
-  The shelf shows a card, "2 texts to hear again", for the finished texts due: each is offered 1, 4 and
-  10 study days after it was read, once per listen heard so far, up to three at a time, oldest first,
-  and let go 30 days after it was read (`relisten.py`, `GET /api/relisten`). Play runs them one after
+  The shelf shows a card, "2 texts to hear again", for the finished texts due, up to three at a
+  time, oldest first, and let go 30 days after it was read (`relisten.py`, `GET /api/relisten`).
+  **How often is a setting, Hear texts again** (15 November 2026, the owner's: reading a new episode
+  every day, three more listens each is a daily pile, and the research gives 3 to 4 passes for
+  drilling one passage, not for every text, while words are learned across many different texts):
+  **Once** (the default; 3 study days after it was read), **Three times** (1, 4 and 10 days) or
+  **Never**. The app sends it as `listens`, and a single listen comes a few days on, not the next
+  day, since the gap should grow with how long it's to be remembered. A text heard as many times as
+  the setting wants is done, so changing it later doesn't bring old texts back. Play runs them one after
   another in listen-only (the reader's `past` source with `listen`: the texts still to come, so the
   Back button returns to the shelf). A text played through to its last line with its words hidden, from
   the card, a Past texts button or the text's own Listen without the text, is counted
