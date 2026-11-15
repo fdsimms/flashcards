@@ -9,6 +9,7 @@ import { DEFAULT_PREFS, flushOutbox, lessonsToday, type WaniKaniPrefs } from '..
 import { audioFileName, audioFor, suggestedDeck } from '../wanikani/production';
 import { makeProductionNotes } from '../wanikani/productionService';
 import type { Outcome } from '../wanikani/session';
+import { skipWord, unskipWord, withoutSkipped, type SkippedWord } from '../wanikani/skipped';
 import type { Subject } from '../wanikani/subjects';
 import { DEFAULT_SRS, type SrsSystem } from '../wanikani/srs';
 import { clearOffline, clearToken, keepAudio, loadPrefs, loadSnapshot, loadState, loadToken, savePrefs, saveSnapshot, saveState, saveToken } from '../wanikani/storage';
@@ -66,6 +67,11 @@ export interface WaniKaniState {
   /** Lessons done since the study day began, here or on WaniKani. */
   startedToday: number;
   dayStartsAtHour: number;
+  /** Words skipped for good: left out of reviews and counts on this phone (skipped.ts). */
+  skipped: SkippedWord[];
+  /** Skips a word for good; `assignmentId` is the review it came up in. */
+  skip: (subject: Subject, assignmentId: number) => void;
+  unskip: (subjectId: number) => void;
 }
 
 /**
@@ -88,8 +94,9 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   const [offline, setOffline] = useState(false);
   const [offlineSavedAt, setOfflineSavedAt] = useState<Date | null>(null);
   const [dropped, setDropped] = useState(0);
+  const [skipped, setSkipped] = useState<SkippedWord[]>([]);
   // What's kept in the state file, read once; written back on every change.
-  const stored = useRef<{ outbox: Outcome[]; sent: Outcome[]; made: Set<number>; log: LogEntry[]; dropped: number } | null>(null);
+  const stored = useRef<{ outbox: Outcome[]; sent: Outcome[]; made: Set<number>; log: LogEntry[]; dropped: number; skipped: SkippedWord[] } | null>(null);
   // The offline copy: read at launch, replaced each time WaniKani is reached.
   const snapshot = useRef<Snapshot | null>(null);
   const lastCopy = useRef(0);
@@ -101,11 +108,12 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
 
   useEffect(() => {
     Promise.all([loadToken(), loadPrefs(), loadState(), loadSnapshot()]).then(([t, p, s, copy]) => {
-      stored.current = { outbox: s.outbox, sent: s.sent, made: new Set(s.made), log: s.log, dropped: s.dropped };
+      stored.current = { outbox: s.outbox, sent: s.sent, made: new Set(s.made), log: s.log, dropped: s.dropped, skipped: s.skipped };
       snapshot.current = copy;
       setOfflineSavedAt(copy ? new Date(copy.savedAt) : null);
       setUnsent(s.outbox.length);
       setDropped(s.dropped);
+      setSkipped(s.skipped);
       setLog(s.log);
       setPrefsState(p);
       setToken(t ?? null);
@@ -115,7 +123,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   const api = useMemo(() => (token ? createWaniKaniApi(token) : null), [token]);
   const persist = () => {
     const s = stored.current;
-    if (s) saveState({ outbox: s.outbox, sent: s.sent, made: [...s.made], log: s.log, dropped: s.dropped });
+    if (s) saveState({ outbox: s.outbox, sent: s.sent, made: [...s.made], log: s.log, dropped: s.dropped, skipped: s.skipped });
   };
 
   const setPrefs = useCallback((change: Partial<WaniKaniPrefs>) => {
@@ -204,6 +212,26 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     setDropped(s.dropped);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const skip = useCallback((subject: Subject, assignmentId: number) => {
+    const s = stored.current;
+    if (!s) return;
+    s.skipped = skipWord(s.skipped, subject, assignmentId);
+    persist();
+    setSkipped(s.skipped);
+    // The deck list's count leaves it out at once.
+    setCounts((c) => (c ? { ...c, reviews: Math.max(0, c.reviews - 1) } : c));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const unskip = useCallback((subjectId: number) => {
+    const s = stored.current;
+    if (!s) return;
+    s.skipped = unskipWord(s.skipped, subjectId);
+    persist();
+    setSkipped(s.skipped);
+    // Its review (if one is up) comes back into the count on the next read.
+    lastCounts.current = 0;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const unsentAssignments = useCallback(() => new Set((stored.current?.outbox ?? []).map((o) => o.assignmentId)), []);
 
   /** The offline copy as it stands: answers given or sent since it was made are left out. */
@@ -262,9 +290,16 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
         api.counts(u.maxLevel),
         api.lessonsStartedSince(studyDayStart(new Date(), dayStartsAtHour)),
       ]);
+      // The count is of reviews up on WaniKani; skipped words are left out, as the review screen leaves them out.
+      const skippedNow = stored.current?.skipped ?? [];
+      let held = 0;
+      if (skippedNow.length) {
+        const up = await api.reviewsAvailable(u.maxLevel);
+        held = up.length - withoutSkipped(up, skippedNow).length;
+      }
       if (gen !== generation.current) return;
       setUser(u);
-      setCounts({ available: c.lessons, reviews: c.reviews, apprentice: c.apprentice });
+      setCounts({ available: c.lessons, reviews: Math.max(0, c.reviews - held), apprentice: c.apprentice });
       setStartedToday(started);
       setProblem(null);
       setOffline(false);
@@ -286,7 +321,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
       setOffline(!!copy);
       if (copy) {
         setUser((before) => before ?? copy.user);
-        setCounts({ available: copy.lessons.length, reviews: copy.reviews.length, apprentice: copy.apprentice });
+        setCounts({ available: copy.lessons.length, reviews: withoutSkipped(copy.reviews, stored.current?.skipped ?? []).length, apprentice: copy.apprentice });
         setStartedToday(copy.started);
       }
     }
@@ -323,6 +358,6 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     counts: counts ? { reviews: counts.reviews, lessons: lessonsToday(counts.available, prefs.newPerDay, startedToday, counts.apprentice, prefs.maxApprentice) } : null,
     apprentice: counts ? counts.apprentice : null,
     problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, unsentAssignments, log, productionDeck, production, startedToday, dayStartsAtHour,
-    offline, offlineData: copyData, offlineSavedAt, dropped, seenDropped,
-  }), [token, api, user, counts, problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, unsentAssignments, log, productionDeck, production, startedToday, dayStartsAtHour, offline, copyData, offlineSavedAt, dropped, seenDropped]);
+    offline, offlineData: copyData, offlineSavedAt, dropped, seenDropped, skipped, skip, unskip,
+  }), [token, api, user, counts, problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, unsentAssignments, log, productionDeck, production, startedToday, dayStartsAtHour, offline, copyData, offlineSavedAt, dropped, seenDropped, skipped, skip, unskip]);
 }

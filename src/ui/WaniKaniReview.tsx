@@ -1,18 +1,19 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Keyboard, Linking, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, Keyboard, Linking, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
 import { problemText, WaniKaniError, type WaniKaniApi, type WaniKaniUser } from '../wanikani/api';
 import { toKana } from '../wanikani/kana';
 import { offlineText } from '../wanikani/offline';
+import { canSkip, withoutSkipped } from '../wanikani/skipped';
 import { apprenticeBlocks, droppedText, lessonsToday } from '../wanikani/prefs';
 import { audioFileName, audioFor } from '../wanikani/production';
 import {
   buildSession, canAskLater, canMarkCorrect, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
-  studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
+  dropItem, studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
 import { nextStage, outcomeText, stageChange, type StageChange } from '../wanikani/srs';
 import { localAudioUri } from '../wanikani/storage';
@@ -87,7 +88,7 @@ async function source(api: WaniKaniApi, wanikani: WaniKaniState): Promise<Source
 export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: WaniKaniState; onDone: () => void; onOptions: () => void }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
-  const { api, prefs, srs, send, seenDropped } = wanikani;
+  const { api, prefs, srs, send, seenDropped, skip } = wanikani;
   const [subjects, setSubjects] = useState<Map<number, Subject>>(new Map());
   const [synonyms, setSynonyms] = useState<Map<number, string[]>>(new Map());
   const [study, setStudy] = useState<Study | null>(null);
@@ -146,7 +147,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         // With the radicals and kanji they're made of, for the "Made of" row: one more batched read.
         const own = await src.subjects((lessonKind ? lessons : reviews).map((a) => a.subjectId));
         const read = new Map((await withComponents(own, src.subjects)).map((s) => [s.id, s]));
-        const items = lessonKind ? sessionItems([], lessons, read, lessonCount) : sessionItems(reviews, [], read, 0);
+        const items = lessonKind ? sessionItems([], lessons, read, lessonCount) : sessionItems(withoutSkipped(reviews, wanikani.skipped), [], read, 0);
         // The user's own synonyms count as right answers when typing; without them, only WaniKani's do.
         const typed = prefs.answer === 'type';
         const syn = typed ? await src.synonyms(items.map((i) => i.subjectId)).catch(() => new Map<number, string[]>()) : new Map<number, string[]>();
@@ -293,22 +294,51 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     if (prefs.autoplay && question.kind === 'reading') play(audioUrl(subject));
   };
 
+  // The word is left out of this session and every later one; WaniKani still has it, and the options list it to bring it back.
+  const confirmSkip = () => {
+    if (!study || !question || !subject) return;
+    const assignmentId = question.assignmentId;
+    const word = subject;
+    const name = word.characters ?? word.meanings[0]?.meaning ?? 'this word';
+    Alert.alert(
+      `Skip ${name} for good?`,
+      "It won't come up in reviews on this iPhone again. WaniKani still schedules it, so it stays due on wanikani.com. You can bring it back in WaniKani's options.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Skip',
+          style: 'destructive',
+          onPress: () => {
+            // Only a question of this word is cleared: the screen may have moved on while the alert was open.
+            const onIt = studyRef.current && currentQuestion(studyRef.current.session)?.assignmentId === assignmentId;
+            skip(word, assignmentId);
+            setStudy((s) => (s ? dropItem(s, assignmentId) : s));
+            if (onIt) resetQuestion();
+            hidePopup();
+          },
+        },
+      ],
+    );
+  };
+
   const title = 'WaniKani';
   // Only before the question is answered or its answer is shown, so it can't be used to dodge a miss.
   const askable = !!session && canAskLater(session) && !verdict && !revealed;
   const menu = useMemo(() => (subject ? () => {
-    const options = [...(askable ? ['Ask later'] : []), 'Open on wanikani.com', 'WaniKani options', 'Cancel'];
+    const skippable = canSkip(subject) && !lesson && !!question;
+    const options = [...(askable ? ['Ask later'] : []), ...(skippable ? ['Skip this word for good'] : []), 'Open on wanikani.com', 'WaniKani options', 'Cancel'];
     ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: options.length - 1 }, (i) => {
       const picked = options[i];
       if (picked === 'Ask later') later();
+      if (picked === 'Skip this word for good') confirmSkip();
       if (picked === 'Open on wanikani.com' && subject.url) Linking.openURL(subject.url).catch(() => undefined);
       if (picked === 'WaniKani options') onOptions();
     });
-  } : undefined), [subject, onOptions, askable, study]); // eslint-disable-line react-hooks/exhaustive-deps
+  } : undefined), [subject, onOptions, askable, study, lesson, question]); // eslint-disable-line react-hooks/exhaustive-deps
   const toolbar = (
     <Stack.Toolbar placement="right">
       {study && canUndo(study) ? <Stack.Toolbar.Button icon="arrow.uturn.backward" accessibilityLabel="Undo the last answer" onPress={undo} /> : null}
-      {menu ? <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="More: ask later, open on wanikani.com or WaniKani's options" onPress={menu} /> : null}
+      {menu ? <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="More: ask later, skip this word, open on wanikani.com or WaniKani's options" onPress={menu} /> : null}
     </Stack.Toolbar>
   );
 
