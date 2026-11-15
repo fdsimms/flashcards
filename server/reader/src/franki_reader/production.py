@@ -15,6 +15,7 @@ from typing import Any, Literal, cast
 import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
+from franki_reader.claude_errors import didnt_answer
 from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 
@@ -246,9 +247,7 @@ async def _ask(
             fallbacks="default",
         )
     except anthropic.APIError as e:
-        raise ProductionFailed(
-            f"Claude didn't answer ({type(e).__name__}). Try again in a moment."
-        ) from e
+        raise ProductionFailed(didnt_answer(e, ". Try again in a moment.")) from e
     used = usage_of(response)
     text = next((b.text for b in response.content if b.type == "text"), None)
     if response.stop_reason in ("refusal", "max_tokens") or text is None:

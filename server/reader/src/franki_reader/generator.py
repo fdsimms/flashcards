@@ -19,6 +19,7 @@ conversation (append-only, so the model's thinking stays valid across turns).
 """
 
 import json
+import logging
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal, cast
@@ -41,6 +42,7 @@ from franki_reader.cast import (
     quote_problems,
 )
 from franki_reader.characters import CHARACTERS
+from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import MINIMUM, Checker, Coverage, check
 from franki_reader.crowding import crowding
 from franki_reader.difficulty import DEFAULT_FLOOR
@@ -51,6 +53,8 @@ from franki_reader.lexicon import Entry
 MODEL = "claude-sonnet-5-5"
 EFFORT: Literal["low", "medium", "high", "xhigh", "max"] = "high"
 MAX_TOKENS = 16000
+log = logging.getLogger(__name__)
+
 MAX_ATTEMPTS = 3
 MAX_STRETCH = 4
 STRETCH_MIN_USES = 1
@@ -856,6 +860,17 @@ async def generate(ask: Ask, lexicon: Checker, request: TextRequest) -> Generate
             result = replace(result, attempts=attempt, usage=usage)
             break
         result = replace(assessed, usage=usage)
+        # How far off each draft was, so a retry's cost can be weighed against what it fixed.
+        log.info(
+            "%s draft %d: %.1f%% known (floor %.0f%%), %d problems%s%s",
+            request.language,
+            attempt,
+            result.coverage.ratio * 100,
+            request.floor * 100,
+            len(problems),
+            ": " if problems else "",
+            "; ".join(problems[:5]),
+        )
         if result.passed:
             return result
         # Fewer grammar problems first, then closer to the target; the later attempt on a tie.
@@ -1162,7 +1177,7 @@ def claude_ask(
             )
         except anthropic.APIError as e:
             # Overloaded, rate limited, unreachable: say so rather than failing the request.
-            raise GenerationFailed(f"Claude didn't answer ({type(e).__name__})") from e
+            raise GenerationFailed(didnt_answer(e)) from e
         used = usage_of(response)
         if response.stop_reason == "refusal":
             raise GenerationFailed("Claude declined to write this text", used)

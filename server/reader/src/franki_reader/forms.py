@@ -27,6 +27,7 @@ import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader import form_primers, helpers
+from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import Checker, is_word, parse_line, segment_line
 from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
@@ -211,7 +212,7 @@ def claude_forms(client: anthropic.AsyncAnthropic) -> WriteForms:
                 fallbacks="default",
             )
         except anthropic.APIError as e:
-            raise FormsFailed(f"Claude didn't answer ({type(e).__name__})") from e
+            raise FormsFailed(didnt_answer(e)) from e
         used = usage_of(response)
         text = next((b.text for b in response.content if b.type == "text"), None)
         if response.stop_reason in ("refusal", "max_tokens") or text is None:

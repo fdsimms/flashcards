@@ -26,6 +26,7 @@ import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader import store
+from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import Checker, is_word, segment_line
 from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.ipa import ipa_of, table
@@ -219,7 +220,7 @@ def claude_ipa(client: anthropic.AsyncAnthropic) -> WriteIpa:
                 fallbacks="default",
             )
         except anthropic.APIError as e:
-            raise IpaFailed(f"Claude didn't answer ({type(e).__name__})") from e
+            raise IpaFailed(didnt_answer(e)) from e
         used = usage_of(response)
         text = next((b.text for b in response.content if b.type == "text"), None)
         if response.stop_reason in ("refusal", "max_tokens") or text is None:
