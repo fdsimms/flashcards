@@ -68,8 +68,8 @@ Franki's (Client, below).
   scrolling is off until the finger lifts; held and let go on the same word, it's a tap. Or a
   word's gloss has "Select a phrase": the word becomes the phrase's first, the other lines dim, and
   tapping another word in the same line ends it (either way round; Cancel in the bar above the
-  player, which also mentions the hold). The phrase is drawn as one band and Claude's note on it opens under the line:
-  what it means there, then a few points on its parts (a set expression, how the words combine,
+  player, which also mentions the hold). The phrase is drawn as one band and Claude's note on it opens in a popup beside
+  the phrase (on whichever side has more room, its height capped, the notes scrolling): what it means there, then a few points on its parts (a set expression, how the words combine,
   tone), with "Explain more simply". A phrase stays within one line, so it has the line's context
   and the server can check it's there: the app sends it as it appears (the pieces joined, spaces
   and punctuation included, `src/reader/phrase.ts`), and the server refuses one that isn't in the
