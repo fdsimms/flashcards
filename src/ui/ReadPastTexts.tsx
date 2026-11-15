@@ -17,7 +17,7 @@ function shortDate(iso: string): string {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export function ReadPastTexts({ api, story, onOpen }: { api: Api; story?: number; onOpen: (text: PastText) => void }) {
+export function ReadPastTexts({ api, story, onOpen, onListen }: { api: Api; story?: number; onOpen: (text: PastText) => void; onListen: (text: PastText) => void }) {
   const c = useTheme();
   const [texts, setTexts] = useState<PastText[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,10 +55,11 @@ export function ReadPastTexts({ api, story, onOpen }: { api: Api; story?: number
                   label={t.title}
                   detail={[story === undefined ? t.topic : null, t.episode ? `Episode ${t.episode}` : null, t.form === 'story' && !t.episode ? 'Story' : null, shortDate(t.read_at), t.rating ? RATING_TEXT[t.rating] : null].filter(Boolean).join(' · ')}
                   onPress={() => onOpen(t)}
+                  action={{ icon: 'headphones', label: `Listen to ${t.title} without the text`, onPress: () => onListen(t) }}
                 />
               ))}
             </Group>
-            <Help>Reading a text again isn't logged and doesn't change how hard new texts are.</Help>
+            <Help>Reading or listening to a text again isn't logged as a reading and doesn't change how hard new texts are. The headphones play it with the words hidden.</Help>
           </>
         ) : null}
       </ScrollView>

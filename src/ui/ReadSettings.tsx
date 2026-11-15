@@ -33,6 +33,8 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [followWords, setFollowWords] = useState(prefs().followWords);
+  const [guessFirst, setGuessFirst] = useState(prefs().guessFirst);
+  const [quizKnown, setQuizKnown] = useState(prefs().quizKnown);
   const address = syncServer ? readerAddress(syncServer) : null;
 
   const turnOff = () => Alert.alert(
@@ -133,6 +135,34 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
             </Group>
             <Help>
               While a line plays, the word being read aloud is shaded. Lines recorded before this was added play without it.
+            </Help>
+            <SectionTitle>Meanings</SectionTitle>
+            <Group>
+              <SwitchRow
+                first
+                label="Guess before the meaning"
+                value={guessFirst}
+                onValueChange={(on) => {
+                  savePrefs({ guessFirst: on });
+                  setGuessFirst(on);
+                }}
+              />
+              {guessFirst ? (
+                <SwitchRow
+                  label="Quiz me on words I know"
+                  value={quizKnown}
+                  onValueChange={(on) => {
+                    savePrefs({ quizKnown: on });
+                    setQuizKnown(on);
+                  }}
+                />
+              ) : null}
+            </Group>
+            <Help>
+              Tapping a word shows its meaning only when you ask for it, so you can try to remember it, or work it out
+              from the line, first. A word's meaning counts as looked up once it's shown. With the quiz on, a word in your
+              deck asks you to pick its meaning from four choices, with I don't know to skip. Nothing is graded or added
+              to your deck.
             </Help>
             <SectionTitle>dundundun</SectionTitle>
             <Group>

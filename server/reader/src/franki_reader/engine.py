@@ -44,6 +44,7 @@ from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
 from franki_reader.recognition import measure
+from franki_reader.relisten import Candidate, due
 from franki_reader.store import Reading, Reason, StoredText, Story, Topic
 from franki_reader.stretch import pick_stretch, waiting
 from franki_reader.study_day import DEFAULT_ROLLOVER, study_day, study_day_start
@@ -53,6 +54,8 @@ from franki_reader.wanikani import ReadWaniKani, as_entries
 # How many reviewed or young words the model chooses its stretch words from, when it's choosing.
 STRETCH_CHOICES = 15
 FAILURE_COOLDOWN = timedelta(minutes=30)
+# How many of the newest finished texts are looked through for ones to hear again.
+RELISTEN_LOOKBACK = 100
 BACKFILL_TEXTS = 30  # how many recent texts a pass looks through for words with no meaning
 BACKFILL_FORMS = 3  # how many of them a pass picks word forms for (one Claude call each)
 # Every attempt was under 85% known words (coverage.MINIMUM), too far off to show.
@@ -862,6 +865,20 @@ class Engine:
             chosen=chosen,
             plan=story.plan,
         )
+
+    def relisten(self, language: Code | None = None) -> list[store.PastText]:
+        """The finished texts to hear again today (relisten.py), oldest read first."""
+        language = language or self.language()
+        rollover = self.rollover()
+        past = store.past_texts(self.conn, RELISTEN_LOOKBACK, language)
+        counts = store.listen_counts(self.conn)
+        candidates = [
+            Candidate(t.id, study_day(t.read_at, rollover, self.zone), counts.get(t.id, 0))
+            for t in past
+        ]
+        by_id = {t.id: t for t in past}
+        today = study_day(self.clock(), rollover, self.zone)
+        return [by_id[i] for i in due(candidates, today)]
 
     def record_reading(self, text_id: int, reading: Reading) -> None:
         """Logs a session and adjusts the difficulty of the text's language, stepping from the level

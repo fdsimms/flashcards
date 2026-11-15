@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { DEFAULT_PREFS, parsePrefs } from '../../src/reader/prefs';
 
 test('saved settings come back', () => {
-  expect(parsePrefs(JSON.stringify({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true }))).toEqual({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true });
+  expect(parsePrefs(JSON.stringify({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true }))).toEqual({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true });
 });
 
 test('nothing saved, or something unreadable, gives the defaults', () => {
@@ -46,4 +46,12 @@ test('every mark shows unless the reader switched it off, and an unknown one is 
   expect(DEFAULT_PREFS.hiddenMarks).toEqual([]);
   expect(parsePrefs(JSON.stringify({ hiddenMarks: ['known', 'sparkle', 'practice', 'known'] })).hiddenMarks).toEqual(['practice', 'known']);
   expect(parsePrefs(JSON.stringify({ hiddenMarks: 'known' })).hiddenMarks).toEqual([]);
+});
+
+test('guessing before the meaning is on and the quiz off until chosen', () => {
+  expect(DEFAULT_PREFS.guessFirst).toBe(true);
+  expect(DEFAULT_PREFS.quizKnown).toBe(false);
+  expect(parsePrefs(JSON.stringify({ guessFirst: false })).guessFirst).toBe(false);
+  expect(parsePrefs(JSON.stringify({ quizKnown: true })).quizKnown).toBe(true);
+  expect(parsePrefs(JSON.stringify({ guessFirst: 'no', quizKnown: 1 }))).toMatchObject({ guessFirst: true, quizKnown: false });
 });

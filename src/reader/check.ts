@@ -25,7 +25,7 @@ const LISTEN_MIN_WORDS = 3;
 /** A random number in [0, 1), injected so tests can pin the order. */
 export type Random = () => number;
 
-function shuffled<T>(items: readonly T[], random: Random): T[] {
+export function shuffled<T>(items: readonly T[], random: Random): T[] {
   const out = [...items];
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
@@ -35,7 +35,7 @@ function shuffled<T>(items: readonly T[], random: Random): T[] {
 }
 
 /** The right choice and the wrong ones in a random order, with where the right one landed. */
-function withAnswer<T>(right: T, wrong: T[], random: Random): { choices: T[]; answer: number } {
+export function withAnswer<T>(right: T, wrong: T[], random: Random): { choices: T[]; answer: number } {
   const choices = shuffled([right, ...wrong], random);
   return { choices, answer: choices.indexOf(right) };
 }

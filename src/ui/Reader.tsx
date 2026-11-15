@@ -18,6 +18,7 @@ import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, t
 import { locate, phraseRange, phrasePart, phraseText, pickEnd, type PhrasePick } from '../reader/phrase';
 import { choicesView, holdsPlayAll } from '../reader/choices';
 import { buildCheck, loggedScore, type CheckPicks, type CheckQuestion } from '../reader/check';
+import { tapMode, type TapMode } from '../reader/guess';
 import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
@@ -36,6 +37,7 @@ import { ReadGrammarDial } from './ReadGrammarDial';
 import { ReadGrammarNote } from './ReadGrammarNote';
 import { ReadFormChip, ReadFormSheet } from './ReadFormSheet';
 import { ReadFrequency } from './ReadFrequency';
+import { GuessLine, GuessPrompt, QuizChoices, rightAnswer } from './ReadWordGuess';
 import { PracticeWordPill, TintPill } from './PracticeWordPill';
 import { WordView } from './ReadWord';
 import { ReaderKey } from './ReaderKey';
@@ -95,7 +97,8 @@ import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readabl
  * seconds. `loadId` and `mounted` make a load that's been superseded (Next, then Back) drop its result.
  */
 
-export type Tapped = { word: Word; x: number; y: number };
+/** A tapped word and where, with how its meaning is held back (`guess`, reader/guess.ts), none to show it at once. */
+export type Tapped = { word: Word; x: number; y: number; guess?: TapMode };
 
 const POLL_MS = 3_000;
 // Three attempts and the audio rarely take more than two minutes; past this, something is wrong.
@@ -111,7 +114,9 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export type ReaderSource =
   | { kind: 'shelf'; textId: number; order: number[]; playAll?: boolean }
   | { kind: 'topic'; topic: { id: number; name: string }; words?: string[] }
-  | { kind: 'past'; text: PastText };
+  // `listen`: heard through with the words hidden, starting now, and counted as a listen on the
+  // server (relisten.py); it holds the texts to play after this one, none when this is the last.
+  | { kind: 'past'; text: PastText; listen?: PastText[] };
 
 type UpNext = { id: number; title: string; lines: number; order: number[] };
 
@@ -185,6 +190,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   // The length new texts were written at when this text opened, so Shorter and Longer step from it.
   const baseLength = useRef<Length>(settings?.lines ?? 8);
   const autoPlayed = useRef(false);
+  // The past text in view has been counted as heard again (heardThrough), once however it ends.
+  const listenLogged = useRef(false);
   const logged = useRef(false);
   const mounted = useRef(true);
   const loadId = useRef(0);
@@ -312,6 +319,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
       // Play all: the whole text has played, so it counts as read; on to the next one.
       // An episode that ends on a choice holds Play all, so the choice isn't skipped past.
       if (playingAll && source.kind === 'shelf' && source.playAll && !listenOnly && !holdsPlayAll(text, review)) playNext();
+      // A past text played through with its words hidden counts as heard again.
+      if (playingAll && review && listenOnly) heardThrough();
     }
   }, [status.didJustFinish]); // eslint-disable-line react-hooks/exhaustive-deps -- reacts to a line ending only
 
@@ -355,6 +364,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     setChoiceError(null);
     choiceSeq.current++;
     autoPlayed.current = false;
+    listenLogged.current = false;
     baseLength.current = settings?.lines ?? 8;
     lineBoxes.current = [];
     scrollY.current = null; // back at the top, which is at minus the header's overlap
@@ -390,9 +400,30 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
 
   useEffect(() => { load(); }, [source]); // eslint-disable-line react-hooks/exhaustive-deps -- loads once per source
 
-  // Play all starts each text playing as soon as it's open.
+  // A past text played through with the words hidden counts as heard again (relisten.py), however
+  // it was started: the listen-again card, a Past texts row's button, or the text's own button. A
+  // listen-again run then moves on to its next text, in place, so Back still returns where it began.
+  const heardThrough = async () => {
+    if (!text || source.kind !== 'past' || listenLogged.current) return;
+    listenLogged.current = true;
+    try {
+      await api.logListen(text.id);
+    } catch {
+      // Not counted: it's offered again, which is the better way to be wrong.
+    }
+    const [next, ...rest] = source.listen ?? [];
+    if (next && mounted.current) onNext({ kind: 'past', text: next, listen: rest });
+  };
+
+  // Play all, and a listen-again run, start each text playing as soon as it's open.
   useEffect(() => {
-    if (!text || autoPlayed.current || source.kind !== 'shelf' || !source.playAll) return;
+    if (!text || autoPlayed.current) return;
+    if (source.kind === 'past' && source.listen !== undefined) {
+      autoPlayed.current = true;
+      listenWithoutText();
+      return;
+    }
+    if (source.kind !== 'shelf' || !source.playAll) return;
     autoPlayed.current = true;
     const start = firstLine(text.lines);
     if (start !== null) playLine(start, true);
@@ -546,8 +577,16 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
       if (at) setPhrase(pickEnd(phrase, at.line, at.index));
       return;
     }
-    setSession(lookUp(session, word.text));
-    setTapped({ word, x, y });
+    openWord(word, x, y);
+  };
+
+  // Shows a word's popover. A word whose meaning waits to be asked for (guess first) isn't a lookup
+  // until it's shown (`onReveal`); any other is one now.
+  const openWord = (word: Word, x: number, y: number) => {
+    if (!session) return;
+    const mode = tapMode(word, text, prefs().guessFirst, prefs().quizKnown);
+    if (!mode) setSession(lookUp(session, word.text));
+    setTapped({ word, x, y, guess: mode });
   };
 
   // A practice word's pill opens the same popover as the word in the text. Not while a phrase is
@@ -556,8 +595,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     if (!session || !text || (phrase && phrase.end === null)) return;
     const word = text.lines.flatMap((l) => l.words).find((w) => w.text === text_);
     if (!word) return;
-    setSession(lookUp(session, word.text));
-    setTapped({ word, x, y });
+    openWord(word, x, y);
   };
 
   // Holding a word and dragging to the last word of a phrase; held without dragging, it's a tap.
@@ -771,8 +809,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                 ) : null)}
               </Card>
             ) : null}
-            {source.kind === 'past' && !listenOnly && source.text.rating === 'about_right' && hasAudio ? (
-              <ToggleRow label="You rated this about right">
+            {source.kind === 'past' && !listenOnly && hasAudio ? (
+              <ToggleRow label={source.text.rating === 'about_right' ? 'You rated this about right' : 'Hear it again'}>
                 <HeaderAction label="Listen without the text" onPress={listenWithoutText} />
               </ToggleRow>
             ) : null}
@@ -1093,7 +1131,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
         grammarChosen={grammarChosen}
         onGrammarChosen={chooseGrammar}
         flagged={tapped && session ? isFlagged(session, tapped.word.text) : false}
-        onToggleFlag={review ? null : () => { if (tapped && session) setSession(toggleFlag(session, tapped.word.text)); }}
+        onToggleFlag={review ? null : () => { if (tapped) setSession((s) => (s ? toggleFlag(s, tapped.word.text) : s)); }}
+        onReveal={() => { if (tapped) setSession((s) => (s ? lookUp(s, tapped.word.text) : s)); }}
         onPlay={() => {
           if (!tapped || !text) return;
           // The word and the line would talk over each other.
@@ -1211,7 +1250,7 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-export function GlossPopover({ tapped, language, translitLabel, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onPlay, onSelectPhrase, onAddToDeck, onClose }: {
+export function GlossPopover({ tapped, language, translitLabel, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onReveal, onPlay, onSelectPhrase, onAddToDeck, onClose }: {
   tapped: Tapped | null;
   /** The language the word is in, for its form's explanation; none, and no form chip is shown (a card's sentence has no forms). */
   language?: Language;
@@ -1225,6 +1264,8 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
   onPlay: () => void;
   /** null when marking isn't recorded (reading a past text). */
   onToggleFlag: (() => void) | null;
+  /** The meaning of a word that was held back (`tapped.guess`) has just been shown: a lookup. */
+  onReveal?: () => void;
   /** Starts selecting a phrase from this word, to have it explained. */
   onSelectPhrase: (() => void) | null;
   /** Opens the note editor on this word; null when the word is in the deck or isn't in the language being read. */
@@ -1241,7 +1282,13 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
   const [showTranslit, setShowTranslit] = useState(false);
   // The form chip's explanation replaces the popover while it's open.
   const [showForm, setShowForm] = useState(false);
-  useEffect(() => { setPopHeight(0); setShowTranslit(false); setShowForm(false); }, [tapped]);
+  // A word whose meaning is held back (`tapped.guess`): whether it has been shown, what was typed as
+  // a guess, the quiz choice picked (null for "I don't know"), and whether the guess box has focus.
+  const [revealed, setRevealed] = useState(false);
+  const [guess, setGuess] = useState('');
+  const [picked, setPicked] = useState<number | null>(null);
+  const [typing, setTyping] = useState(false);
+  useEffect(() => { setPopHeight(0); setShowTranslit(false); setShowForm(false); setRevealed(false); setGuess(''); setPicked(null); setTyping(false); }, [tapped]);
   if (!tapped) return null;
   if (showForm && language && tapped.word.form) return <ReadFormSheet api={api} language={language} word={tapped.word} onClose={onClose} />;
   const popWidth = Math.min(POPOVER_WIDTH, width - 2 * space.l);
@@ -1249,12 +1296,26 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
   // Above the word when it clears the status bar, so the finger and the word both stay visible;
   // otherwise below it, and never past the bottom edge.
   const above = tapped.y - POPOVER_GAP - popHeight;
-  const top = Math.min(above >= insets.top + space.s ? above : tapped.y + POPOVER_GAP, height - popHeight - insets.bottom - space.s);
+  // The guess box is a keyboard away from the bottom half of the screen: while it has focus the
+  // popover sits at the top.
+  const top = typing
+    ? insets.top + space.l
+    : Math.min(above >= insets.top + space.s ? above : tapped.y + POPOVER_GAP, height - popHeight - insets.bottom - space.s);
+  const mode = tapped.guess ?? null;
+  // Meaning held back until asked for.
+  const trying = !!mode && !revealed;
+  const reveal = () => { setRevealed(true); setTyping(false); onReveal?.(); };
   const actions: Parameters<typeof WordActionRow>[0][] = [];
-  if (tapped.word.translit && !showTranslit) actions.push({ icon: 'eye', label: translitLabel, onPress: () => setShowTranslit(true) });
-  if (onSelectPhrase) actions.push({ icon: 'text.cursor', label: 'Select a phrase', accessibilityLabel: `Select a phrase starting from ${tapped.word.text}`, onPress: onSelectPhrase });
-  if (onAddToDeck) actions.push({ icon: 'plus.circle', label: 'Add to deck', accessibilityLabel: `Add ${tapped.word.text} to your deck`, onPress: onAddToDeck });
-  if (onToggleFlag) actions.push({ icon: flagged ? 'flag.slash' : 'flag', label: flagged ? 'Unmark' : 'Mark as unknown', onPress: onToggleFlag, chevron: false });
+  if (trying) {
+    if (!mode.quiz) actions.push({ icon: 'eye', label: 'Show meaning', accessibilityLabel: `Show the meaning of ${tapped.word.text}`, onPress: reveal, chevron: false });
+    // Marking a word unknown says its meaning wasn't known, so it's shown too.
+    if (onToggleFlag) actions.push({ icon: flagged ? 'flag.slash' : 'flag', label: flagged ? 'Unmark' : 'Mark as unknown', onPress: () => { reveal(); onToggleFlag(); }, chevron: false });
+  } else {
+    if (tapped.word.translit && !showTranslit) actions.push({ icon: 'eye', label: translitLabel, onPress: () => setShowTranslit(true) });
+    if (onSelectPhrase) actions.push({ icon: 'text.cursor', label: 'Select a phrase', accessibilityLabel: `Select a phrase starting from ${tapped.word.text}`, onPress: onSelectPhrase });
+    if (onAddToDeck) actions.push({ icon: 'plus.circle', label: 'Add to deck', accessibilityLabel: `Add ${tapped.word.text} to your deck`, onPress: onAddToDeck });
+    if (onToggleFlag) actions.push({ icon: flagged ? 'flag.slash' : 'flag', label: flagged ? 'Unmark' : 'Mark as unknown', onPress: onToggleFlag, chevron: false });
+  }
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
@@ -1274,16 +1335,39 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
           <View style={{ flex: 1, gap: space.xs }}>
             <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
-            {tapped.word.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {tapped.word.lemma}</Text> : null}
-            <Text style={{ ...type.body, color: c.text }}>{meaningOf(tapped.word)}</Text>
-            {tapped.word.form && language ? <ReadFormChip name={tapped.word.form.name} onPress={() => setShowForm(true)} /> : null}
-            {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
-            <ReadFrequency word={tapped.word} />
-            <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
+            {trying ? (
+              <GuessPrompt
+                mode={mode}
+                guess={guess}
+                onGuess={setGuess}
+                onFocus={() => setTyping(true)}
+                onBlur={() => setTyping(false)}
+                onPick={(i) => {
+                  if (i === mode.quiz?.answer) { rightAnswer(); onClose(); return; }
+                  setPicked(i);
+                  reveal();
+                }}
+                onGiveUp={reveal}
+              />
+            ) : (
+              <>
+                {tapped.word.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {tapped.word.lemma}</Text> : null}
+                {mode?.quiz && revealed ? (
+                  <QuizChoices choices={mode.quiz.choices} answer={mode.quiz.answer} picked={picked} />
+                ) : (
+                  <Text style={{ ...type.body, color: c.text }}>{meaningOf(tapped.word)}</Text>
+                )}
+                <GuessLine guess={guess} />
+                {tapped.word.form && language ? <ReadFormChip name={tapped.word.form.name} onPress={() => setShowForm(true)} /> : null}
+                {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
+                <ReadFrequency word={tapped.word} />
+                <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
+              </>
+            )}
           </View>
           <WordPlayButton onPress={onPlay} />
         </View>
-        {grammar ? <ReadGrammarNote grammar={grammar} api={api} chosen={grammarChosen[grammar.id]} onChosen={onGrammarChosen} /> : null}
+        {grammar && !trying ? <ReadGrammarNote grammar={grammar} api={api} chosen={grammarChosen[grammar.id]} onChosen={onGrammarChosen} /> : null}
         {actions.length > 0 ? (
           <WordActionGroup>
             {actions.map((a, i) => <WordActionRow key={a.label} first={i === 0} {...a} />)}
