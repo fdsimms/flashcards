@@ -124,11 +124,11 @@ Franki's (Client, below).
   easier** (the owner's choice, changed 15 November 2026 from one text: three answers are mostly
   noise, so the server steers on this text's answers and those of the last text that had a check,
   within 7 days, taken together, `engine.record_reading` and `store.previous_check`): under 60% right
-  of at least six between them cuts a stretch word from the text's own level (it used to raise the
-  coverage target; that no longer moves, below) (`adapt_to_check`, through `after_reading`, as for a
-  rating under Logging), unless the text was rated Too hard, which already did. A text counts toward
-  the next one's check too, so a run of poor texts can cut one per text after the first; a good
-  score changes nothing, as the rating is what makes texts harder. Nothing is graded or added to the deck. Not done:
+  of at least six between them raises the coverage target a step from the text's own level
+  (`adapt_to_check`, through `after_reading`, as for a rating under Logging), unless the text was
+  rated Too hard, which already did. A text counts toward the next one's check too, so a run of poor
+  texts can step the target once per text after the first; a good score changes
+  nothing, as the rating is what makes texts harder. Nothing is graded or added to the deck. Not done:
   the check on a past text read again (its reading isn't logged), and questions for texts written
   before it.
 - **Use the lines yourself** (14 November 2026, the owner chose from a mock). Under the check, the
@@ -754,24 +754,23 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   ceiling after 3 attempts is served anyway (too easy is never a reason to drop one), choosing the
   attempt closest to the range. The request names the range, and the prompt tells the model to write
   natural target-language speech rather than word-for-word English idioms.
-- **The target is 95% to 98%, and fixed** (15 November 2026, the owner's decision: not to go against
-  the research, which finds 95% the least adequate for reading and, since speech can't be reread, for
-  listening; below it comprehension varied widely). `DEFAULT_FLOOR` is 95% (`difficulty.py`) for every
-  language, and a text may hold at most 98% known words (`MAX_CEILING`; the ceiling is 4 points above
-  the target but never higher): above that it has about one new word in 50, too few to learn from, and
-  the research calls 98% the comfortable end of adequate coverage. **Ratings don't move it** (the
-  owner's decision, the same day: the research already gives the range, a rating is a feeling that
-  tracks fluency more than learning, and inside a range this narrow the target would move a point or
-  two). What a rating controls is the **number of stretch words** (1 to 4), the new words a text
-  teaches: Too hard cuts one, Too easy adds one, and a poor check cuts one. The check after reading,
-  which measures understanding, and effective coverage (`recognition.py`), which measures lookups of
-  known words, are the better signals if the range ever needs revisiting. A floor saved by an older
-  server is ignored (`store.load_difficulty` reads only the stretch count and grammar allowance),
-  so every language reads 95% and keeps its stretch word count.
+- **The target is 95% to 98%** (15 November 2026, the owner's decision: not to go against the
+  research, which finds 95% the least adequate for reading and, since speech can't be reread, for
+  listening; below it comprehension varied widely). `DEFAULT_FLOOR` and `MIN_FLOOR` are 95%
+  (`difficulty.py`): a language starts there and a "too easy" rating can't take it lower. "Too hard"
+  raises it a step at a time, to 97% (`MAX_FLOOR`). A text may hold at most 98% known words
+  (`MAX_CEILING`; the ceiling is 4 points above the target but never higher): above that it has about
+  one new word in 50, too few to learn from, and the research calls 98% the comfortable end of
+  adequate coverage. **A rating moves only this target, not the number of practice words** (the
+  owner's correction, the same day): practice words are words already studied, so they count as known
+  and more of them repeat a few words more without making a text harder, while the words outside the
+  deck are what makes it harder, and from 95% to 97% a text goes from about 5 new words in 100 to
+  about 3. A floor saved by an older server is read as the nearest in 95% to 97%
+  (`store.load_difficulty`), and the practice word count is the one saved.
   **The cost the owner already found:** at 95% to 98% a text can hold very few words the learner
   hasn't studied, which is why it was lowered on 12 November. The practice words, the grammar
   points and the guess-first prompt are what keep a text from teaching nothing; if it's too easy,
-  rate it Too easy and the next one carries more practice words, up to 4. The reader's "fewer than usual"
+  rate it Too easy and the next one is written nearer 95%. The reader's "fewer than usual"
   note (`underFloor`) now shows for any text under 95%, which after 3 attempts is the closest one
   that is still at 85% or more (`MINIMUM`, unchanged: raising it to 90% would drop more texts for
   cost, and is the owner's call).
@@ -968,8 +967,8 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   "Any word" ("Any due word" until 13 November 2026), hands the model that many words to use, which
   keeps every word in rotation at the cost of odder dialogues. It's a setting on the Topics screen (`GET`/`PATCH /api/settings`),
   stored on the server so background writes follow it, and like ratings it applies from the next
-  text written. It's separate from difficulty on purpose: ratings decide how many stretch words and
-  how much coverage; this decides only which words.
+  text written. It's separate from difficulty on purpose: ratings decide how much coverage
+  (the practice word count is separate); this decides only which words.
 - **Names.** The model wraps a person's, pet's or place's name in tildes (`~Kasia~|mieszka`). A
   name is left out of the coverage count, for and against, so it never sends a draft back for an
   unknown word. The server limits it so the mark can't be used to get past the floor: at most
@@ -1243,18 +1242,17 @@ in the current language, with when one was last read to the end. Nothing else le
 
 - Per text: date, language, mode, token count, verified coverage, stretch words, words glossed,
   words flagged unknown, rating, audio speed, listen-only or not, time spent.
-- The rating adjusts the difficulty of texts written after it: too hard, one fewer stretch word; too
-  easy, one more (1 to 4). The coverage target doesn't move: it is 95% to 98% for everyone (Generation
-  and coverage). The count (`server/reader/src/franki_reader/difficulty.py`). A text already waiting in a favorite's queue
+- The rating adjusts the difficulty of texts written after it: too hard raises the coverage target 1
+  point, too easy lowers it 1 point, within 95% to 97% (a text up to 98%); the practice word count
+  (1 to 4) isn't moved by it (`server/reader/src/franki_reader/difficulty.py`). A text already waiting in a favorite's queue
   keeps the difficulty it was written at, so a rating shows up one text later; the owner chose that
   over discarding queued texts (19 October 2026). The Milestone 1 exit check reads the log.
 - **A rating steps from the level the rated text was written at** (13 November 2026, the owner's
-  decision from a review of the teaching; `after_reading`). Each text stores its stretch word count
-  (`stretch_count`, NULL for texts written before, whose rating steps from the current count as
-  before). Too hard leaves the count at the lower of the current one and one below the text's; too
-  easy is the mirror. Before this each rating stepped from the current level, so three texts written
-  ahead with two stretch words and all rated too hard cut three before a text at the new level was
-  read. A poor check steps from the text's level the same way.
+  decision from a review of the teaching; `after_reading`). Each text stores its coverage target
+  (`floor`). Too hard leaves the target at the higher of the current one and a step above the text's;
+  too easy is the mirror. Before this each rating stepped from the current level, so three texts
+  written ahead at 95% and all rated too hard moved the target three steps before a text at the new
+  level was read. A poor check steps from the text's level the same way.
 - A reading posted twice for the same text (a retried request) is counted once.
 - Each text also records the model that actually answered (a refusal fallback can change it), its
   tokens and its cost in dollars, dropped texts included, so the real cost per text can be read

@@ -1,16 +1,18 @@
 """How hard the next text is, adjusted from the last rating (docs/read-and-listen/brief.md, design principle 11).
 
-The coverage target doesn't move: it is the research's range, 95% to 98% known words (DEFAULT_FLOOR
-to MAX_CEILING), the same for every learner and language. A learner's rating is a feeling, which
-tracks fluency more than learning, and inside a range this narrow the target would move a point or
-two, so what a rating controls is how many stretch words a text carries (1 to 4), the new words it
-teaches: "too hard" cuts one, "too easy" adds one. A poor score on the check after reading, which
-measures understanding, also cuts one, unless the rating already did (`adapt_to_check`); a good
-score changes nothing, since understanding a text is what it's for.
+What makes a text harder is how many of its words are outside the learner's deck, so that is what a
+rating moves: "too hard" raises the coverage target a step (fewer new words), "too easy" lowers it
+a step, within MIN_FLOOR (95%, the least the research says reading and listening need) and
+MAX_FLOOR (97%), with a text never above MAX_CEILING (98%). The number of practice words isn't a
+difficulty setting: they are words the learner has already studied and count as known, so more of
+them repeat a few words more without making a text harder, and a rating leaves them alone. A poor
+score on the check after reading, which measures understanding, also raises the target a step,
+unless the rating already did (`adapt_to_check`); a good score changes nothing, since understanding
+a text is what it's for.
 
 Each step is taken from the level the rated text was written at, not the current one
 (`after_reading`): texts written ahead at the old level don't stack their ratings, so three of
-them rated "too hard" cut one stretch word, as one would.
+them rated "too hard" move the target one step, as one would.
 
 A text must land between the target and CEILING_GAP above it, never above MAX_CEILING: one with more
 known words than that is too easy and is revised, which the 95% floor alone never caught.
@@ -21,13 +23,17 @@ from dataclasses import dataclass, replace
 from franki_reader.coverage import CEILING_GAP
 from franki_reader.grammar import UNSET_USES
 
-# The coverage target: about 1 word in 20 new to the learner. 95% is the least known-word coverage the
-# research finds adequate for reading, and for listening (which can't be reread); below it
-# comprehension varies widely (docs/read-and-listen/brief.md, Evidence base). A text holds at most
-# 98%: above that it has about one new word in 50, too few to learn from, and the research calls 98%
-# the comfortable end of adequate coverage.
+# Where a new language starts, and the lowest the target goes: about 1 word in 20 new to the learner.
+# 95% is the least known-word coverage the research finds adequate for reading, and for listening
+# (which can't be reread); below it comprehension varies widely (docs/read-and-listen/brief.md,
+# Evidence base). The target stops at 97% and a text at 98%: above that a text has about one new
+# word in 50, too few to learn from, and the research calls 98% the comfortable end of adequate
+# coverage. From 95% to 97% a text goes from about 5 new words in 100 to about 3.
 DEFAULT_FLOOR = 0.95
+MIN_FLOOR = 0.95
+MAX_FLOOR = 0.97
 MAX_CEILING = 0.98
+FLOOR_STEP = 0.01
 MIN_STRETCH = 1
 MAX_STRETCH = 4
 
@@ -56,9 +62,9 @@ class Difficulty:
 
 def adapt(current: Difficulty, rating: str | None) -> Difficulty:
     if rating == "too_hard":
-        return replace(current, stretch=max(MIN_STRETCH, current.stretch - 1))
+        return replace(current, floor=round(min(MAX_FLOOR, current.floor + FLOOR_STEP), 2))
     if rating == "too_easy":
-        return replace(current, stretch=min(MAX_STRETCH, current.stretch + 1))
+        return replace(current, floor=round(max(MIN_FLOOR, current.floor - FLOOR_STEP), 2))
     return current
 
 
@@ -71,11 +77,11 @@ def _poor_check(rating: str | None, right: int | None, asked: int | None) -> boo
 def adapt_to_check(
     current: Difficulty, rating: str | None, right: int | None, asked: int | None
 ) -> Difficulty:
-    """After `adapt`: a check with under `CHECK_LOW` right cuts a stretch word. Not after "too hard",
-    which already cut one, so a hard text isn't counted twice."""
+    """After `adapt`: a check with under `CHECK_LOW` right raises the coverage target one step. Not
+    after "too hard", which already raised it, so a hard text isn't counted twice."""
     if not _poor_check(rating, right, asked):
         return current
-    return replace(current, stretch=max(MIN_STRETCH, current.stretch - 1))
+    return replace(current, floor=round(min(MAX_FLOOR, current.floor + FLOOR_STEP), 2))
 
 
 def after_reading(
@@ -85,23 +91,23 @@ def after_reading(
     right: int | None,
     asked: int | None,
 ) -> Difficulty:
-    """The difficulty after a reading of a text written at `written` (its stretch word count, where
-    the text recorded one). `adapt` and `adapt_to_check` step from that level, and the result only
-    moves the current count in the same direction: "too hard" leaves it at the lower of the current
-    one and a step below the text's, "too easy" at the higher of the current one and a step above. So
-    a rating of a text written before the last change, at the level that change already moved past,
-    moves nothing, and texts written ahead at an old level don't stack. A poor check with "too
-    easy" cancels out, as a rating of "too hard" would not."""
+    """The difficulty after a reading of a text written at `written` (its coverage target). `adapt`
+    and `adapt_to_check` step from that level, and the result only moves the current target in the
+    same direction: "too hard" leaves it at the higher of the current one and a step above the text's,
+    "too easy" at the lower of the current one and a step below. So a rating of a text written before
+    the last change, at the level that change already moved past, moves nothing, and texts written
+    ahead at an old level don't stack. A poor check with "too easy" cancels out. The practice word
+    count and the grammar allowance are the current ones, untouched."""
     moved = adapt_to_check(adapt(written, rating), rating, right, asked)
     direction = (
-        int(rating == "too_easy")
-        - int(rating == "too_hard")
-        - int(_poor_check(rating, right, asked))
+        int(rating == "too_hard")
+        - int(rating == "too_easy")
+        + int(_poor_check(rating, right, asked))
     )
     if direction > 0:
-        stretch = max(current.stretch, moved.stretch)
+        floor = max(current.floor, moved.floor)
     elif direction < 0:
-        stretch = min(current.stretch, moved.stretch)
+        floor = min(current.floor, moved.floor)
     else:
-        stretch = current.stretch
-    return replace(current, stretch=stretch)
+        floor = current.floor
+    return replace(current, floor=floor)

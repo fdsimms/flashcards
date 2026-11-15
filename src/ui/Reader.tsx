@@ -1049,7 +1049,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
             <LineDrillCard text={text} onStart={(kind) => { player.pause(); setDrilling(kind); }} onRetell={() => { player.pause(); setDrilling('retell'); }} />
             <Card style={{ gap: space.s }}>
               <Text style={{ ...type.title, color: c.text }}>How was this one?</Text>
-              <Help>Your answer sets how many practice words the next text has.</Help>
+              <Help>Your answer sets how hard the next text is.</Help>
               <View accessibilityRole="radiogroup" style={{ gap: space.s }}>
                 {RATINGS.map((r) => {
                   const selected = rating === r.value;

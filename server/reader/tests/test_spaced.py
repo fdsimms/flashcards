@@ -260,8 +260,7 @@ def test_each_language_keeps_its_own_snapshot_and_difficulty() -> None:
 
     store.save_difficulty(conn, Difficulty(floor=0.97, stretch=1), "es")
     assert store.load_difficulty(conn) == Difficulty()
-    # Only the stretch word count is kept: the coverage target is the same for every language.
-    assert store.load_difficulty(conn, "es") == Difficulty(stretch=1)
+    assert store.load_difficulty(conn, "es") == Difficulty(floor=0.97, stretch=1)
 
 
 SPANISH_DRAFT = draft(
@@ -309,7 +308,7 @@ def test_a_rating_moves_the_difficulty_of_the_texts_language_only() -> None:
     text = asyncio.run(e.make_text(topic.id))
     assert text is not None
     e.record_reading(text.id, store.Reading("too_hard", True, (), (), None, False, 60))
-    assert store.load_difficulty(e.conn, "es").stretch == 1
+    assert store.load_difficulty(e.conn, "es").floor == 0.96
     assert store.load_difficulty(e.conn, "th") == Difficulty()
     row = e.conn.execute("SELECT language FROM readings").fetchone()
     assert row[0] == "spanish"

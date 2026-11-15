@@ -13,7 +13,7 @@ from typing import Any, Literal
 
 from franki_reader import grammar
 from franki_reader.comprehension import Question, from_json
-from franki_reader.difficulty import Difficulty
+from franki_reader.difficulty import MAX_FLOOR, MIN_FLOOR, Difficulty
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Choice, Form, Generated, Line
 from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, VOICE_SLOTS, Code, with_deck
@@ -1684,21 +1684,20 @@ def clear_word(conn: sqlite3.Connection, word: str, now: datetime) -> None:
 # ==== Difficulty ====
 
 
-# v2: the range moved down on 12 November 2026 (95% was the old lowest target), so a floor saved
-# before it, which can't go below 95%, starts again at the new default rather than staying there.
 # v2: the range moved down on 12 November 2026 (95% was the old lowest target). The coverage target
-# no longer moves (difficulty.py), so only the stretch word count and the grammar allowance are read
-# from what's saved: a floor saved before it, at any level, is ignored.
+# now runs from 95% to 97% (difficulty.py), so a floor saved before that, anywhere between 90% and
+# 99%, is read as the nearest in that range.
 _DIFFICULTY_KEY = "difficulty_v2"
 
 
 def load_difficulty(conn: sqlite3.Connection, language: Code = "th") -> Difficulty:
-    """Each language has its own stretch word count, moved by ratings of texts in that language; the
-    coverage target is the same for all (difficulty.DEFAULT_FLOOR)."""
+    """Each language has its own, moved by ratings of texts in that language."""
     raw = _get_meta(conn, _per_language(_DIFFICULTY_KEY, language))
     if not raw:
         return Difficulty()
-    return Difficulty(**{k: v for k, v in json.loads(raw).items() if k != "floor"})
+    saved = json.loads(raw)
+    saved["floor"] = round(min(MAX_FLOOR, max(MIN_FLOOR, saved.get("floor", MIN_FLOOR))), 2)
+    return Difficulty(**saved)
 
 
 def save_difficulty(

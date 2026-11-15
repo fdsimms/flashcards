@@ -433,7 +433,7 @@ def test_the_difficulty_follows_the_rating() -> None:
 
     e.record_reading(text.id, reading("too_hard"))
 
-    assert store.load_difficulty(e.conn) == Difficulty(0.95, 1)
+    assert store.load_difficulty(e.conn) == Difficulty(0.96, 2)
     assert store.get_topic(e.conn, topic.id).ready == 0  # type: ignore[union-attr]
 
 
@@ -448,22 +448,23 @@ def test_ratings_of_texts_written_ahead_at_the_old_level_do_not_stack() -> None:
         e.record_reading(text.id, reading("too_hard"))
 
     # One step, as one rating would, not three.
-    assert store.load_difficulty(e.conn) == Difficulty(0.95, 1)
+    assert store.load_difficulty(e.conn) == Difficulty(0.96, 2)
 
 
 def test_too_easy_on_texts_written_ahead_does_not_overshoot() -> None:
     e = engine(ScriptedModel(IN_RANGE))
+    store.save_difficulty(e.conn, Difficulty(0.97, 2))
     topics = [store.add_topic(e.conn, name, NOW) for name in ("Food", "Taxi")]
     texts = [run(partial(fetch, e, topic.id)) for topic in topics]
 
     for text in texts:
         e.record_reading(text.id, reading("too_easy"))
 
-    # One step up, as one rating would, not two.
-    assert store.load_difficulty(e.conn) == Difficulty(0.95, 3)
+    # One step down from where the texts were written, as one rating would, not two.
+    assert store.load_difficulty(e.conn) == Difficulty(0.96, 2)
 
 
-def test_a_text_written_before_its_stretch_count_was_recorded_steps_from_the_current_one() -> None:
+def test_a_rating_leaves_the_practice_word_count_alone() -> None:
     e = engine(ScriptedModel(IN_RANGE))
     topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
@@ -472,7 +473,8 @@ def test_a_text_written_before_its_stretch_count_was_recorded_steps_from_the_cur
 
     e.record_reading(text.id, reading("too_hard"))
 
-    assert store.load_difficulty(e.conn) == Difficulty(0.95, 2)
+    # They're words already studied, so a harder rating doesn't change how many a text carries.
+    assert store.load_difficulty(e.conn) == Difficulty(0.96, 3)
 
 
 def test_a_repeated_reading_is_ignored() -> None:
@@ -483,7 +485,7 @@ def test_a_repeated_reading_is_ignored() -> None:
     e.record_reading(text.id, reading("too_hard"))
     e.record_reading(text.id, reading("too_hard"))
 
-    assert store.load_difficulty(e.conn) == Difficulty(0.95, 1)
+    assert store.load_difficulty(e.conn) == Difficulty(0.96, 2)
     assert e.conn.execute("SELECT COUNT(*) FROM readings").fetchone()[0] == 1
 
 
@@ -953,9 +955,9 @@ def test_a_poor_check_steers_only_together_with_the_last_texts() -> None:
     e = engine(ScriptedModel(IN_RANGE))
     topic = store.add_topic(e.conn, "Food stall", NOW)
     read_with(e, topic.id, checked(1, 4))  # alone: too few answers to count
-    assert store.load_difficulty(e.conn, "th").stretch == 2
+    assert store.load_difficulty(e.conn, "th").floor == 0.95
     read_with(e, topic.id, checked(1, 4))  # with the one before: 2 of 8
-    assert store.load_difficulty(e.conn, "th").stretch == 1
+    assert store.load_difficulty(e.conn, "th").floor == 0.96
 
 
 def test_a_good_check_after_a_poor_one_changes_nothing() -> None:
@@ -963,12 +965,12 @@ def test_a_good_check_after_a_poor_one_changes_nothing() -> None:
     topic = store.add_topic(e.conn, "Food stall", NOW)
     read_with(e, topic.id, checked(0, 4))
     read_with(e, topic.id, checked(4, 4))  # 4 of 8 is under 60%, so this one does steer
-    assert store.load_difficulty(e.conn, "th").stretch == 1
+    assert store.load_difficulty(e.conn, "th").floor == 0.96
     e2 = engine(ScriptedModel(IN_RANGE))
     topic2 = store.add_topic(e2.conn, "Food stall", NOW)
     read_with(e2, topic2.id, checked(3, 4))
     read_with(e2, topic2.id, checked(3, 4))  # 6 of 8
-    assert store.load_difficulty(e2.conn, "th").stretch == 2
+    assert store.load_difficulty(e2.conn, "th").floor == 0.95
 
 
 def test_a_check_from_over_a_week_ago_isnt_counted_with_this_one() -> None:
@@ -980,4 +982,4 @@ def test_a_check_from_over_a_week_ago_isnt_counted_with_this_one() -> None:
     e.record_reading(first.id, checked(0, 4))
     clock.now = NOW + timedelta(days=8)
     e.record_reading(second.id, checked(0, 4))
-    assert store.load_difficulty(e.conn, "th").stretch == 2
+    assert store.load_difficulty(e.conn, "th").floor == 0.95

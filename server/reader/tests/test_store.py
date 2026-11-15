@@ -447,12 +447,11 @@ def test_only_a_served_text_becomes_read(conn) -> None:  # type: ignore[no-untyp
     assert (th.read, th.dropped, th.skipped) == (1, 1, 1)
 
 
-def test_a_coverage_target_saved_before_it_stopped_moving_is_ignored(conn) -> None:  # type: ignore[no-untyped-def]
+def test_a_coverage_target_saved_by_an_older_server_is_read_as_the_nearest_in_range(conn) -> None:  # type: ignore[no-untyped-def]
     from franki_reader.store import _per_language, _set_meta, load_difficulty
 
-    # What an older server saved: a floor moved by ratings, with the stretch word count beside it.
-    _set_meta(
-        conn, _per_language("difficulty_v2", "th"), '{"floor": 0.91, "stretch": 3, "unset_uses": 4}'
-    )
-    d = load_difficulty(conn)
-    assert (d.floor, d.stretch, d.unset_uses) == (0.95, 3, 4)
+    key = _per_language("difficulty_v2", "th")
+    for saved, read in ((0.91, 0.95), (0.96, 0.96), (0.99, 0.97)):
+        _set_meta(conn, key, f'{{"floor": {saved}, "stretch": 3, "unset_uses": 4}}')
+        d = load_difficulty(conn)
+        assert (d.floor, d.stretch, d.unset_uses) == (read, 3, 4)
