@@ -498,7 +498,12 @@ class Engine:
                 store.add_story_voices(
                     self.conn,
                     story.id,
-                    cast.assign(result.speakers, story.voices, self.voices_for(language)),
+                    cast.assign(
+                        result.speakers,
+                        story.voices,
+                        self.voices_for(language),
+                        self.cast_presets(language),
+                    ),
                 )
             text = store.get_text(self.conn, text_id)
             assert text is not None
@@ -794,6 +799,12 @@ class Engine:
         rest are in languages.py), and a second voice there isn't one for is the first."""
         base = {**LANGUAGES[language].voices, **(self.voices if language == "th" else {})}
         return full_voices({**base, **store.load_settings(self.conn).voices.get(language, {})})
+
+    def cast_presets(self, language: Code) -> dict[str, cast.Preset]:
+        """The voice and pitch the first character of each kind gets in the language: the ones
+        chosen in the app, else what `cast.assign` picks from the language's voices."""
+        chosen = store.load_settings(self.conn).cast.get(language, {})
+        return cast.presets(self.voices_for(language), chosen)
 
     async def rerecord(self, language: Code) -> None:
         """Speaks the texts waiting to be read again, after their language's voices changed. A text

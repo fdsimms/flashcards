@@ -217,3 +217,16 @@ test('a situation turn posts the whole conversation, and its clip is fetched wit
   expect(JSON.parse(String(calls[0].init.body))).toEqual(conversation);
   expect(api.situationAudio('abc')).toEqual({ uri: 'https://x/reader/api/situations/audio/abc', headers: { Authorization: 'Bearer p' } });
 });
+
+
+test('a story character sample and scene are asked for by language, voice and pitch', async () => {
+  const mp3 = () => new Response(new Uint8Array([73, 68, 51]), { status: 200 });
+  const sample = fakeFetch(mp3());
+  expect(await createApi('https://x/reader/', 'p', sample.impl).castSample('ru', 'ru-RU-DariyaNeural', 18, 'female')).toEqual(new Uint8Array([73, 68, 51]));
+  expect(sample.calls[0].url).toBe('https://x/reader/api/cast/sample');
+  expect(JSON.parse(sample.calls[0].init.body as string)).toEqual({ language: 'ru', voice: 'ru-RU-DariyaNeural', pitch: 18, gender: 'female' });
+  const scene = fakeFetch(mp3());
+  await createApi('https://x/reader/', 'p', scene.impl).castScene('ru');
+  expect(scene.calls[0].url).toBe('https://x/reader/api/cast/scene');
+  expect(JSON.parse(scene.calls[0].init.body as string)).toEqual({ language: 'ru' });
+});

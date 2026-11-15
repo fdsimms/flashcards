@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from franki_speech import SpeechError, WordMark
 from scripted import BAD, ENTRIES, IN_RANGE, ScriptedModel
 
-from franki_reader import store
+from franki_reader import cast, store
 from franki_reader.app import create_app
 from franki_reader.engine import Engine
 from franki_reader.gateway import AnkiUnavailable
@@ -345,6 +345,14 @@ VOICES = {
     },
 }
 
+# What the first story character of each kind is given in each language when nothing was chosen.
+CAST = {
+    code: {
+        kind: {"voice": p.voice, "pitch": p.pitch} for kind, p in cast.presets(voices, {}).items()
+    }
+    for code, voices in VOICES.items()
+}
+
 
 def test_the_stretch_setting_can_be_read_and_changed() -> None:
     c = client()
@@ -355,6 +363,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "language": "th",
         "decks": DECKS,
         "voices": VOICES,
+        "cast": CAST,
         "common": COMMON,
     }
     changed = c.patch("/api/settings", headers=AUTH, json={"stretch_words": "any"})
@@ -365,6 +374,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "language": "th",
         "decks": DECKS,
         "voices": VOICES,
+        "cast": CAST,
         "common": COMMON,
     }
     assert c.get("/api/settings", headers=AUTH).json() == {
@@ -374,6 +384,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "language": "th",
         "decks": DECKS,
         "voices": VOICES,
+        "cast": CAST,
         "common": COMMON,
     }
     assert (
@@ -520,6 +531,7 @@ def test_the_length_setting_can_be_changed_to_a_length_offered() -> None:
         "language": "th",
         "decks": DECKS,
         "voices": VOICES,
+        "cast": CAST,
         "common": COMMON,
     }
     assert c.patch("/api/settings", headers=AUTH, json={"lines": 30}).status_code == 422
@@ -1377,3 +1389,134 @@ def test_text_difficulty_is_set_for_the_current_language() -> None:
     )
     assert c.put("/api/difficulty", json={"level": "hard"}, headers=AUTH).status_code == 422
     assert c.put("/api/difficulty", json={"level": "easier"}).status_code == 401
+
+
+class RecordedParts:
+    """Records what the Story characters screen had spoken, and gives back MP3 bytes."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[list[Any], str]] = []
+
+    async def __call__(self, parts: Any, language: str) -> Spoken:
+        self.calls.append((list(parts), language))
+        return Spoken(b"ID3cast")
+
+
+def cast_client(parts: RecordedParts | None) -> TestClient:
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, ENTRIES, NOW)
+    engine = Engine(
+        conn,
+        ScriptedModel(IN_RANGE).ask_for,
+        None,
+        lambda: NOW,
+        random.Random(1),
+        synthesize_parts=parts,
+    )
+    return started(create_app(engine, "open sesame", FakeSpeech() if parts else None))
+
+
+def test_a_story_characters_voice_and_pitch_can_be_chosen_and_reset() -> None:
+    c = cast_client(RecordedParts())
+    assert c.get("/api/settings", headers=AUTH).json()["cast"]["th"]["girl"] == CAST["th"]["girl"]
+    pick = {"cast": {"th": {"girl": {"voice": "th-TH-AcharaNeural", "pitch": 24}}}}
+    changed = c.patch("/api/settings", headers=AUTH, json=pick).json()
+    assert changed["cast"]["th"]["girl"] == {"voice": "th-TH-AcharaNeural", "pitch": 24}
+    assert changed["cast"]["th"]["woman"] == CAST["th"]["woman"]  # the rest stays the default
+    assert c.get("/api/settings", headers=AUTH).json()["cast"] == changed["cast"]
+    back = c.patch("/api/settings", headers=AUTH, json={"cast": {"th": {"girl": None}}}).json()
+    assert back["cast"] == CAST
+
+
+def test_a_story_characters_voice_is_checked_like_a_slots() -> None:
+    c = cast_client(RecordedParts())
+
+    def pick(kind: str, voice: str, pitch: int = 0) -> Any:
+        body = {"cast": {"th": {kind: {"voice": voice, "pitch": pitch}}}}
+        return c.patch("/api/settings", headers=AUTH, json=body)
+
+    assert pick("girl", "es-MX-JorgeNeural").status_code == 400  # not a Thai voice
+    refused = pick("boy", "th-TH-PremwadeeNeural")  # a woman's voice for a boy
+    assert refused.status_code == 400 and "female voice" in refused.json()["detail"]
+    assert pick("girl", "th-TH-AcharaNeural", 36).status_code == 422
+    assert pick("girl", "th-TH-AcharaNeural", -31).status_code == 422
+    assert pick("dragon", "th-TH-AcharaNeural").status_code == 422
+    assert pick("girl", "en-US-AvaMultilingualNeural", -30).status_code == 200
+
+
+def test_damaged_story_character_choices_are_dropped_on_load() -> None:
+    conn = store.connect(":memory:")
+    store.save_settings(
+        conn,
+        Settings(
+            cast={
+                "th": {
+                    "girl": {"voice": "th-TH-AcharaNeural", "pitch": 18},
+                    "boy": {"voice": "th-TH-NiwatNeural", "pitch": 99},
+                    "dragon": {"voice": "x", "pitch": 0},
+                },
+                "es": {"man": {"voice": "", "pitch": 0}},
+            }
+        ),
+    )
+    assert store.load_settings(conn).cast == {
+        "th": {"girl": {"voice": "th-TH-AcharaNeural", "pitch": 18}}
+    }
+
+
+def test_a_sample_is_a_line_in_the_voice_at_the_pitch() -> None:
+    parts = RecordedParts()
+    c = cast_client(parts)
+    body = {"language": "ru", "voice": "ru-RU-DariyaNeural", "pitch": 18, "gender": "female"}
+    r = c.post("/api/cast/sample", headers=AUTH, json=body)
+    assert r.status_code == 200 and r.headers["content-type"] == "audio/mpeg"
+    assert r.content == b"ID3cast"
+    [(spoken, language)] = parts.calls
+    assert language == "ru-RU"
+    assert [(p.text, p.voice, p.pitch) for p in spoken] == [
+        ("«Мама, туда нельзя!»", "ru-RU-DariyaNeural", 18)
+    ]
+    # Thai's polite ending is the speaker's.
+    thai = {"language": "th", "voice": "th-TH-NiwatNeural", "gender": "male"}
+    c.post("/api/cast/sample", headers=AUTH, json=thai)
+    assert "ครับ" in parts.calls[1][0][0].text
+    wrong = {"language": "ru", "voice": "es-MX-JorgeNeural"}
+    assert c.post("/api/cast/sample", headers=AUTH, json=wrong).status_code == 400
+
+
+def test_the_scene_is_the_narrator_a_girl_and_a_woman_in_the_voices_a_story_would_give() -> None:
+    parts = RecordedParts()
+    c = cast_client(parts)
+    c.patch(
+        "/api/settings",
+        headers=AUTH,
+        json={"cast": {"ru": {"girl": {"voice": "ru-RU-DariyaNeural", "pitch": 24}}}},
+    )
+    r = c.post("/api/cast/scene", headers=AUTH, json={"language": "ru"})
+    assert r.status_code == 200
+    [(spoken, language)] = parts.calls
+    assert language == "ru-RU"
+    assert [(p.voice, p.pitch) for p in spoken] == [
+        (VOICES["ru"]["male"], 0),
+        ("ru-RU-DariyaNeural", 24),
+        (CAST["ru"]["woman"]["voice"], CAST["ru"]["woman"]["pitch"]),
+    ]
+    assert "".join(p.text for p in spoken).startswith("На кухне горит свет")
+
+
+def test_a_sample_or_scene_counts_as_a_recording_and_needs_azure() -> None:
+    c = cast_client(RecordedParts())
+    c.post("/api/cast/scene", headers=AUTH, json={"language": "ru"})
+    assert c.get("/api/costs", headers=AUTH).json()["recordings"]["recordings"] == 1
+    none = cast_client(None)
+    assert none.post("/api/cast/scene", headers=AUTH, json={"language": "ru"}).status_code == 503
+    assert c.post("/api/cast/scene", json={"language": "ru"}).status_code == 401
+
+
+def test_every_language_has_a_scene() -> None:
+    from franki_reader.cast_samples import SCENES, sample_line
+    from franki_reader.languages import LANGUAGES
+
+    assert set(SCENES) == set(LANGUAGES)
+    assert all(all(line.strip() for line in lines) for lines in SCENES.values())
+    assert sample_line("th", "male") != sample_line("th", "female")

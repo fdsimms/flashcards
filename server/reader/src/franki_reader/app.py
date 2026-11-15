@@ -26,6 +26,9 @@ serves all of it under /reader (../../Caddyfile), so the app's address ends in /
     GET   /api/settings               {stretch_words: "topic" | "any", lines: 6 | 8 | 12,
                                       form: "dialogue" | "story", language: "th" | "es" | ...,
                                       decks: {th: <deck>, es: <deck>, ...},
+                                      cast: {th: {girl: {voice, pitch}}} the voice and pitch for a
+                                      kind of story character (man, woman, boy, girl, elder_man,
+                                      elder_woman); null puts one back to the default
                                       voices: {th: {male: <voice>, male2: <voice>, female: <voice>,
                                       female2: <voice>}, es: {...}, ...}, a text's speakers are
                                       read in the voice of their gender (second voices for a
@@ -133,6 +136,12 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/voices?language=th     Azure's voices in a language (any code: th, pl, es-MX) and then
                                       its Multilingual voices of other locales, for the speakers
                                       here and for recording cards in the app
+    POST  /api/cast/sample            {language, voice, pitch?, gender?} one line a story character
+                                      might say, spoken in that voice at that pitch (a percent
+                                      change), as MP3: the Story characters screen's way to hear a
+                                      choice before making it
+    POST  /api/cast/scene             {language} a short scene read by the narrator, a girl and a
+                                      woman in the voices a story would give them now, as one MP3
     POST  /api/speech                 {text, voice, rate?, language?} the text spoken by an Azure
                                       voice, as MP3: the app records a card's audio with it and
                                       keeps the file, so each recording is asked for once. The
@@ -206,11 +215,13 @@ from typing import Annotated, Any, Literal
 import anthropic
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import FileResponse, JSONResponse
-from franki_speech import SpeechClient, SpeechError, is_multilingual, locale_of, text_locale
+from franki_speech import Part, SpeechClient, SpeechError, is_multilingual, locale_of, text_locale
 from pydantic import BaseModel, Field
 
 from franki_reader import (
     ai_ipa,
+    cast,
+    cast_samples,
     comprehension,
     config,
     drills,
@@ -260,6 +271,7 @@ from franki_reader.languages import (
     LANGUAGES,
     Code,
     CommonCount,
+    Gender,
     VoiceSlot,
     speech_locale,
     with_deck,
@@ -328,6 +340,27 @@ class ClearWord(BaseModel):
     word: str = Field(min_length=1, max_length=100)
 
 
+CastType = Literal["man", "woman", "boy", "girl", "elder_man", "elder_woman"]
+
+
+class CastChoice(BaseModel):
+    """The voice and pitch (a percent change) for one kind of story character."""
+
+    voice: str = Field(min_length=1, max_length=100)
+    pitch: int = Field(ge=cast.PITCH_RANGE[0], le=cast.PITCH_RANGE[1])
+
+
+class CastSampleIn(BaseModel):
+    language: Code
+    voice: str = Field(min_length=1, max_length=100)
+    pitch: int = Field(default=0, ge=cast.PITCH_RANGE[0], le=cast.PITCH_RANGE[1])
+    gender: Gender = "female"
+
+
+class CastSceneIn(BaseModel):
+    language: Code
+
+
 class SettingsUpdate(BaseModel):
     stretch_words: StretchWords | None = None
     lines: Length | None = None
@@ -339,6 +372,8 @@ class SettingsUpdate(BaseModel):
     common: dict[Code, CommonCount] | None = None
     # An Azure voice for each of a language's voice slots; an empty name goes back to the default.
     voices: dict[Code, dict[VoiceSlot, Annotated[str, Field(max_length=100)]]] | None = None
+    # A voice and pitch for each kind of story character (cast.py); null goes back to the default.
+    cast: dict[Code, dict[CastType, CastChoice | None]] | None = None
 
 
 class SpeechIn(BaseModel):
@@ -958,7 +993,21 @@ def create_app(
             code: current.common_for(code) for code, info in LANGUAGES.items() if info.counts_common
         }
         voices = {code: engine.voices_for(code) for code in LANGUAGES}
-        return {**current.__dict__, "decks": decks, "voices": voices, "common": common}
+        # What each kind of story character is given, the default where none was chosen.
+        story_cast = {
+            code: {
+                kind: {"voice": p.voice, "pitch": p.pitch}
+                for kind, p in cast.presets(voices[code], current.cast.get(code, {})).items()
+            }
+            for code in LANGUAGES
+        }
+        return {
+            **current.__dict__,
+            "decks": decks,
+            "voices": voices,
+            "common": common,
+            "cast": story_cast,
+        }
 
     @app.get("/api/settings", dependencies=authed)
     async def settings() -> dict[str, Any]:
@@ -1000,6 +1049,19 @@ def create_app(
                     mine.pop(speaker, None)
             if not mine:
                 voices.pop(code)
+        story_cast = {code: dict(v) for code, v in current.cast.items()}
+        for code, chosen_for in (body.cast or {}).items():
+            mine_cast = story_cast.setdefault(code, {})
+            for kind, choice in chosen_for.items():
+                if choice is None:
+                    mine_cast.pop(kind, None)
+                    continue
+                _check_voice(choice.voice, code)
+                gender = cast.CAST_TYPES[kind][0]
+                await _check_voice_gender(speech, choice.voice, gender)
+                mine_cast[kind] = {"voice": choice.voice, "pitch": choice.pitch}
+            if not mine_cast:
+                story_cast.pop(code)
         updated = Settings(
             stretch_words=body.stretch_words or current.stretch_words,
             lines=body.lines or current.lines,
@@ -1007,6 +1069,7 @@ def create_app(
             language=body.language or current.language,
             decks=decks,
             voices=voices,
+            cast=story_cast,
             common=common,
         )
         store.save_settings(engine.conn, updated)
@@ -1074,6 +1137,41 @@ def create_app(
             engine.conn, "recording", "", engine.clock(), audio_chars=billed_chars(spoken)
         )
         return Response(mp3, media_type="audio/mpeg")
+
+    async def cast_audio(parts: list[Part], language: Code) -> Response:
+        """A story characters sample or scene (cast_samples.py): the parts spoken in their voices
+        as one recording, counted as a card's recording is."""
+        if engine.synthesize_parts is None:
+            need_speech()  # says there's no Azure key
+            raise HTTPException(503, "Read & Listen's server can't record several voices here.")
+        try:
+            spoken = await engine.synthesize_parts(parts, LANGUAGES[language].locale)
+        except TtsFailed as e:
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(
+            engine.conn,
+            "recording",
+            "",
+            engine.clock(),
+            audio_chars=sum(billed_chars(p.text) for p in parts),
+        )
+        return Response(spoken.audio, media_type="audio/mpeg")
+
+    @app.post("/api/cast/sample", dependencies=authed)
+    async def cast_sample(body: CastSampleIn) -> Response:
+        _check_voice(body.voice, body.language)
+        line = cast_samples.sample_line(body.language, body.gender)
+        return await cast_audio([Part(line, body.voice, body.pitch)], body.language)
+
+    @app.post("/api/cast/scene", dependencies=authed)
+    async def cast_scene(body: CastSceneIn) -> Response:
+        chosen = cast.presets(
+            engine.voices_for(body.language),
+            store.load_settings(engine.conn).cast.get(body.language, {}),
+        )
+        narrator = engine.voices_for(body.language)["male"]
+        parts = cast_samples.scene_parts(body.language, narrator, chosen["girl"], chosen["woman"])
+        return await cast_audio(parts, body.language)
 
     no_claude = (
         "Claude isn't set up on the server, so it can't check your writing"

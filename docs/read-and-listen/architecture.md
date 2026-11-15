@@ -1220,6 +1220,24 @@ in the current language, with when one was last read to the end. Nothing else le
     sound like different people; another voice does, so a language with one voice of a gender
     (Russian's man, Thai's) runs out sooner, and a Multilingual voice chosen in a slot is the way
     to add one.
+  - **The voice for each kind of character is chosen in the app** (15 November 2026, Read &
+    Listen's voices, Story characters). The kinds are a man, woman, boy, girl, older man and older
+    woman (`cast.CAST_TYPES`, a gender and an age), each with a voice and a pitch from -30% to +35%,
+    kept per language in the `cast` setting (`PATCH /api/settings`; null puts a kind back). A kind
+    with none chosen has what `assign` would give it (`cast.presets`), which `GET /api/settings`
+    sends, so the app shows what's used. `assign` tries a kind's chosen voice and pitch first, and
+    a second character of the same kind gets the next combination nobody has, as before. The
+    screens are `ReadCast` (the six kinds, a sample on each, a scene, Reset to defaults) and
+    `ReadCastKind` (the voices of the kind's gender, and a pitch in steps of 2% that is saved and
+    played once the taps settle). A change applies to characters given a voice afterwards, never to
+    one already in a story.
+  - **Hearing a choice**: `POST /api/cast/sample` speaks a line (`cast_samples.sample_line`; in Thai a
+    man's has ครับ) in a voice at a pitch, and `POST /api/cast/scene` reads a short scene, the
+    narrator, then a girl, then a woman, in the voices a story would give them now, as one
+    recording in several voices. The scene is the first real use of that request, so it is also
+    the quickest way to find out whether Azure takes it. Both are counted as recordings in
+    `/api/costs`. The app keeps each answer in the cache folder under the voices and pitches in it.
+    Not built: showing the scene's text in the app (it's the server's, in `cast_samples.SCENES`).
   - **A character's voice is kept for good** (`stories.voices`, set when the episode is saved,
     before its audio): the stored voice name and pitch, not the slot, so changing the voices
     chosen in the app, or `assign`'s rules, never changes how a character in the story sounds. A

@@ -44,6 +44,30 @@ MAX_PROBLEMS = 4
 _CLOSING = {"«": "»", "“": "”", "„": "“”", "「": "」", "『": "』", '"': '"'}
 
 
+# The kinds of character the voices are chosen for (Read & Listen's settings, Story characters),
+# each a gender and an age.
+CAST_TYPES: dict[str, tuple[Gender, Age]] = {
+    "man": ("male", "adult"),
+    "woman": ("female", "adult"),
+    "boy": ("male", "child"),
+    "girl": ("female", "child"),
+    "elder_man": ("male", "elder"),
+    "elder_woman": ("female", "elder"),
+}
+
+
+def cast_type(gender: Gender, age: Age) -> str:
+    return next(t for t, kind in CAST_TYPES.items() if kind == (gender, age))
+
+
+@dataclass(frozen=True)
+class Preset:
+    """The voice and pitch the first character of a type is given, when nobody in the story has it."""
+
+    voice: str
+    pitch: int
+
+
 @dataclass(frozen=True)
 class Speaker:
     """A character who speaks, as the model describes them."""
@@ -106,17 +130,47 @@ def parse_speakers(raw: Any) -> tuple[Speaker, ...]:
     return tuple(found.values())
 
 
+def clean_presets(raw: Any) -> dict[str, dict[str, Any]]:
+    """The presets saved in the settings, keeping only a known type with a voice name and a pitch in
+    range, so a setting removed or damaged later doesn't break loading."""
+    low, high = PITCH_RANGE
+    out: dict[str, dict[str, Any]] = {}
+    for kind, chosen in (raw if isinstance(raw, dict) else {}).items():
+        if not (kind in CAST_TYPES and isinstance(chosen, dict)):
+            continue
+        voice, pitch = chosen.get("voice"), chosen.get("pitch")
+        if isinstance(voice, str) and voice and isinstance(pitch, int) and low <= pitch <= high:
+            out[kind] = {"voice": voice, "pitch": pitch}
+    return out
+
+
+def presets(voices: Mapping[str, str], chosen: Mapping[str, Any]) -> dict[str, Preset]:
+    """The voice and pitch for the first character of each type: the one chosen in the app, else
+    what `assign` would give them (a narrator and nobody else in the story)."""
+    out = {}
+    for kind, (gender, age) in CAST_TYPES.items():
+        saved = chosen.get(kind)
+        if saved:
+            out[kind] = Preset(saved["voice"], saved["pitch"])
+        else:
+            first = assign([Speaker("x", gender, age)], {}, voices)["x"]
+            out[kind] = Preset(first.voice, first.pitch)
+    return out
+
+
 def assign(
     speakers: Sequence[Speaker],
     known: Mapping[str, CastVoice],
     voices: Mapping[str, str],
+    chosen: Mapping[str, Preset] | None = None,
 ) -> dict[str, CastVoice]:
     """A voice for each speaker the story doesn't have yet. `voices` has every slot of the
     language (`gender.full_voices`). The narrator reads in the man's voice, so that voice at its
     own pitch is taken from the start.
 
-    A character gets, in this order, a voice of their gender at the pitch their age asks for that no
-    one in the story has; then the same voices a step higher or lower; and once every combination is
+    A character gets, in this order, the voice chosen for their type in the app (`chosen`, from
+    `presets`), if no one in the story has it; else a voice of their gender at the pitch their age
+    asks for that no one in the story has; then the same voices a step higher or lower; and once every combination is
     used, the least used one. So two women in a story with two women's voices sound different, and a
     third is the first one's voice at another pitch."""
     used: Counter[tuple[str, int]] = Counter({(voices["male"], 0): 1})
@@ -135,6 +189,10 @@ def assign(
             for voice in pool
             if low <= base + step <= high
         ]
+        picked = (chosen or {}).get(cast_type(speaker.gender, speaker.age))
+        if picked is not None:
+            options.insert(0, (picked.voice, picked.pitch))
+        options = list(dict.fromkeys(options))
         voice, pitch = min(options, key=lambda o: (used[o], options.index(o)))
         used[(voice, pitch)] += 1
         out[speaker.name] = CastVoice(speaker.gender, speaker.age, voice, pitch)

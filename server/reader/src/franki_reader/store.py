@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from franki_reader import grammar
-from franki_reader.cast import CastVoice
+from franki_reader.cast import CastVoice, clean_presets
 from franki_reader.comprehension import Question, from_json
 from franki_reader.difficulty import EASIER_FLOOR, STANDARD_FLOOR, Difficulty, nearest_floor
 from franki_reader.gateway import AnkiUnavailable
@@ -375,6 +375,10 @@ class Settings:
     # The Azure voice for each voice slot (male, male2, female, female2: languages.VOICE_SLOTS) by
     # language, where one was chosen in the app.
     voices: dict[str, dict[str, str]] = field(default_factory=dict)
+    # The voice and pitch chosen for each kind of story character (cast.CAST_TYPES) by language:
+    # {"ru": {"girl": {"voice": "ru-RU-DariyaNeural", "pitch": 18}}}. A kind with none chosen is
+    # given what cast.assign would pick.
+    cast: dict[str, dict[str, dict[str, Any]]] = field(default_factory=dict)
     # How many of each language's most common words count as known, where it isn't the default
     # (languages.py). Thai has none: only its deck counts.
     common: dict[str, int] = field(default_factory=dict)
@@ -1827,7 +1831,8 @@ def load_settings(conn: sqlite3.Connection) -> Settings:
             voices[code] = kept
     # A hidden language chosen before it was hidden is read as Thai, so the app never gets it.
     language = "th" if settings.language in HIDDEN_LANGUAGES else settings.language
-    return replace(settings, voices=voices, language=language)
+    presets = {c: f for c, raw in settings.cast.items() if (f := clean_presets(raw))}
+    return replace(settings, voices=voices, cast=presets, language=language)
 
 
 def save_settings(conn: sqlite3.Connection, settings: Settings) -> None:
