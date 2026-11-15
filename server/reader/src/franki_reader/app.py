@@ -129,7 +129,9 @@ marked words, ideas) is in the current language, the `language` setting.
                                       inflection
     GET   /api/words                  words marked unknown and not cleared, newest first
     POST  /api/words/clear            {word} takes a word off that list until it's marked again
-    GET   /api/texts/{id}/lines/{n}/audio   one line's MP3, made now if it isn't cached yet
+    GET   /api/texts/{id}/lines/{n}/audio   one line's MP3, made now if it isn't cached yet;
+                                      `?speed=slow` is the one Azure speaks slowly (tts.SLOW_RATE)
+    GET   /api/texts/{id}/lines/{n}/slow    records the slow one if needed, and `{times}` for its words
     GET   /api/voices?language=th     Azure's voices in a language (any code: th, pl, es-MX) and then
                                       its Multilingual voices of other locales, for the speakers
                                       here and for recording cards in the app
@@ -178,6 +180,8 @@ marked words, ideas) is in the current language, the `language` setting.
     POST  /api/situations/feedback    {language, scene, roles, lines} at the end: each of the
                                       owner's lines checked {index, verdict, corrected, note}, and
                                       words worth adding {word, english, why: asked | heard}
+    POST  /api/situations/slow        {language, gender, line} one of their lines spoken slowly: {audio} is the
+                                      clip's key, recorded the first time
     GET   /api/situations/audio/{key} a clip of one of the other person's lines (MP3)
     POST  /api/lessons                {language, scene, narrator?} an audio lesson on a scene
                                       (lesson.py), made in the background: {id}. `narrator` is an
@@ -299,6 +303,7 @@ from franki_reader.stretch import waiting as waiting_for_review
 from franki_reader.study_day import DEFAULT_ROLLOVER
 from franki_reader.suggestions import suggest
 from franki_reader.tts import (
+    SLOW_RATE,
     AudioCache,
     ClipCache,
     Speech,
@@ -425,11 +430,20 @@ class SituationIn(BaseModel):
     scene: str = Field(min_length=1, max_length=200)
     roles: SituationRoles | None = None
     lines: list[SituationLine] = Field(default_factory=list, max_length=situations.MAX_LINES)
+    # Whether to record their next line with Azure. The app turns it off when it reads their lines
+    # with the phone's own voices (Settings, Read & Listen), so nothing is recorded or billed.
+    speak: bool = True
 
     def conversation(self) -> situations.Conversation:
         roles = situations.Roles(**self.roles.model_dump()) if self.roles else None
         lines = tuple(situations.Line(ln.speaker, " ".join(ln.text.split())) for ln in self.lines)
         return situations.Conversation(self.language, self.scene.strip(), roles, lines)
+
+
+class SlowClipIn(BaseModel):
+    language: Code
+    gender: Literal["male", "female"]
+    line: str = Field(min_length=1, max_length=situations.MAX_LINE)
 
 
 class TakeIn(BaseModel):
@@ -838,14 +852,33 @@ def create_app(
         return _rendered(text, engine)
 
     @app.get("/api/texts/{text_id}/lines/{line}/audio", dependencies=authed)
-    async def line_audio(text_id: int, line: int) -> FileResponse:
+    async def line_audio(
+        text_id: int, line: int, speed: Literal["normal", "slow"] = "normal"
+    ) -> FileResponse:
         text = store.get_text(engine.conn, text_id)
         if text is None:
             raise HTTPException(404, "No such text.")
-        path = await engine.line_audio(text, line)
+        path = await engine.line_audio(text, line, slow=speed == "slow")
         if path is None:
             raise HTTPException(404, "No audio for this line.")
         return FileResponse(path, media_type="audio/mpeg")
+
+    @app.get("/api/texts/{text_id}/lines/{line}/slow", dependencies=authed)
+    async def slow_line(text_id: int, line: int) -> dict[str, Any]:
+        """Records the line slowly if it isn't yet, and says when each of its words is spoken in
+        that recording (`times`, one [start, end] in milliseconds or null per word of the line, as
+        `words` has them), so the reader can follow along: the normal recording's times don't fit."""
+        text = store.get_text(engine.conn, text_id)
+        if text is None or store.text_status(engine.conn, text_id) == "dropped":
+            raise HTTPException(404, "No such text.")
+        if await engine.line_audio(text, line, slow=True) is None:
+            raise HTTPException(404, "No slow audio for this line.")
+        words = _rendered(text, engine)["lines"][line]["words"]
+        for word in words:
+            word.pop("time", None)
+        marks = engine.audio.marks(text.id, line, slow=True) if engine.audio else None
+        timing.add_times(words, marks)
+        return {"times": [w.get("time") for w in words]}
 
     def line_grammar(text: StoredText, line: int) -> list[dict[str, str]]:
         # Found by the finders, not asked of Claude, and read with the choices as they stand now,
@@ -1196,17 +1229,25 @@ def create_app(
         _, lexicon = engine.snapshot(language)
         return [s.name for s in suggest(lexicon, set(), language)]
 
-    async def speak_clip(language: Code, gender: str, line: str) -> tuple[str | None, int]:
+    async def speak_clip(
+        language: Code, gender: str, line: str, slow: bool = False
+    ) -> tuple[str | None, int]:
         """One of their lines spoken in the voice for their gender: the clip's key (None when
-        there's no text to speech or Azure failed) and the characters Azure billed for it."""
+        there's no text to speech or Azure failed) and the characters Azure billed for it. The slow
+        clip (`tts.SLOW_RATE`) is its own, under its own key."""
         if clips is None or engine.synthesize is None:
             return None, 0
         voice = engine.voices_for(language)["female" if gender == "female" else "male"]
-        key = ClipCache.key(line, voice)
+        key = ClipCache.key(line, f"{voice}@slow" if slow else voice)
         if clips.path(key) is not None:
             return key, 0
+        locale = LANGUAGES[language].locale
         try:
-            spoken = await engine.synthesize(line, voice, LANGUAGES[language].locale)
+            spoken = await (
+                engine.synthesize(line, voice, locale, rate=SLOW_RATE)
+                if slow
+                else engine.synthesize(line, voice, locale)
+            )
         except TtsFailed:
             return None, 0
         clips.write(key, spoken.audio, engine.clock())
@@ -1231,8 +1272,10 @@ def create_app(
             keep_failed_cost("situations", language, e.usage)
             raise HTTPException(503, str(e)) from e
         roles = line.get("roles") or (body.roles.model_dump() if body.roles else None)
-        audio, chars = await speak_clip(
-            language, roles["gender"] if roles else "male", line["line"]
+        audio, chars = (
+            await speak_clip(language, roles["gender"] if roles else "male", line["line"])
+            if body.speak
+            else (None, 0)
         )
         store.save_call_cost(
             engine.conn, "situations", language, engine.clock(), used.cost_usd(), chars
@@ -1271,6 +1314,18 @@ def create_app(
         )
         _, lexicon = engine.snapshot(body.language)
         return situations.clean_feedback(answer, conversation, lexicon)
+
+    @app.post("/api/situations/slow", dependencies=authed)
+    async def situation_slow(body: SlowClipIn) -> dict[str, str | None]:
+        """One of their lines again, spoken slowly by Azure: the clip's key for
+        `/api/situations/audio/{key}`, or None when it couldn't be recorded. Made the first time it's
+        asked for and kept like any clip."""
+        key, chars = await speak_clip(body.language, body.gender, body.line, slow=True)
+        if chars:
+            store.save_call_cost(
+                engine.conn, "situations", body.language, engine.clock(), 0.0, chars
+            )
+        return {"audio": key}
 
     @app.get("/api/situations/audio/{key}", dependencies=authed)
     async def situation_audio(key: str) -> FileResponse:

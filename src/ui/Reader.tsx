@@ -13,7 +13,7 @@ import { helperNote } from '../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../reader/fonts';
 import { LANGUAGES, ipaNote, meaningOf, wordStatus } from '../reader/languages';
 import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf, repeatChipLabel } from '../reader/playback';
-import { RATES } from '../reader/playbackRate';
+import { isSlow, NORMAL_RATE, RATES, SLOW_RATE } from '../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, type LengthStep } from '../reader/shelf';
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
 import { locate, phraseRange, phrasePart, phraseText, pickEnd, type PhrasePick } from '../reader/phrase';
@@ -46,6 +46,7 @@ import { WordView } from './ReadWord';
 import { ReaderKey } from './ReaderKey';
 import { WordActionGroup, WordActionRow, WordPlayButton } from './ReadWordActions';
 import { Speaker, speakerSize } from './ReadSpeaker';
+import { withTimes } from '../reader/spoken';
 import { useSpokenWords } from './useSpokenWords';
 import { RecordYourself } from './RecordYourself';
 import { useSelfRecording, type SelfRecording } from './useSelfRecording';
@@ -88,8 +89,9 @@ import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readabl
  * story, kept in prefs) turns it off for a row per line, as for every other text.
  *
  * Audio: one player is reused for every line. Play runs the text from the current line to the end
- * (`nextLine`); a line's replay button plays that line alone. Speed is the player's rate, with
- * pitch kept, so each line is one file whatever the speed. The audio session stays active between
+ * (`nextLine`); a line's replay button plays that line alone. Speed is Slow or Normal, and
+ * Slow is its own recording spoken slowly by Azure (`startLine`), not the player stretching the
+ * normal one. The audio session stays active between
  * lines (`keepAudioSessionActive`), or iOS can suspend the app in the gap with the screen locked,
  * and plays in the background while this screen is open. A line that fails to load counts as
  * finished, so Play moves on. When the playing line changes, the text scrolls to it if it's out of
@@ -212,6 +214,13 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   // two lines of Play all the player is briefly not playing, so that gap keeps the shade too.
   const shaded = status.playing || status.isBuffering || (playingAll && status.didJustFinish) ? current : null;
   const [rate, setRate] = useState(prefs().rate);
+  // Slow recordings' word times by `<text id>:<line>`, and whether the line sounding now is the slow
+  // one (null before any line has played). `playedRate` is the speed the player's line was started at.
+  const [slowTimed, setSlowTimed] = useState<Record<string, (Word['time'] | null)[]>>({});
+  const [playedSlow, setPlayedSlow] = useState<boolean | null>(null);
+  const playedRate = useRef(rate);
+  // Counts line starts: a slow line is fetched before it plays, and a tap on another line meanwhile wins.
+  const starting = useRef(0);
   // Record yourself, for shadowing: a take of the line that's playing or last played.
   // A take is recorded so Azure can score it (Score it) while Answer by speaking is on.
   const speakingOn = useSpeakingOn();
@@ -237,7 +246,13 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   // kept in state, so a change made there shows here without reopening the text.
   // Only the line sounding now (`shaded`), so a paused or finished line doesn't keep a word lit.
   const playingWords = text && shaded !== null && prefs().followWords ? text.lines[shaded]?.words ?? null : null;
-  const spokenNow = useSpokenWords(player, playingWords, status.playing);
+  // A slow recording is timed apart from the normal one (`api.slowTimes`, fetched when a line is first
+  // played slowly), so those times light the words while it plays. `playingWords` itself stays the
+  // text's, since what's lit is found by index. A line with no slow times (the fetch failed, and it was
+  // played stretched instead) keeps the normal ones.
+  const slowTimes = playedSlow !== null && text && shaded !== null ? slowTimed[`${text.id}:${shaded}`] : undefined;
+  const timedWords = useMemo(() => (playingWords && slowTimes && playedSlow ? withTimes(playingWords, slowTimes) : playingWords), [playingWords, slowTimes, playedSlow]);
+  const spokenNow = useSpokenWords(player, timedWords, status.playing);
   const spoken = new Set(playingWords ? spokenNow.map((i) => playingWords[i]) : []);
 
   // A story's paragraphs (`marked` is null for a dialogue, or a story written before paragraphs):
@@ -267,18 +282,47 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     if (y !== null) scroller.current?.scrollTo({ y, animated: true });
   }, [current]);
 
-  const playLine = (i: number, all: boolean) => {
+  // Plays a line at `r`. A slow line is recorded by the server the first time (`api.slowTimes` waits for
+  // that and brings its word times); if that fails, the normal recording plays stretched instead.
+  const startLine = async (i: number, r: number) => {
+    if (!text) return;
+    const mine = ++starting.current;
+    let source = api.audioSource(text.id, i, r);
+    let stretch = NORMAL_RATE;
+    let slow = isSlow(r);
+    if (slow) {
+      const key = `${text.id}:${i}`;
+      let times = slowTimed[key];
+      if (!times) {
+        try {
+          times = (await api.slowTimes(text.id, i)).times;
+          if (starting.current !== mine) return;
+          setSlowTimed((prev) => ({ ...prev, [key]: times! }));
+        } catch {
+          if (starting.current !== mine) return;
+          slow = false;
+          source = api.audioSource(text.id, i);
+          stretch = SLOW_RATE;
+        }
+      }
+    }
+    setPlayedSlow(slow);
+    playedRate.current = r;
+    player.replace(source);
+    player.setPlaybackRate(stretch, 'high');
+    player.play();
+  };
+
+  const playLine = (i: number, all: boolean, r = rate) => {
     if (!text) return;
     self.stop(false);
     self.stopTake();
     setSilentLine(null);
-    player.replace(api.audioSource(text.id, i));
-    player.setPlaybackRate(rate, 'high');
-    player.play();
+    startLine(i, r);
     setCurrent(i);
     setPlayed(1);
     setPlayingAll(all);
-    setSession((s) => (s ? heard(s, rate) : s));
+    setSession((s) => (s ? heard(s, r) : s));
   };
 
   // Previous and next line, for a story with no play button on each line. Plays on from there.
@@ -293,8 +337,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     self.stop(false);
     self.stopTake();
     if (status.playing) player.pause();
-    else if (current !== null && !status.didJustFinish && status.currentTime < status.duration) {
-      player.setPlaybackRate(rate, 'high');
+    else if (current !== null && playedRate.current === rate && !status.didJustFinish && status.currentTime < status.duration) {
       player.play();
       setSession((s) => (s ? heard(s, rate) : s));
     } else {
@@ -303,11 +346,11 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     }
   };
 
+  // The speed is a different recording, so a line playing starts again at the new one.
   const changeRate = (next: number) => {
     savePrefs({ rate: next });
     setRate(next);
-    player.setPlaybackRate(next, 'high');
-    if (status.playing) setSession((s) => (s ? heard(s, next) : s));
+    if (status.playing && current !== null) playLine(current, playingAll, next);
   };
 
   useEffect(() => {
@@ -1419,12 +1462,11 @@ function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, rep
     </Tappable>
   );
   const repeatNote = repeat === Infinity ? 'Repeating this line' : `Repeating this line (${Math.min(played, repeat)} of ${repeat})`;
+  const note = silentLine !== null ? `Line ${silentLine + 1} has no audio.` : repeating ? repeatNote : skippable ? null : "Tap a line's play button to replay it";
   const label = (
     <View style={{ flex: 1 }}>
       <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{current === null ? `Play the ${what}` : `Line ${current + 1} of ${total}`}</Text>
-      <Text style={{ ...type.footnote, color: c.textSecondary }}>
-        {silentLine !== null ? `Line ${silentLine + 1} has no audio.` : repeating ? repeatNote : skippable ? 'Tap a word for its meaning' : "Tap a line's play button to replay it"}
-      </Text>
+      {note ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{note}</Text> : null}
     </View>
   );
   // One tap steps Off, 2×, 3×, 5×, ∞ (playback.ts), so the choices share one chip.
@@ -1458,12 +1500,16 @@ function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, rep
       ) : (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>{play}{label}</View>
       )}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
+        <Segments style={{ flex: 1 }} options={RATES.map((r) => ({ value: r, label: isSlow(r) ? 'Slow' : 'Normal', accessibilityLabel: isSlow(r) ? 'Slow speed' : 'Normal speed' }))} value={rate} onChange={onRate} />
         {chip}
-        {rec && current !== null ? <RecordYourself rec={rec} label={`Record line ${current + 1}`} size="player" /> : null}
-        {rec && current !== null ? score : null}
       </View>
-      <Segments options={RATES.map((r) => ({ value: r, label: `${r.toFixed(1)}×`, accessibilityLabel: `Speed ${r}` }))} value={rate} onChange={onRate} />
+      {rec && current !== null ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
+          <RecordYourself rec={rec} label={`Record line ${current + 1}`} size="player" />
+          {score}
+        </View>
+      ) : null}
     </View>
   );
 }

@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import type { Word } from '../../src/reader/api';
-import { spokenWords } from '../../src/reader/spoken';
+import { spokenWords, withTimes } from '../../src/reader/spoken';
 
 const w = (text: string, time?: [number, number]): Word => ({
   text, status: time ? 'known' : null, gloss: null, stretch: false, deck: true, grammar: null, ...(time ? { time } : {}),
@@ -38,4 +38,14 @@ test('a word without a time is passed over, and a line with no times lights noth
   const partly = [w('ราคา', [0, 300]), { ...w('50'), status: 'known' as const }, w('บาท', [700, 900])];
   expect(spokenWords(partly, 500)).toEqual([0]);
   expect(spokenWords([w('Hola'), w(' '), w('Ana')], 500)).toEqual([]);
+});
+
+test("a line's slow recording is lit by its own times, found by the same indices", () => {
+  const slow = withTimes(line, [[60, 380], [380, 650], null, [920, 1130], [1130, 1500]]);
+  expect(slow.map((x) => x.text)).toEqual(line.map((x) => x.text));
+  expect(spokenWords(slow, 400)).toEqual([1]);
+  expect(spokenWords(slow, 1000)).toEqual([3]);
+  // The normal times are untouched, and a word with none in the slow recording has none.
+  expect(line[1].time).toEqual([300, 520]);
+  expect(withTimes(line, [null, null, null, null, null]).some((x) => x.time)).toBe(false);
 });

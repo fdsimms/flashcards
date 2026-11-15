@@ -159,8 +159,7 @@ function useLinePlayer(api: Api, text: ReaderText) {
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
   return (line: number) => {
     if (!text.lines[line]?.audio) return;
-    player.replace(api.audioSource(text.id, line));
-    player.setPlaybackRate(prefs().rate, 'high');
+    player.replace(api.audioSource(text.id, line, prefs().rate));
     player.play();
   };
 }

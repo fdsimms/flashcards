@@ -29,3 +29,15 @@ export function spokenWords(words: Word[], ms: number): number[] {
   }
   return lit;
 }
+
+/**
+ * The same words with other times, one entry per word (null for none): a line's slow recording is
+ * timed apart from its normal one. The words are copies, so what's lit is still found by index.
+ */
+export function withTimes(words: Word[], times: (Word['time'] | null)[]): Word[] {
+  return words.map((w, i) => {
+    const { time: _normal, ...rest } = w;
+    const time = times[i];
+    return time ? { ...rest, time } : rest;
+  });
+}

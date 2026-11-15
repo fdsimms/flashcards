@@ -316,10 +316,19 @@ Practice tab's Situations tool (`src/ui/tools/SituationsTool.tsx`).
   yet reviewed counts as unknown, and sent back once naming its words if it has more than
   `MAX_UNKNOWN` (2) outside the known ones; the second try is kept either way (a conversation can't wait
   for a third), with its unknown words picked out in the app and glossed from Claude's glosses.
-- **Their lines are spoken by Azure** (the owner's choice over the phone's voice), in the language's
-  voice for their gender, as each arrives, and kept as clips for two days (`ClipCache`,
-  `GET /api/situations/audio/{key}`) so a replay costs nothing. A failed recording leaves the line
-  without audio. "Heard only" hides their words behind Show the text.
+- **Their lines are spoken by the phone's voice by default, and by Azure when the owner turns it on**
+  (15 November 2026; before this it was always Azure, the owner's first choice over the phone's voice).
+  The phone's voice is the one chosen for the language (Settings, Voices; `lineSpeech`), so a reply
+  arrives as soon as Claude has written it and costs nothing, and Slow is the chosen speed times 0.8,
+  made by the voice itself. The setting is `situationsAzure` in `src/reader/prefs.ts` (Settings,
+  Read & Listen, Situations), off by default, for a language whose phone voice sounds too poor. The
+  app sends it as `speak` on each turn, so the server records and bills nothing while it's off. With it
+  on, the line is spoken in the language's voice for their gender, as each arrives, and kept as a clip
+  for two days (`ClipCache`, `GET /api/situations/audio/{key}`) so a replay costs nothing. A line with
+  no clip (Azure's voices off, or a failed recording) is read by the phone, so its button always plays.
+  Slow with Azure on is `POST /api/situations/slow` (`{language, gender, line}`), a clip of its own
+  (`tts.SLOW_RATE`) recorded the first time and billed like any recording; if it can't be made, the
+  normal clip plays stretched to 0.8. "Heard only" hides their words behind Show the text.
 - **The owner's lines** may hold an English word in [brackets] for a word they don't know; Claude
   answers as a helpful native speaker would. No correction during the conversation.
 - **Finish** (`POST /api/situations/feedback`): each of the owner's lines with a verdict, the line
@@ -1314,10 +1323,21 @@ in the current language, with when one was last read to the end. Nothing else le
   connection) the line is recorded through REST as before, with no timings, and plays unlit. The
   texts waiting to be read when this came in are re-recorded with timings once
   (`Engine.time_waiting_texts`, on the first top-up, behind the `waiting_texts_timed` flag), as the
-  owner chose; texts already read keep their audio and play unlit. Slower playback needs nothing
-  more: the player's position is in the audio's own time.
-- The 0.7x to 1.0x speed control is the player's rate with pitch kept (`expo-audio`), so there's one
-  file per line whatever the speed. "Play" runs the dialogue line by line; each line has its own
+  owner chose; texts already read keep their audio and play unlit. A slow recording has its own
+  timings (below), since slower speech is longer.
+- **Speed is Slow or Normal (15 November 2026).** Before this it was four speeds, 0.7x to 1.0x, which
+  the player made by stretching the one recording; that sounded robotic. Slow is now a second
+  recording of the line, spoken by Azure at `tts.SLOW_RATE` (0.8, SSML prosody -20%), kept beside
+  the normal one (`<line>.slow.mp3`, `<line>.slow.json`; `AudioCache`) and made the first time the
+  line is played slowly, so a line never played slowly costs nothing extra. It is billed as a
+  recording of its own (`audio_chars`). `GET .../lines/{n}/audio?speed=slow` serves it, and
+  `GET .../lines/{n}/slow` records it and returns its word times, which the reader fetches before
+  a slow line plays so the words light up in time (`Reader.startLine`; the text's own words keep the
+  normal recording's times). If recording it fails, the reader plays the normal recording stretched
+  to 0.8 as before. Choosing the other speed while a line plays starts the line again. A speed saved
+  below 1 is Slow (`toRate`). Re-recording a text for new voices drops its slow lines too. Situations'
+  clips are covered under Situations' voices below. The other screens that play a line (Retell, the check, Write what you hear) ask for the slow
+  recording too. "Play" runs the dialogue line by line; each line has its own
   replay button. Playback continues with the ringer on silent and the screen locked; the player
   keeps the audio session active between lines, or iOS could suspend the app in the gap. A line
   whose audio fails to load is skipped with a note. Thai plays over other audio (a podcast keeps

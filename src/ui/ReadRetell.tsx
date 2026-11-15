@@ -42,8 +42,7 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
   const onPlay = (line: number) => {
     if (!text.lines[line]?.audio) return;
-    player.replace(api.audioSource(text.id, line));
-    player.setPlaybackRate(prefs().rate, 'high');
+    player.replace(api.audioSource(text.id, line, prefs().rate));
     player.play();
   };
   const readFont = { fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily };

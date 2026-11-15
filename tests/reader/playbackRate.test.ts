@@ -1,17 +1,20 @@
 import { expect, test } from 'vitest';
-import { clampRate, MAX_RATE, MIN_RATE } from '../../src/reader/playbackRate';
+import { isSlow, NORMAL_RATE, RATES, SLOW_RATE, toRate } from '../../src/reader/playbackRate';
 
-test('keeps a rate inside 0.7 to 1.0', () => {
-  expect(clampRate(0.5)).toBe(MIN_RATE);
-  expect(clampRate(1.5)).toBe(MAX_RATE);
-  expect(clampRate(0.8)).toBe(0.8);
+test('offers slow then normal', () => {
+  expect(RATES).toEqual([SLOW_RATE, NORMAL_RATE]);
 });
 
-test('snaps to tenths', () => {
-  expect(clampRate(0.84)).toBe(0.8);
-  expect(clampRate(0.86)).toBe(0.9);
+test('a speed saved from the four the reader once offered keeps its meaning', () => {
+  expect([0.7, 0.8, 0.9].map(toRate)).toEqual([SLOW_RATE, SLOW_RATE, SLOW_RATE]);
+  expect(toRate(1)).toBe(NORMAL_RATE);
 });
 
-test('falls back to normal speed for a bad value', () => {
-  expect(clampRate(Number.NaN)).toBe(MAX_RATE);
+test('falls back to normal for anything else', () => {
+  expect([Number.NaN, 2, '0.8', null, undefined].map(toRate)).toEqual([NORMAL_RATE, NORMAL_RATE, NORMAL_RATE, NORMAL_RATE, NORMAL_RATE]);
+});
+
+test('only a rate below normal asks for the slow recording', () => {
+  expect(isSlow(SLOW_RATE)).toBe(true);
+  expect(isSlow(NORMAL_RATE)).toBe(false);
 });

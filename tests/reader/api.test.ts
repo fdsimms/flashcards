@@ -214,6 +214,28 @@ test('a situation turn posts the whole conversation, and its clip is fetched wit
   const conversation = { language: 'th' as const, scene: 'Ordering street food', roles: null, lines: [] };
   expect(await api.situationTurn(conversation)).toEqual(turn);
   expect(calls[0].url).toBe('https://x/reader/api/situations/turn');
-  expect(JSON.parse(String(calls[0].init.body))).toEqual(conversation);
+  expect(JSON.parse(String(calls[0].init.body))).toEqual({ ...conversation, speak: true });
   expect(api.situationAudio('abc')).toEqual({ uri: 'https://x/reader/api/situations/audio/abc', headers: { Authorization: 'Bearer p' } });
+});
+
+test("a turn asks for no recording when the phone's own voices are reading the lines", async () => {
+  const { impl, calls } = fakeFetch(json({}));
+  const api = createApi('https://x/reader', 'p', impl);
+  const conversation = { language: 'th' as const, scene: 'Ordering street food', roles: null, lines: [] };
+  await api.situationTurn(conversation, false);
+  expect(JSON.parse(String(calls[0].init.body))).toEqual({ ...conversation, speak: false });
+});
+
+test("a line's slow clip is asked for by its words, language and speaker's gender", async () => {
+  const { impl, calls } = fakeFetch(json({ audio: 'def' }));
+  const api = createApi('https://x/reader', 'p', impl);
+  expect(await api.situationSlow('th', 'female', 'รับอะไรดีคะ')).toEqual({ audio: 'def' });
+  expect(calls[0].url).toBe('https://x/reader/api/situations/slow');
+  expect(JSON.parse(String(calls[0].init.body))).toEqual({ language: 'th', gender: 'female', line: 'รับอะไรดีคะ' });
+});
+
+test("the slow recording of a text's line is asked for with a speed, the normal one without", () => {
+  const api = createApi('https://x/reader', 'p', fakeFetch(json({})).impl);
+  expect(api.audioSource(3, 1).uri).toBe('https://x/reader/api/texts/3/lines/1/audio');
+  expect(api.audioSource(3, 1, 0.8).uri).toBe('https://x/reader/api/texts/3/lines/1/audio?speed=slow');
 });
