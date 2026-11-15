@@ -31,7 +31,9 @@ SYSTEM = (
     "(`phrase`, copied exactly from the line) and what to know about it (`note`, one to three "
     f"short sentences, under {MAX_CHARS} characters). Give a literal translation only when it "
     "shows how the phrase works. Do not use em dashes. Do not repeat the whole line's translation: "
-    "the learner can already see it."
+    "the learner can already see it. The whole text is there only so you can see what the line "
+    "refers to. Use it only when it changes or sharpens a point (what a pronoun points to, what a "
+    "reply answers, the speaker's tone); never retell or summarize the text."
 )
 
 SIMPLE = (
@@ -68,7 +70,11 @@ PHRASE_SYSTEM = (
     "for word, and its tone or register when that matters. If the selection is part of a longer "
     "set expression in the line, name the whole expression. If it isn't a set phrase, say so "
     "briefly and explain how the words combine. Give a literal translation only when it shows "
-    "how the phrase works. Do not use em dashes."
+    "how the phrase works. The whole text is there only so you can see what the phrase refers to. "
+    'Use it only when it changes or sharpens the meaning (what a pronoun or "one thing" points '
+    "to, what a reply answers, the speaker's tone). If the phrase can be explained from its own "
+    "line, say nothing about the rest of the text, and never retell or summarize it. "
+    "Do not use em dashes."
 )
 
 PHRASE_SCHEMA: dict[str, Any] = {
@@ -84,7 +90,7 @@ VERDICTS = ("natural", "stiff", "unusual")
 CHECK_SYSTEM = (
     "You are a native speaker of the language, reviewing one line of a short text written for "
     "learners. Judge whether a native speaker would actually say or write this line in this "
-    "situation, given who is speaking and the lines around it. Answer with `verdict`: "
+    "situation, given who is speaking and the whole text, which is there so you can judge whether the line fits what came before it. Answer with `verdict`: "
     '"natural" (a native speaker would say it), "stiff" (correct, but too formal, too literal or '
     'too written for this situation) or "unusual" (grammatical, but a native speaker would '
     "hardly say it this way). Give `reason`, one or two short plain English sentences naming "
@@ -120,9 +126,12 @@ class ExplainRequest:
     language: Code
     line: str  # plain text, as shown
     english: str
-    # The lines around it, plain text, so a pronoun or a reply makes sense.
+    # The whole text, every line in order as "Speaker: text (English)" (this line too), so a
+    # pronoun or a reply makes sense. `index` is this line's place in it.
     context: tuple[str, ...] = ()
     simple: bool = False
+    title: str = ""
+    index: int = 0
 
 
 # The points, and what asking for them cost.
@@ -135,8 +144,12 @@ class PhraseRequest:
     phrase: str  # as it appears in the line
     line: str
     english: str
+    # The whole text, every line in order as "Speaker: text (English)" (the selected line too),
+    # so the model can see what the phrase refers to. `index` is the selected line's place in it.
     context: tuple[str, ...] = ()
     simple: bool = False
+    title: str = ""
+    index: int = 0
 
 
 # {meaning, points}, and what asking for it cost.
@@ -150,39 +163,58 @@ class CheckRequest:
     english: str
     speaker: str = ""  # who says it, e.g. "A (Waiter)"; empty for a narrator
     register: str = ""  # what the text was written as, when it says
+    # The whole text as for ExplainRequest (this line too); `index` is this line's place in it.
     context: tuple[str, ...] = ()
+    title: str = ""
+    index: int = 0
 
 
 # {verdict, reason, alternative}, and what asking for it cost.
 CheckNatural = Callable[[CheckRequest], Awaitable[tuple[dict[str, str], Usage]]]
 
 
+def whole_text(context: tuple[str, ...], title: str, index: int) -> list[str]:
+    """The text as numbered lines, the selected one marked, for a prompt; none without context."""
+    if not context:
+        return []
+    out = [f"The whole text{f' ({title})' if title else ''}:"]
+    out.extend(
+        f"{i + 1}. {c}" + ("   <- the selected line" if i == index else "")
+        for i, c in enumerate(context)
+    )
+    return out
+
+
 def request_message(request: ExplainRequest) -> str:
-    lines = [f"Language: {LANGUAGES[request.language].name}", f"Line: {request.line}"]
+    lines = [f"Language: {LANGUAGES[request.language].name}"]
+    lines.extend(whole_text(request.context, request.title, request.index))
+    lines.append(f"Line {request.index + 1}: {request.line}")
     lines.append(f"English: {request.english}")
-    if request.context:
-        lines.append("The text around it:")
-        lines.extend(f"- {c}" for c in request.context)
     return "\n".join(lines)
 
 
 def phrase_message(request: PhraseRequest) -> str:
     base = ExplainRequest(
-        request.language, request.line, request.english, request.context, request.simple
+        request.language,
+        request.line,
+        request.english,
+        request.context,
+        request.simple,
+        request.title,
+        request.index,
     )
-    return f"Selected phrase: {request.phrase}\n" + request_message(base)
+    return request_message(base) + f"\nSelected phrase: {request.phrase}"
 
 
 def check_message(request: CheckRequest) -> str:
-    lines = [f"Language: {LANGUAGES[request.language].name}", f"Line: {request.line}"]
+    lines = [f"Language: {LANGUAGES[request.language].name}"]
+    lines.extend(whole_text(request.context, request.title, request.index))
+    lines.append(f"Line {request.index + 1}: {request.line}")
     if request.speaker:
         lines.append(f"Spoken by: {request.speaker}")
     if request.register:
         lines.append(f"The text was written as: {request.register}")
     lines.append(f"English: {request.english}")
-    if request.context:
-        lines.append("The text around it:")
-        lines.extend(f"- {c}" for c in request.context)
     return "\n".join(lines)
 
 
