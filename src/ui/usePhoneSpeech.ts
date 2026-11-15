@@ -2,8 +2,9 @@ import { useFocusEffect } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { useCallback, useMemo, useRef } from 'react';
 import type { TtsTag } from '../core/tts';
-import { tagSpeech, wordSpeech, type PhoneVoice, type VoiceSettings } from '../core/voices';
+import { lineSpeech, tagSpeech, wordSpeech, type PhoneVoice, type VoiceSettings } from '../core/voices';
 import type { Repo } from '../db/repo';
+import { NORMAL_RATE, SLOW_RATE } from '../reader/playbackRate';
 
 /**
  * Reading aloud with the phone's voices, in the voice and at the speed chosen for each language
@@ -20,6 +21,13 @@ export function usePhoneSpeech(repo: Repo) {
   return useMemo(() => ({
     /** An Omnilanguage card's word, in its note's language. */
     sayWord: (text: string, lang: string | undefined) => Speech.speak(text, wordSpeech(voices.current, settings.current, lang)),
+    /** A line of conversation (Situations), in its language: at the chosen speed, or that times `slow` (0.8) for a slow one. */
+    sayLine: (text: string, lang: string, slow: boolean) => {
+      Speech.stop().catch(() => {});
+      Speech.speak(text, lineSpeech(voices.current, settings.current, lang, slow ? SLOW_RATE : NORMAL_RATE));
+    },
+    /** Stops whatever is being read. */
+    stop: () => { Speech.stop().catch(() => {}); },
     /** Anki's {{tts}} tags, one after another. */
     readTags: (tags: TtsTag[]) => { for (const t of tags) Speech.speak(t.text, tagSpeech(voices.current, settings.current, t)); },
   }), []);

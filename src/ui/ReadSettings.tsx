@@ -37,6 +37,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   const [listenAgain, setListenAgain] = useState(prefs().listenAgain);
   const [listenFirst, setListenFirst] = useState(prefs().listenFirst);
   const [listenTwice, setListenTwice] = useState(prefs().listenTwice);
+  const [situationsAzure, setSituationsAzure] = useState(prefs().situationsAzure);
   const [guessFirst, setGuessFirst] = useState(prefs().guessFirst);
   const [quizKnown, setQuizKnown] = useState(prefs().quizKnown);
   const address = syncServer ? readerAddress(syncServer) : null;
@@ -160,6 +161,24 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
               While a line plays, the word being read aloud is shaded. With Listen before reading on, a new text opens
               with its words hidden and shows them once every line has played, so you hear it first and read it second.
               Listen twice first waits for every line to play twice. Show the text now skips the wait. Play all and texts you read again open as usual. Lines recorded before this was added play without it.
+            </Help>
+            <SectionTitle>Situations</SectionTitle>
+            <Group>
+              <SwitchRow
+                first
+                label="Use Azure voices"
+                value={situationsAzure}
+                onValueChange={(on) => {
+                  savePrefs({ situationsAzure: on });
+                  setSituationsAzure(on);
+                }}
+              />
+            </Group>
+            <Help>
+              Situations reads the other person's lines with this phone's voices (Settings, Voices), so each reply
+              arrives as soon as it's written. If a language's phone voice sounds too poor, turn this on and the lines
+              are recorded with Azure's voices instead. They sound more natural, but each reply waits for the recording,
+              and the recording costs a little. The Slow speed is recorded the first time you play a line slowly.
             </Help>
             <SectionTitle>Hear texts again</SectionTitle>
             <Card style={{ gap: space.s }}>

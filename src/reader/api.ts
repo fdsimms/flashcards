@@ -144,7 +144,7 @@ export type SituationLine = { speaker: 'them' | 'you'; text: string };
 export type SituationConversation = { language: Language; scene: string; roles: SituationRoles | null; lines: SituationLine[] };
 // One of their lines: its words split and glossed as a text's are, the words that count as unknown, whether it
 // ends the scene, and its recording's key (null without one).
-export type SituationTurn = { line: string; english: string; words: Word[]; unknown: string[]; done: boolean; audio: string | null; roles?: SituationRoles };
+export type SituationTurn = { line: string; english: string; words: Word[]; unknown: string[]; done: boolean; audio: string | null; /* null when not recorded: Azure's voices are off, or it failed */ roles?: SituationRoles };
 export type SituationFeedback = {
   lines: { index: number; verdict: WritingVerdict; corrected: string; note: string }[];
   words: { word: string; english: string; why: 'asked' | 'heard' }[];
@@ -535,7 +535,10 @@ export function createApi(
     // A take of the owner's (base64 WAV) scored against the text it should say. The take isn't kept.
     scoreTake: (language: Language, reference: string, audio: string) => call<TakeScore>('POST', '/api/pronunciation', { language, reference, audio }),
     situationScenes: (language: Language) => call<string[]>('GET', `/api/situations/scenes?language=${language}`),
-    situationTurn: (conversation: SituationConversation) => call<SituationTurn>('POST', '/api/situations/turn', conversation),
+    // `speak` false asks for no recording: the app reads the line with the phone's voice (the Azure voices setting is off).
+    situationTurn: (conversation: SituationConversation, speak = true) => call<SituationTurn>('POST', '/api/situations/turn', { ...conversation, speak }),
+    // One of their lines spoken slowly, recorded the first time: the clip's key for `situationAudio`, null if it couldn't be.
+    situationSlow: (language: Language, gender: 'male' | 'female', line: string) => call<{ audio: string | null }>('POST', '/api/situations/slow', { language, gender, line }),
     situationFeedback: (conversation: SituationConversation) => call<SituationFeedback>('POST', '/api/situations/feedback', conversation),
     situationAudio: (key: string) => ({
       uri: `${root}/api/situations/audio/${encodeURIComponent(key)}`,

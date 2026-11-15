@@ -180,6 +180,8 @@ marked words, ideas) is in the current language, the `language` setting.
     POST  /api/situations/feedback    {language, scene, roles, lines} at the end: each of the
                                       owner's lines checked {index, verdict, corrected, note}, and
                                       words worth adding {word, english, why: asked | heard}
+    POST  /api/situations/slow        {language, gender, line} one of their lines spoken slowly: {audio} is the
+                                      clip's key, recorded the first time
     GET   /api/situations/audio/{key} a clip of one of the other person's lines (MP3)
     POST  /api/pronunciation          {language, reference, audio} a take of the owner's (base64 WAV,
                                       16 kHz mono) scored against `reference` by Azure's
@@ -288,6 +290,7 @@ from franki_reader.stretch import waiting as waiting_for_review
 from franki_reader.study_day import DEFAULT_ROLLOVER
 from franki_reader.suggestions import suggest
 from franki_reader.tts import (
+    SLOW_RATE,
     AudioCache,
     ClipCache,
     Speech,
@@ -412,11 +415,20 @@ class SituationIn(BaseModel):
     scene: str = Field(min_length=1, max_length=200)
     roles: SituationRoles | None = None
     lines: list[SituationLine] = Field(default_factory=list, max_length=situations.MAX_LINES)
+    # Whether to record their next line with Azure. The app turns it off when it reads their lines
+    # with the phone's own voices (Settings, Read & Listen), so nothing is recorded or billed.
+    speak: bool = True
 
     def conversation(self) -> situations.Conversation:
         roles = situations.Roles(**self.roles.model_dump()) if self.roles else None
         lines = tuple(situations.Line(ln.speaker, " ".join(ln.text.split())) for ln in self.lines)
         return situations.Conversation(self.language, self.scene.strip(), roles, lines)
+
+
+class SlowClipIn(BaseModel):
+    language: Code
+    gender: Literal["male", "female"]
+    line: str = Field(min_length=1, max_length=situations.MAX_LINE)
 
 
 class TakeIn(BaseModel):
@@ -1193,17 +1205,25 @@ def create_app(
         _, lexicon = engine.snapshot(language)
         return [s.name for s in suggest(lexicon, set(), language)]
 
-    async def speak_clip(language: Code, gender: str, line: str) -> tuple[str | None, int]:
+    async def speak_clip(
+        language: Code, gender: str, line: str, slow: bool = False
+    ) -> tuple[str | None, int]:
         """One of their lines spoken in the voice for their gender: the clip's key (None when
-        there's no text to speech or Azure failed) and the characters Azure billed for it."""
+        there's no text to speech or Azure failed) and the characters Azure billed for it. The slow
+        clip (`tts.SLOW_RATE`) is its own, under its own key."""
         if clips is None or engine.synthesize is None:
             return None, 0
         voice = engine.voices_for(language)["female" if gender == "female" else "male"]
-        key = ClipCache.key(line, voice)
+        key = ClipCache.key(line, f"{voice}@slow" if slow else voice)
         if clips.path(key) is not None:
             return key, 0
+        locale = LANGUAGES[language].locale
         try:
-            spoken = await engine.synthesize(line, voice, LANGUAGES[language].locale)
+            spoken = await (
+                engine.synthesize(line, voice, locale, rate=SLOW_RATE)
+                if slow
+                else engine.synthesize(line, voice, locale)
+            )
         except TtsFailed:
             return None, 0
         clips.write(key, spoken.audio, engine.clock())
@@ -1228,8 +1248,10 @@ def create_app(
             keep_failed_cost("situations", language, e.usage)
             raise HTTPException(503, str(e)) from e
         roles = line.get("roles") or (body.roles.model_dump() if body.roles else None)
-        audio, chars = await speak_clip(
-            language, roles["gender"] if roles else "male", line["line"]
+        audio, chars = (
+            await speak_clip(language, roles["gender"] if roles else "male", line["line"])
+            if body.speak
+            else (None, 0)
         )
         store.save_call_cost(
             engine.conn, "situations", language, engine.clock(), used.cost_usd(), chars
@@ -1268,6 +1290,18 @@ def create_app(
         )
         _, lexicon = engine.snapshot(body.language)
         return situations.clean_feedback(answer, conversation, lexicon)
+
+    @app.post("/api/situations/slow", dependencies=authed)
+    async def situation_slow(body: SlowClipIn) -> dict[str, str | None]:
+        """One of their lines again, spoken slowly by Azure: the clip's key for
+        `/api/situations/audio/{key}`, or None when it couldn't be recorded. Made the first time it's
+        asked for and kept like any clip."""
+        key, chars = await speak_clip(body.language, body.gender, body.line, slow=True)
+        if chars:
+            store.save_call_cost(
+                engine.conn, "situations", body.language, engine.clock(), 0.0, chars
+            )
+        return {"audio": key}
 
     @app.get("/api/situations/audio/{key}", dependencies=authed)
     async def situation_audio(key: str) -> FileResponse:

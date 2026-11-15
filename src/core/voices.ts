@@ -146,6 +146,14 @@ export function wordSpeech(available: PhoneVoice[], settings: VoiceSettings, lan
 }
 
 /**
+ * A line of conversation (Situations), in the voice and speed chosen for its language, else iOS's
+ * voice at normal speed. Slow is that speed times `slow`, so a speed chosen for the language still counts.
+ */
+export function lineSpeech(available: PhoneVoice[], settings: VoiceSettings, lang: string, slow: number): SpeechOptions {
+  return { language: speechLanguage(lang), voice: chosenVoice(available, settings, lang), rate: Number(((settings[languageKey(lang)]?.rate ?? 1) * slow).toFixed(2)) };
+}
+
+/**
  * An Anki {{tts}} tag: a voice or speed the template names comes first, as in Anki, then the one
  * chosen for the language. Speed 1 is also what a template that names none reads as
  * (`ttsTags`), so only a template's other speeds override the chosen one.

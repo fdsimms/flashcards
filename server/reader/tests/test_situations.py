@@ -261,9 +261,9 @@ def client(
     store.save_snapshot(conn, entries, NOW)
     spoken: list[tuple[str, str]] = []
 
-    async def synthesize(text: str, voice: str, locale: str) -> Spoken:
-        spoken.append((text, voice))
-        return Spoken(b"mp3")
+    async def synthesize(text: str, voice: str, locale: str, rate: float = 1.0) -> Spoken:
+        spoken.append((text, voice if rate == 1.0 else f"{voice}@{rate}"))
+        return Spoken(b"mp3" if rate == 1.0 else b"slow")
 
     engine = Engine(
         conn,
@@ -318,6 +318,39 @@ def test_a_first_turn_sets_the_roles_speaks_the_line_and_counts_both_costs(tmp_p
         and costs["cost_usd"] == 2.0
         and costs["audio_chars"] == len("รับอะไรดีครับ")
     )
+
+
+def test_a_turn_asked_not_to_speak_records_and_bills_nothing(tmp_path: Path) -> None:
+    play, _ = playing(START)
+    app = client(play, tmp=tmp_path)
+    got = app.post(
+        "/api/situations/turn",
+        json={"language": "th", "scene": SCENE, "speak": False},
+        headers=AUTH,
+    ).json()
+    assert got["audio"] is None and got["line"] == "รับอะไรดีครับ"
+    assert app.spoken == []  # type: ignore[attr-defined]
+    assert app.get("/api/costs", headers=AUTH).json()["situations"]["audio_chars"] == 0
+
+
+def test_a_line_can_be_spoken_slowly_as_its_own_clip_made_once(tmp_path: Path) -> None:
+    app = client(tmp=tmp_path)
+    body = {"language": "th", "gender": "female", "line": "รับอะไรดีครับ"}
+
+    got = app.post("/api/situations/slow", json=body, headers=AUTH).json()
+
+    assert got["audio"]
+    assert app.get(f"/api/situations/audio/{got['audio']}", headers=AUTH).content == b"slow"
+    assert app.spoken == [("รับอะไรดีครับ", "th-TH-PremwadeeNeural@0.8")]  # type: ignore[attr-defined]
+    chars = len("รับอะไรดีครับ")
+    assert app.get("/api/costs", headers=AUTH).json()["situations"]["audio_chars"] == chars
+    # Asked again, it comes from the kept clip: no second recording, no second charge.
+    assert app.post("/api/situations/slow", json=body, headers=AUTH).json() == got
+    assert len(app.spoken) == 1  # type: ignore[attr-defined]
+    assert app.get("/api/costs", headers=AUTH).json()["situations"]["audio_chars"] == chars
+    # It isn't the normal clip's key, and it needs the passphrase.
+    assert app.post("/api/situations/slow", json=body).status_code == 401
+    assert client().post("/api/situations/slow", json=body, headers=AUTH).json() == {"audio": None}
 
 
 def test_a_later_turn_sends_the_roles_and_needs_the_learners_line_last() -> None:
