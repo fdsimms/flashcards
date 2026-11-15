@@ -55,8 +55,8 @@ LOCALE = re.compile(r"^([a-z]{2,3}-[A-Z]{2})-")
 _TEXT_LOCALE = re.compile(r"^([A-Za-z]{2,3})(?:-([A-Za-z]{4}))?-([A-Za-z]{2}|\d{3})$")
 # Thai has no commas or periods: a space after Thai text (or its ? or !) and before more Thai ends a
 # clause or sentence. Each becomes an explicit pause, since a voice may run straight through a bare
-# space. A space beside a Latin word ("OK ค่ะ") isn't a break and is left alone.
-THAI_PAUSE = "<break time='200ms'/>"
+# space. Kept short: the voice's own pause at a space adds to it (200 ms made gaps too long). A space beside a Latin word ("OK ค่ะ") isn't a break and is left alone.
+THAI_PAUSE = "<break time='60ms'/>"
 _THAI_BREAK = re.compile(r"(?<=[\u0e00-\u0e7f?!])\s+(?=[\u0e00-\u0e7f])")
 
 # Thai words Azure's voices misread, each with a respelling it reads correctly, spoken in the word's

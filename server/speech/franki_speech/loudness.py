@@ -31,12 +31,14 @@ TIMEOUT_SECONDS = 60.0
 _JSON = re.compile(r"\{[^{}]*\}", re.DOTALL)
 
 __all__ = [
+    "TAIL_KEEP_SECONDS",
     "TARGET_LUFS",
     "TOLERANCE_LU",
     "LoudnessError",
     "LoudnessUnavailable",
     "measure_loudness",
     "normalize_loudness",
+    "trim_trailing_silence",
 ]
 
 
@@ -121,6 +123,38 @@ async def normalize_loudness(audio: bytes, *, sample_rate: int = 24000) -> bytes
         audio,
         "-af",
         _filter(measured),
+        "-ar",
+        str(sample_rate),
+        "-ac",
+        "1",
+        "-c:a",
+        "libmp3lame",
+        "-b:a",
+        "48k",
+        "-f",
+        "mp3",
+        "pipe:1",
+    )
+    if not out:
+        raise LoudnessError("ffmpeg returned no audio.")
+    return out
+
+
+# Azure ends each recording with a stretch of silence, which sits between two lines of a reading as
+# a long gap. This much of it is kept so the last word isn't clipped; the threshold is what counts as silence.
+TAIL_KEEP_SECONDS = 0.12
+_TAIL_THRESHOLD_DB = -45
+
+
+async def trim_trailing_silence(audio: bytes, *, sample_rate: int = 24000) -> bytes:
+    """The clip with the silence at its end cut down to `TAIL_KEEP_SECONDS`, as mono MP3. Only the
+    end is cut, so the start times of its words are unchanged. Reversed, silenceremove's start
+    is the clip's end."""
+    out, _ = await _ffmpeg(
+        audio,
+        "-af",
+        "areverse,silenceremove=start_periods=1:start_silence="
+        f"{TAIL_KEEP_SECONDS}:start_threshold={_TAIL_THRESHOLD_DB}dB,areverse",
         "-ar",
         str(sample_rate),
         "-ac",
