@@ -1311,3 +1311,39 @@ def test_a_failed_anki_read_is_a_503_that_says_so() -> None:
 
     response = exposure_client(reviews).get("/api/exposure-effect", headers=AUTH)
     assert response.status_code == 503 and "didn't answer" in response.json()["detail"]
+
+
+def relisten_client(now: list[datetime]) -> TestClient:
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, ENTRIES, NOW)
+    engine = Engine(conn, ScriptedModel(IN_RANGE).ask_for, None, lambda: now[0], random.Random(1))
+    return started(create_app(engine, "open sesame"))
+
+
+def test_a_finished_text_is_offered_to_hear_again_the_next_day_and_counted_once_heard() -> None:
+    now = [NOW]
+    c = relisten_client(now)
+    read(c, "about_right", [])
+    assert c.get("/api/relisten", headers=AUTH).json() == []  # read today
+
+    now[0] = NOW + timedelta(days=1)
+    offered = c.get("/api/relisten", headers=AUTH).json()
+    assert [t["title"] for t in offered] == ["At the stall"]
+    assert offered[0]["rating"] == "about_right" and "read_at" in offered[0]
+
+    assert c.post(f"/api/texts/{offered[0]['id']}/listen", headers=AUTH).status_code == 204
+    assert c.get("/api/relisten", headers=AUTH).json() == []  # its next listen is 3 days on
+    now[0] = NOW + timedelta(days=4)
+    assert len(c.get("/api/relisten", headers=AUTH).json()) == 1
+    # Hearing it again isn't a reading: nothing about difficulty or the log changed.
+    assert c.get("/api/progress", headers=AUTH).json()["finished"] == 1
+
+
+def test_a_text_never_read_to_the_end_cannot_be_counted_as_heard() -> None:
+    c = relisten_client([NOW])
+    topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
+    unread = next_text(c, topic["id"]).json()
+    assert c.post(f"/api/texts/{unread['id']}/listen", headers=AUTH).status_code == 404
+    assert c.post("/api/texts/999/listen", headers=AUTH).status_code == 404
+    assert c.post("/api/texts/1/listen").status_code == 401
+    assert c.get("/api/relisten").status_code == 401

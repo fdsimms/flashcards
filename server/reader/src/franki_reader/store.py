@@ -99,6 +99,13 @@ CREATE TABLE IF NOT EXISTS readings (
     listen_only INTEGER NOT NULL,
     seconds INTEGER NOT NULL
 );
+-- A finished text heard again, with its words hidden (relisten.py): only counted, so the schedule
+-- knows how many of its listens are done. Nothing here is a reading.
+CREATE TABLE IF NOT EXISTS listens (
+    id INTEGER PRIMARY KEY,
+    text_id INTEGER NOT NULL REFERENCES texts(id),
+    listened_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS cleared_words (
     word TEXT PRIMARY KEY,
     cleared_at TEXT NOT NULL
@@ -1584,6 +1591,28 @@ def past_texts(
         PastText(i, topic, title, rating, datetime.fromisoformat(at), coverage, form, episode)
         for i, topic, title, rating, at, coverage, form, episode in rows
     ]
+
+
+def log_listen(conn: sqlite3.Connection, text_id: int, now: datetime) -> bool:
+    """Counts a text read to the end as heard again. False for a text that was never read to the
+    end (there's nothing to hear again), and nothing is kept."""
+    if (
+        conn.execute(
+            "SELECT 1 FROM readings WHERE text_id = ? AND finished = 1", (text_id,)
+        ).fetchone()
+        is None
+    ):
+        return False
+    with conn:
+        conn.execute(
+            "INSERT INTO listens (text_id, listened_at) VALUES (?, ?)", (text_id, now.isoformat())
+        )
+    return True
+
+
+def listen_counts(conn: sqlite3.Connection) -> dict[int, int]:
+    """How many times each text has been heard again."""
+    return {t: n for t, n in conn.execute("SELECT text_id, COUNT(*) FROM listens GROUP BY text_id")}
 
 
 # ==== Marked words ====

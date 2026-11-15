@@ -136,7 +136,8 @@ Franki's (Client, below).
   only when tapped, as in the reader), and nothing is logged, sent or graded: the score at the end
   ("right the first time") is shown and forgotten.
 - **Listen only** (brief, design principle 6). Once a text is rated "About right", the end view
-  offers to play it again with the Thai hidden; the lines show who's speaking instead, and "Show the
+  offers to play it again with the Thai hidden (a text already read can be played this way whatever
+  it was rated: Listen again, below); the lines show who's speaking instead, and "Show the
   text" brings the words back. The reading is then logged with `listen_only` true. The brief's
   "unlocks for a text" is read as "for the text just rated", since a text is never served twice.
 - While audio plays, the text scrolls to keep the line being spoken in view.
@@ -151,8 +152,37 @@ Franki's (Client, below).
 - **Past texts**: texts read to the end, newest first (the last 50), opened in the same reader to
   read or listen to again. Reading one again isn't logged: the log is one row per text, and a reread
   shouldn't count toward the exit check or move difficulty. So there's no Done or rating, and words
-  can be looked up but not marked unknown. One rated "About right" can be played listen-only straight
-  away, since that's when the brief unlocks it.
+  can be looked up but not marked unknown. Any past text with audio can be played listen-only, whatever
+  it was rated (15 November 2026, below); each row also has a headphones button that plays it that way
+  without opening it to read.
+- **Listen again** (15 November 2026, the owner chose from a mock). Hearing a text again a few days
+  later, with the words hidden, is the spaced, repeated listening the research supports, and by then
+  it's easy to follow, so the listen-only gate (rated "About right") is lifted for a text already read.
+  The shelf shows a card, "2 texts to hear again", for the finished texts due: each is offered 1, 4 and
+  10 study days after it was read, once per listen heard so far, up to three at a time, oldest first,
+  and let go 30 days after it was read (`relisten.py`, `GET /api/relisten`). Play runs them one after
+  another in listen-only (the reader's `past` source with `listen`: the texts still to come, so the
+  Back button returns to the shelf). A text played through to its last line with its words hidden, from
+  the card, a Past texts button or the text's own Listen without the text, is counted
+  (`POST /api/texts/{id}/listen`, the `listens` table); that's all it does. **It is not a reading:**
+  nothing is logged to `readings`, no rating, no check, no difficulty change, no coverage figures, and
+  nothing grades a card (`tests/reader/noGrading.test.ts`). Not now hides the card until the shelf is
+  opened again; a listen cut short isn't counted, so the text is offered again.
+- **Guess first** (15 November 2026, the owner chose from a mock). A tap on a word shows its meaning
+  only when asked for (Settings, Read & Listen, Meanings, on by default), so the learner tries before
+  being told: a word counted as known is recalled, a word outside the deck (or only inside a longer
+  phrase) is worked out from the line, with an optional box for a typed guess that is shown beside the
+  meaning and never graded, kept or sent. The hint is "Try to remember it first." or "Guess from the
+  line first."; a name and a word with no meaning to show open as before (`src/reader/guess.ts`,
+  `ReadWordGuess.tsx`). A second setting, **Quiz me on words I know** (off by default, shown with the
+  first), replaces the Show meaning row on a known word with four choices (its meaning and three other
+  glosses from the text, as the check after reading builds them) and I don't know: a right answer closes
+  the popover, a wrong one or I don't know shows the meaning, with the right choice and a wrong pick
+  marked. A text with fewer than three other glosses has no quiz. **A lookup is logged when the meaning
+  is shown**, not at the tap (`Session.glossed`), so a word recalled isn't counted as looked up, which
+  keeps effective coverage (`recognition.py`) honest; marking a word unknown shows its meaning too.
+  A right quiz answer logs nothing. Nothing is graded or added to the deck, and a card's example
+  sentence and the shelf's practice-word popovers are unchanged.
 - The reader's playback speed and the highlight switch are kept between launches, in the Keychain
   next to the passphrase (`src/reader/storage.ts`).
 - **Progress** on the language's settings page (on the topics screen before the shelf): finished texts over the last 14 days with their median coverage and

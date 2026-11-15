@@ -58,6 +58,8 @@ marked words, ideas) is in the current language, the `language` setting.
                                       index into its choices; it can be changed until the episode is
                                       read, which is when the next one is written from it (404 for
                                       no such text or choice, 409 once it's read)
+    GET   /api/relisten               finished texts due to be heard again (relisten.py)
+    POST  /api/texts/{id}/listen      counts a finished text heard again (204; 404 if never read)
     GET   /api/progress               finished texts, coverage and ratings over the last 14 days,
                                       the check after reading's answers over them, how well the
                                       known words were recognized (recognition.py), and the
@@ -748,21 +750,37 @@ def create_app(
         background.add_task(engine.top_up)
         return Response(status_code=204)
 
+    def past_json(t: store.PastText) -> dict[str, Any]:
+        return {
+            "id": t.id,
+            "topic": t.topic,
+            "title": t.title,
+            "rating": t.rating,
+            "read_at": instant(t.read_at),
+            "coverage": t.coverage,
+            "form": t.form,
+            "episode": t.episode,
+        }
+
     @app.get("/api/texts", dependencies=authed)
     async def past_texts(story: int | None = None) -> list[dict[str, Any]]:
         return [
-            {
-                "id": t.id,
-                "topic": t.topic,
-                "title": t.title,
-                "rating": t.rating,
-                "read_at": instant(t.read_at),
-                "coverage": t.coverage,
-                "form": t.form,
-                "episode": t.episode,
-            }
+            past_json(t)
             for t in store.past_texts(engine.conn, PAST_TEXTS, engine.language(), story)
         ]
+
+    @app.get("/api/relisten", dependencies=authed)
+    async def relisten_texts() -> list[dict[str, Any]]:
+        """Finished texts due to be heard again, as `/api/texts` lists them (relisten.py)."""
+        return [past_json(t) for t in engine.relisten()]
+
+    @app.post("/api/texts/{text_id}/listen", status_code=204, dependencies=authed)
+    async def listened(text_id: int) -> Response:
+        """A finished text heard again with its words hidden. Only counted: no reading, no
+        difficulty change. 404 for a text that wasn't read to the end."""
+        if not store.log_listen(engine.conn, text_id, engine.clock()):
+            raise HTTPException(404, "No such text.")
+        return Response(status_code=204)
 
     @app.get("/api/texts/{text_id}", dependencies=authed)
     async def get_text(text_id: int) -> dict[str, Any]:

@@ -14,6 +14,7 @@ export default function ReadPastRoute() {
       api={readerApi}
       story={story ? Number(story) : undefined}
       onOpen={(text) => router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'past', text }) } })}
+      onListen={(text) => router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'past', text, listen: [] }) } })}
     />
   );
 }

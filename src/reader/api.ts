@@ -461,6 +461,10 @@ export function createApi(
       (await call<ReaderText | undefined>('POST', `/api/topics/${topicId}/next`, words?.length ? { words } : undefined)) ?? null,
     // With `story`, that story's episodes, first to last.
     pastTexts: (story?: number) => call<PastText[]>('GET', story === undefined ? '/api/texts' : `/api/texts?story=${story}`),
+    // Finished texts due to be heard again with their words hidden (server relisten.py), as pastTexts lists them.
+    relisten: () => call<PastText[]>('GET', '/api/relisten'),
+    // A finished text was heard again, through to its last line. Only counted: no reading, no difficulty change.
+    logListen: (textId: number) => call<void>('POST', `/api/texts/${textId}/listen`),
     // The current language's shelf; asking also tops it up in the background.
     shelf: () => call<Shelf>('GET', '/api/shelf'),
     // Writes a text on a typed topic in the background; it joins the shelf when it's ready.

@@ -127,7 +127,7 @@ export function Divider({ inset }: { inset: number }) {
  * `icon`, a colored tile holds the symbol, as in iOS Settings; `icon.color` should be a theme
  * color that white reads on (the rating colors are).
  */
-export function NavRow({ label, detail, loading, onPress, first, icon, disabled }: {
+export function NavRow({ label, detail, loading, onPress, first, icon, disabled, action }: {
   label: string;
   detail?: string;
   /** The detail is still being read: its line is held open (blank), so the row doesn't grow when the value arrives. */
@@ -137,6 +137,8 @@ export function NavRow({ label, detail, loading, onPress, first, icon, disabled 
   icon?: { name: SFSymbol; color: string };
   /** Dimmed and not tappable; the detail should say why. */
   disabled?: boolean;
+  /** A round button before the chevron, for a second thing the row can do (Past texts' listen). */
+  action?: { icon: SFSymbol; label: string; onPress: () => void };
 }) {
   const c = useTheme();
   const tile = 30;
@@ -163,6 +165,17 @@ export function NavRow({ label, detail, loading, onPress, first, icon, disabled 
         <Text style={{ ...type.body, color: disabled ? c.textTertiary : c.text }}>{label}</Text>
         {detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : loading ? <Text style={type.footnote}>{'\u00a0'}</Text> : null}
       </View>
+      {action ? (
+        <Tappable
+          onPress={() => { haptic.tap(); action.onPress(); }}
+          accessibilityRole="button"
+          accessibilityLabel={action.label}
+          scaleTo={0.92}
+          style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Icon name={action.icon} size={18} color={c.accent} weight="semibold" />
+        </Tappable>
+      ) : null}
       <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
     </Pressable>
   );

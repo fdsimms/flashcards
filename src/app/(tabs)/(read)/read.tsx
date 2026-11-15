@@ -39,6 +39,7 @@ export default function ReadRoute() {
       onWords={() => router.push('/read-words')}
       onLanguage={() => { api.settings().then(reader.setSettings, () => undefined); }}
       onReview={(deck) => router.push({ pathname: '/review', params: { deck } })}
+      onListenAgain={([first, ...rest]) => router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'past', text: first, listen: rest }) } })}
     />
   );
 }
