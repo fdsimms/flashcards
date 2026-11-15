@@ -173,6 +173,9 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   // the lookup failed (`nextFailed`).
   const [upNext, setUpNext] = useState<UpNext | null | undefined>(undefined);
   const [nextFailed, setNextFailed] = useState(false);
+  // Writing the story's next episode from the end view (Write episode N): none asked for yet, being
+  // written, or not written in time. Once it's written it becomes `upNext` and this is 'ready'.
+  const [nextEpisode, setNextEpisode] = useState<'idle' | 'writing' | 'ready' | 'failed'>('idle');
   const [lengthStep, setLengthStep] = useState<LengthStep>('same');
   const [steerError, setSteerError] = useState<string | null>(null);
   // A story episode's pick for what happens next (an index into text.choices), and why saving it failed.
@@ -445,6 +448,40 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     if (!mounted.current) return;
     if (next) onNext({ kind: 'shelf', textId: next.id, order: next.order, playAll: true });
     else setEnded(true);
+  };
+
+  // Writes the story's next episode from the end view. The server writes it only once this one is
+  // logged as read, so this logs it now (with the rating picked, if any), then waits for the episode.
+  const writeNextEpisode = async () => {
+    if (!text || !session || review || source.kind !== 'shelf' || logged.current || nextEpisode === 'writing') return;
+    logged.current = true;
+    setNextEpisode('writing');
+    try {
+      await api.logReading(text.id, toLog(session, Date.now(), rating, true, checkPicks ? loggedScore(check, checkPicks) : null));
+      recordExtraRead(text.language ?? 'th');
+    } catch {
+      // The reading is lost, not your place: carry on either way.
+    }
+    const until = Date.now() + WRITE_WAIT_MS;
+    while (mounted.current && Date.now() < until) {
+      await wait(POLL_MS);
+      if (!mounted.current) return;
+      try {
+        const shelf = await api.shelf();
+        const episode = shelf.story?.next;
+        if (episode && episode.id !== text.id) {
+          const order = playOrder(shelf).filter((id) => id !== text.id);
+          setUpNext({ id: episode.id, title: episode.title, lines: episode.lines, order });
+          setNextFailed(false);
+          setNextEpisode('ready');
+          return;
+        }
+        if (shelf.story?.failed) break;
+      } catch {
+        // Unreachable for now: ask again until the wait runs out.
+      }
+    }
+    if (mounted.current) setNextEpisode('failed');
   };
 
   const chooseLength = async (step: LengthStep) => {
@@ -1012,7 +1049,22 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
             ) : null}
             {/* While the next text is looked up its place is held, so Save doesn't move when it
                 comes. With none, Save fades in where Next would have been, as the main button. */}
-            {source.kind !== 'shelf' ? (
+            {source.kind === 'shelf' && (text.episode ?? 0) > 0 && nextEpisode === 'idle' ? (
+              <View style={{ gap: space.xs }}>
+                <Button label={`Write episode ${(text.episode ?? 0) + 1}`} variant={upNext ? 'secondary' : 'primary'} onPress={writeNextEpisode} />
+                <Help>Saves this one as read, then writes the next episode. This takes about half a minute.</Help>
+              </View>
+            ) : null}
+            {nextEpisode === 'writing' ? (
+              <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+                <ActivityIndicator size="small" color={c.accent} />
+                <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>Writing the next episode. This takes about half a minute.</Text>
+              </Card>
+            ) : null}
+            {nextEpisode === 'failed' ? (
+              <Help>Couldn't write the next episode yet. The server tries again in half an hour, or go back to the shelf and pull down to check.</Help>
+            ) : null}
+            {nextEpisode === 'writing' ? null : source.kind !== 'shelf' ? (
               <Button label="Next text" onPress={() => finish('next')} busy={leaving === 'next'} />
             ) : upNext === undefined ? (
               <View style={{ gap: space.xs }}>
