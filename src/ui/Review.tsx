@@ -71,7 +71,7 @@ import { compareTyped } from '../core/typedCompare';
 import { Button, Count, Icon, Loading, Screen, Tappable } from './kit';
 import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
 import { ChangeRatingStrip, useRatingOffer } from './ChangeRating';
-import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 
 /** The card itself: a raised sheet that fills the space between the header and the buttons. */
@@ -890,7 +890,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
       >
         <View style={{ flex: 1 }}>
           {/* Scrolls when the summary, the forms check and the next steps outgrow the space above the buttons. */}
-          <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
+          <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
           {/* The end of a session arrives in order: the mark, the words, the figures, then what to do next. */}
           <Pop from={0} bounciness={10}>
             <Icon name={waitingFor ? 'clock' : 'checkmark.circle.fill'} size={56} color={waitingFor ? c.textTertiary : c.countDue} weight="regular" />
