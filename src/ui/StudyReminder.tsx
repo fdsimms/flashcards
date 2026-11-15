@@ -3,7 +3,7 @@ import { Alert, Linking, ScrollView, Text, useWindowDimensions } from 'react-nat
 import { failureText } from '../core/failure';
 import { REMINDER_MINUTES, type ReminderPrefs } from '../core/reminder';
 import { Card, Group, Help, Loading, Screen, SwitchRow } from './kit';
-import { notificationsAllowed, reminderTime, saveReminder, useReminderPrefs } from './studyReminder';
+import { badgeAllowed, notificationsAllowed, reminderTime, saveReminder, useReminderPrefs } from './studyReminder';
 import { space, type, useTheme, readable } from './theme';
 import { Wheel, WheelBand, wheelScale } from './tools/Wheel';
 
@@ -40,6 +40,19 @@ export function StudyReminder() {
     await save({ ...prefs, on });
   };
 
+  const turnBadge = async (on: boolean) => {
+    if (!prefs) return;
+    if (on && !(await badgeAllowed(true).catch(() => false))) {
+      Alert.alert(
+        "Franki can't show a number on its icon",
+        'Allow badges for Franki in the Settings app (Notifications, Franki), then turn this on again.',
+        [{ text: 'Cancel', style: 'cancel' }, { text: 'Open Settings', onPress: () => { Linking.openSettings().catch(() => undefined); } }],
+      );
+      return;
+    }
+    await save({ ...prefs, badge: on });
+  };
+
   // A minute saved by hand that the wheel doesn't offer shows at the nearest one before it.
   const minuteIndex = prefs ? Math.max(0, REMINDER_MINUTES.findLastIndex((m) => m <= prefs.minute)) : 0;
 
@@ -55,6 +68,15 @@ export function StudyReminder() {
                 hint={prefs.on ? `Every day at ${reminderTime(prefs)}.` : 'A notification each day with how many reviews and new cards are waiting.'}
                 value={prefs.on}
                 onValueChange={turn}
+              />
+            </Group>
+            <Group>
+              <SwitchRow
+                first
+                label="Show reviews due on the icon"
+                hint="A number on Franki's icon with the reviews due, as of the last time Franki was open."
+                value={prefs.badge}
+                onValueChange={turnBadge}
               />
             </Group>
             {prefs.on ? (

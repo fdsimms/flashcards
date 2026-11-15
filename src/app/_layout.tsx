@@ -2,6 +2,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppProvider } from '../ui/AppContext';
 import { useStackScreenOptions } from '../ui/stackOptions';
 import { useTheme } from '../ui/theme';
@@ -23,6 +24,7 @@ export default function RootLayout() {
     colors: { ...base.colors, primary: c.accent, background: c.bg, card: c.bg, text: c.text, border: c.border },
   };
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <ThemeProvider value={theme}>
       <AppProvider>
         <Stack screenOptions={stackOptions}>
@@ -30,12 +32,13 @@ export default function RootLayout() {
               title is never shown; it is the back button's label on a screen pushed over a tab,
               which would otherwise read "(tabs)", the route group's name. */}
           <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Back' }} />
-          {/* The note editor opens over Review and Browse as a sheet. */}
-          <Stack.Screen name="note-editor" options={{ presentation: 'modal' }} />
+          {/* The note editor opens over Review and Browse as a sheet: half height first, pulled up to full. */}
+          <Stack.Screen name="note-editor" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.65, 1], sheetInitialDetentIndex: 0, sheetGrabberVisible: true }} />
         </Stack>
         <VocabReadyBanner />
       </AppProvider>
       <StatusBar style="auto" />
     </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

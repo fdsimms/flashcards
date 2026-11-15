@@ -7,12 +7,13 @@ import { haptic } from './haptics';
 import { lift, radius, smooth, useTheme } from './theme';
 
 /**
- * Dragging a deck on the deck list to reorder, nest or unnest it: hold a row, then move it up or
+ * Dragging a deck on the deck list to reorder, nest or unnest it: touch a row's handle in Edit mode,
+ * then move it up or
  * down to choose the gap, and sideways to choose how deep it goes there (a line shows both). The
  * deck's subdecks move with it. What a drop means is `deckDropTarget` and `deckMove`
  * (src/core/deckOrder.ts); this is only the gesture.
  *
- * After dundundun's ReorderableList, with its rules: a long press lifts the row; the responder is
+ * After dundundun's ReorderableList, with its rules: touching the handle lifts the row; the responder is
  * claimed in the capture phase by the view holding every row, so the row's own swipe and press
  * give way; the list's scrolling is off for the drag (`dragging`), or the scroll view takes the
  * touch back on the first move. Nothing re-renders while the finger moves: the card and the line

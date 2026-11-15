@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect, useState } from 'react';
 import type { DeckRow } from '../core/deckTree';
-import { parseReminder, reminderPlan, type ReminderPrefs } from '../core/reminder';
+import { badgeCount, parseReminder, reminderPlan, type ReminderPrefs } from '../core/reminder';
 
 /**
  * The study reminder's phone side (src/core/reminder.ts has the rules): the setting, kept in the
@@ -30,13 +30,21 @@ export async function saveReminder(prefs: ReminderPrefs): Promise<void> {
   for (const l of listeners) l(prefs);
 }
 
+/** Whether iOS lets Franki put a number on its icon; asks the first time, when `ask` is set. */
+export async function badgeAllowed(ask: boolean): Promise<boolean> {
+  const ok = (s: Notifications.NotificationPermissionsStatus) => !!s.ios?.allowsBadge;
+  const now = await Notifications.getPermissionsAsync();
+  if (ok(now) || !ask || !now.canAskAgain) return ok(now);
+  return ok(await Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowSound: true, allowBadge: true } }));
+}
+
 /** Whether iOS lets Franki show notifications; asks the first time, when `ask` is set. */
 export async function notificationsAllowed(ask: boolean): Promise<boolean> {
   const allowed = (s: Notifications.NotificationPermissionsStatus) =>
     s.granted || s.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
   const now = await Notifications.getPermissionsAsync();
   if (allowed(now) || !ask || !now.canAskAgain) return allowed(now);
-  return allowed(await Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowSound: true, allowBadge: false } }));
+  return allowed(await Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowSound: true, allowBadge: true } }));
 }
 
 // One rewrite at a time, in the order asked: two recounts close together mustn't interleave
@@ -87,5 +95,7 @@ export function useStudyReminder(decks: DeckRow[], dayStartsAtHour: number): voi
     // Before the setting is read, or the deck list's first count, there's nothing to write; turned off, the rewrite clears them.
     if (!prefs || (prefs.on && decks.length === 0)) return;
     reschedule(prefs, decks, dayStartsAtHour);
+    // The icon's number follows the same recount; a failure leaves the last one, and the next recount tries again.
+    if (prefs.badge || decks.length > 0) Notifications.setBadgeCountAsync(badgeCount(decks, prefs)).catch(() => undefined);
   }, [prefs, decks, dayStartsAtHour]);
 }

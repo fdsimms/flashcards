@@ -2,7 +2,7 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Stack } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Animated, Easing, Keyboard, PanResponder, Pressable, ScrollView, Text, TextInput, useColorScheme, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ActionSheetIOS, Alert, Animated, Easing, Keyboard, Pressable, ScrollView, Text, TextInput, useColorScheme, View, type StyleProp, type ViewStyle } from 'react-native';
 import { FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
 import { AGENT_FLAG, withFlagReason } from '../core/agentFlag';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
@@ -21,7 +21,7 @@ import { saveLeechHint, saveNote, setCardStates, type NoteStore } from '../anki/
 import { forgetCards, setDueDates } from '../anki/rescheduleService';
 import { parseDueDate } from '../core/reschedule';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
-import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../core/session';
+import { bumpStudied, currentCard, sessionProgress, sessionSummary, type AnswerRecord } from '../core/session';
 import { durationText } from '../core/stats';
 import { wantedLines } from '../core/synonyms';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
@@ -74,23 +74,8 @@ import { ChangeRatingStrip, useRatingOffer } from './ChangeRating';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 
-/** The card itself: a raised sheet that fills the space between the header and the buttons. */
-export function CardSurface({ children, overlay }: { children: React.ReactNode; overlay?: React.ReactNode }) {
-  const c = useTheme();
-  return (
-    <View
-      style={{
-        flex: 1, marginHorizontal: space.l, marginTop: space.xxl, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
-        backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, ...lift(c),
-      }}
-    >
-      {/* Clipped inside the shadow's box: a view that clips can't also cast one. */}
-      <View style={{ flex: 1, borderRadius: radius.xl, ...smooth, overflow: 'hidden' }}>{children}</View>
-      {/* Drawn over the card's lower edge, outside the clip. */}
-      {overlay}
-    </View>
-  );
-}
+import { CardSurface, SwipeCard, type CardMotion } from './SwipeCard';
+export { CardSurface };
 
 /** How far through the session is, as a thin line under the header. */
 export function ProgressBar({ value, label = 'Progress through this session', style }: { value: number; label?: string; style?: StyleProp<ViewStyle> }) {
@@ -113,147 +98,8 @@ export function ProgressBar({ value, label = 'Progress through this session', st
   );
 }
 
-/**
- * The card sheet, draggable sideways once it's revealed when swiping is on: it follows the finger,
- * tints toward the answer it would give (right Good, left Again), and flies off when let go past
- * the line. Only a rating the answer buttons show can be given (`swipeRating`).
- */
 /** The audio mode Review plays in (AppContext's), put back after Record yourself records. */
 const AUDIO_MODE = { playsInSilentMode: true };
-
-/** What Review asks of the card's motion: fly off for a rating, fly back in after an undo. */
-type CardMotion = {
-  /** Flies the card off toward its rating (Again left, the others right); resolves once it's gone. */
-  exit: (rating: RatingValue) => Promise<void>;
-  /** The next card to show is an undone one: it comes back in from the side it left. */
-  enterFrom: (dir: -1 | 1) => void;
-  /** After an answer: brings the card back if no new card arrived (the write failed). */
-  settleSoon: () => void;
-};
-
-/** The card's color and word for a rating given to the right of the card (Good, or Hard and Easy from the buttons). */
-const RIGHT_WORD = { 2: 'Hard', 3: 'Good', 4: 'Easy' } as const;
-
-function SwipeCard({ enabled, shown, showing, motion, onRate, children }: {
-  enabled: boolean;
-  shown: RatingValue[];
-  /** Changes with each card shown (and each card shown again): the next one rises in from under this one. */
-  showing: string | undefined;
-  motion: React.MutableRefObject<CardMotion | null>;
-  onRate: (r: RatingValue) => Promise<void>;
-  children: React.ReactNode;
-}) {
-  const c = useTheme();
-  const reduce = useReduceMotion();
-  const { width } = useWindowDimensions();
-  const x = useRef(new Animated.Value(0)).current;
-  // 1 at rest; 0 as the next card starts under the one that left, and it grows to full size.
-  const rise = useRef(new Animated.Value(1)).current;
-  // How much of the card underneath shows: while one card is leaving and the next arriving.
-  const veil = useRef(new Animated.Value(0)).current;
-  const [rightRating, setRightRating] = useState<2 | 3 | 4>(3);
-  // The responder is made once, so it reads the latest props from here.
-  const latest = useRef({ enabled, shown, onRate, width, reduce });
-  latest.current = { enabled, shown, onRate, width, reduce };
-  const crossed = useRef(false);
-  // Off screen after an answer, until the next card is shown.
-  const leaving = useRef(false);
-  const entryDir = useRef<-1 | 1 | null>(null);
-  const back = () => Animated.spring(x, { toValue: 0, useNativeDriver: false, speed: 20, bounciness: 6 }).start();
-  const fly = (rating: RatingValue) => new Promise<void>((resolve) => {
-    const dir = rating === 1 ? -1 : 1;
-    if (rating !== 1) setRightRating(rating === 2 || rating === 4 ? rating : 3);
-    leaving.current = true;
-    Animated.timing(veil, { toValue: 1, duration: 120, useNativeDriver: false }).start();
-    Animated.timing(x, { toValue: dir * latest.current.width * 1.2, duration: 220, easing: Easing.in(Easing.quad), useNativeDriver: false }).start(() => resolve());
-  });
-  const settleSoon = () => {
-    setTimeout(() => {
-      if (!leaving.current) return;
-      leaving.current = false;
-      setRightRating(3);
-      Animated.timing(veil, { toValue: 0, duration: 200, useNativeDriver: false }).start();
-      back();
-    }, 400);
-  };
-  motion.current = {
-    exit: (rating) => (latest.current.reduce ? Promise.resolve() : fly(rating)),
-    enterFrom: (dir) => { entryDir.current = dir; },
-    settleSoon,
-  };
-  // A new card: from under the one that left, or, after an undo, from the side the old one went.
-  useEffect(() => {
-    const from = entryDir.current;
-    entryDir.current = null;
-    if (latest.current.reduce) { x.setValue(0); veil.setValue(0); rise.setValue(1); leaving.current = false; return; }
-    if (from) {
-      leaving.current = false;
-      setRightRating(3);
-      x.setValue(from * latest.current.width * 1.2);
-      Animated.spring(x, { toValue: 0, useNativeDriver: false, speed: 14, bounciness: 4 }).start();
-      return;
-    }
-    if (!leaving.current) return;
-    leaving.current = false;
-    setRightRating(3);
-    x.setValue(0);
-    rise.setValue(0);
-    Animated.spring(rise, { toValue: 1, useNativeDriver: false, speed: 14, bounciness: 4 }).start();
-    Animated.timing(veil, { toValue: 0, duration: 260, useNativeDriver: false }).start();
-  }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
-  const responder = useRef(
-    PanResponder.create({
-      // Claim only a clearly horizontal drag, so the card's own text still scrolls vertically.
-      onMoveShouldSetPanResponder: (_, g) => latest.current.enabled && Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
-      onPanResponderMove: (_, g) => {
-        x.setValue(g.dx);
-        const past = swipeRating(g.dx, 0, latest.current.shown) !== null;
-        if (past !== crossed.current) { crossed.current = past; if (past) haptic.select(); }
-      },
-      onPanResponderRelease: (_, g) => {
-        crossed.current = false;
-        const rating = swipeRating(g.dx, g.vx, latest.current.shown);
-        if (!rating) { back(); return; }
-        void fly(rating).then(async () => {
-          await latest.current.onRate(rating);
-          settleSoon();
-        });
-      },
-      onPanResponderTerminate: () => { crossed.current = false; back(); },
-    }),
-  ).current;
-  const tint = (from: number, to: number) => x.interpolate({ inputRange: [from, to].sort((a, b) => a - b), outputRange: from < to ? [0, 0.22] : [0.22, 0], extrapolate: 'clamp' });
-  const rightColor = rightRating === 2 ? c.hard : rightRating === 4 ? c.easy : c.good;
-  return (
-    <View style={{ flex: 1 }}>
-      {/* The card underneath, seen only while one card leaves and the next arrives. */}
-      <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, opacity: veil, transform: [{ translateY: 14 }, { scale: 0.94 }] }}>
-        <CardSurface><View /></CardSurface>
-      </Animated.View>
-      <Animated.View
-        {...responder.panHandlers}
-        style={{
-          flex: 1,
-          transform: [
-            { translateX: x },
-            { translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
-            { scale: rise.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) },
-            { rotate: x.interpolate({ inputRange: [-300, 0, 300], outputRange: ['-5deg', '0deg', '5deg'], extrapolate: 'clamp' }) },
-          ],
-        }}
-      >
-        <CardSurface>
-          {children}
-          {/* Tints and words that ramp in as the card is dragged, or sent off by a button: the answer it gives. */}
-          <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: rightColor, opacity: tint(0, SWIPE_DISTANCE) }} />
-          <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: c.again, opacity: tint(0, -SWIPE_DISTANCE) }} />
-          <Animated.Text pointerEvents="none" style={{ ...type.title, position: 'absolute', top: space.l, left: space.xl, color: rightColor, opacity: tint(0, SWIPE_DISTANCE).interpolate({ inputRange: [0, 0.22], outputRange: [0, 1] }) }}>{RIGHT_WORD[rightRating]}</Animated.Text>
-          <Animated.Text pointerEvents="none" style={{ ...type.title, position: 'absolute', top: space.l, right: space.xl, color: c.again, opacity: tint(0, -SWIPE_DISTANCE).interpolate({ inputRange: [0, 0.22], outputRange: [0, 1] }) }}>Again</Animated.Text>
-        </CardSurface>
-      </Animated.View>
-    </View>
-  );
-}
 
 /** What this session did, shown when the queue is empty: cards answered, time, and how many were Again. */
 function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay?: number }) {

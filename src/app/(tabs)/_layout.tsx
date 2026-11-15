@@ -10,7 +10,8 @@ import { useApp } from '../../ui/AppContext';
 export default function TabsLayout() {
   const { reader } = useApp();
   return (
-    <NativeTabs>
+    // On iOS 26 the bar shrinks as a list scrolls down and comes back on scrolling up; on iPad it can become a sidebar.
+    <NativeTabs minimizeBehavior="onScrollDown" sidebarAdaptable>
       <NativeTabs.Trigger name="(decks)">
         <NativeTabs.Trigger.Label>Decks</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'rectangle.stack', selected: 'rectangle.stack.fill' }} md="style" />

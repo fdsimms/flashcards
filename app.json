@@ -7,6 +7,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "icon": {
+        "light": "./assets/icon.png",
+        "dark": "./assets/icon.png",
+        "tinted": "./assets/icon-tinted.png"
+      },
       "supportsTablet": true,
       "bundleIdentifier": "com.fdsimms.franki",
       "config": {
