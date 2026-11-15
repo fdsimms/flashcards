@@ -331,7 +331,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
   // The answer that just made a card a leech asks for a hint to keep in its note's Mnemonic field,
   // and names the card when that answer suspended it, so saving a hint can bring it back.
-  // The same sheet opens from the lightbulb button in the header, with no misses to report.
+  // The same sheet opens from Write a mnemonic in the ⋯ menu, with no misses to report.
   const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses?: number; suspendedCardId?: string } | null>(null);
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
@@ -1144,9 +1144,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
             <Stack.Toolbar.Button icon="flag.fill" tintColor={c.flags[current.flag]} accessibilityLabel={`Flagged ${FLAG_NAMES[current.flag]}. Change the flag`} onPress={chooseFlag} />
           ) : null}
           {undoButton}
-          {canAddMnemonic(note) ? (
-            <Stack.Toolbar.Button icon="lightbulb" accessibilityLabel="Write a mnemonic for this word" onPress={() => setLeechPrompt({ noteId: note.id })} />
-          ) : null}
           <Stack.Toolbar.Button
             icon="pencil"
             accessibilityLabel="Edit this card's note"
@@ -1160,6 +1157,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
           />
           <ReviewMenu
             flag={current.flag ?? 0}
+            onMnemonic={canAddMnemonic(note) ? () => setLeechPrompt({ noteId: note.id }) : undefined}
             onFlag={(flag) => setStates([current], (s) => ({ ...s, flag }))}
             onAgentFlag={chooseAgentFlag}
             onBuryCard={() => setStates([current], (s) => ({ ...s, buried: true }))}

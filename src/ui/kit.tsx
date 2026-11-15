@@ -342,6 +342,8 @@ export function Button(props: {
           minHeight: 52, borderRadius: radius.m + 2, ...smooth, paddingHorizontal: space.l, paddingVertical: space.m,
           alignItems: 'center', justifyContent: 'center',
           backgroundColor: variant === 'primary' ? c.accent : c.fill,
+          // The fill alone is 1.1:1 on the screen in light mode, so the button needs an edge to read as one. Inside the box: the size is the same.
+          ...(variant === 'primary' ? null : { borderWidth: 1, borderColor: c.controlEdge }),
         },
         props.style,
       ]}
