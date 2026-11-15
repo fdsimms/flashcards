@@ -12,7 +12,7 @@ import { haptic } from './haptics';
 import { PlayPill } from './PlayButton';
 import { Reveal } from './motion';
 import { Button, Card, Divider, ErrorNote, Group, Help, Screen, SectionTitle, Tappable } from './kit';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 
 const POLL_MS = 3000;
 
@@ -138,7 +138,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
   };
 
   const scroll = (children: React.ReactNode) => (
-    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
       {children}
     </ScrollView>
   );
@@ -267,7 +267,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
   if (!item) return null;
   return (
     <Screen title="Vocabulary check" largeTitle={false}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           <Text style={{ ...type.footnote, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{`Question ${asked.length + 1} of ${QUESTIONS}`}</Text>
           <Text style={{ ...type.footnote, color: c.textSecondary }}>{name}</Text>

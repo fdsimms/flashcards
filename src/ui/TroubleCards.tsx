@@ -14,7 +14,7 @@ import { chooseAgentFlagReason } from './agentFlagSheet';
 import { haptic } from './haptics';
 import { Chip, Divider, Help, Icon, Loading, Screen, Segments } from './kit';
 import { LeechHintSheet } from './LeechHintSheet';
-import { hairline, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, radius, smooth, space, type, useTheme, readable } from './theme';
 
 type Data = { notes: Note[]; cards: Card[]; answers: Answer[]; noteTypes: Map<string, NoteType>; now: Date; dayStartsAtHour: number };
 
@@ -138,7 +138,7 @@ export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints }: {
       ) : null}
       <Screen title="Trouble cards">
         {!data ? (
-          <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1 }}>
+          <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, flexGrow: 1 }}>
             <Loading error={error} onRetry={reload} />
           </ScrollView>
         ) : (
@@ -146,7 +146,7 @@ export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints }: {
             data={rows}
             keyExtractor={(r) => r.card.id}
             contentInsetAdjustmentBehavior="automatic"
-            contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l }}
+            contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l }}
             ListHeaderComponent={
               <View style={{ gap: space.m, paddingBottom: space.m }}>
                 {tops.length > 1 ? (

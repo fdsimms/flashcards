@@ -11,7 +11,7 @@ import { haptic } from './haptics';
 import { Button, Card, Field, HeaderAction, Help, Icon, Loading, Screen, Segments, Tappable } from './kit';
 import { Reveal } from './motion';
 import { ProgressBar } from './Review';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { usePhoneSpeech } from './usePhoneSpeech';
 
@@ -159,7 +159,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   if (!prompts.length) {
     return (
       <Screen title="Practice forms" largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.m }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
           <Text style={{ ...type.headline, color: c.text }}>Nothing to practice</Text>
           <Help>None of these words list forms that can be asked here. Forms come from each note's Forms field, one per line, like "present · yo: espero".</Help>
           {notice ? <Help>{notice}</Help> : null}
@@ -408,7 +408,7 @@ function summarySections(answered: Answered[]): { title: string; rows: Answered[
 function Summary({ answered, notice }: { answered: Answered[]; notice?: string }) {
   const c = useTheme();
   return (
-    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
       {summarySections(answered).map(({ title, rows }) => (
         <View key={title} style={{ gap: space.xs }}>
           {title ? <Text accessibilityRole="header" style={{ ...type.footnote, fontWeight: '600', color: c.textSecondary, paddingHorizontal: space.xs }}>{title}</Text> : null}

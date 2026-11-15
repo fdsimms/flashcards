@@ -6,7 +6,7 @@ import type { Api, Language, Settings, Speakers } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { hasVoiceSlots, sharesVoice, VOICE_SLOTS } from '../reader/voiceSlots';
 import { ErrorNote, Group, Help, NavRow, Screen } from './kit';
-import { space, useTheme } from './theme';
+import { space, useTheme, readable } from './theme';
 
 /**
  * The Azure voices a language's texts are read in, by gender: a man's and a woman's, and a second
@@ -46,7 +46,7 @@ export function ReadVoices({ api, language, voices, onSettings, onPick }: {
 
   return (
     <Screen title={`${name} voices`}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {error ? <ErrorNote message={error} onRetry={() => setAttempt((n) => n + 1)} /> : null}
         {!known && voices === undefined && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
         {outdated ? <ErrorNote message="Read & Listen's server doesn't offer voices by gender yet. It updates itself within about 15 minutes of an update; try again then." /> : null}

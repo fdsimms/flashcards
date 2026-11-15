@@ -8,7 +8,7 @@ import { failureText } from '../core/failure';
 import { backupFileName, fileUriToPath } from '../db/backup';
 import type { BackupStore } from '../db/sqliteRepo';
 import { Button, Card, Help, MessageList, Screen } from './kit';
-import { space, type, useTheme } from './theme';
+import { space, type, useTheme, readable } from './theme';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -86,7 +86,7 @@ export function Backup({ store, syncOn }: {
 
   return (
     <Screen title="Backup">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Back up</Text>
           <Help>

@@ -127,9 +127,11 @@ export function Divider({ inset }: { inset: number }) {
  * `icon`, a colored tile holds the symbol, as in iOS Settings; `icon.color` should be a theme
  * color that white reads on (the rating colors are).
  */
-export function NavRow({ label, detail, onPress, first, icon, disabled }: {
+export function NavRow({ label, detail, loading, onPress, first, icon, disabled }: {
   label: string;
   detail?: string;
+  /** The detail is still being read: its line is held open (blank), so the row doesn't grow when the value arrives. */
+  loading?: boolean;
   onPress: () => void;
   first?: boolean;
   icon?: { name: SFSymbol; color: string };
@@ -159,7 +161,7 @@ export function NavRow({ label, detail, onPress, first, icon, disabled }: {
       <View style={{ flex: 1, gap: 2 }}>
         {/* Only the name dims when disabled: the detail says why, so it stays readable. */}
         <Text style={{ ...type.body, color: disabled ? c.textTertiary : c.text }}>{label}</Text>
-        {detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : null}
+        {detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : loading ? <Text style={type.footnote}>{'\u00a0'}</Text> : null}
       </View>
       <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
     </Pressable>

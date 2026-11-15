@@ -5,7 +5,7 @@ import { LANGUAGE_ORDER, flaggedName } from '../reader/languages';
 import { prefs, savePassphrase, savePrefs } from '../reader/storage';
 import { voicesSummary } from '../reader/voiceSlots';
 import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
-import { space, type, useTheme } from './theme';
+import { space, type, useTheme, readable } from './theme';
 
 /**
  * Turning Read & Listen on or off. It's the one part of Franki besides sync that uses the network,
@@ -63,7 +63,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
 
   return (
     <Screen title="Read & Listen">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled">
         <Card>
           <Help>
             Short dialogues and stories written from the words in your language decks, mostly words you already know,

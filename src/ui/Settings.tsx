@@ -9,7 +9,7 @@ import { Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
 import { reminderTime, useReminderPrefs } from './studyReminder';
 import { useStudyToday, useVacationPrefs } from './vacationPrefs';
 import { vacationDetail } from './vacationNotice';
-import { space, useTheme } from './theme';
+import { space, useTheme, readable } from './theme';
 
 /**
  * App-wide settings: the screens that aren't about studying (Anki, Backup, Read & Listen, WaniKani), then
@@ -71,7 +71,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
 
   return (
     <Screen title="Settings">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         <Group>
           {/* Tile colors are picked so white reads on them in light and dark, and none is a rating color, which would read as a warning. */}
           <NavRow first icon={{ name: 'arrow.triangle.2.circlepath', color: c.easy }} label="Anki" detail="Sync, or send your collection to and from Anki by file" onPress={onAnki} />
@@ -81,16 +81,17 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
         </Group>
         <SectionTitle>Studying</SectionTitle>
         <Group>
-          <NavRow first label="Answer buttons" detail={ANSWER_BUTTON_CHOICES.find((x) => x.value === buttons)?.label} onPress={onAnswerButtons} />
-          <NavRow label="Speaking" detail={speaking === undefined ? undefined : speaking ? 'On. Answer by speaking' : 'Off. Answer by speaking instead of typing'} onPress={onSpeaking} />
+          <NavRow first label="Answer buttons" loading={buttons === undefined} detail={ANSWER_BUTTON_CHOICES.find((x) => x.value === buttons)?.label} onPress={onAnswerButtons} />
+          <NavRow label="Speaking" loading={speaking === undefined} detail={speaking === undefined ? undefined : speaking ? 'On. Answer by speaking' : 'Off. Answer by speaking instead of typing'} onPress={onSpeaking} />
           <NavRow label="Voices" detail="The voices each language is recorded and read aloud with" onPress={onVoices} />
           <NavRow
             label="Study reminder"
+            loading={!reminder}
             detail={!reminder ? undefined : reminder.on ? `Every day at ${reminderTime(reminder)}` : "Off. A notification each day with how many cards are waiting"}
             onPress={onReminder}
           />
           <NavRow label="Daily extras" detail="Drills and a text to read, besides your cards" onPress={onExtras} />
-          <NavRow label="Vacation mode" detail={vacation ? vacationDetail(vacation, today) : undefined} onPress={onVacation} />
+          <NavRow label="Vacation mode" loading={!vacation} detail={vacation ? vacationDetail(vacation, today) : undefined} onPress={onVacation} />
         </Group>
         <SectionTitle>Omnilanguage cards</SectionTitle>
         <Group>
@@ -113,7 +114,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
             value={!!hook}
             onValueChange={chooseHook}
           />
-          <NavRow label="Thai text size" detail={THAI_TEXT_CHOICES.find((x) => x.value === thaiSize)?.label} onPress={onThaiSize} />
+          <NavRow label="Thai text size" loading={thaiSize === undefined} detail={THAI_TEXT_CHOICES.find((x) => x.value === thaiSize)?.label} onPress={onThaiSize} />
         </Group>
         <Help>These apply to Omnilanguage cards. Other note types use the buttons and their own templates.</Help>
       </ScrollView>

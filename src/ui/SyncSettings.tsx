@@ -5,7 +5,7 @@ import { signIn, turnOffSync } from '../anki/syncService';
 import { failureText } from '../core/failure';
 import type { AnkiLink, SyncSettings as Settings } from '../db/ankiLink';
 import { Button, Card, Field, Help, MessageList, Screen } from './kit';
-import { space, type, useTheme } from './theme';
+import { space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
@@ -76,7 +76,7 @@ export function SyncSettings(props: {
 
   return (
     <Screen title="Sync">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
         {s?.enabled ? (
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>Syncing with {s.server.replace(/^https?:\/\//, '').replace(/\/$/, '')}</Text>

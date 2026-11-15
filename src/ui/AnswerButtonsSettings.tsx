@@ -5,7 +5,7 @@ import { ANSWER_BUTTON_CHOICES, type AnswerButtons } from '../core/answerButtons
 import { failureText } from '../core/failure';
 import type { Repo } from '../db/repo';
 import { CheckRow, Group, Help, Screen } from './kit';
-import { space } from './theme';
+import { space, readable } from './theme';
 
 /** Settings, Answer buttons: which of Again, Hard, Good and Easy Review shows after the answer, for every deck. */
 export function AnswerButtonsSettings({ repo }: { repo: Repo }) {
@@ -24,7 +24,7 @@ export function AnswerButtonsSettings({ repo }: { repo: Repo }) {
 
   return (
     <Screen title="Answer buttons">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         <Group accessibilityRole="radiogroup">
           {ANSWER_BUTTON_CHOICES.map((choice, i) => (
             <CheckRow

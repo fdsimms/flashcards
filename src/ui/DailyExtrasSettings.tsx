@@ -6,7 +6,7 @@ import { LANGUAGE_MODES, modeOf, TURNS_PER_DAY, FOCUS_EXTRAS, type ExtraPrefs, t
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
 import { Group, Help, Loading, NavRow, Screen, SectionTitle, Segments, SwitchRow } from './kit';
-import { space, type, useTheme } from './theme';
+import { space, type, useTheme, readable } from './theme';
 import { useDailyExtras } from './useDailyExtras';
 
 const MODE_LABEL: Record<LanguageMode, string> = { always: 'Always', turns: 'Takes turns', off: 'Off' };
@@ -52,7 +52,7 @@ export function DailyExtrasSettings() {
 
   return (
     <Screen title="Daily extras" largeTitle={false}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
         {!prefs ? <Loading /> : (
           <>
             <Group>

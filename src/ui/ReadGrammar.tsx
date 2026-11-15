@@ -5,7 +5,7 @@ import { DEFAULT_MAX_PRACTICE, grammarChoiceOptions, jlptName, seenLine } from '
 import { Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { haptic } from './haptics';
 import { ReadGrammarLevel } from './ReadGrammarLevel';
-import { hairline, radius, space, type, useTheme } from './theme';
+import { hairline, radius, space, type, useTheme, readable } from './theme';
 
 /**
  * The current language's grammar points, each practiced (used at least twice in every text), known
@@ -58,7 +58,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
   const full = practicing.length >= max;
   return (
     <Screen title="Grammar">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         <Help>
           {`Practice: used at least twice in every text, at most ${max} at a time. Know it: used freely, and the ones you've seen least are worked into texts. Don't know it: kept out of texts. Not set: at most 2 uses in a text, underlined and explained. Applies from the next text written.`}
         </Help>

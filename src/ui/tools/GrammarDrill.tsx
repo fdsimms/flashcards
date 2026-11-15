@@ -12,7 +12,7 @@ import { LANGUAGES } from '../../reader/languages';
 import { ChoiceButton, type ChoiceState } from '../FormsDrill';
 import { haptic } from '../haptics';
 import { Button, Card, ErrorNote, Field, Help, Loading, Screen, Segments, Tappable } from '../kit';
-import { MIN_TAP, radius, space, type, useTheme } from '../theme';
+import { MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { PlayPill } from '../PlayButton';
 import { usePhoneSpeech } from '../usePhoneSpeech';
@@ -74,7 +74,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
   if (error) {
     return (
       <Screen title={title} largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}>
           <ErrorNote message={error} onRetry={load} />
         </ScrollView>
       </Screen>
@@ -85,7 +85,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
   if (!prompts.length) {
     return (
       <Screen title={title} largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.m }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
           <Text style={{ ...type.headline, color: c.text }}>No questions yet</Text>
           {note ? <Help>{note}</Help> : null}
         </ScrollView>
@@ -104,7 +104,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
     });
     return (
       <Screen title={`${right} of ${answered.length} right`} footer={<Button label="Done" onPress={onDone} />}>
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
           <Card style={{ gap: space.s }}>
             {byPoint.map((p) => (
               <Text key={p.id} style={{ ...type.body, color: c.text }}>

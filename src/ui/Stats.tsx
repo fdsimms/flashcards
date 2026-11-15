@@ -15,7 +15,7 @@ import { Card as Box, Chip, Group, Help, Loading, NavRow, Screen } from './kit';
 import { haptic } from './haptics';
 import { Grow } from './motion';
 import { AnswerCalendar } from './StatsCalendar';
-import { hairline, space, type, useTheme } from './theme';
+import { hairline, space, type, useTheme, readable } from './theme';
 
 /** How many study days the charts cover, back and ahead. */
 const DAYS = 30;
@@ -78,12 +78,12 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
   return (
     <Screen title="Stats">
       {!stats ? (
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1 }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, flexGrow: 1 }}>
           <Loading error={error} onRetry={() => setAttempt((n) => n + 1)} />
         </ScrollView>
       ) : null}
       {!stats ? null : (
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
           {tops.length > 1 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.s }}>
               {[null, ...tops].map((d) => (

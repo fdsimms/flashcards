@@ -13,7 +13,7 @@ import type { NoteEditorResult } from './AppContext';
 import type { RecordDeps, Recording } from '../anki/recordService';
 import { Button, Card, Chip, Field, Help, Loading, Screen, Select } from './kit';
 import { afterSave, RecordAudio, useVoiceSettings } from './RecordAudio';
-import { radius, smooth, space, type, useTheme } from './theme';
+import { radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
@@ -220,12 +220,12 @@ export function NoteEditor(props: {
       }
     >
       {!loaded ? <Loading error={loadError} onRetry={() => setAttempt((n) => n + 1)} /> : missing ? (
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}>
           <Help>Couldn't find this note. It may have been deleted, here or in Anki.</Help>
         </ScrollView>
       ) : (
         <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1 }}>
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
           {error ? (
             <View accessibilityRole="alert" style={{ backgroundColor: c.dangerFill, borderRadius: radius.m, ...smooth, padding: space.m }}>
               <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text>

@@ -4,7 +4,7 @@ import { failureText } from '../core/failure';
 import { REMINDER_MINUTES, type ReminderPrefs } from '../core/reminder';
 import { Card, Group, Help, Loading, Screen, SwitchRow } from './kit';
 import { notificationsAllowed, reminderTime, saveReminder, useReminderPrefs } from './studyReminder';
-import { space, type, useTheme } from './theme';
+import { space, type, useTheme, readable } from './theme';
 import { Wheel, WheelBand, wheelScale } from './tools/Wheel';
 
 const hourLabel = (hour: number) => new Date(2000, 0, 1, hour).toLocaleTimeString(undefined, { hour: 'numeric' });
@@ -45,7 +45,7 @@ export function StudyReminder() {
 
   return (
     <Screen title="Study reminder" largeTitle={false}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
         {!prefs ? <Loading /> : (
           <>
             <Group>

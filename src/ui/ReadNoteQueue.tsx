@@ -5,7 +5,7 @@ import { type NoteQueue, type QueuedNote } from '../reader/api';
 import { counts, firstReady } from '../reader/noteQueue';
 import { haptic } from './haptics';
 import { Button, ErrorNote, Group, Help, HeaderAction, Icon, Screen, SectionTitle, Tappable } from './kit';
-import { hairline, MIN_TAP, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, space, type, useTheme, readable } from './theme';
 
 /** Time for one note editor to finish closing before the next opens over it. */
 const BETWEEN_EDITORS_MS = 400;
@@ -134,7 +134,7 @@ export function ReadNoteQueue({ queue, error, getItems, onReview, onRetry, onRem
       title="Queued notes"
       footer={ready ? <Button label={n.ready === 1 ? 'Review 1 note' : `Review ${n.ready} notes`} onPress={() => review(ready, true)} /> : undefined}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         {queue && !queue.available ? (
           <ErrorNote message="Claude isn't set up on the server, so notes can't be filled in. Add Claude's key to your Read & Listen server, then try again." onRetry={onRefresh} />
         ) : null}

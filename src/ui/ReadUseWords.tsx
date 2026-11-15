@@ -7,7 +7,7 @@ import { LANGUAGES } from '../reader/languages';
 import type { WordToUse } from '../reader/production';
 import { Button, Card, ErrorNote, Help, Screen } from './kit';
 import { WritingResult } from './ReadWritingResult';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
@@ -66,7 +66,7 @@ export function ReadUseWords({ api, language, words, onPlay, onDone }: {
   if (!word) {
     return (
       <Screen title="Use today's words" largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.m }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
           <Card style={{ alignItems: 'center', gap: space.xs, paddingVertical: space.xl }}>
             <Text style={{ ...type.largeTitle, color: c.accent, fontVariant: ['tabular-nums'] }}>{written}</Text>
             <Text style={{ ...type.subhead, color: c.textSecondary }}>{written === 1 ? 'sentence written' : 'sentences written'}</Text>
@@ -91,7 +91,7 @@ export function ReadUseWords({ api, language, words, onPlay, onDone }: {
   return (
     <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
       <Screen title="Use today's words" largeTitle={false} footer={footer}>
-        <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.l, gap: space.m }} {...scrollProps}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }} {...scrollProps}>
           <Text style={{ ...type.footnote, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{`Word ${at + 1} of ${words.length}`}</Text>
           <Card style={{ alignItems: 'center', gap: space.xs, paddingVertical: space.l }}>
             <Text style={{ ...type.subhead, color: c.textSecondary }}>Write a sentence with</Text>

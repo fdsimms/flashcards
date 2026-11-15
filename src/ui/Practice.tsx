@@ -3,7 +3,7 @@ import { ScrollView } from 'react-native';
 import type { Api } from '../reader/api';
 import { TOOLS, type ToolInfo } from '../tools/tools';
 import { Group, NavRow, Screen } from './kit';
-import { space, useTheme } from './theme';
+import { space, useTheme, readable } from './theme';
 import { TOOL_SCREENS } from './tools';
 import { useGrammarAvailable } from './tools/useGrammarAvailable';
 
@@ -13,7 +13,7 @@ export function Practice({ onOpen, readerApi }: { onOpen: (tool: ToolInfo) => vo
   const grammar = useGrammarAvailable(readerApi);
   return (
     <Screen title="Practice">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         <Group>
           {TOOLS.map((tool, i) => {
             // Grammar, Sentences and Situations need Read & Listen's server.

@@ -11,7 +11,7 @@ import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { AzureVoiceRows, useAzureSample, useAzureVoices } from './AzureVoices';
 import { CheckRow, ErrorNote, Group, Help, Loading, NavRow, Screen, SectionTitle, Segments } from './kit';
-import { space, useTheme } from './theme';
+import { space, useTheme, readable } from './theme';
 
 const DOWNLOAD_HELP =
   'More voices can be downloaded on iPhone in Settings, Accessibility, Spoken Content, Voices. ' +
@@ -85,7 +85,7 @@ export function Voices({ repo, onLanguage }: { repo: Repo; onLanguage: (key: str
   const { languages, voices, settings, error, retry } = useVoiceChoices(repo);
   return (
     <Screen title="Voices">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {languages?.length ? (
           <Group>
             {languages.map((l, i) => (
@@ -123,7 +123,7 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: Repo; api: Api
     return (
       <Screen title="">
         {languages ? (
-          <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l }}>
+          <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}>
             <Help>No deck is read aloud in this language anymore.</Help>
           </ScrollView>
         ) : <Loading error={error} onRetry={retry} />}
@@ -144,7 +144,7 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: Repo; api: Api
 
   return (
     <Screen title={lang.name}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         <SectionTitle>Recordings</SectionTitle>
         {!api ? (
           <Help>Recording cards with Azure's voices needs Read & Listen turned on (Settings, Read & Listen), since its server holds the Azure key.</Help>

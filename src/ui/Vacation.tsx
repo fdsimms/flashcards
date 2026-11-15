@@ -5,7 +5,7 @@ import {
   activeMode, chooseLength, chooseMode, VACATION_LENGTHS, VACATION_NEW_CHOICES, VACATION_REVIEW_CHOICES, type VacationMode, type VacationPrefs,
 } from '../core/vacation';
 import { Card, Help, Loading, Screen, SectionTitle, Segments } from './kit';
-import { space, type, useTheme } from './theme';
+import { space, type, useTheme, readable } from './theme';
 import { vacationDate } from './vacationNotice';
 import { saveVacation, useStudyToday, useVacationPrefs } from './vacationPrefs';
 
@@ -37,7 +37,7 @@ export function Vacation() {
 
   return (
     <Screen title="Vacation mode" largeTitle={false}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
         {!prefs ? <Loading /> : (
           <>
             <Segments

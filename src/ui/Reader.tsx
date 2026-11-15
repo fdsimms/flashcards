@@ -49,7 +49,7 @@ import { ScoreTake } from './ScoreTake';
 import { useSpeakingOn } from './useSpokenAnswer';
 import { lineText } from '../reader/lineDrill';
 import { Button, Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
-import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 
 /**
  * The reader: a text split into words by the server, a gloss on tap, audio line by line, and a
@@ -663,7 +663,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
       {/* Centered in the whole screen frame, which runs under the native header. The automatic inset
           would add the header's height on top of that centering and push the spinner below the middle. */}
       {!text ? (
-        <ScrollView contentInsetAdjustmentBehavior="never" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+        <ScrollView contentInsetAdjustmentBehavior="never" contentContainerStyle={{ ...readable, flexGrow: 1, justifyContent: 'center' }}>
           {error ? (
             <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={load} /></View>
           ) : (
@@ -681,7 +681,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
         <ScrollView
           ref={scroller}
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={{ paddingBottom: space.l }}
+          contentContainerStyle={{ ...readable, paddingBottom: space.l }}
           onLayout={(e) => {
             viewHeight.current = e.nativeEvent.layout.height;
             scroller.current?.measureInWindow((_x, y) => { viewTop.current = y; });
@@ -937,7 +937,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
       ) : null}
 
       {text && session && ended && !checking && !drilling ? (
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l }}>
           <Reveal style={{ gap: space.m }}>
             {check.length ? (
               <CheckCard text={text} questions={check} picks={checkPicks} onStart={() => { setCheckPicks((prev) => prev ?? {}); setChecking(true); }} />

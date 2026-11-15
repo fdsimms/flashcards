@@ -7,7 +7,7 @@ import { deckChipRows, matchesNoteFilter, NOTE_FILTERS, notePreview, searchNotes
 import type { Card, Note } from '../core/types';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { Chip, Divider, Loading, Screen } from './kit';
-import { hairline, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
@@ -65,7 +65,7 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding }}
+        contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding }}
         ListHeaderComponent={
           <View style={{ gap: space.s, paddingBottom: space.s }}>
             {chipRows.map((row, i) => (

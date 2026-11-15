@@ -9,7 +9,7 @@ import { ApiError, type Api, type GrammarChoice, type GrammarPointPage } from '.
 import { DEFAULT_MAX_PRACTICE, grammarChoiceOptions, grammarStateWord, markedParts, seenLine } from '../reader/grammar';
 import { haptic } from './haptics';
 import { Button, Card, ErrorNote, HeaderAction, Help, Screen, SectionTitle, Segments, Tappable } from './kit';
-import { hairline, radius, space, type, useTheme } from './theme';
+import { hairline, radius, space, type, useTheme, readable } from './theme';
 
 /**
  * A grammar point's page (docs/grammar.md, step 4): its choice, the explanation and related points
@@ -79,7 +79,7 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
   if (!point) {
     return (
       <Screen title="Grammar">
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}>
           <Help>This grammar point isn't in this version of the app. Update the app to see it.</Help>
         </ScrollView>
       </Screen>
@@ -98,7 +98,7 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
 
   return (
     <Screen title={point.name}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.l }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.l }}>
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{point.note}</Text>
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {!page && !error ? <ActivityIndicator color={c.accent} /> : null}
