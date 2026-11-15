@@ -134,5 +134,8 @@ export function usePhraseDrag(opts: {
     onTouchCancel: () => { if (drag.current) end(false); },
   };
 
-  return { dragging, wordRef, begin, lineProps };
+  /** Where a word is on screen now, or null if it isn't drawn. */
+  const measureWord = useCallback((word: Word) => measure(views.current.get(word)), []);
+
+  return { dragging, wordRef, begin, lineProps, measureWord };
 }

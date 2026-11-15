@@ -15,7 +15,7 @@ import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf
 import { RATES } from '../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, type LengthStep } from '../reader/shelf';
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
-import { locate, phrasePart, phraseText, pickEnd, type PhrasePick } from '../reader/phrase';
+import { locate, phraseRange, phrasePart, phraseText, pickEnd, type PhrasePick } from '../reader/phrase';
 import { choicesView, holdsPlayAll } from '../reader/choices';
 import { buildCheck, loggedScore, type CheckPicks, type CheckQuestion } from '../reader/check';
 import { prefs, savePrefs } from '../reader/storage';
@@ -25,7 +25,7 @@ import { ReadRecap } from './ReadRecap';
 import { Pop, Reveal } from './motion';
 import { LineExplanation } from './ReaderExplain';
 import { RegisterChip } from './ReaderNatural';
-import { PhraseExplanation, PhrasePickBanner, type PhraseMining } from './ReaderPhrase';
+import { PhraseExplanation, PhrasePickBanner, type PhraseAnchor, type PhraseMining } from './ReaderPhrase';
 import { ReadChoices } from './ReadChoices';
 import { CheckCard, ReaderCheck } from './ReaderCheck';
 import { LineDrillCard, ReadLineDrill } from './ReadLineDrill';
@@ -636,24 +636,25 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   };
   const markShown = (mark: Mark) => mark === 'highlight' ? highlight : mark === 'name' ? markNames : !hiddenMarks.includes(mark as HideableMark);
 
-  // The selected phrase's explanation, keyed by the phrase so a new one asks again. Not while
-  // it's being dragged, or each word passed over would ask.
-  const phraseCard = (pick: PhrasePick) => {
-    if (!text) return null;
-    const said = phraseText(text.lines[pick.line].words, pick);
-    return (
-      <PhraseExplanation
-        key={`${pick.line}:${said}`}
-        api={api}
-        textId={text.id}
-        line={pick.line}
-        phrase={said}
-        // Only into the deck of the language being read.
-        mining={mining?.language === text.language ? mining : undefined}
-        onClose={() => setPhrase(null)}
-      />
-    );
-  };
+  // Where the finished phrase is on screen, for its popup to open beside. Measured once the phrase is
+  // complete and no longer dragged; the popup is a modal, so the text can't scroll under it.
+  const [phraseAnchor, setPhraseAnchor] = useState<PhraseAnchor | null>(null);
+  const phraseKey = phrase && phrase.end !== null ? `${phrase.line}:${phrase.start}:${phrase.end}` : null;
+  useEffect(() => {
+    setPhraseAnchor(null);
+    const range = phrase && text && !phraseDrag.dragging ? phraseRange(phrase) : null;
+    if (!phrase || !text || !range) return;
+    const words = text.lines[phrase.line]?.words;
+    const first = words?.[range.from];
+    const last = words?.[range.to];
+    if (!first || !last) return;
+    let current = true;
+    Promise.all([phraseDrag.measureWord(first), phraseDrag.measureWord(last)]).then(([a, b]) => {
+      if (current && a && b) setPhraseAnchor({ top: a.y, bottom: b.y + b.height });
+    });
+    return () => { current = false; };
+    // Only when the phrase or the drag changes: the text sits still under the popup.
+  }, [phraseKey, phraseDrag.dragging]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const seconds = session ? Math.round((Date.now() - session.startedAt) / 1000) : 0;
   const hasAudio = text ? firstLine(text.lines) !== null : false;
@@ -844,8 +845,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                 {!listenOnly && english ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: space.xs }}>{lines.map((l) => l.english).join(' ')}</Text>
                 ) : null}
-                {!listenOnly && !phraseDrag.dragging && phrase && phrase.end !== null && phrase.line >= range.start && phrase.line <= range.end
-                  ? phraseCard(phrase) : null}
               </View>
             );
           }) : text.lines.map((line, i) => (
@@ -929,7 +928,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: 2 }}>{line.english}</Text>
                 ) : null}
                 {!listenOnly && explained.includes(i) ? <LineExplanation api={api} textId={text.id} line={i} grammarChosen={grammarChosen} onGrammarChosen={chooseGrammar} onOpenGrammar={onOpenGrammar} /> : null}
-                {!listenOnly && !phraseDrag.dragging && phrase && phrase.end !== null && phrase.line === i ? phraseCard(phrase) : null}
               </View>
             </View>
           ))}
@@ -1115,6 +1113,20 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
         } : null}
         onClose={() => setTapped(null)}
       />
+      {/* The selected phrase's explanation, keyed by the phrase so a new one asks again. */}
+      {text && phrase && phrase.end !== null && phraseAnchor && !listenOnly && !phraseDrag.dragging ? (
+        <PhraseExplanation
+          key={`${phrase.line}:${phraseText(text.lines[phrase.line].words, phrase)}`}
+          api={api}
+          textId={text.id}
+          line={phrase.line}
+          phrase={phraseText(text.lines[phrase.line].words, phrase)}
+          anchor={phraseAnchor}
+          // Only into the deck of the language being read.
+          mining={mining?.language === text.language ? mining : undefined}
+          onClose={() => setPhrase(null)}
+        />
+      ) : null}
     </Screen>
   );
 }
