@@ -565,7 +565,10 @@ _CHOICES_ASK = (
     "options for what happens next, each one line of the story's language written like the text "
     '(| between words, only words the learner knows) with its English in "english". Make the '
     "options lead to clearly different next episodes, and gloss any word in them that isn't on "
-    "the list, as for the lines."
+    "the list, as for the lines. The decision belongs in the choices, not in the text: end the "
+    "text on a concrete moment (something heard, seen or said, or someone arriving), and never "
+    "on a line saying a character must decide, choose or work out what to do. That wording "
+    "closed episode after episode."
 )
 
 
