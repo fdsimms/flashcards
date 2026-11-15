@@ -56,7 +56,8 @@ Franki's (Client, below).
   opens Claude's note on that line's grammar and vocabulary under it: a few points, each a phrase
   from the line and what to know about it, in plain English. "Explain more simply" asks for a plainer
   version. Asked only on the tap (`POST /api/texts/{id}/lines/{n}/explain`, `explain.py`), with the
-  line and the lines around it, and kept per line and per version in `explanations`, so opening a
+  line and the whole text (as for a phrase, below: the prompt says to use it only where it sharpens
+  a point; it was the lines around it until 15 November 2026), and kept per line and per version in `explanations`, so opening a
   line again or rereading a past text costs nothing. It only shows text: nothing is graded or added
   to the deck. Each call's cost is kept with it and reported under `explanations` in `/api/costs`,
   apart from the texts' figures. A free-form "Ask a question" and a per-word explanation were left out for now.
@@ -70,8 +71,11 @@ Franki's (Client, below).
   tapping another word in the same line ends it (either way round; Cancel in the bar above the
   player, which also mentions the hold). The phrase is drawn as one band and Claude's note on it opens in a popup beside
   the phrase (on whichever side has more room, its height capped, the notes scrolling): what it means there, then a few points on its parts (a set expression, how the words combine,
-  tone), with "Explain more simply". A phrase stays within one line, so it has the line's context
-  and the server can check it's there: the app sends it as it appears (the pieces joined, spaces
+  tone), with "Explain more simply". A phrase stays within one line, so the server can check it's
+  there. The request carries the whole text (title, every line numbered with its speaker and English,
+  the selected one marked; about 0.1 cent more than five neighbouring lines), and the prompt says to
+  use it only where it sharpens the meaning (what "one thing" points to), never to retell the text.
+  The app sends the phrase as it appears (the pieces joined, spaces
   and punctuation included, `src/reader/phrase.ts`), and the server refuses one that isn't in the
   line. Asked only on the tap (`POST /api/texts/{id}/lines/{n}/phrase`, `explain.py`) and kept per
   phrase and version in `phrase_explanations`; its cost counts under `explanations` in
@@ -87,7 +91,7 @@ Franki's (Client, below).
   explanation has **Does this sound natural?**, asked only on the tap
   (`POST /api/texts/{id}/lines/{n}/natural`, `explain.py`) and kept per line in `naturalness`, so
   asking again costs nothing; its cost counts under `explanations` in `/api/costs`. It is a second,
-  separate call that judges the line as a native speaker with who says it and the lines around it
+  separate call that judges the line as a native speaker with who says it and the whole text (the lines around it until 15 November 2026)
   (a model grading its own draft in the same call mostly approves it), and answers natural, stiff or
   unusual with a reason and, unless natural, what a native speaker would more likely say. That is
   text only: the line's recorded audio is unchanged. Tried and left out for now: running the review
