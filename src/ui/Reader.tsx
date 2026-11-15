@@ -1,4 +1,4 @@
-import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { setAudioModeAsync, useAudioPlayerStatus } from 'expo-audio';
 import { Stack, usePreventRemove } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -13,6 +13,7 @@ import { helperNote } from '../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../reader/fonts';
 import { LANGUAGES, ipaNote, meaningOf, wordStatus } from '../reader/languages';
 import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf, repeatChipLabel } from '../reader/playback';
+import { lineAudio } from '../reader/lineAudio';
 import { isSlow, NORMAL_RATE, RATES, SLOW_RATE } from '../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, type LengthStep } from '../reader/shelf';
 import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
@@ -55,6 +56,7 @@ import { recordExtraRead } from '../tools/extrasStorage';
 import { ScoreTake } from './ScoreTake';
 import { useSpeakingOn } from './useSpokenAnswer';
 import { lineText } from '../reader/lineDrill';
+import type { ReaderPlayerHost } from './useReaderPlayer';
 import { Button, Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 
@@ -128,8 +130,10 @@ type UpNext = { id: number; title: string; lines: number; order: number[] };
 /** Listening goes on with the screen locked or in another app, while the reader is open. */
 const READER_AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: true };
 
-export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, onDone, onOpenGrammar, mining }: {
+export function Reader({ api, playerHost, source, settings, onSettings, onPlayWord, onNext, onDone, onOpenGrammar, mining }: {
   api: Api;
+  /** The shared audio player, which keeps playing on the tab bar when this is closed on Play all (useReaderPlayer). */
+  playerHost: ReaderPlayerHost;
   source: ReaderSource;
   /** Opens a grammar point's page, from a line's explanation. */
   onOpenGrammar: (id: string) => void;
@@ -206,7 +210,9 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const loadId = useRef(0);
   useEffect(() => () => { mounted.current = false; }, []);
 
-  const player = useAudioPlayer(null, { keepAudioSessionActive: true });
+  const player = playerHost.player;
+  // The reader opening takes over from a Play all that carried on after the last one closed.
+  useEffect(() => { playerHost.claim(); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once, as it opens
   const status = useAudioPlayerStatus(player);
   const [current, setCurrent] = useState<number | null>(null);
   const [playingAll, setPlayingAll] = useState(false);
@@ -234,17 +240,29 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   });
 
   // READER_AUDIO_MODE while the reader is open. Review's card audio doesn't need background
-  // playback, so it's turned off again on the way out. Declared after Record yourself, so this
-  // cleanup runs after the one that puts the reader's mode back when it closes mid-take.
+  // playback, so it's turned off again on the way out, unless Play all is running: that carries on
+  // on the tab bar's mini-player, which keeps the mode (see `leaving` below). Declared after Record
+  // yourself, so this cleanup runs after the one that puts the reader's mode back when it closes mid-take.
   useEffect(() => {
     setAudioModeAsync(READER_AUDIO_MODE).catch(() => undefined);
-    return () => { setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false }).catch(() => undefined); };
-  }, []);
+    return () => {
+      const l = carryOn.current;
+      if (l.text && l.playingAll && l.current !== null && l.playing) {
+        playerHost.handOff(api, { textId: l.text.id, title: l.text.title, language: l.text.language, lines: l.text.lines, current: l.current, repeat: l.repeat, played: l.played, rate: l.rate });
+        return;
+      }
+      playerHost.release();
+      setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false }).catch(() => undefined);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- reads the latest values from `carryOn` as it closes
 
   const [silentLine, setSilentLine] = useState<number | null>(null);
   // Plays per line (1 is off, Infinity is until turned off) and how many the current line has had in this round.
   const [repeat, setRepeat] = useState<number>(1);
   const [played, setPlayed] = useState(1);
+  // What the mini-player needs to carry on, as of the latest render, for when this closes.
+  const carryOn = useRef({ text: null as ReaderText | null, current: null as number | null, playingAll: false, playing: false, repeat: 1, played: 1, rate: NORMAL_RATE });
+  carryOn.current = { text, current, playingAll, playing: status.playing || status.isBuffering || (playingAll && status.didJustFinish), repeat, played, rate: playedRate.current };
   // The words being spoken in the line playing, lit as the voice reaches them (useSpokenWords.ts),
   // unless that's turned off in Read & Listen's settings. Read from prefs on each render rather than
   // kept in state, so a change made there shows here without reopening the text.
@@ -291,29 +309,14 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const startLine = async (i: number, r: number) => {
     if (!text) return;
     const mine = ++starting.current;
-    let source = api.audioSource(text.id, i, r);
-    let stretch = NORMAL_RATE;
-    let slow = isSlow(r);
-    if (slow) {
-      const key = `${text.id}:${i}`;
-      let times = slowTimed[key];
-      if (!times) {
-        try {
-          times = (await api.slowTimes(text.id, i)).times;
-          if (starting.current !== mine) return;
-          setSlowTimed((prev) => ({ ...prev, [key]: times! }));
-        } catch {
-          if (starting.current !== mine) return;
-          slow = false;
-          source = api.audioSource(text.id, i);
-          stretch = SLOW_RATE;
-        }
-      }
-    }
-    setPlayedSlow(slow);
+    const key = `${text.id}:${i}`;
+    const audio = await lineAudio(api, text.id, i, r, slowTimed[key]);
+    if (starting.current !== mine) return;
+    if (audio.times) setSlowTimed((prev) => ({ ...prev, [key]: audio.times! }));
+    setPlayedSlow(audio.slow);
     playedRate.current = r;
-    player.replace(source);
-    player.setPlaybackRate(stretch, 'high');
+    player.replace(audio.source);
+    player.setPlaybackRate(audio.stretch, 'high');
     player.play();
   };
 
