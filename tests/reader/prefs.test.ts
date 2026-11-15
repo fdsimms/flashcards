@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
-import { DEFAULT_PREFS, parsePrefs } from '../../src/reader/prefs';
+import { DEFAULT_PREFS, hasSlow, parsePrefs, speedFor } from '../../src/reader/prefs';
 
 test('saved settings come back', () => {
-  expect(parsePrefs(JSON.stringify({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true }))).toEqual({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true });
+  expect(parsePrefs(JSON.stringify({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, slowLanguages: ['th', 'pl'] }))).toEqual({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, slowLanguages: ['th', 'pl'] });
 });
 
 test('nothing saved, or something unreadable, gives the defaults', () => {
@@ -78,4 +78,19 @@ test('a finished text is offered to hear again once unless chosen otherwise', ()
   // Two isn't a choice, and anything else falls back.
   expect(parsePrefs(JSON.stringify({ listenAgain: 2 })).listenAgain).toBe(1);
   expect(parsePrefs(JSON.stringify({ listenAgain: 'three' })).listenAgain).toBe(1);
+});
+
+test('every language but Spanish and French offers Slow until the owner says otherwise', () => {
+  expect(DEFAULT_PREFS.slowLanguages).toEqual(['th', 'de', 'el', 'en', 'ja', 'nb', 'pl', 'ru']);
+  expect(parsePrefs(JSON.stringify({ slowLanguages: ['es', 'th', 'klingon', 'th'] })).slowLanguages).toEqual(['th', 'es']);
+  expect(parsePrefs(JSON.stringify({ slowLanguages: [] })).slowLanguages).toEqual([]);
+  expect(parsePrefs(JSON.stringify({ slowLanguages: 'th' })).slowLanguages).toEqual(DEFAULT_PREFS.slowLanguages);
+});
+
+test('a language without Slow plays at normal speed whatever speed was chosen', () => {
+  const p = { rate: 0.8, slowLanguages: ['th' as const] };
+  expect(hasSlow(p, 'th')).toBe(true);
+  expect(speedFor(p, 'th')).toBe(0.8);
+  expect(hasSlow(p, 'es')).toBe(false);
+  expect(speedFor(p, 'es')).toBe(1);
 });

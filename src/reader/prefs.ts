@@ -1,8 +1,10 @@
 // The reader's settings that last between launches: playback speed, whether words outside the
 // deck are highlighted, whether names are shaded, which of the other marks the reader switched off (the key), whether a story with paragraphs is shown as paragraphs, which Thai letters it's drawn in, how big the text is,
 // whether the word being spoken is lit as a line plays (useSpokenWords), and whether the deck list's
-// counts are sent to the server for dundundun (useCountsReport), and whether the check after reading shows its questions' English, and whether a tapped word's meaning waits to be asked for (guessFirst) and, for a word in the deck, behind a multiple-choice question (quizKnown), and whether a new text opens with its words hidden until it's been heard through (listenFirst), and then twice (listenTwice), and how many times a finished text is offered to hear again (listenAgain), and whether Situations' lines are spoken by Azure rather than the phone's voices (situationsAzure, off by default). Pure, so it's tested; storage.ts keeps them in the Keychain.
+// counts are sent to the server for dundundun (useCountsReport), and whether the check after reading shows its questions' English, and whether a tapped word's meaning waits to be asked for (guessFirst) and, for a word in the deck, behind a multiple-choice question (quizKnown), and whether a new text opens with its words hidden until it's been heard through (listenFirst), and then twice (listenTwice), and how many times a finished text is offered to hear again (listenAgain), and which languages offer the Slow speed (slowLanguages: each one's slow recordings cost Azure a second recording, so a language the owner follows at normal speed leaves it off), and whether Situations' lines are spoken by Azure rather than the phone's voices (situationsAzure, off by default). Pure, so it's tested; storage.ts keeps them in the Keychain.
 import { TEXT_SIZES, THAI_FONTS, type TextSize, type ThaiFont } from './fonts';
+import type { Language } from './api';
+import { LANGUAGE_ORDER } from './languages';
 import { HIDEABLE, type HideableMark } from './marks';
 import { NORMAL_RATE, toRate } from './playbackRate';
 
@@ -10,10 +12,13 @@ import { NORMAL_RATE, toRate } from './playbackRate';
 export type ListenAgain = 0 | 1 | 3;
 export const LISTEN_AGAIN: readonly ListenAgain[] = [0, 1, 3];
 
-export type Prefs = { rate: number; highlight: boolean; markNames: boolean; paragraphs: boolean; thaiFont: ThaiFont; textSize: TextSize; followWords: boolean; shareCounts: boolean; hiddenMarks: HideableMark[]; checkEnglish: boolean; guessFirst: boolean; quizKnown: boolean; listenFirst: boolean; listenTwice: boolean; listenAgain: ListenAgain; situationsAzure: boolean };
+export type Prefs = { rate: number; highlight: boolean; markNames: boolean; paragraphs: boolean; thaiFont: ThaiFont; textSize: TextSize; followWords: boolean; shareCounts: boolean; hiddenMarks: HideableMark[]; checkEnglish: boolean; guessFirst: boolean; quizKnown: boolean; listenFirst: boolean; listenTwice: boolean; listenAgain: ListenAgain; situationsAzure: boolean; slowLanguages: Language[] };
+
+/** The languages that offer the Slow speed unless the owner says otherwise: not the ones the owner finds easy to follow at normal speed. */
+const DEFAULT_SLOW: Language[] = LANGUAGE_ORDER.filter((l) => l !== 'es' && l !== 'fr');
 
 // Sending counts is a network call nobody tapped for, so it's off until turned on (CLAUDE.md, Data flow).
-export const DEFAULT_PREFS: Prefs = { rate: NORMAL_RATE, highlight: false, markNames: true, paragraphs: true, thaiFont: 'looped', textSize: 'default', followWords: true, shareCounts: false, hiddenMarks: [], checkEnglish: false, guessFirst: true, quizKnown: false, listenFirst: false, listenTwice: false, listenAgain: 1, situationsAzure: false };
+export const DEFAULT_PREFS: Prefs = { rate: NORMAL_RATE, highlight: false, markNames: true, paragraphs: true, thaiFont: 'looped', textSize: 'default', followWords: true, shareCounts: false, hiddenMarks: [], checkEnglish: false, guessFirst: true, quizKnown: false, listenFirst: false, listenTwice: false, listenAgain: 1, situationsAzure: false, slowLanguages: DEFAULT_SLOW };
 
 // Anything unreadable or out of range falls back to the default for that setting. A speed saved
 // before the reader had only slow and normal becomes slow when it was under 1 (toRate).
@@ -41,6 +46,17 @@ export function parsePrefs(raw: string | null): Prefs {
     listenFirst: typeof saved.listenFirst === 'boolean' ? saved.listenFirst : DEFAULT_PREFS.listenFirst,
     listenTwice: typeof saved.listenTwice === 'boolean' ? saved.listenTwice : DEFAULT_PREFS.listenTwice,
     listenAgain: LISTEN_AGAIN.find((n) => n === saved.listenAgain) ?? DEFAULT_PREFS.listenAgain,
+    slowLanguages: Array.isArray(saved.slowLanguages) ? LANGUAGE_ORDER.filter((l) => (saved.slowLanguages as unknown[]).includes(l)) : DEFAULT_PREFS.slowLanguages,
     situationsAzure: typeof saved.situationsAzure === 'boolean' ? saved.situationsAzure : DEFAULT_PREFS.situationsAzure,
   };
+}
+
+/** Whether `language` offers the Slow speed (Settings, Read & Listen, Slow speed). */
+export function hasSlow(p: Pick<Prefs, 'slowLanguages'>, language: Language): boolean {
+  return p.slowLanguages.includes(language);
+}
+
+/** The speed to play a line of `language` at: the chosen one, or normal where Slow is off. */
+export function speedFor(p: Pick<Prefs, 'rate' | 'slowLanguages'>, language: Language): number {
+  return hasSlow(p, language) ? p.rate : NORMAL_RATE;
 }

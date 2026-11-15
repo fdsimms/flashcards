@@ -9,6 +9,7 @@ import { readFont, scaledFontSize } from '../../reader/fonts';
 import { LANGUAGES } from '../../reader/languages';
 import { canFinish, canSend, conversationOf, startChat, withMine, withoutMine, withTheirs, type Chat } from '../../reader/situations';
 import { isSlow, NORMAL_RATE, SLOW_RATE } from '../../reader/playbackRate';
+import { speedFor } from '../../reader/prefs';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
 import { Button, Card, Chip, ErrorNote, Group, Help, Icon, Loading, NavRow, Screen, Tappable } from '../kit';
@@ -195,7 +196,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
     const mine = ++saying.current;
     player.pause();
     phone.stop();
-    const slow = isSlow(prefs().rate);
+    const slow = isSlow(speedFor(prefs(), chat.language));
     if (!line.audio) { phone.sayLine(line.line, info.speech, slow); return; }
     let key = line.audio;
     let stretch = NORMAL_RATE;

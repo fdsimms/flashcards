@@ -1280,7 +1280,10 @@ in the current language, with when one was last read to the end. Nothing else le
   `GET .../lines/{n}/slow` records it and returns its word times, which the reader fetches before
   a slow line plays so the words light up in time (`Reader.startLine`; the text's own words keep the
   normal recording's times). If recording it fails, the reader plays the normal recording stretched
-  to 0.8 as before. Choosing the other speed while a line plays starts the line again. A speed saved
+  to 0.8 as before. Slow is offered per language (`slowLanguages` in `src/reader/prefs.ts`, Settings, Read &
+  Listen, Slow speed; every language but Spanish and French to begin with): a language without it
+  plays at normal speed everywhere and the player shows no speed control (`speedFor`, `hasSlow`).
+  Choosing the other speed while a line plays starts the line again. A speed saved
   below 1 is Slow (`toRate`). Re-recording a text for new voices drops its slow lines too. Situations'
   clips are covered under Situations' voices below. The other screens that play a line (Retell, the check, Write what you hear) ask for the slow
   recording too. "Play" runs the dialogue line by line; each line has its own

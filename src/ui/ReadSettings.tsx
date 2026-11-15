@@ -38,6 +38,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   const [listenFirst, setListenFirst] = useState(prefs().listenFirst);
   const [listenTwice, setListenTwice] = useState(prefs().listenTwice);
   const [situationsAzure, setSituationsAzure] = useState(prefs().situationsAzure);
+  const [slowLanguages, setSlowLanguages] = useState(prefs().slowLanguages);
   const [guessFirst, setGuessFirst] = useState(prefs().guessFirst);
   const [quizKnown, setQuizKnown] = useState(prefs().quizKnown);
   const address = syncServer ? readerAddress(syncServer) : null;
@@ -161,6 +162,27 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
               While a line plays, the word being read aloud is shaded. With Listen before reading on, a new text opens
               with its words hidden and shows them once every line has played, so you hear it first and read it second.
               Listen twice first waits for every line to play twice. Show the text now skips the wait. Play all and texts you read again open as usual. Lines recorded before this was added play without it.
+            </Help>
+            <SectionTitle>Slow speed</SectionTitle>
+            <Group>
+              {LANGUAGE_ORDER.map((l, i) => (
+                <SwitchRow
+                  key={l}
+                  first={i === 0}
+                  label={flaggedName(l)}
+                  value={slowLanguages.includes(l)}
+                  onValueChange={(on) => {
+                    const next = LANGUAGE_ORDER.filter((x) => (x === l ? on : slowLanguages.includes(x)));
+                    savePrefs({ slowLanguages: next });
+                    setSlowLanguages(next);
+                  }}
+                />
+              ))}
+            </Group>
+            <Help>
+              A language with Slow on offers a Slow and a Normal speed when you play its lines. Slow is a second
+              recording of each line, made by Azure the first time you play it slowly. Leave it off for a language you
+              follow at normal speed, and its lines play at normal speed with no speed choice.
             </Help>
             <SectionTitle>Situations</SectionTitle>
             <Group>

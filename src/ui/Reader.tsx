@@ -21,6 +21,7 @@ import { choicesView, holdsPlayAll } from '../reader/choices';
 import { buildCheck, loggedScore, type CheckPicks, type CheckQuestion } from '../reader/check';
 import { tapMode, type TapMode } from '../reader/guess';
 import { allHeard, listensFirst, listensNeeded } from '../reader/listenFirst';
+import { hasSlow } from '../reader/prefs';
 import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
@@ -213,7 +214,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   // (Play and the "Line n of m" label need it), so shading it would leave a stopped line lit. Between
   // two lines of Play all the player is briefly not playing, so that gap keeps the shade too.
   const shaded = status.playing || status.isBuffering || (playingAll && status.didJustFinish) ? current : null;
-  const [rate, setRate] = useState(prefs().rate);
+  const [chosenRate, setRate] = useState(prefs().rate);
+  // The speed played at: the one chosen, or normal in a language that doesn't offer Slow (Settings).
+  const slowOffered = text ? hasSlow(prefs(), text.language) : true;
+  const rate = slowOffered ? chosenRate : NORMAL_RATE;
   // Slow recordings' word times by `<text id>:<line>`, and whether the line sounding now is the slow
   // one (null before any line has played). `playedRate` is the speed the player's line was started at.
   const [slowTimed, setSlowTimed] = useState<Record<string, (Word['time'] | null)[]>>({});
@@ -801,7 +805,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           ) : null}
           {hasAudio ? (
             <PlayerBar playing={status.playing} current={current} total={text.lines.length} what={text.form === 'story' ? 'story' : 'dialogue'} skippable={paras !== null} onSkip={skip}
-              rate={rate} repeat={repeat} played={played} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={() => { setRepeat((r) => nextRepeatCount(r)); setPlayed(1); }}
+              rate={rate} slowOffered={slowOffered} repeat={repeat} played={played} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={() => { setRepeat((r) => nextRepeatCount(r)); setPlayed(1); }}
               rec={current !== null ? self : null}
               score={text && current !== null && text.lines[current] ? <ScoreTake rec={self} reference={lineText(text.lines[current])} language={text.language} /> : null} />
           ) : <Help>No audio for this text.</Help>}
@@ -1426,7 +1430,7 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
   );
 }
 
-function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, repeat, played, silentLine, onToggle, onRate, onRepeat, rec, score }: {
+function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, slowOffered, repeat, played, silentLine, onToggle, onRate, onRepeat, rec, score }: {
   playing: boolean;
   current: number | null;
   total: number;
@@ -1435,6 +1439,8 @@ function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, rep
   skippable: boolean;
   onSkip: (step: -1 | 1) => void;
   rate: number;
+  /** Whether the language offers Slow: the speed control is left out when it doesn't. */
+  slowOffered: boolean;
   /** Plays per line: 1 is off, Infinity is until turned off. */
   repeat: number;
   /** How many times the current line has played in this round. */
@@ -1501,7 +1507,7 @@ function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, rep
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>{play}{label}</View>
       )}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
-        <Segments style={{ flex: 1 }} options={RATES.map((r) => ({ value: r, label: isSlow(r) ? 'Slow' : 'Normal', accessibilityLabel: isSlow(r) ? 'Slow speed' : 'Normal speed' }))} value={rate} onChange={onRate} />
+        {slowOffered ? <Segments style={{ flex: 1 }} options={RATES.map((r) => ({ value: r, label: isSlow(r) ? 'Slow' : 'Normal', accessibilityLabel: isSlow(r) ? 'Slow speed' : 'Normal speed' }))} value={rate} onChange={onRate} /> : <View style={{ flex: 1 }} />}
         {chip}
       </View>
       {rec && current !== null ? (
