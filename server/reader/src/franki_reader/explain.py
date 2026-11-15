@@ -68,7 +68,11 @@ PHRASE_SYSTEM = (
     "for word, and its tone or register when that matters. If the selection is part of a longer "
     "set expression in the line, name the whole expression. If it isn't a set phrase, say so "
     "briefly and explain how the words combine. Give a literal translation only when it shows "
-    "how the phrase works. Do not use em dashes."
+    "how the phrase works. The whole text is there only so you can see what the phrase refers to. "
+    'Use it only when it changes or sharpens the meaning (what a pronoun or "one thing" points '
+    "to, what a reply answers, the speaker's tone). If the phrase can be explained from its own "
+    "line, say nothing about the rest of the text, and never retell or summarize it. "
+    "Do not use em dashes."
 )
 
 PHRASE_SCHEMA: dict[str, Any] = {
@@ -135,8 +139,12 @@ class PhraseRequest:
     phrase: str  # as it appears in the line
     line: str
     english: str
+    # The whole text, every line in order as "Speaker: text (English)" (the selected line too),
+    # so the model can see what the phrase refers to. `index` is the selected line's place in it.
     context: tuple[str, ...] = ()
     simple: bool = False
+    title: str = ""
+    index: int = 0
 
 
 # {meaning, points}, and what asking for it cost.
@@ -167,10 +175,17 @@ def request_message(request: ExplainRequest) -> str:
 
 
 def phrase_message(request: PhraseRequest) -> str:
-    base = ExplainRequest(
-        request.language, request.line, request.english, request.context, request.simple
-    )
-    return f"Selected phrase: {request.phrase}\n" + request_message(base)
+    lines = [f"Language: {LANGUAGES[request.language].name}"]
+    if request.context:
+        lines.append(f"The whole text{f' ({request.title})' if request.title else ''}:")
+        lines.extend(
+            f"{i + 1}. {c}" + ("   <- the selected line" if i == request.index else "")
+            for i, c in enumerate(request.context)
+        )
+    lines.append(f"Line {request.index + 1}: {request.line}")
+    lines.append(f"English: {request.english}")
+    lines.append(f"Selected phrase: {request.phrase}")
+    return "\n".join(lines)
 
 
 def check_message(request: CheckRequest) -> str:

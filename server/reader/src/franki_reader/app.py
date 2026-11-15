@@ -841,8 +841,14 @@ def create_app(
                     phrase,
                     plain[line],
                     text.lines[line].english,
-                    tuple(plain[max(0, line - 3) : line] + plain[line + 1 : line + 3]),
+                    # The whole text, so a phrase can be read against what it refers to.
+                    tuple(
+                        f"{f'{ln.speaker}: ' if text.form == 'dialogue' else ''}{p} ({ln.english})"
+                        for ln, p in zip(text.lines, plain, strict=True)
+                    ),
                     body.simple,
+                    text.title,
+                    line,
                 )
             )
         except ExplainFailed as e:

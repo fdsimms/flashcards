@@ -181,7 +181,7 @@ def line_text(c: TestClient, text_id: int, line: int) -> str:
     return "".join(w["text"] for w in shown["lines"][line]["words"])
 
 
-def test_explains_a_phrase_from_the_line_with_its_neighbours() -> None:
+def test_explains_a_phrase_from_the_line_with_the_whole_text() -> None:
     seen: list[PhraseRequest] = []
 
     async def explain(request: PhraseRequest) -> tuple[dict[str, Any], Usage]:
@@ -195,7 +195,10 @@ def test_explains_a_phrase_from_the_line_with_its_neighbours() -> None:
     assert response.status_code == 200 and response.json() == ANSWER
     assert len(seen) == 1 and seen[0].phrase == phrase.strip() and not seen[0].simple
     assert seen[0].line == shown and "|" not in seen[0].line
-    assert seen[0].context and seen[0].line not in seen[0].context
+    # Every line of the text, the selected one included, each with its English.
+    shown_lines = c.get(f"/api/texts/{text_id}", headers=AUTH).json()["lines"]
+    assert len(seen[0].context) == len(shown_lines) and seen[0].index == 1
+    assert seen[0].line in seen[0].context[1] and seen[0].title
 
 
 def test_asks_once_per_phrase_and_per_version() -> None:
@@ -278,10 +281,21 @@ def test_clean_phrase_needs_a_meaning() -> None:
 
 def test_the_phrase_request_names_the_phrase_and_its_line() -> None:
     message = phrase_message(
-        PhraseRequest("es", "ya lo sé", "Sí, ya lo sé.", "Yes, I know.", ("¿Sabes?",))
+        PhraseRequest(
+            "es",
+            "ya lo sé",
+            "Sí, ya lo sé.",
+            "Yes, I know.",
+            ("A: ¿Sabes? (Do you know?)", "B: Sí, ya lo sé. (Yes, I know.)"),
+            title="En la calle",
+            index=1,
+        )
     )
-    assert "Selected phrase: ya lo sé" in message and "Line: Sí, ya lo sé." in message
-    assert "Spanish" in message and "- ¿Sabes?" in message
+    assert "Selected phrase: ya lo sé" in message and "Line 2: Sí, ya lo sé." in message
+    assert "Spanish" in message and "(En la calle)" in message
+    # The whole text is numbered, with the selected line marked.
+    assert "1. A: ¿Sabes? (Do you know?)\n" in message
+    assert "2. B: Sí, ya lo sé. (Yes, I know.)   <- the selected line" in message
 
 
 # ==== Does this sound natural? ====

@@ -70,8 +70,10 @@ Franki's (Client, below).
   tapping another word in the same line ends it (either way round; Cancel in the bar above the
   player, which also mentions the hold). The phrase is drawn as one band and Claude's note on it opens under the line:
   what it means there, then a few points on its parts (a set expression, how the words combine,
-  tone), with "Explain more simply". A phrase stays within one line, so it has the line's context
-  and the server can check it's there: the app sends it as it appears (the pieces joined, spaces
+  tone), with "Explain more simply". A phrase stays within one line, so the server can check it's
+  there. The request carries the whole text (title, every line numbered with its speaker and English,
+  the selected one marked; about 0.1 cent more than five neighbouring lines), and the prompt says to
+  use it only where it sharpens the meaning (what "one thing" points to), never to retell the text: the app sends it as it appears (the pieces joined, spaces
   and punctuation included, `src/reader/phrase.ts`), and the server refuses one that isn't in the
   line. Asked only on the tap (`POST /api/texts/{id}/lines/{n}/phrase`, `explain.py`) and kept per
   phrase and version in `phrase_explanations`; its cost counts under `explanations` in
