@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { DEFAULT_PREFS, parsePrefs } from '../../src/reader/prefs';
 
 test('saved settings come back', () => {
-  expect(parsePrefs(JSON.stringify({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3 }))).toEqual({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3 });
+  expect(parsePrefs(JSON.stringify({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true }))).toEqual({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true });
 });
 
 test('nothing saved, or something unreadable, gives the defaults', () => {
@@ -12,8 +12,11 @@ test('nothing saved, or something unreadable, gives the defaults', () => {
 });
 
 test("a speed the reader doesn't offer falls back on its own", () => {
-  expect(parsePrefs(JSON.stringify({ rate: 2, highlight: true }))).toEqual({ ...DEFAULT_PREFS, rate: 0.9, highlight: true });
+  expect(parsePrefs(JSON.stringify({ rate: 2, highlight: true }))).toEqual({ ...DEFAULT_PREFS, rate: 1, highlight: true });
   expect(parsePrefs(JSON.stringify({ rate: 0.8, highlight: 'yes' }))).toEqual({ ...DEFAULT_PREFS, rate: 0.8, highlight: false });
+  // One of the four speeds the reader once offered below normal is slow now.
+  expect(parsePrefs(JSON.stringify({ rate: 0.7 })).rate).toBe(0.8);
+  expect(parsePrefs(JSON.stringify({ rate: 0.9 })).rate).toBe(0.8);
 });
 
 test('a Thai font the reader doesn\'t offer falls back to looped', () => {

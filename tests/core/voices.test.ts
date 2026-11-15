@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { NoteType } from '../../src/core/types';
 import {
-  chosenVoice, deckLanguages, defaultRate, languageKey, OMNI_RATE, parseVoiceSettings, tagSpeech, voiceQuality, voicesIn, wordSpeech,
+  chosenVoice, deckLanguages, defaultRate, languageKey, OMNI_RATE, parseVoiceSettings, lineSpeech, tagSpeech, voiceQuality, voicesIn, wordSpeech,
 } from '../../src/core/voices';
 import { omniNote } from '../support/fixtures';
 
@@ -84,5 +84,17 @@ describe('reading aloud', () => {
     expect(parseVoiceSettings('{"th":{"voice":"a","voiceName":"A","rate":0.8},"x":3,"es":{"rate":-1}}')).toEqual({ th: { voice: 'a', voiceName: 'A', rate: 0.8 }, es: {} });
     expect(parseVoiceSettings('not json')).toEqual({});
     expect(parseVoiceSettings(null)).toEqual({});
+  });
+});
+
+describe('a line of conversation', () => {
+  const settings = { es: { voice: 'com.apple.voice.premium.es-ES.Marisol', rate: 0.8 } };
+  it('is read in the voice chosen for its language, at normal speed unless a speed was chosen', () => {
+    expect(lineSpeech(voices, settings, 'es-MX', 1)).toEqual({ language: 'es-MX', voice: 'com.apple.voice.premium.es-ES.Marisol', rate: 0.8 });
+    expect(lineSpeech(voices, settings, 'th-TH', 1)).toEqual({ language: 'th-TH', voice: undefined, rate: 1 });
+  });
+  it('slowly is the speed times the slow factor, not the card default', () => {
+    expect(lineSpeech(voices, {}, 'th-TH', 0.8).rate).toBe(0.8);
+    expect(lineSpeech(voices, settings, 'es-MX', 0.8).rate).toBe(0.64);
   });
 });

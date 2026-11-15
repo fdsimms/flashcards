@@ -1,21 +1,22 @@
 // The reader's settings that last between launches: playback speed, whether words outside the
 // deck are highlighted, whether names are shaded, which of the other marks the reader switched off (the key), whether a story with paragraphs is shown as paragraphs, which Thai letters it's drawn in, how big the text is,
 // whether the word being spoken is lit as a line plays (useSpokenWords), and whether the deck list's
-// counts are sent to the server for dundundun (useCountsReport), and whether the check after reading shows its questions' English, and whether a tapped word's meaning waits to be asked for (guessFirst) and, for a word in the deck, behind a multiple-choice question (quizKnown), and whether a new text opens with its words hidden until it's been heard through (listenFirst), and then twice (listenTwice), and how many times a finished text is offered to hear again (listenAgain). Pure, so it's tested; storage.ts keeps them in the Keychain.
+// counts are sent to the server for dundundun (useCountsReport), and whether the check after reading shows its questions' English, and whether a tapped word's meaning waits to be asked for (guessFirst) and, for a word in the deck, behind a multiple-choice question (quizKnown), and whether a new text opens with its words hidden until it's been heard through (listenFirst), and then twice (listenTwice), and how many times a finished text is offered to hear again (listenAgain), and whether Situations' lines are spoken by Azure rather than the phone's voices (situationsAzure, off by default). Pure, so it's tested; storage.ts keeps them in the Keychain.
 import { TEXT_SIZES, THAI_FONTS, type TextSize, type ThaiFont } from './fonts';
 import { HIDEABLE, type HideableMark } from './marks';
-import { RATES } from './playbackRate';
+import { NORMAL_RATE, toRate } from './playbackRate';
 
 /** How many times a finished text is offered to hear again: never, once (3 days on) or three times (1, 4 and 10 days). */
 export type ListenAgain = 0 | 1 | 3;
 export const LISTEN_AGAIN: readonly ListenAgain[] = [0, 1, 3];
 
-export type Prefs = { rate: number; highlight: boolean; markNames: boolean; paragraphs: boolean; thaiFont: ThaiFont; textSize: TextSize; followWords: boolean; shareCounts: boolean; hiddenMarks: HideableMark[]; checkEnglish: boolean; guessFirst: boolean; quizKnown: boolean; listenFirst: boolean; listenTwice: boolean; listenAgain: ListenAgain };
+export type Prefs = { rate: number; highlight: boolean; markNames: boolean; paragraphs: boolean; thaiFont: ThaiFont; textSize: TextSize; followWords: boolean; shareCounts: boolean; hiddenMarks: HideableMark[]; checkEnglish: boolean; guessFirst: boolean; quizKnown: boolean; listenFirst: boolean; listenTwice: boolean; listenAgain: ListenAgain; situationsAzure: boolean };
 
 // Sending counts is a network call nobody tapped for, so it's off until turned on (CLAUDE.md, Data flow).
-export const DEFAULT_PREFS: Prefs = { rate: 0.9, highlight: false, markNames: true, paragraphs: true, thaiFont: 'looped', textSize: 'default', followWords: true, shareCounts: false, hiddenMarks: [], checkEnglish: false, guessFirst: true, quizKnown: false, listenFirst: false, listenTwice: false, listenAgain: 1 };
+export const DEFAULT_PREFS: Prefs = { rate: NORMAL_RATE, highlight: false, markNames: true, paragraphs: true, thaiFont: 'looped', textSize: 'default', followWords: true, shareCounts: false, hiddenMarks: [], checkEnglish: false, guessFirst: true, quizKnown: false, listenFirst: false, listenTwice: false, listenAgain: 1, situationsAzure: false };
 
-// Anything unreadable or out of range falls back to the default for that setting.
+// Anything unreadable or out of range falls back to the default for that setting. A speed saved
+// before the reader had only slow and normal becomes slow when it was under 1 (toRate).
 export function parsePrefs(raw: string | null): Prefs {
   let saved: Partial<Record<keyof Prefs, unknown>> = {};
   try {
@@ -25,7 +26,7 @@ export function parsePrefs(raw: string | null): Prefs {
     // Not JSON: use the defaults.
   }
   return {
-    rate: typeof saved.rate === 'number' && RATES.includes(saved.rate) ? saved.rate : DEFAULT_PREFS.rate,
+    rate: toRate(saved.rate),
     highlight: typeof saved.highlight === 'boolean' ? saved.highlight : DEFAULT_PREFS.highlight,
     markNames: typeof saved.markNames === 'boolean' ? saved.markNames : DEFAULT_PREFS.markNames,
     paragraphs: typeof saved.paragraphs === 'boolean' ? saved.paragraphs : DEFAULT_PREFS.paragraphs,
@@ -40,5 +41,6 @@ export function parsePrefs(raw: string | null): Prefs {
     listenFirst: typeof saved.listenFirst === 'boolean' ? saved.listenFirst : DEFAULT_PREFS.listenFirst,
     listenTwice: typeof saved.listenTwice === 'boolean' ? saved.listenTwice : DEFAULT_PREFS.listenTwice,
     listenAgain: LISTEN_AGAIN.find((n) => n === saved.listenAgain) ?? DEFAULT_PREFS.listenAgain,
+    situationsAzure: typeof saved.situationsAzure === 'boolean' ? saved.situationsAzure : DEFAULT_PREFS.situationsAzure,
   };
 }

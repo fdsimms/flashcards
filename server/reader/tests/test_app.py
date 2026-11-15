@@ -157,9 +157,12 @@ def test_logging_a_reading() -> None:
 def speaking_client(tmp_path: Path, timed: bool = False) -> TestClient:
     from franki_reader.tts import AudioCache
 
-    async def voice(text: str, name: str, language: str) -> Spoken:
-        # Timed: the whole line as one word, so every word in it is spoken from 0 to 1000 ms.
-        return Spoken(b"ID3" + text.encode(), [WordMark(text, 0, 1000)] if timed else None)
+    async def voice(text: str, name: str, language: str, rate: float = 1.0) -> Spoken:
+        # Timed: the whole line as one word, so every word in it is spoken from 0 to 1000 ms (a
+        # slow recording takes 1250: slower speech is longer).
+        end = round(1000 / rate)
+        tag = b"slow" if rate < 1 else b""
+        return Spoken(b"ID3" + tag + text.encode(), [WordMark(text, 0, end)] if timed else None)
 
     conn = store.connect(":memory:")
     store.save_snapshot(conn, ENTRIES, NOW)
@@ -196,6 +199,34 @@ def test_each_word_says_when_its_spoken_once_its_line_is_recorded_with_timings(
     topic = untimed.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
     text = next_text(untimed, topic["id"]).json()
     assert all("time" not in w for line in text["lines"] for w in line["words"])
+
+
+def test_a_slow_recording_is_made_when_asked_for_and_its_words_have_their_own_times(
+    tmp_path: Path,
+) -> None:
+    c = speaking_client(tmp_path, timed=True)
+    topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
+    text = next_text(c, topic["id"]).json()
+    base = f"/api/texts/{text['id']}/lines/0"
+
+    slow = c.get(f"{base}/audio?speed=slow", headers=AUTH)
+    assert slow.status_code == 200 and slow.content.startswith(b"ID3slow")
+    assert c.get(f"{base}/audio", headers=AUTH).content.startswith(b"ID3") is True
+    assert not c.get(f"{base}/audio", headers=AUTH).content.startswith(b"ID3slow")
+    assert c.get(f"{base}/audio?speed=fast", headers=AUTH).status_code == 422
+
+    answer = c.get(f"/api/texts/{text['id']}/lines/1/slow", headers=AUTH).json()
+    words = text["lines"][1]["words"]
+    assert len(answer["times"]) == len(words)
+    for word, when in zip(words, answer["times"], strict=True):
+        assert when == ([0, 1250] if word["status"] is not None else None)
+    assert c.get(f"/api/texts/{text['id']}/lines/9/slow", headers=AUTH).status_code == 404
+    assert c.get(f"{base}/slow").status_code == 401
+    # The text's own words keep the normal recording's times.
+    again = c.get(f"/api/texts/{text['id']}", headers=AUTH).json()
+    assert all(
+        w["time"] == [0, 1000] for w in again["lines"][1]["words"] if w["status"] is not None
+    )
 
 
 def test_a_lines_audio_is_served_as_mp3(tmp_path: Path) -> None:

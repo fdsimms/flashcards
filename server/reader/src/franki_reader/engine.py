@@ -63,6 +63,7 @@ from franki_reader.stretch import pick_stretch, waiting
 from franki_reader.study_day import DEFAULT_ROLLOVER, study_day, study_day_start
 from franki_reader.tts import (
     DEFAULT_VOICES,
+    SLOW_RATE,
     AudioCache,
     Synthesize,
     SynthesizeParts,
@@ -843,12 +844,13 @@ class Engine:
                         await self.make_audio(text)
         store.mark_waiting_texts_timed(self.conn)
 
-    async def line_audio(self, text: StoredText, line: int) -> Path | None:
-        """The cached MP3 for one line, made now if it's missing and text to speech is set up."""
+    async def line_audio(self, text: StoredText, line: int, slow: bool = False) -> Path | None:
+        """The cached MP3 for one line, made now if it's missing and text to speech is set up. The
+        slow recording (`tts.SLOW_RATE`) is its own file, made the first time it's asked for."""
         if self.audio is None or not 0 <= line < len(text.lines):
             return None
-        if self.audio.has(text.id, line):
-            return self.audio.path(text.id, line)
+        if self.audio.has(text.id, line, slow):
+            return self.audio.path(text.id, line, slow)
         if self.synthesize is None:
             return None
         spoken, _ = parse_line(text.lines[line].text, LANGUAGES[text.language].spaced)
@@ -862,7 +864,11 @@ class Engine:
                 p.voice != voice or p.pitch for p in parts
             ):
                 try:
-                    recorded = await self.synthesize_parts(parts, locale)
+                    recorded = await (
+                        self.synthesize_parts(parts, locale, rate=SLOW_RATE)
+                        if slow
+                        else self.synthesize_parts(parts, locale)
+                    )
                 except TtsFailed as e:
                     # Several voices in one request is unchecked against a live key: a line is
                     # read whole by the narrator rather than left silent if Azure refuses it.
@@ -873,15 +879,21 @@ class Engine:
                         e,
                     )
             if recorded is None:
-                recorded = await self.synthesize(spoken, voice, locale)
+                recorded = await (
+                    self.synthesize(spoken, voice, locale, rate=SLOW_RATE)
+                    if slow
+                    else self.synthesize(spoken, voice, locale)
+                )
         except TtsFailed as e:
-            log.warning("No audio for text %d line %d: %s", text.id, line, e)
+            log.warning(
+                "No %saudio for text %d line %d: %s", "slow " if slow else "", text.id, line, e
+            )
             return None
         # Only a recording Azure made is counted (a cached line never gets here), and a failed one
-        # isn't billed, so this is what the audio cost.
+        # isn't billed, so this is what the audio cost. A slow recording is billed again.
         store.add_audio_chars(self.conn, text.id, billed_chars(spoken))
-        self.audio.write(text.id, line, recorded)
-        return self.audio.path(text.id, line)
+        self.audio.write(text.id, line, recorded, slow)
+        return self.audio.path(text.id, line, slow)
 
     def _line_parts(self, text: StoredText, line: int, spoken: str, narrator: str) -> list[Part]:
         """A story episode's line as the voices that speak it (cast.py): the narrator's and each

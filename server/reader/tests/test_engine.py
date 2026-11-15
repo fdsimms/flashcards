@@ -470,13 +470,15 @@ class FakeVoice:
     def __init__(self, fail_on: str | None = None) -> None:
         self.calls: list[tuple[str, str]] = []
         self.languages: list[str] = []
+        self.rates: list[float] = []
         self.fail_on = fail_on
 
-    async def __call__(self, text: str, voice: str, language: str) -> Spoken:
+    async def __call__(self, text: str, voice: str, language: str, rate: float = 1.0) -> Spoken:
         from franki_reader.tts import TtsFailed
 
         self.calls.append((text, voice))
         self.languages.append(language)
+        self.rates.append(rate)
         if text == self.fail_on:
             raise TtsFailed("Azure answered 500")
         return Spoken(f"mp3:{text}".encode())
@@ -594,6 +596,47 @@ def test_the_characters_azure_speaks_for_a_text_are_counted(tmp_path: Path) -> N
     e.audio.drop(text.id)  # type: ignore[union-attr]
     run(lambda: e.make_audio(text))
     assert audio_chars(e, text.id) == spoken * 2
+
+
+def test_a_slow_recording_is_made_when_asked_for_and_kept_beside_the_normal_one(
+    tmp_path: Path,
+) -> None:
+    voice = FakeVoice()
+    e = speaking_engine(tmp_path, voice)
+    assert e.audio is not None
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    text = run(lambda: fetch(e, topic.id))
+    normal = audio_chars(e, text.id)
+    assert voice.rates and set(voice.rates) == {1.0}
+    assert not e.audio.has(text.id, 0, slow=True)
+
+    path = run(lambda: e.line_audio(text, 0, slow=True))
+
+    assert path == e.audio.path(text.id, 0, slow=True) and path.is_file()
+    assert voice.rates[-1] == 0.8
+    # The normal recording is untouched, and the slow one is billed as its own recording.
+    assert e.audio.has(text.id, 0)
+    assert audio_chars(e, text.id) > normal
+    # Asked again, it comes from the cache and isn't billed again.
+    billed = audio_chars(e, text.id)
+    calls = len(voice.calls)
+    run(lambda: e.line_audio(text, 0, slow=True))
+    assert len(voice.calls) == calls and audio_chars(e, text.id) == billed
+    # Re-recording a text in new voices forgets its slow lines too.
+    e.audio.drop(text.id)
+    assert not e.audio.has(text.id, 0, slow=True)
+
+
+def test_a_slow_line_azure_refused_has_no_slow_audio_and_isnt_counted(tmp_path: Path) -> None:
+    voice = FakeVoice()
+    e = speaking_engine(tmp_path, voice)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    text = run(lambda: fetch(e, topic.id))
+    counted = audio_chars(e, text.id)
+    voice.fail_on = voice.calls[0][0]  # the first line's words, as spoken
+
+    assert run(lambda: e.line_audio(text, 0, slow=True)) is None
+    assert audio_chars(e, text.id) == counted
 
 
 def test_a_line_azure_refused_is_not_counted(tmp_path: Path) -> None:

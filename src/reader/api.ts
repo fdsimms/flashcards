@@ -4,6 +4,7 @@
 
 import { Refusal } from '../core/failure';
 import type { DrillQuestionIn } from '../core/grammarDrills';
+import { isSlow } from './playbackRate';
 
 /**
  * Where Read & Listen's server is: beside the Anki sync server, under /reader on the same domain
@@ -143,7 +144,7 @@ export type SituationLine = { speaker: 'them' | 'you'; text: string };
 export type SituationConversation = { language: Language; scene: string; roles: SituationRoles | null; lines: SituationLine[] };
 // One of their lines: its words split and glossed as a text's are, the words that count as unknown, whether it
 // ends the scene, and its recording's key (null without one).
-export type SituationTurn = { line: string; english: string; words: Word[]; unknown: string[]; done: boolean; audio: string | null; roles?: SituationRoles };
+export type SituationTurn = { line: string; english: string; words: Word[]; unknown: string[]; done: boolean; audio: string | null; /* null when not recorded: Azure's voices are off, or it failed */ roles?: SituationRoles };
 export type SituationFeedback = {
   lines: { index: number; verdict: WritingVerdict; corrected: string; note: string }[];
   words: { word: string; english: string; why: 'asked' | 'heard' }[];
@@ -343,6 +344,22 @@ export type Progress = {
 // A topic idea not yet added. `fit` is the share of its key words the deck knows.
 export type Suggestion = { name: string; fit: number };
 
+// An audio lesson (server lesson.py): asked for by a scene, then written and spoken in the background.
+export type LessonState = 'making' | 'ready' | 'failed';
+export type AudioLesson = {
+  id: number;
+  language: Language;
+  scene: string;
+  title: string;
+  state: LessonState;
+  /** Why a failed lesson failed, written for a person. */
+  error: string;
+  duration_ms: number;
+  created_at: string;
+  phrases: { text: string; english: string }[];
+  dialogue: { speaker: 'A' | 'B'; text: string; english: string }[];
+};
+
 // A text read to the end, to read or listen to again.
 export type PastText = {
   id: number;
@@ -484,6 +501,19 @@ export function createApi(
     nextText: async (topicId: number, words?: string[]) =>
       (await call<ReaderText | undefined>('POST', `/api/topics/${topicId}/next`, words?.length ? { words } : undefined)) ?? null,
     // With `story`, that story's episodes, first to last.
+    // Audio lessons, newest first, and the languages the server can make them in. One is asked for by a scene and
+    // made in the background (poll `lessons` until it's ready or failed).
+    lessons: (language?: Language) =>
+      call<{ languages: Language[]; lessons: AudioLesson[] }>('GET', language === undefined ? '/api/lessons' : `/api/lessons?language=${language}`),
+    // `narrator`: an English voice for this lesson's narration; left out, the server's own.
+    makeLesson: (language: Language, scene: string, narrator?: string) =>
+      call<void>('POST', '/api/lessons', { language, scene, ...(narrator ? { narrator } : {}) }),
+    deleteLesson: (id: number) => call<void>('DELETE', `/api/lessons/${id}`),
+    // For the audio player, which fetches the file itself and so needs the passphrase too.
+    lessonAudio: (id: number) => ({
+      uri: `${root}/api/lessons/${id}/audio`,
+      headers: { Authorization: `Bearer ${passphrase}` },
+    }),
     pastTexts: (story?: number) => call<PastText[]>('GET', story === undefined ? '/api/texts' : `/api/texts?story=${story}`),
     // Finished texts due to be heard again with their words hidden (server relisten.py), as pastTexts lists them.
     // `listens`: how many times each text is wanted again, 3 (1, 4 and 10 days), 1 (3 days) or 0.
@@ -550,7 +580,10 @@ export function createApi(
     // A take of the owner's (base64 WAV) scored against the text it should say. The take isn't kept.
     scoreTake: (language: Language, reference: string, audio: string) => call<TakeScore>('POST', '/api/pronunciation', { language, reference, audio }),
     situationScenes: (language: Language) => call<string[]>('GET', `/api/situations/scenes?language=${language}`),
-    situationTurn: (conversation: SituationConversation) => call<SituationTurn>('POST', '/api/situations/turn', conversation),
+    // `speak` false asks for no recording: the app reads the line with the phone's voice (the Azure voices setting is off).
+    situationTurn: (conversation: SituationConversation, speak = true) => call<SituationTurn>('POST', '/api/situations/turn', { ...conversation, speak }),
+    // One of their lines spoken slowly, recorded the first time: the clip's key for `situationAudio`, null if it couldn't be.
+    situationSlow: (language: Language, gender: 'male' | 'female', line: string) => call<{ audio: string | null }>('POST', '/api/situations/slow', { language, gender, line }),
     situationFeedback: (conversation: SituationConversation) => call<SituationFeedback>('POST', '/api/situations/feedback', conversation),
     situationAudio: (key: string) => ({
       uri: `${root}/api/situations/audio/${encodeURIComponent(key)}`,
@@ -559,9 +592,13 @@ export function createApi(
     // A phrase selected in a line (as it appears there), explained the same way and kept per phrase.
     explainPhrase: (textId: number, line: number, phrase: string, simple: boolean) =>
       call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple }),
+    // Records a line's slow version if it isn't yet, and says when each of the line's words is spoken in it
+    // (one entry per word, null for none): the normal recording's times don't fit.
+    slowTimes: (textId: number, line: number) => call<{ times: (Word['time'] | null)[] }>('GET', `/api/texts/${textId}/lines/${line}/slow`),
     // For the audio player, which fetches the file itself and so needs the passphrase too.
-    audioSource: (textId: number, line: number) => ({
-      uri: `${root}/api/texts/${textId}/lines/${line}/audio`,
+    // `rate` below normal asks for the slow recording, which the server makes the first time (`slowTimes` does too).
+    audioSource: (textId: number, line: number, rate = 1) => ({
+      uri: `${root}/api/texts/${textId}/lines/${line}/audio${isSlow(rate) ? '?speed=slow' : ''}`,
       headers: { Authorization: `Bearer ${passphrase}` },
     }),
   };

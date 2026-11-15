@@ -77,3 +77,39 @@ def test_unreadable_timings_are_none(tmp_path: Path) -> None:
     cache.write(3, 0, Spoken(b"mp3", MARKS))
     cache.path(3, 0).with_suffix(".json").write_text('{"not": "a list"}')
     assert cache.marks(3, 0) is None
+
+
+def test_a_slow_recording_has_its_own_files_and_timings(tmp_path: Path) -> None:
+    cache = AudioCache(tmp_path)
+    cache.write(3, 0, Spoken(b"normal", MARKS))
+    cache.write(3, 0, Spoken(b"slow"), slow=True)
+    assert cache.path(3, 0, slow=True).read_bytes() == b"slow"
+    assert cache.path(3, 0).read_bytes() == b"normal"
+    assert cache.marks(3, 0) == MARKS and cache.marks(3, 0, slow=True) is None
+    cache.write(3, 0, Spoken(b"slow", MARKS[:1]), slow=True)
+    assert cache.marks(3, 0, slow=True) == MARKS[:1]
+    assert sorted(p.name for p in (tmp_path / "3").iterdir()) == [
+        "0.json",
+        "0.mp3",
+        "0.slow.json",
+        "0.slow.mp3",
+    ]
+    cache.drop(3)
+    assert not cache.has(3, 0) and not cache.has(3, 0, slow=True)
+
+
+def test_the_slow_rate_reaches_azure_as_a_prosody_rate() -> None:
+    sent: list[str] = []
+
+    async def go() -> None:
+        async def speak(key: str, region: str, body: str) -> SdkResult:
+            sent.append(body)
+            return SdkResult(audio=b"ID3sdk")
+
+        rest = httpx.MockTransport(lambda r: httpx.Response(200, content=b"ID3rest"))
+        async with httpx.AsyncClient(transport=rest) as http:
+            client = SpeechClient("k", "eastus", http=http, sdk_speak=speak)
+            await azure_synthesize(client)("สวัสดีครับ", "th-TH-NiwatNeural", "th-TH", rate=0.8)
+
+    asyncio.run(go())
+    assert "<prosody rate='-20%'>" in sent[0]

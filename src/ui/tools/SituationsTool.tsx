@@ -4,10 +4,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, TextInput, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../../core/failure';
-import type { Language, SituationFeedback } from '../../reader/api';
+import type { Language, SituationFeedback, SituationTurn } from '../../reader/api';
 import { readFont, scaledFontSize } from '../../reader/fonts';
 import { LANGUAGES } from '../../reader/languages';
 import { canFinish, canSend, conversationOf, startChat, withMine, withoutMine, withTheirs, type Chat } from '../../reader/situations';
+import { isSlow, NORMAL_RATE, SLOW_RATE } from '../../reader/playbackRate';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
 import { Button, Card, Chip, ErrorNote, Group, Help, Icon, Loading, NavRow, Screen, Tappable } from '../kit';
@@ -16,17 +17,19 @@ import { useKeyboardScroll } from '../useKeyboardScroll';
 import type { ToolScreenProps } from './index';
 import { MyLine, SituationResult, TheirLine } from './SituationParts';
 import { HoldToTalk, ListeningNote } from '../SpeakButton';
+import { usePhoneSpeech } from '../usePhoneSpeech';
 import { useSpokenAnswer } from '../useSpokenAnswer';
 import { ControlLabel, ToolScreen, useToolLanguage } from './ToolScreen';
 
 /**
  * Situations (server/reader situations.py): pick a scene or type one, then talk it through with Claude,
- * who plays the other person from the deck's words, each of their lines spoken by an Azure voice. Finish
+ * who plays the other person from the deck's words, each of their lines spoken by the phone's voice (or
+ * by an Azure voice, a setting in Read & Listen's). Finish
  * asks for feedback on each of the owner's lines and words worth adding. The conversation lives here and
  * goes to the server with each turn; nothing is kept, and nothing grades a card or writes a note (Add
  * only puts a word in the note queue, for the note editor).
  */
-export function SituationsTool({ tool, readerApi, onClose }: ToolScreenProps) {
+export function SituationsTool({ tool, repo, readerApi, onClose }: ToolScreenProps) {
   const [language, setLanguage] = useToolLanguage(tool);
   const [chat, setChat] = useState<Chat | null>(null);
   const [heardOnly, setHeardOnly] = useState(false);
@@ -57,6 +60,7 @@ export function SituationsTool({ tool, readerApi, onClose }: ToolScreenProps) {
   return (
     <Talk
       api={readerApi}
+      repo={repo}
       chat={chat}
       onChat={setChat}
       heardOnly={heardOnly}
@@ -144,8 +148,9 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, on
   );
 }
 
-function Talk({ api, chat, onChat, heardOnly, feedback, onFeedback, onAgain, onDone }: {
+function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgain, onDone }: {
   api: Api;
+  repo: ToolScreenProps['repo'];
   chat: Chat;
   onChat: (chat: Chat) => void;
   heardOnly: boolean;
@@ -168,7 +173,7 @@ function Talk({ api, chat, onChat, heardOnly, feedback, onFeedback, onAgain, onD
   const sendWhenHeard = useRef(false);
   const spoken = useSpokenAnswer(info.speech, {
     continuous: true,
-    onBeforeListen: () => { player.pause(); setDraft(''); },
+    onBeforeListen: () => { player.pause(); phone.stop(); setDraft(''); },
     onHeard: (heard) => setDraft(heard),
   });
   const holding = spoken.available && !typingMode;
@@ -179,12 +184,32 @@ function Talk({ api, chat, onChat, heardOnly, feedback, onFeedback, onAgain, onD
   const [deck, setDeck] = useState<string | null | undefined>(undefined);
   // Counts requests: an answer that comes back after the screen moved on (Finish, Again, Back) is dropped.
   const asking = useRef(0);
-  useEffect(() => () => { asking.current++; }, []);
+  const saying = useRef(0);
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
-  const play = (key: string | null) => {
-    if (!key) return;
+  const phone = usePhoneSpeech(repo);
+  useEffect(() => () => { asking.current++; saying.current++; phone.stop(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Their line, aloud: Azure's recording when one was made (the setting is on), else the phone's voice
+  // (also when Azure failed, so the button always plays). A slow line asks the server for a slow
+  // recording, and falls back to stretching the normal one if there isn't one.
+  const say = async (line: SituationTurn) => {
+    const mine = ++saying.current;
+    player.pause();
+    phone.stop();
+    const slow = isSlow(prefs().rate);
+    if (!line.audio) { phone.sayLine(line.line, info.speech, slow); return; }
+    let key = line.audio;
+    let stretch = NORMAL_RATE;
+    if (slow) {
+      try {
+        const got = await api.situationSlow(chat.language, (line.roles ?? chat.roles)?.gender ?? 'male', line.line);
+        if (got.audio) key = got.audio; else stretch = SLOW_RATE;
+      } catch {
+        stretch = SLOW_RATE;
+      }
+      if (saying.current !== mine) return;
+    }
     player.replace(api.situationAudio(key));
-    player.setPlaybackRate(prefs().rate, 'high');
+    player.setPlaybackRate(stretch, 'high');
     player.play();
   };
   const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
@@ -195,10 +220,10 @@ function Talk({ api, chat, onChat, heardOnly, feedback, onFeedback, onAgain, onD
     setWaiting(true);
     setProblem(null);
     try {
-      const got = await api.situationTurn(conversationOf(from));
+      const got = await api.situationTurn(conversationOf(from), prefs().situationsAzure);
       if (asking.current !== mine) return;
       onChat(withTheirs(from, got));
-      play(got.audio);
+      void say(got);
       setTimeout(() => scrollProps.ref.current?.scrollToEnd({ animated: true }), 50);
     } catch (e) {
       if (asking.current !== mine) return;
@@ -237,6 +262,7 @@ function Talk({ api, chat, onChat, heardOnly, feedback, onFeedback, onAgain, onD
     if (!canFinish(chat)) { onDone(); return; }
     const mine = ++asking.current;
     player.pause();
+    phone.stop();
     setWaiting(true);
     setProblem(null);
     try {
@@ -367,7 +393,7 @@ function Talk({ api, chat, onChat, heardOnly, feedback, onFeedback, onAgain, onD
             <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{`You're ${chat.roles.you}. ${name} is ${chat.roles.them}.`}</Text>
           ) : null}
           {chat.lines.map((l, i) => (l.speaker === 'them'
-            ? <TheirLine key={i} turn={l.turn} name={name} look={look} lang={info.speech} heardOnly={heardOnly} onPlay={l.turn.audio ? () => play(l.turn.audio) : undefined} />
+            ? <TheirLine key={i} turn={l.turn} name={name} look={look} lang={info.speech} heardOnly={heardOnly} onPlay={() => void say(l.turn)} />
             : <MyLine key={i} text={l.text} look={look} lang={info.speech} />))}
           {waiting ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{chat.lines.length ? `${name} is answering...` : 'Setting the scene...'}</Text> : null}
           {chat.done && !waiting ? <Help>{`${name} ended the conversation.`}</Help> : null}

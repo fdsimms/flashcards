@@ -1,6 +1,6 @@
-"""Text to speech: one MP3 per line, made once at normal speed and cached on the volume. Slower
-playback is the player's rate on the phone (docs/read-and-listen/architecture.md, Audio), so there's one file per
-line whatever speed is chosen.
+"""Text to speech: one MP3 per line at normal speed, cached on the volume, and a second, slow one
+(`SLOW_RATE`) made the first time a line is played slowly. Azure speaks the slow one, since a
+recording stretched by the player sounds robotic (docs/read-and-listen/architecture.md, Audio).
 
 Azure is called through the server's shared client (server/speech, `franki_speech`, which the MCP
 uses too); its module docstring says which parts of Azure's API are confirmed. A speaker is read
@@ -24,6 +24,9 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from franki_speech import Part, SpeechClient, SpeechError, WordMark
+
+# How fast Azure speaks the slow recording (1.0 is normal speed): SSML's prosody rate of -20%.
+SLOW_RATE = 0.8
 
 DEFAULT_VOICES = {"male": "th-TH-NiwatNeural", "female": "th-TH-PremwadeeNeural"}
 
@@ -58,13 +61,14 @@ class Spoken:
     marks: list[WordMark] | None = None
 
 
-# Speaks one line in one voice: the text, the voice, and the text's locale (th-TH).
-Synthesize = Callable[[str, str, str], Coroutine[Any, Any, Spoken]]
+# Speaks one line in one voice: the text, the voice, and the text's locale (th-TH). A caller that
+# wants the slow recording passes `rate=SLOW_RATE` too, so the normal one is asked for as it always was.
+Synthesize = Callable[..., Coroutine[Any, Any, Spoken]]
 
 
 # Speaks one line in several voices, one after another (a story's quotations, cast.py): the parts
-# and the text's locale.
-SynthesizeParts = Callable[[Sequence[Part], str], Coroutine[Any, Any, Spoken]]
+# and the text's locale, and `rate=SLOW_RATE` for the slow recording, as for `Synthesize`.
+SynthesizeParts = Callable[..., Coroutine[Any, Any, Spoken]]
 
 
 class Speech(Protocol):
@@ -82,9 +86,9 @@ class TtsFailed(Exception):
 
 
 def azure_synthesize(client: SpeechClient) -> Synthesize:
-    async def synthesize(text: str, voice: str, language: str) -> Spoken:
+    async def synthesize(text: str, voice: str, language: str, rate: float = 1.0) -> Spoken:
         try:
-            return Spoken(*await client.speak(text, voice, language=language))
+            return Spoken(*await client.speak(text, voice, rate, language=language))
         except SpeechError as e:
             raise TtsFailed(str(e)) from e
 
@@ -92,9 +96,9 @@ def azure_synthesize(client: SpeechClient) -> Synthesize:
 
 
 def azure_synthesize_parts(client: SpeechClient) -> SynthesizeParts:
-    async def synthesize_parts(parts: Sequence[Part], language: str) -> Spoken:
+    async def synthesize_parts(parts: Sequence[Part], language: str, rate: float = 1.0) -> Spoken:
         try:
-            return Spoken(*await client.speak_parts(parts, language=language))
+            return Spoken(*await client.speak_parts(parts, rate, language=language))
         except SpeechError as e:
             raise TtsFailed(str(e)) from e
 
@@ -103,24 +107,25 @@ def azure_synthesize_parts(client: SpeechClient) -> SynthesizeParts:
 
 class AudioCache:
     """`<dir>/<text id>/<line index>.mp3`, and the line's word timings as `<line index>.json` when
-    it has them. A file is written whole or not at all, and the timings before the audio, so a line
-    with audio has its timings too."""
+    it has them. The slow recording is `<line index>.slow.mp3` with `<line index>.slow.json`. A file
+    is written whole or not at all, and the timings before the audio, so a line with audio has its
+    timings too."""
 
     def __init__(self, root: Path) -> None:
         self.root = root
 
-    def path(self, text_id: int, line: int) -> Path:
-        return self.root / str(text_id) / f"{line}.mp3"
+    def path(self, text_id: int, line: int, slow: bool = False) -> Path:
+        return self.root / str(text_id) / f"{line}{'.slow' if slow else ''}.mp3"
 
-    def has(self, text_id: int, line: int) -> bool:
-        return self.path(text_id, line).is_file()
+    def has(self, text_id: int, line: int, slow: bool = False) -> bool:
+        return self.path(text_id, line, slow).is_file()
 
     def drop(self, text_id: int) -> None:
-        """Forgets a text's audio, so each line is spoken again (in the voices chosen now)."""
+        """Forgets a text's audio, slow recordings too, so each line is spoken again (in the voices chosen now)."""
         shutil.rmtree(self.root / str(text_id), ignore_errors=True)
 
-    def write(self, text_id: int, line: int, spoken: Spoken) -> None:
-        path = self.path(text_id, line)
+    def write(self, text_id: int, line: int, spoken: Spoken, slow: bool = False) -> None:
+        path = self.path(text_id, line, slow)
         path.parent.mkdir(parents=True, exist_ok=True)
         times = path.with_suffix(".json")
         if spoken.marks is None:
@@ -130,13 +135,13 @@ class AudioCache:
             _write_whole(times, json.dumps(marks, ensure_ascii=False).encode())
         _write_whole(path, spoken.audio)
 
-    def has_marks(self, text_id: int, line: int) -> bool:
-        return self.path(text_id, line).with_suffix(".json").is_file()
+    def has_marks(self, text_id: int, line: int, slow: bool = False) -> bool:
+        return self.path(text_id, line, slow).with_suffix(".json").is_file()
 
-    def marks(self, text_id: int, line: int) -> list[WordMark] | None:
+    def marks(self, text_id: int, line: int, slow: bool = False) -> list[WordMark] | None:
         """The line's word timings, or None when it was recorded without them."""
         try:
-            raw = json.loads(self.path(text_id, line).with_suffix(".json").read_text())
+            raw = json.loads(self.path(text_id, line, slow).with_suffix(".json").read_text())
             return [WordMark(str(t), int(s), int(e)) for t, s, e in raw]
         except (OSError, ValueError, TypeError):
             return None

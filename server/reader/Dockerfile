@@ -7,6 +7,11 @@ COPY --from=ghcr.io/astral-sh/uv:0.8 /uv /usr/local/bin/uv
 # Litestream (backups), a static binary from its official image.
 COPY --from=litestream/litestream:0.5.17 /usr/local/bin/litestream /usr/local/bin/litestream
 
+# ffmpeg joins an audio lesson's clips and silences into one MP3 and levels their loudness
+# (lesson_audio.py, franki_speech.loudness).
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+ && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/app/.venv
 
