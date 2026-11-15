@@ -8,6 +8,8 @@ The rules this enforces come from docs/read-and-listen/brief.md (design principl
   one and no more than it was asked for
 - at most 3 attempts while a draft is under the floor; then the closest attempt is kept if it's at
   least MINIMUM (85%), and only a text under that is returned as not passed, never shown
+- words outside the deck are spread out: no more than 2 in any 10 words, a soft rule that sends a
+  draft back but never drops a text (crowding.py)
 - a dialogue says whether each speaker is a man or a woman, and in Thai no line may use a word of
   the other gender (gender.py); a draft that does is never kept, whatever its coverage
 
@@ -32,6 +34,7 @@ from anthropic.types.beta import (
 from franki_reader import grammar
 from franki_reader.characters import CHARACTERS
 from franki_reader.coverage import MINIMUM, Checker, Coverage, check
+from franki_reader.crowding import crowding
 from franki_reader.difficulty import DEFAULT_FLOOR
 from franki_reader.gender import GENDERS, gender_problems
 from franki_reader.languages import LANGUAGES, Code
@@ -230,6 +233,8 @@ class Generated:
     # Uses of a practiced point short of the 2 asked for, plus uses of an avoided one. The
     # closest attempt kept under the rules can have some.
     grammar_problems: int = 0
+    # Crowded stretches of new words (crowding.py): the closest attempt is kept if no attempt has none.
+    crowded: int = 0
     # The model's transliteration of the words it glossed (Thai only), by word. Absent for a word
     # it gave none for; the reader then shows none rather than a guess.
     translits: dict[str, str] = field(default_factory=dict)
@@ -340,6 +345,12 @@ on its own: รับ is not known just because รับอะไรดี is. 
 harder; the server measures this and sends back any text outside the learner's coverage target, \
 too hard or too easy.
 - Prefer entries marked M (well known) over Y (still being learned).
+- Spread the words that are not on the list out: never more than two in any ten words, and never \
+two in a row. Each one needs known words around it for the learner to work out its meaning from.
+- Put each stretch word, and each word that is not on the list, where the line itself shows what it \
+means, using words the learner knows: say what it goes with or what it does (a fire before its \
+sparks, a coat before its hood). A short clue is enough; never explain the word. Use a stretch word \
+a second time in a different situation.
 - Before you answer, go through your draft word by word and check each one is on the list. Replace \
 any that isn't with a listed word or a simpler way of saying it. Getting this right first time \
 matters more than a clever text.
@@ -409,6 +420,13 @@ forms. Every other word makes the text harder; the server measures this and send
 outside the learner's coverage target, too hard or too easy. When the request allows no common words, use only words from \
 the list. A word that appears only inside a longer list phrase is not known on its own.
 - Prefer entries marked M (well known) over Y (still being learned).
+- Spread the words that are neither allowed common words nor on the list out: never more than two \
+in any ten words, and never two in a row. Each one needs known words around it for the learner to \
+work out its meaning from.
+- Put each stretch word, and each word that is neither an allowed common word nor on the list, where \
+the line itself shows what it means, using words the learner knows: say what it goes with or what it \
+does (a fire before its sparks, a coat before its hood). A short clue is enough; never explain the \
+word. Use a stretch word a second time in a different situation.
 - Every line must make sense where it is: something a person would really say in that situation, \
 following from the line before it. Sense comes before coverage. With few words to work with, choose \
 a simple, ordinary situation (greeting, asking, buying, saying what you have or want) rather than \
@@ -768,13 +786,18 @@ async def generate(ask: Ask, lexicon: Checker, request: TextRequest) -> Generate
         if result.passed:
             return result
         # Fewer grammar problems first, then closer to the target; the later attempt on a tie.
-        rank = (-result.grammar_problems, _closeness(result.coverage.ratio, request))
+        rank = (
+            -result.grammar_problems,
+            _closeness(result.coverage.ratio, request),
+            -result.crowded,
+        )
         if (
             result.gender_ok
             and result.names_ok
             and (
                 best is None
-                or rank >= (-best.grammar_problems, _closeness(best.coverage.ratio, request))
+                or rank
+                >= (-best.grammar_problems, _closeness(best.coverage.ratio, request), -best.crowded)
             )
         ):
             best = result
@@ -887,6 +910,8 @@ def _assess(
     problems += name_issues
     grammar_issues, grammar_misses = grammar_problems([ln.text for ln in lines], lexicon, request)
     problems += grammar_issues
+    crowd_issues, crowded = crowding(coverage)
+    problems += crowd_issues
     # Stretch words are glossed from the deck, the meaning their card teaches, whatever the model
     # wrote for them; only off-list words need the model's gloss.
     for word in used:
@@ -913,6 +938,7 @@ def _assess(
         gender_ok=not gender_issues,
         names_ok=not name_issues,
         grammar_problems=grammar_misses,
+        crowded=crowded,
         translits=translits,
         recap=recap,
         series=series,

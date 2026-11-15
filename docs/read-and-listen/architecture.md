@@ -745,6 +745,20 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   speech rather than word-for-word English idioms. Difficulty is saved under a new key
   (`difficulty_v2`), so every language restarts at 92% once, rather than staying at an old 95%.
   The 95% below is the old floor; read it as the target.
+- **New words spread out, with a clue** (15 November 2026, the owner's idea from a screenshot of a
+  line with four new words in a row). Coverage counts a whole text, so a draft can hold the right
+  share of new words and still pack several into one sentence, where nothing around them is known
+  well enough to infer a meaning from, and the guess-first prompt is wasted. Two parts, both in the
+  system prompts (Thai's and the shared template): spread the words that aren't known out (at most
+  two in any ten words, never two in a row), and put each stretch word and each new word where the
+  line shows what it means from words the learner knows (a fire before its sparks), with a short
+  clue and no explanation, and a stretch word's second use in a different situation. The first is
+  also checked in code (`crowding.py`): more than `CROWD_MAX` (2) words that aren't known, in any
+  `CROWD_WINDOW` (10) counted words in a row, send the draft back with those words named. It is
+  **soft, like the grammar rules**: if no attempt is clean, the closest by coverage is kept (a less
+  crowded one on a tie), so a text is never dropped for it alone, and it costs more revision rounds
+  when the model clusters. The clue can't be checked in code: it rests on the prompt, and a second
+  model call to judge it was left out for cost. Watch the effect through the guess-first lookups.
 - **Revise rather than regenerate.** A text under the 95% floor goes back to the model with the
   unknown words named ("replace ทอน, กลิ่น"). At most 3 attempts in total.
 - **The closest attempt is kept** (owner's decision, 26 October 2026, so texts don't fail for
