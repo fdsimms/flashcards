@@ -394,7 +394,7 @@ async def _ask(
     max_tokens: int,
 ) -> tuple[dict[str, Any], Usage]:
     output_config: BetaOutputConfigParam = {
-        "effort": "low",
+        "effort": "medium",
         "format": {"type": "json_schema", "schema": schema},
     }
     try:

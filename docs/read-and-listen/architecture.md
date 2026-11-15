@@ -278,7 +278,8 @@ answers aren't kept.
   way of saying a Sentences prompt (`kind: "translate"`, the stored sentence sent as a reference that
   theirs needn't match). Claude gives a verdict (right, almost, wrong), their writing with only the
   mistakes fixed (theirs as written when right), its English and up to three notes. One call per tap,
-  `effort: low`; the cost is `production` in `/api/costs`, failed calls included. The app draws the
+  `effort: medium` (raised from low on 15 November 2026, since a wrong verdict teaches the wrong
+  thing); the cost is `production` in `/api/costs`, failed calls included. The app draws the
   correction against what was typed with Review's own comparison (`src/core/typedCompare.ts`).
 - **Use today's words** (`src/ui/ReadUseWords.tsx`, the `read-use-words` route): offered at the end
   of a review session of a language's deck while Read & Listen is on, with the notes answered while
