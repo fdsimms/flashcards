@@ -2,7 +2,7 @@
 // the other person from the deck's words. The conversation lives here, in the app, and goes to the server with
 // each turn. What's worth keeping in it, and what a line the owner wrote holds. Pure, so it's tested; nothing
 // here grades a card or writes a note.
-import type { SituationConversation, SituationLine, SituationRoles, SituationTurn } from './api';
+import type { SituationConversation, SituationFocus, SituationLine, SituationRoles, SituationTurn } from './api';
 
 /** Lines in a conversation; the server takes no more. The screen offers to finish before it's reached. */
 export const MAX_LINES = 40;
@@ -19,16 +19,18 @@ export interface Chat {
   lines: ChatLine[];
   /** Their last line ended the scene. */
   done: boolean;
+  /** The grammar topic this scene practices, when opened from one. */
+  focus?: SituationFocus;
 }
 
-export function startChat(language: Chat['language'], scene: string): Chat {
-  return { language, scene: scene.trim(), roles: null, lines: [], done: false };
+export function startChat(language: Chat['language'], scene: string, focus?: SituationFocus): Chat {
+  return { language, scene: scene.trim(), roles: null, lines: [], done: false, ...(focus ? { focus } : {}) };
 }
 
 /** What goes to the server: the scene, the parts, and every line as text. */
 export function conversationOf(chat: Chat): SituationConversation {
   const lines: SituationLine[] = chat.lines.map((l) => (l.speaker === 'them' ? { speaker: 'them', text: l.turn.line } : { speaker: 'you', text: l.text }));
-  return { language: chat.language, scene: chat.scene, roles: chat.roles, lines };
+  return { language: chat.language, scene: chat.scene, roles: chat.roles, lines, ...(chat.focus ? { focus: chat.focus } : {}) };
 }
 
 /** The chat with their line added: the parts from a first turn, and whether it ended the scene. */

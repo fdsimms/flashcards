@@ -143,8 +143,29 @@ step is its own PR, and each that changes a screen is mocked up for the owner fi
      たい) has nothing to practice, isn't scheduled and has no Practice section: reading it in
      texts is the practice. Other points keep "which" and gap (shown as one row, Practice
      questions, since the server mixes them) and Forms practice.
-   - **Not built yet**: Situations and Sentences on a point. Neither tool can take a topic, so
-     opening them on แล้ว needs a change to each first.
+   - **Not built yet**: Situations on a catalog point (it takes a `focus` since Your topics, below,
+     so this is now small), and Sentences, which can't take a topic.
+7. **Your topics** (built 15 November 2026; the owner chose from a mock). A grammar page for a topic
+   the catalog doesn't have (Thai serial verbs), asked for by typing a few words on the Grammar
+   screen ("New topic") and written by Claude on the server (`topics.py`). It is not a catalog
+   point: there is no finder, so no "came up in texts", no schedule and no mark on generated texts,
+   and nothing is graded or written to a card. The page is laid out as a point's: a lead line, About
+   (the catalog's explanation format), example tiles (the source line says "Written for this topic",
+   and **More examples** asks for a fresh set, one more Claude call, so it isn't Shuffle), and
+   practice.
+   - **Code checks only what code can**: the examples use at most one word outside the known ones,
+     the parts to underline occur in the line, nothing has an em dash or a `|*~`, and fewer than
+     three surviving examples makes the page fail rather than be repaired. Whether the grammar is
+     *right* isn't checked, so every topic page says it was written by Claude and isn't checked
+     against a grammar book.
+   - **Written in the background**, as texts are: asking returns the page with status "writing" and
+     the screen asks again every few seconds (`TOPIC_POLL_MS`). A failed rewrite or more-examples
+     keeps the old page and shows the reason. Caps (`topics.py`) stop a runaway cost: topics per
+     language, and Claude writes per study day.
+   - **Practice is Situations only**, opened with the topic as its `focus`: the other person works
+     the structure in naturally and the end-of-scene feedback says how the owner's lines used it.
+     Sentences stocks one sentence per reviewed word, so it can't be steered by a topic and isn't
+     offered. Catalog points can use the same focus later.
 **Points no finder can find** (case, verb aspect) join the catalog with `findable: false` in the
 step that first gives them a use. The server leaves them out of text requests, exposure and marks,
 and the Grammar screen shows them without the choices that only apply to texts, saying why.
