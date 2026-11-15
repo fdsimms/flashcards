@@ -58,7 +58,14 @@ from franki_reader.relisten import DEFAULT_LISTENS, Candidate, due
 from franki_reader.store import Reading, Reason, StoredText, Story, Topic
 from franki_reader.stretch import pick_stretch, waiting
 from franki_reader.study_day import DEFAULT_ROLLOVER, study_day, study_day_start
-from franki_reader.tts import DEFAULT_VOICES, AudioCache, Synthesize, TtsFailed, billed_chars
+from franki_reader.tts import (
+    DEFAULT_VOICES,
+    SLOW_RATE,
+    AudioCache,
+    Synthesize,
+    TtsFailed,
+    billed_chars,
+)
 from franki_reader.wanikani import ReadWaniKani, as_entries
 
 # How many reviewed or young words the model chooses its stretch words from, when it's choosing.
@@ -813,27 +820,35 @@ class Engine:
                         await self.make_audio(text)
         store.mark_waiting_texts_timed(self.conn)
 
-    async def line_audio(self, text: StoredText, line: int) -> Path | None:
-        """The cached MP3 for one line, made now if it's missing and text to speech is set up."""
+    async def line_audio(self, text: StoredText, line: int, slow: bool = False) -> Path | None:
+        """The cached MP3 for one line, made now if it's missing and text to speech is set up. The
+        slow recording (`tts.SLOW_RATE`) is its own file, made the first time it's asked for."""
         if self.audio is None or not 0 <= line < len(text.lines):
             return None
-        if self.audio.has(text.id, line):
-            return self.audio.path(text.id, line)
+        if self.audio.has(text.id, line, slow):
+            return self.audio.path(text.id, line, slow)
         if self.synthesize is None:
             return None
         spoken, _ = parse_line(text.lines[line].text, LANGUAGES[text.language].spaced)
         voice = voice_for(text.lines[line].speaker, text.genders, self.voices_for(text.language))
         try:
             # The text's language goes too, for a Multilingual voice, which would otherwise guess it.
-            recorded = await self.synthesize(spoken, voice, LANGUAGES[text.language].locale)
+            locale = LANGUAGES[text.language].locale
+            recorded = await (
+                self.synthesize(spoken, voice, locale, rate=SLOW_RATE)
+                if slow
+                else self.synthesize(spoken, voice, locale)
+            )
         except TtsFailed as e:
-            log.warning("No audio for text %d line %d: %s", text.id, line, e)
+            log.warning(
+                "No %saudio for text %d line %d: %s", "slow " if slow else "", text.id, line, e
+            )
             return None
         # Only a recording Azure made is counted (a cached line never gets here), and a failed one
-        # isn't billed, so this is what the audio cost.
+        # isn't billed, so this is what the audio cost. A slow recording is billed again.
         store.add_audio_chars(self.conn, text.id, billed_chars(spoken))
-        self.audio.write(text.id, line, recorded)
-        return self.audio.path(text.id, line)
+        self.audio.write(text.id, line, recorded, slow)
+        return self.audio.path(text.id, line, slow)
 
     def count_existing_audio(self) -> None:
         """Once: estimates what the audio recorded before characters were counted cost, as the

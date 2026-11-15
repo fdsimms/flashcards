@@ -6,6 +6,7 @@ import { compareTyped } from '../core/typedCompare';
 import type { Api, ReaderText } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { drillLines, lineText, markLine, roundLine, roundProgress, roundScore, startRound, type LineDrillKind } from '../reader/lineDrill';
+import { NORMAL_RATE, SLOW_RATE } from '../reader/playbackRate';
 import { prefs } from '../reader/storage';
 import { haptic } from './haptics';
 import { Button, Card, Chip, Help, Icon, NavRow, Tappable } from './kit';
@@ -20,8 +21,6 @@ import { ListeningNote, SpeakButton } from './SpeakButton';
 import { useSpokenAnswer } from './useSpokenAnswer';
 
 const AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: true };
-/** Write what you hear's slower speed, the reader's own slowest. */
-const SLOW = 0.7;
 
 /**
  * Using the lines of a text just read (reader/lineDrill.ts), in place of the end view until it's
@@ -46,7 +45,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
   const [typed, setTyped] = useState('');
   const [checked, setChecked] = useState(false);
   const [explaining, setExplaining] = useState(false);
-  const [rate, setRate] = useState(kind === 'hear' ? SLOW : prefs().rate);
+  const [rate, setRate] = useState(kind === 'hear' ? SLOW_RATE : prefs().rate);
   const [plays, setPlays] = useState(0);
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
   const self = useSelfRecording(at === undefined ? null : `${text.id}:drill:${round.at}`, AUDIO_MODE, { onBeforeAudio: () => player.pause() });
@@ -57,8 +56,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
   const play = (r = rate) => {
     if (at === undefined || !line?.audio) return;
     self.stop(false);
-    player.replace(api.audioSource(text.id, at));
-    player.setPlaybackRate(r, 'high');
+    player.replace(api.audioSource(text.id, at, r));
     player.play();
     setPlays((n) => n + 1);
   };
@@ -143,8 +141,8 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
                 <Icon name="play.fill" size={28} color={c.onAccent} />
               </Tappable>
               <View style={{ flexDirection: 'row', gap: space.s }}>
-                <Chip label={`${SLOW}×`} selected={rate === SLOW} onPress={() => { setRate(SLOW); play(SLOW); }} />
-                <Chip label="1×" selected={rate === 1} onPress={() => { setRate(1); play(1); }} />
+                <Chip label="Slow" selected={rate === SLOW_RATE} onPress={() => { setRate(SLOW_RATE); play(SLOW_RATE); }} />
+                <Chip label="Normal" selected={rate === NORMAL_RATE} onPress={() => { setRate(NORMAL_RATE); play(NORMAL_RATE); }} />
               </View>
               {plays > 1 ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{`Played ${plays} times`}</Text> : null}
             </Card>

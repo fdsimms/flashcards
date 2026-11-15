@@ -4,6 +4,7 @@
 
 import { Refusal } from '../core/failure';
 import type { DrillQuestionIn } from '../core/grammarDrills';
+import { isSlow } from './playbackRate';
 
 /**
  * Where Read & Listen's server is: beside the Anki sync server, under /reader on the same domain
@@ -543,9 +544,13 @@ export function createApi(
     // A phrase selected in a line (as it appears there), explained the same way and kept per phrase.
     explainPhrase: (textId: number, line: number, phrase: string, simple: boolean) =>
       call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple }),
+    // Records a line's slow version if it isn't yet, and says when each of the line's words is spoken in it
+    // (one entry per word, null for none): the normal recording's times don't fit.
+    slowTimes: (textId: number, line: number) => call<{ times: (Word['time'] | null)[] }>('GET', `/api/texts/${textId}/lines/${line}/slow`),
     // For the audio player, which fetches the file itself and so needs the passphrase too.
-    audioSource: (textId: number, line: number) => ({
-      uri: `${root}/api/texts/${textId}/lines/${line}/audio`,
+    // `rate` below normal asks for the slow recording, which the server makes the first time (`slowTimes` does too).
+    audioSource: (textId: number, line: number, rate = 1) => ({
+      uri: `${root}/api/texts/${textId}/lines/${line}/audio${isSlow(rate) ? '?speed=slow' : ''}`,
       headers: { Authorization: `Bearer ${passphrase}` },
     }),
   };

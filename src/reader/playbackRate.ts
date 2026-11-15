@@ -1,13 +1,21 @@
-// Audio is synthesized once at normal speed; slower playback is the player's rate.
-export const MIN_RATE = 0.7;
-export const MAX_RATE = 1.0;
-export const RATE_STEP = 0.1;
-
-export function clampRate(rate: number): number {
-  if (Number.isNaN(rate)) return MAX_RATE;
-  const stepped = Math.round(rate / RATE_STEP) * RATE_STEP;
-  return Math.min(MAX_RATE, Math.max(MIN_RATE, Number(stepped.toFixed(1))));
-}
+// The reader plays a line at normal speed or slowly. Slow is its own recording, spoken slowly by
+// Azure (server/reader tts.SLOW_RATE), because the player stretching a normal one sounds robotic.
+// The rate is kept as a number: 1 for normal, SLOW_RATE for slow (what a reading log's audio speed holds).
+export const NORMAL_RATE = 1;
+export const SLOW_RATE = 0.8;
 
 // The speeds the reader offers, slowest first.
-export const RATES = [0.7, 0.8, 0.9, 1.0];
+export const RATES = [SLOW_RATE, NORMAL_RATE];
+
+/** Whether a rate asks for the slow recording. */
+export function isSlow(rate: number): boolean {
+  return rate < NORMAL_RATE;
+}
+
+/**
+ * A saved speed as one the reader offers. Any speed below normal (the reader once offered 0.7 to
+ * 0.9) is slow; anything else is normal.
+ */
+export function toRate(saved: unknown): number {
+  return typeof saved === 'number' && saved < NORMAL_RATE ? SLOW_RATE : NORMAL_RATE;
+}

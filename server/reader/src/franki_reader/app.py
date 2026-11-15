@@ -129,7 +129,9 @@ marked words, ideas) is in the current language, the `language` setting.
                                       inflection
     GET   /api/words                  words marked unknown and not cleared, newest first
     POST  /api/words/clear            {word} takes a word off that list until it's marked again
-    GET   /api/texts/{id}/lines/{n}/audio   one line's MP3, made now if it isn't cached yet
+    GET   /api/texts/{id}/lines/{n}/audio   one line's MP3, made now if it isn't cached yet;
+                                      `?speed=slow` is the one Azure speaks slowly (tts.SLOW_RATE)
+    GET   /api/texts/{id}/lines/{n}/slow    records the slow one if needed, and `{times}` for its words
     GET   /api/voices?language=th     Azure's voices in a language (any code: th, pl, es-MX) and then
                                       its Multilingual voices of other locales, for the speakers
                                       here and for recording cards in the app
@@ -814,14 +816,33 @@ def create_app(
         return _rendered(text, engine)
 
     @app.get("/api/texts/{text_id}/lines/{line}/audio", dependencies=authed)
-    async def line_audio(text_id: int, line: int) -> FileResponse:
+    async def line_audio(
+        text_id: int, line: int, speed: Literal["normal", "slow"] = "normal"
+    ) -> FileResponse:
         text = store.get_text(engine.conn, text_id)
         if text is None:
             raise HTTPException(404, "No such text.")
-        path = await engine.line_audio(text, line)
+        path = await engine.line_audio(text, line, slow=speed == "slow")
         if path is None:
             raise HTTPException(404, "No audio for this line.")
         return FileResponse(path, media_type="audio/mpeg")
+
+    @app.get("/api/texts/{text_id}/lines/{line}/slow", dependencies=authed)
+    async def slow_line(text_id: int, line: int) -> dict[str, Any]:
+        """Records the line slowly if it isn't yet, and says when each of its words is spoken in
+        that recording (`times`, one [start, end] in milliseconds or null per word of the line, as
+        `words` has them), so the reader can follow along: the normal recording's times don't fit."""
+        text = store.get_text(engine.conn, text_id)
+        if text is None or store.text_status(engine.conn, text_id) == "dropped":
+            raise HTTPException(404, "No such text.")
+        if await engine.line_audio(text, line, slow=True) is None:
+            raise HTTPException(404, "No slow audio for this line.")
+        words = _rendered(text, engine)["lines"][line]["words"]
+        for word in words:
+            word.pop("time", None)
+        marks = engine.audio.marks(text.id, line, slow=True) if engine.audio else None
+        timing.add_times(words, marks)
+        return {"times": [w.get("time") for w in words]}
 
     def line_grammar(text: StoredText, line: int) -> list[dict[str, str]]:
         # Found by the finders, not asked of Claude, and read with the choices as they stand now,

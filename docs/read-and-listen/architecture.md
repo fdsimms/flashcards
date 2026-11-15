@@ -1260,10 +1260,22 @@ in the current language, with when one was last read to the end. Nothing else le
   connection) the line is recorded through REST as before, with no timings, and plays unlit. The
   texts waiting to be read when this came in are re-recorded with timings once
   (`Engine.time_waiting_texts`, on the first top-up, behind the `waiting_texts_timed` flag), as the
-  owner chose; texts already read keep their audio and play unlit. Slower playback needs nothing
-  more: the player's position is in the audio's own time.
-- The 0.7x to 1.0x speed control is the player's rate with pitch kept (`expo-audio`), so there's one
-  file per line whatever the speed. "Play" runs the dialogue line by line; each line has its own
+  owner chose; texts already read keep their audio and play unlit. A slow recording has its own
+  timings (below), since slower speech is longer.
+- **Speed is Slow or Normal (15 November 2026).** Before this it was four speeds, 0.7x to 1.0x, which
+  the player made by stretching the one recording; that sounded robotic. Slow is now a second
+  recording of the line, spoken by Azure at `tts.SLOW_RATE` (0.8, SSML prosody -20%), kept beside
+  the normal one (`<line>.slow.mp3`, `<line>.slow.json`; `AudioCache`) and made the first time the
+  line is played slowly, so a line never played slowly costs nothing extra. It is billed as a
+  recording of its own (`audio_chars`). `GET .../lines/{n}/audio?speed=slow` serves it, and
+  `GET .../lines/{n}/slow` records it and returns its word times, which the reader fetches before
+  a slow line plays so the words light up in time (`Reader.startLine`; the text's own words keep the
+  normal recording's times). If recording it fails, the reader plays the normal recording stretched
+  to 0.8 as before. Choosing the other speed while a line plays starts the line again. A speed saved
+  below 1 is Slow (`toRate`). Re-recording a text for new voices drops its slow lines too. Situations'
+  clips (below) are still stretched by the player, which is the one place that still sounds robotic.
+  The other screens that play a line (Retell, the check, Write what you hear) ask for the slow
+  recording too. "Play" runs the dialogue line by line; each line has its own
   replay button. Playback continues with the ringer on silent and the screen locked; the player
   keeps the audio session active between lines, or iOS could suspend the app in the gap. A line
   whose audio fails to load is skipped with a note. Thai plays over other audio (a podcast keeps
