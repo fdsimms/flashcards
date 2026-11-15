@@ -7,6 +7,7 @@ import type { Api, ReaderText } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { drillLines, lineText, markLine, roundLine, roundProgress, roundScore, startRound, type LineDrillKind } from '../reader/lineDrill';
 import { NORMAL_RATE, SLOW_RATE } from '../reader/playbackRate';
+import { hasSlow, speedFor } from '../reader/prefs';
 import { prefs } from '../reader/storage';
 import { haptic } from './haptics';
 import { Button, Card, Chip, Help, Icon, NavRow, Tappable } from './kit';
@@ -45,7 +46,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
   const [typed, setTyped] = useState('');
   const [checked, setChecked] = useState(false);
   const [explaining, setExplaining] = useState(false);
-  const [rate, setRate] = useState(kind === 'hear' ? SLOW_RATE : prefs().rate);
+  const [rate, setRate] = useState(kind === 'hear' && hasSlow(prefs(), text.language) ? SLOW_RATE : speedFor(prefs(), text.language));
   const [plays, setPlays] = useState(0);
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
   const self = useSelfRecording(at === undefined ? null : `${text.id}:drill:${round.at}`, AUDIO_MODE, { onBeforeAudio: () => player.pause() });
@@ -140,10 +141,10 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
               >
                 <Icon name="play.fill" size={28} color={c.onAccent} />
               </Tappable>
-              <View style={{ flexDirection: 'row', gap: space.s }}>
+              {hasSlow(prefs(), text.language) ? <View style={{ flexDirection: 'row', gap: space.s }}>
                 <Chip label="Slow" selected={rate === SLOW_RATE} onPress={() => { setRate(SLOW_RATE); play(SLOW_RATE); }} />
                 <Chip label="Normal" selected={rate === NORMAL_RATE} onPress={() => { setRate(NORMAL_RATE); play(NORMAL_RATE); }} />
-              </View>
+              </View> : null}
               {plays > 1 ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{`Played ${plays} times`}</Text> : null}
             </Card>
           )}

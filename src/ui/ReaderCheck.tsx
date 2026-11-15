@@ -4,6 +4,7 @@ import { ScrollView, Text, View } from 'react-native';
 import type { Api, ReaderText, TextLine } from '../reader/api';
 import { canSteer, checkScore, isRight, steersDifficulty, type CheckPicks, type CheckQuestion } from '../reader/check';
 import { choiceText } from '../reader/choices';
+import { speedFor } from '../reader/prefs';
 import { prefs, savePrefs } from '../reader/storage';
 import { haptic } from './haptics';
 import { Button, Card, Chip, Help, Icon, Tappable } from './kit';
@@ -159,7 +160,7 @@ function useLinePlayer(api: Api, text: ReaderText) {
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
   return (line: number) => {
     if (!text.lines[line]?.audio) return;
-    player.replace(api.audioSource(text.id, line, prefs().rate));
+    player.replace(api.audioSource(text.id, line, speedFor(prefs(), text.language)));
     player.play();
   };
 }

@@ -6,6 +6,7 @@ import { failureText } from '../core/failure';
 import type { Api, ReaderText, RetellCheck } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { lineText } from '../reader/lineDrill';
+import { speedFor } from '../reader/prefs';
 import { prefs } from '../reader/storage';
 import { haptic } from './haptics';
 import { Button, Card, ErrorNote, Help, Tappable } from './kit';
@@ -42,7 +43,7 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
   const onPlay = (line: number) => {
     if (!text.lines[line]?.audio) return;
-    player.replace(api.audioSource(text.id, line, prefs().rate));
+    player.replace(api.audioSource(text.id, line, speedFor(prefs(), text.language)));
     player.play();
   };
   const readFont = { fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily };
