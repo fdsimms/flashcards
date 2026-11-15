@@ -95,6 +95,19 @@ def test_an_entry_is_due_until_every_due_card_is_answered_today() -> None:
     assert leech[0].due_in == 4
 
 
+def test_an_entrys_stability_is_its_most_fragile_studied_cards() -> None:
+    word = [note(1, "ดี", "good")]
+    cards = [
+        card(1, 2, 40, stability=60.0),
+        card(1, 2, 5, stability=8.0),
+        card(1, 2, 2, suspended=True, stability=1.0),  # a leech doesn't count
+        card(1, 0, 0, stability=0.5),  # new
+        card(1, 2, 9),  # never scored by FSRS
+    ]
+    assert build_entries(word, cards)[0].stability == 8.0
+    assert build_entries(word, [card(1, 2, 9)])[0].stability is None
+
+
 def test_a_withheld_thai_word_is_unknown_even_when_it_splits_into_known_ones() -> None:
     deck = [Entry(1, "เข้า", "to enter", "mature"), Entry(2, "ใจ", "heart", "mature")]
     deck.append(Entry(3, "เข้าใจ", "to understand", "young"))

@@ -66,7 +66,7 @@ def test_a_snapshot_from_before_transliterations_is_refreshed(tmp_path) -> None:
 def test_whats_due_and_reviewed_survives_a_round_trip(conn) -> None:  # type: ignore[no-untyped-def]
     entries = [
         Entry(1, "ฉัน", "I; me", "mature", due=True, due_in=0),
-        Entry(2, "ดี", "good", "young", reviewed=True, due_in=3),
+        Entry(2, "ดี", "good", "young", reviewed=True, due_in=3, stability=7.25),
         Entry(3, "ไป", "go", "unreviewed"),
     ]
     save_snapshot(conn, entries, NOW)

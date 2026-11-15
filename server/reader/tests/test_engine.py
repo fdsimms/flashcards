@@ -276,12 +276,12 @@ def test_a_word_due_today_and_not_reviewed_is_left_out_of_a_new_text() -> None:
 def test_a_word_that_came_due_since_the_snapshot_is_not_a_practice_word() -> None:
     clock = Clock()
     e = engine(ScriptedModel(IN_RANGE), clock=clock)
-    # ข้าวเหนียวมะม่วง was reviewed on the snapshot's day and comes due 3 study days later.
+    # ข้าวเหนียวมะม่วง was reviewed on the snapshot's day and comes due 5 study days later.
     clock.now = NOW + timedelta(days=2)
     assert [x.text for x in e._request("x", ENTRIES, Difficulty(stretch=1)).stretch] == [
         "ข้าวเหนียวมะม่วง"
     ]
-    clock.now = NOW + timedelta(days=3)
+    clock.now = NOW + timedelta(days=5)
     assert e._request("x", ENTRIES, Difficulty(stretch=1)).stretch == ()
 
 
@@ -788,6 +788,20 @@ def test_a_text_records_the_stretch_words_the_model_chose() -> None:
     topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
     assert text.stretch == ("ข้าวเหนียวมะม่วง",)
+
+
+def test_stretch_readings_list_the_words_of_texts_read_to_the_end() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    finished = run(lambda: fetch(e, topic.id))
+    e.record_reading(finished.id, reading("about_right"))
+    left = run(lambda: fetch(e, topic.id))
+    e.record_reading(left.id, Reading(None, False, (), (), 1.0, False, 5))  # backed out of
+
+    found = store.stretch_readings(e.conn, NOW - timedelta(days=1))
+    assert found == [(NOW, ["ข้าวเหนียวมะม่วง"])]
+    assert store.stretch_readings(e.conn, NOW + timedelta(days=1)) == []
+    assert store.stretch_readings(e.conn, NOW - timedelta(days=1), "es") == []
 
 
 def test_a_stretch_word_from_a_text_read_yesterday_is_offered_again_today() -> None:

@@ -396,10 +396,21 @@ def test_a_removed_topic_leaves_the_list_and_comes_back_when_added_again() -> No
     assert [t["name"] for t in c.get("/api/topics", headers=AUTH).json()] == ["Taxi"]
 
 
-def read(c: TestClient, rating: str | None, flagged: list[str], finished: bool = True) -> None:
+def read(
+    c: TestClient,
+    rating: str | None,
+    flagged: list[str],
+    finished: bool = True,
+    glossed: list[str] | None = None,
+) -> None:
     topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
     text = next_text(c, topic["id"]).json()
-    body = {"rating": rating, "finished": finished, "words_flagged": flagged}
+    body = {
+        "rating": rating,
+        "finished": finished,
+        "words_flagged": flagged,
+        "words_glossed": glossed or [],
+    }
     assert c.post(f"/api/texts/{text['id']}/reading", json=body, headers=AUTH).status_code == 204
 
 
@@ -421,6 +432,17 @@ def test_progress_counts_finished_texts_and_says_how_hard_the_next_is() -> None:
     assert progress["ratings"] == {"too_easy": 0, "about_right": 1, "too_hard": 1, "none": 0}
     assert progress["next"] == {"floor": 0.93, "stretch": 1}
     assert c.get("/api/progress").status_code == 401
+
+
+def test_progress_reports_how_well_the_known_words_were_recognized() -> None:
+    c = client()
+    assert c.get("/api/progress", headers=AUTH).json()["recognition"] is None
+    # ฉัน is known and in the text; ทอน isn't known, so looking it up doesn't count.
+    read(c, "about_right", [], glossed=["ฉัน", "ทอน"])
+    r = c.get("/api/progress", headers=AUTH).json()["recognition"]
+    assert r["texts"] == 1
+    assert r["looked_up_types"] == 1 and r["known_types"] > 1
+    assert 0 < r["effective"] < r["verified"] <= 1
 
 
 def test_costs_count_every_text_written_and_what_each_read_one_cost() -> None:
@@ -1259,3 +1281,33 @@ def test_glosses_arent_ready_for_a_language_whose_deck_hasnt_been_read() -> None
         headers=AUTH,
     )
     assert out.json() == {"ready": False, "sentences": []}
+
+
+def exposure_client(reviews: Any) -> TestClient:
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, ENTRIES, NOW)
+    engine = Engine(conn, ScriptedModel(IN_RANGE).ask_for, None, lambda: NOW, random.Random(1))
+    return started(create_app(engine, "open sesame", read_reviews=reviews))
+
+
+def test_the_exposure_effect_needs_anki_and_says_not_enough_with_little_to_compare() -> None:
+    assert client().get("/api/exposure-effect", headers=AUTH).status_code == 503
+
+    async def reviews(language: Any) -> list[Any]:
+        return []
+
+    c = exposure_client(reviews)
+    body = c.get("/api/exposure-effect", headers=AUTH).json()
+    assert body["verdict"] == "not_enough" and body["days"] == 90 and body["texts"] == 0
+    assert c.get("/api/exposure-effect?days=3", headers=AUTH).status_code == 422
+    assert c.get("/api/exposure-effect").status_code == 401
+
+
+def test_a_failed_anki_read_is_a_503_that_says_so() -> None:
+    from franki_reader.gateway import AnkiUnavailable
+
+    async def reviews(language: Any) -> list[Any]:
+        raise AnkiUnavailable("the sync server didn't answer")
+
+    response = exposure_client(reviews).get("/api/exposure-effect", headers=AUTH)
+    assert response.status_code == 503 and "didn't answer" in response.json()["detail"]

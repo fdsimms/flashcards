@@ -43,6 +43,7 @@ from franki_reader.generator import (
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
+from franki_reader.recognition import measure
 from franki_reader.store import Reading, Reason, StoredText, Story, Topic
 from franki_reader.stretch import pick_stretch, waiting
 from franki_reader.study_day import DEFAULT_ROLLOVER, study_day, study_day_start
@@ -872,8 +873,17 @@ class Engine:
             raise NotFound(text_id)
         if status == "read":
             return
-        store.log_reading(self.conn, text_id, reading, self.clock())
         text = store.get_text(self.conn, text_id)
+        if text is not None:
+            reading = replace(
+                reading,
+                recognition=measure(
+                    (line.text for line in text.lines),
+                    self.snapshot(text.language)[1],
+                    (*reading.words_glossed, *reading.words_flagged),
+                ),
+            )
+        store.log_reading(self.conn, text_id, reading, self.clock())
         written = store.written_at(self.conn, text_id)
         if text is not None and written is not None:
             current = store.load_difficulty(self.conn, text.language)

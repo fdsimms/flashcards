@@ -3,8 +3,8 @@ owner to say in the language, built around a word from their deck, with a senten
 to compare with. The app's Sentences tool asks them; results stay on the phone, and nothing here
 grades a card.
 
-Which words: as for a text's stretch words (stretch.py), words reviewed today first, then young
-ones, and never a word due today and not yet reviewed, which a sentence before its review would
+Which words: as for a text's stretch words (stretch.py), the most fragile young words first, then
+words reviewed today, and never a word due today and not yet reviewed, which a sentence before its review would
 prime. Not as the word asked, and not anywhere else in a sentence either: a sentence is checked with
 the texts' writing lexicon (`Engine.writing_lexicon`), which counts those words as unknown, and one
 that uses any of them is dropped.
@@ -147,7 +147,7 @@ def check(
 
 
 def candidates(entries: list[Entry], days: int, rng: random.Random) -> list[Entry]:
-    """The words a round of sentences is about: reviewed today first, then young, never waiting."""
+    """The words a round of sentences is about: the most fragile young words first, then those reviewed today, never waiting."""
     return pick_stretch(entries, CANDIDATES, rng, days=days)
 
 
