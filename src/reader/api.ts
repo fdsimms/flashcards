@@ -495,7 +495,9 @@ export function createApi(
     // made in the background (poll `lessons` until it's ready or failed).
     lessons: (language?: Language) =>
       call<{ languages: Language[]; lessons: AudioLesson[] }>('GET', language === undefined ? '/api/lessons' : `/api/lessons?language=${language}`),
-    makeLesson: (language: Language, scene: string) => call<void>('POST', '/api/lessons', { language, scene }),
+    // `narrator`: an English voice for this lesson's narration; left out, the server's own.
+    makeLesson: (language: Language, scene: string, narrator?: string) =>
+      call<void>('POST', '/api/lessons', { language, scene, ...(narrator ? { narrator } : {}) }),
     deleteLesson: (id: number) => call<void>('DELETE', `/api/lessons/${id}`),
     // For the audio player, which fetches the file itself and so needs the passphrase too.
     lessonAudio: (id: number) => ({

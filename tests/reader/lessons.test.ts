@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AudioLesson } from '../../src/reader/api';
-import { anyMaking, atEnd, clock, lessonDetail, lessonsOffered, skipTo } from '../../src/reader/lessons';
+import { anyMaking, atEnd, clock, lessonDetail, lessonsOffered, parseNarrator, skipTo } from '../../src/reader/lessons';
 
 const lesson = (over: Partial<AudioLesson> = {}): AudioLesson => ({
   id: 1, language: 'fr', scene: 'a café', title: 'At the café', state: 'ready', error: '',
@@ -72,5 +72,18 @@ describe('lessonDetail', () => {
   it('gives a failed lesson its reason, or says to try again', () => {
     expect(lessonDetail(lesson({ state: 'failed', error: "Azure couldn't speak the lesson (Azure answered 429). Try again in a moment." }))).toContain('Azure answered 429');
     expect(lessonDetail(lesson({ state: 'failed', error: '' }))).toBe("Couldn't make this lesson. Try again.");
+  });
+});
+
+describe('parseNarrator', () => {
+  it('keeps an English voice', () => {
+    expect(parseNarrator('en-GB-RyanNeural')).toBe('en-GB-RyanNeural');
+    expect(parseNarrator(' en-US-AvaMultilingualNeural ')).toBe('en-US-AvaMultilingualNeural');
+  });
+  it('is empty, meaning the server\'s own, for nothing or anything else', () => {
+    expect(parseNarrator(null)).toBe('');
+    expect(parseNarrator('')).toBe('');
+    expect(parseNarrator('fr-FR-HenriNeural')).toBe('');
+    expect(parseNarrator('Guy')).toBe('');
   });
 });

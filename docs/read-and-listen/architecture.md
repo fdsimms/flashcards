@@ -354,10 +354,16 @@ aloud is never heard by the phone.
   lesson is made. Chosen over a phone that times each clip because one MP3 plays with the screen
   locked, in a car, with the lock screen's controls, and a stall between clips can't happen.
 - **One MP3 per lesson** (`lesson_audio.py`, `<audio dir>/lessons/<id>.mp3`). Each distinct clip is
-  spoken once by Azure (the narrator in the English male voice, the dialogue's A and the teaching in
-  the language's male voice, B in its female voice, all as chosen in settings), leveled with
+  spoken once by Azure (the narrator in an English voice chosen for the lesson, else the settings'
+  English male voice; the dialogue's A and the teaching in the language's male voice, B in its female
+  voice, as chosen in settings), leveled with
   `franki_speech.loudness`, laid end to end with generated silences as raw 16-bit audio, and encoded
   by ffmpeg. The server image installs ffmpeg for it.
+- **The narrator is chosen per lesson** (15 November 2026, the owner's request): `POST /api/lessons`
+  takes an optional English voice (`narrator`, checked by name only, `is_narrator_voice`), kept on the
+  phone (`lessonStorage.ts`) and picked on the lessons screen's Narrator row. English is hidden from the
+  app's language list, so its voice slots can't be reached, and a per-language slot would have
+  widened the voice code for one use.
 - **Made in the background** (`lesson_service.py`): `POST /api/lessons` adds a row in the `lessons`
   table (`making`) and returns its id; the row becomes `ready` or `failed` with the reason, and the
   app polls `GET /api/lessons` while any is making. At most 2 are made at once. A row still `making`

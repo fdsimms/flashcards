@@ -53,3 +53,8 @@ export function lessonDetail(lesson: AudioLesson): string {
   const n = lesson.phrases.length;
   return [`${minutes} min`, `${n} ${n === 1 ? 'phrase' : 'phrases'}`, shortDate(lesson.created_at)].filter(Boolean).join(' · ');
 }
+
+/** A narrator voice as kept, or '' (the server's own) for anything that isn't an English Azure voice's name. */
+export function parseNarrator(raw: string | null): string {
+  return raw !== null && /^en-[A-Za-z]{2,4}-[A-Za-z0-9]+$/.test(raw.trim()) ? raw.trim() : '';
+}

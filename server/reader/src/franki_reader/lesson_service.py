@@ -7,6 +7,7 @@ Nothing here reads the deck, grades a card or writes a note.
 
 import logging
 import os
+import re
 import sqlite3
 from collections.abc import Awaitable, Callable
 from datetime import datetime
@@ -32,19 +33,31 @@ Synthesize = Callable[[str, str, str], Awaitable[bytes]]
 Renderer = Callable[[list[lesson.Step], Speak], Awaitable[Rendered]]
 
 
+_NARRATOR = re.compile(r"en-[A-Za-z]{2,4}-[A-Za-z0-9]+")
+
+
+def is_narrator_voice(voice: str) -> bool:
+    """Whether `voice` is an English Azure voice by its name (en-US-GuyNeural), which is as far as
+    it can be checked here: Azure refuses a name it doesn't know, and the lesson fails with that."""
+    return _NARRATOR.fullmatch(voice) is not None
+
+
 def audio_path(lessons_dir: Path, lesson_id: int) -> Path:
     """`<lessons dir>/<id>.mp3`. The folder is beside the texts' audio, whose folders are numbers."""
     return lessons_dir / f"{lesson_id}.mp3"
 
 
-def speaker(language: Code, voices: Voices, synthesize: Synthesize) -> Speak:
-    """Speaks a clip: the narrator in English, a native voice in the language's locale."""
-    native, narrator = voices(language), voices("en")
+def speaker(
+    language: Code, voices: Voices, synthesize: Synthesize, narrator: str | None = None
+) -> Speak:
+    """Speaks a clip: the narrator in English (`narrator`, an English voice chosen for the lesson, or
+    the English male voice from the settings), a native voice in the language's locale."""
+    native, narrator_voice = voices(language), narrator or voices("en")["male"]
     locale, narrator_locale = LANGUAGES[language].locale, LANGUAGES["en"].locale
 
     async def speak(clip: lesson.Say) -> bytes:
         if clip.voice == "narrator":
-            return await synthesize(clip.text, narrator["male"], narrator_locale)
+            return await synthesize(clip.text, narrator_voice, narrator_locale)
         return await synthesize(clip.text, native[clip.voice], locale)
 
     return speak
@@ -61,6 +74,7 @@ async def make_lesson(
     voices: Voices,
     lessons_dir: Path,
     now: Callable[[], datetime],
+    narrator: str | None = None,
     renderer: Renderer = lesson_audio.render,
 ) -> None:
     """Writes, speaks and keeps lesson `lesson_id`, and says in its row how it went. Never raises:
@@ -74,7 +88,7 @@ async def make_lesson(
     steps = lesson.build_script(plan)
     chars = 0
     try:
-        rendered = await renderer(steps, speaker(language, voices, synthesize))
+        rendered = await renderer(steps, speaker(language, voices, synthesize, narrator))
         # Azure billed each distinct clip once, though not if it failed part way.
         chars = sum(billed_chars(c.text) for c in lesson.clips(steps))
         path = audio_path(lessons_dir, lesson_id)

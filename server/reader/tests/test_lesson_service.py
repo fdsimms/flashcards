@@ -118,6 +118,31 @@ def test_speaks_the_narrator_in_english_and_the_rest_in_the_language(tmp_path: P
     assert by_text["Un café, s'il vous plaît."] == ("fr-FR-DeniseNeural", "fr-FR")  # B, the woman
 
 
+def test_a_narrator_chosen_for_the_lesson_speaks_only_the_narration(tmp_path: Path) -> None:
+    conn = store.connect(":memory:")
+    fakes = Fakes()
+    run(conn, fakes, tmp_path, narrator="en-GB-RyanNeural")
+    by_text = {text: (voice, locale) for text, voice, locale in fakes.spoken}
+    assert by_text["Listen."] == ("en-GB-RyanNeural", "en-US")
+    assert by_text["Un café."] == ("fr-FR-HenriNeural", "fr-FR")
+
+
+@pytest.mark.parametrize(
+    ("voice", "english"),
+    [
+        ("en-US-GuyNeural", True),
+        ("en-GB-RyanNeural", True),
+        ("en-US-AvaMultilingualNeural", True),
+        ("fr-FR-HenriNeural", False),
+        ("Guy", False),
+        ("en-US-Guy Neural", False),
+        ("", False),
+    ],
+)
+def test_only_an_english_voice_can_narrate(voice: str, english: bool) -> None:
+    assert lesson_service.is_narrator_voice(voice) is english
+
+
 def test_records_what_claude_and_azure_charged(tmp_path: Path) -> None:
     conn = store.connect(":memory:")
     run(conn, Fakes(), tmp_path)

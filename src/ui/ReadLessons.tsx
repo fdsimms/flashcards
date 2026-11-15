@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, RefreshControl, ScrollView, View } from 'react-native';
 import { ApiError, type Api, type AudioLesson, type Language } from '../reader/api';
+import { azureVoiceName } from '../core/voices';
 import { LANGUAGES } from '../reader/languages';
 import { anyMaking, lessonDetail, POLL_MS } from '../reader/lessons';
 import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen } from './kit';
@@ -12,7 +13,16 @@ import { space, useTheme, readable } from './theme';
  * being made is asked about every few seconds until it's ready or failed. Opening one plays it
  * (ReadLesson.tsx). Nothing here grades a card or writes a note.
  */
-export function ReadLessons({ api, language, onOpen }: { api: Api; language: Language; onOpen: (lesson: AudioLesson) => void }) {
+export function ReadLessons({ api, language, narrator, defaultNarrator, onNarrator, onOpen }: {
+  api: Api;
+  language: Language;
+  /** The English voice chosen to narrate, or '' for the server's own. */
+  narrator: string;
+  /** The server's own English voice, named while none is chosen. */
+  defaultNarrator: string | undefined;
+  onNarrator: () => void;
+  onOpen: (lesson: AudioLesson) => void;
+}) {
   const c = useTheme();
   const [lessons, setLessons] = useState<AudioLesson[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +55,7 @@ export function ReadLessons({ api, language, onOpen }: { api: Api; language: Lan
     setAsking(true);
     setAskError(null);
     try {
-      await api.makeLesson(language, text);
+      await api.makeLesson(language, text, narrator || undefined);
       setScene('');
       await load();
     } catch (e) {
@@ -97,6 +107,9 @@ export function ReadLessons({ api, language, onOpen }: { api: Api; language: Lan
           Claude writes about five {LANGUAGES[language].name} phrases to teach in that scene, and a voice records the lesson with spaces
           for you to answer in. It takes about a minute, and the spoken parts cost a few cents.
         </Help>
+        <Group>
+          <NavRow first label="Narrator" detail={narrator || defaultNarrator ? azureVoiceName(narrator || defaultNarrator!) : 'The server\'s own voice'} onPress={onNarrator} />
+        </Group>
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {lessons === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
         {lessons !== null && lessons.length === 0 ? <Help>No lessons yet. Type a scene above to make your first.</Help> : null}

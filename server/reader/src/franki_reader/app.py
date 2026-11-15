@@ -179,8 +179,9 @@ marked words, ideas) is in the current language, the `language` setting.
                                       owner's lines checked {index, verdict, corrected, note}, and
                                       words worth adding {word, english, why: asked | heard}
     GET   /api/situations/audio/{key} a clip of one of the other person's lines (MP3)
-    POST  /api/lessons                {language, scene} an audio lesson on a scene (lesson.py), made
-                                      in the background: {id}. French only so far (`languages`
+    POST  /api/lessons                {language, scene, narrator?} an audio lesson on a scene
+                                      (lesson.py), made in the background: {id}. `narrator` is an
+                                      English Azure voice (en-US-GuyNeural) for this lesson. French only so far (`languages`
                                       in GET). At most 2 at a time
     GET   /api/lessons                ?language= {languages, lessons: [{id, language, scene, title,
                                       state: making | ready | failed, error, duration_ms,
@@ -446,6 +447,8 @@ class SentencesIn(BaseModel):
 class LessonIn(BaseModel):
     language: Code
     scene: str = Field(min_length=1, max_length=lesson_writer.MAX_SCENE)
+    # The narrator's voice for this lesson: an English Azure voice, or the settings' when left out.
+    narrator: str | None = Field(default=None, max_length=100)
 
 
 class DrillsIn(BaseModel):
@@ -1310,6 +1313,11 @@ def create_app(
         scene = " ".join(body.scene.split())
         if not scene:
             raise HTTPException(422, "Say what the lesson is about.")
+        narrator = (body.narrator or "").strip() or None
+        if narrator is not None and not lesson_service.is_narrator_voice(narrator):
+            raise HTTPException(
+                422, "The narrator has to be an English voice, such as en-US-GuyNeural."
+            )
         if sum(1 for row in store.lessons(engine.conn) if row.state == "making") >= MAX_MAKING:
             raise HTTPException(
                 409, "Two lessons are already being made. Wait for one to finish, then ask again."
@@ -1331,6 +1339,7 @@ def create_app(
             voices=engine.voices_for,
             lessons_dir=lessons_dir,
             now=engine.clock,
+            narrator=narrator,
         )
         return {"id": lesson_id}
 

@@ -139,6 +139,19 @@ def test_says_what_is_missing_on_the_server(tmp_path: Path, kwargs: Any, words: 
     assert c.get("/api/lessons", headers=AUTH).json()["lessons"] == []
 
 
+@pytest.mark.parametrize("narrator", ["fr-FR-HenriNeural", "Guy", "en-US-Guy Neural"])
+def test_refuses_a_narrator_that_is_not_an_english_voice(tmp_path: Path, narrator: str) -> None:
+    c = lesson_client(tmp_path)
+    r = c.post(
+        "/api/lessons",
+        json={"language": "fr", "scene": "a café", "narrator": narrator},
+        headers=AUTH,
+    )
+    assert r.status_code == 422
+    assert "English voice" in r.json()["detail"]
+    assert c.get("/api/lessons", headers=AUTH).json()["lessons"] == []
+
+
 def test_refuses_a_language_it_cannot_make_yet(tmp_path: Path) -> None:
     r = lesson_client(tmp_path).post(
         "/api/lessons", json={"language": "es", "scene": "a café"}, headers=AUTH
@@ -195,6 +208,37 @@ def test_makes_a_lesson_in_the_background_and_serves_its_audio(tmp_path: Path) -
     costs = c.get("/api/costs", headers=AUTH).json()["lessons"]
     assert costs["made"] == 1
     assert costs["audio_chars"] > 0
+
+
+@needs_ffmpeg
+def test_the_narrator_chosen_is_the_voice_azure_is_asked_for(tmp_path: Path) -> None:
+    asked: list[str] = []
+    clip = tone()
+
+    async def voice(text: str, name: str, language: str) -> Spoken:
+        asked.append(name)
+        return Spoken(clip)
+
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, ENTRIES, NOW)
+    engine = Engine(
+        conn, ScriptedModel(IN_RANGE).ask_for, None, lambda: NOW, random.Random(1), synthesize=voice
+    )
+    app = create_app(
+        engine, "open sesame", write_lesson=write_plan, lessons_dir=tmp_path / "lessons"
+    )
+    c = TestClient(app)
+    c.__enter__()
+    _open.append(c)
+    made = c.post(
+        "/api/lessons",
+        json={"language": "fr", "scene": "a café", "narrator": "en-GB-RyanNeural"},
+        headers=AUTH,
+    )
+    assert made.status_code == 202
+    assert wait_for(c, made.json()["id"])["state"] == "ready"
+    assert "en-GB-RyanNeural" in asked
+    assert "en-US-GuyNeural" not in asked
 
 
 def test_a_lesson_that_cannot_be_spoken_is_failed_with_its_reason(tmp_path: Path) -> None:
