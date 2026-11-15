@@ -1,7 +1,7 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Keyboard, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { ApiError, type Api, type Form, type Language, type PastText, type Shelf, type ShelfText, type Word } from '../reader/api';
+import { ApiError, MAX_STORY_ABOUT_CHARS, MAX_TOPIC_CHARS, type Api, type Form, type Language, type PastText, type Shelf, type ShelfText, type Word } from '../reader/api';
 import { LANGUAGES, flaggedName } from '../reader/languages';
 import { lessonsOffered } from '../reader/lessons';
 import { ReadListenAgain } from './ReadListenAgain';
@@ -323,7 +323,7 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onEpisodes, onStarted }: { 
       <Card>
         <Text style={{ ...type.headline, color: c.text }}>Start an ongoing story</Text>
         <Help>Each episode picks up where the last one ended, with the same people and places, so the same words keep coming back. Leave the topic empty and the story is up to the writer.</Help>
-        <Field label="What should it be about?" placeholder="For example, a small café on a rainy day" value={about} onChangeText={setAbout} returnKeyType="done" onSubmitEditing={start} />
+        <Field label="What should it be about?" placeholder="For example, a small café on a rainy day" value={about} onChangeText={setAbout} maxLength={MAX_STORY_ABOUT_CHARS} returnKeyType="done" onSubmitEditing={start} />
         {error ? <ErrorNote message={error} /> : null}
         <Button label="Start a story" variant="secondary" onPress={start} busy={starting} />
       </Card>
@@ -436,7 +436,7 @@ function WriteCard({ api, onWriting }: { api: Api; onWriting: () => void }) {
     <Card>
       <Button label="Surprise me" variant="secondary" onPress={surprise} busy={busy === 'surprise'} disabled={busy !== null} />
       <Help>Writes a text on an idea you haven't tried, with no topic needed.</Help>
-      <Field label="Write one about something else" placeholder="For example, haggling at a market" value={name} onChangeText={setName} returnKeyType="done" onSubmitEditing={write} />
+      <Field label="Write one about something else" placeholder="For example, haggling at a market" value={name} onChangeText={setName} maxLength={MAX_TOPIC_CHARS} returnKeyType="done" onSubmitEditing={write} />
       <Segments<Form> options={[{ value: 'dialogue', label: 'Dialogue' }, { value: 'story', label: 'Story' }]} value={form} onChange={setForm} />
       {error ? <ErrorNote message={error} /> : null}
       <Button label="Write" variant="secondary" onPress={write} busy={busy === 'write'} disabled={!name.trim() || busy !== null} />
