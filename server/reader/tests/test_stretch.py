@@ -3,12 +3,12 @@ import random
 from fake_anki import card, note
 
 from franki_reader.lexicon import Entry, build_entries
-from franki_reader.stretch import pick_stretch, reviewed_words, waiting
+from franki_reader.stretch import due_soon, pick_stretch, reviewed_words, waiting
 
 ENTRIES = [
     Entry(1, "ฉัน", "I", "mature", due_in=30),
     Entry(2, "ดี", "good", "mature", reviewed=True, due_in=40),  # reviewed today
-    Entry(3, "ไป", "go", "young", due_in=3),
+    Entry(3, "ไป", "go", "young", due_in=6),
     Entry(4, "มา", "come", "young", reviewed=True, due_in=2),  # reviewed today
     Entry(5, "ทอน", "give change", "unreviewed"),
     Entry(6, "กิน", "eat", "young", due=True, due_in=0),  # due today, not reviewed yet
@@ -20,10 +20,38 @@ def texts(entries: list[Entry]) -> set[str]:
     return {e.text for e in entries}
 
 
-def test_words_reviewed_today_come_first_then_young() -> None:
+def test_young_words_come_first_then_the_ones_reviewed_today() -> None:
+    # A word just reviewed is at its strongest, so it's the last resort.
     picked = pick_stretch(ENTRIES, 3, random.Random(1))
-    assert texts(picked[:2]) == {"ดี", "มา"}
-    assert picked[2].text == "ไป"
+    assert picked[0].text == "ไป"
+    assert texts(picked[1:]) == {"ดี", "มา"}
+
+
+def test_the_most_fragile_young_word_comes_first() -> None:
+    entries = [
+        Entry(1, "ไป", "go", "young", due_in=6, stability=20.0),
+        Entry(2, "อยู่", "be", "young", due_in=8, stability=5.0),
+        Entry(3, "เห็น", "see", "young", due_in=9, stability=None),  # no memory state read
+    ]
+    for seed in range(5):
+        picked = pick_stretch(entries, 3, random.Random(seed))
+        assert [e.text for e in picked] == ["อยู่", "ไป", "เห็น"]
+
+
+def test_a_young_word_due_within_two_days_is_left_out_unless_reviewed_today() -> None:
+    entries = [
+        Entry(1, "ไป", "go", "young", due_in=3, stability=1.0),  # 3 days out: fine
+        Entry(2, "อยู่", "be", "young", due_in=2, stability=1.0),  # due the day after tomorrow
+        Entry(3, "เห็น", "see", "young", due_in=1, stability=1.0),
+        Entry(
+            4, "มา", "come", "young", reviewed=True, due_in=1
+        ),  # just reviewed: next review is far
+    ]
+    assert texts(pick_stretch(entries, 10, random.Random(1))) == {"ไป", "มา"}
+    # Two study days after the snapshot, the first is one day from its review.
+    assert texts(pick_stretch(entries, 10, random.Random(1), days=2)) == set()
+    assert due_soon(entries[0], 1) and not due_soon(entries[0], 0)
+    assert not due_soon(Entry(9, "x", "x", "young"), 0)  # no due date read
 
 
 def test_a_word_due_today_and_not_yet_reviewed_is_never_picked() -> None:
@@ -64,9 +92,9 @@ def test_a_snapshot_from_an_earlier_day_reads_due_dates_not_todays_flags() -> No
     # Two study days after the snapshot: nothing it read as reviewed was reviewed today, and a word
     # whose card has come due since is waiting for its review.
     picked = texts(pick_stretch(ENTRIES, 10, random.Random(1), days=2))
-    assert picked == {"ไป"}  # มา came due on day 2; ไป is due on day 3
+    assert picked == {"ไป"}  # มา came due on day 2; ไป is due on day 6
     assert reviewed_words(ENTRIES, days=2) == []
-    assert not waiting(ENTRIES[2], 2) and waiting(ENTRIES[2], 3)
+    assert not waiting(ENTRIES[2], 5) and waiting(ENTRIES[2], 6)
     # A studied note with no due date read is taken as waiting.
     assert waiting(Entry(9, "x", "x", "young"), 1)
 
@@ -78,8 +106,12 @@ def test_a_word_practiced_on_an_earlier_day_comes_back_first() -> None:
 
 
 def test_a_word_stops_coming_back_after_three_days() -> None:
-    picked = pick_stretch(ENTRIES, 3, random.Random(1), {"ไป": 3})
-    assert picked[2].text == "ไป"
+    entries = [
+        Entry(1, "ไป", "go", "young", due_in=6, stability=20.0),
+        Entry(2, "อยู่", "be", "young", due_in=8, stability=5.0),
+    ]
+    assert pick_stretch(entries, 2, random.Random(1), {"ไป": 1})[0].text == "ไป"
+    assert pick_stretch(entries, 2, random.Random(1), {"ไป": 3})[0].text == "อยู่"
 
 
 def test_a_practiced_word_that_has_matured_is_left_alone() -> None:

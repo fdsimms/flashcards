@@ -127,6 +127,11 @@ constraints.
    > recall, rated Good, and FSRS lengthens the interval: the corruption principle 9 prevents,
    > arriving by priming. Words reviewed today come first, then young words not due. See
    > `architecture.md`, Generation and coverage.
+
+   > **Changed on 15 November 2026 by the owner.** Young words come before words reviewed today,
+   > the most fragile (lowest FSRS stability) first, and a young word due within 2 days is left out.
+   > A word just reviewed is at its strongest, so another encounter helps it least. See
+   > `architecture.md`, Generation and coverage.
 5. **Gloss in English, on tap.** Stretch words carry an English gloss; any other word reveals one on
    tap. First-language glosses beat target-language ones.
 6. **Read-while-listening is the default.** Text plus audio line by line, with speed from 0.7x to

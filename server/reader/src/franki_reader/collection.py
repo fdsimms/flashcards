@@ -28,6 +28,7 @@ from anki.collection import Collection
 from anki.sync_pb2 import SyncCollectionResponse
 from anki.utils import ids2str
 
+from franki_reader.exposure_effect import Review
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.languages import Language
 from franki_reader.lexicon import CardRow, Entry, NoteRow, build_entries, days_until_due
@@ -81,6 +82,15 @@ class AnkiDeck:
             self._sync()
             self.rollover = self.col.get_preferences().scheduling.rollover
             return read_entries(self.col, language)
+
+    async def reviews(self, language: Language) -> list[Review]:
+        """Syncs, then reads the review log of one language's notes (exposure_effect.py)."""
+        return await asyncio.to_thread(self._reviews, language)
+
+    def _reviews(self, language: Language) -> list[Review]:
+        with self._lock:
+            self._sync()
+            return read_reviews(self.col, language)
 
     async def due(self) -> DueStatus:
         """Syncs, then reads what's due now (status.py). This is gateway.ReadDue."""
@@ -174,7 +184,36 @@ def read_entries(col: Collection, language: Language) -> list[Entry]:
             suspended=queue == -1,
             rated=cid in rated,
             due_in=days_until_due(card_type, queue, card_due, today, cutoff),
+            stability=_stability(col, cid, card_type, queue),
         )
         for cid, nid, card_type, ivl, queue, card_due in rows
     ]
     return build_entries(notes, cards)
+
+
+def _stability(col: Collection, card_id: int, card_type: int, queue: int) -> float | None:
+    """The card's FSRS stability in days, or None when it has none: new, suspended (it doesn't
+    count toward its note anyway) or never scored by FSRS."""
+    if card_type == 0 or queue == -1:
+        return None
+    state = col.get_card(card_id).memory_state  # type: ignore[arg-type]
+    return float(state.stability) if state is not None else None
+
+
+def read_reviews(col: Collection, language: Language) -> list[Review]:
+    """Every answer to a card of the language's notes, oldest first per card: learning steps,
+    reviews and relearning steps (a manual reschedule or a cram answer isn't an answer). Reads only."""
+    note_ids = list(col.find_notes(language.notes_query))
+    if not note_ids:
+        return []
+    assert col.db is not None  # open: find_notes just used it
+    rows = col.db.all(
+        "select r.cid, c.nid, r.id, r.ease, r.type, r.lastIvl from revlog r"
+        " join cards c on c.id = r.cid"
+        f" where c.nid in {ids2str(note_ids)} and r.ease > 0 and r.type in (0, 1, 2)"
+        " order by r.cid, r.id"
+    )
+    return [
+        Review(cid, nid, at, ease > 1, last_ivl, kind == 1)
+        for cid, nid, at, ease, kind, last_ivl in rows
+    ]

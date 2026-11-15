@@ -18,6 +18,7 @@ from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Choice, Form, Generated, Line
 from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, VOICE_SLOTS, Code, with_deck
 from franki_reader.lexicon import Entry, ReadDeck
+from franki_reader.recognition import Recognition
 from franki_reader.study_day import DEFAULT_ROLLOVER, study_day
 from franki_reader.wanikani import ReadWaniKani, WaniKaniUnavailable, WaniKaniWord
 
@@ -376,6 +377,9 @@ class Reading:
     # The check after reading: questions answered right, of those asked. None when it wasn't taken.
     check_right: int | None = None
     check_asked: int | None = None
+    # How well the known words were recognized in it (recognition.py); None for a reading before it
+    # was kept.
+    recognition: Recognition | None = None
 
 
 def connect(path: Path | str) -> sqlite3.Connection:
@@ -425,6 +429,8 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # (stretch.py). `due` then means due and not yet answered.
         ("due_in", "due_in INTEGER"),
         ("reviewed", "reviewed INTEGER NOT NULL DEFAULT 0"),
+        # FSRS stability of the note's most fragile studied card (stretch.py's order).
+        ("stability", "stability REAL"),
     ):
         if column not in lexicon_columns:
             conn.execute(f"ALTER TABLE lexicon ADD COLUMN {sql}")
@@ -470,8 +476,18 @@ def connect(path: Path | str) -> sqlite3.Connection:
         if column not in texts_columns:
             conn.execute(f"ALTER TABLE texts ADD COLUMN {sql}")
     readings_columns = {r[1] for r in conn.execute("PRAGMA table_info(readings)")}
-    for column in ("check_right", "check_asked"):
+    for column in (
         # The check after reading, when it was taken; NULL for readings before it and when it wasn't.
+        "check_right",
+        "check_asked",
+        # The text's words, its known ones and the known ones looked up (recognition.py); NULL for a
+        # reading logged before they were kept.
+        "tokens",
+        "known_tokens",
+        "looked_up_tokens",
+        "known_types",
+        "looked_up_types",
+    ):
         if column not in readings_columns:
             conn.execute(f"ALTER TABLE readings ADD COLUMN {column} INTEGER")
     with conn:
@@ -497,8 +513,8 @@ def save_snapshot(
         conn.executemany(
             # OR REPLACE: a note moved to the other language's deck belongs to the newer snapshot.
             "INSERT OR REPLACE INTO lexicon"
-            " (note_id, entry, meaning, tier, due, language, translit, due_in, reviewed)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " (note_id, entry, meaning, tier, due, language, translit, due_in, reviewed, stability)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (
                     e.note_id,
@@ -510,6 +526,7 @@ def save_snapshot(
                     e.translit,
                     e.due_in,
                     int(e.reviewed),
+                    e.stability,
                 )
                 for e in entries
             ],
@@ -521,13 +538,14 @@ def load_snapshot(
     conn: sqlite3.Connection, language: Code = "th"
 ) -> tuple[list[Entry], datetime | None]:
     rows = conn.execute(
-        "SELECT note_id, entry, meaning, tier, due, translit, due_in, reviewed FROM lexicon"
+        "SELECT note_id, entry, meaning, tier, due, translit, due_in, reviewed, stability"
+        " FROM lexicon"
         " WHERE language = ? ORDER BY note_id",
         (language,),
     )
     entries = [
-        Entry(nid, entry, meaning, tier, bool(due), translit, due_in, bool(reviewed))
-        for nid, entry, meaning, tier, due, translit, due_in, reviewed in rows
+        Entry(nid, entry, meaning, tier, bool(due), translit, due_in, bool(reviewed), stability)
+        for nid, entry, meaning, tier, due, translit, due_in, reviewed, stability in rows
     ]
     taken_at = _get_meta(conn, _per_language("snapshot_taken_at", language))
     return entries, datetime.fromisoformat(taken_at) if taken_at else None
@@ -1109,8 +1127,9 @@ def log_reading(conn: sqlite3.Connection, text_id: int, reading: Reading, now: d
         conn.execute(
             """INSERT INTO readings (text_id, logged_at, language, mode, rating, finished,
                    words_glossed, words_flagged, audio_speed, listen_only, seconds, check_right,
-                   check_asked)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   check_asked, tokens, known_tokens, looked_up_tokens, known_types,
+                   looked_up_types)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 text_id,
                 now.isoformat(),
@@ -1125,6 +1144,17 @@ def log_reading(conn: sqlite3.Connection, text_id: int, reading: Reading, now: d
                 reading.seconds,
                 reading.check_right,
                 reading.check_asked,
+                *(
+                    (
+                        r.tokens,
+                        r.known_tokens,
+                        r.looked_up_tokens,
+                        r.known_types,
+                        r.looked_up_types,
+                    )
+                    if (r := reading.recognition)
+                    else (None,) * 5
+                ),
             ),
         )
         # Only a text that was served: a dropped or skipped one keeps its status, so the costs
@@ -1196,21 +1226,26 @@ class Progress:
     checked: int = 0
     check_right: int = 0
     check_asked: int = 0
+    # Over the finished readings that kept them: how many, and their words summed (recognition.py).
+    recognition_texts: int = 0
+    recognition: Recognition | None = None
 
 
 def progress(conn: sqlite3.Connection, since: datetime, language: Code = "th") -> Progress:
     rows = conn.execute(
-        """SELECT x.coverage, r.rating, r.check_right, r.check_asked
+        """SELECT x.coverage, r.rating, r.check_right, r.check_asked, r.tokens, r.known_tokens,
+                  r.looked_up_tokens, r.known_types, r.looked_up_types
            FROM readings r JOIN texts x ON x.id = r.text_id
            WHERE r.finished = 1 AND r.logged_at >= ? AND x.language = ?""",
         (since.isoformat(), language),
     ).fetchall()
     ratings = {"too_easy": 0, "about_right": 0, "too_hard": 0, "none": 0}
-    for _, rating, _, _ in rows:
-        ratings[rating or "none"] += 1
+    for row in rows:
+        ratings[row[1] or "none"] += 1
     coverages = [row[0] for row in rows]
     median = statistics.median(coverages) if coverages else None
-    checks = [(right, asked) for _, _, right, asked in rows if asked]
+    checks = [(row[2], row[3]) for row in rows if row[3]]
+    kept = [row[4:] for row in rows if row[4] is not None]
     return Progress(
         len(rows),
         median,
@@ -1218,6 +1253,8 @@ def progress(conn: sqlite3.Connection, since: datetime, language: Code = "th") -
         len(checks),
         sum(right for right, _ in checks),
         sum(asked for _, asked in checks),
+        len(kept),
+        Recognition(*(sum(column) for column in zip(*kept, strict=True))) if kept else None,
     )
 
 
@@ -1487,6 +1524,20 @@ def practiced_days(
         for word in json.loads(stretch):
             days.setdefault(word, set()).add(day)
     return {word: len(d) for word, d in days.items()}
+
+
+def stretch_readings(
+    conn: sqlite3.Connection, since: datetime, language: Code = "th"
+) -> list[tuple[datetime, list[str]]]:
+    """When each text read to the end since `since` was read (naive UTC, the engine's clock), with its
+    stretch words as deck entries. A text left before the end isn't counted: what was met is unknown."""
+    rows = conn.execute(
+        """SELECT r.logged_at, x.stretch FROM readings r
+           JOIN texts x ON x.id = r.text_id
+           WHERE r.finished = 1 AND r.logged_at >= ? AND x.language = ? ORDER BY r.logged_at""",
+        (since.isoformat(), language),
+    )
+    return [(datetime.fromisoformat(logged_at), json.loads(stretch)) for logged_at, stretch in rows]
 
 
 @dataclass(frozen=True)

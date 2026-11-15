@@ -201,6 +201,47 @@ def test_reads_which_words_were_answered_today_and_when_each_comes_due(
         assert not db.scalar(f"select count() from {table} where usn = -1"), table
 
 
+def test_reads_each_notes_fsrs_stability(desktop: Desktop, deck: AnkiDeck) -> None:
+    from anki.cards import FSRSMemoryState
+
+    scored = desktop.add(THAI, "ดี", "good", ivl=5)
+    desktop.add(THAI, "ไป", "go", ivl=5)  # a review card FSRS never scored
+    desktop.add(THAI, "มา", "come")  # new
+    card = desktop.col.get_card(desktop.col.card_ids_of_note(scored)[0])  # type: ignore[arg-type]
+    card.memory_state = FSRSMemoryState(stability=12.5, difficulty=6.0)
+    desktop.col.update_card(card)
+    desktop.sync()
+
+    entries = read(deck)
+
+    assert entries["ดี"].stability == pytest.approx(12.5)
+    assert entries["ไป"].stability is None
+    assert entries["มา"].stability is None
+
+
+def test_reads_the_review_log_of_the_languages_notes(desktop: Desktop, deck: AnkiDeck) -> None:
+    from anki.scheduler.v3 import CardAnswer, Scheduler
+
+    first = desktop.add(THAI, "ดี", "good", ivl=5, due=True)
+    desktop.add(SPANISH, "bien", "good", ivl=5, due=True)  # another language's: left out
+    sched = desktop.col.sched
+    assert isinstance(sched, Scheduler)
+    for rating in (CardAnswer.GOOD, CardAnswer.AGAIN):
+        card = desktop.col.get_card(desktop.col.card_ids_of_note(first)[0])  # type: ignore[arg-type]
+        card.start_timer()
+        states = desktop.col._backend.get_scheduling_states(card.id)
+        sched.answer_card(sched.build_answer(card=card, states=states, rating=rating))
+    desktop.sync()
+
+    reviews = asyncio.run(deck.reviews(LANGUAGES["th"]))
+
+    assert [(r.note_id, r.passed, r.is_review) for r in reviews] == [
+        (first, True, True),
+        (first, False, True),
+    ]
+    assert reviews[0].last_ivl == 5 and reviews[0].at <= reviews[1].at
+
+
 def test_a_suspended_leech_is_read_as_unreviewed(desktop: Desktop, deck: AnkiDeck) -> None:
     desktop.add(THAI, "ฉัน", "I; me", ivl=40)
     leech = desktop.add(THAI, "ยาก", "hard", ivl=5, due=True)
