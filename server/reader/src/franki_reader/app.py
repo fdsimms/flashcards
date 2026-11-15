@@ -183,6 +183,15 @@ marked words, ideas) is in the current language, the `language` setting.
     POST  /api/situations/slow        {language, gender, line} one of their lines spoken slowly: {audio} is the
                                       clip's key, recorded the first time
     GET   /api/situations/audio/{key} a clip of one of the other person's lines (MP3)
+    POST  /api/lessons                {language, scene, narrator?} an audio lesson on a scene
+                                      (lesson.py), made in the background: {id}. `narrator` is an
+                                      English Azure voice (en-US-GuyNeural) for this lesson. French only so far (`languages`
+                                      in GET). At most 2 at a time
+    GET   /api/lessons                ?language= {languages, lessons: [{id, language, scene, title,
+                                      state: making | ready | failed, error, duration_ms,
+                                      created_at, phrases, dialogue}]}, newest first
+    GET   /api/lessons/{id}/audio     the lesson's MP3, once it's ready
+    DELETE /api/lessons/{id}          forgets the lesson and its audio
     POST  /api/pronunciation          {language, reference, audio} a take of the owner's (base64 WAV,
                                       16 kHz mono) scored against `reference` by Azure's
                                       pronunciation assessment: {accuracy, fluency, completeness,
@@ -205,6 +214,7 @@ import hmac
 from collections.abc import Callable
 from dataclasses import asdict, replace
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import anthropic
@@ -223,6 +233,8 @@ from franki_reader import (
     form_primers,
     forms,
     grammar,
+    lesson_service,
+    lesson_writer,
     meanings,
     note_queue,
     production,
@@ -268,6 +280,7 @@ from franki_reader.languages import (
     speech_locale,
     with_deck,
 )
+from franki_reader.lesson_writer import WritePlan
 from franki_reader.lexicon import Entry
 from franki_reader.mnemonics import (
     MakeMnemonics,
@@ -310,6 +323,8 @@ PROGRESS_DAYS = 14
 PAST_TEXTS = 50
 # The longest text /api/speech speaks: a card's word or sentence, never a whole text.
 MAX_SPEECH_CHARS = 500
+# Audio lessons being made at once: each is a dozen calls to Azure, which rate-limits.
+MAX_MAKING = 2
 
 
 class NewTopic(BaseModel):
@@ -441,6 +456,13 @@ class TakeIn(BaseModel):
 class SentencesIn(BaseModel):
     language: Code
     count: int = Field(default=10, ge=1, le=20)
+
+
+class LessonIn(BaseModel):
+    language: Code
+    scene: str = Field(min_length=1, max_length=lesson_writer.MAX_SCENE)
+    # The narrator's voice for this lesson: an English Azure voice, or the settings' when left out.
+    narrator: str | None = Field(default=None, max_length=100)
 
 
 class DrillsIn(BaseModel):
@@ -591,6 +613,8 @@ def create_app(
     give_feedback: situations.GiveFeedback | None = None,
     clips: ClipCache | None = None,
     assess: pronunciation.Assess | None = None,
+    write_lesson: WritePlan | None = None,
+    lessons_dir: Path | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
     # Points whose drill questions are being written, shared by every request (drills.top_up).
@@ -1310,6 +1334,93 @@ def create_app(
             raise HTTPException(404, "No such clip.")
         return FileResponse(path, media_type="audio/mpeg")
 
+    def lesson_out(row: store.StoredLesson) -> dict[str, Any]:
+        return {
+            "id": row.id,
+            "language": row.language,
+            "scene": row.scene,
+            "title": row.title or row.scene,
+            "state": row.state,
+            "error": row.error,
+            "duration_ms": row.duration_ms,
+            "created_at": instant(row.created_at),
+            "phrases": row.plan.get("phrases", []),
+            "dialogue": row.plan.get("dialogue", []),
+        }
+
+    @app.post("/api/lessons", status_code=202, dependencies=authed)
+    async def make_lesson(body: LessonIn, background: BackgroundTasks) -> dict[str, Any]:
+        """Never reads the deck, writes to Anki or grades a card."""
+        if write_lesson is None:
+            raise HTTPException(503, no_claude.replace("check your writing", "write a lesson"))
+        if engine.synthesize is None:
+            raise HTTPException(
+                503,
+                "Azure isn't set up on the server, so it can't speak a lesson"
+                " (AZURE_SPEECH_KEY and AZURE_SPEECH_REGION in server/.env turn this on).",
+            )
+        if lessons_dir is None:
+            raise HTTPException(503, "The server has no folder to keep lessons in.")
+        if body.language not in lesson_service.LESSON_LANGUAGES:
+            raise HTTPException(
+                422, f"Audio lessons aren't made in {LANGUAGES[body.language].name} yet."
+            )
+        scene = " ".join(body.scene.split())
+        if not scene:
+            raise HTTPException(422, "Say what the lesson is about.")
+        narrator = (body.narrator or "").strip() or None
+        if narrator is not None and not lesson_service.is_narrator_voice(narrator):
+            raise HTTPException(
+                422, "The narrator has to be an English voice, such as en-US-GuyNeural."
+            )
+        if sum(1 for row in store.lessons(engine.conn) if row.state == "making") >= MAX_MAKING:
+            raise HTTPException(
+                409, "Two lessons are already being made. Wait for one to finish, then ask again."
+            )
+        lesson_id = store.add_lesson(engine.conn, body.language, scene, engine.clock())
+        synthesize = engine.synthesize
+
+        async def speak_bytes(text: str, voice: str, locale: str) -> bytes:
+            return (await synthesize(text, voice, locale)).audio
+
+        background.add_task(
+            lesson_service.make_lesson,
+            engine.conn,
+            lesson_id,
+            body.language,
+            scene,
+            write=write_lesson,
+            synthesize=speak_bytes,
+            voices=engine.voices_for,
+            lessons_dir=lessons_dir,
+            now=engine.clock,
+            narrator=narrator,
+        )
+        return {"id": lesson_id}
+
+    @app.get("/api/lessons", dependencies=authed)
+    async def lessons_route(language: Code | None = None) -> dict[str, Any]:
+        return {
+            "languages": list(lesson_service.LESSON_LANGUAGES),
+            "lessons": [lesson_out(row) for row in store.lessons(engine.conn, language)],
+        }
+
+    @app.get("/api/lessons/{lesson_id}/audio", dependencies=authed)
+    async def lesson_audio_route(lesson_id: int) -> FileResponse:
+        row = store.get_lesson(engine.conn, lesson_id)
+        path = lesson_service.audio_path(lessons_dir, lesson_id) if lessons_dir else None
+        if row is None or row.state != "ready" or path is None or not path.is_file():
+            raise HTTPException(404, "That lesson has no audio yet.")
+        return FileResponse(path, media_type="audio/mpeg")
+
+    @app.delete("/api/lessons/{lesson_id}", status_code=204, dependencies=authed)
+    async def delete_lesson_route(lesson_id: int) -> Response:
+        if not store.delete_lesson(engine.conn, lesson_id):
+            raise HTTPException(404, "No such lesson.")
+        if lessons_dir is not None:
+            lesson_service.audio_path(lessons_dir, lesson_id).unlink(missing_ok=True)
+        return Response(status_code=204)
+
     @app.post("/api/pronunciation", dependencies=authed)
     async def score_take(body: TakeIn) -> dict[str, Any]:
         """Never writes to Anki or grades a card, and keeps nothing of the take."""
@@ -1506,6 +1617,7 @@ def create_app(
         produced = store.production_spending(engine.conn, since)
         sentenced = store.sentence_spending(engine.conn, since)
         situated, situated_chars = store.situation_spending(engine.conn, since)
+        lessoned, lessoned_chars = store.lesson_spending(engine.conn, since)
         scored = store.pronunciation_spending(engine.conn, since)
         ipa_written = store.ipa_spending(engine.conn, since)
         recorded, recorded_chars = store.recording_spending(engine.conn, since)
@@ -1701,6 +1813,13 @@ def create_app(
                     }
                     for code, (n, c) in situated.items()
                 ],
+            },
+            # Audio lessons (lesson.py): Claude writes one, Azure speaks it; failed ones included.
+            "lessons": {
+                "made": sum(n for n, _ in lessoned.values()),
+                "cost_usd": round(sum(c for _, c in lessoned.values()), 4),
+                "audio_chars": lessoned_chars,
+                "azure_usd": round(azure_usd(lessoned_chars), 4),
             },
             # Takes scored by Azure's pronunciation assessment (pronunciation.py): Azure's alone, an
             # estimate from the seconds sent.
@@ -2190,6 +2309,7 @@ def production_app() -> FastAPI:
     settings = config.load()
     settings.db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = store.connect(settings.db_path)
+    store.fail_interrupted_lessons(conn)
     ask_for: Callable[[list[Entry], Code], Ask] | None = None
     mnemonics: MakeMnemonics | None = None
     explain: Explain | None = None
@@ -2206,6 +2326,7 @@ def production_app() -> FastAPI:
     write_meanings: meanings.WriteMeanings | None = None
     write_questions: comprehension.WriteQuestions | None = None
     write_forms: forms.WriteForms | None = None
+    write_lesson: WritePlan | None = None
     write_ipa: ai_ipa.WriteIpa | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
@@ -2224,6 +2345,7 @@ def production_app() -> FastAPI:
         write_meanings = meanings.claude_meanings(client)
         write_questions = comprehension.claude_questions(client)
         write_forms = forms.claude_forms(client)
+        write_lesson = lesson_writer.claude_plan(client)
         write_ipa = ai_ipa.claude_ipa(client)
 
         def ask_for(entries: list[Entry], language: Code) -> Ask:
@@ -2300,4 +2422,6 @@ def production_app() -> FastAPI:
         # Beside the texts' audio: a text's folder is its id, so "situations" can't be one.
         clips=ClipCache(settings.audio_dir / "situations"),
         assess=speech.assess if speech else None,
+        write_lesson=write_lesson,
+        lessons_dir=settings.audio_dir / "lessons",
     )

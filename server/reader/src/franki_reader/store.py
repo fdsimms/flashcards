@@ -277,6 +277,21 @@ CREATE TABLE IF NOT EXISTS call_costs (
     cost_usd REAL NOT NULL DEFAULT 0,
     audio_chars INTEGER NOT NULL DEFAULT 0
 );
+
+-- Audio lessons (lesson.py): a lesson is asked for by a scene, written and spoken in the
+-- background (state "making"), and is then "ready" with its MP3 in the audio folder, or "failed"
+-- with the reason. `plan` is what the app shows of it (lesson.describe), as JSON.
+CREATE TABLE IF NOT EXISTS lessons (
+    id INTEGER PRIMARY KEY,
+    language TEXT NOT NULL,
+    scene TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    plan TEXT NOT NULL DEFAULT '{}',
+    state TEXT NOT NULL DEFAULT 'making',
+    error TEXT NOT NULL DEFAULT '',
+    duration_ms INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
 """
 
 
@@ -1432,6 +1447,7 @@ CallFeature = Literal[
     "production",
     "situations",
     "pronunciation",
+    "lessons",
     "ipa",
 ]
 
@@ -1489,6 +1505,18 @@ def pronunciation_spending(
 ) -> dict[Code, tuple[int, float]]:
     """Each language's takes scored since `since` (pronunciation.py) and Azure's estimated cost."""
     return _feature_spending(conn, "pronunciation", since)
+
+
+def lesson_spending(
+    conn: sqlite3.Connection, since: datetime
+) -> tuple[dict[Code, tuple[int, float]], int]:
+    """Audio lessons since `since` (lesson.py): each language's lessons made (failed ones included)
+    and what Claude charged for writing them, and the characters Azure spoke."""
+    (chars,) = conn.execute(
+        "SELECT SUM(audio_chars) FROM call_costs WHERE feature = 'lessons' AND created_at >= ?",
+        (since.isoformat(),),
+    ).fetchone()
+    return _feature_spending(conn, "lessons", since), int(chars or 0)
 
 
 def form_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
@@ -2331,3 +2359,105 @@ def queue_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tupl
             (since.isoformat(),),
         )
     }
+
+
+LessonState = Literal["making", "ready", "failed"]
+
+
+@dataclass(frozen=True)
+class StoredLesson:
+    id: int
+    language: Code
+    scene: str
+    title: str
+    plan: dict[str, Any]  # lesson.describe(): title, scene, phrases, dialogue
+    state: LessonState
+    error: str
+    duration_ms: int
+    created_at: datetime
+
+
+def _lesson(row: tuple[Any, ...]) -> StoredLesson:
+    id_, language, scene, title, plan, state, error, duration_ms, created_at = row
+    try:
+        parsed = json.loads(plan)
+    except ValueError:
+        parsed = {}
+    return StoredLesson(
+        id_,
+        language,
+        scene,
+        title,
+        parsed if isinstance(parsed, dict) else {},
+        state,
+        error,
+        duration_ms,
+        datetime.fromisoformat(created_at),
+    )
+
+
+_LESSON_COLUMNS = "id, language, scene, title, plan, state, error, duration_ms, created_at"
+
+
+def add_lesson(conn: sqlite3.Connection, language: Code, scene: str, now: datetime) -> int:
+    """A lesson asked for, not yet written: its id."""
+    with conn:
+        cur = conn.execute(
+            "INSERT INTO lessons (language, scene, created_at) VALUES (?, ?, ?)",
+            (language, scene, now.isoformat()),
+        )
+    assert cur.lastrowid is not None
+    return cur.lastrowid
+
+
+def finish_lesson(
+    conn: sqlite3.Connection, lesson_id: int, title: str, plan: dict[str, Any], duration_ms: int
+) -> None:
+    with conn:
+        conn.execute(
+            "UPDATE lessons SET state = 'ready', title = ?, plan = ?, duration_ms = ?, error = ''"
+            " WHERE id = ?",
+            (title, json.dumps(plan, ensure_ascii=False), duration_ms, lesson_id),
+        )
+
+
+def fail_lesson(conn: sqlite3.Connection, lesson_id: int, error: str) -> None:
+    with conn:
+        conn.execute(
+            "UPDATE lessons SET state = 'failed', error = ? WHERE id = ?", (error, lesson_id)
+        )
+
+
+def get_lesson(conn: sqlite3.Connection, lesson_id: int) -> StoredLesson | None:
+    row = conn.execute(
+        f"SELECT {_LESSON_COLUMNS} FROM lessons WHERE id = ?", (lesson_id,)
+    ).fetchone()
+    return _lesson(row) if row else None
+
+
+def lessons(conn: sqlite3.Connection, language: Code | None = None) -> list[StoredLesson]:
+    """Lessons, newest first, of one language or all."""
+    rows = conn.execute(
+        f"SELECT {_LESSON_COLUMNS} FROM lessons"
+        + (" WHERE language = ?" if language else "")
+        + " ORDER BY id DESC",
+        (language,) if language else (),
+    ).fetchall()
+    return [_lesson(r) for r in rows]
+
+
+def delete_lesson(conn: sqlite3.Connection, lesson_id: int) -> bool:
+    with conn:
+        return conn.execute("DELETE FROM lessons WHERE id = ?", (lesson_id,)).rowcount > 0
+
+
+INTERRUPTED = "The server restarted while this lesson was being made. Make it again."
+
+
+def fail_interrupted_lessons(conn: sqlite3.Connection) -> None:
+    """A lesson still "making" when the server starts was cut off by a restart, since nothing
+    resumes it."""
+    with conn:
+        conn.execute(
+            "UPDATE lessons SET state = 'failed', error = ? WHERE state = 'making'", (INTERRUPTED,)
+        )

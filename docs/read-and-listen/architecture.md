@@ -339,6 +339,60 @@ Practice tab's Situations tool (`src/ui/tools/SituationsTool.tsx`).
 - **Cost:** `situations` in `/api/costs`, Claude's calls (failed ones included) and Azure's estimate
   for the lines spoken. No daily cap (the owner's choice); the costs page shows it.
 
+## Audio lessons
+
+Decided 15 November 2026, the owner's idea: a guided audio course in the manner of a prompt-and-answer
+language course, for the car or a walk. French first, as an experiment (`LESSON_LANGUAGES` in
+`lesson_service.py`; another language written with spaces needs only its voices). Not a replay of the
+texts: a lesson teaches 3 to 5 new phrases on a scene the owner types ("ordering a coffee"), from
+outside the deck. Nothing here reads the deck, grades a card or writes a note; what the learner says
+aloud is never heard by the phone.
+
+- **Claude chooses the content; code builds the lesson** (`lesson.py`). Claude writes a title, a
+  short dialogue and the phrases to teach, each split into parts (`lesson_writer.py`). Generate, then
+  verify: a phrase is kept only if its parts, put back together, are the phrase, and a plan with fewer
+  than 3 kept phrases is asked for again once, then fails. Everything about how the lesson runs
+  (`build_script`) is code, so the spacing is exact and the narrator's English is fixed text:
+  the dialogue is played once; each phrase is said, its meaning given, built up from its last part
+  to the whole (backward build-up) with a silence after each step to repeat, then asked for in
+  English with a silence to answer; earlier phrases are asked again after 1, then 3 more phrases
+  are taught, and once more at the end; the dialogue closes the lesson. Five phrases make about
+  four to five minutes.
+- **Silences are sized to the phrase** (`pause_ms`: 2 s plus 0.7 s a word, 3 to 15 s), so a longer
+  phrase gets longer to say. They are baked into the audio, so they can't be adjusted after the
+  lesson is made. Chosen over a phone that times each clip because one MP3 plays with the screen
+  locked, in a car, with the lock screen's controls, and a stall between clips can't happen.
+- **One MP3 per lesson** (`lesson_audio.py`, `<audio dir>/lessons/<id>.mp3`). Each distinct clip is
+  spoken once by Azure (the narrator in an English voice chosen for the lesson, else the settings'
+  English male voice; the dialogue's A and the teaching in the language's male voice, B in its female
+  voice, as chosen in settings), leveled with
+  `franki_speech.loudness`, laid end to end with generated silences as raw 16-bit audio, and encoded
+  by ffmpeg. The server image installs ffmpeg for it.
+- **The narrator is chosen per lesson** (15 November 2026, the owner's request): `POST /api/lessons`
+  takes an optional English voice (`narrator`, checked by name only, `is_narrator_voice`), kept on the
+  phone (`lessonStorage.ts`) and picked on the lessons screen's Narrator row. English is hidden from the
+  app's language list, so its voice slots can't be reached, and a per-language slot would have
+  widened the voice code for one use.
+- **Made in the background** (`lesson_service.py`): `POST /api/lessons` adds a row in the `lessons`
+  table (`making`) and returns its id; the row becomes `ready` or `failed` with the reason, and the
+  app polls `GET /api/lessons` while any is making. At most 2 are made at once. A row still `making`
+  when the server starts was cut off by a restart and is marked failed.
+- **Cost**: one Claude call (two if the first plan isn't usable) and Azure's characters for each
+  distinct clip, about 600 for five phrases. Its figures are the `lessons` block of `/api/costs`.
+- **Open risk**: Azure's request shapes are unverified against a live key, as for the texts' audio,
+  and the narrator's English voice and the Multilingual `<lang>` handling haven't been listened to.
+  The first real lesson is the check.
+- **In the app** (the owner chose the layout from a mock, 15 November 2026): an Audio lessons row on
+  the shelf, shown only while the language is one the server makes lessons in (`lessonsOffered`,
+  mirroring `LESSON_LANGUAGES`), opens a list with a scene field (`ReadLessons.tsx`; it asks again
+  every 5 seconds while one is being made, and tapping a failed one offers to delete it). A ready
+  lesson opens its player (`ReadLesson.tsx`): play or pause, skip back or forward 15 seconds to hear
+  a phrase again, the lock screen's controls, and the phrases and conversation behind a row, hidden
+  until asked for so the lesson can be heard first. Background playback is on only while it's open.
+- **Not done**: other languages, a seekable scrubber, and anything that adapts a lesson to what the
+  learner already knows. Not run on a device yet: the lock screen controls and background playback
+  are untested.
+
 ## Speaking
 
 Decided 14 November 2026, the owner choosing from a mock (active learning, phase 3), with one setting
