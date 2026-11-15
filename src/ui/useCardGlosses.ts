@@ -3,6 +3,7 @@ import { htmlToText } from '../core/html';
 import type { Card, Note } from '../core/types';
 import type { Api, Language, Word } from '../reader/api';
 import { cardLanguage, glossesOf, glossKey, glossRequests } from '../reader/cardGlosses';
+import type { Pronunciation } from '../reader/mining';
 
 /** What a card needs to gloss its example sentence: Read & Listen's server, its decks, and what a popover's buttons do. */
 export type CardGlossing = {
@@ -12,7 +13,7 @@ export type CardGlossing = {
   /** Plays a word: its deck recording, else the phone's voice (useWordAudio). */
   onPlayWord: (word: string, language: Language) => void;
   /** Opens the note editor on a word not in the deck; true once it's saved. */
-  onAddWord: (word: string, meaning: string, language: Language) => Promise<boolean>;
+  onAddWord: (word: string, meaning: string, language: Language, pronunciation?: Pronunciation) => Promise<boolean>;
 };
 
 /** One card's example sentence as words to tap, with what the popover's buttons do. */

@@ -186,6 +186,8 @@ def test_a_spanish_text_renders_with_spaces_deck_flags_and_glosses_from_the_entr
         "parts": None,
         "lemma": "la ojiva",
         "translit": None,
+        "ipa": None,
+        "ipa_source": None,
         "stretch": True,
         "deck": True,
         "wanikani": False,

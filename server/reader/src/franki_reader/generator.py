@@ -603,6 +603,15 @@ _RECAP_LINE_ASK = (
 )
 
 
+# How the English recap is asked for. One sentence made it string the whole episode together with
+# commas (a comma splice), so it's two short ones, each a sentence that stands on its own.
+_RECAP_ASK = (
+    'In "recap", say in one or two short English sentences what happens in this episode, naming '
+    "the characters. Write plain sentences: end each one with a period, and don't join two "
+    'separate events with a comma (use a period, or "and" or "but" without the comma).'
+)
+
+
 def _story_part(story: StoryContext) -> str:
     return _story_intro(story) + " " + _RECAP_LINE_ASK + " " + _CHOICES_ASK
 
@@ -632,8 +641,7 @@ def _story_intro(story: StoryContext) -> str:
             "Invent two to four characters with names and a place they keep coming back to, and "
             "end the episode with something that can carry on next time. "
             'In "series", give the story a short English name. In "cast", describe the characters '
-            'and the setting in one or two English sentences. In "recap", say in one English '
-            f"sentence what happens in this episode, naming the characters. {plan_ask}"
+            f"and the setting in one or two English sentences. {_RECAP_ASK} {plan_ask}"
         )
     recent = story.recaps[-STORY_RECAPS:]
     so_far = "\n".join(f"- {r}" for r in recent) if recent else "- (no summary)"
@@ -673,10 +681,9 @@ def _story_intro(story: StoryContext) -> str:
     return (
         f"{place}\n{plan}{picked}"
         f"Characters and setting: {story.cast or 'as in the earlier episodes'}\n"
-        f"The story so far, one sentence an episode:\n{so_far}\n"
+        f"The story so far, a recap of each episode:\n{so_far}\n"
         f"{_STORY_RULES}\n"
-        'In "recap", say in one English sentence what happens in this episode, naming the '
-        f'characters. {plan_ask} Leave "series" and "cast" empty.'
+        f'{_RECAP_ASK} {plan_ask} Leave "series" and "cast" empty.'
     )
 
 

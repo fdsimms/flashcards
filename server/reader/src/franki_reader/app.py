@@ -210,6 +210,7 @@ from franki_speech import SpeechClient, SpeechError, is_multilingual, locale_of,
 from pydantic import BaseModel, Field
 
 from franki_reader import (
+    ai_ipa,
     comprehension,
     config,
     drills,
@@ -253,6 +254,7 @@ from franki_reader.gateway import (
     with_timeout,
 )
 from franki_reader.generator import Ask, Form, Usage, claude_ask
+from franki_reader.ipa import ipa_for
 from franki_reader.languages import (
     HIDDEN_LANGUAGES,
     LANGUAGES,
@@ -1217,7 +1219,9 @@ def create_app(
         out: dict[str, Any] = {
             "line": line["line"],
             "english": line["english"],
-            "words": render_sentence(line["line"], lexicon, meanings, translits),
+            "words": render_sentence(
+                line["line"], lexicon, meanings, translits, engine.ai_ipa(language)
+            ),
             "unknown": unknown,
             "done": line["done"],
             "audio": audio,
@@ -1331,7 +1335,8 @@ def create_app(
         return {
             "ready": True,
             "sentences": [
-                render_sentence(text, lexicon, known, translits) for text, _ in sentences
+                render_sentence(text, lexicon, known, translits, engine.ai_ipa(language))
+                for text, _ in sentences
             ],
         }
 
@@ -1447,6 +1452,7 @@ def create_app(
         sentenced = store.sentence_spending(engine.conn, since)
         situated, situated_chars = store.situation_spending(engine.conn, since)
         scored = store.pronunciation_spending(engine.conn, since)
+        ipa_written = store.ipa_spending(engine.conn, since)
         recorded, recorded_chars = store.recording_spending(engine.conn, since)
         rows = by_language.values()
         total = store.Spending(
@@ -1507,6 +1513,20 @@ def create_app(
                         "cost_usd": round(c, 4),
                     }
                     for code, (n, c) in glossed.items()
+                ],
+            },
+            # IPA written for words Wiktionary's tables have none for, a batch at a time (ai_ipa.py).
+            "ipa": {
+                "batches": sum(n for n, _ in ipa_written.values()),
+                "cost_usd": round(sum(c for _, c in ipa_written.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "batches": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in ipa_written.items()
                 ],
             },
             # The vocabulary check's words, glossed once a language (vocab_check.py).
@@ -1647,10 +1667,16 @@ def create_app(
         language = engine.language()
         lexicon = engine.snapshot(language)[1]
         known = engine.meanings(language)
+        marked = store.marked_words(engine.conn, language)
+        pronounced = {
+            w.word: ipa_for(w.word, lexicon, None, engine.ai_ipa(language)) for w in marked
+        }
         return [
             {
                 "word": w.word,
                 "gloss": (gloss := gloss_for(w.word, w.glosses, lexicon, known)),
+                "ipa": (pronounced.get(w.word) or (None, None))[0],
+                "ipa_source": (pronounced.get(w.word) or (None, None))[1],
                 # A compound known from its parts, with no meaning of its own: the parts' meanings.
                 "parts": None if gloss else parts_for(w.word, lexicon, known),
                 "lemma": lemma_for(w.word, lexicon),
@@ -1660,7 +1686,7 @@ def create_app(
                 "times": w.times,
                 "last_marked": instant(w.last_marked),
             }
-            for w in store.marked_words(engine.conn, language)
+            for w in marked
         ]
 
     def grammar_points() -> dict[str, Any]:
@@ -1969,6 +1995,7 @@ def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
         # Not set as the owner's choices stand now, so a point marked since isn't still explained
         # as unmarked.
         unset=exposure.unset_points(store.load_grammar(engine.conn), text.language),
+        ai_ipa=engine.ai_ipa(text.language),
     )
     speaks = engine.audio is not None and engine.synthesize is not None
     for i, line in enumerate(out["lines"]):
@@ -1998,6 +2025,7 @@ def _practice_words(text: StoredText, engine: Engine) -> list[dict[str, Any]]:
         lexicon,
         engine.meanings(text.language),
         {e.text: e.translit for e in entries if e.translit},
+        ai_ipa=engine.ai_ipa(text.language),
     )
     first: dict[str, dict[str, Any]] = {}
     for line in out["lines"]:
@@ -2034,7 +2062,12 @@ def _recap_line(text: StoredText, engine: Engine) -> dict[str, Any] | None:
     entries, lexicon = engine.snapshot(text.language)
     deck_translits = {e.text: e.translit for e in entries if e.translit}
     words = render_line(
-        text.recap_line, text, lexicon, engine.meanings(text.language), deck_translits
+        text.recap_line,
+        text,
+        lexicon,
+        engine.meanings(text.language),
+        deck_translits,
+        ai_ipa=engine.ai_ipa(text.language),
     )
     return {"english": text.recap_english, "words": words}
 
@@ -2116,6 +2149,7 @@ def production_app() -> FastAPI:
     write_meanings: meanings.WriteMeanings | None = None
     write_questions: comprehension.WriteQuestions | None = None
     write_forms: forms.WriteForms | None = None
+    write_ipa: ai_ipa.WriteIpa | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
@@ -2133,6 +2167,7 @@ def production_app() -> FastAPI:
         write_meanings = meanings.claude_meanings(client)
         write_questions = comprehension.claude_questions(client)
         write_forms = forms.claude_forms(client)
+        write_ipa = ai_ipa.claude_ipa(client)
 
         def ask_for(entries: list[Entry], language: Code) -> Ask:
             return claude_ask(client, entries, language)
@@ -2182,6 +2217,7 @@ def production_app() -> FastAPI:
         write_meanings=write_meanings,
         write_questions=write_questions,
         write_forms=write_forms,
+        write_ipa=write_ipa,
         read_wanikani=wanikani_reader(wanikani_token) if wanikani_token else None,
     )
     engine.count_existing_audio()

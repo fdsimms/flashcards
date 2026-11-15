@@ -40,7 +40,7 @@ export type AppRepo = Repo & BackupStore & AnkiLink;
 /** `cardsChanged`: the note wasn't saved, but a card was unsuspended, unburied or unflagged in it. */
 export type NoteEditorResult = { saved: Note } | { deleted: string } | { cardsChanged: true };
 /** A note to edit, or a new one in `deck`, with `model` and `fields` filled in when given (Read & Listen's marked words). */
-export type NoteEditorTarget = { noteId: string } | { deck: string | null; model?: string; fields?: Record<string, string> };
+export type NoteEditorTarget = { noteId: string } | { deck: string | null; model?: string; fields?: Record<string, string>; fieldNotes?: Record<string, string> };
 
 interface AppValue {
   repo: AppRepo;

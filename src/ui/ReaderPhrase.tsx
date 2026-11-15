@@ -3,6 +3,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useW
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../core/failure';
 import type { Api, Language, PhraseExplanation as Explained } from '../reader/api';
+import type { Pronunciation } from '../reader/mining';
 import { Icon, Tappable, ErrorNote } from './kit';
 import { haptic } from './haptics';
 import { Pop } from './motion';
@@ -14,7 +15,8 @@ export type PhraseMining = {
   language: Language;
   deck: string;
   /** Opens the note editor; true once the note is saved. */
-  onAdd: (entry: string, meaning: string) => Promise<boolean>;
+  /** The word's IPA and where it's from when it has some (a phrase has none), for the note's Pronunciation field. */
+  onAdd: (entry: string, meaning: string, pronunciation?: Pronunciation) => Promise<boolean>;
 };
 
 /** Where the selected phrase is on screen (window coordinates): the top of its first word and the bottom of its last. */
