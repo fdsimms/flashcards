@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from franki_speech import Part, SpeechClient, SpeechError, WordMark
+from franki_speech.loudness import LoudnessError, trim_trailing_silence
 
 # How fast Azure speaks the slow recording (1.0 is normal speed): SSML's prosody rate of -20%.
 SLOW_RATE = 0.8
@@ -85,10 +86,20 @@ class TtsFailed(Exception):
     """Azure didn't return audio. The text is still served, without audio for that line."""
 
 
+async def trimmed(spoken: Spoken) -> Spoken:
+    """The line with the silence Azure leaves at its end cut short, so lines don't play with a long
+    gap between them. Left as it was if ffmpeg can't do it (it still plays). Word times are starts
+    measured from the beginning, so cutting the end leaves them right."""
+    try:
+        return Spoken(await trim_trailing_silence(spoken.audio), spoken.marks)
+    except LoudnessError:
+        return spoken
+
+
 def azure_synthesize(client: SpeechClient) -> Synthesize:
     async def synthesize(text: str, voice: str, language: str, rate: float = 1.0) -> Spoken:
         try:
-            return Spoken(*await client.speak(text, voice, rate, language=language))
+            return await trimmed(Spoken(*await client.speak(text, voice, rate, language=language)))
         except SpeechError as e:
             raise TtsFailed(str(e)) from e
 
@@ -98,7 +109,7 @@ def azure_synthesize(client: SpeechClient) -> Synthesize:
 def azure_synthesize_parts(client: SpeechClient) -> SynthesizeParts:
     async def synthesize_parts(parts: Sequence[Part], language: str, rate: float = 1.0) -> Spoken:
         try:
-            return Spoken(*await client.speak_parts(parts, rate, language=language))
+            return await trimmed(Spoken(*await client.speak_parts(parts, rate, language=language)))
         except SpeechError as e:
             raise TtsFailed(str(e)) from e
 

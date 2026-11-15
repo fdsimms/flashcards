@@ -10,6 +10,7 @@ from franki_speech.loudness import (
     LoudnessError,
     measure_loudness,
     normalize_loudness,
+    trim_trailing_silence,
 )
 
 pytestmark = [
@@ -86,3 +87,68 @@ async def test_silence_is_returned_as_it_was() -> None:
 async def test_something_that_isnt_audio_is_refused_with_a_reason() -> None:
     with pytest.raises(LoudnessError, match="couldn't read"):
         await normalize_loudness(b"not audio at all")
+
+
+def tone_then_silence(tone_seconds: float, silence_seconds: float) -> bytes:
+    """A tone followed by silence, as MP3: how Azure ends a line."""
+    return subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            f"sine=frequency=300:duration={tone_seconds}",
+            "-f",
+            "lavfi",
+            "-i",
+            f"anullsrc=r=24000:cl=mono:d={silence_seconds}",
+            "-filter_complex",
+            "[0][1]concat=n=2:v=0:a=1",
+            "-ar",
+            "24000",
+            "-ac",
+            "1",
+            "-f",
+            "mp3",
+            "pipe:1",
+        ],
+        check=True,
+        capture_output=True,
+    ).stdout
+
+
+def seconds(audio: bytes) -> float:
+    """The clip's length, from its decoded samples (a pipe has no duration in its header)."""
+    pcm = subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-i",
+            "pipe:0",
+            "-f",
+            "s16le",
+            "-ar",
+            "24000",
+            "-ac",
+            "1",
+            "pipe:1",
+        ],
+        input=audio,
+        check=True,
+        capture_output=True,
+    ).stdout
+    return len(pcm) / 2 / 24000
+
+
+async def test_silence_at_the_end_is_cut_short_and_the_start_is_kept() -> None:
+    clip = tone_then_silence(1.0, 1.5)
+    trimmed = await trim_trailing_silence(clip)
+    assert 1.0 <= seconds(trimmed) < 1.4
+    assert seconds(clip) > 2.4
+
+
+async def test_a_clip_with_nothing_to_trim_keeps_its_length() -> None:
+    assert abs(seconds(await trim_trailing_silence(tone(0.5))) - 1.5) < 0.15

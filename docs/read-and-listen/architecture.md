@@ -1358,6 +1358,10 @@ in the current language, with when one was last read to the end. Nothing else le
 - In Thai, each space between clauses becomes a 60 ms SSML `<break>` (`THAI_PAUSE` in
   `franki_speech`), since a voice may not pause at a bare space. It applies to the MCP's
   `add_tts_audio` too. Audio already cached keeps no pauses.
+- Each new line's recording has the silence Azure leaves at its end cut down to 0.12 s
+  (`trim_trailing_silence`, ffmpeg; `tts.trimmed`), so lines don't play with a long gap between them in any
+  language. Only the end is cut, so word times stay right. Where ffmpeg fails the line is kept as
+  recorded. Audio already cached keeps its gaps until its text's audio is dropped and re-recorded.
 - Each line is spoken once at normal speed and cached as an MP3 on the volume
   (`READER_AUDIO_DIR/<text>/<line>.mp3`). A new text gets its audio before it counts as ready; a line
   with no audio yet is made when it's first asked for, which covers texts written before the Azure
