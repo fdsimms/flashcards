@@ -160,17 +160,57 @@ class Line:
 
 
 @dataclass(frozen=True)
+class Focus:
+    """A grammar structure the owner is practicing in this scene (one of Your topics): its title
+    and its one-line lead."""
+
+    title: str
+    lead: str = ""
+
+
+@dataclass(frozen=True)
 class Conversation:
     language: Code
     scene: str
     roles: Roles | None  # None until the first turn sets them
     lines: tuple[Line, ...]
+    focus: Focus | None = None
 
 
 # One of their lines as Claude wrote it: {line, english, glosses, done}, plus the roles on the
 # first turn. `feedback` names the words to avoid on a second try.
 Play = Callable[[list[Entry], Conversation, str], Awaitable[tuple[dict[str, Any], Usage]]]
 GiveFeedback = Callable[[Conversation], Awaitable[tuple[dict[str, Any], Usage]]]
+
+
+def _focus_text(focus: Focus) -> str:
+    return f"{focus.title} ({focus.lead})" if focus.lead else focus.title
+
+
+def play_intro(conversation: Conversation) -> str:
+    """The cached start of a turn's system prompt: the role, the scene and, when the owner is
+    practicing a structure, a sentence asking the other person to work it in."""
+    intro = _PLAY.format(language=LANGUAGES[conversation.language].name, scene=conversation.scene)
+    if conversation.focus is None:
+        return intro
+    note = (
+        f"The learner is practicing this structure: {_focus_text(conversation.focus)}. Use it "
+        "naturally in your own lines where the scene allows, and phrase your questions so the "
+        "learner has a natural chance to use it too. Never name it or explain it during the scene."
+    )
+    head, _, words = intro.rpartition("The word list")
+    return f"{head}{note}\n\nThe word list{words}"
+
+
+def feedback_system(conversation: Conversation) -> str:
+    """The feedback prompt, with a sentence about the structure being practiced when there is one."""
+    if conversation.focus is None:
+        return FEEDBACK_SYSTEM
+    return (
+        f"{FEEDBACK_SYSTEM} The learner was practicing this structure: "
+        f"{_focus_text(conversation.focus)}. In each `note`, say how that line used it, or where "
+        "it could have, whenever that is the most useful thing to say about the line."
+    )
 
 
 def word_list(entries: list[Entry]) -> str:
@@ -387,8 +427,7 @@ def claude_play(client: anthropic.AsyncAnthropic) -> Play:
     async def play(
         entries: list[Entry], conversation: Conversation, feedback: str
     ) -> tuple[dict[str, Any], Usage]:
-        language = LANGUAGES[conversation.language].name
-        intro = _PLAY.format(language=language, scene=conversation.scene)
+        intro = play_intro(conversation)
         # The scene is fixed for a conversation and the word list for a snapshot, so both are cached
         # from the second turn on; the conversation, which grows, is the message.
         system: list[BetaTextBlockParam] = [
@@ -412,6 +451,7 @@ def claude_play(client: anthropic.AsyncAnthropic) -> Play:
 def claude_feedback(client: anthropic.AsyncAnthropic) -> GiveFeedback:
     async def give(conversation: Conversation) -> tuple[dict[str, Any], Usage]:
         messages = [{"role": "user", "content": feedback_message(conversation)}]
-        return await _ask(client, FEEDBACK_SYSTEM, messages, FEEDBACK_SCHEMA, FEEDBACK_TOKENS)
+        system = feedback_system(conversation)
+        return await _ask(client, system, messages, FEEDBACK_SCHEMA, FEEDBACK_TOKENS)
 
     return give

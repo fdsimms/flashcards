@@ -1201,6 +1201,30 @@ next episode is the top of the shelf.
   a flag on the row, not a delete, since its texts and readings point at it. Adding a topic with the
   same name brings it back, with any text it still had ready. 
 
+## Your topics
+
+A grammar page the owner asks for by typing a topic ("Serial verbs") that the fixed catalog
+(`grammar_points.json`) doesn't have. Claude writes it in the background from the known words
+(`grammar_topics.py`): a one-line `lead` (the card's headline), an `explanation` in the catalog's
+format and 3 to 6 `examples`, each with its English and the `words` that show the structure. The
+routes are `/api/grammar-topics` (not `/api/topics`, which are the reading topics). A page's status
+is `writing`, `ready` or `failed`; a rewrite or new examples that fail leave the old page `ready`
+with a `note` saying what happened, cleared by the next write that works.
+
+- **Nothing is graded or scheduled.** There is no finder, no exposure count, no due date and no
+  card; the server never touches Anki or FSRS for a page. A Situation may take a page as its
+  `focus` (title and lead): the other person works the structure in and invites the learner to use
+  it, never naming it, and the feedback notes say how the learner's lines used it.
+- **Code verifies the vocabulary and the format, not the grammar.** An example is kept only if it
+  has at most one word outside the known ones (the drills' check), no `|*~` or em dashes, its
+  `words` in the line in order, and isn't a repeat. A failing example is dropped, never repaired;
+  fewer than three left fails the write. Whether the explanation is right is Claude's word alone,
+  so the app labels every page "Written by Claude".
+- **Writes are asked for and capped.** Each write (a page, new examples, a rewrite) is counted when
+  it starts, 10 in a study day across all pages (429 past that), and a language holds 30 pages
+  (409 past that). Writes are costed in `grammar_topic_writes`, shown under `topics` in
+  `/api/costs`, failed calls included. A title is one page per language, any case.
+
 ## Characters
 
 A dialogue's speakers are shown as small drawn characters instead of the A and B badges (12 November 2026).

@@ -83,6 +83,26 @@ export type GrammarPointPage = {
   examples: GrammarExample[];
 };
 
+// Your topics (server/reader topics.py): a grammar page Claude writes for a topic the catalog doesn't have.
+// `status`: writing while the server works on it (poll for it), ready, or failed for a page never written.
+// `note` is a plain message when the last try failed (a failed rewrite keeps the old page, still ready).
+// `explanation` is the catalog's format (paragraphs split by a blank line, `**words in the language**`); each
+// example's `words` are the parts of its line that show the structure.
+export type TopicStatus = 'writing' | 'ready' | 'failed';
+export type TopicExample = { line: string; english: string; words: string[] };
+export type GrammarTopic = {
+  id: number;
+  language: Language;
+  title: string;
+  status: TopicStatus;
+  note: string | null;
+  lead: string;
+  explanation: string;
+  examples: TopicExample[];
+  created_at: string;
+};
+export type GrammarTopicRow = { id: number; title: string; status: TopicStatus; created_at: string };
+
 // `jlpt`: the JLPT level a Japanese point is taught at, 5 for N5 (the easiest) up to 1 for N1; other languages have none.
 export type GrammarPoint = { id: string; name: string; note: string; state: GrammarState; seen?: GrammarSeen; jlpt?: number };
 
@@ -141,7 +161,9 @@ export type SentencePrompt = { id: number; word: string; meaning: string; senten
 // one after it.
 export type SituationRoles = { you: string; them: string; name: string; gender: 'male' | 'female' };
 export type SituationLine = { speaker: 'them' | 'you'; text: string };
-export type SituationConversation = { language: Language; scene: string; roles: SituationRoles | null; lines: SituationLine[] };
+// `focus`: a grammar topic the scene practices (Your topics), so the other person uses it and the feedback comments on it.
+export type SituationFocus = { title: string; lead: string };
+export type SituationConversation = { language: Language; scene: string; roles: SituationRoles | null; lines: SituationLine[]; focus?: SituationFocus };
 // One of their lines: its words split and glossed as a text's are, the words that count as unknown, whether it
 // ends the scene, and its recording's key (null without one).
 export type SituationTurn = { line: string; english: string; words: Word[]; unknown: string[]; done: boolean; audio: string | null; /* null when not recorded: Azure's voices are off, or it failed */ roles?: SituationRoles };
@@ -485,6 +507,13 @@ export function createApi(
       const query = Object.entries(options).filter(([, v]) => v !== undefined).map(([k, v]) => `${k}=${v}`).join('&');
       return call<GrammarPointPage>('GET', `/api/grammar/${encodeURIComponent(id)}${query ? `?${query}` : ''}`);
     },
+    // Your topics (under /api/grammar-topics: /api/topics is Read & Listen's reading topics). The writing calls answer 202 with the topic (status writing); `call` drops a 202's body.
+    topics: (language: Language) => call<{ topics: GrammarTopicRow[] }>('GET', `/api/grammar-topics?language=${language}`),
+    topic: (id: number) => call<GrammarTopic>('GET', `/api/grammar-topics/${id}`),
+    createTopic: async (language: Language, title: string): Promise<GrammarTopic> => (await send('POST', '/api/grammar-topics', { language, title })).json(),
+    moreTopicExamples: async (id: number): Promise<GrammarTopic> => (await send('POST', `/api/grammar-topics/${id}/examples`)).json(),
+    rewriteTopic: async (id: number): Promise<GrammarTopic> => (await send('POST', `/api/grammar-topics/${id}/rewrite`)).json(),
+    deleteTopic: (id: number) => call<void>('DELETE', `/api/grammar-topics/${id}`),
     // Every language's choices by point id (a point not set isn't listed), for Forms practice.
     grammarChoices: () => call<{ choices: Record<string, GrammarChoice> }>('GET', '/api/grammar/choices'),
     setGrammar: (id: string, state: GrammarChoice) =>

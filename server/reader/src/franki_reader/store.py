@@ -293,6 +293,33 @@ CREATE TABLE IF NOT EXISTS lessons (
     duration_ms INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
 );
+
+-- Your topics (grammar_topics.py): grammar pages the owner asked for by name. `status` is
+-- writing, ready or failed; `note` is what to tell the owner about the last write that failed.
+-- `title_key` is the casefolded title, so one topic is one title in a language. Not a reading
+-- topic (`topics`): those are subjects for texts.
+CREATE TABLE IF NOT EXISTS grammar_topics (
+    id INTEGER PRIMARY KEY,
+    language TEXT NOT NULL,
+    title TEXT NOT NULL,
+    title_key TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'writing',
+    note TEXT,
+    lead TEXT NOT NULL DEFAULT '',
+    explanation TEXT NOT NULL DEFAULT '',
+    examples TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    UNIQUE (language, title_key)
+);
+-- Every write Claude was asked for a page, by `topic_id` (kept after the page is deleted, for its
+-- cost and the day's count), cost 0 until it finishes.
+CREATE TABLE IF NOT EXISTS grammar_topic_writes (
+    id INTEGER PRIMARY KEY,
+    topic_id INTEGER NOT NULL,
+    language TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    cost_usd REAL NOT NULL DEFAULT 0
+);
 """
 
 
@@ -2495,3 +2522,167 @@ def fail_interrupted_lessons(conn: sqlite3.Connection) -> None:
         conn.execute(
             "UPDATE lessons SET state = 'failed', error = ? WHERE state = 'making'", (INTERRUPTED,)
         )
+
+
+# ==== Your topics ====
+
+
+@dataclass(frozen=True)
+class GrammarTopic:
+    id: int
+    language: Code
+    title: str
+    status: str  # writing | ready | failed
+    note: str | None
+    lead: str
+    explanation: str
+    examples: list[dict[str, Any]]  # {line, english, words}
+    created_at: datetime
+
+
+_TOPIC_COLUMNS = "id, language, title, status, note, lead, explanation, examples, created_at"
+
+
+def _grammar_topic(row: tuple[Any, ...]) -> GrammarTopic:
+    return GrammarTopic(
+        row[0],
+        row[1],
+        row[2],
+        row[3],
+        row[4],
+        row[5],
+        row[6],
+        json.loads(row[7]),
+        datetime.fromisoformat(row[8]),
+    )
+
+
+def list_grammar_topics(conn: sqlite3.Connection, language: Code) -> list[GrammarTopic]:
+    """The language's pages, newest first."""
+    return [
+        _grammar_topic(r)
+        for r in conn.execute(
+            f"SELECT {_TOPIC_COLUMNS} FROM grammar_topics WHERE language = ? ORDER BY id DESC",
+            (language,),
+        )
+    ]
+
+
+def get_grammar_topic(conn: sqlite3.Connection, topic_id: int) -> GrammarTopic | None:
+    row = conn.execute(
+        f"SELECT {_TOPIC_COLUMNS} FROM grammar_topics WHERE id = ?", (topic_id,)
+    ).fetchone()
+    return _grammar_topic(row) if row else None
+
+
+def find_grammar_topic(conn: sqlite3.Connection, language: Code, title: str) -> GrammarTopic | None:
+    row = conn.execute(
+        f"SELECT {_TOPIC_COLUMNS} FROM grammar_topics WHERE language = ? AND title_key = ?",
+        (language, title.casefold()),
+    ).fetchone()
+    return _grammar_topic(row) if row else None
+
+
+def count_grammar_topics(conn: sqlite3.Connection, language: Code) -> int:
+    (n,) = conn.execute(
+        "SELECT COUNT(*) FROM grammar_topics WHERE language = ?", (language,)
+    ).fetchone()
+    return int(n)
+
+
+def add_grammar_topic(
+    conn: sqlite3.Connection, language: Code, title: str, now: datetime
+) -> GrammarTopic:
+    """A new page, status writing. The title is as typed; one title is one page per language."""
+    with conn:
+        cursor = conn.execute(
+            "INSERT INTO grammar_topics (language, title, title_key, created_at)"
+            " VALUES (?, ?, ?, ?)",
+            (language, title, title.casefold(), now.isoformat()),
+        )
+    topic = get_grammar_topic(conn, int(cursor.lastrowid or 0))
+    assert topic is not None
+    return topic
+
+
+def mark_grammar_topic_writing(conn: sqlite3.Connection, topic_id: int) -> None:
+    with conn:
+        conn.execute("UPDATE grammar_topics SET status = 'writing' WHERE id = ?", (topic_id,))
+
+
+def save_grammar_topic_page(
+    conn: sqlite3.Connection,
+    topic_id: int,
+    lead: str | None,
+    explanation: str | None,
+    examples: list[dict[str, Any]],
+) -> None:
+    """A write that worked: the examples, and the lead and explanation when it wrote them, status
+    ready, the note cleared."""
+    with conn:
+        if lead is not None and explanation is not None:
+            conn.execute(
+                "UPDATE grammar_topics SET lead = ?, explanation = ? WHERE id = ?",
+                (lead, explanation, topic_id),
+            )
+        conn.execute(
+            "UPDATE grammar_topics SET examples = ?, status = 'ready', note = NULL WHERE id = ?",
+            (json.dumps(examples, ensure_ascii=False), topic_id),
+        )
+
+
+def fail_grammar_topic_write(conn: sqlite3.Connection, topic_id: int, note: str) -> None:
+    """A write that didn't work: a page with content keeps it and stays ready, one never written
+    is failed. Either way the owner is told why."""
+    with conn:
+        conn.execute(
+            "UPDATE grammar_topics SET note = ?,"
+            " status = CASE WHEN lead = '' THEN 'failed' ELSE 'ready' END WHERE id = ?",
+            (note, topic_id),
+        )
+
+
+def remove_grammar_topic(conn: sqlite3.Connection, topic_id: int) -> None:
+    with conn:
+        conn.execute("DELETE FROM grammar_topics WHERE id = ?", (topic_id,))
+
+
+def start_grammar_topic_write(
+    conn: sqlite3.Connection, topic_id: int, language: Code, now: datetime
+) -> int:
+    """Counts a write against the day's cap as it starts; `finish_grammar_topic_write` adds its cost."""
+    with conn:
+        cursor = conn.execute(
+            "INSERT INTO grammar_topic_writes (topic_id, language, created_at) VALUES (?, ?, ?)",
+            (topic_id, language, now.isoformat()),
+        )
+    return int(cursor.lastrowid or 0)
+
+
+def finish_grammar_topic_write(conn: sqlite3.Connection, write_id: int, cost_usd: float) -> None:
+    with conn:
+        conn.execute(
+            "UPDATE grammar_topic_writes SET cost_usd = ? WHERE id = ?", (cost_usd, write_id)
+        )
+
+
+def grammar_topic_writes_since(conn: sqlite3.Connection, since: datetime) -> int:
+    (n,) = conn.execute(
+        "SELECT COUNT(*) FROM grammar_topic_writes WHERE created_at >= ?", (since.isoformat(),)
+    ).fetchone()
+    return int(n)
+
+
+def grammar_topic_spending(
+    conn: sqlite3.Connection, since: datetime
+) -> dict[Code, tuple[int, float]]:
+    """Each language with pages written since `since`: how many writes (failed ones included) and
+    what they cost Claude."""
+    return {
+        language: (count, cost)
+        for language, count, cost in conn.execute(
+            "SELECT language, COUNT(*), SUM(cost_usd) FROM grammar_topic_writes"
+            " WHERE created_at >= ? GROUP BY language ORDER BY SUM(cost_usd) DESC",
+            (since.isoformat(),),
+        )
+    }

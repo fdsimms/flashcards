@@ -61,7 +61,7 @@ export function grammarSummary(points: GrammarPoint[]): string {
 }
 
 /** "today", "yesterday", "9 days ago", by study days. */
-function daysAgo(at: Date, now: Date, dayStartsAtHour: number): string {
+export function daysAgo(at: Date, now: Date, dayStartsAtHour: number): string {
   const days = Math.round((studyDayStart(now, dayStartsAtHour).getTime() - studyDayStart(at, dayStartsAtHour).getTime()) / 86400000);
   return days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
 }

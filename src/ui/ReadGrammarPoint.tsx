@@ -209,12 +209,9 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
             <SectionTitle>In your texts</SectionTitle>
             {seen ? <Text style={{ ...type.subhead, color: c.textSecondary, paddingHorizontal: space.l }}>{seen}</Text> : null}
             <GrammarExamples
-              examples={more?.list ?? page.examples}
+              examples={(more?.list ?? page.examples).map((e) => ({ line: e.line, english: e.english, words: e.words, source: { title: e.title, onOpen: () => onOpenText(e) } }))}
               generation={more?.generation ?? 0}
-              canShuffle={canShuffleExamples(page.seen, (more?.list ?? page.examples).length)}
-              shuffling={shuffling}
-              onShuffle={shuffle}
-              onOpenText={onOpenText}
+              action={canShuffleExamples(page.seen, (more?.list ?? page.examples).length) ? { label: 'Shuffle', onPress: shuffle, busy: shuffling } : undefined}
             />
             {shuffleError ? <ErrorNote message={shuffleError} /> : null}
           </View>

@@ -4,9 +4,10 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
 import { grammarPoint } from '../../core/grammar';
 import { DRILL_POINTS, dueWhen, grammarListGroups, type DrillState, type GrammarAnswer, type GrammarListRow } from '../../core/grammarDrills';
-import { ApiError, type Language } from '../../reader/api';
+import { ApiError, type GrammarTopicRow, type Language } from '../../reader/api';
 import { grammarStateWord } from '../../reader/grammar';
 import { LANGUAGES, flaggedName } from '../../reader/languages';
+import { topicLine } from '../../reader/topics';
 import { toolLanguage } from '../../tools/tools';
 import { loadToolPrefs, saveToolPrefs, toolPrefs } from '../../tools/storage';
 import { Button, Card, ErrorNote, Group, Help, NavRow, Screen } from '../kit';
@@ -29,6 +30,8 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
   const [choices, setChoices] = useState<Record<string, DrillState> | null>(null);
   const [answers, setAnswers] = useState<GrammarAnswer[]>([]);
   const [hour, setHour] = useState(4);
+  // Your topics in the language; null until known, and after a failed request (a server older than topics has none).
+  const [topics, setTopics] = useState<{ language: Language; rows: GrammarTopicRow[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [drilling, setDrilling] = useState<string[] | null>(() => {
     try { return params.points ? (JSON.parse(params.points) as string[]) : null; } catch { return null; }
@@ -49,10 +52,11 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
       setHour(settings.dayStartsAtHour);
       if (!readerApi) return;
       setChoices((await readerApi.grammarChoices()).choices);
+      readerApi.topics(language).then((r) => setTopics({ language, rows: r.topics })).catch(() => setTopics(null));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : failureText(e, { what: "Couldn't load your grammar choices.", next: 'Try again.' }));
     }
-  }, [repo, readerApi]);
+  }, [repo, readerApi, language]);
   // Again each time the screen comes back into view: a drill or a choice made on a point's page changes what's due.
   useFocusEffect(useCallback(() => { if (!drilling) load(); }, [load, drilling]));
 
@@ -131,6 +135,20 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
               <View style={{ gap: space.s }}>
                 <ControlLabel>Not practicing</ControlLabel>
                 {rows(groups.other, (r) => grammarStateWord(r.state))}
+              </View>
+            ) : null}
+            {topics && topics.language === language ? (
+              <View style={{ gap: space.s }}>
+                <ControlLabel>Your topics</ControlLabel>
+                {topics.rows.length ? (
+                  <Group>
+                    {topics.rows.map((t, i) => (
+                      <NavRow key={t.id} first={i === 0} label={t.title} detail={topicLine(t, now, hour)} onPress={() => router.push({ pathname: '/grammar-topic', params: { id: String(t.id) } })} />
+                    ))}
+                  </Group>
+                ) : null}
+                <Button label="New topic" variant="secondary" onPress={() => router.push({ pathname: '/grammar-topic-new', params: { language } })} />
+                <Help>Topics are pages Claude writes for you. They aren't checked against a grammar book.</Help>
               </View>
             ) : null}
             <Help>Tap a point to read about it and practice it. Practice here never changes your flashcards.</Help>
