@@ -482,6 +482,7 @@ class Engine:
         rollover = self.rollover()
         start_of_today = study_day_start(self.clock(), rollover, self.zone)
         practiced = store.practiced_days(self.conn, start_of_today, language, rollover, self.zone)
+        today = store.practiced_since(self.conn, start_of_today, language)
         chosen = store.load_grammar(self.conn)
         mine = [p.id for p in grammar.points_for(language)]
         practice = tuple(p for p in mine if chosen.get(p) == "practice")
@@ -524,11 +525,15 @@ class Engine:
         days = self.snapshot_days(language)
         if any_words:
             # The shelf's "due" text: only words already reviewed today (stretch.py).
-            picked = pick_stretch(entries, difficulty.stretch, self.rng, practiced, days, True)
+            picked = pick_stretch(
+                entries, difficulty.stretch, self.rng, practiced, days, True, today
+            )
             return request(picked)
         if settings.stretch_words == "any":
-            return request(pick_stretch(entries, difficulty.stretch, self.rng, practiced, days))
-        choices = pick_stretch(entries, STRETCH_CHOICES, self.rng, practiced, days)
+            return request(
+                pick_stretch(entries, difficulty.stretch, self.rng, practiced, days, today=today)
+            )
+        choices = pick_stretch(entries, STRETCH_CHOICES, self.rng, practiced, days, today=today)
         return request(choices, difficulty.stretch) if choices else request([])
 
     def snapshot_days(self, language: Code) -> int:

@@ -7,7 +7,7 @@ Each step is taken from the level the rated text was written at, not the current
 (`after_reading`): texts written ahead at the old level don't stack their ratings, so three of
 them rated "too hard" move the target one step, as one would.
 
-The coverage target stays between FLOOR and 99%, and stretch words within 1 to 3. A text must land
+The coverage target stays between FLOOR and 99%, and stretch words within 1 to 4. A text must land
 between the target and CEILING_GAP above it: one with more known words than that is too easy and
 is revised, which the 95% floor alone never caught.
 """
@@ -23,7 +23,7 @@ DEFAULT_FLOOR = 0.92
 MAX_FLOOR = 0.99
 FLOOR_STEP = 0.01
 MIN_STRETCH = 1
-MAX_STRETCH = 3
+MAX_STRETCH = 4
 
 RATINGS = ("too_easy", "about_right", "too_hard")
 # The check after reading moves difficulty only with at least this many answers, and only when
