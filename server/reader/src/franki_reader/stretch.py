@@ -22,7 +22,7 @@ review: a word that has matured since is left alone.
 """
 
 import random
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 
 from franki_reader.lexicon import Entry
 
@@ -67,10 +67,14 @@ def pick_stretch(
     practiced: Mapping[str, int] | None = None,
     days: int = 0,
     reviewed_only: bool = False,
+    today: Collection[str] = (),
 ) -> list[Entry]:
     """`practiced` maps a word to the number of earlier days it was a stretch word in a text read.
     `days` is how many study days ago the snapshot of `entries` was read (0: today).
-    `reviewed_only` picks only words reviewed today (the shelf's "due" text)."""
+    `reviewed_only` picks only words reviewed today (the shelf's "due" text).
+    `today` holds the words that were a stretch word in a text already read this study day: they go
+    after every other candidate, so several texts in a day don't keep practicing the same words, but
+    they still fill a pick the other words can't. A pick made only of them drops one word."""
     practiced = practiced or {}
 
     def returns(e: Entry) -> bool:
@@ -98,4 +102,13 @@ def pick_stretch(
     rng.shuffle(young)
     # Stable, so words of equal stability (or none read) stay in their shuffled order.
     young.sort(key=lambda e: float("inf") if e.stability is None else e.stability)
-    return (returning + young + reviewed)[:count]
+    ordered = returning + young + reviewed
+    # A stable split: each group keeps the order above (returning, young, reviewed).
+    fresh = [e for e in ordered if e.text not in today]
+    repeats = [e for e in ordered if e.text in today]
+    chosen = (fresh + repeats)[:count]
+    if len(chosen) > 1 and not any(e.text not in today for e in chosen):
+        # Nothing fresh to add: a pick made only of today's words drops one, so the text isn't
+        # the same words again, and keeps the rest.
+        chosen = chosen[:-1]
+    return chosen

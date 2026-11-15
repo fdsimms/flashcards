@@ -106,12 +106,19 @@ def test_partial_words_are_named_separately() -> None:
     assert "รับ" in model.sent[1][2]["content"]
 
 
-def test_a_stretch_word_used_once_is_sent_back_even_at_full_coverage() -> None:
+def test_a_stretch_word_used_once_is_enough() -> None:
     once = draft("ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ")
-    model = ScriptedModel(once, GOOD)
+    result = run(ScriptedModel(once, GOOD), TextRequest("food", (MANGO,)))
+    assert result.attempts == 1
+    assert result.stretch == ("ข้าวเหนียวมะม่วง",)
+
+
+def test_a_listed_stretch_word_missing_from_the_text_is_sent_back() -> None:
+    missing = draft("ฉัน|อยาก|กิน|ครับ")
+    model = ScriptedModel(missing, GOOD)
     result = run(model, TextRequest("food", (MANGO,)))
     assert result.attempts == 2
-    assert "fewer than 2 times" in model.sent[1][2]["content"]
+    assert "don't appear in the text: ข้าวเหนียวมะม่วง" in model.sent[1][2]["content"]
 
 
 def test_gives_up_after_three_attempts_and_does_not_pass() -> None:
@@ -146,9 +153,9 @@ def test_a_draft_with_no_lines_fails() -> None:
         run(ScriptedModel({"title": "x", "lines": [], "glosses": []}), TextRequest("food"))
 
 
-def test_more_than_three_stretch_words_is_refused() -> None:
+def test_more_than_four_stretch_words_is_refused() -> None:
     with pytest.raises(ValueError):
-        TextRequest("food", tuple(ENTRIES[:4]))
+        TextRequest("food", tuple(ENTRIES[:5]))
 
 
 def test_system_prompt_lists_only_known_words_and_is_stable() -> None:
@@ -296,19 +303,19 @@ def test_a_draft_that_chooses_too_many_goes_back() -> None:
     assert result.stretch == ("ข้าวเหนียวมะม่วง",)
 
 
-def test_a_chosen_word_used_once_goes_back() -> None:
+def test_a_chosen_word_used_once_is_enough() -> None:
     once = draft("ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ")
-    model = ScriptedModel(once, GOOD)
-    run(model, TextRequest("food", (MANGO, ORDER), choose=2))
-    assert "appear fewer than 2 times: ข้าวเหนียวมะม่วง" in model.sent[1][2]["content"]
+    result = run(ScriptedModel(once, GOOD), TextRequest("food", (MANGO, ORDER), choose=2))
+    assert result.attempts == 1
+    assert result.stretch == ("ข้าวเหนียวมะม่วง",)
 
 
 def test_choosing_has_the_same_limits() -> None:
     with pytest.raises(ValueError):
-        TextRequest("food", tuple(ENTRIES[:6]), choose=4)
+        TextRequest("food", tuple(ENTRIES[:6]), choose=5)
     with pytest.raises(ValueError):
         TextRequest("food", (), choose=1)
-    TextRequest("food", tuple(ENTRIES[:6]), choose=3)  # many to choose from is fine
+    TextRequest("food", tuple(ENTRIES[:6]), choose=4)  # many to choose from is fine
 
 
 def test_a_story_is_asked_for_by_name_and_a_dialogue_by_default() -> None:
@@ -489,6 +496,8 @@ def test_a_story_episode_is_told_not_to_retell_and_where_the_season_is_going() -
     assert '"plan"' in first and f"seasons of {SEASON_EPISODES} episodes" in first
     mid = ask(4, "Noi finds out who Ton's uncle is.")
     assert "Don't repeat a beat" in mid and "don't retell" in mid
+    # The decision is the choices' job; the text ends on a moment, not on "she must decide".
+    assert "never on a line saying a character must decide" in mid
     assert "season's plan so far: Noi finds out who Ton's uncle is." in mid
     assert '"plan"' in mid
     assert "decide how it ends" in ask(4)
@@ -686,9 +695,9 @@ def test_a_draft_hiding_words_as_names_is_never_kept_as_the_closest() -> None:
     assert not result.passed and not result.names_ok
 
 
-def test_a_closest_draft_counts_only_the_stretch_words_it_used_enough() -> None:
-    once = draft("ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ")
-    result = run(ScriptedModel(once, once, once), TextRequest("food", (MANGO,)))
+def test_a_closest_draft_counts_only_the_stretch_words_it_used() -> None:
+    missing = draft("ฉัน|อยาก|กิน|ครับ")
+    result = run(ScriptedModel(missing, missing, missing), TextRequest("food", (MANGO,)))
     assert result.passed and result.stretch == ()
     assert result.glosses["ข้าวเหนียวมะม่วง"] == MANGO.meaning  # still glossed, from the deck
 

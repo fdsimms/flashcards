@@ -119,6 +119,25 @@ def test_a_practiced_word_that_has_matured_is_left_alone() -> None:
     assert "ฉัน" not in picked
 
 
+def test_words_used_earlier_today_go_last_but_still_fill_a_pick() -> None:
+    # ดี and มา were practiced in a text read earlier today: ไป goes first, and they follow.
+    picked = pick_stretch(ENTRIES, 3, random.Random(1), today={"ดี", "มา"})
+    assert picked[0].text == "ไป"
+    assert texts(picked[1:]) == {"ดี", "มา"}
+    # With room for two, a repeat is never the only kind of word while a fresh one is left.
+    assert "ไป" in texts(pick_stretch(ENTRIES, 2, random.Random(1), today={"ดี", "มา"}))
+    # With no fresh word at all, the pick is only repeats, so one of them is dropped for now.
+    assert len(pick_stretch(ENTRIES, 3, random.Random(1), today={"ดี", "มา", "ไป"})) == 2
+    assert len(pick_stretch(ENTRIES, 2, random.Random(1), today={"ดี", "มา", "ไป"})) == 1
+    # A single practice word is kept: dropping it would leave the text with none.
+    assert len(pick_stretch(ENTRIES, 1, random.Random(1), today={"ดี", "มา", "ไป"})) == 1
+
+
+def test_a_returning_word_used_earlier_today_does_not_lead_again() -> None:
+    picked = pick_stretch(ENTRIES, 2, random.Random(1), {"ไป": 1}, today={"ไป"})
+    assert "ไป" not in texts(picked)
+
+
 def test_a_suspended_leech_is_never_a_stretch_word() -> None:
     entries = build_entries(
         [note(1, "ยาก", "hard"), note(2, "ไป", "go")],

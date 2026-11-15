@@ -288,6 +288,12 @@ def test_practiced_days_are_the_owners_study_days(conn) -> None:  # type: ignore
     reading_at(datetime(2026, 10, 18, 20, 30))
     assert practiced_days(conn, later, "th", 4, bangkok) == {"ข้าว": 2}
 
+    # Only readings at or after the start of the study day count as today's.
+    from franki_reader.store import practiced_since
+
+    assert practiced_since(conn, datetime(2026, 10, 19, 4), "th") == set()
+    assert practiced_since(conn, datetime(2026, 10, 19, 0), "th") == {"ข้าว"}
+
 
 def test_a_word_marked_again_after_clearing_is_listed_again(conn) -> None:  # type: ignore[no-untyped-def]
     from scripted import GOOD

@@ -707,7 +707,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   roles (who A and B are, like Waiter and Customer, shown above the lines in the reader), lines (speaker, `|`-split text, English), and glosses for words off the list. Revisions are
   appended to the same conversation, never edited, so the model's earlier thinking stays valid.
   `server/reader/src/franki_reader/generator.py`.
-- **A stretch word used fewer than 2 times** sends the text back too, even at full coverage.
+- **A listed stretch word missing from the text** sends it back too, even at full coverage (15 November 2026: a word used once is enough; it was 2).
 - **Prompt caching.** The lexicon is the same on every call that day, so it sits in a cached prefix.
 - **Glosses come with the text.** The model returns an English gloss for every word not in the
   lexicon in the same response, so a tap never needs its own API call. Lexicon words use the
@@ -756,7 +756,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   so they use the text's own meaning. The top-up pass now also asks, once, for the words of the 30
   newest texts that only had the language's meaning, so texts waiting to be read get their own sense
   too.
-- **Stretch words** are 1-3 words, young ones first and then ones reviewed today. No random assignment.
+- **Stretch words** are 1-4 words (15 November 2026: was 1-3, `MAX_STRETCH`), each asked for once or twice (twice for a word with several forms or senses or a longer phrase, once for a simple one), young words first (most fragile, below), then ones reviewed today. No random assignment.
 - **Stretch order: fragile young words first** (15 November 2026, the owner's decision from a review of
   the learning science). The order is words returning from an earlier day (`RETURN_DAYS`), then young
   words not waiting, lowest FSRS stability first (the note's most fragile studied card, read from
@@ -770,6 +770,12 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   next review is a full interval away. Sentences' practice words (`sentences.candidates`) use the
   same pick. This relaxes the 13 November rule only for young words due in 3 or more days; a word
   that is due or past due is still never picked or used.
+- **Several texts in one study day don't repeat their practice words** (15 November 2026, the
+  owner's decision). A word that was a stretch word in a text already read today goes after every
+  other candidate (`pick_stretch`'s `today`, from `store.practiced_since`), returning words
+  included, so it still fills a pick when too few other words qualify but is never the only kind
+  while a fresh word is left. A pick made only of today's words drops one of them (a single
+  practice word is kept), so the next text isn't the same words again.
 - **Never a word due today that isn't reviewed yet** (13 November 2026, the owner's decision, from
   brief principles 4 and 9). Reading a due word in context with its gloss, before its Anki review
   that day, turns the review into short-term recall: it's rated Good and FSRS lengthens an interval
@@ -839,7 +845,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
 - **The model chooses stretch words to fit the topic** (the default). It gets 15 reviewed or young
   words and uses 1 to the current stretch count of them, so a dialogue about ordering food isn't
   bent around "tiger" because tiger happens to be due. The text records the ones it used. A text
-  that uses none, too many, or one fewer than 2 times goes back for revision. The other setting,
+  that uses none or too many goes back for revision. The other setting,
   "Any word" ("Any due word" until 13 November 2026), hands the model that many words to use, which
   keeps every word in rotation at the cost of odder dialogues. It's a setting on the Topics screen (`GET`/`PATCH /api/settings`),
   stored on the server so background writes follow it, and like ratings it applies from the next
@@ -1119,7 +1125,7 @@ in the current language, with when one was last read to the end. Nothing else le
 - Per text: date, language, mode, token count, verified coverage, stretch words, words glossed,
   words flagged unknown, rating, audio speed, listen-only or not, time spent.
 - The rating adjusts the difficulty of texts written after it (too hard: coverage target up 1
-  point, one fewer stretch word; too easy: the reverse), within a 90% to 99% target (92% to start) and 1 to 3
+  point, one fewer stretch word; too easy: the reverse), within a 90% to 99% target (92% to start) and 1 to 4
   stretch words (`server/reader/src/franki_reader/difficulty.py`). A text already waiting in a favorite's queue
   keeps the difficulty it was written at, so a rating shows up one text later; the owner chose that
   over discarding queued texts (19 October 2026). The Milestone 1 exit check reads the log.

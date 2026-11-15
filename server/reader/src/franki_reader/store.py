@@ -1540,6 +1540,17 @@ def stretch_readings(
     return [(datetime.fromisoformat(logged_at), json.loads(stretch)) for logged_at, stretch in rows]
 
 
+def practiced_since(conn: sqlite3.Connection, since: datetime, language: Code = "th") -> set[str]:
+    """The words that were a stretch word in a text read at or after `since` (the start of the
+    study day), so the next text can leave them for later (stretch.py, `today`)."""
+    rows = conn.execute(
+        """SELECT x.stretch FROM readings r
+           JOIN texts x ON x.id = r.text_id WHERE r.logged_at >= ? AND x.language = ?""",
+        (since.isoformat(), language),
+    )
+    return {word for (stretch,) in rows for word in json.loads(stretch)}
+
+
 @dataclass(frozen=True)
 class PastText:
     id: int
