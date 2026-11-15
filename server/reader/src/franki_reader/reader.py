@@ -5,7 +5,7 @@ Generation and coverage)."""
 import re
 from typing import Any
 
-from franki_reader import form_primers, grammar
+from franki_reader import form_primers, grammar, helpers
 from franki_reader.capitalized import demote_capitalized_nouns
 from franki_reader.coverage import Checker, is_word, parse_line, segment_line
 from franki_reader.frequency import rank_of
@@ -109,7 +109,8 @@ def word_out(
     status, or a space or punctuation (status None), which is shown but never tapped. `glosses` and
     `translits` are a text's own, `stretch` its practice words, `point` the grammar point the word
     uses, `form` its grammatical form as {"id", "name"} (the app's chip and primer, form_primers.py), with
-    "preposition" and "phrase" added when a preposition governs it in its line (forms.py)."""
+    "helper" and "phrase" added when a word of its line goes with it (a preposition, an auxiliary: forms.py).
+    `contraction` is a contracted word's parts ("σε + το" for στο: helpers.py)."""
     if not is_word(piece):
         return {
             "text": piece,
@@ -124,6 +125,7 @@ def word_out(
             "rank": None,
             "grammar": None,
             "form": None,
+            "contraction": None,
         }
     entry = lexicon.entry_of(piece)
     gloss = gloss_for(piece, glosses or {}, lexicon, meanings)
@@ -142,6 +144,9 @@ def word_out(
         "rank": None if is_name else rank_of(piece, lexicon),
         "grammar": point,
         "form": form,
+        "contraction": None
+        if is_name
+        else helpers.contraction(getattr(lexicon, "code", ""), piece),
     }
 
 
@@ -202,8 +207,8 @@ def render_line(
         if found is None or found["id"] not in form_names:
             return None
         out = {"id": found["id"], "name": form_names[found["id"]]}
-        if found.get("preposition") and found.get("phrase"):
-            out |= {"preposition": found["preposition"], "phrase": found["phrase"]}
+        if found.get("helper") and found.get("phrase"):
+            out |= {"helper": found["helper"], "phrase": found["phrase"]}
         return out
 
     at = 0

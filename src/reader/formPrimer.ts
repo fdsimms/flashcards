@@ -21,10 +21,11 @@ export function aboutWord(word: Pick<Word, 'text' | 'lemma' | 'gloss'>, formName
 }
 
 /**
- * The popup's line saying where a case's meaning comes from: "в + prepositional: in hoods". Null when no
- * preposition governs the word in its line, so the word's meaning stands alone.
+ * The popup's line saying where a form's meaning comes from: "в + prepositional: in hoods", "a + past
+ * participle: has eaten". Null when no word of its line goes with the form, so the word's meaning
+ * stands alone.
  */
-export function prepositionNote(form: WordForm): string | null {
-  if (!form.preposition || !form.phrase) return null;
-  return `${form.preposition} + ${form.name.replace(/ case$/, '')}: ${form.phrase}`;
+export function helperNote(form: WordForm): string | null {
+  if (!form.helper || !form.phrase) return null;
+  return `${form.helper} + ${form.name.replace(/ case$/, '')}: ${form.phrase}`;
 }

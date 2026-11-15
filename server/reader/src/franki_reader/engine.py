@@ -43,6 +43,7 @@ from franki_reader.generator import (
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
+from franki_reader.reader import lemma_for
 from franki_reader.recognition import measure
 from franki_reader.relisten import Candidate, due
 from franki_reader.store import Reading, Reason, StoredText, Story, Topic
@@ -672,8 +673,19 @@ class Engine:
                         )
                     self._forms_failed[language] = self.clock()
                     continue
-                store.save_forms(self.conn, text.id, forms.keep(language, raw, rows))
+                store.save_forms(
+                    self.conn, text.id, forms.keep(language, raw, rows, self._lemmas(lexicon))
+                )
                 store.save_call_cost(self.conn, "forms", language, self.clock(), used.cost_usd())
+
+    @staticmethod
+    def _lemmas(lexicon: Checker) -> Callable[[str], str | None]:
+        """A word's dictionary form in `lexicon`, for the verbs that take a case (forms.keep)."""
+
+        def lemma(word: str) -> str | None:
+            return lemma_for(word, lexicon)
+
+        return lemma
 
     # ==== Grammar ====
 

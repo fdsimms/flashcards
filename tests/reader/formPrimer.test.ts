@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aboutWord, pieces, prepositionNote } from '../../src/reader/formPrimer';
+import { aboutWord, pieces, helperNote } from '../../src/reader/formPrimer';
 
 describe('pieces', () => {
   it('marks the text between asterisks', () => {
@@ -41,19 +41,23 @@ describe('aboutWord', () => {
   });
 });
 
-describe('prepositionNote', () => {
+describe('helperNote', () => {
   it('says which preposition and case give the meaning, and what it comes to', () => {
-    expect(prepositionNote({ id: 'prepositional', name: 'prepositional case', preposition: 'в', phrase: 'in hoods' })).toBe(
+    expect(helperNote({ id: 'prepositional', name: 'prepositional case', helper: 'в', phrase: 'in hoods' })).toBe(
       'в + prepositional: in hoods',
     );
-    expect(prepositionNote({ id: 'instrumental', name: 'instrumental case', preposition: 'с', phrase: 'with a friend' })).toBe(
+    expect(helperNote({ id: 'instrumental', name: 'instrumental case', helper: 'с', phrase: 'with a friend' })).toBe(
       'с + instrumental: with a friend',
     );
   });
 
-  it('is nothing when no preposition governs the word', () => {
-    expect(prepositionNote({ id: 'instrumental', name: 'instrumental case' })).toBeNull();
-    expect(prepositionNote({ id: 'past', name: 'past tense', preposition: '', phrase: '' })).toBeNull();
-    expect(prepositionNote({ id: 'prepositional', name: 'prepositional case', preposition: 'в' })).toBeNull();
+  it('says it the same way for an auxiliary and a participle', () => {
+    expect(helperNote({ id: 'participle', name: 'past participle', helper: 'a', phrase: 'has eaten' })).toBe('a + past participle: has eaten');
+  });
+
+  it('is nothing when no word of the line goes with the form', () => {
+    expect(helperNote({ id: 'instrumental', name: 'instrumental case' })).toBeNull();
+    expect(helperNote({ id: 'past', name: 'past tense', helper: '', phrase: '' })).toBeNull();
+    expect(helperNote({ id: 'prepositional', name: 'prepositional case', helper: 'в' })).toBeNull();
   });
 });

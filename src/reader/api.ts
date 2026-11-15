@@ -19,7 +19,9 @@ export type TopicState = 'ready' | 'writing' | 'failed' | 'idle';
 
 export type Topic = { id: number; name: string; ready: number; state: TopicState };
 
-export type WordForm = { id: string; name: string; preposition?: string; phrase?: string };
+// `helper` and `phrase` are there when a word of its line goes with the form (a preposition, an auxiliary):
+// "в" and "in hoods".
+export type WordForm = { id: string; name: string; helper?: string; phrase?: string };
 
 export type Word = {
   text: string;
@@ -37,9 +39,12 @@ export type Word = {
   grammar: string | null; // the grammar point this word uses, if the text marks it (TextGrammar)
   // The grammatical form this word has in its line ("instrumental case"), when it's an inflected form and
   // the server could tell: the chip on its popup, which opens that form's FormPrimer. Absent from a server
-  // older than it, and null for a word with no form to note. `preposition` and `phrase` are there when a
-  // preposition in its line governs a case ("в", "in hoods"): the popup says where the "in" comes from.
+  // older than it, and null for a word with no form to note. With a helper the popup says where the
+  // meaning comes from ("в + prepositional: in hoods").
   form?: WordForm | null;
+  // What a contracted word is made of ("σε + το" for στο, Greek, Spanish, French and German). Absent
+  // from a server older than it, and null for any other word.
+  contraction?: string | null;
   // When it's spoken in its line's audio, [start, end] in milliseconds (reader/spoken.ts). Absent
   // for spaces and punctuation, a line recorded without timings, and a server older than them.
   time?: [number, number];
