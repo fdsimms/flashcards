@@ -5,8 +5,8 @@
 // - listen: a line played with its words hidden, to pick its English from four of the text's lines;
 // - word: what a word looked up, marked unknown or practiced means, from four of the text's glosses.
 // The last two are built here from what the text already has, so they cost nothing. Nothing is
-// graded: the score on the first two kinds goes with the reading's log (loggedScore), where a poor
-// one makes the next text a little easier.
+// graded: the score on the first two kinds goes with the reading's log (loggedScore), where poor
+// scores on two texts in a row make the next text a little easier.
 // Pure, so it's tested; ReaderCheck.tsx shows it.
 import type { ReaderText, TextLine, Word } from './api';
 import type { Session } from './session';
@@ -136,13 +136,17 @@ export function steersDifficulty(q: CheckQuestion): boolean {
   return q.kind !== 'word';
 }
 
-// The server moves difficulty on a check only with at least this many answers that count toward it
-// (CHECK_MIN_ASKED in server/reader/src/franki_reader/difficulty.py).
-export const CHECK_MIN_ASKED = 3;
+// The server moves difficulty on a check only on this text's answers and the last text's checked
+// together, with at least this many between them (CHECK_MIN_ASKED in
+// server/reader/src/franki_reader/difficulty.py), so one bad text can't.
+export const CHECK_MIN_ASKED = 6;
+// A text adds to that total only with this many questions that count, so a text with one or two
+// doesn't offer a line about making the next text easier.
+const STEERS_WITH = 3;
 
-/** Whether a check could make the next text easier: it has enough questions that count. */
+/** Whether a check could add to making the next text easier: it has enough questions that count. */
 export function canSteer(questions: CheckQuestion[]): boolean {
-  return questions.filter(steersDifficulty).length >= CHECK_MIN_ASKED;
+  return questions.filter(steersDifficulty).length >= STEERS_WITH;
 }
 
 /** The score logged with the reading: right of asked over the questions that steer difficulty. */

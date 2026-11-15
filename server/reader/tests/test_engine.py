@@ -936,3 +936,47 @@ def test_chosen_words_read_the_deck_again_first() -> None:
     text = run(lambda: e.make_text(topic.id, "th", "ทอน"))
     assert text is not None
     assert reads == ["👅 Languages::🐘 ภาษาไทย"]  # though today's snapshot wasn't a day old
+
+
+def checked(right: int, asked: int) -> Reading:
+    return Reading(
+        "about_right", True, (), (), 1.0, False, 120, check_right=right, check_asked=asked
+    )
+
+
+def read_with(e: Engine, topic_id: int, reading_: Reading) -> None:
+    e.record_reading(run(lambda: fetch(e, topic_id)).id, reading_)
+
+
+def test_a_poor_check_steers_only_together_with_the_last_texts() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    read_with(e, topic.id, checked(1, 4))  # alone: too few answers to count
+    assert store.load_difficulty(e.conn, "th").floor == 0.92
+    read_with(e, topic.id, checked(1, 4))  # with the one before: 2 of 8
+    assert store.load_difficulty(e.conn, "th").floor == 0.93
+
+
+def test_a_good_check_after_a_poor_one_changes_nothing() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    read_with(e, topic.id, checked(0, 4))
+    read_with(e, topic.id, checked(4, 4))  # 4 of 8 is under 60%, so this one does steer
+    assert store.load_difficulty(e.conn, "th").floor == 0.93
+    e2 = engine(ScriptedModel(IN_RANGE))
+    topic2 = store.add_topic(e2.conn, "Food stall", NOW)
+    read_with(e2, topic2.id, checked(3, 4))
+    read_with(e2, topic2.id, checked(3, 4))  # 6 of 8
+    assert store.load_difficulty(e2.conn, "th").floor == 0.92
+
+
+def test_a_check_from_over_a_week_ago_isnt_counted_with_this_one() -> None:
+    clock = Clock()
+    e = engine(ScriptedModel(IN_RANGE), clock=clock)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    first = run(lambda: fetch(e, topic.id))
+    second = run(lambda: fetch(e, topic.id))
+    e.record_reading(first.id, checked(0, 4))
+    clock.now = NOW + timedelta(days=8)
+    e.record_reading(second.id, checked(0, 4))
+    assert store.load_difficulty(e.conn, "th").floor == 0.92

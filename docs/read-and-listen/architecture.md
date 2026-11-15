@@ -118,12 +118,16 @@ Franki's (Client, below).
   unknown or looked up, which were off the list, so missing them is expected and two misses in a
   small check made texts easier. They are still asked and marked, and the end view's "right on this
   text" counts them; the app leaves them out of what it sends, so the server and its API are
-  unchanged (readings before this counted them). Since the server needs three answers, a text with
-  fewer than three questions that count (no questions about what happens, or one) can't move
-  difficulty, and the check's offer then doesn't say a low score makes the next text easier. **A poor score makes the next text easier**
-  (the owner's choice): under 60% right of at least three raises the coverage target a step from
-  the text's own level (`adapt_to_check`, through `after_reading`, as for a rating under Logging),
-  unless the text was rated Too hard, which already did; a good score changes
+  unchanged (readings before this counted them). A text with fewer than three questions that count (no
+  questions about what happens, or one) adds too little, and the check's offer then doesn't say a
+  low score makes the next text easier. **Poor scores on two texts in a row make the next text
+  easier** (the owner's choice, changed 15 November 2026 from one text: three answers are mostly
+  noise, so the server steers on this text's answers and those of the last text that had a check,
+  within 7 days, taken together, `engine.record_reading` and `store.previous_check`): under 60% right
+  of at least six between them raises the coverage target a step from the text's own level
+  (`adapt_to_check`, through `after_reading`, as for a rating under Logging), unless the text was
+  rated Too hard, which already did. A text counts toward the next one's check too, so a run of poor
+  texts can step the target once per text after the first; a good score changes
   nothing, as the rating is what makes texts harder. Nothing is graded or added to the deck. Not done:
   the check on a past text read again (its reading isn't logged), and questions for texts written
   before it.
