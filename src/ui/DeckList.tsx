@@ -373,6 +373,7 @@ export function DeckList(props: {
       <ScrollView
         {...drag.scrollProps}
         contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={readable}
         // Pull down to sync, when sync is on, and to read WaniKani's counts again. Always mounted:
         // sync's settings load a moment after the screen opens, and a refresh control added then
         // moved the content down and showed the large title that had been scrolled out of view at
@@ -389,7 +390,7 @@ export function DeckList(props: {
         )}
       >
         {/* Everything in one view, which a drag measures the rows against and draws its card in. */}
-        <View {...drag.contentProps} style={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+        <View {...drag.contentProps} style={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
           {/* Today's count first; what needs doing sits under it, so a few banners never push it off the screen. */}
           {groups.length || props.extra ? <TodaySummary due={totals.due} fresh={totals.fresh} studied={props.studied} /> : null}
           {props.extrasStrip}
