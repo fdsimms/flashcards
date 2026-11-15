@@ -774,6 +774,14 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   is generated when the chip is tapped. In the app the chip sits after the meaning, and opens a page
   sheet (`ReadFormSheet`) that ends with what the form is in the tapped word. Not done: the marked
   words list (a mark isn't tied to a text) and a card's example sentences show no form.
+  **A case's preposition** (15 November 2026): the same call also gives, for a case, the preposition
+  the line puts it after and the English of the word with it ("в", "in hoods"). Code keeps them only
+  for a form whose name ends in "case" and when the preposition is a word of the line before the word
+  (`forms.keep`); otherwise the form is kept without them. The popup shows them as a line under the
+  meaning ("в + prepositional: in hoods", `prepositionNote`), and the meaning itself leaves the
+  preposition out (the gloss prompts say so), since the preposition is a word of its own with its
+  own tap. Each word's kept form is `{id, preposition, phrase}`; forms kept before this hold only the
+  id, and a text with a case in that shape is asked again by the backfill (`forms.is_current`), once.
 - **A text's meanings are its own** (13 November 2026, changing "Common words are glossed after the text is written" above). A word was glossed
   once, from the first line it turned up in, and that meaning was kept for the language and shown in
   every later text, so Spanish vino ("came" or "wine"), cara ("face" or "expensive") and sobre

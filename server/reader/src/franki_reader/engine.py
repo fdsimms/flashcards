@@ -651,7 +651,9 @@ class Engine:
                     continue
                 # Read again under the lock: the pass that just finished may have kept it.
                 current = store.get_text(self.conn, text.id)
-                if current is None or current.forms is not None:
+                if current is None or (
+                    current.forms is not None and forms.is_current(language, current.forms)
+                ):
                     continue
                 _, lexicon = self.snapshot(language)
                 rows = forms.candidates(current, lexicon)
@@ -804,8 +806,12 @@ class Engine:
             # Texts written before their common words were glossed, newest first, a batch a pass.
             recent = store.recent_texts(self.conn, language, BACKFILL_TEXTS)
             await self.fill_meanings(recent, language)
-            # Texts written before word forms were picked, newest first, a few a pass.
-            await self.fill_forms([t for t in recent if t.forms is None][:BACKFILL_FORMS])
+            # Texts written before word forms were picked, or before their prepositions were, newest
+            # first, a few a pass.
+            stale = [
+                t for t in recent if t.forms is None or not forms.is_current(language, t.forms)
+            ]
+            await self.fill_forms(stale[:BACKFILL_FORMS])
             try:
                 self._check_setup(language)
             except NotAvailable as e:

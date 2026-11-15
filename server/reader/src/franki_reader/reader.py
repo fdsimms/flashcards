@@ -108,7 +108,8 @@ def word_out(
     meaning (or, for a compound with none, its parts' meanings), dictionary form, pronunciation and
     status, or a space or punctuation (status None), which is shown but never tapped. `glosses` and
     `translits` are a text's own, `stretch` its practice words, `point` the grammar point the word
-    uses, `form` its grammatical form as {"id", "name"} (the app's chip and primer, form_primers.py)."""
+    uses, `form` its grammatical form as {"id", "name"} (the app's chip and primer, form_primers.py), with
+    "preposition" and "phrase" added when a preposition governs it in its line (forms.py)."""
     if not is_word(piece):
         return {
             "text": piece,
@@ -185,7 +186,7 @@ def render_line(
     meanings: dict[str, str],
     deck_translits: dict[str, str] | None = None,
     marked: dict[int, str] | None = None,
-    forms: dict[str, str] | None = None,
+    forms: dict[str, dict[str, str]] | None = None,
 ) -> list[dict[str, Any]]:
     """A model line written for `text` (one of its lines, a choice, its recap) as the reader's
     words, glossed from the text's own glosses and translits first. `marked` is the grammar point
@@ -198,9 +199,12 @@ def render_line(
     def form_of(piece: str) -> dict[str, str] | None:
         """The form a word is marked as in this text, if it's still one the catalog has."""
         found = (forms or {}).get(piece.casefold())
-        if found is None or found not in form_names:
+        if found is None or found["id"] not in form_names:
             return None
-        return {"id": found, "name": form_names[found]}
+        out = {"id": found["id"], "name": form_names[found["id"]]}
+        if found.get("preposition") and found.get("phrase"):
+            out |= {"preposition": found["preposition"], "phrase": found["phrase"]}
+        return out
 
     at = 0
     words: list[dict[str, Any]] = []

@@ -1,7 +1,7 @@
 // The text of a word's form sheet (ui/ReadFormSheet.tsx): the pieces of a primer's marked text, and the
 // line that ties the primer back to the word that was tapped. Pure, so it's tested.
 
-import type { Word } from './api';
+import type { Word, WordForm } from './api';
 
 /** A run of a primer's text: `marked` runs are the part to highlight, an ending. */
 export type Piece = { text: string; marked: boolean };
@@ -18,4 +18,13 @@ export function pieces(text: string): Piece[] {
 export function aboutWord(word: Pick<Word, 'text' | 'lemma' | 'gloss'>, formName: string): string {
   const is = word.lemma ? `${word.text} is the ${formName} of ${word.lemma}.` : `${word.text} is the ${formName}.`;
   return word.gloss ? `${is} Here it means "${word.gloss}".` : is;
+}
+
+/**
+ * The popup's line saying where a case's meaning comes from: "в + prepositional: in hoods". Null when no
+ * preposition governs the word in its line, so the word's meaning stands alone.
+ */
+export function prepositionNote(form: WordForm): string | null {
+  if (!form.preposition || !form.phrase) return null;
+  return `${form.preposition} + ${form.name.replace(/ case$/, '')}: ${form.phrase}`;
 }

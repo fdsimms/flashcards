@@ -48,7 +48,8 @@ _REQUEST = """\
 For each numbered word below, give its meaning in English as it is used in that line, in one to four \
 words (a verb as "to go", a past or inflected form as its own meaning: "went", "warm (neuter)"). A \
 word can be listed more than once, with different lines: give each the meaning its own line uses. A \
-compound means what the whole word means, not what its parts mean. Give each word's number, and the \
+compound means what the whole word means, not what its parts mean. Leave out a preposition that \
+comes before the word in the line: "hoods", not "in hoods". Give each word's number, and the \
 word exactly as listed. Plain text only: no `|`, no asterisks, no em dashes.
 
 Words, each numbered and followed by the English of a line it is in:

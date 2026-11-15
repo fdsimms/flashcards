@@ -9,12 +9,18 @@ of что, and also "than"). The answers are kept on the text, so a tap never ma
 asked about once. The call is Claude's reading of the line; code only checks that the answer is a form on
 the list, for a word that was asked about. A form note shown wrongly is worse than none.
 
+For a case (the instrumental, the prepositional) it also gives the preposition the line puts it
+after and the English of the word with it ("в" and "in hoods"), so the popup can say where "in"
+comes from instead of folding it into the word's own meaning. Code keeps those only when the form is a
+case and the preposition is a word of the line before the word; a form is kept without them otherwise.
+
 A word that occurs more than once is asked about at its first appearance. Reading and listening still
 never grade or write cards: this only fills in text for the reader to show.
 """
 
 import json
 import logging
+import re
 from collections.abc import Awaitable, Callable, Iterable
 from typing import Any, cast
 
@@ -34,6 +40,12 @@ log = logging.getLogger(__name__)
 MAX_WORDS = 250
 MAX_TOKENS = 8000
 NONE = "none"
+MAX_PHRASE = 40  # characters of the English of a word with its preposition
+
+# What is kept for a word: its form id, and for a case after a preposition that preposition and the
+# English of the word with it. A text's forms written before the preposition was asked for hold only
+# the id (store.py reads them that way), which is how `is_current` tells them apart.
+Picked = dict[str, str]
 
 _SYSTEM = """\
 You tell an English-speaking learner which grammatical form a {language} word has in the line it \
@@ -49,6 +61,12 @@ Answer "{none}" when none of them fits: the word is not an inflected form of its
 (a different word that happens to look like one), it is a form this list doesn't have, or you are \
 not sure. Judge by the line, not by the spelling alone. Give the word exactly as listed.
 
+For a form that is a case, also give "preposition": the preposition in the line that puts the word in \
+that case, exactly as written there (the line may have other words between them), and "phrase": the \
+English of the word together with that preposition, in one to four words ("in hoods", "with a \
+friend"). Give "" for both when no preposition in the line governs the case, and for every form that \
+is not a case.
+
 Rows, as word | dictionary form | line | English:
 {rows}"""
 
@@ -62,8 +80,13 @@ def schema(language: Code) -> dict[str, Any]:
                 "type": "array",
                 "items": {
                     "type": "object",
-                    "properties": {"word": {"type": "string"}, "form": {"enum": ids}},
-                    "required": ["word", "form"],
+                    "properties": {
+                        "word": {"type": "string"},
+                        "form": {"enum": ids},
+                        "preposition": {"type": "string"},
+                        "phrase": {"type": "string"},
+                    },
+                    "required": ["word", "form", "preposition", "phrase"],
                     "additionalProperties": False,
                 },
             }
@@ -118,18 +141,58 @@ def request_message(language: Code, rows: list[Row]) -> str:
     )
 
 
-def keep(language: Code, raw: Iterable[object], rows: list[Row]) -> dict[str, str]:
+def is_case(language: Code, form: str) -> bool:
+    """Whether `form` is a case, the only kind a preposition governs."""
+    return form_primers.names(language).get(form, "").endswith(" case")
+
+
+def is_current(language: Code, picked: dict[str, Picked]) -> bool:
+    """Whether a text's kept forms were picked with the preposition asked for. A case kept before that
+    holds only an id, so a pass picks the text's forms again; a language with no cases has nothing
+    to add."""
+    return all("preposition" in p or not is_case(language, p["id"]) for p in picked.values())
+
+
+def _preposition_before(word: str, preposition: str, line: str) -> bool:
+    """Whether `preposition` is a word of `line` that comes before `word`'s first appearance in it."""
+    tokens = re.findall(r"\w+", line.casefold())
+    try:
+        at = tokens.index(word.casefold())
+    except ValueError:
+        return False
+    return preposition.casefold() in tokens[:at]
+
+
+def keep(language: Code, raw: Iterable[object], rows: list[Row]) -> dict[str, Picked]:
     """The answers that name a form on the language's list for a word that was asked about, by
-    lower-case word. `none`, anything else and a word nobody asked about are dropped."""
+    lower-case word. `none`, anything else and a word nobody asked about are dropped. A case's
+    preposition and phrase are kept only when the preposition is a word of the line before the
+    word and the phrase is short; otherwise the form is kept without them."""
     ids = form_primers.names(language)
-    asked = {key(r[0]) for r in rows}
-    kept: dict[str, str] = {}
+    asked = {key(r[0]): r for r in rows}
+    kept: dict[str, Picked] = {}
     for item in raw:
         if not isinstance(item, dict):
             continue
         word, form = item.get("word"), item.get("form")
-        if isinstance(word, str) and isinstance(form, str) and form in ids and key(word) in asked:
-            kept.setdefault(key(word), form)
+        if not (isinstance(word, str) and isinstance(form, str) and form in ids):
+            continue
+        row = asked.get(key(word))
+        if row is None or key(word) in kept:
+            continue
+        picked: Picked = {"id": form, "preposition": "", "phrase": ""}
+        preposition, phrase = item.get("preposition"), item.get("phrase")
+        if (
+            is_case(language, form)
+            and isinstance(preposition, str)
+            and isinstance(phrase, str)
+            and preposition.strip()
+            and 0 < len(phrase.strip()) <= MAX_PHRASE
+            and _preposition_before(row[0], preposition.strip(), row[2])
+        ):
+            picked["preposition"] = preposition.strip()
+            picked["phrase"] = phrase.strip()
+        kept[key(word)] = picked
     return kept
 
 
