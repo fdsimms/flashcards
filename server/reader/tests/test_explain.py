@@ -60,7 +60,7 @@ def url(text_id: int, line: int = 0) -> str:
     return f"/api/texts/{text_id}/lines/{line}/explain"
 
 
-def test_explains_the_line_with_its_neighbours_as_context() -> None:
+def test_explains_the_line_with_the_whole_text_as_context() -> None:
     seen: list[ExplainRequest] = []
 
     async def explain(request: ExplainRequest) -> tuple[list[dict[str, str]], Usage]:
@@ -72,7 +72,9 @@ def test_explains_the_line_with_its_neighbours_as_context() -> None:
     assert response.json() == {"points": POINTS, "grammar": []}
     assert len(seen) == 1 and not seen[0].simple
     assert "|" not in seen[0].line and "*" not in seen[0].line
-    assert seen[0].context and seen[0].line not in seen[0].context
+    shown_lines = c.get(f"/api/texts/{text_id}", headers=AUTH).json()["lines"]
+    assert len(seen[0].context) == len(shown_lines) and seen[0].index == 1
+    assert seen[0].line in seen[0].context[1] and seen[0].title
 
 
 def test_asks_once_per_line_and_per_version() -> None:
@@ -139,8 +141,19 @@ def test_clean_drops_blank_and_malformed_points() -> None:
 
 
 def test_the_request_names_the_language_and_context() -> None:
-    message = request_message(ExplainRequest("es", "Ya vengo.", "I'll be right back.", ("Claro.",)))
-    assert "Spanish" in message and "Ya vengo." in message and "- Claro." in message
+    message = request_message(
+        ExplainRequest(
+            "es",
+            "Ya vengo.",
+            "I'll be right back.",
+            ("A: Claro. (Sure.)", "B: Ya vengo. (I'll be right back.)"),
+            title="Un café",
+            index=1,
+        )
+    )
+    assert "Spanish" in message and "Line 2: Ya vengo." in message and "(Un café)" in message
+    assert "1. A: Claro. (Sure.)\n" in message
+    assert "2. B: Ya vengo. (I'll be right back.)   <- the selected line" in message
 
 
 def test_lists_the_grammar_found_in_the_line_with_the_choices_as_they_stand() -> None:

@@ -476,6 +476,15 @@ class ReadingIn(BaseModel):
     check_asked: int | None = Field(default=None, ge=1, le=20)
 
 
+def whole_text_lines(text: StoredText, plain: list[str]) -> tuple[str, ...]:
+    """Every line of the text as "Speaker: text (English)", for an explanation to read a line
+    against what it refers to. The speaker is shown for a dialogue only."""
+    return tuple(
+        f"{f'{ln.speaker}: ' if text.form == 'dialogue' else ''}{p} ({ln.english})"
+        for ln, p in zip(text.lines, plain, strict=True)
+    )
+
+
 def _check_voice(name: str, code: Code) -> None:
     """Refuses a voice that isn't Azure's shape or doesn't speak the language it's chosen for."""
     try:
@@ -812,8 +821,10 @@ def create_app(
                     text.language,
                     plain[line],
                     text.lines[line].english,
-                    tuple(plain[max(0, line - 3) : line] + plain[line + 1 : line + 3]),
+                    whole_text_lines(text, plain),
                     body.simple,
+                    text.title,
+                    line,
                 )
             )
         except ExplainFailed as e:
@@ -853,11 +864,7 @@ def create_app(
                     phrase,
                     plain[line],
                     text.lines[line].english,
-                    # The whole text, so a phrase can be read against what it refers to.
-                    tuple(
-                        f"{f'{ln.speaker}: ' if text.form == 'dialogue' else ''}{p} ({ln.english})"
-                        for ln, p in zip(text.lines, plain, strict=True)
-                    ),
+                    whole_text_lines(text, plain),
                     body.simple,
                     text.title,
                     line,

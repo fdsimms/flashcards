@@ -31,7 +31,9 @@ SYSTEM = (
     "(`phrase`, copied exactly from the line) and what to know about it (`note`, one to three "
     f"short sentences, under {MAX_CHARS} characters). Give a literal translation only when it "
     "shows how the phrase works. Do not use em dashes. Do not repeat the whole line's translation: "
-    "the learner can already see it."
+    "the learner can already see it. The whole text is there only so you can see what the line "
+    "refers to. Use it only when it changes or sharpens a point (what a pronoun points to, what a "
+    "reply answers, the speaker's tone); never retell or summarize the text."
 )
 
 SIMPLE = (
@@ -124,9 +126,12 @@ class ExplainRequest:
     language: Code
     line: str  # plain text, as shown
     english: str
-    # The lines around it, plain text, so a pronoun or a reply makes sense.
+    # The whole text, every line in order as "Speaker: text (English)" (this line too), so a
+    # pronoun or a reply makes sense. `index` is this line's place in it.
     context: tuple[str, ...] = ()
     simple: bool = False
+    title: str = ""
+    index: int = 0
 
 
 # The points, and what asking for them cost.
@@ -165,27 +170,37 @@ class CheckRequest:
 CheckNatural = Callable[[CheckRequest], Awaitable[tuple[dict[str, str], Usage]]]
 
 
+def whole_text(context: tuple[str, ...], title: str, index: int) -> list[str]:
+    """The text as numbered lines, the selected one marked, for a prompt; none without context."""
+    if not context:
+        return []
+    out = [f"The whole text{f' ({title})' if title else ''}:"]
+    out.extend(
+        f"{i + 1}. {c}" + ("   <- the selected line" if i == index else "")
+        for i, c in enumerate(context)
+    )
+    return out
+
+
 def request_message(request: ExplainRequest) -> str:
-    lines = [f"Language: {LANGUAGES[request.language].name}", f"Line: {request.line}"]
+    lines = [f"Language: {LANGUAGES[request.language].name}"]
+    lines.extend(whole_text(request.context, request.title, request.index))
+    lines.append(f"Line {request.index + 1}: {request.line}")
     lines.append(f"English: {request.english}")
-    if request.context:
-        lines.append("The text around it:")
-        lines.extend(f"- {c}" for c in request.context)
     return "\n".join(lines)
 
 
 def phrase_message(request: PhraseRequest) -> str:
-    lines = [f"Language: {LANGUAGES[request.language].name}"]
-    if request.context:
-        lines.append(f"The whole text{f' ({request.title})' if request.title else ''}:")
-        lines.extend(
-            f"{i + 1}. {c}" + ("   <- the selected line" if i == request.index else "")
-            for i, c in enumerate(request.context)
-        )
-    lines.append(f"Line {request.index + 1}: {request.line}")
-    lines.append(f"English: {request.english}")
-    lines.append(f"Selected phrase: {request.phrase}")
-    return "\n".join(lines)
+    base = ExplainRequest(
+        request.language,
+        request.line,
+        request.english,
+        request.context,
+        request.simple,
+        request.title,
+        request.index,
+    )
+    return request_message(base) + f"\nSelected phrase: {request.phrase}"
 
 
 def check_message(request: CheckRequest) -> str:
