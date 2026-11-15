@@ -904,10 +904,9 @@ class Engine:
         return [by_id[i] for i in due(candidates, today, listens)]
 
     def record_reading(self, text_id: int, reading: Reading) -> None:
-        """Logs a session and adjusts the difficulty of the text's language, stepping from the level
-        the text was written at (difficulty.after_reading). A second reading of a text that's
-        already been read is ignored, so a retried request can't log twice or move difficulty
-        twice."""
+        """Logs a session and, after a poor check, switches the text's language to Easier
+        (difficulty.after_reading). A second reading of a text that's already been read is ignored, so
+        a retried request can't log twice or move difficulty twice."""
         status = store.text_status(self.conn, text_id)
         if status is None:
             raise NotFound(text_id)
@@ -931,18 +930,8 @@ class Engine:
             if before and right is not None:
                 right, asked = right + before[0], asked + before[1]
         store.log_reading(self.conn, text_id, reading, self.clock())
-        written = store.written_at(self.conn, text_id)
-        if text is not None and written is not None:
+        if text is not None:
             current = store.load_difficulty(self.conn, text.language)
-            floor, stretch = written
-            after = after_reading(
-                current,
-                replace(
-                    current, floor=floor, stretch=current.stretch if stretch is None else stretch
-                ),
-                reading.rating,
-                right,
-                asked,
-            )
+            after = after_reading(current, right, asked)
             if after != current:
                 store.save_difficulty(self.conn, after, text.language)

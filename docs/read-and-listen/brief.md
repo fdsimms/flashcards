@@ -108,8 +108,8 @@ constraints.
    > rating moves it between 90% and 99%, and a text more than 4 points above the target is too
    > easy and is revised like one under it. The 90% below became 85%. See `architecture.md`.
 
-   > **Changed on 15 November 2026 by the owner.** Back to the research: the target is 95%, with texts
-   > up to 98%, and it no longer moves with ratings. See `architecture.md`, Generation and coverage.
+   > **Changed on 15 November 2026 by the owner.** Back to the research: the target is 95% (Standard)
+   > or 97% (Easier), with texts up to 98%. See `architecture.md`, Generation and coverage.
 
    > **Changed on 26 October 2026 by the owner.** A text under the floor is still revised, but if
    > no attempt reaches it, the closest attempt is shown when it's at least 90% known words, with a
@@ -156,12 +156,14 @@ constraints.
    feeding it to FSRS would corrupt tuned intervals.
 10. **Let Frankie pick the topic.** Scenario and topic choice stay in the user's hands, since
     interest raises learning.
-11. **Adapt from the passage rating.** "Too hard" raises the coverage target for the next text; "too
-    easy" lowers it.
+11. **Choose the text difficulty.** The coverage target is Standard (95%) or Easier (97%) known words,
+    chosen in Settings, and a poor score on the check after reading switches to Easier.
 
-    > **Changed on 15 November 2026 by the owner.** A rating no longer changes the number of stretch
-    > words: they are words already studied, so they don't make a text harder. It moves the coverage
-    > target only, between 95% and 97%. See `architecture.md`, Generation and coverage.
+    > **Changed on 15 November 2026 by the owner.** This was "Adapt from the passage rating": a
+    > rating moved the coverage target and cut or added stretch words. A rating is a feeling, which
+    > tracks fluency more than learning, the range is two points, and stretch words are words
+    > already studied, so they don't make a text harder. The end-of-text rating is gone. See
+    > `architecture.md`, Generation and coverage and Logging.
 12. **Cap mining** (*personal*). Tapped words go to a review queue, and at most a set number per day
     go to Anki after Frankie approves them, to protect the ~300 reviews/day ceiling.
 13. **No new review load** (*personal*). Nothing this mode does creates Anki cards or reviews

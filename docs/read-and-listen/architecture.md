@@ -99,7 +99,7 @@ Franki's (Client, below).
   reconsidered if the taps show lines are often off, and coloring the chip when it disagrees with the
   situation.
 - **Check what you understood** (13 November 2026, the owner chose from a mock). After Done, the end
-  view offers a few multiple-choice questions above the rating, one at a time, each marked at once
+  view offers a few multiple-choice questions, one at a time, each marked at once
   with the line that answers it (its words, English and audio). Three kinds, built when Done is
   tapped (`src/reader/check.ts`, pure and tested; `src/ui/ReaderCheck.tsx`): up to two about what
   happens, then one line to recognize by ear (two when there are none about what happens), then up to
@@ -120,15 +120,13 @@ Franki's (Client, below).
   text" counts them; the app leaves them out of what it sends, so the server and its API are
   unchanged (readings before this counted them). A text with fewer than three questions that count (no
   questions about what happens, or one) adds too little, and the check's offer then doesn't say a
-  low score makes the next text easier. **Poor scores on two texts in a row make the next text
-  easier** (the owner's choice, changed 15 November 2026 from one text: three answers are mostly
+  low score switches new texts to Easier. **Poor scores on two texts in a row switch new texts to
+  Easier** (the owner's choice, changed 15 November 2026 from one text: three answers are mostly
   noise, so the server steers on this text's answers and those of the last text that had a check,
   within 7 days, taken together, `engine.record_reading` and `store.previous_check`): under 60% right
-  of at least six between them raises the coverage target a step from the text's own level
-  (`adapt_to_check`, through `after_reading`, as for a rating under Logging), unless the text was
-  rated Too hard, which already did. A text counts toward the next one's check too, so a run of poor
-  texts can step the target once per text after the first; a good score changes
-  nothing, as the rating is what makes texts harder. Nothing is graded or added to the deck. Not done:
+  of at least six between them switches the language's text difficulty to Easier (97% known words;
+  `difficulty.after_reading`, below). A text counts toward the next one's check too. A good score
+  changes nothing, and nothing switches back: only the Text difficulty setting does. Nothing is graded or added to the deck. Not done:
   the check on a past text read again (its reading isn't logged), and questions for texts written
   before it.
 - **Use the lines yourself** (14 November 2026, the owner chose from a mock). Under the check, the
@@ -143,11 +141,11 @@ Franki's (Client, below).
   recording. Built from the text's own lines, English and audio, so it costs nothing (Explain asks
   only when tapped, as in the reader), and nothing is logged, sent or graded: the score at the end
   ("right the first time") is shown and forgotten.
-- **Listen only** (brief, design principle 6). Once a text is rated "About right", the end view
-  offers to play it again with the Thai hidden (a text already read can be played this way whatever
-  it was rated: Listen again, below); the lines show who's speaking instead, and "Show the
-  text" brings the words back. The reading is then logged with `listen_only` true. The brief's
-  "unlocks for a text" is read as "for the text just rated", since a text is never served twice.
+- **Listen only** (brief, design principle 6). The end view offers to play a finished text again with
+  the Thai hidden (until 15 November 2026 only once it was rated "About right", and the rating is
+  gone: below); the lines show who's speaking instead, and "Show the text" brings the words back. The
+  reading is then logged with `listen_only` true. A text already read can be played this way too:
+  Listen again, below.
 - While audio plays, the text scrolls to keep the line being spoken in view.
 - **Repeat line** in the player plays the current line again, for shadowing. One chip steps through
   Off, 2×, 3×, 5× and ∞ (a count is the line's total plays; ∞ goes until turned off). The count isn't
@@ -218,9 +216,9 @@ Franki's (Client, below).
 - The reader's playback speed and the highlight switch are kept between launches, in the Keychain
   next to the passphrase (`src/reader/storage.ts`).
 - **Progress** on the language's settings page (on the topics screen before the shelf): finished texts over the last 14 days with their median coverage and
-  ratings (no goal is set; the Milestone 1 exit check's 10 texts was dropped), and the coverage
-  target and practice word count new texts are written at, so the effect of a rating is visible.
-  Only finished readings count.
+  the check after reading's score (no goal is set; the Milestone 1 exit check's 10 texts was dropped), and
+  the coverage target and practice word count new texts are written at. The language's settings page
+  also has the Text difficulty choice. Only finished readings count.
 - **Marked words**: every word marked unknown in a reading, newest first, with its gloss and whether
   it's in the deck. "Clear" hides a word until it's marked again (`cleared_words` table).
 - **Mining** (12 November 2026, by the owner's decision, ahead of the Milestone 1 exit check where
@@ -241,7 +239,7 @@ Franki's (Client, below).
   usual count), and keeps the text apart from the topic's queue (`texts.focus`): it isn't served
   to a plain request or counted as ready. Words the deck hasn't studied are left out, and if none
   are left the request says so.
-- Finishing a text (tapping Done) logs the reading once, rated or not, which takes it off the ready
+- Finishing a text (tapping Done) logs the reading once, which takes it off the ready
   queue. A text left before Done (Back, or closing the app) isn't logged, so it's served again next
   time instead of a new one being written. A listen-only pass comes after Done, so leaving it by
   any route still logs the reading as finished.
@@ -754,23 +752,27 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   ceiling after 3 attempts is served anyway (too easy is never a reason to drop one), choosing the
   attempt closest to the range. The request names the range, and the prompt tells the model to write
   natural target-language speech rather than word-for-word English idioms.
-- **The target is 95% to 98%** (15 November 2026, the owner's decision: not to go against the
-  research, which finds 95% the least adequate for reading and, since speech can't be reread, for
-  listening; below it comprehension varied widely). `DEFAULT_FLOOR` and `MIN_FLOOR` are 95%
-  (`difficulty.py`): a language starts there and a "too easy" rating can't take it lower. "Too hard"
-  raises it a step at a time, to 97% (`MAX_FLOOR`). A text may hold at most 98% known words
-  (`MAX_CEILING`; the ceiling is 4 points above the target but never higher): above that it has about
-  one new word in 50, too few to learn from, and the research calls 98% the comfortable end of
-  adequate coverage. **A rating moves only this target, not the number of practice words** (the
-  owner's correction, the same day): practice words are words already studied, so they count as known
-  and more of them repeat a few words more without making a text harder, while the words outside the
-  deck are what makes it harder, and from 95% to 97% a text goes from about 5 new words in 100 to
-  about 3. A floor saved by an older server is read as the nearest in 95% to 97%
-  (`store.load_difficulty`), and the practice word count is the one saved.
+- **The target is 95% or 97%, and texts hold at most 98%** (15 November 2026, the owner's decision:
+  not to go against the research, which finds 95% the least adequate for reading and, since speech
+  can't be reread, for listening; below it comprehension varied widely). **Standard is 95%, Easier is
+  97%** (`STANDARD_FLOOR` and `EASIER_FLOOR`, `difficulty.py`), chosen per language in Settings (Text
+  difficulty) or switched to Easier by a poor check after reading. A text may hold at most 98% known
+  words (`MAX_CEILING`; the ceiling is 4 points above the target but never higher): above that it has
+  about one new word in 50, too few to learn from, and the research calls 98% the comfortable end of
+  adequate coverage. **The end-of-text rating is gone** (the owner's decision, the same day, after
+  working through it): a rating is a feeling, which tracks fluency more than learning, the range is
+  two points wide, and a prompt after every text for that was a poor use of a tap; the check after
+  reading, which measures understanding, and effective coverage (`recognition.py`), which measures
+  lookups of known words, are the better signals. **The number of practice words isn't a difficulty
+  setting**: they are words already studied, so they count as known and more of them repeat a few
+  words more without making a text harder, while the words outside the deck are what makes it harder
+  (from 95% to 97% about 5 new words in 100 become about 3). Nothing moves the practice word count;
+  a saved one is kept.
   **The cost the owner already found:** at 95% to 98% a text can hold very few words the learner
   hasn't studied, which is why it was lowered on 12 November. The practice words, the grammar
-  points and the guess-first prompt are what keep a text from teaching nothing; if it's too easy,
-  rate it Too easy and the next one is written nearer 95%. The reader's "fewer than usual"
+  points and the guess-first prompt are what keep a text from teaching nothing; 95% is as many new
+  words as this allows, so a text that is still too easy is a reason for the challenge mode in
+  issue #298, not a rating. The reader's "fewer than usual"
   note (`underFloor`) now shows for any text under 95%, which after 3 attempts is the closest one
   that is still at 85% or more (`MINIMUM`, unchanged: raising it to 90% would drop more texts for
   cost, and is the owner's call).
@@ -966,9 +968,9 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   that uses none or too many goes back for revision. The other setting,
   "Any word" ("Any due word" until 13 November 2026), hands the model that many words to use, which
   keeps every word in rotation at the cost of odder dialogues. It's a setting on the Topics screen (`GET`/`PATCH /api/settings`),
-  stored on the server so background writes follow it, and like ratings it applies from the next
-  text written. It's separate from difficulty on purpose: ratings decide how much coverage
-  (the practice word count is separate); this decides only which words.
+  stored on the server so background writes follow it, and like the text difficulty it applies from
+  the next text written. It's separate from difficulty on purpose: the text difficulty decides how
+  much coverage (the practice word count is separate); this decides only which words.
 - **Names.** The model wraps a person's, pet's or place's name in tildes (`~Kasia~|mieszka`). A
   name is left out of the coverage count, for and against, so it never sends a draft back for an
   unknown word. The server limits it so the mark can't be used to get past the floor: at most
@@ -1242,17 +1244,16 @@ in the current language, with when one was last read to the end. Nothing else le
 
 - Per text: date, language, mode, token count, verified coverage, stretch words, words glossed,
   words flagged unknown, rating, audio speed, listen-only or not, time spent.
-- The rating adjusts the difficulty of texts written after it: too hard raises the coverage target 1
-  point, too easy lowers it 1 point, within 95% to 97% (a text up to 98%); the practice word count
-  (1 to 4) isn't moved by it (`server/reader/src/franki_reader/difficulty.py`). A text already waiting in a favorite's queue
-  keeps the difficulty it was written at, so a rating shows up one text later; the owner chose that
-  over discarding queued texts (19 October 2026). The Milestone 1 exit check reads the log.
-- **A rating steps from the level the rated text was written at** (13 November 2026, the owner's
-  decision from a review of the teaching; `after_reading`). Each text stores its coverage target
-  (`floor`). Too hard leaves the target at the higher of the current one and a step above the text's;
-  too easy is the mirror. Before this each rating stepped from the current level, so three texts
-  written ahead at 95% and all rated too hard moved the target three steps before a text at the new
-  level was read. A poor check steps from the text's level the same way.
+- **Text difficulty** (15 November 2026, the owner's decision; it replaces the end-of-text rating).
+  Words, rating, audio speed and the rest are logged per text as before, but a rating moves nothing:
+  an older app that still sends one has it logged and ignored, and the end view no longer asks. The
+  coverage target is one of two for each language, **Standard (95% known words)** or **Easier (97%)**,
+  chosen on the language's settings page (`PUT /api/difficulty`), applying from the next text
+  written, or switched to Easier by a poor score on the check after reading
+  (`difficulty.after_reading`). A text already waiting in a favorite's queue keeps the difficulty it was
+  written at; the owner chose that over discarding queued texts (19 October 2026). The Milestone 1
+  exit check reads the log. A floor saved by an older server is read as Standard or Easier by
+  `store.load_difficulty` (96% or more is Easier).
 - A reading posted twice for the same text (a retried request) is counted once.
 - Each text also records the model that actually answered (a refusal fallback can change it), its
   tokens and its cost in dollars, dropped texts included, so the real cost per text can be read

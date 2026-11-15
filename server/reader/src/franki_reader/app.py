@@ -113,6 +113,8 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/grammar/{id}           one point's page: {id, state, seen, choices (its language's,
                                       for the related points), examples: [{text_id, title, line,
                                       english, words}]}, lines from texts read, the latest first
+    PUT   /api/difficulty             {level: standard | easier}: the text difficulty (95% or 97% known
+                                      words) for the language, from the next text written
     PUT   /api/grammar/stretch        {uses: 1 to 4}: how many times the next texts may use grammar
                                       not set (the Grammar dial on the wrap-up screen); answers as
                                       GET /api/grammar does
@@ -228,6 +230,7 @@ from franki_reader import (
 )
 from franki_reader.collection import AnkiDeck, SyncSettings
 from franki_reader.coverage import parse_line
+from franki_reader.difficulty import EASIER_FLOOR, STANDARD_FLOOR
 from franki_reader.engine import Engine, NotAvailable, NotFound
 from franki_reader.explain import (
     CheckNatural,
@@ -464,6 +467,10 @@ class FrankiCountsIn(BaseModel):
 
 class ChoiceIn(BaseModel):
     choice: int = Field(ge=0)
+
+
+class DifficultyIn(BaseModel):
+    level: Literal["standard", "easier"]
 
 
 class ReadingIn(BaseModel):
@@ -1882,6 +1889,17 @@ def create_app(
         current = store.load_difficulty(engine.conn, language)
         store.save_difficulty(engine.conn, replace(current, unset_uses=body.uses), language)
         return grammar_points()
+
+    @app.put("/api/difficulty", dependencies=authed)
+    async def set_difficulty(body: DifficultyIn) -> dict[str, Any]:
+        """Text difficulty for the current language (Settings: Standard 95% or Easier 97% known
+        words), from the next text written. Answers as `next` in GET /api/progress does."""
+        language = engine.language()
+        current = store.load_difficulty(engine.conn, language)
+        floor = EASIER_FLOOR if body.level == "easier" else STANDARD_FLOOR
+        changed = replace(current, floor=floor)
+        store.save_difficulty(engine.conn, changed, language)
+        return {"floor": changed.floor, "stretch": changed.stretch}
 
     # Before /api/grammar/{point_id}, which would take "level" for a point.
     @app.put("/api/grammar/level", dependencies=authed)

@@ -3,7 +3,6 @@ import random
 from collections.abc import Awaitable, Callable
 from dataclasses import replace
 from datetime import datetime, timedelta
-from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -426,55 +425,16 @@ def test_top_up_stops_quietly_without_a_key() -> None:
     assert e.topic_state(store.list_topics(e.conn)[0]) == "idle"
 
 
-def test_the_difficulty_follows_the_rating() -> None:
+def test_a_rating_no_longer_moves_the_difficulty() -> None:
     e = engine(ScriptedModel(IN_RANGE))
     topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
 
     e.record_reading(text.id, reading("too_hard"))
 
-    assert store.load_difficulty(e.conn) == Difficulty(0.96, 2)
-    assert store.get_topic(e.conn, topic.id).ready == 0  # type: ignore[union-attr]
-
-
-def test_ratings_of_texts_written_ahead_at_the_old_level_do_not_stack() -> None:
-    e = engine(ScriptedModel(IN_RANGE))
-    topics = [store.add_topic(e.conn, name, NOW) for name in ("Food", "Taxi", "Market")]
-    # Three texts written at the starting level before any is read.
-    texts = [run(partial(fetch, e, topic.id)) for topic in topics]
-    assert store.written_at(e.conn, texts[0].id) == (0.95, 2)
-
-    for text in texts:
-        e.record_reading(text.id, reading("too_hard"))
-
-    # One step, as one rating would, not three.
-    assert store.load_difficulty(e.conn) == Difficulty(0.96, 2)
-
-
-def test_too_easy_on_texts_written_ahead_does_not_overshoot() -> None:
-    e = engine(ScriptedModel(IN_RANGE))
-    store.save_difficulty(e.conn, Difficulty(0.97, 2))
-    topics = [store.add_topic(e.conn, name, NOW) for name in ("Food", "Taxi")]
-    texts = [run(partial(fetch, e, topic.id)) for topic in topics]
-
-    for text in texts:
-        e.record_reading(text.id, reading("too_easy"))
-
-    # One step down from where the texts were written, as one rating would, not two.
-    assert store.load_difficulty(e.conn) == Difficulty(0.96, 2)
-
-
-def test_a_rating_leaves_the_practice_word_count_alone() -> None:
-    e = engine(ScriptedModel(IN_RANGE))
-    topic = store.add_topic(e.conn, "Food stall", NOW)
-    text = run(lambda: fetch(e, topic.id))
-    e.conn.execute("UPDATE texts SET stretch_count = NULL")
-    store.save_difficulty(e.conn, Difficulty(0.95, 3))
-
-    e.record_reading(text.id, reading("too_hard"))
-
-    # They're words already studied, so a harder rating doesn't change how many a text carries.
-    assert store.load_difficulty(e.conn) == Difficulty(0.96, 3)
+    # Still logged, from an older app that sends one, but it changes nothing.
+    assert store.load_difficulty(e.conn) == Difficulty()
+    assert e.conn.execute("SELECT rating FROM readings").fetchone()[0] == "too_hard"
 
 
 def test_a_repeated_reading_is_ignored() -> None:
@@ -482,10 +442,10 @@ def test_a_repeated_reading_is_ignored() -> None:
     topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
 
-    e.record_reading(text.id, reading("too_hard"))
-    e.record_reading(text.id, reading("too_hard"))
+    e.record_reading(text.id, checked(0, 8))
+    e.record_reading(text.id, checked(0, 8))
 
-    assert store.load_difficulty(e.conn) == Difficulty(0.96, 2)
+    assert store.load_difficulty(e.conn) == Difficulty(0.97)
     assert e.conn.execute("SELECT COUNT(*) FROM readings").fetchone()[0] == 1
 
 
@@ -957,7 +917,7 @@ def test_a_poor_check_steers_only_together_with_the_last_texts() -> None:
     read_with(e, topic.id, checked(1, 4))  # alone: too few answers to count
     assert store.load_difficulty(e.conn, "th").floor == 0.95
     read_with(e, topic.id, checked(1, 4))  # with the one before: 2 of 8
-    assert store.load_difficulty(e.conn, "th").floor == 0.96
+    assert store.load_difficulty(e.conn, "th").floor == 0.97
 
 
 def test_a_good_check_after_a_poor_one_changes_nothing() -> None:
@@ -965,7 +925,7 @@ def test_a_good_check_after_a_poor_one_changes_nothing() -> None:
     topic = store.add_topic(e.conn, "Food stall", NOW)
     read_with(e, topic.id, checked(0, 4))
     read_with(e, topic.id, checked(4, 4))  # 4 of 8 is under 60%, so this one does steer
-    assert store.load_difficulty(e.conn, "th").floor == 0.96
+    assert store.load_difficulty(e.conn, "th").floor == 0.97
     e2 = engine(ScriptedModel(IN_RANGE))
     topic2 = store.add_topic(e2.conn, "Food stall", NOW)
     read_with(e2, topic2.id, checked(3, 4))

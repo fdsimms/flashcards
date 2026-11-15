@@ -233,7 +233,7 @@ def test_poor_checks_on_two_texts_make_the_next_text_easier_and_show_in_progress
     assert c.get("/api/progress", headers=AUTH).json()["next"] == {"floor": 0.95, "stretch": 2}
     assert read(c, "about_right", check_right=1, check_asked=4) == 204
     progress = c.get("/api/progress", headers=AUTH).json()
-    assert progress["next"] == {"floor": 0.96, "stretch": 2}
+    assert progress["next"] == {"floor": 0.97, "stretch": 2}
     assert progress["check"] == {"texts": 2, "right": 2, "asked": 8}
 
 

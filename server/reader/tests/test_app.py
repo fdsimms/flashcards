@@ -430,7 +430,8 @@ def test_progress_counts_finished_texts_and_says_how_hard_the_next_is() -> None:
     assert progress["finished"] == 2
     assert progress["median_coverage"] == 0.95
     assert progress["ratings"] == {"too_easy": 0, "about_right": 1, "too_hard": 1, "none": 0}
-    assert progress["next"] == {"floor": 0.96, "stretch": 2}
+    # A rating (an older app still sends one) is counted but moves nothing.
+    assert progress["next"] == {"floor": 0.95, "stretch": 2}
     assert c.get("/api/progress").status_code == 401
 
 
@@ -1360,3 +1361,17 @@ def test_the_listens_wanted_per_text_set_the_schedule() -> None:
     now[0] = NOW + timedelta(days=3)
     assert len(c.get("/api/relisten?listens=1", headers=AUTH).json()) == 1
     assert c.get("/api/relisten?listens=2", headers=AUTH).status_code == 422
+
+
+def test_text_difficulty_is_set_for_the_current_language() -> None:
+    c = client()
+    assert c.put("/api/difficulty", json={"level": "easier"}, headers=AUTH).json() == {
+        "floor": 0.97,
+        "stretch": 2,
+    }
+    assert c.get("/api/progress", headers=AUTH).json()["next"] == {"floor": 0.97, "stretch": 2}
+    assert (
+        c.put("/api/difficulty", json={"level": "standard"}, headers=AUTH).json()["floor"] == 0.95
+    )
+    assert c.put("/api/difficulty", json={"level": "hard"}, headers=AUTH).status_code == 422
+    assert c.put("/api/difficulty", json={"level": "easier"}).status_code == 401

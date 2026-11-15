@@ -13,7 +13,7 @@ from typing import Any, Literal
 
 from franki_reader import grammar
 from franki_reader.comprehension import Question, from_json
-from franki_reader.difficulty import MAX_FLOOR, MIN_FLOOR, Difficulty
+from franki_reader.difficulty import EASIER_FLOOR, STANDARD_FLOOR, Difficulty
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Choice, Form, Generated, Line
 from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, VOICE_SLOTS, Code, with_deck
@@ -781,13 +781,6 @@ def save_text(
         )
     assert cur.lastrowid is not None
     return cur.lastrowid
-
-
-def written_at(conn: sqlite3.Connection, text_id: int) -> tuple[float, int | None] | None:
-    """The coverage target and stretch word count a text was written at; the count is None for a
-    text written before it was recorded."""
-    row = conn.execute("SELECT floor, stretch_count FROM texts WHERE id = ?", (text_id,)).fetchone()
-    return (row[0], row[1]) if row else None
 
 
 def set_choice(conn: sqlite3.Connection, text_id: int, index: int) -> str:
@@ -1685,18 +1678,19 @@ def clear_word(conn: sqlite3.Connection, word: str, now: datetime) -> None:
 
 
 # v2: the range moved down on 12 November 2026 (95% was the old lowest target). The coverage target
-# now runs from 95% to 97% (difficulty.py), so a floor saved before that, anywhere between 90% and
-# 99%, is read as the nearest in that range.
+# is now one of two (difficulty.py), so a floor saved before that, at any level, is read as the nearer:
+# 96% or more is Easier, anything below is Standard.
 _DIFFICULTY_KEY = "difficulty_v2"
 
 
 def load_difficulty(conn: sqlite3.Connection, language: Code = "th") -> Difficulty:
-    """Each language has its own, moved by ratings of texts in that language."""
+    """Each language has its own text difficulty, chosen in Settings and switched to Easier by a poor
+    check after reading."""
     raw = _get_meta(conn, _per_language(_DIFFICULTY_KEY, language))
     if not raw:
         return Difficulty()
     saved = json.loads(raw)
-    saved["floor"] = round(min(MAX_FLOOR, max(MIN_FLOOR, saved.get("floor", MIN_FLOOR))), 2)
+    saved["floor"] = EASIER_FLOOR if saved.get("floor", STANDARD_FLOOR) >= 0.96 else STANDARD_FLOOR
     return Difficulty(**saved)
 
 

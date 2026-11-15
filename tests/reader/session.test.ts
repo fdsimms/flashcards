@@ -18,11 +18,10 @@ test('marking a word unknown toggles', () => {
   expect(isFlagged(s, 'ทอน')).toBe(false);
 });
 
-test('the log carries the rating, the words and whole seconds', () => {
+test('the log carries the words and whole seconds', () => {
   let s = startSession(TEXT, 1_000);
   s = toggleFlag(lookUp(s, 'ทอน'), 'ทอน');
-  expect(toLog(s, 96_400, 'about_right', true)).toEqual({
-    rating: 'about_right',
+  expect(toLog(s, 96_400, true)).toEqual({
     finished: true,
     words_glossed: ['ทอน'],
     words_flagged: ['ทอน'],
@@ -33,7 +32,7 @@ test('the log carries the rating, the words and whole seconds', () => {
 });
 
 test('a clock that went backwards logs zero seconds', () => {
-  expect(toLog(startSession(TEXT, 5_000), 1_000, null, false).seconds).toBe(0);
+  expect(toLog(startSession(TEXT, 5_000), 1_000, false).seconds).toBe(0);
 });
 
 test('durations read as minutes and seconds', () => {
@@ -43,19 +42,19 @@ test('durations read as minutes and seconds', () => {
 
 test('the log carries the speed audio last played at', () => {
   const s = startSession(TEXT, 0);
-  expect(toLog(s, 0, null, false).audio_speed).toBeNull();
-  expect(toLog(heard(heard(s, 0.8), 0.9), 0, null, false).audio_speed).toBe(0.9);
+  expect(toLog(s, 0, false).audio_speed).toBeNull();
+  expect(toLog(heard(heard(s, 0.8), 0.9), 0, false).audio_speed).toBe(0.9);
 });
 
 test('a listen-only pass is logged', () => {
   const s = startSession(TEXT, 0);
-  expect(toLog(s, 0, null, false).listen_only).toBe(false);
-  expect(toLog(listenedOnly(s), 0, 'about_right', true).listen_only).toBe(true);
+  expect(toLog(s, 0, false).listen_only).toBe(false);
+  expect(toLog(listenedOnly(s), 0, true).listen_only).toBe(true);
 });
 
 test('the log carries the check after reading only when it was taken', () => {
   const s = startSession(TEXT, 0);
-  expect(toLog(s, 0, null, true, { right: 3, asked: 5 })).toMatchObject({ check_right: 3, check_asked: 5 });
-  expect(toLog(s, 0, null, true, { right: 0, asked: 0 })).not.toHaveProperty('check_asked');
-  expect(toLog(s, 0, null, true)).not.toHaveProperty('check_asked');
+  expect(toLog(s, 0, true, { right: 3, asked: 5 })).toMatchObject({ check_right: 3, check_asked: 5 });
+  expect(toLog(s, 0, true, { right: 0, asked: 0 })).not.toHaveProperty('check_asked');
+  expect(toLog(s, 0, true)).not.toHaveProperty('check_asked');
 });

@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ApiError, type Api, type GrammarChoice, type Language, type Length, type PastText, type Rating, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
+import { ApiError, type Api, type GrammarChoice, type Language, type Length, type PastText, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../reader/deckWords';
 import { marksIn, withMark, type HideableMark, type Mark } from '../reader/marks';
 import { scrollTarget, type Box } from '../reader/follow';
@@ -57,12 +57,12 @@ import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readabl
 
 /**
  * The reader: a text split into words by the server, a gloss on tap, audio line by line, and a
- * rating at the end (docs/read-and-listen/architecture.md, Client). Nothing here answers a card.
+ * check after it (docs/read-and-listen/architecture.md, Client). Nothing here answers a card.
  *
  * Layout: the title, practice words, the lines (each with
  * its own replay button, an EN button that shows that line's English alone, and an explain button
  * that opens Claude's note on its grammar and vocabulary under it), then Done, with
- * the player pinned under the scroll view. Done swaps the lines for the end view (rating, stats,
+ * the player pinned under the scroll view. Done swaps the lines for the end view (the check, stats,
  * words marked unknown). The gloss popover is a transparent Modal, so a tap's page coordinates
  * place it directly.
  *
@@ -74,12 +74,11 @@ import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readabl
  * ones (length, more or fewer like this) and offers the next text on the shelf. Play all plays the
  * shelf's texts one after another, logging each as read once its last line has played.
  *
- * Reading again: a past text opens here with nothing logged (no Done, no rating, no marking words
- * unknown), since a second reading isn't recorded. One rated About right can be played with the
- * text hidden straight away.
+ * Reading again: a past text opens here with nothing logged (no Done, no marking words unknown),
+ * since a second reading isn't recorded. It can be played with the text hidden straight away.
  *
- * Listen only: once a text is rated About right, the end view offers to play it again with the
- * text hidden (brief, design principle 6). The lines show who's speaking instead, and Show the text
+ * Listen only: the end view offers to play a finished text again with the text hidden (brief,
+ * design principle 6). The lines show who's speaking instead, and Show the text
  * brings the words back. The reading is logged as listen-only.
  *
  * A story written with paragraph marks reads as continuous text (`paragraphs`): a gap between
@@ -165,7 +164,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const [grammarChosen, setGrammarChosen] = useState<Record<string, GrammarChoice>>({});
   const chooseGrammar = (id: string, state: GrammarChoice) => setGrammarChosen((prev) => ({ ...prev, [id]: state }));
   const [ended, setEnded] = useState(false);
-  const [rating, setRating] = useState<Rating | null>(null);
   // The check after reading (ReaderCheck): its questions, built at Done; what was picked for each,
   // null until it's started; and whether it's showing in place of the end view.
   const [check, setCheck] = useState<CheckQuestion[]>([]);
@@ -352,7 +350,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     setText(null);
     setError(null);
     setEnded(false);
-    setRating(null);
     setCheck([]);
     setCheckPicks(null);
     setChecking(false);
@@ -502,7 +499,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     if (!text || !session || logged.current || source.kind !== 'shelf') return;
     logged.current = true;
     try {
-      await api.logReading(text.id, toLog(session, Date.now(), null, true));
+      await api.logReading(text.id, toLog(session, Date.now(), true));
     } catch {
       // The reading is lost, not your place: carry on either way.
     }
@@ -513,13 +510,13 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   };
 
   // Writes the story's next episode from the end view. The server writes it only once this one is
-  // logged as read, so this logs it now (with the rating picked, if any), then waits for the episode.
+  // logged as read, so this logs it now, then waits for the episode.
   const writeNextEpisode = async () => {
     if (!text || !session || review || source.kind !== 'shelf' || logged.current || nextEpisode === 'writing') return;
     logged.current = true;
     setNextEpisode('writing');
     try {
-      await api.logReading(text.id, toLog(session, Date.now(), rating, true, checkPicks ? loggedScore(check, checkPicks) : null));
+      await api.logReading(text.id, toLog(session, Date.now(), true, checkPicks ? loggedScore(check, checkPicks) : null));
       recordExtraRead(text.language ?? 'th');
     } catch {
       // The reading is lost, not your place: carry on either way.
@@ -578,7 +575,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
       logged.current = true;
       setLeaving(then);
       try {
-        await api.logReading(text.id, toLog(session, Date.now(), rating, true, checkPicks ? loggedScore(check, checkPicks) : null));
+        await api.logReading(text.id, toLog(session, Date.now(), true, checkPicks ? loggedScore(check, checkPicks) : null));
         // Counts toward today's extra for this language (Daily extras).
         recordExtraRead(text.language ?? 'th');
       } catch {
@@ -841,7 +838,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
               </Card>
             ) : null}
             {source.kind === 'past' && !listenOnly && hasAudio ? (
-              <ToggleRow label={source.text.rating === 'about_right' ? 'You rated this about right' : 'Hear it again'}>
+              <ToggleRow label="Hear it again">
                 <HeaderAction label="Listen without the text" onPress={listenWithoutText} />
               </ToggleRow>
             ) : null}
@@ -1047,32 +1044,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
               <CheckCard text={text} questions={check} picks={checkPicks} onStart={() => { setCheckPicks((prev) => prev ?? {}); setChecking(true); }} />
             ) : null}
             <LineDrillCard text={text} onStart={(kind) => { player.pause(); setDrilling(kind); }} onRetell={() => { player.pause(); setDrilling('retell'); }} />
-            <Card style={{ gap: space.s }}>
-              <Text style={{ ...type.title, color: c.text }}>How was this one?</Text>
-              <Help>Your answer nudges the next text between 95% and 97% known words.</Help>
-              <View accessibilityRole="radiogroup" style={{ gap: space.s }}>
-                {RATINGS.map((r) => {
-                  const selected = rating === r.value;
-                  return (
-                    <Tappable
-                      key={r.value}
-                      onPress={() => { haptic.select(); setRating(selected ? null : r.value); }}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected }}
-                      accessibilityLabel={`${r.label}. ${r.hint}`}
-                      scaleTo={0.98}
-                      style={{
-                        borderWidth: 1, borderRadius: radius.m, paddingHorizontal: space.l, paddingVertical: space.m, gap: 2,
-                        borderColor: selected ? c.accent : c.border, backgroundColor: selected ? c.accentFill : undefined,
-                      }}
-                    >
-                      <Text style={{ ...type.headline, color: selected ? c.accent : c.text }}>{r.label}</Text>
-                      <Text style={{ ...type.footnote, color: selected ? c.accent : c.textSecondary }}>{r.hint}</Text>
-                    </Tappable>
-                  );
-                })}
-              </View>
-            </Card>
             <View style={{ flexDirection: 'row', gap: space.s }}>
               <Stat value={`${Math.round(text.coverage * 100)}%`} label="Words you know" />
               <Stat value={String(session.glossed.length)} label="Words looked up" />
@@ -1108,7 +1079,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
                 {steerError ? <ErrorNote message={steerError} /> : null}
               </Card>
             ) : null}
-            {rating === 'about_right' && hasAudio ? (
+            {hasAudio ? (
               <View style={{ gap: space.xs }}>
                 <Button label="Listen without the text" variant="secondary" onPress={listenWithoutText} />
                 <Help>Plays it again with the text hidden.</Help>
@@ -1200,12 +1171,6 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     </Screen>
   );
 }
-
-const RATINGS: { value: Rating; label: string; hint: string }[] = [
-  { value: 'too_easy', label: 'Too easy', hint: 'More unfamiliar words next time' },
-  { value: 'about_right', label: 'About right', hint: 'Keep it like this' },
-  { value: 'too_hard', label: 'Too hard', hint: 'Fewer unfamiliar words next time' },
-];
 
 /** The reading size for a text's language. */
 function readStyle(text: ReaderText, thaiFont: ThaiFont, textSize: TextSize) {
