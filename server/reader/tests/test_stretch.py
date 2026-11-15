@@ -94,12 +94,11 @@ def test_words_used_earlier_today_go_last_but_still_fill_a_pick() -> None:
     assert texts(picked[1:]) == {"ดี", "มา"}
     # With room for two, a repeat is never the only kind of word while a fresh one is left.
     assert "ไป" in texts(pick_stretch(ENTRIES, 2, random.Random(1), today={"ดี", "มา"}))
-    # With no fresh word at all, the pick is the repeats rather than nothing.
-    assert texts(pick_stretch(ENTRIES, 3, random.Random(1), today={"ดี", "มา", "ไป"})) == {
-        "ดี",
-        "มา",
-        "ไป",
-    }
+    # With no fresh word at all, the pick is only repeats, so one of them is dropped for now.
+    assert len(pick_stretch(ENTRIES, 3, random.Random(1), today={"ดี", "มา", "ไป"})) == 2
+    assert len(pick_stretch(ENTRIES, 2, random.Random(1), today={"ดี", "มา", "ไป"})) == 1
+    # A single practice word is kept: dropping it would leave the text with none.
+    assert len(pick_stretch(ENTRIES, 1, random.Random(1), today={"ดี", "มา", "ไป"})) == 1
 
 
 def test_a_returning_word_used_earlier_today_does_not_lead_again() -> None:

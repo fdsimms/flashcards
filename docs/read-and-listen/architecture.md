@@ -761,7 +761,8 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   owner's decision). A word that was a stretch word in a text already read today goes after every
   other candidate (`pick_stretch`'s `today`, from `store.practiced_since`), returning words
   included, so it still fills a pick when too few other words qualify but is never the only kind
-  while a fresh word is left.
+  while a fresh word is left. A pick made only of today's words drops one of them (a single
+  practice word is kept), so the next text isn't the same words again.
 - **Never a word due today that isn't reviewed yet** (13 November 2026, the owner's decision, from
   brief principles 4 and 9). Reading a due word in context with its gloss, before its Anki review
   that day, turns the review into short-term recall: it's rated Good and FSRS lengthens an interval

@@ -58,7 +58,7 @@ def pick_stretch(
     `reviewed_only` picks only words reviewed today (the shelf's "due" text).
     `today` holds the words that were a stretch word in a text already read this study day: they go
     after every other candidate, so several texts in a day don't keep practicing the same words, but
-    they still fill a pick the other words can't (a small pool still gets its words)."""
+    they still fill a pick the other words can't. A pick made only of them drops one word."""
     practiced = practiced or {}
 
     def returns(e: Entry) -> bool:
@@ -85,4 +85,9 @@ def pick_stretch(
     # A stable split: each group keeps the order above (returning, reviewed, young).
     fresh = [e for e in ordered if e.text not in today]
     repeats = [e for e in ordered if e.text in today]
-    return (fresh + repeats)[:count]
+    chosen = (fresh + repeats)[:count]
+    if len(chosen) > 1 and not any(e.text not in today for e in chosen):
+        # Nothing fresh to add: a pick made only of today's words drops one, so the text isn't
+        # the same words again, and keeps the rest.
+        chosen = chosen[:-1]
+    return chosen
