@@ -507,13 +507,13 @@ export function createApi(
       const query = Object.entries(options).filter(([, v]) => v !== undefined).map(([k, v]) => `${k}=${v}`).join('&');
       return call<GrammarPointPage>('GET', `/api/grammar/${encodeURIComponent(id)}${query ? `?${query}` : ''}`);
     },
-    // Your topics. The writing calls answer 202 with the topic (status writing); `call` drops a 202's body.
-    topics: (language: Language) => call<{ topics: GrammarTopicRow[] }>('GET', `/api/topics?language=${language}`),
-    topic: (id: number) => call<GrammarTopic>('GET', `/api/topics/${id}`),
-    createTopic: async (language: Language, title: string): Promise<GrammarTopic> => (await send('POST', '/api/topics', { language, title })).json(),
-    moreTopicExamples: async (id: number): Promise<GrammarTopic> => (await send('POST', `/api/topics/${id}/examples`)).json(),
-    rewriteTopic: async (id: number): Promise<GrammarTopic> => (await send('POST', `/api/topics/${id}/rewrite`)).json(),
-    deleteTopic: (id: number) => call<void>('DELETE', `/api/topics/${id}`),
+    // Your topics (under /api/grammar-topics: /api/topics is Read & Listen's reading topics). The writing calls answer 202 with the topic (status writing); `call` drops a 202's body.
+    topics: (language: Language) => call<{ topics: GrammarTopicRow[] }>('GET', `/api/grammar-topics?language=${language}`),
+    topic: (id: number) => call<GrammarTopic>('GET', `/api/grammar-topics/${id}`),
+    createTopic: async (language: Language, title: string): Promise<GrammarTopic> => (await send('POST', '/api/grammar-topics', { language, title })).json(),
+    moreTopicExamples: async (id: number): Promise<GrammarTopic> => (await send('POST', `/api/grammar-topics/${id}/examples`)).json(),
+    rewriteTopic: async (id: number): Promise<GrammarTopic> => (await send('POST', `/api/grammar-topics/${id}/rewrite`)).json(),
+    deleteTopic: (id: number) => call<void>('DELETE', `/api/grammar-topics/${id}`),
     // Every language's choices by point id (a point not set isn't listed), for Forms practice.
     grammarChoices: () => call<{ choices: Record<string, GrammarChoice> }>('GET', '/api/grammar/choices'),
     setGrammar: (id: string, state: GrammarChoice) =>

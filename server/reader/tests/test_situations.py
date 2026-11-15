@@ -421,3 +421,66 @@ def test_scenes_without_claude_and_the_passphrase() -> None:
         app.post("/api/situations/turn", json={"language": "th", "scene": SCENE}).status_code == 401
     )
     assert app.get("/api/situations/audio/" + "0" * 32, headers=AUTH).status_code == 404
+
+
+# ==== A structure to practice ====
+
+
+def test_a_focus_reaches_the_prompts_and_is_absent_without_one() -> None:
+    from franki_reader.situations import Focus, feedback_system, play_intro
+
+    plain = talk(("you", "ครับ"))
+    focused = Conversation(
+        "th", SCENE, ROLES, plain.lines, Focus("Serial verbs", "Two verbs share a subject.")
+    )
+    assert "practicing" not in play_intro(plain) and "practicing" not in feedback_system(plain)
+    intro = play_intro(focused)
+    assert "Serial verbs (Two verbs share a subject.)" in intro
+    assert "Never name it or explain it" in intro
+    assert intro.endswith("M mature, Y young):\n") and "The word list" in intro
+    assert "Serial verbs" in feedback_system(focused) and "how that line used it" in (
+        feedback_system(focused)
+    )
+    assert play_intro(plain).startswith("You are playing one side")
+
+
+def test_the_focus_is_sent_to_claude_in_the_system_prompt() -> None:
+    from franki_reader.situations import Focus
+
+    fake = FakeClient(response("end_turn", json.dumps(TURN)))
+    focused = Conversation("th", SCENE, ROLES, (Line("you", "ครับ"),), Focus("Serial verbs"))
+    finish(claude_play(fake)(ENTRIES, focused, ""))  # type: ignore[arg-type]
+    assert "Serial verbs" in fake.calls[0]["system"][0]["text"]
+    fake2 = FakeClient(response("end_turn", json.dumps({"lines": [], "words": []})))
+    finish(claude_feedback(fake2)(focused))  # type: ignore[arg-type]
+    assert "Serial verbs" in fake2.calls[0]["system"]
+
+
+def test_the_endpoints_pass_a_focus_on_and_keep_working_without_one() -> None:
+    play, seen = playing(START, START)
+    app = client(play)
+    base = {"language": "th", "scene": SCENE}
+    app.post("/api/situations/turn", json=base, headers=AUTH)
+    body = {**base, "focus": {"title": " Serial  verbs ", "lead": "Two verbs share a subject."}}
+    app.post("/api/situations/turn", json=body, headers=AUTH)
+    assert seen[0].focus is None
+    assert seen[1].focus is not None and seen[1].focus.title == "Serial verbs"
+    too_long = {**base, "focus": {"title": "x" * 81, "lead": ""}}
+    assert app.post("/api/situations/turn", json=too_long, headers=AUTH).status_code == 422
+    seen_feedback: list[Conversation] = []
+
+    async def feedback(conversation: Conversation) -> tuple[dict[str, Any], Usage]:
+        seen_feedback.append(conversation)
+        return {"lines": [], "words": []}, COST
+
+    app = client(feedback=feedback)
+    roles = {"you": "a customer", "them": "the vendor", "name": "Noi", "gender": "female"}
+    lines = [{"speaker": "you", "text": "ครับ"}]
+    send = {**base, "roles": roles, "lines": lines}
+    app.post("/api/situations/feedback", json=send, headers=AUTH)
+    app.post(
+        "/api/situations/feedback",
+        json={**send, "focus": {"title": "Serial verbs", "lead": "x"}},
+        headers=AUTH,
+    )
+    assert seen_feedback[0].focus is None and seen_feedback[1].focus is not None
