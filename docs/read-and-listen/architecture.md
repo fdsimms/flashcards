@@ -707,7 +707,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   roles (who A and B are, like Waiter and Customer, shown above the lines in the reader), lines (speaker, `|`-split text, English), and glosses for words off the list. Revisions are
   appended to the same conversation, never edited, so the model's earlier thinking stays valid.
   `server/reader/src/franki_reader/generator.py`.
-- **A stretch word used fewer than 2 times** sends the text back too, even at full coverage.
+- **A listed stretch word missing from the text** sends it back too, even at full coverage (15 November 2026: a word used once is enough; it was 2).
 - **Prompt caching.** The lexicon is the same on every call that day, so it sits in a cached prefix.
 - **Glosses come with the text.** The model returns an English gloss for every word not in the
   lexicon in the same response, so a tap never needs its own API call. Lexicon words use the
@@ -756,7 +756,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   so they use the text's own meaning. The top-up pass now also asks, once, for the words of the 30
   newest texts that only had the language's meaning, so texts waiting to be read get their own sense
   too.
-- **Stretch words** are 1-4 words (15 November 2026: was 1-3, `MAX_STRETCH`), each asked for twice (a third time only for a word with several forms or senses), reviewed today or still young. No random assignment.
+- **Stretch words** are 1-4 words (15 November 2026: was 1-3, `MAX_STRETCH`), each asked for once or twice (twice for a word with several forms or senses or a longer phrase, once for a simple one), reviewed today or still young. No random assignment.
 - **Several texts in one study day don't repeat their practice words** (15 November 2026, the
   owner's decision). A word that was a stretch word in a text already read today goes after every
   other candidate (`pick_stretch`'s `today`, from `store.practiced_since`), returning words
@@ -832,7 +832,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
 - **The model chooses stretch words to fit the topic** (the default). It gets 15 reviewed or young
   words and uses 1 to the current stretch count of them, so a dialogue about ordering food isn't
   bent around "tiger" because tiger happens to be due. The text records the ones it used. A text
-  that uses none, too many, or one fewer than 2 times goes back for revision. The other setting,
+  that uses none or too many goes back for revision. The other setting,
   "Any word" ("Any due word" until 13 November 2026), hands the model that many words to use, which
   keeps every word in rotation at the cost of odder dialogues. It's a setting on the Topics screen (`GET`/`PATCH /api/settings`),
   stored on the server so background writes follow it, and like ratings it applies from the next

@@ -3,7 +3,8 @@ it, and anything under the coverage floor goes back for revision with the proble
 
 The rules this enforces come from docs/read-and-listen/brief.md (design principles 2, 4, 5 and 8):
 - coverage is measured by the server's own segmentation, never by the model's `|` breaks
-- 1-4 stretch words, each used twice (a third time only for a word with several forms or senses); when the model chooses them from a longer list, at least
+- 1-4 stretch words, each used once or twice (twice for a word that's harder to take in: several
+  forms or senses, or a longer phrase); when the model chooses them from a longer list, at least
   one and no more than it was asked for
 - at most 3 attempts while a draft is under the floor; then the closest attempt is kept if it's at
   least MINIMUM (85%), and only a text under that is returned as not passed, never shown
@@ -41,7 +42,7 @@ EFFORT: Literal["low", "medium", "high", "xhigh", "max"] = "high"
 MAX_TOKENS = 16000
 MAX_ATTEMPTS = 3
 MAX_STRETCH = 4
-STRETCH_MIN_USES = 2
+STRETCH_MIN_USES = 1
 # How a line is said; the app shows it as a chip on the line.
 REGISTERS = ("casual", "neutral", "formal", "slang")
 
@@ -520,14 +521,14 @@ def request_message(request: TextRequest) -> str:
         how_many = "1" if request.choose == 1 else f"1 to {request.choose}"
         parts.append(
             f"Stretch words: pick {how_many} of these that fit the topic naturally, and use each "
-            "one you pick twice, wrapped in asterisks (a third time only if the word has several forms "
-            "or senses worth showing). Leave the rest out. If none of them fits "
+            "one you pick once or twice, wrapped in asterisks: twice for a word with several forms or "
+            "senses or a longer phrase, once for a simple one. Leave the rest out. If none of them fits "
             "a sensible situation with the known words, use fewer, or none:\n" + listed
         )
     elif request.stretch:
         parts.append(
-            "Stretch words: use each of these twice, wrapped in asterisks (a third time only if the "
-            "word has several forms or senses worth showing):\n" + listed
+            "Stretch words: use each of these once or twice, wrapped in asterisks: twice for a word "
+            "with several forms or senses or a longer phrase, once for a simple one:\n" + listed
         )
     else:
         parts.append("No stretch words this time.")
@@ -892,8 +893,7 @@ def _assess(
     )
     in_range = request.ceiling is None or coverage.ratio <= request.ceiling
     passed = coverage.meets(request.floor) and in_range and not problems
-    # Only a word used as often as asked was practiced: a closest attempt kept with one used once
-    # (or not at all) mustn't count toward the word's days of practice (`practiced_days`).
+    # Only a word that appears was practiced: a closest attempt kept without one mustn't count toward the word's days of practice (`practiced_days`).
     stretch = tuple(e.text for e in used if uses[e.text] >= STRETCH_MIN_USES)
     generated = Generated(
         title,
@@ -997,7 +997,7 @@ def _stretch_used(
         for e in used
     }
     if short := [word for word, n in uses.items() if n < STRETCH_MIN_USES]:
-        problems.append("These stretch words appear fewer than 2 times: " + ", ".join(short) + ".")
+        problems.append("These stretch words don't appear in the text: " + ", ".join(short) + ".")
     return used, uses, problems
 
 
