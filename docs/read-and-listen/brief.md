@@ -118,9 +118,13 @@ constraints.
    > **Changed on 26 October 2026 by the owner, for Spanish.** The Spanish deck holds only advanced
    > words, so Spanish also counts the 10,000 most common Spanish word families as known. Thai is
    > unchanged. See `architecture.md`, Languages.
-4. **1-3 stretch words per text, today's due or young words first.** Each appears 2-3 times in the
+4. **1-4 stretch words per text, today's due or young words first.** Each appears twice in the
    text and comes back in later texts on later days. Repetition and spacing are both moderators of
    incidental learning.
+
+   > **Changed on 15 November 2026 by the owner.** Up to 4 stretch words (was 3), each asked for
+   > twice rather than 2-3 times: a third use only for a word with several forms or senses worth
+   > showing. The check still sends a text back for a stretch word used fewer than 2 times.
 
    > **Changed on 13 November 2026 by the owner.** A word due today is a stretch word only once it
    > has been reviewed today. Read in context before its review, the review becomes short-term

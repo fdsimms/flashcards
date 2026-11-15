@@ -146,9 +146,9 @@ def test_a_draft_with_no_lines_fails() -> None:
         run(ScriptedModel({"title": "x", "lines": [], "glosses": []}), TextRequest("food"))
 
 
-def test_more_than_three_stretch_words_is_refused() -> None:
+def test_more_than_four_stretch_words_is_refused() -> None:
     with pytest.raises(ValueError):
-        TextRequest("food", tuple(ENTRIES[:4]))
+        TextRequest("food", tuple(ENTRIES[:5]))
 
 
 def test_system_prompt_lists_only_known_words_and_is_stable() -> None:
@@ -305,10 +305,10 @@ def test_a_chosen_word_used_once_goes_back() -> None:
 
 def test_choosing_has_the_same_limits() -> None:
     with pytest.raises(ValueError):
-        TextRequest("food", tuple(ENTRIES[:6]), choose=4)
+        TextRequest("food", tuple(ENTRIES[:6]), choose=5)
     with pytest.raises(ValueError):
         TextRequest("food", (), choose=1)
-    TextRequest("food", tuple(ENTRIES[:6]), choose=3)  # many to choose from is fine
+    TextRequest("food", tuple(ENTRIES[:6]), choose=4)  # many to choose from is fine
 
 
 def test_a_story_is_asked_for_by_name_and_a_dialogue_by_default() -> None:

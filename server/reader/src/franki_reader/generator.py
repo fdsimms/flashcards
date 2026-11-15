@@ -3,7 +3,7 @@ it, and anything under the coverage floor goes back for revision with the proble
 
 The rules this enforces come from docs/read-and-listen/brief.md (design principles 2, 4, 5 and 8):
 - coverage is measured by the server's own segmentation, never by the model's `|` breaks
-- 1-3 stretch words, each used 2-3 times; when the model chooses them from a longer list, at least
+- 1-4 stretch words, each used twice (a third time only for a word with several forms or senses); when the model chooses them from a longer list, at least
   one and no more than it was asked for
 - at most 3 attempts while a draft is under the floor; then the closest attempt is kept if it's at
   least MINIMUM (85%), and only a text under that is returned as not passed, never shown
@@ -40,7 +40,7 @@ MODEL = "claude-sonnet-5-5"
 EFFORT: Literal["low", "medium", "high", "xhigh", "max"] = "high"
 MAX_TOKENS = 16000
 MAX_ATTEMPTS = 3
-MAX_STRETCH = 3
+MAX_STRETCH = 4
 STRETCH_MIN_USES = 2
 # How a line is said; the app shows it as a chip on the line.
 REGISTERS = ("casual", "neutral", "formal", "slang")
@@ -520,12 +520,14 @@ def request_message(request: TextRequest) -> str:
         how_many = "1" if request.choose == 1 else f"1 to {request.choose}"
         parts.append(
             f"Stretch words: pick {how_many} of these that fit the topic naturally, and use each "
-            "one you pick 2 or 3 times, wrapped in asterisks. Leave the rest out. If none of them fits "
+            "one you pick twice, wrapped in asterisks (a third time only if the word has several forms "
+            "or senses worth showing). Leave the rest out. If none of them fits "
             "a sensible situation with the known words, use fewer, or none:\n" + listed
         )
     elif request.stretch:
         parts.append(
-            "Stretch words: use each of these 2 or 3 times, wrapped in asterisks:\n" + listed
+            "Stretch words: use each of these twice, wrapped in asterisks (a third time only if the "
+            "word has several forms or senses worth showing):\n" + listed
         )
     else:
         parts.append("No stretch words this time.")

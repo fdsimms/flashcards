@@ -16,7 +16,8 @@ def test_about_right_and_no_rating_change_nothing() -> None:
 
 def test_limits_hold() -> None:
     assert adapt(Difficulty(0.99, 1), "too_hard") == Difficulty(0.99, 1)
-    assert adapt(Difficulty(0.90, 3), "too_easy") == Difficulty(0.90, 3)
+    assert adapt(Difficulty(0.91, 3), "too_easy") == Difficulty(0.90, 4)
+    assert adapt(Difficulty(0.90, 4), "too_easy") == Difficulty(0.90, 4)
 
 
 def test_repeated_steps_land_on_round_numbers() -> None:
@@ -80,8 +81,8 @@ def test_a_rating_of_a_text_at_a_limit_takes_the_level_to_that_limit() -> None:
     assert after_reading(Difficulty(0.97, 2), Difficulty(0.99, 1), "too_hard", None, None) == (
         Difficulty(0.99, 1)
     )
-    assert after_reading(Difficulty(0.92, 2), Difficulty(0.90, 3), "too_easy", None, None) == (
-        Difficulty(0.90, 3)
+    assert after_reading(Difficulty(0.92, 2), Difficulty(0.90, 4), "too_easy", None, None) == (
+        Difficulty(0.90, 4)
     )
 
 

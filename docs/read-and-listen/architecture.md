@@ -756,7 +756,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   so they use the text's own meaning. The top-up pass now also asks, once, for the words of the 30
   newest texts that only had the language's meaning, so texts waiting to be read get their own sense
   too.
-- **Stretch words** are 1-3 words reviewed today or still young. No random assignment.
+- **Stretch words** are 1-4 words (15 November 2026: was 1-3, `MAX_STRETCH`), each asked for twice (a third time only for a word with several forms or senses), reviewed today or still young. No random assignment.
 - **Several texts in one study day don't repeat their practice words** (15 November 2026, the
   owner's decision). A word that was a stretch word in a text already read today goes after every
   other candidate (`pick_stretch`'s `today`, from `store.practiced_since`), returning words
@@ -1112,7 +1112,7 @@ in the current language, with when one was last read to the end. Nothing else le
 - Per text: date, language, mode, token count, verified coverage, stretch words, words glossed,
   words flagged unknown, rating, audio speed, listen-only or not, time spent.
 - The rating adjusts the difficulty of texts written after it (too hard: coverage target up 1
-  point, one fewer stretch word; too easy: the reverse), within a 90% to 99% target (92% to start) and 1 to 3
+  point, one fewer stretch word; too easy: the reverse), within a 90% to 99% target (92% to start) and 1 to 4
   stretch words (`server/reader/src/franki_reader/difficulty.py`). A text already waiting in a favorite's queue
   keeps the difficulty it was written at, so a rating shows up one text later; the owner chose that
   over discarding queued texts (19 October 2026). The Milestone 1 exit check reads the log.
