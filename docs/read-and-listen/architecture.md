@@ -118,12 +118,16 @@ Franki's (Client, below).
   unknown or looked up, which were off the list, so missing them is expected and two misses in a
   small check made texts easier. They are still asked and marked, and the end view's "right on this
   text" counts them; the app leaves them out of what it sends, so the server and its API are
-  unchanged (readings before this counted them). Since the server needs three answers, a text with
-  fewer than three questions that count (no questions about what happens, or one) can't move
-  difficulty, and the check's offer then doesn't say a low score makes the next text easier. **A poor score makes the next text easier**
-  (the owner's choice): under 60% right of at least three raises the coverage target a step from
-  the text's own level (`adapt_to_check`, through `after_reading`, as for a rating under Logging),
-  unless the text was rated Too hard, which already did; a good score changes
+  unchanged (readings before this counted them). A text with fewer than three questions that count (no
+  questions about what happens, or one) adds too little, and the check's offer then doesn't say a
+  low score makes the next text easier. **Poor scores on two texts in a row make the next text
+  easier** (the owner's choice, changed 15 November 2026 from one text: three answers are mostly
+  noise, so the server steers on this text's answers and those of the last text that had a check,
+  within 7 days, taken together, `engine.record_reading` and `store.previous_check`): under 60% right
+  of at least six between them raises the coverage target a step from the text's own level
+  (`adapt_to_check`, through `after_reading`, as for a rating under Logging), unless the text was
+  rated Too hard, which already did. A text counts toward the next one's check too, so a run of poor
+  texts can step the target once per text after the first; a good score changes
   nothing, as the rating is what makes texts harder. Nothing is graded or added to the deck. Not done:
   the check on a past text read again (its reading isn't logged), and questions for texts written
   before it.
@@ -172,6 +176,18 @@ Franki's (Client, below).
   nothing is logged to `readings`, no rating, no check, no difficulty change, no coverage figures, and
   nothing grades a card (`tests/reader/noGrading.test.ts`). Not now hides the card until the shelf is
   opened again; a listen cut short isn't counted, so the text is offered again.
+- **Listen before reading** (15 November 2026, the owner's idea, a setting in Settings, Read & Listen,
+  Listening; off by default). A new text opens with its words hidden, as in Listen only, and the words
+  appear once every line with audio has played to its end (`src/reader/listenFirst.ts`: the lines
+  heard are tracked per text, so playing them one at a time works too, and a line with no sound isn't
+  waited for). The reasoning: hearing a text before reading it is listening practice with no
+  spelling to lean on, and the words then show whether it was understood, which is feedback. It is
+  hard at the 92% coverage target, which is below the 95% the listening research asks for, so it's
+  opt-in and **Show the text now** skips the wait (it is also the way out when a text's audio won't
+  play). It applies only to a new text: a past text has its own Listen without the text, and Play all
+  is unchanged. **It isn't listen-only in the log:** the reading is logged as an ordinary reading
+  (`listen_only` false), since the words are read once they appear. Lookups can only happen after
+  the words show, so effective coverage (`recognition.py`) reflects words met after hearing them.
 - **Guess first** (15 November 2026, the owner chose from a mock). A tap on a word shows its meaning
   only when asked for (Settings, Read & Listen, Meanings, on by default), so the learner tries before
   being told: a word counted as known is recalled, a word outside the deck (or only inside a longer
@@ -358,9 +374,16 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
 
 ## Lexicon
 
-- A note's tier comes from its weakest reviewed card: **mature** if the lowest interval is 21 days or
-  more, **young** if reviewed but below that, **unreviewed** if no card has been reviewed
-  (`server/reader/src/franki_reader/tiers.py`).
+- A note's tier comes from its weakest reviewed **reading or listening card**, its Front and Audio
+  cards (15 November 2026, the owner's decision from a review of the learning science): **mature**
+  if the lowest interval is 21 days or more, **young** if reviewed but below that, **unreviewed** if
+  no card has been reviewed (`server/reader/src/franki_reader/tiers.py`). The Reverse card (English to
+  the word) is production, which says little about whether a word is recognized in a text, and used to
+  hold a word young while its Front card was long mature. When a note has no studied Front or Audio
+  card, all its cards decide, so a word studied only from English still counts as studied. What
+  counts as known for coverage is unchanged (any studied card). The tier picks stretch words and marks
+  M or Y in the model's list; `Entry.stability` is read from the same cards. A suspended card is
+  left out first, as below.
 - **A suspended card doesn't count** (13 November 2026, the owner's decision from a review of the
   teaching). The owner's presets suspend leeches, so a suspended card is the word the learner keeps
   failing: a note whose reviewed cards are all suspended is unreviewed, so it isn't known for

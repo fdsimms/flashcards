@@ -54,6 +54,8 @@ from franki_reader.wanikani import ReadWaniKani, as_entries
 # How many reviewed or young words the model chooses its stretch words from, when it's choosing.
 STRETCH_CHOICES = 15
 FAILURE_COOLDOWN = timedelta(minutes=30)
+# How far back the text before this one can be for its check to count with this one's.
+CHECK_WINDOW = timedelta(days=7)
 # How many of the newest finished texts are looked through for ones to hear again.
 RELISTEN_LOOKBACK = 100
 BACKFILL_TEXTS = 30  # how many recent texts a pass looks through for words with no meaning
@@ -906,6 +908,13 @@ class Engine:
                     (*reading.words_glossed, *reading.words_flagged),
                 ),
             )
+        # The check steers on this text's answers and the last text's together (difficulty.py), read
+        # before this reading is logged, so one bad text can't make the next easier by itself.
+        right, asked = reading.check_right, reading.check_asked
+        if text is not None and asked:
+            before = store.previous_check(self.conn, text.language, self.clock() - CHECK_WINDOW)
+            if before and right is not None:
+                right, asked = right + before[0], asked + before[1]
         store.log_reading(self.conn, text_id, reading, self.clock())
         written = store.written_at(self.conn, text_id)
         if text is not None and written is not None:
@@ -917,8 +926,8 @@ class Engine:
                     current, floor=floor, stretch=current.stretch if stretch is None else stretch
                 ),
                 reading.rating,
-                reading.check_right,
-                reading.check_asked,
+                right,
+                asked,
             )
             if after != current:
                 store.save_difficulty(self.conn, after, text.language)

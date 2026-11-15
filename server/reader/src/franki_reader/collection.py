@@ -172,7 +172,7 @@ def read_entries(col: Collection, language: Language) -> list[Entry]:
     assert col.db is not None  # open: find_notes just used it
     rows = col.db.all(
         # A card in a filtered deck keeps its own due date in odue, as Anki's is:due reads it.
-        "select id, nid, type, ivl, queue, (case when odue != 0 then odue else due end) from cards"
+        "select id, nid, type, ivl, queue, (case when odue != 0 then odue else due end), ord from cards"
         f" where nid in {ids2str(n.note_id for n in notes)}"
     )
     cards = [
@@ -185,8 +185,9 @@ def read_entries(col: Collection, language: Language) -> list[Entry]:
             rated=cid in rated,
             due_in=days_until_due(card_type, queue, card_due, today, cutoff),
             stability=_stability(col, cid, card_type, queue),
+            ord=ord_,
         )
-        for cid, nid, card_type, ivl, queue, card_due in rows
+        for cid, nid, card_type, ivl, queue, card_due, ord_ in rows
     ]
     return build_entries(notes, cards)
 
