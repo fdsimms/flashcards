@@ -1,0 +1,171 @@
+"""Claude's part of an audio lesson (lesson.py): the content, and only the content. It's asked for a
+short dialogue and a few phrases to teach, each split into parts; how the lesson runs is code.
+
+Generate, then verify: `lesson.clean_plan` keeps only phrases whose parts put back together are the
+phrase, and a plan with fewer than `lesson.MIN_PHRASES` of them is asked for again, once, with the
+reason. The second answer is kept or the lesson isn't made.
+"""
+
+import json
+from collections.abc import Awaitable, Callable
+from typing import Any, cast
+
+import anthropic
+from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
+
+from franki_reader import lesson
+from franki_reader.generator import MODEL, Usage, usage_of
+from franki_reader.languages import LANGUAGES, Code
+
+MAX_TOKENS = 4000
+MAX_ATTEMPTS = 2
+MAX_SCENE = 200
+
+_REQUEST = """\
+Write the content of a short spoken {language} lesson for a beginner, set in this situation:
+{scene}
+
+It will be recorded as audio: an English narrator and native {language} voices, with pauses for the
+learner to say each phrase aloud. You choose what is taught; the lesson's structure is built from
+what you give. Give:
+
+- title: a short English title for the lesson (two to five words)
+- dialogue: {low} to {high} lines of natural, spoken conversation in {language} in that situation,
+  between A (a man) and B (a woman). Each line: speaker (A or B), text ({language}), english. The
+  phrases below should come up in it.
+- phrases: {few} to {many} phrases the learner will practice saying, simplest first, each one
+  something a person would really say in that situation. Each: text ({language}), english (what it
+  means, in natural English), and parts.
+
+Rules for the phrases:
+- 2 to 8 words each, and not a lone "Yes." or "Thanks."
+- `parts` are the phrase split in order into 1 to {parts} pieces at natural breaks, so that the
+  learner can build it up from its end (the last piece first). Put back together, the parts must be
+  the phrase exactly: the same words in the same order, nothing added or left out. A short phrase
+  can be one part.
+- Polite, everyday register (use the formal "you" where the language has one), unless the situation
+  is between friends.
+- The learner may be a man or a woman, so use no form that changes with the speaker's gender.
+- Later phrases may reuse words from earlier ones.
+
+Plain text only: no `|`, asterisks, tildes or em dashes."""
+
+SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "title": {"type": "string"},
+        "dialogue": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "speaker": {"type": "string", "enum": ["A", "B"]},
+                    "text": {"type": "string"},
+                    "english": {"type": "string"},
+                },
+                "required": ["speaker", "text", "english"],
+                "additionalProperties": False,
+            },
+        },
+        "phrases": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string"},
+                    "english": {"type": "string"},
+                    "parts": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["text", "english", "parts"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["title", "dialogue", "phrases"],
+    "additionalProperties": False,
+}
+
+
+class LessonFailed(Exception):
+    """A lesson couldn't be written; the message is shown as it is. `usage` is what the calls were
+    billed for, when Claude answered at all."""
+
+    def __init__(self, message: str, usage: Usage | None = None) -> None:
+        super().__init__(message)
+        self.usage = usage or Usage()
+
+
+# Asks Claude for a lesson's content: the language, the scene, and what to say about the last
+# attempt (empty the first time). Returns Claude's raw answer and what the call cost.
+WritePlan = Callable[[Code, str, str], Awaitable[tuple[Any, Usage]]]
+
+_RETRY = (
+    "That answer had fewer than {n} usable phrases. A phrase is dropped when its parts, put back"
+    " together, aren't the phrase exactly, or it is repeated. Write the lesson again."
+)
+
+
+def request_message(language: Code, scene: str) -> str:
+    return _REQUEST.format(
+        language=LANGUAGES[language].name,
+        scene=scene,
+        low=4,
+        high=lesson.MAX_DIALOGUE,
+        few=lesson.MIN_PHRASES,
+        many=lesson.MAX_PHRASES,
+        parts=lesson.MAX_PARTS,
+    )
+
+
+async def write_plan(write: WritePlan, language: Code, scene: str) -> tuple[lesson.Plan, Usage]:
+    """The plan for a lesson on `scene`, asked for up to `MAX_ATTEMPTS` times; what the calls cost
+    comes back with it, or on the failure."""
+    used = Usage()
+    feedback = ""
+    for _ in range(MAX_ATTEMPTS):
+        try:
+            raw, spent = await write(language, scene, feedback)
+        except LessonFailed as e:
+            raise LessonFailed(str(e), used + e.usage) from e
+        used = used + spent
+        plan = lesson.clean_plan(raw, scene)
+        if plan is not None:
+            return plan, used
+        feedback = _RETRY.format(n=lesson.MIN_PHRASES)
+    raise LessonFailed("Claude didn't write a usable lesson. Try again.", used)
+
+
+def claude_plan(client: anthropic.AsyncAnthropic) -> WritePlan:
+    async def write(language: Code, scene: str, feedback: str) -> tuple[Any, Usage]:
+        messages: list[dict[str, Any]] = [
+            {"role": "user", "content": request_message(language, scene)}
+        ]
+        if feedback:
+            messages.append({"role": "user", "content": feedback})
+        output_config: BetaOutputConfigParam = {
+            "effort": "low",
+            "format": {"type": "json_schema", "schema": SCHEMA},
+        }
+        try:
+            response = await client.beta.messages.create(
+                model=MODEL,
+                max_tokens=MAX_TOKENS,
+                messages=cast(list[BetaMessageParam], messages),
+                output_config=output_config,
+                betas=["server-side-fallback-2026-07-01"],
+                fallbacks="default",
+            )
+        except anthropic.APIError as e:
+            raise LessonFailed(
+                f"Claude didn't answer ({type(e).__name__}). Try again in a moment."
+            ) from e
+        used = usage_of(response)
+        text = next((b.text for b in response.content if b.type == "text"), None)
+        if response.stop_reason in ("refusal", "max_tokens") or text is None:
+            raise LessonFailed("Claude didn't answer. Try again in a moment.", used)
+        try:
+            return json.loads(text), used
+        except json.JSONDecodeError as e:
+            raise LessonFailed("Claude's answer couldn't be read. Try again.", used) from e
+
+    return write

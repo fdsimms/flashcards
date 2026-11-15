@@ -334,6 +334,22 @@ export type Progress = {
 // A topic idea not yet added. `fit` is the share of its key words the deck knows.
 export type Suggestion = { name: string; fit: number };
 
+// An audio lesson (server lesson.py): asked for by a scene, then written and spoken in the background.
+export type LessonState = 'making' | 'ready' | 'failed';
+export type AudioLesson = {
+  id: number;
+  language: Language;
+  scene: string;
+  title: string;
+  state: LessonState;
+  /** Why a failed lesson failed, written for a person. */
+  error: string;
+  duration_ms: number;
+  created_at: string;
+  phrases: { text: string; english: string }[];
+  dialogue: { speaker: 'A' | 'B'; text: string; english: string }[];
+};
+
 // A text read to the end, to read or listen to again.
 export type PastText = {
   id: number;
@@ -475,6 +491,19 @@ export function createApi(
     nextText: async (topicId: number, words?: string[]) =>
       (await call<ReaderText | undefined>('POST', `/api/topics/${topicId}/next`, words?.length ? { words } : undefined)) ?? null,
     // With `story`, that story's episodes, first to last.
+    // Audio lessons, newest first, and the languages the server can make them in. One is asked for by a scene and
+    // made in the background (poll `lessons` until it's ready or failed).
+    lessons: (language?: Language) =>
+      call<{ languages: Language[]; lessons: AudioLesson[] }>('GET', language === undefined ? '/api/lessons' : `/api/lessons?language=${language}`),
+    // `narrator`: an English voice for this lesson's narration; left out, the server's own.
+    makeLesson: (language: Language, scene: string, narrator?: string) =>
+      call<void>('POST', '/api/lessons', { language, scene, ...(narrator ? { narrator } : {}) }),
+    deleteLesson: (id: number) => call<void>('DELETE', `/api/lessons/${id}`),
+    // For the audio player, which fetches the file itself and so needs the passphrase too.
+    lessonAudio: (id: number) => ({
+      uri: `${root}/api/lessons/${id}/audio`,
+      headers: { Authorization: `Bearer ${passphrase}` },
+    }),
     pastTexts: (story?: number) => call<PastText[]>('GET', story === undefined ? '/api/texts' : `/api/texts?story=${story}`),
     // Finished texts due to be heard again with their words hidden (server relisten.py), as pastTexts lists them.
     // `listens`: how many times each text is wanted again, 3 (1, 4 and 10 days), 1 (3 days) or 0.

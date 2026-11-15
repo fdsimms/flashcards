@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Keyboard, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type Form, type Language, type PastText, type Shelf, type ShelfText, type Word } from '../reader/api';
 import { LANGUAGES, flaggedName } from '../reader/languages';
+import { lessonsOffered } from '../reader/lessons';
 import { ReadListenAgain } from './ReadListenAgain';
 import { ReadReviewFirst } from './ReadReviewFirst';
 import { cardDetail, playMinutes, playOrder, reasonLabel, surprisePick } from '../reader/shelf';
@@ -30,7 +31,7 @@ const POLL_MS = 10_000;
 
 export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 
-export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLanguagePage, onPast, onEpisodes, onWords, onLanguage, onReview, onListenAgain }: {
+export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLanguagePage, onPast, onLessons, onEpisodes, onWords, onLanguage, onReview, onListenAgain }: {
   api: Api;
   /** Opened from Review's "Read a text with these words": offers a text written to practice them. */
   practice?: { language: Language; count: number; onCancel: () => void };
@@ -41,6 +42,8 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
   onPractice: (topic: { id: number; name: string }) => void;
   onLanguagePage: () => void;
   onPast: () => void;
+  /** Opens the audio lessons, offered only in the languages the server makes them in. */
+  onLessons: () => void;
   /** Lists the ongoing story's episodes, first to last. */
   onEpisodes: (storyId: number) => void;
   onWords: () => void;
@@ -253,6 +256,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
 
             <Group>
               <NavRow first label="Past texts" detail="Read or listen to a text again" onPress={onPast} />
+              {lessonsOffered(shelf.language) ? <NavRow label="Audio lessons" detail="Guided lessons to say aloud" onPress={onLessons} /> : null}
               <NavRow label="Marked words" loading={markedCount === null} detail={markedCount === null ? undefined : `${markedCount} marked as unknown`} onPress={onWords} />
             </Group>
           </>
