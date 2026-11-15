@@ -232,7 +232,7 @@ async def _ask(
 ) -> tuple[dict[str, Any], Usage]:
     """One structured answer from Claude, or ProductionFailed."""
     output_config: BetaOutputConfigParam = {
-        "effort": "low",
+        "effort": "medium",
         "format": {"type": "json_schema", "schema": schema},
     }
     messages = [{"role": "user", "content": message}]
