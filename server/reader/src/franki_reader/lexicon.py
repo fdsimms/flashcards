@@ -41,6 +41,10 @@ class Entry:
     due_in: int | None = None
     # A card of this note was answered on the snapshot's study day (Anki's rated:1).
     reviewed: bool = False
+    # FSRS stability in days of the note's most fragile studied card (days until its recall drops
+    # to 90%); None when no studied card has a memory state (not on FSRS, or a snapshot from before
+    # this was read). stretch.py puts the most fragile words first.
+    stability: float | None = None
 
 
 @dataclass(frozen=True)
@@ -69,6 +73,8 @@ class CardRow:
     rated: bool = False
     # Study days from today until it's due (`days_until_due`), None for a new or suspended card.
     due_in: int | None = None
+    # FSRS stability in days, None for a card with no memory state.
+    stability: float | None = None
 
 
 # Reads one language's deck. Raises AnkiUnavailable (gateway.py) when it can't, so the caller keeps
@@ -99,12 +105,18 @@ def build_entries(notes: Iterable[NoteRow], cards: Iterable[CardRow]) -> list[En
     due_notes: set[int] = set()  # a card due today and not answered yet today
     reviewed_notes: set[int] = set()
     due_in: dict[int, int] = {}  # the soonest any studied card comes due
+    stability: dict[int, float] = {}  # the lowest of any studied card's
     for card in cards:
         if not card.suspended:
             cards_by_note.setdefault(card.note_id, []).append((card.type, card.ivl))
             if card.due_in is not None:
                 soonest = due_in.get(card.note_id)
                 due_in[card.note_id] = card.due_in if soonest is None else min(soonest, card.due_in)
+            if card.stability is not None and card.type in (1, 2, 3):
+                lowest = stability.get(card.note_id)
+                stability[card.note_id] = (
+                    card.stability if lowest is None else min(lowest, card.stability)
+                )
         if card.due and not card.rated:
             due_notes.add(card.note_id)
         if card.rated:
@@ -125,6 +137,7 @@ def build_entries(notes: Iterable[NoteRow], cards: Iterable[CardRow]) -> list[En
                 translit=clean(note.translit),
                 due_in=due_in.get(note.note_id),
                 reviewed=note.note_id in reviewed_notes,
+                stability=stability.get(note.note_id),
             )
         )
     return entries

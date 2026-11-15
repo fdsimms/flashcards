@@ -1,6 +1,12 @@
-"""Which words to stretch on: words already reviewed today first, then young ones
-(docs/read-and-listen/brief.md, design principle 4, with "today's due words" read as below). A
-mature word reviewed today counts, since it was tested today; other mature words don't need the push.
+"""Which words to stretch on: young words that aren't about to come due, the most fragile first, then
+words already reviewed today (docs/read-and-listen/brief.md, design principle 4, with "today's due
+words" read as below). A mature word reviewed today counts, since it was tested today; other mature
+words don't need the push.
+
+Why fragile first: an encounter helps a word most while its memory is weakest, and FSRS stability
+(days until recall drops to 90%) says how weak that is. Retrievability can't rank them: FSRS
+schedules a review for when it falls to the desired retention, so every word that isn't due sits
+just above it. A word just reviewed today is at its strongest, so it comes last.
 
 Never a word that's due today and not yet reviewed today. Reading it in context, with its gloss, just
 before its Anki review turns that review into short-term recall: it's rated Good, and FSRS lengthens
@@ -21,6 +27,16 @@ from collections.abc import Collection, Mapping
 from franki_reader.lexicon import Entry
 
 RETURN_DAYS = 3
+# A young word coming due within this many study days isn't a stretch word: read that close to its
+# review, the exposure would prime it (the same corruption as above, softened by the days between).
+# A word reviewed today is exempt, since its next review is a full interval away.
+PRIMING_DAYS = 2
+
+
+def due_soon(entry: Entry, days: int) -> bool:
+    """Whether a card of the entry comes due within `PRIMING_DAYS` study days from today, `days` after
+    the snapshot's. No due date read (a snapshot from before they were) isn't soon."""
+    return entry.due_in is not None and entry.due_in - days <= PRIMING_DAYS
 
 
 def waiting(entry: Entry, days: int) -> bool:
@@ -72,7 +88,10 @@ def pick_stretch(
         else [
             e
             for e in entries
-            if e.tier == "young" and e.note_id not in picked and not waiting(e, days)
+            if e.tier == "young"
+            and e.note_id not in picked
+            and not waiting(e, days)
+            and not due_soon(e, days)
         ]
     )
     returning = [e for e in reviewed + young if returns(e)]
@@ -81,8 +100,10 @@ def pick_stretch(
     rng.shuffle(returning)
     rng.shuffle(reviewed)
     rng.shuffle(young)
-    ordered = returning + reviewed + young
-    # A stable split: each group keeps the order above (returning, reviewed, young).
+    # Stable, so words of equal stability (or none read) stay in their shuffled order.
+    young.sort(key=lambda e: float("inf") if e.stability is None else e.stability)
+    ordered = returning + young + reviewed
+    # A stable split: each group keeps the order above (returning, young, reviewed).
     fresh = [e for e in ordered if e.text not in today]
     repeats = [e for e in ordered if e.text in today]
     chosen = (fresh + repeats)[:count]

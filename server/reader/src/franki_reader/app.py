@@ -59,8 +59,11 @@ marked words, ideas) is in the current language, the `language` setting.
                                       read, which is when the next one is written from it (404 for
                                       no such text or choice, 409 once it's read)
     GET   /api/progress               finished texts, coverage and ratings over the last 14 days,
-                                      the check after reading's answers over them, and the
+                                      the check after reading's answers over them, how well the
+                                      known words were recognized (recognition.py), and the
                                       difficulty the next text is written at
+    GET   /api/exposure-effect?days=90  whether stretch words were remembered better at their
+                                      next review than similar words (exposure_effect.py)
     GET   /api/costs?days=30          what Claude cost over the last `days` days, per language:
                                       texts read, waiting, dropped and skipped, attempts and dollars,
                                       plus Azure's audio estimated from the characters it spoke (every
@@ -191,7 +194,7 @@ marked words, ideas) is in the current language, the `language` setting.
 
 import hmac
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import asdict, replace
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 
@@ -206,6 +209,7 @@ from franki_reader import (
     config,
     drills,
     exposure,
+    exposure_effect,
     form_primers,
     forms,
     grammar,
@@ -234,7 +238,14 @@ from franki_reader.explain import (
     claude_explain,
     claude_explain_phrase,
 )
-from franki_reader.gateway import AnkiUnavailable, ReadDue, due_with_timeout, with_timeout
+from franki_reader.gateway import (
+    AnkiUnavailable,
+    ReadDue,
+    ReadReviews,
+    due_with_timeout,
+    reviews_with_timeout,
+    with_timeout,
+)
 from franki_reader.generator import Ask, Form, Usage, claude_ask
 from franki_reader.languages import (
     HIDDEN_LANGUAGES,
@@ -533,6 +544,7 @@ def create_app(
     explain_phrase: ExplainPhrase | None = None,
     status_token: str | None = None,
     read_due: ReadDue | None = None,
+    read_reviews: ReadReviews | None = None,
     write_drills: drills.WriteDrills | None = None,
     write_vocab: vocab_check.WriteVocab | None = None,
     write_notes: note_queue.WriteNotes | None = None,
@@ -1327,8 +1339,51 @@ def create_app(
             "ratings": done.ratings,
             # The check after reading, over the finished texts it was taken with.
             "check": {"texts": done.checked, "right": done.check_right, "asked": done.check_asked},
+            # How well the words counted as known were recognized (recognition.py), over the
+            # finished texts that kept it; null when none did.
+            "recognition": None
+            if done.recognition is None
+            else {
+                "texts": done.recognition_texts,
+                "verified": done.recognition.verified,
+                "effective": done.recognition.effective,
+                "known_types": done.recognition.known_types,
+                "looked_up_types": done.recognition.looked_up_types,
+            },
             "next": {"floor": difficulty.floor, "stretch": difficulty.stretch},
         }
+
+    @app.get("/api/exposure-effect", dependencies=authed)
+    async def stretch_exposure_effect(
+        days: Annotated[int, Query(ge=7, le=3650)] = 90,
+    ) -> dict[str, Any]:
+        """Whether stretch words were remembered better at their next review than similar words
+        that weren't (exposure_effect.py): an association from the log, not a controlled test."""
+        if read_reviews is None:
+            raise HTTPException(
+                503,
+                "The server can't read Anki: ANKI_SYNC_ENDPOINT, ANKI_USER and ANKI_PASSWORD "
+                "aren't all set.",
+            )
+        code = engine.language()
+        try:
+            reviews = await read_reviews(LANGUAGES[code])
+        except AnkiUnavailable as e:
+            raise HTTPException(503, f"Couldn't read Anki. {e}") from e
+        since = engine.clock() - timedelta(days=days)
+        by_text: dict[str, set[int]] = {}
+        for entry in engine.entries(code):
+            by_text.setdefault(entry.text, set()).add(entry.note_id)
+        note_ids = {text: next(iter(ids)) for text, ids in by_text.items() if len(ids) == 1}
+        readings = store.stretch_readings(engine.conn, since, code)
+        exposures = exposure_effect.exposures_of(
+            [(int(at.replace(tzinfo=UTC).timestamp() * 1000), words) for at, words in readings],
+            note_ids,
+        )
+        effect = exposure_effect.compare(
+            reviews, exposures, int(since.replace(tzinfo=UTC).timestamp() * 1000)
+        )
+        return {"days": days, "texts": len(readings), **asdict(effect)}
 
     @app.get("/api/costs", dependencies=authed)
     async def costs(days: Annotated[int, Query(ge=1, le=3650)] = 30) -> dict[str, Any]:
@@ -2082,6 +2137,7 @@ def production_app() -> FastAPI:
         explain_phrase,
         status_token=settings.secrets.get("STATUS_TOKEN"),
         read_due=due_with_timeout(anki.due) if anki else None,
+        read_reviews=reviews_with_timeout(anki.reviews) if anki else None,
         write_drills=write_drills,
         write_vocab=write_vocab,
         write_notes=write_notes,

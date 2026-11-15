@@ -17,9 +17,10 @@ def card(
     suspended: bool = False,
     rated: bool = False,
     due_in: int | None = None,
+    stability: float | None = None,
 ) -> CardRow:
-    """`due`: Anki's is:due; `rated`: answered today (rated:1); `due_in`: study days until due."""
-    return CardRow(nid, card_type, ivl, due, suspended, rated, due_in)
+    """`due`: Anki's is:due; `rated`: answered today (rated:1); `due_in`: study days until due; `stability`: FSRS days."""
+    return CardRow(nid, card_type, ivl, due, suspended, rated, due_in, stability)
 
 
 class FakeDeck:

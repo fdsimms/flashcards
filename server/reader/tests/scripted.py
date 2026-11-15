@@ -10,7 +10,7 @@ ENTRIES = [
     Entry(2, "อยาก", "want to", "mature"),
     Entry(3, "กิน", "eat", "mature"),
     # Reviewed today and due again in 3 days, so it can be a practice word (stretch.py).
-    Entry(4, "ข้าวเหนียวมะม่วง", "mango sticky rice", "young", reviewed=True, due_in=3),
+    Entry(4, "ข้าวเหนียวมะม่วง", "mango sticky rice", "young", reviewed=True, due_in=5),
     Entry(5, "ครับ", "polite particle (male)", "mature"),
     Entry(6, "รับอะไรดี", "what would you like?", "mature"),
     Entry(7, "ทอน", "give change", "unreviewed"),

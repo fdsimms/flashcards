@@ -231,7 +231,7 @@ answers aren't kept.
 - **Sentences** (`sentences.py`, `POST /api/sentences`, the Practice tab's Sentences tool): an
   English sentence built around a word, to say or type, then compared with the sentence written for
   it; Check mine asks the check above when one's own wording differs. The words are a text's stretch
-  words' (`pick_stretch`): reviewed today first, then young, **never one waiting for its review**,
+  words' (`pick_stretch`): the most fragile young words first, then those reviewed today, **never one waiting for its review**,
   neither as the word asked nor anywhere in a sentence (checked with the writing lexicon, and with the
   full snapshot for forms of a held word). Written in the background, ten words a call, two
   sentences a word, at most three calls a language a day; generate, then verify (the word used, at
@@ -756,7 +756,20 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   so they use the text's own meaning. The top-up pass now also asks, once, for the words of the 30
   newest texts that only had the language's meaning, so texts waiting to be read get their own sense
   too.
-- **Stretch words** are 1-4 words (15 November 2026: was 1-3, `MAX_STRETCH`), each asked for once or twice (twice for a word with several forms or senses or a longer phrase, once for a simple one), reviewed today or still young. No random assignment.
+- **Stretch words** are 1-4 words (15 November 2026: was 1-3, `MAX_STRETCH`), each asked for once or twice (twice for a word with several forms or senses or a longer phrase, once for a simple one), young words first (most fragile, below), then ones reviewed today. No random assignment.
+- **Stretch order: fragile young words first** (15 November 2026, the owner's decision from a review of
+  the learning science). The order is words returning from an earlier day (`RETURN_DAYS`), then young
+  words not waiting, lowest FSRS stability first (the note's most fragile studied card, read from
+  Anki's memory state into `Entry.stability`, `lexicon.stability` in the snapshot), then words
+  reviewed today. A word just reviewed is at its strongest, so another encounter adds the least; a
+  young word's memory is weakest and gains most. Retrievability can't rank them: FSRS schedules a
+  review for when it falls to the desired retention, so every word that isn't due sits just above
+  it, and the lowest is simply the soonest due. **A young word due within `PRIMING_DAYS` (2) study
+  days is left out** (`stretch.due_soon`): read that close to its review, the exposure primes it,
+  principle 9's corruption softened by the days between. A word reviewed today is exempt, since its
+  next review is a full interval away. Sentences' practice words (`sentences.candidates`) use the
+  same pick. This relaxes the 13 November rule only for young words due in 3 or more days; a word
+  that is due or past due is still never picked or used.
 - **Several texts in one study day don't repeat their practice words** (15 November 2026, the
   owner's decision). A word that was a stretch word in a text already read today goes after every
   other candidate (`pick_stretch`'s `today`, from `store.practiced_since`), returning words
@@ -1147,7 +1160,33 @@ in the current language, with when one was last read to the end. Nothing else le
   `call_costs` and counts under `explanations`; memory hints, which nothing else keeps, go there
   too, failed or not, under `mnemonics`.
 - **Dropped:** the brief's randomized experiment (exposed versus held-back words, Anki outcome
-  comparison, kill criterion). The owner decided on 19 October 2026 not to build it.
+  comparison, kill criterion). The owner decided on 19 October 2026 not to build it. A random
+  holdout is still the only way to show the mode helps vocabulary; the observational comparison
+  below is the cheap stand-in, and a holdout can be designed later (the default "topic" mode lets
+  the model choose stretch words, so it would need a randomized candidate list).
+- **Effective coverage** (15 November 2026, the owner's decision from a review of the learning
+  science). Verified coverage counts a word as known when it's studied and not waiting for its
+  review, but the owner's recall in Anki (79% of reviews remembered in the last 30 days, against a
+  90% desired retention) says some of those words aren't recognized. When a reading is logged the
+  server measures it (`recognition.py`, from the text's lines, the current snapshot's checker and the
+  words the reader tapped or marked): the text's words, how many were known, and how many of those
+  were looked up, as tokens and as distinct words, kept in the `readings` row (NULL before this).
+  **Effective coverage** is verified coverage less the known words looked up. It's a floor on the
+  misses (a word not recognized and not tapped isn't seen) and a little high where a word was tapped
+  for curiosity, so read it as a trend. `GET /api/progress` reports it as `recognition`
+  (`texts`, `verified`, `effective`, `known_types`, `looked_up_types`) over the finished readings
+  that kept it. Display only: the difficulty adaptation doesn't read it, and the app doesn't show
+  it yet.
+- **Exposure effect** (15 November 2026). `GET /api/exposure-effect?days=90` (`exposure_effect.py`)
+  asks whether a stretch word was remembered better at its next Anki review than similar words that
+  weren't stretch words. The exposures are the stretch words of texts read to the end
+  (`store.stretch_readings`), the outcomes the collection's review log (`collection.read_reviews`,
+  a sync first, read only). A card's review is exposed when its word was a stretch word in a text
+  read after the card's previous answer and no later than this one; it's compared with unexposed
+  reviews of cards at about the same interval before the review, averaged over the exposed reviews'
+  mix of intervals, with a 95% interval, and says `not_enough` below 40 exposed reviews. **It shows
+  an association, never proof:** which words became stretch words wasn't random, and what else sets
+  them apart (how hard the word is) isn't controlled for. Nothing here grades FSRS or changes a card.
 
 ## Build order
 
