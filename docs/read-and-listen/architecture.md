@@ -367,8 +367,16 @@ aloud is never heard by the phone.
 - **Open risk**: Azure's request shapes are unverified against a live key, as for the texts' audio,
   and the narrator's English voice and the Multilingual `<lang>` handling haven't been listened to.
   The first real lesson is the check.
-- **Not done**: the app's screen (a list of lessons, a scene field, a player), other languages,
-  and anything that adapts a lesson to what the learner already knows.
+- **In the app** (the owner chose the layout from a mock, 15 November 2026): an Audio lessons row on
+  the shelf, shown only while the language is one the server makes lessons in (`lessonsOffered`,
+  mirroring `LESSON_LANGUAGES`), opens a list with a scene field (`ReadLessons.tsx`; it asks again
+  every 5 seconds while one is being made, and tapping a failed one offers to delete it). A ready
+  lesson opens its player (`ReadLesson.tsx`): play or pause, skip back or forward 15 seconds to hear
+  a phrase again, the lock screen's controls, and the phrases and conversation behind a row, hidden
+  until asked for so the lesson can be heard first. Background playback is on only while it's open.
+- **Not done**: other languages, a seekable scrubber, and anything that adapts a lesson to what the
+  learner already knows. Not run on a device yet: the lock screen controls and background playback
+  are untested.
 
 ## Speaking
 

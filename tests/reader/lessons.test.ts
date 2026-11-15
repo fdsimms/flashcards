@@ -1,0 +1,76 @@
+import { describe, expect, it } from 'vitest';
+import type { AudioLesson } from '../../src/reader/api';
+import { anyMaking, atEnd, clock, lessonDetail, lessonsOffered, skipTo } from '../../src/reader/lessons';
+
+const lesson = (over: Partial<AudioLesson> = {}): AudioLesson => ({
+  id: 1, language: 'fr', scene: 'a café', title: 'At the café', state: 'ready', error: '',
+  duration_ms: 252_000, created_at: '2026-11-15T12:00:00',
+  phrases: [{ text: 'Un café.', english: 'A coffee.' }, { text: 'Merci.', english: 'Thanks.' }],
+  dialogue: [], ...over,
+});
+
+describe('lessonsOffered', () => {
+  it('is French only, for now', () => {
+    expect(lessonsOffered('fr')).toBe(true);
+    expect(lessonsOffered('es')).toBe(false);
+  });
+});
+
+describe('anyMaking', () => {
+  it('is true while one is being made, and only then', () => {
+    expect(anyMaking([lesson(), lesson({ state: 'making' })])).toBe(true);
+    expect(anyMaking([lesson(), lesson({ state: 'failed' })])).toBe(false);
+    expect(anyMaking([])).toBe(false);
+  });
+});
+
+describe('clock', () => {
+  it('shows minutes and seconds', () => {
+    expect(clock(86.9)).toBe('1:26');
+    expect(clock(252)).toBe('4:12');
+    expect(clock(5)).toBe('0:05');
+  });
+  it('shows 0:00 for nothing, a negative or a missing length', () => {
+    expect(clock(0)).toBe('0:00');
+    expect(clock(-3)).toBe('0:00');
+    expect(clock(NaN)).toBe('0:00');
+  });
+});
+
+describe('skipTo', () => {
+  it('moves by the amount within the lesson', () => {
+    expect(skipTo(60, 15, 250)).toBe(75);
+    expect(skipTo(60, -15, 250)).toBe(45);
+  });
+  it('stops at the start and the end', () => {
+    expect(skipTo(5, -15, 250)).toBe(0);
+    expect(skipTo(245, 15, 250)).toBe(250);
+  });
+  it('has no end while the length is unknown', () => {
+    expect(skipTo(10, 15, 0)).toBe(25);
+  });
+});
+
+describe('atEnd', () => {
+  it('is true within half a second of the end, and never before the length is known', () => {
+    expect(atEnd(249.8, 250)).toBe(true);
+    expect(atEnd(100, 250)).toBe(false);
+    expect(atEnd(0, 0)).toBe(false);
+  });
+});
+
+describe('lessonDetail', () => {
+  it('says how long a ready lesson is, how many phrases it teaches and when it was made', () => {
+    expect(lessonDetail(lesson({ created_at: '2026-11-15T12:00:00' }))).toBe('4 min · 2 phrases · Nov 15');
+  });
+  it('counts a short lesson as a minute and one phrase as singular', () => {
+    expect(lessonDetail(lesson({ duration_ms: 20_000, phrases: [{ text: 'a', english: 'b' }], created_at: '' }))).toBe('1 min · 1 phrase');
+  });
+  it('says a lesson is being made', () => {
+    expect(lessonDetail(lesson({ state: 'making' }))).toBe('Making it. This takes about a minute.');
+  });
+  it('gives a failed lesson its reason, or says to try again', () => {
+    expect(lessonDetail(lesson({ state: 'failed', error: "Azure couldn't speak the lesson (Azure answered 429). Try again in a moment." }))).toContain('Azure answered 429');
+    expect(lessonDetail(lesson({ state: 'failed', error: '' }))).toBe("Couldn't make this lesson. Try again.");
+  });
+});
