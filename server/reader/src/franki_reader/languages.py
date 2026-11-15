@@ -16,12 +16,12 @@ from typing import Literal
 
 from franki_speech import locale_of
 
-Code = Literal["th", "es", "de", "fr", "ru", "el", "pl", "nb", "ja", "en"]
+Code = Literal["th", "es", "de", "fr", "ru", "el", "pl", "nb", "ja", "en", "tr"]
 
 # Languages kept out of what the app is shown, for a build of the app from before they were added
 # (its language table has no entry for them, and the Read & Listen screen crashes on one). Empty
 # this once the app is rebuilt with the language.
-HIDDEN_LANGUAGES: frozenset[Code] = frozenset({"ja", "en"})
+HIDDEN_LANGUAGES: frozenset[Code] = frozenset({"ja", "en", "tr"})
 
 # How many of a language's most common words can be counted as known (the `common` setting).
 CommonCount = Literal[0, 250, 500, 1000, 2000, 3000, 5000, 10000]
@@ -252,6 +252,22 @@ LANGUAGES: dict[Code, Language] = {
             'line in plainer words (a paraphrase, not a copy of the line), and in "glosses" give a '
             "short definition or synonym."
         ),
+    ),
+    # Added on 15 November 2026, by the owner's decision, to learn from zero (issue 299). The deck
+    # doesn't exist until the owner makes it (the decks setting can name another), and a beginner's
+    # deck is nearly empty, so 250 common words is a first guess, as for Polish: raise it as the
+    # deck grows. A form is matched by simplemma's lemma, which for a verb is its stem (gidiyorum
+    # and the entry gitmek are both git).
+    "tr": Language(
+        code="tr",
+        name="Turkish",
+        deck=_LANGUAGES + "🧿 Türkçe",
+        # Azure's standard Turkish voices have one man's and one woman's.
+        voices={"male": "tr-TR-AhmetNeural", "female": "tr-TR-EmelNeural"},
+        spaced=True,
+        example="Dün|akşam|çok|*yoruldum*.",
+        common=250,
+        variety="Write standard Turkish as spoken in Türkiye.",
     ),
 }
 

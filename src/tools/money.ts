@@ -9,7 +9,7 @@ import { pickOther } from './random';
  * point.
  */
 
-export type CurrencyCode = 'THB' | 'MXN' | 'EUR' | 'PLN' | 'RUB' | 'NOK' | 'JPY';
+export type CurrencyCode = 'THB' | 'MXN' | 'EUR' | 'PLN' | 'RUB' | 'NOK' | 'JPY' | 'TRY';
 
 export interface Currency {
   code: CurrencyCode;
@@ -37,6 +37,9 @@ export const CURRENCIES: Record<CurrencyCode, Currency> = {
   PLN: { code: 'PLN', symbol: 'zł', minorSymbol: 'gr', minorPerMajor: 100, notes: major(500, 200, 100, 50, 20, 10), coins: [...major(5, 2, 1), 50, 20, 10, 5, 2, 1], minorStep: 1 },
   RUB: { code: 'RUB', symbol: '₽', minorSymbol: 'kop', minorPerMajor: 100, notes: major(5000, 2000, 1000, 500, 200, 100, 50), coins: major(10, 5, 2, 1), minorStep: 0 },
   NOK: { code: 'NOK', symbol: 'kr', minorSymbol: 'øre', minorPerMajor: 100, notes: major(1000, 500, 200, 100), coins: major(20, 10, 5, 1), minorStep: 0 },
+  // The kuruş is small change: a price ends in 50 or 90 more often than not, and a coin is 1 lira or
+  // 50, 25, 10, 5 or 1 kuruş.
+  TRY: { code: 'TRY', symbol: 'TL', minorSymbol: 'kr', minorPerMajor: 100, notes: major(200, 100, 50, 20, 10, 5), coins: [...major(1), 50, 25, 10, 5, 1], minorStep: 5 },
   // The sen is long gone: prices are whole yen, so no coin is ever below one.
   JPY: { code: 'JPY', symbol: '¥', minorSymbol: 'sen', minorPerMajor: 100, notes: major(10000, 5000, 2000, 1000), coins: major(500, 100, 50, 10, 5, 1), minorStep: 0 },
 };

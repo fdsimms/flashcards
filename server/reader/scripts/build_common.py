@@ -21,7 +21,7 @@ the reader's popup; Thai has no inflection to group and no common-words setting.
 Run with the simplemma and Sudachi the server runs (pyproject.toml) and wordfreq 3.1.1, which is
 outside the server's own dependencies:
 
-    uv run --with wordfreq==3.1.1 python scripts/build_common.py en de fr ru el pl nb ja th
+    uv run --with wordfreq==3.1.1 python scripts/build_common.py en de fr ru el pl nb ja th tr
 
 Rebuild every list after upgrading simplemma, and Japanese's after upgrading Sudachi or its
 dictionary, so the lemmas here match the ones they give at runtime.
@@ -55,6 +55,7 @@ NAMES = {
     "nb": "Norwegian (Bokmål)",
     "ja": "Japanese",
     "th": "Thai",
+    "tr": "Turkish",
 }
 _LATIN = re.compile(r"[A-Za-z]")
 # A Thai word: at least two letters, vowels and tone marks (no digits, ๆ, or the corpus's Latin and
@@ -158,6 +159,17 @@ def build_thai() -> list[str]:
     return sorted(score, key=lambda w: (-score[w], w))[:KEEP]
 
 
+# Turkish's alphabet: no q, w or x. wordfreq's Turkish comes from the web and subtitles, so it also
+# holds single letters, digits (3d, m2), English (you're, that's) and names with their suffix and an
+# apostrophe (twitter'da), none of which is a Turkish word to count as known. o (he, she, it) is the
+# one single letter that is a word.
+_TURKISH_WORD = re.compile(r"[abcçdefgğhıijklmnoöprsştuüvyz]{2,}")
+
+
+def _turkish_word(form: str) -> bool:
+    return form == "o" or _TURKISH_WORD.fullmatch(form) is not None
+
+
 def build(code: str) -> list[str]:
     if code == "ja":
         return build_japanese()
@@ -170,6 +182,8 @@ def build(code: str) -> list[str]:
         if code == "el":
             # wordfreq writes Greek's final sigma as σ (της as τησ); text and simplemma use ς.
             form = re.sub(r"σ\b", "ς", form)
+        if code == "tr" and not _turkish_word(form):
+            continue
         lemma = str(simplemma.lemmatize(form, lang=code)).lower()
         totals[lemma] = totals.get(lemma, 0.0) + wordfreq.word_frequency(form, code)
     return sorted(totals, key=lambda w: -totals[w])[:KEEP]

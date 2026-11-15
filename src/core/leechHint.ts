@@ -17,7 +17,7 @@ export function canAddMnemonic(note: Note): boolean {
 /** What a hint suggestion is asked about; undefined for a note whose language Read & Listen doesn't write in. */
 export type MnemonicQuestion = { language: Language; entry: string; meaning: string; transliteration: string; context: string };
 
-const READER_LANGUAGES: readonly string[] = ['th', 'es', 'de', 'fr', 'ru', 'el', 'pl', 'nb', 'ja'];
+const READER_LANGUAGES: readonly string[] = ['th', 'es', 'de', 'fr', 'ru', 'el', 'pl', 'nb', 'ja', 'tr'];
 
 export function mnemonicQuestion(note: Note): MnemonicQuestion | undefined {
   const code = speechLangFor(note)?.split('-')[0];

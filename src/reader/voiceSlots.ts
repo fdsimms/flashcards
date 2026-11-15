@@ -63,6 +63,7 @@ const SAMPLES: Record<Language, string> = {
   nb: 'Hei, hvordan går det? I dag er det veldig fint vær.',
   ja: 'こんにちは。今日はとてもいい天気ですね。',
   en: 'Hello, how are you? It’s a lovely day today.',
+  tr: 'Merhaba, nasılsın? Bugün hava çok güzel.',
 };
 const THAI_WOMAN = 'สวัสดีค่ะ วันนี้อากาศดีนะคะ';
 

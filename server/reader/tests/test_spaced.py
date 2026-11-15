@@ -16,7 +16,7 @@ from franki_reader.generator import Line, TextRequest, generate
 from franki_reader.languages import LANGUAGES
 from franki_reader.lexicon import Entry, lexicon_from
 from franki_reader.reader import render
-from franki_reader.spaced import SpacedLexicon, common_words
+from franki_reader.spaced import SpacedLexicon, common_words, fold
 from franki_reader.store import StoredText
 from franki_reader.tts import Spoken
 
@@ -482,6 +482,43 @@ def test_norwegian_entries_match_without_their_article_or_infinitive_marker() ->
     lexicon = lexicon_of("nb", ["å vente", "en butikk", "å skynde seg"], 1000)
     assert set(word_statuses(lexicon, "Vi venter i butikken.").values()) == {"known"}
     assert lexicon.entry_of("skynder") == "å skynde seg"
+
+
+def test_turkish_capital_i_is_dotted_or_dotless_as_the_letter_is() -> None:
+    # Python's lower() makes I an i and İ an i with a combining dot, so Işık matched nothing.
+    assert fold("Işık", "tr") == "ışık" and fold("IŞIK", "tr") == "ışık"
+    assert fold("İstanbul", "tr") == "istanbul" and fold("İyi", "tr") == "iyi"
+    assert fold("Işık", "es") == "işık"  # no other language is changed
+    lexicon = lexicon_of("tr", ["ışık"], 0)
+    assert word_statuses(lexicon, "Işık. IŞIK.") == {"Işık": "known", "IŞIK": "known"}
+    assert lexicon.entry_of("Işığı") == "ışık"
+
+
+def test_turkish_verb_entries_are_infinitives_and_match_every_form() -> None:
+    # simplemma takes gitmek and gidiyorum to the same stem, git, so the entry finds its forms.
+    lexicon = lexicon_of("tr", ["gitmek", "hatırlamak"], 0)
+    for form in ["gidiyorum", "gideceğim", "gittiler", "Gitmek"]:
+        assert lexicon.entry_of(form) == "gitmek", form
+    assert lexicon.entry_of("hatırlıyorum") == "hatırlamak"
+    assert lexicon.status("yürüyorum") == "unknown"
+
+
+def test_turkish_suffixes_are_matched_by_lemma_and_250_common_words_count_by_default() -> None:
+    lexicon = lexicon_of("tr", ["kitap"])
+    assert lexicon.common == lexicon_of("tr", [], 250).common
+    assert word_statuses(lexicon, "Evlerimizden kitaplarımızla çıktık.") == {
+        "Evlerimizden": "known",  # ev is one of the 250 most common
+        "kitaplarımızla": "known",  # the deck's kitap
+        "çıktık": "known",  # çık is too
+    }
+    assert lexicon_of("tr", [], 250).status("okudum") == "unknown"  # oku is past the first 250
+
+
+def test_turkish_name_with_a_suffix_after_an_apostrophe_is_one_word() -> None:
+    lexicon = lexicon_of("tr", ["Ankara"], 0)
+    assert lexicon.segment("Ankara'da yaşıyorum.") == ["Ankara'da", " ", "yaşıyorum", "."]
+    assert lexicon.status("Ankara'da") == "known"
+    assert lexicon.status("Izmir'de") == "unknown"
 
 
 def test_english_counts_deck_words_in_any_form_and_its_common_words() -> None:

@@ -268,6 +268,7 @@ DECKS = {
     "nb": "👅 Languages::🐟 Norsk",
     "ja": "👅 Languages::🍥 日本語",
     "en": "👅 Languages::🗽 English",
+    "tr": "👅 Languages::🧿 Türkçe",
 }
 # How many common words each language counts as known when none was chosen (not Thai: deck only).
 COMMON = {
@@ -280,6 +281,7 @@ COMMON = {
     "nb": 1000,
     "ja": 2000,
     "en": 5000,
+    "tr": 250,
 }
 # Each language's voice for each slot (the first of a gender where it has no second), the same.
 VOICES = {
@@ -342,6 +344,12 @@ VOICES = {
         "male2": "en-US-DavisNeural",
         "female": "en-US-JennyNeural",
         "female2": "en-US-AriaNeural",
+    },
+    "tr": {
+        "male": "tr-TR-AhmetNeural",
+        "male2": "tr-TR-AhmetNeural",
+        "female": "tr-TR-EmelNeural",
+        "female2": "tr-TR-EmelNeural",
     },
 }
 
@@ -1245,7 +1253,7 @@ def test_only_the_passphrase_reports_counts() -> None:
     assert c.put("/api/franki-counts", json={"due": -1, "new": 0}, headers=AUTH).status_code == 422
 
 
-@pytest.mark.parametrize("hidden", ["ja", "en"])
+@pytest.mark.parametrize("hidden", ["ja", "en", "tr"])
 def test_a_new_language_is_hidden_from_the_app_until_its_build_has_it(hidden: Code) -> None:
     # An app built before a language has no entry for it and crashes on one, so a saved setting
     # for it reads as Thai and the shelf doesn't list it (languages.HIDDEN_LANGUAGES).

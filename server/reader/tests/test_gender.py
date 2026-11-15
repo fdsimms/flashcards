@@ -52,6 +52,7 @@ def test_each_languages_texts_are_in_its_own_voices_locale() -> None:
         "nb": "nb-NO",
         "ja": "ja-JP",
         "en": "en-US",
+        "tr": "tr-TR",
     }
     assert speech_locale("ja") == "ja-JP"
     assert speech_locale("th_TH") == "th-TH"

@@ -66,9 +66,16 @@ def _persons(group: str, base: str, labels: list[tuple[str, str]]) -> Table:
     return Table(group, tuple(Row.of(label, f"V;{base};{person}") for label, person in labels))
 
 
+def _turkish(group: str, base: str) -> Table:
+    """A tense's six persons in the positive statement: UniMorph's Turkish also has a negative and a
+    question form of each (POS or NEG, DECL or INTR), so a row asks for the statement."""
+    return Table(group, tuple(Row.of(label, f"V;{base};{person};POS;DECL") for label, person in TURKISH_PERSONS))
+
+
 SPANISH_PERSONS = [("yo", "1;SG"), ("tú", "2;SG;INFM"), ("él", "3;SG"), ("nosotros", "1;PL"), ("vosotros", "2;PL"), ("ellos", "3;PL")]
 SLAVIC_PERSONS_PL = [("ja", "1;SG"), ("ty", "2;SG"), ("on", "3;SG"), ("my", "1;PL"), ("wy", "2;PL"), ("oni", "3;PL")]
 SLAVIC_PERSONS_RU = [("я", "1;SG"), ("ты", "2;SG"), ("он", "3;SG"), ("мы", "1;PL"), ("вы", "2;PL"), ("они", "3;PL")]
+TURKISH_PERSONS = [("ben", "1;SG"), ("sen", "2;SG"), ("o", "3;SG"), ("biz", "1;PL"), ("siz", "2;PL"), ("onlar", "3;PL")]
 
 
 Transform = Callable[[str, str], str]  # (label, form) -> the form as the line shows it
@@ -130,6 +137,16 @@ TABLES: dict[str, Language] = {
             Row.of("oni", "V;PST;3;PL;MASC;HUM"), Row.of("one", "V;PST;3;PL"),
         )),
     )),
+    # An Entry is the infinitive (yapmak), which is UniMorph's lemma. It has 3,579 lemmas, most of
+    # the common verbs but not all (konuşmak and anlamak aren't there), and no phrasal verb (yardım
+    # etmek): those come back as not found.
+    "turkish": Language("tur", tables=(
+        _turkish("present continuous", "IND;PRS;PROG"),
+        _turkish("past", "IND;PST"),
+        _turkish("future", "IND;FUT"),
+        _turkish("aorist", "IND;PRS;HAB"),
+        _turkish("evidential past", "INFR;PST"),
+    )),
     "russian": Language("rus", tables=(
         _persons("present", "PRS", SLAVIC_PERSONS_RU),
         Table("past", (
@@ -140,7 +157,7 @@ TABLES: dict[str, Language] = {
 }
 # What the Language field may say for each (Omnilanguage's own names, as `speechLangFor` reads them).
 LANGUAGE_NAMES = {"spanish": "spanish", "español": "spanish", "espanol": "spanish", "polish": "polish", "polski": "polish",
-                  "russian": "russian", "русский": "russian"}
+                  "russian": "russian", "русский": "russian", "turkish": "turkish", "türkçe": "turkish", "turkce": "turkish"}
 
 
 def form_lines(language: Language, forms: list[tuple[str, frozenset[str]]], transform: Transform = _same) -> list[str]:

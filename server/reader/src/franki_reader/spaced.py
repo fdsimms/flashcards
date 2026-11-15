@@ -155,6 +155,9 @@ RULES: dict[str, Rules] = {
     # The deck marks a noun's gender with ten, ta, to or te (ta kobieta).
     "pl": Rules(prefixes=frozenset({"ten", "ta", "to", "te"}), suffixes=frozenset({"się"})),
     "nb": Rules(prefixes=frozenset({"en", "ei", "et", "å"}), suffixes=frozenset({"seg"})),
+    # No articles. An entry is a bare word (ev) or a verb's infinitive (gitmek), which simplemma takes
+    # to the same stem as the verb's forms (gidiyorum, gideceğim), so nothing is taken off or guessed.
+    "tr": Rules(),
     # The deck's entries are bare words (velleity, abnegate), with no article or "to". simplemma
     # knows the common ones' forms but not a rare word's (velleities, kenoses), so a form is also
     # tried as its entry by its ending, against deck entries only, never the common words.
@@ -237,7 +240,12 @@ def lemma(word: str, code: str) -> str:
 
 
 def fold(word: str, code: str) -> str:
-    """A word as it's compared: lowercased, Russian ё as е, a typographic apostrophe as '."""
+    """A word as it's compared: lowercased, Russian ё as е, a typographic apostrophe as '.
+    Turkish has a dotted and a dotless i: I lowercases to ı and İ to i, where Python's lower() gives
+    i and an i with a combining dot, so a capital at a sentence's start (Işık, İstanbul) matched
+    nothing."""
+    if code == "tr":
+        word = word.replace("İ", "i").replace("I", "ı")
     word = word.lower().replace("’", "'")
     return word.replace("ё", "е") if code == "ru" else word
 

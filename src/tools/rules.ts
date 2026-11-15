@@ -105,6 +105,13 @@ function russianTime({ minute: m }: ClockTime): string | undefined {
   return 'From :35, без and the minutes left in the genitive, then the next hour: без десяти три is 2:50, без четверти три 2:45.';
 }
 
+function turkishTime({ minute: m }: ClockTime): string | undefined {
+  if (m === 0) return 'On the hour it is saat and the number: saat üç is 3:00.';
+  if (m === 30) return 'Half past is buçuk, a half: saat üç buçuk is 3:30.';
+  if (m < 30) return 'Minutes past take the hour in the accusative, then geçiyor: saat üçü beş geçiyor is 3:05. A quarter is çeyrek: üçü çeyrek geçiyor.';
+  return 'Minutes to the hour take the next hour in the dative, then var: saat dörde beş var is 3:55. A quarter is çeyrek: dörde çeyrek var.';
+}
+
 /** The rule for saying `t` in `language`, if it has a short, certain one. */
 export function timeRule(language: Language, t: ClockTime): string | undefined {
   switch (language) {
@@ -117,6 +124,7 @@ export function timeRule(language: Language, t: ClockTime): string | undefined {
     case 'ja': return japaneseTime(t);
     case 'pl': return polishTime(t);
     case 'ru': return russianTime(t);
+    case 'tr': return turkishTime(t);
   }
 }
 
@@ -236,7 +244,9 @@ export function moneyRule(language: Language, amount: number, currency: Currency
     case 'el': return greekMoney(whole, minor);
     case 'ja': return japaneseMoney(whole);
     case 'th': return thaiMoney(whole, minor);
-    case 'nb': return undefined;
+    case 'nb':
+    case 'tr':
+      return undefined;
   }
 }
 
@@ -283,6 +293,7 @@ export function dateRule(language: Language, d: CalendarDate, parts: DateParts):
     case 'el': return d.day === 1 || ([1, 3, 4].includes(d.day % 10) && d.day !== 11)
       ? 'The first is πρώτη; the other days are feminine numbers (η ημέρα): τρεις, τέσσερις, είκοσι μία Νοεμβρίου.'
       : undefined;
+    case 'tr': return 'The day is a plain number, not an ordinal, before the month: on iki Kasım. The year is a plain number too: iki bin yirmi altı.';
     case 'th':
     case 'nb':
       return undefined;
@@ -349,6 +360,10 @@ export function numberRule(language: Language, q: NumberQuestion, said: string):
     case 'ru': return russianNumberRule(q);
     case 'ja': return japaneseNumberRule(q);
     case 'el': return greekNumberRule(q);
+    case 'tr':
+      if (q.kind === 'age') return 'An age is the number and yaşındayım, the same for every number: yirmi iki yaşındayım is 22.';
+      if (q.kind === 'year') return 'A year is a plain number, not an ordinal: bin dokuz yüz seksen yedi is 1987.';
+      return undefined;
     case 'th': return q.kind === 'year' ? 'Thai counts years from the Buddha, 543 more than the Christian year: พ.ศ. 2530 is 1987.' : undefined;
     case 'nb':
     case 'en':

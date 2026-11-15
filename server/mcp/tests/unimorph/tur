@@ -1,0 +1,132 @@
+yapmak	yaparım	V;IND;PRS;HAB;1;SG;POS;DECL
+yapmak	yaparız	V;IND;PRS;HAB;1;PL;POS;DECL
+yapmak	yaparsın	V;IND;PRS;HAB;2;SG;POS;DECL
+yapmak	yaparsınız	V;IND;PRS;HAB;2;PL;POS;DECL
+yapmak	yapar	V;IND;PRS;HAB;3;SG;POS;DECL
+yapmak	yaparlar	V;IND;PRS;HAB;3;PL;POS;DECL
+yapmak	yapıyorum	V;IND;PRS;PROG;1;SG;POS;DECL
+yapmak	yapıyoruz	V;IND;PRS;PROG;1;PL;POS;DECL
+yapmak	yapıyorsun	V;IND;PRS;PROG;2;SG;POS;DECL
+yapmak	yapıyorsunuz	V;IND;PRS;PROG;2;PL;POS;DECL
+yapmak	yapıyor	V;IND;PRS;PROG;3;SG;POS;DECL
+yapmak	yapıyorlar	V;IND;PRS;PROG;3;PL;POS;DECL
+yapmak	yaptım	V;IND;PST;1;SG;POS;DECL
+yapmak	yaptık	V;IND;PST;1;PL;POS;DECL
+yapmak	yaptın	V;IND;PST;2;SG;POS;DECL
+yapmak	yaptınız	V;IND;PST;2;PL;POS;DECL
+yapmak	yaptı	V;IND;PST;3;SG;POS;DECL
+yapmak	yaptılar	V;IND;PST;3;PL;POS;DECL
+yapmak	yapardım	V;IND;PST;HAB;1;SG;POS;DECL
+yapmak	yapardık	V;IND;PST;HAB;1;PL;POS;DECL
+yapmak	yapardın	V;IND;PST;HAB;2;SG;POS;DECL
+yapmak	yapardınız	V;IND;PST;HAB;2;PL;POS;DECL
+yapmak	yapardı	V;IND;PST;HAB;3;SG;POS;DECL
+yapmak	yaparlardı	V;IND;PST;HAB;3;PL;POS;DECL
+yapmak	yapıyordum	V;IND;PST;PROG;1;SG;POS;DECL
+yapmak	yapıyorduk	V;IND;PST;PROG;1;PL;POS;DECL
+yapmak	yapıyordun	V;IND;PST;PROG;2;SG;POS;DECL
+yapmak	yapıyordunuz	V;IND;PST;PROG;2;PL;POS;DECL
+yapmak	yapıyordu	V;IND;PST;PROG;3;SG;POS;DECL
+yapmak	yapıyorlardı	V;IND;PST;PROG;3;PL;POS;DECL
+yapmak	yaptıydım	V;IND;PST;PFV;1;SG;POS;DECL
+yapmak	yaptıydık	V;IND;PST;PFV;1;PL;POS;DECL
+yapmak	yaptıydın	V;IND;PST;PFV;2;SG;POS;DECL
+yapmak	yaptıydınız	V;IND;PST;PFV;2;PL;POS;DECL
+yapmak	yaptıydı	V;IND;PST;PFV;3;SG;POS;DECL
+yapmak	yaptılardı	V;IND;PST;PFV;3;PL;POS;DECL
+yapmak	yapacaktım	V;IND;PST;PROSP;1;SG;POS;DECL
+yapmak	yapacaktık	V;IND;PST;PROSP;1;PL;POS;DECL
+yapmak	yapacaktın	V;IND;PST;PROSP;2;SG;POS;DECL
+yapmak	yapacaktınız	V;IND;PST;PROSP;2;PL;POS;DECL
+yapmak	yapacaktı	V;IND;PST;PROSP;3;SG;POS;DECL
+yapmak	yapacaklardı	V;IND;PST;PROSP;3;PL;POS;DECL
+yapmak	yapıyor olurdum	V;IND;PST;HAB+PROG;1;SG;POS;DECL
+yapmak	yapıyor olurduk	V;IND;PST;HAB+PROG;1;PL;POS;DECL
+yapmak	yapıyor olurdun	V;IND;PST;HAB+PROG;2;SG;POS;DECL
+yapmak	yapıyor olurdunuz	V;IND;PST;HAB+PROG;2;PL;POS;DECL
+yapmak	yapıyor olurdu	V;IND;PST;HAB+PROG;3;SG;POS;DECL
+yapmak	yapıyor olurlardı	V;IND;PST;HAB+PROG;3;PL;POS;DECL
+yapmak	yapıyor olacaktım	V;IND;PST;PROSP+PROG;1;SG;POS;DECL
+yapmak	yapıyor olacaktık	V;IND;PST;PROSP+PROG;1;PL;POS;DECL
+yapmak	yapıyor olacaktın	V;IND;PST;PROSP+PROG;2;SG;POS;DECL
+yapmak	yapıyor olacaktınız	V;IND;PST;PROSP+PROG;2;PL;POS;DECL
+yapmak	yapıyor olacaktı	V;IND;PST;PROSP+PROG;3;SG;POS;DECL
+yapmak	yapıyor olacaklardı	V;IND;PST;PROSP+PROG;3;PL;POS;DECL
+yapmak	yapacağım	V;IND;FUT;1;SG;POS;DECL
+yapmak	yapacağız	V;IND;FUT;1;PL;POS;DECL
+yapmak	yapacaksın	V;IND;FUT;2;SG;POS;DECL
+yapmak	yapacaksınız	V;IND;FUT;2;PL;POS;DECL
+yapmak	yapacak	V;IND;FUT;3;SG;POS;DECL
+yapmak	yapacaklar	V;IND;FUT;3;PL;POS;DECL
+yapmak	yapıyor olacağım	V;IND;FUT;PROG;1;SG;POS;DECL
+yapmak	yapıyor olacağız	V;IND;FUT;PROG;1;PL;POS;DECL
+yapmak	yapıyor olacaksın	V;IND;FUT;PROG;2;SG;POS;DECL
+yapmak	yapıyor olacaksınız	V;IND;FUT;PROG;2;PL;POS;DECL
+yapmak	yapıyor olacak	V;IND;FUT;PROG;3;SG;POS;DECL
+yapmak	yapıyor olacaklar	V;IND;FUT;PROG;3;PL;POS;DECL
+yapmak	yapacak olacağım	V;IND;FUT;PROSP;1;SG;POS;DECL
+yapmak	yapacak olacağız	V;IND;FUT;PROSP;1;PL;POS;DECL
+yapmak	yapacak olacaksın	V;IND;FUT;PROSP;2;SG;POS;DECL
+yapmak	yapacak olacaksınız	V;IND;FUT;PROSP;2;PL;POS;DECL
+yapmak	yapacak olacak	V;IND;FUT;PROSP;3;SG;POS;DECL
+yapmak	yapacak olacaklar	V;IND;FUT;PROSP;3;PL;POS;DECL
+yapmak	yapıyormuşum	V;INFR;PRS;PROG;1;SG;POS;DECL
+yapmak	yapıyormuşuz	V;INFR;PRS;PROG;1;PL;POS;DECL
+yapmak	yapıyormuşsun	V;INFR;PRS;PROG;2;SG;POS;DECL
+yapmak	yapıyormuşsunuz	V;INFR;PRS;PROG;2;PL;POS;DECL
+yapmak	yapıyormuş	V;INFR;PRS;PROG;3;SG;POS;DECL
+yapmak	yapıyorlarmış	V;INFR;PRS;PROG;3;PL;POS;DECL
+yapmak	yaparmışım	V;INFR;PRS;HAB;1;SG;POS;DECL
+yapmak	yaparmışız	V;INFR;PRS;HAB;1;PL;POS;DECL
+yapmak	yaparmışsın	V;INFR;PRS;HAB;2;SG;POS;DECL
+yapmak	yaparmışsınız	V;INFR;PRS;HAB;2;PL;POS;DECL
+yapmak	yaparmış	V;INFR;PRS;HAB;3;SG;POS;DECL
+yapmak	yaparlarmış	V;INFR;PRS;HAB;3;PL;POS;DECL
+yapmak	yapmışım	V;INFR;PST;1;SG;POS;DECL
+yapmak	yapmışız	V;INFR;PST;1;PL;POS;DECL
+yapmak	yapmışsın	V;INFR;PST;2;SG;POS;DECL
+yapmak	yapmışsınız	V;INFR;PST;2;PL;POS;DECL
+yapmak	yapmış	V;INFR;PST;3;SG;POS;DECL
+yapmak	yapmışlar	V;INFR;PST;3;PL;POS;DECL
+yapmak	yapmıştım	V;INFR;PST;PFV;1;SG;POS;DECL
+yapmak	yapmıştık	V;INFR;PST;PFV;1;PL;POS;DECL
+yapmak	yapmıştın	V;INFR;PST;PFV;2;SG;POS;DECL
+yapmak	yapmıştınız	V;INFR;PST;PFV;2;PL;POS;DECL
+yapmak	yapmıştı	V;INFR;PST;PFV;3;SG;POS;DECL
+yapmak	yapmışlardı	V;INFR;PST;PFV;3;PL;POS;DECL
+yapmak	yapmış olacaktım	V;INFR;PST;PROSP;1;SG;POS;DECL
+yapmak	yapmış olacaktık	V;INFR;PST;PROSP;1;PL;POS;DECL
+yapmak	yapmış olacaktın	V;INFR;PST;PROSP;2;SG;POS;DECL
+yapmak	yapmış olacaktınız	V;INFR;PST;PROSP;2;PL;POS;DECL
+yapmak	yapmış olacaktı	V;INFR;PST;PROSP;3;SG;POS;DECL
+yapmak	yapmış olacaklardı	V;INFR;PST;PROSP;3;PL;POS;DECL
+yapmak	yapacakmışım	V;INFR;FUT;1;SG;POS;DECL
+yapmak	yapacakmışız	V;INFR;FUT;1;PL;POS;DECL
+yapmak	yapacakmışsın	V;INFR;FUT;2;SG;POS;DECL
+yapmak	yapacakmışsınız	V;INFR;FUT;2;PL;POS;DECL
+yapmak	yapacakmış	V;INFR;FUT;3;SG;POS;DECL
+yapmak	yapacaklarmış	V;INFR;FUT;3;PL;POS;DECL
+yapmak	yapmış olacağım	V;INFR;FUT;PFV;1;SG;POS;DECL
+yapmak	yapmış olacağız	V;INFR;FUT;PFV;1;PL;POS;DECL
+yapmak	yapmış olacaksın	V;INFR;FUT;PFV;2;SG;POS;DECL
+yapmak	yapmış olacaksınız	V;INFR;FUT;PFV;2;PL;POS;DECL
+yapmak	yapmış olacak	V;INFR;FUT;PFV;3;SG;POS;DECL
+yapmak	yapmış olacaklar	V;INFR;FUT;PFV;3;PL;POS;DECL
+yapmak	yapar olacakmışım	V;INFR;FUT;HAB;1;SG;POS;DECL
+yapmak	yapar olacakmışız	V;INFR;FUT;HAB;1;PL;POS;DECL
+yapmak	yapar olacakmışsın	V;INFR;FUT;HAB;2;SG;POS;DECL
+yapmak	yapar olacakmışsınız	V;INFR;FUT;HAB;2;PL;POS;DECL
+yapmak	yapar olacakmış	V;INFR;FUT;HAB;3;SG;POS;DECL
+yapmak	yapar olacaklarmış	V;INFR;FUT;HAB;3;PL;POS;DECL
+yapmak	yapıyor olacakmışım	V;INFR;FUT;PROG;1;SG;POS;DECL
+yapmak	yapıyor olacakmışız	V;INFR;FUT;PROG;1;PL;POS;DECL
+yapmak	yapıyor olacakmışsın	V;INFR;FUT;PROG;2;SG;POS;DECL
+yapmak	yapıyor olacakmışsınız	V;INFR;FUT;PROG;2;PL;POS;DECL
+yapmak	yapıyor olacakmış	V;INFR;FUT;PROG;3;SG;POS;DECL
+yapmak	yapıyor olacaklarmış	V;INFR;FUT;PROG;3;PL;POS;DECL
+yapmak	yapacak olacakmışım	V;INFR;FUT;PROSP;1;SG;POS;DECL
+yapmak	yapacak olacakmışız	V;INFR;FUT;PROSP;1;PL;POS;DECL
+yapmak	yapacak olacakmışsın	V;INFR;FUT;PROSP;2;SG;POS;DECL
+yapmak	yapacak olacakmışsınız	V;INFR;FUT;PROSP;2;PL;POS;DECL
+yapmak	yapacak olacakmış	V;INFR;FUT;PROSP;3;SG;POS;DECL
+yapmak	yapacak olacaklarmış	V;INFR;FUT;PROSP;3;PL;POS;DECL

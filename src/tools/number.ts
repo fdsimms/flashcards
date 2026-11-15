@@ -51,6 +51,7 @@ export const PHONE_FORMATS: Record<Exclude<Language, 'en'>, string[]> = {
   nb: ['4XX XX XXX', '9XX XX XXX'],
   pl: ['5XX XXX XXX', '6XX XXX XXX', '7XX XXX XXX', '88X XXX XXX'],
   ru: ['8 9XX XXX-XX-XX'],
+  tr: ['053X XXX XX XX', '054X XXX XX XX', '055X XXX XX XX'],
 };
 
 /** A phone number's groups of digits, as written: "06 42 17 85 93" is 06, 42, 17, 85, 93. */
@@ -65,10 +66,10 @@ export function fillPhone(format: string, random: () => number = Math.random): s
 
 /**
  * How a language writes the thousands of a plain number: a comma (Thai, Mexico, Japan), a dot
- * (German, Greek), or a space (a narrow one in French, Polish and Russian), as its money does.
+ * (German, Greek, Turkish), or a space (a narrow one in French, Polish and Russian), as its money does.
  */
 const THOUSANDS: Record<Exclude<Language, 'en'>, string> = {
-  th: ',', es: ',', ja: ',', de: '.', el: '.', nb: ' ', fr: ' ', pl: ' ', ru: ' ',
+  th: ',', es: ',', ja: ',', de: '.', el: '.', nb: ' ', fr: ' ', pl: ' ', ru: ' ', tr: '.',
 };
 
 /** A plain number with the language's thousands separator: 1 277, 1.277, 1,277. */

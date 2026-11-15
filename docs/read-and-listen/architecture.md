@@ -543,7 +543,36 @@ Thai letters, so none of them is a language here. Each new language works as Spa
 - **Topic ideas** are ranked by fit for Thai only: their words are Thai, so every other language
   keeps the listed order.
 - The reading log names each language in English, lowercase (`thai`, `spanish`, `german`, `french`,
-  `russian`, `greek`, `polish`, `norwegian`, `japanese`, `english`).
+  `russian`, `greek`, `polish`, `norwegian`, `japanese`, `english`, `turkish`).
+
+### Turkish
+
+Added on 15 November 2026, by the owner's decision, to learn it from zero (issue 299; the grammar
+points, form primers and a starter deck are the rest of that issue). It is a spaced language matched
+by lemma like the others (`spaced.py`), with these differences:
+
+- **A verb's lemma is its stem.** simplemma takes gitmek, gidiyorum and gideceğim all to `git`, so a
+  deck entry written as the infinitive (gitmek) matches every form of the verb. The word popup's
+  dictionary form for a word known only as a common word is that stem, not the infinitive, since
+  nothing here says whether a word is a verb.
+- **The dotted and dotless i are different letters** (`fold`): `I` lowercases to ı and `İ` to i,
+  where Python's `lower()` gives i and an i with a combining dot, so a capital at a sentence's start
+  (Işık, İstanbul) matched nothing. Only Turkish is folded this way.
+- **A name takes its suffix after an apostrophe** (Ankara'da). The apostrophe keeps it one word, and
+  its lemma is the name (ankara), so a name in the deck or the common list is known in any case.
+- **The common-words list drops what wordfreq's web and subtitle sources add** (`build_common.py`,
+  `_turkish_word`): single letters other than o, digits, letters Turkish doesn't use (q, w, x), and
+  names with an apostrophe. English words it still holds (to, is, it) are short and rank low, and
+  count as known only if the setting reaches them.
+- **Voices** are Azure's two standard ones, `tr-TR-AhmetNeural` and `tr-TR-EmelNeural`, neither
+  checked against a live key here. **`common` defaults to 250**, a first guess for a learner starting
+  from an empty deck, as Polish's is. The deck is `👅 Languages::🧿 Türkçe` until the decks setting
+  names another.
+- **Hidden from the app** (`HIDDEN_LANGUAGES`) until the build with Turkish is installed, as Japanese
+  and English were.
+- **Forms fill** (the MCP's `forms.py`) reads UniMorph's Turkish: present continuous, past, future,
+  aorist and evidential past, six persons each. UniMorph has 3,579 Turkish lemmas, so verbs it lacks
+  (konuşmak, anlamak) and phrasal verbs (yardım etmek) come back as not found.
 
 ### English
 
@@ -1135,7 +1164,7 @@ in the current language, with when one was last read to the end. Nothing else le
 - **Voices**: four slots per language (`male`, `male2`, `female`, `female2`), defaults in
   `languages.py`. Thai's man's and woman's defaults can be set with `AZURE_VOICE_MALE` and
   `AZURE_VOICE_FEMALE` in `server/.env`. A language with no second voice of a gender (no second
-  man in Thai, Russian, Greek, Polish or Norwegian; no second woman in Greek) reads two speakers
+  man in Thai, Russian, Greek, Polish, Norwegian or Turkish; no second woman in Greek or Turkish) reads two speakers
   of that gender in the same voice until one is chosen. Azure's newer Dragon and MAI voices are
   offered in the picker, but none is a default, as they haven't been tried through this client.
   Azure's Multilingual voices (en-US-AvaMultilingualNeural) are listed under one locale but read
