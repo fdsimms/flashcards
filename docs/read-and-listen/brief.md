@@ -109,7 +109,7 @@ constraints.
    > easy and is revised like one under it. The 90% below became 85%. See `architecture.md`.
 
    > **Changed on 15 November 2026 by the owner.** Back to the research: the target starts at 95%
-   > and can't go below it ("too easy" adds practice words instead), up to 99%. See
+   > and can't go below it ("too easy" adds practice words instead), up to 97%, with texts up to 98%. See
    > `architecture.md`, Generation and coverage.
 
    > **Changed on 26 October 2026 by the owner.** A text under the floor is still revised, but if

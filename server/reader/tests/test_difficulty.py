@@ -15,7 +15,7 @@ def test_about_right_and_no_rating_change_nothing() -> None:
 
 
 def test_limits_hold() -> None:
-    assert adapt(Difficulty(0.99, 1), "too_hard") == Difficulty(0.99, 1)
+    assert adapt(Difficulty(0.97, 1), "too_hard") == Difficulty(0.97, 1)
     # Too easy never takes the target below 95%: it adds stretch words instead.
     assert adapt(Difficulty(0.96, 3), "too_easy") == Difficulty(0.95, 4)
     assert adapt(Difficulty(0.95, 2), "too_easy") == Difficulty(0.95, 3)
@@ -26,18 +26,20 @@ def test_repeated_steps_land_on_round_numbers() -> None:
     d = Difficulty()
     for _ in range(3):
         d = adapt(d, "too_hard")
-    assert d.floor == 0.98
+    assert d.floor == 0.97  # one step short of a third, which would pass the top of the range
 
 
-def test_the_ceiling_is_four_points_above_the_floor() -> None:
-    assert Difficulty(0.95, 2).ceiling == 0.99
-    assert Difficulty(0.99, 1).ceiling == 1.0
+def test_the_ceiling_is_four_points_above_the_floor_up_to_98_percent() -> None:
+    assert Difficulty(0.93, 2).ceiling == 0.97
+    # ... but never above 98%: more known words than that leaves about one new word in 50.
+    assert Difficulty(0.95, 2).ceiling == 0.98
+    assert Difficulty(0.97, 1).ceiling == 0.98
 
 
 def test_a_poor_check_raises_the_floor_but_leaves_the_stretch_words() -> None:
     assert adapt_to_check(Difficulty(0.95, 2), "about_right", 2, 8) == Difficulty(0.96, 2)
     assert adapt_to_check(Difficulty(0.95, 2), None, 2, 6) == Difficulty(0.96, 2)
-    assert adapt_to_check(Difficulty(0.99, 2), "about_right", 0, 8) == Difficulty(0.99, 2)
+    assert adapt_to_check(Difficulty(0.97, 2), "about_right", 0, 8) == Difficulty(0.97, 2)
 
 
 def test_a_fair_check_too_few_questions_or_too_hard_change_nothing() -> None:
@@ -68,20 +70,20 @@ def test_a_rating_steps_from_the_level_the_text_was_written_at() -> None:
 
 
 def test_a_rating_never_moves_the_level_back() -> None:
-    # Too hard on a text written at 95% when the target is already 98%: it stays at 98%.
-    assert after_reading(Difficulty(0.98, 1), Difficulty(0.95, 2), "too_hard", None, None) == (
-        Difficulty(0.98, 1)
+    # Too hard on a text written at 95% when the target is already 97%: it stays at 97%.
+    assert after_reading(Difficulty(0.97, 1), Difficulty(0.95, 2), "too_hard", None, None) == (
+        Difficulty(0.97, 1)
     )
-    # Too easy on a text written at 98% when the target has dropped to 95%.
-    assert after_reading(Difficulty(0.95, 3), Difficulty(0.98, 1), "too_easy", None, None) == (
+    # Too easy on a text written at 97% when the target has dropped to 95%.
+    assert after_reading(Difficulty(0.95, 3), Difficulty(0.97, 1), "too_easy", None, None) == (
         Difficulty(0.95, 3)
     )
 
 
 def test_a_rating_of_a_text_at_a_limit_takes_the_level_to_that_limit() -> None:
     # The text was written at the highest target; the current one has dropped since.
-    assert after_reading(Difficulty(0.97, 2), Difficulty(0.99, 1), "too_hard", None, None) == (
-        Difficulty(0.99, 1)
+    assert after_reading(Difficulty(0.96, 2), Difficulty(0.97, 1), "too_hard", None, None) == (
+        Difficulty(0.97, 1)
     )
     assert after_reading(Difficulty(0.96, 2), Difficulty(0.95, 4), "too_easy", None, None) == (
         Difficulty(0.95, 4)

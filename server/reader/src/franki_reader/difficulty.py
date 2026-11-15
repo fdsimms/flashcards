@@ -8,7 +8,7 @@ Each step is taken from the level the rated text was written at, not the current
 them rated "too hard" move the target one step, as one would.
 
 The coverage target stays between MIN_FLOOR (95%, the least the research says reading and listening
-need) and 99%, and stretch words within 1 to 4. A text must land
+need) and 97%, and stretch words within 1 to 4. A text must land
 between the target and CEILING_GAP above it: one with more known words than that is too easy and
 is revised, which the 95% floor alone never caught.
 """
@@ -25,7 +25,10 @@ from franki_reader.grammar import UNSET_USES
 # Evidence base). A "too easy" rating adds stretch words rather than lowering it.
 DEFAULT_FLOOR = 0.95
 MIN_FLOOR = 0.95
-MAX_FLOOR = 0.99
+# The target stops at 97% and a text at 98%: above that it holds about one new word in 50, too few to
+# learn from. The research calls 98% the comfortable end of adequate coverage.
+MAX_FLOOR = 0.97
+MAX_CEILING = 0.98
 FLOOR_STEP = 0.01
 MIN_STRETCH = 1
 MAX_STRETCH = 4
@@ -50,7 +53,7 @@ class Difficulty:
 
     @property
     def ceiling(self) -> float:
-        return min(1.0, round(self.floor + CEILING_GAP, 2))
+        return min(MAX_CEILING, round(self.floor + CEILING_GAP, 2))
 
 
 def adapt(current: Difficulty, rating: str | None) -> Difficulty:

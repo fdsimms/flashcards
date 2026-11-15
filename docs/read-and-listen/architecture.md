@@ -754,14 +754,17 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   ceiling after 3 attempts is served anyway (too easy is never a reason to drop one), choosing the
   attempt closest to the range. The request names the range, and the prompt tells the model to write
   natural target-language speech rather than word-for-word English idioms.
-- **The target is 95% to 99%** (15 November 2026, the owner's decision: not to go against the
+- **The target is 95% to 98%** (15 November 2026, the owner's decision: not to go against the
   research, which finds 95% the least adequate for reading and, since speech can't be reread, for
   listening; below it comprehension varied widely). `DEFAULT_FLOOR` and the new `MIN_FLOOR` are 95%
   (`difficulty.py`): a language starts there, and "too easy" no longer lowers the target, it adds a
   practice word (up to 4) instead, so an easy text gets harder by carrying more new words, not
-  fewer known ones. "Too hard" still raises it, to 99%. Difficulty is saved under a new key
+  fewer known ones. "Too hard" still raises it, to 97%. A text may hold at most 98% known words
+  (`MAX_CEILING`; the ceiling is 4 points above the target but never higher): above that it has about
+  one new word in 50, too few to learn from, and the research calls 98% the comfortable end of
+  adequate coverage. The target stops at 97% (`MAX_FLOOR`) so the range always has a point in it. Difficulty is saved under a new key
   (`difficulty_v3`), so every language restarts at 95% once, rather than staying at an older 92%.
-  **The cost the owner already found:** at 95% to 99% a text can hold very few words the learner
+  **The cost the owner already found:** at 95% to 98% a text can hold very few words the learner
   hasn't studied, which is why it was lowered on 12 November. The practice words, the grammar
   points and the guess-first prompt are what keep a text from teaching nothing; if it's too easy,
   rate it Too easy and the next one carries more practice words. The reader's "fewer than usual"
@@ -1219,7 +1222,7 @@ in the current language, with when one was last read to the end. Nothing else le
 - Per text: date, language, mode, token count, verified coverage, stretch words, words glossed,
   words flagged unknown, rating, audio speed, listen-only or not, time spent.
 - The rating adjusts the difficulty of texts written after it (too hard: coverage target up 1
-  point, one fewer stretch word; too easy: the reverse), within a 95% to 99% target (95% to start) and 1 to 4
+  point, one fewer stretch word; too easy: the reverse), within a 95% to 97% target (95% to start; a text up to 98%) and 1 to 4
   stretch words (`server/reader/src/franki_reader/difficulty.py`). A text already waiting in a favorite's queue
   keeps the difficulty it was written at, so a rating shows up one text later; the owner chose that
   over discarding queued texts (19 October 2026). The Milestone 1 exit check reads the log.
