@@ -383,6 +383,8 @@ class StoredText:
     # Meanings asked for its words that nothing else glossed, each in its line here (meanings.py), by
     # lower-case word; "" for a word Claude gave none for, so it isn't asked again.
     meanings: dict[str, str] = field(default_factory=dict)
+    # The model that wrote it, as the API reported it ("" for a text a test builds).
+    model: str = ""
 
     @property
     def own_glosses(self) -> dict[str, str]:
@@ -906,7 +908,7 @@ def get_text(conn: sqlite3.Connection, text_id: int) -> StoredText | None:
 _TEXT_COLUMNS = (
     "id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar,"
     " translits, reason, story_id, episode, recap, genders, characters, choices, chosen,"
-    " questions, forms, recap_line, recap_english, meanings"
+    " questions, forms, recap_line, recap_english, meanings, model"
 )
 
 
@@ -937,6 +939,7 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         recap_line,
         recap_english,
         meanings,
+        model,
     ) = row
     return StoredText(
         id=text_id,
@@ -966,6 +969,7 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         recap_line=recap_line,
         recap_english=recap_english,
         meanings=json.loads(meanings),
+        model=model,
     )
 
 

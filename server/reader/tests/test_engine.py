@@ -180,7 +180,7 @@ def test_a_first_attempt_that_fails_with_an_answer_is_stored_dropped_for_its_cos
 def test_a_claude_error_is_reported_to_the_next_request() -> None:
     e = engine(ScriptedModel(IN_RANGE))
 
-    def failing(entries: Any, language: Any) -> Any:
+    def failing(entries: Any, language: Any, model: Any = None) -> Any:
         async def ask(messages: Any) -> Any:
             raise GenerationFailed("Claude didn't answer (APIConnectionError)")
 

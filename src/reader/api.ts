@@ -189,6 +189,9 @@ export type NaturalCheck = { verdict: NaturalVerdict; reason: string; alternativ
 // A dialogue between two speakers, or a short story told by a narrator.
 export type Form = 'dialogue' | 'story';
 
+// Which model writes a text: Sonnet is the default, Haiku costs about a twentieth as much.
+export type TextModel = 'claude-sonnet-5-5' | 'claude-haiku-5-5';
+
 // One thing worth knowing about a line: the part of it, and what to know.
 export type ExplainPoint = { phrase: string; note: string };
 /** A phrase selected in a line, explained: what it means there, and what to know about its parts. */
@@ -264,6 +267,8 @@ export type ShelfText = {
   reason: ShelfReason;
   coverage: number;
   episode: number;
+  /** The model that wrote it; missing from a server older than the choice. */
+  model?: string;
 };
 
 // A story episode's recap in its own language: words like a line's, and the line's English.
@@ -559,7 +564,7 @@ export function createApi(
     // The current language's shelf; asking also tops it up in the background.
     shelf: () => call<Shelf>('GET', '/api/shelf'),
     // Writes a text on a typed topic in the background; it joins the shelf when it's ready.
-    writeAbout: (name: string, form: Form) => call<void>('POST', '/api/shelf/write', { name, form }),
+    writeAbout: (name: string, form: Form, model?: TextModel) => call<void>('POST', '/api/shelf/write', { name, form, ...(model ? { model } : {}) }),
     // Starts a new story in the current language ('' lets the server choose what it's about).
     startStory: (about: string) => call<void>('POST', '/api/story', { about }),
     // Takes a text off the shelf unread (Not this).

@@ -275,7 +275,7 @@ class ScriptedSpanish:
     def __init__(self) -> None:
         self.languages: list[str] = []
 
-    def ask_for(self, entries: list[Entry], language: str) -> Any:
+    def ask_for(self, entries: list[Entry], language: str, model: str | None = None) -> Any:
         self.languages.append(language)
         return Model(SPANISH_DRAFT, SPANISH_DRAFT, SPANISH_DRAFT)
 

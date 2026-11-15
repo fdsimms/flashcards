@@ -958,6 +958,24 @@ def write_asked(c: TestClient, name: str = "Haggling", form: str = "story") -> N
     assert answer.status_code == 202 and answer.json() == {"writing": True, "topic": name}
 
 
+def test_a_text_is_written_by_the_model_asked_for_and_the_shelf_says_which() -> None:
+    model = ScriptedModel(IN_RANGE)
+    c = client(model)
+    c.post(
+        "/api/shelf/write",
+        json={"name": "Haggling", "form": "dialogue", "model": "claude-haiku-5-5"},
+        headers=AUTH,
+    )
+    shelf = shelf_settled(c, 1)
+    assert model.models_seen == ["claude-haiku-5-5"]
+    assert shelf["texts"][0]["model"]  # what the API reported, kept with the text
+    write_asked(c, "Market", "dialogue")  # an app from before the choice sends none: Sonnet
+    shelf_settled(c, 2)
+    assert model.models_seen[-1] == "claude-sonnet-5-5"
+    bad = c.post("/api/shelf/write", json={"name": "x", "model": "claude-opus-5-5"}, headers=AUTH)
+    assert bad.status_code == 422
+
+
 def test_the_shelf_is_empty_until_a_text_is_asked_for_and_says_why_it_is_there() -> None:
     model = ScriptedModel(IN_RANGE)
     c = client(model)
