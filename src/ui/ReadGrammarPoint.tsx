@@ -3,12 +3,13 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import type { PracticeRecord } from '../core/forms';
 import { explanationParagraphs, grammarPoint } from '../core/grammar';
 import { knowItReason, pointPractice, POINT_PRACTICE_DAYS, practiceSince, suggestKnowIt } from '../core/grammarPage';
-import type { GrammarAnswer } from '../core/grammarDrills';
+import { dueWhen, isDrilled, pointSchedule, practiceKinds, type GrammarAnswer } from '../core/grammarDrills';
 import type { Note } from '../core/types';
-import { ApiError, type Api, type GrammarChoice, type GrammarPointPage } from '../reader/api';
-import { DEFAULT_MAX_PRACTICE, grammarChoiceOptions, grammarStateWord, markedParts, seenLine } from '../reader/grammar';
+import { ApiError, type Api, type GrammarChoice, type GrammarExample, type GrammarPointPage } from '../reader/api';
+import { canShuffleExamples, DEFAULT_MAX_PRACTICE, EXAMPLES_SHOWN, grammarChoiceOptions, grammarStateWord, seenLine } from '../reader/grammar';
+import { GrammarExamples } from './GrammarExamples';
 import { haptic } from './haptics';
-import { Button, Card, ErrorNote, HeaderAction, Help, Screen, SectionTitle, Segments, Tappable } from './kit';
+import { Card, ErrorNote, Group, HeaderAction, Help, NavRow, Screen, SectionTitle, Segments, Tappable } from './kit';
 import { hairline, radius, space, type, useTheme, readable } from './theme';
 
 /**
@@ -19,7 +20,7 @@ import { hairline, radius, space, type, useTheme, readable } from './theme';
  * comes through `practice` rather than the repo, which Read & Listen's code never imports
  * (tests/reader/noGrading.test.ts): it only reads, and keeps when Not yet was chosen.
  */
-export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, practiceDeck, onOpenPoint, onPracticeForms, onDrill }: {
+export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, practiceDeck, onOpenPoint, onPracticeForms, onDrill, onOpenText }: {
   api: Api;
   practice: {
     load: () => Promise<{ notes: Note[]; practice: PracticeRecord[]; dismissed: Record<string, string>; drills: GrammarAnswer[] }>;
@@ -33,6 +34,8 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
   onPracticeForms: (deck: string, groups: string[]) => void;
   /** Opens a grammar drill on this point (the Practice tab's Grammar tool). */
   onDrill: (id: string) => void;
+  /** Opens the text an example line came from. */
+  onOpenText: (example: GrammarExample) => void;
 }) {
   const c = useTheme();
   const point = grammarPoint(id);
@@ -40,6 +43,11 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
   const [local, setLocal] = useState<{ notes: Note[]; practice: PracticeRecord[]; dismissed: Record<string, string>; drills: GrammarAnswer[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [choiceError, setChoiceError] = useState<string | null>(null);
+  // Whether the choice was changed on this page, which is when "Texts written from now on will use this" shows.
+  const [changed, setChanged] = useState(false);
+  const [more, setMore] = useState<{ generation: number; list: GrammarExample[] } | null>(null);
+  const [shuffling, setShuffling] = useState(false);
+  const [shuffleError, setShuffleError] = useState<string | null>(null);
   const choosing = useRef(false);
 
   const load = useCallback(async () => {
@@ -61,11 +69,26 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
     setPage({ ...page, state, choices: { ...page.choices, [id]: state } });
     try {
       await api.setGrammar(id, state);
+      setChanged(true);
     } catch (e) {
       setPage(before);
       setChoiceError(e instanceof ApiError ? e.message : "Couldn't change that. Try again.");
     } finally {
       choosing.current = false;
+    }
+  };
+
+  const shuffle = async () => {
+    if (shuffling) return;
+    setShuffling(true);
+    setShuffleError(null);
+    try {
+      const next = await api.grammarPoint(id, { examples: EXAMPLES_SHOWN, shuffle: Math.floor(Math.random() * 1e9) });
+      setMore((m) => ({ generation: (m?.generation ?? 0) + 1, list: next.examples }));
+    } catch (e) {
+      setShuffleError(e instanceof ApiError ? e.message : "Couldn't get other examples. Try again.");
+    } finally {
+      setShuffling(false);
     }
   };
 
@@ -95,11 +118,23 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
   const maxPractice = page?.max_practice ?? DEFAULT_MAX_PRACTICE;
   const practicingCount = Object.values(page?.choices ?? {}).filter((s) => s === 'practice').length;
   const related = point.related.map((r) => grammarPoint(r)).filter((r) => r !== undefined);
+  const kinds = practiceKinds(point);
+  const practice = [
+    ...(kinds.includes('questions') ? [{ label: 'Practice questions', detail: 'Name the point in lines you read, and fill gaps.', onPress: () => onDrill(id) }] : []),
+    ...(kinds.includes('contrast') ? [{ label: 'Which one fits?', detail: 'Choose between this word and similar ones.', onPress: () => onDrill(id) }] : []),
+    ...(kinds.includes('forms') && practiceDeck ? [{ label: 'Forms practice', detail: `Conjugate ${point.forms.join(' and ')} verbs.`, onPress: () => onPracticeForms(practiceDeck, point.forms) }] : []),
+  ];
+  const spaced = kinds.some((k) => k !== 'forms');
+  const nextLine = !page || !local || !spaced
+    ? null
+    : !isDrilled(page.state)
+      ? 'Set it to Practice or Know it to have it come back on a schedule.'
+      : ((when) => (when === 'Due today' ? 'Due for practice today.' : `Next practice: ${when.toLocaleLowerCase()}.`))(
+        dueWhen(pointSchedule(id, page.state, local.drills, now, dayStartsAtHour).due, now, dayStartsAtHour));
 
   return (
     <Screen title={point.name}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.l }}>
-        <Text style={{ ...type.subhead, color: c.textSecondary }}>{point.note}</Text>
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {!page && !error ? <ActivityIndicator color={c.accent} /> : null}
         {page ? (
@@ -110,13 +145,12 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
               value={page.state}
               onChange={(state) => { if (state !== 'unset') choose(state); }}
             />
-            <Help>
-              {page.state !== 'practice' && practicingCount >= maxPractice
-                ? `You're already practicing ${maxPractice} points. Set one to Know it on the Grammar screen to practice this one. Applies from the next text written.`
-                : 'Applies from the next text written.'}
-            </Help>
+            {page.state !== 'practice' && practicingCount >= maxPractice ? (
+              <Help>{`You're already practicing ${maxPractice} points. Set one to Know it on the Grammar screen to practice this one.`}</Help>
+            ) : changed ? (
+              <Help>Texts written from now on will use this.</Help>
+            ) : null}
             {choiceError ? <ErrorNote message={choiceError} /> : null}
-            <Button label="Drill this point" variant="secondary" onPress={() => onDrill(id)} />
           </View>
         ) : null}
 
@@ -134,6 +168,8 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
         <View style={{ gap: space.s }}>
           <SectionTitle>About it</SectionTitle>
           <Card style={{ gap: space.m }}>
+            <Text style={{ ...type.headline, color: c.text, lineHeight: 24 }}>{point.note}</Text>
+            <View style={{ height: hairline, backgroundColor: c.border }} />
             {explanationParagraphs(point.explanation).map((para, i) => (
               <Text key={i} style={{ ...type.body, color: c.text, lineHeight: 24 }}>
                 {para.map((run, j) => (run.language
@@ -171,19 +207,28 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
         {page ? (
           <View style={{ gap: space.s }}>
             <SectionTitle>In your texts</SectionTitle>
-            <Card style={{ gap: space.m }}>
-              {seen ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{seen}</Text> : null}
-              {page.examples.map((e, i) => (
-                <View key={`${e.text_id}:${i}`} style={{ gap: 2, paddingTop: space.m, borderTopWidth: hairline, borderTopColor: c.border }}>
-                  <Text style={{ ...type.callout, color: c.text }}>
-                    {markedParts(e.line, e.words).map((part, j) => (part.marked
-                      ? <Text key={j} style={{ textDecorationLine: 'underline', textDecorationColor: c.accent }}>{part.text}</Text>
-                      : part.text))}
-                  </Text>
-                  <Text style={{ ...type.footnote, color: c.textSecondary }}>{`${e.title} · ${e.english}`}</Text>
-                </View>
+            {seen ? <Text style={{ ...type.subhead, color: c.textSecondary, paddingHorizontal: space.l }}>{seen}</Text> : null}
+            <GrammarExamples
+              examples={more?.list ?? page.examples}
+              generation={more?.generation ?? 0}
+              canShuffle={canShuffleExamples(page.seen, (more?.list ?? page.examples).length)}
+              shuffling={shuffling}
+              onShuffle={shuffle}
+              onOpenText={onOpenText}
+            />
+            {shuffleError ? <ErrorNote message={shuffleError} /> : null}
+          </View>
+        ) : null}
+
+        {practice.length ? (
+          <View style={{ gap: space.s }}>
+            <SectionTitle>Practice</SectionTitle>
+            <Group>
+              {practice.map((p, i) => (
+                <NavRow key={p.label} first={i === 0} label={p.label} detail={p.detail} onPress={p.onPress} />
               ))}
-            </Card>
+            </Group>
+            {nextLine ? <Help>{nextLine}</Help> : null}
           </View>
         ) : null}
 
@@ -213,13 +258,6 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
               ) : (
                 <Help>{`No Forms practice on these forms in the last ${POINT_PRACTICE_DAYS} days.`}</Help>
               )}
-              {practiceDeck ? (
-                <Button
-                  label={`Practice ${point.forms.join(' and ')} forms`}
-                  variant="secondary"
-                  onPress={() => onPracticeForms(practiceDeck, point.forms)}
-                />
-              ) : null}
             </Card>
           </View>
         ) : null}

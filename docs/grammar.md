@@ -124,6 +124,27 @@ step is its own PR, and each that changes a screen is mocked up for the owner fi
      drill that went worse brings it back the next day. Not set and Don't know it aren't
      drilled. A drill is 10 questions over at most 3 due points, Practice ones first.
    - **The Know it suggestion counts drills too**, with Forms practice (`suggestKnowIt`).
+6. **Study pages** (built 15 November 2026; the owner chose from a mock). The Practice tab's Grammar
+   row opens a list of a language's points (`GrammarTool.tsx`, `grammarListGroups`): due today,
+   coming up, and not practicing, each opening its page; Practice now starts a drill on the points
+   due today. Due grammar also shows where it's looked for: the Grammar row says "N due today", and
+   the deck list's extras strip has a chip per language that has some (`useGrammarDue`, from
+   `duePoints`, so every place agrees). A point's page (step 4) now leads its About card with the
+   point's one-line note, shows three example lines at once (each its own tile: the line, its
+   translation behind a tap, and the text it came from as a link; Shuffle under them,
+   `GET /api/grammar/{id}?examples=3&shuffle=<seed>`), lists what it can be practiced with, and
+   shows "Texts written from now on will use this" only right after a choice is changed there.
+   - **A point named after its own word has no "which" question and no plain gap**
+     (`word_named` in the catalog, `practiceKinds`): the learner tapped the point, so the answer is
+     given. Its drill, "Which one fits?", is gap questions where half need the point's word and
+     half a rival's (its `related` points that are words too, `drills.serve`), each carrying
+     `for`, the drilled point, so every answer counts for the point whose drill it is. A
+     word-named point with no rival that is also a word (ต้อง, Polish "Future with będę", Japanese
+     たい) has nothing to practice, isn't scheduled and has no Practice section: reading it in
+     texts is the practice. Other points keep "which" and gap (shown as one row, Practice
+     questions, since the server mixes them) and Forms practice.
+   - **Not built yet**: Situations and Sentences on a point. Neither tool can take a topic, so
+     opening them on แล้ว needs a change to each first.
 **Points no finder can find** (case, verb aspect) join the catalog with `findable: false` in the
 step that first gives them a use. The server leaves them out of text requests, exposure and marks,
 and the Grammar screen shows them without the choices that only apply to texts, saying why.

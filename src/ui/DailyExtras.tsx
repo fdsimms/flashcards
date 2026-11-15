@@ -1,24 +1,30 @@
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { LANGUAGES } from '../reader/languages';
+import { saveToolPrefs } from '../tools/storage';
 import { toolById } from '../tools/tools';
 import { haptic } from './haptics';
 import { Button, Card, Help, Icon, Tappable } from './kit';
 import { radius, smooth, space, type, useTheme } from './theme';
 import { TOOL_SCREENS } from './tools';
+import type { GrammarDue } from './useGrammarDue';
 import type { ExtraItem, useDailyExtras } from './useDailyExtras';
 
 type Extras = ReturnType<typeof useDailyExtras>;
 
 /**
  * Today's extras on the deck list (src/tools/extras.ts): a strip of chips under the day's count,
- * one per extra, checked off once it's done. A tap opens the drill or the text. Nothing shows when
- * there are none, so the list is as it was.
+ * one per extra, checked off once it's done. A tap opens the drill or the text. Grammar due today
+ * (`grammarDue`, from the same schedule as the Grammar screen) is a chip for each language that has
+ * some; it isn't one of the day's planned extras, so it isn't counted in "done". Nothing shows when
+ * there is nothing, so the list is as it was.
  */
-export function ExtrasStrip({ extras }: { extras: Extras }) {
+export function ExtrasStrip({ extras, grammarDue }: { extras: Extras; grammarDue?: GrammarDue | null }) {
   const c = useTheme();
+  const router = useRouter();
   const [problem, setProblem] = useState<string>();
-  if (!extras.items.length) return null;
+  if (!extras.items.length && !grammarDue?.total) return null;
   const tap = async (item: ExtraItem) => {
     haptic.tap();
     setProblem(await extras.open(item.extra));
@@ -27,7 +33,7 @@ export function ExtrasStrip({ extras }: { extras: Extras }) {
     <Card style={{ gap: space.m }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>Today's extras</Text>
-        <Text style={{ ...type.footnote, color: c.textSecondary }}>{`${extras.done} of ${extras.items.length} done`}</Text>
+        {extras.items.length ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{`${extras.done} of ${extras.items.length} done`}</Text> : null}
       </View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
         {extras.items.map((item) => (
@@ -40,6 +46,18 @@ export function ExtrasStrip({ extras }: { extras: Extras }) {
           >
             <Icon name={item.done ? 'checkmark.circle.fill' : extraIcon(item)} size={16} color={item.done ? c.countDue : c.textSecondary} />
             <Text style={{ ...type.subhead, color: item.done ? c.textSecondary : c.text }}>{chipLabel(item)}</Text>
+          </Tappable>
+        ))}
+        {grammarDue?.languages.map(({ language, count }) => (
+          <Tappable
+            key={`grammar|${language}`}
+            onPress={() => { haptic.tap(); saveToolPrefs({ language }); router.push({ pathname: '/tool', params: { id: 'grammar' } }); }}
+            accessibilityRole="button"
+            accessibilityLabel={`${LANGUAGES[language].name} grammar: ${count} due today`}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: 36, paddingVertical: space.s, paddingLeft: space.m, paddingRight: space.m, borderRadius: radius.pill, ...smooth, backgroundColor: c.accentFill }}
+          >
+            <Icon name={TOOL_SCREENS.grammar.icon} size={16} color={c.accent} />
+            <Text style={{ ...type.subhead, color: c.text }}>{`${LANGUAGES[language].name} grammar: ${count} due`}</Text>
           </Tappable>
         ))}
       </View>

@@ -226,10 +226,10 @@ export const TOOLS: ToolInfo[] = [
     languages: withSayer(SCRIPTS),
   },
   {
-    // Spaced drills on the grammar points set to Practice or Know it (docs/grammar.md, step 5).
+    // The grammar points in a language: read about one, and practice it (docs/grammar.md, steps 4 and 5).
     id: 'grammar',
     title: 'Grammar',
-    summary: "Short drills on the grammar you're practicing, spaced over days.",
+    summary: "Read about a point, then practice it.",
     languages: TOOL_LANGUAGES.filter((l) => grammarPointsFor(l).length > 0),
   },
 ];

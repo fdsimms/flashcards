@@ -10,6 +10,7 @@ The Grammar screen's "Seen least" card and the generator both call `review_point
 names the points the next texts are actually asked for.
 """
 
+import random
 import sqlite3
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -88,9 +89,14 @@ class Example:
 
 
 def examples(
-    conn: sqlite3.Connection, lexicon: Checker, point_id: str, limit: int = EXAMPLES
+    conn: sqlite3.Connection,
+    lexicon: Checker,
+    point_id: str,
+    limit: int = EXAMPLES,
+    rng: random.Random | None = None,
 ) -> list[Example]:
-    """Lines using the point from texts read to the end, the latest read first, one per text."""
+    """Lines using the point from texts read to the end, one per text: the latest read first, or,
+    given `rng`, a random sample of `limit` of them."""
     point = grammar.POINTS[point_id]
     spaced = LANGUAGES[point.language].spaced
     out: list[Example] = []
@@ -102,9 +108,9 @@ def examples(
                 plain = parse_line(ln.text, spaced)[0]
                 out.append(Example(text.id, text.title, plain, ln.english, tuple(words)))
                 break
-        if len(out) >= limit:
+        if rng is None and len(out) >= limit:
             break
-    return out
+    return rng.sample(out, min(limit, len(out))) if rng is not None else out
 
 
 def unset_points(choices: Mapping[str, GrammarState], language: Code) -> tuple[str, ...]:

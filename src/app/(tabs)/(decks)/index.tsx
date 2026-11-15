@@ -9,6 +9,7 @@ import { useDeckActions } from '../../../ui/DeckActions';
 import { ExtrasStrip } from '../../../ui/DailyExtras';
 import { DeckList } from '../../../ui/DeckList';
 import { useDailyExtras } from '../../../ui/useDailyExtras';
+import { useGrammarDue } from '../../../ui/useGrammarDue';
 import { useTodaySummary } from '../../../ui/useTodaySummary';
 import { WaniKaniDeck } from '../../../ui/WaniKaniDeck';
 
@@ -26,12 +27,13 @@ export default function DecksRoute() {
   const openOptions = useCallback((deck: string) => router.push({ pathname: '/deck-options', params: { deck } }), [router]);
   const deckActions = useDeckActions(openOptions);
   const extras = useDailyExtras();
+  const grammarDue = useGrammarDue(reader.api, repo);
   return (
     <DeckList
       decks={decks}
       studied={studied}
       loaded={loaded}
-      extrasStrip={<ExtrasStrip extras={extras} />}
+      extrasStrip={<ExtrasStrip extras={extras} grammarDue={grammarDue} />}
       backup={backup}
       loadProblem={loadProblem ? { text: loadProblem, onRetry: refresh } : undefined}
       ankiUnsent={ankiUnsent}

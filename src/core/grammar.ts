@@ -23,14 +23,20 @@ export interface GrammarPointInfo {
   related: string[];
   /** Japanese's JLPT level, 5 for N5 (the easiest) up to 1 for N1; other languages have none. */
   jlpt?: number;
+  /**
+   * Whether the point is named after its own word (all of Thai's, Greek να, Japanese ている). A drill on it
+   * can't name the point or ask for its word, since the learner already knows it: see `drillOptions`.
+   */
+  wordNamed: boolean;
 }
 
-type CatalogEntry = Omit<GrammarPointInfo, 'language' | 'forms'> & { language: string; forms?: string[] };
+type CatalogEntry = Omit<GrammarPointInfo, 'language' | 'forms' | 'wordNamed'> & { language: string; forms?: string[]; word_named?: boolean };
 
 export const GRAMMAR_POINTS: readonly GrammarPointInfo[] = (catalog.points as CatalogEntry[]).map((p) => ({
   ...p,
   language: p.language as GrammarLanguage,
   forms: p.forms ?? [],
+  wordNamed: p.word_named === true,
 }));
 
 /** A language's points, in the catalog's order. */
