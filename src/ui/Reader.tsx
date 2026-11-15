@@ -326,6 +326,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     player.replace(audio.source);
     player.setPlaybackRate(audio.stretch, 'high');
     player.play();
+    // Now Playing, on the lock screen and in Control Center: the text's title, with play and pause. The progress bar there is the line's.
+    player.setActiveForLockScreen(true, { title: text.title, artist: 'Franki', albumTitle: 'Read & Listen' });
   };
 
   const playLine = (i: number, all: boolean, r = rate) => {

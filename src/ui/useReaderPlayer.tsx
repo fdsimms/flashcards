@@ -65,6 +65,7 @@ function useReaderPlayer(): ReaderPlayerHost {
     carrying.current = null;
     starting.current++;
     if (pause) player.current!.pause();
+    player.current!.clearLockScreenControls();
     setMini(null);
     setAudioModeAsync(FOREGROUND_MODE).catch(() => undefined);
   }, []);
@@ -80,6 +81,7 @@ function useReaderPlayer(): ReaderPlayerHost {
     player.current!.replace(audio.source);
     player.current!.setPlaybackRate(audio.stretch, 'high');
     player.current!.play();
+    player.current!.setActiveForLockScreen(true, { title: handoff.title, artist: 'Franki', albumTitle: 'Read & Listen' });
     show(true);
   }, [show]);
 
@@ -120,6 +122,7 @@ function useReaderPlayer(): ReaderPlayerHost {
 
   const release = useCallback(() => {
     player.current!.pause();
+    player.current!.clearLockScreenControls();
   }, []);
 
   const toggle = useCallback(() => {
