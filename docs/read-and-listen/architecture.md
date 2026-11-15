@@ -188,6 +188,12 @@ Franki's (Client, below).
   is unchanged. **It isn't listen-only in the log:** the reading is logged as an ordinary reading
   (`listen_only` false), since the words are read once they appear. Lookups can only happen after
   the words show, so effective coverage (`recognition.py`) reflects words met after hearing them.
+  **Listen twice first** (15 November 2026, a second switch shown with the first, off by default):
+  the words wait for every line to play twice (`listensNeeded`, `allHeard` counts each line's plays), the
+  usual "double play" for listening practice. The gate's text says "twice", and a line replayed on
+  its own or by Repeat line counts each play, so the second listen need not be a second pass from
+  the top. Show the text now still skips it. These listens are part of the first reading: they
+  don't count toward the 1, 4 and 10 day Listen again schedule, which starts the day after.
 - **Guess first** (15 November 2026, the owner chose from a mock). A tap on a word shows its meaning
   only when asked for (Settings, Read & Listen, Meanings, on by default), so the learner tries before
   being told: a word counted as known is recalled, a word outside the deck (or only inside a longer
