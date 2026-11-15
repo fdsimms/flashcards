@@ -2,11 +2,11 @@ import { Stack } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import React, { useEffect, useRef } from 'react';
 import {
-  ActivityIndicator, Animated, Pressable, Switch, Text, TextInput, useColorScheme, View,
+  ActivityIndicator, Animated, LayoutAnimation, Pressable, Switch, Text, TextInput, useColorScheme, View,
   type PressableProps, type StyleProp, type TextInputInstance, type TextInputProps, type ViewStyle,
 } from 'react-native';
 import { Host, Picker, Text as SwiftText } from '@expo/ui/swift-ui';
-import { accessibilityLabel, labelsHidden, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
+import { accessibilityLabel, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -483,35 +483,58 @@ export function Field({ label, error, ref, onFocus, onBlur, ...input }: TextInpu
 }
 
 /**
- * A choice among many (every deck, every note type): a field that opens iOS's own pop-up menu of
- * the options, with a checkmark on the chosen one. A subdeck shows its whole name ("Polski::Verbs"),
- * since a menu has no room for the indent the old list used. Use `Chip`s only for a handful of choices.
+ * A choice among many (every deck, every note type): one row showing the choice, which opens a
+ * list of the options. A name with `::` in it is a subdeck, shown by its last part, indented. Use
+ * `Chip`s only for a handful of choices.
  */
 export function Select({ label, options, value, onChange }: { label: string; options: string[]; value: string; onChange: (v: string) => void }) {
   const c = useTheme();
-  const dark = useColorScheme() === 'dark';
+  const [open, setOpen] = React.useState(false);
+  const toggle = (next: boolean) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setOpen(next);
+  };
   return (
     <View style={{ gap: space.xs }}>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
-      <View
-        accessible
+      <Pressable
+        onPress={() => toggle(!open)}
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${value || 'none'}`}
-        accessibilityHint="Opens a menu of choices"
-        style={{ minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.s, backgroundColor: c.fill, borderRadius: radius.m, ...smooth }}
+        accessibilityState={{ expanded: open }}
+        style={({ pressed }) => ({
+          flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP, paddingHorizontal: space.m, paddingVertical: space.s,
+          backgroundColor: c.fill, borderRadius: radius.m, ...smooth, opacity: pressed ? 0.7 : 1,
+        })}
       >
-        {/* The menu is SwiftUI's; the field around it is ours, so it looks like the other fields. */}
-        <Host matchContents={{ vertical: true }} colorScheme={dark ? 'dark' : 'light'} seedColor={c.accent} style={{ alignSelf: 'stretch' }}>
-          <Picker
-            label={label}
-            modifiers={[pickerStyle('menu'), labelsHidden()]}
-            selection={value}
-            onSelectionChange={(v: string) => { if (v !== value) haptic.select(); onChange(v); }}
-          >
-            {options.map((o) => <SwiftText key={o} modifiers={[tag(o)]}>{o}</SwiftText>)}
-          </Picker>
-        </Host>
-      </View>
+        <Text style={{ ...type.body, color: c.text, flex: 1 }}>{value || 'Choose'}</Text>
+        <Icon name="chevron.up.chevron.down" size={14} color={c.textSecondary} weight="semibold" />
+      </Pressable>
+      {open ? (
+        <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, overflow: 'hidden' }}>
+          {options.map((o, i) => {
+            const parts = o.split('::');
+            const selected = o === value;
+            return (
+              <Pressable
+                key={o}
+                onPress={() => { haptic.select(); onChange(o); toggle(false); }}
+                accessibilityRole="button"
+                accessibilityLabel={o}
+                accessibilityState={{ selected }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP, paddingVertical: space.s,
+                  paddingLeft: space.m + (parts.length - 1) * space.l, paddingRight: space.m, backgroundColor: pressed ? c.border : 'transparent',
+                })}
+              >
+                {i === 0 ? null : <Divider inset={space.m} />}
+                <Text style={{ ...type.body, color: selected ? c.accent : c.text, flex: 1, fontWeight: selected ? '600' : undefined }}>{parts[parts.length - 1]}</Text>
+                {selected ? <Icon name="checkmark" size={16} color={c.accent} weight="semibold" /> : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
     </View>
   );
 }
