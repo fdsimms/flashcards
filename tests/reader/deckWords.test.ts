@@ -50,7 +50,8 @@ test("a text under 90% is flagged as under the usual floor; one at 90% isn't", (
     lines: [],
   });
   expect(underFloor(text(0.87))).toBe(true);
-  expect(underFloor(text(0.9))).toBe(false);
+  expect(underFloor(text(0.9))).toBe(true);
+  expect(underFloor(text(0.94))).toBe(true);
   expect(underFloor(text(0.95))).toBe(false);
   expect(underFloor(text(1))).toBe(false);
 });

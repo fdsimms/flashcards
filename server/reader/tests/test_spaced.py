@@ -186,6 +186,8 @@ def test_a_spanish_text_renders_with_spaces_deck_flags_and_glosses_from_the_entr
         "parts": None,
         "lemma": "la ojiva",
         "translit": None,
+        "ipa": None,
+        "ipa_source": None,
         "stretch": True,
         "deck": True,
         "wanikani": False,
@@ -302,13 +304,16 @@ def test_with_spanish_chosen_a_topic_gets_a_spanish_text_and_thai_is_left_alone(
     assert store.list_topics(e.conn, "th")[0].ready == 0
 
 
-def test_a_rating_moves_the_difficulty_of_the_texts_language_only() -> None:
+def test_a_poor_check_moves_the_difficulty_of_the_texts_language_only() -> None:
     e, _ = spanish_engine()
     topic = store.add_topic(e.conn, "Guard duty", e.clock())
     text = asyncio.run(e.make_text(topic.id))
     assert text is not None
-    e.record_reading(text.id, store.Reading("too_hard", True, (), (), None, False, 60))
-    assert store.load_difficulty(e.conn, "es").floor == 0.93
+    e.record_reading(
+        text.id,
+        store.Reading(None, True, (), (), None, False, 60, check_right=0, check_asked=8),
+    )
+    assert store.load_difficulty(e.conn, "es").floor == 0.97
     assert store.load_difficulty(e.conn, "th") == Difficulty()
     row = e.conn.execute("SELECT language FROM readings").fetchone()
     assert row[0] == "spanish"

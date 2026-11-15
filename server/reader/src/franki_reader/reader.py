@@ -3,12 +3,14 @@ tap always lands on something the lexicon or the gloss list knows about (docs/re
 Generation and coverage)."""
 
 import re
+from collections.abc import Mapping
 from typing import Any
 
 from franki_reader import form_primers, grammar, helpers
 from franki_reader.capitalized import demote_capitalized_nouns
 from franki_reader.coverage import Checker, is_word, parse_line, segment_line
 from franki_reader.frequency import rank_of
+from franki_reader.ipa import ipa_for
 from franki_reader.japanese import JapaneseLexicon
 from franki_reader.spaced import fold, lemma
 from franki_reader.split_verbs import join_split_verbs
@@ -103,6 +105,7 @@ def word_out(
     stretch: set[str] | None = None,
     point: str | None = None,
     form: dict[str, str] | None = None,
+    ai_ipa: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     """One piece of a line as the app draws it (`Word` in src/reader/api.ts): a word with its
     meaning (or, for a compound with none, its parts' meanings), dictionary form, pronunciation and
@@ -119,6 +122,8 @@ def word_out(
             "parts": None,
             "lemma": None,
             "translit": None,
+            "ipa": None,
+            "ipa_source": None,
             "stretch": False,
             "deck": False,
             "wanikani": False,
@@ -129,13 +134,19 @@ def word_out(
         }
     entry = lexicon.entry_of(piece)
     gloss = gloss_for(piece, glosses or {}, lexicon, meanings)
+    translit = translit_for(piece, translits or {}, lexicon, deck_translits)
+    ipa, ipa_source = ipa_for(piece, lexicon, translit, ai_ipa) or (None, None)
     return {
         "text": piece,
         "status": "name" if is_name else lexicon.status(piece),
         "gloss": gloss,
         "parts": None if gloss or is_name else parts_for(piece, lexicon, meanings),
         "lemma": lemma_for(piece, lexicon),
-        "translit": translit_for(piece, translits or {}, lexicon, deck_translits),
+        "translit": translit,
+        # IPA, and where it's from ("wiktionary"; "rules" for Japanese's kana; "ai" for what Claude
+        # wrote where the table has none, `ai_ipa`); a name has one too.
+        "ipa": ipa,
+        "ipa_source": ipa_source,
         "stretch": (entry or piece) in (stretch or set()),
         # A deck word, as against one known for being common (every language but Thai).
         "deck": entry is not None,
@@ -151,12 +162,19 @@ def word_out(
 
 
 def render_sentence(
-    sentence: str, lexicon: Checker, meanings: dict[str, str], deck_translits: dict[str, str]
+    sentence: str,
+    lexicon: Checker,
+    meanings: dict[str, str],
+    deck_translits: dict[str, str],
+    ai_ipa: Mapping[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """A card's example sentence split and glossed as a text's line is, for the card's word
     popovers. The sentence is plain text, not a model line: `|`, `*` and `~` mean nothing in it.
     The pieces join back to the sentence as segmented, which the app checks before using them."""
-    words = [word_out(p, lexicon, meanings, deck_translits) for p in lexicon.segment(sentence)]
+    words = [
+        word_out(p, lexicon, meanings, deck_translits, ai_ipa=ai_ipa)
+        for p in lexicon.segment(sentence)
+    ]
     demote_capitalized_nouns(words, lexicon, {})
     join_split_verbs(words, lexicon, meanings, deck_translits, set())
     return words
@@ -192,6 +210,7 @@ def render_line(
     deck_translits: dict[str, str] | None = None,
     marked: dict[int, str] | None = None,
     forms: dict[str, dict[str, str]] | None = None,
+    ai_ipa: Mapping[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """A model line written for `text` (one of its lines, a choice, its recap) as the reader's
     words, glossed from the text's own glosses and translits first. `marked` is the grammar point
@@ -231,6 +250,7 @@ def render_line(
                 stretch=stretch,
                 point=point,
                 form=form_of(piece),
+                ai_ipa=ai_ipa,
             )
         )
     mark_reflexive_pronouns(words, lexicon)
@@ -245,6 +265,7 @@ def render(
     meanings: dict[str, str],
     deck_translits: dict[str, str] | None = None,
     unset: tuple[str, ...] = (),
+    ai_ipa: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     """`unset` is the language's grammar points the owner hasn't marked, as of now: any that turn
     up are marked and explained like the known ones worked in for review."""
@@ -255,7 +276,9 @@ def render(
     used: set[str] = set()
 
     def render_words(source: str, marked: dict[int, str]) -> list[dict[str, Any]]:
-        return render_line(source, text, lexicon, meanings, deck_translits, marked, text.forms)
+        return render_line(
+            source, text, lexicon, meanings, deck_translits, marked, text.forms, ai_ipa
+        )
 
     lines = []
     for line in text.lines:

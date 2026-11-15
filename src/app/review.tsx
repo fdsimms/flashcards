@@ -48,7 +48,7 @@ export default function ReviewRoute() {
     api: readerApi,
     decks: readerDecks,
     onPlayWord: playWord,
-    onAddWord: (word, meaning, lang) => new Promise<boolean>((resolve) => openNoteEditor(minedNote(word, meaning, readerDecks[lang]), (result) => {
+    onAddWord: (word, meaning, lang, pronunciation) => new Promise<boolean>((resolve) => openNoteEditor(minedNote(word, meaning, readerDecks[lang], pronunciation), (result) => {
       resolve(!!result && 'saved' in result);
     })),
   } : undefined), [readerApi, readerDecks, playWord, openNoteEditor]);

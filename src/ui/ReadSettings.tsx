@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Alert, ScrollView, Text } from 'react-native';
 import { ApiError, createApi, readerAddress, type Language, type Speakers } from '../reader/api';
 import { LANGUAGE_ORDER, flaggedName } from '../reader/languages';
+import type { ListenAgain } from '../reader/prefs';
 import { prefs, savePassphrase, savePrefs } from '../reader/storage';
 import { voicesSummary } from '../reader/voiceSlots';
-import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
+import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle, Segments, SwitchRow } from './kit';
 import { space, type, useTheme, readable } from './theme';
 
 /**
@@ -33,7 +34,9 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [followWords, setFollowWords] = useState(prefs().followWords);
+  const [listenAgain, setListenAgain] = useState(prefs().listenAgain);
   const [listenFirst, setListenFirst] = useState(prefs().listenFirst);
+  const [listenTwice, setListenTwice] = useState(prefs().listenTwice);
   const [guessFirst, setGuessFirst] = useState(prefs().guessFirst);
   const [quizKnown, setQuizKnown] = useState(prefs().quizKnown);
   const address = syncServer ? readerAddress(syncServer) : null;
@@ -76,6 +79,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
             Texts are written on your Anki sync server, which sends the words in those decks to Claude and the lines to
             Azure for audio. Nothing goes anywhere until you turn this on.
           </Help>
+          <Help>Pronunciations (IPA) come from Wiktionary, under the Creative Commons BY-SA 4.0 license. Where Wiktionary has none, Claude writes it and the app labels it as written by AI.</Help>
         </Card>
         {notice ? <Text style={{ ...type.subhead, color: c.warning }}>{notice}</Text> : null}
         {!address ? (
@@ -141,12 +145,42 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
                   setListenFirst(on);
                 }}
               />
+              {listenFirst ? (
+                <SwitchRow
+                  label="Listen twice first"
+                  value={listenTwice}
+                  onValueChange={(on) => {
+                    savePrefs({ listenTwice: on });
+                    setListenTwice(on);
+                  }}
+                />
+              ) : null}
             </Group>
             <Help>
               While a line plays, the word being read aloud is shaded. With Listen before reading on, a new text opens
               with its words hidden and shows them once every line has played, so you hear it first and read it second.
-              Show the text now skips the wait. Play all and texts you read again open as usual. Lines recorded before this was added play without it.
+              Listen twice first waits for every line to play twice. Show the text now skips the wait. Play all and texts you read again open as usual. Lines recorded before this was added play without it.
             </Help>
+            <SectionTitle>Hear texts again</SectionTitle>
+            <Card style={{ gap: space.s }}>
+              <Segments<ListenAgain>
+                options={[
+                  { value: 0, label: 'Never' },
+                  { value: 1, label: 'Once' },
+                  { value: 3, label: 'Three times' },
+                ]}
+                value={listenAgain}
+                onChange={(value) => {
+                  savePrefs({ listenAgain: value });
+                  setListenAgain(value);
+                }}
+              />
+              <Help>
+                Texts you finish come back on the shelf to listen to with the words hidden. Once is 3 days after you read
+                it. Three times is 1, 4 and 10 days after. A text isn't offered once it's been heard that many times, or
+                a month after you read it.
+              </Help>
+            </Card>
             <SectionTitle>Meanings</SectionTitle>
             <Group>
               <SwitchRow

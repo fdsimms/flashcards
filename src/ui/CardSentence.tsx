@@ -98,8 +98,9 @@ export function CardSentence({ gloss, segments, style }: { gloss: SentenceGloss;
         onAddToDeck={tapped && !tapped.word.deck && tapped.word.status !== 'name' ? () => {
           // The popover is a modal, so it closes before the note editor opens over the card.
           const { text, gloss: meaning } = tapped.word;
+          const pronunciation = { ipa: tapped.word.ipa, ipa_source: tapped.word.ipa_source };
           setTapped(null);
-          void gloss.onAddWord(text, meaning ?? '', gloss.language);
+          void gloss.onAddWord(text, meaning ?? '', gloss.language, pronunciation);
         } : null}
         onClose={() => setTapped(null)}
       />

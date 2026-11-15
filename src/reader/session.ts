@@ -1,6 +1,6 @@
 // One reading of one text: what was looked up, what was marked unknown, and how long it took.
 // Pure, so it's tested; the reader screen holds one of these in state.
-import type { Rating, ReaderText, ReadingLog } from './api';
+import type { ReaderText, ReadingLog } from './api';
 
 export type Session = {
   textId: number;
@@ -8,7 +8,7 @@ export type Session = {
   glossed: string[];
   flagged: string[];
   audioSpeed: number | null; // the speed audio last played at, if it played at all
-  listenOnly: boolean; // listened to with the text hidden, after rating it about right
+  listenOnly: boolean; // listened to with the text hidden
 };
 
 export function startSession(text: ReaderText, now: number): Session {
@@ -41,13 +41,11 @@ export function isFlagged(session: Session, word: string): boolean {
 export function toLog(
   session: Session,
   now: number,
-  rating: Rating | null,
   finished: boolean,
   check: { right: number; asked: number } | null = null,
 ): ReadingLog {
   return {
     ...(check && check.asked > 0 ? { check_right: check.right, check_asked: check.asked } : {}),
-    rating,
     finished,
     words_glossed: session.glossed,
     words_flagged: session.flagged,

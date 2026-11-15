@@ -13,7 +13,7 @@ from typing import Any, Literal
 
 from franki_reader import grammar
 from franki_reader.comprehension import Question, from_json
-from franki_reader.difficulty import Difficulty
+from franki_reader.difficulty import EASIER_FLOOR, STANDARD_FLOOR, Difficulty, nearest_floor
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Choice, Form, Generated, Line
 from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, VOICE_SLOTS, Code, with_deck
@@ -243,6 +243,15 @@ CREATE TABLE IF NOT EXISTS word_meanings (
     word TEXT NOT NULL,
     meaning TEXT NOT NULL,
     batch_id INTEGER NOT NULL REFERENCES meaning_batches(id),
+    PRIMARY KEY (language, word)
+);
+-- IPA written by Claude for words with none in Wiktionary's tables (ai_ipa.py), kept for the language
+-- by lower-case word. An empty ipa is a word Claude gave nothing usable for, so it isn't asked again.
+CREATE TABLE IF NOT EXISTS word_ipa (
+    language TEXT NOT NULL,
+    word TEXT NOT NULL,
+    ipa TEXT NOT NULL,
+    written_at TEXT NOT NULL,
     PRIMARY KEY (language, word)
 );
 CREATE TABLE IF NOT EXISTS stories (
@@ -782,13 +791,6 @@ def save_text(
         )
     assert cur.lastrowid is not None
     return cur.lastrowid
-
-
-def written_at(conn: sqlite3.Connection, text_id: int) -> tuple[float, int | None] | None:
-    """The coverage target and stretch word count a text was written at; the count is None for a
-    text written before it was recorded."""
-    row = conn.execute("SELECT floor, stretch_count FROM texts WHERE id = ?", (text_id,)).fetchone()
-    return (row[0], row[1]) if row else None
 
 
 def set_choice(conn: sqlite3.Connection, text_id: int, index: int) -> str:
@@ -1431,6 +1433,7 @@ CallFeature = Literal[
     "production",
     "situations",
     "pronunciation",
+    "ipa",
 ]
 
 
@@ -1685,15 +1688,28 @@ def clear_word(conn: sqlite3.Connection, word: str, now: datetime) -> None:
 # ==== Difficulty ====
 
 
-# v2: the range moved down on 12 November 2026 (95% was the old lowest target), so a floor saved
-# before it, which can't go below 95%, starts again at the new default rather than staying there.
-_DIFFICULTY_KEY = "difficulty_v2"
+# v2: the range moved down on 12 November 2026 (95% was the old lowest target). The coverage target
+# is now one of three (difficulty.py), saved as v3. A floor saved as v2, at any level, is read as
+# Easier (96% or more) or Standard: Harder is only ever a deliberate choice, so an old 92% default
+# doesn't turn into it.
+_DIFFICULTY_KEY = "difficulty_v3"
+_OLD_DIFFICULTY_KEY = "difficulty_v2"
 
 
 def load_difficulty(conn: sqlite3.Connection, language: Code = "th") -> Difficulty:
-    """Each language has its own, moved by ratings of texts in that language."""
+    """Each language has its own text difficulty, chosen in Settings and stepped easier by a poor
+    check after reading."""
     raw = _get_meta(conn, _per_language(_DIFFICULTY_KEY, language))
-    return Difficulty(**json.loads(raw)) if raw else Difficulty()
+    if raw:
+        saved = json.loads(raw)
+        saved["floor"] = nearest_floor(saved.get("floor", STANDARD_FLOOR))
+        return Difficulty(**saved)
+    old = _get_meta(conn, _per_language(_OLD_DIFFICULTY_KEY, language))
+    if not old:
+        return Difficulty()
+    saved = json.loads(old)
+    saved["floor"] = EASIER_FLOOR if saved.get("floor", STANDARD_FLOOR) >= 0.96 else STANDARD_FLOOR
+    return Difficulty(**saved)
 
 
 def save_difficulty(
@@ -2100,6 +2116,39 @@ def word_meanings(conn: sqlite3.Connection, language: Code) -> dict[str, str]:
             "SELECT word, meaning FROM word_meanings WHERE language = ?", (language,)
         ).fetchall()
     )
+
+
+def save_word_ipa(
+    conn: sqlite3.Connection,
+    language: Code,
+    ipas: dict[str, str],
+    now: datetime,
+    cost_usd: float,
+) -> None:
+    """A batch of IPA Claude wrote for a language, as {lower-case word: ipa}, with its cost (a
+    `call_costs` row, also for a call that failed after Claude answered, with no words). A word it
+    gave nothing usable for is kept with an empty ipa, so it isn't asked again; a word already kept
+    keeps what it has."""
+    with conn:
+        conn.executemany(
+            "INSERT OR IGNORE INTO word_ipa (language, word, ipa, written_at) VALUES (?, ?, ?, ?)",
+            [(language, word, ipa, now.isoformat()) for word, ipa in ipas.items()],
+        )
+    save_call_cost(conn, "ipa", language, now, cost_usd)
+
+
+def word_ipa(conn: sqlite3.Connection, language: Code) -> dict[str, str]:
+    """Every word of a language that has been asked about, as {lower-case word: ipa}; empty for a
+    word with none."""
+    return dict(
+        conn.execute("SELECT word, ipa FROM word_ipa WHERE language = ?", (language,)).fetchall()
+    )
+
+
+def ipa_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
+    """Each language with IPA written since `since`: how many calls (failed ones included) and what
+    they cost Claude."""
+    return _feature_spending(conn, "ipa", since)
 
 
 def meaning_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
