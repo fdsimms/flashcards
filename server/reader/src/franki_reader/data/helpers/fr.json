@@ -1,0 +1,60 @@
+{
+ "prepositions": [],
+ "governs": {},
+ "with": {
+  "participle": [
+   "ai",
+   "as",
+   "a",
+   "avons",
+   "avez",
+   "ont",
+   "avais",
+   "avait",
+   "avions",
+   "aviez",
+   "avaient",
+   "aurai",
+   "auras",
+   "aura",
+   "aurons",
+   "aurez",
+   "auront",
+   "aurais",
+   "aurait",
+   "aurions",
+   "auriez",
+   "auraient",
+   "suis",
+   "es",
+   "est",
+   "sommes",
+   "êtes",
+   "sont",
+   "étais",
+   "était",
+   "étions",
+   "étiez",
+   "étaient",
+   "serai",
+   "seras",
+   "sera",
+   "serons",
+   "serez",
+   "seront",
+   "serais",
+   "serait",
+   "serions",
+   "seriez",
+   "seraient"
+  ],
+  "subjunctive": [
+   "que",
+   "qu"
+  ]
+ },
+ "contractions": {
+  "au": "à + le",
+  "aux": "à + les"
+ }
+}

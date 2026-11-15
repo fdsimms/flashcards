@@ -808,6 +808,24 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   is generated when the chip is tapped. In the app the chip sits after the meaning, and opens a page
   sheet (`ReadFormSheet`) that ends with what the form is in the tapped word. Not done: the marked
   words list (a mark isn't tied to a text) and a card's example sentences show no form.
+  **The word a form goes with** (15 November 2026): the same call also gives the one word in the
+  line the form goes with and the English of the word with it: the preposition that puts a noun in its
+  case ("в", "in hoods"), a verb that takes the case (помогает, dative), the auxiliary of a compound
+  tense ("a", "has eaten") or the word a subjunctive follows (que, να). Code keeps them only when the
+  word is one of the language's own for that kind of form (`helpers.py`, `data/helpers/<code>.json`):
+  prepositions for any case, before the word; a verb with the one case it takes (found by its
+  dictionary form); and for a form id the auxiliaries and triggers that go with it, anywhere in the
+  line, since a verb-final clause puts the auxiliary last. Anything else is kept as the form alone, so
+  a wrong claim shows nothing rather than something wrong. The popup shows it as a line under the
+  meaning ("в + prepositional: in hoods", `helperNote`), and the meaning itself leaves the helper out
+  (the gloss prompts say so), since it is a word of its own with its own tap. Each word's kept form is
+  `{id, helper, phrase}`; forms kept before this hold only the id, and a text in a language that has
+  helper words is asked again by the backfill, once (`forms.is_current`).
+  **Contractions** need no model: a word that is a preposition and an article in one (στο, al, zum,
+  au) says what it is made of ("σε + το") from a table in the same files, shown in the same place.
+  Only contractions that are never anything else are listed (French des and du are also plain
+  articles, German am is also the superlative's marker). Not done: Japanese verb chains, and reflexive
+  or passive "se", "-ся", "się".
 - **A text's meanings are its own** (13 November 2026, changing "Common words are glossed after the text is written" above). A word was glossed
   once, from the first line it turned up in, and that meaning was kept for the language and shown in
   every later text, so Spanish vino ("came" or "wine"), cara ("face" or "expensive") and sobre

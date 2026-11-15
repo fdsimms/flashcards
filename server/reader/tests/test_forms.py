@@ -20,6 +20,7 @@ from franki_reader.forms import (
     FormsFailed,
     candidates,
     claude_forms,
+    is_current,
     keep,
     request_message,
     schema,
@@ -100,14 +101,20 @@ def test_the_request_lists_the_languages_forms_and_each_row() -> None:
     message = request_message("nb", [("snakket", "snakke", "Jeg snakket.", "I talked.")])
     assert "- past: past tense" in message
     assert "snakket | snakke | Jeg snakket. | I talked." in message
+    assert '"helper"' in message and '"phrase"' in message
 
 
 def test_the_schema_only_allows_the_languages_form_ids_and_none() -> None:
-    ids = schema("nb")["properties"]["words"]["items"]["properties"]["form"]["enum"]
-    assert set(ids) == {*form_primers.names("nb"), "none"}
+    item = schema("nb")["properties"]["words"]["items"]
+    assert set(item["properties"]["form"]["enum"]) == {*form_primers.names("nb"), "none"}
+    assert set(item["required"]) == {"word", "form", "helper", "phrase"}
 
 
 # ==== What is kept ====
+
+
+def plain(form: str) -> dict[str, str]:
+    return {"id": form, "helper": "", "phrase": ""}
 
 
 def test_only_a_listed_form_for_a_word_that_was_asked_about_is_kept() -> None:
@@ -121,7 +128,128 @@ def test_only_a_listed_form_for_a_word_that_was_asked_about_is_kept() -> None:
         "garbage",
         {"word": 3, "form": "past"},
     ]
-    assert keep("nb", raw, rows) == {"snakket": "past"}
+    assert keep("nb", raw, rows) == {"snakket": plain("past")}
+
+
+HOODS = (
+    "капюшонах",
+    "капюшон",
+    "Три тёмные фигуры в тёмных капюшонах встают",
+    "Three dark figures",
+)
+
+
+def hoods(**fields: Any) -> dict[str, Any]:
+    return {"word": "капюшонах", "form": "prepositional", **fields}
+
+
+def test_a_helper_and_phrase_are_kept_when_the_helper_is_one_of_the_languages_for_the_form() -> (
+    None
+):
+    # An adjective stands between the preposition and the word, which is fine.
+    raw = [hoods(helper="в", phrase="in hoods")]
+    assert keep("ru", raw, [HOODS]) == {
+        "капюшонах": {"id": "prepositional", "helper": "в", "phrase": "in hoods"}
+    }
+    # How the line spells it doesn't matter: case and surrounding space.
+    raw = [hoods(helper=" В ", phrase=" in hoods ")]
+    assert keep("ru", raw, [HOODS])["капюшонах"]["helper"] == "В"
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"helper": "на", "phrase": "on hoods"},  # not a word of the line
+        {"helper": "встают", "phrase": "stand"},  # not a preposition
+        {"helper": "фигуры", "phrase": "figures"},  # a noun
+        {"helper": "капюшонах", "phrase": "hoods"},  # the word itself
+        {"helper": "в", "phrase": ""},
+        {"helper": "", "phrase": "in hoods"},
+        {"helper": "в", "phrase": "x" * 41},
+        {"helper": 1, "phrase": "in hoods"},
+        {},
+    ],
+)
+def test_a_form_without_a_usable_helper_is_kept_without_it(fields: dict[str, Any]) -> None:
+    assert keep("ru", [hoods(**fields)], [HOODS]) == {"капюшонах": plain("prepositional")}
+
+
+def test_a_preposition_must_come_before_the_word() -> None:
+    row = ("доме", "дом", "Доме в", "x")
+    raw = [{"word": "доме", "form": "prepositional", "helper": "в", "phrase": "in the house"}]
+    assert keep("ru", raw, [row]) == {"доме": plain("prepositional")}
+
+
+def lemma(word: str) -> str | None:
+    return {"помогает": "помогать", "friend": None}.get(word)
+
+
+def test_a_verb_gives_its_case_only_when_that_is_the_case_it_takes() -> None:
+    row = ("другу", "друг", "Он помогает другу", "He helps a friend")
+    dative = [
+        {"word": "другу", "form": "dative", "helper": "помогает", "phrase": "helps (a friend)"}
+    ]
+    assert keep("ru", dative, [row], lemma)["другу"]["helper"] == "помогает"
+    # помогать takes the dative: the same verb is not claimed for a genitive.
+    genitive = [{**dative[0], "form": "genitive"}]
+    assert keep("ru", genitive, [row], lemma)["другу"]["helper"] == ""
+    # A verb that isn't on the list gives nothing, and neither does a word with no lemma.
+    assert keep("ru", dative, [row])["другу"]["helper"] == ""
+
+
+def test_an_auxiliary_may_come_after_its_participle_as_in_a_german_subordinate_clause() -> None:
+    row = ("gegessen", "essen", "Ich weiß, dass er gegessen hat", "I know he has eaten")
+    raw = [{"word": "gegessen", "form": "participle", "helper": "hat", "phrase": "has eaten"}]
+    assert keep("de", raw, [row])["gegessen"] == {
+        "id": "participle",
+        "helper": "hat",
+        "phrase": "has eaten",
+    }
+
+
+@pytest.mark.parametrize(
+    ("language", "form", "helper", "line", "word"),
+    [
+        ("fr", "participle", "a", "Il a mangé", "mangé"),
+        ("es", "participle", "he", "Yo he comido", "comido"),
+        ("es", "gerund", "está", "Ella está comiendo", "comiendo"),
+        ("es", "present-subjunctive", "que", "Quiero que vengas", "vengas"),
+        ("fr", "subjunctive", "que", "Il faut que tu viennes", "viennes"),
+        ("el", "subjunctive", "να", "Θέλω να πάω", "πάω"),
+        ("nb", "participle", "har", "Jeg har gått", "gått"),
+    ],
+)
+def test_the_auxiliaries_and_triggers_of_each_language_are_recognized(
+    language: str, form: str, helper: str, line: str, word: str
+) -> None:
+    row = (word, word, line, "x")
+    raw = [{"word": word, "form": form, "helper": helper, "phrase": "x"}]
+    assert keep(language, raw, [row])[word.casefold()]["helper"] == helper  # type: ignore[arg-type]
+
+
+def test_a_helper_with_a_final_sigma_or_eszett_is_found_in_its_line() -> None:
+    greek = ("δουλεύω", "δουλεύω", "Δουλεύω προς το σπίτι", "x")
+    raw = [{"word": "σπίτι", "form": "accusative", "helper": "προς", "phrase": "toward the house"}]
+    assert keep("el", raw, [("σπίτι", "σπίτι", greek[2], "x")])["σπίτι"]["helper"] == "προς"
+    german = [{"word": "Haus", "form": "dative", "helper": "außer", "phrase": "except the house"}]
+    row = ("Haus", "Haus", "Alle außer dem Haus", "x")
+    assert keep("de", german, [row])["haus"]["helper"] == "außer"
+
+
+def test_a_form_that_does_not_take_that_helper_never_keeps_it() -> None:
+    # que goes with a subjunctive, not with a present tense.
+    row = ("viene", "venir", "Dice que viene", "He says he comes")
+    raw = [{"word": "viene", "form": "present", "helper": "que", "phrase": "that he comes"}]
+    assert keep("es", raw, [row]) == {"viene": plain("present")}
+
+
+def test_forms_kept_before_helpers_are_current_only_where_a_language_has_them() -> None:
+    old = {"капюшонах": {"id": "prepositional"}}
+    assert not is_current("ru", old)
+    assert not is_current("nb", {"snakket": {"id": "past"}})  # nb has auxiliaries now
+    assert is_current("ja", {"食べた": {"id": "past"}})  # no helper words to ask for
+    assert is_current("ru", {})
+    assert is_current("ru", {"капюшонах": plain("prepositional")})
 
 
 # ==== The engine ====
@@ -136,7 +264,10 @@ def test_the_engine_keeps_the_forms_and_the_cost_and_asks_a_text_once() -> None:
 
     asyncio.run(engine.fill_forms([text]))
     kept = store.get_text(conn, text.id)
-    assert kept is not None and kept.forms == {"snakket": "past", "gått": "participle"}
+    assert kept is not None and kept.forms == {
+        "snakket": plain("past"),
+        "gått": plain("participle"),
+    }
     assert store.form_spending(conn, NOW - timedelta(days=1)) == {"nb": (1, 2.0)}
 
     asyncio.run(engine.fill_forms([text]))  # the stale copy is read again: already asked
@@ -191,7 +322,7 @@ def test_a_failure_leaves_the_text_unasked_and_waits_before_trying_again() -> No
     writer.fail = False
     asyncio.run(engine.fill_forms([text]))
     done = store.get_text(conn, text.id)
-    assert done is not None and done.forms == {"snakket": "past"}
+    assert done is not None and done.forms == {"snakket": plain("past")}
 
 
 def test_a_call_that_failed_after_claude_answered_still_shows_its_cost() -> None:
@@ -246,7 +377,9 @@ def test_a_pass_picks_forms_for_the_few_newest_texts_still_without() -> None:
 def test_a_word_carries_the_form_the_text_kept_for_it() -> None:
     conn = store.connect(":memory:")
     text = stored_text(conn)
-    store.save_forms(conn, text.id, {"snakket": "past", "gått": "removed-from-the-catalog"})
+    store.save_forms(
+        conn, text.id, {"snakket": plain("past"), "gått": plain("removed-from-the-catalog")}
+    )
     kept = store.get_text(conn, text.id)
     assert kept is not None
     out = render(kept, lexicon_from(DECK, "nb", 1000), {})
@@ -275,6 +408,77 @@ def test_the_forms_endpoint_serves_a_languages_primers_and_none_for_thai() -> No
     assert c.get("/api/forms?language=th", headers=AUTH).json() == {"forms": []}
     assert c.get("/api/forms?language=xx", headers=AUTH).status_code == 422
     assert c.get("/api/forms?language=ru").status_code == 401
+
+
+def test_a_words_helper_and_phrase_reach_the_app_only_when_there_are_some() -> None:
+    conn = store.connect(":memory:")
+    text = stored_text(conn)
+    store.save_forms(
+        conn,
+        text.id,
+        {
+            "snakket": {"id": "past", "helper": "", "phrase": ""},
+            "gått": {"id": "participle", "helper": "har", "phrase": "has gone"},
+        },
+    )
+    kept = store.get_text(conn, text.id)
+    assert kept is not None
+    out = render(kept, lexicon_from(DECK, "nb", 1000), {})
+    words = {w["text"]: w for line in out["lines"] for w in line["words"]}
+    assert words["snakket"]["form"] == {"id": "past", "name": "past tense"}
+    assert words["gått"]["form"] == {
+        "id": "participle",
+        "name": "past participle",
+        "helper": "har",
+        "phrase": "has gone",
+    }
+
+
+def test_forms_kept_as_a_bare_id_before_helpers_still_read() -> None:
+    conn = store.connect(":memory:")
+    text = stored_text(conn)
+    with conn:
+        conn.execute(
+            "UPDATE texts SET forms = ? WHERE id = ?", (json.dumps({"snakket": "past"}), text.id)
+        )
+    kept = store.get_text(conn, text.id)
+    assert kept is not None and kept.forms == {"snakket": {"id": "past"}}
+    out = render(kept, lexicon_from(DECK, "nb", 1000), {})
+    words = {w["text"]: w for line in out["lines"] for w in line["words"]}
+    assert words["snakket"]["form"] == {"id": "past", "name": "past tense"}
+
+
+def test_a_text_kept_before_helpers_is_asked_again_once() -> None:
+    conn = store.connect(":memory:")
+    deck = [Entry(1, "дом", "house", "mature")]
+    store.save_snapshot(conn, deck, NOW, "ru")
+    lexicon = lexicon_from(deck, "ru", 1000)
+    lines = (Line("A", "Он|живёт|в|доме.", "He lives in the house."),)
+    generated = Generated("t", lines, {}, check([ln.text for ln in lines], lexicon), 1, True, ())
+    topic = store.add_topic(conn, "Home", NOW)
+    text_id = store.save_text(conn, topic.id, generated, [], 0.95, NOW, "ready", "dialogue", "ru")
+    text = store.get_text(conn, text_id)
+    assert text is not None
+    with conn:
+        conn.execute(
+            "UPDATE texts SET forms = ? WHERE id = ?",
+            (json.dumps({"доме": "prepositional"}), text_id),
+        )
+    asked = [{"word": "доме", "form": "prepositional", "helper": "в", "phrase": "in the house"}]
+
+    async def write(language: str, rows: list[Any]) -> Any:
+        calls.append(rows)
+        return asked, BILLED
+
+    calls: list[Any] = []
+    engine = Engine(conn, None, None, lambda: NOW, random.Random(1), write_forms=write)
+    asyncio.run(engine.fill_forms([text]))
+    asyncio.run(engine.fill_forms([text]))  # now current: not asked again
+    assert len(calls) == 1
+    again = store.get_text(conn, text_id)
+    assert again is not None and again.forms == {
+        "доме": {"id": "prepositional", "helper": "в", "phrase": "in the house"}
+    }
 
 
 # ==== Claude's call ====

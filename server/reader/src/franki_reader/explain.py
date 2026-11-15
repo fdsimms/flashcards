@@ -22,6 +22,15 @@ MAX_POINTS = 6
 MAX_TOKENS = 1500
 MAX_CHARS = 400
 
+# You can't measure how common a phrase is, and a confident "common" is the claim most likely to be
+# wrong, so both prompts keep frequency, naturalness and register to what the model is sure of.
+CALIBRATION = (
+    " Call something common, natural, neutral or formal only when you are confident native "
+    "speakers use it that way. If you are not, explain how it works and say nothing about how "
+    "common it is or what register it has. Never say a phrase is common just because it is "
+    "grammatical."
+)
+
 SYSTEM = (
     "You explain one line of a short text to an adult learner of the language, in plain English. "
     "Say what the learner is most likely to be unsure of: grammar (tense, mood, agreement, word "
@@ -33,7 +42,7 @@ SYSTEM = (
     "shows how the phrase works. Do not use em dashes. Do not repeat the whole line's translation: "
     "the learner can already see it. The whole text is there only so you can see what the line "
     "refers to. Use it only when it changes or sharpens a point (what a pronoun points to, what a "
-    "reply answers, the speaker's tone); never retell or summarize the text."
+    "reply answers, the speaker's tone); never retell or summarize the text." + CALIBRATION
 )
 
 SIMPLE = (
@@ -74,7 +83,7 @@ PHRASE_SYSTEM = (
     'Use it only when it changes or sharpens the meaning (what a pronoun or "one thing" points '
     "to, what a reply answers, the speaker's tone). If the phrase can be explained from its own "
     "line, say nothing about the rest of the text, and never retell or summarize it. "
-    "Do not use em dashes."
+    "Do not use em dashes." + CALIBRATION
 )
 
 PHRASE_SCHEMA: dict[str, Any] = {

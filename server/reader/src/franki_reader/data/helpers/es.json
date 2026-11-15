@@ -1,0 +1,65 @@
+{
+ "prepositions": [],
+ "governs": {},
+ "with": {
+  "participle": [
+   "he",
+   "has",
+   "ha",
+   "hemos",
+   "habéis",
+   "han",
+   "había",
+   "habías",
+   "habíamos",
+   "habíais",
+   "habían",
+   "habré",
+   "habrás",
+   "habrá",
+   "habremos",
+   "habréis",
+   "habrán",
+   "habría",
+   "habrías",
+   "habríamos",
+   "habrían",
+   "haya",
+   "hayas",
+   "hayamos",
+   "hayáis",
+   "hayan"
+  ],
+  "gerund": [
+   "estoy",
+   "estás",
+   "está",
+   "estamos",
+   "estáis",
+   "están",
+   "estaba",
+   "estabas",
+   "estábamos",
+   "estabais",
+   "estaban",
+   "estuve",
+   "estuvo",
+   "estuvieron"
+  ],
+  "present-subjunctive": [
+   "que",
+   "ojalá",
+   "aunque"
+  ],
+  "imperfect-subjunctive": [
+   "que",
+   "ojalá",
+   "aunque",
+   "si"
+  ]
+ },
+ "contractions": {
+  "al": "a + el",
+  "del": "de + el"
+ }
+}
