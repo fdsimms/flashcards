@@ -1,6 +1,7 @@
 import { WaniKaniError, type WaniKaniProblem } from './api';
 import { parseLog, type LogEntry } from './log';
 import type { Outcome } from './session';
+import { parseSkipped, type SkippedWord } from './skipped';
 
 /** WaniKani's options in Franki: this phone's own, kept beside the token (storage.ts). */
 export interface WaniKaniPrefs {
@@ -73,6 +74,8 @@ export interface WaniKaniState {
   log: LogEntry[];
   /** Answers WaniKani refused (`FlushResult.dropped`) that the learner hasn't been shown yet (`droppedText`). */
   dropped: number;
+  /** Words skipped for good (skipped.ts). */
+  skipped: SkippedWord[];
 }
 
 export function parseState(raw: string | null | undefined): WaniKaniState {
@@ -84,9 +87,10 @@ export function parseState(raw: string | null | undefined): WaniKaniState {
       made: Array.isArray(o?.made) ? o.made.filter((x: unknown) => typeof x === 'number') : [],
       log: parseLog(o?.log),
       dropped: typeof o?.dropped === 'number' && o.dropped > 0 ? Math.floor(o.dropped) : 0,
+      skipped: parseSkipped(o?.skipped),
     };
   } catch {
-    return { outbox: [], sent: [], made: [], log: [], dropped: 0 };
+    return { outbox: [], sent: [], made: [], log: [], dropped: 0, skipped: [] };
   }
 }
 

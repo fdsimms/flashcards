@@ -337,6 +337,19 @@ function withMisses(progress: Record<number, Progress>, now: Record<number, Prog
   }));
 }
 
+/**
+ * The session without an item (a word skipped for good): its questions go, and so does its place
+ * in the totals, in every session undo can go back to, so undo can't bring it back. Nothing is sent.
+ */
+export function dropItem(study: Study, assignmentId: number): Study {
+  const without = (s: Session): Session => {
+    const { [assignmentId]: _item, ...items } = s.items;
+    const { [assignmentId]: _progress, ...progress } = s.progress;
+    return { ...s, items, progress, queue: s.queue.filter((q) => q.assignmentId !== assignmentId), finished: s.finished.filter((id) => id !== assignmentId) };
+  };
+  return { ...study, session: without(study.session), history: study.history.map(without) };
+}
+
 /** Closing the session: whatever is held goes now. */
 export function studyFlush(study: Study): { study: Study; send: Outcome[] } {
   return { study: { ...study, held: null, history: [] }, send: study.held ? [study.held] : [] };

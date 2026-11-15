@@ -59,6 +59,12 @@ export function WaniKaniSettings({ wanikani, decks }: {
     });
   };
 
+  const bringBack = (subjectId: number, name: string) => {
+    ActionSheetIOS.showActionSheetWithOptions({ title: name, options: ['Bring back to reviews', 'Cancel'], cancelButtonIndex: 1 }, (i) => {
+      if (i === 0) wanikani.unskip(subjectId);
+    });
+  };
+
   return (
     <Screen title="WaniKani">
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }} keyboardShouldPersistTaps="handled">
@@ -140,6 +146,24 @@ export function WaniKaniSettings({ wanikani, decks }: {
         <Help>
           {`Lessons aren't offered while more than this many items are at Apprentice. Reviews are never held back.${wanikani.on && wanikani.apprentice !== null ? ` ${wanikani.apprentice} at Apprentice now.` : ''}`}
         </Help>
+
+        {wanikani.skipped.length ? (
+          <>
+            <SectionTitle>Skipped words</SectionTitle>
+            <Group>
+              {wanikani.skipped.map((w, i) => (
+                <NavRow
+                  key={w.subjectId}
+                  first={i === 0}
+                  label={w.characters || w.meaning}
+                  detail={w.characters ? w.meaning : undefined}
+                  onPress={() => bringBack(w.subjectId, w.characters || w.meaning)}
+                />
+              ))}
+            </Group>
+            <Help>These words don't come up in reviews on this iPhone. WaniKani still schedules them, so they stay due on wanikani.com. Tap one to bring it back.</Help>
+          </>
+        ) : null}
 
         <SectionTitle>Production cards</SectionTitle>
         <Group>
