@@ -12,7 +12,7 @@ import type { BackupStore } from '../db/sqliteRepo';
 import { importTsv } from '../import/tsv';
 import { leaveAnkiNotes, reconcileIds } from '../import/reconcile';
 import { Button, Card, Help, MessageList, Screen } from './kit';
-import { space, type, useTheme } from './theme';
+import { space, type, useTheme, readable } from './theme';
 
 /** Warnings listed per import. Past this the rest are counted, never dropped silently. */
 const MAX_WARNINGS = 20;
@@ -170,7 +170,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
   const sentLine = status?.lastSentAt ? ` Last sent ${new Date(status.lastSentAt).toLocaleDateString()}.` : '';
   return (
     <Screen title="Anki">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Sync with your Anki server</Text>
           <Help>

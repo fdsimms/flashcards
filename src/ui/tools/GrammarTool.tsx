@@ -10,7 +10,7 @@ import { LANGUAGES, flaggedName } from '../../reader/languages';
 import { toolLanguage } from '../../tools/tools';
 import { loadToolPrefs, saveToolPrefs, toolPrefs } from '../../tools/storage';
 import { Button, Card, ErrorNote, Group, Help, NavRow, Screen } from '../kit';
-import { space, type, useTheme } from '../theme';
+import { space, type, useTheme, readable } from '../theme';
 import { GrammarDrill } from './GrammarDrill';
 import type { ToolScreenProps } from './index';
 import { ControlLabel } from './ToolScreen';
@@ -88,7 +88,7 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
         <Button label={`Start: ${DRILL_QUESTIONS} questions`} onPress={() => setDrilling(due.slice(0, DRILL_POINTS).map((s) => s.pointId))} />
       ) : undefined}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.l }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.l }}>
         {!readerApi ? (
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>Grammar drills need Read & Listen</Text>

@@ -3,7 +3,7 @@ import { ScrollView } from 'react-native';
 import { ApiError, type Language } from '../reader/api';
 import { MAX_WORDS, parseWords } from '../reader/noteQueue';
 import { Button, Card, ErrorNote, Field, Help, Screen, Select } from './kit';
-import { space } from './theme';
+import { space, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
@@ -53,7 +53,7 @@ export function ReadQuickAdd({ decks, initial, onAdd, onDone }: {
         keyboardShouldPersistTaps="handled"
         // Return adds a line, so dragging the list down is how the keyboard goes away to reach Add.
         keyboardDismissMode="interactive"
-        contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }}
+        contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }}
         {...scrollProps}
       >
         <Card>

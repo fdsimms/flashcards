@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
 import { ApiError, type Api, type PastText, type Rating } from '../reader/api';
 import { ErrorNote, Group, Help, NavRow, Screen } from './kit';
-import { space, useTheme } from './theme';
+import { space, useTheme, readable } from './theme';
 
 /**
  * Texts read to the end, newest first; with `story`, that story's episodes from the first. Opening
@@ -37,7 +37,7 @@ export function ReadPastTexts({ api, story, onOpen }: { api: Api; story?: number
     <Screen title={story === undefined ? 'Past texts' : 'Your story'}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
+        contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
       >
         {error ? <ErrorNote message={error} onRetry={load} /> : null}

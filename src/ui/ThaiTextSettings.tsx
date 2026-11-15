@@ -5,7 +5,7 @@ import { failureText } from '../core/failure';
 import { THAI_TEXT_CHOICES, thaiTextStyle, type ThaiTextSize } from '../core/script';
 import type { Repo } from '../db/repo';
 import { CheckRow, Group, Help, Screen } from './kit';
-import { space, useTheme } from './theme';
+import { space, useTheme, readable } from './theme';
 
 /** Settings, Thai text size: how large Thai is on a card, with a line of it at the chosen size. */
 export function ThaiTextSettings({ repo }: { repo: Repo }) {
@@ -25,7 +25,7 @@ export function ThaiTextSettings({ repo }: { repo: Repo }) {
 
   return (
     <Screen title="Thai text size">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         <Group accessibilityRole="radiogroup">
           {THAI_TEXT_CHOICES.map((choice, i) => (
             <CheckRow key={choice.value} first={i === 0} label={choice.label} selected={size === choice.value} onPress={() => void choose(choice.value)} />

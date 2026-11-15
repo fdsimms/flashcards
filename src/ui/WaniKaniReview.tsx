@@ -22,7 +22,7 @@ import { Button, Count, ErrorNote, Icon, Screen, Tappable } from './kit';
 import { Reveal } from './motion';
 import { CardSurface, ProgressBar } from './Review';
 import type { WaniKaniState } from './useWaniKani';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 import { StagePopup, stagePopupMs } from './StagePopup';
 import { SubjectDetails, SubjectFront } from './WaniKaniCard';
@@ -362,7 +362,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     return (
       <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
         <Reveal style={{ flex: 1 }}>
-          <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
+          <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
           <Icon name="checkmark.circle.fill" size={56} color={c.countDue} weight="regular" />
           <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>All done for now</Text>
           <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>

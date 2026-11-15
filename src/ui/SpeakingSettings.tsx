@@ -5,7 +5,7 @@ import { recognitionLocale } from '../core/speaking';
 import type { Repo } from '../db/repo';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import { Group, Help, Screen, SectionTitle, SwitchRow } from './kit';
-import { hairline, MIN_TAP, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, space, type, useTheme, readable } from './theme';
 import { supportedLocales } from './useSpokenAnswer';
 
 /**
@@ -31,7 +31,7 @@ export function SpeakingSettings({ repo }: { repo: Repo }) {
 
   return (
     <Screen title="Speaking">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         <Group>
           <SwitchRow
             first

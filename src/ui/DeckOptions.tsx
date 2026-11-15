@@ -13,7 +13,7 @@ import { DeckFormsOptions } from './DeckFormsOptions';
 import { DeckPriorityOptions } from './DeckPriorityOptions';
 import { DeckRecordings } from './DeckRecordings';
 import { Card, Field, Group, Help, Loading, NavRow, Screen, SwitchRow } from './kit';
-import { space, type, useTheme } from './theme';
+import { space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /** Settings made in the app for one deck: the progress gate, forms practice, lookalike words and recordings. */
@@ -92,7 +92,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
   return (
     <Screen title={name}>
       {!settings ? <Loading error={loadError} onRetry={() => setAttempt((n) => n + 1)} /> : (
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
         <Group>
           <SwitchRow
             first

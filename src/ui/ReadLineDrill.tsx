@@ -12,7 +12,7 @@ import { Button, Card, Chip, Help, Icon, NavRow, Tappable } from './kit';
 import { Reveal } from './motion';
 import type { ReadTextStyle } from './ReadWord';
 import { RecordYourself } from './RecordYourself';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { TypedDiff } from './TypedDiff';
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { useSelfRecording } from './useSelfRecording';
@@ -96,7 +96,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
   if (at === undefined || !line) {
     const { right, asked } = roundScore(round);
     return (
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         <Card style={{ alignItems: 'center', gap: space.xs, paddingVertical: space.xl }}>
           <Text accessibilityRole="header" style={{ ...type.largeTitle, color: c.accent, fontVariant: ['tabular-nums'] }}>{`${right} of ${asked}`}</Text>
           <Text style={{ ...type.subhead, color: c.textSecondary }}>right the first time</Text>
@@ -115,7 +115,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
+        contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
         {...scrollProps}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>

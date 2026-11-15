@@ -5,7 +5,7 @@ import { CONFUSION_MISSES, CONFUSION_WORDS, FORM_CLEARED_AFTER } from '../core/f
 import { practiceStats, type PracticeStats, type WeakFormStat } from '../core/formsStats';
 import type { Repo } from '../db/repo';
 import { Card, Help, Loading, Screen, SectionTitle } from './kit';
-import { hairline, radius, space, type, useTheme } from './theme';
+import { hairline, radius, space, type, useTheme, readable } from './theme';
 
 /** How many forms "Still needs work" lists before "and N more". */
 const LISTED_FORMS = 10;
@@ -32,7 +32,7 @@ export function FormsHistory({ repo, deck }: { repo: Repo; deck: string }) {
 
   return (
     <Screen title="Practice history">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         {!stats ? <Loading error={error} onRetry={() => setLoads((n) => n + 1)} /> : !stats.answers ? <Empty /> : <Content stats={stats} />}
       </ScrollView>
     </Screen>

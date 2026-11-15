@@ -10,7 +10,7 @@ import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { practicingPoints } from '../reader/grammar';
 import { Button, Card, Chip, Help, Loading, Screen, SectionTitle, Segments } from './kit';
-import { space, type, useTheme } from './theme';
+import { space, type, useTheme, readable } from './theme';
 
 type Answering = 'pick' | 'type' | 'sentence';
 
@@ -96,7 +96,7 @@ export function FormsPractice({ repo, readerApi, deck, startGroups, onStart }: {
         <Button label={asked ? `Start: up to ${upTo} ${upTo === 1 ? 'prompt' : 'prompts'}` : 'Nothing to practice'} onPress={start} disabled={!asked} />
       ) : undefined}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.l }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.l }}>
         {!words ? <Loading error={loadError} onRetry={() => setLoads((n) => n + 1)} /> : !words.length ? (
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>No words to practice yet</Text>

@@ -11,7 +11,7 @@ import { PracticeWordPill } from './PracticeWordPill';
 import { ReadRecap } from './ReadRecap';
 import { GlossPopover, type Tapped } from './Reader';
 import { SkeletonList } from './Skeleton';
-import { MIN_TAP, space, type, useTheme } from './theme';
+import { MIN_TAP, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
@@ -187,7 +187,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
     >
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: space.l + bottomPadding, gap: space.m }}
+        contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: space.l + bottomPadding, gap: space.m }}
         keyboardShouldPersistTaps="handled"
         {...scrollProps}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
@@ -249,7 +249,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
 
             <Group>
               <NavRow first label="Past texts" detail="Read or listen to a text again" onPress={onPast} />
-              <NavRow label="Marked words" detail={markedCount === null ? undefined : `${markedCount} marked as unknown`} onPress={onWords} />
+              <NavRow label="Marked words" loading={markedCount === null} detail={markedCount === null ? undefined : `${markedCount} marked as unknown`} onPress={onWords} />
             </Group>
           </>
         ) : null}

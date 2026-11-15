@@ -6,7 +6,7 @@ import { LANGUAGES } from '../reader/languages';
 import { sampleLine, slotInfo, voicesForSlot } from '../reader/voiceSlots';
 import { AzureVoiceRows, useAzureSample, useAzureVoices } from './AzureVoices';
 import { ErrorNote, Group, Help, Screen } from './kit';
-import { space, useTheme } from './theme';
+import { space, useTheme, readable } from './theme';
 
 /**
  * One of a language's voice slots: the voices of its gender to choose from, the chosen one checked.
@@ -45,7 +45,7 @@ export function ReadVoicePick({ api, language, slot, selected, onSettings }: {
 
   return (
     <Screen title={label}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {error ? <ErrorNote message={error} /> : null}
         {azure.error ? <ErrorNote message={azure.error} onRetry={azure.retry} /> : null}
         {sample.error ? <ErrorNote message={sample.error} /> : null}

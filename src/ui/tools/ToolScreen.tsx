@@ -13,7 +13,7 @@ import { toolLanguage, type ToolInfo } from '../../tools/tools';
 import { haptic } from '../haptics';
 import { Button, Card, Chip, Help, Icon, Screen, Tappable } from '../kit';
 import { Reveal } from '../motion';
-import { hairline, MIN_TAP, space, type, useTheme } from '../theme';
+import { hairline, MIN_TAP, space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { PlayPill } from '../PlayButton';
 import { usePhoneSpeech } from '../usePhoneSpeech';
@@ -144,7 +144,7 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
         </View>
       )}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.l }} keyboardShouldPersistTaps="handled" {...scrollProps}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.l }} keyboardShouldPersistTaps="handled" {...scrollProps}>
         <ToolLanguage.Provider value={language}>{children}</ToolLanguage.Provider>
       </ScrollView>
     </Screen>

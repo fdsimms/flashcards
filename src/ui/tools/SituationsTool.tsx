@@ -11,7 +11,7 @@ import { canFinish, canSend, conversationOf, startChat, withMine, withoutMine, w
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
 import { Button, Card, Chip, ErrorNote, Group, Help, Icon, Loading, NavRow, Screen, Tappable } from '../kit';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import type { ToolScreenProps } from './index';
 import { MyLine, SituationResult, TheirLine } from './SituationParts';
@@ -35,7 +35,7 @@ export function SituationsTool({ tool, readerApi, onClose }: ToolScreenProps) {
   if (!readerApi) {
     return (
       <Screen title={tool.title} largeTitle={false}>
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}>
           <Card><Help>{"Situations are played by Claude on Read & Listen's server. Turn on Read & Listen in Settings to use them."}</Help></Card>
         </ScrollView>
       </Screen>
@@ -276,7 +276,7 @@ function Talk({ api, chat, onChat, heardOnly, feedback, onFeedback, onAgain, onD
           </View>
         )}
       >
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.m }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
           <SituationResult feedback={feedback} mine={mine} look={look} lang={info.speech} added={added} onAdd={deck ? (w) => void add(w) : null} />
         </ScrollView>
       </Screen>
@@ -362,7 +362,7 @@ function Talk({ api, chat, onChat, heardOnly, feedback, onFeedback, onAgain, onD
           </View>
         )}
       >
-        <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.l, gap: space.m }} {...scrollProps}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }} {...scrollProps}>
           {chat.roles ? (
             <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{`You're ${chat.roles.you}. ${name} is ${chat.roles.them}.`}</Text>
           ) : null}

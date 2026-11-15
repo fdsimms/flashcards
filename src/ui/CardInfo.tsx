@@ -11,7 +11,7 @@ import { durationText } from '../core/stats';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { Divider, Group, Loading, Screen, SectionTitle } from './kit';
-import { space, type, useTheme } from './theme';
+import { space, type, useTheme, readable } from './theme';
 
 const RATINGS = ['', 'Again', 'Hard', 'Good', 'Easy'];
 const date = (d: Date) => d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -111,7 +111,7 @@ export function CardInfo({ repo, cardId }: { repo: Repo & AnkiLink; cardId: stri
 
   return (
     <Screen title="Card info" largeTitle={false}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
         {data === undefined ? <Loading error={error} onRetry={() => setLoads((n) => n + 1)} /> : null}
         {data === null ? <Text style={{ ...type.body, color: c.textSecondary }}>This card isn't in Franki anymore.</Text> : null}
         {data ? (

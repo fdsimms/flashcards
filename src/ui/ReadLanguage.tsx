@@ -10,7 +10,7 @@ import { describeProgress } from '../reader/progress';
 import { voicesSummary } from '../reader/voiceSlots';
 import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle, Segments, Select } from './kit';
 import { CommonWords } from './ReadCommonWords';
-import { space, type, useTheme } from './theme';
+import { space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /** The card a change was made in, where its failure is shown. */
@@ -118,7 +118,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
     <Screen title={name ? `${name} settings` : 'Settings'}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }}
+        contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }}
         keyboardShouldPersistTaps="handled"
         {...scrollProps}
       >

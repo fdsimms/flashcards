@@ -204,5 +204,12 @@ export const type = {
   reading: { fontSize: 20, lineHeight: 28 },
 } as const;
 
+/**
+ * A screen's content column on a wide display (iPad): spread into a ScrollView's
+ * `contentContainerStyle`. On an iPhone the screen is narrower than this, so nothing changes; on an
+ * iPad the rows stop at a readable width, centered, as Review's card already does.
+ */
+export const readable = { width: '100%', maxWidth: 640, alignSelf: 'center' } as const;
+
 /** The smallest a tap target gets, per Apple's guidelines. */
 export const MIN_TAP = 44;

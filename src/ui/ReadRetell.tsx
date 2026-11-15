@@ -12,7 +12,7 @@ import { Button, Card, ErrorNote, Help, Tappable } from './kit';
 import { Reveal } from './motion';
 import type { ReadTextStyle } from './ReadWord';
 import { WritingResult } from './ReadWritingResult';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
@@ -65,7 +65,7 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
 
   return (
     <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} {...scrollProps}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} {...scrollProps}>
         {check ? (
           <Reveal style={{ gap: space.m }}>
             <Card><WritingResult check={check} attempt={attempt} lang={LANGUAGES[text.language].speech} /></Card>

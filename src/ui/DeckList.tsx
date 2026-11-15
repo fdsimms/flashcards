@@ -12,7 +12,7 @@ import { useHeaderInset } from './useHeaderInset';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
 import { VacationCard, useVacationBanner } from './vacationNotice';
 import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
-import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 
 type ShownRow = DeckRow & { hasSubdecks: boolean; collapsed: boolean };
 
@@ -389,7 +389,7 @@ export function DeckList(props: {
         )}
       >
         {/* Everything in one view, which a drag measures the rows against and draws its card in. */}
-        <View {...drag.contentProps} style={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+        <View {...drag.contentProps} style={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
           {/* Today's count first; what needs doing sits under it, so a few banners never push it off the screen. */}
           {groups.length || props.extra ? <TodaySummary due={totals.due} fresh={totals.fresh} studied={props.studied} /> : null}
           {props.extrasStrip}

@@ -9,7 +9,7 @@ import { haptic } from './haptics';
 import { Button, Card, Chip, Help, Icon, Tappable } from './kit';
 import { Reveal } from './motion';
 import type { ReadTextStyle } from './ReadWord';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 
 /**
  * The check after reading (reader/check.ts), one question at a time, in place of the reader's end
@@ -54,7 +54,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
   const line = text.lines[q.line];
 
   return (
-    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Text style={{ ...type.footnote, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{`Question ${at + 1} of ${questions.length}`}</Text>
         <Text style={{ ...type.footnote, color: c.textSecondary }}>{KIND_LABEL[q.kind]}</Text>

@@ -3,7 +3,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react
 import { ApiError, type Api, type MarkedWord } from '../reader/api';
 import { meaningOf, wordStatus } from '../reader/languages';
 import { Button, Card, ErrorNote, Help, Screen } from './kit';
-import { hairline, space, type, useTheme } from './theme';
+import { hairline, space, type, useTheme, readable } from './theme';
 
 /**
  * Every word marked unknown while reading, newest first, with its meaning, so they can be looked at
@@ -56,7 +56,7 @@ export function ReadWords({ api, mining }: {
     <Screen title="Marked words">
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
+        contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
       >
         {error ? <ErrorNote message={error} onRetry={load} /> : null}

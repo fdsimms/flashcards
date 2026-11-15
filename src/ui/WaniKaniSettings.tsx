@@ -5,7 +5,7 @@ import { APPRENTICE_LIMIT_CHOICES, NEW_PER_DAY_CHOICES } from '../wanikani/prefs
 import { PRODUCTION_BATCH } from '../wanikani/productionService';
 import { Button, Card, CheckRow, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
 import type { WaniKaniState } from './useWaniKani';
-import { space, type, useTheme } from './theme';
+import { space, type, useTheme, readable } from './theme';
 
 /**
  * Turning WaniKani on (its API token) or off, and its options: how answers are given, lessons a
@@ -61,7 +61,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
 
   return (
     <Screen title="WaniKani">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }} keyboardShouldPersistTaps="handled">
         <Card>
           <Help>
             Study your WaniKani reviews and lessons as a deck. Answers go to WaniKani, which keeps its own schedule,
