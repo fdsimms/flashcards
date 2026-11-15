@@ -9,6 +9,7 @@ from franki_reader import form_primers, grammar
 from franki_reader.capitalized import demote_capitalized_nouns
 from franki_reader.coverage import Checker, is_word, parse_line, segment_line
 from franki_reader.frequency import rank_of
+from franki_reader.ipa import ipa_for
 from franki_reader.japanese import JapaneseLexicon
 from franki_reader.spaced import fold, lemma
 from franki_reader.split_verbs import join_split_verbs
@@ -117,6 +118,8 @@ def word_out(
             "parts": None,
             "lemma": None,
             "translit": None,
+            "ipa": None,
+            "ipa_source": None,
             "stretch": False,
             "deck": False,
             "wanikani": False,
@@ -126,6 +129,7 @@ def word_out(
         }
     entry = lexicon.entry_of(piece)
     gloss = gloss_for(piece, glosses or {}, lexicon, meanings)
+    ipa, ipa_source = ipa_for(piece, lexicon) or (None, None)
     return {
         "text": piece,
         "status": "name" if is_name else lexicon.status(piece),
@@ -133,6 +137,9 @@ def word_out(
         "parts": None if gloss or is_name else parts_for(piece, lexicon, meanings),
         "lemma": lemma_for(piece, lexicon),
         "translit": translit_for(piece, translits or {}, lexicon, deck_translits),
+        # IPA from the Wiktionary tables, and where it's from ("wiktionary"); a name has one too.
+        "ipa": ipa,
+        "ipa_source": ipa_source,
         "stretch": (entry or piece) in (stretch or set()),
         # A deck word, as against one known for being common (every language but Thai).
         "deck": entry is not None,

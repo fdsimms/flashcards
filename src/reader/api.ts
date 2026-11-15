@@ -28,6 +28,10 @@ export type Word = {
   parts?: string | null;
   lemma?: string | null; // the dictionary form, when it differs from the word (every language but Thai)
   translit?: string | null; // the pronunciation, when there is one (Thai's in Latin letters, Japanese's in kana)
+  // The word's IPA, when there is some, and where it's from: Wiktionary's entry for the word as written, or
+  // written by AI where Wiktionary has none. Absent from a server older than it, and null for a word with none.
+  ipa?: string | null;
+  ipa_source?: 'wiktionary' | 'ai' | null;
   stretch: boolean;
   deck: boolean; // a deck word, as against one known for being common (every language but Thai)
   wanikani?: boolean; // known for being learned in WaniKani (Japanese; absent from a server older than it)

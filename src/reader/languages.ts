@@ -72,3 +72,12 @@ export function wordStatus(word: Pick<Word, 'status' | 'deck' | 'wanikani'>): st
   if (word.deck) return 'In your deck';
   return word.wanikani ? 'Learned in WaniKani' : 'A common word';
 }
+
+/**
+ * Where a word's IPA is from, for the gloss popover's status line: Wiktionary's, or written by AI,
+ * which can be wrong (stress most of all), so it says so. None when the word has no IPA.
+ */
+export function ipaNote(word: Pick<Word, 'ipa' | 'ipa_source'>): string | null {
+  if (!word.ipa) return null;
+  return word.ipa_source === 'ai' ? 'IPA written by AI, may be wrong' : 'IPA from Wiktionary';
+}
