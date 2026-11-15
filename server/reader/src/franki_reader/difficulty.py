@@ -26,11 +26,12 @@ MIN_STRETCH = 1
 MAX_STRETCH = 4
 
 RATINGS = ("too_easy", "about_right", "too_hard")
-# The check after reading moves difficulty only with at least this many answers, and only when
-# fewer than this share of them were right. The app says a low score makes the next text easier only
-# when its check has this many questions that count (CHECK_MIN_ASKED in src/reader/check.ts, which
-# tests/reader/check.test.ts keeps equal to this).
-CHECK_MIN_ASKED = 3
+# The check after reading moves difficulty only on the answers from this text and the last one that
+# had a check taken together (`engine.record_reading`), so one bad text can't: at least this many
+# answers between them, and fewer than `CHECK_LOW` of them right. The app says low scores make the
+# next text easier (CHECK_MIN_ASKED in src/reader/check.ts, which tests/reader/check.test.ts keeps
+# equal to this).
+CHECK_MIN_ASKED = 6
 CHECK_LOW = 0.6
 
 

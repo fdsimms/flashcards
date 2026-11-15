@@ -19,6 +19,7 @@ import { locate, phraseRange, phrasePart, phraseText, pickEnd, type PhrasePick }
 import { choicesView, holdsPlayAll } from '../reader/choices';
 import { buildCheck, loggedScore, type CheckPicks, type CheckQuestion } from '../reader/check';
 import { tapMode, type TapMode } from '../reader/guess';
+import { allHeard, listensFirst } from '../reader/listenFirst';
 import { prefs, savePrefs } from '../reader/storage';
 import { wrapGroups } from '../reader/wordLayout';
 import { haptic } from './haptics';
@@ -192,6 +193,10 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   const autoPlayed = useRef(false);
   // The past text in view has been counted as heard again (heardThrough), once however it ends.
   const listenLogged = useRef(false);
+  // Listen before reading (reader/listenFirst.ts): the words stay hidden until every line has played
+  // to its end. `heardLines` are the lines that have, in this text.
+  const [listenGate, setListenGate] = useState(false);
+  const heardLines = useRef(new Set<number>());
   const logged = useRef(false);
   const mounted = useRef(true);
   const loadId = useRef(0);
@@ -306,6 +311,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
 
   useEffect(() => {
     if (!status.didJustFinish || current === null || !text) return;
+    markHeard(current);
     const next = nextLine(text.lines, current, playingAll, repeat, played);
     if (next === current) {
       // The same source again: rewind rather than reload it.
@@ -328,6 +334,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   useEffect(() => {
     if (!status.error || current === null || !text) return;
     setSilentLine(current);
+    markHeard(current); // nothing to wait for on a line with no sound
     const next = nextLine(text.lines, current, playingAll);
     if (next !== null) playLine(next, true);
     else setPlayingAll(false);
@@ -365,6 +372,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
     choiceSeq.current++;
     autoPlayed.current = false;
     listenLogged.current = false;
+    heardLines.current = new Set();
+    setListenGate(false);
     baseLength.current = settings?.lines ?? 8;
     lineBoxes.current = [];
     scrollY.current = null; // back at the top, which is at minus the header's overlap
@@ -399,6 +408,26 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
   };
 
   useEffect(() => { load(); }, [source]); // eslint-disable-line react-hooks/exhaustive-deps -- loads once per source
+
+  // A line has played to its end (or has no sound): once every line has, the words appear.
+  const markHeard = (line: number) => {
+    if (!listenGate || !text) return;
+    heardLines.current.add(line);
+    if (allHeard(text.lines, heardLines.current)) showText();
+  };
+
+  const showText = () => {
+    setListenGate(false);
+    setListenOnly(false);
+    scrollY.current = null; // the lines' scroll view is mounted fresh, at the top
+  };
+
+  // A new text opens with its words hidden, with the setting on.
+  useEffect(() => {
+    if (!text || !listensFirst(prefs().listenFirst, source.kind, source.kind === 'shelf' && !!source.playAll, firstLine(text.lines) !== null)) return;
+    setListenGate(true);
+    setListenOnly(true);
+  }, [text]); // eslint-disable-line react-hooks/exhaustive-deps -- once per text
 
   // A past text played through with the words hidden counts as heard again (relisten.py), however
   // it was started: the listen-again card, a Past texts row's button, or the text's own button. A
@@ -815,8 +844,8 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
               </ToggleRow>
             ) : null}
             {listenOnly ? (
-              <ToggleRow label="Listening without the text">
-                <HeaderAction label="Show the text" onPress={() => setListenOnly(false)} />
+              <ToggleRow label={listenGate ? 'Listen first. The words show once every line has played.' : 'Listening without the text'}>
+                <HeaderAction label={listenGate ? 'Show the text now' : 'Show the text'} onPress={showText} />
               </ToggleRow>
             ) : (
               <>

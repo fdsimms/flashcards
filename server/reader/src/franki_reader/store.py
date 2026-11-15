@@ -1593,6 +1593,20 @@ def past_texts(
     ]
 
 
+def previous_check(
+    conn: sqlite3.Connection, language: Code, since: datetime
+) -> tuple[int, int] | None:
+    """The check after reading (answers right, answers asked) of the language's most recent reading
+    that had one, logged at or after `since`; None if there isn't one. Read before the reading being
+    logged is added, so it's the text before."""
+    row = conn.execute(
+        """SELECT r.check_right, r.check_asked FROM readings r JOIN texts x ON x.id = r.text_id
+           WHERE r.check_asked > 0 AND r.logged_at >= ? AND x.language = ? ORDER BY r.id DESC LIMIT 1""",
+        (since.isoformat(), language),
+    ).fetchone()
+    return (row[0], row[1]) if row else None
+
+
 def log_listen(conn: sqlite3.Connection, text_id: int, now: datetime) -> bool:
     """Counts a text read to the end as heard again. False for a text that was never read to the
     end (there's nothing to hear again), and nothing is kept."""
