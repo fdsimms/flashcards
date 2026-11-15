@@ -19,6 +19,7 @@ conversation (append-only, so the model's thinking stays valid across turns).
 """
 
 import json
+import logging
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal, cast
@@ -52,6 +53,8 @@ from franki_reader.lexicon import Entry
 MODEL = "claude-sonnet-5-5"
 EFFORT: Literal["low", "medium", "high", "xhigh", "max"] = "high"
 MAX_TOKENS = 16000
+log = logging.getLogger(__name__)
+
 MAX_ATTEMPTS = 3
 MAX_STRETCH = 4
 STRETCH_MIN_USES = 1
@@ -857,6 +860,17 @@ async def generate(ask: Ask, lexicon: Checker, request: TextRequest) -> Generate
             result = replace(result, attempts=attempt, usage=usage)
             break
         result = replace(assessed, usage=usage)
+        # How far off each draft was, so a retry's cost can be weighed against what it fixed.
+        log.info(
+            "%s draft %d: %.1f%% known (floor %.0f%%), %d problems%s%s",
+            request.language,
+            attempt,
+            result.coverage.ratio * 100,
+            request.floor * 100,
+            len(problems),
+            ": " if problems else "",
+            "; ".join(problems[:5]),
+        )
         if result.passed:
             return result
         # Fewer grammar problems first, then closer to the target; the later attempt on a tie.
