@@ -904,6 +904,13 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   roles (who A and B are, like Waiter and Customer, shown above the lines in the reader), lines (speaker, `|`-split text, English), and glosses for words off the list. Revisions are
   appended to the same conversation, never edited, so the model's earlier thinking stays valid.
   `server/reader/src/franki_reader/generator.py`.
+- **Cheaper model for short, checked calls** (15 November 2026): glosses for common words, word forms,
+  IPA, memory hints, Explain, comprehension questions, the vocabulary check and audio lesson content
+  use `claude-haiku-5-5` (`CHEAP_MODEL`, about a twentieth of Sonnet's price). Haiku has no server-side
+  refusal fallback, so those calls send none and treat `stop_reason: "refusal"` as a failed call, as
+  they already did. Texts, drills, sentences, topics, the note queue, the writing check and Situations
+  stay on Sonnet, where a wrong answer is taught back to the learner. Watch the spot checks in
+  `/api/costs` and Russian word forms first.
 - **A listed stretch word missing from the text** sends it back too, even at full coverage (15 November 2026: a word used once is enough; it was 2).
 - **Prompt caching.** The lexicon is the same on every call that day, so it sits in a cached prefix.
 - **Glosses come with the text.** The model returns an English gloss for every word not in the

@@ -25,7 +25,7 @@ from franki_reader.forms import (
     request_message,
     schema,
 )
-from franki_reader.generator import Generated, Line, Usage
+from franki_reader.generator import CHEAP_MODEL, Generated, Line, Usage
 from franki_reader.languages import LANGUAGES
 from franki_reader.lexicon import Entry, lexicon_from
 from franki_reader.reader import render
@@ -493,7 +493,8 @@ def test_claude_forms_asks_for_the_languages_ids_in_a_schema() -> None:
     sent = client.calls[0]
     enum = sent["output_config"]["format"]["schema"]["properties"]["words"]["items"]
     assert "past" in enum["properties"]["form"]["enum"]
-    assert sent["betas"] == ["server-side-fallback-2026-07-01"]
+    assert sent["model"] == CHEAP_MODEL
+    assert "fallbacks" not in sent and "betas" not in sent
 
 
 @pytest.mark.parametrize(

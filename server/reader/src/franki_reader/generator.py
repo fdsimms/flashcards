@@ -51,6 +51,9 @@ from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry
 
 MODEL = "claude-sonnet-5-5"
+# For short, checked or low-stakes calls (glosses, word forms, IPA, hints, questions). Haiku has no
+# server-side refusal fallback, so calls to it send none and handle stop_reason "refusal" themselves.
+CHEAP_MODEL = "claude-haiku-5-5"
 EFFORT: Literal["low", "medium", "high", "xhigh", "max"] = "high"
 MAX_TOKENS = 16000
 log = logging.getLogger(__name__)
@@ -65,6 +68,9 @@ REGISTERS = ("casual", "neutral", "formal", "slang")
 # not listed here (a refusal fallback) is priced as MODEL, which is close enough for a running total.
 PRICES = {
     "claude-sonnet-5-5": (2.00, 10.00, 0.20, 2.50),
+    # Prompts over 100K tokens cost $0.50 / $2.50, which none of the calls to it reach. The cache
+    # figures are the usual 0.1x read and 1.25x write of the input price, not read off a price list.
+    "claude-haiku-5-5": (0.10, 0.50, 0.01, 0.125),
     "claude-opus-5-5": (4.00, 20.00, 0.20, 5.00),
     "claude-opus-4-8": (5.00, 25.00, 0.50, 6.25),
 }

@@ -793,3 +793,7 @@ def test_who_speaks_is_not_asked_of_a_dialogue_and_is_ignored_there() -> None:
     d = _quoted_episode(["Noi"], [NOI], SAY)
     result = run(ScriptedModel(d), TextRequest("food"))
     assert result.speakers == () and [ln.quotes for ln in result.lines] == [(), ()]
+
+
+def test_haiku_is_priced_for_the_cheap_calls() -> None:
+    assert Usage(1_000_000, 1_000_000, model="claude-haiku-5-5").cost_usd() == pytest.approx(0.60)
