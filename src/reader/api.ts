@@ -32,6 +32,10 @@ export type Word = {
   parts?: string | null;
   lemma?: string | null; // the dictionary form, when it differs from the word (every language but Thai)
   translit?: string | null; // the pronunciation, when there is one (Thai's in Latin letters, Japanese's in kana)
+  // The word's IPA, when there is some, and where it's from: Wiktionary's entry for the word as written, or
+  // written by AI where Wiktionary has none. Absent from a server older than it, and null for a word with none.
+  ipa?: string | null;
+  ipa_source?: 'wiktionary' | 'rules' | 'ai' | null; // 'rules': Japanese, written from the kana reading by rule
   stretch: boolean;
   deck: boolean; // a deck word, as against one known for being common (every language but Thai)
   wanikani?: boolean; // known for being learned in WaniKani (Japanese; absent from a server older than it)
@@ -313,13 +317,15 @@ export type AzureVoice = { voice: string; locale: string; name: string; gender?:
 
 export type Rating = 'too_easy' | 'about_right' | 'too_hard';
 
+// How many words outside the deck new texts have: 93%, 95% or 97% known words.
+export type DifficultyLevel = 'harder' | 'standard' | 'easier';
+
 // Finished texts over the last `days` days (what the Milestone 1 exit check reads), and the
 // difficulty new texts are written at.
 export type Progress = {
   days: number;
   finished: number;
   median_coverage: number | null;
-  ratings: Record<Rating | 'none', number>;
   // The check after reading, over the finished texts it was taken with. Missing from a server older than it.
   check?: { texts: number; right: number; asked: number };
   next: { floor: number; stretch: number };
@@ -349,12 +355,13 @@ export type MarkedWord = {
   status: 'known' | 'partial' | 'unknown';
   deck: boolean;
   wanikani?: boolean; // as Word's
+  ipa?: string | null; // as Word's
+  ipa_source?: Word['ipa_source']; // as Word's
   times: number;
   last_marked: string;
 };
 
 export type ReadingLog = {
-  rating: Rating | null;
   finished: boolean;
   words_glossed: string[];
   words_flagged: string[];
@@ -470,9 +477,12 @@ export function createApi(
     // With `story`, that story's episodes, first to last.
     pastTexts: (story?: number) => call<PastText[]>('GET', story === undefined ? '/api/texts' : `/api/texts?story=${story}`),
     // Finished texts due to be heard again with their words hidden (server relisten.py), as pastTexts lists them.
-    relisten: () => call<PastText[]>('GET', '/api/relisten'),
+    // `listens`: how many times each text is wanted again, 3 (1, 4 and 10 days), 1 (3 days) or 0.
+    relisten: (listens: 0 | 1 | 3 = 3) => call<PastText[]>('GET', `/api/relisten?listens=${listens}`),
     // A finished text was heard again, through to its last line. Only counted: no reading, no difficulty change.
     logListen: (textId: number) => call<void>('POST', `/api/texts/${textId}/listen`),
+    // The text difficulty for the current language, from the next text written (reader/difficulty.ts); answers with `next` as progress does.
+    setDifficulty: (level: DifficultyLevel) => call<Progress['next']>('PUT', '/api/difficulty', { level }),
     // The current language's shelf; asking also tops it up in the background.
     shelf: () => call<Shelf>('GET', '/api/shelf'),
     // Writes a text on a typed topic in the background; it joins the shelf when it's ready.

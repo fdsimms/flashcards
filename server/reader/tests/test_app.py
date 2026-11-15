@@ -419,7 +419,7 @@ def test_progress_counts_finished_texts_and_says_how_hard_the_next_is() -> None:
     empty = c.get("/api/progress", headers=AUTH).json()
     assert empty["finished"] == 0
     assert empty["median_coverage"] is None
-    assert empty["next"] == {"floor": 0.92, "stretch": 2}
+    assert empty["next"] == {"floor": 0.95, "stretch": 2}
 
     read(c, "about_right", [])
     read(c, "too_hard", [])
@@ -430,7 +430,8 @@ def test_progress_counts_finished_texts_and_says_how_hard_the_next_is() -> None:
     assert progress["finished"] == 2
     assert progress["median_coverage"] == 0.95
     assert progress["ratings"] == {"too_easy": 0, "about_right": 1, "too_hard": 1, "none": 0}
-    assert progress["next"] == {"floor": 0.93, "stretch": 1}
+    # A rating (an older app still sends one) is counted but moves nothing.
+    assert progress["next"] == {"floor": 0.95, "stretch": 2}
     assert c.get("/api/progress").status_code == 401
 
 
@@ -501,6 +502,8 @@ def test_marked_words_are_listed_with_glosses_until_cleared() -> None:
     ]
     assert words[0]["gloss"] == "polite particle (male)"
     assert words[0]["deck"] is True
+    # A marked word carries its IPA like a token in a text does.
+    assert words[0]["ipa"] and words[0]["ipa_source"] == "wiktionary"
 
     assert c.post("/api/words/clear", json={"word": "ครับ"}, headers=AUTH).status_code == 204
     assert [w["word"] for w in c.get("/api/words", headers=AUTH).json()] == ["ข้าวเหนียวมะม่วง"]
@@ -1347,3 +1350,30 @@ def test_a_text_never_read_to_the_end_cannot_be_counted_as_heard() -> None:
     assert c.post("/api/texts/999/listen", headers=AUTH).status_code == 404
     assert c.post("/api/texts/1/listen").status_code == 401
     assert c.get("/api/relisten").status_code == 401
+
+
+def test_the_listens_wanted_per_text_set_the_schedule() -> None:
+    now = [NOW]
+    c = relisten_client(now)
+    read(c, "about_right", [])
+    now[0] = NOW + timedelta(days=1)
+    assert len(c.get("/api/relisten", headers=AUTH).json()) == 1  # three wanted: due the next day
+    assert c.get("/api/relisten?listens=1", headers=AUTH).json() == []  # one wanted: due at 3 days
+    assert c.get("/api/relisten?listens=0", headers=AUTH).json() == []
+    now[0] = NOW + timedelta(days=3)
+    assert len(c.get("/api/relisten?listens=1", headers=AUTH).json()) == 1
+    assert c.get("/api/relisten?listens=2", headers=AUTH).status_code == 422
+
+
+def test_text_difficulty_is_set_for_the_current_language() -> None:
+    c = client()
+    assert c.put("/api/difficulty", json={"level": "easier"}, headers=AUTH).json() == {
+        "floor": 0.97,
+        "stretch": 2,
+    }
+    assert c.get("/api/progress", headers=AUTH).json()["next"] == {"floor": 0.97, "stretch": 2}
+    assert (
+        c.put("/api/difficulty", json={"level": "standard"}, headers=AUTH).json()["floor"] == 0.95
+    )
+    assert c.put("/api/difficulty", json={"level": "hard"}, headers=AUTH).status_code == 422
+    assert c.put("/api/difficulty", json={"level": "easier"}).status_code == 401

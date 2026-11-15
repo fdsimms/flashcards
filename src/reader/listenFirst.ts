@@ -10,7 +10,14 @@ export function listensFirst(on: boolean, sourceKind: 'shelf' | 'topic' | 'past'
   return on && hasAudio && sourceKind !== 'past' && !playAll;
 }
 
-/** Whether every line with audio has played to its end (`heard`: the lines' positions). */
-export function allHeard(lines: readonly { audio: boolean }[], heard: ReadonlySet<number>): boolean {
-  return lines.every((line, i) => !line.audio || heard.has(i));
+/** How many times each line has to play before the words show: twice with Listen twice on, since a
+ * second listen is the usual practice for listening and the first leaves the most unheard. */
+export function listensNeeded(twice: boolean): 1 | 2 {
+  return twice ? 2 : 1;
+}
+
+/** Whether every line with audio has played to its end `times` times (`heard`: how many times each
+ * line, by position, has). A line repeated by Repeat line counts each play. */
+export function allHeard(lines: readonly { audio: boolean }[], heard: ReadonlyMap<number, number>, times = 1): boolean {
+  return lines.every((line, i) => !line.audio || (heard.get(i) ?? 0) >= times);
 }

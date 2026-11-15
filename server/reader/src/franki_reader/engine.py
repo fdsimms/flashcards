@@ -26,7 +26,16 @@ from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Literal
 
-from franki_reader import comprehension, exposure, form_primers, forms, grammar, meanings, store
+from franki_reader import (
+    ai_ipa,
+    comprehension,
+    exposure,
+    form_primers,
+    forms,
+    grammar,
+    meanings,
+    store,
+)
 from franki_reader.coverage import Checker, Coverage, parse_line
 from franki_reader.difficulty import Difficulty, after_reading
 from franki_reader.gender import full_voices, voice_for
@@ -45,7 +54,7 @@ from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
 from franki_reader.reader import lemma_for
 from franki_reader.recognition import measure
-from franki_reader.relisten import Candidate, due
+from franki_reader.relisten import DEFAULT_LISTENS, Candidate, due
 from franki_reader.store import Reading, Reason, StoredText, Story, Topic
 from franki_reader.stretch import pick_stretch, waiting
 from franki_reader.study_day import DEFAULT_ROLLOVER, study_day, study_day_start
@@ -148,6 +157,7 @@ class Engine:
         read_wanikani: ReadWaniKani | None = None,
         write_questions: comprehension.WriteQuestions | None = None,
         write_forms: forms.WriteForms | None = None,
+        write_ipa: ai_ipa.WriteIpa | None = None,
     ) -> None:
         self.conn = conn
         self.ask_for = ask_for
@@ -170,6 +180,13 @@ class Engine:
         self._meanings_lock = asyncio.Lock()
         self.write_questions = write_questions
         self.write_forms = write_forms
+        # IPA Claude wrote for words Wiktionary's tables have none for (ai_ipa.py): the pass's
+        # lock and last failure, as for meanings, and what's kept, read once per language and added
+        # to as it's written.
+        self.write_ipa = write_ipa
+        self._ipa_failed: dict[Code, datetime] = {}
+        self._ipa_lock = asyncio.Lock()
+        self._ai_ipa: dict[Code, dict[str, str]] = {}
         # When Claude last failed to pick word forms, by language, as for meanings.
         self._forms_failed: dict[Code, datetime] = {}
         self._forms_lock = asyncio.Lock()
@@ -467,6 +484,7 @@ class Engine:
             text = store.get_text(self.conn, text_id)
             assert text is not None
             await self.fill_meanings([text], language)
+            await self.fill_ipa([text], language)
             await self.fill_forms([text])
             await self.fill_questions(text)
             await self.make_audio(text)
@@ -616,6 +634,41 @@ class Engine:
             except meanings.MeaningsFailed as e:
                 log.warning("Couldn't write %s word meanings: %s", language, e)
                 self._meanings_failed[language] = self.clock()
+
+    # ==== IPA written by Claude ====
+
+    def ai_ipa(self, language: Code) -> dict[str, str]:
+        """The IPA Claude has written for a language, by lower-case word (ai_ipa.py): what the reader
+        shows, labeled as AI's, for words Wiktionary's tables have none for. Read once, then kept
+        current as `fill_ipa` writes more."""
+        if language not in self._ai_ipa:
+            self._ai_ipa[language] = {
+                w: ipa for w, ipa in store.word_ipa(self.conn, language).items() if ipa
+            }
+        return self._ai_ipa[language]
+
+    async def fill_ipa(self, texts: list[StoredText], language: Code) -> None:
+        """Has Claude write IPA for the words in `texts` that Wiktionary's tables have none for
+        (ai_ipa.py). A failure is logged and waits `FAILURE_COOLDOWN`; it never keeps a text from
+        being served."""
+        if self.write_ipa is None or not texts or not ai_ipa.has_table(language):
+            return
+        async with self._ipa_lock:
+            failed = self._ipa_failed.get(language)
+            if failed is not None and self.clock() - failed < FAILURE_COOLDOWN:
+                return
+            _, lexicon = self.snapshot(language)
+            kept = store.word_ipa(self.conn, language)
+            wanted = ai_ipa.missing(
+                [t for t in (store.get_text(self.conn, x.id) for x in texts) if t], lexicon, kept
+            )
+            try:
+                written = await ai_ipa.fill(self.conn, self.write_ipa, language, wanted, self.clock)
+            except ai_ipa.IpaFailed as e:
+                log.warning("Couldn't write %s IPA: %s", language, e)
+                self._ipa_failed[language] = self.clock()
+                return
+            self.ai_ipa(language).update(written)
 
     async def fill_questions(self, text: StoredText) -> None:
         """Writes the questions for the check after reading (comprehension.py) and keeps them on the
@@ -820,6 +873,7 @@ class Engine:
             # Texts written before their common words were glossed, newest first, a batch a pass.
             recent = store.recent_texts(self.conn, language, BACKFILL_TEXTS)
             await self.fill_meanings(recent, language)
+            await self.fill_ipa(recent, language)
             # Texts written before word forms were picked, or before their prepositions were, newest
             # first, a few a pass.
             stale = [
@@ -886,8 +940,11 @@ class Engine:
             plan=story.plan,
         )
 
-    def relisten(self, language: Code | None = None) -> list[store.PastText]:
-        """The finished texts to hear again today (relisten.py), oldest read first."""
+    def relisten(
+        self, language: Code | None = None, listens: int = DEFAULT_LISTENS
+    ) -> list[store.PastText]:
+        """The finished texts to hear again today (relisten.py), oldest read first, with `listens`
+        wanted per text."""
         language = language or self.language()
         rollover = self.rollover()
         past = store.past_texts(self.conn, RELISTEN_LOOKBACK, language)
@@ -898,13 +955,12 @@ class Engine:
         ]
         by_id = {t.id: t for t in past}
         today = study_day(self.clock(), rollover, self.zone)
-        return [by_id[i] for i in due(candidates, today)]
+        return [by_id[i] for i in due(candidates, today, listens)]
 
     def record_reading(self, text_id: int, reading: Reading) -> None:
-        """Logs a session and adjusts the difficulty of the text's language, stepping from the level
-        the text was written at (difficulty.after_reading). A second reading of a text that's
-        already been read is ignored, so a retried request can't log twice or move difficulty
-        twice."""
+        """Logs a session and, after a poor check, switches the text's language to Easier
+        (difficulty.after_reading). A second reading of a text that's already been read is ignored, so
+        a retried request can't log twice or move difficulty twice."""
         status = store.text_status(self.conn, text_id)
         if status is None:
             raise NotFound(text_id)
@@ -928,18 +984,8 @@ class Engine:
             if before and right is not None:
                 right, asked = right + before[0], asked + before[1]
         store.log_reading(self.conn, text_id, reading, self.clock())
-        written = store.written_at(self.conn, text_id)
-        if text is not None and written is not None:
+        if text is not None:
             current = store.load_difficulty(self.conn, text.language)
-            floor, stretch = written
-            after = after_reading(
-                current,
-                replace(
-                    current, floor=floor, stretch=current.stretch if stretch is None else stretch
-                ),
-                reading.rating,
-                right,
-                asked,
-            )
+            after = after_reading(current, right, asked)
             if after != current:
                 store.save_difficulty(self.conn, after, text.language)

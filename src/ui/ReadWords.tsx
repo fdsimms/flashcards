@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type MarkedWord } from '../reader/api';
-import { meaningOf, wordStatus } from '../reader/languages';
+import { ipaNote, meaningOf, wordStatus } from '../reader/languages';
+import { ReadWordTitle } from './ReadWordTitle';
 import { Button, Card, ErrorNote, Help, Screen } from './kit';
 import { hairline, space, type, useTheme, readable } from './theme';
 
@@ -68,11 +69,12 @@ export function ReadWords({ api, mining }: {
               {words.map((w, i) => (
                 <View key={w.word} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, borderTopWidth: i === 0 ? 0 : hairline, borderTopColor: c.border }}>
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={{ ...type.title, fontWeight: '400', color: c.text }}>{w.word}</Text>
+                    <ReadWordTitle text={w.word} pronunciation={w} titleStyle={{ fontWeight: '400' }} />
                     {w.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {w.lemma}</Text> : null}
                     <Text style={{ ...type.body, color: c.text }}>{meaningOf(w)}</Text>
                     <Text style={{ ...type.footnote, color: c.textSecondary }}>
                       {wordStatus(w)}{w.times > 1 ? `. Marked ${w.times} times.` : ''}
+                      {ipaNote(w) ? <Text style={w.ipa_source === 'ai' ? { color: c.warning } : undefined}>{` ${ipaNote(w)}.`}</Text> : null}
                     </Text>
                   </View>
                   <View style={{ gap: space.s }}>

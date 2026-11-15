@@ -1,6 +1,13 @@
 from datetime import date, timedelta
 
-from franki_reader.relisten import MAX_AGE_DAYS, MAX_OFFERED, SCHEDULE_DAYS, Candidate, due
+from franki_reader.relisten import (
+    DEFAULT_LISTENS,
+    MAX_AGE_DAYS,
+    MAX_OFFERED,
+    SCHEDULES,
+    Candidate,
+    due,
+)
 
 TODAY = date(2026, 11, 20)
 
@@ -10,7 +17,7 @@ def read(days_ago: int, listens: int = 0, text_id: int = 1) -> Candidate:
 
 
 def test_a_text_comes_due_the_day_after_it_was_read_then_at_four_and_ten_days() -> None:
-    assert SCHEDULE_DAYS == (1, 4, 10)
+    assert SCHEDULES[DEFAULT_LISTENS] == (1, 4, 10)
     assert due([read(0)], TODAY) == []
     assert due([read(1)], TODAY) == [1]
     assert due([read(3, listens=1)], TODAY) == []
@@ -37,3 +44,14 @@ def test_the_oldest_are_offered_first_and_only_a_few() -> None:
     texts = [read(d, text_id=i) for i, d in enumerate([2, 9, 5, 3, 7], start=1)]
     assert len(due(texts, TODAY)) == MAX_OFFERED
     assert due(texts, TODAY) == [2, 5, 3]
+
+
+def test_one_listen_comes_a_few_days_on_and_then_the_text_is_finished() -> None:
+    assert due([read(1)], TODAY, listens=1) == []
+    assert due([read(2)], TODAY, listens=1) == []
+    assert due([read(3)], TODAY, listens=1) == [1]
+    assert due([read(8, listens=1)], TODAY, listens=1) == []  # heard once: done
+
+
+def test_no_listens_wanted_offers_nothing() -> None:
+    assert due([read(1), read(5, text_id=2)], TODAY, listens=0) == []

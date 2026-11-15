@@ -30,9 +30,10 @@ export function NoteEditor(props: {
   repo: NoteStore & Pick<AnkiLink, 'setAnkiCardStates'>;
   /**
    * Edit this note, or add one (starting in `deck`, and with `model` and `fields` filled in when
-   * given, as Read & Listen's marked words do).
+   * given, as Read & Listen's marked words do). `fieldNotes` is a line under a field to check
+   * before saving ("Written by AI"), by field name.
    */
-  target: { noteId: string } | { deck: string | null; model?: string; fields?: Record<string, string> };
+  target: { noteId: string } | { deck: string | null; model?: string; fields?: Record<string, string>; fieldNotes?: Record<string, string> };
   onClose: (result?: NoteEditorResult) => void;
   /** A card was unsuspended, unburied or unflagged here, which stands whether or not the note is saved. */
   onCardsChanged?: () => void;
@@ -265,6 +266,9 @@ export function NoteEditor(props: {
                   </View>
                 ) : null}
                 {hasFormatting(fields[name] ?? '') ? <Preview text={fields[name] ?? ''} /> : null}
+                {'fieldNotes' in props.target && props.target.fieldNotes?.[name] && fields[name] ? (
+                  <Text style={{ ...type.footnote, color: c.warning }}>{props.target.fieldNotes[name]}</Text>
+                ) : null}
               </View>
             ))}
             <Field label="Tags" value={tags} onChangeText={setTags} autoCapitalize="none" autoCorrect={false} placeholder="Separated by spaces" />

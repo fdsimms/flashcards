@@ -14,7 +14,7 @@ from scripted import ENTRIES
 
 from franki_reader import store
 from franki_reader.app import create_app
-from franki_reader.difficulty import adapt
+from franki_reader.difficulty import after_reading
 from franki_reader.engine import Engine
 from franki_reader.generator import Line, TextRequest, Usage, generate, request_message
 from franki_reader.grammar import (
@@ -445,11 +445,11 @@ def test_the_grammar_dial_is_saved_for_the_language_and_held_between_one_and_fou
     assert c.put("/api/grammar/stretch", json={"uses": 3}).status_code == 401
 
 
-def test_the_next_texts_are_asked_for_the_dials_allowance_and_a_rating_leaves_it() -> None:
+def test_the_next_texts_are_asked_for_the_dials_allowance_and_a_poor_check_leaves_it() -> None:
     c, e = client("es")
     c.put("/api/grammar/stretch", json={"uses": 3}, headers=AUTH)
     assert e._request("t", [], store.load_difficulty(e.conn, "es"), "es").unset_uses == 3
-    assert adapt(store.load_difficulty(e.conn, "es"), "too_hard").unset_uses == 3
+    assert after_reading(store.load_difficulty(e.conn, "es"), 0, 8).unset_uses == 3
 
 
 def test_know_it_is_kept_and_the_least_seen_known_points_are_listed() -> None:
