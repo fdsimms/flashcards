@@ -317,8 +317,8 @@ export type AzureVoice = { voice: string; locale: string; name: string; gender?:
 
 export type Rating = 'too_easy' | 'about_right' | 'too_hard';
 
-// How many words outside the deck new texts have: 95% known words, or 97%.
-export type DifficultyLevel = 'standard' | 'easier';
+// How many words outside the deck new texts have: 93%, 95% or 97% known words.
+export type DifficultyLevel = 'harder' | 'standard' | 'easier';
 
 // Finished texts over the last `days` days (what the Milestone 1 exit check reads), and the
 // difficulty new texts are written at.

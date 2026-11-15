@@ -3,29 +3,43 @@ from franki_reader.difficulty import (
     CHECK_MIN_ASKED,
     DEFAULT_FLOOR,
     EASIER_FLOOR,
+    HARDER_FLOOR,
     MAX_CEILING,
     STANDARD_FLOOR,
     Difficulty,
     after_reading,
+    nearest_floor,
 )
 
 
-def test_the_target_is_95_percent_or_97_percent() -> None:
-    assert (STANDARD_FLOOR, EASIER_FLOOR, DEFAULT_FLOOR) == (0.95, 0.97, 0.95)
+def test_the_target_is_93_95_or_97_percent() -> None:
+    assert (HARDER_FLOOR, STANDARD_FLOOR, EASIER_FLOOR, DEFAULT_FLOOR) == (0.93, 0.95, 0.97, 0.95)
     assert Difficulty().floor == STANDARD_FLOOR
 
 
 def test_the_ceiling_is_four_points_above_the_floor_up_to_98_percent() -> None:
-    assert Difficulty(0.93, 2).ceiling == 0.97
+    assert Difficulty(HARDER_FLOOR, 2).ceiling == 0.97
     # ... but never above 98%: more known words than that leaves about one new word in 50.
     assert Difficulty().ceiling == MAX_CEILING == 0.98
     assert Difficulty(EASIER_FLOOR).ceiling == 0.98
 
 
-def test_a_poor_check_switches_to_easier() -> None:
+def test_a_poor_check_steps_one_level_easier() -> None:
     assert after_reading(Difficulty(), 2, 8) == Difficulty(EASIER_FLOOR)
     assert after_reading(Difficulty(), 0, CHECK_MIN_ASKED) == Difficulty(EASIER_FLOOR)
+    assert after_reading(Difficulty(HARDER_FLOOR), 2, 8) == Difficulty(STANDARD_FLOOR)
     assert 2 / 8 < CHECK_LOW
+
+
+def test_a_saved_target_snaps_to_the_nearest_level() -> None:
+    assert [nearest_floor(f) for f in (0.90, 0.93, 0.94, 0.95, 0.96, 0.99)] == [
+        0.93,
+        0.93,
+        0.93,
+        0.95,
+        0.95,
+        0.97,
+    ]
 
 
 def test_easier_stays_easier_after_another_poor_check() -> None:

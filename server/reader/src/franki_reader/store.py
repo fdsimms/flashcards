@@ -13,7 +13,7 @@ from typing import Any, Literal
 
 from franki_reader import grammar
 from franki_reader.comprehension import Question, from_json
-from franki_reader.difficulty import EASIER_FLOOR, STANDARD_FLOOR, Difficulty
+from franki_reader.difficulty import EASIER_FLOOR, STANDARD_FLOOR, Difficulty, nearest_floor
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Choice, Form, Generated, Line
 from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, VOICE_SLOTS, Code, with_deck
@@ -1688,18 +1688,25 @@ def clear_word(conn: sqlite3.Connection, word: str, now: datetime) -> None:
 
 
 # v2: the range moved down on 12 November 2026 (95% was the old lowest target). The coverage target
-# is now one of two (difficulty.py), so a floor saved before that, at any level, is read as the nearer:
-# 96% or more is Easier, anything below is Standard.
-_DIFFICULTY_KEY = "difficulty_v2"
+# is now one of three (difficulty.py), saved as v3. A floor saved as v2, at any level, is read as
+# Easier (96% or more) or Standard: Harder is only ever a deliberate choice, so an old 92% default
+# doesn't turn into it.
+_DIFFICULTY_KEY = "difficulty_v3"
+_OLD_DIFFICULTY_KEY = "difficulty_v2"
 
 
 def load_difficulty(conn: sqlite3.Connection, language: Code = "th") -> Difficulty:
-    """Each language has its own text difficulty, chosen in Settings and switched to Easier by a poor
+    """Each language has its own text difficulty, chosen in Settings and stepped easier by a poor
     check after reading."""
     raw = _get_meta(conn, _per_language(_DIFFICULTY_KEY, language))
-    if not raw:
+    if raw:
+        saved = json.loads(raw)
+        saved["floor"] = nearest_floor(saved.get("floor", STANDARD_FLOOR))
+        return Difficulty(**saved)
+    old = _get_meta(conn, _per_language(_OLD_DIFFICULTY_KEY, language))
+    if not old:
         return Difficulty()
-    saved = json.loads(raw)
+    saved = json.loads(old)
     saved["floor"] = EASIER_FLOOR if saved.get("floor", STANDARD_FLOOR) >= 0.96 else STANDARD_FLOOR
     return Difficulty(**saved)
 

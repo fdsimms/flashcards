@@ -12,23 +12,28 @@ from franki_reader.coverage import Coverage
 
 # More than this many words outside the deck ...
 CROWD_MAX = 2
+# ... or this many on the Harder level (93%), where about 7 words in 100 are new and two in ten is
+# ordinary, not a cluster.
+CROWD_MAX_HARDER = 3
+HARDER_BELOW = 0.94
 # ... in any this many counted words in a row is too crowded.
 CROWD_WINDOW = 10
 # The most crowded stretches named in a revision message.
 NAMED = 3
 
 
-def crowding(coverage: Coverage) -> tuple[list[str], int]:
+def crowding(coverage: Coverage, floor: float = 0.95) -> tuple[list[str], int]:
     """The revision problems, as sentences, and how many crowded stretches there are. A new word is
     one the lexicon doesn't count as known: not in the deck, or only inside a longer entry (partial).
     Names are left out of the tokens already, and a stretch word is a deck word."""
+    most = CROWD_MAX_HARDER if floor < HARDER_BELOW else CROWD_MAX
     new = [i for i, t in enumerate(coverage.tokens) if t.status in ("unknown", "partial")]
     crowded: set[int] = set()
     for a in range(len(new)):
         b = a
         while b + 1 < len(new) and new[b + 1] - new[a] < CROWD_WINDOW:
             b += 1
-        if b - a + 1 > CROWD_MAX:
+        if b - a + 1 > most:
             crowded.update(new[a : b + 1])
     if not crowded:
         return [], 0
@@ -45,7 +50,7 @@ def crowding(coverage: Coverage) -> tuple[list[str], int]:
         "These new words are crowded together, so there is nothing around them to work out their "
         f"meaning from: {'; '.join(named)}"
         + (f"; and {more} more places" if more > 0 else "")
-        + f". Spread the words that aren't in the list out, with at most {CROWD_MAX} in any "
+        + f". Spread the words that aren't in the list out, with at most {most} in any "
         f"{CROWD_WINDOW} words in a row."
     )
     return [problem], len(stretches)

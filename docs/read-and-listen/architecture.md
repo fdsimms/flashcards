@@ -120,13 +120,14 @@ Franki's (Client, below).
   text" counts them; the app leaves them out of what it sends, so the server and its API are
   unchanged (readings before this counted them). A text with fewer than three questions that count (no
   questions about what happens, or one) adds too little, and the check's offer then doesn't say a
-  low score switches new texts to Easier. **Poor scores on two texts in a row switch new texts to
-  Easier** (the owner's choice, changed 15 November 2026 from one text: three answers are mostly
+  low score makes new texts a level easier. **Poor scores on two texts in a row make new texts a
+  level easier** (the owner's choice, changed 15 November 2026 from one text: three answers are mostly
   noise, so the server steers on this text's answers and those of the last text that had a check,
   within 7 days, taken together, `engine.record_reading` and `store.previous_check`): under 60% right
-  of at least six between them switches the language's text difficulty to Easier (97% known words;
-  `difficulty.after_reading`, below). A text counts toward the next one's check too. A good score
-  changes nothing, and nothing switches back: only the Text difficulty setting does. Nothing is graded or added to the deck. Not done:
+  of at least six between them steps the language's text difficulty one level easier (Harder to
+  Standard, Standard to Easier; `difficulty.after_reading`, below). A text counts toward the next
+  one's check too. A good score changes nothing, and nothing steps back: only the Text difficulty
+  setting does. Nothing is graded or added to the deck. Not done:
   the check on a past text read again (its reading isn't logged), and questions for texts written
   before it.
 - **Use the lines yourself** (14 November 2026, the owner chose from a mock). Under the check, the
@@ -777,11 +778,16 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   ceiling after 3 attempts is served anyway (too easy is never a reason to drop one), choosing the
   attempt closest to the range. The request names the range, and the prompt tells the model to write
   natural target-language speech rather than word-for-word English idioms.
-- **The target is 95% or 97%, and texts hold at most 98%** (15 November 2026, the owner's decision:
-  not to go against the research, which finds 95% the least adequate for reading and, since speech
-  can't be reread, for listening; below it comprehension varied widely). **Standard is 95%, Easier is
-  97%** (`STANDARD_FLOOR` and `EASIER_FLOOR`, `difficulty.py`), chosen per language in Settings (Text
-  difficulty) or switched to Easier by a poor check after reading. A text may hold at most 98% known
+- **The target is 93%, 95% or 97%, and texts hold at most 98%** (15 November 2026, the owner's
+  decision: not to go against the research, which finds 95% the least adequate for reading and, since
+  speech can't be reread, for listening; below it comprehension varied widely). **Standard is 95%,
+  Easier is 97%, Harder is 93%** (`STANDARD_FLOOR`, `EASIER_FLOOR` and `HARDER_FLOOR`,
+  `difficulty.py`), chosen per language in Settings (Text difficulty) or stepped easier by a poor
+  check after reading. **Harder is below the research's least** and the setting says so: the
+  evidence is that coverage helps gradually, not as a cliff, and the reader has a gloss on every
+  word, but at about 7 new words in 100 expect more lookups. It is only ever a deliberate choice: a
+  floor saved by an older server never reads as Harder, and the spread-out rule (`crowding.py`)
+  allows three new words in ten at that level, since two in ten is ordinary there. A text may hold at most 98% known
   words (`MAX_CEILING`; the ceiling is 4 points above the target but never higher): above that it has
   about one new word in 50, too few to learn from, and the research calls 98% the comfortable end of
   adequate coverage. **The end-of-text rating is gone** (the owner's decision, the same day, after
@@ -1272,13 +1278,13 @@ in the current language, with when one was last read to the end. Nothing else le
 - **Text difficulty** (15 November 2026, the owner's decision; it replaces the end-of-text rating).
   Words, rating, audio speed and the rest are logged per text as before, but a rating moves nothing:
   an older app that still sends one has it logged and ignored, and the end view no longer asks. The
-  coverage target is one of two for each language, **Standard (95% known words)** or **Easier (97%)**,
-  chosen on the language's settings page (`PUT /api/difficulty`), applying from the next text
-  written, or switched to Easier by a poor score on the check after reading
-  (`difficulty.after_reading`). A text already waiting in a favorite's queue keeps the difficulty it was
+  coverage target is one of three for each language, **Harder (93% known words)**, **Standard
+  (95%)** or **Easier (97%)**, chosen on the language's settings page (`PUT /api/difficulty`),
+  applying from the next text written, or stepped one level easier by a poor score on the check after
+  reading (`difficulty.after_reading`). A text already waiting in a favorite's queue keeps the difficulty it was
   written at; the owner chose that over discarding queued texts (19 October 2026). The Milestone 1
-  exit check reads the log. A floor saved by an older server is read as Standard or Easier by
-  `store.load_difficulty` (96% or more is Easier).
+  exit check reads the log. The level is saved as `difficulty_v3`; a floor saved by an older server
+  (`difficulty_v2`) is read as Standard or Easier by `store.load_difficulty` (96% or more is Easier).
 - A reading posted twice for the same text (a retried request) is counted once.
 - Each text also records the model that actually answered (a refusal fallback can change it), its
   tokens and its cost in dollars, dropped texts included, so the real cost per text can be read

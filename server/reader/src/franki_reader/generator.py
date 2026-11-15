@@ -919,7 +919,7 @@ def _assess(
     problems += name_issues
     grammar_issues, grammar_misses = grammar_problems([ln.text for ln in lines], lexicon, request)
     problems += grammar_issues
-    crowd_issues, crowded = crowding(coverage)
+    crowd_issues, crowded = crowding(coverage, request.floor)
     problems += crowd_issues
     # Stretch words are glossed from the deck, the meaning their card teaches, whatever the model
     # wrote for them; only off-list words need the model's gloss.

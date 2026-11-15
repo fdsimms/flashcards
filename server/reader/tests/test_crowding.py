@@ -1,7 +1,7 @@
 from test_generator import ENTRIES, LEXICON, ScriptedModel, draft, run
 
 from franki_reader.coverage import check
-from franki_reader.crowding import CROWD_MAX, CROWD_WINDOW, crowding
+from franki_reader.crowding import CROWD_MAX, CROWD_MAX_HARDER, CROWD_WINDOW, crowding
 from franki_reader.generator import MAX_ATTEMPTS, TextRequest, system_prompt
 
 KNOWN = "ฉัน|อยาก|กิน|ครับ"  # 4 known words
@@ -73,3 +73,12 @@ def test_the_prompts_ask_for_new_words_spread_out_and_with_a_clue() -> None:
         prompt = system_prompt(ENTRIES, language)
         assert "never more than two" in prompt
         assert "where the line itself shows what it means" in prompt
+
+
+def test_three_new_words_together_are_ordinary_on_the_harder_level() -> None:
+    cov = check(lines(CROWDED), LEXICON)  # three new words in the first seven
+    assert crowding(cov, 0.95)[1] == 1
+    assert crowding(cov, 0.93) == ([], 0)
+    four = draft("ทอน|กลิ่น|แรง|แทน|" + KNOWN, *FILLER)
+    problems, count = crowding(check(lines(four), LEXICON), 0.93)
+    assert count == 1 and f"at most {CROWD_MAX_HARDER} in any" in problems[0]

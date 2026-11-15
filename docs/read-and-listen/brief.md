@@ -109,7 +109,8 @@ constraints.
    > easy and is revised like one under it. The 90% below became 85%. See `architecture.md`.
 
    > **Changed on 15 November 2026 by the owner.** Back to the research: the target is 95% (Standard)
-   > or 97% (Easier), with texts up to 98%. See `architecture.md`, Generation and coverage.
+   > or 97% (Easier), with texts up to 98%, and an opt-in Harder at 93%, which is below the research's
+   > least and says so. See `architecture.md`, Generation and coverage.
 
    > **Changed on 26 October 2026 by the owner.** A text under the floor is still revised, but if
    > no attempt reaches it, the closest attempt is shown when it's at least 90% known words, with a
@@ -156,8 +157,9 @@ constraints.
    feeding it to FSRS would corrupt tuned intervals.
 10. **Let Frankie pick the topic.** Scenario and topic choice stay in the user's hands, since
     interest raises learning.
-11. **Choose the text difficulty.** The coverage target is Standard (95%) or Easier (97%) known words,
-    chosen in Settings, and a poor score on the check after reading switches to Easier.
+11. **Choose the text difficulty.** The coverage target is Standard (95%), Easier (97%) or, as a
+    deliberate choice, Harder (93%) known words, chosen in Settings, and a poor score on the check
+    after reading steps a level easier.
 
     > **Changed on 15 November 2026 by the owner.** This was "Adapt from the passage rating": a
     > rating moved the coverage target and cut or added stretch words. A rating is a feeling, which
