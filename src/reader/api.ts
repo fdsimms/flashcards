@@ -654,6 +654,14 @@ export async function errorMessage(response: Response): Promise<string> {
   try {
     const body = (await response.json()) as { detail?: unknown };
     if (typeof body.detail === 'string') return body.detail;
+    // FastAPI's validation refusal (422): a list of { loc, msg }, the first one named.
+    if (Array.isArray(body.detail)) {
+      const first = body.detail[0] as { loc?: unknown; msg?: unknown } | undefined;
+      if (first && typeof first.msg === 'string') {
+        const field = Array.isArray(first.loc) ? first.loc.filter((p) => typeof p === 'string' && p !== 'body').pop() : undefined;
+        return `The server couldn't accept that (${field ? `${field}: ` : ''}${first.msg}). Change it and try again.`;
+      }
+    }
   } catch {
     // Not JSON; fall through to the generic message.
   }
