@@ -642,7 +642,7 @@ export type Api = ReturnType<typeof createApi>;
 
 // The longest a typed topic and a story's subject may be (WriteIn and StoryIn in server/reader app.py).
 // The server refuses longer with a 422 whose detail is a list, so the fields stop at these instead.
-export const MAX_TOPIC_CHARS = 100;
+export const MAX_TOPIC_CHARS = 150;
 export const MAX_STORY_ABOUT_CHARS = 200;
 
 export async function errorMessage(response: Response): Promise<string> {
