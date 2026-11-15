@@ -36,6 +36,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "rank": None,
         "grammar": None,
         "form": None,
+        "contraction": None,
     }
     assert words[4] == {
         "text": "!",
@@ -50,6 +51,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "rank": None,
         "grammar": None,
         "form": None,
+        "contraction": None,
     }
     assert out["lines"][0]["english"] == "I'd like mango sticky rice."
 
@@ -95,6 +97,7 @@ def test_a_word_off_the_list_takes_the_models_gloss() -> None:
         "wanikani": False,
         "grammar": None,
         "form": None,
+        "contraction": None,
     }
 
 

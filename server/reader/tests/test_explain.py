@@ -13,6 +13,9 @@ from franki_reader import store
 from franki_reader.app import create_app
 from franki_reader.engine import Engine
 from franki_reader.explain import (
+    CALIBRATION,
+    PHRASE_SYSTEM,
+    SYSTEM,
     CheckRequest,
     ExplainFailed,
     ExplainRequest,
@@ -497,3 +500,8 @@ def test_claude_check_keeps_the_usage_of_an_answer_it_cant_use(
     with pytest.raises(ExplainFailed) as failed:
         finish(check(CheckRequest("th", "ฉัน", "I")))
     assert failed.value.usage.output_tokens == 900
+
+
+def test_both_prompts_keep_frequency_and_register_to_what_is_certain() -> None:
+    assert CALIBRATION in SYSTEM
+    assert CALIBRATION in PHRASE_SYSTEM

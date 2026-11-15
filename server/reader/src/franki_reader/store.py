@@ -323,10 +323,11 @@ class StoredText:
     # Questions about what happens in it, for the check after reading (comprehension.py); none for
     # a text written before them, or whose call failed.
     questions: tuple[Question, ...] = ()
-    # The grammatical form of its inflected words, by lower-case word, as a form id (forms.py,
-    # form_primers.py). None until the call that picks them has been answered; {} once it was and
-    # nothing was a form on the list.
-    forms: dict[str, str] | None = None
+    # The grammatical form of its inflected words, by lower-case word: {"id": a form id (form_primers.py),
+    # "preposition", "phrase"} (forms.py), the last two "" for a word with none. Forms kept before the
+    # preposition was asked for have only the id. None until the call that picks them has been
+    # answered; {} once it was and nothing was a form on the list.
+    forms: dict[str, dict[str, str]] | None = None
     # Meanings asked for its words that nothing else glossed, each in its line here (meanings.py), by
     # lower-case word; "" for a word Claude gave none for, so it isn't asked again.
     meanings: dict[str, str] = field(default_factory=dict)
@@ -906,14 +907,20 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         choices=tuple(Choice(**c) for c in json.loads(choices)),
         chosen=chosen,
         questions=tuple(from_json(q) for q in json.loads(questions)),
-        forms=None if forms is None else json.loads(forms),
+        forms=None if forms is None else _read_forms(forms),
         recap_line=recap_line,
         recap_english=recap_english,
         meanings=json.loads(meanings),
     )
 
 
-def save_forms(conn: sqlite3.Connection, text_id: int, forms: dict[str, str]) -> None:
+def _read_forms(raw: str) -> dict[str, dict[str, str]]:
+    """A text's kept forms. Before the preposition was asked for each word's value was its form id
+    alone; it reads as {"id": it}, with no "preposition" key, which is how forms.is_current knows."""
+    return {w: ({"id": v} if isinstance(v, str) else v) for w, v in json.loads(raw).items()}
+
+
+def save_forms(conn: sqlite3.Connection, text_id: int, forms: dict[str, dict[str, str]]) -> None:
     """Keeps the forms Claude picked for a text's words (forms.py), which may be none: the text is
     then not asked again."""
     with conn:

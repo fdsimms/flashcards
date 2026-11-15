@@ -43,6 +43,7 @@ from franki_reader.generator import (
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
+from franki_reader.reader import lemma_for
 from franki_reader.recognition import measure
 from franki_reader.relisten import DEFAULT_LISTENS, Candidate, due
 from franki_reader.store import Reading, Reason, StoredText, Story, Topic
@@ -653,7 +654,9 @@ class Engine:
                     continue
                 # Read again under the lock: the pass that just finished may have kept it.
                 current = store.get_text(self.conn, text.id)
-                if current is None or current.forms is not None:
+                if current is None or (
+                    current.forms is not None and forms.is_current(language, current.forms)
+                ):
                     continue
                 _, lexicon = self.snapshot(language)
                 rows = forms.candidates(current, lexicon)
@@ -670,8 +673,19 @@ class Engine:
                         )
                     self._forms_failed[language] = self.clock()
                     continue
-                store.save_forms(self.conn, text.id, forms.keep(language, raw, rows))
+                store.save_forms(
+                    self.conn, text.id, forms.keep(language, raw, rows, self._lemmas(lexicon))
+                )
                 store.save_call_cost(self.conn, "forms", language, self.clock(), used.cost_usd())
+
+    @staticmethod
+    def _lemmas(lexicon: Checker) -> Callable[[str], str | None]:
+        """A word's dictionary form in `lexicon`, for the verbs that take a case (forms.keep)."""
+
+        def lemma(word: str) -> str | None:
+            return lemma_for(word, lexicon)
+
+        return lemma
 
     # ==== Grammar ====
 
@@ -806,8 +820,12 @@ class Engine:
             # Texts written before their common words were glossed, newest first, a batch a pass.
             recent = store.recent_texts(self.conn, language, BACKFILL_TEXTS)
             await self.fill_meanings(recent, language)
-            # Texts written before word forms were picked, newest first, a few a pass.
-            await self.fill_forms([t for t in recent if t.forms is None][:BACKFILL_FORMS])
+            # Texts written before word forms were picked, or before their prepositions were, newest
+            # first, a few a pass.
+            stale = [
+                t for t in recent if t.forms is None or not forms.is_current(language, t.forms)
+            ]
+            await self.fill_forms(stale[:BACKFILL_FORMS])
             try:
                 self._check_setup(language)
             except NotAvailable as e:
