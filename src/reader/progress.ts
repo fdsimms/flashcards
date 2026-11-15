@@ -6,13 +6,11 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 export function describeProgress(p: Progress): { headline: string; detail: string; next: string } {
   const headline = `${plural(p.finished, 'text')} finished in the last ${p.days} days`;
-  const rated = p.ratings.too_easy + p.ratings.about_right + p.ratings.too_hard;
   let detail: string;
   if (p.finished === 0 || p.median_coverage === null) {
-    detail = "Finish a text and rate it to see how it's going.";
+    detail = "Finish a text to see how it's going.";
   } else {
     const parts = [`Median ${percent(p.median_coverage)} known words.`];
-    if (rated > 0) parts.push(`${p.ratings.about_right} of ${rated} rated about right.`);
     if (p.check && p.check.asked > 0) {
       parts.push(`Checks after ${plural(p.check.texts, 'text')}: ${percent(p.check.right / p.check.asked)} right.`);
     }

@@ -317,13 +317,15 @@ export type AzureVoice = { voice: string; locale: string; name: string; gender?:
 
 export type Rating = 'too_easy' | 'about_right' | 'too_hard';
 
+// How many words outside the deck new texts have: 93%, 95% or 97% known words.
+export type DifficultyLevel = 'harder' | 'standard' | 'easier';
+
 // Finished texts over the last `days` days (what the Milestone 1 exit check reads), and the
 // difficulty new texts are written at.
 export type Progress = {
   days: number;
   finished: number;
   median_coverage: number | null;
-  ratings: Record<Rating | 'none', number>;
   // The check after reading, over the finished texts it was taken with. Missing from a server older than it.
   check?: { texts: number; right: number; asked: number };
   next: { floor: number; stretch: number };
@@ -360,7 +362,6 @@ export type MarkedWord = {
 };
 
 export type ReadingLog = {
-  rating: Rating | null;
   finished: boolean;
   words_glossed: string[];
   words_flagged: string[];
@@ -476,9 +477,12 @@ export function createApi(
     // With `story`, that story's episodes, first to last.
     pastTexts: (story?: number) => call<PastText[]>('GET', story === undefined ? '/api/texts' : `/api/texts?story=${story}`),
     // Finished texts due to be heard again with their words hidden (server relisten.py), as pastTexts lists them.
-    relisten: () => call<PastText[]>('GET', '/api/relisten'),
+    // `listens`: how many times each text is wanted again, 3 (1, 4 and 10 days), 1 (3 days) or 0.
+    relisten: (listens: 0 | 1 | 3 = 3) => call<PastText[]>('GET', `/api/relisten?listens=${listens}`),
     // A finished text was heard again, through to its last line. Only counted: no reading, no difficulty change.
     logListen: (textId: number) => call<void>('POST', `/api/texts/${textId}/listen`),
+    // The text difficulty for the current language, from the next text written (reader/difficulty.ts); answers with `next` as progress does.
+    setDifficulty: (level: DifficultyLevel) => call<Progress['next']>('PUT', '/api/difficulty', { level }),
     // The current language's shelf; asking also tops it up in the background.
     shelf: () => call<Shelf>('GET', '/api/shelf'),
     // Writes a text on a typed topic in the background; it joins the shelf when it's ready.

@@ -230,10 +230,10 @@ def test_poor_checks_on_two_texts_make_the_next_text_easier_and_show_in_progress
     c = client()
     assert read(c, "about_right", check_right=1, check_asked=4) == 204
     # One poor check alone is too few answers to steer.
-    assert c.get("/api/progress", headers=AUTH).json()["next"] == {"floor": 0.92, "stretch": 2}
+    assert c.get("/api/progress", headers=AUTH).json()["next"] == {"floor": 0.95, "stretch": 2}
     assert read(c, "about_right", check_right=1, check_asked=4) == 204
     progress = c.get("/api/progress", headers=AUTH).json()
-    assert progress["next"] == {"floor": 0.93, "stretch": 2}
+    assert progress["next"] == {"floor": 0.97, "stretch": 2}
     assert progress["check"] == {"texts": 2, "right": 2, "asked": 8}
 
 
@@ -242,7 +242,7 @@ def test_a_good_check_or_none_changes_nothing() -> None:
     assert read(c, "about_right", check_right=4, check_asked=5) == 204
     assert read(c, "about_right") == 204
     progress = c.get("/api/progress", headers=AUTH).json()
-    assert progress["next"] == {"floor": 0.92, "stretch": 2}
+    assert progress["next"] == {"floor": 0.95, "stretch": 2}
     assert progress["check"] == {"texts": 1, "right": 4, "asked": 5}
 
 

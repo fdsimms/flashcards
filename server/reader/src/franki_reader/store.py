@@ -13,7 +13,7 @@ from typing import Any, Literal
 
 from franki_reader import grammar
 from franki_reader.comprehension import Question, from_json
-from franki_reader.difficulty import Difficulty
+from franki_reader.difficulty import EASIER_FLOOR, STANDARD_FLOOR, Difficulty, nearest_floor
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Choice, Form, Generated, Line
 from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, VOICE_SLOTS, Code, with_deck
@@ -790,13 +790,6 @@ def save_text(
         )
     assert cur.lastrowid is not None
     return cur.lastrowid
-
-
-def written_at(conn: sqlite3.Connection, text_id: int) -> tuple[float, int | None] | None:
-    """The coverage target and stretch word count a text was written at; the count is None for a
-    text written before it was recorded."""
-    row = conn.execute("SELECT floor, stretch_count FROM texts WHERE id = ?", (text_id,)).fetchone()
-    return (row[0], row[1]) if row else None
 
 
 def set_choice(conn: sqlite3.Connection, text_id: int, index: int) -> str:
@@ -1694,15 +1687,28 @@ def clear_word(conn: sqlite3.Connection, word: str, now: datetime) -> None:
 # ==== Difficulty ====
 
 
-# v2: the range moved down on 12 November 2026 (95% was the old lowest target), so a floor saved
-# before it, which can't go below 95%, starts again at the new default rather than staying there.
-_DIFFICULTY_KEY = "difficulty_v2"
+# v2: the range moved down on 12 November 2026 (95% was the old lowest target). The coverage target
+# is now one of three (difficulty.py), saved as v3. A floor saved as v2, at any level, is read as
+# Easier (96% or more) or Standard: Harder is only ever a deliberate choice, so an old 92% default
+# doesn't turn into it.
+_DIFFICULTY_KEY = "difficulty_v3"
+_OLD_DIFFICULTY_KEY = "difficulty_v2"
 
 
 def load_difficulty(conn: sqlite3.Connection, language: Code = "th") -> Difficulty:
-    """Each language has its own, moved by ratings of texts in that language."""
+    """Each language has its own text difficulty, chosen in Settings and stepped easier by a poor
+    check after reading."""
     raw = _get_meta(conn, _per_language(_DIFFICULTY_KEY, language))
-    return Difficulty(**json.loads(raw)) if raw else Difficulty()
+    if raw:
+        saved = json.loads(raw)
+        saved["floor"] = nearest_floor(saved.get("floor", STANDARD_FLOOR))
+        return Difficulty(**saved)
+    old = _get_meta(conn, _per_language(_OLD_DIFFICULTY_KEY, language))
+    if not old:
+        return Difficulty()
+    saved = json.loads(old)
+    saved["floor"] = EASIER_FLOOR if saved.get("floor", STANDARD_FLOOR) >= 0.96 else STANDARD_FLOOR
+    return Difficulty(**saved)
 
 
 def save_difficulty(

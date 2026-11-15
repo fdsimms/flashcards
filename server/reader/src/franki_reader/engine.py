@@ -54,7 +54,7 @@ from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
 from franki_reader.reader import lemma_for
 from franki_reader.recognition import measure
-from franki_reader.relisten import Candidate, due
+from franki_reader.relisten import DEFAULT_LISTENS, Candidate, due
 from franki_reader.store import Reading, Reason, StoredText, Story, Topic
 from franki_reader.stretch import pick_stretch, waiting
 from franki_reader.study_day import DEFAULT_ROLLOVER, study_day, study_day_start
@@ -940,8 +940,11 @@ class Engine:
             plan=story.plan,
         )
 
-    def relisten(self, language: Code | None = None) -> list[store.PastText]:
-        """The finished texts to hear again today (relisten.py), oldest read first."""
+    def relisten(
+        self, language: Code | None = None, listens: int = DEFAULT_LISTENS
+    ) -> list[store.PastText]:
+        """The finished texts to hear again today (relisten.py), oldest read first, with `listens`
+        wanted per text."""
         language = language or self.language()
         rollover = self.rollover()
         past = store.past_texts(self.conn, RELISTEN_LOOKBACK, language)
@@ -952,13 +955,12 @@ class Engine:
         ]
         by_id = {t.id: t for t in past}
         today = study_day(self.clock(), rollover, self.zone)
-        return [by_id[i] for i in due(candidates, today)]
+        return [by_id[i] for i in due(candidates, today, listens)]
 
     def record_reading(self, text_id: int, reading: Reading) -> None:
-        """Logs a session and adjusts the difficulty of the text's language, stepping from the level
-        the text was written at (difficulty.after_reading). A second reading of a text that's
-        already been read is ignored, so a retried request can't log twice or move difficulty
-        twice."""
+        """Logs a session and, after a poor check, switches the text's language to Easier
+        (difficulty.after_reading). A second reading of a text that's already been read is ignored, so
+        a retried request can't log twice or move difficulty twice."""
         status = store.text_status(self.conn, text_id)
         if status is None:
             raise NotFound(text_id)
@@ -982,18 +984,8 @@ class Engine:
             if before and right is not None:
                 right, asked = right + before[0], asked + before[1]
         store.log_reading(self.conn, text_id, reading, self.clock())
-        written = store.written_at(self.conn, text_id)
-        if text is not None and written is not None:
+        if text is not None:
             current = store.load_difficulty(self.conn, text.language)
-            floor, stretch = written
-            after = after_reading(
-                current,
-                replace(
-                    current, floor=floor, stretch=current.stretch if stretch is None else stretch
-                ),
-                reading.rating,
-                right,
-                asked,
-            )
+            after = after_reading(current, right, asked)
             if after != current:
                 store.save_difficulty(self.conn, after, text.language)

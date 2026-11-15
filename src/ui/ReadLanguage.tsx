@@ -2,8 +2,9 @@ import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Keyboard, ScrollView, Text, View } from 'react-native';
 import {
-  ApiError, type Api, type Progress, type Settings, type SettingsChange, type Shelf, type StretchWords,
+  ApiError, type Api, type DifficultyLevel, type Progress, type Settings, type SettingsChange, type Shelf, type StretchWords,
 } from '../reader/api';
+import { LEVEL_HELP, LEVEL_OPTIONS, levelOf } from '../reader/difficulty';
 import { grammarSummary } from '../reader/grammar';
 import { LANGUAGES } from '../reader/languages';
 import { describeProgress } from '../reader/progress';
@@ -14,12 +15,12 @@ import { space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /** The card a change was made in, where its failure is shown. */
-type Section = 'words' | 'story' | 'stretch';
+type Section = 'words' | 'story' | 'stretch' | 'difficulty';
 
 /**
  * One language's Read & Listen settings, the ones set once and rarely changed
  * (docs/read-and-listen/architecture.md, Shelf): its deck, common words, voices and grammar, the
- * ongoing story, practice words, and how reading is going.
+ * ongoing story, practice words, text difficulty, and how reading is going.
  * Opened from the shelf's sliders button; the language is the one the shelf is showing.
  */
 export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, onVocabCheck, onEpisodes }: {
@@ -81,6 +82,18 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
       if (mine !== settingSeq.current) return;
       setSettings(before);
       setFailed({ at, message: e instanceof ApiError ? e.message : "Couldn't change that setting. Try again." });
+    }
+  };
+
+  // Text difficulty, from the next text written. The answer is the target new texts are written at.
+  const chooseDifficulty = async (level: DifficultyLevel) => {
+    if (!progress || levelOf(progress.next.floor) === level) return;
+    setFailed(null);
+    try {
+      const next = await api.setDifficulty(level);
+      setProgress((p) => (p ? { ...p, next } : p));
+    } catch (e) {
+      setFailed({ at: 'difficulty', message: e instanceof ApiError ? e.message : "Couldn't change the text difficulty. Try again." });
     }
   };
 
@@ -187,6 +200,16 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
 
             {progress ? (
               <>
+                <SectionTitle>Text difficulty</SectionTitle>
+                <Card style={{ gap: space.s }}>
+                  <Segments<DifficultyLevel>
+                    options={LEVEL_OPTIONS}
+                    value={levelOf(progress.next.floor)}
+                    onChange={chooseDifficulty}
+                  />
+                  {failure('difficulty')}
+                  <Help>{LEVEL_HELP}</Help>
+                </Card>
                 <SectionTitle>Reading stats</SectionTitle>
                 <ProgressCard progress={progress} />
               </>

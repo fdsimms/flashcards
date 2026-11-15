@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { DEFAULT_PREFS, parsePrefs } from '../../src/reader/prefs';
 
 test('saved settings come back', () => {
-  expect(parsePrefs(JSON.stringify({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true }))).toEqual({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true });
+  expect(parsePrefs(JSON.stringify({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3 }))).toEqual({ rate: 0.7, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3 });
 });
 
 test('nothing saved, or something unreadable, gives the defaults', () => {
@@ -60,4 +60,19 @@ test('listening before reading is off until chosen', () => {
   expect(DEFAULT_PREFS.listenFirst).toBe(false);
   expect(parsePrefs(JSON.stringify({ listenFirst: true })).listenFirst).toBe(true);
   expect(parsePrefs(JSON.stringify({ listenFirst: 'yes' })).listenFirst).toBe(false);
+});
+
+test('listening twice before reading is off until chosen', () => {
+  expect(DEFAULT_PREFS.listenTwice).toBe(false);
+  expect(parsePrefs(JSON.stringify({ listenTwice: true })).listenTwice).toBe(true);
+  expect(parsePrefs(JSON.stringify({ listenTwice: 2 })).listenTwice).toBe(false);
+});
+
+test('a finished text is offered to hear again once unless chosen otherwise', () => {
+  expect(DEFAULT_PREFS.listenAgain).toBe(1);
+  expect(parsePrefs(JSON.stringify({ listenAgain: 0 })).listenAgain).toBe(0);
+  expect(parsePrefs(JSON.stringify({ listenAgain: 3 })).listenAgain).toBe(3);
+  // Two isn't a choice, and anything else falls back.
+  expect(parsePrefs(JSON.stringify({ listenAgain: 2 })).listenAgain).toBe(1);
+  expect(parsePrefs(JSON.stringify({ listenAgain: 'three' })).listenAgain).toBe(1);
 });

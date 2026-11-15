@@ -58,7 +58,8 @@ marked words, ideas) is in the current language, the `language` setting.
                                       index into its choices; it can be changed until the episode is
                                       read, which is when the next one is written from it (404 for
                                       no such text or choice, 409 once it's read)
-    GET   /api/relisten               finished texts due to be heard again (relisten.py)
+    GET   /api/relisten?listens=3     finished texts due to be heard again (relisten.py); 3, 1 or 0
+                                      listens wanted per text
     POST  /api/texts/{id}/listen      counts a finished text heard again (204; 404 if never read)
     GET   /api/progress               finished texts, coverage and ratings over the last 14 days,
                                       the check after reading's answers over them, how well the
@@ -112,6 +113,8 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/grammar/{id}           one point's page: {id, state, seen, choices (its language's,
                                       for the related points), examples: [{text_id, title, line,
                                       english, words}]}, lines from texts read, the latest first
+    PUT   /api/difficulty             {level: harder | standard | easier}: the text difficulty (93%, 95%
+                                      or 97% known words) for the language, from the next text written
     PUT   /api/grammar/stretch        {uses: 1 to 4}: how many times the next texts may use grammar
                                       not set (the Grammar dial on the wrap-up screen); answers as
                                       GET /api/grammar does
@@ -228,6 +231,7 @@ from franki_reader import (
 )
 from franki_reader.collection import AnkiDeck, SyncSettings
 from franki_reader.coverage import parse_line
+from franki_reader.difficulty import EASIER_FLOOR, HARDER_FLOOR, STANDARD_FLOOR
 from franki_reader.engine import Engine, NotAvailable, NotFound
 from franki_reader.explain import (
     CheckNatural,
@@ -465,6 +469,10 @@ class FrankiCountsIn(BaseModel):
 
 class ChoiceIn(BaseModel):
     choice: int = Field(ge=0)
+
+
+class DifficultyIn(BaseModel):
+    level: Literal["harder", "standard", "easier"]
 
 
 class ReadingIn(BaseModel):
@@ -781,9 +789,14 @@ def create_app(
         ]
 
     @app.get("/api/relisten", dependencies=authed)
-    async def relisten_texts() -> list[dict[str, Any]]:
-        """Finished texts due to be heard again, as `/api/texts` lists them (relisten.py)."""
-        return [past_json(t) for t in engine.relisten()]
+    async def relisten_texts(
+        listens: Annotated[int, Query(ge=0, le=3)] = 3,
+    ) -> list[dict[str, Any]]:
+        """Finished texts due to be heard again, as `/api/texts` lists them (relisten.py), with
+        `listens` wanted per text: 3 (1, 4 and 10 days), 1 (3 days) or 0 (none)."""
+        if listens == 2:
+            raise HTTPException(422, "Ask for 0, 1 or 3 listens.")
+        return [past_json(t) for t in engine.relisten(listens=listens)]
 
     @app.post("/api/texts/{text_id}/listen", status_code=204, dependencies=authed)
     async def listened(text_id: int) -> Response:
@@ -1902,6 +1915,19 @@ def create_app(
         current = store.load_difficulty(engine.conn, language)
         store.save_difficulty(engine.conn, replace(current, unset_uses=body.uses), language)
         return grammar_points()
+
+    @app.put("/api/difficulty", dependencies=authed)
+    async def set_difficulty(body: DifficultyIn) -> dict[str, Any]:
+        """Text difficulty for the current language (Settings: Harder 93%, Standard 95% or Easier
+        97% known words), from the next text written. Answers as `next` in GET /api/progress does."""
+        language = engine.language()
+        current = store.load_difficulty(engine.conn, language)
+        floor = {"harder": HARDER_FLOOR, "standard": STANDARD_FLOOR, "easier": EASIER_FLOOR}[
+            body.level
+        ]
+        changed = replace(current, floor=floor)
+        store.save_difficulty(engine.conn, changed, language)
+        return {"floor": changed.floor, "stretch": changed.stretch}
 
     # Before /api/grammar/{point_id}, which would take "level" for a point.
     @app.put("/api/grammar/level", dependencies=authed)

@@ -445,3 +445,25 @@ def test_only_a_served_text_becomes_read(conn) -> None:  # type: ignore[no-untyp
     }
     th = spending(conn, NOW - timedelta(days=1))["th"]
     assert (th.read, th.dropped, th.skipped) == (1, 1, 1)
+
+
+def test_a_coverage_target_saved_by_an_older_server_is_read_as_standard_or_easier(conn) -> None:  # type: ignore[no-untyped-def]
+    from franki_reader.store import _per_language, _set_meta, load_difficulty
+
+    key = _per_language("difficulty_v2", "th")
+    # Harder is only a deliberate choice, so an old 92% default doesn't turn into it.
+    for saved, read in ((0.91, 0.95), (0.92, 0.95), (0.95, 0.95), (0.96, 0.97), (0.99, 0.97)):
+        _set_meta(conn, key, f'{{"floor": {saved}, "stretch": 3, "unset_uses": 4}}')
+        d = load_difficulty(conn)
+        assert (d.floor, d.stretch, d.unset_uses) == (read, 3, 4)
+
+
+def test_a_chosen_level_is_saved_and_read_back_exactly(conn) -> None:  # type: ignore[no-untyped-def]
+    from franki_reader.difficulty import Difficulty
+    from franki_reader.store import load_difficulty, save_difficulty
+
+    for floor in (0.93, 0.95, 0.97):
+        save_difficulty(conn, Difficulty(floor, 3, 4), "th")
+        assert load_difficulty(conn) == Difficulty(floor, 3, 4)
+    # Another language's is its own.
+    assert load_difficulty(conn, "es") == Difficulty()
