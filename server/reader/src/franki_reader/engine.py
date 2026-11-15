@@ -43,11 +43,13 @@ from franki_reader.coverage import Checker, Coverage, parse_line
 from franki_reader.difficulty import Difficulty, after_reading
 from franki_reader.gender import full_voices, voice_for
 from franki_reader.generator import (
+    MODEL,
     Ask,
     Form,
     Generated,
     GenerationFailed,
     StoryContext,
+    TextModel,
     TextRequest,
     Usage,
     generate,
@@ -121,6 +123,7 @@ class Job:
     focus: str = ""
     reason: Reason = ""
     form: Form | None = None  # None: the `form` setting
+    model: TextModel = MODEL  # which model writes it (the shelf's "Written by")
     # Hand the model words reviewed today to use, rather than letting it choose ones that fit
     # (shelf "due").
     any_words: bool = False
@@ -155,7 +158,7 @@ class Engine:
     def __init__(
         self,
         conn: sqlite3.Connection,
-        ask_for: Callable[[list[Entry], Code], Ask] | None,
+        ask_for: Callable[..., Ask] | None,
         read_deck: ReadDeck | None,
         clock: Callable[[], datetime] = utc_now,
         rng: random.Random | None = None,
@@ -416,7 +419,7 @@ class Engine:
                 "episode": context.episode if context else 0,
             }
             try:
-                result = await generate(self.ask_for(known, language), lexicon, request)
+                result = await generate(self.ask_for(known, language, job.model), lexicon, request)
             except GenerationFailed as e:
                 if e.usage != Usage():
                     # The first attempt got an answer but nothing usable (a refusal, a cut-off,
@@ -972,14 +975,14 @@ class Engine:
 
     # ==== Asked for ====
 
-    def write_about(self, name: str, form: Form) -> Topic:
+    def write_about(self, name: str, form: Form, model: TextModel = MODEL) -> Topic:
         """Starts writing a text on a topic typed in (it joins the shelf when it's ready).
         Raises ValueError for an empty name, NotAvailable when nothing can be
         written yet."""
         language = self.language()
         self._check_setup(language)
         topic = store.add_topic(self.conn, name, self.clock())
-        job = Job(topic.id, language, reason="asked", form=form)
+        job = Job(topic.id, language, reason="asked", form=form, model=model)
         if job.key not in self._writing:
             self._failures.pop(job.key, None)
             self._start(job)

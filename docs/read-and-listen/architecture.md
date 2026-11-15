@@ -904,6 +904,20 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   roles (who A and B are, like Waiter and Customer, shown above the lines in the reader), lines (speaker, `|`-split text, English), and glosses for words off the list. Revisions are
   appended to the same conversation, never edited, so the model's earlier thinking stays valid.
   `server/reader/src/franki_reader/generator.py`.
+- **Cheaper model for short, checked calls** (15 November 2026): glosses for common words, word forms,
+  IPA, memory hints, Explain, comprehension questions, the vocabulary check and audio lesson content
+  use `claude-haiku-5-5` (`CHEAP_MODEL`, about a twentieth of Sonnet's price). Haiku has no server-side
+  refusal fallback, so those calls send none and treat `stop_reason: "refusal"` as a failed call, as
+  they already did. Texts, drills, sentences, topics, the note queue, the writing check and Situations
+  stay on Sonnet, where a wrong answer is taught back to the learner. Watch the spot checks in
+  `/api/costs` and Russian word forms first.
+- **Written by** (15 November 2026, a trial): the shelf's write card has a Sonnet or Haiku switch,
+  sent as `model` on `POST /api/shelf/write` (Sonnet when left out, 422 for any other model) and used
+  by Surprise me too. It's per text, so the same topic can be asked of both and compared. The model
+  that answered is kept with the text (`texts.model`), shown after the card's length ("Dialogue ·
+  8 lines · 3 min · Haiku"), and priced in `/api/costs`. Haiku sends no refusal fallback, so a refusal
+  fails that attempt as it does when a fallback also declines. Practice texts, story episodes and
+  topic-queue texts stay on Sonnet. Remove the switch once one model is chosen.
 - **A listed stretch word missing from the text** sends it back too, even at full coverage (15 November 2026: a word used once is enough; it was 2).
 - **Prompt caching.** The lexicon is the same on every call that day, so it sits in a cached prefix.
 - **Glosses come with the text.** The model returns an English gloss for every word not in the

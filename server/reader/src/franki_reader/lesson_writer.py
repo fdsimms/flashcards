@@ -15,7 +15,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader import lesson
 from franki_reader.claude_errors import didnt_answer
-from franki_reader.generator import MODEL, Usage, usage_of
+from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 
 MAX_TOKENS = 4000
@@ -149,12 +149,10 @@ def claude_plan(client: anthropic.AsyncAnthropic) -> WritePlan:
         }
         try:
             response = await client.beta.messages.create(
-                model=MODEL,
+                model=CHEAP_MODEL,
                 max_tokens=MAX_TOKENS,
                 messages=cast(list[BetaMessageParam], messages),
                 output_config=output_config,
-                betas=["server-side-fallback-2026-07-01"],
-                fallbacks="default",
             )
         except anthropic.APIError as e:
             raise LessonFailed(didnt_answer(e, ". Try again in a moment.")) from e

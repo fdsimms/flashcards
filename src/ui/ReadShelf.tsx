@@ -1,12 +1,12 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Keyboard, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { ApiError, MAX_STORY_ABOUT_CHARS, MAX_TOPIC_CHARS, type Api, type Form, type Language, type PastText, type Shelf, type ShelfText, type Word } from '../reader/api';
+import { ApiError, MAX_STORY_ABOUT_CHARS, MAX_TOPIC_CHARS, type Api, type Form, type Language, type PastText, type Shelf, type ShelfText, type TextModel, type Word } from '../reader/api';
 import { LANGUAGES, flaggedName } from '../reader/languages';
 import { lessonsOffered } from '../reader/lessons';
 import { ReadListenAgain } from './ReadListenAgain';
 import { ReadReviewFirst } from './ReadReviewFirst';
-import { cardDetail, playMinutes, playOrder, reasonLabel, surprisePick } from '../reader/shelf';
+import { playMinutes, playOrder, reasonLabel, shelfDetail, surprisePick } from '../reader/shelf';
 import { haptic } from './haptics';
 import { Button, Card, Divider, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
 import { PracticeWordPill } from './PracticeWordPill';
@@ -274,7 +274,7 @@ function ShelfRow({ text, first, onPress, onLongPress }: { text: ShelfText; firs
       onPress={() => { haptic.tap(); onPress(); }}
       onLongPress={() => { haptic.select(); onLongPress(); }}
       accessibilityRole="button"
-      accessibilityLabel={`${text.title}. ${cardDetail(text)}. ${reason}`}
+      accessibilityLabel={`${text.title}. ${shelfDetail(text)}. ${reason}`}
       accessibilityHint="Opens the text"
       accessibilityActions={[{ name: 'more', label: 'Remove from shelf' }]}
       onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'more') onLongPress(); }}
@@ -283,7 +283,7 @@ function ShelfRow({ text, first, onPress, onLongPress }: { text: ShelfText; firs
       {first ? null : <Divider inset={space.l} />}
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ ...type.headline, color: c.text }}>{text.title}</Text>
-        <Text style={{ ...type.subhead, color: c.textSecondary }}>{cardDetail(text)}</Text>
+        <Text style={{ ...type.subhead, color: c.textSecondary }}>{shelfDetail(text)}</Text>
         <Text style={{ ...type.footnote, color: text.reason === 'due' ? c.countDue : c.textSecondary }}>{reason}</Text>
       </View>
       <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
@@ -339,7 +339,7 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onEpisodes, onStarted }: { 
       {next ? (
         <>
           <Text style={{ ...type.title, color: c.text }}>{next.title}</Text>
-          <Text style={{ ...type.subhead, color: c.textSecondary }}>{cardDetail(next)}</Text>
+          <Text style={{ ...type.subhead, color: c.textSecondary }}>{shelfDetail(next)}</Text>
           {next.stretch.length > 0 ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>Practice words</Text>
@@ -393,6 +393,8 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onEpisodes, onStarted }: { 
 function WriteCard({ api, onWriting }: { api: Api; onWriting: () => void }) {
   const [name, setName] = useState('');
   const [form, setForm] = useState<Form>('dialogue');
+  const [model, setModel] = useState<TextModel>('claude-sonnet-5-5');
+  const c = useTheme();
   // Which button is working: the other is disabled meanwhile, without a spinner of its own.
   const [busy, setBusy] = useState<'write' | 'surprise' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -404,7 +406,7 @@ function WriteCard({ api, onWriting }: { api: Api; onWriting: () => void }) {
     setBusy('write');
     setError(null);
     try {
-      await api.writeAbout(topic, form);
+      await api.writeAbout(topic, form, model);
       setName('');
       onWriting();
     } catch (e) {
@@ -423,7 +425,7 @@ function WriteCard({ api, onWriting }: { api: Api; onWriting: () => void }) {
     try {
       const pick = surprisePick(await api.suggestions(), Math.random);
       if (!pick) throw new ApiError('There are no topic ideas left. Type a topic below and write a text on it instead.', 0);
-      await api.writeAbout(pick.name, pick.form);
+      await api.writeAbout(pick.name, pick.form, model);
       onWriting();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't start writing that. Try again.");
@@ -438,6 +440,8 @@ function WriteCard({ api, onWriting }: { api: Api; onWriting: () => void }) {
       <Help>Writes a text on an idea you haven't tried, with no topic needed.</Help>
       <Field label="Write one about something else" placeholder="For example, haggling at a market" value={name} onChangeText={setName} maxLength={MAX_TOPIC_CHARS} returnKeyType="done" onSubmitEditing={write} />
       <Segments<Form> options={[{ value: 'dialogue', label: 'Dialogue' }, { value: 'story', label: 'Story' }]} value={form} onChange={setForm} />
+      <Text style={{ ...type.footnote, color: c.textSecondary }}>Written by</Text>
+      <Segments<TextModel> options={[{ value: 'claude-sonnet-5-5', label: 'Sonnet' }, { value: 'claude-haiku-5-5', label: 'Haiku' }]} value={model} onChange={setModel} />
       {error ? <ErrorNote message={error} /> : null}
       <Button label="Write" variant="secondary" onPress={write} busy={busy === 'write'} disabled={!name.trim() || busy !== null} />
       <Help>Takes about half a minute. It joins the shelf when it's ready.</Help>

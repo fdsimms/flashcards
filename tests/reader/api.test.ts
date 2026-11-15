@@ -121,6 +121,8 @@ test('the shelf writes a typed topic, starts a story and lists a story\'s episod
   await api.startStory('');
   expect(calls[0].url).toBe('https://x/api/shelf/write');
   expect(JSON.parse(calls[0].init.body as string)).toEqual({ name: 'Haggling', form: 'story' });
+  await api.writeAbout('Haggling', 'dialogue', 'claude-haiku-5-5');
+  expect(JSON.parse(calls[2].init.body as string)).toEqual({ name: 'Haggling', form: 'dialogue', model: 'claude-haiku-5-5' });
   expect(calls[1].url).toBe('https://x/api/story');
   expect(JSON.parse(calls[1].init.body as string)).toEqual({ about: '' });
   const past = fakeFetch(json([]));

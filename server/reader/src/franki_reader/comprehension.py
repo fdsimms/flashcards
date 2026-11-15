@@ -27,7 +27,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import Checker, is_word, line_names, parse_line, segment_line
-from franki_reader.generator import MODEL, Line, Usage, usage_of
+from franki_reader.generator import CHEAP_MODEL, Line, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 
 log = logging.getLogger(__name__)
@@ -251,13 +251,11 @@ def claude_questions(client: anthropic.AsyncAnthropic) -> WriteQuestions:
         messages = [{"role": "user", "content": request_message(language, lines)}]
         try:
             response = await client.beta.messages.create(
-                model=MODEL,
+                model=CHEAP_MODEL,
                 max_tokens=MAX_TOKENS,
                 system=_SYSTEM.format(language=LANGUAGES[language].name),
                 messages=cast(list[BetaMessageParam], messages),
                 output_config=output_config,
-                betas=["server-side-fallback-2026-07-01"],
-                fallbacks="default",
             )
         except anthropic.APIError as e:
             raise QuestionsFailed(didnt_answer(e)) from e

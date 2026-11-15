@@ -313,7 +313,7 @@ from franki_reader.gateway import (
     reviews_with_timeout,
     with_timeout,
 )
-from franki_reader.generator import Ask, Form, Usage, claude_ask
+from franki_reader.generator import MODEL, Ask, Form, TextModel, Usage, claude_ask
 from franki_reader.ipa import ipa_for
 from franki_reader.languages import (
     HIDDEN_LANGUAGES,
@@ -569,6 +569,8 @@ class PhraseIn(BaseModel):
 class WriteIn(BaseModel):
     name: str = Field(min_length=1, max_length=150)
     form: Form = "dialogue"
+    # Which model writes it; an app from before the choice leaves it out and gets Sonnet.
+    model: TextModel = MODEL
 
 
 class StoryIn(BaseModel):
@@ -873,7 +875,7 @@ def create_app(
     @app.post("/api/shelf/write", status_code=202, dependencies=authed)
     async def write(body: WriteIn) -> dict[str, Any]:
         try:
-            topic = engine.write_about(body.name, body.form)
+            topic = engine.write_about(body.name, body.form, body.model)
         except ValueError as e:
             raise HTTPException(422, str(e)) from e
         except NotAvailable as e:
@@ -2531,6 +2533,7 @@ def _shelf_text(text: StoredText, engine: Engine, practice: bool = False) -> dic
         "reason": text.reason,
         "coverage": text.coverage,
         "episode": text.episode,
+        "model": text.model,
     }
 
 
@@ -2614,7 +2617,7 @@ def production_app() -> FastAPI:
     settings.db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = store.connect(settings.db_path)
     store.fail_interrupted_lessons(conn)
-    ask_for: Callable[[list[Entry], Code], Ask] | None = None
+    ask_for: Callable[..., Ask] | None = None
     mnemonics: MakeMnemonics | None = None
     explain: Explain | None = None
     explain_phrase: ExplainPhrase | None = None
@@ -2654,8 +2657,8 @@ def production_app() -> FastAPI:
         write_lesson = lesson_writer.claude_plan(client)
         write_ipa = ai_ipa.claude_ipa(client)
 
-        def ask_for(entries: list[Entry], language: Code) -> Ask:
-            return claude_ask(client, entries, language)
+        def ask_for(entries: list[Entry], language: Code, model: TextModel = MODEL) -> Ask:
+            return claude_ask(client, entries, language, model)
 
     synthesize = None
     synthesize_parts = None

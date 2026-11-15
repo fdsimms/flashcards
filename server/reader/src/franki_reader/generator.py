@@ -50,7 +50,12 @@ from franki_reader.gender import GENDERS, gender_problems, quote_gender_problems
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry
 
-MODEL = "claude-sonnet-5-5"
+# The models a text can be asked to be written by (the shelf's "Written by").
+TextModel = Literal["claude-sonnet-5-5", "claude-haiku-5-5"]
+MODEL: TextModel = "claude-sonnet-5-5"
+# For short, checked or low-stakes calls (glosses, word forms, IPA, hints, questions). Haiku has no
+# server-side refusal fallback, so calls to it send none and handle stop_reason "refusal" themselves.
+CHEAP_MODEL: TextModel = "claude-haiku-5-5"
 EFFORT: Literal["low", "medium", "high", "xhigh", "max"] = "high"
 MAX_TOKENS = 16000
 log = logging.getLogger(__name__)
@@ -65,6 +70,9 @@ REGISTERS = ("casual", "neutral", "formal", "slang")
 # not listed here (a refusal fallback) is priced as MODEL, which is close enough for a running total.
 PRICES = {
     "claude-sonnet-5-5": (2.00, 10.00, 0.20, 2.50),
+    # Prompts over 100K tokens cost $0.50 / $2.50, which none of the calls to it reach. The cache
+    # figures are the usual 0.1x read and 1.25x write of the input price, not read off a price list.
+    "claude-haiku-5-5": (0.10, 0.50, 0.01, 0.125),
     "claude-opus-5-5": (4.00, 20.00, 0.20, 5.00),
     "claude-opus-4-8": (5.00, 25.00, 0.50, 6.25),
 }
@@ -1150,7 +1158,10 @@ def _stretch_used(
 
 
 def claude_ask(
-    client: anthropic.AsyncAnthropic, entries: list[Entry], language: Code = "th"
+    client: anthropic.AsyncAnthropic,
+    entries: list[Entry],
+    language: Code = "th",
+    model: TextModel = MODEL,
 ) -> Ask:
     system: list[BetaTextBlockParam] = [
         {
@@ -1164,16 +1175,22 @@ def claude_ask(
         "format": {"type": "json_schema", "schema": DRAFT_SCHEMA},
     }
 
+    # Haiku has no server-side refusal fallback; a refusal there fails the attempt below.
+    fallback: dict[str, Any] = (
+        {}
+        if model == CHEAP_MODEL
+        else {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"}
+    )
+
     async def ask(messages: list[dict[str, Any]]) -> tuple[dict[str, Any], list[Any], Usage]:
         try:
             response = await client.beta.messages.create(
-                model=MODEL,
+                model=model,
                 max_tokens=MAX_TOKENS,
                 system=system,
                 messages=cast(list[BetaMessageParam], messages),
                 output_config=output_config,
-                betas=["server-side-fallback-2026-07-01"],
-                fallbacks="default",
+                **fallback,
             )
         except anthropic.APIError as e:
             # Overloaded, rate limited, unreachable: say so rather than failing the request.

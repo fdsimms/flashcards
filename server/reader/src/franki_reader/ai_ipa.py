@@ -28,7 +28,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 from franki_reader import store
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import Checker, is_word, segment_line
-from franki_reader.generator import MODEL, Usage, usage_of
+from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
 from franki_reader.ipa import ipa_of, table
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.store import StoredText
@@ -211,13 +211,11 @@ def claude_ipa(client: anthropic.AsyncAnthropic) -> WriteIpa:
         messages = [{"role": "user", "content": request_message(language, asked)}]
         try:
             response = await client.beta.messages.create(
-                model=MODEL,
+                model=CHEAP_MODEL,
                 max_tokens=MAX_TOKENS,
                 system=_SYSTEM.format(language=LANGUAGES[language].name),
                 messages=cast(list[BetaMessageParam], messages),
                 output_config=output_config,
-                betas=["server-side-fallback-2026-07-01"],
-                fallbacks="default",
             )
         except anthropic.APIError as e:
             raise IpaFailed(didnt_answer(e)) from e

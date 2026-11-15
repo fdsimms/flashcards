@@ -65,10 +65,12 @@ class ScriptedModel:
         self.entries_seen: list[list[Entry]] = []
         self.languages_seen: list[str] = []
         self.messages_seen: list[list[dict[str, Any]]] = []
+        self.models_seen: list[str | None] = []
 
-    def ask_for(self, entries: list[Entry], language: str = "th") -> Any:
+    def ask_for(self, entries: list[Entry], language: str = "th", model: str | None = None) -> Any:
         self.entries_seen.append(entries)
         self.languages_seen.append(language)
+        self.models_seen.append(model)
 
         async def ask(messages: list[dict[str, Any]]) -> tuple[dict[str, Any], list[Any], Usage]:
             self.calls += 1

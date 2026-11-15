@@ -29,7 +29,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 from franki_reader import form_primers, helpers
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import Checker, is_word, parse_line, segment_line
-from franki_reader.generator import MODEL, Usage, usage_of
+from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.reader import lemma_for
 from franki_reader.store import StoredText
@@ -203,13 +203,11 @@ def claude_forms(client: anthropic.AsyncAnthropic) -> WriteForms:
         messages = [{"role": "user", "content": request_message(language, rows)}]
         try:
             response = await client.beta.messages.create(
-                model=MODEL,
+                model=CHEAP_MODEL,
                 max_tokens=MAX_TOKENS,
                 system=_SYSTEM.format(language=LANGUAGES[language].name),
                 messages=cast(list[BetaMessageParam], messages),
                 output_config=output_config,
-                betas=["server-side-fallback-2026-07-01"],
-                fallbacks="default",
             )
         except anthropic.APIError as e:
             raise FormsFailed(didnt_answer(e)) from e

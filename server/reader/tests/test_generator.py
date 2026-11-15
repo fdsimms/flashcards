@@ -793,3 +793,42 @@ def test_who_speaks_is_not_asked_of_a_dialogue_and_is_ignored_there() -> None:
     d = _quoted_episode(["Noi"], [NOI], SAY)
     result = run(ScriptedModel(d), TextRequest("food"))
     assert result.speakers == () and [ln.quotes for ln in result.lines] == [(), ()]
+
+
+def test_haiku_is_priced_for_the_cheap_calls() -> None:
+    assert Usage(1_000_000, 1_000_000, model="claude-haiku-5-5").cost_usd() == pytest.approx(0.60)
+
+
+def _client_replying(model: str) -> Any:
+    reply = SimpleNamespace(
+        stop_reason="end_turn",
+        content=[SimpleNamespace(type="text", text="{}")],
+        usage=SimpleNamespace(
+            input_tokens=1,
+            output_tokens=1,
+            cache_read_input_tokens=0,
+            cache_creation_input_tokens=0,
+        ),
+        model=model,
+    )
+    calls: list[dict[str, Any]] = []
+
+    async def create(**kwargs: Any) -> Any:
+        calls.append(kwargs)
+        return reply
+
+    return SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=create))), calls
+
+
+def test_a_text_can_be_asked_of_haiku_without_the_refusal_fallback() -> None:
+    client, calls = _client_replying("claude-haiku-5-5")
+    ask = claude_ask(client, [], "th", "claude-haiku-5-5")
+    asyncio.run(ask([{"role": "user", "content": "x"}]))
+    assert calls[0]["model"] == "claude-haiku-5-5"
+    assert "fallbacks" not in calls[0] and "betas" not in calls[0]
+
+
+def test_a_text_asked_of_sonnet_keeps_the_refusal_fallback() -> None:
+    client, calls = _client_replying("claude-sonnet-5-5")
+    asyncio.run(claude_ask(client, [], "th")([{"role": "user", "content": "x"}]))
+    assert calls[0]["model"] == "claude-sonnet-5-5" and calls[0]["fallbacks"] == "default"
