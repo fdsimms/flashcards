@@ -1,15 +1,15 @@
 // The reader's settings that last between launches: playback speed, whether words outside the
 // deck are highlighted, whether names are shaded, which of the other marks the reader switched off (the key), whether a story with paragraphs is shown as paragraphs, which Thai letters it's drawn in, how big the text is,
 // whether the word being spoken is lit as a line plays (useSpokenWords), and whether the deck list's
-// counts are sent to the server for dundundun (useCountsReport), and whether the check after reading shows its questions' English, and whether a tapped word's meaning waits to be asked for (guessFirst) and, for a word in the deck, behind a multiple-choice question (quizKnown). Pure, so it's tested; storage.ts keeps them in the Keychain.
+// counts are sent to the server for dundundun (useCountsReport), and whether the check after reading shows its questions' English, and whether a tapped word's meaning waits to be asked for (guessFirst) and, for a word in the deck, behind a multiple-choice question (quizKnown), and whether a new text opens with its words hidden until it's been heard through (listenFirst). Pure, so it's tested; storage.ts keeps them in the Keychain.
 import { TEXT_SIZES, THAI_FONTS, type TextSize, type ThaiFont } from './fonts';
 import { HIDEABLE, type HideableMark } from './marks';
 import { RATES } from './playbackRate';
 
-export type Prefs = { rate: number; highlight: boolean; markNames: boolean; paragraphs: boolean; thaiFont: ThaiFont; textSize: TextSize; followWords: boolean; shareCounts: boolean; hiddenMarks: HideableMark[]; checkEnglish: boolean; guessFirst: boolean; quizKnown: boolean };
+export type Prefs = { rate: number; highlight: boolean; markNames: boolean; paragraphs: boolean; thaiFont: ThaiFont; textSize: TextSize; followWords: boolean; shareCounts: boolean; hiddenMarks: HideableMark[]; checkEnglish: boolean; guessFirst: boolean; quizKnown: boolean; listenFirst: boolean };
 
 // Sending counts is a network call nobody tapped for, so it's off until turned on (CLAUDE.md, Data flow).
-export const DEFAULT_PREFS: Prefs = { rate: 0.9, highlight: false, markNames: true, paragraphs: true, thaiFont: 'looped', textSize: 'default', followWords: true, shareCounts: false, hiddenMarks: [], checkEnglish: false, guessFirst: true, quizKnown: false };
+export const DEFAULT_PREFS: Prefs = { rate: 0.9, highlight: false, markNames: true, paragraphs: true, thaiFont: 'looped', textSize: 'default', followWords: true, shareCounts: false, hiddenMarks: [], checkEnglish: false, guessFirst: true, quizKnown: false, listenFirst: false };
 
 // Anything unreadable or out of range falls back to the default for that setting.
 export function parsePrefs(raw: string | null): Prefs {
@@ -33,5 +33,6 @@ export function parsePrefs(raw: string | null): Prefs {
     checkEnglish: typeof saved.checkEnglish === 'boolean' ? saved.checkEnglish : DEFAULT_PREFS.checkEnglish,
     guessFirst: typeof saved.guessFirst === 'boolean' ? saved.guessFirst : DEFAULT_PREFS.guessFirst,
     quizKnown: typeof saved.quizKnown === 'boolean' ? saved.quizKnown : DEFAULT_PREFS.quizKnown,
+    listenFirst: typeof saved.listenFirst === 'boolean' ? saved.listenFirst : DEFAULT_PREFS.listenFirst,
   };
 }

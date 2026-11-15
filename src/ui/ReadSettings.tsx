@@ -33,6 +33,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [followWords, setFollowWords] = useState(prefs().followWords);
+  const [listenFirst, setListenFirst] = useState(prefs().listenFirst);
   const [guessFirst, setGuessFirst] = useState(prefs().guessFirst);
   const [quizKnown, setQuizKnown] = useState(prefs().quizKnown);
   const address = syncServer ? readerAddress(syncServer) : null;
@@ -132,9 +133,19 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
                   setFollowWords(on);
                 }}
               />
+              <SwitchRow
+                label="Listen before reading"
+                value={listenFirst}
+                onValueChange={(on) => {
+                  savePrefs({ listenFirst: on });
+                  setListenFirst(on);
+                }}
+              />
             </Group>
             <Help>
-              While a line plays, the word being read aloud is shaded. Lines recorded before this was added play without it.
+              While a line plays, the word being read aloud is shaded. With Listen before reading on, a new text opens
+              with its words hidden and shows them once every line has played, so you hear it first and read it second.
+              Show the text now skips the wait. Play all and texts you read again open as usual. Lines recorded before this was added play without it.
             </Help>
             <SectionTitle>Meanings</SectionTitle>
             <Group>

@@ -176,6 +176,18 @@ Franki's (Client, below).
   nothing is logged to `readings`, no rating, no check, no difficulty change, no coverage figures, and
   nothing grades a card (`tests/reader/noGrading.test.ts`). Not now hides the card until the shelf is
   opened again; a listen cut short isn't counted, so the text is offered again.
+- **Listen before reading** (15 November 2026, the owner's idea, a setting in Settings, Read & Listen,
+  Listening; off by default). A new text opens with its words hidden, as in Listen only, and the words
+  appear once every line with audio has played to its end (`src/reader/listenFirst.ts`: the lines
+  heard are tracked per text, so playing them one at a time works too, and a line with no sound isn't
+  waited for). The reasoning: hearing a text before reading it is listening practice with no
+  spelling to lean on, and the words then show whether it was understood, which is feedback. It is
+  hard at the 92% coverage target, which is below the 95% the listening research asks for, so it's
+  opt-in and **Show the text now** skips the wait (it is also the way out when a text's audio won't
+  play). It applies only to a new text: a past text has its own Listen without the text, and Play all
+  is unchanged. **It isn't listen-only in the log:** the reading is logged as an ordinary reading
+  (`listen_only` false), since the words are read once they appear. Lookups can only happen after
+  the words show, so effective coverage (`recognition.py`) reflects words met after hearing them.
 - **Guess first** (15 November 2026, the owner chose from a mock). A tap on a word shows its meaning
   only when asked for (Settings, Read & Listen, Meanings, on by default), so the learner tries before
   being told: a word counted as known is recalled, a word outside the deck (or only inside a longer
