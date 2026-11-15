@@ -182,7 +182,7 @@ Franki's (Client, below).
   heard are tracked per text, so playing them one at a time works too, and a line with no sound isn't
   waited for). The reasoning: hearing a text before reading it is listening practice with no
   spelling to lean on, and the words then show whether it was understood, which is feedback. It is
-  hard at the 92% coverage target, which is below the 95% the listening research asks for, so it's
+  hard at the lowest coverage target, 95%, which is what the listening research asks for, so it's
   opt-in and **Show the text now** skips the wait (it is also the way out when a text's audio won't
   play). It applies only to a new text: a past text has its own Listen without the text, and Play all
   is unchanged. **It isn't listen-only in the log:** the reading is logged as an ordinary reading
@@ -734,17 +734,28 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   (`สวัสดี|ครับ ไป|ไหน`), the server keeps it (one beside a `|` is dropped as noise), the reader
   shows it as a gap, and the voice pauses there (Audio). Before this every Thai space was dropped,
   so a two-sentence line was spoken as one run with no pause; texts written then still are.
-- **A target range, not only a floor** (owner's decision, 12 November 2026). The 95% floor with a
-  98% aim gave texts that were nearly all known words, so every dialogue was too easy. The target
-  now starts at 92% (`DEFAULT_FLOOR`, `difficulty.py`) and "too easy" ratings lower it to 90%
-  (`FLOOR`, `coverage.py`), "too hard" raises it to 99%. A text also has a ceiling, `CEILING_GAP`
-  (4 points) above the target, and a draft over it goes back for revision with a message asking for
-  more natural words outside the list, each glossed. A text still over the ceiling after 3 attempts
-  is served anyway (too easy is never a reason to drop one), choosing the attempt closest to the
-  range. The request names the range, and the prompt tells the model to write natural target-language
-  speech rather than word-for-word English idioms. Difficulty is saved under a new key
-  (`difficulty_v2`), so every language restarts at 92% once, rather than staying at an old 95%.
-  The 95% below is the old floor; read it as the target.
+- **A target range, not only a floor** (owner's decision, 12 November 2026; the range moved up on 15
+  November 2026, below). The 95% floor with a 98% aim gave texts that were nearly all known words,
+  so every dialogue was too easy, and the target was lowered to a range starting at 92%. A text has
+  a ceiling, `CEILING_GAP` (4 points) above the target, and a draft over it goes back for revision
+  with a message asking for more natural words outside the list, each glossed. A text still over the
+  ceiling after 3 attempts is served anyway (too easy is never a reason to drop one), choosing the
+  attempt closest to the range. The request names the range, and the prompt tells the model to write
+  natural target-language speech rather than word-for-word English idioms.
+- **The target is 95% to 99%** (15 November 2026, the owner's decision: not to go against the
+  research, which finds 95% the least adequate for reading and, since speech can't be reread, for
+  listening; below it comprehension varied widely). `DEFAULT_FLOOR` and the new `MIN_FLOOR` are 95%
+  (`difficulty.py`): a language starts there, and "too easy" no longer lowers the target, it adds a
+  practice word (up to 4) instead, so an easy text gets harder by carrying more new words, not
+  fewer known ones. "Too hard" still raises it, to 99%. Difficulty is saved under a new key
+  (`difficulty_v3`), so every language restarts at 95% once, rather than staying at an older 92%.
+  **The cost the owner already found:** at 95% to 99% a text can hold very few words the learner
+  hasn't studied, which is why it was lowered on 12 November. The practice words, the grammar
+  points and the guess-first prompt are what keep a text from teaching nothing; if it's too easy,
+  rate it Too easy and the next one carries more practice words. The reader's "fewer than usual"
+  note (`underFloor`) now shows for any text under 95%, which after 3 attempts is the closest one
+  that is still at 85% or more (`MINIMUM`, unchanged: raising it to 90% would drop more texts for
+  cost, and is the owner's call).
 - **Revise rather than regenerate.** A text under the 95% floor goes back to the model with the
   unknown words named ("replace ทอน, กลิ่น"). At most 3 attempts in total.
 - **The closest attempt is kept** (owner's decision, 26 October 2026, so texts don't fail for
@@ -753,7 +764,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   is dropped as before. 90% is where the brief's evidence says listening comprehension already
   varied widely between people. All 3 attempts are still made first, and the prompt asks the model
   to check every word against the list before answering, so most texts meet the floor. The reader
-  notes a text under 90% ("fewer than usual") and offers to highlight the words outside the deck,
+  notes a text under 95% ("fewer than usual") and offers to highlight the words outside the deck,
   each of which has a gloss. Since the texts table records each text's coverage and floor, how
   often this happens can be read from it, and the exit check's median coverage still counts these
   texts as they are.
@@ -1182,7 +1193,7 @@ in the current language, with when one was last read to the end. Nothing else le
 - Per text: date, language, mode, token count, verified coverage, stretch words, words glossed,
   words flagged unknown, rating, audio speed, listen-only or not, time spent.
 - The rating adjusts the difficulty of texts written after it (too hard: coverage target up 1
-  point, one fewer stretch word; too easy: the reverse), within a 90% to 99% target (92% to start) and 1 to 4
+  point, one fewer stretch word; too easy: the reverse), within a 95% to 99% target (95% to start) and 1 to 4
   stretch words (`server/reader/src/franki_reader/difficulty.py`). A text already waiting in a favorite's queue
   keeps the difficulty it was written at, so a rating shows up one text later; the owner chose that
   over discarding queued texts (19 October 2026). The Milestone 1 exit check reads the log.
@@ -1192,7 +1203,7 @@ in the current language, with when one was last read to the end. Nothing else le
   stretch words from the current count as before). Too hard leaves the target at the higher of the
   current one and a step above the text's, and the stretch words at the lower of the current count
   and one below the text's; too easy is the mirror. Before this each rating stepped from the current
-  level, so three texts written ahead at 92% and all rated too hard moved the target three steps
+  level, so three texts written ahead at 95% and all rated too hard moved the target three steps
   before a text at the new level was read. A poor check steps from the text's level the same way.
 - A reading posted twice for the same text (a retried request) is counted once.
 - Each text also records the model that actually answered (a refusal fallback can change it), its

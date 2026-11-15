@@ -108,6 +108,10 @@ constraints.
    > rating moves it between 90% and 99%, and a text more than 4 points above the target is too
    > easy and is revised like one under it. The 90% below became 85%. See `architecture.md`.
 
+   > **Changed on 15 November 2026 by the owner.** Back to the research: the target starts at 95%
+   > and can't go below it ("too easy" adds practice words instead), up to 99%. See
+   > `architecture.md`, Generation and coverage.
+
    > **Changed on 26 October 2026 by the owner.** A text under the floor is still revised, but if
    > no attempt reaches it, the closest attempt is shown when it's at least 90% known words, with a
    > note in the reader. Under 90% is still rejected. See `architecture.md`.

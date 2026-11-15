@@ -1679,7 +1679,9 @@ def clear_word(conn: sqlite3.Connection, word: str, now: datetime) -> None:
 
 # v2: the range moved down on 12 November 2026 (95% was the old lowest target), so a floor saved
 # before it, which can't go below 95%, starts again at the new default rather than staying there.
-_DIFFICULTY_KEY = "difficulty_v2"
+# v3: the range moved up on 15 November 2026 (it can't go below 95% now, and starts there), so a
+# target saved before it starts again at the new default rather than staying at 92%.
+_DIFFICULTY_KEY = "difficulty_v3"
 
 
 def load_difficulty(conn: sqlite3.Connection, language: Code = "th") -> Difficulty:

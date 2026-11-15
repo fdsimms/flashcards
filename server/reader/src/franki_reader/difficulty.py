@@ -7,7 +7,8 @@ Each step is taken from the level the rated text was written at, not the current
 (`after_reading`): texts written ahead at the old level don't stack their ratings, so three of
 them rated "too hard" move the target one step, as one would.
 
-The coverage target stays between FLOOR and 99%, and stretch words within 1 to 4. A text must land
+The coverage target stays between MIN_FLOOR (95%, the least the research says reading and listening
+need) and 99%, and stretch words within 1 to 4. A text must land
 between the target and CEILING_GAP above it: one with more known words than that is too easy and
 is revised, which the 95% floor alone never caught.
 """
@@ -15,11 +16,15 @@ is revised, which the 95% floor alone never caught.
 from dataclasses import dataclass, replace
 from typing import TypeVar
 
-from franki_reader.coverage import CEILING_GAP, FLOOR
+from franki_reader.coverage import CEILING_GAP
 from franki_reader.grammar import UNSET_USES
 
-# Where a new language starts: about 1 word in 12 new to the learner.
-DEFAULT_FLOOR = 0.92
+# Where a new language starts, and the lowest the target goes: about 1 word in 20 new to the learner.
+# 95% is the least known-word coverage the research finds adequate for reading, and for listening
+# (which can't be reread); below it comprehension varies widely (docs/read-and-listen/brief.md,
+# Evidence base). A "too easy" rating adds stretch words rather than lowering it.
+DEFAULT_FLOOR = 0.95
+MIN_FLOOR = 0.95
 MAX_FLOOR = 0.99
 FLOOR_STEP = 0.01
 MIN_STRETCH = 1
@@ -58,7 +63,7 @@ def adapt(current: Difficulty, rating: str | None) -> Difficulty:
     if rating == "too_easy":
         return replace(
             current,
-            floor=round(max(FLOOR, current.floor - FLOOR_STEP), 2),
+            floor=round(max(MIN_FLOOR, current.floor - FLOOR_STEP), 2),
             stretch=min(MAX_STRETCH, current.stretch + 1),
         )
     return current
