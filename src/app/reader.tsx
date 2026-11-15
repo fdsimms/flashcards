@@ -36,7 +36,7 @@ export default function ReaderRoute() {
       mining={language && deck ? {
         language,
         deck,
-        onAdd: (entry, meaning) => new Promise<boolean>((resolve) => openNoteEditor(minedNote(entry, meaning, deck), (result) => {
+        onAdd: (entry, meaning, pronunciation) => new Promise<boolean>((resolve) => openNoteEditor(minedNote(entry, meaning, deck, pronunciation), (result) => {
           resolve(!!result && 'saved' in result);
         })),
       } : undefined}

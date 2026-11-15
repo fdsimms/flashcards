@@ -11,7 +11,7 @@ import { marksIn, withMark, type HideableMark, type Mark } from '../reader/marks
 import { scrollTarget, type Box } from '../reader/follow';
 import { helperNote } from '../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../reader/fonts';
-import { LANGUAGES, meaningOf, wordStatus } from '../reader/languages';
+import { LANGUAGES, ipaNote, meaningOf, wordStatus } from '../reader/languages';
 import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf, repeatChipLabel } from '../reader/playback';
 import { RATES } from '../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, type LengthStep } from '../reader/shelf';
@@ -28,6 +28,7 @@ import { ReadRecap } from './ReadRecap';
 import { Pop, Reveal } from './motion';
 import { LineExplanation } from './ReaderExplain';
 import { RegisterChip } from './ReaderNatural';
+import { ReadWordTitle } from './ReadWordTitle';
 import { PhraseExplanation, PhrasePickBanner, type PhraseAnchor, type PhraseMining } from './ReaderPhrase';
 import { ReadChoices } from './ReadChoices';
 import { CheckCard, ReaderCheck } from './ReaderCheck';
@@ -1175,7 +1176,7 @@ export function Reader({ api, source, settings, onSettings, onPlayWord, onNext, 
           // The popover is a modal, so it closes before the note editor opens over the reader.
           const word = tapped.word.text;
           setTapped(null);
-          void mining.onAdd(word, tapped.word.gloss ?? "").then((saved) => {
+          void mining.onAdd(word, tapped.word.gloss ?? "", tapped.word).then((saved) => {
             // In the deck now, so no longer marked unknown.
             if (saved) setSession((s) => (s && isFlagged(s, word) ? toggleFlag(s, word) : s));
           });
@@ -1320,6 +1321,7 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
   const [typing, setTyping] = useState(false);
   useEffect(() => { setPopHeight(0); setShowTranslit(false); setShowForm(false); setRevealed(false); setGuess(''); setPicked(null); setTyping(false); }, [tapped]);
   if (!tapped) return null;
+  const ipaLine = ipaNote(tapped.word);
   if (showForm && language && tapped.word.form) return <ReadFormSheet api={api} language={language} word={tapped.word} onClose={onClose} />;
   const popWidth = Math.min(POPOVER_WIDTH, width - 2 * space.l);
   const left = Math.min(Math.max(tapped.x - 40, space.l), width - popWidth - space.l);
@@ -1364,7 +1366,7 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
       >
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
           <View style={{ flex: 1, gap: space.xs }}>
-            <Text style={{ ...type.title, color: c.text }}>{tapped.word.text}</Text>
+            <ReadWordTitle text={tapped.word.text} pronunciation={tapped.word} />
             {trying ? (
               <GuessPrompt
                 mode={mode}
@@ -1394,7 +1396,10 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
                 {tapped.word.form && language ? <ReadFormChip name={tapped.word.form.name} onPress={() => setShowForm(true)} /> : null}
                 {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
                 <ReadFrequency word={tapped.word} />
-                <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
+                <Text style={{ ...type.footnote, color: c.textSecondary }}>
+                  {wordStatus(tapped.word)}
+                  {ipaLine ? <Text style={tapped.word.ipa_source === 'ai' ? { color: c.warning } : undefined}>{` · ${ipaLine}`}</Text> : null}
+                </Text>
               </>
             )}
           </View>

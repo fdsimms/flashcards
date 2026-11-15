@@ -501,6 +501,8 @@ def test_marked_words_are_listed_with_glosses_until_cleared() -> None:
     ]
     assert words[0]["gloss"] == "polite particle (male)"
     assert words[0]["deck"] is True
+    # A marked word carries its IPA like a token in a text does.
+    assert words[0]["ipa"] and words[0]["ipa_source"] == "wiktionary"
 
     assert c.post("/api/words/clear", json={"word": "ครับ"}, headers=AUTH).status_code == 204
     assert [w["word"] for w in c.get("/api/words", headers=AUTH).json()] == ["ข้าวเหนียวมะม่วง"]

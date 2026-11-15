@@ -76,6 +76,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
             Texts are written on your Anki sync server, which sends the words in those decks to Claude and the lines to
             Azure for audio. Nothing goes anywhere until you turn this on.
           </Help>
+          <Help>Pronunciations (IPA) come from Wiktionary, under the Creative Commons BY-SA 4.0 license. Where Wiktionary has none, Claude writes it and the app labels it as written by AI.</Help>
         </Card>
         {notice ? <Text style={{ ...type.subhead, color: c.warning }}>{notice}</Text> : null}
         {!address ? (

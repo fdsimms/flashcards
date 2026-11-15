@@ -190,6 +190,8 @@ def test_a_japanese_text_renders_with_readings_lemmas_and_glosses() -> None:
         "parts": None,
         "lemma": "約束を破る",
         "translit": "やくそくをやぶった",
+        "ipa": "/jakɯsokɯojabɯtta/",
+        "ipa_source": "rules",
         "stretch": True,
         "deck": True,
         "wanikani": False,
