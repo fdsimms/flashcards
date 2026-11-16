@@ -142,6 +142,8 @@ def test_logging_a_reading() -> None:
             "words_flagged": ["ครับ"],
             "audio_speed": 0.8,
             "seconds": 95,
+            "quiz_right": ["กิน"],
+            "quiz_wrong": ["ครับ"],
         },
         headers=AUTH,
     )
@@ -1050,6 +1052,8 @@ def test_a_story_is_started_and_its_episodes_are_listed_once_read() -> None:
     assert (story["title"], story["about"], story["read"]) == ("Noi's stall", "a noodle stall", 0)
     episode = story["next"]
     assert episode["episode"] == 1 and episode["reason"] == "story"
+    # The card places the episode in its season, with the season's length.
+    assert (story["season"], story["season_episode"], story["season_length"]) == (1, 1, 8)
     full = c.get(f"/api/texts/{episode['id']}", headers=AUTH).json()
     assert full["topic"] == "Noi's stall"
     # The card carries its practice words as the reader draws them, to open their popovers.

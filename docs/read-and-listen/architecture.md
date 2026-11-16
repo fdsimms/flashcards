@@ -61,6 +61,10 @@ Franki's (Client, below).
   line again or rereading a past text costs nothing. It only shows text: nothing is graded or added
   to the deck. Each call's cost is kept with it and reported under `explanations` in `/api/costs`,
   apart from the texts' figures. A free-form "Ask a question" and a per-word explanation were left out for now.
+  **Explain is in English** (16 November 2026: the prompts say so outright, since a Russian line got Russian notes). Settings,
+  Read & Listen, Explain in the language (off by default) asks for the notes in the language being read, in simple words, for practice;
+  a phrase's meaning and literal stay English. The app sends `in_language`; the answer is kept under its own version
+  (`simple` 1, `in_language` 2, both 3), so neither overwrites the other.
   Under the explanation, the grammar points the finders find in the line show as chips that can be
   set to Practice, Know it or Don't know it there (docs/grammar.md, step 3).
 - **Explain a phrase** (12 November 2026, by the owner's decision, for idioms and set phrases like
@@ -201,18 +205,22 @@ Franki's (Client, below).
   don't count toward the 1, 4 and 10 day Listen again schedule, which starts the day after.
 - **Guess first** (15 November 2026, the owner chose from a mock). A tap on a word shows its meaning
   only when asked for (Settings, Read & Listen, Meanings, on by default), so the learner tries before
-  being told: a word counted as known is recalled, a word outside the deck (or only inside a longer
-  phrase) is worked out from the line, with an optional box for a typed guess that is shown beside the
-  meaning and never graded, kept or sent. The hint is "Try to remember it first." or "Guess from the
-  line first."; a name and a word with no meaning to show open as before (`src/reader/guess.ts`,
+  being told: a word counted as known is recalled. **A word outside the deck (or only inside a longer
+  phrase) shows its meaning at once** (16 November 2026): it first asked for a guess from the line,
+  with a box for a typed one, and the owner found being made to guess before looking up annoying.
+  The hint is "Try to remember it first."; a name and a word with no meaning to show open as before (`src/reader/guess.ts`,
   `ReadWordGuess.tsx`). A second setting, **Quiz me on words I know** (off by default, shown with the
   first), replaces the Show meaning row on a known word with four choices (its meaning and three other
-  glosses from the text, as the check after reading builds them) and I don't know: a right answer closes
-  the popover, a wrong one or I don't know shows the meaning, with the right choice and a wrong pick
-  marked. A text with fewer than three other glosses has no quiz. **A lookup is logged when the meaning
+  glosses from the text, as the check after reading builds them) and I don't know: any answer keeps
+  the popover open with the choices as a record, the right one marked "Right" (springing in, with a
+  check and a haptic) or "Meaning" and a wrong pick marked "Your pick" (16 November 2026, the owner:
+  a right answer used to close it, so the meaning was never seen). A text with fewer than three other glosses has no quiz. **A lookup is logged when the meaning
   is shown**, not at the tap (`Session.glossed`), so a word recalled isn't counted as looked up, which
   keeps effective coverage (`recognition.py`) honest; marking a word unknown shows its meaning too.
-  A right quiz answer logs nothing. Nothing is graded or added to the deck, and a card's example
+  A right quiz answer is no lookup, but every answer is kept on the reading, by word, as
+  `quiz_right` and `quiz_wrong` (`Session.quizRight`, `readings.quiz_right`; the latest answer to a
+  word wins), a record only: nothing reads it yet, and a wrong one or I don't know is also a lookup.
+  Nothing is graded or added to the deck, and a card's example
   sentence and the shelf's practice-word popovers are unchanged.
 - The reader's playback speed and the highlight switch are kept between launches, in the Keychain
   next to the passphrase (`src/reader/storage.ts`).
@@ -1163,7 +1171,8 @@ next episode is the top of the shelf.
   in Past texts, listed first to last by Read from the start.
 - **Continuity is carried in words, not in the conversation.** The first episode's request asks the
   model to invent two to four named characters and a place, and to return the story's name
-  (`series`) and its cast and setting (`cast`) beside the text. Every episode returns one sentence
+  (`series`, in the text's language like a title, so the shelf card reads in the language being
+  learned; a story named before this keeps its English name) and its cast and setting (`cast`) beside the text. Every episode returns one sentence
   about what happened in it (`recap`, on the text). Each later episode's request names the story,
   the cast, and the last 12 recaps (`STORY_RECAPS`), so the request stays short however long the
   story runs. All three fields are optional in the reply's schema and asked for only in a story's
@@ -1200,6 +1209,9 @@ next episode is the top of the shelf.
   same cast and a new problem, and is sent no plan. Every episode's request also says to open in the
   new scene, not retell what happened or repeat a beat from the last episodes. A story that was
   already running has no plan until its next episode writes one.
+  The shelf's story sends where the card's episode falls (`season`, `season_episode`, `season_length`),
+  and the card shows it under the story's name ("Season 2 · Episode 8 of 8 · Finale"); an older server
+  sends none and the card keeps its running episode number.
 - **Not the container plot** (added 14 November 2026). With a small vocabulary nearly every text was
   someone opening a box or drawer, finding something, and a stranger arriving to explain it. Every
   request, dialogues included, now says that plot is overused unless the topic is about it, and to

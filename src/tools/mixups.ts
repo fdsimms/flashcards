@@ -8,7 +8,7 @@ import type { Language } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 
 /**
- * Words you mix up: telling apart words from the learner's own decks that are easy to confuse.
+ * Similar words: telling apart words from the learner's own decks that are easy to confuse.
  * Two ways to ask:
  * - **By meaning**: a meaning, and the word for it among its lookalikes (esperar, esperanza,
  *   espera), from the same links that keep lookalikes apart in Review (lookalikes.ts).

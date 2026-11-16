@@ -169,7 +169,7 @@ export const TOOLS: ToolInfo[] = [
   {
     // Lookalikes and sound-alikes from the learner's own decks (mixups.ts). Every language: a deck with none says so.
     id: 'mixups',
-    title: 'Words you mix up',
+    title: 'Similar words',
     summary: 'Tell apart look-alikes and sound-alikes from your decks.',
     languages: TOOL_LANGUAGES,
   },
@@ -229,7 +229,7 @@ export const TOOLS: ToolInfo[] = [
     // The grammar points in a language: read about one, and practice it (docs/grammar.md, steps 4 and 5).
     id: 'grammar',
     title: 'Grammar',
-    summary: "Read about a point, then practice it.",
+    summary: "Read about a grammar point, then practice it.",
     languages: TOOL_LANGUAGES.filter((l) => grammarPointsFor(l).length > 0),
   },
 ];

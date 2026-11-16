@@ -330,7 +330,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
             onPress={() => answer('skipped')}
             accessibilityRole="button"
             accessibilityLabel="I don't know this word"
-            style={{ minHeight: 52, justifyContent: 'center', alignItems: 'center', paddingHorizontal: space.l, paddingVertical: space.m, borderRadius: radius.m, ...smooth, backgroundColor: c.accentFill }}
+            style={{ minHeight: 52, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.l, paddingVertical: space.m, borderRadius: radius.m, ...smooth, backgroundColor: c.accentFill }}
           >
             <Text style={{ ...type.body, color: c.accent, fontWeight: '600' }}>I don't know this word</Text>
           </Tappable>
