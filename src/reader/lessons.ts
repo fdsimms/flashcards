@@ -2,7 +2,7 @@
 // its player say about a lesson, and the arithmetic of the player's skip buttons. A lesson is made
 // by the server in the background and played as one MP3; nothing here grades a card or writes a
 // note. Pure, so it's tested.
-import type { AudioLesson, Language } from './api';
+import type { AudioLesson, Language, LessonStage } from './api';
 
 /** The languages the server makes lessons in (server lesson_service.LESSON_LANGUAGES): the shelf offers lessons only in these. */
 export const LESSON_LANGUAGES: readonly Language[] = ['fr'];
@@ -45,9 +45,24 @@ export function shortDate(iso: string): string {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+/** What a lesson being made goes through, in order, as the list says it. */
+export const LESSON_STAGES: readonly { stage: LessonStage; label: string }[] = [
+  { stage: 'writing', label: 'Writing the phrases' },
+  { stage: 'recording', label: 'Recording the voices' },
+  { stage: 'joining', label: 'Joining the audio' },
+];
+
+export type StageStep = { label: string; status: 'done' | 'now' | 'todo' };
+
+/** The steps with where the lesson is: those before its stage done, its own now, the rest to come. A missing or unknown stage is the first. */
+export function stageSteps(stage: LessonStage | undefined): StageStep[] {
+  const at = Math.max(0, LESSON_STAGES.findIndex((s) => s.stage === stage));
+  return LESSON_STAGES.map((s, i) => ({ label: s.label, status: i < at ? 'done' : i === at ? 'now' : 'todo' }));
+}
+
 /** The line under a lesson's name in the list: how it's going, why it failed, or what it holds. */
 export function lessonDetail(lesson: AudioLesson): string {
-  if (lesson.state === 'making') return 'Making it. This takes about a minute.';
+  if (lesson.state === 'making') return stageSteps(lesson.stage).find((s) => s.status === 'now')!.label + '.';
   if (lesson.state === 'failed') return lesson.error || "Couldn't make this lesson. Try again.";
   const minutes = Math.max(1, Math.round(lesson.duration_ms / 60_000));
   const n = lesson.phrases.length;

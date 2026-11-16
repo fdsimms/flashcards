@@ -63,6 +63,22 @@ def test_speaks_each_distinct_clip_once() -> None:
     assert out.duration_ms == 6 + 10 + 3 + 10 + 6
 
 
+def test_says_when_the_clips_are_spoken_and_joining_starts() -> None:
+    fakes = Fakes()
+    spoken_at_joining: list[int] = []
+    asyncio.run(
+        render(
+            [Say("narrator", "Hi."), Say("male", "Salut.")],
+            fakes.speak,
+            decode=fakes.decode,
+            encode=fakes.encode,
+            level_clip=fakes.level,
+            on_joining=lambda: spoken_at_joining.append(len(fakes.spoken)),
+        )
+    )
+    assert spoken_at_joining == [2]
+
+
 def test_the_same_words_in_two_voices_are_two_clips() -> None:
     fakes = Fakes()
     steps: list[Step] = [Say("male", "Oui."), Say("female", "Oui.")]

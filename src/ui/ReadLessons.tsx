@@ -5,6 +5,7 @@ import { azureVoiceName } from '../core/voices';
 import { LANGUAGES } from '../reader/languages';
 import { anyMaking, lessonDetail, POLL_MS } from '../reader/lessons';
 import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen } from './kit';
+import { LessonMakingRow } from './LessonMakingRow';
 import { space, useTheme, readable } from './theme';
 
 /**
@@ -117,14 +118,17 @@ export function ReadLessons({ api, language, narrator, defaultNarrator, onNarrat
           <Group>
             {lessons.map((l, i) => (
               <View key={l.id}>
-                <NavRow
-                  first={i === 0}
-                  label={l.title}
-                  detail={lessonDetail(l)}
-                  disabled={l.state === 'making'}
-                  onPress={() => (l.state === 'ready' ? onOpen(l) : confirmDelete(l))}
-                  action={l.state === 'failed' ? { icon: 'trash', label: `Delete ${l.title}`, onPress: () => confirmDelete(l) } : undefined}
-                />
+                {l.state === 'making' ? (
+                  <LessonMakingRow lesson={l} first={i === 0} />
+                ) : (
+                  <NavRow
+                    first={i === 0}
+                    label={l.title}
+                    detail={lessonDetail(l)}
+                    onPress={() => (l.state === 'ready' ? onOpen(l) : confirmDelete(l))}
+                    action={l.state === 'failed' ? { icon: 'trash', label: `Delete ${l.title}`, onPress: () => confirmDelete(l) } : undefined}
+                  />
+                )}
               </View>
             ))}
           </Group>

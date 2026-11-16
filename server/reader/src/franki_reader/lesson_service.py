@@ -30,7 +30,7 @@ LESSON_LANGUAGES: tuple[Code, ...] = ("fr",)
 Voices = Callable[[Code], dict[str, str]]
 # Speaks text in a voice and a locale, as an MP3 (Engine.synthesize, without the word timings).
 Synthesize = Callable[[str, str, str], Awaitable[bytes]]
-Renderer = Callable[[list[lesson.Step], Speak], Awaitable[Rendered]]
+Renderer = Callable[..., Awaitable[Rendered]]
 
 
 _NARRATOR = re.compile(r"en-[A-Za-z]{2,4}-[A-Za-z0-9]+")
@@ -87,8 +87,13 @@ async def make_lesson(
         return
     steps = lesson.build_script(plan)
     chars = 0
+    store.set_lesson_stage(conn, lesson_id, "recording")
     try:
-        rendered = await renderer(steps, speaker(language, voices, synthesize, narrator))
+        rendered = await renderer(
+            steps,
+            speaker(language, voices, synthesize, narrator),
+            on_joining=lambda: store.set_lesson_stage(conn, lesson_id, "joining"),
+        )
         # Azure billed each distinct clip once, though not if it failed part way.
         chars = sum(billed_chars(c.text) for c in lesson.clips(steps))
         path = audio_path(lessons_dir, lesson_id)

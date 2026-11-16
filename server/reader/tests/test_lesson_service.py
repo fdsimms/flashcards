@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -66,9 +67,13 @@ class Fakes:
         self.spoken.append((text, voice, locale))
         return text.encode()
 
-    async def renderer(self, steps: list[Step], speak: Speak) -> Rendered:
+    async def renderer(
+        self, steps: list[Step], speak: Speak, on_joining: Callable[[], None] | None = None
+    ) -> Rendered:
         for clip in lesson.clips(steps):
             await speak(clip)
+        if on_joining is not None:
+            on_joining()
         return Rendered(b"MP3DATA", 123_000)
 
 
@@ -168,11 +173,47 @@ def test_a_lesson_claude_cannot_write_fails_with_its_reason(tmp_path: Path) -> N
     assert store.lesson_spending(conn, datetime(2026, 11, 1))[0]["fr"][0] == 1
 
 
+def test_the_stage_follows_the_lesson_from_writing_to_joining(tmp_path: Path) -> None:
+    conn = store.connect(":memory:")
+    seen: list[str] = []
+
+    async def write(language: str, scene: str, feedback: str) -> tuple[Any, Usage]:
+        seen.append(_stage(conn))
+        return good_plan(), USAGE
+
+    fakes = Fakes()
+
+    async def renderer(steps: list[Step], speak: Speak, on_joining: Any = None) -> Rendered:
+        seen.append(_stage(conn))
+
+        def joining() -> None:
+            on_joining()
+            seen.append(_stage(conn))
+
+        return await fakes.renderer(steps, speak, joining)
+
+    run(conn, fakes, tmp_path, write=write, renderer=renderer)
+    assert seen == ["writing", "recording", "joining"]
+
+
+def _stage(conn: Any) -> str:
+    return store.lessons(conn)[0].stage
+
+
+def test_a_stage_is_not_set_on_a_lesson_that_has_finished(tmp_path: Path) -> None:
+    conn = store.connect(":memory:")
+    lesson_id = store.add_lesson(conn, "fr", "one", NOW)
+    store.fail_lesson(conn, lesson_id, "x")
+    store.set_lesson_stage(conn, lesson_id, "joining")
+    kept = store.get_lesson(conn, lesson_id)
+    assert kept is not None and kept.stage == "writing"
+
+
 def test_a_failure_to_speak_fails_the_lesson_and_keeps_no_file(tmp_path: Path) -> None:
     conn = store.connect(":memory:")
     fakes = Fakes()
 
-    async def renderer(steps: list[Step], speak: Speak) -> Rendered:
+    async def renderer(steps: list[Step], speak: Speak, on_joining: Any = None) -> Rendered:
         raise TtsFailed("Azure answered 429")
 
     lesson_id = run(conn, fakes, tmp_path, renderer=renderer)
@@ -186,7 +227,7 @@ def test_a_failure_to_speak_fails_the_lesson_and_keeps_no_file(tmp_path: Path) -
 def test_a_failure_in_ffmpeg_says_so(tmp_path: Path) -> None:
     conn = store.connect(":memory:")
 
-    async def renderer(steps: list[Step], speak: Speak) -> Rendered:
+    async def renderer(steps: list[Step], speak: Speak, on_joining: Any = None) -> Rendered:
         raise LessonAudioFailed("ffmpeg isn't installed on the server, so a lesson can't be made.")
 
     lesson_id = run(conn, Fakes(), tmp_path, renderer=renderer)
