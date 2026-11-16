@@ -1195,7 +1195,10 @@ next episode is the top of the shelf.
   (`recap_line`, `recap_english`), which stays what the next episode's request carries. The shelf
   sends it as words (`last_recap_line`), and the card shows them to tap, with the English behind
   Show English, hidden again each time the shelf is left. An episode written before it shows the
-  English recap.
+  English recap. The line must carry the recap's main event and who did it (16 November 2026):
+  told it could be "simpler than the recap", the model kept filler and dropped the event ("the man
+  knows where the temple is"), and the English shown is that line's own translation, so the card
+  read as a worse recap than the one stored.
 
 - **Seasons** (added 14 November 2026). Episodes of one story kept replaying the last one (the same
   characters doing the same thing with a new stranger), because the request only said "something new
