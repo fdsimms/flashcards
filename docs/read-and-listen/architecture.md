@@ -1212,6 +1212,8 @@ next episode is the top of the shelf.
   The shelf's story sends where the card's episode falls (`season`, `season_episode`, `season_length`),
   and the card shows it under the story's name ("Season 2 · Episode 8 of 8 · Finale"); an older server
   sends none and the card keeps its running episode number.
+  Every shelf text also sends `created_at` (when it was written, with its UTC offset), and the story
+  card ends its detail line with "Released Nov 16"; an older server sends none and the line stays as it was.
 - **Not the container plot** (added 14 November 2026). With a small vocabulary nearly every text was
   someone opening a box or drawer, finding something, and a stranger arriving to explain it. Every
   request, dialogues included, now says that plot is overused unless the topic is about it, and to
