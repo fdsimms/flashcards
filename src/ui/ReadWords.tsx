@@ -74,8 +74,8 @@ export function ReadWords({ api, mining }: {
                     <Text style={{ ...type.body, color: c.text }}>{meaningOf(w)}</Text>
                     <Text style={{ ...type.footnote, color: c.textSecondary }}>
                       {wordStatus(w)}{w.times > 1 ? `. Marked ${w.times} times.` : ''}
-                      {ipaNote(w) ? <Text style={w.ipa_source === 'ai' ? { color: c.warning } : undefined}>{` ${ipaNote(w)}.`}</Text> : null}
                     </Text>
+                    {ipaNote(w) ? <Text style={{ ...type.footnote, color: w.ipa_source === 'ai' ? c.warning : c.textSecondary }}>{ipaNote(w)}</Text> : null}
                   </View>
                   <View style={{ gap: space.s }}>
                     {mining && !w.deck ? (

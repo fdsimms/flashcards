@@ -193,5 +193,5 @@ export function parseVoiceSettings(json: string | null | undefined): VoiceSettin
 
 /** An Azure voice's own name, from its id: th-TH-PremwadeeNeural is Premwadee. */
 export function azureVoiceName(voice: string): string {
-  return voice.replace(/^[a-z]{2,3}-[A-Z]{2}-/, '').replace(/(Multilingual)?Neural$/, '') || voice;
+  return voice.replace(/^[a-z]{2,3}-[a-z]{2}-/i, '').replace(/(Multilingual)?Neural$/, '') || voice;
 }

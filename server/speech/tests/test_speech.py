@@ -106,6 +106,12 @@ def test_a_name_that_isnt_a_voice_says_so() -> None:
         locale_of("Niwat")
 
 
+def test_a_voice_listed_with_a_lowercase_locale_speaks_that_locale() -> None:
+    voice = "en-au-cyanspark:DragonHDOmniLatestNeural"
+    assert locale_of(voice) == "en-AU"
+    assert "xml:lang='en-AU'" in ssml("Hello", voice)
+
+
 async def no_sleep(seconds: float) -> None:
     waits.append(seconds)
 

@@ -90,6 +90,7 @@ describe('parseNarrator', () => {
   it('keeps an English voice', () => {
     expect(parseNarrator('en-GB-RyanNeural')).toBe('en-GB-RyanNeural');
     expect(parseNarrator(' en-US-AvaMultilingualNeural ')).toBe('en-US-AvaMultilingualNeural');
+    expect(parseNarrator('en-au-cyanspark:DragonHDOmniLatestNeural')).toBe('en-au-cyanspark:DragonHDOmniLatestNeural');
   });
   it('is empty, meaning the server\'s own, for nothing or anything else', () => {
     expect(parseNarrator(null)).toBe('');

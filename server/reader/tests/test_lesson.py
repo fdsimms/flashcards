@@ -21,6 +21,9 @@ PLAN = Plan(
     phrases=(CAFE, PLEASE, BILL, WATER),
 )
 
+MIX = phrase("L'addition, un café.", "The check, a coffee.")
+PLAN_WITH_MIXES = Plan(PLAN.title, PLAN.scene, PLAN.dialogue, PLAN.phrases, (MIX,))
+
 
 def raw_phrase(text: str, english: str, parts: list[str]) -> dict[str, object]:
     return {"text": text, "english": english, "parts": parts}
@@ -63,6 +66,23 @@ class TestCleanPhrase:
         )
 
 
+KNOWN = {"je", "voudrais", "un", "café", "l'addition"}
+
+
+class TestCleanMix:
+    def test_keeps_a_sentence_made_only_of_known_words(self) -> None:
+        mix = lesson.clean_mix({"text": "Je voudrais l'addition.", "english": "x"}, KNOWN)
+        assert mix == Phrase("Je voudrais l'addition.", "x", ("Je voudrais l'addition.",))
+
+    def test_drops_a_sentence_with_a_new_word(self) -> None:
+        assert lesson.clean_mix({"text": "Je voudrais un thé.", "english": "x"}, KNOWN) is None
+
+    def test_drops_a_malformed_sentence(self) -> None:
+        assert lesson.clean_mix({"text": "Je voudrais"}, KNOWN) is None
+        assert lesson.clean_mix("Je voudrais", KNOWN) is None
+        assert lesson.clean_mix({"text": "...", "english": "x"}, KNOWN) is None
+
+
 class TestCleanPlan:
     def good(self) -> dict[str, object]:
         return {
@@ -90,6 +110,27 @@ class TestCleanPlan:
             "Je voudrais un café.",
         ]
         assert len(plan.dialogue) == 2
+
+    def test_keeps_mixes_made_of_taught_words_only(self) -> None:
+        raw = self.good()
+        raw["mixes"] = [
+            {"text": "Merci, je voudrais un café.", "english": "Thanks, I'd like a coffee."},
+            {"text": "Merci pour le thé.", "english": "Thanks for the tea."},
+            {"text": "Merci.", "english": "Thank you."},  # a phrase already taught
+        ]
+        plan = lesson.clean_plan(raw, "s")
+        assert plan is not None
+        assert [m.text for m in plan.mixes] == ["Merci, je voudrais un café."]
+
+    def test_a_plan_with_no_usable_mixes_is_still_kept(self) -> None:
+        plan = lesson.clean_plan({**self.good(), "mixes": "nope"}, "s")
+        assert plan is not None and plan.mixes == ()
+
+    def test_caps_the_mixes(self) -> None:
+        raw = self.good()
+        raw["mixes"] = [{"text": f"Merci {'merci ' * i}café.", "english": "x"} for i in range(1, 8)]
+        plan = lesson.clean_plan(raw, "s")
+        assert plan is not None and len(plan.mixes) == lesson.MAX_MIXES
 
     def test_needs_three_kept_phrases(self) -> None:
         raw = self.good()
@@ -162,13 +203,42 @@ def said(steps: list[lesson.Step], voice: str) -> list[str]:
 
 
 class TestBuildScript:
-    def test_opens_and_closes_on_the_dialogue(self) -> None:
+    def test_opens_on_the_dialogue_and_ends_the_lesson(self) -> None:
         steps = lesson.build_script(PLAN)
         assert steps[0] == Say("narrator", "At the café. Listen to this conversation.")
         assert steps[2] == Say("male", "Bonjour, vous désirez ?")
         assert steps[4] == Say("female", "Je voudrais un café.")
         assert steps[-1] == Say("narrator", "That's the end of the lesson.")
-        assert Say("narrator", "Now listen to the conversation again.") in steps
+
+    def test_closes_with_the_learner_taking_the_first_speakers_part(self) -> None:
+        steps = lesson.build_script(PLAN)
+        start = steps.index(
+            Say("narrator", "Now take part in the conversation. You are the first speaker.")
+        )
+        tail = steps[start:]
+        cue = tail.index(Say("narrator", "You say: Hello, what would you like?"))
+        gap = tail[cue + 1]
+        assert isinstance(gap, Silence) and gap.ms >= lesson.PAUSE_MIN_MS
+        assert tail[cue + 2] == Say("male", "Bonjour, vous désirez ?")
+        # The other speaker's line is played with no cue and no answer to wait for.
+        assert Say("female", "Je voudrais un café.") in tail
+        assert Say("narrator", "You say: I'd like a coffee.") not in tail
+
+    def test_asks_each_mix_after_every_phrase_is_taught_and_before_the_role_play(self) -> None:
+        steps = lesson.build_script(PLAN_WITH_MIXES)
+        asked = steps.index(Say("narrator", "How do you say: The check, a coffee."))
+        last_taught = max(
+            i for i, s in enumerate(steps) if s == Say("narrator", "That means: A jug of water.")
+        )
+        role = steps.index(
+            Say("narrator", "Now take part in the conversation. You are the first speaker.")
+        )
+        assert last_taught < asked < role
+        assert steps[asked + 2] == Say("male", MIX.text)
+
+    def test_a_plan_without_mixes_has_no_mix_introduction(self) -> None:
+        steps = lesson.build_script(PLAN)
+        assert not any(isinstance(s, Say) and "put them together" in s.text for s in steps)
 
     def test_teaches_each_phrase_in_order_before_the_next(self) -> None:
         steps = lesson.build_script(PLAN)
@@ -207,7 +277,7 @@ class TestBuildScript:
         asked = steps.index(Say("narrator", "How do you say: Please."))
         assert asked > taught
         between = [s for s in steps[taught:asked] if isinstance(s, Say) and s.voice == "narrator"]
-        assert [s.text for s in between] == ["That means: Please.", "Repeat after me."]
+        assert [s.text for s in between] == ["That means: Please.", "Listen and repeat."]
 
     def test_earlier_phrases_come_back_at_widening_gaps(self) -> None:
         steps = lesson.build_script(PLAN)

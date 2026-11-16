@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GrammarList, ShelfText } from '../../src/reader/api';
-import { cardDetail, modelLabel, shelfDetail, grammarStepNote, hasPracticeRoom, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, seasonLabel, stepGrammarUses, stepLength, surprisePick } from '../../src/reader/shelf';
+import { cardDetail, modelLabel, shelfDetail, grammarStepNote, hasPracticeRoom, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, seasonLabel, stepGrammarUses, stepLength, storyDetail, surprisePick } from '../../src/reader/shelf';
 
 const text = (over: Partial<ShelfText> = {}): ShelfText => ({
   id: 1, title: 'At the stall', topic: 'Food stall', topic_id: 1, form: 'dialogue', lines: 8,
@@ -22,6 +22,13 @@ describe('the shelf', () => {
     expect(modelLabel({})).toBeNull();
     expect(shelfDetail(text({ form: 'dialogue', lines: 8, model: 'claude-haiku-5-5' }))).toBe('Dialogue · 8 lines · 3 min · Haiku');
     expect(shelfDetail(text({ form: 'dialogue', lines: 8 }))).toBe('Dialogue · 8 lines · 3 min');
+  });
+
+  it('adds the release date to the story card, and nothing from a server that does not send one', () => {
+    const story = { form: 'story' as const, lines: 12, model: 'claude-sonnet-5-5' };
+    expect(storyDetail({ ...story, created_at: '2026-11-16T12:00' })).toBe('Story · 12 lines · 4 min · Sonnet · Released Nov 16');
+    expect(storyDetail({ ...story, created_at: null })).toBe('Story · 12 lines · 4 min · Sonnet');
+    expect(storyDetail(story)).toBe('Story · 12 lines · 4 min · Sonnet');
   });
 
   it('says why each text is there', () => {

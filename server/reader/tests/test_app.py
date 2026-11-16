@@ -971,6 +971,8 @@ def test_a_text_is_written_by_the_model_asked_for_and_the_shelf_says_which() -> 
     shelf = shelf_settled(c, 1)
     assert model.models_seen == ["claude-haiku-5-5"]
     assert shelf["texts"][0]["model"]  # what the API reported, kept with the text
+    # the card's release date, with its offset
+    assert shelf["texts"][0]["created_at"].endswith("+00:00")
     write_asked(c, "Market", "dialogue")  # an app from before the choice sends none: Sonnet
     shelf_settled(c, 2)
     assert model.models_seen[-1] == "claude-sonnet-5-5"

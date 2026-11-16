@@ -285,6 +285,8 @@ export type ShelfText = {
   episode: number;
   /** The model that wrote it; missing from a server older than the choice. */
   model?: string;
+  /** When it was written, with its UTC offset; missing from a server older than the story card's date. */
+  created_at?: string | null;
 };
 
 // A story episode's recap in its own language: words like a line's, and the line's English.

@@ -23,6 +23,7 @@ export default function ReadRoute() {
   return (
     <ReadShelf
       api={api}
+      knownLanguage={reader.settings?.language}
       practice={practice ? { language: practice.language, count: practice.words.length, onCancel: () => router.setParams({ practice: '' }) } : undefined}
       onPlayWord={playWord}
       onOpen={(open) => router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'shelf', ...open }) } })}

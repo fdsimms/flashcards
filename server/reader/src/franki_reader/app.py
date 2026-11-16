@@ -2667,6 +2667,7 @@ def _shelf_text(text: StoredText, engine: Engine, practice: bool = False) -> dic
         "coverage": text.coverage,
         "episode": text.episode,
         "model": text.model,
+        "created_at": instant(text.created_at) if text.created_at else None,
     }
 
 

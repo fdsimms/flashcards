@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AzureVoice, Speakers } from '../../src/reader/api';
-import { hasVoiceSlots, isVoiceSlot, sampleLine, sharesVoice, slotInfo, voicesForSlot, voicesSummary } from '../../src/reader/voiceSlots';
+import { hasVoiceSlots, isVoiceSlot, narratorVoices, sampleLine, sharesVoice, slotInfo, voicesForSlot, voicesSummary } from '../../src/reader/voiceSlots';
 
 const THAI: Speakers = { male: 'th-TH-NiwatNeural', male2: 'th-TH-NiwatNeural', female: 'th-TH-PremwadeeNeural', female2: 'th-TH-AcharaNeural' };
 
@@ -68,5 +68,27 @@ describe('sampleLine', () => {
   });
   it('is the same line for either gender elsewhere', () => {
     expect(sampleLine('de', 'male')).toBe(sampleLine('de', 'female'));
+  });
+});
+
+describe('narratorVoices', () => {
+  const e = (voice: string, locale: string, gender?: string): AzureVoice => ({ voice, locale, name: voice, gender });
+  const all = [
+    e('us-m', 'en-US', 'Male'),
+    e('us-f', 'en-US', 'Female'),
+    e('gb-m', 'en-GB', 'Male'),
+    e('au-m', 'en-AU', 'Male'),
+    e('in-m', 'en-IN', 'Male'),
+    e('fr-m', 'fr-FR', 'Male'),
+    e('none', 'en-US'),
+  ];
+
+  it('lists one gender in the three regions', () => {
+    expect(narratorVoices(all, 'male').map((x) => x.voice)).toEqual(['us-m', 'gb-m', 'au-m']);
+    expect(narratorVoices(all, 'female').map((x) => x.voice)).toEqual(['us-f']);
+  });
+
+  it('keeps the chosen voice listed even when it would be filtered out', () => {
+    expect(narratorVoices(all, 'female', 'in-m').map((x) => x.voice)).toEqual(['us-f', 'in-m']);
   });
 });

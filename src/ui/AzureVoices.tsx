@@ -13,6 +13,7 @@ import { CheckRow } from './kit';
  */
 
 const errorText = (e: unknown) => failureText(e, { what: "Couldn't list the voices.", next: 'Try again.' });
+const sampleErrorText = (e: unknown) => failureText(e, { what: "Couldn't play that voice.", next: 'Try another.' });
 
 /** A language's Azure voices (any code: th, pl, es-MX), or why they couldn't be listed. */
 export function useAzureVoices(api: Api | null, language: string | undefined) {
@@ -56,7 +57,7 @@ export function useAzureSample(api: Api | null) {
       player.current.replace({ uri: file.uri });
       player.current.play();
     } catch (e) {
-      setError(errorText(e));
+      setError(sampleErrorText(e));
     }
   }, [api]);
   return { play, error };

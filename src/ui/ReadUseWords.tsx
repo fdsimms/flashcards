@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../core/failure';
 import type { Api, Language, WritingCheck } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
+import { useKeyboardLanguage } from './useKeyboardLanguage';
 import type { WordToUse } from '../reader/production';
 import { Button, Card, ErrorNote, Help, Screen } from './kit';
 import { WritingResult } from './ReadWritingResult';
@@ -26,6 +27,7 @@ export function ReadUseWords({ api, language, words, onPlay, onDone }: {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
   const name = LANGUAGES[language].name;
+  const keyboardLang = useKeyboardLanguage(LANGUAGES[language].speech);
   const [at, setAt] = useState(0);
   const [attempt, setAttempt] = useState('');
   const [check, setCheck] = useState<WritingCheck | null>(null);
@@ -103,6 +105,7 @@ export function ReadUseWords({ api, language, words, onPlay, onDone }: {
           ) : (
             <>
               <TextInput
+                {...keyboardLang}
                 value={attempt}
                 onChangeText={setAttempt}
                 multiline
