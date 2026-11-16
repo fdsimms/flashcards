@@ -207,7 +207,7 @@ class TestBuildScript:
         asked = steps.index(Say("narrator", "How do you say: Please."))
         assert asked > taught
         between = [s for s in steps[taught:asked] if isinstance(s, Say) and s.voice == "narrator"]
-        assert [s.text for s in between] == ["That means: Please.", "Repeat after me."]
+        assert [s.text for s in between] == ["That means: Please.", "Listen and repeat."]
 
     def test_earlier_phrases_come_back_at_widening_gaps(self) -> None:
         steps = lesson.build_script(PLAN)

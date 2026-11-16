@@ -191,12 +191,8 @@ def _teach(phrase: Phrase) -> list[Step]:
         Say("narrator", f"That means: {phrase.english}"),
         Silence(BEAT_MS),
     ]
-    built = build_up(phrase)
-    if len(built) > 1:
-        steps.append(Say("narrator", "Say it a piece at a time. Repeat after me."))
-    else:
-        steps.append(Say("narrator", "Repeat after me."))
-    for chunk in built:
+    steps.append(Say("narrator", "Listen and repeat."))
+    for chunk in build_up(phrase):
         steps += [
             Say("male", chunk),
             Silence(pause_ms(word_count(chunk))),
