@@ -716,7 +716,8 @@ def _story_intro(story: StoryContext) -> str:
             f"text at a time, in seasons of {last} episodes that each build to a finale. {about} "
             "Invent two to four characters with names and a place they keep coming back to, and "
             "end the episode with something that can carry on next time. "
-            'In "series", give the story a short English name. In "cast", describe the characters '
+            'In "series", give the story a short name in the language of the text, like its title, '
+            'with no English. In "cast", describe the characters '
             f"and the setting in one or two English sentences. {_RECAP_ASK} {plan_ask}"
         )
     recent = story.recaps[-STORY_RECAPS:]
