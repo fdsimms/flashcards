@@ -56,5 +56,5 @@ export function lessonDetail(lesson: AudioLesson): string {
 
 /** A narrator voice as kept, or '' (the server's own) for anything that isn't an English Azure voice's name. */
 export function parseNarrator(raw: string | null): string {
-  return raw !== null && /^en-[A-Za-z]{2,4}-[A-Za-z0-9]+$/.test(raw.trim()) ? raw.trim() : '';
+  return raw !== null && /^en-[A-Za-z]{2,4}-[A-Za-z0-9:]+$/.test(raw.trim()) ? raw.trim() : '';
 }

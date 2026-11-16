@@ -50,7 +50,8 @@ MAX_RETRY_WAIT = 10.0
 # The SDK's call has no deadline of its own that's certain to fire; one that never answers would
 # hold the reader's topic lock and stop the shelf filling, so past this the line goes by REST.
 SDK_TIMEOUT_SECONDS = 60.0
-LOCALE = re.compile(r"^([a-z]{2,3}-[A-Z]{2})-")
+# Azure lists some voices with a lowercase locale (en-au-cyanspark:DragonHDOmniLatestNeural).
+LOCALE = re.compile(r"^([a-z]{2,3})-([a-z]{2})-", re.IGNORECASE)
 # A text's language as a locale: a language, an optional script and a region (th-TH, ja-JP, sr-Latn-RS).
 _TEXT_LOCALE = re.compile(r"^([A-Za-z]{2,3})(?:-([A-Za-z]{4}))?-([A-Za-z]{2}|\d{3})$")
 # Thai has no commas or periods: a space after Thai text (or its ? or !) and before more Thai ends a
@@ -397,7 +398,7 @@ def locale_of(voice: str) -> str:
     m = LOCALE.match(voice)
     if not m:
         raise SpeechError(f'"{voice}" isn\'t an Azure voice name (like "th-TH-PremwadeeNeural").')
-    return m.group(1)
+    return f"{m.group(1).lower()}-{m.group(2).upper()}"
 
 
 def is_multilingual(voice: str) -> bool:
