@@ -273,8 +273,8 @@ def test_the_request_names_the_language_and_scene() -> None:
     assert "French" in message and "ordering a coffee" in message
 
 
-def test_only_french_for_now() -> None:
-    assert lesson_service.LESSON_LANGUAGES == ("fr",)
+def test_french_and_thai_for_now() -> None:
+    assert lesson_service.LESSON_LANGUAGES == ("fr", "th")
 
 
 class TestStore:

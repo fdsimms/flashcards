@@ -54,7 +54,17 @@ Rules for the phrases:
   piece from an earlier phrase (a word, a verb, a polite ending) and adds only one or two new
   things, so the lesson builds on itself instead of teaching separate phrases.
 
-Plain text only: no `|`, asterisks, tildes or em dashes."""
+Plain text only: no `|`, asterisks, tildes or em dashes.{note}"""
+
+# What a language needs said beyond the rest of the request.
+_NOTES: dict[Code, str] = {
+    "th": (
+        "\n\nThai: write Thai script only, with spaces only between clauses, never between words, and"
+        " cut `parts` where a person would pause. Thai's polite particles depend on the speaker's"
+        " gender, so leave ครับ and ค่ะ out of the phrases taught; in the dialogue, A (a man) ends"
+        " polite lines with ครับ and B (a woman) with ค่ะ."
+    )
+}
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -130,6 +140,7 @@ def request_message(language: Code, scene: str) -> str:
         many=lesson.MAX_PHRASES,
         mixes=lesson.MAX_MIXES,
         parts=lesson.MAX_PARTS,
+        note=_NOTES.get(language, ""),
     )
 
 

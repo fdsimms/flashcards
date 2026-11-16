@@ -21,9 +21,9 @@ from franki_reader.tts import TtsFailed, billed_chars
 
 log = logging.getLogger(__name__)
 
-# The languages a lesson can be made in. French first, as an experiment; a language written with
-# spaces between words needs only its voices to join it.
-LESSON_LANGUAGES: tuple[Code, ...] = ("fr",)
+# The languages a lesson can be made in. French first, as an experiment, then Thai; a language
+# written with spaces between words needs only its voices to join them.
+LESSON_LANGUAGES: tuple[Code, ...] = ("fr", "th")
 
 # What a voice in a lesson is, for each language: the narrator is an English voice, and the native
 # voices are the language's male and female ones (Engine.voices_for).

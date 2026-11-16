@@ -186,6 +186,34 @@ class TestPause:
         assert lesson.word_count("L'addition, s'il vous plaît.") == 4
 
 
+class TestThai:
+    def test_counts_thai_words_though_there_are_no_spaces(self) -> None:
+        assert lesson.word_count("ผมอยากได้กาแฟ") == 3  # ผม | อยากได้ | กาแฟ, by newmm
+        assert lesson.word_count("สวัสดีครับ") >= 2
+
+    def test_vowel_and_tone_marks_dont_split_a_word(self) -> None:
+        assert lesson.tokens("สวัสดี") == ["สวัสดี"]
+
+    def test_a_thai_phrase_is_built_up_with_no_space_between_parts(self) -> None:
+        p = phrase("ผมอยากได้กาแฟ", "I'd like a coffee.", "ผมอยากได้", "กาแฟ")
+        assert lesson.build_up(p) == ["กาแฟ", "ผมอยากได้กาแฟ"]
+        p3 = phrase("ผมอยากได้กาแฟหนึ่งแก้ว", "x", "ผมอยากได้", "กาแฟ", "หนึ่งแก้ว")
+        assert lesson.build_up(p3) == ["หนึ่งแก้ว", "กาแฟหนึ่งแก้ว", "ผมอยากได้กาแฟหนึ่งแก้ว"]
+
+    def test_keeps_a_thai_phrase_whose_parts_make_it_up(self) -> None:
+        raw = raw_phrase("ผมอยากได้กาแฟ", "I'd like a coffee.", ["ผมอยากได้", "กาแฟ"])
+        assert lesson.clean_phrase(raw) is not None
+
+    def test_drops_a_thai_phrase_whose_parts_are_other_words(self) -> None:
+        raw = raw_phrase("ผมอยากได้กาแฟ", "I'd like a coffee.", ["ผมอยากได้", "ชา"])
+        assert lesson.clean_phrase(raw) is None
+
+    def test_a_mix_may_only_use_taught_thai_words(self) -> None:
+        known = lesson.words_of("ผมอยากได้กาแฟ")
+        assert lesson.clean_mix({"text": "กาแฟ", "english": "Coffee."}, known) is not None
+        assert lesson.clean_mix({"text": "ผมอยากได้ชา", "english": "Tea."}, known) is None
+
+
 class TestBuildUp:
     def test_builds_from_the_last_part_to_the_whole(self) -> None:
         three = Phrase("Je voudrais un café noir.", "x", ("Je voudrais", "un café", "noir"))

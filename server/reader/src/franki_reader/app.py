@@ -228,7 +228,7 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/situations/audio/{key} a clip of one of the other person's lines (MP3)
     POST  /api/lessons                {language, scene, narrator?} an audio lesson on a scene
                                       (lesson.py), made in the background: {id}. `narrator` is an
-                                      English Azure voice (en-US-GuyNeural) for this lesson. French only so far (`languages`
+                                      English Azure voice (en-US-GuyNeural) for this lesson. French and Thai so far (`languages`
                                       in GET). At most 2 at a time
     GET   /api/lessons                ?language= {languages, lessons: [{id, language, scene, title,
                                       state: making | ready | failed, stage: writing | recording |

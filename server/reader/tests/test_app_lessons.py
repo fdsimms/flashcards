@@ -120,7 +120,7 @@ def test_the_routes_need_the_passphrase(tmp_path: Path) -> None:
 
 def test_lists_the_languages_a_lesson_can_be_made_in(tmp_path: Path) -> None:
     body = lesson_client(tmp_path).get("/api/lessons", headers=AUTH).json()
-    assert body == {"languages": ["fr"], "lessons": []}
+    assert body == {"languages": ["fr", "th"], "lessons": []}
 
 
 @pytest.mark.parametrize(
