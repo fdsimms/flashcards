@@ -14,6 +14,7 @@ from franki_reader.app import create_app
 from franki_reader.engine import Engine
 from franki_reader.explain import (
     CALIBRATION,
+    ENGLISH,
     PHRASE_SYSTEM,
     SYSTEM,
     CheckRequest,
@@ -518,3 +519,6 @@ def test_claude_check_keeps_the_usage_of_an_answer_it_cant_use(
 def test_both_prompts_keep_frequency_and_register_to_what_is_certain() -> None:
     assert CALIBRATION in SYSTEM
     assert CALIBRATION in PHRASE_SYSTEM
+    # The notes are in English whatever the line's language (the model drifted into Russian).
+    assert ENGLISH in SYSTEM
+    assert ENGLISH in PHRASE_SYSTEM

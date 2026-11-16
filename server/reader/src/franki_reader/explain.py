@@ -35,6 +35,14 @@ CALIBRATION = (
     "grammatical."
 )
 
+# The notes are read by an English speaker learning the language, and a model asked about a line in
+# the language tends to answer in it, so every prompt says so outright.
+ENGLISH = (
+    " Write every explanation in English, never in the language of the line, even when the line "
+    "and the whole text are in another language. Only the part of the line you quote, and short "
+    "examples in the language, stay in it."
+)
+
 SYSTEM = (
     "You explain one line of a short text to an adult learner of the language, in plain English. "
     "Say what the learner is most likely to be unsure of: grammar (tense, mood, agreement, word "
@@ -46,7 +54,9 @@ SYSTEM = (
     "shows how the phrase works. Do not use em dashes. Do not repeat the whole line's translation: "
     "the learner can already see it. The whole text is there only so you can see what the line "
     "refers to. Use it only when it changes or sharpens a point (what a pronoun points to, what a "
-    "reply answers, the speaker's tone); never retell or summarize the text." + CALIBRATION
+    "reply answers, the speaker's tone); never retell or summarize the text."
+    + ENGLISH
+    + CALIBRATION
 )
 
 SIMPLE = (
@@ -90,7 +100,7 @@ PHRASE_SYSTEM = (
     'Use it only when it changes or sharpens the meaning (what a pronoun or "one thing" points '
     "to, what a reply answers, the speaker's tone). If the phrase can be explained from its own "
     "line, say nothing about the rest of the text, and never retell or summarize it. "
-    "Do not use em dashes." + CALIBRATION
+    "Do not use em dashes." + ENGLISH + CALIBRATION
 )
 
 PHRASE_SCHEMA: dict[str, Any] = {
