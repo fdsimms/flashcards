@@ -205,7 +205,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
   // Set while an answer or an undo is being written. A second tap during the await would
   // otherwise act on the same card again from its old state.
   const busy = useRef(false);
-  // The card's motion (SwipeCard's): a button rating sends the card off first, then writes the answer.
+  // The card's motion (SwipeCard's): an undo brings the card back in from the side.
   const cardMotion = useRef<CardMotion | null>(null);
   const rating = useRef(false);
   // The card last answered, as it was shown. `busy` is cleared before React has drawn the next card,
@@ -533,10 +533,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
     if (rating.current || busy.current || !current || current === lastAnswered.current) return;
     rating.current = true;
     try {
-      await cardMotion.current?.exit(r);
       await answer(r, miss);
     } finally {
-      cardMotion.current?.settleSoon();
       rating.current = false;
     }
   };
@@ -1028,7 +1026,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} /> : null}
       {page && current.sched.state === 0 ? <NewCardChip /> : null}
       {page ? (
-        <SwipeCard enabled={false} shown={shown} showing={showing} motion={cardMotion} onRate={answer}>
+        <SwipeCard enabled={false} shown={shown} motion={cardMotion} onRate={answer}>
           {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
               blanking the card while a new one starts. Keyed to the card and the answers given, so a card shown
               again (after Again, or an undo) starts fresh instead of showing its back while its front loads. */}
@@ -1040,7 +1038,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
       ) : null}
       {page ? null : rendered ? (
         <View style={{ flex: 1 }}>
-        <SwipeCard enabled={swipeOn && revealed} shown={shown} showing={showing} motion={cardMotion} onRate={answer}>
+        <SwipeCard enabled={swipeOn && revealed} shown={shown} motion={cardMotion} onRate={answer}>
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
