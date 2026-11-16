@@ -145,9 +145,11 @@ export function Divider({ inset }: { inset: number }) {
  * `icon`, a colored tile holds the symbol, as in iOS Settings; `icon.color` should be a theme
  * color that white reads on (the rating colors are).
  */
-export function NavRow({ label, detail, loading, onPress, first, icon, disabled, action }: {
+export function NavRow({ label, detail, facts, loading, onPress, first, icon, disabled, action }: {
   label: string;
   detail?: string;
+  /** Captioned lines under the name, in place of `detail`, for a row that says several things (Voices: Azure, iPhone). Each value wraps on its own. */
+  facts?: { label: string; value: string }[];
   /** The detail is still being read: its line is held open (blank), so the row doesn't grow when the value arrives. */
   loading?: boolean;
   onPress: () => void;
@@ -166,7 +168,7 @@ export function NavRow({ label, detail, loading, onPress, first, icon, disabled,
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ disabled: !!disabled }}
-      accessibilityLabel={detail ? `${label}. ${detail}` : label}
+      accessibilityLabel={[label, ...(facts ? facts.map((f) => `${f.label}: ${f.value}`) : detail ? [detail] : [])].join('. ')}
       style={({ pressed }) => ({
         minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m,
         paddingVertical: space.m, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : 'transparent',
@@ -181,7 +183,12 @@ export function NavRow({ label, detail, loading, onPress, first, icon, disabled,
       <View style={{ flex: 1, gap: 2 }}>
         {/* Only the name dims when disabled: the detail says why, so it stays readable. */}
         <Text style={{ ...type.body, color: disabled ? c.textTertiary : c.text }}>{label}</Text>
-        {detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : loading ? <Text style={type.footnote}>{'\u00a0'}</Text> : null}
+        {facts ? facts.map((f) => (
+          <View key={f.label} style={{ flexDirection: 'row', gap: space.s }}>
+            <Text style={{ ...type.footnote, color: c.textSecondary, width: 56 }}>{f.label}</Text>
+            <Text style={{ ...type.footnote, color: c.text, flex: 1 }}>{f.value}</Text>
+          </View>
+        )) : detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : loading ? <Text style={type.footnote}>{'\u00a0'}</Text> : null}
       </View>
       {action ? (
         <Tappable

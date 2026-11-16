@@ -68,15 +68,16 @@ function useVoiceChoices(repo: Repo) {
   return { languages, voices, settings, choose, error, retry: () => setAttempt((n) => n + 1) };
 }
 
-/** What a language's row says: the voice cards are recorded with, and the iPhone's voice and speed. */
-function summary(lang: DeckLanguage, voices: PhoneVoice[], settings: VoiceSettings): string {
+/** What a language's row says: the Azure voice cards are recorded with, and the iPhone's voice and speed. */
+function summary(lang: DeckLanguage, voices: PhoneVoice[], settings: VoiceSettings): { label: string; value: string }[] {
   const choice = settings[lang.key];
   const id = chosenVoice(voices, settings, lang.key);
   const rate = `${(choice?.rate ?? defaultRate(lang)).toFixed(1)}×`;
-  const recorded = choice?.azureVoice ? `Recorded with ${azureVoiceName(choice.azureVoice)}. ` : '';
-  if (id) return `${recorded}iPhone: ${voices.find((v) => v.identifier === id)?.name ?? id}, ${rate}`;
-  if (choice?.voice) return `${recorded}iPhone: ${choice.voiceName ?? 'the chosen voice'} isn't on this iPhone. Automatic, ${rate}`;
-  return `${recorded}iPhone: Automatic, ${rate}`;
+  const azure = choice?.azureVoice ? [{ label: 'Azure', value: azureVoiceName(choice.azureVoice) }] : [];
+  const iphone = (value: string) => [...azure, { label: 'iPhone', value }];
+  if (id) return iphone(`${voices.find((v) => v.identifier === id)?.name ?? id}, ${rate}`);
+  if (choice?.voice) return iphone(`${choice.voiceName ?? 'The chosen voice'} isn't on this iPhone. Automatic, ${rate}`);
+  return iphone(`Automatic, ${rate}`);
 }
 
 /** Settings > Voices: each language the decks are read aloud in, with its voice and speed. */
@@ -89,7 +90,7 @@ export function Voices({ repo, onLanguage }: { repo: Repo; onLanguage: (key: str
         {languages?.length ? (
           <Group>
             {languages.map((l, i) => (
-              <NavRow key={l.key} first={i === 0} label={l.name} detail={summary(l, voices, settings)} onPress={() => onLanguage(l.key)} />
+              <NavRow key={l.key} first={i === 0} label={l.name} facts={summary(l, voices, settings)} onPress={() => onLanguage(l.key)} />
             ))}
           </Group>
         ) : languages ? (
