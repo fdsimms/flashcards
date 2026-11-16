@@ -58,6 +58,8 @@ import { useMissMarks } from './useMissMarks';
 import { OwnHookField, TypeItButton, useOwnHook } from './ReviewActive';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { spokenAnswerNote } from '../core/speaking';
+import { keyboardLanguageForText } from '../core/keyboardLanguage';
+import { stripExpected } from '../core/typeAnswer';
 import { useKeyboardLanguage } from './useKeyboardLanguage';
 import { useSpeakingOn, useSpokenAnswer } from './useSpokenAnswer';
 import { ScoreTake } from './ScoreTake';
@@ -406,7 +408,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
   // Whether the box was last filled by speaking (Answer by speaking, src/core/speaking.ts), for "You said".
   const [spokenIn, setSpokenIn] = useState(false);
   useEffect(() => { setTyping(false); setSpokenIn(false); }, [showing]);
-  const typedKeyboard = useKeyboardLanguage(rendered?.speechLang);
+  // An Omnilanguage card knows its language; an Anki type-in answer on another note type is read from its script.
+  const typeInExpected = page?.typeAnswer?.expected;
+  const typedKeyboard = useKeyboardLanguage(rendered?.speechLang ?? (typeInExpected ? keyboardLanguageForText(stripExpected(typeInExpected)) : undefined));
   const spoken = useSpokenAnswer(rendered?.speechLang, {
     expected: rendered && note && current ? typeItAnswer(note, current) : undefined,
     onBeforeListen: () => { Keyboard.dismiss(); self.stop(false); },
