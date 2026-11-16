@@ -1333,6 +1333,11 @@ in the current language, with when one was last read to the end. Nothing else le
     `ReadCastKind` (the voices of the kind's gender, and a pitch in steps of 2% that is saved and
     played once the taps settle). A change applies to characters given a voice afterwards, never to
     one already in a story.
+  - **Audition** (`ReadCastAudition`, opened from a kind's screen): one line played in each voice of
+    the kind's gender (or only the Multilingual ones) at one pitch, to compare voices without saving
+    each. Tapping a voice plays and checks it, the pitch buttons replay it, and "Use" saves the
+    checked voice and pitch for the kind. It uses `/api/cast/sample` and the same cached samples as
+    the kind's screen, so the server needed nothing new.
   - **Hearing a choice**: `POST /api/cast/sample` speaks a line (`cast_samples.sample_line`; in Thai a
     man's has ครับ) in a voice at a pitch, and `POST /api/cast/scene` reads a short scene, the
     narrator, then a girl, then a woman, in the voices a story would give them now, as one

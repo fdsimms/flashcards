@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { failureText } from '../core/failure';
 import { recordingName } from '../core/recording';
 import type { Api, AzureVoice } from '../reader/api';
+import { isMultilingual } from '../reader/storyCast';
 import { CheckRow } from './kit';
 
 /**
@@ -76,7 +77,7 @@ export function AzureVoiceRows({ voices, selected, onChoose, none }: {
           key={v.voice}
           first={!none && i === 0}
           label={v.name}
-          hint={[v.gender, v.locale, v.voice.includes('Multilingual') ? 'any language' : ''].filter(Boolean).join(', ')}
+          hint={[v.gender, v.locale, isMultilingual(v.voice) ? 'any language' : ''].filter(Boolean).join(', ')}
           selected={selected === v.voice}
           onPress={() => onChoose(v)}
         />
