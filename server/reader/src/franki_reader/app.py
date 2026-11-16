@@ -161,6 +161,7 @@ marked words, ideas) is in the current language, the `language` setting.
                                       owner's tap and kept per line (and per simple version).
                                       With `grammar`: the points the finders find in the line,
                                       each {id, name, note, state}, as the choices stand now
+    POST  /api/texts/{id}/lines/{n}/form      {word, lemma, form, helper?} why the word has that form (form quiz)
     POST  /api/texts/{id}/lines/{n}/phrase    {phrase, simple?, in_language?} a phrase the owner selected in the
                                       line, as it appears there, explained by Claude:
                                       {meaning, literal ("" when it matches the meaning; absent
@@ -307,11 +308,14 @@ from franki_reader.explain import (
     CheckRequest,
     Explain,
     ExplainFailed,
+    ExplainForm,
     ExplainPhrase,
     ExplainRequest,
+    FormRequest,
     PhraseRequest,
     claude_check,
     claude_explain,
+    claude_explain_form,
     claude_explain_phrase,
 )
 from franki_reader.gateway import (
@@ -596,6 +600,14 @@ class PhraseIn(BaseModel):
         return int(self.simple) + 2 * int(self.in_language)
 
 
+class FormExplainIn(BaseModel):
+    # The word as it appears in the line, and what the app shows of its form (Word in src/reader/api.ts).
+    word: str = Field(min_length=1, max_length=100)
+    lemma: str = Field(min_length=1, max_length=100)
+    form: str = Field(min_length=1, max_length=100)
+    helper: str = Field(default="", max_length=100)
+
+
 class AspectIn(BaseModel):
     # The word's own language, which is not always the one being read: a card from the Polish deck
     # can be studied while Thai is the reading language.
@@ -728,6 +740,7 @@ def create_app(
     mnemonics: MakeMnemonics | None = None,
     explain: Explain | None = None,
     explain_phrase: ExplainPhrase | None = None,
+    explain_form: ExplainForm | None = None,
     status_token: str | None = None,
     read_due: ReadDue | None = None,
     read_reviews: ReadReviews | None = None,
@@ -1110,6 +1123,48 @@ def create_app(
             used.cost_usd(),
         )
         return answer
+
+    @app.post("/api/texts/{text_id}/lines/{line}/form", dependencies=authed)
+    async def explain_form_in_line(text_id: int, line: int, body: FormExplainIn) -> dict[str, Any]:
+        text = store.get_text(engine.conn, text_id)
+        if text is None or not 0 <= line < len(text.lines):
+            raise HTTPException(404, "No such line.")
+        spaced = LANGUAGES[text.language].spaced
+        plain = [parse_line(ln.text, spaced)[0] for ln in text.lines]
+        word = body.word.strip()
+        if not word or word not in plain[line]:
+            raise HTTPException(400, "That word isn't in this line.")
+        kept = store.get_form_explanation(engine.conn, text_id, line, word)
+        if kept is not None:
+            return {"explanation": kept}
+        if explain_form is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't explain forms"
+                " (ANTHROPIC_API_KEY in server/.env turns explanations on).",
+            )
+        try:
+            paragraphs, used = await explain_form(
+                FormRequest(
+                    text.language,
+                    word,
+                    body.lemma.strip(),
+                    body.form.strip(),
+                    body.helper.strip(),
+                    plain[line],
+                    text.lines[line].english,
+                    whole_text_lines(text, plain),
+                    text.title,
+                    line,
+                )
+            )
+        except ExplainFailed as e:
+            keep_failed_cost("form_explain", text.language, e.usage)
+            raise HTTPException(503, str(e)) from e
+        store.save_form_explanation(
+            engine.conn, text_id, line, word, paragraphs, engine.clock(), used.cost_usd()
+        )
+        return {"explanation": paragraphs}
 
     @app.post("/api/texts/{text_id}/lines/{line}/natural", dependencies=authed)
     async def check_line(text_id: int, line: int) -> dict[str, str]:
@@ -2703,6 +2758,7 @@ def production_app() -> FastAPI:
     mnemonics: MakeMnemonics | None = None
     explain: Explain | None = None
     explain_phrase: ExplainPhrase | None = None
+    explain_form: ExplainForm | None = None
     check_natural: CheckNatural | None = None
     check_attempt: production.CheckAttempt | None = None
     check_retell: production.CheckRetell | None = None
@@ -2724,6 +2780,7 @@ def production_app() -> FastAPI:
         mnemonics = claude_mnemonics(client)
         explain = claude_explain(client)
         explain_phrase = claude_explain_phrase(client)
+        explain_form = claude_explain_form(client)
         check_natural = claude_check(client)
         check_attempt = production.claude_attempt(client)
         check_retell = production.claude_retell(client)
@@ -2803,6 +2860,7 @@ def production_app() -> FastAPI:
         mnemonics,
         explain,
         explain_phrase,
+        explain_form,
         status_token=settings.secrets.get("STATUS_TOKEN"),
         read_due=due_with_timeout(anki.due) if anki else None,
         read_reviews=reviews_with_timeout(anki.reviews) if anki else None,

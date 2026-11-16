@@ -11,8 +11,8 @@ import { aroundWord, slotView, slotWords, type Settled, type SlotView } from '..
 
 type Spot = { line: number; index: number };
 
-/** What the sheet shows: the word asked, and its line around it. */
-export type OpenSlot = { word: Word; key: string; before: string; after: string };
+/** What the sheet shows: the word asked, its line around it, and the line's place in the text. */
+export type OpenSlot = { word: Word; key: string; textId: number; line: number; before: string; after: string };
 
 const keyOf = (spot: Spot) => `${spot.line}:${spot.index}`;
 
@@ -48,7 +48,7 @@ export function useFormQuiz(text: ReaderText | null, enabled: boolean) {
     const entry = [...spots].find(([, spot]) => keyOf(spot) === openKey);
     if (!entry) return null;
     const around = aroundWord(text.lines[entry[1].line].words, entry[0]);
-    return around ? { word: entry[0], key: openKey, ...around } : null;
+    return around ? { word: entry[0], key: openKey, textId: text.id, line: entry[1].line, ...around } : null;
   }, [text, spots, openKey]);
 
   /** Ends the open slot with `result` and closes the sheet. */
