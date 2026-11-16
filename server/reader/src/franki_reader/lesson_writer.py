@@ -37,6 +37,9 @@ what you give. Give:
 - phrases: {few} to {many} phrases the learner will practice saying, simplest first, each one
   something a person would really say in that situation. Each: text ({language}), english (what it
   means, in natural English), and parts.
+- mixes: {mixes} new {language} sentences the learner has never heard whole, made only of words that
+  appear in the phrases above (a word may be reused, none may be new), for example the first piece
+  of one phrase with the last piece of another. Each: text and english.
 
 Rules for the phrases:
 - 2 to 8 words each, and not a lone "Yes." or "Thanks."
@@ -47,7 +50,9 @@ Rules for the phrases:
 - Polite, everyday register (use the formal "you" where the language has one), unless the situation
   is between friends.
 - The learner may be a man or a woman, so use no form that changes with the speaker's gender.
-- Later phrases may reuse words from earlier ones.
+- The phrases are a ladder, in the order they come up in the dialogue: each one reuses words or a
+  piece from an earlier phrase (a word, a verb, a polite ending) and adds only one or two new
+  things, so the lesson builds on itself instead of teaching separate phrases.
 
 Plain text only: no `|`, asterisks, tildes or em dashes."""
 
@@ -68,6 +73,15 @@ SCHEMA: dict[str, Any] = {
                 "additionalProperties": False,
             },
         },
+        "mixes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"text": {"type": "string"}, "english": {"type": "string"}},
+                "required": ["text", "english"],
+                "additionalProperties": False,
+            },
+        },
         "phrases": {
             "type": "array",
             "items": {
@@ -82,7 +96,7 @@ SCHEMA: dict[str, Any] = {
             },
         },
     },
-    "required": ["title", "dialogue", "phrases"],
+    "required": ["title", "dialogue", "phrases", "mixes"],
     "additionalProperties": False,
 }
 
@@ -114,6 +128,7 @@ def request_message(language: Code, scene: str) -> str:
         high=lesson.MAX_DIALOGUE,
         few=lesson.MIN_PHRASES,
         many=lesson.MAX_PHRASES,
+        mixes=lesson.MAX_MIXES,
         parts=lesson.MAX_PARTS,
     )
 

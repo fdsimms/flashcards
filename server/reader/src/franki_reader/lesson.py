@@ -13,7 +13,13 @@ exact and the same every time:
 3. Each phrase is then asked for in English, after a silence, and answered by the native voice.
 4. Earlier phrases come back at widening gaps (`RECALL_GAPS`: after 1, then 3, then 6 more phrases
    have been taught), each asked in English with a silence to answer.
-5. The dialogue is played again to close, which is now mostly understood.
+5. A few new sentences, never taught whole, are asked for in English: built only from words the
+   phrases already used, so the learner puts the pieces together (`Plan.mixes`).
+6. The learner then takes the first speaker's part in the dialogue: the narrator gives each line in
+   English, a silence follows, and the native voice answers; the other speaker's lines are played.
+
+The phrases are written as a ladder, each reusing words from the ones before it, so the lesson
+builds on itself rather than teaching separate phrases.
 
 Only languages written with spaces between words, since a phrase's parts are joined with spaces.
 
@@ -29,6 +35,7 @@ from typing import Any, Literal
 MIN_PHRASES, MAX_PHRASES = 3, 5
 MIN_PARTS, MAX_PARTS = 1, 4
 MAX_DIALOGUE = 6
+MAX_MIXES = 3
 MAX_CHARS = 200
 
 # How many more phrases have been taught when an earlier phrase is asked for again.
@@ -87,6 +94,9 @@ class Plan:
     scene: str
     dialogue: tuple[Line, ...]
     phrases: tuple[Phrase, ...]
+    # New sentences made only of words the phrases used, asked for after all are taught. Each is a
+    # one-part Phrase.
+    mixes: tuple[Phrase, ...] = ()
 
 
 _WORD = re.compile(r"[\w']+", re.UNICODE)
@@ -133,6 +143,26 @@ def clean_phrase(raw: object) -> Phrase | None:
     return Phrase(text, english, chunks)
 
 
+def _words(text: str) -> set[str]:
+    return set(_WORD.findall(text.casefold()))
+
+
+def clean_mix(raw: object, known: set[str]) -> Phrase | None:
+    """A new sentence Claude wrote from the taught phrases' words, or None unless every word of it is
+    one of `known` (a model told to reuse words doesn't always, so the code checks)."""
+    if not isinstance(raw, dict):
+        return None
+    text, english = raw.get("text"), raw.get("english")
+    if not isinstance(text, str) or not isinstance(english, str):
+        return None
+    text, english = _squash(text), _squash(english)
+    if not text or not english or len(text) > MAX_CHARS or len(english) > MAX_CHARS:
+        return None
+    if not _words(text) or not _words(text) <= known:
+        return None
+    return Phrase(text, english, (text,))
+
+
 def clean_plan(raw: object, scene: str) -> Plan | None:
     """The plan Claude wrote, or None when fewer than `MIN_PHRASES` phrases pass `clean_phrase`
     (a repeated phrase counts once) or the dialogue can't be used."""
@@ -158,11 +188,21 @@ def clean_plan(raw: object, scene: str) -> Plan | None:
             phrases.append(phrase)
     if len(phrases) < MIN_PHRASES or not dialogue:
         return None
+    phrases = phrases[:MAX_PHRASES]
+    known = set().union(*(_words(p.text) for p in phrases))
+    taught = {_plain(p.text) for p in phrases}
+    mixes: list[Phrase] = []
+    for item in raw.get("mixes", []) if isinstance(raw.get("mixes"), list) else []:
+        mix = clean_mix(item, known)
+        if mix is not None and _plain(mix.text) not in taught:
+            taught.add(_plain(mix.text))
+            mixes.append(mix)
     return Plan(
         title=title[:80] or scene[:80],
         scene=scene,
         dialogue=tuple(dialogue[:MAX_DIALOGUE]),
-        phrases=tuple(phrases[:MAX_PHRASES]),
+        phrases=tuple(phrases),
+        mixes=tuple(mixes[:MAX_MIXES]),
     )
 
 
@@ -213,6 +253,26 @@ def _dialogue(lines: tuple[Line, ...], intro: str) -> list[Step]:
     return steps
 
 
+def _role_play(lines: tuple[Line, ...]) -> list[Step]:
+    """The learner is the first speaker (A): the narrator gives each of their lines in English, a
+    silence follows, and the native voice answers. B's lines are played."""
+    steps: list[Step] = [
+        Say("narrator", "Now take part in the conversation. You are the first speaker."),
+        Silence(BEAT_MS),
+    ]
+    for line in lines:
+        if line.speaker == "B":
+            steps += [Say("female", line.text), Silence(AFTER_NATIVE_MS)]
+        else:
+            steps += [
+                Say("narrator", f"You say: {line.english}"),
+                Silence(pause_ms(word_count(line.text))),
+                Say("male", line.text),
+                Silence(AFTER_NATIVE_MS),
+            ]
+    return steps
+
+
 def build_script(plan: Plan) -> list[Step]:
     """The lesson, step by step (see the module's docstring for its shape)."""
     steps = _dialogue(plan.dialogue, f"{plan.title}. Listen to this conversation.")
@@ -228,7 +288,16 @@ def build_script(plan: Plan) -> list[Step]:
     # What the gaps didn't reach before the phrases ran out: each of those phrases once more, in order.
     for index in sorted({i for i, _ in due}):
         steps += _ask(plan.phrases[index])
-    steps += _dialogue(plan.dialogue, "Now listen to the conversation again.")
+    if plan.mixes:
+        steps.append(
+            Say(
+                "narrator",
+                "Now put them together. These sentences are new, built from what you know.",
+            )
+        )
+        for mix in plan.mixes:
+            steps += _ask(mix)
+    steps += _role_play(plan.dialogue)
     steps.append(Say("narrator", "That's the end of the lesson."))
     return steps
 
