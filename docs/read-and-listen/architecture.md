@@ -1163,7 +1163,8 @@ next episode is the top of the shelf.
   in Past texts, listed first to last by Read from the start.
 - **Continuity is carried in words, not in the conversation.** The first episode's request asks the
   model to invent two to four named characters and a place, and to return the story's name
-  (`series`) and its cast and setting (`cast`) beside the text. Every episode returns one sentence
+  (`series`, in the text's language like a title, so the shelf card reads in the language being
+  learned; a story named before this keeps its English name) and its cast and setting (`cast`) beside the text. Every episode returns one sentence
   about what happened in it (`recap`, on the text). Each later episode's request names the story,
   the cast, and the last 12 recaps (`STORY_RECAPS`), so the request stays short however long the
   story runs. All three fields are optional in the reply's schema and asked for only in a story's
