@@ -16,7 +16,7 @@ import { useRetries } from './useRetries';
 
 const MODES: { value: MixupMode; label: string }[] = [{ value: 'meaning', label: 'By meaning' }, { value: 'ear', label: 'By ear' }];
 
-/** How a word's choice is shown once answered: its romanization (or reading) and meaning. */
+/** A word's romanization (or reading) and meaning as one string, for the spoken label; shown on separate lines. */
 const detail = (w: MixupWord) => [w.roman, w.meaning].filter(Boolean).join(' · ');
 
 /**
@@ -187,7 +187,12 @@ function Choice({ word, state, onPress, onPlay }: {
       {state === 'wrong' ? <Icon name="xmark.circle.fill" size={20} color={c.danger} /> : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ ...wordStyle, color: c.text }}>{word.word}</Text>
-        {state === 'open' ? null : <Text style={{ ...type.subhead, color: c.textSecondary }}>{detail(word)}</Text>}
+        {state === 'open' ? null : (
+          <>
+            {word.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{word.roman}</Text> : null}
+            {word.meaning ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{word.meaning}</Text> : null}
+          </>
+        )}
       </View>
       {onPlay ? <PlayButton label={`Play ${word.word}`} onPress={onPlay} /> : null}
     </Tappable>

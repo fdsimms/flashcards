@@ -111,7 +111,8 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
         {noun ? (
           <View style={{ gap: 2, flexShrink: 1 }}>
             <Text selectable style={{ ...type.cardFront, color: c.text }}>{noun.cue.text}</Text>
-            <Text style={{ ...type.subhead, color: c.textSecondary }}>{[noun.cue.roman, noun.meaning].filter(Boolean).join(' · ')}</Text>
+            {noun.cue.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{noun.cue.roman}</Text> : null}
+            {noun.meaning ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{noun.meaning}</Text> : null}
           </View>
         ) : null}
       </Card>
