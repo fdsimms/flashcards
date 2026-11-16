@@ -29,9 +29,9 @@ AGES: tuple[Age, ...] = ("child", "adult", "elder")
 
 # How a character's age changes the voice's pitch, in percent. A child is the same voice a little
 # higher and an elder a little lower: a change that reads as another kind of person without
-# turning into a cartoon. It doesn't tell two adults of one gender apart (`assign` uses another
+# turning into a cartoon (+18% did, on a woman's voice already high: a chipmunk). It doesn't tell two adults of one gender apart (`assign` uses another
 # voice for that, and a pitch step only once the voices are used up).
-AGE_PITCH: dict[Age, int] = {"child": 18, "adult": 0, "elder": -8}
+AGE_PITCH: dict[Age, int] = {"child": 8, "adult": 0, "elder": -8}
 # What `assign` adds to the age's pitch, in the order it tries, once every voice has a character.
 PITCH_STEPS = (0, 10, -10, 20, -20)
 PITCH_RANGE = (-30, 35)

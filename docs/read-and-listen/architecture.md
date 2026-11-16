@@ -1316,7 +1316,7 @@ in the current language, with when one was last read to the end. Nothing else le
     attributions never fit is kept as the closest attempt, its unnamed quotations read by the narrator.
   - `assign` gives each new character a voice and a pitch no one else in the story has, from the
     language's voices for their gender (the four slots, as chosen in the app): first an unused
-    voice at the pitch their age asks for (child +18%, adult 0, elder -8%), then the same voices
+    voice at the pitch their age asks for (child +8%, adult 0, elder -8%), then the same voices
     a step higher or lower (`PITCH_STEPS`), and once all are used the least used. The narrator's
     voice and pitch are taken from the start. A pitch step doesn't make two adults of one gender
     sound like different people; another voice does, so a language with one voice of a gender
