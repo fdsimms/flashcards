@@ -83,7 +83,7 @@ export function useAddMinedWord(): (add: AddWord) => Promise<boolean> {
       try {
         await queue.add(language, deck, [{ entry: word, meaning: meaning ?? '' }]);
         haptic.success();
-        Alert.alert(`Filling in ${word}`, "Claude is writing its example sentence and translation. It will be under Notes ready to review in a few minutes.");
+        Alert.alert(`Added ${word} to your queue`, "Claude is writing an example sentence and translation. In a few minutes it will be ready to review from the deck list.");
         return true;
       } catch {
         // The server can't fill it in right now (no Claude key, or unreachable): the editor still works by hand.

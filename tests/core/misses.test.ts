@@ -5,8 +5,8 @@ import { omniNote } from '../support/fixtures';
 const THAI = missReasonsFor(omniNote());
 
 describe('which notes offer reasons', () => {
-  it('gives Thai its own four', () => {
-    expect(THAI.map((r) => r.key)).toEqual(['tone', 'vowel-length', 'spelling', 'meaning']);
+  it('gives Thai its own five', () => {
+    expect(THAI.map((r) => r.key)).toEqual(['tone', 'vowel-length', 'similar-letter', 'spelling', 'meaning']);
   });
 
   it('gives German, Polish, Russian and Greek gender, stress, ending and meaning', () => {

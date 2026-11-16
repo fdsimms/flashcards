@@ -23,6 +23,7 @@ const MEANING: MissReason = { key: 'meaning', label: 'Meaning' };
 const THAI: MissReason[] = [
   { key: 'tone', label: 'Tone' },
   { key: 'vowel-length', label: 'Vowel length' },
+  { key: 'similar-letter', label: 'Similar letter' },
   { key: 'spelling', label: 'Spelling' },
   MEANING,
 ];

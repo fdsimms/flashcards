@@ -140,6 +140,8 @@ def test_a_narrator_chosen_for_the_lesson_speaks_only_the_narration(tmp_path: Pa
         ("en-US-GuyNeural", True),
         ("en-GB-RyanNeural", True),
         ("en-US-AvaMultilingualNeural", True),
+        ("en-US-Ada:DragonHDLatestNeural", True),
+        ("en-au-cyanspark:DragonHDOmniLatestNeural", True),
         ("fr-FR-HenriNeural", False),
         ("Guy", False),
         ("en-US-Guy Neural", False),
