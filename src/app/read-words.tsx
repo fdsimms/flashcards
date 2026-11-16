@@ -1,7 +1,7 @@
 import { Redirect } from 'expo-router';
 import React from 'react';
-import { minedNote } from '../reader/mining';
 import { useApp } from '../ui/AppContext';
+import { useAddMinedWord } from '../ui/useAddMinedWord';
 import { ReadWords } from '../ui/ReadWords';
 
 /**
@@ -9,7 +9,8 @@ import { ReadWords } from '../ui/ReadWords';
  * saving there is the approval, and nothing reaches the deck otherwise (CLAUDE.md, Read & Listen).
  */
 export default function ReadWordsRoute() {
-  const { reader, openNoteEditor } = useApp();
+  const { reader } = useApp();
+  const addWord = useAddMinedWord();
   if (!reader.api) return <Redirect href="/read-settings" />;
   // `decks` is missing from a server older than the deck setting.
   const deck = reader.settings?.decks ? reader.settings.decks[reader.settings.language] : null;
@@ -18,9 +19,7 @@ export default function ReadWordsRoute() {
       api={reader.api}
       mining={deck ? {
         deck,
-        onAdd: (w) => new Promise<boolean>((resolve) => openNoteEditor(minedNote(w.word, w.gloss, deck, w), (result) => {
-          resolve(!!result && 'saved' in result);
-        })),
+        onAdd: (w) => addWord({ word: w.word, meaning: w.gloss, deck, language: reader.settings?.language, pronunciation: w }),
       } : undefined}
     />
   );

@@ -1,8 +1,8 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
-import { minedNote } from '../reader/mining';
 import { useApp } from '../ui/AppContext';
 import { Reader, type ReaderSource } from '../ui/Reader';
+import { useAddMinedWord } from '../ui/useAddMinedWord';
 import { useReaderPlayerHost } from '../ui/useReaderPlayer';
 import { useWordAudio } from '../ui/useWordAudio';
 
@@ -13,7 +13,8 @@ import { useWordAudio } from '../ui/useWordAudio';
  */
 export default function ReaderRoute() {
   const router = useRouter();
-  const { reader, repo, openNoteEditor } = useApp();
+  const { reader, repo } = useApp();
+  const addWord = useAddMinedWord();
   const playWord = useWordAudio(repo);
   const playerHost = useReaderPlayerHost();
   const readerApi = reader.api;
@@ -39,9 +40,7 @@ export default function ReaderRoute() {
       mining={language && deck ? {
         language,
         deck,
-        onAdd: (entry, meaning, pronunciation) => new Promise<boolean>((resolve) => openNoteEditor(minedNote(entry, meaning, deck, pronunciation), (result) => {
-          resolve(!!result && 'saved' in result);
-        })),
+        onAdd: (entry, meaning, pronunciation) => addWord({ word: entry, meaning, deck, language, pronunciation }),
       } : undefined}
     />
   );

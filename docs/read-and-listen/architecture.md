@@ -1251,6 +1251,29 @@ A dialogue's speakers are shown as small drawn characters instead of the A and B
 - **Speakers are named** (13 November 2026). `roles` holds each speaker's first name in Latin letters, with a job first where the situation gives one ("Waiter Luc"); a friend or relative is only a name. Texts written before this keep roles like "Friend". The reader lists them in a card headed "In this text" above the lines, apart from the dialogue.
 - **Older texts keep the badges.** A text with no characters, or a speaker with no gender, shows A or B as before. Texts already written are not redrawn.
 
+## Aspect pairs
+
+Russian and Polish verbs come in aspect pairs, and the deck keeps each pair as **two notes, one per
+verb**: tagged `perfective` or `imperfective`, each with `AspectPartner` holding the other. Separate
+notes because each aspect is learned and forgotten on its own (FSRS schedules them separately, and a
+word counts as known only when its own note is studied), and because some verbs have one aspect only.
+Drilling a pair together is the practice layer's job (`AspectPartner` is a form in the forms drill),
+never a shared card.
+
+Add to deck (`useAddMinedWord`) keeps the pair linked both ways, whichever half is added first:
+
+- **Before the editor opens**, a Russian or Polish word with no space in it is sent to
+  `POST /api/aspect-pair` (`aspect.py`): one cheap Claude call, made only on that tap (a plain tap of
+  a word never makes one). The editor opens with `AspectPartner` and the aspect tag filled in, and
+  says under the field that it was written by AI. Nothing checks it against Wiktionary. A failed
+  lookup opens the editor as before, without a suggestion.
+- **After the verb is saved**, `pairFollowUp` offers one thing: add the partner as its own note
+  (pointing back, tagged with the other aspect), or link back a partner already in the deck whose
+  `AspectPartner` is empty. A partner that lists some other verb is left as it is. Both are an alert
+  the owner can decline; saving the new note, or tapping Link them, is the approval.
+
+The call's cost goes in `call_costs` (feature `aspect`) and is not yet in `/api/costs`.
+
 ## Server API
 
 Every `/api` route needs the passphrase as `Authorization: Bearer <passphrase>`; with no

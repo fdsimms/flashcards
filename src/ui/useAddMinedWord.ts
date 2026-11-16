@@ -1,0 +1,82 @@
+import { useCallback } from 'react';
+import { Alert } from 'react-native';
+import { saveNote } from '../anki/noteService';
+import { failureText } from '../core/failure';
+import type { Note } from '../core/types';
+import type { AspectPair, Language } from '../reader/api';
+import { ASPECT_LANGUAGES, minedNote, pairFollowUp, type MinedNote, type PairFollowUp, type Pronunciation } from '../reader/mining';
+import { useApp } from './AppContext';
+
+/** What to add to the deck: a word from a text, the marked words, the vocabulary check or a card's example sentence. */
+export type AddWord = {
+  word: string;
+  meaning: string | null;
+  deck: string;
+  /** The word's own language, which decides whether a verb's aspect pair is looked up (Russian and Polish). */
+  language?: Language;
+  pronunciation?: Pronunciation;
+};
+
+/**
+ * "Add to deck", for every screen that offers it: opens the note editor on the word (saving there is the approval),
+ * and for a Russian or Polish verb first asks the server for its aspect partner, so the editor starts with it and the
+ * aspect tag. After the verb is saved, offers to add the partner as its own note, or to link a partner already in the
+ * deck back (`pairFollowUp`), so a pair is two notes linked both ways whichever half was added first.
+ * Resolves to whether the word's note was saved.
+ */
+export function useAddMinedWord(): (add: AddWord) => Promise<boolean> {
+  const { repo, reader, openNoteEditor } = useApp();
+  const api = reader.api;
+
+  const edit = useCallback((target: MinedNote) => new Promise<Note | null>((resolve) => {
+    openNoteEditor(target, (result) => resolve(result && 'saved' in result ? result.saved : null));
+  }), [openNoteEditor]);
+
+  const link = useCallback(async (offer: Extract<PairFollowUp, { kind: 'link' }>) => {
+    try {
+      await saveNote(repo, { id: offer.note.id, deck: offer.note.deck, model: offer.note.model, fields: offer.fields, tags: offer.tags });
+    } catch (e) {
+      Alert.alert(`Couldn't link ${offer.partner} to ${offer.word}`, failureText(e, { next: 'Try again from the note.' }));
+    }
+  }, [repo]);
+
+  const offer = useCallback(async (saved: Note, pair: AspectPair) => {
+    let follow: PairFollowUp | null;
+    try {
+      follow = pairFollowUp(saved, await repo.listNotes(), pair.partner_meaning);
+    } catch {
+      return; // Only an offer: the verb itself is saved.
+    }
+    if (!follow) return;
+    const word = saved.fields.Entry;
+    // The editor is still closing when it reports back, and iOS doesn't show an alert over a screen that's leaving.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    if (follow.kind === 'add') {
+      const { target, partner, aspect } = follow;
+      Alert.alert(
+        'Add the other half of the pair?',
+        `${partner}${aspect ? ` (${aspect})` : ''} is the aspect pair of ${word}. It opens as a new note to check before saving.`,
+        [{ text: 'Not now', style: 'cancel' }, { text: `Add ${partner}`, onPress: () => { void edit(target); } }],
+      );
+    } else {
+      const linkOffer = follow;
+      Alert.alert(
+        `Link ${linkOffer.partner} to ${word}?`,
+        `${linkOffer.partner} is in your deck but doesn't list ${word} as its aspect pair.`,
+        [{ text: 'Not now', style: 'cancel' }, { text: 'Link them', onPress: () => { void link(linkOffer); } }],
+      );
+    }
+  }, [repo, edit, link]);
+
+  return useCallback(async ({ word, meaning, deck, language, pronunciation }: AddWord) => {
+    let pair: AspectPair | null = null;
+    // A phrase has no aspect. A failed lookup just opens the editor without a suggestion.
+    if (api && language && ASPECT_LANGUAGES.includes(language) && !/\s/.test(word.trim())) {
+      pair = await api.aspectPair(language, word).catch(() => null);
+    }
+    const saved = await edit(minedNote(word, meaning, deck, pronunciation, pair));
+    if (!saved) return false;
+    if (pair?.partner) void offer(saved, pair);
+    return true;
+  }, [api, edit, offer]);
+}

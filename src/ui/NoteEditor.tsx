@@ -31,9 +31,9 @@ export function NoteEditor(props: {
   /**
    * Edit this note, or add one (starting in `deck`, and with `model` and `fields` filled in when
    * given, as Read & Listen's marked words do). `fieldNotes` is a line under a field to check
-   * before saving ("Written by AI"), by field name.
+   * before saving ("Written by AI"), by field name. `tags` start the new note's Tags field.
    */
-  target: { noteId: string } | { deck: string | null; model?: string; fields?: Record<string, string>; fieldNotes?: Record<string, string> };
+  target: { noteId: string } | { deck: string | null; model?: string; fields?: Record<string, string>; fieldNotes?: Record<string, string>; tags?: string[] };
   onClose: (result?: NoteEditorResult) => void;
   /** A card was unsuspended, unburied or unflagged here, which stands whether or not the note is saved. */
   onCardsChanged?: () => void;
@@ -111,6 +111,7 @@ export function NoteEditor(props: {
         const asked = props.target.model;
         setModel(asked && (types.has(asked) || all.some((n) => n.model === asked)) ? asked : startModel);
         if (props.target.fields) setFields(props.target.fields);
+        if (props.target.tags?.length) setTags(props.target.tags.join(' '));
       }
       setLoaded(true);
     })().catch((e) => setLoadError(failureText(e, { what: "Couldn't open the note.", next: 'Try again.' })));
