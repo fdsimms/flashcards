@@ -6,7 +6,7 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-from franki_reader import form_primers, grammar, helpers
+from franki_reader import form_primers, form_quiz, grammar, helpers
 from franki_reader.capitalized import demote_capitalized_nouns
 from franki_reader.coverage import Checker, is_word, parse_line, segment_line
 from franki_reader.frequency import rank_of
@@ -280,7 +280,7 @@ def render(
             source, text, lexicon, meanings, deck_translits, marked, text.forms, ai_ipa
         )
 
-    lines = []
+    lines: list[dict[str, Any]] = []
     for line in text.lines:
         plain, _ = parse_line(line.text, lexicon.spaced)
         # Which words use a marked point, by index among the line's words; the first role wins.
@@ -295,6 +295,8 @@ def render(
                 "words": render_words(line.text, marked),
             }
         )
+    # The words the app hides behind a fill-in slot (form_quiz.py), flagged `quiz` on the word itself.
+    form_quiz.mark([ln["words"] for ln in lines], text.id)
     return {
         "id": text.id,
         "topicId": text.topic_id,

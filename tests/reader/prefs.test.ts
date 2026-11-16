@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { DEFAULT_PREFS, hasSlow, parsePrefs, speedFor } from '../../src/reader/prefs';
 
 test('saved settings come back', () => {
-  expect(parsePrefs(JSON.stringify({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, slowLanguages: ['th', 'pl'] }))).toEqual({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, slowLanguages: ['th', 'pl'] });
+  expect(parsePrefs(JSON.stringify({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'] }))).toEqual({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'] });
 });
 
 test('nothing saved, or something unreadable, gives the defaults', () => {
@@ -93,4 +93,10 @@ test('a language without Slow plays at normal speed whatever speed was chosen', 
   expect(speedFor(p, 'th')).toBe(0.8);
   expect(hasSlow(p, 'es')).toBe(false);
   expect(speedFor(p, 'es')).toBe(1);
+});
+
+test('the form quiz is on unless the reader turned it off', () => {
+  expect(DEFAULT_PREFS.formQuiz).toBe(true);
+  expect(parsePrefs(JSON.stringify({ formQuiz: false })).formQuiz).toBe(false);
+  expect(parsePrefs(JSON.stringify({ formQuiz: 'no' })).formQuiz).toBe(true);
 });

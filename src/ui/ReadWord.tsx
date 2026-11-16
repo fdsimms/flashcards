@@ -3,8 +3,11 @@ import { Pressable, Text, View, type GestureResponderEvent, type ViewInstance } 
 import type { TextGrammar, Word } from '../reader/api';
 import type { ReadFont } from '../reader/fonts';
 import type { HideableMark } from '../reader/marks';
+import { slotWidth, type SlotView } from '../reader/formQuiz';
+import { haptic } from './haptics';
+import { Icon, Tappable } from './kit';
 import { FadeIn } from './motion';
-import { radius, useTheme } from './theme';
+import { MIN_TAP, radius, useTheme } from './theme';
 
 /**
  * One word of a text, with the marks it wears (the key in ReaderKey.tsx explains them): a fill
@@ -36,7 +39,7 @@ function PhraseBar() {
 
 export type ReadTextStyle = { fontSize: number; lineHeight: number; font: ReadFont };
 
-export function WordView({ word, grammar, textStyle, flagged, highlighted, named, selected, hidden = [], phrasePart = null, phraseStart = false, dimmed = false, playing = false, spoken = false, onPress, onLongPress, viewRef }: {
+export function WordView({ word, grammar, textStyle, flagged, highlighted, named, selected, hidden = [], phrasePart = null, phraseStart = false, dimmed = false, playing = false, spoken = false, slot = null, onPress, onLongPress, viewRef }: {
   word: Word;
   grammar: TextGrammar | null;
   textStyle: ReadTextStyle;
@@ -57,6 +60,8 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
   playing?: boolean;
   /** Being spoken now, as the line plays (useSpokenWords). */
   spoken?: boolean;
+  /** A word hidden behind a fill-in slot (reader/formQuiz.ts): `open` draws the pill instead of the word, `right` tints the word it was answered with. */
+  slot?: SlotView;
   onPress: (word: Word, x: number, y: number) => void;
   /** Held: starts selecting a phrase by dragging (usePhraseDrag). */
   onLongPress?: (word: Word, e: GestureResponderEvent) => void;
@@ -83,6 +88,7 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
       </View>
     );
   }
+  if (slot === 'open') return <QuizSlot word={word} textStyle={textStyle} dimmed={dimmed} onPress={onPress} />;
   const ringed = selected || phraseStart;
   const stretch = word.stretch && !hidden.includes('stretch');
   const showFlag = flagged && !hidden.includes('marked');
@@ -91,7 +97,7 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
   // which is far taller than the letters, so a full-height fill read as a block.
   const bandInset = Math.max(0, (textStyle.lineHeight - textStyle.fontSize * 1.1) / 2);
   // The word being spoken takes the band over a highlight or a name, as it moves on in a moment.
-  const band = ringed || phrasePart ? null : spoken ? c.spoken : highlighted ? c.highlight : named ? c.nameFill : null;
+  const band = ringed || phrasePart ? null : spoken ? c.spoken : slot === 'right' ? c.goodFill : highlighted ? c.highlight : named ? c.nameFill : null;
   return (
     <Pressable
       ref={viewRef}
@@ -151,5 +157,30 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
         {word.text}
       </Text>
     </Pressable>
+  );
+}
+
+/**
+ * A word hidden for the form quiz: a solid pill with a question mark, as wide as the word so the line
+ * wraps where it would have, and as tall as a line of text so it sits in the row like a word. It says
+ * nothing of the word (VoiceOver included), since the word is the answer. A tap opens the sheet.
+ */
+function QuizSlot({ word, textStyle, dimmed, onPress }: { word: Word; textStyle: ReadTextStyle; dimmed: boolean; onPress: (word: Word, x: number, y: number) => void }) {
+  const c = useTheme();
+  return (
+    <Tappable
+      onPress={(e) => { haptic.tap(); onPress(word, e.nativeEvent.pageX, e.nativeEvent.pageY); }}
+      accessibilityRole="button"
+      accessibilityLabel="Fill in the missing word"
+      accessibilityHint="Opens a short exercise"
+      scaleTo={0.94}
+      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+      style={{
+        width: slotWidth(word, textStyle.fontSize, MIN_TAP), height: Math.round(textStyle.fontSize * 1.4), borderRadius: radius.pill,
+        marginHorizontal: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent, opacity: dimmed ? 0.35 : 1,
+      }}
+    >
+      <Icon name="questionmark" size={Math.round(textStyle.fontSize * 0.7)} color={c.onAccent} weight="bold" />
+    </Tappable>
   );
 }
