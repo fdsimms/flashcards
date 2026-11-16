@@ -148,6 +148,47 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
     attached = false;
   };
 
+  // Not `lockAnki`: the callers (a deck move's refresh, a sync's download) already hold that. But
+  // two reads can overlap (a sync's refresh runs outside the lock), and they share the `scratch`
+  // name and file on this connection: the second one's attach or detach failed with "database
+  // scratch is locked". So reads wait for each other.
+  let scratchQueue: Promise<unknown> = Promise.resolve();
+  const readRows = async (collection: File): Promise<CollectionRows> => {
+    const scratch = new File(workFolder('anki-read'), 'scratch.anki2');
+    await collection.copy(scratch);
+    const p = pathOf(scratch);
+    await db.runAsync('ATTACH DATABASE ? AS scratch', p);
+    try {
+      await db.execAsync('PRAGMA scratch.journal_mode = DELETE');
+      // Only on the scratch copy: Anki's own collation removed so its three collated tables
+      // can be read at all (see collection.ts).
+      await db.execAsync('PRAGMA writable_schema = ON');
+      await db.execAsync(stripUnicaseIn('scratch'));
+      await db.execAsync('PRAGMA writable_schema = OFF');
+    } finally {
+      await db.execAsync('DETACH DATABASE scratch');
+    }
+    // Attached again so SQLite reads the edited schema.
+    await db.runAsync('ATTACH DATABASE ? AS scratch', p);
+    try {
+      const all = <T,>(sql: string) => db.getAllAsync<T>(inSchema(sql, 'scratch'));
+      return {
+        col: (await db.getFirstAsync<{ crt: number }>(inSchema(COLLECTION_QUERIES.col, 'scratch')))!,
+        notetypes: await all(COLLECTION_QUERIES.notetypes),
+        fields: await all(COLLECTION_QUERIES.fields),
+        templates: await all(COLLECTION_QUERIES.templates),
+        notes: await all(COLLECTION_QUERIES.notes),
+        cards: await all(COLLECTION_QUERIES.cards),
+        decks: await all(COLLECTION_QUERIES.decks),
+        deckConfigs: await all(COLLECTION_QUERIES.deckConfigs),
+        lastReviews: await all(COLLECTION_QUERIES.lastReviews),
+      } as CollectionRows;
+    } finally {
+      await db.execAsync('DETACH DATABASE scratch');
+      scratch.delete();
+    }
+  };
+
   const link: AnkiLink = {
     async ankiStatus() {
       await attach();
@@ -163,40 +204,10 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       return (await db.getFirstAsync<{ n: number }>(SQL.unsentEdits))?.n ?? 0;
     },
 
-    async readAnkiRows(collection) {
-      const scratch = new File(workFolder('anki-read'), 'scratch.anki2');
-      await collection.copy(scratch);
-      const p = pathOf(scratch);
-      await db.runAsync('ATTACH DATABASE ? AS scratch', p);
-      try {
-        await db.execAsync('PRAGMA scratch.journal_mode = DELETE');
-        // Only on the scratch copy: Anki's own collation removed so its three collated tables
-        // can be read at all (see collection.ts).
-        await db.execAsync('PRAGMA writable_schema = ON');
-        await db.execAsync(stripUnicaseIn('scratch'));
-        await db.execAsync('PRAGMA writable_schema = OFF');
-      } finally {
-        await db.execAsync('DETACH DATABASE scratch');
-      }
-      // Attached again so SQLite reads the edited schema.
-      await db.runAsync('ATTACH DATABASE ? AS scratch', p);
-      try {
-        const all = <T,>(sql: string) => db.getAllAsync<T>(inSchema(sql, 'scratch'));
-        return {
-          col: (await db.getFirstAsync<{ crt: number }>(inSchema(COLLECTION_QUERIES.col, 'scratch')))!,
-          notetypes: await all(COLLECTION_QUERIES.notetypes),
-          fields: await all(COLLECTION_QUERIES.fields),
-          templates: await all(COLLECTION_QUERIES.templates),
-          notes: await all(COLLECTION_QUERIES.notes),
-          cards: await all(COLLECTION_QUERIES.cards),
-          decks: await all(COLLECTION_QUERIES.decks),
-          deckConfigs: await all(COLLECTION_QUERIES.deckConfigs),
-          lastReviews: await all(COLLECTION_QUERIES.lastReviews),
-        } as CollectionRows;
-      } finally {
-        await db.execAsync('DETACH DATABASE scratch');
-        scratch.delete();
-      }
+    readAnkiRows: (collection) => {
+      const run = scratchQueue.then(() => readRows(collection), () => readRows(collection));
+      scratchQueue = run.then(() => undefined, () => undefined);
+      return run;
     },
 
     async keepAnkiCollection(collection) {
