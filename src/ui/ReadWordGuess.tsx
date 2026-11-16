@@ -2,9 +2,9 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { GUESS_HINT, type TapMode } from '../reader/guess';
 import { haptic } from './haptics';
-import { Icon } from './kit';
+import { Icon, Tappable } from './kit';
 import { Pop } from './motion';
-import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
  * What a known word's popover shows while its meaning is held back (src/reader/guess.ts): a line
@@ -40,14 +40,19 @@ export function GuessPrompt({ mode, onPick, onGiveUp }: {
             <Text style={{ ...type.body, color: c.text }}>{choice}</Text>
           </Pressable>
         ))}
-        <Pressable
+        <Tappable
           onPress={onGiveUp}
           accessibilityRole="button"
           accessibilityLabel="I don't know"
-          style={{ minHeight: MIN_TAP, justifyContent: 'center', alignItems: 'center' }}
+          style={{
+            minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s,
+            borderRadius: radius.m, ...smooth, borderColor: c.border, borderWidth: 1,
+          }}
         >
+          <Icon name="questionmark.circle" size={18} color={c.textSecondary} />
           <Text style={{ ...type.body, color: c.textSecondary }}>I don't know</Text>
-        </Pressable>
+        </Tappable>
+        <View style={{ height: hairline, backgroundColor: c.border, marginVertical: space.xs }} />
       </View>
     );
   }
