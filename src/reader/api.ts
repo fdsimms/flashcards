@@ -115,7 +115,7 @@ export type GrammarTopic = {
 export type GrammarTopicRow = { id: number; title: string; status: TopicStatus; created_at: string };
 
 // `jlpt`: the JLPT level a Japanese point is taught at, 5 for N5 (the easiest) up to 1 for N1; other languages have none.
-export type GrammarPoint = { id: string; name: string; note: string; state: GrammarState; seen?: GrammarSeen; jlpt?: number };
+export type GrammarPoint = { id: string; name: string; note: string; example: string; state: GrammarState; seen?: GrammarSeen; jlpt?: number };
 
 // `least`: the known points the next texts are asked to work in, least seen first.
 // `stretch`: how many times a text may use grammar not set (1 to 4), and the easiest point not yet
@@ -126,7 +126,7 @@ export type GrammarList = { max_practice: number; points: GrammarPoint[]; least?
 // A grammar point a text marks: written to practice or avoid, a known one worked in for review,
 // or one never marked that turned up.
 export type TextGrammarRole = 'practice' | 'avoid' | 'review' | 'unset';
-export type TextGrammar = { id: string; name: string; note: string; role: TextGrammarRole };
+export type TextGrammar = { id: string; name: string; note: string; example: string; role: TextGrammarRole };
 
 // What a form chip's sheet shows (server/reader/.../data/forms/<language>.json): what the form means, a
 // table of endings or patterns (`rows` have a cell for each of `head`), and examples. `*asterisks*`
@@ -214,7 +214,7 @@ export type PhraseExplanation = {
 };
 
 // A grammar point found in an explained line, with the owner's choice as it stands (docs/grammar.md, step 3).
-export type LineGrammar = { id: string; name: string; note: string; state: GrammarState };
+export type LineGrammar = { id: string; name: string; note: string; example: string; state: GrammarState };
 
 // One thing the reader can pick to happen in a story's next episode: written like a line (its
 // words come segmented), with its English beside it.

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
+import { noteWithExample } from '../core/grammar';
 import { ApiError, type Api, type GrammarChoice, type TextGrammar } from '../reader/api';
 import { HeaderAction } from './kit';
 import { space, type, useTheme } from './theme';
@@ -18,10 +19,11 @@ export function ReadGrammarNote({ grammar, api, chosen, onChosen }: {
   const c = useTheme();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const about = `${grammar.name}. ${grammar.note}.`;
+  const gloss = noteWithExample(grammar);
+  const about = `${grammar.name}. ${gloss}.`;
   const line = {
     practice: `Grammar you're practicing: ${about}`,
-    avoid: `${grammar.name}, which you don't know yet, slipped in here. ${grammar.note}.`,
+    avoid: `${grammar.name}, which you don't know yet, slipped in here. ${gloss}.`,
     review: `Grammar you know, worked in for review: ${about}`,
     unset: `Grammar you haven't marked yet: ${about}`,
   }[grammar.role];

@@ -21,8 +21,11 @@ Each point has:
 - **`language`**: Read & Listen's language code. `tests/core/grammar.test.ts` fails the build if
   the app's list and the reader's `Language` drift apart, and the server refuses a language it
   doesn't have.
-- **`name`** and **`note`**: as the Grammar screen and the reader show them. User-facing copy, so
-  American English and no em dashes (the test checks the dashes).
+- **`name`**, **`note`** and **`example`**: as the Grammar screen and the reader show them. `note` is
+  what the point does in a few words ("Comparing two things") and holds no example; `example` is
+  its examples, shown apart under an "Example" label so one isn't read as the point itself (the test
+  checks the note has no colon). User-facing copy, so American English and no em dashes (the test
+  checks the dashes).
 - **`forms`** (optional): the Forms field's groups this point is, as Forms practice reads them
   (`present subjunctive` in `present subjunctive · yo: espere`). Matched ignoring case and spacing
   (`grammarPointForForms`). A group links to one point at most in a language. Groups the MCP's

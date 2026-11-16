@@ -3,7 +3,7 @@ import type { ReaderText, TextGrammar, Word } from '../../src/reader/api';
 import { grammarMark, marksIn, withMark } from '../../src/reader/marks';
 
 const word = (text: string, extra: Partial<Word> = {}): Word => ({ text, status: 'known', gloss: null, stretch: false, deck: true, grammar: null, ...extra });
-const point = (id: string, role: TextGrammar['role']): TextGrammar => ({ id, name: id, note: '', role });
+const point = (id: string, role: TextGrammar['role']): TextGrammar => ({ id, name: id, note: '', example: '', role });
 
 const textOf = (words: Word[], grammar: TextGrammar[] = []): ReaderText => ({
   id: 1, topicId: 1, title: 't', coverage: 0.95, stretch: [], roles: {}, form: 'story', language: 'th', grammar,

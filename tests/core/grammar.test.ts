@@ -17,8 +17,11 @@ describe('the grammar catalog', () => {
       expect(p.id.startsWith(`${p.language}.`)).toBe(true);
       expect(p.name.trim()).not.toBe('');
       expect(p.note.trim()).not.toBe('');
+      expect(p.example.trim()).not.toBe('');
+      // The note is what the point does; its examples are in `example`, not after a colon.
+      expect(p.note).not.toContain(':');
       // Shown on the Grammar screen and in the reader.
-      expect(`${p.name} ${p.note}`).not.toContain('—');
+      expect(`${p.name} ${p.note} ${p.example}`).not.toContain('—');
     }
   });
 

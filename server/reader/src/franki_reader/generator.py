@@ -775,7 +775,10 @@ def _times(n: int) -> str:
 
 
 def _grammar_list(point_ids: tuple[str, ...]) -> str:
-    return "\n".join(f"- {grammar.POINTS[p].name} ({grammar.POINTS[p].note})" for p in point_ids)
+    return "\n".join(
+        f"- {grammar.POINTS[p].name} ({grammar.POINTS[p].note}, e.g. {grammar.POINTS[p].example})"
+        for p in point_ids
+    )
 
 
 def grammar_problems(

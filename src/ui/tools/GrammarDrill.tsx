@@ -4,7 +4,7 @@ import { Alert, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../../core/failure';
 import { checkAnswer } from '../../core/forms';
-import { grammarPoint } from '../../core/grammar';
+import { grammarPoint, noteWithExample } from '../../core/grammar';
 import { DRILL_QUESTIONS, drillPrompts, missingNote, type DrillPrompt } from '../../core/grammarDrills';
 import type { Repo } from '../../db/repo';
 import { ApiError, type Api } from '../../reader/api';
@@ -243,7 +243,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
               <View style={{ borderTopWidth: 1, borderTopColor: c.border, paddingTop: space.s, marginTop: space.xs }}>
                 <Text style={{ ...type.footnote, color: c.textSecondary }}>
                   <Text style={{ fontWeight: '600', color: c.text }}>{`${point.name}.`}</Text>
-                  {` ${point.note}.`}
+                  {` ${noteWithExample(point)}.`}
                 </Text>
               </View>
             ) : null}

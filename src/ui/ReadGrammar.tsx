@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { noteWithExample } from '../core/grammar';
 import { ApiError, type Api, type GrammarChoice, type GrammarList } from '../reader/api';
 import { DEFAULT_MAX_PRACTICE, grammarChoiceOptions, jlptName, seenLine } from '../reader/grammar';
 import { Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
@@ -125,12 +126,12 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
                   <Tappable
                     onPress={() => { haptic.tap(); onOpenPoint(p.id); }}
                     accessibilityRole="button"
-                    accessibilityLabel={`${p.name}. ${p.note}. Opens its page`}
+                    accessibilityLabel={`${p.name}. ${noteWithExample(p)}. Opens its page`}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}
                   >
                     <View style={{ flex: 1, gap: space.xs }}>
                       <Text style={{ ...type.headline, color: c.text }}>{p.name}</Text>
-                      <Text style={{ ...type.subhead, color: c.textSecondary }}>{p.note}</Text>
+                      <Text style={{ ...type.subhead, color: c.textSecondary }}>{noteWithExample(p)}</Text>
                     </View>
                     {p.jlpt ? (
                       <View style={{ backgroundColor: c.accentFill, borderRadius: radius.pill, paddingHorizontal: space.s, paddingVertical: 2 }}>

@@ -13,8 +13,10 @@ export interface GrammarPointInfo {
   language: GrammarLanguage;
   /** As the Grammar screen shows it: "Preterite". */
   name: string;
-  /** What it means, with examples: "Finished past events: hablé, comió, fueron". */
+  /** What it does, in a few words and with no example in it: "Finished past events". */
   note: string;
+  /** Examples of it, with their English where the language isn't English: "hablé, comió, fueron". Shown apart from the note, so it isn't read as the point itself (`noteWithExample`). */
+  example: string;
   /** The Forms field's groups this point is ("preterite"), as Forms practice reads them. */
   forms: string[];
   /** When to use it, how it's formed and what it's confused with, for its page: paragraphs split by a blank line, `**words in the language**`. */
@@ -38,6 +40,11 @@ export const GRAMMAR_POINTS: readonly GrammarPointInfo[] = (catalog.points as Ca
   forms: p.forms ?? [],
   wordNamed: p.word_named === true,
 }));
+
+/** The note and its example as one line, for a footnote that has no room for the labeled example: "Finished past events. Example: hablé, comió, fueron". */
+export function noteWithExample(p: { note: string; example: string }): string {
+  return `${p.note}. Example: ${p.example}`;
+}
 
 /** A language's points, in the catalog's order. */
 export function grammarPointsFor(language: string): GrammarPointInfo[] {

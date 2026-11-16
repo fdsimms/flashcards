@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { failureText } from '../core/failure';
+import { noteWithExample } from '../core/grammar';
 import { ApiError, type Api, type ExplainPoint, type GrammarChoice, type GrammarState, type LineGrammar } from '../reader/api';
 import { GRAMMAR_CHOICES, grammarStateWord } from '../reader/grammar';
 import { prefs } from '../reader/storage';
@@ -160,7 +161,7 @@ function GrammarInLine({ api, grammar, chosen, onChosen, onOpen }: {
         <View style={{ gap: space.s, paddingTop: space.s, borderTopWidth: hairline, borderTopColor: c.border }}>
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
             <Text style={{ fontWeight: '600', color: c.text }}>{`${shown.name}.`}</Text>
-            {` ${shown.note}.`}
+            {` ${noteWithExample(shown)}.`}
           </Text>
           {/* A point not set yet has no segment selected. */}
           <Segments<GrammarChoice | 'unset'>

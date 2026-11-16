@@ -176,7 +176,10 @@ def test_thai_words_that_mean_something_else_next_to_a_marker_are_left_alone(
 
 def test_every_point_has_a_name_and_a_note() -> None:
     assert len(points_for("es")) == 9 and len(points_for("th")) == 10
-    assert all(p.name and p.note and p.id.startswith(p.language + ".") for p in POINTS.values())
+    assert all(
+        p.name and p.note and p.example and p.id.startswith(p.language + ".")
+        for p in POINTS.values()
+    )
 
 
 def test_the_points_a_line_uses_in_catalog_order() -> None:
@@ -192,7 +195,14 @@ def _catalog(tmp_path: Path, *points: dict[str, Any]) -> Path:
 
 
 def _point(pid: str, language: str = "es") -> dict[str, Any]:
-    return {"id": pid, "language": language, "name": pid, "note": "a note", "level": 1}
+    return {
+        "id": pid,
+        "language": language,
+        "name": pid,
+        "note": "a note",
+        "example": "an example",
+        "level": 1,
+    }
 
 
 def test_points_come_from_the_catalog_in_its_order(tmp_path: Path) -> None:
@@ -603,7 +613,15 @@ def test_a_language_without_levels_refuses_one() -> None:
 def test_a_catalog_jlpt_level_outside_one_to_five_stops_the_server(tmp_path: Path) -> None:
     from franki_reader import grammar as g
 
-    entry = {"id": "ja.masu", "language": "ja", "name": "x", "note": "x", "level": 1, "jlpt": 6}
+    entry = {
+        "id": "ja.masu",
+        "language": "ja",
+        "name": "x",
+        "note": "x",
+        "example": "x",
+        "level": 1,
+        "jlpt": 6,
+    }
     catalog = tmp_path / "points.json"
     catalog.write_text(json.dumps({"points": [entry]}), encoding="utf-8")
     with pytest.raises(ValueError, match="ja.masu has a JLPT level that isn't 1 to 5"):
@@ -637,7 +655,14 @@ def test_word_named_points_are_the_ones_whose_name_is_the_word_itself() -> None:
 def test_a_catalog_word_named_that_isnt_true_or_false_stops_the_server(tmp_path: Path) -> None:
     from franki_reader import grammar as g
 
-    entry = {"id": "ja.masu", "language": "ja", "name": "x", "note": "x", "level": 1}
+    entry = {
+        "id": "ja.masu",
+        "language": "ja",
+        "name": "x",
+        "note": "x",
+        "example": "x",
+        "level": 1,
+    }
     catalog = tmp_path / "points.json"
     catalog.write_text(json.dumps({"points": [{**entry, "word_named": "yes"}]}), encoding="utf-8")
     with pytest.raises(ValueError, match="ja.masu has a word_named that isn't true or false"):

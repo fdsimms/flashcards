@@ -315,6 +315,7 @@ def render(
                 "id": pid,
                 "name": grammar.POINTS[pid].name,
                 "note": grammar.POINTS[pid].note,
+                "example": grammar.POINTS[pid].example,
                 "role": role,
             }
             for role, ids in (
