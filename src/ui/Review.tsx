@@ -1021,7 +1021,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
           <Count value={dueCounts(queue).reviews} label="due" color={c.countDue} />
-          <Count value={dueCounts(queue).learning} label="learning" color={c.countLearn} />
+          <Count value={dueCounts(queue).learning} label="again" color={c.countLearn} />
           <Count value={queue.fresh.length} label="new" color={c.countNew} />
         </View>
       ) : null}
