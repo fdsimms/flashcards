@@ -3,6 +3,7 @@
 // by the server in the background and played as one MP3; nothing here grades a card or writes a
 // note. Pure, so it's tested.
 import type { AudioLesson, Language, LessonStage } from './api';
+import { stepsAt, type StageStep } from './making';
 
 /** The languages the server makes lessons in (server lesson_service.LESSON_LANGUAGES): the shelf offers lessons only in these. */
 export const LESSON_LANGUAGES: readonly Language[] = ['fr', 'th', 'es', 'de', 'ru', 'el', 'pl', 'nb'];
@@ -52,12 +53,9 @@ export const LESSON_STAGES: readonly { stage: LessonStage; label: string }[] = [
   { stage: 'joining', label: 'Joining the audio' },
 ];
 
-export type StageStep = { label: string; status: 'done' | 'now' | 'todo' };
-
 /** The steps with where the lesson is: those before its stage done, its own now, the rest to come. A missing or unknown stage is the first. */
 export function stageSteps(stage: LessonStage | undefined): StageStep[] {
-  const at = Math.max(0, LESSON_STAGES.findIndex((s) => s.stage === stage));
-  return LESSON_STAGES.map((s, i) => ({ label: s.label, status: i < at ? 'done' : i === at ? 'now' : 'todo' }));
+  return stepsAt(LESSON_STAGES, stage);
 }
 
 /** The line under a lesson's name in the list: how it's going, why it failed, or what it holds. */

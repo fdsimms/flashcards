@@ -14,6 +14,8 @@ export function readerAddress(syncServer: string): string {
   return syncServer.trim().replace(/\/+$/, '') + '/reader';
 }
 
+/** What a text being written is doing, in order (the server's TextStage). */
+export type TextStage = 'writing' | 'translating' | 'recording';
 // 'writing': a text is being written now. 'failed': the last write failed and the server is
 // waiting before it tries that topic again by itself.
 export type TopicState = 'ready' | 'writing' | 'failed' | 'idle';
@@ -310,6 +312,8 @@ export type ShelfStory = {
   last_recap_line?: RecapLine | null;
   next: ShelfText | null;
   writing: boolean;
+  /** Where the episode being written has got to. Missing from a server older than stages. */
+  stage?: TextStage | null;
   failed: string | null;
 };
 
@@ -318,7 +322,7 @@ export type Shelf = {
   languages: { code: Language; name: string; ready: number }[];
   texts: ShelfText[];
   // Shelf texts being written now (a typed topic shows here until it's ready).
-  writing: { topic: string; reason: ShelfReason; form: Form }[];
+  writing: { topic: string; reason: ShelfReason; form: Form; stage?: TextStage | null }[];
   story: ShelfStory | null;
 };
 
@@ -565,10 +569,21 @@ export function createApi(
     // The deck list's totals, for dundundun's Franki task to read from /api/status (countsReport.ts).
     reportCounts: (counts: { due: number; new: number }) => call<void>('PUT', '/api/franki-counts', counts),
     updateSettings: (settings: SettingsChange) => call<Settings>('PATCH', '/api/settings', settings),
-    // null while the server is still writing the text (202): ask again in a few seconds. With
-    // `words` (the cards just studied), a text written to practice them.
-    nextText: async (topicId: number, words?: string[]) =>
-      (await call<ReaderText | undefined>('POST', `/api/topics/${topicId}/next`, words?.length ? { words } : undefined)) ?? null,
+    // null while the server is still writing the text (202): ask again in a few seconds, and
+    // `onStage` is told where the write has got to (undefined from a server older than stages).
+    // With `words` (the cards just studied), a text written to practice them.
+    nextText: async (topicId: number, words?: string[], onStage?: (stage: TextStage | undefined) => void) => {
+      const response = await send('POST', `/api/topics/${topicId}/next`, words?.length ? { words } : undefined);
+      if (response.status !== 202) return (await response.json()) as ReaderText;
+      let stage: TextStage | undefined;
+      try {
+        stage = ((await response.json()) as { stage?: TextStage | null }).stage ?? undefined;
+      } catch {
+        // A 202 with no body, from a server older than stages.
+      }
+      onStage?.(stage);
+      return null;
+    },
     // With `story`, that story's episodes, first to last.
     // Audio lessons, newest first, and the languages the server can make them in. One is asked for by a scene and
     // made in the background (poll `lessons` until it's ready or failed).

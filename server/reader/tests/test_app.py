@@ -254,7 +254,8 @@ def test_a_topic_with_nothing_ready_answers_202_then_the_text() -> None:
 
     first = c.post(f"/api/topics/{topic['id']}/next", headers=AUTH)
     assert first.status_code == 202
-    assert first.json() == {"writing": True}
+    # The write has only just been started, so it may not have reached its first stage.
+    assert first.json()["writing"] is True and first.json()["stage"] in (None, "writing")
 
     text = next_text(c, topic["id"])
     assert text.status_code == 200

@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, AppState, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ApiError, type Api, type GrammarChoice, type Language, type Length, type PastText, type ReaderText, type Settings, type TextGrammar, type Word } from '../reader/api';
+import { ApiError, type Api, type GrammarChoice, type Language, type Length, type PastText, type ReaderText, type Settings, type TextGrammar, type TextStage, type Word } from '../reader/api';
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../reader/deckWords';
 import { marksIn, withMark, type HideableMark, type Mark } from '../reader/marks';
 import { scrollTarget, type Box } from '../reader/follow';
@@ -60,6 +60,8 @@ import { useSpeakingOn } from './useSpokenAnswer';
 import { lineText } from '../reader/lineDrill';
 import type { ReaderPlayerHost } from './useReaderPlayer';
 import { Button, Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
+import { MakingCard } from './MakingCard';
+import { textSteps } from '../reader/making';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 
 /**
@@ -196,6 +198,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   // Which way the screen is being left while the reading is logged, for that button's spinner.
   const [leaving, setLeaving] = useState<'next' | 'back' | null>(null);
   const [writing, setWriting] = useState(false);
+  // Where the server has got to in writing the text asked for, for the making card.
+  const [writeStage, setWriteStage] = useState<TextStage | undefined>(undefined);
   // What Next opens from the end view: undefined while it's looked up, null when there's none or
   // the lookup failed (`nextFailed`).
   const [upNext, setUpNext] = useState<UpNext | null | undefined>(undefined);
@@ -203,6 +207,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   // Writing the story's next episode from the end view (Write episode N): none asked for yet, being
   // written, or not written in time. Once it's written it becomes `upNext` and this is 'ready'.
   const [nextEpisode, setNextEpisode] = useState<'idle' | 'writing' | 'ready' | 'failed'>('idle');
+  const [nextStage, setNextStage] = useState<TextStage | undefined>(undefined);
   const [lengthStep, setLengthStep] = useState<LengthStep>('same');
   const [steerError, setSteerError] = useState<string | null>(null);
   // A story episode's pick for what happens next (an index into text.choices), and why saving it failed.
@@ -424,6 +429,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     setChecking(false);
     setDrilling(null);
     setWriting(false);
+    setWriteStage(undefined);
     setLineEnglish([]);
     // The next text is a different one: an explanation left open would ask the server for the
     // same line of it, and a gloss would sit over a word that's gone.
@@ -458,14 +464,14 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       const topicId = source.topic.id;
       const deadline = Date.now() + WRITE_WAIT_MS;
       const words = source.words;
-      let next = await api.nextText(topicId, words);
+      let next = await api.nextText(topicId, words, setWriteStage);
       while (next === null) {
         if (!stillWanted()) return;
         setWriting(true);
         if (Date.now() > deadline) throw new ApiError('Writing this text is taking longer than usual. Try again in a minute.', 0);
         await wait(POLL_MS);
         if (!stillWanted()) return;
-        next = await api.nextText(topicId, words);
+        next = await api.nextText(topicId, words, setWriteStage);
       }
       if (!stillWanted()) return;
       setText(next);
@@ -596,6 +602,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     if (!text || !session || review || source.kind !== 'shelf' || logged.current || nextEpisode === 'writing') return;
     logged.current = true;
     setNextEpisode('writing');
+    setNextStage(undefined);
     try {
       await api.logReading(text.id, toLog(session, Date.now(), true, checkPicks ? loggedScore(check, checkPicks) : null));
       recordExtraRead(text.language ?? 'th');
@@ -616,6 +623,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           setNextEpisode('ready');
           return;
         }
+        setNextStage(shelf.story?.stage ?? undefined);
         if (shelf.story?.failed) break;
       } catch {
         // Unreachable for now: ask again until the wait runs out.
@@ -866,12 +874,16 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           {error ? (
             <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={load} /></View>
           ) : (
-            <View style={{ padding: space.xxl, alignItems: 'center', gap: space.m }}>
-              <ActivityIndicator color={c.accent} />
-              <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
-                {writing ? 'Writing a text. This takes about half a minute.' : 'Opening the text'}
-              </Text>
-            </View>
+            writing ? (
+              <View style={{ padding: space.l }}>
+                <MakingCard title={source.kind === 'topic' ? source.topic.name : 'A new text'} steps={textSteps(writeStage)} />
+              </View>
+            ) : (
+              <View style={{ padding: space.xxl, alignItems: 'center', gap: space.m }}>
+                <ActivityIndicator color={c.accent} />
+                <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>Opening the text</Text>
+              </View>
+            )
           )}
         </ScrollView>
       ) : null}
@@ -1192,10 +1204,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
               </View>
             ) : null}
             {nextEpisode === 'writing' ? (
-              <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-                <ActivityIndicator size="small" color={c.accent} />
-                <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>Writing the next episode. This takes about half a minute.</Text>
-              </Card>
+              <MakingCard title={`Episode ${(text.episode ?? 0) + 1}`} steps={textSteps(nextStage)} />
             ) : null}
             {nextEpisode === 'failed' ? (
               <Help>Couldn't write the next episode yet. The server tries again in half an hour, or go back to the shelf and pull down to check.</Help>
