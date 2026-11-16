@@ -312,7 +312,9 @@ export function SwipeToReveal({ open, onOpenChange, action, onFullSwipe, width =
   useEffect(() => { full.value = !!onFullSwipe; }, [onFullSwipe]); // eslint-disable-line react-hooks/exhaustive-deps
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
   // The action grows with the drag past its own width, so a full swipe reads as pulling it across.
-  const actionStyle = useAnimatedStyle(() => ({ width: Math.max(wide.value, -x.value) }));
+  // It's invisible while the row is shut: the row covers it, but a row fading during a layout
+  // animation (collapsing a deck) goes translucent and would show it through.
+  const actionStyle = useAnimatedStyle(() => ({ width: Math.max(wide.value, -x.value), opacity: x.value < -1 ? 1 : 0 }));
   return (
     <View style={{ overflow: 'hidden' }} onLayout={(e) => { rowWidth.value = e.nativeEvent.layout.width; }}>
       <Reanimated.View
