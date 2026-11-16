@@ -118,12 +118,12 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
               <View style={{ gap: space.s }}>
                 <ControlLabel>Due today</ControlLabel>
                 {rows(groups.due, (r) => grammarStateWord(r.state))}
-                {groups.due.length > DRILL_POINTS ? <Help>{`Practice now mixes ${DRILL_POINTS} points, Practice ones first. Start again for the rest.`}</Help> : null}
+                {groups.due.length > DRILL_POINTS ? <Help>{`Practice now mixes ${DRILL_POINTS} grammar points, Practice ones first. Start again for the rest.`}</Help> : null}
               </View>
             ) : (
               <Help>{groups.later.length
                 ? `Nothing due today. Next: ${dueWhen(groups.later[0].schedule!.due, now, hour).toLocaleLowerCase()}.`
-                : `Nothing to practice yet. Set a ${name} point to Practice or Know it, and it comes back here.`}</Help>
+                : `Nothing to practice yet. Set a ${name} grammar point to Practice or Know it, and it comes back here.`}</Help>
             )}
             {groups.later.length ? (
               <View style={{ gap: space.s }}>
@@ -151,7 +151,7 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
                 <Help>Topics are pages Claude writes for you. They aren't checked against a grammar book.</Help>
               </View>
             ) : null}
-            <Help>Tap a point to read about it and practice it. Practice here never changes your flashcards.</Help>
+            <Help>Tap a grammar point to read about it and practice it. Practice here never changes your flashcards.</Help>
           </>
         )}
       </ScrollView>
