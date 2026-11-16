@@ -297,6 +297,11 @@ export type ShelfStory = {
   title: string;
   about: string;
   read: number;
+  // Where the episode the card shows falls in its season, and how long a season is. Missing from
+  // a server older than seasons.
+  season?: number;
+  season_episode?: number;
+  season_length?: number;
   last_recap: string;
   // The same in the story's language, as words to tap, with that line's English. Null for an
   // episode written before it was asked for, and missing from a server older than it.

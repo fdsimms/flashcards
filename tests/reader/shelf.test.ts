@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GrammarList, ShelfText } from '../../src/reader/api';
-import { cardDetail, modelLabel, shelfDetail, grammarStepNote, hasPracticeRoom, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, stepGrammarUses, stepLength, surprisePick } from '../../src/reader/shelf';
+import { cardDetail, modelLabel, shelfDetail, grammarStepNote, hasPracticeRoom, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, seasonLabel, stepGrammarUses, stepLength, surprisePick } from '../../src/reader/shelf';
 
 const text = (over: Partial<ShelfText> = {}): ShelfText => ({
   id: 1, title: 'At the stall', topic: 'Food stall', topic_id: 1, form: 'dialogue', lines: 8,
@@ -34,6 +34,14 @@ describe('the shelf', () => {
     expect(reasonLabel(text({ reason: 'story', episode: 7 }))).toBe('Episode 7');
     // A text written for a topic before the shelf.
     expect(reasonLabel(text({ reason: '' }))).toBe('Food stall');
+  });
+
+  it('places a story episode in its season, and says so on the last one', () => {
+    expect(seasonLabel({ season: 2, season_episode: 3, season_length: 8 })).toBe('Season 2 · Episode 3 of 8');
+    expect(seasonLabel({ season: 2, season_episode: 8, season_length: 8 })).toBe('Season 2 · Episode 8 of 8 · Finale');
+    expect(seasonLabel({ season: 3, season_episode: 1, season_length: 8 })).toBe('Season 3 · Episode 1 of 8');
+    // A server older than seasons sends none.
+    expect(seasonLabel({})).toBeNull();
   });
 
   it('plays the story first, then the shelf in order', () => {

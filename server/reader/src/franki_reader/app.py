@@ -322,7 +322,16 @@ from franki_reader.gateway import (
     reviews_with_timeout,
     with_timeout,
 )
-from franki_reader.generator import MODEL, Ask, Form, TextModel, Usage, claude_ask
+from franki_reader.generator import (
+    MODEL,
+    SEASON_EPISODES,
+    Ask,
+    Form,
+    StoryContext,
+    TextModel,
+    Usage,
+    claude_ask,
+)
 from franki_reader.ipa import ipa_for
 from franki_reader.languages import (
     HIDDEN_LANGUAGES,
@@ -2605,11 +2614,17 @@ def _shelf(engine: Engine) -> dict[str, Any]:
         told = store.episodes(engine.conn, story.id)
         read = [t for t in told if store.text_status(engine.conn, t.id) == "read"]
         waiting = store.waiting_episode(engine.conn, story.id)
+        # Where the episode the card shows (the waiting one, else the next to be written) falls
+        # in its season, so the app doesn't repeat how long a season is.
+        place = StoryContext(episode=waiting.episode if waiting else len(read) + 1)
         story_out = {
             "id": story.id,
             "title": story.title,
             "about": story.about,
             "read": len(read),
+            "season": place.season,
+            "season_episode": place.season_episode,
+            "season_length": SEASON_EPISODES,
             "last_recap": read[-1].recap if read else "",
             # The same in the story's language, as the reader's words, with that line's English;
             # null for an episode written before it was asked for.
