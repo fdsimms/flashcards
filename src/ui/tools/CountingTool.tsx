@@ -112,7 +112,7 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
           <View style={{ gap: 2, flexShrink: 1 }}>
             <Text selectable style={{ ...type.cardFront, color: c.text }}>{noun.cue.text}</Text>
             {noun.cue.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{noun.cue.roman}</Text> : null}
-            {noun.meaning ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{noun.meaning}</Text> : null}
+            {noun.meaning ? <Text style={{ ...type.subhead, color: c.text }}>{noun.meaning}</Text> : null}
           </View>
         ) : null}
       </Card>

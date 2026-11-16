@@ -190,7 +190,7 @@ function Choice({ word, state, onPress, onPlay }: {
         {state === 'open' ? null : (
           <>
             {word.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{word.roman}</Text> : null}
-            {word.meaning ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{word.meaning}</Text> : null}
+            {word.meaning ? <Text style={{ ...type.subhead, color: c.text }}>{word.meaning}</Text> : null}
           </>
         )}
       </View>
