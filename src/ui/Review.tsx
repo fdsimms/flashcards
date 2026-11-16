@@ -636,7 +636,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
   const leechSheet = leechPrompt && leechNoteNow ? (
     <LeechHintSheet
       word={htmlToText(leechNoteNow.fields.Entry ?? '')}
-      gloss={[htmlToText(leechNoteNow.fields.Transliteration ?? ''), htmlToText(leechNoteNow.fields.Meaning ?? '')].filter(Boolean).join(' · ')}
+      translit={htmlToText(leechNoteNow.fields.Transliteration ?? '') || undefined}
+      gloss={htmlToText(leechNoteNow.fields.Meaning ?? '') || undefined}
       misses={leechPrompt.misses}
       suspended={!!leechPrompt.suspendedCardId}
       suggest={suggestHints && question ? () => suggestHints(question) : undefined}
