@@ -1090,7 +1090,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           ))}
           {!listenOnly && choicesView(text, review) ? (
             <View style={{ paddingHorizontal: space.l, paddingBottom: space.l }}>
-              <ReadChoices choices={text.choices ?? []} chosen={chosen} textStyle={readStyle(text, thaiFont, textSize)} onChoose={review ? null : choose} error={choiceError} />
+              <ReadChoices choices={text.choices ?? []} chosen={chosen} textStyle={readStyle(text, thaiFont, textSize)} onChoose={review ? null : choose} error={choiceError} showEnglish={english} />
             </View>
           ) : null}
           {review ? null : (
