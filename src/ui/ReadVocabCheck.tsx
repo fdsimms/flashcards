@@ -11,7 +11,7 @@ import { vocabWatch } from '../reader/vocabWatch';
 import { haptic } from './haptics';
 import { PlayPill } from './PlayButton';
 import { Reveal } from './motion';
-import { Button, Card, Divider, ErrorNote, Group, Help, Screen, SectionTitle, Tappable } from './kit';
+import { Button, Card, Divider, ErrorNote, Group, Help, Icon, Screen, SectionTitle, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 
 const POLL_MS = 3000;
@@ -330,9 +330,10 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
             onPress={() => answer('skipped')}
             accessibilityRole="button"
             accessibilityLabel="I don't know this word"
-            style={{ minHeight: 52, justifyContent: 'center', paddingHorizontal: space.l, paddingVertical: space.m, borderRadius: radius.m, ...smooth, borderColor: c.border, borderWidth: 1, borderStyle: 'dashed' }}
+            style={{ minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s, paddingHorizontal: space.l, paddingVertical: space.m, borderRadius: radius.m, ...smooth, borderColor: c.border, borderWidth: 1 }}
           >
-            <Text style={{ ...type.body, color: c.textSecondary }}>I don't know this word</Text>
+            <Icon name="questionmark.circle" size={18} color={c.textSecondary} />
+          <Text style={{ ...type.body, color: c.textSecondary }}>I don't know this word</Text>
           </Tappable>
         )}
       </ScrollView>
