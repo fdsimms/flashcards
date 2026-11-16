@@ -44,7 +44,7 @@ import { ReadFormChip, ReadFormSheet } from './ReadFormSheet';
 import { ReaderFormQuiz } from './ReaderFormQuiz';
 import { useFormQuiz } from './useFormQuiz';
 import { ReadFrequency } from './ReadFrequency';
-import { GuessLine, GuessPrompt, QuizChoices, rightAnswer } from './ReadWordGuess';
+import { GuessPrompt, QuizChoices, rightAnswer } from './ReadWordGuess';
 import { PracticeWordPill, TintPill } from './PracticeWordPill';
 import { WordView } from './ReadWord';
 import { ReaderKey } from './ReaderKey';
@@ -1370,13 +1370,11 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
   const [showTranslit, setShowTranslit] = useState(false);
   // The form chip's explanation replaces the popover while it's open.
   const [showForm, setShowForm] = useState(false);
-  // A word whose meaning is held back (`tapped.guess`): whether it has been shown, what was typed as
-  // a guess, the quiz choice picked (null for "I don't know"), and whether the guess box has focus.
+  // A word whose meaning is held back (`tapped.guess`): whether it has been shown, and the quiz
+  // choice picked (null for "I don't know").
   const [revealed, setRevealed] = useState(false);
-  const [guess, setGuess] = useState('');
   const [picked, setPicked] = useState<number | null>(null);
-  const [typing, setTyping] = useState(false);
-  useEffect(() => { setPopHeight(0); setShowTranslit(false); setShowForm(false); setRevealed(false); setGuess(''); setPicked(null); setTyping(false); }, [tapped]);
+  useEffect(() => { setPopHeight(0); setShowTranslit(false); setShowForm(false); setRevealed(false); setPicked(null); }, [tapped]);
   if (!tapped) return null;
   const ipaLine = ipaNote(tapped.word);
   if (showForm && language && tapped.word.form) return <ReadFormSheet api={api} language={language} word={tapped.word} onClose={onClose} />;
@@ -1385,15 +1383,11 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
   // Above the word when it clears the status bar, so the finger and the word both stay visible;
   // otherwise below it, and never past the bottom edge.
   const above = tapped.y - POPOVER_GAP - popHeight;
-  // The guess box is a keyboard away from the bottom half of the screen: while it has focus the
-  // popover sits at the top.
-  const top = typing
-    ? insets.top + space.l
-    : Math.min(above >= insets.top + space.s ? above : tapped.y + POPOVER_GAP, height - popHeight - insets.bottom - space.s);
+  const top = Math.min(above >= insets.top + space.s ? above : tapped.y + POPOVER_GAP, height - popHeight - insets.bottom - space.s);
   const mode = tapped.guess ?? null;
   // Meaning held back until asked for.
   const trying = !!mode && !revealed;
-  const reveal = () => { setRevealed(true); setTyping(false); onReveal?.(); };
+  const reveal = () => { setRevealed(true); onReveal?.(); };
   const actions: Parameters<typeof WordActionRow>[0][] = [];
   if (trying) {
     if (!mode.quiz) actions.push({ icon: 'eye', label: 'Show meaning', accessibilityLabel: `Show the meaning of ${tapped.word.text}`, onPress: reveal, chevron: false });
@@ -1427,10 +1421,6 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
             {trying ? (
               <GuessPrompt
                 mode={mode}
-                guess={guess}
-                onGuess={setGuess}
-                onFocus={() => setTyping(true)}
-                onBlur={() => setTyping(false)}
                 onPick={(i) => {
                   if (i === mode.quiz?.answer) { rightAnswer(); onClose(); return; }
                   setPicked(i);
@@ -1449,7 +1439,6 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
                 {(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary }}>{(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction}</Text>
                 ) : null}
-                <GuessLine guess={guess} gloss={tapped.word.gloss} />
                 {tapped.word.form && language ? <ReadFormChip name={tapped.word.form.name} onPress={() => setShowForm(true)} /> : null}
                 {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
                 <ReadFrequency word={tapped.word} />

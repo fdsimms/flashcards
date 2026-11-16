@@ -1,8 +1,8 @@
 // Trying a word before its meaning is shown (docs/read-and-listen/architecture.md, Client, Guess
-// first). A tapped word's popover can hold its meaning back: for a word in the deck the learner
-// tries to recall it, for one outside it they work it out from the line, and an optional
-// multiple-choice question stands in for the "Show meaning" row on a known word. Retrieval and
-// guessing first (even wrong, then corrected) beat being shown the answer.
+// first). A tapped word's popover can hold its meaning back for a word in the deck, which the
+// learner tries to recall, and an optional multiple-choice question stands in for the "Show
+// meaning" row. A word outside the deck shows its meaning at once: being made to guess it first
+// was dropped as more annoying than useful.
 //
 // Nothing here grades a card or reaches the scheduler. A lookup is logged when the meaning is
 // shown, so a word recalled is never counted as one that was looked up (server recognition.py reads
@@ -11,23 +11,20 @@
 import type { ReaderText, Word } from './api';
 import { CHOICES, shuffled, withAnswer, type Random } from './check';
 
-export type GuessKind = 'recall' | 'infer';
+export type GuessKind = 'recall';
 
 /**
- * How a word is tried before its meaning: recall for a word counted as known, infer from the line
- * for one that isn't (not in the deck, or only inside a longer phrase). Null when there is nothing
- * to try or nothing to show: a name, punctuation, or a word with no meaning to reveal.
+ * How a word is tried before its meaning: recall, for a word counted as known. Null when there is
+ * nothing to try or nothing to show: a word outside the deck (or only inside a longer phrase), a
+ * name, punctuation, or a word with no meaning to reveal.
  */
 export function guessKind(word: Pick<Word, 'status' | 'gloss' | 'parts'>): GuessKind | null {
   if (!word.gloss?.trim() && !word.parts) return null;
-  if (word.status === 'known') return 'recall';
-  if (word.status === 'unknown' || word.status === 'partial') return 'infer';
-  return null;
+  return word.status === 'known' ? 'recall' : null;
 }
 
 export const GUESS_HINT: Record<GuessKind, string> = {
   recall: 'Try to remember it first.',
-  infer: 'Guess from the line first.',
 };
 
 export type Quiz = { choices: string[]; answer: number };
@@ -54,22 +51,6 @@ export function quizFor(word: Pick<Word, 'text' | 'gloss'>, text: Pick<ReaderTex
   if (others.size < CHOICES - 1) return null;
   const { choices, answer } = withAnswer(right, shuffled([...others.values()], random).slice(0, CHOICES - 1), random);
   return { choices, answer };
-}
-
-const bareMeaning = (s: string) =>
-  fold(s).replace(/\([^)]*\)/g, ' ').replace(/[^\p{L}\p{N}\s'-]/gu, ' ').replace(/\s+/g, ' ').trim().replace(/^(to|a|an|the) /, '');
-
-/**
- * Whether a guess at a word's meaning is the meaning shown: the whole gloss, or any one of its
- * alternatives ("breathing", "to give change / to return change"), ignoring case, punctuation,
- * a bracketed note and a leading "to", "a" or "the". Only to tell the learner they were right; it
- * grades nothing.
- */
-export function guessIsRight(guess: string, gloss: string | null | undefined): boolean {
-  const want = bareMeaning(guess);
-  if (!want || !gloss) return false;
-  if (bareMeaning(gloss) === want) return true;
-  return gloss.split(/[,;/]|\bor\b/).some((part) => bareMeaning(part) === want);
 }
 
 /** What a tap on a word does: whether its meaning waits behind a try, and whether it's a quiz. */

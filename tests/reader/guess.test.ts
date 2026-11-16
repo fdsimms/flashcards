@@ -1,17 +1,6 @@
 import { expect, test } from 'vitest';
 import type { ReaderText, TextLine, Word } from '../../src/reader/api';
-import { GUESS_HINT, guessIsRight, guessKind, quizFor, tapMode } from '../../src/reader/guess';
-
-test('a guess is right when it is the meaning shown or one of its alternatives', () => {
-  expect(guessIsRight('breathing', 'breathing')).toBe(true);
-  expect(guessIsRight('  Breathing ', 'breathing')).toBe(true);
-  expect(guessIsRight('give change', 'to give change')).toBe(true);
-  expect(guessIsRight('return', 'to give back, to return (something)')).toBe(true);
-  expect(guessIsRight('the key', 'key')).toBe(true);
-  expect(guessIsRight('breathe', 'breathing')).toBe(false);
-  expect(guessIsRight('', 'breathing')).toBe(false);
-  expect(guessIsRight('breathing', null)).toBe(false);
-});
+import { GUESS_HINT, guessKind, quizFor, tapMode } from '../../src/reader/guess';
 
 const word = (text: string, gloss: string | null, extra: Partial<Word> = {}): Word =>
   ({ text, status: 'known', gloss, stretch: false, deck: true, grammar: null, ...extra });
@@ -20,11 +9,11 @@ const text = (words: Word[]): Pick<ReaderText, 'lines'> => ({ lines: [line(words
 
 const WORDS = [word('ฉัน', 'I'), word('อยาก', 'want to'), word('กิน', 'eat'), word('ไป', 'go'), word('ทอน', 'give change', { status: 'unknown', deck: false })];
 
-test('a known word is recalled and a word outside the deck is inferred from the line', () => {
+test('a known word is recalled and a word outside the deck shows its meaning at once', () => {
   expect(guessKind(word('กิน', 'eat'))).toBe('recall');
-  expect(guessKind(word('ทอน', 'give change', { status: 'unknown' }))).toBe('infer');
-  expect(guessKind(word('รับ', 'receive', { status: 'partial' }))).toBe('infer');
-  expect(GUESS_HINT.recall).not.toBe(GUESS_HINT.infer);
+  expect(guessKind(word('ทอน', 'give change', { status: 'unknown' }))).toBeNull();
+  expect(guessKind(word('รับ', 'receive', { status: 'partial' }))).toBeNull();
+  expect(GUESS_HINT.recall).toBe('Try to remember it first.');
 });
 
 test('a name, punctuation or a word with nothing to show is never tried', () => {
@@ -58,13 +47,13 @@ test('a text with fewer than three other glosses has no quiz', () => {
   expect(quizFor(word('กิน', null), text(WORDS))).toBeNull();
 });
 
-test('guessing first is off, recall, infer or a quiz, as the settings and the word say', () => {
+test('guessing first is off, recall or a quiz, as the settings and the word say', () => {
   const t = text(WORDS);
   expect(tapMode(WORDS[2], t, false, true)).toBeNull();
   expect(tapMode(WORDS[2], t, true, false)).toEqual({ kind: 'recall', quiz: null });
   expect(tapMode(WORDS[2], t, true, true)?.quiz).not.toBeNull();
-  // The quiz is only for known words: a word outside the deck is inferred.
-  expect(tapMode(WORDS[4], t, true, true)).toEqual({ kind: 'infer', quiz: null });
+  // The quiz is only for known words: a word outside the deck shows its meaning at once.
+  expect(tapMode(WORDS[4], t, true, true)).toBeNull();
   expect(tapMode(word('มะลิ', 'Mali', { status: 'name' }), t, true, true)).toBeNull();
   // No text, no quiz (a card's sentence): the plain try still applies.
   expect(tapMode(WORDS[2], null, true, true)).toEqual({ kind: 'recall', quiz: null });
