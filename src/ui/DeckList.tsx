@@ -314,9 +314,12 @@ export function DeckList(props: {
   // A tap on the sync button shows "Syncing" for at least MIN_SYNC_SHOWN_MS, so a sync that has
   // nothing to do or finishes at once still visibly did something.
   const [tapped, setTapped] = useState(false);
-  const syncShown = !!props.sync && (props.sync.syncing || tapped);
+  // The pill answers a tap on the sync button. A sync at launch or on returning to the app runs
+  // quietly: the button is disabled while it runs, and the line under the list reports it.
+  const syncShown = !!props.sync && tapped;
+  const syncBusy = !!props.sync && (props.sync.syncing || tapped);
   const syncTapped = async () => {
-    if (!props.sync || syncShown) return;
+    if (!props.sync || syncBusy) return;
     setTapped(true);
     props.extra?.refresh();
     try {
@@ -352,7 +355,7 @@ export function DeckList(props: {
             <Stack.Toolbar.Button accessibilityLabel="Done editing decks" onPress={() => { haptic.tap(); setEditing(false); }}>Done</Stack.Toolbar.Button>
           ) : null}
           {!editing && props.sync ? (
-            <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={syncShown} accessibilityLabel={syncShown ? 'Syncing' : 'Sync now'} onPress={syncTapped} />
+            <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={syncBusy} accessibilityLabel={syncBusy ? 'Syncing' : 'Sync now'} onPress={syncTapped} />
           ) : null}
           {!editing ? <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} /> : null}
           {!editing ? <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={props.onSettings} /> : null}

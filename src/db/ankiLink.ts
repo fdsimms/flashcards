@@ -134,13 +134,24 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
   const setSetting = (key: string, value: string) =>
     db.runAsync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', key, value);
 
+  // The deck list's load reads several things at once, and each one attaches first. Without this
+  // the second ATTACH ran while the first was awaiting and failed with "database anki is already
+  // in use", shown as "Couldn't load your decks" on every cold start. Callers share one attach.
+  let attaching: Promise<void> | null = null;
   const attach = async () => {
     if (attached || !keptCollectionFile().exists) return;
-    await db.runAsync('ATTACH DATABASE ? AS anki', pathOf(keptCollectionFile()));
-    // A rollback journal rather than WAL: after every write the file on disk is complete, so it
-    // can be packed or backed up without a checkpoint. Anki turns WAL back on when it opens it.
-    await db.execAsync('PRAGMA anki.journal_mode = DELETE');
-    attached = true;
+    attaching ??= (async () => {
+      try {
+        await db.runAsync('ATTACH DATABASE ? AS anki', pathOf(keptCollectionFile()));
+        // A rollback journal rather than WAL: after every write the file on disk is complete, so it
+        // can be packed or backed up without a checkpoint. Anki turns WAL back on when it opens it.
+        await db.execAsync('PRAGMA anki.journal_mode = DELETE');
+        attached = true;
+      } finally {
+        attaching = null;
+      }
+    })();
+    await attaching;
   };
   const detach = async () => {
     if (!attached) return;
