@@ -7,7 +7,7 @@ import { FLAG_IMAGES } from './flagImages';
 import { lessonsOffered } from '../reader/lessons';
 import { ReadListenAgain } from './ReadListenAgain';
 import { ReadReviewFirst } from './ReadReviewFirst';
-import { playMinutes, playOrder, reasonLabel, seasonLabel, shelfDetail, surprisePick } from '../reader/shelf';
+import { playMinutes, playOrder, reasonLabel, seasonLabel, shelfDetail, storyDetail, surprisePick } from '../reader/shelf';
 import { haptic } from './haptics';
 import { Button, Card, Divider, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
 import { PracticeWordPill } from './PracticeWordPill';
@@ -353,7 +353,7 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onEpisodes, onStarted }: { 
       {next ? (
         <>
           <Text style={{ ...type.title, color: c.text }}>{next.title}</Text>
-          <Text style={{ ...type.subhead, color: c.textSecondary }}>{shelfDetail(next)}</Text>
+          <Text style={{ ...type.subhead, color: c.textSecondary }}>{storyDetail(next)}</Text>
           {next.stretch.length > 0 ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>Practice words</Text>

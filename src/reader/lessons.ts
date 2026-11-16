@@ -40,7 +40,7 @@ export function atEnd(position: number, duration: number): boolean {
 }
 
 /** "Nov 15", from the server's timestamp. */
-function shortDate(iso: string): string {
+export function shortDate(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
