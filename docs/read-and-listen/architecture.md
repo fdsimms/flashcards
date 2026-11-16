@@ -1651,9 +1651,12 @@ in the current language, with when one was last read to the end. Nothing else le
   (unless the owner gave one), a Context sentence with the word in `<b>`, its translation, the
   romanization of the sentence and word in Thai, Russian and Greek (`ContextRomanized`,
   `Transliteration`), the Register ("neutral" when plain, as the finished notes have it), PartOfSpeech
-  (also the new note's tag), a Notes line, a Thai noun's Classifier, a German noun's Gender, Plural and
-  Genitive, and the `Language` and `GenerateReverse` every note carries (14 November 2026: a queued
-  note came back with seven fields, nothing like the owner's finished Thai notes). The extras are kept
+  (also the new note's tag), a Notes line, the `Language` and `GenerateReverse` every note carries, and
+  what each language's finished notes carry (`EXTRAS` in `note_queue.py`, read off the deck on 16 November
+  2026): Thai noun Classifier; German noun Gender, Plural and Genitive, verb VerbClass, Auxiliary and
+  KeyForms; French noun Gender; Russian noun Gender (м, ж, с), verb AspectPartner and KeyForms; Polish
+  noun Gender, KeyForms for nouns and verbs; Greek verb VerbClass (active, deponent) and KeyForms; Japanese
+  Hanzi. Spanish, Norwegian and English have nothing beyond the common fields. The extras are kept
   only when they pass, and one that doesn't is left out without failing the word. Generate, then verify: a word is kept
   only if it was asked for and its fields pass `check` (one sentence, balanced bold, no other markup,
   no `|`, `*` or em dashes); anything else is `failed` with the reason, never repaired, and a failed word
@@ -1664,8 +1667,9 @@ in the current language, with when one was last read to the end. Nothing else le
   to Anki, and the approval rule stands: a ready word opens in the note editor with its fields filled
   in, and saving there is the approval, after which the app deletes the word from the queue. The Audio
   field is the one the server doesn't write: the app records it as it does for any note when it's saved
-  (`src/core/recording.ts`). The spend is the `note_queue` block of `/api/costs`. Not done: Gender and Plural
-  for languages other than German (the owner's Spanish and Greek notes keep the article in the Entry
-  and leave Gender empty), a check that
+  (`src/core/recording.ts`). The spend is the `note_queue` block of `/api/costs`. Not done: Gender for
+  Spanish, Greek and Norwegian (the owner's notes keep the article in the Entry and leave it empty),
+  Spanish `Forms` (`fill_forms` writes them), Etymology and Mnemonic, the aspect tags on Russian and
+  Polish verbs, a check that
   the sentence uses only known words (it's one sentence, not a text), and a note that says it was
   filled in by Claude in the editor.

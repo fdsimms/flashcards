@@ -4,9 +4,9 @@ background, so a note is a word to type and a minute to check instead of a form.
 Claude writes each word's Meaning (unless the owner gave one), a Context sentence with the word in bold,
 its English translation, the romanization of the sentence and word where the language needs one (a
 Japanese word's reading in kana instead, its KanaReading), the Register, PartOfSpeech, a Notes line
-(usage, compounds, a contrast with a near word), a Thai noun's Classifier and a German noun's Gender,
-Plural and Genitive, as the owner's finished notes have them, plus the Language and GenerateReverse
-every note carries. The Audio field isn't written here: the app records it when the owner
+(usage, compounds, a contrast with a near word), plus what each language's finished notes carry
+(`EXTRAS`: genders, German plurals and verb classes, Russian aspect partners, Polish and Greek key forms,
+Thai classifiers, Japanese kanji), and the Language and GenerateReverse every note carries. The Audio field isn't written here: the app records it when the owner
 saves the note, as it does for any note (src/core/recording.ts). Nothing here creates an Anki note or
 grades a card. A word that has been filled in waits in `ready` until the owner opens it in the note
 editor in the app, where saving is the approval.
@@ -21,6 +21,7 @@ import logging
 import re
 import sqlite3
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, cast
 
@@ -58,7 +59,150 @@ PARTS_OF_SPEECH = frozenset(
         "phrase",
     }
 )
-GENDERS = frozenset({"m", "f", "n"})
+
+
+@dataclass(frozen=True)
+class Extra:
+    """A field a language's finished notes carry beyond the common ones. `key` is the name in Claude's
+    answer, `ask` what the prompt says to write, `allowed` the only values kept (None: any one line)
+    and `pos` the part of speech it applies to (None: every word). Kept only when it passes; a word is
+    never failed for one."""
+
+    key: str
+    field: str
+    ask: str
+    pos: str | None = None
+    allowed: frozenset[str] | None = None
+    limit: int = MAX_MEANING
+
+
+_NO = "an empty string"
+_LATIN_GENDER = frozenset({"m", "f", "n"})
+# What each language's owner-written notes fill in, read off the deck (16 November 2026). Spanish, Norwegian
+# and English have nothing beyond the common fields: their nouns keep the article in the Entry and leave
+# Gender empty, and Spanish Forms are filled in by fill_forms, not here.
+EXTRAS: dict[Code, tuple[Extra, ...]] = {
+    "th": (
+        Extra(
+            "classifier",
+            "Classifier",
+            "for a noun, its everyday classifier word in Thai script (e.g. ผืน for ผ้า); else " + _NO,
+            "noun",
+            limit=MAX_REGISTER,
+        ),
+    ),
+    "de": (
+        Extra(
+            "gender", "Gender", 'for a noun, "m", "f" or "n"; else ' + _NO, "noun", _LATIN_GENDER, 1
+        ),
+        Extra(
+            "plural",
+            "Plural",
+            "for a noun, the plural without its article (Einstellungen); else " + _NO,
+            "noun",
+        ),
+        Extra(
+            "genitive",
+            "Genitive",
+            "for a noun, the genitive singular with its article (der Einstellung, des Tisches); else "
+            + _NO,
+            "noun",
+        ),
+        Extra(
+            "verb_class",
+            "VerbClass",
+            '"strong", "weak" or "mixed" for a verb; else ' + _NO,
+            "verb",
+            frozenset({"strong", "weak", "mixed"}),
+        ),
+        Extra(
+            "auxiliary",
+            "Auxiliary",
+            '"haben" or "sein" for a verb; else ' + _NO,
+            "verb",
+            frozenset({"haben", "sein"}),
+        ),
+        Extra(
+            "key_forms",
+            "KeyForms",
+            "for a verb, the first person singular preterite, with a separable prefix after it (warf ab); else "
+            + _NO,
+            "verb",
+        ),
+    ),
+    "fr": (
+        Extra(
+            "gender",
+            "Gender",
+            'for a noun, "m" or "f"; else ' + _NO,
+            "noun",
+            frozenset({"m", "f"}),
+            1,
+        ),
+    ),
+    "ru": (
+        # Cyrillic letters, as the owner's notes have them.
+        Extra(
+            "gender",
+            "Gender",
+            'for a noun, "м", "ж" or "с"; else ' + _NO,
+            "noun",
+            frozenset({"м", "ж", "с"}),
+            1,
+        ),
+        Extra(
+            "aspect_partner",
+            "AspectPartner",
+            "for a verb, its partner of the other aspect, as one word (добиться for добиваться); else "
+            + _NO,
+            "verb",
+        ),
+        Extra(
+            "key_forms",
+            "KeyForms",
+            "for a verb, the first person singular of the present (imperfective) or future (perfective) "
+            "(добиваюсь); else " + _NO,
+            "verb",
+        ),
+    ),
+    "pl": (
+        Extra(
+            "gender", "Gender", 'for a noun, "m", "f" or "n"; else ' + _NO, "noun", _LATIN_GENDER, 1
+        ),
+        Extra(
+            "key_forms",
+            "KeyForms",
+            "for a noun, its genitive singular and nominative plural, comma separated (mężczyzny, mężczyźni); "
+            "for a verb, its first and second person singular of the present, or of the future for a "
+            "perfective verb (mam, masz); else " + _NO,
+            limit=40,
+        ),
+    ),
+    "el": (
+        Extra(
+            "verb_class",
+            "VerbClass",
+            '"active" for a verb in -ω or -ώ, "deponent" for one in -ομαι or -μαι; else ' + _NO,
+            "verb",
+            frozenset({"active", "deponent"}),
+        ),
+        Extra(
+            "key_forms",
+            "KeyForms",
+            "for a verb, the first person singular aorist (αντιπάθησα); else " + _NO,
+            "verb",
+        ),
+    ),
+    "ja": (
+        Extra(
+            "hanzi",
+            "Hanzi",
+            "for a word with kanji, each kanji with its readings in katakana in parentheses and its meaning, "
+            "separated by semicolons (服(フク)clothing; 装(ソウ)adorn/dress); else " + _NO,
+            limit=MAX_SENTENCE,
+        ),
+    ),
+}
 
 # Languages whose Context sentence and word get a romanization (the Omnilanguage fields
 # ContextRomanized and Transliteration): the ones not written in Latin letters.
@@ -88,13 +232,14 @@ classifier, numeral, interjection, phrase
 - notes: one short line of what helps remember or use the entry: how it differs from a near word, a \
 common compound or collocation with its meaning, a usage restriction. An empty string when there is \
 nothing worth saying; never filler
-- classifier: {classifier}
-- gender: {gender}
-- plural: {plural}
-- genitive: {genitive}
-
-Plain text apart from the <b> tags: no `|`, no asterisks, no em dashes. Entries:
+{extras}
+Leave any field not described for {language} as an empty string. Plain text apart from the <b> tags: \
+no `|`, no asterisks, no em dashes. Entries:
 {entries}"""
+
+# Every language's extra keys, in one schema: a key that doesn't apply to a language is left out of its
+# prompt, and an answer that holds it anyway is ignored.
+_EXTRA_KEYS = tuple(dict.fromkeys(x.key for extras in EXTRAS.values() for x in extras))
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -113,10 +258,7 @@ SCHEMA: dict[str, Any] = {
                     "register": {"type": "string"},
                     "part_of_speech": {"type": "string"},
                     "notes": {"type": "string"},
-                    "classifier": {"type": "string"},
-                    "gender": {"type": "string"},
-                    "plural": {"type": "string"},
-                    "genitive": {"type": "string"},
+                    **{key: {"type": "string"} for key in _EXTRA_KEYS},
                 },
                 "required": [
                     "entry",
@@ -128,10 +270,7 @@ SCHEMA: dict[str, Any] = {
                     "register",
                     "part_of_speech",
                     "notes",
-                    "classifier",
-                    "gender",
-                    "plural",
-                    "genitive",
+                    *_EXTRA_KEYS,
                 ],
                 "additionalProperties": False,
             },
@@ -168,38 +307,14 @@ def request_message(language: Code, asked: list[tuple[str, str]]) -> str:
         )
     else:
         transliteration = "an empty string"
-    empty = "an empty string"
-    german = language == "de"
     return _REQUEST.format(
         language=name,
-        classifier=(
-            "for a noun, its everyday classifier word in Thai script (e.g. ผืน for ผ้า); otherwise "
-            + empty
-            if language == "th"
-            else empty
-        ),
-        gender=(
-            'for a noun, "m", "f" or "n" (the entry may come without its article); otherwise '
-            + empty
-            if german
-            else empty
-        ),
-        plural=(
-            "for a noun, its plural form without the article (e.g. Blutungen); otherwise " + empty
-            if german
-            else empty
-        ),
-        genitive=(
-            "for a masculine or neuter noun, its genitive singular ending or form (e.g. -es, -s); "
-            "otherwise " + empty
-            if german
-            else empty
-        ),
         romanization=(
             f"the sentence in Latin letters, the way a {name} textbook romanizes it"
             if romanized
             else "an empty string"
         ),
+        extras="".join(f"- {x.key}: {x.ask}\n" for x in EXTRAS.get(language, ())),
         transliteration=transliteration,
         entries="\n".join(
             f"{i}. {entry}" + (f" (the learner's meaning: {meaning})" if meaning else "")
@@ -261,16 +376,12 @@ def check(raw: object, asked: dict[str, str], language: Code) -> tuple[str, dict
         fields["PartOfSpeech"] = part.casefold()
     if note := _plain(raw.get("notes"), MAX_NOTES):
         fields["Notes"] = note
-    classifier = _plain(raw.get("classifier"), MAX_REGISTER)
-    if language == "th" and fields.get("PartOfSpeech") == "noun" and classifier:
-        fields["Classifier"] = classifier
-    if language == "de" and fields.get("PartOfSpeech") == "noun":
-        gender = _plain(raw.get("gender"), 1)
-        if gender and gender.casefold() in GENDERS:
-            fields["Gender"] = gender.casefold()
-        for key, name in (("plural", "Plural"), ("genitive", "Genitive")):
-            if value := _plain(raw.get(key), MAX_MEANING):
-                fields[name] = value
+    for extra in EXTRAS.get(language, ()):
+        if extra.pos is not None and fields.get("PartOfSpeech") != extra.pos:
+            continue
+        value = _plain(raw.get(extra.key), extra.limit)
+        if value and (extra.allowed is None or value.casefold() in extra.allowed):
+            fields[extra.field] = value.casefold() if extra.allowed else value
     return entry, fields
 
 

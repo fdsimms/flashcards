@@ -111,31 +111,119 @@ def test_notes_and_part_of_speech_are_kept_and_a_bad_one_is_left_out() -> None:
     assert got is not None and "Notes" not in got[1] and "PartOfSpeech" not in got[1]
 
 
-def test_a_thai_noun_gets_its_classifier_and_a_german_noun_its_forms() -> None:
-    th = check(
-        filled(
-            "ผ้า",
-            part_of_speech="noun",
-            classifier="ผืน",
-            context="<b>ผ้า</b>นี้นุ่ม",
-            romanization="phâa nîi núm",
-            transliteration="phâa",
-        ),
-        {"ผ้า": ""},
-        "th",
+def got_fields(language: Any, entry: str, asked: str = "", **over: Any) -> dict[str, str]:
+    got = check(filled(entry, **over), {entry: asked}, language)
+    assert got is not None
+    return got[1]
+
+
+def test_a_thai_noun_gets_its_classifier_and_only_a_noun() -> None:
+    thai: dict[str, Any] = {
+        "context": "<b>ผ้า</b>นี้นุ่ม",
+        "romanization": "phâa nîi núm",
+        "transliteration": "phâa",
+        "classifier": "ผืน",
+    }
+    noun = got_fields("th", "ผ้า", part_of_speech="noun", **thai)
+    assert noun["Classifier"] == "ผืน" and noun["Language"] == "thai"
+    assert "Classifier" not in got_fields("th", "ผ้า", part_of_speech="verb", **thai)
+
+
+def test_a_german_noun_gets_gender_plural_and_genitive() -> None:
+    fields = got_fields(
+        "de", "die Einstellung", part_of_speech="noun", gender="F", plural="Einstellungen",
+        genitive="der Einstellung",
+    )  # fmt: skip
+    assert (fields["Gender"], fields["Plural"], fields["Genitive"]) == (
+        "f",
+        "Einstellungen",
+        "der Einstellung",
     )
-    assert th is not None and th[1]["Classifier"] == "ผืน" and th[1]["Language"] == "thai"
-    de = check(
-        filled("Blutung", part_of_speech="noun", gender="F", plural="Blutungen", genitive="-"),
-        {"Blutung": ""},
-        "de",
+    assert "Gender" not in got_fields("de", "die Einstellung", part_of_speech="noun", gender="x")
+
+
+def test_a_german_verb_gets_class_auxiliary_and_key_forms() -> None:
+    fields = got_fields(
+        "de", "abwerfen", part_of_speech="verb", verb_class="Strong", auxiliary="haben",
+        key_forms="warf ab", gender="m", plural="x",
+    )  # fmt: skip
+    assert fields["VerbClass"] == "strong" and fields["Auxiliary"] == "haben"
+    assert fields["KeyForms"] == "warf ab" and "Gender" not in fields and "Plural" not in fields
+    assert "Auxiliary" not in got_fields("de", "abwerfen", part_of_speech="verb", auxiliary="have")
+
+
+def test_french_gender_is_m_or_f_and_russian_gender_is_in_cyrillic() -> None:
+    assert got_fields("fr", "le boulot", part_of_speech="noun", gender="m")["Gender"] == "m"
+    assert "Gender" not in got_fields("fr", "le boulot", part_of_speech="noun", gender="n")
+    ru: dict[str, Any] = {"romanization": "oblik", "transliteration": "oblik"}
+    assert got_fields("ru", "облик", part_of_speech="noun", gender="ж", **ru)["Gender"] == "ж"
+    assert "Gender" not in got_fields("ru", "облик", part_of_speech="noun", gender="f", **ru)
+
+
+def test_a_russian_verb_gets_its_aspect_partner_and_first_person() -> None:
+    ru: dict[str, Any] = {"romanization": "dobivatsya", "transliteration": "dobivatsya"}
+    fields = got_fields(
+        "ru",
+        "добиваться",
+        part_of_speech="verb",
+        aspect_partner="добиться",
+        key_forms="добиваюсь",
+        **ru,
     )
-    assert de is not None
-    assert (de[1]["Gender"], de[1]["Plural"], de[1]["Genitive"]) == ("f", "Blutungen", "-")
-    fr = check(
-        filled("ricane", classifier="x", gender="m", part_of_speech="noun"), {"ricane": ""}, "fr"
+    assert fields["AspectPartner"] == "добиться" and fields["KeyForms"] == "добиваюсь"
+
+
+def test_polish_key_forms_are_for_nouns_and_verbs_alike() -> None:
+    noun = got_fields(
+        "pl", "ten mężczyzna", part_of_speech="noun", gender="m", key_forms="mężczyzny, mężczyźni"
     )
-    assert fr is not None and not {"Classifier", "Gender"} & fr[1].keys()
+    assert noun["KeyForms"] == "mężczyzny, mężczyźni" and noun["Gender"] == "m"
+    assert (
+        got_fields("pl", "mieć", part_of_speech="verb", key_forms="mam, masz")["KeyForms"]
+        == "mam, masz"
+    )
+
+
+def test_a_greek_verb_gets_its_class_and_aorist_and_a_greek_noun_nothing_extra() -> None:
+    el: dict[str, Any] = {"romanization": "x", "transliteration": "x"}
+    verb = got_fields(
+        "el", "αντιπαθώ", part_of_speech="verb", verb_class="active", key_forms="αντιπάθησα", **el
+    )
+    assert verb["VerbClass"] == "active" and verb["KeyForms"] == "αντιπάθησα"
+    noun = got_fields("el", "ο γραμματέας", part_of_speech="noun", gender="m", key_forms="x", **el)
+    assert not {"Gender", "KeyForms", "VerbClass"} & noun.keys()
+
+
+def test_a_japanese_word_gets_its_kanji_in_hanzi() -> None:
+    fields = got_fields(
+        "ja", "服装", transliteration="ふくそう", hanzi="服(フク)clothing; 装(ソウ)adorn/dress"
+    )
+    assert fields["Hanzi"] == "服(フク)clothing; 装(ソウ)adorn/dress"
+
+
+def test_languages_with_no_extras_get_only_the_common_fields() -> None:
+    for language in ("es", "nb", "en"):
+        fields = got_fields(
+            language, "x", part_of_speech="noun", gender="m", key_forms="x", classifier="x"
+        )
+        assert set(fields) == {
+            "Meaning", "Context", "ContextTranslation", "Register", "Language", "GenerateReverse",
+            "PartOfSpeech",
+        }  # fmt: skip
+        assert fields["Language"] == {"es": "spanish", "nb": "norwegian", "en": "english"}[language]
+
+
+def test_every_extra_is_a_field_of_the_note_type_and_asked_for_in_its_language() -> None:
+    from franki_reader.note_queue import EXTRAS
+
+    fields = {
+        "Gender", "Plural", "Genitive", "Classifier", "KeyForms", "VerbClass", "Auxiliary",
+        "AspectPartner", "Hanzi",
+    }  # fmt: skip
+    for language, extras in EXTRAS.items():
+        message = request_message(language, [("x", "")])
+        for extra in extras:
+            assert extra.field in fields and f"- {extra.key}: {extra.ask}" in message
 
 
 def test_a_word_that_wasnt_asked_for_is_dropped() -> None:
