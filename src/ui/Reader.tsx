@@ -812,6 +812,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   return (
     <Screen
       largeTitle={false}
+      // The swipe back would take the touch from a phrase drag that starts or runs near the left edge.
+      lockGesture={phraseDrag.dragging}
       toolbar={text && !ended && !listenOnly ? (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Menu icon="slider.horizontal.3" accessibilityLabel="Reading options">
