@@ -55,7 +55,7 @@ public class KeyboardLanguageModule: Module {
     Name("KeyboardLanguage")
 
     /// `language` is a primary subtag ("ru", "th"), or nil to stop asking for one.
-    Function("set") { (language: String?) in
+    AsyncFunction("set") { (language: String?) in
       KeyboardLanguage.install()
       KeyboardLanguage.wanted = language?.lowercased()
       // A field that already has focus asks again only when its keyboard is reloaded.
