@@ -923,6 +923,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   texts show whether its Thai holds up within the vocabulary. The reply is JSON held to a schema (`output_config.format`): a title,
   roles (who A and B are, like Waiter and Customer, shown above the lines in the reader), lines (speaker, `|`-split text, English), and glosses for words off the list. Revisions are
   appended to the same conversation, never edited, so the model's earlier thinking stays valid.
+  Thinking counts against `max_tokens` (32,000), so a response cut off there is asked again once at `medium` effort with 48,000 (both calls are counted in the cost), and a story episode, which also returns a recap, plan and choices, starts at `medium` (16 November 2026, after episodes kept failing with "The response was cut off").
   `server/reader/src/franki_reader/generator.py`.
 - **Cheaper model for short, checked calls** (15 November 2026): glosses for common words, word forms,
   IPA, memory hints, Explain, comprehension questions, the vocabulary check and audio lesson content
