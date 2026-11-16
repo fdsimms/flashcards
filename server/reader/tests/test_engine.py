@@ -1142,3 +1142,29 @@ def test_a_line_azure_wont_record_in_several_voices_is_read_whole_by_the_narrato
     episode = store.waiting_episode(e.conn, story_id)
     assert episode is not None and e.has_audio(episode.id, 0) and e.has_audio(episode.id, 1)
     assert narrator.calls[0][1] == "voice-a"
+
+
+def test_a_story_episode_is_written_at_the_story_effort_and_a_plain_text_is_not() -> None:
+    from franki_reader.generator import STORY_EFFORT
+
+    story_model = ScriptedModel(
+        {**IN_RANGE, "series": "Noi's stall", "cast": "Noi.", "recap": "x", "plan": "y"}
+    )
+    story_engine = engine(story_model)
+
+    async def start() -> None:
+        story_engine.start_story("a noodle stall")
+        await settle(story_engine)
+
+    run(start)
+    assert story_model.efforts_seen == [STORY_EFFORT]
+
+    text_model = ScriptedModel(IN_RANGE)
+    text_engine = engine(text_model)
+
+    async def write() -> None:
+        text_engine.write_about("Haggling at a market", "dialogue")
+        await settle(text_engine)
+
+    run(write)
+    assert text_model.efforts_seen == [None]

@@ -71,3 +71,11 @@ export function lessonDetail(lesson: AudioLesson): string {
 export function parseNarrator(raw: string | null): string {
   return raw !== null && /^en-[A-Za-z]{2,4}-[A-Za-z0-9:]+$/.test(raw.trim()) ? raw.trim() : '';
 }
+
+/** The polite ending a Thai lesson is made for: khrap (ครับ, a man's) or kha (ค่ะ, a woman's). */
+export type Particle = 'khrap' | 'kha';
+
+/** The ending as kept, khrap for anything else (the server's own default). */
+export function parseParticle(raw: string | null): Particle {
+  return raw === 'kha' ? 'kha' : 'khrap';
+}

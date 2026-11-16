@@ -43,6 +43,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   const [quizKnown, setQuizKnown] = useState(prefs().quizKnown);
   const [formQuiz, setFormQuiz] = useState(prefs().formQuiz);
   const [explainInLanguage, setExplainInLanguage] = useState(prefs().explainInLanguage);
+  const [thaiToneMarks, setThaiToneMarks] = useState(prefs().thaiToneMarks);
   const address = syncServer ? readerAddress(syncServer) : null;
 
   const turnOff = () => Alert.alert(
@@ -285,6 +286,23 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
               Explain on a line or a phrase writes its notes in English. With this on, the notes are in the language
               you're reading, in simple words, for practice. The English meaning of a phrase stays in English. Notes
               already asked for stay as they were, and each version is kept separately. Explain more simply works the same way.
+            </Help>
+            <SectionTitle>Thai pronunciation</SectionTitle>
+            <Group>
+              <SwitchRow
+                first
+                label="Show tones as accent marks"
+                value={thaiToneMarks}
+                onValueChange={(on) => {
+                  savePrefs({ thaiToneMarks: on });
+                  setThaiToneMarks(on);
+                }}
+              />
+            </Group>
+            <Help>
+              A Thai word's IPA writes its tones as tone letters (hen˩˩˦). With this on, the word's popup and your
+              marked words show accent marks instead: ǎ rising, â falling, á high, à low, and no mark for the mid
+              tone (hěn). The Pronunciation field of a card you add keeps the tone letters.
             </Help>
             <SectionTitle>dundundun</SectionTitle>
             <Group>

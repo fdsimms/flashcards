@@ -7,6 +7,7 @@ import { DRILL_POINTS, dueWhen, grammarListGroups, type DrillState, type Grammar
 import { ApiError, type GrammarTopicRow, type Language } from '../../reader/api';
 import { grammarStateWord } from '../../reader/grammar';
 import { LANGUAGES, flaggedName } from '../../reader/languages';
+import { FLAG_IMAGES } from '../flagImages';
 import { topicLine } from '../../reader/topics';
 import { toolLanguage } from '../../tools/tools';
 import { loadToolPrefs, saveToolPrefs, toolPrefs } from '../../tools/storage';
@@ -90,8 +91,7 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
       largeTitle={false}
       toolbar={tool.languages.length > 1 ? (
         <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu title="Language" accessibilityLabel={`Language: ${name}. Change the language`}>
-            <Stack.Toolbar.Label>{flaggedName(language)}</Stack.Toolbar.Label>
+          <Stack.Toolbar.Menu title="Language" icon={FLAG_IMAGES[language]} iconRenderingMode="original" accessibilityLabel={`Language: ${name}. Change the language`}>
             {tool.languages.map((l) => (
               <Stack.Toolbar.MenuAction key={l} isOn={l === language} onPress={() => chooseLanguage(l)}>{flaggedName(l)}</Stack.Toolbar.MenuAction>
             ))}

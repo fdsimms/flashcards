@@ -44,6 +44,7 @@ from franki_reader.difficulty import Difficulty, after_reading
 from franki_reader.gender import full_voices, voice_for
 from franki_reader.generator import (
     MODEL,
+    STORY_EFFORT,
     Ask,
     Form,
     Generated,
@@ -439,7 +440,13 @@ class Engine:
                 "episode": context.episode if context else 0,
             }
             try:
-                result = await generate(self.ask_for(known, language, job.model), lexicon, request)
+                result = await generate(
+                    self.ask_for(
+                        known, language, job.model, **({"effort": STORY_EFFORT} if story else {})
+                    ),
+                    lexicon,
+                    request,
+                )
             except GenerationFailed as e:
                 if e.usage != Usage():
                     # The first attempt got an answer but nothing usable (a refusal, a cut-off,
