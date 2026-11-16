@@ -41,7 +41,7 @@ export function ReadGrammarLevel({ api, points, onList }: { api: Api; points: Gr
         onChange={pick}
       />
       <Text style={{ ...type.subhead, color: c.textSecondary }}>
-        Points at that JLPT level or easier are set to Know it, unless you practice them. Harder points are set to Don't know it. You can still change any point below.
+        Grammar points at that JLPT level or easier are set to Know it, unless you practice them. Harder grammar points are set to Don't know it. You can still change any grammar point below.
       </Text>
       {error ? <ErrorNote message={error} /> : null}
     </Card>

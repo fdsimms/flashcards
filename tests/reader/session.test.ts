@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import type { ReaderText } from '../../src/reader/api';
-import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog } from '../../src/reader/session';
+import { answerQuiz, formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog } from '../../src/reader/session';
 
 const TEXT: ReaderText = { id: 7, topicId: 1, title: 't', coverage: 0.97, stretch: [], roles: {}, form: 'dialogue', language: 'th', grammar: [], lines: [] };
 
@@ -29,6 +29,19 @@ test('the log carries the words and whole seconds', () => {
     listen_only: false,
     seconds: 95,
   });
+});
+
+test('quiz answers are logged by word, the latest answer kept, and never count as a lookup', () => {
+  let s = answerQuiz(startSession(TEXT, 0), 'ทอน', false);
+  s = answerQuiz(answerQuiz(s, 'ทอน', true), 'ดี', false);
+  expect(s.quizRight).toEqual(['ทอน']);
+  expect(s.quizWrong).toEqual(['ดี']);
+  expect(s.glossed).toEqual([]);
+  expect(toLog(s, 0, true)).toMatchObject({ quiz_right: ['ทอน'], quiz_wrong: ['ดี'] });
+});
+
+test('a log with no quiz answers leaves the fields out', () => {
+  expect(toLog(startSession(TEXT, 0), 0, true)).not.toHaveProperty('quiz_right');
 });
 
 test('a clock that went backwards logs zero seconds', () => {

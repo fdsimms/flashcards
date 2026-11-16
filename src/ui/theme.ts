@@ -42,7 +42,7 @@ const light = {
   onHard: '#1b1407',
   /** A settings tile with no rating color to borrow (WaniKani's), white on it as on the rating tiles. */
   violet: '#7a4fb5',
-  /** More settings or Practice tiles with no rating color to borrow (Numbers', Counting things', Reading the script's, Words you mix up's), white on them too. */
+  /** More settings or Practice tiles with no rating color to borrow (Numbers', Counting things', Reading the script's, Similar words'), white on them too. */
   orange: '#b0601e',
   teal: '#2f7d7a',
   rose: '#b23a6a',

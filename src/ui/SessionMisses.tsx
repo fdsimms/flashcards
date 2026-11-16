@@ -20,7 +20,7 @@ export interface MixupRequest {
 
 /**
  * At a session's end: the words answered Again, each with the reason chosen on Again's menu, and
- * what Words you mix up can practice of them (src/tools/mixups.ts): those missed on how a word
+ * what Similar words can practice of them (src/tools/mixups.ts): those missed on how a word
  * sounds by ear, the rest by meaning, each among the words it's confused with. Practicing changes
  * nothing about when the cards come back. `practicable` false (no route to the tool) offers none.
  */

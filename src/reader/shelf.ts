@@ -1,6 +1,6 @@
 // The shelf's cards in words, and the small decisions the shelf and the reader's end view make
 // (docs/read-and-listen/architecture.md, Shelf). Pure, so they're tested.
-import type { Form, GrammarList, Length, Shelf, ShelfText, Suggestion } from './api';
+import type { Form, GrammarList, Length, Shelf, ShelfStory, ShelfText, Suggestion } from './api';
 
 // About how long a line takes to read and listen to, at a learner's pace with the audio.
 const SECONDS_PER_LINE = 20;
@@ -15,6 +15,16 @@ const FORM_NAME: Record<Form, string> = { dialogue: 'Dialogue', story: 'Story' }
 /** A card's second line: "Dialogue · 8 lines · 3 min". */
 export function cardDetail(text: Pick<ShelfText, 'form' | 'lines'>): string {
   return `${FORM_NAME[text.form]} · ${text.lines} lines · ${minutesFor(text.lines)} min`;
+}
+
+/**
+ * The story card's line for where the episode falls: "Season 2 · Episode 8 of 8 · Finale". Null
+ * from a server older than seasons, and the card keeps its running episode number.
+ */
+export function seasonLabel(story: Pick<ShelfStory, 'season' | 'season_episode' | 'season_length'>): string | null {
+  const { season, season_episode: episode, season_length: length } = story;
+  if (!season || !episode || !length) return null;
+  return `Season ${season} · Episode ${episode} of ${length}${episode === length ? ' · Finale' : ''}`;
 }
 
 /** The model that wrote a text, as its card names it; null for one the card has nothing to say about. */

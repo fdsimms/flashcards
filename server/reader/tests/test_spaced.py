@@ -569,6 +569,14 @@ def test_french_and_english_forms_simplemma_takes_to_the_wrong_word() -> None:
     assert lemma("left", "en") == "left"
 
 
+def test_russian_forms_of_give_are_not_taken_to_a_noun() -> None:
+    from franki_reader.spaced import lemma
+
+    assert lemma("дали", "ru") == "дать"
+    assert lemma("дам", "ru") == "дать"
+    assert lemma("дала", "ru") == "дать"
+
+
 def test_a_reflexive_french_verb_is_found_from_its_form_after_me() -> None:
     lexicon = lexicon_from([Entry(1, "se lever", "to get up", "mature")], "fr")
     assert lexicon.entry_of("lève") == "se lever"

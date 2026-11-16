@@ -5,6 +5,7 @@ import { failureText } from '../core/failure';
 import type { Api, Language, PhraseExplanation as Explained } from '../reader/api';
 import type { Pronunciation } from '../reader/mining';
 import { Icon, Tappable, ErrorNote } from './kit';
+import { prefs } from '../reader/storage';
 import { haptic } from './haptics';
 import { Pop } from './motion';
 import { hairline, lift, MIN_TAP, radius, space, type, useTheme } from './theme';
@@ -68,7 +69,7 @@ export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, o
     setAnswer(null);
     body.current?.scrollTo({ y: 0, animated: false });
     try {
-      const got = await api.explainPhrase(textId, line, phrase, wantSimple);
+      const got = await api.explainPhrase(textId, line, phrase, wantSimple, prefs().explainInLanguage);
       if (latest.current === mine) { setAnswer(got); setSimple(wantSimple); }
     } catch (e) {
       if (latest.current === mine) { setError(failureText(e, { what: "Couldn't explain this phrase.", next: 'Try again.' })); setSimple(wantSimple); }

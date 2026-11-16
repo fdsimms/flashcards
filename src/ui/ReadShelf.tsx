@@ -6,7 +6,7 @@ import { LANGUAGES, flaggedName } from '../reader/languages';
 import { lessonsOffered } from '../reader/lessons';
 import { ReadListenAgain } from './ReadListenAgain';
 import { ReadReviewFirst } from './ReadReviewFirst';
-import { playMinutes, playOrder, reasonLabel, shelfDetail, surprisePick } from '../reader/shelf';
+import { playMinutes, playOrder, reasonLabel, seasonLabel, shelfDetail, surprisePick } from '../reader/shelf';
 import { haptic } from './haptics';
 import { Button, Card, Divider, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
 import { PracticeWordPill } from './PracticeWordPill';
@@ -333,9 +333,17 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onEpisodes, onStarted }: { 
   const name = story.title || 'Your story';
   const next = story.next;
   const episode = next ? next.episode : story.read + 1;
+  const season = seasonLabel(story);
   return (
     <Card style={{ borderColor: c.accent, gap: space.m }}>
-      <Text style={{ ...type.overline, color: c.accent }}>{`${name} · Episode ${episode}`}</Text>
+      {season ? (
+        <View style={{ gap: space.xs }}>
+          <Text style={{ ...type.overline, color: c.accent }}>{name}</Text>
+          <Text style={{ ...type.overline, color: c.textSecondary }}>{season}</Text>
+        </View>
+      ) : (
+        <Text style={{ ...type.overline, color: c.accent }}>{`${name} · Episode ${episode}`}</Text>
+      )}
       {next ? (
         <>
           <Text style={{ ...type.title, color: c.text }}>{next.title}</Text>

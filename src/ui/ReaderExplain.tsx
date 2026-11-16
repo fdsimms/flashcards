@@ -3,6 +3,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { failureText } from '../core/failure';
 import { ApiError, type Api, type ExplainPoint, type GrammarChoice, type GrammarState, type LineGrammar } from '../reader/api';
 import { GRAMMAR_CHOICES, grammarStateWord } from '../reader/grammar';
+import { prefs } from '../reader/storage';
 import { HeaderAction, Tappable, ErrorNote, Segments } from './kit';
 import { haptic } from './haptics';
 import { NaturalPill, NaturalResult, useNaturalCheck } from './ReaderNatural';
@@ -40,7 +41,7 @@ export function LineExplanation({ api, textId, line, grammarChosen, onGrammarCho
     setError(null);
     setPoints(null);
     try {
-      const answer = await api.explainLine(textId, line, wantSimple);
+      const answer = await api.explainLine(textId, line, wantSimple, prefs().explainInLanguage);
       if (latest.current === mine) { setPoints(answer.points); setGrammar(answer.grammar); setSimple(wantSimple); }
     } catch (e) {
       if (latest.current === mine) { setError(failureText(e, { what: "Couldn't explain this line.", next: 'Try again.' })); setSimple(wantSimple); }

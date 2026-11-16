@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { DEFAULT_PREFS, hasSlow, parsePrefs, speedFor } from '../../src/reader/prefs';
 
 test('saved settings come back', () => {
-  expect(parsePrefs(JSON.stringify({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'] }))).toEqual({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'] });
+  expect(parsePrefs(JSON.stringify({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true }))).toEqual({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true });
 });
 
 test('nothing saved, or something unreadable, gives the defaults', () => {
@@ -93,6 +93,12 @@ test('a language without Slow plays at normal speed whatever speed was chosen', 
   expect(speedFor(p, 'th')).toBe(0.8);
   expect(hasSlow(p, 'es')).toBe(false);
   expect(speedFor(p, 'es')).toBe(1);
+});
+
+test('Explain is in English unless the reader chose the language', () => {
+  expect(DEFAULT_PREFS.explainInLanguage).toBe(false);
+  expect(parsePrefs(JSON.stringify({ explainInLanguage: true })).explainInLanguage).toBe(true);
+  expect(parsePrefs(JSON.stringify({ explainInLanguage: 'yes' })).explainInLanguage).toBe(false);
 });
 
 test('the form quiz is on unless the reader turned it off', () => {
