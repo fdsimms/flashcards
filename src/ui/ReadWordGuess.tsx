@@ -2,13 +2,15 @@ import React from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { GUESS_HINT, type TapMode } from '../reader/guess';
 import { haptic } from './haptics';
+import { Icon } from './kit';
+import { Pop } from './motion';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
  * What a tapped word's popover shows while its meaning is held back (src/reader/guess.ts): a line
  * saying what to try, for a word outside the deck an optional box for a guess, and for a known word
- * with the quiz on four meanings to choose from. Once the meaning is shown, the quiz's choices stay
- * as a record of the answer (`QuizChoices`) and a guess is shown beside it (`GuessLine`). A guess is
+ * with the quiz on four meanings to choose from. Once the quiz is answered, right or wrong, its
+ * choices stay as a record of the answer (`QuizChoices`) and a guess is shown beside it (`GuessLine`). A guess is
  * kept only while the popover is open: it isn't graded, saved or sent anywhere.
  */
 
@@ -81,27 +83,39 @@ export function GuessPrompt({ mode, guess, onGuess, onFocus, onBlur, onPick, onG
   );
 }
 
-/** The quiz's choices once answered: the right one and a wrong pick marked, the rest dimmed. */
+/**
+ * The quiz's choices once answered: the right one marked (and springing in, with a check, when it
+ * was picked), a wrong pick marked, the rest dimmed. Each mark has a word as well as a color.
+ */
 export function QuizChoices({ choices, answer, picked }: { choices: string[]; answer: number; picked: number | null }) {
   const c = useTheme();
+  const gotIt = picked === answer;
   return (
     <View style={{ gap: space.s, marginTop: space.xs }}>
       {choices.map((choice, i) => {
         const right = i === answer;
         const wrongPick = i === picked && !right;
-        return (
+        const note = right ? (gotIt ? 'Right' : 'Meaning') : wrongPick ? 'Your pick' : null;
+        const row = (
           <View
-            key={`${i}:${choice}`}
             accessible
-            accessibilityLabel={`${choice}${right ? ', the meaning' : wrongPick ? ', your pick' : ''}`}
+            accessibilityLabel={`${choice}${right ? (gotIt ? ', right' : ', the meaning') : wrongPick ? ', your pick' : ''}`}
             style={{
-              minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: CHOICE_PAD, borderRadius: radius.m, ...smooth,
+              minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.s,
+              paddingHorizontal: CHOICE_PAD, borderRadius: radius.m, ...smooth,
               backgroundColor: right ? c.goodFill : wrongPick ? c.dangerFill : c.fill, opacity: right || wrongPick ? 1 : 0.5,
             }}
           >
-            <Text style={{ ...type.body, color: c.text, fontWeight: right ? '600' : '400' }}>{choice}</Text>
+            <Text style={{ ...type.body, color: c.text, fontWeight: right ? '600' : '400', flexShrink: 1 }}>{choice}</Text>
+            {note ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                {right ? <Icon name="checkmark.circle.fill" size={18} color={c.good} effect={gotIt ? 'bounce' : undefined} /> : null}
+                <Text style={{ ...type.footnote, color: right ? c.good : c.danger }}>{note}</Text>
+              </View>
+            ) : null}
           </View>
         );
+        return right && gotIt ? <Pop key={`${i}:${choice}`} from={0.96} bounciness={10}>{row}</Pop> : <React.Fragment key={`${i}:${choice}`}>{row}</React.Fragment>;
       })}
     </View>
   );
@@ -114,5 +128,5 @@ export function GuessLine({ guess }: { guess: string }) {
   return text ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{`Your guess: ${text}`}</Text> : null;
 }
 
-/** Feedback for a right quiz answer, before the popover closes. */
+/** Feedback for a right quiz answer, as the popover shows it. */
 export const rightAnswer = () => haptic.success();
