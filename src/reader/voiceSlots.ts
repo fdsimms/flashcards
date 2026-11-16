@@ -39,6 +39,20 @@ export function voicesForSlot(voices: AzureVoice[], slot: VoiceSlot): AzureVoice
   return voices.filter((v) => v.gender?.toLowerCase() === gender);
 }
 
+/** The English regions the narrator list offers; Azure has dozens more (en-IN, en-ZA, en-HK...). */
+const NARRATOR_LOCALES = ['en-us', 'en-gb', 'en-au'];
+
+/**
+ * The voices the narrator list shows: those of `gender` in American, British and Australian English,
+ * not the Multilingual voices of other languages. The voice chosen now stays listed whatever it is,
+ * so the checkmark never vanishes.
+ */
+export function narratorVoices(voices: AzureVoice[], gender: Gender, chosen?: string): AzureVoice[] {
+  return voices.filter(
+    (v) => v.voice === chosen || (v.gender?.toLowerCase() === gender && NARRATOR_LOCALES.includes(v.locale.toLowerCase())),
+  );
+}
+
 /** "Niwat and Premwadee": the man's and the woman's voice, for a row that opens the voices. */
 export function voicesSummary(voices: Partial<Speakers> | undefined): string | undefined {
   if (!hasVoiceSlots(voices)) return undefined;
