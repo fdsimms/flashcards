@@ -277,6 +277,7 @@ from pydantic import BaseModel, Field
 from franki_reader import (
     ai_ipa,
     aspect,
+    audit,
     cast,
     cast_samples,
     comprehension,
@@ -974,6 +975,35 @@ def create_app(
             past_json(t)
             for t in store.past_texts(engine.conn, PAST_TEXTS, engine.language(), story)
         ]
+
+    @app.get("/api/audit/texts", dependencies=authed)
+    async def audit_texts(
+        language: str | None = None,
+        story: int | None = None,
+        days: Annotated[int | None, Query(ge=1, le=3650)] = None,
+        limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    ) -> list[dict[str, Any]]:
+        """Every language's shown texts, for review (audit.py); `/api/texts` is the app's."""
+        return audit.list_texts(
+            engine.conn, engine.clock(), language=language, story_id=story, days=days, limit=limit
+        )
+
+    @app.get("/api/audit/texts/{text_id}", dependencies=authed)
+    async def audit_text(text_id: int) -> dict[str, Any]:
+        text = store.get_text(engine.conn, text_id)
+        status = store.text_status(engine.conn, text_id)
+        if text is None or status not in ("ready", "read"):
+            raise HTTPException(404, "No such text.")
+        topic = store.get_topic(engine.conn, text.topic_id, text.language, include_removed=True)
+        story = store.get_story(engine.conn, text.story_id) if text.story_id else None
+        return audit.compact(
+            text,
+            _rendered(text, engine),
+            status,
+            story,
+            (story.title or "Your story") if story else (topic.name if topic else ""),
+            audit.readings(engine.conn, text_id),
+        )
 
     @app.get("/api/relisten", dependencies=authed)
     async def relisten_texts(

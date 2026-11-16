@@ -27,6 +27,34 @@ def register(server: MCPServer, settings: ReaderSettings | None, http: httpx.Asy
     """Adds Read & Listen's tools. `http` is for tests; the server makes its own."""
     client = http or httpx.AsyncClient(timeout=30)
 
+    async def get(path: str, params: dict[str, Any] | None = None) -> Any:
+        """One GET against Read & Listen's API, with the errors a caller can fix said plainly."""
+        if settings is None:
+            raise ToolError(
+                "Read & Listen isn't connected to the MCP. It needs READER_PASSPHRASE in server/.env "
+                "(the passphrase the app uses) and reader in COMPOSE_PROFILES, then a restart."
+            )
+        try:
+            r = await client.get(
+                f"{settings.url.rstrip('/')}{path}",
+                params=params,
+                headers={"Authorization": f"Bearer {settings.passphrase}"},
+            )
+        except httpx.HTTPError as e:
+            raise ToolError(
+                f"Couldn't reach Read & Listen at {settings.url} ({e.__class__.__name__}). It runs only "
+                "when COMPOSE_PROFILES in server/.env has reader; check `docker compose ps reader`."
+            ) from e
+        if r.status_code == 401:
+            raise ToolError("Read & Listen refused the passphrase. READER_PASSPHRASE in server/.env must be the one it runs with.")
+        if r.status_code == 404 and path.startswith("/api/audit/texts/"):
+            raise ToolError("No such text. list_read_and_listen_texts has the ids.")
+        if r.status_code == 404:
+            raise ToolError("Read & Listen's server is older than this tool. It updates itself within about 15 minutes of a merge.")
+        if r.status_code != 200:
+            raise ToolError(f"Read & Listen answered {r.status_code}: {r.text[:200]}")
+        return r.json()
+
     @server.tool(annotations=READ)
     async def read_and_listen_costs(days: int = 30) -> dict[str, Any]:
         """What Read & Listen's texts cost over the last `days` days (1 to 3650), per language and
@@ -45,28 +73,35 @@ def register(server: MCPServer, settings: ReaderSettings | None, http: httpx.Asy
         that failed after Claude answered, which were still paid for. `recordings` is the cards the
         app recorded with an Azure voice, as characters and the same estimate, in total only. Voice
         previews and recordings the MCP makes into notes are not in any of it."""
-        if settings is None:
-            raise ToolError(
-                "Read & Listen isn't connected to the MCP. It needs READER_PASSPHRASE in server/.env "
-                "(the passphrase the app uses) and reader in COMPOSE_PROFILES, then a restart."
-            )
         if not 1 <= days <= 3650:
             raise ToolError("days must be between 1 and 3650.")
-        try:
-            r = await client.get(
-                f"{settings.url.rstrip('/')}/api/costs",
-                params={"days": days},
-                headers={"Authorization": f"Bearer {settings.passphrase}"},
-            )
-        except httpx.HTTPError as e:
-            raise ToolError(
-                f"Couldn't reach Read & Listen at {settings.url} ({e.__class__.__name__}). It runs only "
-                "when COMPOSE_PROFILES in server/.env has reader; check `docker compose ps reader`."
-            ) from e
-        if r.status_code == 401:
-            raise ToolError("Read & Listen refused the passphrase. READER_PASSPHRASE in server/.env must be the one it runs with.")
-        if r.status_code == 404:
-            raise ToolError("Read & Listen's server is older than this tool. It updates itself within about 15 minutes of a merge.")
-        if r.status_code != 200:
-            raise ToolError(f"Read & Listen answered {r.status_code}: {r.text[:200]}")
-        return r.json()
+        return await get("/api/costs", {"days": days})
+
+
+    @server.tool(annotations=READ)
+    async def list_read_and_listen_texts(
+        language: str | None = None, story_id: int | None = None, days: int | None = None, limit: int = 50
+    ) -> dict[str, Any]:
+        """Read & Listen's past texts (dialogues and story episodes) that were shown, newest first,
+        for review, as `texts`. `language` is a code ("th", "de", "pl"...), `story_id` lists one story's
+        episodes first to last, `days` keeps those written in the last that many days, `limit`
+        is 1 to 200. Each has `id`, `title`, `topic`, `form`, `coverage` (the share of its words
+        known when it was written), `reads` and `last_rating`. Read one with
+        get_read_and_listen_text."""
+        if not 1 <= limit <= 200:
+            raise ToolError("limit must be between 1 and 200.")
+        if days is not None and not 1 <= days <= 3650:
+            raise ToolError("days must be between 1 and 3650.")
+        params = {k: v for k, v in {"language": language, "story": story_id, "days": days, "limit": limit}.items() if v is not None}
+        return {"texts": await get("/api/audit/texts", params)}
+
+    @server.tool(annotations=READ)
+    async def get_read_and_listen_text(text_id: int) -> dict[str, Any]:
+        """One past Read & Listen text in full, for auditing its quality: each line in the target
+        language with its English, speaker and register, and the words in it the deck doesn't
+        cover as of now (`unknown`, `partial`: the deck may have changed since it was written);
+        its practice words and grammar targets, the glosses the model wrote, the comprehension
+        questions with the right answer's index, a story's premise, cast, plan, episode recap and
+        choices, the model that wrote it, and every reading (rating, words the reader flagged,
+        time). Read-only: nothing here changes a text or the deck."""
+        return await get(f"/api/audit/texts/{text_id}")
