@@ -60,6 +60,19 @@ export function voicesForKind(voices: AzureVoice[], kind: CastKind): AzureVoice[
   return voices.filter((v) => v.gender?.toLowerCase() === gender);
 }
 
+/** Whether Azure says the voice reads any language, as a Multilingual voice does. */
+export function isMultilingual(voice: string): boolean {
+  return voice.includes('Multilingual');
+}
+
+/** What the audition lists: the kind's voices, or only the Multilingual ones among them. */
+export type AuditionFilter = 'all' | 'multilingual';
+
+export function auditionVoices(voices: AzureVoice[], kind: CastKind, filter: AuditionFilter): AzureVoice[] {
+  const ofKind = voicesForKind(voices, kind);
+  return filter === 'multilingual' ? ofKind.filter((v) => isMultilingual(v.voice)) : ofKind;
+}
+
 /** Every kind put back to the server's own pick, as the change that says so. */
 export function resetChange(language: Language): { cast: Partial<Record<Language, Record<CastKind, null>>> } {
   return { cast: { [language]: Object.fromEntries(CAST_KINDS.map((k) => [k.kind, null])) as Record<CastKind, null> } };

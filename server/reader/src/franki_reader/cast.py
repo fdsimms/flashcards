@@ -29,9 +29,9 @@ AGES: tuple[Age, ...] = ("child", "adult", "elder")
 
 # How a character's age changes the voice's pitch, in percent. A child is the same voice a little
 # higher and an elder a little lower: a change that reads as another kind of person without
-# turning into a cartoon. It doesn't tell two adults of one gender apart (`assign` uses another
+# turning into a cartoon (+18% did, on a woman's voice already high: a chipmunk). It doesn't tell two adults of one gender apart (`assign` uses another
 # voice for that, and a pitch step only once the voices are used up).
-AGE_PITCH: dict[Age, int] = {"child": 18, "adult": 0, "elder": -8}
+AGE_PITCH: dict[Age, int] = {"child": 8, "adult": 0, "elder": -8}
 # What `assign` adds to the age's pitch, in the order it tries, once every voice has a character.
 PITCH_STEPS = (0, 10, -10, 20, -20)
 PITCH_RANGE = (-30, 35)
@@ -218,7 +218,28 @@ def line_parts(
     if not parts:
         return [Part(plain, narrator)]
     parts.append(Part(plain[at:], narrator))
-    return [p for p in parts if p.text]
+    return _join_unspoken([p for p in parts if p.text])
+
+
+def _join_unspoken(parts: list[Part]) -> list[Part]:
+    """Parts with no word in them (the "." after a quotation's closing mark: `„Daj mi ją”.`) are
+    joined to the part before, or the one after for the first. Azure reads a request that is only
+    punctuation aloud ("kropka"), and the join keeps the parts adding up to the line."""
+    merged: list[Part] = []
+    carry = ""
+    for part in parts:
+        if not any(c.isalnum() for c in part.text):
+            if merged:
+                last = merged[-1]
+                merged[-1] = Part(last.text + part.text, last.voice, last.pitch)
+            else:
+                carry += part.text
+            continue
+        merged.append(Part(carry + part.text, part.voice, part.pitch))
+        carry = ""
+    if not merged and parts:  # nothing but punctuation: left as it was
+        return parts
+    return merged
 
 
 def quote_problems(

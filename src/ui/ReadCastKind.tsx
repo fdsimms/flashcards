@@ -6,7 +6,7 @@ import { LANGUAGES } from '../reader/languages';
 import { audioKey, castInfo, clampPitch, pitchLabel, PITCH_MAX, PITCH_MIN, PITCH_STEP, voicesForKind } from '../reader/storyCast';
 import { AzureVoiceRows, useAzureVoices } from './AzureVoices';
 import { haptic } from './haptics';
-import { Button, ErrorNote, Group, Help, Icon, Screen, SectionTitle, Tappable } from './kit';
+import { Button, ErrorNote, Group, Help, Icon, NavRow, Screen, SectionTitle, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, readable, smooth, space, type, useTheme } from './theme';
 import { useCastAudio } from './useCastAudio';
 
@@ -17,7 +17,7 @@ const SETTLE_MS = 500;
  * One kind of story character (a girl): the voice and the pitch a story gives the first of them.
  * Choosing a voice, or changing the pitch, saves it and plays a line in it.
  */
-export function ReadCastKind({ api, language, kind, current, onSettings }: {
+export function ReadCastKind({ api, language, kind, current, onSettings, onAudition }: {
   api: Api;
   language: Language;
   kind: CastKind;
@@ -25,6 +25,8 @@ export function ReadCastKind({ api, language, kind, current, onSettings }: {
   current: CastVoice;
   /** The settings as the server has them after a change, for the rest of the app. */
   onSettings: (settings: Settings) => void;
+  /** Opens the audition: the language's voices played side by side. */
+  onAudition: () => void;
 }) {
   const c = useTheme();
   const { label, gender } = castInfo(kind);
@@ -104,6 +106,9 @@ export function ReadCastKind({ api, language, kind, current, onSettings }: {
           </Group>
         ) : null}
         {options && options.length === 0 ? <Help>{`Azure lists no ${gender === 'male' ? "men's" : "women's"} voices in ${LANGUAGES[language].name}.`}</Help> : null}
+        <Group>
+          <NavRow first label="Audition voices" detail="Play one line in each voice to compare them" onPress={onAudition} />
+        </Group>
         <SectionTitle>Pitch</SectionTitle>
         <Group>
           <View style={{ padding: space.l, gap: space.m }}>
@@ -131,7 +136,7 @@ export function ReadCastKind({ api, language, kind, current, onSettings }: {
   );
 }
 
-function PitchButton({ icon, label, disabled, onPress }: { icon: 'minus' | 'plus'; label: string; disabled: boolean; onPress: () => void }) {
+export function PitchButton({ icon, label, disabled, onPress }: { icon: 'minus' | 'plus'; label: string; disabled: boolean; onPress: () => void }) {
   const c = useTheme();
   return (
     <Tappable

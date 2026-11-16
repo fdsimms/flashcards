@@ -130,6 +130,22 @@ def test_a_quotation_nobody_is_named_for_or_with_no_voice_stays_the_narrators() 
     assert line_parts("Тихо.", ["Аня"], cast, "narr") == [Part("Тихо.", "narr")]
 
 
+def test_punctuation_left_over_after_a_quotation_is_never_a_part_of_its_own() -> None:
+    # Azure reads a part that is only "." aloud ("kropka"), so it joins the quotation before it.
+    cast = {"Ania": CastVoice("female", "adult", "pl-PL-ZofiaNeural", 0)}
+    plain = "Mysz jest na stole. „Daj mi ją”."
+    parts = line_parts(plain, ["Ania"], cast, "narr")
+    assert parts == [
+        Part("Mysz jest na stole. ", "narr"),
+        Part("„Daj mi ją”.", "pl-PL-ZofiaNeural", 0),
+    ]
+    assert "".join(p.text for p in parts) == plain
+    # Opening punctuation with nothing before it joins the part after.
+    assert line_parts("— „Daj mi ją.”", ["Ania"], cast, "narr") == [
+        Part("— „Daj mi ją.”", "pl-PL-ZofiaNeural", 0)
+    ]
+
+
 def test_attributions_that_dont_match_the_quotations_are_sent_back() -> None:
     known = {"Аня": 1, "Мама": 2}
     assert quote_problems([(LINE, ["Аня", "Мама"]), ("Тихо.", [])], known) == []
