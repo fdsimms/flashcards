@@ -20,7 +20,7 @@ const MODES: { value: MixupMode; label: string }[] = [{ value: 'meaning', label:
 const detail = (w: MixupWord) => [w.roman, w.meaning].filter(Boolean).join(' · ');
 
 /**
- * Words you mix up (src/tools/mixups.ts): a meaning and the word for it among its look-alikes, or
+ * Similar words (src/tools/mixups.ts): a meaning and the word for it among its look-alikes, or
  * a word played and which of its sound-alikes it was. Opened from Review's session end with the
  * words just missed (`notes`, a JSON list of note ids, and `mode`), it asks those first. A miss
  * comes back a few questions later. Nothing here grades a card.
