@@ -6,7 +6,7 @@ import { HIGHLIGHT_ABOUT, MARK_INFO, type Example, type Mark } from '../reader/m
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { WordView, type ReadTextStyle } from './ReadWord';
-import { hairline, MIN_TAP, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, radius, space, type, useTheme } from './theme';
 
 /**
  * What the marks on the words mean, with a switch for each. It lists only the marks the open text
@@ -51,34 +51,42 @@ export function ReaderKey({ examples, language, textStyle, shown, onChange }: {
                 accessibilityState={{ checked: on }}
                 accessibilityActions={[{ name: 'activate' }]}
                 onAccessibilityAction={() => { haptic.select(); onChange(e.mark, !on); }}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, minHeight: MIN_TAP + space.m }}
+                style={{ gap: space.s, paddingVertical: space.m }}
               >
                 {i > 0 ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: hairline, backgroundColor: c.border }} /> : null}
-                {/* The sample is a picture of the mark: not tappable, and not read aloud beside the row's own label. */}
-                <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 112, alignItems: 'center' }}>
-                  <WordView
-                    word={{ ...e.word, stretch: e.mark === 'stretch' }}
-                    grammar={e.mark === 'practice' || e.mark === 'avoid' || e.mark === 'known' ? e.grammar : null}
-                    textStyle={textStyle}
-                    flagged={e.mark === 'marked'}
-                    highlighted={e.mark === 'highlight'}
-                    named={e.mark === 'name'}
-                    selected={false}
-                    onPress={() => {}}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.m }}>
+                  {/* The sample is a picture of the mark, on a tile so every row's sample sits the same way: not tappable, and not read aloud beside the row's own label. */}
+                  <View
+                    pointerEvents="none"
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                    style={{ flexShrink: 1, backgroundColor: c.fill, borderRadius: radius.m, paddingHorizontal: space.m, paddingVertical: space.xs }}
+                  >
+                    <WordView
+                      word={{ ...e.word, stretch: e.mark === 'stretch' }}
+                      grammar={e.mark === 'practice' || e.mark === 'avoid' || e.mark === 'known' ? e.grammar : null}
+                      textStyle={textStyle}
+                      flagged={e.mark === 'marked'}
+                      highlighted={e.mark === 'highlight'}
+                      named={e.mark === 'name'}
+                      selected={false}
+                      onPress={() => {}}
+                    />
+                  </View>
+                  <Switch
+                    value={on}
+                    onValueChange={(v) => { haptic.select(); onChange(e.mark, v); }}
+                    trackColor={{ true: c.accent, false: c.border }}
+                    ios_backgroundColor={c.border}
+                    style={{ transform: [{ scale: 0.85 }], transformOrigin: 'right center' }}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
                   />
                 </View>
-                <View style={{ flex: 1, gap: 2 }}>
+                <View style={{ gap: 2 }}>
                   <Text style={{ ...type.subhead, fontWeight: '600', color: c.text, opacity: on ? 1 : 0.55 }}>{title}</Text>
                   <Text style={{ ...type.footnote, color: c.textSecondary, opacity: on ? 1 : 0.55 }}>{about}</Text>
                 </View>
-                <Switch
-                  value={on}
-                  onValueChange={(v) => { haptic.select(); onChange(e.mark, v); }}
-                  trackColor={{ true: c.accent, false: c.border }}
-                  ios_backgroundColor={c.border}
-                  accessibilityElementsHidden
-                  importantForAccessibility="no-hide-descendants"
-                />
               </View>
             );
           })}
