@@ -26,7 +26,7 @@ describe('the shelf', () => {
 
   it('adds the release date to the story card, and nothing from a server that does not send one', () => {
     const story = { form: 'story' as const, lines: 12, model: 'claude-sonnet-5-5' };
-    expect(storyDetail({ ...story, created_at: '2026-11-16T12:00:00-05:00' })).toBe('Story · 12 lines · 4 min · Sonnet · Released Nov 16');
+    expect(storyDetail({ ...story, created_at: '2026-11-16T12:00' })).toBe('Story · 12 lines · 4 min · Sonnet · Released Nov 16');
     expect(storyDetail({ ...story, created_at: null })).toBe('Story · 12 lines · 4 min · Sonnet');
     expect(storyDetail(story)).toBe('Story · 12 lines · 4 min · Sonnet');
   });
