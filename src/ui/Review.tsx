@@ -1016,7 +1016,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
           />
         </Stack.Toolbar>
       }
-      footer={<>{ratingOffer.offer && !revealed ? <ChangeRatingStrip offer={ratingOffer.offer} onChange={changeToAgain} /> : null}{footer}</>}
+      footer={footer}
+      floating={ratingOffer.offer && !revealed ? <ChangeRatingStrip offer={ratingOffer.offer} onChange={changeToAgain} /> : null}
     >
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
