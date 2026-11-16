@@ -4,12 +4,17 @@ import { grammarPoint } from '../core/grammar';
 import { exampleSource } from '../reader/grammar';
 import { useApp } from '../ui/AppContext';
 import { ReadGrammarPoint } from '../ui/ReadGrammarPoint';
+import { useAddMinedWord } from '../ui/useAddMinedWord';
+import { useWordAudio } from '../ui/useWordAudio';
 
 /** A grammar point's page, for the point named by the `id` parameter (docs/grammar.md, step 4). */
 export default function ReadGrammarPointRoute() {
   const router = useRouter();
   const { repo, reader } = useApp();
   const { id } = useLocalSearchParams<{ id: string }>();
+  // A tapped word in the explanation: played, or added to its language's deck as the reader's words are.
+  const playWord = useWordAudio(repo);
+  const addWord = useAddMinedWord();
   // What the page reads from the phone: notes and Forms practice, and when Not yet was chosen.
   const practice = useMemo(() => ({
     load: async () => {
@@ -27,6 +32,13 @@ export default function ReadGrammarPointRoute() {
   return (
     <ReadGrammarPoint
       api={reader.api}
+      glossing={{
+        onPlayWord: playWord,
+        onAddWord: async (word, meaning, lang, pronunciation) => {
+          const wordDeck = reader.settings?.decks?.[lang];
+          return wordDeck ? addWord({ word, meaning, deck: wordDeck, language: lang, pronunciation }) : false;
+        },
+      }}
       practice={practice}
       id={id}
       dayStartsAtHour={reader.dayStartsAtHour}

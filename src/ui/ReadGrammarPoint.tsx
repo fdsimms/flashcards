@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import type { PracticeRecord } from '../core/forms';
-import { explanationParagraphs, grammarPoint } from '../core/grammar';
+import { grammarPoint } from '../core/grammar';
 import { knowItReason, pointPractice, POINT_PRACTICE_DAYS, practiceSince, suggestKnowIt } from '../core/grammarPage';
 import { dueWhen, isDrilled, pointSchedule, practiceKinds, type GrammarAnswer } from '../core/grammarDrills';
 import type { Note } from '../core/types';
 import { ApiError, type Api, type GrammarChoice, type GrammarExample, type GrammarPointPage } from '../reader/api';
 import { canShuffleExamples, DEFAULT_MAX_PRACTICE, EXAMPLES_SHOWN, grammarChoiceOptions, grammarStateWord, seenLine } from '../reader/grammar';
 import { GrammarExamples } from './GrammarExamples';
+import { GrammarExplanation, type ExplanationGlossing } from './GrammarExplanation';
 import { haptic } from './haptics';
 import { Card, ErrorNote, Group, HeaderAction, Help, NavRow, Screen, SectionTitle, Segments, Tappable } from './kit';
 import { hairline, radius, space, type, useTheme, readable } from './theme';
@@ -20,8 +21,10 @@ import { hairline, radius, space, type, useTheme, readable } from './theme';
  * comes through `practice` rather than the repo, which Read & Listen's code never imports
  * (tests/reader/noGrading.test.ts): it only reads, and keeps when Not yet was chosen.
  */
-export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, practiceDeck, onOpenPoint, onPracticeForms, onDrill, onOpenText }: {
+export function ReadGrammarPoint({ api, glossing, practice: phone, id, dayStartsAtHour, practiceDeck, onOpenPoint, onPracticeForms, onDrill, onOpenText }: {
   api: Api;
+  /** What a tapped word in the explanation does: play it, add it to the deck. */
+  glossing: Omit<ExplanationGlossing, 'api'>;
   practice: {
     load: () => Promise<{ notes: Note[]; practice: PracticeRecord[]; dismissed: Record<string, string>; drills: GrammarAnswer[] }>;
     saveDismissed: (dismissed: Record<string, string>) => Promise<void>;
@@ -170,13 +173,7 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
           <Card style={{ gap: space.m }}>
             <Text style={{ ...type.headline, color: c.text, lineHeight: 24 }}>{point.note}</Text>
             <View style={{ height: hairline, backgroundColor: c.border }} />
-            {explanationParagraphs(point.explanation).map((para, i) => (
-              <Text key={i} style={{ ...type.body, color: c.text, lineHeight: 24 }}>
-                {para.map((run, j) => (run.language
-                  ? <Text key={j} style={{ fontWeight: '600', color: c.accent }}>{run.text}</Text>
-                  : run.text))}
-              </Text>
-            ))}
+            <GrammarExplanation language={point.language} explanation={point.explanation} glossing={{ api, ...glossing }} />
           </Card>
         </View>
 
