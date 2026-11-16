@@ -1,5 +1,6 @@
 // The shelf's cards in words, and the small decisions the shelf and the reader's end view make
 // (docs/read-and-listen/architecture.md, Shelf). Pure, so they're tested.
+import { shortDate } from './lessons';
 import type { Form, GrammarList, Length, Shelf, ShelfStory, ShelfText, Suggestion } from './api';
 
 // About how long a line takes to read and listen to, at a learner's pace with the audio.
@@ -38,6 +39,12 @@ export function modelLabel(text: Pick<ShelfText, 'model'>): string | null {
 export function shelfDetail(text: Pick<ShelfText, 'form' | 'lines' | 'model'>): string {
   const model = modelLabel(text);
   return model ? `${cardDetail(text)} · ${model}` : cardDetail(text);
+}
+
+/** The story card's second line: the detail line and when the episode was written, "... · Sonnet · Released Nov 16". */
+export function storyDetail(text: Pick<ShelfText, 'form' | 'lines' | 'model' | 'created_at'>): string {
+  const date = text.created_at ? shortDate(text.created_at) : '';
+  return date ? `${shelfDetail(text)} · Released ${date}` : shelfDetail(text);
 }
 
 /** Why a text is on the shelf, as its card says it. */

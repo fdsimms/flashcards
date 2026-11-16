@@ -7,6 +7,7 @@ import { failureText } from '../../core/failure';
 import type { Language, SituationFeedback, SituationFocus, SituationTurn } from '../../reader/api';
 import { readFont, scaledFontSize } from '../../reader/fonts';
 import { LANGUAGES } from '../../reader/languages';
+import { useKeyboardLanguage } from '../useKeyboardLanguage';
 import { canFinish, canSend, conversationOf, startChat, withMine, withoutMine, withTheirs, type Chat } from '../../reader/situations';
 import { isSlow, NORMAL_RATE, SLOW_RATE } from '../../reader/playbackRate';
 import { speedFor } from '../../reader/prefs';
@@ -178,6 +179,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
   const info = LANGUAGES[chat.language];
+  const keyboardLang = useKeyboardLanguage(info.speech);
   const { thaiFont, textSize } = prefs();
   const fontSize = scaledFontSize(info.fontSize, textSize);
   const look = { fontSize, lineHeight: fontSize * info.lineHeight, fontFamily: readFont(chat.language, thaiFont).fontFamily };
@@ -365,6 +367,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
             <>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.s }}>
               <TextInput
+                {...keyboardLang}
                 value={draft}
                 onChangeText={setDraft}
                 multiline

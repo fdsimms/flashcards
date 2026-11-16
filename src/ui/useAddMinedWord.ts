@@ -6,6 +6,8 @@ import type { Note } from '../core/types';
 import type { AspectPair, Language } from '../reader/api';
 import { ASPECT_LANGUAGES, minedNote, pairFollowUp, type MinedNote, type PairFollowUp, type Pronunciation } from '../reader/mining';
 import { useApp } from './AppContext';
+import { haptic } from './haptics';
+import { useNoteQueue } from './useNoteQueue';
 
 /** What to add to the deck: a word from a text, the marked words, the vocabulary check or a card's example sentence. */
 export type AddWord = {
@@ -18,15 +20,18 @@ export type AddWord = {
 };
 
 /**
- * "Add to deck", for every screen that offers it: opens the note editor on the word (saving there is the approval),
- * and for a Russian or Polish verb first asks the server for its aspect partner, so the editor starts with it and the
- * aspect tag. After the verb is saved, offers to add the partner as its own note, or to link a partner already in the
+ * "Add to deck", for every screen that offers it. A word goes to the note queue, where Claude writes the example
+ * sentence, its translation, the romanization and the register, and it opens in the note editor from "ready to review"
+ * (saving there is the approval). With no Read & Listen language, or when the server can't fill it in (no Claude key),
+ * the editor opens at once on the word and its meaning. A Russian or Polish verb first has its aspect partner looked
+ * up, and opens in the editor with it and the aspect tag, since the queue doesn't write those. After the verb is saved, offers to add the partner as its own note, or to link a partner already in the
  * deck back (`pairFollowUp`), so a pair is two notes linked both ways whichever half was added first.
- * Resolves to whether the word's note was saved.
+ * Resolves to whether the word was handled: queued, or its note saved.
  */
 export function useAddMinedWord(): (add: AddWord) => Promise<boolean> {
   const { repo, reader, openNoteEditor } = useApp();
   const api = reader.api;
+  const queue = useNoteQueue(api);
 
   const edit = useCallback((target: MinedNote) => new Promise<Note | null>((resolve) => {
     openNoteEditor(target, (result) => resolve(result && 'saved' in result ? result.saved : null));
@@ -74,9 +79,19 @@ export function useAddMinedWord(): (add: AddWord) => Promise<boolean> {
     if (api && language && ASPECT_LANGUAGES.includes(language) && !/\s/.test(word.trim())) {
       pair = await api.aspectPair(language, word).catch(() => null);
     }
+    if (!pair && api && language) {
+      try {
+        await queue.add(language, deck, [{ entry: word, meaning: meaning ?? '' }]);
+        haptic.success();
+        Alert.alert(`Filling in ${word}`, "Claude is writing its example sentence and translation. It will be under Notes ready to review in a few minutes.");
+        return true;
+      } catch {
+        // The server can't fill it in right now (no Claude key, or unreachable): the editor still works by hand.
+      }
+    }
     const saved = await edit(minedNote(word, meaning, deck, pronunciation, pair));
     if (!saved) return false;
     if (pair?.partner) void offer(saved, pair);
     return true;
-  }, [api, edit, offer]);
+  }, [api, queue.add, edit, offer]);
 }

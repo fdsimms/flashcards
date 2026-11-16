@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../core/failure';
 import type { Api, ReaderText, RetellCheck } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
+import { useKeyboardLanguage } from './useKeyboardLanguage';
 import { lineText } from '../reader/lineDrill';
 import { speedFor } from '../reader/prefs';
 import { prefs } from '../reader/storage';
@@ -31,6 +32,7 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
   const name = LANGUAGES[text.language].name;
+  const keyboardLang = useKeyboardLanguage(LANGUAGES[text.language].speech);
   const [attempt, setAttempt] = useState('');
   const [check, setCheck] = useState<RetellCheck | null>(null);
   const [checking, setChecking] = useState(false);
@@ -115,6 +117,7 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
               <Help>{`Tell what happens in ${text.title} in a few sentences of your own, in ${name}. Claude points out what to fix and words from the text you could use.`}</Help>
             </Card>
             <TextInput
+              {...keyboardLang}
               value={attempt}
               onChangeText={setAttempt}
               multiline

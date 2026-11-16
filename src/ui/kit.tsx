@@ -12,6 +12,7 @@ import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import { haptic } from './haptics';
+import { useKeyboardLanguage } from './useKeyboardLanguage';
 import { useReduceMotion } from './motion';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
@@ -459,10 +460,12 @@ export function MessageList({ lines }: { lines: string[] }) {
 /**
  * A labelled text field, for a form on a Card. The label is also what VoiceOver reads for it. The
  * field outlines in the accent while it's being typed in. `ref` reaches the TextInput (React 19
- * passes it as a prop).
+ * passes it as a prop). `keyboardLanguage` is the language the answer is typed in (a speech tag, ru-RU):
+ * the field opens on that language's keyboard when the person has it (useKeyboardLanguage).
  */
-export function Field({ label, error, ref, onFocus, onBlur, ...input }: TextInputProps & { label: string; error?: boolean; ref?: React.Ref<TextInputInstance> }) {
+export function Field({ label, error, ref, onFocus, onBlur, keyboardLanguage, ...input }: TextInputProps & { label: string; error?: boolean; keyboardLanguage?: string; ref?: React.Ref<TextInputInstance> }) {
   const c = useTheme();
+  const keyboard = useKeyboardLanguage(keyboardLanguage);
   const dark = useColorScheme() === 'dark';
   const [focused, setFocused] = React.useState(false);
   return (
@@ -475,8 +478,8 @@ export function Field({ label, error, ref, onFocus, onBlur, ...input }: TextInpu
         selectionColor={c.accent}
         keyboardAppearance={dark ? 'dark' : 'light'}
         {...input}
-        onFocus={(e) => { setFocused(true); onFocus?.(e); }}
-        onBlur={(e) => { setFocused(false); onBlur?.(e); }}
+        onFocus={(e) => { setFocused(true); keyboard.onFocus(); onFocus?.(e); }}
+        onBlur={(e) => { setFocused(false); keyboard.onBlur(); onBlur?.(e); }}
         style={{
           ...type.body, color: c.text, backgroundColor: c.fill, ...smooth,
           borderColor: error ? c.danger : focused ? c.accent : 'transparent', borderWidth: 1.5, borderRadius: radius.m,
