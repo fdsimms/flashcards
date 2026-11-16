@@ -150,7 +150,7 @@ export function MixupsTool({ tool, repo, params }: ToolScreenProps) {
                 : (
                   <>
                     <Status tone="bad">{`Not quite. It's ${question.target.word}.`}</Status>
-                    <Help>{`${mode === 'ear' ? 'Play each word to compare how they sound. ' : ''}This one will come up again in a few questions.`}</Help>
+                    {mode === 'ear' ? <Help>Play each word to compare how they sound.</Help> : null}
                   </>
                 )}
             </Reveal>
