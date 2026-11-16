@@ -13,7 +13,7 @@ from typing import Any, cast
 import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
-from franki_reader import lesson
+from franki_reader import gender, lesson
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
@@ -32,7 +32,7 @@ what you give. Give:
 
 - title: a short English title for the lesson (two to five words)
 - dialogue: {low} to {high} lines of natural, spoken conversation in {language} in that situation,
-  between A (a man) and B (a woman). Each line: speaker (A or B), text ({language}), english. The
+  between A ({a}) and B ({b}). Each line: speaker (A or B), text ({language}), english. The
   phrases below should come up in it.
 - phrases: {few} to {many} phrases the learner will practice saying, simplest first, each one
   something a person would really say in that situation. Each: text ({language}), english (what it
@@ -49,22 +49,91 @@ Rules for the phrases:
   can be one part.
 - Polite, everyday register (use the formal "you" where the language has one), unless the situation
   is between friends.
-- The learner may be a man or a woman, so use no form that changes with the speaker's gender.
-- The phrases are a ladder, in the order they come up in the dialogue: each one reuses words or a
+{gender_rule}- The phrases are a ladder, in the order they come up in the dialogue: each one reuses words or a
   piece from an earlier phrase (a word, a verb, a polite ending) and adds only one or two new
   things, so the lesson builds on itself instead of teaching separate phrases.
 
 Plain text only: no `|`, asterisks, tildes or em dashes.{note}"""
 
-# What a language needs said beyond the rest of the request.
-_NOTES: dict[Code, str] = {
-    "th": (
-        "\n\nThai: write Thai script only, with spaces only between clauses, never between words, and"
-        " cut `parts` where a person would pause. Thai's polite particles depend on the speaker's"
-        " gender, so leave ครับ and ค่ะ out of the phrases taught; in the dialogue, A (a man) ends"
-        " polite lines with ครับ and B (a woman) with ค่ะ."
-    )
+_NEUTRAL = "- The learner may be a man or a woman, so use no form that changes with the speaker's gender.\n"
+
+# Thai's polite particle and its word for "I" depend on the speaker's gender, so a Thai lesson is
+# written for the learner's own: every phrase taught carries the learner's particle, which is the
+# point of choosing it, and A (the learner's part in the role-play) speaks as the learner does.
+_THAI_PARTICLES: dict[lesson.Learner, str] = {
+    "male": (
+        "ครับ for a man: end every phrase taught with ครับ (a question too, ครับ never ค่ะ or คะ),"
+        ' and write "I" as ผม, never ฉัน'
+    ),
+    "female": (
+        "ค่ะ for a woman: end every phrase taught that is a statement with ค่ะ and every question"
+        ' with คะ, and write "I" as ดิฉัน or ฉัน, never ผม'
+    ),
 }
+
+
+def _thai_note(learner: lesson.Learner) -> str:
+    speaker = "man" if learner == "male" else "woman"
+    their = "woman" if learner == "male" else "man"
+    return (
+        "\n\nThai: write Thai script only, with spaces only between clauses, never between words, and"
+        " cut `parts` where a person would pause. The learner is a "
+        f"{speaker}, and Thai's polite particles and \"I\" depend on the speaker's gender, so write "
+        f"every line of A for a {speaker}: {_THAI_PARTICLES[learner]}. The same particle ends each of"
+        " the new sentences in `mixes`, and the dialogue's A ends polite lines with it too. B (a "
+        f'{their}) uses the {their}\'s particle and "I" in the dialogue only, never in a phrase '
+        "taught."
+    )
+
+
+def _speakers(language: Code, learner: lesson.Learner) -> tuple[str, str]:
+    """Who A and B are: the learner is A, and in every language but Thai that is a man."""
+    if language == "th" and learner == "female":
+        return "a woman", "a man"
+    return "a man", "a woman"
+
+
+# What a speaker of each gender must not say in Thai: a man isn't taught ฉัน (a woman's word in a
+# polite lesson), a woman isn't taught ผม.
+_FIRST_PERSON: dict[lesson.Learner, tuple[str, ...]] = {
+    "male": ("ฉัน", "ดิฉัน"),
+    "female": ("ผม", "กระผม"),
+}
+
+
+def _has_particle(text: str, learner: lesson.Learner) -> bool:
+    """Whether a Thai phrase carries the learner's polite particle (คะ counts for a woman's
+    question, but only as a word of its own, since it also starts คะแนน, "score")."""
+    if learner == "male":
+        return "ครับ" in text
+    return "ค่ะ" in text or "คะ" in lesson.tokens(text)
+
+
+def thai_problems(plan: lesson.Plan, learner: lesson.Learner) -> list[str]:
+    """What's wrong with a Thai plan for this learner, as sentences for the revision message: a
+    phrase taught without the learner's polite particle, or a speaker using the other gender's
+    particle or "I". Nothing for another language."""
+    problems: list[str] = []
+    missing = [p.text for p in plan.phrases if not _has_particle(p.text, learner)]
+    if missing:
+        particle = "ครับ" if learner == "male" else "ค่ะ (คะ for a question)"
+        problems.append(
+            f"Every phrase taught must carry the polite particle {particle}. These don't: "
+            + "; ".join(missing)
+        )
+    genders: dict[str, lesson.Learner] = {"A": learner, "B": lesson.other(learner)}
+    lines = [(line.speaker, line.text) for line in plan.dialogue]
+    problems += gender.gender_problems("th", lines, genders)
+    for speaker, text in lines:
+        said = set(lesson.tokens(text))
+        for word in _FIRST_PERSON[genders[speaker]]:
+            if word in said:
+                who = "a man" if genders[speaker] == "male" else "a woman"
+                problems.append(
+                    f"Speaker {speaker} is {who} and shouldn't say {word} in: {text}. Rewrite it."
+                )
+    return problems
+
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -120,9 +189,10 @@ class LessonFailed(Exception):
         self.usage = usage or Usage()
 
 
-# Asks Claude for a lesson's content: the language, the scene, and what to say about the last
-# attempt (empty the first time). Returns Claude's raw answer and what the call cost.
-WritePlan = Callable[[Code, str, str], Awaitable[tuple[Any, Usage]]]
+# Asks Claude for a lesson's content: the language, the scene, what to say about the last attempt
+# (empty the first time) and whose part the learner plays. Returns Claude's raw answer and what the
+# call cost.
+WritePlan = Callable[[Code, str, str, lesson.Learner], Awaitable[tuple[Any, Usage]]]
 
 _RETRY = (
     "That answer had fewer than {n} usable phrases. A phrase is dropped when its parts, put back"
@@ -130,8 +200,12 @@ _RETRY = (
 )
 
 
-def request_message(language: Code, scene: str) -> str:
+def request_message(language: Code, scene: str, learner: lesson.Learner = "male") -> str:
+    a, b = _speakers(language, learner)
     return _REQUEST.format(
+        a=a,
+        b=b,
+        gender_rule="" if language == "th" else _NEUTRAL,
         language=LANGUAGES[language].name,
         scene=scene,
         low=4,
@@ -140,32 +214,41 @@ def request_message(language: Code, scene: str) -> str:
         many=lesson.MAX_PHRASES,
         mixes=lesson.MAX_MIXES,
         parts=lesson.MAX_PARTS,
-        note=_NOTES.get(language, ""),
+        note=_thai_note(learner) if language == "th" else "",
     )
 
 
-async def write_plan(write: WritePlan, language: Code, scene: str) -> tuple[lesson.Plan, Usage]:
+async def write_plan(
+    write: WritePlan, language: Code, scene: str, learner: lesson.Learner = "male"
+) -> tuple[lesson.Plan, Usage]:
     """The plan for a lesson on `scene`, asked for up to `MAX_ATTEMPTS` times; what the calls cost
-    comes back with it, or on the failure."""
+    comes back with it, or on the failure. A Thai plan whose phrases lack the learner's polite
+    particle, or whose speakers use the other gender's, is asked for again with what's wrong."""
     used = Usage()
     feedback = ""
     for _ in range(MAX_ATTEMPTS):
         try:
-            raw, spent = await write(language, scene, feedback)
+            raw, spent = await write(language, scene, feedback, learner)
         except LessonFailed as e:
             raise LessonFailed(str(e), used + e.usage) from e
         used = used + spent
         plan = lesson.clean_plan(raw, scene)
-        if plan is not None:
+        if plan is None:
+            feedback = _RETRY.format(n=lesson.MIN_PHRASES)
+            continue
+        problems = thai_problems(plan, learner) if language == "th" else []
+        if not problems:
             return plan, used
-        feedback = _RETRY.format(n=lesson.MIN_PHRASES)
+        feedback = "Fix this and write the lesson again. " + " ".join(problems)
     raise LessonFailed("Claude didn't write a usable lesson. Try again.", used)
 
 
 def claude_plan(client: anthropic.AsyncAnthropic) -> WritePlan:
-    async def write(language: Code, scene: str, feedback: str) -> tuple[Any, Usage]:
+    async def write(
+        language: Code, scene: str, feedback: str, learner: lesson.Learner
+    ) -> tuple[Any, Usage]:
         messages: list[dict[str, Any]] = [
-            {"role": "user", "content": request_message(language, scene)}
+            {"role": "user", "content": request_message(language, scene, learner)}
         ]
         if feedback:
             messages.append({"role": "user", "content": feedback})

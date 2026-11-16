@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AudioLesson } from '../../src/reader/api';
-import { anyMaking, atEnd, clock, lessonDetail, lessonsOffered, parseNarrator, skipTo, stageSteps } from '../../src/reader/lessons';
+import { anyMaking, atEnd, clock, lessonDetail, lessonsOffered, parseNarrator, parseParticle, skipTo, stageSteps } from '../../src/reader/lessons';
 
 const lesson = (over: Partial<AudioLesson> = {}): AudioLesson => ({
   id: 1, language: 'fr', scene: 'a café', title: 'At the café', state: 'ready', error: '',
@@ -98,5 +98,14 @@ describe('parseNarrator', () => {
     expect(parseNarrator('')).toBe('');
     expect(parseNarrator('fr-FR-HenriNeural')).toBe('');
     expect(parseNarrator('Guy')).toBe('');
+  });
+});
+
+describe('parseParticle', () => {
+  it('keeps kha and reads anything else as khrap', () => {
+    expect(parseParticle('kha')).toBe('kha');
+    expect(parseParticle('khrap')).toBe('khrap');
+    expect(parseParticle(null)).toBe('khrap');
+    expect(parseParticle('x')).toBe('khrap');
   });
 });
