@@ -17,6 +17,7 @@ exact and the same every time:
    phrases already used, so the learner puts the pieces together (`Plan.mixes`).
 6. The learner then takes the first speaker's part in the dialogue: the narrator gives each line in
    English, a silence follows, and the native voice answers; the other speaker's lines are played.
+   The first speaker, and every phrase taught, is in the voice of the learner's gender (`Learner`).
 
 The phrases are written as a ladder, each reusing words from the ones before it, so the lesson
 builds on itself rather than teaching separate phrases.
@@ -57,6 +58,10 @@ BEAT_MS = 700
 AFTER_NATIVE_MS = 1400
 
 Voice = Literal["narrator", "male", "female"]
+# Whose part the learner plays: the voice they repeat after, and the first speaker (A) of the
+# dialogue. Thai's polite particle follows it (ครับ for a man, ค่ะ for a woman), so it's the learner's
+# choice; every other language has the man's voice.
+Learner = Literal["male", "female"]
 
 
 @dataclass(frozen=True)
@@ -231,21 +236,25 @@ def build_up(phrase: Phrase) -> list[str]:
     return steps[:-1] + [phrase.text] if len(parts) > 1 else [phrase.text]
 
 
-def _ask(phrase: Phrase) -> list[Step]:
+def other(learner: Learner) -> Learner:
+    return "female" if learner == "male" else "male"
+
+
+def _ask(phrase: Phrase, learner: Learner) -> list[Step]:
     """The narrator asks for the phrase in English, the learner has a silence to say it, and the
     native voice answers."""
     return [
         Say("narrator", f"How do you say: {phrase.english}"),
         Silence(pause_ms(word_count(phrase.text))),
-        Say("male", phrase.text),
+        Say(learner, phrase.text),
         Silence(AFTER_NATIVE_MS),
     ]
 
 
-def _teach(phrase: Phrase) -> list[Step]:
+def _teach(phrase: Phrase, learner: Learner) -> list[Step]:
     steps: list[Step] = [
         Say("narrator", "Listen."),
-        Say("male", phrase.text),
+        Say(learner, phrase.text),
         Silence(AFTER_NATIVE_MS),
         Say("narrator", f"That means: {phrase.english}"),
         Silence(BEAT_MS),
@@ -253,23 +262,23 @@ def _teach(phrase: Phrase) -> list[Step]:
     steps.append(Say("narrator", "Listen and repeat."))
     for chunk in build_up(phrase):
         steps += [
-            Say("male", chunk),
+            Say(learner, chunk),
             Silence(pause_ms(word_count(chunk))),
         ]
     return steps
 
 
-def _dialogue(lines: tuple[Line, ...], intro: str) -> list[Step]:
+def _dialogue(lines: tuple[Line, ...], intro: str, learner: Learner) -> list[Step]:
     steps: list[Step] = [Say("narrator", intro), Silence(BEAT_MS)]
     for line in lines:
         steps += [
-            Say("male" if line.speaker == "A" else "female", line.text),
+            Say(learner if line.speaker == "A" else other(learner), line.text),
             Silence(AFTER_NATIVE_MS),
         ]
     return steps
 
 
-def _role_play(lines: tuple[Line, ...]) -> list[Step]:
+def _role_play(lines: tuple[Line, ...], learner: Learner) -> list[Step]:
     """The learner is the first speaker (A): the narrator gives each of their lines in English, a
     silence follows, and the native voice answers. B's lines are played."""
     steps: list[Step] = [
@@ -278,32 +287,35 @@ def _role_play(lines: tuple[Line, ...]) -> list[Step]:
     ]
     for line in lines:
         if line.speaker == "B":
-            steps += [Say("female", line.text), Silence(AFTER_NATIVE_MS)]
+            steps += [Say(other(learner), line.text), Silence(AFTER_NATIVE_MS)]
         else:
             steps += [
                 Say("narrator", f"You say: {line.english}"),
                 Silence(pause_ms(word_count(line.text))),
-                Say("male", line.text),
+                Say(learner, line.text),
                 Silence(AFTER_NATIVE_MS),
             ]
     return steps
 
 
-def build_script(plan: Plan) -> list[Step]:
-    """The lesson, step by step (see the module's docstring for its shape)."""
-    steps = _dialogue(plan.dialogue, f"{plan.title}. Listen to this conversation.")
+def build_script(plan: Plan, learner: Learner = "male") -> list[Step]:
+    """The lesson, step by step (see the module's docstring for its shape). The native voice the
+    learner repeats after, and speaker A, is `learner`'s; speaker B is the other."""
+    steps = _dialogue(plan.dialogue, f"{plan.title}. Listen to this conversation.", learner)
     # Recalls waiting: (phrase index, taught count at which it's asked).
     due: list[tuple[int, int]] = []
     steps.append(Say("narrator", "Now let's learn how to say some of it."))
     for taught, phrase in enumerate(plan.phrases, start=1):
-        steps += _teach(phrase)
-        steps += _ask(phrase)
+        steps += _teach(phrase, learner)
+        steps += _ask(phrase, learner)
         due += [(taught - 1, taught + gap) for gap in RECALL_GAPS]
-        steps += [s for index, at in due if at == taught for s in _ask(plan.phrases[index])]
+        steps += [
+            s for index, at in due if at == taught for s in _ask(plan.phrases[index], learner)
+        ]
         due = [d for d in due if d[1] > taught]
     # What the gaps didn't reach before the phrases ran out: each of those phrases once more, in order.
     for index in sorted({i for i, _ in due}):
-        steps += _ask(plan.phrases[index])
+        steps += _ask(plan.phrases[index], learner)
     if plan.mixes:
         steps.append(
             Say(
@@ -312,8 +324,8 @@ def build_script(plan: Plan) -> list[Step]:
             )
         )
         for mix in plan.mixes:
-            steps += _ask(mix)
-    steps += _role_play(plan.dialogue)
+            steps += _ask(mix, learner)
+    steps += _role_play(plan.dialogue, learner)
     steps.append(Say("narrator", "That's the end of the lesson."))
     return steps
 

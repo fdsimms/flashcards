@@ -61,6 +61,11 @@ describe('the queue', () => {
     });
   });
 
+  it('tags the note with its part of speech', () => {
+    expect(reviewTarget(note({ fields: { PartOfSpeech: 'verb' } })).tags).toEqual(['verb']);
+    expect(reviewTarget(note()).tags).toBeUndefined();
+  });
+
   it('never lets a written field replace the entry', () => {
     expect(reviewTarget(note({ fields: { Entry: 'other' } })).fields.Entry).toBe('other');
   });

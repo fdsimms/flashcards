@@ -199,10 +199,12 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               ) : (
                 // A field can hold Thai and its romanization on separate lines; the Thai lines get the
                 // size of an example sentence, since Thai is hard to read at body size (the size is a setting).
+                // A line with no label (pronunciation, transliteration, reading) is centered under the word,
+                // as the headline is; a labeled one (Mnemonic) stays left-aligned under its label.
                 <View style={{ gap: space.xs }}>
                   {b.text.split('\n').map((ln, k) => (hasThai(ln)
-                    ? <Text key={k} style={{ ...thai, color: c.text }}>{ln}</Text>
-                    : <Text key={k} style={{ ...type.body, color: c.textSecondary, lineHeight: 24 }}>{ln}</Text>))}
+                    ? <Text key={k} style={{ ...thai, color: c.text, textAlign: b.label ? undefined : 'center' }}>{ln}</Text>
+                    : <Text key={k} style={{ ...type.body, color: c.textSecondary, lineHeight: 24, textAlign: b.label ? undefined : 'center' }}>{ln}</Text>))}
                 </View>
               )}
             </View>

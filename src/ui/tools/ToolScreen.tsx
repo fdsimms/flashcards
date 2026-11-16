@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Repo } from '../../db/repo';
 import type { Language } from '../../reader/api';
 import { LANGUAGES, flaggedName } from '../../reader/languages';
+import { FLAG_IMAGES } from '../flagImages';
 import type { Phrase } from '../../tools/phrase';
 import type { ToolPrefs } from '../../tools/prefs';
 import { loadToolPrefs, saveToolPrefs, toolPrefs } from '../../tools/storage';
@@ -115,8 +116,7 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
       largeTitle={false}
       toolbar={tool.languages.length > 1 ? (
         <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu title="Language" accessibilityLabel={`Language: ${name}. Change the language`}>
-            <Stack.Toolbar.Label>{flaggedName(language)}</Stack.Toolbar.Label>
+          <Stack.Toolbar.Menu title="Language" icon={FLAG_IMAGES[language]} iconRenderingMode="original" accessibilityLabel={`Language: ${name}. Change the language`}>
             {tool.languages.map((l) => (
               <Stack.Toolbar.MenuAction key={l} isOn={l === language} onPress={() => onLanguage(l)}>{flaggedName(l)}</Stack.Toolbar.MenuAction>
             ))}

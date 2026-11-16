@@ -376,3 +376,23 @@ def test_describe_lists_what_the_app_shows() -> None:
     assert out["title"] == "At the café"
     assert out["phrases"][0] == {"text": "Je voudrais un café.", "english": "I'd like a coffee."}
     assert out["dialogue"][1]["speaker"] == "B"
+
+
+class TestLearner:
+    def test_a_woman_learner_repeats_after_the_womans_voice_and_plays_a_woman(self) -> None:
+        steps = lesson.build_script(PLAN, "female")
+        assert steps[2] == Say("female", "Bonjour, vous désirez ?")  # A is the learner
+        assert steps[4] == Say("male", "Je voudrais un café.")
+        taught = steps.index(Say("narrator", "That means: I'd like a coffee."))
+        assert steps[taught - 2] == Say("female", CAFE.text)
+
+    def test_the_role_play_plays_the_other_speaker_and_the_learner_answers_in_their_own_voice(
+        self,
+    ) -> None:
+        tail = lesson.build_script(PLAN, "female")
+        cue = tail.index(Say("narrator", "You say: Hello, what would you like?"))
+        assert tail[cue + 2] == Say("female", "Bonjour, vous désirez ?")
+        assert Say("male", "Je voudrais un café.") in tail[cue:]
+
+    def test_a_man_is_the_default(self) -> None:
+        assert lesson.build_script(PLAN) == lesson.build_script(PLAN, "male")

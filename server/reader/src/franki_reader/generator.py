@@ -56,8 +56,19 @@ MODEL: TextModel = "claude-sonnet-5-5"
 # For short, checked or low-stakes calls (glosses, word forms, IPA, hints, questions). Haiku has no
 # server-side refusal fallback, so calls to it send none and handle stop_reason "refusal" themselves.
 CHEAP_MODEL: TextModel = "claude-haiku-5-5"
-EFFORT: Literal["low", "medium", "high", "xhigh", "max"] = "high"
-MAX_TOKENS = 16000
+Effort = Literal["low", "medium", "high", "xhigh", "max"]
+EFFORT: Effort = "high"
+# A story episode also returns a recap, a season plan, choices and new speakers, so it thinks less
+# per draft to leave room for them.
+STORY_EFFORT: Effort = "medium"
+# Thinking counts against max_tokens, so a draft that thinks long can run out before its JSON ends.
+# A response cut off at MAX_TOKENS is asked once more at RETRY_EFFORT with RETRY_MAX_TOKENS.
+MAX_TOKENS = 32000
+RETRY_EFFORT: Effort = "medium"
+RETRY_MAX_TOKENS = 48000
+# The SDK refuses a non-streaming call whose max_tokens could take over 10 minutes unless it's given
+# a timeout of its own; 48,000 tokens at the slowest speed seen is well inside this.
+REQUEST_TIMEOUT_SECONDS = 1200.0
 log = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 3
@@ -1172,6 +1183,7 @@ def claude_ask(
     entries: list[Entry],
     language: Code = "th",
     model: TextModel = MODEL,
+    effort: Effort = EFFORT,
 ) -> Ask:
     system: list[BetaTextBlockParam] = [
         {
@@ -1180,10 +1192,9 @@ def claude_ask(
             "cache_control": {"type": "ephemeral"},
         }
     ]
-    output_config: BetaOutputConfigParam = {
-        "effort": EFFORT,
-        "format": {"type": "json_schema", "schema": DRAFT_SCHEMA},
-    }
+
+    def output_config(effort: Effort) -> BetaOutputConfigParam:
+        return {"effort": effort, "format": {"type": "json_schema", "schema": DRAFT_SCHEMA}}
 
     # Haiku has no server-side refusal fallback; a refusal there fails the attempt below.
     fallback: dict[str, Any] = (
@@ -1192,20 +1203,30 @@ def claude_ask(
         else {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"}
     )
 
-    async def ask(messages: list[dict[str, Any]]) -> tuple[dict[str, Any], list[Any], Usage]:
+    async def call(messages: list[dict[str, Any]], effort: Effort, max_tokens: int) -> BetaMessage:
         try:
-            response = await client.beta.messages.create(
+            response: BetaMessage = await client.beta.messages.create(
                 model=model,
-                max_tokens=MAX_TOKENS,
+                max_tokens=max_tokens,
                 system=system,
                 messages=cast(list[BetaMessageParam], messages),
-                output_config=output_config,
+                output_config=output_config(effort),
+                timeout=REQUEST_TIMEOUT_SECONDS,
                 **fallback,
             )
+            return response
         except anthropic.APIError as e:
             # Overloaded, rate limited, unreachable: say so rather than failing the request.
             raise GenerationFailed(didnt_answer(e)) from e
+
+    async def ask(messages: list[dict[str, Any]]) -> tuple[dict[str, Any], list[Any], Usage]:
+        response = await call(messages, effort, MAX_TOKENS)
         used = usage_of(response)
+        if response.stop_reason == "max_tokens":
+            # Most likely thinking used the budget. Both calls are paid for, so both are counted.
+            log.warning("Response cut off at %d tokens; asking again", MAX_TOKENS)
+            response = await call(messages, RETRY_EFFORT, RETRY_MAX_TOKENS)
+            used += usage_of(response)
         if response.stop_reason == "refusal":
             raise GenerationFailed("Claude declined to write this text", used)
         if response.stop_reason == "max_tokens":
