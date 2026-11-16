@@ -69,6 +69,13 @@ describe('wantedLine', () => {
     const others = ['e', 'd', 'c', 'b', 'a'].map((w) => es(w, w, 'x'));
     expect(wantedLine(es('z', 'z', 'x'), others)).toBe('Not: a, b, c, and 2 more');
   });
+  it('leaves out a synonym that contains the answer or is part of it', () => {
+    const jai = es('a', 'ใจ', 'heart; mind', { Language: 'Thai' });
+    const huajai = es('b', 'หัวใจ', 'heart; mind', { Language: 'Thai' });
+    expect(wantedLine(jai, [huajai])).toBeUndefined();
+    expect(wantedLine(huajai, [jai])).toBeUndefined();
+    expect(wantedLine(jai, [huajai, es('e', 'ความรู้สึก', 'heart; mind', { Language: 'Thai' })])).toBe('Not: ความรู้สึก');
+  });
   it('is undefined with no synonyms', () => {
     expect(wantedLine(es('a', 'esperar', 'to wait'), [])).toBeUndefined();
     expect(wantedLine(es('a', 'esperar', 'to wait'), undefined)).toBeUndefined();
