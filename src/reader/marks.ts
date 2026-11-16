@@ -23,7 +23,7 @@ export const MARK_INFO: Record<Exclude<Mark, 'highlight'>, { title: string; abou
   marked: { title: 'Marked unknown', about: 'A word you marked as not known. Blue line.' },
 };
 
-export const HIGHLIGHT_ABOUT = 'No studied card for this word yet. Tap it to add one.';
+export const HIGHLIGHT_ABOUT = 'A word with no studied card yet. You can tap it to add one.';
 
 /** Which mark a grammar point's underline is: Know it and Not set share the thin gray line. */
 export function grammarMark(role: TextGrammarRole): 'practice' | 'avoid' | 'known' {
