@@ -230,6 +230,9 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
   };
   const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
   const insets = useSafeAreaInsets();
+  // scrollToEnd on content shorter than the view scrolls past the top inset, leaving the first line
+  // under the header, so it's only called once the conversation overflows.
+  const sizes = useRef({ view: 0, content: 0 });
 
   const turn = async (from: Chat) => {
     const mine = ++asking.current;
@@ -240,7 +243,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
       if (asking.current !== mine) return;
       onChat(withTheirs(from, got));
       void say(got);
-      setTimeout(() => scrollProps.ref.current?.scrollToEnd({ animated: true }), 50);
+      setTimeout(() => { if (sizes.current.content > sizes.current.view) scrollProps.ref.current?.scrollToEnd({ animated: true }); }, 50);
     } catch (e) {
       if (asking.current !== mine) return;
       // A line of the owner's whose reply failed goes back in the box, so nothing typed is lost.
@@ -404,7 +407,10 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
           </View>
         )}
       >
-        <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }} {...scrollProps}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }} {...scrollProps}
+          onLayout={(e) => { sizes.current.view = e.nativeEvent.layout.height; }}
+          onContentSizeChange={(_w, h) => { sizes.current.content = h; }}
+        >
           {chat.roles ? (
             <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{`You're ${chat.roles.you}. ${name} is ${chat.roles.them}.`}</Text>
           ) : null}
