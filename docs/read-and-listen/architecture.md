@@ -365,8 +365,14 @@ aloud is never heard by the phone.
   the dialogue is played once; each phrase is said, its meaning given, built up from its last part
   to the whole (backward build-up) with a silence after each step to repeat, then asked for in
   English with a silence to answer; earlier phrases are asked again after 1, then 3 more phrases
-  are taught, and once more at the end; the dialogue closes the lesson. Five phrases make about
-  four to five minutes.
+  are taught, and once more at the end. Five phrases make about four to five minutes.
+- **The lesson builds on itself** (16 November 2026, the owner: it felt like five separate phrases).
+  The phrases are written as a ladder in the order they come up in the dialogue, each reusing words
+  from an earlier one. After the last is taught, up to 3 `mixes` are asked: new sentences made only
+  of words from the taught phrases (`clean_mix` drops one with any other word, since the model
+  doesn't always keep to it). The lesson then closes with a role-play instead of replaying the
+  dialogue: the learner is the first speaker, the narrator gives each of their lines in English,
+  a silence follows and the native voice answers; the other speaker's lines are played.
 - **Silences are sized to the phrase** (`pause_ms`: 2 s plus 0.7 s a word, 3 to 15 s), so a longer
   phrase gets longer to say. They are baked into the audio, so they can't be adjusted after the
   lesson is made. Chosen over a phone that times each clip because one MP3 plays with the screen
