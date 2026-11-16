@@ -44,6 +44,7 @@ from franki_reader.difficulty import Difficulty, after_reading
 from franki_reader.gender import full_voices, voice_for
 from franki_reader.generator import (
     MODEL,
+    STORY_EFFORT,
     Ask,
     Form,
     Generated,
@@ -89,6 +90,10 @@ MISSED_FLOOR = (
 )
 
 TopicState = Literal["ready", "writing", "failed", "idle"]
+# What a text being written is doing, in order: the draft (with its checks against the deck and
+# any rewrites), then the translations and word details, then the voices. The app shows these as
+# the steps of its "making" card, so each is a phase the job really goes through.
+TextStage = Literal["writing", "translating", "recording"]
 
 log = logging.getLogger(__name__)
 
@@ -214,6 +219,7 @@ class Engine:
         self._rerecord_locks: dict[Code, asyncio.Lock] = {}
         self._writing: set[_Key] = set()
         self._jobs: dict[_Key, Job] = {}  # what's being written now, for the shelf to show
+        self._stages: dict[_Key, TextStage] = {}  # where each of those has got to
         self._failures: dict[_Key, _Failure] = {}
         self._tasks: set[asyncio.Task[None]] = set()
 
@@ -352,6 +358,20 @@ class Engine:
         finally:
             self._writing.discard(key)
             self._jobs.pop(key, None)
+            self._stages.pop(key, None)
+
+    def _stage(self, job: Job, stage: TextStage) -> None:
+        # Only a job `_write` is tracking: a text made by a direct call has nobody to tell.
+        if job.key in self._jobs:
+            self._stages[job.key] = stage
+
+    def stage_of(self, job: Job) -> TextStage | None:
+        """Where a text being written has got to; None when it isn't being written."""
+        return self._stages.get(job.key)
+
+    def writing_stage(self, topic_id: int, words: Iterable[str] = ()) -> TextStage | None:
+        """The same for the text a topic's next request is waiting on."""
+        return self._stages.get((topic_id, self.language(), focus_of(words)))
 
     def _fail(self, key: _Key, message: str) -> None:
         self._failures[key] = _Failure(self.clock(), message)
@@ -396,6 +416,7 @@ class Engine:
                 await self.refresh_lexicon(language, force=True)
             self._check_setup(language)
             assert self.ask_for is not None
+            self._stage(job, "writing")
             entries = self.entries(language)
             difficulty = store.load_difficulty(self.conn, language)
             context = self._story_context(story) if story else None
@@ -419,7 +440,13 @@ class Engine:
                 "episode": context.episode if context else 0,
             }
             try:
-                result = await generate(self.ask_for(known, language, job.model), lexicon, request)
+                result = await generate(
+                    self.ask_for(
+                        known, language, job.model, **({"effort": STORY_EFFORT} if story else {})
+                    ),
+                    lexicon,
+                    request,
+                )
             except GenerationFailed as e:
                 if e.usage != Usage():
                     # The first attempt got an answer but nothing usable (a refusal, a cut-off,
@@ -511,10 +538,12 @@ class Engine:
                 )
             text = store.get_text(self.conn, text_id)
             assert text is not None
+            self._stage(job, "translating")
             await self.fill_meanings([text], language)
             await self.fill_ipa([text], language)
             await self.fill_forms([text])
             await self.fill_questions(text)
+            self._stage(job, "recording")
             await self.make_audio(text)
             store.mark_ready(self.conn, text_id)
             return text

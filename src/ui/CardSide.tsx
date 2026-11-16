@@ -130,6 +130,33 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
             </View>
           );
         }
+        if (b.role === 'counting') {
+          return (
+            <View key={i} style={{ gap: space.xs }}>
+              {b.label ? <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text> : null}
+              <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.xs }}>
+                {(b.rows ?? []).map((r) => {
+                  const cut = r.value.length - r.label.length;
+                  return (
+                    <Text key={r.label} style={{ ...thai, color: c.text }}>
+                      {r.value.slice(0, cut)}
+                      <Text style={{ color: c.accent, fontWeight: '600' }}>{r.label}</Text>
+                    </Text>
+                  );
+                })}
+                {(b.rows ?? []).filter((r) => r.counts).map((r) => (
+                  <Text key={`${r.label}-counts`} style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>
+                    <Text style={{ ...thai, fontSize: type.subhead.fontSize, color: c.text }}>{r.label}</Text>
+                    {` (${r.counts?.roman}) counts ${r.counts?.what}.`}
+                  </Text>
+                ))}
+                <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>
+                  Say the noun, the number, then the counting word.
+                </Text>
+              </View>
+            </View>
+          );
+        }
         if (b.role === 'forms') {
           return (
             <View key={i} style={{ gap: space.xs }}>
@@ -178,10 +205,12 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               ) : (
                 // A field can hold Thai and its romanization on separate lines; the Thai lines get the
                 // size of an example sentence, since Thai is hard to read at body size (the size is a setting).
+                // A line with no label (pronunciation, transliteration, reading) is centered under the word,
+                // as the headline is; a labeled one (Mnemonic) stays left-aligned under its label.
                 <View style={{ gap: space.xs }}>
                   {b.text.split('\n').map((ln, k) => (hasThai(ln)
-                    ? <Text key={k} style={{ ...thai, color: c.text }}>{ln}</Text>
-                    : <Text key={k} style={{ ...type.body, color: c.textSecondary, lineHeight: 24 }}>{ln}</Text>))}
+                    ? <Text key={k} style={{ ...thai, color: c.text, textAlign: b.label ? undefined : 'center' }}>{ln}</Text>
+                    : <Text key={k} style={{ ...type.body, color: c.textSecondary, lineHeight: 24, textAlign: b.label ? undefined : 'center' }}>{ln}</Text>))}
                 </View>
               )}
             </View>

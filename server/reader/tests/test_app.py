@@ -254,7 +254,8 @@ def test_a_topic_with_nothing_ready_answers_202_then_the_text() -> None:
 
     first = c.post(f"/api/topics/{topic['id']}/next", headers=AUTH)
     assert first.status_code == 202
-    assert first.json() == {"writing": True}
+    # The write has only just been started, so it may not have reached its first stage.
+    assert first.json()["writing"] is True and first.json()["stage"] in (None, "writing")
 
     text = next_text(c, topic["id"])
     assert text.status_code == 200
@@ -1575,3 +1576,28 @@ def test_every_language_has_a_scene() -> None:
     assert set(SCENES) == set(LANGUAGES)
     assert all(all(line.strip() for line in lines) for lines in SCENES.values())
     assert sample_line("th", "male") != sample_line("th", "female")
+
+
+def test_audit_lists_and_reads_a_shown_text_for_review() -> None:
+    c = client()
+    topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
+    text = next_text(c, topic["id"]).json()
+
+    [listed] = c.get("/api/audit/texts", headers=AUTH).json()
+    assert listed["id"] == text["id"]
+    assert listed["language"] == "th" and listed["reads"] == 0
+    assert c.get("/api/audit/texts?language=de", headers=AUTH).json() == []
+
+    detail = c.get(f"/api/audit/texts/{text['id']}", headers=AUTH).json()
+    assert detail["title"] == "At the stall"
+    assert detail["practice_words"] == ["ข้าวเหนียวมะม่วง"]
+    first = detail["lines"][0]
+    assert first["speaker"] == "A" and first["text"].startswith("ฉันอยากกิน")
+    assert first["english"] and isinstance(first["unknown"], list)
+    assert detail["readings"] == []
+
+
+def test_audit_refuses_a_missing_text_and_a_wrong_passphrase() -> None:
+    c = client()
+    assert c.get("/api/audit/texts/99", headers=AUTH).status_code == 404
+    assert c.get("/api/audit/texts").status_code == 401

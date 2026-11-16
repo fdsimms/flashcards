@@ -20,7 +20,8 @@ serves all of it under /reader (../../Caddyfile), so the app's address ends in /
     POST  /api/topics                 {name} adds a topic (or returns the existing one)
     DELETE /api/topics/{id}           removes a topic from the list (adding it again brings it back)
     GET   /api/suggestions            topic ideas not yet added, the best fit for the deck first
-    POST  /api/topics/{id}/next       the next text for a topic; 202 {"writing": true} while one is
+    POST  /api/topics/{id}/next       the next text for a topic; 202 {"writing": true, "stage":
+                                      writing | translating | recording | null} while one is
                                       being written in the background, so ask again shortly. With
                                       {words: [...]}, a text written to practice those words
     GET   /api/settings               {stretch_words: "topic" | "any", lines: 6 | 8 | 12,
@@ -226,7 +227,7 @@ marked words, ideas) is in the current language, the `language` setting.
     POST  /api/situations/slow        {language, gender, line} one of their lines spoken slowly: {audio} is the
                                       clip's key, recorded the first time
     GET   /api/situations/audio/{key} a clip of one of the other person's lines (MP3)
-    POST  /api/lessons                {language, scene, narrator?} an audio lesson on a scene
+    POST  /api/lessons                {language, scene, narrator?, particle?} an audio lesson on a scene
                                       (lesson.py), made in the background: {id}. `narrator` is an
                                       English Azure voice (en-US-GuyNeural) for this lesson. every language but Japanese and English (`languages`
                                       in GET). At most 2 at a time
@@ -271,6 +272,7 @@ from pydantic import BaseModel, Field
 from franki_reader import (
     ai_ipa,
     aspect,
+    audit,
     cast,
     cast_samples,
     comprehension,
@@ -321,9 +323,11 @@ from franki_reader.gateway import (
     with_timeout,
 )
 from franki_reader.generator import (
+    EFFORT,
     MODEL,
     SEASON_EPISODES,
     Ask,
+    Effort,
     Form,
     StoryContext,
     TextModel,
@@ -557,6 +561,10 @@ class LessonIn(BaseModel):
     scene: str = Field(min_length=1, max_length=lesson_writer.MAX_SCENE)
     # The narrator's voice for this lesson: an English Azure voice, or the settings' when left out.
     narrator: str | None = Field(default=None, max_length=100)
+    # Thai only: the learner's polite particle, khrap (ครับ, a man's) or kha (ค่ะ, a woman's). It
+    # decides the voice they repeat after, who speaks as A in the role-play, and the particle every
+    # phrase carries. Left out, khrap; any other language ignores it.
+    particle: Literal["khrap", "kha"] | None = None
 
 
 class DrillsIn(BaseModel):
@@ -905,7 +913,8 @@ def create_app(
         except NotAvailable as e:
             raise HTTPException(503, str(e)) from e
         if text is None:
-            return JSONResponse({"writing": True}, status_code=202)
+            stage = engine.writing_stage(topic_id, body.words if body else ())
+            return JSONResponse({"writing": True, "stage": stage}, status_code=202)
         background.add_task(engine.top_up)
         return _rendered(text, engine)
 
@@ -957,6 +966,35 @@ def create_app(
             past_json(t)
             for t in store.past_texts(engine.conn, PAST_TEXTS, engine.language(), story)
         ]
+
+    @app.get("/api/audit/texts", dependencies=authed)
+    async def audit_texts(
+        language: str | None = None,
+        story: int | None = None,
+        days: Annotated[int | None, Query(ge=1, le=3650)] = None,
+        limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    ) -> list[dict[str, Any]]:
+        """Every language's shown texts, for review (audit.py); `/api/texts` is the app's."""
+        return audit.list_texts(
+            engine.conn, engine.clock(), language=language, story_id=story, days=days, limit=limit
+        )
+
+    @app.get("/api/audit/texts/{text_id}", dependencies=authed)
+    async def audit_text(text_id: int) -> dict[str, Any]:
+        text = store.get_text(engine.conn, text_id)
+        status = store.text_status(engine.conn, text_id)
+        if text is None or status not in ("ready", "read"):
+            raise HTTPException(404, "No such text.")
+        topic = store.get_topic(engine.conn, text.topic_id, text.language, include_removed=True)
+        story = store.get_story(engine.conn, text.story_id) if text.story_id else None
+        return audit.compact(
+            text,
+            _rendered(text, engine),
+            status,
+            story,
+            (story.title or "Your story") if story else (topic.name if topic else ""),
+            audit.readings(engine.conn, text_id),
+        )
 
     @app.get("/api/relisten", dependencies=authed)
     async def relisten_texts(
@@ -1774,6 +1812,7 @@ def create_app(
             lessons_dir=lessons_dir,
             now=engine.clock,
             narrator=narrator,
+            learner="female" if body.language == "th" and body.particle == "kha" else "male",
         )
         return {"id": lesson_id}
 
@@ -2666,6 +2705,7 @@ def _shelf(engine: Engine) -> dict[str, Any]:
             "last_recap_line": _recap_line(read[-1], engine) if read else None,
             "next": _shelf_text(waiting, engine, practice=True) if waiting else None,
             "writing": any(j.story_id == story.id for j in writing),
+            "stage": next((engine.stage_of(j) for j in writing if j.story_id == story.id), None),
             "failed": engine.failure(story.topic_id, language),
         }
     counts = store.ready_counts(engine.conn)
@@ -2682,6 +2722,7 @@ def _shelf(engine: Engine) -> dict[str, Any]:
                 "topic": store.topic_name(engine.conn, j.topic_id),
                 "reason": j.reason,
                 "form": j.form or "dialogue",
+                "stage": engine.stage_of(j),
             }
             for j in writing
             if j.story_id is None
@@ -2752,8 +2793,10 @@ def production_app() -> FastAPI:
         write_ipa = ai_ipa.claude_ipa(client)
         write_aspect = aspect.claude_aspect(client)
 
-        def ask_for(entries: list[Entry], language: Code, model: TextModel = MODEL) -> Ask:
-            return claude_ask(client, entries, language, model)
+        def ask_for(
+            entries: list[Entry], language: Code, model: TextModel = MODEL, effort: Effort = EFFORT
+        ) -> Ask:
+            return claude_ask(client, entries, language, model, effort)
 
     synthesize = None
     synthesize_parts = None

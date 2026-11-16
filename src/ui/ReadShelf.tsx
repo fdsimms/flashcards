@@ -1,15 +1,17 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Keyboard, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActionSheetIOS, Keyboard, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, MAX_STORY_ABOUT_CHARS, MAX_TOPIC_CHARS, type Api, type Form, type Language, type PastText, type Shelf, type ShelfText, type TextModel, type Word } from '../reader/api';
 import { LANGUAGES, flaggedName } from '../reader/languages';
 import { FLAG_IMAGES } from './flagImages';
 import { lessonsOffered } from '../reader/lessons';
+import { textSteps } from '../reader/making';
 import { ReadListenAgain } from './ReadListenAgain';
 import { ReadReviewFirst } from './ReadReviewFirst';
 import { playMinutes, playOrder, reasonLabel, seasonLabel, shelfDetail, storyDetail, surprisePick } from '../reader/shelf';
 import { haptic } from './haptics';
 import { Button, Card, Divider, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
+import { MakingBody } from './MakingCard';
 import { PracticeWordPill } from './PracticeWordPill';
 import { ReadRecap } from './ReadRecap';
 import { GlossPopover, type Tapped } from './Reader';
@@ -244,12 +246,9 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
                   <ShelfRow key={t.id} text={t} first={i === 0} onPress={() => open(t.id)} onLongPress={() => textActions(t)} />
                 ))}
                 {shelf.writing.map((w, i) => (
-                  <View key={`${w.topic}:${i}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l }}>
+                  <View key={`${w.topic}:${i}`} style={{ padding: space.l }}>
                     {shelf.texts.length + i === 0 ? null : <Divider inset={space.l} />}
-                    <ActivityIndicator size="small" color={c.accent} />
-                    <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>
-                      {w.reason === 'asked' ? `Writing "${w.topic}"` : 'Writing a new text'}
-                    </Text>
+                    <MakingBody title={w.reason === 'asked' ? w.topic : 'A new text'} steps={textSteps(w.stage)} />
                   </View>
                 ))}
               </Group>
@@ -367,10 +366,7 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onEpisodes, onStarted }: { 
           <Button label="Read and listen" onPress={() => onOpen(next.id)} />
         </>
       ) : story.writing ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-          <ActivityIndicator size="small" color={c.accent} />
-          <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>Writing the next episode. This takes about half a minute.</Text>
-        </View>
+        <MakingBody title={`Episode ${episode}`} steps={textSteps(story.stage)} />
       ) : story.failed ? (
         <Help>{`Couldn't write the next episode: ${story.failed} The server tries again in half an hour.`}</Help>
       ) : (

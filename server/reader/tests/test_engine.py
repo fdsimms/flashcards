@@ -101,6 +101,33 @@ def test_asking_again_while_writing_does_not_start_a_second_write() -> None:
     assert store.get_topic(e.conn, topic.id).ready == 1  # type: ignore[union-attr]
 
 
+def test_a_text_being_written_reports_each_stage_in_order_and_none_once_done() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    seen: list[str | None] = []
+    translate, record = e.fill_meanings, e.make_audio
+
+    async def translating(*args: Any, **kwargs: Any) -> None:
+        seen.append(e.writing_stage(topic.id))
+        await translate(*args, **kwargs)
+
+    async def recording(*args: Any, **kwargs: Any) -> None:
+        seen.append(e.writing_stage(topic.id))
+        await record(*args, **kwargs)
+
+    e.fill_meanings = translating  # type: ignore[method-assign]
+    e.make_audio = recording  # type: ignore[method-assign]
+
+    async def scenario() -> None:
+        assert await e.next_text(topic.id) is None
+        assert e.writing_stage(topic.id) in (None, "writing")
+        await settle(e)
+
+    run(scenario)
+    assert seen == ["translating", "recording"]
+    assert e.writing_stage(topic.id) is None
+
+
 def test_a_caller_waiting_on_the_lock_takes_the_text_just_written() -> None:
     model = ScriptedModel(IN_RANGE)
     e = engine(model)
@@ -1115,3 +1142,29 @@ def test_a_line_azure_wont_record_in_several_voices_is_read_whole_by_the_narrato
     episode = store.waiting_episode(e.conn, story_id)
     assert episode is not None and e.has_audio(episode.id, 0) and e.has_audio(episode.id, 1)
     assert narrator.calls[0][1] == "voice-a"
+
+
+def test_a_story_episode_is_written_at_the_story_effort_and_a_plain_text_is_not() -> None:
+    from franki_reader.generator import STORY_EFFORT
+
+    story_model = ScriptedModel(
+        {**IN_RANGE, "series": "Noi's stall", "cast": "Noi.", "recap": "x", "plan": "y"}
+    )
+    story_engine = engine(story_model)
+
+    async def start() -> None:
+        story_engine.start_story("a noodle stall")
+        await settle(story_engine)
+
+    run(start)
+    assert story_model.efforts_seen == [STORY_EFFORT]
+
+    text_model = ScriptedModel(IN_RANGE)
+    text_engine = engine(text_model)
+
+    async def write() -> None:
+        text_engine.write_about("Haggling at a market", "dialogue")
+        await settle(text_engine)
+
+    run(write)
+    assert text_model.efforts_seen == [None]

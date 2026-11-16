@@ -735,8 +735,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
         footer={footer}
       >
         <View style={{ flex: 1 }}>
-          {/* Scrolls when the summary, the forms check and the next steps outgrow the space above the buttons. */}
-          <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space.xl }}>
+          {/* Scrolls when the summary, the forms check and the next steps outgrow the space above the buttons.
+              Starts at the top rather than centering: the centering box counts the header's inset, so a long
+              summary got a gap above the checkmark that pushed its last rows under the buttons. */}
+          <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, flexGrow: 1, alignItems: 'center', gap: space.s, padding: space.xl }}>
           {/* The end of a session arrives in order: the mark, the words, the figures, then what to do next. */}
           <Pop from={0} bounciness={10}>
             <Icon name={waitingFor ? 'clock' : 'checkmark.circle.fill'} size={56} color={waitingFor ? c.textTertiary : c.countDue} weight="regular" />

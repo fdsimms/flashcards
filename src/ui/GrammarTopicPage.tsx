@@ -6,6 +6,7 @@ import { ApiError, type Api, type GrammarTopic } from '../reader/api';
 import { TOPIC_POLL_MS, topicWriting } from '../reader/topics';
 import { GrammarExamples } from './GrammarExamples';
 import { Button, Card, ErrorNote, Group, Help, NavRow, Screen, SectionTitle } from './kit';
+import { MakingCard } from './MakingCard';
 import { hairline, radius, space, type, useTheme, readable } from './theme';
 
 /**
@@ -90,11 +91,7 @@ export function GrammarTopicPage({ api, id, onSituations, onDeleted }: {
         {!topic && !error ? <ActivityIndicator color={c.accent} /> : null}
 
         {topic && !hasPage && topic.status === 'writing' ? (
-          <View style={{ alignItems: 'center', gap: space.m, paddingVertical: space.xxl }}>
-            <ActivityIndicator color={c.accent} />
-            <Text style={{ ...type.headline, color: c.text }}>Writing the page</Text>
-            <Help>Checking that the examples use words you know.</Help>
-          </View>
+          <MakingCard title={topic.title} detail="Writing the page. Each example is checked against the words you know." />
         ) : null}
 
         {topic && !hasPage && topic.status === 'failed' ? (

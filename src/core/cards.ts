@@ -1,5 +1,7 @@
 import { fieldSegments } from './highlight';
 import { htmlToText, isTruthyField, soundFiles } from './html';
+import { hasThai } from './script';
+import { THAI_COUNTING_WORDS } from './thaiCounting';
 import { newSchedState } from './scheduler';
 import { templateOrdinals } from './template';
 import type { Card, CardKind, Note, NoteType, RenderedCard, RenderedSide } from './types';
@@ -166,6 +168,19 @@ const FORM_ROWS: [field: string, label: string][] = [
 ];
 
 /** The Gender field's one-letter values, as words for a chip. Any other value is shown as written. */
+/** "Two" in Thai, the number a counted example uses. */
+const THAI_TWO = 'สอง';
+
+/**
+ * A Thai noun's counting words, from the Classifier field (several may be listed, separated by
+ * commas, slashes or line breaks). Only when the word and every counting word are Thai: another
+ * language's counters stay a row under Forms, since the noun-number-counter order is Thai's.
+ */
+export function thaiCountingWords(entry: string, classifier: string): string[] {
+  const words = classifier.split(/[,;、/\n]+/).map((w) => w.trim()).filter(Boolean);
+  return words.length && hasThai(entry) && words.every(hasThai) ? words : [];
+}
+
 const GENDER_WORDS: Record<string, string> = { m: 'masculine', f: 'feminine', n: 'neuter' };
 const RUSSIAN_PRONOUNS: Record<string, string> = { m: 'мой', f: 'моя', n: 'моё' };
 
@@ -192,7 +207,15 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
       .filter(Boolean);
     pushIf(b, meta.join(' · '), undefined, undefined, undefined, { role: 'chips', chips: meta });
     // The word's other forms, as Anki's template shows them in pills and its key forms line.
-    const rows = FORM_ROWS.map(([field, label]) => ({ label, value: t(note, field) })).filter((r) => r.value);
+    // A Thai counting word isn't a form of the word: it's shown counted, with the noun and a number.
+    const counting = thaiCountingWords(t(note, 'Entry'), t(note, 'Classifier'));
+    pushIf(b, counting.map((w) => `${t(note, 'Entry')}${THAI_TWO}${w}`).join('\n'), 'Counting', undefined, undefined,
+      { role: 'counting', rows: counting.map((w) => {
+        const known = THAI_COUNTING_WORDS[w];
+        return { label: w, value: `${t(note, 'Entry')}${THAI_TWO}${w}`, ...(known ? { counts: { roman: known.roman, what: known.counts } } : {}) };
+      }) });
+    const rows = FORM_ROWS.filter(([field]) => !(field === 'Classifier' && counting.length))
+      .map(([field, label]) => ({ label, value: t(note, field) })).filter((r) => r.value);
     pushIf(b, rows.map((r) => `${r.label}: ${r.value}`).join('\n'), 'Forms', undefined, undefined, { role: 'forms', rows });
     // The example sentence, its word highlighted. Anki's template wraps the romanization and the
     // translation in {{hint:...}}: a tap-to-show link, not text.
