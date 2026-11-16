@@ -9,16 +9,18 @@ import type { ReadTextStyle } from './ReadWord';
 
 /**
  * The end of a story episode: what could happen next, to pick one. The server writes the next
- * episode from the pick once this one is read. Each option is plain text with its English under it
- * rather than tappable words, since the option itself is the thing to tap. `onChoose` is null for
+ * episode from the pick once this one is read. Each option is plain text rather than tappable words,
+ * since the option itself is the thing to tap, with its English under it only while Show English is
+ * on, as for the lines of the text. `onChoose` is null for
  * an episode already read, which shows only the option that was picked.
  */
-export function ReadChoices({ choices, chosen, textStyle, onChoose, error }: {
+export function ReadChoices({ choices, chosen, textStyle, onChoose, error, showEnglish }: {
   choices: TextChoice[];
   chosen: number | null;
   textStyle: ReadTextStyle;
   onChoose: ((index: number) => void) | null;
   error: string | null;
+  showEnglish: boolean;
 }) {
   const c = useTheme();
   return (
@@ -42,7 +44,9 @@ export function ReadChoices({ choices, chosen, textStyle, onChoose, error }: {
               <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, fontWeight: '600', color: selected ? c.accent : c.text }}>
                 {choiceText(choice)}
               </Text>
-              <Text style={{ ...type.footnote, color: selected ? c.accent : c.textSecondary }}>{choice.english}</Text>
+              {showEnglish ? (
+                <Text style={{ ...type.footnote, color: selected ? c.accent : c.textSecondary }}>{choice.english}</Text>
+              ) : null}
             </>
           );
           return onChoose ? (
@@ -51,7 +55,7 @@ export function ReadChoices({ choices, chosen, textStyle, onChoose, error }: {
               onPress={() => { haptic.select(); onChoose(i); }}
               accessibilityRole="radio"
               accessibilityState={{ selected }}
-              accessibilityLabel={`${choiceText(choice)}. ${choice.english}`}
+              accessibilityLabel={showEnglish ? `${choiceText(choice)}. ${choice.english}` : choiceText(choice)}
               scaleTo={0.98}
               style={look}
             >

@@ -847,7 +847,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
             <PhrasePickBanner first={text.lines[phrase.line]?.words[phrase.start]?.text ?? ''} onCancel={() => setPhrase(null)} />
           ) : null}
           {hasAudio ? (
-            <PlayerBar playing={status.playing} current={current} total={text.lines.length} what={text.form === 'story' ? 'story' : 'dialogue'} skippable={paras !== null} onSkip={skip}
+            <PlayerBar playing={status.playing} current={current} total={text.lines.length} skippable={paras !== null} onSkip={skip}
               rate={rate} slowOffered={slowOffered} repeat={repeat} played={played} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={() => { setRepeat((r) => nextRepeatCount(r)); setPlayed(1); }}
               rec={current !== null ? self : null}
               score={text && current !== null && text.lines[current] ? <ScoreTake rec={self} reference={lineText(text.lines[current])} language={text.language} /> : null} />
@@ -1090,7 +1090,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           ))}
           {!listenOnly && choicesView(text, review) ? (
             <View style={{ paddingHorizontal: space.l, paddingBottom: space.l }}>
-              <ReadChoices choices={text.choices ?? []} chosen={chosen} textStyle={readStyle(text, thaiFont, textSize)} onChoose={review ? null : choose} error={choiceError} />
+              <ReadChoices choices={text.choices ?? []} chosen={chosen} textStyle={readStyle(text, thaiFont, textSize)} onChoose={review ? null : choose} error={choiceError} showEnglish={english} />
             </View>
           ) : null}
           {review ? null : (
@@ -1475,11 +1475,10 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
   );
 }
 
-function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, slowOffered, repeat, played, silentLine, onToggle, onRate, onRepeat, rec, score }: {
+function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffered, repeat, played, silentLine, onToggle, onRate, onRepeat, rec, score }: {
   playing: boolean;
   current: number | null;
   total: number;
-  what: 'dialogue' | 'story';
   /** Previous and next line buttons, for a story with no play button on each line. */
   skippable: boolean;
   onSkip: (step: -1 | 1) => void;
@@ -1514,9 +1513,9 @@ function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, slo
   );
   const repeatNote = repeat === Infinity ? 'Repeating this line' : `Repeating this line (${Math.min(played, repeat)} of ${repeat})`;
   const note = silentLine !== null ? `Line ${silentLine + 1} has no audio.` : repeating ? repeatNote : skippable ? null : "Tap a line's play button to replay it";
-  const label = (
+  const label = current === null && !note ? null : (
     <View style={{ flex: 1 }}>
-      <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{current === null ? `Play the ${what}` : `Line ${current + 1} of ${total}`}</Text>
+      {current === null ? null : <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{`Line ${current + 1} of ${total}`}</Text>}
       {note ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{note}</Text> : null}
     </View>
   );
@@ -1546,7 +1545,7 @@ function PlayerBar({ playing, current, total, what, skippable, onSkip, rate, slo
             {play}
             <SkipButton icon="forward.end.fill" label="Next line" onPress={() => onSkip(1)} />
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>{label}</View>
+          {label ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>{label}</View> : null}
         </>
       ) : (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>{play}{label}</View>

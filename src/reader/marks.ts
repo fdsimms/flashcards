@@ -1,4 +1,4 @@
-// The marks the reader puts on words (a fill, bold text, an underline, a dot) and the key that
+// The marks the reader puts on words (a fill, bold text, an underline) and the key that
 // explains them (ui/ReaderKey.tsx). Pure, so what the key lists is tested: it lists a mark only when
 // the open text has a word wearing it, and shows that word as the sample.
 import type { ReaderText, TextGrammar, TextGrammarRole, Word } from './api';
@@ -16,14 +16,14 @@ export const HIDEABLE: HideableMark[] = ['stretch', 'practice', 'avoid', 'known'
 
 export const MARK_INFO: Record<Exclude<Mark, 'highlight'>, { title: string; about: string }> = {
   name: { title: 'Name', about: 'A person or place.' },
-  stretch: { title: 'Practice word', about: 'A word from your deck this text was written to practice. Gold and bold, with a small dot.' },
+  stretch: { title: 'Practice word', about: 'A word from your deck this text was written to practice. Gold and bold.' },
   practice: { title: "Grammar you're practicing", about: 'Solid green line. Tap the word to see the point.' },
   avoid: { title: "Grammar you're avoiding", about: 'Dashed gray line. It slipped into the text anyway.' },
   known: { title: 'Grammar you know', about: "Thin gray line. A point set to Know it, or one you haven't set at all." },
   marked: { title: 'Marked unknown', about: 'A word you marked as not known. Blue line.' },
 };
 
-export const HIGHLIGHT_ABOUT = 'No studied card for this word yet. Tap it to add one.';
+export const HIGHLIGHT_ABOUT = 'A word with no studied card yet. You can tap it to add one.';
 
 /** Which mark a grammar point's underline is: Know it and Not set share the thin gray line. */
 export function grammarMark(role: TextGrammarRole): 'practice' | 'avoid' | 'known' {

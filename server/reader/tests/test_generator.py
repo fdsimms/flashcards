@@ -596,6 +596,14 @@ def test_a_story_episode_asks_for_its_recap_in_the_story_language() -> None:
     assert '"recap_line"' not in request_message(TextRequest("food"))
 
 
+def test_the_recap_line_must_carry_the_recaps_event_not_a_vague_stand_in() -> None:
+    from franki_reader.generator import StoryContext
+
+    sent = request_message(TextRequest("a stall", story=StoryContext(2, "", "Noi")))
+    assert "main event" in sent and "who did what" in sent
+    assert "simpler than" not in sent
+
+
 def test_a_story_episodes_recap_line_is_kept_beside_the_english_recap() -> None:
     result = run(ScriptedModel(_recap("ฉัน|กิน", "I eat.")), _episode())
     assert (result.recap, result.recap_line, result.recap_english) == (
