@@ -163,7 +163,9 @@ marked words, ideas) is in the current language, the `language` setting.
                                       each {id, name, note, state}, as the choices stand now
     POST  /api/texts/{id}/lines/{n}/phrase    {phrase, simple?} a phrase the owner selected in the
                                       line, as it appears there, explained by Claude:
-                                      {meaning, points: [{phrase, note}]}. Kept per phrase, like
+                                      {meaning, literal ("" when it matches the meaning; absent
+                                      from an answer kept earlier), points: [{phrase, note}]}.
+                                      Kept per phrase, like
                                       the line's
     POST  /api/texts/{id}/lines/{n}/natural   whether a native speaker would say the line, judged by
                                       Claude: {verdict, reason, alternative}, verdict one of
