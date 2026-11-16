@@ -93,7 +93,7 @@ export function ReadGrammarDial({ api }: { api: Api }) {
           {hasPracticeRoom(list) ? (
             <Button label="Practice it" onPress={practice} busy={busy} />
           ) : (
-            <Help>{`${list.max_practice} points are already being practiced. Set one to Know it on the Grammar screen first.`}</Help>
+            <Help>{`${list.max_practice} grammar points are already being practiced. Set one to Know it on the Grammar screen first.`}</Help>
           )}
         </View>
       ) : null}
