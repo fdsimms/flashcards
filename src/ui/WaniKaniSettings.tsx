@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ActionSheetIOS, Alert, ScrollView, Text } from 'react-native';
 import { problemText, WaniKaniError } from '../wanikani/api';
-import { APPRENTICE_LIMIT_CHOICES, NEW_PER_DAY_CHOICES, parseApprenticeLimit } from '../wanikani/prefs';
+import { APPRENTICE_LIMIT_CHOICES, NEW_PER_DAY_CHOICES, parseLimit } from '../wanikani/prefs';
 import { PRODUCTION_BATCH } from '../wanikani/productionService';
 import { Button, Card, CheckRow, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
 import type { WaniKaniState } from './useWaniKani';
@@ -37,24 +37,28 @@ export function WaniKaniSettings({ wanikani, decks }: {
     }
   };
 
-  const customLimit = () => {
+  // A number typed for a limit the choices don't cover; refused with the reason if it isn't a whole number of 1 or more.
+  const askLimit = (title: string, message: string, current: number | null, set: (n: number) => void) => {
     Alert.prompt(
-      'Apprentice limit',
-      'Lessons aren\'t offered while more than this many items are at Apprentice.',
+      title,
+      message,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Set', isPreferred: true,
           onPress: (text?: string) => {
-            const n = parseApprenticeLimit(text ?? '');
+            const n = parseLimit(text ?? '');
             if (n === null) Alert.alert("That isn't a limit", 'Enter a whole number of 1 or more, like 80.');
-            else setPrefs({ maxApprentice: n });
+            else set(n);
           },
         },
       ],
-      'plain-text', prefs.maxApprentice !== null ? String(prefs.maxApprentice) : '', 'number-pad',
+      'plain-text', current !== null ? String(current) : '', 'number-pad',
     );
   };
+  const customLimit = () => askLimit('Apprentice limit', "Lessons aren't offered while more than this many items are at Apprentice.", prefs.maxApprentice, (maxApprentice) => setPrefs({ maxApprentice }));
+  const customLessons = () => askLimit('Lessons per day', 'The most lessons to offer in a study day.', prefs.newPerDay, (newPerDay) => setPrefs({ newPerDay }));
+  const customLessonsOn = !NEW_PER_DAY_CHOICES.includes(prefs.newPerDay);
 
   const turnOff = () => {
     const n = wanikani.unsent;
@@ -151,6 +155,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
           {NEW_PER_DAY_CHOICES.map((n, i) => (
             <CheckRow key={n} first={i === 0} label={n ? String(n) : 'None'} selected={prefs.newPerDay === n} onPress={() => setPrefs({ newPerDay: n })} />
           ))}
+          <CheckRow label={customLessonsOn ? `Custom: ${prefs.newPerDay}` : 'Custom'} hint="Enter any number." selected={customLessonsOn} onPress={customLessons} />
         </Group>
         <Help>
           {`Lessons done on wanikani.com count toward the day's lessons too.${wanikani.on ? ` ${wanikani.startedToday} done today.` : ''}`}

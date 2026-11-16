@@ -28,8 +28,8 @@ export const NEW_PER_DAY_CHOICES = [0, 5, 10, 15, 20, 30, 50];
 /** The Apprentice limits offered in options; null is no limit. */
 export const APPRENTICE_LIMIT_CHOICES: (number | null)[] = [null, 25, 50, 75, 100, 125, 150, 200];
 
-/** What was typed for a custom Apprentice limit: a whole number of 1 or more, else null (refused with the reason on screen). */
-export function parseApprenticeLimit(text: string): number | null {
+/** What was typed for a custom limit (Apprentice, or lessons a day): a whole number of 1 or more, else null (refused with the reason on screen). */
+export function parseLimit(text: string): number | null {
   const t = text.trim();
   if (!/^\d+$/.test(t)) return null;
   const n = Number(t);
