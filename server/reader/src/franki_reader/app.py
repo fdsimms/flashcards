@@ -2731,9 +2731,7 @@ def _shelf(engine: Engine) -> dict[str, Any]:
             "last_recap_line": _recap_line(read[-1], engine) if read else None,
             "next": _shelf_text(waiting, engine, practice=True) if waiting else None,
             "writing": any(j.story_id == story.id for j in writing),
-            "stage": next(
-                (engine.stage_of(j) for j in writing if j.story_id == story.id), None
-            ),
+            "stage": next((engine.stage_of(j) for j in writing if j.story_id == story.id), None),
             "failed": engine.failure(story.topic_id, language),
         }
     counts = store.ready_counts(engine.conn)
