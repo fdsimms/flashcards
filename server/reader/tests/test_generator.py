@@ -8,10 +8,16 @@ import pytest
 from franki_reader.coverage import Lexicon
 from franki_reader.generator import (
     DRAFT_SCHEMA,
+    EFFORT,
     MAX_ATTEMPTS,
     MAX_NAMES,
+    MAX_TOKENS,
     MODEL,
     REGISTERS,
+    REQUEST_TIMEOUT_SECONDS,
+    RETRY_EFFORT,
+    RETRY_MAX_TOKENS,
+    STORY_EFFORT,
     GenerationFailed,
     TextRequest,
     Usage,
@@ -219,7 +225,7 @@ def test_claude_ask_sends_the_cached_lexicon_schema_and_fallback() -> None:
 
 @pytest.mark.parametrize(
     ("stop_reason", "text"),
-    [("refusal", None), ("max_tokens", '{"title"'), ("end_turn", None), ("end_turn", "not json")],
+    [("refusal", None), ("end_turn", None), ("end_turn", "not json")],
 )
 def test_claude_ask_turns_bad_responses_into_generation_failed(
     stop_reason: str, text: str | None
@@ -841,3 +847,42 @@ def test_a_text_asked_of_sonnet_keeps_the_refusal_fallback() -> None:
     client, calls = _client_replying("claude-sonnet-5-5")
     asyncio.run(claude_ask(client, [], "th")([{"role": "user", "content": "x"}]))
     assert calls[0]["model"] == "claude-sonnet-5-5" and calls[0]["fallbacks"] == "default"
+
+
+def _client_replying_each(*replies: Any) -> tuple[Any, list[dict[str, Any]]]:
+    calls: list[dict[str, Any]] = []
+    queue = list(replies)
+
+    async def create(**kwargs: Any) -> Any:
+        calls.append(kwargs)
+        return queue.pop(0)
+
+    return SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=create))), calls
+
+
+def test_a_response_cut_off_is_asked_again_with_less_thinking_and_more_room() -> None:
+    import json
+
+    cut = response("max_tokens", '{"title"')
+    client, calls = _client_replying_each(cut, response("end_turn", json.dumps(GOOD)))
+    draft, _, used = asyncio.run(claude_ask(client, ENTRIES)([]))
+    assert draft == GOOD
+    assert [c["max_tokens"] for c in calls] == [MAX_TOKENS, RETRY_MAX_TOKENS]
+    assert [c["output_config"]["effort"] for c in calls] == [EFFORT, RETRY_EFFORT]
+    assert used.output_tokens == 1800  # both calls were paid for
+    assert all(c["timeout"] == REQUEST_TIMEOUT_SECONDS for c in calls)
+
+
+def test_a_response_cut_off_twice_fails_and_counts_both_calls() -> None:
+    cut = response("max_tokens", '{"title"')
+    client, calls = _client_replying_each(cut, cut)
+    with pytest.raises(GenerationFailed, match="cut off") as failed:
+        asyncio.run(claude_ask(client, ENTRIES)([]))
+    assert len(calls) == 2
+    assert failed.value.usage.output_tokens == 1800
+
+
+def test_a_story_episode_asks_with_its_own_effort() -> None:
+    client, calls = _client_replying("claude-sonnet-5-5")
+    asyncio.run(claude_ask(client, [], "th", MODEL, STORY_EFFORT)([]))
+    assert calls[0]["output_config"]["effort"] == STORY_EFFORT

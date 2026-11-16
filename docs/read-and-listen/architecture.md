@@ -354,8 +354,7 @@ Decided 15 November 2026, the owner's idea: a guided audio course in the manner 
 language course, for the car or a walk. French first, as an experiment, then Thai and every other language but Japanese and English (`LESSON_LANGUAGES` in
 `lesson_service.py`; another language written with spaces needs only its voices). Thai has no spaces, so
 `lesson.tokens` cuts it into words with newmm (for pauses and for checking mixes), its parts are
-joined with no space, and the request tells Claude to leave the gendered particles ครับ and ค่ะ out of
-the phrases taught. Not a replay of the
+joined with no space, and every phrase carries the learner's chosen polite particle (ครับ or ค่ะ, below). Not a replay of the
 texts: a lesson teaches 3 to 5 new phrases on a scene the owner types ("ordering a coffee"), from
 outside the deck. Nothing here reads the deck, grades a card or writes a note; what the learner says
 aloud is never heard by the phone.
@@ -376,6 +375,7 @@ aloud is never heard by the phone.
   doesn't always keep to it). The lesson then closes with a role-play instead of replaying the
   dialogue: the learner is the first speaker, the narrator gives each of their lines in English,
   a silence follows and the native voice answers; the other speaker's lines are played.
+- **Thai lessons are made for the learner's polite ending** (16 November 2026, the owner: a man's voice said ฉัน, and no phrase carried ครับ or ค่ะ). The lessons screen has a ครับ / ค่ะ choice for Thai, kept on the phone (`lessonStorage.ts`) and sent as `particle`. It sets `learner` (`lesson.Learner`): the voice every phrase is repeated after, who plays A in the dialogue and role-play, and the particle every taught phrase carries. The request says so, and `lesson_writer.thai_problems` checks it in code (a phrase without the particle, the other gender's particle, or a man saying ฉัน or a woman ผม sends the plan back once, and a second miss fails the lesson). Replaces the earlier rule that left ครับ and ค่ะ out of the phrases taught.
 - **Silences are sized to the phrase** (`pause_ms`: 2 s plus 0.7 s a word, 3 to 15 s), so a longer
   phrase gets longer to say. They are baked into the audio, so they can't be adjusted after the
   lesson is made. Chosen over a phone that times each clip because one MP3 plays with the screen
@@ -923,6 +923,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   texts show whether its Thai holds up within the vocabulary. The reply is JSON held to a schema (`output_config.format`): a title,
   roles (who A and B are, like Waiter and Customer, shown above the lines in the reader), lines (speaker, `|`-split text, English), and glosses for words off the list. Revisions are
   appended to the same conversation, never edited, so the model's earlier thinking stays valid.
+  Thinking counts against `max_tokens` (32,000), so a response cut off there is asked again once at `medium` effort with 48,000 (both calls are counted in the cost), and a story episode, which also returns a recap, plan and choices, starts at `medium` (16 November 2026, after episodes kept failing with "The response was cut off").
   `server/reader/src/franki_reader/generator.py`.
 - **Cheaper model for short, checked calls** (15 November 2026): glosses for common words, word forms,
   IPA, memory hints, Explain, comprehension questions, the vocabulary check and audio lesson content
@@ -1650,7 +1651,14 @@ in the current language, with when one was last read to the end. Nothing else le
   the due words to Claude a language and ten at a time, never a call per word, and writes the Meaning
   (unless the owner gave one), a Context sentence with the word in `<b>`, its translation, the
   romanization of the sentence and word in Thai, Russian and Greek (`ContextRomanized`,
-  `Transliteration`), and a Register when the word isn't plain. Generate, then verify: a word is kept
+  `Transliteration`), the Register ("neutral" when plain, as the finished notes have it), PartOfSpeech
+  (also the new note's tag), a Notes line, the `Language` and `GenerateReverse` every note carries, and
+  what each language's finished notes carry (`EXTRAS` in `note_queue.py`, read off the deck on 16 November
+  2026): Thai noun Classifier; German noun Gender, Plural and Genitive, verb VerbClass, Auxiliary and
+  KeyForms; French noun Gender; Russian noun Gender (м, ж, с), verb AspectPartner and KeyForms; Polish
+  noun Gender, KeyForms for nouns and verbs; Greek verb VerbClass (active, deponent) and KeyForms; Japanese
+  Hanzi. Spanish, Norwegian and English have nothing beyond the common fields. The extras are kept
+  only when they pass, and one that doesn't is left out without failing the word. Generate, then verify: a word is kept
   only if it was asked for and its fields pass `check` (one sentence, balanced bold, no other markup,
   no `|`, `*` or em dashes); anything else is `failed` with the reason, never repaired, and a failed word
   is tried again after ten minutes, up to three tries, then waits for the owner's Try again. Which
@@ -1660,7 +1668,9 @@ in the current language, with when one was last read to the end. Nothing else le
   to Anki, and the approval rule stands: a ready word opens in the note editor with its fields filled
   in, and saving there is the approval, after which the app deletes the word from the queue. The Audio
   field is the one the server doesn't write: the app records it as it does for any note when it's saved
-  (`src/core/recording.ts`). The spend is the `note_queue` block of `/api/costs`. Not done: PartOfSpeech
-  and Gender (their values in the owner's notes aren't written down anywhere to match), a check that
+  (`src/core/recording.ts`). The spend is the `note_queue` block of `/api/costs`. Not done: Gender for
+  Spanish, Greek and Norwegian (the owner's notes keep the article in the Entry and leave it empty),
+  Spanish `Forms` (`fill_forms` writes them), Etymology and Mnemonic, the aspect tags on Russian and
+  Polish verbs, a check that
   the sentence uses only known words (it's one sentence, not a text), and a note that says it was
   filled in by Claude in the editor.

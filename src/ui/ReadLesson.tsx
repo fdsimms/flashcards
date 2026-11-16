@@ -4,7 +4,7 @@ import { Alert, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type AudioLesson } from '../reader/api';
 import { atEnd, clock, SKIP_SECONDS, skipTo } from '../reader/lessons';
 import { haptic } from './haptics';
-import { Button, ErrorNote, Group, Help, Icon, NavRow, Screen, Tappable } from './kit';
+import { Button, ErrorNote, Group, Icon, NavRow, Screen, Tappable } from './kit';
 import { MIN_TAP, radius, space, type, useTheme, readable } from './theme';
 
 // Background playback is on while a lesson is open, so it goes on with the screen locked, and is
@@ -100,8 +100,6 @@ export function ReadLesson({ api, lesson, onDeleted }: { api: Api; lesson: Audio
             <Icon name="goforward.15" size={30} color={c.text} />
           </Tappable>
         </View>
-
-        <Help>Keeps playing with the screen locked. Say each phrase aloud in the spaces. What you say isn't recorded or checked.</Help>
 
         <Group>
           <NavRow

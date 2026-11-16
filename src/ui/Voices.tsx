@@ -14,8 +14,8 @@ import { CheckRow, ErrorNote, Group, Help, Loading, NavRow, Screen, SectionTitle
 import { space, useTheme, readable } from './theme';
 
 const DOWNLOAD_HELP =
-  'More voices can be downloaded on iPhone in Settings, Accessibility, Spoken Content, Voices. ' +
-  "Enhanced and Premium voices sound the most natural. Siri's voices can't be used by other apps.";
+  'To download more iPhone voices, open Settings, Accessibility, Spoken Content, Voices. ' +
+  "Enhanced and Premium voices sound the most natural. Other apps can't use Siri's voices.";
 
 /**
  * What both voice screens show: the decks' languages, the phone's voices and the choices saved.
@@ -99,9 +99,9 @@ export function Voices({ repo, onLanguage }: { repo: Repo; onLanguage: (key: str
           <ErrorNote message={error} onRetry={retry} />
         ) : <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} />}
         <Help>
-          For each language: the Azure voice cards without a recording are recorded with, and the iPhone voice and
-          speed that read a card until it has one. A card with a recording plays it instead. A voice or speed named
-          in an Anki template's tts filter is used before the iPhone's.
+          Each language has an Azure voice and an iPhone voice. A card with a recording plays it. A card without one
+          is read by the iPhone voice, and the Azure voice is used to record it. If an Anki template's tts filter
+          names a voice or speed, that is used instead of the iPhone's.
         </Help>
         <Help>{DOWNLOAD_HELP}</Help>
       </ScrollView>

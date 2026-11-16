@@ -1,6 +1,8 @@
 import { Text, View } from 'react-native';
 import { ipaNote } from '../reader/languages';
 import type { Pronunciation } from '../reader/mining';
+import { prefs } from '../reader/storage';
+import { thaiToneMarks } from '../reader/thaiTones';
 import { radius, space, type, useTheme } from './theme';
 
 /**
@@ -14,12 +16,13 @@ export function ReadWordTitle({ text, pronunciation, titleStyle }: {
   titleStyle?: Parameters<typeof Text>[0]['style'];
 }) {
   const c = useTheme();
+  const ipa = pronunciation.ipa && prefs().thaiToneMarks ? thaiToneMarks(pronunciation.ipa) : pronunciation.ipa;
   const ai = !!pronunciation.ipa && pronunciation.ipa_source === 'ai';
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: space.s }}>
       <Text style={[{ ...type.title, color: c.text }, titleStyle]}>{text}</Text>
-      {pronunciation.ipa ? (
-        <Text style={{ ...type.body, color: c.textSecondary }} selectable accessibilityHint={ipaNote(pronunciation) ?? undefined}>{pronunciation.ipa}</Text>
+      {ipa ? (
+        <Text style={{ ...type.body, color: c.textSecondary }} selectable accessibilityHint={ipaNote(pronunciation) ?? undefined}>{ipa}</Text>
       ) : null}
       {ai ? (
         <View style={{ backgroundColor: c.warningFill, borderRadius: radius.pill, paddingHorizontal: space.s, paddingVertical: 2 }} accessible accessibilityLabel="Written by AI">

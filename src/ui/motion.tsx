@@ -18,7 +18,7 @@ export function useReduceMotion(): boolean {
 }
 
 /**
- * A number that counts to its new value when it changes (the deck list's counts after a session),
+ * A number that counts up to its value (the "reviews complete" summary only),
  * and shows the first value as it is. The text is redrawn each frame, so it's JS-driven; only
  * counts that changed run.
  */
