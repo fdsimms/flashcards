@@ -202,9 +202,11 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const lesson = question?.kind === 'lesson';
   const asksMeaning = question?.kind === 'meaning' || question?.kind === 'both';
   const asksReading = question?.kind === 'reading' || question?.kind === 'both';
-  // The answer side shows what's been asked, and what this item has already had right, never what's still to come.
-  const showMeaning = lesson || (revealed && (asksMeaning || !!progress?.meaning));
-  const showReading = lesson || (revealed && (asksReading || !!progress?.reading));
+  // The answer side shows only what this question asked. An item's meaning and reading are separate
+  // questions, and showing one's answer on the other's card gives that answer away when it comes up
+  // (a missed question is asked again a few cards later), even if this item has already had it right.
+  const showMeaning = lesson || (revealed && asksMeaning);
+  const showReading = lesson || (revealed && asksReading);
 
   const resetQuestion = () => {
     setRevealed(false);
