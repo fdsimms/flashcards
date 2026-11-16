@@ -171,7 +171,8 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
   // What the row sits on is the card's own color at even depths and a well's tint at odd ones; the
   // pressed state and the show/hide button take the other one, so they show.
   const onWell = row.depth % 2 === 1 ? c.surface : c.fill;
-  const line = detail ? detail.text : `${row.total.toLocaleString()} ${row.total === 1 ? 'card' : 'cards'}${row.unstudied ? ` · ${row.unstudied.toLocaleString()} not studied yet` : ''}${row.collapsed && subdecks ? ` · ${subdecks} ${subdecks === 1 ? 'subdeck' : 'subdecks'}` : ''}`;
+  // The card count and unstudied count were dropped to save space; a collapsed deck still says how many subdecks it hides.
+  const line = detail ? detail.text : row.collapsed && subdecks ? `${subdecks} ${subdecks === 1 ? 'subdeck' : 'subdecks'}` : '';
   const gateLine = row.gate ? `${row.gate.inProgress} of ${row.gate.cap} in progress${atCap ? ', new cards wait' : ''}` : null;
   return (
     <Pressable
@@ -205,7 +206,7 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
       {gutter ? <View style={{ width: DISCLOSURE }} /> : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{row.name}</Text>
-        <Text style={{ ...type.footnote, color: detail?.warning ? c.warning : c.textSecondary }}>{line}</Text>
+        {line ? <Text style={{ ...type.footnote, color: detail?.warning ? c.warning : c.textSecondary }}>{line}</Text> : null}
         {gateLine ? (
           // Under the cap, new cards come in; at it, they wait until cards are a week out.
           <Text style={{ ...type.footnote, color: atCap ? c.warning : c.textSecondary }}>{gateLine}</Text>
