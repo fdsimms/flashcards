@@ -328,9 +328,11 @@ from franki_reader.gateway import (
     with_timeout,
 )
 from franki_reader.generator import (
+    EFFORT,
     MODEL,
     SEASON_EPISODES,
     Ask,
+    Effort,
     Form,
     StoryContext,
     TextModel,
@@ -2808,8 +2810,10 @@ def production_app() -> FastAPI:
         write_ipa = ai_ipa.claude_ipa(client)
         write_aspect = aspect.claude_aspect(client)
 
-        def ask_for(entries: list[Entry], language: Code, model: TextModel = MODEL) -> Ask:
-            return claude_ask(client, entries, language, model)
+        def ask_for(
+            entries: list[Entry], language: Code, model: TextModel = MODEL, effort: Effort = EFFORT
+        ) -> Ask:
+            return claude_ask(client, entries, language, model, effort)
 
     synthesize = None
     synthesize_parts = None
