@@ -2,7 +2,8 @@
 the script, Azure speaks it, and the MP3 is kept on the volume. Run in the background for a lesson
 asked for by a scene, so a request never waits on it; the lesson's row says how it went.
 
-Nothing here reads the deck, grades a card or writes a note.
+Only the dialogue is checked against the deck's known words (the lexicon passed in); nothing here
+grades a card or writes a note.
 """
 
 import logging
@@ -14,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 
 from franki_reader import lesson, lesson_audio, lesson_writer, store
+from franki_reader.coverage import Checker
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lesson_audio import LessonAudioFailed, Rendered, Speak
 from franki_reader.lesson_writer import LessonFailed, WritePlan
@@ -80,11 +82,12 @@ async def make_lesson(
     narrator: str | None = None,
     learner: lesson.Learner = "male",
     renderer: Renderer = lesson_audio.render,
+    lexicon: Checker | None = None,
 ) -> None:
     """Writes, speaks and keeps lesson `lesson_id`, and says in its row how it went. Never raises:
     a failure is the lesson's `error`, shown as it is."""
     try:
-        plan, used = await lesson_writer.write_plan(write, language, scene, learner)
+        plan, used = await lesson_writer.write_plan(write, language, scene, learner, lexicon)
     except LessonFailed as e:
         _keep_cost(conn, language, e.usage.cost_usd(), 0, now)
         store.fail_lesson(conn, lesson_id, str(e))

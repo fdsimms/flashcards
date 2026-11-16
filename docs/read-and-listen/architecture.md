@@ -356,7 +356,8 @@ language course, for the car or a walk. French first, as an experiment, then Tha
 `lesson.tokens` cuts it into words with newmm (for pauses and for checking mixes), its parts are
 joined with no space, and every phrase carries the learner's chosen polite particle (ครับ or ค่ะ, below). Not a replay of the
 texts: a lesson teaches 3 to 5 new phrases on a scene the owner types ("ordering a coffee"), from
-outside the deck. Nothing here reads the deck, grades a card or writes a note; what the learner says
+outside the deck. Nothing here grades a card or writes a note (the deck is read only for the dialogue's
+vocabulary check, below); what the learner says
 aloud is never heard by the phone.
 
 - **Claude chooses the content; code builds the lesson** (`lesson.py`). Claude writes a title, a
@@ -410,7 +411,16 @@ aloud is never heard by the phone.
   lesson opens its player (`ReadLesson.tsx`): play or pause, skip back or forward 15 seconds to hear
   a phrase again, the lock screen's controls, and the phrases and conversation behind a row, hidden
   until asked for so the lesson can be heard first. Background playback is on only while it's open.
-- **Not done**: other languages, a seekable scrubber, and anything that adapts a lesson to what the
+- **The dialogue is held to words the learner knows** (16 November 2026, the owner: the closing
+  dialogue was made of words never taught). It is played first and acted out last, so
+  `lesson.unfamiliar_words` checks each line against the deck's checker (`engine.snapshot`: studied
+  notes plus the language's common words) and the phrases taught. A line may hold 2 words that are
+  neither (a name, the scene's one noun); a dialogue with a line over that goes back to Claude once,
+  naming the words (`lesson_writer._RETRY_WORDS`). If no attempt is clear, the usable plan with the
+  fewest such words is kept rather than no lesson. Claude isn't given the learner's word list, only
+  told to keep to the phrases and very basic words, since the retry names what to replace. The deck
+  is only read: nothing is graded or written.
+- **Not done**: other languages, a seekable scrubber, and adapting the phrases taught to what the
   learner already knows. Not run on a device yet: the lock screen controls and background playback
   are untested.
 

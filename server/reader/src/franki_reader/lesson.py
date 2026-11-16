@@ -36,9 +36,14 @@ from typing import Any, Literal
 
 from pythainlp.tokenize import word_tokenize
 
+from franki_reader.coverage import Checker, is_word
+
 MIN_PHRASES, MAX_PHRASES = 3, 5
 MIN_PARTS, MAX_PARTS = 1, 4
 MAX_DIALOGUE = 6
+# A dialogue line may hold this many words that are neither taught in the lesson nor known to the
+# learner (a name, or the one word the scene needs) before the draft goes back to be written again.
+MAX_UNFAMILIAR_PER_LINE = 2
 MAX_MIXES = 3
 MAX_CHARS = 200
 
@@ -223,6 +228,32 @@ def clean_plan(raw: object, scene: str) -> Plan | None:
         phrases=tuple(phrases),
         mixes=tuple(mixes[:MAX_MIXES]),
     )
+
+
+def unfamiliar_words(plan: Plan, lexicon: Checker) -> list[str]:
+    """The words, in order and each once, of the dialogue's lines that hold more than
+    `MAX_UNFAMILIAR_PER_LINE` words the learner can't be expected to follow: not taught in the
+    lesson's phrases and not known (a studied deck word, or one of the language's most common). A
+    line within the allowance contributes nothing. The dialogue is played first and acted out last,
+    so words from nowhere in it are words the learner never met."""
+    # Taught words as this module cuts them and as the checker does (it splits d'eau into d' and eau).
+    taught_words = {_plain(w) for p in plan.phrases for w in words_of(p.text)} | {
+        _plain(piece) for p in plan.phrases for piece in lexicon.segment(p.text) if is_word(piece)
+    }
+    taught_text = "".join(_plain(p.text) for p in plan.phrases)
+    over: dict[str, None] = {}
+    for line in plan.dialogue:
+        strangers = [
+            piece
+            for piece in lexicon.segment(line.text)
+            if is_word(piece)
+            and lexicon.status(piece) != "known"
+            and _plain(piece) not in taught_words
+            and not (_THAI.search(piece) and _plain(piece) in taught_text)
+        ]
+        if len(strangers) > MAX_UNFAMILIAR_PER_LINE:
+            over.update(dict.fromkeys(strangers))
+    return list(over)
 
 
 def build_up(phrase: Phrase) -> list[str]:
