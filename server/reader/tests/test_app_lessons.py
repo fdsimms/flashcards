@@ -51,7 +51,9 @@ def tone() -> bytes:
     ).stdout  # fmt: skip
 
 
-async def write_plan(language: str, scene: str, feedback: str) -> tuple[Any, Usage]:
+async def write_plan(
+    language: str, scene: str, feedback: str, learner: str = "male"
+) -> tuple[Any, Usage]:
     return PLAN, Usage(input_tokens=1000, output_tokens=400, model="claude-sonnet-5-5")
 
 
@@ -252,7 +254,9 @@ def test_a_lesson_that_cannot_be_spoken_is_failed_with_its_reason(tmp_path: Path
 
 
 def test_a_lesson_claude_cannot_write_is_failed_with_its_reason(tmp_path: Path) -> None:
-    async def refuses(language: str, scene: str, feedback: str) -> tuple[Any, Usage]:
+    async def refuses(
+        language: str, scene: str, feedback: str, learner: str = "male"
+    ) -> tuple[Any, Usage]:
         raise LessonFailed("Claude didn't answer. Try again in a moment.")
 
     c = lesson_client(tmp_path, writer=refuses)

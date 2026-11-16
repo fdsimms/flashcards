@@ -59,7 +59,9 @@ class Fakes:
         self.asked: list[tuple[str, str]] = []
         self.spoken: list[tuple[str, str, str]] = []
 
-    async def write(self, language: str, scene: str, feedback: str) -> tuple[Any, Usage]:
+    async def write(
+        self, language: str, scene: str, feedback: str, learner: str = "male"
+    ) -> tuple[Any, Usage]:
         self.asked.append((scene, feedback))
         return good_plan(), USAGE
 
@@ -163,7 +165,9 @@ def test_a_lesson_claude_cannot_write_fails_with_its_reason(tmp_path: Path) -> N
     conn = store.connect(":memory:")
     fakes = Fakes()
 
-    async def write(language: str, scene: str, feedback: str) -> tuple[Any, Usage]:
+    async def write(
+        language: str, scene: str, feedback: str, learner: str = "male"
+    ) -> tuple[Any, Usage]:
         raise LessonFailed("Claude didn't answer. Try again in a moment.", USAGE)
 
     lesson_id = run(conn, fakes, tmp_path, write=write)
@@ -179,7 +183,9 @@ def test_the_stage_follows_the_lesson_from_writing_to_joining(tmp_path: Path) ->
     conn = store.connect(":memory:")
     seen: list[str] = []
 
-    async def write(language: str, scene: str, feedback: str) -> tuple[Any, Usage]:
+    async def write(
+        language: str, scene: str, feedback: str, learner: str = "male"
+    ) -> tuple[Any, Usage]:
         seen.append(_stage(conn))
         return good_plan(), USAGE
 
@@ -243,7 +249,9 @@ def test_asks_claude_again_once_when_the_first_plan_is_unusable(tmp_path: Path) 
     fakes = Fakes()
     answers = [{"title": "x", "dialogue": [], "phrases": []}, good_plan()]
 
-    async def write(language: str, scene: str, feedback: str) -> tuple[Any, Usage]:
+    async def write(
+        language: str, scene: str, feedback: str, learner: str = "male"
+    ) -> tuple[Any, Usage]:
         fakes.asked.append((scene, feedback))
         return answers.pop(0), USAGE
 
@@ -261,7 +269,9 @@ def test_asks_claude_again_once_when_the_first_plan_is_unusable(tmp_path: Path) 
 def test_gives_up_after_two_unusable_plans(tmp_path: Path) -> None:
     conn = store.connect(":memory:")
 
-    async def write(language: str, scene: str, feedback: str) -> tuple[Any, Usage]:
+    async def write(
+        language: str, scene: str, feedback: str, learner: str = "male"
+    ) -> tuple[Any, Usage]:
         return {"title": "x", "dialogue": [], "phrases": []}, USAGE
 
     lesson_id = run(conn, Fakes(), tmp_path, write=write)
@@ -307,3 +317,113 @@ class TestStore:
         assert store.delete_lesson(conn, lesson_id) is True
         assert store.delete_lesson(conn, lesson_id) is False
         assert store.get_lesson(conn, lesson_id) is None
+
+
+THAI_VOICES = {
+    "th": {"male": "th-TH-NiwatNeural", "female": "th-TH-PremwadeeNeural"},
+    "en": VOICES["en"],
+}
+
+
+def thai_plan(*, particle: str = "ครับ", first_person: str = "ผม") -> dict[str, Any]:
+    def phrase(text: str, english: str) -> dict[str, Any]:
+        return {"text": text, "english": english, "parts": [text]}
+
+    return {
+        "title": "At the café",
+        "dialogue": [
+            {
+                "speaker": "A",
+                "text": f"{first_person}อยากได้กาแฟ{particle}",
+                "english": "I'd like a coffee.",
+            },
+            {"speaker": "B", "text": "ได้ค่ะ" if particle == "ครับ" else "ได้ครับ", "english": "Sure."},
+        ],
+        "phrases": [
+            phrase(f"สวัสดี{particle}", "Hello."),
+            phrase(f"ขอบคุณ{particle}", "Thank you."),
+            phrase(f"{first_person}อยากได้กาแฟ{particle}", "I'd like a coffee."),
+        ],
+    }
+
+
+def thai_write(answers: list[dict[str, Any]], asked: list[tuple[str, str]]) -> Any:
+    async def write(
+        language: str, scene: str, feedback: str, learner: str = "male"
+    ) -> tuple[Any, Usage]:
+        asked.append((learner, feedback))
+        return answers.pop(0), USAGE
+
+    return write
+
+
+def make_thai(
+    tmp_path: Path, answers: list[dict[str, Any]], learner: str
+) -> tuple[Fakes, list[tuple[str, str]], Any]:
+    conn = store.connect(":memory:")
+    fakes = Fakes()
+    asked: list[tuple[str, str]] = []
+    lesson_id = store.add_lesson(conn, "th", "a coffee", NOW)
+    asyncio.run(
+        lesson_service.make_lesson(
+            conn,
+            lesson_id,
+            "th",
+            "a coffee",
+            write=thai_write(answers, asked),
+            synthesize=fakes.synthesize,
+            voices=lambda lang: THAI_VOICES[lang],
+            lessons_dir=tmp_path,
+            now=lambda: NOW,
+            renderer=fakes.renderer,
+            learner=learner,  # type: ignore[arg-type]
+        )
+    )
+    return fakes, asked, store.get_lesson(conn, lesson_id)
+
+
+def test_a_thai_lesson_for_a_man_has_khrap_in_the_male_voice(tmp_path: Path) -> None:
+    fakes, asked, kept = make_thai(tmp_path, [thai_plan()], "male")
+    assert kept is not None and kept.state == "ready"
+    assert asked == [("male", "")]
+    by_text = {text: voice for text, voice, _ in fakes.spoken}
+    assert by_text["สวัสดีครับ"] == "th-TH-NiwatNeural"
+    assert by_text["ได้ค่ะ"] == "th-TH-PremwadeeNeural"
+
+
+def test_a_thai_lesson_for_a_woman_has_kha_in_the_female_voice(tmp_path: Path) -> None:
+    fakes, asked, kept = make_thai(
+        tmp_path, [thai_plan(particle="ค่ะ", first_person="ดิฉัน")], "female"
+    )
+    assert kept is not None and kept.state == "ready"
+    assert asked == [("female", "")]
+    by_text = {text: voice for text, voice, _ in fakes.spoken}
+    assert by_text["สวัสดีค่ะ"] == "th-TH-PremwadeeNeural"
+    assert by_text["ได้ครับ"] == "th-TH-NiwatNeural"
+
+
+def test_a_thai_phrase_without_the_particle_is_asked_for_again(tmp_path: Path) -> None:
+    missing = thai_plan()
+    missing["phrases"][0] = {"text": "สวัสดี", "english": "Hello.", "parts": ["สวัสดี"]}
+    _, asked, kept = make_thai(tmp_path, [missing, thai_plan()], "male")
+    assert kept is not None and kept.state == "ready"
+    assert "ครับ" in asked[1][1] and "สวัสดี" in asked[1][1]
+
+
+def test_a_man_saying_chan_is_asked_for_again(tmp_path: Path) -> None:
+    _, asked, kept = make_thai(tmp_path, [thai_plan(first_person="ฉัน"), thai_plan()], "male")
+    assert kept is not None and kept.state == "ready"
+    assert "ฉัน" in asked[1][1]
+
+
+def test_a_thai_lesson_still_missing_the_particle_is_not_made(tmp_path: Path) -> None:
+    bare = thai_plan(particle="")
+    _, _, kept = make_thai(tmp_path, [bare, bare], "male")
+    assert kept is not None and kept.state == "failed"
+
+
+def test_the_thai_request_names_the_learners_particle() -> None:
+    man = lesson_writer.request_message("th", "a coffee", "male")
+    woman = lesson_writer.request_message("th", "a coffee", "female")
+    assert "A (a man)" in man and "ครับ for a man" in man
+    assert "A (a woman)" in woman and "ค่ะ for a woman" in woman
