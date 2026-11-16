@@ -365,8 +365,14 @@ aloud is never heard by the phone.
   the dialogue is played once; each phrase is said, its meaning given, built up from its last part
   to the whole (backward build-up) with a silence after each step to repeat, then asked for in
   English with a silence to answer; earlier phrases are asked again after 1, then 3 more phrases
-  are taught, and once more at the end; the dialogue closes the lesson. Five phrases make about
-  four to five minutes.
+  are taught, and once more at the end. Five phrases make about four to five minutes.
+- **The lesson builds on itself** (16 November 2026, the owner: it felt like five separate phrases).
+  The phrases are written as a ladder in the order they come up in the dialogue, each reusing words
+  from an earlier one. After the last is taught, up to 3 `mixes` are asked: new sentences made only
+  of words from the taught phrases (`clean_mix` drops one with any other word, since the model
+  doesn't always keep to it). The lesson then closes with a role-play instead of replaying the
+  dialogue: the learner is the first speaker, the narrator gives each of their lines in English,
+  a silence follows and the native voice answers; the other speaker's lines are played.
 - **Silences are sized to the phrase** (`pause_ms`: 2 s plus 0.7 s a word, 3 to 15 s), so a longer
   phrase gets longer to say. They are baked into the audio, so they can't be adjusted after the
   lesson is made. Chosen over a phone that times each clip because one MP3 plays with the screen
@@ -1195,7 +1201,10 @@ next episode is the top of the shelf.
   (`recap_line`, `recap_english`), which stays what the next episode's request carries. The shelf
   sends it as words (`last_recap_line`), and the card shows them to tap, with the English behind
   Show English, hidden again each time the shelf is left. An episode written before it shows the
-  English recap.
+  English recap. The line must carry the recap's main event and who did it (16 November 2026):
+  told it could be "simpler than the recap", the model kept filler and dropped the event ("the man
+  knows where the temple is"), and the English shown is that line's own translation, so the card
+  read as a worse recap than the one stored.
 
 - **Seasons** (added 14 November 2026). Episodes of one story kept replaying the last one (the same
   characters doing the same thing with a new stranger), because the request only said "something new
@@ -1212,6 +1221,8 @@ next episode is the top of the shelf.
   The shelf's story sends where the card's episode falls (`season`, `season_episode`, `season_length`),
   and the card shows it under the story's name ("Season 2 · Episode 8 of 8 · Finale"); an older server
   sends none and the card keeps its running episode number.
+  Every shelf text also sends `created_at` (when it was written, with its UTC offset), and the story
+  card ends its detail line with "Released Nov 16"; an older server sends none and the line stays as it was.
 - **Not the container plot** (added 14 November 2026). With a small vocabulary nearly every text was
   someone opening a box or drawer, finding something, and a stranger arriving to explain it. Every
   request, dialogues included, now says that plot is overused unless the topic is about it, and to

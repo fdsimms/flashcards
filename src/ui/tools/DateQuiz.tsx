@@ -188,6 +188,7 @@ export function TypeAnswer({ quiz, saying, language, rule, onPlay }: {
     <View style={{ gap: space.m }}>
       <Field
         ref={input}
+        keyboardLanguage={LANGUAGES[language].speech}
         label="Your answer"
         placeholder={kana ? 'Type the date in kana' : `Type the date in ${LANGUAGES[language].name}`}
         value={quiz.typed}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WaniKaniError } from '../../src/wanikani/api';
-import { apprenticeBlocks, DEFAULT_PREFS, droppedLine, droppedText, flushOutbox, lessonsToday, parsePrefs, parseState } from '../../src/wanikani/prefs';
+import { APPRENTICE_LIMIT_CHOICES, apprenticeBlocks, DEFAULT_PREFS, droppedLine, droppedText, flushOutbox, lessonsToday, parseLimit, parsePrefs, parseState } from '../../src/wanikani/prefs';
 import type { Outcome } from '../../src/wanikani/session';
 
 const review = (id: number): Outcome => ({ kind: 'review', assignmentId: id, subjectId: id, srsStage: 1, wrongMeaning: 0, wrongReading: 0, at: '2026-11-12T12:00:00.000Z' });
@@ -40,6 +40,18 @@ describe('options', () => {
     expect(parsePrefs(JSON.stringify({ maxApprentice: 0 })).maxApprentice).toBe(0);
     expect(parsePrefs(JSON.stringify({ maxApprentice: -5 })).maxApprentice).toBeNull();
     expect(parsePrefs(JSON.stringify({ maxApprentice: 'lots' })).maxApprentice).toBeNull();
+  });
+});
+
+describe('a custom limit', () => {
+  it('offers 25 and reads a typed whole number of 1 or more', () => {
+    expect(APPRENTICE_LIMIT_CHOICES).toContain(25);
+    expect(parseLimit(' 80 ')).toBe(80);
+    expect(parseLimit('0')).toBeNull();
+    expect(parseLimit('')).toBeNull();
+    expect(parseLimit('12.5')).toBeNull();
+    expect(parseLimit('-3')).toBeNull();
+    expect(parseLimit('lots')).toBeNull();
   });
 });
 

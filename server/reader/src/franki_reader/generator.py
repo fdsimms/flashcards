@@ -639,11 +639,17 @@ _CHOICES_ASK = (
 )
 
 
-# The recap stays in English for the next episode's request; this one is for the reader.
+# The recap stays in English for the next episode's request; this one is for the reader. Asked to
+# be "simpler than the recap" it dropped the episode's one event and kept filler ("the man knows
+# where the temple is"), so it has to carry the same event and name who did it.
 _RECAP_LINE_ASK = (
     'In "recap_line", say what "recap" says for the reader, in one line of the story\'s language '
-    "written like the text (| between words, only words the learner knows, names marked as in "
-    'the lines), with its English in "english". It can be simpler than "recap".'
+    "written like the text (| between words, names marked as in the lines), with its English in "
+    '"english". It must tell the main event of "recap": who did what, naming the characters, '
+    'not a vague stand-in ("the man", "someone") and not a detail from the scene. Use only words '
+    "the learner knows, so keep the event and shorten the rest rather than swap the event for "
+    "something easier; if the event needs a word that isn't on the list, gloss it as for the "
+    "lines."
 )
 
 

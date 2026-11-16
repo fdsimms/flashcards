@@ -98,8 +98,8 @@ function Mnemonic({ title, markup }: { title: string; markup: string }) {
 }
 
 /**
- * The answer side: what it's made of and the meaning, then the reading (each only once it's no
- * longer being asked, so the meaning's answer never gives the reading away), the recording,
+ * The answer side: what it's made of and the meaning, then the reading (each only when this
+ * question asked for it, so the meaning's answer never shows the reading and the reverse), the recording,
  * mnemonics behind a tap unless it's a lesson, and example sentences. The parts go with the
  * meaning, since their meanings hint at it.
  */

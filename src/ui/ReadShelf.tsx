@@ -3,10 +3,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Keyboard, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, MAX_STORY_ABOUT_CHARS, MAX_TOPIC_CHARS, type Api, type Form, type Language, type PastText, type Shelf, type ShelfText, type TextModel, type Word } from '../reader/api';
 import { LANGUAGES, flaggedName } from '../reader/languages';
+import { FLAG_IMAGES } from './flagImages';
 import { lessonsOffered } from '../reader/lessons';
 import { ReadListenAgain } from './ReadListenAgain';
 import { ReadReviewFirst } from './ReadReviewFirst';
-import { playMinutes, playOrder, reasonLabel, seasonLabel, shelfDetail, surprisePick } from '../reader/shelf';
+import { playMinutes, playOrder, reasonLabel, seasonLabel, shelfDetail, storyDetail, surprisePick } from '../reader/shelf';
 import { haptic } from './haptics';
 import { Button, Card, Divider, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
 import { PracticeWordPill } from './PracticeWordPill';
@@ -31,9 +32,11 @@ const POLL_MS = 10_000;
 
 export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 
-export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLanguagePage, onPast, onLessons, onEpisodes, onWords, onLanguage, onReview, onListenAgain }: {
+export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, onPractice, onLanguagePage, onPast, onLessons, onEpisodes, onWords, onLanguage, onReview, onListenAgain }: {
   api: Api;
   /** Opened from Review's "Read a text with these words": offers a text written to practice them. */
+  /** The language the settings already name, so the header shows it while the shelf loads. */
+  knownLanguage?: Language;
   practice?: { language: Language; count: number; onCancel: () => void };
   /** Says a practice word aloud from its popover. */
   onPlayWord: (word: string, language: Language) => void;
@@ -60,6 +63,8 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
   const [refreshing, setRefreshing] = useState(false);
   const [markedCount, setMarkedCount] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  // The language just picked, shown in the header while its shelf loads.
+  const [picked, setPicked] = useState<Language | null>(null);
 
   const { scrollProps, bottomPadding } = useKeyboardScroll();
 
@@ -100,6 +105,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
   const changeLanguage = async (language: Language) => {
     if (language === shelf?.language) return;
     loadSeq.current++;
+    setPicked(language);
     setShelf(null);
     setError(null);
     setActionError(null);
@@ -111,6 +117,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
       setActionError(e instanceof ApiError ? e.message : "Couldn't switch the language. Try again.");
     }
     await load();
+    setPicked(null);
   };
 
   // Words just studied are in one language: switch to it, once per offer, so the text is written in
@@ -161,7 +168,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
     }
   };
 
-  const language = shelf?.language;
+  const language = shelf?.language ?? picked ?? knownLanguage;
   const name = language ? LANGUAGES[language].name : 'Read & Listen';
 
   return (
@@ -171,8 +178,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
       toolbar={(
         <>
           <Stack.Toolbar placement="left">
-            <Stack.Toolbar.Menu {...(language ? {} : { icon: 'globe' as const })} accessibilityLabel={`Language: ${name}. Change the language`}>
-              {language ? <Stack.Toolbar.Label>{LANGUAGES[language].flag}</Stack.Toolbar.Label> : null}
+            <Stack.Toolbar.Menu icon={language ? FLAG_IMAGES[language] : 'globe'} iconRenderingMode="original" accessibilityLabel={`Language: ${name}. Change the language`}>
               {(shelf?.languages ?? []).map((l) => (
                 <Stack.Toolbar.MenuAction
                   key={l.code}
@@ -347,7 +353,7 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onEpisodes, onStarted }: { 
       {next ? (
         <>
           <Text style={{ ...type.title, color: c.text }}>{next.title}</Text>
-          <Text style={{ ...type.subhead, color: c.textSecondary }}>{shelfDetail(next)}</Text>
+          <Text style={{ ...type.subhead, color: c.textSecondary }}>{storyDetail(next)}</Text>
           {next.stretch.length > 0 ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>Practice words</Text>
