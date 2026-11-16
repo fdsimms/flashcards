@@ -440,6 +440,9 @@ export type ReadingLog = {
   // The check after reading, when it was taken: answers right, of those asked.
   check_right?: number;
   check_asked?: number;
+  // The meaning quiz on a tapped word: the words answered right and wrong (a record only).
+  quiz_right?: string[];
+  quiz_wrong?: string[];
 };
 
 // A word queued for Claude to fill in (src/reader/noteQueue.ts). `fields` is what it wrote, by Anki field

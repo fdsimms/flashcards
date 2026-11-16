@@ -142,6 +142,8 @@ def test_logging_a_reading() -> None:
             "words_flagged": ["ครับ"],
             "audio_speed": 0.8,
             "seconds": 95,
+            "quiz_right": ["กิน"],
+            "quiz_wrong": ["ครับ"],
         },
         headers=AUTH,
     )

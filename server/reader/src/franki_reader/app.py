@@ -627,6 +627,9 @@ class ReadingIn(BaseModel):
     # The check after reading, when it was taken: answers right, of those asked.
     check_right: int | None = Field(default=None, ge=0)
     check_asked: int | None = Field(default=None, ge=1, le=20)
+    # The meaning quiz on a tapped word: the words answered right and wrong.
+    quiz_right: list[str] = []
+    quiz_wrong: list[str] = []
 
 
 def whole_text_lines(text: StoredText, plain: list[str]) -> tuple[str, ...]:
@@ -1856,6 +1859,8 @@ def create_app(
                     seconds=body.seconds,
                     check_right=right if checked else None,
                     check_asked=asked if checked else None,
+                    quiz_right=tuple(body.quiz_right),
+                    quiz_wrong=tuple(body.quiz_wrong),
                 ),
             )
         except NotFound as e:
