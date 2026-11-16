@@ -440,6 +440,9 @@ export type ReadingLog = {
   // The check after reading, when it was taken: answers right, of those asked.
   check_right?: number;
   check_asked?: number;
+  // The meaning quiz on a tapped word: the words answered right and wrong (a record only).
+  quiz_right?: string[];
+  quiz_wrong?: string[];
 };
 
 // A word queued for Claude to fill in (src/reader/noteQueue.ts). `fields` is what it wrote, by Anki field
@@ -621,8 +624,8 @@ export function createApi(
       call<{ ready: boolean; sentences: Word[][] }>('POST', '/api/glosses', { language, sentences }),
     // A line's grammar and vocabulary explained by Claude on the server: asked on the owner's tap, kept per
     // line there. `simple` is a second, plainer version.
-    explainLine: async (textId: number, line: number, simple: boolean) => {
-      const answer = await call<{ points: ExplainPoint[]; grammar?: LineGrammar[] }>('POST', `/api/texts/${textId}/lines/${line}/explain`, { simple });
+    explainLine: async (textId: number, line: number, simple: boolean, inLanguage = false) => {
+      const answer = await call<{ points: ExplainPoint[]; grammar?: LineGrammar[] }>('POST', `/api/texts/${textId}/lines/${line}/explain`, { simple, in_language: inLanguage });
       // A server older than step 3 sends no grammar.
       return { points: answer.points, grammar: answer.grammar ?? [] };
     },
@@ -649,8 +652,8 @@ export function createApi(
       headers: { Authorization: `Bearer ${passphrase}` },
     }),
     // A phrase selected in a line (as it appears there), explained the same way and kept per phrase.
-    explainPhrase: (textId: number, line: number, phrase: string, simple: boolean) =>
-      call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple }),
+    explainPhrase: (textId: number, line: number, phrase: string, simple: boolean, inLanguage = false) =>
+      call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple, in_language: inLanguage }),
     // Why a word has the form it has in its line (the form quiz's Explain), kept per word.
     explainForm: async (textId: number, line: number, word: Word) =>
       (await call<{ explanation: string[] }>('POST', `/api/texts/${textId}/lines/${line}/form`, {

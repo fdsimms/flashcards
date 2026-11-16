@@ -453,6 +453,10 @@ class Reading:
     # The check after reading: questions answered right, of those asked. None when it wasn't taken.
     check_right: int | None = None
     check_asked: int | None = None
+    # The meaning quiz on a tapped word (Settings, Quiz me on words I know): the words answered right
+    # and wrong. A record only; nothing grades a card from it.
+    quiz_right: tuple[str, ...] = ()
+    quiz_wrong: tuple[str, ...] = ()
     # How well the known words were recognized in it (recognition.py); None for a reading before it
     # was kept.
     recognition: Recognition | None = None
@@ -570,6 +574,10 @@ def connect(path: Path | str) -> sqlite3.Connection:
     ):
         if column not in readings_columns:
             conn.execute(f"ALTER TABLE readings ADD COLUMN {column} INTEGER")
+    # The words answered in the meaning quiz, right and wrong (JSON lists); '[]' before they were kept.
+    for column in ("quiz_right", "quiz_wrong"):
+        if column not in readings_columns:
+            conn.execute(f"ALTER TABLE readings ADD COLUMN {column} TEXT NOT NULL DEFAULT '[]'")
     with conn:
         # A text left pending by a restart mid-audio: its missing lines are made on request.
         conn.execute("UPDATE texts SET status = 'ready' WHERE status = 'pending'")
@@ -1009,9 +1017,12 @@ def save_questions(conn: sqlite3.Connection, text_id: int, questions: tuple[Ques
 
 # ==== Explanations ====
 
+# `simple` is the version asked for, not only a flag: 1 is the plainer one and 2 is the notes in the
+# line's language, so the two add up (3 is both) and every answer is kept apart without a new column.
+
 
 def get_explanation(
-    conn: sqlite3.Connection, text_id: int, line: int, simple: bool
+    conn: sqlite3.Connection, text_id: int, line: int, simple: int
 ) -> list[dict[str, str]] | None:
     row = conn.execute(
         "SELECT points FROM explanations WHERE text_id = ? AND line = ? AND simple = ?",
@@ -1024,7 +1035,7 @@ def save_explanation(
     conn: sqlite3.Connection,
     text_id: int,
     line: int,
-    simple: bool,
+    simple: int,
     points: list[dict[str, str]],
     now: datetime,
     cost_usd: float = 0.0,
@@ -1232,9 +1243,9 @@ def log_reading(conn: sqlite3.Connection, text_id: int, reading: Reading, now: d
         conn.execute(
             """INSERT INTO readings (text_id, logged_at, language, mode, rating, finished,
                    words_glossed, words_flagged, audio_speed, listen_only, seconds, check_right,
-                   check_asked, tokens, known_tokens, looked_up_tokens, known_types,
-                   looked_up_types)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   check_asked, quiz_right, quiz_wrong, tokens, known_tokens, looked_up_tokens,
+                   known_types, looked_up_types)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 text_id,
                 now.isoformat(),
@@ -1249,6 +1260,8 @@ def log_reading(conn: sqlite3.Connection, text_id: int, reading: Reading, now: d
                 reading.seconds,
                 reading.check_right,
                 reading.check_asked,
+                json.dumps(list(reading.quiz_right), ensure_ascii=False),
+                json.dumps(list(reading.quiz_wrong), ensure_ascii=False),
                 *(
                     (
                         r.tokens,
@@ -1447,7 +1460,7 @@ def mark_audio_chars_counted(conn: sqlite3.Connection) -> None:
 
 
 def get_phrase_explanation(
-    conn: sqlite3.Connection, text_id: int, line: int, phrase: str, simple: bool
+    conn: sqlite3.Connection, text_id: int, line: int, phrase: str, simple: int
 ) -> dict[str, Any] | None:
     row = conn.execute(
         "SELECT answer FROM phrase_explanations"
@@ -1462,7 +1475,7 @@ def save_phrase_explanation(
     text_id: int,
     line: int,
     phrase: str,
-    simple: bool,
+    simple: int,
     answer: dict[str, Any],
     now: datetime,
     cost_usd: float = 0.0,

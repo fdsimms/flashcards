@@ -14,6 +14,8 @@ from franki_reader.app import create_app
 from franki_reader.engine import Engine
 from franki_reader.explain import (
     CALIBRATION,
+    ENGLISH,
+    IN_LANGUAGE,
     PHRASE_SYSTEM,
     SYSTEM,
     CheckRequest,
@@ -30,6 +32,7 @@ from franki_reader.explain import (
     clean_form,
     clean_phrase,
     form_message,
+    in_language,
     phrase_message,
     request_message,
 )
@@ -529,6 +532,35 @@ def test_claude_check_keeps_the_usage_of_an_answer_it_cant_use(
 def test_both_prompts_keep_frequency_and_register_to_what_is_certain() -> None:
     assert CALIBRATION in SYSTEM
     assert CALIBRATION in PHRASE_SYSTEM
+    # The notes are in English whatever the line's language (the model drifted into Russian).
+    assert ENGLISH in SYSTEM
+    assert ENGLISH in PHRASE_SYSTEM
+
+
+def test_the_notes_in_the_language_are_asked_and_kept_apart() -> None:
+    calls: list[bool] = []
+
+    async def explain(request: ExplainRequest) -> tuple[list[dict[str, str]], Usage]:
+        calls.append(request.in_language)
+        return POINTS, Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")
+
+    c, text_id = client(explain)
+    bodies: tuple[dict[str, bool], ...] = (
+        {},
+        {"in_language": True},
+        {"in_language": True},
+        {"in_language": True, "simple": True},
+    )
+    for body in bodies:
+        assert c.post(url(text_id), json=body, headers=AUTH).status_code == 200
+    assert calls == [False, True, True]
+
+
+def test_in_language_prompts_drop_the_english_only_instructions() -> None:
+    for system in (SYSTEM, PHRASE_SYSTEM):
+        swapped = in_language(system)
+        assert IN_LANGUAGE in swapped and ENGLISH not in swapped
+        assert "in plain English" not in swapped and ", ." not in swapped
 
 
 # ==== Forms ====
