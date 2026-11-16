@@ -11,7 +11,7 @@ import { MIN_TAP, radius, useTheme } from './theme';
 
 /**
  * One word of a text, with the marks it wears (the key in ReaderKey.tsx explains them): a fill
- * behind a word outside the deck or a name, gold bold text and a dot on a practice word, an
+ * behind a word outside the deck or a name, gold bold text on a practice word, an
  * underline for its grammar point, a blue underline once marked unknown. Also the sample beside each
  * switch in the key, so the key can't drift from how a word is drawn.
  */
@@ -134,9 +134,6 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
           pointerEvents="none"
           style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.s - 2, borderWidth: 1.5, borderColor: c.accent }}
         />
-      ) : null}
-      {stretch ? (
-        <View pointerEvents="none" style={{ position: 'absolute', top: 3, right: 1, width: 6, height: 6, borderRadius: radius.pill, backgroundColor: c.accent }} />
       ) : null}
       <Text
         style={[
