@@ -144,10 +144,15 @@ export function MixupsTool({ tool, repo, params }: ToolScreenProps) {
             ))}
           </View>
           {picked !== undefined ? (
-            <Reveal>
+            <Reveal style={{ gap: space.xs }}>
               {picked === question.target.noteId
                 ? <Status tone="good">Right.</Status>
-                : <Status tone="bad">{`Not quite. It's ${question.target.word}.${mode === 'ear' ? ' Play each one to hear the difference.' : ''} It comes back in a few words.`}</Status>}
+                : (
+                  <>
+                    <Status tone="bad">{`Not quite. It's ${question.target.word}.`}</Status>
+                    <Help>{`${mode === 'ear' ? 'Play each word to compare how they sound. ' : ''}This one will come up again in a few questions.`}</Help>
+                  </>
+                )}
             </Reveal>
           ) : null}
           {owed ? <Help>{`From your last session: ${owed} more ${owed === 1 ? 'word' : 'words'} to go.`}</Help> : null}
