@@ -71,19 +71,25 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
   const c = useTheme();
   if (word.status === null) {
     // A space becomes a gap; punctuation is shown but can't be tapped. Inside a selected phrase
-    // either one takes a tapped word's height (padding, plus the underline's border), so the band
-    // runs through it unbroken.
+    // either one is built the way a tapped word is (padding around a Text with a transparent bottom
+    // border), not given a computed height: the font can measure a word's Text a little taller than
+    // its lineHeight, and a gap at lineHeight + 4.5 then sat about a point shorter, so the phrase's
+    // bar stepped up at every space.
+    const textBox = { fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily };
     const piece = word.text.trim()
-      ? <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: c.text }}>{word.text}</Text>
+      ? <Text style={{ ...textBox, color: c.text }}>{word.text}</Text>
       : <View style={{ width: textStyle.fontSize * 0.3 }} />;
     if (!phrasePart && !dimmed && !playing) return piece;
+    const filled = phrasePart || playing;
+    const boxed = word.text.trim()
+      ? <Text style={{ ...textBox, color: c.text, borderBottomWidth: 1.5, borderBottomColor: 'transparent' }}>{word.text}</Text>
+      : <Text style={{ ...textBox, width: textStyle.fontSize * 0.3, borderBottomWidth: 1.5, borderBottomColor: 'transparent' }}>{' '}</Text>;
     return (
       <View style={[
         { opacity: dimmed ? 0.35 : 1 },
-        phrasePart ? { backgroundColor: c.accentFill, height: textStyle.lineHeight + 4.5, justifyContent: 'center' }
-          : playing ? { backgroundColor: c.fill, height: textStyle.lineHeight + 4.5, justifyContent: 'center' } : null,
+        filled ? { backgroundColor: phrasePart ? c.accentFill : c.fill, paddingVertical: 1.5 } : null,
       ]}>
-        {piece}
+        {filled ? boxed : piece}
         {phrasePart ? <PhraseBar /> : null}
       </View>
     );

@@ -201,10 +201,10 @@ Franki's (Client, below).
   don't count toward the 1, 4 and 10 day Listen again schedule, which starts the day after.
 - **Guess first** (15 November 2026, the owner chose from a mock). A tap on a word shows its meaning
   only when asked for (Settings, Read & Listen, Meanings, on by default), so the learner tries before
-  being told: a word counted as known is recalled, a word outside the deck (or only inside a longer
-  phrase) is worked out from the line, with an optional box for a typed guess that is shown beside the
-  meaning and never graded, kept or sent. The hint is "Try to remember it first." or "Guess from the
-  line first."; a name and a word with no meaning to show open as before (`src/reader/guess.ts`,
+  being told: a word counted as known is recalled. **A word outside the deck (or only inside a longer
+  phrase) shows its meaning at once** (16 November 2026): it first asked for a guess from the line,
+  with a box for a typed one, and the owner found being made to guess before looking up annoying.
+  The hint is "Try to remember it first."; a name and a word with no meaning to show open as before (`src/reader/guess.ts`,
   `ReadWordGuess.tsx`). A second setting, **Quiz me on words I know** (off by default, shown with the
   first), replaces the Show meaning row on a known word with four choices (its meaning and three other
   glosses from the text, as the check after reading builds them) and I don't know: a right answer closes
@@ -1163,7 +1163,8 @@ next episode is the top of the shelf.
   in Past texts, listed first to last by Read from the start.
 - **Continuity is carried in words, not in the conversation.** The first episode's request asks the
   model to invent two to four named characters and a place, and to return the story's name
-  (`series`) and its cast and setting (`cast`) beside the text. Every episode returns one sentence
+  (`series`, in the text's language like a title, so the shelf card reads in the language being
+  learned; a story named before this keeps its English name) and its cast and setting (`cast`) beside the text. Every episode returns one sentence
   about what happened in it (`recap`, on the text). Each later episode's request names the story,
   the cast, and the last 12 recaps (`STORY_RECAPS`), so the request stays short however long the
   story runs. All three fields are optional in the reply's schema and asked for only in a story's
