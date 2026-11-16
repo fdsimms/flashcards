@@ -4,6 +4,7 @@ import { failureText } from '../../core/failure';
 import { compareTyped } from '../../core/typedCompare';
 import type { Language, SentencePrompt, WritingCheck } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
+import { useKeyboardLanguage } from '../useKeyboardLanguage';
 import { markLine, roundLine, roundProgress, roundScore, skipLine, startRound, type LineRound } from '../../reader/lineDrill';
 import { Button, Card, ErrorNote, Help, Loading } from '../kit';
 import { Reveal } from '../motion';
@@ -31,6 +32,7 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
   const [language, setLanguage] = useToolLanguage(tool);
   const answer = useAnswer(repo, language);
   const name = LANGUAGES[language].name;
+  const keyboardLang = useKeyboardLanguage(LANGUAGES[language].speech);
   const [loaded, setLoaded] = useState<{ language: Language; sentences: SentencePrompt[]; writing: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [round, setRound] = useState<LineRound>(() => startRound([]));
@@ -164,6 +166,7 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
             <View style={{ gap: space.s }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
             <TextInput
+              {...keyboardLang}
               value={typed}
               onChangeText={setTyped}
               multiline

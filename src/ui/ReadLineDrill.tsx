@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { compareTyped } from '../core/typedCompare';
 import type { Api, ReaderText } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
+import { useKeyboardLanguage } from './useKeyboardLanguage';
 import { drillLines, lineText, markLine, roundLine, roundProgress, roundScore, startRound, type LineDrillKind } from '../reader/lineDrill';
 import { NORMAL_RATE, SLOW_RATE } from '../reader/playbackRate';
 import { hasSlow, speedFor } from '../reader/prefs';
@@ -73,6 +74,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
 
   const expected = line ? lineText(line) : '';
   // Say it back can be spoken (Answer by speaking): what's heard fills the box.
+  const keyboardLang = useKeyboardLanguage(LANGUAGES[text.language].speech);
   const spoken = useSpokenAnswer(LANGUAGES[text.language].speech, {
     expected,
     mode: AUDIO_MODE,
@@ -183,6 +185,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
             <View style={{ gap: space.s }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
             <TextInput
+              {...keyboardLang}
               value={typed}
               onChangeText={setTyped}
               multiline
