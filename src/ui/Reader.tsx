@@ -55,9 +55,6 @@ import { useSpokenWords } from './useSpokenWords';
 import { RecordYourself } from './RecordYourself';
 import { useSelfRecording, type SelfRecording } from './useSelfRecording';
 import { recordExtraRead } from '../tools/extrasStorage';
-import { ScoreTake } from './ScoreTake';
-import { useSpeakingOn } from './useSpokenAnswer';
-import { lineText } from '../reader/lineDrill';
 import type { ReaderPlayerHost } from './useReaderPlayer';
 import { Button, Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from './kit';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
@@ -246,11 +243,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   // Counts line starts: a slow line is fetched before it plays, and a tap on another line meanwhile wins.
   const starting = useRef(0);
   // Record yourself, for shadowing: a take of the line that's playing or last played.
-  // A take is recorded so Azure can score it (Score it) while Answer by speaking is on.
-  const speakingOn = useSpeakingOn();
   const self = useSelfRecording(text && current !== null ? `${text.id}:${current}` : null, READER_AUDIO_MODE, {
     onBeforeAudio: () => player.pause(),
-    scorable: speakingOn,
   });
 
   // READER_AUDIO_MODE while the reader is open. Review's card audio doesn't need background
@@ -853,8 +847,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           {hasAudio ? (
             <PlayerBar playing={status.playing} current={current} total={text.lines.length} skippable={paras !== null} onSkip={skip}
               rate={rate} slowOffered={slowOffered} repeat={repeat} played={played} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={() => { setRepeat((r) => nextRepeatCount(r)); setPlayed(1); }}
-              rec={current !== null ? self : null}
-              score={text && current !== null && text.lines[current] ? <ScoreTake rec={self} reference={lineText(text.lines[current])} language={text.language} /> : null} />
+              rec={current !== null ? self : null} />
           ) : <Help>No audio for this text.</Help>}
         </>
       ) : undefined}
@@ -1480,7 +1473,7 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
   );
 }
 
-function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffered, repeat, played, silentLine, onToggle, onRate, onRepeat, rec, score }: {
+function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffered, repeat, played, silentLine, onToggle, onRate, onRepeat, rec }: {
   playing: boolean;
   current: number | null;
   total: number;
@@ -1498,8 +1491,6 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
   onToggle: () => void;
   onRate: (rate: number) => void;
   onRepeat: () => void;
-  /** Score it (ScoreTake), beside Record yourself, with the take's score under them. */
-  score?: React.ReactNode;
   /** Record yourself, once a line has played. */
   rec: SelfRecording | null;
 }) {
@@ -1562,7 +1553,6 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
       {rec && current !== null ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
           <RecordYourself rec={rec} label={`Record line ${current + 1}`} size="player" />
-          {score}
         </View>
       ) : null}
     </View>
