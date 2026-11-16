@@ -37,7 +37,7 @@ export interface ToolPrefs {
   countMax: CountMax;
   /** Reading the script: read a word aloud, or (Thai) name a syllable's tone. */
   scriptMode: ScriptMode;
-  /** Words you mix up: told apart by meaning or by ear. */
+  /** Similar words: told apart by meaning or by ear. */
   mixupMode: MixupMode;
 }
 

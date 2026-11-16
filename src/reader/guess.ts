@@ -6,7 +6,8 @@
 //
 // Nothing here grades a card or reaches the scheduler. A lookup is logged when the meaning is
 // shown, so a word recalled is never counted as one that was looked up (server recognition.py reads
-// that log); a right quiz answer logs nothing, a wrong one or "I don't know" logs the lookup.
+// that log); a wrong quiz answer or "I don't know" logs the lookup, a right one doesn't. Every quiz
+// answer is also kept by word on the reading (`answerQuiz`), as a record only.
 // Pure, so it's tested; Reader.tsx's GlossPopover shows it.
 import type { ReaderText, Word } from './api';
 import { CHOICES, shuffled, withAnswer, type Random } from './check';

@@ -61,6 +61,10 @@ Franki's (Client, below).
   line again or rereading a past text costs nothing. It only shows text: nothing is graded or added
   to the deck. Each call's cost is kept with it and reported under `explanations` in `/api/costs`,
   apart from the texts' figures. A free-form "Ask a question" and a per-word explanation were left out for now.
+  **Explain is in English** (16 November 2026: the prompts say so outright, since a Russian line got Russian notes). Settings,
+  Read & Listen, Explain in the language (off by default) asks for the notes in the language being read, in simple words, for practice;
+  a phrase's meaning and literal stay English. The app sends `in_language`; the answer is kept under its own version
+  (`simple` 1, `in_language` 2, both 3), so neither overwrites the other.
   Under the explanation, the grammar points the finders find in the line show as chips that can be
   set to Practice, Know it or Don't know it there (docs/grammar.md, step 3).
 - **Explain a phrase** (12 November 2026, by the owner's decision, for idioms and set phrases like
@@ -207,12 +211,16 @@ Franki's (Client, below).
   The hint is "Try to remember it first."; a name and a word with no meaning to show open as before (`src/reader/guess.ts`,
   `ReadWordGuess.tsx`). A second setting, **Quiz me on words I know** (off by default, shown with the
   first), replaces the Show meaning row on a known word with four choices (its meaning and three other
-  glosses from the text, as the check after reading builds them) and I don't know: a right answer closes
-  the popover, a wrong one or I don't know shows the meaning, with the right choice and a wrong pick
-  marked. A text with fewer than three other glosses has no quiz. **A lookup is logged when the meaning
+  glosses from the text, as the check after reading builds them) and I don't know: any answer keeps
+  the popover open with the choices as a record, the right one marked "Right" (springing in, with a
+  check and a haptic) or "Meaning" and a wrong pick marked "Your pick" (16 November 2026, the owner:
+  a right answer used to close it, so the meaning was never seen). A text with fewer than three other glosses has no quiz. **A lookup is logged when the meaning
   is shown**, not at the tap (`Session.glossed`), so a word recalled isn't counted as looked up, which
   keeps effective coverage (`recognition.py`) honest; marking a word unknown shows its meaning too.
-  A right quiz answer logs nothing. Nothing is graded or added to the deck, and a card's example
+  A right quiz answer is no lookup, but every answer is kept on the reading, by word, as
+  `quiz_right` and `quiz_wrong` (`Session.quizRight`, `readings.quiz_right`; the latest answer to a
+  word wins), a record only: nothing reads it yet, and a wrong one or I don't know is also a lookup.
+  Nothing is graded or added to the deck, and a card's example
   sentence and the shelf's practice-word popovers are unchanged.
 - The reader's playback speed and the highlight switch are kept between launches, in the Keychain
   next to the passphrase (`src/reader/storage.ts`).
