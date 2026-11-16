@@ -49,9 +49,9 @@ export function GuessPrompt({ mode, guess, onGuess, onFocus, onBlur, onPick, onG
           onPress={onGiveUp}
           accessibilityRole="button"
           accessibilityLabel="I don't know"
-          style={{ minHeight: MIN_TAP, justifyContent: 'center', alignItems: 'center' }}
+          style={{ minHeight: MIN_TAP, justifyContent: 'center', alignItems: 'center', borderRadius: radius.m, ...smooth, backgroundColor: c.accentFill }}
         >
-          <Text style={{ ...type.body, color: c.textSecondary }}>I don't know</Text>
+          <Text style={{ ...type.body, color: c.accent, fontWeight: '600' }}>I don't know</Text>
         </Pressable>
       </View>
     );

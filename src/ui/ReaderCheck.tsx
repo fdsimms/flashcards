@@ -144,9 +144,9 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
           onPress={() => choose(null)}
           accessibilityRole="button"
           accessibilityLabel="I don't know"
-          style={{ minHeight: 52, justifyContent: 'center', paddingHorizontal: space.l, paddingVertical: space.m, borderRadius: radius.m, ...smooth, borderColor: c.border, borderWidth: 1, borderStyle: 'dashed' }}
+          style={{ minHeight: 52, justifyContent: 'center', alignItems: 'center', paddingHorizontal: space.l, paddingVertical: space.m, borderRadius: radius.m, ...smooth, backgroundColor: c.accentFill }}
         >
-          <Text style={{ ...type.body, color: c.textSecondary }}>I don't know</Text>
+          <Text style={{ ...type.body, color: c.accent, fontWeight: '600' }}>I don't know</Text>
         </Tappable>
       )}
     </ScrollView>
