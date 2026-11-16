@@ -1,42 +1,40 @@
-import React, { useState } from 'react';
-import { Switch, Text, View } from 'react-native';
+import React from 'react';
+import { Modal, ScrollView, Switch, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Language } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { HIGHLIGHT_ABOUT, MARK_INFO, type Example, type Mark } from '../reader/marks';
 import { haptic } from './haptics';
-import { Icon, Tappable } from './kit';
+import { HeaderAction } from './kit';
 import { WordView, type ReadTextStyle } from './ReadWord';
 import { hairline, MIN_TAP, radius, space, type, useTheme } from './theme';
 
 /**
- * What the marks on the words mean, with a switch for each. It lists only the marks the open text
- * uses, each shown on a word from the text, drawn by the same WordView the text is. Closed it's one
- * line, in the card under the title. Switching a mark off only hides it: a tap still shows the
+ * What the marks on the words mean, with a switch for each, in a sheet the reader's header button
+ * opens. It lists only the marks the open text uses, each shown on a word from the text, drawn by
+ * the same WordView the text is. Switching a mark off only hides it: a tap still shows the
  * word's meaning and grammar.
  */
-export function ReaderKey({ examples, language, textStyle, shown, onChange }: {
+export function ReaderKey({ examples, language, textStyle, shown, onChange, onClose }: {
   examples: Example[];
   language: Language;
   textStyle: ReadTextStyle;
   shown: (mark: Mark) => boolean;
   onChange: (mark: Mark, on: boolean) => void;
+  onClose: () => void;
 }) {
   const c = useTheme();
-  const [open, setOpen] = useState(false);
-  if (examples.length === 0) return null;
+  const insets = useSafeAreaInsets();
   return (
-    <View>
-      <Tappable
-        onPress={() => { haptic.tap(); setOpen(!open); }}
-        accessibilityRole="button"
-        accessibilityLabel="Key to the marks on words"
-        accessibilityState={{ expanded: open }}
-        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: MIN_TAP }}
+    <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose} backdropColor={c.surface}>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: c.surface }}
+        contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.l, paddingBottom: Math.max(insets.bottom, space.l), gap: space.s }}
       >
-        <Text style={{ ...type.footnote, fontWeight: '600', color: c.textSecondary }}>Key</Text>
-        <Icon name={open ? 'chevron.up' : 'chevron.down'} size={12} color={c.textSecondary} weight="semibold" />
-      </Tappable>
-      {open ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.m }}>
+          <Text accessibilityRole="header" style={{ ...type.overline, color: c.textSecondary }}>Key to the marks on words</Text>
+          <HeaderAction label="Close" onPress={onClose} />
+        </View>
         <View>
           {examples.map((e, i) => {
             const title = e.mark === 'highlight' ? LANGUAGES[language].highlightLabel : MARK_INFO[e.mark].title;
@@ -98,7 +96,7 @@ export function ReaderKey({ examples, language, textStyle, shown, onChange }: {
             </Text>
           </View>
         </View>
-      ) : null}
-    </View>
+      </ScrollView>
+    </Modal>
   );
 }

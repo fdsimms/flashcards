@@ -75,7 +75,7 @@ import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readabl
  *
  * Reading options (Show English, Paragraphs, Thai letters) are one header menu, so the text
  * starts right under the practice words. The key to the marks on words, with a switch for each, is a
- * row in that card (ReaderKey.tsx).
+ * sheet that a button beside that menu opens (ReaderKey.tsx).
  *
  * From the shelf: a text already written opens straight away, and the end view steers the next
  * ones (length, more or fewer like this) and offers the next text on the shelf. Play all plays the
@@ -164,6 +164,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [english, setEnglish] = useState(false);
+  const [keyOpen, setKeyOpen] = useState(false);
   // Lines whose English was shown on their own, while Show English is off.
   const [lineEnglish, setLineEnglish] = useState<number[]>([]);
   // Lines whose explanation is open (each asks the server when it opens; the server keeps the answer).
@@ -818,6 +819,9 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       lockGesture={phraseDrag.dragging}
       toolbar={text && !ended && !listenOnly ? (
         <Stack.Toolbar placement="right">
+          {keyMarks.length > 0 ? (
+            <Stack.Toolbar.Button icon="questionmark.circle" accessibilityLabel="Key to the marks on words" onPress={() => { haptic.tap(); setKeyOpen(true); }} />
+          ) : null}
           <Stack.Toolbar.Menu icon="slider.horizontal.3" accessibilityLabel="Reading options">
             <Stack.Toolbar.MenuAction isOn={english} onPress={() => setEnglish(!english)}>Show English</Stack.Toolbar.MenuAction>
             {quiz.any ? (
@@ -872,6 +876,10 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         </ScrollView>
       ) : null}
 
+      {keyOpen && text ? (
+        <ReaderKey examples={keyMarks} language={text.language ?? 'th'} textStyle={readStyle(text, thaiFont, textSize)} shown={markShown} onChange={showMark} onClose={() => setKeyOpen(false)} />
+      ) : null}
+
       {text && session && !ended ? (
         <ScrollView
           ref={scroller}
@@ -902,7 +910,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                 />
               ) : null}
             </View>
-            {text.stretch.length > 0 || practicedGrammar(text).length > 0 || keyMarks.length > 0 ? (
+            {text.stretch.length > 0 || practicedGrammar(text).length > 0 ? (
               <Card style={{ padding: space.m, gap: space.m }}>
                 {text.stretch.length > 0 ? (
                   <ChipRow label="Practice words">
@@ -914,7 +922,6 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                     {practicedGrammar(text).map((g) => <TintPill key={g.id} text={g.name} bg={c.speakerB} fg={c.onSpeakerB} />)}
                   </ChipRow>
                 ) : null}
-                <ReaderKey examples={keyMarks} language={text.language ?? 'th'} textStyle={readStyle(text, thaiFont, textSize)} shown={markShown} onChange={showMark} />
               </Card>
             ) : null}
             {text.roles.A || text.roles.B ? (

@@ -35,7 +35,21 @@ export function ReadRecap({ recap, line, language, tapped, onTap }: {
   const textStyle = { fontSize, lineHeight: fontSize * info.lineHeight, font: readFont(language, prefs().thaiFont) };
   return (
     <View style={{ marginTop: space.s, paddingTop: space.m, gap: space.xs, borderTopWidth: hairline, borderTopColor: c.border }}>
-      <Text style={{ ...type.overline, color: c.textSecondary }}>Last time</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.m }}>
+        <Text style={{ ...type.overline, color: c.textSecondary }}>Last time</Text>
+        {line ? (
+          <Tappable
+            onPress={() => { haptic.select(); setEnglish(!english); }}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: english }}
+            accessibilityLabel={english ? 'Hide English' : 'Show English'}
+            style={{ minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.xs }}
+          >
+            <Text style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>{english ? 'Hide English' : 'Show English'}</Text>
+            <Icon name={english ? 'chevron.up' : 'chevron.down'} size={12} color={c.accent} weight="semibold" />
+          </Tappable>
+        ) : null}
+      </View>
       {line ? (
         <>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -58,16 +72,6 @@ export function ReadRecap({ recap, line, language, tapped, onTap }: {
             ))}
           </View>
           {english ? <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>{line.english}</Text> : null}
-          <Tappable
-            onPress={() => { haptic.select(); setEnglish(!english); }}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: english }}
-            accessibilityLabel={english ? 'Hide English' : 'Show English'}
-            style={{ alignSelf: 'flex-start', minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.xs }}
-          >
-            <Text style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>{english ? 'Hide English' : 'Show English'}</Text>
-            <Icon name={english ? 'chevron.up' : 'chevron.down'} size={12} color={c.accent} weight="semibold" />
-          </Tappable>
         </>
       ) : (
         <Help>{recap}</Help>
