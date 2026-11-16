@@ -46,7 +46,8 @@ class Point:
     id: str
     language: Code
     name: str
-    note: str  # what it means, with examples
+    note: str  # what it does, in a few words, with no example in it
+    example: str  # examples of it, shown apart from the note
     find: Finder
     related: tuple[str, ...] = ()  # points to compare it with, from the catalog (drills.py)
     # Read as Know it until the owner chooses (the catalog's `known`): grammar in nearly every line,
@@ -495,6 +496,7 @@ def _load(catalog: Path, finders: dict[str, Finder]) -> tuple[Point, ...]:
             cast(Code, e["language"]),
             e["name"],
             e["note"],
+            e["example"],
             finders[e["id"]],
             tuple(e.get("related", ())),
             bool(e.get("known", False)),

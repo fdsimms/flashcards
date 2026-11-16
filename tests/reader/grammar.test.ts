@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import type { GrammarPoint } from '../../src/reader/api';
 import { canShuffleExamples, exampleSource, GRAMMAR_CHOICES, grammarChoiceOptions, grammarStateWord, grammarSummary, jlptLevels, jlptName, knownThroughLevel, markedParts, practicingPoints, seenLine } from '../../src/reader/grammar';
 
-const point = (id: string, state: GrammarPoint['state']): GrammarPoint => ({ id, name: id, note: '', state });
+const point = (id: string, state: GrammarPoint['state']): GrammarPoint => ({ id, name: id, note: '', example: '', state });
 
 test('the summary says how many points are practiced and not known yet', () => {
   expect(grammarSummary([point('a', 'normal')])).toBe('Nothing chosen');

@@ -1032,7 +1032,13 @@ def create_app(
         _, lexicon = engine.snapshot(text.language)
         choices = store.load_grammar(engine.conn)
         return [
-            {"id": p.id, "name": p.name, "note": p.note, "state": choices.get(p.id, "unset")}
+            {
+                "id": p.id,
+                "name": p.name,
+                "note": p.note,
+                "example": p.example,
+                "state": choices.get(p.id, "unset"),
+            }
             for p in grammar.points_in(text.lines[line].text, lexicon, text.language)
         ]
 
@@ -2312,6 +2318,7 @@ def create_app(
                     "id": p.id,
                     "name": p.name,
                     "note": p.note,
+                    "example": p.example,
                     "state": choices.get(p.id, "unset"),
                     "seen": _seen(seen[p.id]),
                     # The JLPT level, 5 for N5 up to 1 for N1; left out for a language with none.

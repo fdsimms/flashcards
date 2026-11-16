@@ -4,6 +4,7 @@ import { Alert, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { againPrompts, checkAnswer, drillPrompts, formGiven, promptKeys, type DrillRequest, type FormPrompt, type PracticeRecord, type Verdict } from '../core/forms';
 import { failureText } from '../core/failure';
+import { noteWithExample } from '../core/grammar';
 import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { practicingPoints } from '../reader/grammar';
@@ -380,7 +381,7 @@ function GrammarLine({ grammar, onOpen }: { grammar?: FormPrompt['grammar']; onO
     <View style={{ borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.s, marginTop: space.xs, gap: space.xs }}>
       <Text style={{ ...type.footnote, color: c.textSecondary }}>
         <Text style={{ fontWeight: '600', color: c.text }}>{`${grammar.name}.`}</Text>
-        {` ${grammar.note}.`}
+        {` ${noteWithExample(grammar)}.`}
       </Text>
       {onOpen ? (
         <View style={{ alignSelf: 'flex-start' }}>

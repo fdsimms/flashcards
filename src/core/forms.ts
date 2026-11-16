@@ -506,7 +506,7 @@ export interface FormPrompt {
   /** What to type when it's typed, so the box says what's wanted: "ten, ta or to", "masculine or feminine". Gender prompts only. */
   typeHint?: string;
   /** The grammar point the form is (docs/grammar.md), shown once the answer is. */
-  grammar?: { id: string; name: string; note: string };
+  grammar?: { id: string; name: string; note: string; example: string };
   /** The word's other forms that are spelled differently, with their names ("present · on"), to say which one a wrong answer was. */
   otherForms?: { text: string; name: string }[];
   /** Every form key it stands for, when it's several asked as one (`mergeSentencePrompts`); else only `key`. */
@@ -617,7 +617,7 @@ export function promptFor(
     ...(picked.length ? { choices: shuffle([form.answers[0], ...picked], random) } : {}),
     ...(gender ? {} : { sentence: sentenceFor(note, form, own, inSentence) }),
     ...(gender ? { typeHint: orList(genderChoices(note, form)), ...(isGenderWord(form.answers[0]) ? {} : { gap: true }) } : {}),
-    ...(point ? { grammar: { id: point.id, name: point.name, note: point.note } } : {}),
+    ...(point ? { grammar: { id: point.id, name: point.name, note: point.note, example: point.example } } : {}),
     ...(otherForms.length ? { otherForms } : {}),
     ...(lang && spoken ? { say: { text: spoken, lang } } : {}),
   };

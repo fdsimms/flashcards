@@ -169,6 +169,10 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
           <SectionTitle>About it</SectionTitle>
           <Card style={{ gap: space.m }}>
             <Text style={{ ...type.headline, color: c.text, lineHeight: 24 }}>{point.note}</Text>
+            <View style={{ gap: space.xs }}>
+              <Text style={{ ...type.caption, color: c.textSecondary, letterSpacing: 0.6, textTransform: 'uppercase' }}>Example</Text>
+              <Text style={{ ...type.body, color: c.text, lineHeight: 24 }}>{point.example}</Text>
+            </View>
             <View style={{ height: hairline, backgroundColor: c.border }} />
             {explanationParagraphs(point.explanation).map((para, i) => (
               <Text key={i} style={{ ...type.body, color: c.text, lineHeight: 24 }}>

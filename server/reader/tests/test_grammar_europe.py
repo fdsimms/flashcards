@@ -273,7 +273,7 @@ def test_every_language_but_english_has_points_with_names_and_notes() -> None:
     for code in LANGUAGES:
         assert points_for(code) or code == "en", code
     for p in POINTS.values():
-        assert p.name and p.note and "—" not in p.name + p.note
+        assert p.name and p.note and p.example and "—" not in p.name + p.note + p.example
         assert p.id.startswith(p.language + ".")
 
 

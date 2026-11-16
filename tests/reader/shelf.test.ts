@@ -84,7 +84,7 @@ describe('the grammar dial', () => {
   it('offers Practice only while fewer than the limit are practiced', () => {
     const list = (states: ('practice' | 'avoid' | 'normal' | 'unset')[]): GrammarList => ({
       max_practice: 2,
-      points: states.map((state, i) => ({ id: `es.p${i}`, name: `P${i}`, note: '', state })),
+      points: states.map((state, i) => ({ id: `es.p${i}`, name: `P${i}`, note: '', example: '', state })),
     });
     expect(hasPracticeRoom(list(['practice', 'normal', 'unset']))).toBe(true);
     expect(hasPracticeRoom(list(['practice', 'practice', 'unset']))).toBe(false);
