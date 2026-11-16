@@ -61,9 +61,7 @@ import { spokenAnswerNote } from '../core/speaking';
 import { keyboardLanguageForText } from '../core/keyboardLanguage';
 import { stripExpected } from '../core/typeAnswer';
 import { useKeyboardLanguage } from './useKeyboardLanguage';
-import { useSpeakingOn, useSpokenAnswer } from './useSpokenAnswer';
-import { ScoreTake } from './ScoreTake';
-import { mixupLanguage } from '../tools/mixups';
+import { useSpokenAnswer } from './useSpokenAnswer';
 import { languageName } from '../core/voices';
 import { TypedDiff } from './TypedDiff';
 import { SessionMissList, useSessionMisses, type MixupRequest } from './SessionMisses';
@@ -341,10 +339,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
    */
   const ttsRunning = useRef(false);
   // Record yourself: a take of your own voice for this card, played back next to its recording.
-  // A take is recorded so Azure can score it (Score it) while Answer by speaking is on.
-  const speakingOn = useSpeakingOn();
   const self = useSelfRecording(current?.id ?? null, AUDIO_MODE, {
-    scorable: speakingOn,
     onBeforeAudio: () => {
       if (ttsRunning.current) { Speech.stop(); ttsRunning.current = false; }
       player.current?.pause();
@@ -1061,7 +1056,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
               {canRecordYourself(rendered) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
                   <RecordYourself rec={self} label="Record" size="card" />
-                  <ScoreTake rec={self} reference={headword(note)} language={mixupLanguage(note)} />
                 </View>
               ) : null}
             </Reveal>

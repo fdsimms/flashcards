@@ -55,7 +55,7 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Franki uses the microphone when you record yourself to compare with a recording, or answer by speaking. Recordings stay on this iPhone and are deleted when you move on, unless you ask to score one.",
+          "microphonePermission": "Franki uses the microphone when you record yourself to compare with a recording, or answer by speaking. Recordings stay on this iPhone and are deleted when you move on.",
           "recordAudioAndroid": false,
           "enableBackgroundPlayback": true
         }
@@ -87,7 +87,7 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Franki uses the microphone when you record yourself to compare with a recording, or answer by speaking. Recordings stay on this iPhone and are deleted when you move on, unless you ask to score one.",
+          "microphonePermission": "Franki uses the microphone when you record yourself to compare with a recording, or answer by speaking. Recordings stay on this iPhone and are deleted when you move on.",
           "speechRecognitionPermission": "Franki turns what you say into text to compare with the answer, when you answer by speaking. Where iOS can, this happens on the iPhone; otherwise Apple's servers do it."
         }
       ]

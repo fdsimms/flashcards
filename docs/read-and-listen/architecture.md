@@ -436,15 +436,13 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
   Tap to start, stopping by itself on a pause (Review's Type it, Say it back, Sentences); hold to
   talk in Situations. What's heard fills the box and is compared like typing, the recognizer's guess
   closest to the answer taken (`bestHeard`).
-- **Score it** (`POST /api/pronunciation`, `pronunciation.py`, `franki_speech.SpeechClient.assess`):
-  a Record yourself take, scored against its line or word by Azure's pronunciation assessment on the
-  owner's tap. The take is 16 kHz WAV while speaking is on, sent as base64 JSON, and not kept. Each
-  word gets a band the app colors (good from 80, close from 60, again below, or left out or added),
-  with its weakest syllable. A language Azure won't assess is refused with that said plainly. Its
-  cost is Azure's estimate from the seconds sent, `pronunciation` in `/api/costs`. Open risks: the
-  request shape, the answer's fields and the price are from memory (Microsoft's pages weren't
-  reachable), and which of the app's languages Azure scores is unknown until it's asked; tones aren't
-  scored as such.
+- **Score it was removed** (16 November 2026, the owner's decision; don't bring it back without new
+  evidence). It sent a Record yourself take to Azure's pronunciation assessment and colored each word
+  by its score. Tried on a Thai word said with no tones at all, it gave 100 for sounds, flow and words
+  said: Azure scores phonemes, and a Thai tone isn't one, so the feature showed green where tones, the
+  hardest part for a learner, were wrong. Its leniency in other languages was never measured. A score
+  that can't say a take is wrong is worse than none, so it went from every language. Record yourself
+  stays: hearing your take next to the recording, which never leaves the phone.
 
 ## Hosting
 
