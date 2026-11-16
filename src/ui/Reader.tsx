@@ -16,7 +16,7 @@ import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf
 import { lineAudio } from '../reader/lineAudio';
 import { isSlow, NORMAL_RATE, RATES, SLOW_RATE } from '../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, type LengthStep } from '../reader/shelf';
-import { formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
+import { answerQuiz, formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../reader/session';
 import { locate, phraseRange, phrasePart, phraseText, pickEnd, type PhrasePick } from '../reader/phrase';
 import { choicesView, holdsPlayAll } from '../reader/choices';
 import { buildCheck, loggedScore, type CheckPicks, type CheckQuestion } from '../reader/check';
@@ -1226,6 +1226,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         flagged={tapped && session ? isFlagged(session, tapped.word.text) : false}
         onToggleFlag={review ? null : () => { if (tapped) setSession((s) => (s ? toggleFlag(s, tapped.word.text) : s)); }}
         onReveal={() => { if (tapped) setSession((s) => (s ? lookUp(s, tapped.word.text) : s)); }}
+        onQuizAnswer={(right) => { if (tapped) setSession((s) => (s ? answerQuiz(s, tapped.word.text, right) : s)); }}
         onPlay={() => {
           if (!tapped || !text) return;
           // The word and the line would talk over each other.
@@ -1340,7 +1341,7 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-export function GlossPopover({ tapped, language, translitLabel, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onReveal, onPlay, onSelectPhrase, onAddToDeck, onClose }: {
+export function GlossPopover({ tapped, language, translitLabel, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onReveal, onQuizAnswer, onPlay, onSelectPhrase, onAddToDeck, onClose }: {
   tapped: Tapped | null;
   /** The language the word is in, for its form's explanation; none, and no form chip is shown (a card's sentence has no forms). */
   language?: Language;
@@ -1356,6 +1357,8 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
   onToggleFlag: (() => void) | null;
   /** The meaning of a word that was held back (`tapped.guess`) has just been shown: a lookup. */
   onReveal?: () => void;
+  /** The quiz on a known word was answered: right, or wrong (a wrong pick or "I don't know"). A record, not a lookup. */
+  onQuizAnswer?: (right: boolean) => void;
   /** Starts selecting a phrase from this word, to have it explained. */
   onSelectPhrase: (() => void) | null;
   /** Opens the note editor on this word; null when the word is in the deck or isn't in the language being read. */
@@ -1424,11 +1427,18 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
               <GuessPrompt
                 mode={mode}
                 onPick={(i) => {
-                  if (i === mode.quiz?.answer) { rightAnswer(); onClose(); return; }
                   setPicked(i);
+                  if (i === mode.quiz?.answer) {
+                    // Stays open so the meaning is seen; not a lookup, since it was recalled.
+                    rightAnswer();
+                    setRevealed(true);
+                    onQuizAnswer?.(true);
+                    return;
+                  }
+                  onQuizAnswer?.(false);
                   reveal();
                 }}
-                onGiveUp={reveal}
+                onGiveUp={() => { onQuizAnswer?.(false); reveal(); }}
               />
             ) : (
               <>

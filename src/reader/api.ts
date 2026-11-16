@@ -297,6 +297,11 @@ export type ShelfStory = {
   title: string;
   about: string;
   read: number;
+  // Where the episode the card shows falls in its season, and how long a season is. Missing from
+  // a server older than seasons.
+  season?: number;
+  season_episode?: number;
+  season_length?: number;
   last_recap: string;
   // The same in the story's language, as words to tap, with that line's English. Null for an
   // episode written before it was asked for, and missing from a server older than it.
@@ -440,6 +445,9 @@ export type ReadingLog = {
   // The check after reading, when it was taken: answers right, of those asked.
   check_right?: number;
   check_asked?: number;
+  // The meaning quiz on a tapped word: the words answered right and wrong (a record only).
+  quiz_right?: string[];
+  quiz_wrong?: string[];
 };
 
 // A word queued for Claude to fill in (src/reader/noteQueue.ts). `fields` is what it wrote, by Anki field
@@ -621,8 +629,8 @@ export function createApi(
       call<{ ready: boolean; sentences: Word[][] }>('POST', '/api/glosses', { language, sentences }),
     // A line's grammar and vocabulary explained by Claude on the server: asked on the owner's tap, kept per
     // line there. `simple` is a second, plainer version.
-    explainLine: async (textId: number, line: number, simple: boolean) => {
-      const answer = await call<{ points: ExplainPoint[]; grammar?: LineGrammar[] }>('POST', `/api/texts/${textId}/lines/${line}/explain`, { simple });
+    explainLine: async (textId: number, line: number, simple: boolean, inLanguage = false) => {
+      const answer = await call<{ points: ExplainPoint[]; grammar?: LineGrammar[] }>('POST', `/api/texts/${textId}/lines/${line}/explain`, { simple, in_language: inLanguage });
       // A server older than step 3 sends no grammar.
       return { points: answer.points, grammar: answer.grammar ?? [] };
     },
@@ -649,8 +657,8 @@ export function createApi(
       headers: { Authorization: `Bearer ${passphrase}` },
     }),
     // A phrase selected in a line (as it appears there), explained the same way and kept per phrase.
-    explainPhrase: (textId: number, line: number, phrase: string, simple: boolean) =>
-      call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple }),
+    explainPhrase: (textId: number, line: number, phrase: string, simple: boolean, inLanguage = false) =>
+      call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple, in_language: inLanguage }),
     // Records a line's slow version if it isn't yet, and says when each of the line's words is spoken in it
     // (one entry per word, null for none): the normal recording's times don't fit.
     slowTimes: (textId: number, line: number) => call<{ times: (Word['time'] | null)[] }>('GET', `/api/texts/${textId}/lines/${line}/slow`),

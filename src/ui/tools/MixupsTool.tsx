@@ -20,7 +20,7 @@ const MODES: { value: MixupMode; label: string }[] = [{ value: 'meaning', label:
 const detail = (w: MixupWord) => [w.roman, w.meaning].filter(Boolean).join(' · ');
 
 /**
- * Words you mix up (src/tools/mixups.ts): a meaning and the word for it among its look-alikes, or
+ * Similar words (src/tools/mixups.ts): a meaning and the word for it among its look-alikes, or
  * a word played and which of its sound-alikes it was. Opened from Review's session end with the
  * words just missed (`notes`, a JSON list of note ids, and `mode`), it asks those first. A miss
  * comes back a few questions later. Nothing here grades a card.
@@ -144,10 +144,15 @@ export function MixupsTool({ tool, repo, params }: ToolScreenProps) {
             ))}
           </View>
           {picked !== undefined ? (
-            <Reveal>
+            <Reveal style={{ gap: space.xs }}>
               {picked === question.target.noteId
                 ? <Status tone="good">Right.</Status>
-                : <Status tone="bad">{`Not quite. It's ${question.target.word}.${mode === 'ear' ? ' Play each one to hear the difference.' : ''} It comes back in a few words.`}</Status>}
+                : (
+                  <>
+                    <Status tone="bad">{`Not quite. It's ${question.target.word}.`}</Status>
+                    {mode === 'ear' ? <Help>Play each word to compare how they sound.</Help> : null}
+                  </>
+                )}
             </Reveal>
           ) : null}
           {owed ? <Help>{`From your last session: ${owed} more ${owed === 1 ? 'word' : 'words'} to go.`}</Help> : null}

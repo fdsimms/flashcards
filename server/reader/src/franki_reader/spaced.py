@@ -219,6 +219,9 @@ _LEMMA_FIXES: dict[str, dict[str, str]] = {
     # gone comes back as "gan", worse as "wrong". Forms that are also a common noun or adjective
     # (left, rose, felt, thought) are left out, as for the others.
     "en": {"gone": "go", "worse": "bad"},
+    # дали (they gave) comes back as the noun даль and дам (I'll give) as дама. Both are rare as the
+    # noun, so the verb wins; the other forms of дать already lemmatize correctly.
+    "ru": {"дали": "дать", "дам": "дать"},
 }
 
 
