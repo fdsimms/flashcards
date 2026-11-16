@@ -472,6 +472,7 @@ def test_a_story_episode_asks_to_carry_the_story_on() -> None:
     first = request_message(TextRequest("a noodle stall", story=StoryContext(1, "a noodle stall")))
     assert "first episode of an ongoing story" in first and "It's about: a noodle stall" in first
     assert '"series"' in first and '"cast"' in first
+    assert "name in the language of the text" in first and "short English name" not in first
 
     later = request_message(
         TextRequest(
