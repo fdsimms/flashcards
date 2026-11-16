@@ -73,10 +73,10 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
               <Text style={{ ...type.footnote, color: c.textSecondary }}>{`${practicing.length} of ${max}`}</Text>
             </View>
             {practicing.length === 0 ? (
-              <Text style={{ ...type.subhead, color: c.textSecondary }}>Nothing set to Practice. Pick a point below, or Practice one from the suggestions.</Text>
+              <Text style={{ ...type.subhead, color: c.textSecondary }}>Nothing set to Practice. Pick a grammar point below, or Practice one from the suggestions.</Text>
             ) : (
               <>
-                <Text style={{ ...type.subhead, color: c.textSecondary }}>Used at least twice in every text. Know it takes a point out of Practice.</Text>
+                <Text style={{ ...type.subhead, color: c.textSecondary }}>Used at least twice in every text. Know it takes a grammar point out of Practice.</Text>
                 {practicing.map((p) => (
                   <View key={p.id} style={{ gap: space.s, paddingTop: space.s, borderTopWidth: hairline, borderTopColor: c.border }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
@@ -98,7 +98,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
             <Text style={{ ...type.headline, color: c.text }}>Seen least of what you know</Text>
             <Text style={{ ...type.subhead, color: c.textSecondary }}>
               {full
-                ? 'These are being worked into your next texts. Remove a practiced point above to practice one of these.'
+                ? 'These are being worked into your next texts. Remove a practiced grammar point above to practice one of these.'
                 : 'These are being worked into your next texts. Practice one to see it in every text.'}
             </Text>
             {least.map((p) => (

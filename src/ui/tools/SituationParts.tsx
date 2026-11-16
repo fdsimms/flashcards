@@ -33,7 +33,7 @@ export function TheirLine({ turn, name, look, lang, heardOnly, onPlay }: {
       <Text style={{ ...type.caption, fontWeight: '600', color: c.onSpeakerB }}>{name}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
         {shown ? (
-          <Text accessibilityLanguage={lang} style={{ ...look, color: c.text, flex: 1 }}>
+          <Text accessibilityLanguage={lang} style={{ ...look, color: c.text, flexShrink: 1 }}>
             {turn.words.length ? turn.words.map((w, i) => (w.status === null ? w.text : (
               <Text
                 key={i}
@@ -47,7 +47,7 @@ export function TheirLine({ turn, name, look, lang, heardOnly, onPlay }: {
             ))) : turn.line}
           </Text>
         ) : (
-          <Tappable onPress={() => { haptic.select(); setShown(true); }} accessibilityRole="button" style={{ flex: 1, minHeight: MIN_TAP, justifyContent: 'center' }}>
+          <Tappable onPress={() => { haptic.select(); setShown(true); }} accessibilityRole="button" style={{ flexShrink: 1, minHeight: MIN_TAP, justifyContent: 'center' }}>
             <Text style={{ ...type.callout, color: c.accent }}>Show the text</Text>
           </Tappable>
         )}
