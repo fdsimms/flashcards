@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ActionSheetIOS, Alert, ScrollView, Text } from 'react-native';
 import { problemText, WaniKaniError } from '../wanikani/api';
-import { APPRENTICE_LIMIT_CHOICES, NEW_PER_DAY_CHOICES } from '../wanikani/prefs';
+import { APPRENTICE_LIMIT_CHOICES, NEW_PER_DAY_CHOICES, parseApprenticeLimit } from '../wanikani/prefs';
 import { PRODUCTION_BATCH } from '../wanikani/productionService';
 import { Button, Card, CheckRow, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
 import type { WaniKaniState } from './useWaniKani';
@@ -35,6 +35,25 @@ export function WaniKaniSettings({ wanikani, decks }: {
     } finally {
       setBusy(false);
     }
+  };
+
+  const customLimit = () => {
+    Alert.prompt(
+      'Apprentice limit',
+      'Lessons aren\'t offered while more than this many items are at Apprentice.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Set', isPreferred: true,
+          onPress: (text?: string) => {
+            const n = parseApprenticeLimit(text ?? '');
+            if (n === null) Alert.alert("That isn't a limit", 'Enter a whole number of 1 or more, like 80.');
+            else setPrefs({ maxApprentice: n });
+          },
+        },
+      ],
+      'plain-text', prefs.maxApprentice !== null ? String(prefs.maxApprentice) : '', 'number-pad',
+    );
   };
 
   const turnOff = () => {
@@ -142,6 +161,12 @@ export function WaniKaniSettings({ wanikani, decks }: {
           {APPRENTICE_LIMIT_CHOICES.map((n, i) => (
             <CheckRow key={n ?? 'none'} first={i === 0} label={n === null ? 'No limit' : String(n)} selected={prefs.maxApprentice === n} onPress={() => setPrefs({ maxApprentice: n })} />
           ))}
+          <CheckRow
+            label={prefs.maxApprentice !== null && !APPRENTICE_LIMIT_CHOICES.includes(prefs.maxApprentice) ? `Custom: ${prefs.maxApprentice}` : 'Custom'}
+            hint="Enter any number."
+            selected={prefs.maxApprentice !== null && !APPRENTICE_LIMIT_CHOICES.includes(prefs.maxApprentice)}
+            onPress={customLimit}
+          />
         </Group>
         <Help>
           {`Lessons aren't offered while more than this many items are at Apprentice. Reviews are never held back.${wanikani.on && wanikani.apprentice !== null ? ` ${wanikani.apprentice} at Apprentice now.` : ''}`}

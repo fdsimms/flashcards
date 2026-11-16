@@ -26,7 +26,15 @@ export const DEFAULT_PREFS: WaniKaniPrefs = { answer: 'type', separate: true, ne
 export const NEW_PER_DAY_CHOICES = [0, 5, 10, 15, 20, 30, 50];
 
 /** The Apprentice limits offered in options; null is no limit. */
-export const APPRENTICE_LIMIT_CHOICES: (number | null)[] = [null, 50, 75, 100, 125, 150, 200];
+export const APPRENTICE_LIMIT_CHOICES: (number | null)[] = [null, 25, 50, 75, 100, 125, 150, 200];
+
+/** What was typed for a custom Apprentice limit: a whole number of 1 or more, else null (refused with the reason on screen). */
+export function parseApprenticeLimit(text: string): number | null {
+  const t = text.trim();
+  if (!/^\d+$/.test(t)) return null;
+  const n = Number(t);
+  return n >= 1 && Number.isSafeInteger(n) ? n : null;
+}
 
 export function parsePrefs(raw: string | null | undefined): WaniKaniPrefs {
   let o: Record<string, unknown> = {};
