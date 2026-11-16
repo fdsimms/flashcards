@@ -44,7 +44,7 @@ import { ReadFormChip, ReadFormSheet } from './ReadFormSheet';
 import { ReaderFormQuiz } from './ReaderFormQuiz';
 import { useFormQuiz } from './useFormQuiz';
 import { ReadFrequency } from './ReadFrequency';
-import { GuessLine, GuessPrompt, QuizChoices, rightAnswer } from './ReadWordGuess';
+import { GuessPrompt, QuizChoices, rightAnswer } from './ReadWordGuess';
 import { PracticeWordPill, TintPill } from './PracticeWordPill';
 import { WordView } from './ReadWord';
 import { ReaderKey } from './ReaderKey';
@@ -309,6 +309,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const headerHeight = useHeaderHeight();
 
   useEffect(() => {
+    // Listening without the text there's nothing to follow: the rows are only labels.
+    if (listenOnly) return;
     const at = current === null ? -1 : paras ? rangeOf(paras, current) : current;
     const box = at < 0 ? undefined : lineBoxes.current[at];
     if (!box || !viewHeight.current) return;
@@ -812,6 +814,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   return (
     <Screen
       largeTitle={false}
+      // The swipe back would take the touch from a phrase drag that starts or runs near the left edge.
+      lockGesture={phraseDrag.dragging}
       toolbar={text && !ended && !listenOnly ? (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Menu icon="slider.horizontal.3" accessibilityLabel="Reading options">
@@ -948,6 +952,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
             )}
           </View>
           {paras ? paras.map((range, g) => {
+            // Listening without the text, a paragraph has nothing to show or tap: no placeholder.
+            if (listenOnly) return null;
             const lines = text.lines.slice(range.start, range.end + 1);
             return (
               <View
@@ -958,45 +964,41 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                 }}
                 style={{ paddingHorizontal: space.l, paddingBottom: space.l }}
               >
-                {listenOnly ? (
-                  <Text style={{ ...type.subhead, color: c.textSecondary, paddingVertical: space.s }}>{`Paragraph ${g + 1}`}</Text>
-                ) : (
-                  <View {...phraseDrag.lineProps} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
-                    {lines.map((l, k) => (
-                      <React.Fragment key={k}>
-                        {wrapGroups(l.words).map((chunk, j, chunks) => (
-                          <View key={j} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            {chunk.map((word, m) => (
-                              <WordView
-                                key={m}
-                                word={word}
-                                textStyle={readStyle(text, thaiFont, textSize)}
-                                grammar={grammarOf(text, word)}
-                                flagged={isFlagged(session, word.text)}
-                                highlighted={highlight && isOutsideDeck(word)}
-                                named={markNames && isName(word)}
-                                selected={tapped?.word === word}
-                                hidden={hiddenMarks}
-                                {...phraseLook(range.start + k, word, l.words)}
-                                playing={shaded === range.start + k}
-                                spoken={spoken.has(word)}
-                                slot={quiz.view(word, shaded === range.start + k)}
-                                onPress={tap}
-                                onLongPress={phraseDrag.begin}
-                                viewRef={phraseDrag.wordRef(word)}
-                              />
-                            ))}
-                            {/* The gap before the next sentence trails this one's last chunk, never starts a row of its own:
-                                a lone spacer that wrapped to a new row indented that row. */}
-                            {j === chunks.length - 1 && k < lines.length - 1
-                              ? <View style={{ width: readStyle(text, thaiFont, textSize).fontSize * 0.5 }} /> : null}
-                          </View>
-                        ))}
-                      </React.Fragment>
-                    ))}
-                  </View>
-                )}
-                {!listenOnly && english ? (
+                <View {...phraseDrag.lineProps} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {lines.map((l, k) => (
+                    <React.Fragment key={k}>
+                      {wrapGroups(l.words).map((chunk, j, chunks) => (
+                        <View key={j} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          {chunk.map((word, m) => (
+                            <WordView
+                              key={m}
+                              word={word}
+                              textStyle={readStyle(text, thaiFont, textSize)}
+                              grammar={grammarOf(text, word)}
+                              flagged={isFlagged(session, word.text)}
+                              highlighted={highlight && isOutsideDeck(word)}
+                              named={markNames && isName(word)}
+                              selected={tapped?.word === word}
+                              hidden={hiddenMarks}
+                              {...phraseLook(range.start + k, word, l.words)}
+                              playing={shaded === range.start + k}
+                              spoken={spoken.has(word)}
+                              slot={quiz.view(word, shaded === range.start + k)}
+                              onPress={tap}
+                              onLongPress={phraseDrag.begin}
+                              viewRef={phraseDrag.wordRef(word)}
+                            />
+                          ))}
+                          {/* The gap before the next sentence trails this one's last chunk, never starts a row of its own:
+                              a lone spacer that wrapped to a new row indented that row. */}
+                          {j === chunks.length - 1 && k < lines.length - 1
+                            ? <View style={{ width: readStyle(text, thaiFont, textSize).fontSize * 0.5 }} /> : null}
+                        </View>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </View>
+                {english ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: space.xs }}>{lines.map((l) => l.english).join(' ')}</Text>
                 ) : null}
               </View>
@@ -1370,13 +1372,11 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
   const [showTranslit, setShowTranslit] = useState(false);
   // The form chip's explanation replaces the popover while it's open.
   const [showForm, setShowForm] = useState(false);
-  // A word whose meaning is held back (`tapped.guess`): whether it has been shown, what was typed as
-  // a guess, the quiz choice picked (null for "I don't know"), and whether the guess box has focus.
+  // A word whose meaning is held back (`tapped.guess`): whether it has been shown, and the quiz
+  // choice picked (null for "I don't know").
   const [revealed, setRevealed] = useState(false);
-  const [guess, setGuess] = useState('');
   const [picked, setPicked] = useState<number | null>(null);
-  const [typing, setTyping] = useState(false);
-  useEffect(() => { setPopHeight(0); setShowTranslit(false); setShowForm(false); setRevealed(false); setGuess(''); setPicked(null); setTyping(false); }, [tapped]);
+  useEffect(() => { setPopHeight(0); setShowTranslit(false); setShowForm(false); setRevealed(false); setPicked(null); }, [tapped]);
   if (!tapped) return null;
   const ipaLine = ipaNote(tapped.word);
   if (showForm && language && tapped.word.form) return <ReadFormSheet api={api} language={language} word={tapped.word} onClose={onClose} />;
@@ -1385,15 +1385,11 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
   // Above the word when it clears the status bar, so the finger and the word both stay visible;
   // otherwise below it, and never past the bottom edge.
   const above = tapped.y - POPOVER_GAP - popHeight;
-  // The guess box is a keyboard away from the bottom half of the screen: while it has focus the
-  // popover sits at the top.
-  const top = typing
-    ? insets.top + space.l
-    : Math.min(above >= insets.top + space.s ? above : tapped.y + POPOVER_GAP, height - popHeight - insets.bottom - space.s);
+  const top = Math.min(above >= insets.top + space.s ? above : tapped.y + POPOVER_GAP, height - popHeight - insets.bottom - space.s);
   const mode = tapped.guess ?? null;
   // Meaning held back until asked for.
   const trying = !!mode && !revealed;
-  const reveal = () => { setRevealed(true); setTyping(false); onReveal?.(); };
+  const reveal = () => { setRevealed(true); onReveal?.(); };
   const actions: Parameters<typeof WordActionRow>[0][] = [];
   if (trying) {
     if (!mode.quiz) actions.push({ icon: 'eye', label: 'Show meaning', accessibilityLabel: `Show the meaning of ${tapped.word.text}`, onPress: reveal, chevron: false });
@@ -1427,10 +1423,6 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
             {trying ? (
               <GuessPrompt
                 mode={mode}
-                guess={guess}
-                onGuess={setGuess}
-                onFocus={() => setTyping(true)}
-                onBlur={() => setTyping(false)}
                 onPick={(i) => {
                   if (i === mode.quiz?.answer) { rightAnswer(); onClose(); return; }
                   setPicked(i);
@@ -1449,7 +1441,6 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
                 {(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary }}>{(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction}</Text>
                 ) : null}
-                <GuessLine guess={guess} />
                 {tapped.word.form && language ? <ReadFormChip name={tapped.word.form.name} onPress={() => setShowForm(true)} /> : null}
                 {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
                 <ReadFrequency word={tapped.word} />
