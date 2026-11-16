@@ -59,9 +59,14 @@ export function counts(items: QueuedNote[]): { ready: number; waiting: number; f
 
 export const firstReady = (items: QueuedNote[]): QueuedNote | undefined => items.find((n) => n.state === 'ready');
 
-/** The new note a ready word starts as, for the note editor: the fields Claude wrote under the Entry. */
-export function reviewTarget(note: QueuedNote): { deck: string; model: string; fields: Record<string, string> } {
-  return { deck: note.deck, model: 'Omnilanguage', fields: { Entry: note.entry, ...note.fields } };
+/**
+ * The new note a ready word starts as, for the note editor: the fields Claude wrote under the Entry,
+ * and its part of speech as the tag, as the owner's finished notes carry it.
+ */
+export function reviewTarget(note: QueuedNote): { deck: string; model: string; fields: Record<string, string>; tags?: string[] } {
+  const target = { deck: note.deck, model: 'Omnilanguage', fields: { Entry: note.entry, ...note.fields } };
+  const part = note.fields.PartOfSpeech;
+  return part ? { ...target, tags: [part] } : target;
 }
 
 const notes = (n: number) => (n === 1 ? '1 note' : `${n} notes`);

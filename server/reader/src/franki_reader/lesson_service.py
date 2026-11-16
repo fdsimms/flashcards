@@ -34,7 +34,9 @@ Synthesize = Callable[[str, str, str], Awaitable[bytes]]
 Renderer = Callable[..., Awaitable[Rendered]]
 
 
-_NARRATOR = re.compile(r"en-[A-Za-z]{2,4}-[A-Za-z0-9]+")
+# The colon is for Azure's Dragon HD voices (en-US-Ada:DragonHDLatestNeural), which the voice list
+# offers; the app's own check (`parseNarrator`) allows it too.
+_NARRATOR = re.compile(r"en-[A-Za-z]{2,4}-[A-Za-z0-9:]+")
 
 
 def is_narrator_voice(voice: str) -> bool:
