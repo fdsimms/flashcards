@@ -201,10 +201,10 @@ Franki's (Client, below).
   don't count toward the 1, 4 and 10 day Listen again schedule, which starts the day after.
 - **Guess first** (15 November 2026, the owner chose from a mock). A tap on a word shows its meaning
   only when asked for (Settings, Read & Listen, Meanings, on by default), so the learner tries before
-  being told: a word counted as known is recalled, a word outside the deck (or only inside a longer
-  phrase) is worked out from the line, with an optional box for a typed guess that is shown beside the
-  meaning and never graded, kept or sent. The hint is "Try to remember it first." or "Guess from the
-  line first."; a name and a word with no meaning to show open as before (`src/reader/guess.ts`,
+  being told: a word counted as known is recalled. **A word outside the deck (or only inside a longer
+  phrase) shows its meaning at once** (16 November 2026): it first asked for a guess from the line,
+  with a box for a typed one, and the owner found being made to guess before looking up annoying.
+  The hint is "Try to remember it first."; a name and a word with no meaning to show open as before (`src/reader/guess.ts`,
   `ReadWordGuess.tsx`). A second setting, **Quiz me on words I know** (off by default, shown with the
   first), replaces the Show meaning row on a known word with four choices (its meaning and three other
   glosses from the text, as the check after reading builds them) and I don't know: a right answer closes
