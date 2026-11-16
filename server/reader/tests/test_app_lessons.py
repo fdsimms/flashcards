@@ -120,7 +120,7 @@ def test_the_routes_need_the_passphrase(tmp_path: Path) -> None:
 
 def test_lists_the_languages_a_lesson_can_be_made_in(tmp_path: Path) -> None:
     body = lesson_client(tmp_path).get("/api/lessons", headers=AUTH).json()
-    assert body == {"languages": ["fr"], "lessons": []}
+    assert body == {"languages": ["fr", "th", "es", "de", "ru", "el", "pl", "nb"], "lessons": []}
 
 
 @pytest.mark.parametrize(
@@ -154,10 +154,10 @@ def test_refuses_a_narrator_that_is_not_an_english_voice(tmp_path: Path, narrato
 
 def test_refuses_a_language_it_cannot_make_yet(tmp_path: Path) -> None:
     r = lesson_client(tmp_path).post(
-        "/api/lessons", json={"language": "es", "scene": "a café"}, headers=AUTH
+        "/api/lessons", json={"language": "ja", "scene": "a café"}, headers=AUTH
     )
     assert r.status_code == 422
-    assert r.json()["detail"] == "Audio lessons aren't made in Spanish yet."
+    assert r.json()["detail"] == "Audio lessons aren't made in Japanese yet."
 
 
 @pytest.mark.parametrize("scene", ["", "   ", "x" * 201])

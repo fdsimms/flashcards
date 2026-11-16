@@ -21,7 +21,8 @@ exact and the same every time:
 The phrases are written as a ladder, each reusing words from the ones before it, so the lesson
 builds on itself rather than teaching separate phrases.
 
-Only languages written with spaces between words, since a phrase's parts are joined with spaces.
+Languages written with spaces between words, and Thai (cut into words by `tokens`, its parts joined
+with no space).
 
 Generate, then verify: a phrase is kept only if its parts, put back together, are the phrase, and
 none is empty. A lesson with fewer than `MIN_PHRASES` kept phrases isn't made. Nothing here grades
@@ -31,6 +32,8 @@ a card or writes a note: what the learner says aloud is never heard by the phone
 import re
 from dataclasses import dataclass
 from typing import Any, Literal
+
+from pythainlp.tokenize import word_tokenize
 
 MIN_PHRASES, MAX_PHRASES = 3, 5
 MIN_PARTS, MAX_PARTS = 1, 4
@@ -99,12 +102,23 @@ class Plan:
     mixes: tuple[Phrase, ...] = ()
 
 
-_WORD = re.compile(r"[\w']+", re.UNICODE)
+# A word's letters. Thai's vowel and tone marks aren't `\w` (they're combining marks), so they're
+# named, or a Thai word would split at every one.
+_WORD = re.compile(r"[\w'\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]+", re.UNICODE)
+_THAI = re.compile(r"[\u0E00-\u0E7F]")
 _SPACES = re.compile(r"\s+")
 
 
+def tokens(text: str) -> list[str]:
+    """The words of `text`. Thai is written without spaces between words, so it's cut by the same
+    segmenter the rest of the server uses (newmm); anything else is split where it's spaced."""
+    if _THAI.search(text):
+        return [t for t in word_tokenize(text, engine="newmm") if _WORD.search(t)]
+    return _WORD.findall(text)
+
+
 def word_count(text: str) -> int:
-    return len(_WORD.findall(text))
+    return len(tokens(text))
 
 
 def pause_ms(words: int) -> int:
@@ -143,8 +157,8 @@ def clean_phrase(raw: object) -> Phrase | None:
     return Phrase(text, english, chunks)
 
 
-def _words(text: str) -> set[str]:
-    return set(_WORD.findall(text.casefold()))
+def words_of(text: str) -> set[str]:
+    return set(tokens(text.casefold()))
 
 
 def clean_mix(raw: object, known: set[str]) -> Phrase | None:
@@ -158,7 +172,7 @@ def clean_mix(raw: object, known: set[str]) -> Phrase | None:
     text, english = _squash(text), _squash(english)
     if not text or not english or len(text) > MAX_CHARS or len(english) > MAX_CHARS:
         return None
-    if not _words(text) or not _words(text) <= known:
+    if not words_of(text) or not words_of(text) <= known:
         return None
     return Phrase(text, english, (text,))
 
@@ -189,7 +203,7 @@ def clean_plan(raw: object, scene: str) -> Plan | None:
     if len(phrases) < MIN_PHRASES or not dialogue:
         return None
     phrases = phrases[:MAX_PHRASES]
-    known = set().union(*(_words(p.text) for p in phrases))
+    known = set().union(*(words_of(p.text) for p in phrases))
     taught = {_plain(p.text) for p in phrases}
     mixes: list[Phrase] = []
     for item in raw.get("mixes", []) if isinstance(raw.get("mixes"), list) else []:
@@ -211,7 +225,9 @@ def build_up(phrase: Phrase) -> list[str]:
     "un café s'il vous plaît" in parts un café | s'il vous plaît is "s'il vous plaît", then the
     whole. A phrase of one part has only itself."""
     parts = phrase.parts
-    steps = [" ".join(parts[i:]) for i in range(len(parts) - 1, -1, -1)]
+    # Thai has no spaces between words, and Azure's voice would pause at one.
+    joiner = "" if _THAI.search(phrase.text) else " "
+    steps = [joiner.join(parts[i:]) for i in range(len(parts) - 1, -1, -1)]
     return steps[:-1] + [phrase.text] if len(parts) > 1 else [phrase.text]
 
 

@@ -351,8 +351,11 @@ Practice tab's Situations tool (`src/ui/tools/SituationsTool.tsx`).
 ## Audio lessons
 
 Decided 15 November 2026, the owner's idea: a guided audio course in the manner of a prompt-and-answer
-language course, for the car or a walk. French first, as an experiment (`LESSON_LANGUAGES` in
-`lesson_service.py`; another language written with spaces needs only its voices). Not a replay of the
+language course, for the car or a walk. French first, as an experiment, then Thai and every other language but Japanese and English (`LESSON_LANGUAGES` in
+`lesson_service.py`; another language written with spaces needs only its voices). Thai has no spaces, so
+`lesson.tokens` cuts it into words with newmm (for pauses and for checking mixes), its parts are
+joined with no space, and the request tells Claude to leave the gendered particles ครับ and ค่ะ out of
+the phrases taught. Not a replay of the
 texts: a lesson teaches 3 to 5 new phrases on a scene the owner types ("ordering a coffee"), from
 outside the deck. Nothing here reads the deck, grades a card or writes a note; what the learner says
 aloud is never heard by the phone.
