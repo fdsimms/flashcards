@@ -15,12 +15,15 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader import lesson
 from franki_reader.claude_errors import didnt_answer
+from franki_reader.coverage import Checker
 from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 
 MAX_TOKENS = 4000
 MAX_ATTEMPTS = 2
 MAX_SCENE = 200
+# How many unknown words a retry names.
+MAX_NAMED_WORDS = 12
 
 _REQUEST = """\
 Write the content of a short spoken {language} lesson for a beginner, set in this situation:
@@ -33,7 +36,8 @@ what you give. Give:
 - title: a short English title for the lesson (two to five words)
 - dialogue: {low} to {high} lines of natural, spoken conversation in {language} in that situation,
   between A (a man) and B (a woman). Each line: speaker (A or B), text ({language}), english. The
-  phrases below should come up in it.
+  phrases below should come up in it. The learner hears it first and acts it out last, so build it
+  from the phrases taught and very basic everyday words, with no rarer vocabulary.
 - phrases: {few} to {many} phrases the learner will practice saying, simplest first, each one
   something a person would really say in that situation. Each: text ({language}), english (what it
   means, in natural English), and parts.
@@ -129,6 +133,12 @@ _RETRY = (
     " together, aren't the phrase exactly, or it is repeated. Write the lesson again."
 )
 
+_RETRY_WORDS = (
+    "The learner doesn't know these words from the dialogue: {words}. The dialogue is played first and"
+    " acted out last, so it may use only the phrases taught and very basic everyday words. Write the"
+    " lesson again with simpler dialogue lines, replacing those words or teaching them in a phrase."
+)
+
 
 def request_message(language: Code, scene: str) -> str:
     return _REQUEST.format(
@@ -144,11 +154,16 @@ def request_message(language: Code, scene: str) -> str:
     )
 
 
-async def write_plan(write: WritePlan, language: Code, scene: str) -> tuple[lesson.Plan, Usage]:
+async def write_plan(
+    write: WritePlan, language: Code, scene: str, lexicon: Checker | None = None
+) -> tuple[lesson.Plan, Usage]:
     """The plan for a lesson on `scene`, asked for up to `MAX_ATTEMPTS` times; what the calls cost
-    comes back with it, or on the failure."""
+    comes back with it, or on the failure. With the learner's `lexicon`, a dialogue with words
+    they don't know (`lesson.unfamiliar_words`) is asked for again naming them; when no attempt gets
+    clear of them, the usable plan with the fewest is kept rather than no lesson."""
     used = Usage()
     feedback = ""
+    closest: tuple[int, lesson.Plan] | None = None
     for _ in range(MAX_ATTEMPTS):
         try:
             raw, spent = await write(language, scene, feedback)
@@ -156,9 +171,17 @@ async def write_plan(write: WritePlan, language: Code, scene: str) -> tuple[less
             raise LessonFailed(str(e), used + e.usage) from e
         used = used + spent
         plan = lesson.clean_plan(raw, scene)
-        if plan is not None:
+        if plan is None:
+            feedback = _RETRY.format(n=lesson.MIN_PHRASES)
+            continue
+        strangers = lesson.unfamiliar_words(plan, lexicon) if lexicon is not None else []
+        if not strangers:
             return plan, used
-        feedback = _RETRY.format(n=lesson.MIN_PHRASES)
+        if closest is None or len(strangers) < closest[0]:
+            closest = (len(strangers), plan)
+        feedback = _RETRY_WORDS.format(words=", ".join(strangers[:MAX_NAMED_WORDS]))
+    if closest is not None:
+        return closest[1], used
     raise LessonFailed("Claude didn't write a usable lesson. Try again.", used)
 
 

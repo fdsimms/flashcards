@@ -11,6 +11,7 @@ from franki_reader.generator import Usage
 from franki_reader.lesson import Step
 from franki_reader.lesson_audio import LessonAudioFailed, Rendered, Speak
 from franki_reader.lesson_writer import LessonFailed
+from franki_reader.lexicon import Entry, lexicon_from
 from franki_reader.tts import TtsFailed
 
 NOW = datetime(2026, 11, 15, 12, 0)
@@ -266,6 +267,58 @@ def test_gives_up_after_two_unusable_plans(tmp_path: Path) -> None:
     kept = store.get_lesson(conn, lesson_id)
     assert kept is not None
     assert (kept.state, kept.error) == ("failed", "Claude didn't write a usable lesson. Try again.")
+
+
+def deck(*words: str) -> Any:
+    entries = [Entry(i, w, "x", "mature") for i, w in enumerate(words)]
+    return lexicon_from(entries, "fr", 0)
+
+
+STRANGE = good_plan() | {
+    "dialogue": [
+        {"speaker": "A", "text": "Bonjour, quelle boulangerie magnifique !", "english": "x"},
+        {"speaker": "B", "text": "Un café, s'il vous plaît.", "english": "A coffee, please."},
+    ]
+}
+
+
+def test_asks_again_naming_the_dialogue_words_the_learner_doesnt_know(tmp_path: Path) -> None:
+    conn = store.connect(":memory:")
+    fakes = Fakes()
+    answers = [STRANGE, good_plan()]
+
+    async def write(language: str, scene: str, feedback: str) -> tuple[Any, Usage]:
+        fakes.asked.append((scene, feedback))
+        return answers.pop(0), USAGE
+
+    lexicon = deck("bonjour", "vous", "désirez")
+    lesson_id = run(conn, fakes, tmp_path, write=write, lexicon=lexicon)
+    kept = store.get_lesson(conn, lesson_id)
+    assert kept is not None and kept.state == "ready"
+    assert fakes.asked[0][1] == ""
+    assert "quelle, boulangerie, magnifique" in fakes.asked[1][1]
+
+
+def test_keeps_the_closest_dialogue_when_every_try_has_unknown_words(tmp_path: Path) -> None:
+    conn = store.connect(":memory:")
+
+    async def write(language: str, scene: str, feedback: str) -> tuple[Any, Usage]:
+        return STRANGE, USAGE
+
+    lesson_id = run(conn, Fakes(), tmp_path, write=write, lexicon=deck("bonjour"))
+    kept = store.get_lesson(conn, lesson_id)
+    assert kept is not None and kept.state == "ready"
+
+
+def test_a_dialogue_of_taught_and_known_words_is_asked_for_once(tmp_path: Path) -> None:
+    fakes = Fakes()
+    lesson_id = run(
+        store.connect(":memory:"),
+        fakes,
+        tmp_path,
+        lexicon=deck("bonjour", "vous", "désirez"),
+    )
+    assert lesson_id and len(fakes.asked) == 1
 
 
 def test_the_request_names_the_language_and_scene() -> None:

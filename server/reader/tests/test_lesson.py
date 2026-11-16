@@ -1,5 +1,6 @@
 from franki_reader import lesson
 from franki_reader.lesson import Line, Phrase, Plan, Say, Silence
+from franki_reader.lexicon import Entry, lexicon_from
 
 
 def phrase(text: str, english: str, *parts: str) -> Phrase:
@@ -376,3 +377,34 @@ def test_describe_lists_what_the_app_shows() -> None:
     assert out["title"] == "At the café"
     assert out["phrases"][0] == {"text": "Je voudrais un café.", "english": "I'd like a coffee."}
     assert out["dialogue"][1]["speaker"] == "B"
+
+
+def known(*words: str):  # type: ignore[no-untyped-def]
+    return lexicon_from([Entry(i, w, "x", "mature") for i, w in enumerate(words)], "fr", 0)
+
+
+def plan_saying(*lines: str) -> Plan:
+    dialogue = tuple(Line("A", text, "x") for text in lines)
+    return Plan(PLAN.title, PLAN.scene, dialogue, PLAN.phrases)
+
+
+class TestUnfamiliarWords:
+    def test_taught_and_known_words_are_fine(self) -> None:
+        plan = plan_saying("Bonjour, je voudrais un café.")
+        assert lesson.unfamiliar_words(plan, known("bonjour")) == []
+
+    def test_a_line_may_hold_a_couple_of_strangers(self) -> None:
+        plan = plan_saying("Bonjour, quelle boulangerie !")
+        assert lesson.unfamiliar_words(plan, known("bonjour")) == []
+
+    def test_names_the_strangers_of_a_line_over_the_allowance(self) -> None:
+        plan = plan_saying("Quelle boulangerie magnifique !", "Bonjour.")
+        assert lesson.unfamiliar_words(plan, known("bonjour")) == [
+            "Quelle",
+            "boulangerie",
+            "magnifique",
+        ]
+
+    def test_a_word_taught_in_a_phrase_isnt_a_stranger(self) -> None:
+        plan = plan_saying("Une carafe d'eau, magnifique, quelle boulangerie")
+        assert lesson.unfamiliar_words(plan, known()) == ["magnifique", "quelle", "boulangerie"]

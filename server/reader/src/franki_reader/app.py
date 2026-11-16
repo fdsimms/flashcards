@@ -1744,7 +1744,8 @@ def create_app(
 
     @app.post("/api/lessons", status_code=202, dependencies=authed)
     async def make_lesson(body: LessonIn, background: BackgroundTasks) -> dict[str, Any]:
-        """Never reads the deck, writes to Anki or grades a card."""
+        """Reads the deck's snapshot to keep the dialogue to words the learner knows; never writes to
+        Anki or grades a card."""
         if write_lesson is None:
             raise HTTPException(503, no_claude.replace("check your writing", "write a lesson"))
         if engine.synthesize is None:
@@ -1789,6 +1790,7 @@ def create_app(
             lessons_dir=lessons_dir,
             now=engine.clock,
             narrator=narrator,
+            lexicon=engine.snapshot(body.language)[1],
         )
         return {"id": lesson_id}
 
