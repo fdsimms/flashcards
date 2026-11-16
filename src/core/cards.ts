@@ -1,6 +1,7 @@
 import { fieldSegments } from './highlight';
 import { htmlToText, isTruthyField, soundFiles } from './html';
 import { hasThai } from './script';
+import { THAI_COUNTING_WORDS } from './thaiCounting';
 import { newSchedState } from './scheduler';
 import { templateOrdinals } from './template';
 import type { Card, CardKind, Note, NoteType, RenderedCard, RenderedSide } from './types';
@@ -209,7 +210,10 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     // A Thai counting word isn't a form of the word: it's shown counted, with the noun and a number.
     const counting = thaiCountingWords(t(note, 'Entry'), t(note, 'Classifier'));
     pushIf(b, counting.map((w) => `${t(note, 'Entry')}${THAI_TWO}${w}`).join('\n'), 'Counting', undefined, undefined,
-      { role: 'counting', rows: counting.map((w) => ({ label: w, value: `${t(note, 'Entry')}${THAI_TWO}${w}` })) });
+      { role: 'counting', rows: counting.map((w) => {
+        const known = THAI_COUNTING_WORDS[w];
+        return { label: w, value: `${t(note, 'Entry')}${THAI_TWO}${w}`, ...(known ? { counts: { roman: known.roman, what: known.counts } } : {}) };
+      }) });
     const rows = FORM_ROWS.filter(([field]) => !(field === 'Classifier' && counting.length))
       .map(([field, label]) => ({ label, value: t(note, field) })).filter((r) => r.value);
     pushIf(b, rows.map((r) => `${r.label}: ${r.value}`).join('\n'), 'Forms', undefined, undefined, { role: 'forms', rows });

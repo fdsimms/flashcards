@@ -99,7 +99,9 @@ describe('cards', () => {
   it('shows a Thai noun counted with its counting word, not as a form', () => {
     const back = (over: Record<string, string>) => renderCard(omniNote(over), 'forward').back.blocks;
     const counting = back({ Entry: 'โรงพยาบาล', Classifier: 'แห่ง' }).find((b) => b.role === 'counting');
-    expect(counting).toMatchObject({ label: 'Counting', rows: [{ label: 'แห่ง', value: 'โรงพยาบาลสองแห่ง' }] });
+    expect(counting).toMatchObject({ label: 'Counting', rows: [{ label: 'แห่ง', value: 'โรงพยาบาลสองแห่ง', counts: { roman: 'hèng', what: expect.stringContaining('hospitals') } }] });
+    // A counting word with no description still shows counted.
+    expect(back({ Classifier: 'ซอง' }).find((b) => b.role === 'counting')?.rows).toEqual([{ label: 'ซอง', value: 'หนังสือสองซอง' }]);
     expect(back({ Entry: 'โรงพยาบาล', Classifier: 'แห่ง' }).some((b) => b.role === 'forms')).toBe(false);
     // Several counting words each get a line; the other forms stay under Forms.
     const several = back({ Classifier: 'ตัว, คัน', Plural: 'x' });

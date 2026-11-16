@@ -144,6 +144,12 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
                     </Text>
                   );
                 })}
+                {(b.rows ?? []).filter((r) => r.counts).map((r) => (
+                  <Text key={`${r.label}-counts`} style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>
+                    <Text style={{ ...thai, fontSize: type.subhead.fontSize, color: c.text }}>{r.label}</Text>
+                    {` (${r.counts?.roman}) counts ${r.counts?.what}.`}
+                  </Text>
+                ))}
                 <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>
                   Say the noun, the number, then the counting word.
                 </Text>

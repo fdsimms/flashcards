@@ -195,7 +195,7 @@ export interface RenderedSide {
     role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'forms' | 'counting' | 'wanted' | 'gloss';
     chips?: string[];
     /** A `forms` block's lines: one of the word's forms each, under its label ("plural", "genitive"). */
-    rows?: { label: string; value: string }[];
+    rows?: { label: string; value: string; /** A `counting` row's note on what its counting word counts: "hèng" and "places and institutions". */ counts?: { roman: string; what: string } }[];
     /** Shown dimmed before an emphasized word: мой / моя / моё before a Russian noun, as Anki's template does. */
     prefix?: string;
     /**
