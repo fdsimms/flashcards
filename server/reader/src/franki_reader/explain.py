@@ -43,6 +43,19 @@ ENGLISH = (
     "examples in the language, stay in it."
 )
 
+# For a learner who asked to read the notes in the language itself (Settings, Read & Listen): the
+# notes are in it, in simple words, while the English renderings stay English.
+IN_LANGUAGE = (
+    " Write each `note` in the language of the line, in simple words and short sentences a "
+    "learner can follow, never in English. Keep every English rendering in English."
+)
+
+
+def in_language(system: str) -> str:
+    """`system` with its English-only instructions swapped for IN_LANGUAGE."""
+    return system.replace(", in plain English", "").replace(ENGLISH, IN_LANGUAGE)
+
+
 SYSTEM = (
     "You explain one line of a short text to an adult learner of the language, in plain English. "
     "Say what the learner is most likely to be unsure of: grammar (tense, mood, agreement, word "
@@ -162,6 +175,7 @@ class ExplainRequest:
     simple: bool = False
     title: str = ""
     index: int = 0
+    in_language: bool = False  # the notes in the line's language rather than English
 
 
 # The points, and what asking for them cost.
@@ -180,6 +194,7 @@ class PhraseRequest:
     simple: bool = False
     title: str = ""
     index: int = 0
+    in_language: bool = False  # the notes in the line's language rather than English
 
 
 # {meaning, points}, and what asking for it cost.
@@ -318,6 +333,8 @@ async def _ask(
 def claude_explain(client: anthropic.AsyncAnthropic) -> Explain:
     async def explain(request: ExplainRequest) -> tuple[list[dict[str, str]], Usage]:
         system = SYSTEM + (SIMPLE if request.simple else "")
+        if request.in_language:
+            system = in_language(system)
         answer, used = await _ask(client, system, request_message(request), SCHEMA, "this line")
         points = clean(answer.get("points"))
         if not points:
@@ -362,6 +379,8 @@ def clean_phrase(answer: dict[str, Any]) -> dict[str, Any] | None:
 def claude_explain_phrase(client: anthropic.AsyncAnthropic) -> ExplainPhrase:
     async def explain(request: PhraseRequest) -> tuple[dict[str, Any], Usage]:
         system = PHRASE_SYSTEM + (SIMPLE if request.simple else "")
+        if request.in_language:
+            system = in_language(system)
         answer, used = await _ask(
             client, system, phrase_message(request), PHRASE_SCHEMA, "this phrase"
         )

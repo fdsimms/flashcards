@@ -42,6 +42,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   const [guessFirst, setGuessFirst] = useState(prefs().guessFirst);
   const [quizKnown, setQuizKnown] = useState(prefs().quizKnown);
   const [formQuiz, setFormQuiz] = useState(prefs().formQuiz);
+  const [explainInLanguage, setExplainInLanguage] = useState(prefs().explainInLanguage);
   const address = syncServer ? readerAddress(syncServer) : null;
 
   const turnOff = () => Alert.alert(
@@ -267,6 +268,23 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
               In a longer text, a few words you know are hidden behind a question mark. Tap one, type the form that
               fits the sentence from its dictionary form, and the word comes back. It's for languages that change
               their words (cases, endings), so there are none in Thai. Nothing is graded or added to your deck.
+            </Help>
+            <SectionTitle>Explain</SectionTitle>
+            <Group>
+              <SwitchRow
+                first
+                label="Explain in the language"
+                value={explainInLanguage}
+                onValueChange={(on) => {
+                  savePrefs({ explainInLanguage: on });
+                  setExplainInLanguage(on);
+                }}
+              />
+            </Group>
+            <Help>
+              Explain on a line or a phrase writes its notes in English. With this on, the notes are in the language
+              you're reading, in simple words, for practice. The English meaning of a phrase stays in English. Notes
+              already asked for stay as they were, and each version is kept separately. Explain more simply works the same way.
             </Help>
             <SectionTitle>dundundun</SectionTitle>
             <Group>
