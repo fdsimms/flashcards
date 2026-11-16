@@ -171,7 +171,7 @@ export function nextMixup(set: MixupSet, mode: MixupMode, language: Language, fo
 /** Miss reasons (src/core/misses.ts) that are about how a word sounds, practiced by ear. */
 const EAR_REASONS = new Set(['tone', 'vowel-length', 'stress']);
 /** Miss reasons practiced by meaning. Gender and endings are a word's forms, which Forms practice has. */
-const MEANING_REASONS = new Set(['meaning', 'spelling']);
+const MEANING_REASONS = new Set(['meaning', 'spelling', 'similar-letter']);
 
 export interface MissedPractice {
   mode: MixupMode;
