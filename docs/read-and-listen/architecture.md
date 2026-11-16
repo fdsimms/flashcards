@@ -1209,6 +1209,9 @@ next episode is the top of the shelf.
   same cast and a new problem, and is sent no plan. Every episode's request also says to open in the
   new scene, not retell what happened or repeat a beat from the last episodes. A story that was
   already running has no plan until its next episode writes one.
+  The shelf's story sends where the card's episode falls (`season`, `season_episode`, `season_length`),
+  and the card shows it under the story's name ("Season 2 · Episode 8 of 8 · Finale"); an older server
+  sends none and the card keeps its running episode number.
 - **Not the container plot** (added 14 November 2026). With a small vocabulary nearly every text was
   someone opening a box or drawer, finding something, and a stranger arriving to explain it. Every
   request, dialogues included, now says that plot is overused unless the topic is about it, and to
