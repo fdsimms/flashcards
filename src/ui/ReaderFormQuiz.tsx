@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Modal, ScrollView, Text, TextInput, View, useColorScheme, type TextInputInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../core/failure';
-import type { Api, Word } from '../reader/api';
+import type { Api, Language, Word } from '../reader/api';
+import { LANGUAGES } from '../reader/languages';
 import { checkForm, formReason, type FormCheck, type Settled } from '../reader/formQuiz';
 import { Button, HeaderAction, Icon, Tappable } from './kit';
+import { useKeyboardLanguage } from './useKeyboardLanguage';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
@@ -16,8 +18,10 @@ import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
  * Explain asks Claude on the server why the line has that form (api.explainForm, kept per word),
  * only on the tap.
  */
-export function ReaderFormQuiz({ api, textId, line, word, before, after, onSettle, onClose }: {
+export function ReaderFormQuiz({ api, language, textId, line, word, before, after, onSettle, onClose }: {
   api: Api;
+  /** The text's language, for the keyboard the form is typed on. */
+  language: Language;
   textId: number;
   line: number;
   word: Word;
@@ -30,6 +34,7 @@ export function ReaderFormQuiz({ api, textId, line, word, before, after, onSettl
   const dark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
   const input = useRef<TextInputInstance>(null);
+  const keyboardLang = useKeyboardLanguage(LANGUAGES[language].speech);
   const [typed, setTyped] = useState('');
   const [result, setResult] = useState<FormCheck | null>(null);
   const checked = result !== null && result !== 'empty';
@@ -99,6 +104,7 @@ export function ReaderFormQuiz({ api, textId, line, word, before, after, onSettl
         >
           <TextInput
             ref={input}
+            {...keyboardLang}
             value={typed}
             onChangeText={(t) => { setTyped(t); if (result) setResult(null); }}
             editable={!checked}

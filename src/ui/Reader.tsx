@@ -1247,7 +1247,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         onClose={() => setTapped(null)}
       />
       {quiz.current ? (
-        <ReaderFormQuiz key={quiz.current.key} api={api} textId={quiz.current.textId} line={quiz.current.line} word={quiz.current.word} before={quiz.current.before} after={quiz.current.after} onSettle={quiz.settle} onClose={quiz.close} />
+        <ReaderFormQuiz key={quiz.current.key} api={api} language={text?.language ?? 'th'} textId={quiz.current.textId} line={quiz.current.line} word={quiz.current.word} before={quiz.current.before} after={quiz.current.after} onSettle={quiz.settle} onClose={quiz.close} />
       ) : null}
       {/* The selected phrase's explanation, keyed by the phrase so a new one asks again. */}
       {text && phrase && phrase.end !== null && phraseAnchor && !listenOnly && !phraseDrag.dragging ? (
