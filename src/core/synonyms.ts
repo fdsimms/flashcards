@@ -81,7 +81,8 @@ function tagsOf(note: Note): string[] {
  * The line on a reverse card's front that says which word is wanted, given the note's synonyms:
  * its own part of speech and register ("verb · formal") when no synonym has all of them too, so
  * they rule every other one out; otherwise the synonyms' words ("Not: aguardar"), which names
- * words that aren't the answer and so gives nothing away. Undefined with no synonyms.
+ * words that aren't the answer and so gives nothing away (a synonym that contains the answer, or
+ * is contained in it, is left out, as it would). Undefined with no synonyms to name.
  */
 export function wantedLine(note: Note, synonyms: readonly Note[] | undefined): string | undefined {
   if (!synonyms?.length) return undefined;
@@ -93,7 +94,12 @@ export function wantedLine(note: Note, synonyms: readonly Note[] | undefined): s
   const words: string[] = [];
   for (const s of synonyms) {
     const w = bareEntry(s);
-    if (w && w.toLocaleLowerCase() !== self && !words.some((x) => x.toLocaleLowerCase() === w.toLocaleLowerCase())) words.push(w);
+    if (!w) continue;
+    const lw = w.toLocaleLowerCase();
+    // A word spelled inside the answer, or spelling it (ใจ and หัวใจ, ร้อง and ร้องไห้), shows the
+    // answer or part of it, so it isn't named.
+    if (lw === self || lw.includes(self) || self.includes(lw)) continue;
+    if (!words.some((x) => x.toLocaleLowerCase() === lw)) words.push(w);
   }
   if (!words.length) return undefined;
   words.sort((a, b) => a.localeCompare(b));

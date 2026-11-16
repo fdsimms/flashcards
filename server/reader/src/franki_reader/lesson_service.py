@@ -36,7 +36,9 @@ Synthesize = Callable[[str, str, str], Awaitable[bytes]]
 Renderer = Callable[..., Awaitable[Rendered]]
 
 
-_NARRATOR = re.compile(r"en-[A-Za-z]{2,4}-[A-Za-z0-9]+")
+# The colon is for Azure's Dragon HD voices (en-US-Ada:DragonHDLatestNeural), which the voice list
+# offers; the app's own check (`parseNarrator`) allows it too.
+_NARRATOR = re.compile(r"en-[A-Za-z]{2,4}-[A-Za-z0-9:]+")
 
 
 def is_narrator_voice(voice: str) -> bool:
@@ -78,18 +80,19 @@ async def make_lesson(
     lessons_dir: Path,
     now: Callable[[], datetime],
     narrator: str | None = None,
+    learner: lesson.Learner = "male",
     renderer: Renderer = lesson_audio.render,
     lexicon: Checker | None = None,
 ) -> None:
     """Writes, speaks and keeps lesson `lesson_id`, and says in its row how it went. Never raises:
     a failure is the lesson's `error`, shown as it is."""
     try:
-        plan, used = await lesson_writer.write_plan(write, language, scene, lexicon)
+        plan, used = await lesson_writer.write_plan(write, language, scene, learner, lexicon)
     except LessonFailed as e:
         _keep_cost(conn, language, e.usage.cost_usd(), 0, now)
         store.fail_lesson(conn, lesson_id, str(e))
         return
-    steps = lesson.build_script(plan)
+    steps = lesson.build_script(plan, learner)
     chars = 0
     store.set_lesson_stage(conn, lesson_id, "recording")
     try:

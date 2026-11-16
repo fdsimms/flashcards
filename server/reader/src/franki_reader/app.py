@@ -226,7 +226,7 @@ marked words, ideas) is in the current language, the `language` setting.
     POST  /api/situations/slow        {language, gender, line} one of their lines spoken slowly: {audio} is the
                                       clip's key, recorded the first time
     GET   /api/situations/audio/{key} a clip of one of the other person's lines (MP3)
-    POST  /api/lessons                {language, scene, narrator?} an audio lesson on a scene
+    POST  /api/lessons                {language, scene, narrator?, particle?} an audio lesson on a scene
                                       (lesson.py), made in the background: {id}. `narrator` is an
                                       English Azure voice (en-US-GuyNeural) for this lesson. every language but Japanese and English (`languages`
                                       in GET). At most 2 at a time
@@ -328,9 +328,11 @@ from franki_reader.gateway import (
     with_timeout,
 )
 from franki_reader.generator import (
+    EFFORT,
     MODEL,
     SEASON_EPISODES,
     Ask,
+    Effort,
     Form,
     StoryContext,
     TextModel,
@@ -571,6 +573,10 @@ class LessonIn(BaseModel):
     scene: str = Field(min_length=1, max_length=lesson_writer.MAX_SCENE)
     # The narrator's voice for this lesson: an English Azure voice, or the settings' when left out.
     narrator: str | None = Field(default=None, max_length=100)
+    # Thai only: the learner's polite particle, khrap (ครับ, a man's) or kha (ค่ะ, a woman's). It
+    # decides the voice they repeat after, who speaks as A in the role-play, and the particle every
+    # phrase carries. Left out, khrap; any other language ignores it.
+    particle: Literal["khrap", "kha"] | None = None
 
 
 class DrillsIn(BaseModel):
@@ -1791,6 +1797,7 @@ def create_app(
             now=engine.clock,
             narrator=narrator,
             lexicon=engine.snapshot(body.language)[1],
+            learner="female" if body.language == "th" and body.particle == "kha" else "male",
         )
         return {"id": lesson_id}
 
@@ -2810,8 +2817,10 @@ def production_app() -> FastAPI:
         write_ipa = ai_ipa.claude_ipa(client)
         write_aspect = aspect.claude_aspect(client)
 
-        def ask_for(entries: list[Entry], language: Code, model: TextModel = MODEL) -> Ask:
-            return claude_ask(client, entries, language, model)
+        def ask_for(
+            entries: list[Entry], language: Code, model: TextModel = MODEL, effort: Effort = EFFORT
+        ) -> Ask:
+            return claude_ask(client, entries, language, model, effort)
 
     synthesize = None
     synthesize_parts = None

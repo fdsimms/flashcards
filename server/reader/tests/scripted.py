@@ -66,8 +66,16 @@ class ScriptedModel:
         self.languages_seen: list[str] = []
         self.messages_seen: list[list[dict[str, Any]]] = []
         self.models_seen: list[str | None] = []
+        self.efforts_seen: list[str | None] = []
 
-    def ask_for(self, entries: list[Entry], language: str = "th", model: str | None = None) -> Any:
+    def ask_for(
+        self,
+        entries: list[Entry],
+        language: str = "th",
+        model: str | None = None,
+        effort: str | None = None,
+    ) -> Any:
+        self.efforts_seen.append(effort)
         self.entries_seen.append(entries)
         self.languages_seen.append(language)
         self.models_seen.append(model)

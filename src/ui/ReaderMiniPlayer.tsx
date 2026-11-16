@@ -12,7 +12,8 @@ import { useReaderPlayerHost } from './useReaderPlayer';
  * the text's title, which line it's on, and pause, skip and stop. A tap on the title opens the text
  * in the reader again, which stops this one (the reader takes the player back). Drawn on the
  * system's glass, so it has no background of its own; the compact form (`inline`, once the tab bar
- * shrinks as a list scrolls) drops Stop and the line count.
+ * shrinks as a list scrolls) drops the line count but keeps Stop, so the player can be closed from
+ * a list without scrolling back up.
  */
 export function ReaderMiniPlayer() {
   const c = useTheme();
@@ -49,7 +50,7 @@ export function ReaderMiniPlayer() {
       </Tappable>
       {button(mini.playing ? 'pause.fill' : 'play.fill', mini.playing ? 'Pause' : 'Play', host.toggle)}
       {button('forward.fill', 'Next line', () => host.skip(1))}
-      {compact ? null : button('xmark', 'Stop', host.stop)}
+      {button('xmark', 'Stop', host.stop)}
     </View>
   );
 }
