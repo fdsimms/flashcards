@@ -101,6 +101,33 @@ def test_asking_again_while_writing_does_not_start_a_second_write() -> None:
     assert store.get_topic(e.conn, topic.id).ready == 1  # type: ignore[union-attr]
 
 
+def test_a_text_being_written_reports_each_stage_in_order_and_none_once_done() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    seen: list[str | None] = []
+    translate, record = e.fill_meanings, e.make_audio
+
+    async def translating(*args: Any, **kwargs: Any) -> None:
+        seen.append(e.writing_stage(topic.id))
+        await translate(*args, **kwargs)
+
+    async def recording(*args: Any, **kwargs: Any) -> None:
+        seen.append(e.writing_stage(topic.id))
+        await record(*args, **kwargs)
+
+    e.fill_meanings = translating  # type: ignore[method-assign]
+    e.make_audio = recording  # type: ignore[method-assign]
+
+    async def scenario() -> None:
+        assert await e.next_text(topic.id) is None
+        assert e.writing_stage(topic.id) in (None, "writing")
+        await settle(e)
+
+    run(scenario)
+    assert seen == ["translating", "recording"]
+    assert e.writing_stage(topic.id) is None
+
+
 def test_a_caller_waiting_on_the_lock_takes_the_text_just_written() -> None:
     model = ScriptedModel(IN_RANGE)
     e = engine(model)

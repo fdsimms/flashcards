@@ -20,7 +20,8 @@ serves all of it under /reader (../../Caddyfile), so the app's address ends in /
     POST  /api/topics                 {name} adds a topic (or returns the existing one)
     DELETE /api/topics/{id}           removes a topic from the list (adding it again brings it back)
     GET   /api/suggestions            topic ideas not yet added, the best fit for the deck first
-    POST  /api/topics/{id}/next       the next text for a topic; 202 {"writing": true} while one is
+    POST  /api/topics/{id}/next       the next text for a topic; 202 {"writing": true, "stage":
+                                      writing | translating | recording | null} while one is
                                       being written in the background, so ask again shortly. With
                                       {words: [...]}, a text written to practice those words
     GET   /api/settings               {stretch_words: "topic" | "any", lines: 6 | 8 | 12,
@@ -927,7 +928,8 @@ def create_app(
         except NotAvailable as e:
             raise HTTPException(503, str(e)) from e
         if text is None:
-            return JSONResponse({"writing": True}, status_code=202)
+            stage = engine.writing_stage(topic_id, body.words if body else ())
+            return JSONResponse({"writing": True, "stage": stage}, status_code=202)
         background.add_task(engine.top_up)
         return _rendered(text, engine)
 
@@ -2759,6 +2761,7 @@ def _shelf(engine: Engine) -> dict[str, Any]:
             "last_recap_line": _recap_line(read[-1], engine) if read else None,
             "next": _shelf_text(waiting, engine, practice=True) if waiting else None,
             "writing": any(j.story_id == story.id for j in writing),
+            "stage": next((engine.stage_of(j) for j in writing if j.story_id == story.id), None),
             "failed": engine.failure(story.topic_id, language),
         }
     counts = store.ready_counts(engine.conn)
@@ -2775,6 +2778,7 @@ def _shelf(engine: Engine) -> dict[str, Any]:
                 "topic": store.topic_name(engine.conn, j.topic_id),
                 "reason": j.reason,
                 "form": j.form or "dialogue",
+                "stage": engine.stage_of(j),
             }
             for j in writing
             if j.story_id is None
