@@ -355,7 +355,7 @@ export function DeckList(props: {
             <Stack.Toolbar.Button accessibilityLabel="Done editing decks" onPress={() => { haptic.tap(); setEditing(false); }}>Done</Stack.Toolbar.Button>
           ) : null}
           {!editing && props.sync ? (
-            <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" disabled={syncBusy} accessibilityLabel={syncBusy ? 'Syncing' : 'Sync now'} onPress={syncTapped} />
+            <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" selected={syncBusy} tintColor={syncBusy ? c.accent : undefined} accessibilityLabel={syncBusy ? 'Syncing' : 'Sync now'} onPress={syncTapped} />
           ) : null}
           {!editing ? <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} /> : null}
           {!editing ? <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={props.onSettings} /> : null}
