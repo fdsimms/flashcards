@@ -289,10 +289,23 @@ def test_a_failed_phrase_is_not_kept_and_says_so_without_claude() -> None:
 def test_clean_phrase_needs_a_meaning() -> None:
     assert clean_phrase({"meaning": " I know ", "points": [{"phrase": "ya", "note": " n "}]}) == {
         "meaning": "I know",
+        "literal": "",
         "points": [{"phrase": "ya", "note": "n"}],
     }
     assert clean_phrase({"meaning": " ", "points": []}) is None
     assert clean_phrase({"points": []}) is None
+
+
+def test_clean_phrase_keeps_a_literal_only_when_it_differs() -> None:
+    differs = clean_phrase({"meaning": "I am cold", "literal": " To me is cold ", "points": []})
+    assert differs is not None and differs["literal"] == "To me is cold"
+    same = clean_phrase({"meaning": "I am cold.", "literal": "i am cold", "points": []})
+    assert same is not None and same["literal"] == ""
+    assert clean_phrase({"meaning": "Hi", "literal": 3, "points": []}) == {
+        "meaning": "Hi",
+        "literal": "",
+        "points": [],
+    }
 
 
 def test_the_phrase_request_names_the_phrase_and_its_line() -> None:

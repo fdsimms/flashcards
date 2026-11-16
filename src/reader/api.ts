@@ -195,7 +195,12 @@ export type TextModel = 'claude-sonnet-5-5' | 'claude-haiku-5-5';
 // One thing worth knowing about a line: the part of it, and what to know.
 export type ExplainPoint = { phrase: string; note: string };
 /** A phrase selected in a line, explained: what it means there, and what to know about its parts. */
-export type PhraseExplanation = { meaning: string; points: ExplainPoint[] };
+export type PhraseExplanation = {
+  meaning: string;
+  /** A word-for-word rendering, only when it differs from `meaning`. Absent from an answer kept before it existed. */
+  literal?: string;
+  points: ExplainPoint[];
+};
 
 // A grammar point found in an explained line, with the owner's choice as it stands (docs/grammar.md, step 3).
 export type LineGrammar = { id: string; name: string; note: string; state: GrammarState };

@@ -76,7 +76,10 @@ PHRASE_SYSTEM = (
     "The learner selected a phrase in one line of a short text and wants to know what it means "
     "there. Answer for an adult learner of the language, in plain English. Give `meaning`: what "
     "the phrase means in this line, as a short natural English rendering, not a list of "
-    f"dictionary senses. Then at most {MAX_POINTS - 2} points (`points`), most useful first, each "
+    "dictionary senses. Give `literal`: a word-for-word English rendering that keeps the "
+    "phrase's own word order and structure, even where that sounds odd in English (leave out "
+    "articles the language doesn't have). Give an empty string when it would read the same as "
+    f"`meaning`. Then at most {MAX_POINTS - 2} points (`points`), most useful first, each "
     "naming part of the phrase (`phrase`, copied exactly from it) and what to know about it "
     f"(`note`, one to three short sentences, under {MAX_CHARS} characters): whether it is a set "
     "expression or idiom and how it is used, how its words work together where that isn't word "
@@ -92,8 +95,12 @@ PHRASE_SYSTEM = (
 
 PHRASE_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "properties": {"meaning": {"type": "string"}, "points": SCHEMA["properties"]["points"]},
-    "required": ["meaning", "points"],
+    "properties": {
+        "meaning": {"type": "string"},
+        "literal": {"type": "string"},
+        "points": SCHEMA["properties"]["points"],
+    },
+    "required": ["meaning", "literal", "points"],
     "additionalProperties": False,
 }
 
@@ -324,11 +331,22 @@ def claude_check(client: anthropic.AsyncAnthropic) -> CheckNatural:
 
 
 def clean_phrase(answer: dict[str, Any]) -> dict[str, Any] | None:
-    """The meaning and points the model gave, trimmed; None without a meaning."""
+    """The meaning, literal rendering and points the model gave, trimmed; None without a meaning.
+    The literal is "" when it was left out or only repeats the meaning, so the app shows it only
+    when it adds something."""
     meaning = answer.get("meaning")
     if not isinstance(meaning, str) or not meaning.strip():
         return None
-    return {"meaning": meaning.strip()[:MAX_CHARS], "points": clean(answer.get("points"))}
+    meaning = meaning.strip()[:MAX_CHARS]
+    literal = answer.get("literal")
+    literal = literal.strip()[:MAX_CHARS] if isinstance(literal, str) else ""
+
+    def same(a: str) -> str:
+        return "".join(ch for ch in a.casefold() if ch.isalnum())
+
+    if same(literal) == same(meaning):
+        literal = ""
+    return {"meaning": meaning, "literal": literal, "points": clean(answer.get("points"))}
 
 
 def claude_explain_phrase(client: anthropic.AsyncAnthropic) -> ExplainPhrase:
