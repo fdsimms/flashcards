@@ -1454,10 +1454,8 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
                 {tapped.word.form && language ? <ReadFormChip name={tapped.word.form.name} onPress={() => setShowForm(true)} /> : null}
                 {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
                 <ReadFrequency word={tapped.word} />
-                <Text style={{ ...type.footnote, color: c.textSecondary }}>
-                  {wordStatus(tapped.word)}
-                  {ipaLine ? <Text style={tapped.word.ipa_source === 'ai' ? { color: c.warning } : undefined}>{` · ${ipaLine}`}</Text> : null}
-                </Text>
+                <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
+                {ipaLine ? <Text style={{ ...type.footnote, color: tapped.word.ipa_source === 'ai' ? c.warning : c.textSecondary }}>{ipaLine}</Text> : null}
               </>
             )}
           </View>
