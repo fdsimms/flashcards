@@ -1,8 +1,8 @@
 // Trying a word before its meaning is shown (docs/read-and-listen/architecture.md, Client, Guess
-// first). A tapped word's popover can hold its meaning back: for a word in the deck the learner
-// tries to recall it, for one outside it they work it out from the line, and an optional
-// multiple-choice question stands in for the "Show meaning" row on a known word. Retrieval and
-// guessing first (even wrong, then corrected) beat being shown the answer.
+// first). A tapped word's popover can hold its meaning back for a word in the deck, which the
+// learner tries to recall, and an optional multiple-choice question stands in for the "Show
+// meaning" row. A word outside the deck shows its meaning at once: being made to guess it first
+// was dropped as more annoying than useful.
 //
 // Nothing here grades a card or reaches the scheduler. A lookup is logged when the meaning is
 // shown, so a word recalled is never counted as one that was looked up (server recognition.py reads
@@ -11,23 +11,20 @@
 import type { ReaderText, Word } from './api';
 import { CHOICES, shuffled, withAnswer, type Random } from './check';
 
-export type GuessKind = 'recall' | 'infer';
+export type GuessKind = 'recall';
 
 /**
- * How a word is tried before its meaning: recall for a word counted as known, infer from the line
- * for one that isn't (not in the deck, or only inside a longer phrase). Null when there is nothing
- * to try or nothing to show: a name, punctuation, or a word with no meaning to reveal.
+ * How a word is tried before its meaning: recall, for a word counted as known. Null when there is
+ * nothing to try or nothing to show: a word outside the deck (or only inside a longer phrase), a
+ * name, punctuation, or a word with no meaning to reveal.
  */
 export function guessKind(word: Pick<Word, 'status' | 'gloss' | 'parts'>): GuessKind | null {
   if (!word.gloss?.trim() && !word.parts) return null;
-  if (word.status === 'known') return 'recall';
-  if (word.status === 'unknown' || word.status === 'partial') return 'infer';
-  return null;
+  return word.status === 'known' ? 'recall' : null;
 }
 
 export const GUESS_HINT: Record<GuessKind, string> = {
   recall: 'Try to remember it first.',
-  infer: 'Guess from the line first.',
 };
 
 export type Quiz = { choices: string[]; answer: number };
