@@ -1,4 +1,5 @@
 import type { CountingLanguage } from '../counting';
+import { THAI_COUNTING_WORDS } from '../../core/thaiCounting';
 import { phrase, type Word } from '../phrase';
 import { thaiNumber } from './numbers';
 
@@ -15,15 +16,15 @@ interface Classifier {
 }
 
 const CLASSIFIERS: Record<string, Classifier> = {
-  tua: { word: ['ตัว', 'tua'], counts: 'animals, and tables, chairs and clothes' },
-  khon: { word: ['คน', 'khon'], counts: 'people' },
-  lem: { word: ['เล่ม', 'lêm'], counts: 'books and knives' },
-  khan: { word: ['คัน', 'khan'], counts: 'vehicles, umbrellas and spoons' },
-  bai: { word: ['ใบ', 'bai'], counts: 'containers, bags and cards' },
-  luuk: { word: ['ลูก', 'lûuk'], counts: 'fruit and balls' },
-  lang: { word: ['หลัง', 'lǎng'], counts: 'houses and buildings' },
-  khuat: { word: ['ขวด', 'khùat'], counts: 'bottles of something' },
-  gaew: { word: ['แก้ว', 'gâew'], counts: 'glasses and cups of a drink' },
+  tua: { word: ['ตัว', 'tua'], counts: THAI_COUNTING_WORDS['ตัว'].counts },
+  khon: { word: ['คน', 'khon'], counts: THAI_COUNTING_WORDS['คน'].counts },
+  lem: { word: ['เล่ม', 'lêm'], counts: THAI_COUNTING_WORDS['เล่ม'].counts },
+  khan: { word: ['คัน', 'khan'], counts: THAI_COUNTING_WORDS['คัน'].counts },
+  bai: { word: ['ใบ', 'bai'], counts: THAI_COUNTING_WORDS['ใบ'].counts },
+  luuk: { word: ['ลูก', 'lûuk'], counts: THAI_COUNTING_WORDS['ลูก'].counts },
+  lang: { word: ['หลัง', 'lǎng'], counts: THAI_COUNTING_WORDS['หลัง'].counts },
+  khuat: { word: ['ขวด', 'khùat'], counts: THAI_COUNTING_WORDS['ขวด'].counts },
+  gaew: { word: ['แก้ว', 'gâew'], counts: THAI_COUNTING_WORDS['แก้ว'].counts },
 };
 
 const NOUNS: { word: Word; meaning: string; classifier: keyof typeof CLASSIFIERS }[] = [

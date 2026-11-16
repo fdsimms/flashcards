@@ -90,11 +90,24 @@ describe('cards', () => {
   it('shows key forms, the counting word, the auxiliary and the aspect pair as forms, and verb class and dialect as tags', () => {
     const rows = (over: Record<string, string>) => renderCard(omniNote(over), 'forward').back.blocks.find((b) => b.role === 'forms')?.rows;
     expect(rows({ KeyForms: 'warf ab', Auxiliary: 'haben' })).toEqual([{ label: 'key forms', value: 'warf ab' }, { label: 'auxiliary', value: 'haben' }]);
-    expect(rows({ Classifier: 'คน' })).toEqual([{ label: 'counting word', value: 'คน' }]);
+    expect(rows({ Entry: 'counter', Classifier: '個' })).toEqual([{ label: 'counting word', value: '個' }]);
     expect(rows({ AspectPartner: 'добиться' })).toEqual([{ label: 'aspect pair', value: 'добиться' }]);
     const chips = renderCard(omniNote({ PartOfSpeech: 'verb', VerbClass: 'strong', Dialect: 'Isan', Gender: 'common' }), 'forward')
       .back.blocks.find((b) => b.role === 'chips')?.chips;
     expect(chips).toEqual(['verb', 'common', 'Isan', 'strong']);
+  });
+  it('shows a Thai noun counted with its counting word, not as a form', () => {
+    const back = (over: Record<string, string>) => renderCard(omniNote(over), 'forward').back.blocks;
+    const counting = back({ Entry: 'โรงพยาบาล', Classifier: 'แห่ง' }).find((b) => b.role === 'counting');
+    expect(counting).toMatchObject({ label: 'Counting', rows: [{ label: 'แห่ง', value: 'โรงพยาบาลสองแห่ง', counts: { roman: 'hèng', what: expect.stringContaining('hospitals') } }] });
+    // A counting word with no description still shows counted.
+    expect(back({ Classifier: 'ซอง' }).find((b) => b.role === 'counting')?.rows).toEqual([{ label: 'ซอง', value: 'หนังสือสองซอง' }]);
+    expect(back({ Entry: 'โรงพยาบาล', Classifier: 'แห่ง' }).some((b) => b.role === 'forms')).toBe(false);
+    // Several counting words each get a line; the other forms stay under Forms.
+    const several = back({ Classifier: 'ตัว, คัน', Plural: 'x' });
+    expect(several.find((b) => b.role === 'counting')?.rows?.map((r) => r.value)).toEqual(['หนังสือสองตัว', 'หนังสือสองคัน']);
+    expect(several.find((b) => b.role === 'forms')?.rows).toEqual([{ label: 'plural', value: 'x' }]);
+    expect(back({}).some((b) => b.role === 'counting')).toBe(false);
   });
   it('labels the Hanzi field Kanji on a Japanese note', () => {
     const block = (over: Record<string, string>) => renderCard(omniNote(over), 'forward').back.blocks.find((b) => b.text.startsWith('劇'));

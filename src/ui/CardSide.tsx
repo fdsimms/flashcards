@@ -130,6 +130,33 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
             </View>
           );
         }
+        if (b.role === 'counting') {
+          return (
+            <View key={i} style={{ gap: space.xs }}>
+              {b.label ? <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text> : null}
+              <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.xs }}>
+                {(b.rows ?? []).map((r) => {
+                  const cut = r.value.length - r.label.length;
+                  return (
+                    <Text key={r.label} style={{ ...thai, color: c.text }}>
+                      {r.value.slice(0, cut)}
+                      <Text style={{ color: c.accent, fontWeight: '600' }}>{r.label}</Text>
+                    </Text>
+                  );
+                })}
+                {(b.rows ?? []).filter((r) => r.counts).map((r) => (
+                  <Text key={`${r.label}-counts`} style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>
+                    <Text style={{ ...thai, fontSize: type.subhead.fontSize, color: c.text }}>{r.label}</Text>
+                    {` (${r.counts?.roman}) counts ${r.counts?.what}.`}
+                  </Text>
+                ))}
+                <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>
+                  Say the noun, the number, then the counting word.
+                </Text>
+              </View>
+            </View>
+          );
+        }
         if (b.role === 'forms') {
           return (
             <View key={i} style={{ gap: space.xs }}>
