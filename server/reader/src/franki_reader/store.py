@@ -1007,9 +1007,12 @@ def save_questions(conn: sqlite3.Connection, text_id: int, questions: tuple[Ques
 
 # ==== Explanations ====
 
+# `simple` is the version asked for, not only a flag: 1 is the plainer one and 2 is the notes in the
+# line's language, so the two add up (3 is both) and every answer is kept apart without a new column.
+
 
 def get_explanation(
-    conn: sqlite3.Connection, text_id: int, line: int, simple: bool
+    conn: sqlite3.Connection, text_id: int, line: int, simple: int
 ) -> list[dict[str, str]] | None:
     row = conn.execute(
         "SELECT points FROM explanations WHERE text_id = ? AND line = ? AND simple = ?",
@@ -1022,7 +1025,7 @@ def save_explanation(
     conn: sqlite3.Connection,
     text_id: int,
     line: int,
-    simple: bool,
+    simple: int,
     points: list[dict[str, str]],
     now: datetime,
     cost_usd: float = 0.0,
@@ -1447,7 +1450,7 @@ def mark_audio_chars_counted(conn: sqlite3.Connection) -> None:
 
 
 def get_phrase_explanation(
-    conn: sqlite3.Connection, text_id: int, line: int, phrase: str, simple: bool
+    conn: sqlite3.Connection, text_id: int, line: int, phrase: str, simple: int
 ) -> dict[str, Any] | None:
     row = conn.execute(
         "SELECT answer FROM phrase_explanations"
@@ -1462,7 +1465,7 @@ def save_phrase_explanation(
     text_id: int,
     line: int,
     phrase: str,
-    simple: bool,
+    simple: int,
     answer: dict[str, Any],
     now: datetime,
     cost_usd: float = 0.0,

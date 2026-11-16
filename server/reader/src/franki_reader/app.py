@@ -156,12 +156,12 @@ marked words, ideas) is in the current language, the `language` setting.
                                       keeps the file, so each recording is asked for once. The
                                       language (th-TH, or th) tells a Multilingual voice what to read
                                       the text as
-    POST  /api/texts/{id}/lines/{n}/explain   {simple?} the line's grammar and vocabulary explained in
+    POST  /api/texts/{id}/lines/{n}/explain   {simple?, in_language?} the line's grammar and vocabulary explained in
                                       English by Claude: {points: [{phrase, note}]}. Asked on the
                                       owner's tap and kept per line (and per simple version).
                                       With `grammar`: the points the finders find in the line,
                                       each {id, name, note, state}, as the choices stand now
-    POST  /api/texts/{id}/lines/{n}/phrase    {phrase, simple?} a phrase the owner selected in the
+    POST  /api/texts/{id}/lines/{n}/phrase    {phrase, simple?, in_language?} a phrase the owner selected in the
                                       line, as it appears there, explained by Claude:
                                       {meaning, literal ("" when it matches the meaning; absent
                                       from an answer kept earlier), points: [{phrase, note}]}.
@@ -567,12 +567,24 @@ class DrillsIn(BaseModel):
 class ExplainIn(BaseModel):
     # A second, plainer explanation of a line already explained.
     simple: bool = False
+    # The notes in the line's language, for practice, rather than English.
+    in_language: bool = False
+
+    @property
+    def version(self) -> int:
+        """Which kept answer this asks for (store.py, Explanations)."""
+        return int(self.simple) + 2 * int(self.in_language)
 
 
 class PhraseIn(BaseModel):
     # As it appears in the line: the words the owner selected and what's between them.
     phrase: str = Field(min_length=1, max_length=300)
     simple: bool = False
+    in_language: bool = False
+
+    @property
+    def version(self) -> int:
+        return int(self.simple) + 2 * int(self.in_language)
 
 
 class AspectIn(BaseModel):
@@ -1007,7 +1019,7 @@ def create_app(
         text = store.get_text(engine.conn, text_id)
         if text is None or not 0 <= line < len(text.lines):
             raise HTTPException(404, "No such line.")
-        if (kept := store.get_explanation(engine.conn, text_id, line, body.simple)) is not None:
+        if (kept := store.get_explanation(engine.conn, text_id, line, body.version)) is not None:
             return {"points": kept, "grammar": line_grammar(text, line)}
         if explain is None:
             raise HTTPException(
@@ -1027,6 +1039,7 @@ def create_app(
                     body.simple,
                     text.title,
                     line,
+                    body.in_language,
                 )
             )
         except ExplainFailed as e:
@@ -1034,7 +1047,7 @@ def create_app(
             # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
             raise HTTPException(503, str(e)) from e
         store.save_explanation(
-            engine.conn, text_id, line, body.simple, points, engine.clock(), used.cost_usd()
+            engine.conn, text_id, line, body.version, points, engine.clock(), used.cost_usd()
         )
         return {"points": points, "grammar": line_grammar(text, line)}
 
@@ -1050,7 +1063,7 @@ def create_app(
         # line as written; spaces are ignored in case the split and the line disagree on them.
         if not phrase or "".join(phrase.split()) not in "".join(plain[line].split()):
             raise HTTPException(400, "That phrase isn't in this line. Select it again.")
-        kept = store.get_phrase_explanation(engine.conn, text_id, line, phrase, body.simple)
+        kept = store.get_phrase_explanation(engine.conn, text_id, line, phrase, body.version)
         if kept is not None:
             return kept
         if explain_phrase is None:
@@ -1070,6 +1083,7 @@ def create_app(
                     body.simple,
                     text.title,
                     line,
+                    body.in_language,
                 )
             )
         except ExplainFailed as e:
@@ -1077,7 +1091,14 @@ def create_app(
             # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
             raise HTTPException(503, str(e)) from e
         store.save_phrase_explanation(
-            engine.conn, text_id, line, phrase, body.simple, answer, engine.clock(), used.cost_usd()
+            engine.conn,
+            text_id,
+            line,
+            phrase,
+            body.version,
+            answer,
+            engine.clock(),
+            used.cost_usd(),
         )
         return answer
 

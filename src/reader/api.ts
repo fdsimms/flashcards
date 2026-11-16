@@ -624,8 +624,8 @@ export function createApi(
       call<{ ready: boolean; sentences: Word[][] }>('POST', '/api/glosses', { language, sentences }),
     // A line's grammar and vocabulary explained by Claude on the server: asked on the owner's tap, kept per
     // line there. `simple` is a second, plainer version.
-    explainLine: async (textId: number, line: number, simple: boolean) => {
-      const answer = await call<{ points: ExplainPoint[]; grammar?: LineGrammar[] }>('POST', `/api/texts/${textId}/lines/${line}/explain`, { simple });
+    explainLine: async (textId: number, line: number, simple: boolean, inLanguage = false) => {
+      const answer = await call<{ points: ExplainPoint[]; grammar?: LineGrammar[] }>('POST', `/api/texts/${textId}/lines/${line}/explain`, { simple, in_language: inLanguage });
       // A server older than step 3 sends no grammar.
       return { points: answer.points, grammar: answer.grammar ?? [] };
     },
@@ -652,8 +652,8 @@ export function createApi(
       headers: { Authorization: `Bearer ${passphrase}` },
     }),
     // A phrase selected in a line (as it appears there), explained the same way and kept per phrase.
-    explainPhrase: (textId: number, line: number, phrase: string, simple: boolean) =>
-      call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple }),
+    explainPhrase: (textId: number, line: number, phrase: string, simple: boolean, inLanguage = false) =>
+      call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple, in_language: inLanguage }),
     // Records a line's slow version if it isn't yet, and says when each of the line's words is spoken in it
     // (one entry per word, null for none): the normal recording's times don't fit.
     slowTimes: (textId: number, line: number) => call<{ times: (Word['time'] | null)[] }>('GET', `/api/texts/${textId}/lines/${line}/slow`),
