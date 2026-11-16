@@ -309,6 +309,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const headerHeight = useHeaderHeight();
 
   useEffect(() => {
+    // Listening without the text there's nothing to follow: the rows are only labels.
+    if (listenOnly) return;
     const at = current === null ? -1 : paras ? rangeOf(paras, current) : current;
     const box = at < 0 ? undefined : lineBoxes.current[at];
     if (!box || !viewHeight.current) return;
@@ -950,6 +952,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
             )}
           </View>
           {paras ? paras.map((range, g) => {
+            // Listening without the text, a paragraph has nothing to show or tap: no placeholder.
+            if (listenOnly) return null;
             const lines = text.lines.slice(range.start, range.end + 1);
             return (
               <View
@@ -960,45 +964,41 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                 }}
                 style={{ paddingHorizontal: space.l, paddingBottom: space.l }}
               >
-                {listenOnly ? (
-                  <Text style={{ ...type.subhead, color: c.textSecondary, paddingVertical: space.s }}>{`Paragraph ${g + 1}`}</Text>
-                ) : (
-                  <View {...phraseDrag.lineProps} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
-                    {lines.map((l, k) => (
-                      <React.Fragment key={k}>
-                        {wrapGroups(l.words).map((chunk, j, chunks) => (
-                          <View key={j} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            {chunk.map((word, m) => (
-                              <WordView
-                                key={m}
-                                word={word}
-                                textStyle={readStyle(text, thaiFont, textSize)}
-                                grammar={grammarOf(text, word)}
-                                flagged={isFlagged(session, word.text)}
-                                highlighted={highlight && isOutsideDeck(word)}
-                                named={markNames && isName(word)}
-                                selected={tapped?.word === word}
-                                hidden={hiddenMarks}
-                                {...phraseLook(range.start + k, word, l.words)}
-                                playing={shaded === range.start + k}
-                                spoken={spoken.has(word)}
-                                slot={quiz.view(word, shaded === range.start + k)}
-                                onPress={tap}
-                                onLongPress={phraseDrag.begin}
-                                viewRef={phraseDrag.wordRef(word)}
-                              />
-                            ))}
-                            {/* The gap before the next sentence trails this one's last chunk, never starts a row of its own:
-                                a lone spacer that wrapped to a new row indented that row. */}
-                            {j === chunks.length - 1 && k < lines.length - 1
-                              ? <View style={{ width: readStyle(text, thaiFont, textSize).fontSize * 0.5 }} /> : null}
-                          </View>
-                        ))}
-                      </React.Fragment>
-                    ))}
-                  </View>
-                )}
-                {!listenOnly && english ? (
+                <View {...phraseDrag.lineProps} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {lines.map((l, k) => (
+                    <React.Fragment key={k}>
+                      {wrapGroups(l.words).map((chunk, j, chunks) => (
+                        <View key={j} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          {chunk.map((word, m) => (
+                            <WordView
+                              key={m}
+                              word={word}
+                              textStyle={readStyle(text, thaiFont, textSize)}
+                              grammar={grammarOf(text, word)}
+                              flagged={isFlagged(session, word.text)}
+                              highlighted={highlight && isOutsideDeck(word)}
+                              named={markNames && isName(word)}
+                              selected={tapped?.word === word}
+                              hidden={hiddenMarks}
+                              {...phraseLook(range.start + k, word, l.words)}
+                              playing={shaded === range.start + k}
+                              spoken={spoken.has(word)}
+                              slot={quiz.view(word, shaded === range.start + k)}
+                              onPress={tap}
+                              onLongPress={phraseDrag.begin}
+                              viewRef={phraseDrag.wordRef(word)}
+                            />
+                          ))}
+                          {/* The gap before the next sentence trails this one's last chunk, never starts a row of its own:
+                              a lone spacer that wrapped to a new row indented that row. */}
+                          {j === chunks.length - 1 && k < lines.length - 1
+                            ? <View style={{ width: readStyle(text, thaiFont, textSize).fontSize * 0.5 }} /> : null}
+                        </View>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </View>
+                {english ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: space.xs }}>{lines.map((l) => l.english).join(' ')}</Text>
                 ) : null}
               </View>
