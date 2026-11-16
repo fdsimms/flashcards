@@ -16,6 +16,9 @@
       "bundleIdentifier": "com.fdsimms.franki",
       "config": {
         "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Franki only reads a photo when you pick one to use as a file, such as an image for a card. It never looks through your photo library on its own."
       }
     },
     "android": {
