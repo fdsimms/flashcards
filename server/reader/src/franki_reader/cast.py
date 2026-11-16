@@ -218,7 +218,28 @@ def line_parts(
     if not parts:
         return [Part(plain, narrator)]
     parts.append(Part(plain[at:], narrator))
-    return [p for p in parts if p.text]
+    return _join_unspoken([p for p in parts if p.text])
+
+
+def _join_unspoken(parts: list[Part]) -> list[Part]:
+    """Parts with no word in them (the "." after a quotation's closing mark: `„Daj mi ją”.`) are
+    joined to the part before, or the one after for the first. Azure reads a request that is only
+    punctuation aloud ("kropka"), and the join keeps the parts adding up to the line."""
+    merged: list[Part] = []
+    carry = ""
+    for part in parts:
+        if not any(c.isalnum() for c in part.text):
+            if merged:
+                last = merged[-1]
+                merged[-1] = Part(last.text + part.text, last.voice, last.pitch)
+            else:
+                carry += part.text
+            continue
+        merged.append(Part(carry + part.text, part.voice, part.pitch))
+        carry = ""
+    if not merged and parts:  # nothing but punctuation: left as it was
+        return parts
+    return merged
 
 
 def quote_problems(
