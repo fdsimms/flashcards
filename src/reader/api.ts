@@ -651,6 +651,11 @@ export function createApi(
     // A phrase selected in a line (as it appears there), explained the same way and kept per phrase.
     explainPhrase: (textId: number, line: number, phrase: string, simple: boolean) =>
       call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple }),
+    // Why a word has the form it has in its line (the form quiz's Explain), kept per word.
+    explainForm: async (textId: number, line: number, word: Word) =>
+      (await call<{ explanation: string[] }>('POST', `/api/texts/${textId}/lines/${line}/form`, {
+        word: word.text, lemma: word.lemma, form: word.form?.name, helper: word.form?.helper ?? '',
+      })).explanation,
     // Records a line's slow version if it isn't yet, and says when each of the line's words is spoken in it
     // (one entry per word, null for none): the normal recording's times don't fit.
     slowTimes: (textId: number, line: number) => call<{ times: (Word['time'] | null)[] }>('GET', `/api/texts/${textId}/lines/${line}/slow`),

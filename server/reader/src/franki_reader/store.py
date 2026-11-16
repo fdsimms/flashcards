@@ -139,6 +139,16 @@ CREATE TABLE IF NOT EXISTS phrase_explanations (
     cost_usd REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (text_id, line, phrase, simple)
 );
+-- Why a word has the form it has (the form quiz's Explain), asked once per word of a line on the owner's tap.
+CREATE TABLE IF NOT EXISTS form_explanations (
+    text_id INTEGER NOT NULL REFERENCES texts(id),
+    line INTEGER NOT NULL,
+    word TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    cost_usd REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (text_id, line, word)
+);
 -- Grammar drills' fill-the-gap questions (drills.py): each batch Claude wrote, for its cost, and
 -- the questions from it that passed the checks, served oldest-served first. A call that failed after
 -- Claude answered is a batch with nothing asked or kept, for its cost (and the day's call count).
@@ -1474,6 +1484,40 @@ def save_phrase_explanation(
         )
 
 
+def get_form_explanation(
+    conn: sqlite3.Connection, text_id: int, line: int, word: str
+) -> list[str] | None:
+    row = conn.execute(
+        "SELECT answer FROM form_explanations WHERE text_id = ? AND line = ? AND word = ?",
+        (text_id, line, word),
+    ).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def save_form_explanation(
+    conn: sqlite3.Connection,
+    text_id: int,
+    line: int,
+    word: str,
+    answer: list[str],
+    now: datetime,
+    cost_usd: float = 0.0,
+) -> None:
+    with conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO form_explanations"
+            " (text_id, line, word, answer, created_at, cost_usd) VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                text_id,
+                line,
+                word,
+                json.dumps(answer, ensure_ascii=False),
+                now.isoformat(),
+                cost_usd,
+            ),
+        )
+
+
 def explanation_spending(
     conn: sqlite3.Connection, since: datetime
 ) -> dict[Code, tuple[int, float]]:
@@ -1487,21 +1531,23 @@ def explanation_spending(
                    SELECT t.language, e.created_at, e.cost_usd FROM (
                        SELECT text_id, created_at, cost_usd FROM explanations
                        UNION ALL SELECT text_id, created_at, cost_usd FROM phrase_explanations
+                       UNION ALL SELECT text_id, created_at, cost_usd FROM form_explanations
                        UNION ALL SELECT text_id, created_at, cost_usd FROM naturalness
                    ) e JOIN texts t ON t.id = e.text_id
                    UNION ALL SELECT language, created_at, cost_usd FROM call_costs
-                       WHERE feature IN ('explain', 'phrase', 'natural')
+                       WHERE feature IN ('explain', 'phrase', 'form_explain', 'natural')
                ) WHERE created_at >= ? GROUP BY language ORDER BY SUM(cost_usd) DESC""",
             (since.isoformat(),),
         )
     }
 
 
-# What a row of `call_costs` was for. A failed "explain", "phrase" or "natural" call counts with
+# What a row of `call_costs` was for. A failed "explain", "phrase", "form_explain" or "natural" call counts with
 # the answers kept for those (`explanation_spending`).
 CallFeature = Literal[
     "explain",
     "phrase",
+    "form_explain",
     "natural",
     "mnemonics",
     "recording",

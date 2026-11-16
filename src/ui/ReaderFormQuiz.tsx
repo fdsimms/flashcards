@@ -1,9 +1,10 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Modal, ScrollView, Text, TextInput, View, useColorScheme, type TextInputInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { Word } from '../reader/api';
+import { failureText } from '../core/failure';
+import type { Api, Word } from '../reader/api';
 import { checkForm, formReason, type FormCheck, type Settled } from '../reader/formQuiz';
-import { Button, HeaderAction, Icon } from './kit';
+import { Button, HeaderAction, Icon, Tappable } from './kit';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
@@ -11,9 +12,14 @@ import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
  * word's dictionary form, and a field for the form that fits. Check says right or what the text has,
  * and why (the form's name, and the word of the line that goes with it). Practice only: nothing is
  * graded, rated or saved, and a miss changes no card's schedule. Skip, a right answer or Done ends the
- * slot, so the text shows the word; closing the sheet any other way leaves it open.
+ * slot, so the text shows the word; closing the sheet any other way leaves it open. After a miss,
+ * Explain asks Claude on the server why the line has that form (api.explainForm, kept per word),
+ * only on the tap.
  */
-export function ReaderFormQuiz({ word, before, after, onSettle, onClose }: {
+export function ReaderFormQuiz({ api, textId, line, word, before, after, onSettle, onClose }: {
+  api: Api;
+  textId: number;
+  line: number;
   word: Word;
   before: string;
   after: string;
@@ -30,12 +36,28 @@ export function ReaderFormQuiz({ word, before, after, onSettle, onClose }: {
   const right = result === 'right';
   const tint = right ? c.countDue : checked ? c.danger : c.accent;
 
+  // Why the line has this form: asked on the tap, and an answer that arrives after the sheet is closed is dropped.
+  const [why, setWhy] = useState<{ state: 'loading' } | { state: 'done'; paragraphs: string[] } | { state: 'failed'; message: string } | null>(null);
+  const alive = useRef(true);
+  useEffect(() => () => { alive.current = false; }, []);
+  const explain = async () => {
+    if (why?.state === 'loading') return;
+    setWhy({ state: 'loading' });
+    try {
+      const paragraphs = await api.explainForm(textId, line, word);
+      if (alive.current) setWhy({ state: 'done', paragraphs });
+    } catch (e) {
+      if (alive.current) setWhy({ state: 'failed', message: failureText(e, { what: "Couldn't explain this form.", next: 'Try again.' }) });
+    }
+  };
+
   const check = () => {
     const found = checkForm(typed, word);
     if (found !== 'empty') setResult(found);
   };
   const again = () => {
     setResult(null);
+    setWhy(null);
     input.current?.focus();
   };
   const reason = formReason(word);
@@ -102,6 +124,30 @@ export function ReaderFormQuiz({ word, before, after, onSettle, onClose }: {
               {right ? 'Right' : result === 'accents' ? `The letters are right, but the accents aren't. The text has ${word.text}` : `The text has ${word.text}`}
             </Text>
             {reason ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{reason}</Text> : null}
+          </View>
+        ) : null}
+
+        {checked && !right ? (
+          <View style={{ gap: space.s }}>
+            {why?.state !== 'done' ? (
+              <Tappable
+                accessibilityRole="button"
+                onPress={explain}
+                disabled={why?.state === 'loading'}
+                hitSlop={{ top: space.s, bottom: space.s }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, alignSelf: 'flex-start' }}
+              >
+                <Icon name="sparkles" size={18} color={c.accent} />
+                <Text style={{ ...type.headline, color: c.accent }}>{why?.state === 'loading' ? 'Explaining...' : why?.state === 'failed' ? 'Try explaining again' : 'Explain why'}</Text>
+              </Tappable>
+            ) : null}
+            {why?.state === 'failed' ? <Text style={{ ...type.subhead, color: c.danger }}>{why.message}</Text> : null}
+            {why?.state === 'done' ? (
+              <View accessibilityLiveRegion="polite" style={{ backgroundColor: c.fill, borderRadius: radius.m, padding: space.m, gap: space.s }}>
+                <Text style={{ ...type.overline, color: c.textSecondary }}>Why {word.text}</Text>
+                {why.paragraphs.map((p, i) => <Text key={i} style={{ ...type.body, color: c.text }}>{p}</Text>)}
+              </View>
+            ) : null}
           </View>
         ) : null}
 

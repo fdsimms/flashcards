@@ -19,6 +19,7 @@ from franki_reader.explain import (
     CheckRequest,
     ExplainFailed,
     ExplainRequest,
+    FormRequest,
     PhraseRequest,
     check_message,
     claude_check,
@@ -26,7 +27,9 @@ from franki_reader.explain import (
     claude_explain_phrase,
     clean,
     clean_check,
+    clean_form,
     clean_phrase,
+    form_message,
     phrase_message,
     request_message,
 )
@@ -38,6 +41,7 @@ POINTS = [{"phrase": "ฉัน", "note": "I, said by anyone."}]
 def client(
     explain: Any = None,
     explain_phrase: Any = None,
+    explain_form: Any = None,
     text: dict[str, Any] = GOOD,
     check_natural: Any = None,
 ) -> tuple[TestClient, int]:
@@ -54,7 +58,14 @@ def client(
         random.Random(1),
     )
     app = create_app(
-        engine, "open sesame", None, None, explain, explain_phrase, check_natural=check_natural
+        engine,
+        "open sesame",
+        None,
+        None,
+        explain,
+        explain_phrase,
+        explain_form,
+        check_natural=check_natural,
     )
     return started(app), text_id
 
@@ -518,3 +529,80 @@ def test_claude_check_keeps_the_usage_of_an_answer_it_cant_use(
 def test_both_prompts_keep_frequency_and_register_to_what_is_certain() -> None:
     assert CALIBRATION in SYSTEM
     assert CALIBRATION in PHRASE_SYSTEM
+
+
+# ==== Forms ====
+
+PARAGRAPHS = ["Видеть takes the accusative.", "Глаз has an irregular plural."]
+
+
+def form_url(text_id: int, line: int = 0) -> str:
+    return f"/api/texts/{text_id}/lines/{line}/form"
+
+
+def form_body(c: TestClient, text_id: int, line: int = 0) -> dict[str, str]:
+    word = line_text(c, text_id, line)[:2]
+    return {"word": word, "lemma": word, "form": "accusative plural", "helper": ""}
+
+
+def test_explains_a_form_once_per_word_and_keeps_it() -> None:
+    seen: list[FormRequest] = []
+
+    async def explain(request: FormRequest) -> tuple[list[str], Usage]:
+        seen.append(request)
+        return PARAGRAPHS, Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")
+
+    c, text_id = client(None, None, explain)
+    body = form_body(c, text_id, 1)
+    for _ in range(2):
+        response = c.post(form_url(text_id, 1), json=body, headers=AUTH)
+        assert response.status_code == 200 and response.json() == {"explanation": PARAGRAPHS}
+    assert len(seen) == 1 and seen[0].word == body["word"] and seen[0].form == body["form"]
+    shown_lines = c.get(f"/api/texts/{text_id}", headers=AUTH).json()["lines"]
+    assert len(seen[0].context) == len(shown_lines) and seen[0].index == 1
+    spent = c.get("/api/costs", headers=AUTH).json()["explanations"]
+    assert spent["asked"] == 1 and spent["cost_usd"] == 2.0
+
+
+def test_refuses_a_form_for_a_word_not_in_the_line() -> None:
+    async def explain(request: FormRequest) -> tuple[list[str], Usage]:
+        raise AssertionError("not asked")
+
+    c, text_id = client(None, None, explain)
+    body = form_body(c, text_id) | {"word": "nowhere"}
+    assert c.post(form_url(text_id), json=body, headers=AUTH).status_code == 400
+    assert c.post(form_url(text_id), json=body).status_code == 401
+    assert c.post(form_url(text_id, 99), json=body, headers=AUTH).status_code == 404
+
+
+def test_a_failed_form_is_not_kept_and_says_so_without_claude() -> None:
+    results: list[Any] = [ExplainFailed("Claude didn't explain this form. Try again in a moment.")]
+
+    async def explain(request: FormRequest) -> tuple[list[str], Usage]:
+        if results:
+            raise results.pop()
+        return PARAGRAPHS, Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")
+
+    c, text_id = client(None, None, explain)
+    body = form_body(c, text_id)
+    failed = c.post(form_url(text_id), json=body, headers=AUTH)
+    assert failed.status_code == 503 and "Try again" in failed.json()["detail"]
+    assert c.post(form_url(text_id), json=body, headers=AUTH).json() == {"explanation": PARAGRAPHS}
+    none, other = client()
+    assert none.post(form_url(other), json=form_body(none, other), headers=AUTH).status_code == 503
+
+
+def test_form_message_names_the_form_and_its_helper() -> None:
+    request = FormRequest("ru", "глаза", "глаз", "accusative plural", "видит", "line", "en")
+    message = form_message(request)
+    assert "Word: глаза" in message and "Dictionary form: глаз" in message
+    assert "accusative plural" in message and "The word that goes with it: видит" in message
+    assert "goes with it" not in form_message(
+        FormRequest("ru", "глаза", "глаз", "accusative plural", "", "line", "en")
+    )
+
+
+def test_clean_form_trims_and_limits_the_paragraphs() -> None:
+    assert clean_form({"explanation": [" a ", "", 3, "b"]}) == ["a", "b"]
+    assert clean_form({"explanation": "no"}) == []
+    assert len(clean_form({"explanation": ["x"] * 9})) == 3
