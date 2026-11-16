@@ -1067,10 +1067,10 @@ def test_a_story_characters_voice_is_given_once_and_kept_in_every_episode(tmp_pa
     assert story is not None
     assert {n: (v.voice, v.pitch) for n, v in story.voices.items()} == {
         "Noi": ("voice-b", 0),
-        "Ploy": ("voice-c", 18),
+        "Ploy": ("voice-c", 8),
     }
     assert [p[0].voice for p in parts.calls[1:]] == ["voice-b", "voice-c"]
-    assert parts.calls[-1][0].pitch == 18
+    assert parts.calls[-1][0].pitch == 8
 
 
 def test_without_a_parts_voice_a_quoted_line_is_read_whole_by_the_narrator(tmp_path: Path) -> None:

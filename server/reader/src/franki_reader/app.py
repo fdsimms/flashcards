@@ -163,7 +163,9 @@ marked words, ideas) is in the current language, the `language` setting.
                                       each {id, name, note, state}, as the choices stand now
     POST  /api/texts/{id}/lines/{n}/phrase    {phrase, simple?} a phrase the owner selected in the
                                       line, as it appears there, explained by Claude:
-                                      {meaning, points: [{phrase, note}]}. Kept per phrase, like
+                                      {meaning, literal ("" when it matches the meaning; absent
+                                      from an answer kept earlier), points: [{phrase, note}]}.
+                                      Kept per phrase, like
                                       the line's
     POST  /api/texts/{id}/lines/{n}/natural   whether a native speaker would say the line, judged by
                                       Claude: {verdict, reason, alternative}, verdict one of
@@ -240,6 +242,12 @@ marked words, ideas) is in the current language, the `language` setting.
                                       isn't kept
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
                                       memory hints for a word the owner keeps forgetting: {hints: [...]}
+    POST  /api/aspect-pair            {language, word, line?} a Russian or Polish verb's aspect and its aspect
+                                      partner, written by Claude for the note editor to check, asked
+                                      only on Add to deck: {aspect, partner, partner_meaning,
+                                      aspect_source}, all null when there's none to suggest. 422 for
+                                      another language, 503 without Claude. Its cost is kept in
+                                      `call_costs` (feature "aspect"), not yet in /api/costs
     POST  /api/glosses                {language, sentences: [{text, english?}]} cards' example
                                       sentences split and glossed as a text's lines are, for the
                                       app's word popovers on a card: {ready, sentences: [[word]]},
@@ -266,6 +274,7 @@ from pydantic import BaseModel, Field
 
 from franki_reader import (
     ai_ipa,
+    aspect,
     cast,
     cast_samples,
     comprehension,
@@ -566,6 +575,15 @@ class PhraseIn(BaseModel):
     simple: bool = False
 
 
+class AspectIn(BaseModel):
+    # The word's own language, which is not always the one being read: a card from the Polish deck
+    # can be studied while Thai is the reading language.
+    language: Code
+    word: str = Field(min_length=1, max_length=80)
+    # The sentence it was read in, so a homograph can be told apart; optional.
+    line: str = Field(default="", max_length=400)
+
+
 class WriteIn(BaseModel):
     name: str = Field(min_length=1, max_length=150)
     form: Form = "dialogue"
@@ -703,6 +721,7 @@ def create_app(
     assess: pronunciation.Assess | None = None,
     write_lesson: WritePlan | None = None,
     lessons_dir: Path | None = None,
+    write_aspect: aspect.WriteAspect | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
     # Points whose drill questions are being written, shared by every request (drills.top_up).
@@ -1761,6 +1780,28 @@ def create_app(
         )
         return {"hints": hints}
 
+    @app.post("/api/aspect-pair", dependencies=authed)
+    async def aspect_pair(body: AspectIn) -> dict[str, Any]:
+        language = body.language
+        if language not in aspect.ASPECT_LANGUAGES:
+            raise HTTPException(422, "Aspect pairs are only suggested for Russian and Polish.")
+        if write_aspect is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't suggest an aspect pair"
+                " (ANTHROPIC_API_KEY in server/.env turns suggestions on).",
+            )
+        try:
+            pair, used = await write_aspect(
+                aspect.AspectRequest(language, body.word.strip(), body.line.strip())
+            )
+        except aspect.AspectFailed as e:
+            keep_failed_cost("aspect", language, e.usage)
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(engine.conn, "aspect", language, engine.clock(), used.cost_usd())
+        return pair.as_json()
+
     @app.post("/api/glosses", dependencies=authed)
     async def glosses(body: GlossesIn, background: BackgroundTasks) -> dict[str, Any]:
         """Never writes to Anki or grades a card: it only reads the snapshot of the deck."""
@@ -2636,6 +2677,7 @@ def production_app() -> FastAPI:
     write_forms: forms.WriteForms | None = None
     write_lesson: WritePlan | None = None
     write_ipa: ai_ipa.WriteIpa | None = None
+    write_aspect: aspect.WriteAspect | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
@@ -2656,6 +2698,7 @@ def production_app() -> FastAPI:
         write_forms = forms.claude_forms(client)
         write_lesson = lesson_writer.claude_plan(client)
         write_ipa = ai_ipa.claude_ipa(client)
+        write_aspect = aspect.claude_aspect(client)
 
         def ask_for(entries: list[Entry], language: Code, model: TextModel = MODEL) -> Ask:
             return claude_ask(client, entries, language, model)
@@ -2737,4 +2780,5 @@ def production_app() -> FastAPI:
         assess=speech.assess if speech else None,
         write_lesson=write_lesson,
         lessons_dir=settings.audio_dir / "lessons",
+        write_aspect=write_aspect,
     )

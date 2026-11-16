@@ -24,6 +24,14 @@ export type Topic = { id: number; name: string; ready: number; state: TopicState
 // "в" and "in hoods".
 export type WordForm = { id: string; name: string; helper?: string; phrase?: string };
 
+/** What the server suggests for a verb's aspect pair (server/reader aspect.py). `aspect_source` is always "ai": nothing checks it. */
+export type AspectPair = {
+  aspect: 'perfective' | 'imperfective' | null;
+  partner: string | null;
+  partner_meaning: string | null;
+  aspect_source: 'ai' | null;
+};
+
 export type Word = {
   text: string;
   status: 'known' | 'partial' | 'unknown' | 'name' | null; // 'name': a name the model marked; null for spaces and punctuation
@@ -198,7 +206,12 @@ export type TextModel = 'claude-sonnet-5-5' | 'claude-haiku-5-5';
 // One thing worth knowing about a line: the part of it, and what to know.
 export type ExplainPoint = { phrase: string; note: string };
 /** A phrase selected in a line, explained: what it means there, and what to know about its parts. */
-export type PhraseExplanation = { meaning: string; points: ExplainPoint[] };
+export type PhraseExplanation = {
+  meaning: string;
+  /** A word-for-word rendering, only when it differs from `meaning`. Absent from an answer kept before it existed. */
+  literal?: string;
+  points: ExplainPoint[];
+};
 
 // A grammar point found in an explained line, with the owner's choice as it stands (docs/grammar.md, step 3).
 export type LineGrammar = { id: string; name: string; note: string; state: GrammarState };
@@ -597,6 +610,10 @@ export function createApi(
     // Memory hints for a word (a leech), written by Claude on the server: asked only when the owner taps for them.
     mnemonics: async (question: { language: Language; entry: string; meaning: string; transliteration?: string; context?: string }) =>
       (await call<{ hints: string[] }>('POST', '/api/mnemonics', question)).hints,
+    // A Russian or Polish verb's aspect and its aspect partner, written by Claude on the server: asked only on Add to deck,
+    // for the note editor to show and check (reader/mining.ts). Every field is null when there's nothing to suggest.
+    aspectPair: (language: Language, word: string, line?: string) =>
+      call<AspectPair>('POST', '/api/aspect-pair', { language, word, ...(line ? { line } : {}) }),
     // Cards' example sentences split and glossed as a text's lines are, for the word popovers on a card
     // (reader/cardGlosses.ts): asked once for a whole study session. `ready` is false until the
     // language's deck has been read on the server.

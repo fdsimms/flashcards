@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import type { AzureVoice } from '../../src/reader/api';
-import { audioKey, castDetail, castFor, castInfo, CAST_KINDS, clampPitch, isCastKind, pitchLabel, PITCH_MAX, PITCH_MIN, resetChange, voicesForKind } from '../../src/reader/storyCast';
+import { auditionVoices, audioKey, castDetail, castFor, castInfo, CAST_KINDS, clampPitch, isCastKind, pitchLabel, PITCH_MAX, PITCH_MIN, resetChange, voicesForKind } from '../../src/reader/storyCast';
 
 const cast = (voice = 'ru-RU-DariyaNeural', pitch = 0) =>
   Object.fromEntries(CAST_KINDS.map((k) => [k.kind, { voice, pitch }])) as never;
@@ -59,4 +59,16 @@ test('the same voices and pitch name the same cached audio, and it is safe as a 
   expect(audioKey('ru', 'ru-RU-DariyaNeural', 18)).toBe(audioKey('ru', 'ru-RU-DariyaNeural', 18));
   expect(audioKey('ru', 'ru-RU-DariyaNeural', 18)).not.toBe(audioKey('ru', 'ru-RU-DariyaNeural', 20));
   expect(audioKey('a/b', '../x', -8)).toBe('a_b-___x--8');
+});
+
+test('the audition lists the kind\'s voices, or only the Multilingual ones among them', () => {
+  const voices: AzureVoice[] = [
+    { voice: 'pl-PL-ZofiaNeural', locale: 'pl-PL', name: 'Zofia', gender: 'Female' },
+    { voice: 'pl-PL-MarekNeural', locale: 'pl-PL', name: 'Marek', gender: 'Male' },
+    { voice: 'en-US-AvaMultilingualNeural', locale: 'en-US', name: 'Ava', gender: 'Female' },
+    { voice: 'en-US-AndrewMultilingualNeural', locale: 'en-US', name: 'Andrew', gender: 'Male' },
+  ];
+  expect(auditionVoices(voices, 'girl', 'all').map((v) => v.name)).toEqual(['Zofia', 'Ava']);
+  expect(auditionVoices(voices, 'girl', 'multilingual').map((v) => v.name)).toEqual(['Ava']);
+  expect(auditionVoices(voices, 'boy', 'multilingual').map((v) => v.name)).toEqual(['Andrew']);
 });

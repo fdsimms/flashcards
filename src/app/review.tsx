@@ -1,12 +1,12 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { earlierDeckToStudy, nextDeckToStudy } from '../core/deckTree';
-import { minedNote } from '../reader/mining';
 import { languageOfDeck } from '../reader/practice';
 import type { WordToUse } from '../reader/production';
 import { useApp } from '../ui/AppContext';
 import { ExtraCard } from '../ui/DailyExtras';
 import { Review } from '../ui/Review';
+import { useAddMinedWord } from '../ui/useAddMinedWord';
 import { useDailyExtras } from '../ui/useDailyExtras';
 import type { CardGlossing } from '../ui/useCardGlosses';
 import { useWordAudio } from '../ui/useWordAudio';
@@ -43,15 +43,14 @@ export default function ReviewRoute() {
   // An example sentence's words, tapped for their meanings while Read & Listen is signed in. Add to
   // deck opens the note editor on the word, in its language's deck, as the reader's does.
   const playWord = useWordAudio(repo);
+  const addWord = useAddMinedWord();
   const readerDecks = readerSettings?.decks;
   const glossing = useMemo<CardGlossing | undefined>(() => (readerApi && readerDecks ? {
     api: readerApi,
     decks: readerDecks,
     onPlayWord: playWord,
-    onAddWord: (word, meaning, lang, pronunciation) => new Promise<boolean>((resolve) => openNoteEditor(minedNote(word, meaning, readerDecks[lang], pronunciation), (result) => {
-      resolve(!!result && 'saved' in result);
-    })),
-  } : undefined), [readerApi, readerDecks, playWord, openNoteEditor]);
+    onAddWord: (word, meaning, lang, pronunciation) => addWord({ word, meaning, deck: readerDecks[lang], language: lang, pronunciation }),
+  } : undefined), [readerApi, readerDecks, playWord, addWord]);
   // Custom study raises limits from a screen over this one: the deck is loaded again when it closes.
   const [reloadKey, setReloadKey] = useState(0);
   const firstFocus = useRef(true);

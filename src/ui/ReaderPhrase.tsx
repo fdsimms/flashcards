@@ -139,6 +139,12 @@ export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, o
             ) : (
               <>
                 <Text style={{ ...type.body, fontWeight: '600', color: c.text }}>{answer.meaning}</Text>
+                {answer.literal ? (
+                  <Text style={{ ...type.subhead, color: c.textSecondary }}>
+                    <Text style={{ fontWeight: '600', color: c.text }}>Literally: </Text>
+                    {answer.literal}
+                  </Text>
+                ) : null}
                 {answer.points.map((p, i) => (
                   <Text key={i} style={{ ...type.subhead, color: c.text }}>
                     <Text style={{ fontWeight: '700', color: c.accent }}>{p.phrase}</Text>

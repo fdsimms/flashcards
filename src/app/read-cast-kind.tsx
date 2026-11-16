@@ -14,5 +14,5 @@ export default function ReadCastKindRoute() {
   useEffect(() => { if (!reader.api) router.back(); }, [reader.api, router]);
   const cast = castFor(reader.settings, language);
   if (!reader.api || !cast || !isCastKind(kind)) return null;
-  return <ReadCastKind api={reader.api} language={language} kind={kind} current={cast[kind]} onSettings={reader.setSettings} />;
+  return <ReadCastKind api={reader.api} language={language} kind={kind} current={cast[kind]} onSettings={reader.setSettings} onAudition={() => router.push({ pathname: '/read-cast-audition', params: { language, kind } })} />;
 }
