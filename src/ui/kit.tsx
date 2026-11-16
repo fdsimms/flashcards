@@ -91,6 +91,8 @@ export function Screen(props: {
   toolbar?: React.ReactNode;
   /** Pinned to the bottom, above the home indicator: the screen's main buttons. */
   footer?: React.ReactNode;
+  /** Floats over the content's bottom edge, just above the footer, without moving anything. Needs a footer. */
+  floating?: React.ReactNode;
   /** Turns off swiping the screen away: a sheet with changes that would be lost, or a screen with its own sideways swipe. */
   lockGesture?: boolean;
   children: React.ReactNode;
@@ -106,7 +108,10 @@ export function Screen(props: {
   return (
     <View style={{ flex: 1 }}>
       {head}
-      <View style={{ flex: 1 }}>{props.children}</View>
+      <View style={{ flex: 1 }}>
+        {props.children}
+        {props.floating ? <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>{props.floating}</View> : null}
+      </View>
       <View style={{ paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: Math.max(insets.bottom, space.l), gap: space.s }}>
         {props.footer}
       </View>

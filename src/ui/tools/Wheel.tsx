@@ -75,6 +75,10 @@ export function Wheel({ count, value, onChange, label, format = (i) => String(i)
         contentOffset={{ x: 0, y: value * row }}
         contentContainerStyle={{ paddingVertical: row }}
         scrollEventThrottle={16}
+        // `contentOffset` above is applied before the rows are laid out, and on a cold start iOS can
+        // clamp or drop it, leaving the wheel between rows with the wrong one under the band. Once
+        // the content has a size (and again if the row height changes), put it on the value.
+        onContentSizeChange={() => scroll.current?.scrollTo({ y: shown.current * row, animated: false })}
         onScrollBeginDrag={() => { dragging.current = true; }}
         onScroll={(e) => { const i = at(e); if (dragging.current && i !== ticked.current) { ticked.current = i; haptic.select(); } }}
         onMomentumScrollEnd={settle}

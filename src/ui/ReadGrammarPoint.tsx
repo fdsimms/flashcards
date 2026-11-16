@@ -120,7 +120,7 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
   const related = point.related.map((r) => grammarPoint(r)).filter((r) => r !== undefined);
   const kinds = practiceKinds(point);
   const practice = [
-    ...(kinds.includes('questions') ? [{ label: 'Practice questions', detail: 'Name the point in lines you read, and fill gaps.', onPress: () => onDrill(id) }] : []),
+    ...(kinds.includes('questions') ? [{ label: 'Practice questions', detail: 'Name the grammar point in lines you read, and fill gaps.', onPress: () => onDrill(id) }] : []),
     ...(kinds.includes('contrast') ? [{ label: 'Which one fits?', detail: 'Choose between this word and similar ones.', onPress: () => onDrill(id) }] : []),
     ...(kinds.includes('forms') && practiceDeck ? [{ label: 'Forms practice', detail: `Conjugate ${point.forms.join(' and ')} verbs.`, onPress: () => onPracticeForms(practiceDeck, point.forms) }] : []),
   ];
@@ -146,7 +146,7 @@ export function ReadGrammarPoint({ api, practice: phone, id, dayStartsAtHour, pr
               onChange={(state) => { if (state !== 'unset') choose(state); }}
             />
             {page.state !== 'practice' && practicingCount >= maxPractice ? (
-              <Help>{`You're already practicing ${maxPractice} points. Set one to Know it on the Grammar screen to practice this one.`}</Help>
+              <Help>{`You're already practicing ${maxPractice} grammar points. Set one to Know it on the Grammar screen to practice this one.`}</Help>
             ) : changed ? (
               <Help>Texts written from now on will use this.</Help>
             ) : null}
