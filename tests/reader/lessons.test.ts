@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AudioLesson } from '../../src/reader/api';
-import { anyMaking, atEnd, clock, lessonDetail, lessonsOffered, parseNarrator, skipTo } from '../../src/reader/lessons';
+import { anyMaking, atEnd, clock, lessonDetail, lessonsOffered, parseNarrator, skipTo, stageSteps } from '../../src/reader/lessons';
 
 const lesson = (over: Partial<AudioLesson> = {}): AudioLesson => ({
   id: 1, language: 'fr', scene: 'a café', title: 'At the café', state: 'ready', error: '',
@@ -66,12 +66,23 @@ describe('lessonDetail', () => {
   it('counts a short lesson as a minute and one phrase as singular', () => {
     expect(lessonDetail(lesson({ duration_ms: 20_000, phrases: [{ text: 'a', english: 'b' }], created_at: '' }))).toBe('1 min · 1 phrase');
   });
-  it('says a lesson is being made', () => {
-    expect(lessonDetail(lesson({ state: 'making' }))).toBe('Making it. This takes about a minute.');
+  it('says what a lesson being made is doing', () => {
+    expect(lessonDetail(lesson({ state: 'making', stage: 'recording' }))).toBe('Recording the voices.');
+    expect(lessonDetail(lesson({ state: 'making' }))).toBe('Writing the phrases.');
   });
   it('gives a failed lesson its reason, or says to try again', () => {
     expect(lessonDetail(lesson({ state: 'failed', error: "Azure couldn't speak the lesson (Azure answered 429). Try again in a moment." }))).toContain('Azure answered 429');
     expect(lessonDetail(lesson({ state: 'failed', error: '' }))).toBe("Couldn't make this lesson. Try again.");
+  });
+});
+
+describe('stageSteps', () => {
+  it('marks the steps before the stage done, the stage now and the rest to come', () => {
+    expect(stageSteps('recording').map((s) => s.status)).toEqual(['done', 'now', 'todo']);
+    expect(stageSteps('joining').map((s) => s.status)).toEqual(['done', 'done', 'now']);
+  });
+  it('starts at the first step when the stage is missing', () => {
+    expect(stageSteps(undefined).map((s) => s.status)).toEqual(['now', 'todo', 'todo']);
   });
 });
 

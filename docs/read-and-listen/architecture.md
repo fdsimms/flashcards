@@ -394,7 +394,10 @@ aloud is never heard by the phone.
 - **In the app** (the owner chose the layout from a mock, 15 November 2026): an Audio lessons row on
   the shelf, shown only while the language is one the server makes lessons in (`lessonsOffered`,
   mirroring `LESSON_LANGUAGES`), opens a list with a scene field (`ReadLessons.tsx`; it asks again
-  every 5 seconds while one is being made, and tapping a failed one offers to delete it). A ready
+  every 5 seconds while one is being made, and tapping a failed one offers to delete it). A lesson
+  being made shows its steps (`LessonMakingRow.tsx`: writing, recording, joining), from the row's
+  `stage`, which the server sets as `make_lesson` goes (`lesson_service.py`); a server from before
+  stages sends none, and the row shows the first step. A ready
   lesson opens its player (`ReadLesson.tsx`): play or pause, skip back or forward 15 seconds to hear
   a phrase again, the lock screen's controls, and the phrases and conversation behind a row, hidden
   until asked for so the lesson can be heard first. Background playback is on only while it's open.

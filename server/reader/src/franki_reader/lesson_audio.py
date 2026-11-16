@@ -105,9 +105,11 @@ async def render(
     decode: Decode = ffmpeg_decode,
     encode: Encode = ffmpeg_encode,
     level_clip: Level = level,
+    on_joining: Callable[[], None] | None = None,
 ) -> Rendered:
     """The lesson as one MP3. Each distinct clip is spoken once, so Azure bills the lesson's
-    distinct characters (`lesson.characters`), however often a phrase comes back."""
+    distinct characters (`lesson.characters`), however often a phrase comes back. `on_joining` is
+    called once every clip is spoken, before they're laid end to end and encoded."""
     gate = asyncio.Semaphore(CONCURRENCY)
 
     async def one(clip: Say) -> bytes:
@@ -117,6 +119,8 @@ async def render(
     needed = clips(steps)
     done = await asyncio.gather(*(one(c) for c in needed))
     audio = dict(zip(needed, done, strict=True))
+    if on_joining is not None:
+        on_joining()
     pcm = bytearray()
     for step in steps:
         pcm += silence(step.ms) if isinstance(step, Silence) else audio[step]

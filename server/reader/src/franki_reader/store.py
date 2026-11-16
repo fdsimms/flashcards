@@ -518,6 +518,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
     if added:
         # With no snapshot time, the next refresh reads the deck again to fill them in.
         conn.execute("DELETE FROM meta WHERE key LIKE 'snapshot_taken_at%'")
+    if "stage" not in {r[1] for r in conn.execute("PRAGMA table_info(lessons)")}:
+        # Where a lesson being made has got to (LessonStage); a lesson already kept is past it.
+        conn.execute("ALTER TABLE lessons ADD COLUMN stage TEXT NOT NULL DEFAULT 'writing'")
     if "removed" not in {r[1] for r in conn.execute("PRAGMA table_info(topics)")}:
         # A removed topic is hidden, not deleted, since its texts and readings point at it.
         conn.execute("ALTER TABLE topics ADD COLUMN removed INTEGER NOT NULL DEFAULT 0")
@@ -2487,6 +2490,9 @@ def queue_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tupl
 
 
 LessonState = Literal["making", "ready", "failed"]
+# What a lesson being made is doing, in order: Claude writing it, Azure's voices recording it, the
+# clips being joined into one MP3. Only meaningful while the state is "making".
+LessonStage = Literal["writing", "recording", "joining"]
 
 
 @dataclass(frozen=True)
@@ -2500,10 +2506,11 @@ class StoredLesson:
     error: str
     duration_ms: int
     created_at: datetime
+    stage: LessonStage
 
 
 def _lesson(row: tuple[Any, ...]) -> StoredLesson:
-    id_, language, scene, title, plan, state, error, duration_ms, created_at = row
+    id_, language, scene, title, plan, state, error, duration_ms, created_at, stage = row
     try:
         parsed = json.loads(plan)
     except ValueError:
@@ -2518,10 +2525,11 @@ def _lesson(row: tuple[Any, ...]) -> StoredLesson:
         error,
         duration_ms,
         datetime.fromisoformat(created_at),
+        stage,
     )
 
 
-_LESSON_COLUMNS = "id, language, scene, title, plan, state, error, duration_ms, created_at"
+_LESSON_COLUMNS = "id, language, scene, title, plan, state, error, duration_ms, created_at, stage"
 
 
 def add_lesson(conn: sqlite3.Connection, language: Code, scene: str, now: datetime) -> int:
@@ -2533,6 +2541,14 @@ def add_lesson(conn: sqlite3.Connection, language: Code, scene: str, now: dateti
         )
     assert cur.lastrowid is not None
     return cur.lastrowid
+
+
+def set_lesson_stage(conn: sqlite3.Connection, lesson_id: int, stage: LessonStage) -> None:
+    """Says what a lesson being made is doing now, for the app's list."""
+    with conn:
+        conn.execute(
+            "UPDATE lessons SET stage = ? WHERE id = ? AND state = 'making'", (stage, lesson_id)
+        )
 
 
 def finish_lesson(

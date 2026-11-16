@@ -231,7 +231,8 @@ marked words, ideas) is in the current language, the `language` setting.
                                       English Azure voice (en-US-GuyNeural) for this lesson. French only so far (`languages`
                                       in GET). At most 2 at a time
     GET   /api/lessons                ?language= {languages, lessons: [{id, language, scene, title,
-                                      state: making | ready | failed, error, duration_ms,
+                                      state: making | ready | failed, stage: writing | recording |
+                                      joining (while making), error, duration_ms,
                                       created_at, phrases, dialogue}]}, newest first
     GET   /api/lessons/{id}/audio     the lesson's MP3, once it's ready
     DELETE /api/lessons/{id}          forgets the lesson and its audio
@@ -1727,6 +1728,7 @@ def create_app(
             "scene": row.scene,
             "title": row.title or row.scene,
             "state": row.state,
+            "stage": row.stage,
             "error": row.error,
             "duration_ms": row.duration_ms,
             "created_at": instant(row.created_at),

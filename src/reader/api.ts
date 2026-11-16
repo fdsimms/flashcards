@@ -394,12 +394,16 @@ export type Suggestion = { name: string; fit: number };
 
 // An audio lesson (server lesson.py): asked for by a scene, then written and spoken in the background.
 export type LessonState = 'making' | 'ready' | 'failed';
+/** What a lesson being made is doing, in order (the server's LessonStage). */
+export type LessonStage = 'writing' | 'recording' | 'joining';
 export type AudioLesson = {
   id: number;
   language: Language;
   scene: string;
   title: string;
   state: LessonState;
+  /** Where a lesson being made has got to. A server from before stages doesn't send it: that reads as the first. */
+  stage?: LessonStage;
   /** Why a failed lesson failed, written for a person. */
   error: string;
   duration_ms: number;
