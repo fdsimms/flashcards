@@ -42,6 +42,9 @@ PAUSE_MIN_MS = 3000
 PAUSE_MAX_MS = 15000
 # The breath between one thing said and the next.
 BEAT_MS = 700
+# The silence after a native voice speaks, before the narrator (or the next line) comes in: longer
+# than a beat so a short phrase isn't cut straight into by the narrator.
+AFTER_NATIVE_MS = 1400
 
 Voice = Literal["narrator", "male", "female"]
 
@@ -179,7 +182,7 @@ def _ask(phrase: Phrase) -> list[Step]:
         Say("narrator", f"How do you say: {phrase.english}"),
         Silence(pause_ms(word_count(phrase.text))),
         Say("male", phrase.text),
-        Silence(BEAT_MS),
+        Silence(AFTER_NATIVE_MS),
     ]
 
 
@@ -187,7 +190,7 @@ def _teach(phrase: Phrase) -> list[Step]:
     steps: list[Step] = [
         Say("narrator", "Listen."),
         Say("male", phrase.text),
-        Silence(BEAT_MS),
+        Silence(AFTER_NATIVE_MS),
         Say("narrator", f"That means: {phrase.english}"),
         Silence(BEAT_MS),
     ]
@@ -203,7 +206,10 @@ def _teach(phrase: Phrase) -> list[Step]:
 def _dialogue(lines: tuple[Line, ...], intro: str) -> list[Step]:
     steps: list[Step] = [Say("narrator", intro), Silence(BEAT_MS)]
     for line in lines:
-        steps += [Say("male" if line.speaker == "A" else "female", line.text), Silence(BEAT_MS)]
+        steps += [
+            Say("male" if line.speaker == "A" else "female", line.text),
+            Silence(AFTER_NATIVE_MS),
+        ]
     return steps
 
 
