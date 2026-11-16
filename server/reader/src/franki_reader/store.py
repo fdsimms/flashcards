@@ -1513,6 +1513,7 @@ CallFeature = Literal[
     "pronunciation",
     "lessons",
     "ipa",
+    "aspect",
 ]
 
 

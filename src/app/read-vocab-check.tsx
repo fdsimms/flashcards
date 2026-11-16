@@ -1,14 +1,15 @@
 import { Redirect, useRouter } from 'expo-router';
 import React from 'react';
-import { minedNote } from '../reader/mining';
 import { useApp } from '../ui/AppContext';
+import { useAddMinedWord } from '../ui/useAddMinedWord';
 import { ReadVocabCheck } from '../ui/ReadVocabCheck';
 import { useWordAudio } from '../ui/useWordAudio';
 
 /** The current Read & Listen language's vocabulary check, from its settings page. */
 export default function ReadVocabCheckRoute() {
   const router = useRouter();
-  const { reader, repo, openNoteEditor } = useApp();
+  const { reader, repo } = useApp();
+  const addWord = useAddMinedWord();
   const playWord = useWordAudio(repo);
   const language = reader.settings?.language;
   const deck = reader.settings?.decks && language ? reader.settings.decks[language] : null;
@@ -25,9 +26,7 @@ export default function ReadVocabCheckRoute() {
       // `decks` is missing from a server older than the deck setting.
       mining={deck ? {
         deck,
-        onAdd: (word, meaning) => new Promise<boolean>((resolve) => openNoteEditor(minedNote(word, meaning, deck), (result) => {
-          resolve(!!result && 'saved' in result);
-        })),
+        onAdd: (word, meaning) => addWord({ word, meaning, deck, language }),
       } : undefined}
       onDone={() => router.back()}
     />
