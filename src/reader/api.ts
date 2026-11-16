@@ -55,6 +55,9 @@ export type Word = {
   // older than it, and null for a word with no form to note. With a helper the popup says where the
   // meaning comes from ("в + prepositional: in hoods").
   form?: WordForm | null;
+  // Set on the few known words of a text the reader hides behind a fill-in slot to type the form of (reader/formQuiz.ts;
+  // server/reader/.../form_quiz.py picks them). Absent on every other word and from a server older than it.
+  quiz?: boolean;
   // What a contracted word is made of ("σε + το" for στο, Greek, Spanish, French and German). Absent
   // from a server older than it, and null for any other word.
   contraction?: string | null;

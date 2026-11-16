@@ -41,6 +41,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   const [slowLanguages, setSlowLanguages] = useState(prefs().slowLanguages);
   const [guessFirst, setGuessFirst] = useState(prefs().guessFirst);
   const [quizKnown, setQuizKnown] = useState(prefs().quizKnown);
+  const [formQuiz, setFormQuiz] = useState(prefs().formQuiz);
   const address = syncServer ? readerAddress(syncServer) : null;
 
   const turnOff = () => Alert.alert(
@@ -249,6 +250,23 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
               from the line, first. A word's meaning counts as looked up once it's shown. With the quiz on, a word in your
               deck asks you to pick its meaning from four choices, with I don't know to skip. Nothing is graded or added
               to your deck.
+            </Help>
+            <SectionTitle>Word forms</SectionTitle>
+            <Group>
+              <SwitchRow
+                first
+                label="Practice word forms"
+                value={formQuiz}
+                onValueChange={(on) => {
+                  savePrefs({ formQuiz: on });
+                  setFormQuiz(on);
+                }}
+              />
+            </Group>
+            <Help>
+              In a longer text, a few words you know are hidden behind a question mark. Tap one, type the form that
+              fits the sentence from its dictionary form, and the word comes back. It's for languages that change
+              their words (cases, endings), so there are none in Thai. Nothing is graded or added to your deck.
             </Help>
             <SectionTitle>dundundun</SectionTitle>
             <Group>

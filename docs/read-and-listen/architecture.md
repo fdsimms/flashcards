@@ -969,6 +969,30 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   Only contractions that are never anything else are listed (French des and du are also plain
   articles, German am is also the superlative's marker). Not done: Japanese verb chains, and reflexive
   or passive "se", "-ся", "się".
+- **Form quiz** (16 November 2026, the owner's idea: a practice word shown in its dictionary form that
+  you tap to put in the right form). A few words of a text are hidden behind a slot in the line, and a
+  tap opens a sheet to type the form that fits. Nothing new is generated: `form_quiz.py` picks the words
+  in code from what `render` already has, a known word (never a practice word, a name or one outside the
+  deck and common words) with a dictionary form and a form named by the forms pass, so the sheet can say
+  why. First appearance only, since that is the line the form was picked for; never the first word of a
+  line, whose capital says nothing; one to a line, spread down the text, different forms where it has
+  them, and the same words every time (`text_id` only moves where the spread starts). One slot for every
+  four lines, at most three, so a short text still reads as a text. The server flags them `quiz` on the
+  word (`Word.quiz`); the app decides whether to show them. **The word is hidden, not shown as its
+  dictionary form**: shown in a dictionary form it read as part of the story and the wrong grammar went
+  unnoticed. The slot is a solid accent pill with a question mark, as wide as the word so the line wraps
+  where it would have, and says nothing of the word to VoiceOver. It shows the real word while its line
+  plays (the voice is saying it, and listening first is a fair way to answer), and goes back to the pill
+  when the line stops, until it's answered or skipped. The sheet (`ReaderFormQuiz`) shows the line with a
+  blank, the dictionary form and its meaning, and a field. Typing is compared with the form in the text
+  (`typedCompare`, case and spacing ignored, accents counted: Polish ę is not e), and a wrong answer says
+  what the text has and the form's name with the helper word (`formReason`). **Practice only:** nothing
+  grades a card, rates, schedules or is saved; the answers last as long as the text is open
+  (`useFormQuiz`), and `tests/reader/noGrading.test.ts` scans the hook. It's on by default, with a switch
+  in the reading options menu (when the text has slots) and in Settings, Read & Listen, Word forms
+  (`formQuiz` in `prefs.ts`). Thai has no inflection, so it never has a slot. Not done: a fading tally of
+  missed forms to lean later texts toward them (the Practice tools' `marks.ts` shape), multiple choice,
+  and slots in a text's recap or choices.
 - **A text's meanings are its own** (13 November 2026, changing "Common words are glossed after the text is written" above). A word was glossed
   once, from the first line it turned up in, and that meaning was kept for the language and shown in
   every later text, so Spanish vino ("came" or "wine"), cara ("face" or "expensive") and sobre

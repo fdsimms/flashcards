@@ -41,6 +41,8 @@ import { usePhraseDrag } from './usePhraseDrag';
 import { ReadGrammarDial } from './ReadGrammarDial';
 import { ReadGrammarNote } from './ReadGrammarNote';
 import { ReadFormChip, ReadFormSheet } from './ReadFormSheet';
+import { ReaderFormQuiz } from './ReaderFormQuiz';
+import { useFormQuiz } from './useFormQuiz';
 import { ReadFrequency } from './ReadFrequency';
 import { GuessLine, GuessPrompt, QuizChoices, rightAnswer } from './ReadWordGuess';
 import { PracticeWordPill, TintPill } from './PracticeWordPill';
@@ -173,6 +175,9 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const [paragraphMode, setParagraphMode] = useState(prefs().paragraphs);
   const [thaiFont, setThaiFont] = useState(prefs().thaiFont);
   const [textSize, setTextSize] = useState(prefs().textSize);
+  // The fill-in slots on a few known words (reader/formQuiz.ts), and whether they're shown.
+  const [formQuizOn, setFormQuizOn] = useState(prefs().formQuiz);
+  const quiz = useFormQuiz(text, formQuizOn);
   const [tapped, setTapped] = useState<Tapped | null>(null);
   // A phrase being selected (its last word not tapped yet) or selected, explained under its line.
   const [phrase, setPhrase] = useState<PhrasePick | null>(null);
@@ -678,6 +683,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       if (at) setPhrase(pickEnd(phrase, at.line, at.index));
       return;
     }
+    if (quiz.begin(word)) return;
     openWord(word, x, y);
   };
 
@@ -755,6 +761,11 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     setTextSize(size);
   };
 
+  const turnOnFormQuiz = (on: boolean) => {
+    savePrefs({ formQuiz: on });
+    setFormQuizOn(on);
+  };
+
   const turnOnHighlight = (on: boolean) => {
     savePrefs({ highlight: on });
     setHighlight(on);
@@ -805,6 +816,9 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Menu icon="slider.horizontal.3" accessibilityLabel="Reading options">
             <Stack.Toolbar.MenuAction isOn={english} onPress={() => setEnglish(!english)}>Show English</Stack.Toolbar.MenuAction>
+            {quiz.any ? (
+              <Stack.Toolbar.MenuAction isOn={formQuizOn} onPress={() => turnOnFormQuiz(!formQuizOn)}>Practice word forms</Stack.Toolbar.MenuAction>
+            ) : null}
             {marked ? (
               <Stack.Toolbar.MenuAction isOn={paragraphMode} onPress={() => turnOnParagraphs(!paragraphMode)}>Paragraphs</Stack.Toolbar.MenuAction>
             ) : null}
@@ -966,6 +980,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                                 {...phraseLook(range.start + k, word, l.words)}
                                 playing={shaded === range.start + k}
                                 spoken={spoken.has(word)}
+                                slot={quiz.view(word, shaded === range.start + k)}
                                 onPress={tap}
                                 onLongPress={phraseDrag.begin}
                                 viewRef={phraseDrag.wordRef(word)}
@@ -1029,6 +1044,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                             hidden={hiddenMarks}
                             {...phraseLook(i, word, line.words)}
                             spoken={spoken.has(word)}
+                            slot={quiz.view(word, shaded === i)}
                             onPress={tap}
                             onLongPress={phraseDrag.begin}
                             viewRef={phraseDrag.wordRef(word)}
@@ -1227,6 +1243,9 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         } : null}
         onClose={() => setTapped(null)}
       />
+      {quiz.current ? (
+        <ReaderFormQuiz key={quiz.current.key} word={quiz.current.word} before={quiz.current.before} after={quiz.current.after} onSettle={quiz.settle} onClose={quiz.close} />
+      ) : null}
       {/* The selected phrase's explanation, keyed by the phrase so a new one asks again. */}
       {text && phrase && phrase.end !== null && phraseAnchor && !listenOnly && !phraseDrag.dragging ? (
         <PhraseExplanation
