@@ -39,7 +39,13 @@ def filled(entry: str, **over: Any) -> dict[str, Any]:
         "translation": "He sniggers in his corner.",
         "romanization": "",
         "transliteration": "",
-        "register": "",
+        "register": "neutral",
+        "part_of_speech": "verb",
+        "notes": "",
+        "classifier": "",
+        "gender": "",
+        "plural": "",
+        "genitive": "",
     }
     return {**base, **over}
 
@@ -78,6 +84,10 @@ def test_a_good_answer_gives_the_fields_by_their_anki_names() -> None:
             "Meaning": "to snigger",
             "Context": "Il <b>ricane</b> dans son coin.",
             "ContextTranslation": "He sniggers in his corner.",
+            "Register": "neutral",
+            "Language": "french",
+            "GenerateReverse": "y",
+            "PartOfSpeech": "verb",
         },
     )
 
@@ -87,9 +97,45 @@ def test_the_owners_meaning_is_kept() -> None:
     assert got is not None and got[1]["Meaning"] == "sniggers"
 
 
-def test_a_register_is_kept_lowercase_and_left_out_when_empty() -> None:
+def test_a_register_is_kept_lowercase_and_a_plain_word_is_neutral() -> None:
     got = check(filled("ricane", register="Informal"), {"ricane": ""}, "fr")
     assert got is not None and got[1]["Register"] == "informal"
+    got = check(filled("ricane", register=""), {"ricane": ""}, "fr")
+    assert got is not None and got[1]["Register"] == "neutral"
+
+
+def test_notes_and_part_of_speech_are_kept_and_a_bad_one_is_left_out() -> None:
+    got = check(filled("ricane", notes="rire is the plain word"), {"ricane": ""}, "fr")
+    assert got is not None and got[1]["Notes"] == "rire is the plain word"
+    got = check(filled("ricane", notes="a | b", part_of_speech="thing"), {"ricane": ""}, "fr")
+    assert got is not None and "Notes" not in got[1] and "PartOfSpeech" not in got[1]
+
+
+def test_a_thai_noun_gets_its_classifier_and_a_german_noun_its_forms() -> None:
+    th = check(
+        filled(
+            "ผ้า",
+            part_of_speech="noun",
+            classifier="ผืน",
+            context="<b>ผ้า</b>นี้นุ่ม",
+            romanization="phâa nîi núm",
+            transliteration="phâa",
+        ),
+        {"ผ้า": ""},
+        "th",
+    )
+    assert th is not None and th[1]["Classifier"] == "ผืน" and th[1]["Language"] == "thai"
+    de = check(
+        filled("Blutung", part_of_speech="noun", gender="F", plural="Blutungen", genitive="-"),
+        {"Blutung": ""},
+        "de",
+    )
+    assert de is not None
+    assert (de[1]["Gender"], de[1]["Plural"], de[1]["Genitive"]) == ("f", "Blutungen", "-")
+    fr = check(
+        filled("ricane", classifier="x", gender="m", part_of_speech="noun"), {"ricane": ""}, "fr"
+    )
+    assert fr is not None and not {"Classifier", "Gender"} & fr[1].keys()
 
 
 def test_a_word_that_wasnt_asked_for_is_dropped() -> None:

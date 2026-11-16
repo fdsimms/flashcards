@@ -3,7 +3,10 @@ background, so a note is a word to type and a minute to check instead of a form.
 
 Claude writes each word's Meaning (unless the owner gave one), a Context sentence with the word in bold,
 its English translation, the romanization of the sentence and word where the language needs one (a
-Japanese word's reading in kana instead, its KanaReading), and a Register when it isn't plain. The Audio field isn't written here: the app records it when the owner
+Japanese word's reading in kana instead, its KanaReading), the Register, PartOfSpeech, a Notes line
+(usage, compounds, a contrast with a near word), a Thai noun's Classifier and a German noun's Gender,
+Plural and Genitive, as the owner's finished notes have them, plus the Language and GenerateReverse
+every note carries. The Audio field isn't written here: the app records it when the owner
 saves the note, as it does for any note (src/core/recording.ts). Nothing here creates an Anki note or
 grades a card. A word that has been filled in waits in `ready` until the owner opens it in the note
 editor in the app, where saving is the approval.
@@ -34,10 +37,28 @@ log = logging.getLogger(__name__)
 BATCH = 10  # words in one call to Claude
 MAX_ATTEMPTS = 3  # tries a word gets before it stays failed until the owner asks again
 RETRY_AFTER = timedelta(minutes=10)  # between one try of a word and the next
-MAX_TOKENS = 4000
+MAX_TOKENS = 6000
 MAX_MEANING = 80  # characters
 MAX_SENTENCE = 200
 MAX_REGISTER = 24
+MAX_NOTES = 160
+PARTS_OF_SPEECH = frozenset(
+    {
+        "noun",
+        "verb",
+        "adjective",
+        "adverb",
+        "pronoun",
+        "preposition",
+        "conjunction",
+        "particle",
+        "classifier",
+        "numeral",
+        "interjection",
+        "phrase",
+    }
+)
+GENDERS = frozenset({"m", "f", "n"})
 
 # Languages whose Context sentence and word get a romanization (the Omnilanguage fields
 # ContextRomanized and Transliteration): the ones not written in Latin letters.
@@ -60,8 +81,17 @@ spelled in the sentence in <b></b> tags (both parts of a split verb), and no oth
 - translation: the sentence in natural English
 - romanization: {romanization}
 - transliteration: {transliteration}
-- register: one lowercase word ("formal", "informal", "slang", "vulgar", "literary", "dated") when \
-the entry isn't plain everyday language, else an empty string
+- register: one lowercase word: "neutral" for plain everyday language, else "formal", "informal", \
+"slang", "vulgar", "literary", "dated" or "technical"
+- part_of_speech: one of noun, verb, adjective, adverb, pronoun, preposition, conjunction, particle, \
+classifier, numeral, interjection, phrase
+- notes: one short line of what helps remember or use the entry: how it differs from a near word, a \
+common compound or collocation with its meaning, a usage restriction. An empty string when there is \
+nothing worth saying; never filler
+- classifier: {classifier}
+- gender: {gender}
+- plural: {plural}
+- genitive: {genitive}
 
 Plain text apart from the <b> tags: no `|`, no asterisks, no em dashes. Entries:
 {entries}"""
@@ -81,6 +111,12 @@ SCHEMA: dict[str, Any] = {
                     "romanization": {"type": "string"},
                     "transliteration": {"type": "string"},
                     "register": {"type": "string"},
+                    "part_of_speech": {"type": "string"},
+                    "notes": {"type": "string"},
+                    "classifier": {"type": "string"},
+                    "gender": {"type": "string"},
+                    "plural": {"type": "string"},
+                    "genitive": {"type": "string"},
                 },
                 "required": [
                     "entry",
@@ -90,6 +126,12 @@ SCHEMA: dict[str, Any] = {
                     "romanization",
                     "transliteration",
                     "register",
+                    "part_of_speech",
+                    "notes",
+                    "classifier",
+                    "gender",
+                    "plural",
+                    "genitive",
                 ],
                 "additionalProperties": False,
             },
@@ -126,8 +168,33 @@ def request_message(language: Code, asked: list[tuple[str, str]]) -> str:
         )
     else:
         transliteration = "an empty string"
+    empty = "an empty string"
+    german = language == "de"
     return _REQUEST.format(
         language=name,
+        classifier=(
+            "for a noun, its everyday classifier word in Thai script (e.g. ผืน for ผ้า); otherwise "
+            + empty
+            if language == "th"
+            else empty
+        ),
+        gender=(
+            'for a noun, "m", "f" or "n" (the entry may come without its article); otherwise '
+            + empty
+            if german
+            else empty
+        ),
+        plural=(
+            "for a noun, its plural form without the article (e.g. Blutungen); otherwise " + empty
+            if german
+            else empty
+        ),
+        genitive=(
+            "for a masculine or neuter noun, its genitive singular ending or form (e.g. -es, -s); "
+            "otherwise " + empty
+            if german
+            else empty
+        ),
         romanization=(
             f"the sentence in Latin letters, the way a {name} textbook romanizes it"
             if romanized
@@ -183,9 +250,27 @@ def check(raw: object, asked: dict[str, str], language: Code) -> tuple[str, dict
         if not reading or not _KANA.match(reading):
             return None
         fields[LANGUAGES[language].translit_field] = reading
-    register = _plain(raw.get("register"), MAX_REGISTER)
-    if register:
-        fields["Register"] = register.casefold()
+    # The owner's notes spell a plain word's register "neutral", not an empty field.
+    fields["Register"] = (_plain(raw.get("register"), MAX_REGISTER) or "neutral").casefold()
+    fields["Language"] = LANGUAGES[language].name.casefold()
+    fields["GenerateReverse"] = "y"
+    # What follows is a nice-to-have: one that doesn't pass is left out, never repaired or a reason to
+    # fail the word.
+    part = _plain(raw.get("part_of_speech"), MAX_REGISTER)
+    if part and part.casefold() in PARTS_OF_SPEECH:
+        fields["PartOfSpeech"] = part.casefold()
+    if note := _plain(raw.get("notes"), MAX_NOTES):
+        fields["Notes"] = note
+    classifier = _plain(raw.get("classifier"), MAX_REGISTER)
+    if language == "th" and fields.get("PartOfSpeech") == "noun" and classifier:
+        fields["Classifier"] = classifier
+    if language == "de" and fields.get("PartOfSpeech") == "noun":
+        gender = _plain(raw.get("gender"), 1)
+        if gender and gender.casefold() in GENDERS:
+            fields["Gender"] = gender.casefold()
+        for key, name in (("plural", "Plural"), ("genitive", "Genitive")):
+            if value := _plain(raw.get(key), MAX_MEANING):
+                fields[name] = value
     return entry, fields
 
 
