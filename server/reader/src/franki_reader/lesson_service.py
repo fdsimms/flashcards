@@ -76,17 +76,18 @@ async def make_lesson(
     lessons_dir: Path,
     now: Callable[[], datetime],
     narrator: str | None = None,
+    learner: lesson.Learner = "male",
     renderer: Renderer = lesson_audio.render,
 ) -> None:
     """Writes, speaks and keeps lesson `lesson_id`, and says in its row how it went. Never raises:
     a failure is the lesson's `error`, shown as it is."""
     try:
-        plan, used = await lesson_writer.write_plan(write, language, scene)
+        plan, used = await lesson_writer.write_plan(write, language, scene, learner)
     except LessonFailed as e:
         _keep_cost(conn, language, e.usage.cost_usd(), 0, now)
         store.fail_lesson(conn, lesson_id, str(e))
         return
-    steps = lesson.build_script(plan)
+    steps = lesson.build_script(plan, learner)
     chars = 0
     store.set_lesson_stage(conn, lesson_id, "recording")
     try:

@@ -354,8 +354,7 @@ Decided 15 November 2026, the owner's idea: a guided audio course in the manner 
 language course, for the car or a walk. French first, as an experiment, then Thai and every other language but Japanese and English (`LESSON_LANGUAGES` in
 `lesson_service.py`; another language written with spaces needs only its voices). Thai has no spaces, so
 `lesson.tokens` cuts it into words with newmm (for pauses and for checking mixes), its parts are
-joined with no space, and the request tells Claude to leave the gendered particles ครับ and ค่ะ out of
-the phrases taught. Not a replay of the
+joined with no space, and every phrase carries the learner's chosen polite particle (ครับ or ค่ะ, below). Not a replay of the
 texts: a lesson teaches 3 to 5 new phrases on a scene the owner types ("ordering a coffee"), from
 outside the deck. Nothing here reads the deck, grades a card or writes a note; what the learner says
 aloud is never heard by the phone.
@@ -376,6 +375,7 @@ aloud is never heard by the phone.
   doesn't always keep to it). The lesson then closes with a role-play instead of replaying the
   dialogue: the learner is the first speaker, the narrator gives each of their lines in English,
   a silence follows and the native voice answers; the other speaker's lines are played.
+- **Thai lessons are made for the learner's polite ending** (16 November 2026, the owner: a man's voice said ฉัน, and no phrase carried ครับ or ค่ะ). The lessons screen has a ครับ / ค่ะ choice for Thai, kept on the phone (`lessonStorage.ts`) and sent as `particle`. It sets `learner` (`lesson.Learner`): the voice every phrase is repeated after, who plays A in the dialogue and role-play, and the particle every taught phrase carries. The request says so, and `lesson_writer.thai_problems` checks it in code (a phrase without the particle, the other gender's particle, or a man saying ฉัน or a woman ผม sends the plan back once, and a second miss fails the lesson). Replaces the earlier rule that left ครับ and ค่ะ out of the phrases taught.
 - **Silences are sized to the phrase** (`pause_ms`: 2 s plus 0.7 s a word, 3 to 15 s), so a longer
   phrase gets longer to say. They are baked into the audio, so they can't be adjusted after the
   lesson is made. Chosen over a phone that times each clip because one MP3 plays with the screen

@@ -3,8 +3,8 @@ import { ActivityIndicator, Alert, RefreshControl, ScrollView, View } from 'reac
 import { ApiError, type Api, type AudioLesson, type Language } from '../reader/api';
 import { azureVoiceName } from '../core/voices';
 import { LANGUAGES } from '../reader/languages';
-import { anyMaking, lessonDetail, POLL_MS } from '../reader/lessons';
-import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen } from './kit';
+import { anyMaking, lessonDetail, POLL_MS, type Particle } from '../reader/lessons';
+import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, Segments } from './kit';
 import { LessonMakingRow } from './LessonMakingRow';
 import { space, useTheme, readable } from './theme';
 
@@ -14,14 +14,17 @@ import { space, useTheme, readable } from './theme';
  * being made is asked about every few seconds until it's ready or failed. Opening one plays it
  * (ReadLesson.tsx). Nothing here grades a card or writes a note.
  */
-export function ReadLessons({ api, language, narrator, defaultNarrator, onNarrator, onOpen }: {
+export function ReadLessons({ api, language, narrator, defaultNarrator, particle, onNarrator, onParticle, onOpen }: {
   api: Api;
   language: Language;
   /** The English voice chosen to narrate, or '' for the server's own. */
   narrator: string;
   /** The server's own English voice, named while none is chosen. */
   defaultNarrator: string | undefined;
+  /** A Thai lesson's polite ending, which also decides the voice you repeat after. */
+  particle: Particle;
   onNarrator: () => void;
+  onParticle: (particle: Particle) => void;
   onOpen: (lesson: AudioLesson) => void;
 }) {
   const c = useTheme();
@@ -56,7 +59,7 @@ export function ReadLessons({ api, language, narrator, defaultNarrator, onNarrat
     setAsking(true);
     setAskError(null);
     try {
-      await api.makeLesson(language, text, narrator || undefined);
+      await api.makeLesson(language, text, narrator || undefined, language === 'th' ? particle : undefined);
       setScene('');
       await load();
     } catch (e) {
@@ -111,6 +114,22 @@ export function ReadLessons({ api, language, narrator, defaultNarrator, onNarrat
         <Group>
           <NavRow first label="Narrator" detail={narrator || defaultNarrator ? azureVoiceName(narrator || defaultNarrator!) : 'The server\'s own voice'} onPress={onNarrator} />
         </Group>
+        {language === 'th' ? (
+          <Card>
+            <Segments
+              options={[
+                { value: 'khrap', label: 'ครับ (khrap)', accessibilityLabel: 'Khrap, a man\'s polite ending' },
+                { value: 'kha', label: 'ค่ะ (kha)', accessibilityLabel: 'Kha, a woman\'s polite ending' },
+              ]}
+              value={particle}
+              onChange={onParticle}
+            />
+            <Help>
+              Every phrase you learn ends with this polite word, said in {particle === 'khrap' ? "the man's" : "the woman's"} voice, and
+              you play {particle === 'khrap' ? 'the man' : 'the woman'} in the conversation at the end. It applies to lessons you make from now on.
+            </Help>
+          </Card>
+        ) : null}
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {lessons === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
         {lessons !== null && lessons.length === 0 ? <Help>No lessons yet. Type a scene above to make your first.</Help> : null}
