@@ -150,6 +150,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!('noteId' in target)) {
       if (target.model) params.model = target.model;
       if (target.fields) params.fields = JSON.stringify(target.fields);
+      if (target.fieldNotes) params.fieldNotes = JSON.stringify(target.fieldNotes);
+      if (target.tags?.length) params.tags = JSON.stringify(target.tags);
     }
     router.push({ pathname: '/note-editor', params });
   }, [router]);
