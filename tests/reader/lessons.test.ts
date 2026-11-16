@@ -10,10 +10,10 @@ const lesson = (over: Partial<AudioLesson> = {}): AudioLesson => ({
 });
 
 describe('lessonsOffered', () => {
-  it('is French and Thai, for now', () => {
-    expect(lessonsOffered('fr')).toBe(true);
-    expect(lessonsOffered('th')).toBe(true);
-    expect(lessonsOffered('es')).toBe(false);
+  it('is every language but Japanese and English', () => {
+    for (const code of ['fr', 'th', 'es', 'de', 'ru', 'el', 'pl', 'nb'] as const) expect(lessonsOffered(code)).toBe(true);
+    expect(lessonsOffered('ja')).toBe(false);
+    expect(lessonsOffered('en')).toBe(false);
   });
 });
 

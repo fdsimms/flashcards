@@ -351,7 +351,7 @@ Practice tab's Situations tool (`src/ui/tools/SituationsTool.tsx`).
 ## Audio lessons
 
 Decided 15 November 2026, the owner's idea: a guided audio course in the manner of a prompt-and-answer
-language course, for the car or a walk. French first, as an experiment, then Thai (`LESSON_LANGUAGES` in
+language course, for the car or a walk. French first, as an experiment, then Thai and every other language but Japanese and English (`LESSON_LANGUAGES` in
 `lesson_service.py`; another language written with spaces needs only its voices). Thai has no spaces, so
 `lesson.tokens` cuts it into words with newmm (for pauses and for checking mixes), its parts are
 joined with no space, and the request tells Claude to leave the gendered particles ครับ and ค่ะ out of
