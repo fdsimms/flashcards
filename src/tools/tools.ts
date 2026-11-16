@@ -169,7 +169,7 @@ export const TOOLS: ToolInfo[] = [
   {
     // Lookalikes and sound-alikes from the learner's own decks (mixups.ts). Every language: a deck with none says so.
     id: 'mixups',
-    title: 'Words you mix up',
+    title: 'Similar words',
     summary: 'Tell apart look-alikes and sound-alikes from your decks.',
     languages: TOOL_LANGUAGES,
   },

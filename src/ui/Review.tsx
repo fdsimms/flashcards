@@ -156,7 +156,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
   onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void;
   /** Opens a forms drill (src/ui/FormsDrill.tsx) over this screen. */
   onPracticeForms: (request: DrillRequest) => void;
-  /** Opens Words you mix up (src/ui/tools/MixupsTool.tsx) on words missed this session. */
+  /** Opens Similar words (src/ui/tools/MixupsTool.tsx) on words missed this session. */
   onPracticeMixups?: (request: MixupRequest) => void;
   /** Replaces this screen with the next deck in the list that has cards to study; absent when there is none. */
   onNextDeck?: () => void;
@@ -412,7 +412,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
   });
   useEffect(() => { spoken.cancel(); }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
   const ownHook = useOwnHook(repo, showing, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
-  // The session end's list of misses, and what of them Words you mix up can practice (SessionMisses.tsx).
+  // The session end's list of misses, and what of them Similar words can practice (SessionMisses.tsx).
   const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups);
 
   // Auto-speak the front when a card with audio appears.
