@@ -1,19 +1,18 @@
 import { space } from './theme';
 
 /**
- * Where the deck list puts things. A subdeck sits in a tinted panel (a "well") inside its parent's
- * card; a well inside a well alternates tone. DeckList draws the wells and DeckRowView the rows
- * inside them, and a drag's drop line (DeckDrag.tsx) has to agree with both, so the numbers live here.
+ * Where the deck list puts things. Rows aren't indented: a top-level deck with subdecks is a tinted
+ * row above them, and a deck inside a subdeck names its parent under its own name. DeckRowView draws
+ * the rows, and a drag's drop line (DeckDrag.tsx) has to agree with where they start, so the numbers
+ * live here.
  */
 
-/** A well's gap from the left edge of what it's in, which is also how far each level indents. */
-export const WELL_INSET = space.l + space.xs;
-/** A well's gap from the right edge, and the space under its last row. */
-export const WELL_EDGE = space.s;
-/** A row's own padding on the left, inside its card or well. */
+/** A row's own padding on the left, inside its card. */
 export const ROW_PAD = space.m;
-/** The round button that shows or hides subdecks, and the column it holds for sibling names to line up. */
+/** The round button that shows or hides subdecks, and the column it holds at the row's right edge. */
 export const DISCLOSURE = 28;
+/** How far the drop line moves in for each level deeper than a top-level deck. Rows themselves don't indent: this is how a drag shows which deck it would land in. */
+export const DROP_LINE_STEP = space.l;
 
-/** Where a row starts at `depth`, measured from the left edge of the deck list's card. */
-export const deckRowX = (depth: number) => depth * WELL_INSET + ROW_PAD;
+/** Where a drag's drop line starts at `depth`, measured from the left edge of the deck list's card. */
+export const deckRowX = (depth: number) => depth * DROP_LINE_STEP + ROW_PAD;
