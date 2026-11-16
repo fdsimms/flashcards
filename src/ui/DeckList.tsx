@@ -141,13 +141,11 @@ function Stat({ value, label, color }: { value: number; label: string; color: st
   );
 }
 
-export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, menuHint = 'Add a note, rename, options or delete', editing = false, onOpen, onPress, onMenu, onToggle, onDelete, onHandle, onStep }: {
+export function DeckRowView({ row, first, gutter = false, detail, menuHint = 'Add a note, rename, options or delete', editing = false, onOpen, onPress, onMenu, onToggle, onDelete, onHandle, onStep }: {
   row: ShownRow;
   first: boolean;
   /** Room for the show/hide button before the name, so a deck's name lines up with its siblings'. */
   gutter?: boolean;
-  /** How many subdecks it has directly, said under the name while they're hidden. */
-  subdecks?: number;
   /** The line under the name in place of the card count (WaniKani's level), and its color. */
   detail?: { text: string; warning?: boolean };
   /** What the ⋯ menu offers, for VoiceOver. */
@@ -171,7 +169,8 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
   // What the row sits on is the card's own color at even depths and a well's tint at odd ones; the
   // pressed state and the show/hide button take the other one, so they show.
   const onWell = row.depth % 2 === 1 ? c.surface : c.fill;
-  const line = detail ? detail.text : `${row.total.toLocaleString()} ${row.total === 1 ? 'card' : 'cards'}${row.unstudied ? ` · ${row.unstudied.toLocaleString()} not studied yet` : ''}${row.collapsed && subdecks ? ` · ${subdecks} ${subdecks === 1 ? 'subdeck' : 'subdecks'}` : ''}`;
+  // Only a detail line (WaniKani's level) goes under the name; the card counts were dropped to save space.
+  const line = detail ? detail.text : '';
   const gateLine = row.gate ? `${row.gate.inProgress} of ${row.gate.cap} in progress${atCap ? ', new cards wait' : ''}` : null;
   return (
     <Pressable
@@ -205,7 +204,7 @@ export function DeckRowView({ row, first, gutter = false, subdecks = 0, detail, 
       {gutter ? <View style={{ width: DISCLOSURE }} /> : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{row.name}</Text>
-        <Text style={{ ...type.footnote, color: detail?.warning ? c.warning : c.textSecondary }}>{line}</Text>
+        {line ? <Text style={{ ...type.footnote, color: detail?.warning ? c.warning : c.textSecondary }}>{line}</Text> : null}
         {gateLine ? (
           // Under the cap, new cards come in; at it, they wait until cards are a week out.
           <Text style={{ ...type.footnote, color: atCap ? c.warning : c.textSecondary }}>{gateLine}</Text>
@@ -340,13 +339,8 @@ export function DeckList(props: {
   const shown = useMemo(() => shownDeckRows(props.decks, props.collapsed ?? new Set()), [props.decks, props.collapsed]);
   const groups = useMemo(() => groupByTopLevel(shown), [shown]);
   const allDecks = useMemo(() => props.decks.map((r) => r.deck), [props.decks]);
-  // How many subdecks each deck has directly, and which decks have a child that can be hidden: all
-  // of that deck's children keep a column before their names, so the names line up.
-  const subdeckCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const r of props.decks) { const p = parentOf(r.deck); if (p !== null) m.set(p, (m.get(p) ?? 0) + 1); }
-    return m;
-  }, [props.decks]);
+  // Which decks have a child that can be hidden: all of that deck's children keep a column before
+  // their names, so the names line up.
   const gutterParents = useMemo(() => {
     const set = new Set<string>();
     for (const r of shown) if (r.hasSubdecks) { const p = parentOf(r.deck); if (p !== null) set.add(p); }
@@ -499,7 +493,6 @@ export function DeckList(props: {
                             row={row}
                             first={i === 0 || wellEnds(g, i)[row.depth - 1]?.first === true}
                             gutter={!!props.onToggleCollapsed && (row.hasSubdecks || (parentOf(row.deck) !== null && gutterParents.has(parentOf(row.deck)!)))}
-                            subdecks={subdeckCounts.get(row.deck) ?? 0}
                             onMenu={() => props.onDeckMenu(row.deck)}
                             onToggle={props.onToggleCollapsed ? () => {
                               // The rows below slide into place instead of jumping.
