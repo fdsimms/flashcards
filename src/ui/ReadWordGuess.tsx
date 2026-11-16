@@ -45,12 +45,11 @@ export function GuessPrompt({ mode, onPick, onGiveUp }: {
           accessibilityRole="button"
           accessibilityLabel="I don't know"
           style={{
-            minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s,
-            borderRadius: radius.m, ...smooth, borderColor: c.border, borderWidth: 1,
+            minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center',
+            borderRadius: radius.m, ...smooth, backgroundColor: c.accentFill,
           }}
         >
-          <Icon name="questionmark.circle" size={18} color={c.textSecondary} />
-          <Text style={{ ...type.body, color: c.textSecondary }}>I don't know</Text>
+          <Text style={{ ...type.body, color: c.accent, fontWeight: '600' }}>I don't know</Text>
         </Tappable>
         <View style={{ height: hairline, backgroundColor: c.border, marginVertical: space.xs }} />
       </View>

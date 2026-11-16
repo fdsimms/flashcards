@@ -1,9 +1,9 @@
 """A line's grammar and vocabulary explained in English, when the owner taps Explain on it, a
-phrase the owner selected in a line, when they select one, and whether a line sounds natural, when
-they ask.
+phrase the owner selected in a line, when they select one, why a word has the form it has in the
+form quiz, and whether a line sounds natural, when they ask.
 
-Asked only on that tap, once per line or phrase (the answer is kept in `explanations`,
-`phrase_explanations` and `naturalness`), never ahead of time. Reading and listening still never
+Asked only on that tap, once per line, phrase or word (the answer is kept in `explanations`,
+`phrase_explanations`, `form_explanations` and `naturalness`), never ahead of time. Reading and listening still never
 grade or write cards: this only shows text.
 """
 
@@ -128,6 +128,30 @@ PHRASE_SCHEMA: dict[str, Any] = {
 }
 
 
+MAX_FORM_PARAGRAPHS = 3
+
+FORM_SYSTEM = (
+    "The learner is practicing word forms: a word of a line was hidden, they were shown its "
+    "dictionary form and asked to type the form that fits, and they want to know why the line "
+    "has the form it has. Explain for an adult learner of the language, in plain English. Give "
+    "`explanation`: one to three short paragraphs (each under "
+    f"{MAX_CHARS} characters). Say which word of the line decides the form (a verb that takes a "
+    "case, a preposition, an auxiliary, the subject it agrees with) and what that does to the "
+    "word. If the word's form is irregular (a stem change, a moved stress, an ending that is "
+    "not the usual one for its kind), say so and give the few forms that show the pattern. If a "
+    "learner would likely confuse it with a nearby form, say how to tell them apart in this line. "
+    "The form's name is given; trust it. Skip anything the learner would already know at this "
+    "level, and do not retell the line's translation. The whole text is there only so you can "
+    "see what the line refers to. Do not use em dashes." + CALIBRATION
+)
+
+FORM_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {"explanation": {"type": "array", "items": {"type": "string"}}},
+    "required": ["explanation"],
+    "additionalProperties": False,
+}
+
 VERDICTS = ("natural", "stiff", "unusual")
 
 CHECK_SYSTEM = (
@@ -202,6 +226,24 @@ ExplainPhrase = Callable[[PhraseRequest], Awaitable[tuple[dict[str, Any], Usage]
 
 
 @dataclass(frozen=True)
+class FormRequest:
+    language: Code
+    word: str  # as it appears in the line
+    lemma: str
+    form: str  # the form's name, as the app shows it ("accusative plural")
+    helper: str  # the word of the line that goes with it, or ""
+    line: str
+    english: str
+    context: tuple[str, ...] = ()
+    title: str = ""
+    index: int = 0
+
+
+# The paragraphs of the explanation, and what asking for them cost.
+ExplainForm = Callable[[FormRequest], Awaitable[tuple[list[str], Usage]]]
+
+
+@dataclass(frozen=True)
 class CheckRequest:
     language: Code
     line: str  # plain text, as shown
@@ -249,6 +291,32 @@ def phrase_message(request: PhraseRequest) -> str:
         request.index,
     )
     return request_message(base) + f"\nSelected phrase: {request.phrase}"
+
+
+def form_message(request: FormRequest) -> str:
+    base = ExplainRequest(
+        request.language,
+        request.line,
+        request.english,
+        request.context,
+        False,
+        request.title,
+        request.index,
+    )
+    lines = [request_message(base), f"Word: {request.word}", f"Dictionary form: {request.lemma}"]
+    lines.append(f"Its form in the line: {request.form}")
+    if request.helper:
+        lines.append(f"The word that goes with it: {request.helper}")
+    return "\n".join(lines)
+
+
+def clean_form(answer: dict[str, Any]) -> list[str]:
+    """The paragraphs the model gave, trimmed, without blanks, at most MAX_FORM_PARAGRAPHS."""
+    paragraphs = answer.get("explanation")
+    if not isinstance(paragraphs, list):
+        return []
+    out = [p.strip()[:MAX_CHARS] for p in paragraphs if isinstance(p, str) and p.strip()]
+    return out[:MAX_FORM_PARAGRAPHS]
 
 
 def check_message(request: CheckRequest) -> str:
@@ -388,5 +456,18 @@ def claude_explain_phrase(client: anthropic.AsyncAnthropic) -> ExplainPhrase:
         if cleaned is None:
             raise ExplainFailed("Claude didn't explain this phrase. Try again in a moment.", used)
         return cleaned, used
+
+    return explain
+
+
+def claude_explain_form(client: anthropic.AsyncAnthropic) -> ExplainForm:
+    async def explain(request: FormRequest) -> tuple[list[str], Usage]:
+        answer, used = await _ask(
+            client, FORM_SYSTEM, form_message(request), FORM_SCHEMA, "this form"
+        )
+        paragraphs = clean_form(answer)
+        if not paragraphs:
+            raise ExplainFailed("Claude didn't explain this form. Try again in a moment.", used)
+        return paragraphs, used
 
     return explain

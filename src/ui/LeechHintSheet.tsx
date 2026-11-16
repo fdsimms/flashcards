@@ -18,9 +18,11 @@ import { failureText } from '../core/failure';
  * Skip does. Not while a hint is written or being saved: then the sheet springs back, as iOS
  * does for a sheet with changes that would be lost.
  */
-export function LeechHintSheet({ word, gloss, misses, suspended, suggest, onSave, onSkip }: {
+export function LeechHintSheet({ word, translit, gloss, misses, suspended, suggest, onSave, onSkip }: {
   word: string;
-  /** What the word means (with its transliteration), so the sheet makes sense without the card behind it. */
+  /** The word's transliteration, shown on its own line above the meaning. */
+  translit?: string;
+  /** What the word means, so the sheet makes sense without the card behind it. */
   gloss?: string;
   /** How many times the card was missed; absent when the sheet was opened by hand from the review screen, which retitles it and calls the way out Cancel. */
   misses?: number;
@@ -85,7 +87,8 @@ export function LeechHintSheet({ word, gloss, misses, suspended, suggest, onSave
       >
         <View style={{ gap: space.xs }}>
           <Text style={{ ...type.headline, color: c.text }}>{misses === undefined ? `Mnemonic for ${word}` : `You've missed ${word} ${misses} times`}</Text>
-          {gloss ? <Text style={{ ...type.callout, color: c.textSecondary }}>{gloss}</Text> : null}
+          {translit ? <Text style={{ ...type.callout, color: c.textSecondary }}>{translit}</Text> : null}
+          {gloss ? <Text style={{ ...type.callout, color: translit ? c.text : c.textSecondary }}>{gloss}</Text> : null}
         </View>
         {suspended ? (
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
