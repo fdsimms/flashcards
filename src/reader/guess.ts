@@ -56,6 +56,22 @@ export function quizFor(word: Pick<Word, 'text' | 'gloss'>, text: Pick<ReaderTex
   return { choices, answer };
 }
 
+const bareMeaning = (s: string) =>
+  fold(s).replace(/\([^)]*\)/g, ' ').replace(/[^\p{L}\p{N}\s'-]/gu, ' ').replace(/\s+/g, ' ').trim().replace(/^(to|a|an|the) /, '');
+
+/**
+ * Whether a guess at a word's meaning is the meaning shown: the whole gloss, or any one of its
+ * alternatives ("breathing", "to give change / to return change"), ignoring case, punctuation,
+ * a bracketed note and a leading "to", "a" or "the". Only to tell the learner they were right; it
+ * grades nothing.
+ */
+export function guessIsRight(guess: string, gloss: string | null | undefined): boolean {
+  const want = bareMeaning(guess);
+  if (!want || !gloss) return false;
+  if (bareMeaning(gloss) === want) return true;
+  return gloss.split(/[,;/]|\bor\b/).some((part) => bareMeaning(part) === want);
+}
+
 /** What a tap on a word does: whether its meaning waits behind a try, and whether it's a quiz. */
 export type TapMode = { kind: GuessKind; quiz: Quiz | null } | null;
 

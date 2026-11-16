@@ -1,6 +1,17 @@
 import { expect, test } from 'vitest';
 import type { ReaderText, TextLine, Word } from '../../src/reader/api';
-import { GUESS_HINT, guessKind, quizFor, tapMode } from '../../src/reader/guess';
+import { GUESS_HINT, guessIsRight, guessKind, quizFor, tapMode } from '../../src/reader/guess';
+
+test('a guess is right when it is the meaning shown or one of its alternatives', () => {
+  expect(guessIsRight('breathing', 'breathing')).toBe(true);
+  expect(guessIsRight('  Breathing ', 'breathing')).toBe(true);
+  expect(guessIsRight('give change', 'to give change')).toBe(true);
+  expect(guessIsRight('return', 'to give back, to return (something)')).toBe(true);
+  expect(guessIsRight('the key', 'key')).toBe(true);
+  expect(guessIsRight('breathe', 'breathing')).toBe(false);
+  expect(guessIsRight('', 'breathing')).toBe(false);
+  expect(guessIsRight('breathing', null)).toBe(false);
+});
 
 const word = (text: string, gloss: string | null, extra: Partial<Word> = {}): Word =>
   ({ text, status: 'known', gloss, stretch: false, deck: true, grammar: null, ...extra });

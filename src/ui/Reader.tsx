@@ -1449,7 +1449,7 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
                 {(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary }}>{(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction}</Text>
                 ) : null}
-                <GuessLine guess={guess} />
+                <GuessLine guess={guess} gloss={tapped.word.gloss} />
                 {tapped.word.form && language ? <ReadFormChip name={tapped.word.form.name} onPress={() => setShowForm(true)} /> : null}
                 {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
                 <ReadFrequency word={tapped.word} />

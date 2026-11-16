@@ -1,7 +1,8 @@
 import React from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import { GUESS_HINT, type TapMode } from '../reader/guess';
+import { GUESS_HINT, guessIsRight, type TapMode } from '../reader/guess';
 import { haptic } from './haptics';
+import { Icon } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
@@ -107,11 +108,18 @@ export function QuizChoices({ choices, answer, picked }: { choices: string[]; an
   );
 }
 
-/** What was guessed, beside the meaning. Nothing when the box was left empty. */
-export function GuessLine({ guess }: { guess: string }) {
+/** What was guessed, beside the meaning, marked when it was right. Nothing when the box was left empty. */
+export function GuessLine({ guess, gloss }: { guess: string; gloss: string | null | undefined }) {
   const c = useTheme();
   const text = guess.trim();
-  return text ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{`Your guess: ${text}`}</Text> : null;
+  if (!text) return null;
+  if (!guessIsRight(text, gloss)) return <Text style={{ ...type.footnote, color: c.textSecondary }}>{`Your guess: ${text}`}</Text>;
+  return (
+    <View accessible accessibilityLabel={`Your guess: ${text}, right`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+      <Icon name="checkmark.circle.fill" size={16} color={c.countDue} />
+      <Text style={{ ...type.footnote, color: c.countDue, flexShrink: 1 }}>{`Your guess: ${text} (right)`}</Text>
+    </View>
+  );
 }
 
 /** Feedback for a right quiz answer, before the popover closes. */
