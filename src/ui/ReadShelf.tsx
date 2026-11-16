@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Keyboard, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, MAX_STORY_ABOUT_CHARS, MAX_TOPIC_CHARS, type Api, type Form, type Language, type PastText, type Shelf, type ShelfText, type TextModel, type Word } from '../reader/api';
 import { LANGUAGES, flaggedName } from '../reader/languages';
+import { FLAG_IMAGES } from './flagImages';
 import { lessonsOffered } from '../reader/lessons';
 import { ReadListenAgain } from './ReadListenAgain';
 import { ReadReviewFirst } from './ReadReviewFirst';
@@ -171,8 +172,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
       toolbar={(
         <>
           <Stack.Toolbar placement="left">
-            <Stack.Toolbar.Menu {...(language ? {} : { icon: 'globe' as const })} accessibilityLabel={`Language: ${name}. Change the language`}>
-              {language ? <Stack.Toolbar.Label>{LANGUAGES[language].flag}</Stack.Toolbar.Label> : null}
+            <Stack.Toolbar.Menu icon={language ? FLAG_IMAGES[language] : 'globe'} iconRenderingMode="original" accessibilityLabel={`Language: ${name}. Change the language`}>
               {(shelf?.languages ?? []).map((l) => (
                 <Stack.Toolbar.MenuAction
                   key={l.code}
