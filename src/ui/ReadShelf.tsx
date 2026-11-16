@@ -32,9 +32,11 @@ const POLL_MS = 10_000;
 
 export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 
-export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLanguagePage, onPast, onLessons, onEpisodes, onWords, onLanguage, onReview, onListenAgain }: {
+export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, onPractice, onLanguagePage, onPast, onLessons, onEpisodes, onWords, onLanguage, onReview, onListenAgain }: {
   api: Api;
   /** Opened from Review's "Read a text with these words": offers a text written to practice them. */
+  /** The language the settings already name, so the header shows it while the shelf loads. */
+  knownLanguage?: Language;
   practice?: { language: Language; count: number; onCancel: () => void };
   /** Says a practice word aloud from its popover. */
   onPlayWord: (word: string, language: Language) => void;
@@ -61,6 +63,8 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
   const [refreshing, setRefreshing] = useState(false);
   const [markedCount, setMarkedCount] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  // The language just picked, shown in the header while its shelf loads.
+  const [picked, setPicked] = useState<Language | null>(null);
 
   const { scrollProps, bottomPadding } = useKeyboardScroll();
 
@@ -101,6 +105,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
   const changeLanguage = async (language: Language) => {
     if (language === shelf?.language) return;
     loadSeq.current++;
+    setPicked(language);
     setShelf(null);
     setError(null);
     setActionError(null);
@@ -112,6 +117,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
       setActionError(e instanceof ApiError ? e.message : "Couldn't switch the language. Try again.");
     }
     await load();
+    setPicked(null);
   };
 
   // Words just studied are in one language: switch to it, once per offer, so the text is written in
@@ -162,7 +168,7 @@ export function ReadShelf({ api, practice, onPlayWord, onOpen, onPractice, onLan
     }
   };
 
-  const language = shelf?.language;
+  const language = shelf?.language ?? picked ?? knownLanguage;
   const name = language ? LANGUAGES[language].name : 'Read & Listen';
 
   return (
