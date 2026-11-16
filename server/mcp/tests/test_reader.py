@@ -50,3 +50,23 @@ async def test_says_what_to_fix_when_it_cant_ask():
         assert "READER_PASSPHRASE" in await call_error(c, "read_and_listen_costs")
     async with Client(server(lambda r: httpx.Response(200, json=COSTS))) as c:
         assert "between 1 and 3650" in await call_error(c, "read_and_listen_costs", days=0)
+
+
+async def test_lists_and_reads_past_texts_through_the_audit_endpoints():
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path == "/api/audit/texts/7":
+            return httpx.Response(200, json={"id": 7, "lines": []})
+        if request.url.path == "/api/audit/texts/8":
+            return httpx.Response(404)
+        return httpx.Response(200, json=[{"id": 7}])
+
+    async with Client(server(handler)) as c:
+        assert await call(c, "list_read_and_listen_texts", language="de", days=7) == {"texts": [{"id": 7}]}
+        assert await call(c, "get_read_and_listen_text", text_id=7) == {"id": 7, "lines": []}
+        assert "No such text" in await call_error(c, "get_read_and_listen_text", text_id=8)
+        assert "between 1 and 200" in await call_error(c, "list_read_and_listen_texts", limit=0)
+    assert str(seen[0].url) == "http://reader:8080/api/audit/texts?language=de&days=7&limit=50"
+    assert seen[0].headers["Authorization"] == "Bearer open sesame"
