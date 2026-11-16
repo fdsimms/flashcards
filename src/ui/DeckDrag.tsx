@@ -119,7 +119,7 @@ export function useDeckDrag(opts: {
     cardY.setValue(dy);
     cardX.setValue(Math.max(-DEPTH_STEP * 2, Math.min(DEPTH_STEP * 2, dx)));
     const target = deckDropTarget(d.rows, d.deck, d.card.y + dy + d.card.height / 2, d.depth + dx / DEPTH_STEP);
-    // The line starts where a row would at that depth (the wells' indent, deckLayout.ts).
+    // The line steps in with the depth it would land at (deckLayout.ts); the rows themselves don't indent.
     lineX.setValue(d.card.x + deckRowX(target.depth));
     lineY.setValue(target.lineY);
     if (d.target && (d.target.after !== target.after || d.target.depth !== target.depth)) haptic.select();
