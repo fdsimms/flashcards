@@ -43,7 +43,7 @@ export function useRatingOffer() {
   return { offer, show };
 }
 
-/** Rendered inside the review footer: it floats above it, over the card's lower edge. */
+/** Passed to Screen's `floating`: it sits on the content's bottom edge, just above the footer, over the card's lower edge. */
 export function ChangeRatingStrip({ offer, onChange }: { offer: RatingOffer; onChange: () => void }) {
   const c = useTheme();
   const reduce = useReduceMotion();
@@ -66,7 +66,7 @@ export function ChangeRatingStrip({ offer, onChange }: { offer: RatingOffer; onC
     <Animated.View
       pointerEvents="box-none"
       style={{
-        position: 'absolute', left: space.l, right: space.l, bottom: '100%', marginBottom: space.s,
+        marginHorizontal: space.l, marginBottom: space.s,
         opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
       }}
     >

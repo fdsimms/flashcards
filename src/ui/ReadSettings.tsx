@@ -228,7 +228,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
             <Group>
               <SwitchRow
                 first
-                label="Guess before the meaning"
+                label="Recall before the meaning"
                 value={guessFirst}
                 onValueChange={(on) => {
                   savePrefs({ guessFirst: on });
@@ -247,10 +247,10 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
               ) : null}
             </Group>
             <Help>
-              Tapping a word shows its meaning only when you ask for it, so you can try to remember it, or work it out
-              from the line, first. A word's meaning counts as looked up once it's shown. With the quiz on, a word in your
-              deck asks you to pick its meaning from four choices, with I don't know to skip. Nothing is graded or added
-              to your deck.
+              Tapping a word in your deck shows its meaning only when you ask for it, so you can try to remember it
+              first. A word's meaning counts as looked up once it's shown. A word that isn't in your deck shows its
+              meaning right away. With the quiz on, a word in your deck asks you to pick its meaning from four choices,
+              with I don't know to skip. Nothing is graded or added to your deck.
             </Help>
             <SectionTitle>Word forms</SectionTitle>
             <Group>
