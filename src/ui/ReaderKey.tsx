@@ -51,7 +51,7 @@ export function ReaderKey({ examples, language, textStyle, shown, onChange }: {
                 accessibilityState={{ checked: on }}
                 accessibilityActions={[{ name: 'activate' }]}
                 onAccessibilityAction={() => { haptic.select(); onChange(e.mark, !on); }}
-                style={{ gap: space.s, paddingVertical: space.m }}
+                style={{ gap: space.m, paddingTop: i === 0 ? space.s : space.l, paddingBottom: space.l }}
               >
                 {i > 0 ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: hairline, backgroundColor: c.border }} /> : null}
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.m }}>
@@ -60,7 +60,7 @@ export function ReaderKey({ examples, language, textStyle, shown, onChange }: {
                     pointerEvents="none"
                     accessibilityElementsHidden
                     importantForAccessibility="no-hide-descendants"
-                    style={{ flexShrink: 1, backgroundColor: c.fill, borderRadius: radius.m, paddingHorizontal: space.m, paddingVertical: space.xs }}
+                    style={{ flexShrink: 1, backgroundColor: c.fill, borderRadius: radius.m, paddingHorizontal: space.m, paddingVertical: space.xs + 2 }}
                   >
                     <WordView
                       word={{ ...e.word, stretch: e.mark === 'stretch' }}
@@ -83,16 +83,20 @@ export function ReaderKey({ examples, language, textStyle, shown, onChange }: {
                     importantForAccessibility="no-hide-descendants"
                   />
                 </View>
-                <View style={{ gap: 2 }}>
+                {/* Starts where the sample's own text starts inside its tile. */}
+                <View style={{ gap: 6, paddingLeft: space.m }}>
                   <Text style={{ ...type.subhead, fontWeight: '600', color: c.text, opacity: on ? 1 : 0.55 }}>{title}</Text>
                   <Text style={{ ...type.footnote, color: c.textSecondary, opacity: on ? 1 : 0.55 }}>{about}</Text>
                 </View>
               </View>
             );
           })}
-          <Text style={{ ...type.footnote, color: c.textSecondary, paddingTop: space.s }}>
-            Switching a mark off only hides it. Tapping a word still shows its meaning and grammar.
-          </Text>
+          <View>
+            <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: hairline, backgroundColor: c.border }} />
+            <Text style={{ ...type.footnote, color: c.textSecondary, paddingTop: space.l }}>
+              Switching a mark off only hides it. Tapping a word still shows its meaning and grammar.
+            </Text>
+          </View>
         </View>
       ) : null}
     </View>
