@@ -63,6 +63,14 @@ export function soundKey(w: MixupWord): string | undefined {
   return key || undefined;
 }
 
+/** A Thai word without its repetition mark ๆ (จริงๆ is จริง said twice, for emphasis). */
+const withoutRepeat = (word: string) => word.replace(/\s*ๆ+\s*$/u, '');
+
+/** Whether one word is the other with ๆ added: the same word, so a meaning can't tell them apart. */
+export function isRepeatForm(a: MixupWord, b: MixupWord): boolean {
+  return a.language === 'th' && b.language === 'th' && a.word !== b.word && withoutRepeat(a.word) === withoutRepeat(b.word);
+}
+
 function link(map: Map<string, string[]>, a: string, b: string) {
   if (a === b) return;
   for (const [x, y] of [[a, b], [b, a]]) {
@@ -91,7 +99,10 @@ export function mixupSet(notes: Iterable<Note>, studied: ReadonlySet<string>): M
   for (const [id, others] of lookalikeIndex(kept)) {
     for (const other of others) {
       // Two words with the same meaning would both be right: those are synonyms, which Review tells apart on the card.
-      if (words.has(other) && !sameMeaning(meanings.get(id)!, meanings.get(other)!)) link(meaning, id, other);
+      // The same goes for a word and its ๆ form, whose glosses are worded differently ("real; true", "really").
+      const a = words.get(id)!;
+      const b = words.get(other);
+      if (b && !sameMeaning(meanings.get(id)!, meanings.get(other)!) && !isRepeatForm(a, b)) link(meaning, id, other);
     }
   }
   const ear = new Map<string, string[]>();

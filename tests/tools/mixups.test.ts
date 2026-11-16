@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Note } from '../../src/core/types';
-import { askable, missedPracticeLabel, mixupLanguage, mixupQuestion, mixupSet, nextMixup, practiceFromMisses, soundKey } from '../../src/tools/mixups';
+import { askable, isRepeatForm, missedPracticeLabel, mixupLanguage, mixupQuestion, mixupSet, nextMixup, practiceFromMisses, soundKey } from '../../src/tools/mixups';
 import { omniNote } from '../support/fixtures';
 
 const es = (id: string, Entry: string, Meaning: string, over: Record<string, string> = {}): Note =>
@@ -62,6 +62,14 @@ describe('mixupSet', () => {
   it("doesn't pair words that mean the same, which would both be right", () => {
     const same = mixupSet([es('a', 'esperar', 'to wait'), es('b', 'esperarse', 'to wait')], new Set(['a', 'b']));
     expect(same.meaning.size).toBe(0);
+  });
+
+  it("doesn't pair a Thai word with its ๆ form by meaning, though their glosses differ", () => {
+    const pair = mixupSet([th('jing', 'จริง', 'real; true', 'jing'), th('jingjing', 'จริงๆ', 'really; truly', 'jing jing'), th('jing2', 'จริง ๆ', 'for real', 'jing jing')], new Set(['jing', 'jingjing', 'jing2']));
+    expect(pair.meaning.size).toBe(0);
+    // By ear they're still told apart from other words, and a spelled-out space doesn't hide the mark.
+    expect(isRepeatForm(pair.words.get('jing')!, pair.words.get('jing2')!)).toBe(true);
+    expect(isRepeatForm(pair.words.get('jing')!, pair.words.get('jing')!)).toBe(false);
   });
 });
 
