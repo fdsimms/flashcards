@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { DEFAULT_PREFS, hasSlow, parsePrefs, speedFor } from '../../src/reader/prefs';
 
 test('saved settings come back', () => {
-  expect(parsePrefs(JSON.stringify({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true }))).toEqual({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true });
+  expect(parsePrefs(JSON.stringify({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true }))).toEqual({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true });
 });
 
 test('nothing saved, or something unreadable, gives the defaults', () => {
@@ -97,7 +97,7 @@ test('a language without Slow plays at normal speed whatever speed was chosen', 
 
 test('Explain is in English unless the reader chose the language', () => {
   expect(DEFAULT_PREFS.explainInLanguage).toBe(false);
-  expect(parsePrefs(JSON.stringify({ explainInLanguage: true })).explainInLanguage).toBe(true);
+  expect(parsePrefs(JSON.stringify({ explainInLanguage: true, thaiToneMarks: true })).explainInLanguage).toBe(true);
   expect(parsePrefs(JSON.stringify({ explainInLanguage: 'yes' })).explainInLanguage).toBe(false);
 });
 
@@ -105,4 +105,10 @@ test('the form quiz is on unless the reader turned it off', () => {
   expect(DEFAULT_PREFS.formQuiz).toBe(true);
   expect(parsePrefs(JSON.stringify({ formQuiz: false })).formQuiz).toBe(false);
   expect(parsePrefs(JSON.stringify({ formQuiz: 'no' })).formQuiz).toBe(true);
+});
+
+test('Thai IPA shows tone letters unless the reader chose accent marks', () => {
+  expect(DEFAULT_PREFS.thaiToneMarks).toBe(false);
+  expect(parsePrefs(JSON.stringify({ thaiToneMarks: true })).thaiToneMarks).toBe(true);
+  expect(parsePrefs(JSON.stringify({ thaiToneMarks: 1 })).thaiToneMarks).toBe(false);
 });
