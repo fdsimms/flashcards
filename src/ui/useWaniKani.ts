@@ -13,7 +13,9 @@ import { skipWord, unskipWord, withoutSkipped, type SkippedWord } from '../wanik
 import type { Subject } from '../wanikani/subjects';
 import { DEFAULT_SRS, type SrsSystem } from '../wanikani/srs';
 import { clearOffline, clearToken, keepAudio, loadPrefs, loadSnapshot, loadState, loadToken, savePrefs, saveSnapshot, saveState, saveToken } from '../wanikani/storage';
+import type { WaniKaniStats } from '../wanikani/stats';
 import type { AppRepo } from './AppContext';
+import { useWaniKaniStats } from './useWaniKaniStats';
 
 /** The deck list asks again at most this often; opening WaniKani or pulling to sync asks right away. */
 const COUNTS_EVERY_MS = 60_000;
@@ -31,6 +33,10 @@ export interface WaniKaniState {
   counts: { reviews: number; lessons: number } | null;
   /** Items at Apprentice as last read; null until read. */
   apprentice: number | null;
+  /** Stage counts, the level's progress and the reviews coming up, as last read (kept offline); null until read. */
+  stats: WaniKaniStats | null;
+  /** Reads the stats again now, for the stats screen. */
+  refreshStats: () => void;
   /** Why the last read or send failed; null when it worked. */
   problem: WaniKaniProblem | null;
   prefs: WaniKaniPrefs;
@@ -121,6 +127,9 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   }, []);
 
   const api = useMemo(() => (token ? createWaniKaniApi(token) : null), [token]);
+  const { stats, readStats } = useWaniKaniStats(api);
+  const readStatsRef = useRef(readStats);
+  readStatsRef.current = readStats;
   const persist = () => {
     const s = stored.current;
     if (s) saveState({ outbox: s.outbox, sent: s.sent, made: [...s.made], log: s.log, dropped: s.dropped, skipped: s.skipped });
@@ -304,6 +313,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
       setProblem(null);
       setOffline(false);
       makeCopyRef.current(u, c.apprentice, started, force);
+      readStatsRef.current(u, c.apprentice, force);
       if (!srsRead.current) {
         srsRead.current = true;
         api.srsSystems().then((list) => { if (list.length) setSrs(new Map(list.map((s) => [s.id, s]))); }, () => { srsRead.current = false; });
@@ -329,6 +339,10 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
 
   // At launch, and whenever the token changes.
   useEffect(() => { if (api) refresh(true); }, [api]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const refreshStats = useCallback(() => {
+    if (user && counts) readStatsRef.current(user, counts.apprentice, true);
+  }, [user, counts]);
 
   const signIn = useCallback(async (value: string) => {
     const t = value.trim();
@@ -357,7 +371,8 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     api, user,
     counts: counts ? { reviews: counts.reviews, lessons: lessonsToday(counts.available, prefs.newPerDay, startedToday, counts.apprentice, prefs.maxApprentice) } : null,
     apprentice: counts ? counts.apprentice : null,
+    stats, refreshStats,
     problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, unsentAssignments, log, productionDeck, production, startedToday, dayStartsAtHour,
     offline, offlineData: copyData, offlineSavedAt, dropped, seenDropped, skipped, skip, unskip,
-  }), [token, api, user, counts, problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, unsentAssignments, log, productionDeck, production, startedToday, dayStartsAtHour, offline, copyData, offlineSavedAt, dropped, seenDropped, skipped, skip, unskip]);
+  }), [token, api, user, counts, stats, refreshStats, problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, unsentAssignments, log, productionDeck, production, startedToday, dayStartsAtHour, offline, copyData, offlineSavedAt, dropped, seenDropped, skipped, skip, unskip]);
 }

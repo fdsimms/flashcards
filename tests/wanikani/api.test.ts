@@ -45,6 +45,31 @@ describe('requests', () => {
     expect(calls.every((c) => c.url.includes('levels=1%2C2%2C3'))).toBe(true);
   });
 
+  it('counts the stage groups, only for the levels a free account opens', async () => {
+    const { fn, calls } = fakeFetch(() => ({ body: { total_count: 6, data: [] } }));
+    expect(await createWaniKaniApi('t', fn).stageCounts(3)).toEqual({ guru: 6, master: 6, enlightened: 6, burned: 6 });
+    expect(calls.map((c) => decodeURIComponent(c.url.match(/srs_stages=([^&]*)/)![1])).sort()).toEqual(['5,6', '7', '8', '9']);
+    expect(calls.every((c) => c.url.includes('levels=1%2C2%2C3'))).toBe(true);
+  });
+
+  it('counts a level\'s kanji and the ones at Guru or above', async () => {
+    const { fn, calls } = fakeFetch((url) => ({ body: { total_count: url.includes('/subjects') ? 33 : 24, data: [] } }));
+    expect(await createWaniKaniApi('t', fn).levelKanji(12)).toEqual({ total: 33, passed: 24 });
+    expect(calls.find((c) => c.url.includes('/subjects'))!.url).toContain('types=kanji&levels=12');
+    expect(calls.find((c) => c.url.includes('/assignments'))!.url).toContain('subject_types=kanji');
+  });
+
+  it('reads the summary into batches of reviews', async () => {
+    const { fn } = fakeFetch(() => ({ body: { data: { reviews: [
+      { available_at: '2026-11-12T10:00:00.000000Z', subject_ids: [1, 2, 3] },
+      { available_at: 7, subject_ids: [1] },
+      { available_at: '2026-11-12T11:00:00.000000Z', subject_ids: [] },
+    ] } } }));
+    expect(await createWaniKaniApi('t', fn).upcomingReviews()).toEqual([
+      { availableAt: '2026-11-12T10:00:00.000000Z', count: 3 }, { availableAt: '2026-11-12T11:00:00.000000Z', count: 0 },
+    ]);
+  });
+
   it('keeps only vocabulary for production cards', async () => {
     const { fn } = fakeFetch(() => ({ body: { data: [
       assignmentResource(1, 10, { srs_stage: 5 }),
