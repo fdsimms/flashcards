@@ -146,9 +146,9 @@ export class MemoryRepo implements Repo {
         });
         continue;
       }
-      // A flag and a bury stay as they are, as in the SQLite repo: no caller here carries one.
+      // Suspension, a flag and a bury stay as they are, as in the SQLite repo: no caller here carries one.
       this.cards.set(c.id, existing
-        ? { ...c, retired: false, ankiId: c.ankiId ?? existing.ankiId, flag: existing.flag, buriedAt: existing.buriedAt }
+        ? { ...c, retired: false, ankiId: c.ankiId ?? existing.ankiId, suspended: existing.suspended, flag: existing.flag, buriedAt: existing.buriedAt }
         : { ...c, retired: false });
     }
   }

@@ -31,6 +31,17 @@ T = TypeVar("T")
 Required = SyncCollectionResponse.ChangesRequired
 
 
+# A setting changed since the last sync, other than those Anki changes as a side effect of
+# studying or adding (the deck and note type last picked, the day's unburying). A setting's usn
+# stays -1 after a sync, so its modified time says whether it changed here since.
+CHANGED_CONFIG_SQL = (
+    "select 1 from config where usn = -1 and mtime_secs >= ?"
+    " and KEY not in ('curDeck', 'activeDecks', 'curModel', 'lastUnburied')"
+    " and KEY not like '\\_deck\\_%\\_lastNotetype' escape '\\'"
+    " and KEY not like '\\_nt\\_%\\_lastDeck' escape '\\' limit 1"
+)
+
+
 class SyncProblem(ToolError):
     """The collection couldn't be synced; the message says why and what to do (and reaches the model)."""
 
@@ -53,6 +64,7 @@ class CollectionManager:
         self._auth = None
         self._lock = anyio.Lock()
         self._synced_at = 0.0
+        self._synced_wall = 0.0  # the same moment by the clock, which a setting's mtime_secs is read against
         # Changes made here that haven't reached the server yet (a sync after them failed).
         self._unsent = False
 
@@ -164,13 +176,20 @@ class CollectionManager:
         self._unsent = False
         first = self._synced_at == 0.0
         self._synced_at = time.monotonic()
+        self._synced_wall = time.time()
         if first:
             # Its media copy starts empty: fetch the collection's images and sounds in the background.
             self._start_media_sync()
 
     def _has_local_changes(self) -> bool:
+        # Every table a sync sends (usn -1 is "not sent yet"): a deck preset, a note type or a
+        # setting changed here (set_fsrs_settings, update_note_type, set_forms_auto_fill) is a
+        # change too (CHANGED_CONFIG_SQL).
         db = self.col.db
-        return any(db.scalar(f"select 1 from {t} where usn = -1 limit 1") for t in ("notes", "cards", "revlog", "graves"))
+        tables = ("notes", "cards", "revlog", "graves", "decks", "deck_config", "notetypes", "tags")
+        return any(db.scalar(f"select 1 from {t} where usn = -1 limit 1") for t in tables) or bool(
+            db.scalar(CHANGED_CONFIG_SQL, int(self._synced_wall))
+        )
 
     def _full_upload(self) -> None:
         if self.sync_settings is None:
@@ -182,6 +201,7 @@ class CollectionManager:
         self.col.reopen(after_full_sync=True)
         self._unsent = False
         self._synced_at = time.monotonic()
+        self._synced_wall = time.time()
 
     def _discard(self) -> None:
         """Throws this copy away; the next sync downloads the server's."""

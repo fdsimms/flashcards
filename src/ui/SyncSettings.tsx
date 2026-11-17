@@ -31,11 +31,15 @@ export function SyncSettings(props: {
   const userField = useRef<TextInputInstance>(null);
   const passwordField = useRef<TextInputInstance>(null);
 
+  // Return on the password field can land again while a sign-in runs; the button is disabled, it isn't.
+  const signingIn = useRef(false);
   const submit = async () => {
+    if (signingIn.current) return;
     if (!server.trim() || !user.trim() || !password) {
       setError('Fill in the server address, user name and password.');
       return;
     }
+    signingIn.current = true;
     setBusy(true);
     setError(undefined);
     try {
@@ -47,6 +51,7 @@ export function SyncSettings(props: {
     } catch (e) {
       setError(syncErrorText(e));
     } finally {
+      signingIn.current = false;
       setBusy(false);
     }
   };

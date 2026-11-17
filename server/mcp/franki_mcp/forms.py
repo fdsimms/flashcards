@@ -35,6 +35,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import secrets
 import time
 import urllib.error
 import urllib.parse
@@ -46,6 +47,7 @@ from typing import Any
 
 import anyio
 from anki.collection import Collection  # first: the anki package's modules import each other
+from anki.errors import NotFoundError
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
@@ -260,6 +262,12 @@ def noun_lines_for(language: Language, entry: str, found: dict[str, list[tuple[s
     return lines if lines and len(lines) * 2 >= rows_in(language, tables) else []
 
 
+def _part(p: Path) -> Path:
+    """Where a download into `p` is written before it's moved there: a name of its own, so the tool
+    and the daily fill fetching the same file at once don't write into one file."""
+    return p.with_name(f"{p.name}.{secrets.token_hex(4)}.part")
+
+
 @dataclass
 class UniMorph:
     """UniMorph's files, downloaded into `folder` on first use. `fetch` is replaceable for the tests."""
@@ -271,8 +279,12 @@ class UniMorph:
         p = self.folder / code
         if not p.exists():
             self.folder.mkdir(parents=True, exist_ok=True)
-            tmp = p.with_suffix(".part")
-            self.fetch(SOURCE_URL.format(code=code), tmp)
+            tmp = _part(p)
+            try:
+                self.fetch(SOURCE_URL.format(code=code), tmp)
+            except BaseException:
+                tmp.unlink(missing_ok=True)
+                raise
             tmp.replace(p)
         return p
 
@@ -310,16 +322,18 @@ class UniMorph:
         if p.exists() and time.time() - p.stat().st_mtime < KAIKKI_FRESH:
             return p.read_text(encoding="utf-8")
         p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_suffix(".part")
+        tmp = _part(p)
         try:
             self.fetch(KAIKKI_URL.format(language=q(language), a=q(word[:1]), ab=q(word[:2]), word=q(word)), tmp)
         except urllib.error.HTTPError as e:
             if e.code != 404:
                 log.warning("kaikki.org answered %s for %s", e.code, word)
+                tmp.unlink(missing_ok=True)
                 return ""
             tmp.write_text("", encoding="utf-8")  # kept, so a word it doesn't have isn't asked for daily
         except OSError as e:
             log.warning("couldn't reach kaikki.org for %s: %s", word, e)
+            tmp.unlink(missing_ok=True)
             return ""  # not kept: asked for again next time
         tmp.replace(p)
         return p.read_text(encoding="utf-8")
@@ -493,7 +507,10 @@ def apply(col: Collection, fill: FillPlan) -> int:
     """Writes the planned lines, as Anki writes a field (lines joined by <br>), into fields still empty."""
     notes = []
     for p in fill.filled:
-        note = col.get_note(p.note_id)
+        try:
+            note = col.get_note(p.note_id)
+        except NotFoundError:
+            continue  # deleted while its forms were looked up: the rest are still written
         if FIELD not in note or _plain(note[FIELD]):
             continue  # filled meanwhile, here or on another device
         note[FIELD] = "<br>".join(p.lines)

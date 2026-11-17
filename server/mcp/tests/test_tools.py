@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 
 import pytest
@@ -116,6 +117,7 @@ async def test_studies_in_anki_order_and_the_answer_reaches_another_device(clien
     assert card and first["question_text"] and set(first["next_if"]) == {"again", "hard", "good", "easy"}
     shown = await call(client, "present_card", card_id=card["card_id"], show_answer=True)
     assert shown["answer_text"]
+    await asyncio.sleep(0.3)  # the user thinks it over
     rated = await call(client, "rate_card", card_id=card["card_id"], rating=3)
     assert rated["card"]["reviews"] == card["reviews"] + 1
     # Rating it again fails: it's no longer at the top of the queue (or it is, as a learning step,
@@ -124,7 +126,8 @@ async def test_studies_in_anki_order_and_the_answer_reaches_another_device(clien
     if after["card"] and after["card"]["card_id"] != card["card_id"]:
         assert "isn't the next card" in await call_error(client, "rate_card", card_id=card["card_id"], rating=3)
     desktop.run("sync")
-    assert any(r[1] == card["card_id"] for r in desktop.run("dump")["dump"]["revlog"])
+    # Timed from when study_next showed it (revlog's time column, in ms), not from the answer.
+    assert any(r[1] == card["card_id"] and r[7] >= 250 for r in desktop.run("dump")["dump"]["revlog"])
 
 
 async def test_stats_and_fsrs(client):
@@ -193,6 +196,29 @@ async def test_a_full_sync_with_unsent_changes_is_refused_until_told_to_take_the
     assert types["Basic"]["fields"] == ["Front", "Back", "Extra"]
     assert (await call(client, "find_notes", query='"Front:Only on the MCP"'))["total"] == 0
     await call(client, "sync_now")  # and syncs normally from then on
+
+
+async def test_an_unsent_setting_is_a_change_a_full_sync_would_lose(client, cm, desktop):
+    await call(client, "list_decks")
+
+    def set_here_while_another_device_uploads(col):
+        col.set_config("frankiFormsAutoFill", True)
+        desktop.run("add-field", "Basic", "Extra", "+", "upload")
+
+    await cm.write(set_here_while_another_device_uploads)
+    assert "sync_now with take_server=true" in await call_error(client, "sync_now")
+    await call(client, "sync_now", take_server=True)
+
+
+async def test_studying_alone_doesnt_count_as_a_change_a_full_sync_would_lose(client, cm, desktop):
+    await call(client, "list_decks")
+
+    def pick_a_deck_while_another_device_uploads(col):
+        col.decks.select(col.decks.id_for_name(TRIVIA))
+        desktop.run("add-field", "Basic", "Extra", "+", "upload")
+
+    await cm.write(pick_a_deck_while_another_device_uploads)
+    await call(client, "sync_now")
 
 
 async def test_flagged_cards_are_found_with_their_reason_and_resolved(client, desktop):

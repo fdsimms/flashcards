@@ -7,7 +7,7 @@ import { failureText } from '../core/failure';
 import type { AnkiLink } from '../db/ankiLink';
 import { isOmnilanguage } from '../core/cards';
 import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, type Selection } from '../core/formatting';
-import { asEdited, duplicateOf, editTextToField, fieldToEditText, parseTags } from '../core/noteEditing';
+import { asEdited, duplicateOf, editTextToField, fieldToEditText, notesStillThere, parseTags } from '../core/noteEditing';
 import type { Note, NoteType } from '../core/types';
 import type { NoteEditorResult } from './AppContext';
 import type { RecordDeps, Recording } from '../anki/recordService';
@@ -84,15 +84,16 @@ export function NoteEditor(props: {
   useEffect(() => {
     setLoadError(null);
     (async () => {
-      const [all, types, params] = await Promise.all([props.repo.listNotes(), props.repo.listNoteTypes(), props.repo.listDeckParams()]);
-      setNotes(all);
+      const [all, types, params, cards] = await Promise.all([props.repo.listNotes(), props.repo.listNoteTypes(), props.repo.listDeckParams(), props.repo.listCards()]);
+      // Not a note deleted in Anki: it isn't a duplicate of anything anymore.
+      setNotes(notesStillThere(all, cards));
       setNoteTypes(types);
       // A filtered deck borrows cards and holds no notes of its own, so a note can't go in one.
       setFilteredDecks(new Set([...params].filter(([, p]) => p.filtered).map(([d]) => d)));
       if ('noteId' in props.target) {
         const n = all.find((x) => x.id === (props.target as { noteId: string }).noteId);
         if (!n) { setMissing(true); setLoaded(true); return; }
-        const [cs, cards] = await Promise.all([props.repo.collectionSettings(), props.repo.listCards()]);
+        const cs = await props.repo.collectionSettings();
         setDayStartsAtHour(cs.dayStartsAtHour);
         setNoteCardList(cards.filter((x) => x.noteId === n.id && !x.retired));
         setOriginal(n);

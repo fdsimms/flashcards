@@ -577,6 +577,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
 
     # ---- studying ----
 
+    # When study_next showed each card: rate_card's card is a new object, so its own timer would
+    # start at the answer and log about 0 ms. Anki caps the time at the preset's limit (time_taken).
+    shown_at: dict[int, float] = {}
+
     @server.tool(annotations=WRITE)
     async def study_next(deck: str, include_html: bool = False) -> dict[str, Any]:
         """The next card to study in a deck (with its subdecks), in Anki's order and within its
@@ -590,7 +594,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if not queued.cards:
                 return {"card": None, "message": f"Nothing is due in {deck} right now."}
             card = Card(col, backend_card=queued.cards[0].card)
-            card.start_timer()
+            shown_at.clear()  # only the card on screen is answered
+            shown_at[card.id] = time.time()
             intervals = col.sched.describe_next_states(queued.cards[0].states)
             return {
                 "card": _card_dict(col, card),
@@ -632,8 +637,9 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if not queued.cards or queued.cards[0].card.id != card_id:
                 raise ToolError(f"Card {card_id} isn't the next card to study any more. Call study_next for the deck again.")
             card = Card(col, backend_card=queued.cards[0].card)
-            card.start_timer()
+            card.timer_started = shown_at.get(card_id, time.time())
             col.sched.answer_card(col.sched.build_answer(card=card, states=queued.cards[0].states, rating=rating))
+            shown_at.pop(card_id, None)
             card.load()
             return {"card": _card_dict(col, card)}
 

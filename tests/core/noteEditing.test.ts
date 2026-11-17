@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { asEdited, deckChipRows, duplicateOf, editTextToField, fieldToEditText, matchesNoteFilter, notePreview, parseTags, searchNotes } from '../../src/core/noteEditing';
+import { asEdited, deckChipRows, duplicateOf, editTextToField, fieldToEditText, matchesNoteFilter, notePreview, notesStillThere, parseTags, searchNotes } from '../../src/core/noteEditing';
 import type { Card, Note } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -112,5 +112,21 @@ describe('filtering notes by their cards', () => {
     expect(matches('flagged', [card({ flag: 0 })])).toBe(false);
     expect(matches('leech', [], { ...note, tags: ['Leech'] })).toBe(true);
     expect(matches('leech', [card()])).toBe(false);
+  });
+});
+
+describe('notesStillThere', () => {
+  it('leaves out a note whose Anki cards are all retired, and keeps the rest', async () => {
+    const { makeCards } = await import('../../src/core/cards');
+    const gone = basic('1', 'gone', 'x');
+    const kept = basic('2', 'kept', 'x');
+    const franki = basic('3', 'franki', 'x');
+    const cards: Card[] = [
+      ...makeCards(gone, NOW).map((c) => ({ ...c, ankiId: '11', retired: true })),
+      ...makeCards(kept, NOW).map((c) => ({ ...c, ankiId: '22' })),
+      // Franki's own note with no card left it makes: still there, Anki never had it.
+      ...makeCards(franki, NOW).map((c) => ({ ...c, retired: true })),
+    ];
+    expect(notesStillThere([gone, kept, franki], cards).map((n) => n.id)).toEqual(['2', '3']);
   });
 });

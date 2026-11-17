@@ -11,6 +11,9 @@ import { loadToolMarks, saveToolPrefs, toolMarks } from '../tools/storage';
 import { toolById } from '../tools/tools';
 import { useApp } from './AppContext';
 
+/** How long after one tap on an extra another one is taken as the same tap. */
+const OPEN_GAP_MS = 1000;
+
 /** One of today's extras as a screen shows it. */
 export interface ExtraItem {
   extra: Extra;
@@ -83,7 +86,11 @@ export function useDailyExtras() {
   }, [saved, plan]);
 
   /** Opens the extra: a drill in its language, or Read & Listen's shelf in it. */
+  // A second tap before the screen it opens is up (a double tap on a chip or a row) opens it once.
+  const openedAt = useRef(0);
   const open = useCallback(async (extra: Extra): Promise<string | undefined> => {
+    if (Date.now() - openedAt.current < OPEN_GAP_MS) return undefined;
+    openedAt.current = Date.now();
     if (extra.kind !== 'read') {
       saveToolPrefs({ language: extra.language });
       router.push({ pathname: '/tool', params: { id: extra.kind } });
@@ -93,6 +100,7 @@ export function useDailyExtras() {
     try {
       reader.setSettings(await reader.api.updateSettings({ language: extra.language }));
     } catch (e) {
+      openedAt.current = 0; // nothing opened: Try again is taken at once
       return e instanceof ApiError ? e.message : "Couldn't open Read & Listen. Try again.";
     }
     router.navigate('/read');

@@ -102,6 +102,15 @@ describe('Anki JSON import', () => {
     expect(res.warnings).toHaveLength(1);
     expect(res.warnings[0]).toMatch(/^4 cards of note type "Ultimate Geography" were skipped: its card templates weren't in the file/);
   });
+  it('says an Omnilanguage card was skipped because its Generate field is off, not for missing templates', () => {
+    const res = importAnkiJson({
+      collectionCreated: created, notes: [noteInfo(7, { GenerateReverse: '' })],
+      cards: [0, 1].map((ord) => ({ cardId: 70 + ord, note: 7, deckName: 'D', ord, type: 0 })),
+    }, { now: NOW });
+    expect(res.warnings).toEqual([
+      "1 Omnilanguage card was skipped: Anki still has it, but its note's Generate field for that card type is turned off, so Franki doesn't make it. It stays in Anki as it is.",
+    ]);
+  });
   it("keeps a card in another deck than its note's first card in its own deck", () => {
     const res = importAnkiJson({
       notes: [{ noteId: 9, modelName: 'Basic (and reversed card)', fields: { Front: 'kot', Back: 'cat' } }],

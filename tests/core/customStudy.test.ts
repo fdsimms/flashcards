@@ -17,7 +17,9 @@ describe('the search a custom study stores', () => {
   it('builds a cram by state, count and tags', () => {
     const cram = (select: 'new' | 'due' | 'review' | 'all', include: string[] = [], exclude: string[] = []) =>
       filteredPlan({ kind: 'cram', select, count: 50, include, exclude }, 'A::B')!;
-    expect(cram('new')).toMatchObject({ search: 'deck:"A::B" is:new', limit: 50, order: FILTERED_ORDER.added, reschedule: false });
+    // As Anki's cram: new, due and review cards are rescheduled, all cards only previewed.
+    expect(cram('new')).toMatchObject({ search: 'deck:"A::B" is:new', limit: 50, order: FILTERED_ORDER.added, reschedule: true });
+    expect([cram('due').reschedule, cram('review').reschedule, cram('all').reschedule]).toEqual([true, true, false]);
     expect(cram('due').search).toBe('deck:"A::B" is:due');
     expect(cram('review').search).toBe('deck:"A::B" -is:new');
     expect(cram('all', ['verb', 'a1'], ['noun']).search).toBe('deck:"A::B" (tag:"verb" or tag:"a1") -tag:"noun"');

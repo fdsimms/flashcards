@@ -96,6 +96,9 @@ class Usage:
     cache_read_tokens: int = 0
     cache_write_tokens: int = 0
     model: str = ""  # the model that actually answered, which a refusal fallback can change
+    # A sum's cost, each part priced at its own model: the tokens are added up, but a fallback can
+    # have answered one call on another model, and pricing them all at the last one's rate was wrong.
+    usd: float | None = field(default=None, compare=False)
 
     def __add__(self, other: "Usage") -> "Usage":
         return Usage(
@@ -104,9 +107,12 @@ class Usage:
             self.cache_read_tokens + other.cache_read_tokens,
             self.cache_write_tokens + other.cache_write_tokens,
             other.model or self.model,
+            self.cost_usd() + other.cost_usd(),
         )
 
     def cost_usd(self) -> float:
+        if self.usd is not None:
+            return self.usd
         inp, out, read, write = PRICES.get(self.model or MODEL, PRICES[MODEL])
         return (
             self.input_tokens * inp

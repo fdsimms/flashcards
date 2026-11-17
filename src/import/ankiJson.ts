@@ -243,6 +243,8 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
 
   const cards: Card[] = [];
   const skippedByModel = new Map<string, number>();
+  // Omnilanguage cards Anki still has whose kind the note's Generate fields no longer ask for.
+  let notGenerated = 0;
   const noteTypes = new Map((data.noteTypes ?? []).map((t) => [t.name, t]));
   for (const n of data.notes) {
     const id = String(n.noteId);
@@ -268,7 +270,8 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
       const kind = kindFor(ac.ord ?? 0);
       const target = kind ? byKind.get(kind) : undefined;
       if (!target) {
-        skippedByModel.set(n.modelName, (skippedByModel.get(n.modelName) ?? 0) + 1);
+        if (isOmnilanguage(note)) notGenerated++;
+        else skippedByModel.set(n.modelName, (skippedByModel.get(n.modelName) ?? 0) + 1);
         continue;
       }
       target.sched = schedFromAnki(ac, days, now);
@@ -296,7 +299,12 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
   }
   // One line per note type rather than one per card: a multi-template type skips thousands.
   for (const [model, count] of skippedByModel) {
-    warnings.push(`${count} ${count === 1 ? 'card' : 'cards'} of note type "${model}" were skipped: its card templates weren't in the file, so only its first card type can be shown. Import your whole collection from AnkiMobile to get them all.`);
+    warnings.push(`${count === 1 ? '1 card' : `${count} cards`} of note type "${model}" ${count === 1 ? 'was' : 'were'} skipped: its card templates weren't in the file, so only its first card type can be shown. Import your whole collection from AnkiMobile to get them all.`);
+  }
+  if (notGenerated) {
+    warnings.push(notGenerated === 1
+      ? "1 Omnilanguage card was skipped: Anki still has it, but its note's Generate field for that card type is turned off, so Franki doesn't make it. It stays in Anki as it is."
+      : `${notGenerated} Omnilanguage cards were skipped: Anki still has them, but their notes' Generate fields for those card types are turned off, so Franki doesn't make them. They stay in Anki as they are.`);
   }
   if (data.collectionCreated === undefined && data.cards?.some((c) => c.type !== 0 && (c.due ?? 0) < TIMESTAMP_DUE)) {
     warnings.push('collectionCreated missing: review cards were set due now instead of their real due dates');

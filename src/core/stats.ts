@@ -46,7 +46,11 @@ export interface RevlogRow {
   type: number;
 }
 
-/** Every answer, from the review log for Anki's cards and Franki's table for the rest. */
+/**
+ * Every answer, from the review log for Anki's cards and Franki's table for the rest, and for an
+ * Anki card's answer Franki has that the review log doesn't (its Anki write failed: "it counts in
+ * Franki").
+ */
 export function answersFrom(input: { revlog: RevlogRow[]; reviews: ReviewLogEntry[]; cards: Card[] }): Answer[] {
   const byAnkiId = new Map<number, string>();
   const ankiCards = new Set<string>();
@@ -61,6 +65,13 @@ export function answersFrom(input: { revlog: RevlogRow[]; reviews: ReviewLogEntr
     if (r.deck && ankiCards.has(r.cardId)) (filteredAt.get(r.cardId) ?? filteredAt.set(r.cardId, []).get(r.cardId)!).push({ at: Date.parse(r.reviewedAt), deck: r.deck });
   }
   const deckOf = (cardId: string, revlogId: number) => filteredAt.get(cardId)?.find((f) => revlogId >= f.at && revlogId - f.at < 1000)?.deck;
+  // The review log's rows for each of Franki's Anki cards, to tell which of Franki's answers it has.
+  const logged = new Map<string, number[]>();
+  for (const r of input.revlog) {
+    const cardId = byAnkiId.get(r.cid);
+    if (cardId) (logged.get(cardId) ?? logged.set(cardId, []).get(cardId)!).push(r.id);
+  }
+  const inLog = (cardId: string, at: number) => !!logged.get(cardId)?.some((id) => id >= at && id - at < 1000);
   const out: Answer[] = [];
   for (const r of input.revlog) {
     const cardId = byAnkiId.get(r.cid);
@@ -81,7 +92,7 @@ export function answersFrom(input: { revlog: RevlogRow[]; reviews: ReviewLogEntr
     });
   }
   for (const r of input.reviews) {
-    if (ankiCards.has(r.cardId)) continue;
+    if (ankiCards.has(r.cardId) && inLog(r.cardId, Date.parse(r.reviewedAt))) continue;
     out.push({
       cardId: r.cardId,
       at: new Date(r.reviewedAt),

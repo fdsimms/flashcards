@@ -189,6 +189,9 @@ class Engine:
         self.synthesize = synthesize
         self.synthesize_parts = synthesize_parts
         self.audio = audio
+        # A line being recorded, so a second request for it (the reader's own and its prefetch,
+        # or make_audio's) waits for that recording rather than paying Azure for another.
+        self._recording: dict[tuple[int, int, bool], asyncio.Future[Path | None]] = {}
         self.voices = voices or DEFAULT_VOICES
         # Which study day it is (study_day.py): the collection's "Next day starts at" as last read,
         # in `zone`, the process's own (TZ) when None.
@@ -885,6 +888,18 @@ class Engine:
             return self.audio.path(text.id, line, slow)
         if self.synthesize is None:
             return None
+        key = (text.id, line, slow)
+        recording = self._recording.get(key)
+        if recording is None:
+            recording = asyncio.ensure_future(self._record_line(text, line, slow))
+            self._recording[key] = recording
+            recording.add_done_callback(lambda _: self._recording.pop(key, None))
+        # Shielded: a request given up on (the app left the line) doesn't stop the one recording
+        # another request is waiting on.
+        return await asyncio.shield(recording)
+
+    async def _record_line(self, text: StoredText, line: int, slow: bool) -> Path | None:
+        assert self.audio is not None and self.synthesize is not None
         spoken, _ = parse_line(text.lines[line].text, LANGUAGES[text.language].spaced)
         voice = voice_for(text.lines[line].speaker, text.genders, self.voices_for(text.language))
         parts = self._line_parts(text, line, spoken, voice)
