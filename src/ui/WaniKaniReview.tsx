@@ -9,7 +9,7 @@ import { problemText, WaniKaniError, type WaniKaniApi, type WaniKaniUser } from 
 import { toKana } from '../wanikani/kana';
 import { offlineText } from '../wanikani/offline';
 import { canSkip, withoutSkipped } from '../wanikani/skipped';
-import { apprenticeBlocks, droppedText, lessonsToday } from '../wanikani/prefs';
+import { droppedText, lessonsToday } from '../wanikani/prefs';
 import { audioFileName, audioFor } from '../wanikani/production';
 import {
   buildSession, canAskLater, canMarkCorrect, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
@@ -26,7 +26,7 @@ import type { WaniKaniState } from './useWaniKani';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 import { StagePopup, stagePopupMs } from './StagePopup';
-import { SubjectDetails, SubjectFront } from './WaniKaniCard';
+import { SubjectDetails, SubjectFront, subjectColor } from './WaniKaniCard';
 
 /** What a session is built from: WaniKani itself, or the offline copy when it can't be reached. */
 interface Source {
@@ -142,8 +142,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         // Reviews first; lessons only when none are up or they were asked for.
         const lessonKind = lessonsOnly || reviews.length === 0;
         const offered = lessonsToday(lessons.length, prefs.newPerDay, started);
-        const held = apprenticeBlocks(apprentice, prefs.maxApprentice) && offered > 0;
-        const lessonCount = held ? 0 : offered;
+        const lessonCount = lessonsToday(lessons.length, prefs.newPerDay, started, apprentice, prefs.maxApprentice);
+        const held = lessonCount === 0 && offered > 0;
         // With the radicals and kanji they're made of, for the "Made of" row: one more batched read.
         const own = await src.subjects((lessonKind ? lessons : reviews).map((a) => a.subjectId));
         const read = new Map((await withComponents(own, src.subjects)).map((s) => [s.id, s]));
@@ -403,7 +403,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           {droppedNote()}
           {next.held && prefs.maxApprentice !== null ? (
             <Text style={{ ...type.subhead, color: c.warning, textAlign: 'center' }}>
-              {`Lessons are paused: ${next.apprentice} ${next.apprentice === 1 ? 'item is' : 'items are'} at Apprentice, over your limit of ${prefs.maxApprentice}.`}
+              {`Lessons are paused: ${next.apprentice} ${next.apprentice === 1 ? 'item is' : 'items are'} at Apprentice, at your limit of ${prefs.maxApprentice}.`}
             </Text>
           ) : null}
           </ScrollView>
@@ -436,6 +436,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           key={`${item.assignmentId}:${question.kind}:${session!.finished.length}`}
           value={typed}
           onChangeText={(t) => { if (!verdict) setTyped(question.kind === 'reading' ? toKana(t) : t); }}
+          editable={!verdict}
           onSubmitEditing={check}
           submitBehavior="submit"
           autoFocus
@@ -493,7 +494,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         ) : null}
         {droppedNote()}
         <ProgressBar value={sessionProgress(study.session)} />
-        <CardSurface overlay={popup ? <StagePopup key={popup.id} change={popup.change} /> : null}>
+        <CardSurface color={subjectColor(c, subject.type)} overlay={popup ? <StagePopup key={popup.id} change={popup.change} /> : null}>
           <ScrollView
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
@@ -502,7 +503,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
               <SubjectFront subject={subject} label={label} />
               {showMeaning || showReading ? (
                 <>
-                  <View style={{ height: hairline, backgroundColor: c.border }} />
+                  <View style={{ height: hairline, backgroundColor: c.wkLine }} />
                   <SubjectDetails
                     key={`${subject.id}:${question.kind}`}
                     subject={subject}
