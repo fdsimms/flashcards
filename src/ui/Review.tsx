@@ -22,6 +22,7 @@ import { forgetCards, setDueDates } from '../anki/rescheduleService';
 import { parseDueDate } from '../core/reschedule';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
 import { bumpStudied, currentCard, sessionProgress, sessionSummary, type AnswerRecord } from '../core/session';
+import { reviewWrites } from '../core/writeQueue';
 import { durationText } from '../core/stats';
 import { wantedLines } from '../core/synonyms';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
@@ -224,8 +225,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
   useEffect(() => {
     setLoadError(null);
     let stale = false;
-    const seen = writes.current;
     (async () => {
+      // Answers still being written (Review's queue) are in the database before it's read.
+      await reviewWrites.idle();
+      const seen = writes.current;
       const now = new Date();
       const cs = await repo.collectionSettings();
       const dayStart = studyDayStart(now, cs.dayStartsAtHour);
@@ -424,7 +427,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
   const answer = async (rating: RatingValue, miss?: string) => {
     if (!current || !note || busy.current || current === lastAnswered.current) return;
     busy.current = true;
-    writes.current++;
     haptic.answer();
     try {
       const when = new Date();
@@ -450,65 +452,29 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
       // The note's other cards that its preset holds back until tomorrow, as Anki does.
       const siblings = preview ? [] : siblingsToBury(current, cards ?? [], cardParams?.bury, when, H);
       const buried = siblings.map((s): Card => ({ ...s, buriedAt: when.toISOString(), ankiMod: s.ankiId ? Math.floor(when.getTime() / 1000) : s.ankiMod }));
-      await repo.saveCard(updated);
-      for (const b of buried) await repo.saveCard(b);
-      // Whether it was a day-long step goes in the row, so today's counts read it back after a reload.
-      // So does the filtered deck it was answered in, which a rescheduling one sends the card out of
-      // once it's a review: today's counts keep it there, as Anki counts it.
-      const reviewId = await repo.addReview({
-        cardId: current.id, ...res.log, interday: !preview && isInterdayLearning(current, H),
-        ...(rating === 1 && miss ? { miss } : {}),
-        ...(current.filteredDeck ? { deck: current.filteredDeck } : {}),
-      });
-      // Into the kept Anki collection too, so "Send to Anki" carries this answer. If that write
-      // fails, the answer still counts here, and you're told rather than it going missing.
-      let anki: AnkiUndo | undefined;
-      try {
-        anki = await repo.writeAnkiAnswer({
-          before: current, after: updated, rating, now: when,
-          takenMs: when.getTime() - shownAt.current, desiredRetention: cardParams?.desiredRetention, bury: siblings,
-          preview: preview ? { again: previewAgainAt } : undefined,
-          steps: { learn: (cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS).length, relearn: (cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS).length },
-        });
-        // The write above waits on `lockAnki`. A sync that held it meanwhile reads the kept collection,
-        // which didn't have this answer yet, back over the rows saved before it. Saved again now that the
-        // collection has it, so both agree (a no-op when nothing came between).
-        await repo.saveCard(updated);
-        for (const b of buried) await repo.saveCard(b);
-      } catch (e: any) {
-        if (!warnedAnki.current) {
-          warnedAnki.current = true;
-          Alert.alert(
-            "Couldn't save this answer for Anki",
-            failureText(e, { next: "It counts in Franki, but it won't be in the file sent to Anki." }),
-          );
-        }
-      }
-      let leechNoteId: string | undefined;
-      if (isLeech && !note.tags.includes('leech')) {
-        try {
-          const tagged = await saveNote(repo as NoteStore, { id: note.id, deck: note.deck, model: note.model, fields: note.fields, tags: [...note.tags, 'leech'] }, when);
-          leechNoteId = note.id;
-          setNotes((prev) => new Map(prev).set(tagged.id, tagged));
-        } catch {
-          // The answer stands; the tag just isn't added.
-        }
-      }
-      if (isLeech && canAddMnemonic(note)) {
-        setLeechPrompt({ noteId: note.id, misses: res.sched.lapses, ...(updated.suspended && !current.suspended ? { suspendedCardId: current.id } : {}) });
-      }
       // Counted in the deck the card is studied in, as Anki counts it (a filtered deck's answers count there).
       // Time capped at a minute, as Anki's maximum answer time is, so a phone put down mid-card doesn't swell the summary.
+      // `reviewId` and `anki` are filled in by the write below; undo waits for it (`reviewWrites.idle()`).
       const record: AnswerRecord = {
-        before: current, reviewId, deck: cardDeck(current, note.deck), anki, buried: siblings, leechNoteId,
+        before: current, deck: cardDeck(current, note.deck), buried: siblings,
         rating, takenMs: Math.min(when.getTime() - shownAt.current, 60000), preview, ...(rating === 1 && miss ? { miss } : {}),
       };
+      const takenMs = when.getTime() - shownAt.current;
+      const stepCounts = { learn: (cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS).length, relearn: (cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS).length };
+      const desiredRetention = cardParams?.desiredRetention;
+      const wasInFilteredDeck = current.filteredDeck;
+      const interday = !preview && isInterdayLearning(current, H);
+      const noteBefore = note;
+
+      // The next card shows now. The answer is written behind it, in order (below), so the screen
+      // doesn't wait on the database. If a write fails, the answer is taken off the screen again.
       // Now a review, it weighs on the days the load balancer spreads later answers over, as in Anki.
       if (updated.sched.state === 2) recordAnswer(loadSnapshot.current, updated, cardParams?.presetId, updated.sched.scheduledDays);
       // A preview uses no limits, as in Anki, and a reload (`studiedToday`) doesn't count it either.
       setStudied((s) => bumpStudied(s, record.deck, record.preview ? null : studiedKind(record.before, H), 1));
       setHistory((h) => [...h, record]);
       misses.answered(current.id, rating === 1 ? miss : undefined);
+      // Reads the hook typed for this card, so it's called before the next card clears it.
       void ownHook.answered(note);
       forms.answered({ cardId: current.id, ...res.log });
       // Functional update: `cards` from this render's closure is stale once the awaits return.
@@ -521,11 +487,74 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
       setPreferId(undefined);
       setRevealed(false);
       setNow(when);
-    } catch (e) {
-      Alert.alert("Couldn't save this answer", failureText(e, { next: 'The card is still here: answer it again.' }));
+
+      writes.current++;
+      void reviewWrites.add(async () => {
+        // A sync or an import that holds the kept collection while this is written reads it back over
+        // the cards saved here: noted so they're saved again once the collection has the answer.
+        const lockAtStart = repo.ankiLockState();
+        try {
+          await repo.saveCard(updated);
+          for (const b of buried) await repo.saveCard(b);
+          // Whether it was a day-long step goes in the row, so today's counts read it back after a reload.
+          // So does the filtered deck it was answered in, which a rescheduling one sends the card out of
+          // once it's a review: today's counts keep it there, as Anki counts it.
+          record.reviewId = await repo.addReview({
+            cardId: record.before.id, ...res.log, interday,
+            ...(rating === 1 && miss ? { miss } : {}),
+            ...(wasInFilteredDeck ? { deck: wasInFilteredDeck } : {}),
+          });
+          // Into the kept Anki collection too, so "Send to Anki" carries this answer. If that write
+          // fails, the answer still counts here, and you're told rather than it going missing.
+          try {
+            record.anki = await repo.writeAnkiAnswer({
+              before: record.before, after: updated, rating, now: when,
+              takenMs, desiredRetention, bury: siblings,
+              preview: preview ? { again: previewAgainAt } : undefined,
+              steps: stepCounts,
+            });
+            // The write waits on `lockAnki`. A sync that held it meanwhile read the kept collection,
+            // which didn't have this answer yet, back over the rows saved above. Saved again now that
+            // the collection has it, so both agree. Skipped when nothing else took the lock (the
+            // usual case): this answer's own write is the one run counted after `lockAtStart`.
+            const lockNow = repo.ankiLockState();
+            if (lockAtStart.held || lockNow.runs > lockAtStart.runs + 1) {
+              await repo.saveCard(updated);
+              for (const b of buried) await repo.saveCard(b);
+            }
+          } catch (e: any) {
+            if (!warnedAnki.current) {
+              warnedAnki.current = true;
+              Alert.alert(
+                "Couldn't save this answer for Anki",
+                failureText(e, { next: "It counts in Franki, but it won't be in the file sent to Anki." }),
+              );
+            }
+          }
+          if (isLeech && !noteBefore.tags.includes('leech')) {
+            try {
+              const tagged = await saveNote(repo as NoteStore, { id: noteBefore.id, deck: noteBefore.deck, model: noteBefore.model, fields: noteBefore.fields, tags: [...noteBefore.tags, 'leech'] }, when);
+              record.leechNoteId = noteBefore.id;
+              setNotes((prev) => new Map(prev).set(tagged.id, tagged));
+            } catch {
+              // The answer stands; the tag just isn't added.
+            }
+          }
+          if (isLeech && canAddMnemonic(noteBefore)) {
+            setLeechPrompt({ noteId: noteBefore.id, misses: res.sched.lapses, ...(updated.suspended && !record.before.suspended ? { suspendedCardId: record.before.id } : {}) });
+          }
+        } catch (e) {
+          // Taken off the screen, and the deck is read again so what's shown is what was saved.
+          setHistory((h) => h.filter((r) => r !== record));
+          ratingOffer.show(null);
+          setReloads((n) => n + 1);
+          Alert.alert("Couldn't save this answer", failureText(e, { next: 'The card will come back: answer it again.' }));
+        } finally {
+          writes.current++;
+        }
+      });
     } finally {
       busy.current = false;
-      writes.current++;
     }
   };
 
@@ -547,6 +576,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
     writes.current++;
     haptic.tap();
     try {
+      // The answer's own writes finish first: they give the review row and the Anki write to take back.
+      await reviewWrites.idle();
+      if (last.reviewId === undefined) return false; // its write failed, and said so
       // Out of the Anki collection first: a synced answer is in the server's history, and taking
       // it back here alone would leave the two disagreeing. As in Anki, undo stops at the last sync.
       if (last.anki && !(await repo.undoAnkiAnswer(last.anki))) {

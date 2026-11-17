@@ -11,6 +11,7 @@ import { normalizeEndpoint, SyncClient, type HttpPost } from './sync/client';
 import { downloadCollection, markDownloaded, prepareForUpload, uploadCollection, type SqlValue } from './sync/collectionSync';
 import { syncMedia } from './sync/mediaSync';
 import { SyncError } from './sync/protocol';
+import { reviewWrites } from '../core/writeQueue';
 import { runSync, syncErrorText, type FullSyncQuestion, type SyncReport } from './sync/runSync';
 import { adoptDownloadedCollection, refreshFromKeptCollection } from './transfer';
 
@@ -141,6 +142,8 @@ export async function syncNow(
   repo: Repo & AnkiLink,
   choose: (q: FullSyncQuestion) => Promise<'download' | 'upload' | null>,
 ): Promise<SyncReport> {
+  // Answers Review is still writing go first, so the sync sends them and doesn't read around them.
+  await reviewWrites.idle();
   const settings = await repo.syncSettings();
   const key = await SecureStore.getItemAsync(HOST_KEY);
   if (!settings.enabled || !key) throw new SyncError('auth', 'Sync is not set up.');
