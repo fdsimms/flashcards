@@ -81,7 +81,7 @@ def reader_http(seen: list[httpx.Request] | None = None) -> httpx.AsyncClient:
 def client_for(cm, settings: ReaderSettings | None = SETTINGS) -> Client:
     server = MCPServer("test")
     tools.register(server, cm, None)
-    tiers.register(server, cm, settings, http=reader_http())
+    tiers.register(server, cm, ReaderClient(settings, reader_http()))
     return Client(server)
 
 
@@ -96,21 +96,22 @@ async def test_previews_then_files_each_note_into_its_tier_and_leaves_other_subd
         done = await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=BANDS, retentions=RET, preview=False)
         assert done["moved"] == 3
     assert decks_of(desktop, [casa, esperar, inventadear, hola]) == ["Español::Tier 1", "Español::Tier 2", "Español::Tier 3", "Español::Odmiana"]
-    base, _ = retention_of(desktop, "Español")
-    assert [retention_of(desktop, f"Español::Tier {i}") for i in (1, 2, 3)] == [(f"{base} · Tier {i}", r) for i, r in zip((1, 2, 3), (0.92, 0.88, 0.80))]
+    assert [retention_of(desktop, f"Español::Tier {i}") for i in (1, 2, 3)] == [(f"Español · Tier {i}", r) for i, r in zip((1, 2, 3), (0.92, 0.88, 0.80))]
 
 
-async def test_filing_again_moves_nothing_and_keeps_the_presets_in_step_with_the_parent(cm, desktop):
+async def test_filing_again_moves_nothing_and_leaves_a_tiers_own_limit_alone(cm, desktop):
     omni(desktop)
     async with client_for(cm) as c:
         await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=BANDS, retentions=RET, preview=False)
         again = await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=BANDS, retentions=RET, preview=False)
         assert again["moved"] == 0 and all(t["cards_to_move"] == 0 for t in again["tiers"])
-        # The parent's limit changes; the next run carries it to the tiers, and leaves their retention.
+        # A limit set on a tier in Anki is its own: the parent's changing, or another run, doesn't reset it.
+        await call(c, "set_fsrs_settings", deck="Español::Tier 3", new_per_day=2)
         await call(c, "set_fsrs_settings", deck="Español", new_per_day=7)
         await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=BANDS, retentions=RET, preview=False)
-        got = await call(c, "get_fsrs_settings", deck="Español::Tier 2")
-        assert got["new_per_day"] == 7 and got["desired_retention"] == 0.88
+        got = await call(c, "get_fsrs_settings", deck="Español::Tier 3")
+        assert got["new_per_day"] == 2 and got["desired_retention"] == 0.8
+        assert (await call(c, "get_fsrs_settings", deck="Español::Tier 2"))["new_per_day"] != 7
 
 
 async def call_tune(cm, deck: str, retention: float) -> None:
@@ -168,7 +169,7 @@ async def test_optimizing_a_tiered_deck_reads_its_tiers_and_hands_the_result_bac
         words = json.loads(request.content)["words"]
         return httpx.Response(200, json={"ranks": {w: (50 if "น้ำ" in w else None) for w in words}})
 
-    tiers.register(server, cm, SETTINGS, http=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    tiers.register(server, cm, ReaderClient(SETTINGS, httpx.AsyncClient(transport=httpx.MockTransport(handler))))
     async with Client(server) as c:
         await call(c, "optimize_fsrs", deck=THAI)
         assert searches[-1].count("preset:") == 1
@@ -187,7 +188,7 @@ async def test_optimizing_a_tiered_deck_reads_its_tiers_and_hands_the_result_bac
 async def test_files_every_language_that_can_be_and_says_why_it_skipped_the_others(cm, desktop):
     esperar, inventadear, casa, hola = omni(desktop)
     # A note of another type in the deck is left where it is, not a reason to refuse the deck.
-    basic = desktop.run("add-note", "Español", "front", "back", "+", "sync")
+    desktop.run("add-note", "Español", "front", "back", "+", "sync")
     async with client_for(cm) as c:
         preview = await call(c, "tier_all_languages_by_frequency", bands=BANDS, retentions=RET)
         assert preview["preview"] is True and [x["language"] for x in preview["languages"]] == ["es"]
@@ -198,10 +199,90 @@ async def test_files_every_language_that_can_be_and_says_why_it_skipped_the_othe
         done = await call(c, "tier_all_languages_by_frequency", bands=BANDS, retentions=RET, preview=False)
         assert done["languages"][0]["moved"] == 3 and done["languages"][0]["left_alone"] >= 1
     assert decks_of(desktop, [casa, esperar, inventadear]) == ["Español::Tier 1", "Español::Tier 2", "Español::Tier 3"]
-    assert basic  # the Basic note's card never moved
     desktop.run("sync")
     col = Collection(str(desktop.path))
     try:
         assert {col.decks.name(c.did) for c in map(col.get_card, col.find_cards("front:front"))} == {"Español"}
     finally:
         col.close()
+
+
+def two_languages(desktop) -> None:
+    note = lambda **f: json.dumps(f)  # noqa: E731
+    desktop.run(
+        "add-notetype", "Omnilanguage", "Entry,Meaning,Language",
+        "+", "add-fields-note", "Omnilanguage", "Español", note(Entry="la casa", Meaning="house", Language="spanish"),
+        "+", "add-fields-note", "Omnilanguage", "Deutsch", note(Entry="das Haus", Meaning="house", Language="german"),
+        "+", "sync",
+    )
+
+
+def ranking_client(cm) -> Client:
+    """A Read & Listen that ranks every word of every language."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"ranks": {w: 5 for w in json.loads(request.content)["words"]}})
+
+    server = MCPServer("test")
+    tools.register(server, cm, None)
+    tiers.register(server, cm, ReaderClient(SETTINGS, httpx.AsyncClient(transport=httpx.MockTransport(handler))))
+    return Client(server)
+
+
+async def test_decks_sharing_a_preset_get_tier_presets_and_filing_settings_of_their_own(cm, desktop):
+    two_languages(desktop)
+    async with ranking_client(cm) as c:
+        await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=BANDS, retentions=RET, preview=False)
+        await call(c, "tier_deck_by_frequency", deck="Deutsch", language="de", bands=BANDS, retentions=RET, preview=False)
+    assert retention_of(desktop, "Español::Tier 1")[0] != retention_of(desktop, "Deutsch::Tier 1")[0]
+    filed = await cm.read(tiers._tiered)
+    assert {d: s["language"] for d, s in filed.items()} == {"Español": "es", "Deutsch": "de"}
+
+
+async def test_the_daily_pass_follows_the_newest_bands_and_stops_when_turned_off(cm, desktop):
+    omni(desktop)
+    async with client_for(cm) as c:
+        await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=BANDS, retentions=RET, preview=False)
+        assert list((await cm.read(tiers._tiered)).values())[0]["bands"] == BANDS
+        # Two tiers instead of three: the old Tier 3 preset is still there, but isn't what the pass reads.
+        await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=[1000], retentions=[0.9, 0.8], preview=False)
+        assert (await cm.read(tiers._tiered))["Español"]["bands"] == [1000]
+        await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=[1000], retentions=[0.9, 0.8], daily=False, preview=False)
+        assert await cm.read(tiers._tiered) == {}
+
+
+async def test_a_deck_named_in_another_case_is_filed_under_its_own_spelling(cm, desktop):
+    omni(desktop)
+    async with client_for(cm) as c:
+        preview = await call(c, "tier_deck_by_frequency", deck="español", language="es", bands=BANDS, retentions=RET)
+        assert preview["deck"] == "Español" and [t["deck"] for t in preview["tiers"]][0] == "Español::Tier 1"
+        await call(c, "tier_deck_by_frequency", deck="español", language="es", bands=BANDS, retentions=RET, preview=False)
+        again = await call(c, "tier_deck_by_frequency", deck="español", language="es", bands=BANDS, retentions=RET)
+        assert all(t["cards_to_move"] == 0 for t in again["tiers"])
+
+
+async def test_an_unexpected_error_in_one_language_doesnt_lose_the_others(cm, desktop, monkeypatch):
+    omni(desktop)
+    real = tiers.file_deck
+
+    async def flaky(cm_, client, deck, settings, apply):
+        if settings.language == "th":
+            raise RuntimeError("boom")
+        return await real(cm_, client, deck, settings, apply)
+
+    monkeypatch.setattr(tiers, "file_deck", flaky)
+    async with client_for(cm) as c:
+        out = await call(c, "tier_all_languages_by_frequency", bands=BANDS, retentions=RET)
+    assert [x["language"] for x in out["languages"]] == ["es"]
+    assert "RuntimeError" in next(x["reason"] for x in out["skipped"] if x["language"] == "th")
+
+
+async def test_a_run_with_nothing_to_do_writes_nothing(cm, desktop, monkeypatch):
+    omni(desktop)
+    async with client_for(cm) as c:
+        await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=BANDS, retentions=RET, preview=False)
+        writes: list[object] = []
+        real = cm.write
+        monkeypatch.setattr(cm, "write", lambda *a, **k: (writes.append(a), real(*a, **k))[1])
+        again = await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=BANDS, retentions=RET, preview=False)
+        assert again["moved"] == 0 and writes == []

@@ -9,7 +9,7 @@ from mcp.server.mcpserver import MCPServer
 
 from conftest import call, call_error
 from franki_mcp import reader
-from franki_mcp.reader import ReaderSettings
+from franki_mcp.reader import ReaderClient, ReaderSettings
 
 pytestmark = pytest.mark.anyio
 
@@ -18,7 +18,7 @@ COSTS = {"days": 7, "since": "2026-11-05T09:00:00", "languages": [], "total": {"
 
 def server(handler, settings: ReaderSettings | None = ReaderSettings("http://reader:8080", "open sesame")) -> MCPServer:
     s = MCPServer("test")
-    reader.register(s, settings, http=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    reader.register(s, ReaderClient(settings, httpx.AsyncClient(transport=httpx.MockTransport(handler))))
     return s
 
 

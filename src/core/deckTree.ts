@@ -25,7 +25,8 @@ export function deckLineage(deck: string): string[] {
  * notes into these, each on its own preset (server/mcp/franki_mcp/tiers.py, `TIER_NAME`, which has
  * to name them the same way). The deck list shows the language as one deck, so a path with a
  * "Tier N" part below its top level is never listed. A top-level deck called "Tier 1" is the
- * user's own and stays.
+ * user's own and stays; a subdeck the user made with exactly such a name is taken for a tier, since
+ * nothing in Franki's own data says which subdecks the MCP made.
  */
 export function isTierDeck(deck: string): boolean {
   return deck.split('::').slice(1).some((part) => /^Tier \d+$/.test(part));

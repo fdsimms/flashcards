@@ -65,6 +65,8 @@ def build_app(environ=os.environ) -> tuple[Starlette, CollectionManager]:
     reader_settings = None
     if environ.get("READER_URL") and environ.get("READER_PASSPHRASE"):
         reader_settings = ReaderSettings(environ["READER_URL"], environ["READER_PASSPHRASE"])
+    # One client to Read & Listen's server, for its tools and the daily tier pass.
+    reader_client = ReaderClient(reader_settings)
     extra = tuple(u for u in environ.get("MCP_EXTRA_REDIRECT_URIS", "").split() if u)
     try:
         auth = SingleUserAuth(data / "signins.sqlite", public, e("MCP_PASSWORD"), extra)
@@ -73,7 +75,7 @@ def build_app(environ=os.environ) -> tuple[Starlette, CollectionManager]:
 
     server = build_server(
         cm, speech,
-        reader_settings=reader_settings,
+        reader=reader_client,
         auth_server_provider=auth,
         auth=AuthSettings(
             issuer_url=public,
@@ -103,7 +105,7 @@ def build_app(environ=os.environ) -> tuple[Starlette, CollectionManager]:
         async with serve(a) as state, anyio.create_task_group() as tg:
             tg.start_soon(forms.auto_fill_loop, cm, forms.UniMorph(data / "unimorph"))
             if reader_settings:
-                tg.start_soon(tiers.daily_loop, cm, ReaderClient(reader_settings))
+                tg.start_soon(tiers.daily_loop, cm, reader_client)
             yield state
             tg.cancel_scope.cancel()
 

@@ -28,6 +28,7 @@ from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 
 from .collection import CollectionManager
+from .presets import TIER_PRESET_KEY, share_params, tier_presets_for
 from .speech import (
     TARGET_LUFS,
     TOLERANCE_LU,
@@ -54,13 +55,6 @@ FLAG_TAG_PREFIX = "flag::"
 READ = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False)
 DESTRUCTIVE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=False)
-
-# The options presets tier_deck_by_frequency makes (tiers.py): a copy of a deck's preset for each
-# frequency tier, named "<preset> · Tier N" and marked with TIER_PRESET_KEY. They share the
-# parent's FSRS parameters and limits, so optimizing and editing happen on the parent.
-TIER_PRESET_SEP = " · Tier "
-TIER_PRESET_KEY = "frankiTier"
-PARAM_KEYS = ("fsrsParams6", "fsrsParams5", "fsrsWeights")
 
 
 # ---- reading rows ----
@@ -142,7 +136,7 @@ def _note_dict(col: Collection, note: Note, full: bool = True) -> dict[str, Any]
     return out
 
 
-def _search_text(text: str) -> str:
+def search_text(text: str) -> str:
     """`text` as a literal inside a quoted Anki search term: \\ " * _ are escaped, so a deck called
     "A_B" or one with a quote in it matches itself and doesn't raise a search error."""
     return re.sub(r'([\\"*_])', r"\\\1", text)
@@ -542,7 +536,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         def run(col: Collection) -> dict[str, Any]:
             query = f"flag:{AGENT_FLAG}"
             if deck:
-                query += f' "deck:{_search_text(_deck_name(col, _deck_id(col, deck)))}"'
+                query += f' "deck:{search_text(_deck_name(col, _deck_id(col, deck)))}"'
             ids = list(col.find_cards(query))
             page = ids[: max(1, min(limit, 100))]
             out = []
@@ -658,7 +652,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         remembered (not Again) over the last 30 days, mature cards (interval 21+ days) apart."""
 
         def run(col: Collection) -> dict[str, Any]:
-            search = f'"deck:{_search_text(deck)}"' if deck else ""
+            search = f'"deck:{search_text(deck)}"' if deck else ""
             if deck:
                 _deck_id(col, deck)
             cids = list(col.find_cards(search))
@@ -705,22 +699,6 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         sharing = sorted(d.name for d in col.decks.all_names_and_ids()
                          if col.decks.config_dict_for_deck_id(d.id)["id"] == conf["id"])
         return conf, sharing
-
-    def _tier_presets(col: Collection, conf: dict[str, Any]) -> list[dict[str, Any]]:
-        """The frequency-tier presets copied from `conf`."""
-        prefix = conf["name"] + TIER_PRESET_SEP
-        return [c for c in col.decks.all_config() if c["name"].startswith(prefix) and TIER_PRESET_KEY in c]
-
-    def _share_with_tiers(col: Collection, conf: dict[str, Any]) -> int:
-        """Copies a preset's FSRS parameters and daily limits onto its tier presets; how many it did."""
-        tiers = _tier_presets(col, conf)
-        for t in tiers:
-            for key in PARAM_KEYS:
-                if key in conf:
-                    t[key] = conf[key]
-            t["new"]["perDay"], t["rev"]["perDay"] = conf["new"]["perDay"], conf["rev"]["perDay"]
-            col.decks.update_config(t)
-        return len(tiers)
 
     @server.tool(annotations=READ)
     async def get_fsrs_settings(deck: str) -> dict[str, Any]:
@@ -770,8 +748,9 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                     # effect only once those are cleared.
                     conf["fsrsParams5"], conf["fsrsParams6"] = params, []
             col.decks.update_config(conf)
-            # A deck filed into frequency tiers: its tiers' presets copy these parameters and limits.
-            _share_with_tiers(col, conf)
+            # A deck filed into frequency tiers (tiers.py): its tiers' presets keep these parameters.
+            if params is not None:
+                share_params(col, conf)
             return {"preset": conf["name"], "decks_affected": sharing}
 
         return await cm.write(run)
@@ -788,7 +767,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 raise ToolError(f'"{deck}" is one of a deck\'s frequency tiers, which use the parent deck\'s FSRS parameters. Optimize the parent deck (the one above "Tier N") instead.')
             current = conf.get("fsrsParams6") or conf.get("fsrsParams5") or []
             # Its tiers' presets too: a deck filed into tiers keeps its cards under them, not under this one.
-            names = [conf["name"], *(t["name"] for t in _tier_presets(col, conf))]
+            names = [conf["name"], *(t["name"] for t in tier_presets_for(col, conf))]
             terms = " OR ".join('preset:"%s"' % n for n in names)
             search = f"({terms}) -is:suspended"
             ignore = conf.get("ignoreRevlogsBeforeDate") or ""
@@ -803,7 +782,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if apply and new and new != current:
                 conf["fsrsParams6"] = new
                 col.decks.update_config(conf)
-                _share_with_tiers(col, conf)
+                share_params(col, conf)
                 out["applied"] = True
             return out
 

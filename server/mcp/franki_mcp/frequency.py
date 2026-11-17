@@ -13,14 +13,13 @@ from __future__ import annotations
 import re
 from typing import Any
 
-import httpx
 from anki.collection import Collection  # first: the anki package's modules import each other
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from .collection import CollectionManager
-from .reader import ReaderClient, ReaderSettings
+from .reader import ReaderClient
 
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False)
 
@@ -48,8 +47,7 @@ def placed(order: list[tuple[int, str, list[int]]], ranks: dict[str, int | None]
     return [n for _, n in sorted(ranked, key=lambda r: r[0])] + rest
 
 
-def register(server: MCPServer, cm: CollectionManager, settings: ReaderSettings | None, http: httpx.AsyncClient | None = None) -> None:
-    client = ReaderClient(settings, http)
+def register(server: MCPServer, cm: CollectionManager, client: ReaderClient) -> None:
 
     @server.tool(annotations=WRITE)
     async def order_new_by_frequency(
