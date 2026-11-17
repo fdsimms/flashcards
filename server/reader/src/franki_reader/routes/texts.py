@@ -1,5 +1,6 @@
 """Texts once written: past texts and the audit, listening again, one text and its lines'
-audio, the end of a reading (a story's choice, the reading log), and the marked words."""
+audio, the end of a reading (a story's choice, the reading log), the marked words, and words' places
+among the most common (/api/ranks)."""
 
 from typing import Annotated, Any, Literal
 
@@ -13,7 +14,9 @@ from franki_reader import (
     timing,
 )
 from franki_reader.engine import NotFound
+from franki_reader.frequency import rank_of
 from franki_reader.ipa import ipa_for
+from franki_reader.languages import Code
 from franki_reader.reader import (
     from_wanikani,
     gloss_for,
@@ -30,6 +33,14 @@ PAST_TEXTS = 50
 
 class ClearWord(BaseModel):
     word: str = Field(min_length=1, max_length=100)
+
+
+MAX_RANKED = 1000
+
+
+class RanksIn(BaseModel):
+    language: Code
+    words: list[str] = Field(min_length=1, max_length=MAX_RANKED)
 
 
 class ChoiceIn(BaseModel):
@@ -224,6 +235,14 @@ def router(ctx: AppContext) -> APIRouter:
             }
             for w in marked
         ]
+
+    @routes.post("/api/ranks", dependencies=authed)
+    async def ranks(body: RanksIn) -> dict[str, dict[str, int | None]]:
+        """Each word's place in its language's list of most common words (1 is the most common),
+        None past the list's end or for something that isn't a word. Reads only: it never touches
+        the deck or a card."""
+        _, lexicon = engine.snapshot(body.language)
+        return {"ranks": {w: rank_of(w, lexicon) for w in dict.fromkeys(body.words)}}
 
     @routes.post("/api/words/clear", status_code=204, dependencies=authed)
     async def clear_word(body: ClearWord) -> Response:

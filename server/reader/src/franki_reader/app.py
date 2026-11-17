@@ -141,6 +141,9 @@ marked words, ideas) is in the current language, the `language` setting.
                                       inflection
     GET   /api/words                  words marked unknown and not cleared, newest first
     POST  /api/words/clear            {word} takes a word off that list until it's marked again
+    POST  /api/ranks                  {language, words: [...]} each word's place among the language's
+                                      most common words (frequency.py): {ranks: {word: place | null}},
+                                      null past the list's end. Read-only; the MCP orders new cards by it
     GET   /api/texts/{id}/lines/{n}/audio   one line's MP3, made now if it isn't cached yet;
                                       `?speed=slow` is the one Azure speaks slowly (tts.SLOW_RATE)
     GET   /api/texts/{id}/lines/{n}/slow    records the slow one if needed, and `{times}` for its words

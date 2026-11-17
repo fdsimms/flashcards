@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from mcp.server.mcpserver import MCPServer
 
-from . import forms, reader, tools
+from . import forms, frequency, reader, tools
 from .collection import CollectionManager
 from .reader import ReaderSettings
 from .speech import SpeechClient
@@ -19,4 +19,6 @@ def build_server(cm: CollectionManager, speech: SpeechClient | None = None, unim
     forms.register(server, cm, unimorph or forms.UniMorph(cm.path.parent.parent / "unimorph"))
     # Read & Listen's costs, from its own server (optional).
     reader.register(server, reader_settings)
+    # Ordering new cards by how common the word is, with the ranks from the same server.
+    frequency.register(server, cm, reader_settings)
     return server

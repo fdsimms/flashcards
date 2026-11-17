@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AzureVoice, Speakers } from '../../src/reader/api';
-import { hasVoiceSlots, isVoiceSlot, narratorVoices, sampleLine, sharesVoice, slotInfo, voicesForSlot, voicesSummary } from '../../src/reader/voiceSlots';
+import { hasVoiceSlots, isVoiceSlot, narratorVoices, sampleLine, searchVoices, sharesVoice, slotInfo, voicesForSlot, voicesSummary } from '../../src/reader/voiceSlots';
 
 const THAI: Speakers = { male: 'th-TH-NiwatNeural', male2: 'th-TH-NiwatNeural', female: 'th-TH-PremwadeeNeural', female2: 'th-TH-AcharaNeural' };
 
@@ -90,5 +90,33 @@ describe('narratorVoices', () => {
 
   it('keeps the chosen voice listed even when it would be filtered out', () => {
     expect(narratorVoices(all, 'female', 'in-m').map((x) => x.voice)).toEqual(['us-f', 'in-m']);
+  });
+
+  it('lists both genders when none is given, still in the three regions', () => {
+    expect(narratorVoices(all, null).map((x) => x.voice)).toEqual(['us-m', 'us-f', 'gb-m', 'au-m']);
+  });
+});
+
+describe('searchVoices', () => {
+  const s = (voice: string, name: string, locale: string, gender?: string): AzureVoice => ({ voice, name, locale, gender });
+  const all = [
+    s('en-AU-IslaMAIVoice2Neural', 'Isla MAI-Voice-2', 'en-AU', 'Female'),
+    s('en-AU-IslaMAIVoice2FlashNeural', 'Isla MAI-Voice-2-Flash', 'en-AU', 'Female'),
+    s('en-GB-RyanNeural', 'Ryan', 'en-GB', 'Male'),
+  ];
+
+  it('matches the name whatever the case, and needs every word', () => {
+    expect(searchVoices(all, 'isla').map((x) => x.name)).toEqual(['Isla MAI-Voice-2', 'Isla MAI-Voice-2-Flash']);
+    expect(searchVoices(all, 'ISLA flash').map((x) => x.name)).toEqual(['Isla MAI-Voice-2-Flash']);
+  });
+
+  it('matches the locale and the gender too', () => {
+    expect(searchVoices(all, 'en-gb').map((x) => x.name)).toEqual(['Ryan']);
+    expect(searchVoices(all, 'male').map((x) => x.name)).toEqual(['Isla MAI-Voice-2', 'Isla MAI-Voice-2-Flash', 'Ryan']);
+  });
+
+  it('keeps everything for nothing typed and finds nothing for a word that matches none', () => {
+    expect(searchVoices(all, '  ')).toEqual(all);
+    expect(searchVoices(all, 'zzz')).toEqual([]);
   });
 });

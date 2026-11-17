@@ -1603,3 +1603,21 @@ def test_audit_refuses_a_missing_text_and_a_wrong_passphrase() -> None:
     c = client()
     assert c.get("/api/audit/texts/99", headers=AUTH).status_code == 404
     assert c.get("/api/audit/texts").status_code == 401
+
+
+def test_ranks_gives_each_words_place_in_the_common_list() -> None:
+    c = client()
+    from franki_reader.spaced import common_words
+
+    first, second = common_words("es")[:2]
+    response = c.post(
+        "/api/ranks",
+        json={"language": "es", "words": [second, first, "zzzzqx", second]},
+        headers=AUTH,
+    )
+    ranks = response.json()["ranks"]
+    assert ranks == {second: 2, first: 1, "zzzzqx": None}
+    assert (
+        c.post("/api/ranks", json={"language": "es", "words": []}, headers=AUTH).status_code == 422
+    )
+    assert c.post("/api/ranks", json={"language": "es", "words": ["a"]}).status_code == 401

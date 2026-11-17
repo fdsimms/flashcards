@@ -1367,6 +1367,77 @@
         }
       }
     },
+    "/api/ranks": {
+      "post": {
+        "summary": "Ranks",
+        "description": "Each word's place in its language's list of most common words (1 is the most common),\nNone past the list's end or for something that isn't a word. Reads only: it never touches\nthe deck or a card.",
+        "operationId": "ranks_api_ranks_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RanksIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "title": "Response Ranks Api Ranks Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/words/clear": {
       "post": {
         "summary": "Clear Word",
@@ -4993,6 +5064,41 @@
           "entry"
         ],
         "title": "QueuedEntry"
+      },
+      "RanksIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "words": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Words"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "words"
+        ],
+        "title": "RanksIn"
       },
       "ReadingIn": {
         "properties": {

@@ -25,7 +25,7 @@ npm install          # node_modules isn't checked in; a fresh clone needs this f
 npm run ios:device   # build the development build in Xcode and install it on a plugged-in iPhone
 npx expo start       # dev server for that build (no Expo Go; builds are all local, see README)
 npm run typecheck    # tsc --noEmit
-npm test             # vitest, the whole suite in under a second
+npm test             # vitest, the whole suite in about 3 seconds
 npx vitest run tests/core/queue.test.ts   # one file, while iterating
 npm run test:tz      # the suite in UTC+14, UTC-11 and Newfoundland (half-hour offset, DST)
 npm run verify       # the whole verification loop, below
@@ -184,6 +184,39 @@ screen grows a decision worth testing, move it into `src/core`.
 literal that the code then reads back as a local date. `tests/support/fixtures.ts` holds the shared
 ones.
 
+## Rules that load by path
+
+Most of the architecture rules live in `.claude/rules/`, one file per area. Each loads only when a
+file its `paths:` frontmatter matches is read or edited, so a Thai drill doesn't pay for the sync
+rules. A comment or doc that cites "CLAUDE.md" for one of these sections means the file named here.
+
+| Rules file | Loads with | Holds (the CLAUDE.md sections it took) |
+|---|---|---|
+| `scheduling.md` | `src/core`, `src/db`, `src/wanikani`, Review and the deck screens | Scheduling: FSRS, steps, fuzz, limits, the v3 queue, burying, the progress gate, vacation, undo, misses |
+| `import-and-cards.md` | `src/import`, templates and card rendering, `src/db` | Import, Card rendering |
+| `screens.md` | `src/ui`, `src/app` | Screens and styling, mocking a UI change |
+| `anki-collection.md` | `src/anki`, `src/db/anki*`, `modules/anki-unicase`, `tests/anki` | The Anki collection, Sync |
+| `mcp.md` | `server/mcp`, `server/speech` | The MCP |
+| `read-and-listen.md` | `server/reader`, `src/reader`, the `Read*` screens and routes | Read & Listen |
+| `database.md` | `src/db`, the Backup screen | Backup, Database |
+
+`tests/claudeRules.test.ts` keeps this working: it fails when this file passes 25,000 characters or
+a rules file passes 38,000 (past about 40,000 a session sees only the start of one), or when a
+rules file's `paths:` glob matches nothing. A new rule about one area goes in its rules file, or a
+new one with its own `paths:`; this file is for rules that cut across the app.
+
+A few of those rules apply far from their own folder, so they're repeated here:
+
+- **Nothing feeds FSRS but the answer button pressed.** Practice, typed or spoken answers, miss
+  reasons, and everything Read & Listen and the tools do are never ratings
+  (`tests/reader/noGrading.test.ts`, `tests/tools/noGrading.test.ts`).
+- **A check that predicts what another code path will do calls that code path's function**; don't
+  write a lookalike. The deck list and the review screen both count through `treeQueue`.
+- **Mock up a proposed UI change as an Artifact before building it** (`screens.md` says how).
+- **A merge to `main` that touches `server/` deploys itself** (`server/update.sh`, on a timer, within
+  about 15 minutes) and restarts sync, the MCP and Read & Listen. A server change must work with nothing done by
+  hand on the server; if one truly needs a step there (a new `.env` setting), the PR says so plainly.
+
 ## Architecture and the rules that come with it
 
 ### Data flow
@@ -235,326 +268,6 @@ session still belongs to the day before: its new cards come out of that day's li
 - **Day-dependent functions take `now` and `dayStartsAtHour` as parameters** rather than reading
   the clock or a setting, so tests can pin both.
 
-### Scheduling
-
-FSRS via `ts-fsrs`, wrapped in `src/core/scheduler.ts`; a card's whole FSRS state is `Card.sched`,
-with dates as ISO strings. **A Review-state card is due for its whole study day** (its due instant
-carries the time of day it was last answered); **a Learning/Relearning card is due at its exact
-instant** (`isDue` in `src/core/queue.ts`). Once nothing else is left, learning cards come up to
-the collection's learn-ahead limit early, and the review screen waits for the next one rather
-than declaring the deck done.
-
-**Learning steps are Anki's, applied on top of FSRS** (`stepOutcome` in `scheduler.ts`, from
-rslib's states/steps.rs): the ts-fsrs engines run with no steps, for the memory state and
-intervals, because ts-fsrs's own steps graduate a card on a step of a day or more and give Hard a
-different delay. Each deck's preset steps apply, else Anki's defaults. A step crossing into a
-later day is Anki's queue 3 (`isInterdayLearning`); its answers count as reviews and use the
-review limit. **Leeches** follow the preset (`becameLeech`): tagged, suspended if it says so.
-
-**Fuzz and the load balancer are Anki's, bit for bit** (`src/core/ankiFuzz.ts`, `loadBalance.ts`):
-the ts-fsrs engines don't fuzz; intervals get Anki's fuzz from Rust's StdRng (ChaCha12) seeded by
-the Anki card id plus reps before the answer, in f32 as Anki computes them, or the load balancer's
-day from a snapshot taken when the session is built. `tests/fixtures/anki/fuzz-vectors.json` holds
-outputs recorded from the real `anki` package; a change here has to keep matching them.
-
-**Each deck schedules with its Anki preset's FSRS weights and desired retention** (`DeckParams`,
-read from the collection's deck options when it's imported). `paramsForDeck` falls back to
-the nearest ancestor deck, then to the `ts-fsrs` defaults. Every `review`/`previewIntervals` call
-passes the deck's params; one that doesn't silently schedules with the defaults.
-
-**Daily limits are per deck, from its Anki preset** (`DeckParams.newPerDay` / `reviewsPerDay`, or
-a today-only limit from Custom Study on its day), with `NEW_PER_DAY` / `REVIEWS_PER_DAY` in
-`src/core/config.ts` only for a deck that has none.
-
-**A study session is built as Anki's v3 scheduler builds it** (`treeQueue` in
-`src/core/deckTree.ts`, orders in `src/core/order.ts`; each rule's source in rslib is named where
-it's implemented). Limits form a tree from the deck opened down: a card in Polski::Odmiana counts
-against Odmiana's limit and Polski's when Polski is opened, but Polski's limits don't apply when
-Odmiana is opened unless the collection's "apply all parent limits" is on. New cards studied today
-also use review room, unless "new cards ignore review limit" is on. Steps within the day are never
-limited. The preset's gather, sort, review and mix orders decide the order (Anki's new-card
-position for new cards). A card is always scheduled with **its own home** deck's settings
-(`cardHomeDeck`), never the parent being studied, and is studied in the deck it's in
-(`cardDeck`): an Anki filtered deck takes its cards out of their home decks.
-
-**Today's counts include answers given on every device** (`studiedToday` in `src/core/queue.ts`):
-Anki's cards are counted from the kept collection's review log, which holds answers synced from
-AnkiMobile and Anki as well as Franki's own, and only Franki-only cards from Franki's table.
-Counting Franki's table alone offered new cards already studied in Anki that day. **A card Anki
-buried today is held back until the next study day** (`isBuried`, from the card's `mod` when it
-was imported); one buried on an earlier day is studied, as Anki unburies at each new day. **Answering
-in Franki buries siblings as Anki does** (`siblingsToBury`, by the answered card's own preset's
-Burying options), in Franki's tables and in the kept collection in the answer's own transaction
-(queue -2), and undo restores them with the answer.
-
-**Counts shown in two places come from one function.** The deck list (`deckRows`) and the review
-screen both call `treeQueue`, with input from `queueInput`, so a deck never says "20 new" and then
-opens with none. A check that
-predicts what another code path will do calls that code path's function; don't write a lookalike.
-Anything that leaves cards out goes in through `queueInput` too, for both: lookalikes of a word just
-seen (`heldCards`, `src/core/lookalikes.ts`) are loaded by `loadHeld` for the deck list and by
-`useReviewForms` in Review, and a card held in one but not the other shows a count the deck can't open with.
-
-**A progress gate limits a deck's new cards by what's in progress** (`DeckSettings.gateCap`, set on
-Deck options): new cards come in only while fewer than the cap are in progress in that deck and its
-subdecks, and never more in a day than the gated deck's own daily new limit (`gateBudget`, so
-turning a gate on doesn't release the whole cap at once); the daily new limits of decks under it
-don't apply, and Custom Study's extra new cards are refused there. **In progress is read from the card's
-current FSRS schedule every time, never stored** (`isInProgress`, `src/core/progress.ts`): started,
-and not yet a Review scheduled `GURU_INTERVAL_DAYS` (7, WaniKani's Guru interval) or more out. So a
-card that drops back under a week (a lapse, a shorter interval) counts again at once. Counting
-correct answers instead was tried and dropped: FSRS spaces reviews too fast for "four right in a
-row" to track how well a card is known. A gate on a deck above the one
-opened still applies, so the review screen loads every card, not just the opened subtree.
-`DeckSettings` is the app's own and an import never writes it; `DeckParams` is Anki's and every
-import replaces it. A setting the user makes here goes in the first.
-
-**Vacation mode changes what's offered, never a schedule** (`src/core/vacation.ts`, Settings, Vacation mode): Light scales
-each deck's daily limits (new cards to a count, reviews to a share) and puts reviews weakest first
-(`relativeOverdueness`); Paused offers nothing. It enters through `queueInput`, so the deck list and
-the review screen agree, and the setting is the phone's own (Keychain), never written to Anki. Nothing
-shifts a due date or adds a review: FSRS must see the real time since each review. After it ends the
-weakest-first order stays while a review that came due before the end still waits (`CATCH_UP_DAYS`).
-
-**Undo restores the card as it was and deletes the review row** (`AnswerRecord` in
-`src/core/session.ts`), and today's counts go back down by the same rule they went up
-(`bumpStudied`). The undone card is shown next. As in Anki, undo stops at the last sync: a synced
-answer is already in the server's history (`undoAnkiAnswer` refuses it, under `lockAnki`).
-
-**Producing an answer is practice, never a rating.** Type it on a reverse card and the hook asked
-on a new word's first answer (`src/core/activeRecall.ts`), Similar words (`src/tools/mixups.ts`)
-Read & Listen's Say it back and Write what you hear, and what Claude checks (Use today's words,
-Sentences, Retell it, Situations: `server/reader/.../production.py`, `situations.py`) compare what was typed
-(`src/core/typedCompare.ts`) or correct it, but leave the rating to the learner: nothing feeds FSRS
-but the answer button pressed. A spoken answer is compared as typing is, the recognizer's guess closest
-to the answer taken (`bestHeard`), since telling homophones apart is the recognizer's job; the phone
-hears what was said, not how.
-
-**A miss reason is a reminder, never an input to scheduling.** Again's menu (`src/core/misses.ts`)
-saves what went wrong in the answer's own review row (`ReviewLogEntry.miss`), which is why undo
-takes it back with the answer. The "Last time" line is read from those rows each time, never
-stored. Nothing in `src/core/scheduler.ts` or the queue may read it, and it isn't written into the
-Anki collection.
-
-### Import
-
-- **Ids are derived, never random.** A note's id comes from its source (Anki's note id, the TSV
-  GUID column, or `tsv:<deck>:<entry>`), and a card's id is `<noteId>:<kind>`, so re-importing the
-  same file updates rows instead of duplicating them. Any row the app writes unattended follows
-  the same rule.
-- **A re-import finds a note it already has even when the id differs** (`reconcileIds`): same id
-  first, else the one stored note with the same note type and front field (`matchKey`), in any
-  deck. Several matches means a homograph: import as new and warn, never guess. Import screens
-  always pass results through it before writing.
-- **Re-importing never resets a card already studied here.** The upsert only overwrites scheduling
-  and suspension on a card still in state New. Keep that true in both repos.
-- **A card whose kind the note no longer generates is `retired`, not deleted or suspended.**
-  `suspended` comes from Anki and a TSV re-import doesn't carry it, so the two must stay separate;
-  retiring keeps the card's history, and turning the kind back on restores it.
-- **An Anki card's `ord` is its template's position in the note type**, fixed whichever cards a
-  note generates (`omnilanguageKindByOrd`). Matching it against the list of kinds a note happens to
-  generate dropped the audio card's scheduling on notes with no reverse card.
-- **`omnilanguageFieldNames` must match the live note type exactly** (check with AnkiMCP's
-  `model_field_names`): a TSV without `#columns` is mapped by position, so a field added in Anki
-  and missing here shifts every field after it.
-- **An unreadable file is refused with the reason and what to export instead**, never parsed as
-  something else and left to fail with an unrelated message (`.apkg`, and a backup `.db`, on the
-  Import screen).
-
-### Card rendering
-
-- **Omnilanguage renders natively** (`renderCard`), playing the note's recorded `Audio` file
-  (`RenderedCard.audioFile`, via `expo-audio`) and falling back to TTS only when there's none or
-  the file isn't on the phone; **every other note type renders its
-  Anki templates** (`src/core/template.ts`) in `CardWebView`, one `t<ord>` card per Anki card.
-  Template rendering follows Anki's rules where they matter: a field holding only whitespace,
-  `<br>` or `<div>` is empty but an image isn't (`fieldIsEmpty`), and a cloze card's ordinal is its
-  cloze number - 1.
-- **The WebView loads a page written to a file, not an HTML string**, with read access to the
-  documents folder and `<base href>` at the media folder. iOS's WebView only reads local files for
-  a page that came from a file URL; an HTML string with a file:// baseUrl shows no images.
-
-### Screens and styling
-
-- **Build screens from `src/ui/kit.tsx`** (`Screen`, `Group`, `NavRow`, `Button`, `Card`, `Help`,
-  `Count`, `MessageList`) before styling a `Pressable` or a box by hand, so a row or a button
-  looks the same everywhere. Icons are SF Symbols (`Icon`), never a text glyph or an emoji (`›`, `✓`,
-  `🔊`), which draw at the wrong weight and size next to the system's. A button or chip is a
-  `Tappable`, not a hand-styled `Pressable`, so it gives under the finger, and a tap gives back a
-  haptic (`haptic`).
-- **The header is the native stack's, never drawn by a screen.** `Screen` sets the title and
-  header buttons; a ScrollView directly inside it takes `contentInsetAdjustmentBehavior="automatic"`
-  so the large title collapses. Never pad a screen's top or bottom by a fixed number: the status
-  bar and Dynamic Island differ by iPhone, and a hard-coded 56 put headers under them.
-- **Every color, gap, corner and text size comes from `src/ui/theme.ts`** (`useTheme()`, `space`,
-  `radius`, `type`). `tests/noRawColors.test.ts` fails the build on a hex color in a screen; add a
-  token with a light and a dark value instead. Text grows with the system text size, so a box
-  holding text gets padding or a `minHeight`, never a fixed `height`.
-- **Mock up a proposed UI change before building it, so the owner can see it.** There are no
-  screen tests and no renderer, so a description in prose isn't something they can react to. For a
-  new screen, a layout change or a change to how a card or row is presented, publish a small HTML
-  mock as an Artifact (dark and light, at phone width, with the real strings from the screenshot or
-  the code) and ask which direction to take. Use the values from `src/ui/theme.ts` so the mock
-  looks like the app, and for a choice between layouts show the options side by side. Build in
-  the app only after they've picked. Skip it for a change too small to need one (a label, a
-  spacing value, a color token).
-
-### The Anki collection (`src/anki/`, `src/db/ankiLink.ts`)
-
-Franki keeps a whole Anki collection file and writes every answer into it. It gets there by sync
-(below) or by file: a collection package (.colpkg) from AnkiMobile's Export, packed back up for
-Anki with "Send to Anki", one app holding the collection at a time.
-
-- **Notes added, edited and deleted in Franki go into the kept collection as Anki writes them**
-  (`src/anki/noteWrites.ts`, through `noteService.ts`, which keeps Franki's tables in step), checked
-  live against Anki. A deck or note type is found by reading the whole table (`NOT INDEXED`) and
-  comparing names here, since a lookup by name needs Anki's collation.
-- **Anki's collection is the record.** A package import replaces every Anki card's scheduling
-  (`applyAnkiCollection`), studied here or not, unlike a TSV re-import; the screen warns first
-  when answers haven't been sent to Anki yet.
-- **Franki writes an answer into the kept collection the way Anki writes one**
-  (`src/anki/writeback.ts`: card columns, one review log row, both usn -1, and the collection's
-  modified stamp, `COL_MODIFIED_SQL`, without which a sync never sees the answer), plus the
-  "studied today" counts of the card's deck and every deck above it (`src/anki/deckStats.ts`),
-  which Anki's daily limits read instead of the review log.
-  Every answer and undo in Review goes through `writeAnkiAnswer` / `undoAnkiAnswer`, which wait on
-  `lockAnki` while a sync or an import holds the collection. A sync also writes what Anki's own
-  sync writes (notes, graves, config, decks in place).
-- **Anki's three collated tables (fields, templates, notetypes) are read from a scratch copy**
-  with the `unicase` collation stripped (`STRIP_UNICASE_SQL`), which works on any build. Never
-  strip it from the kept collection: its indexes are ordered by it.
-- **The app registers Anki's `unicase` collation itself** (`modules/anki-unicase`, a local Expo
-  module, on every connection via expo-sqlite's `exsqlite3_auto_extension`), so a sync can write
-  the collated tables. Its ordering is measured against Anki's own, quirks included
-  (`make-table.py` says which); change the table only by rerunning that script, and check with
-  `tests/anki/sync/unicase.test.ts`. The tests load the same C as a SQLite extension
-  (`tests/support/unicase.ts`).
-- **Blobs are protobuf.** Read and write only field numbers taken from `proto/anki/*.proto` in
-  ankitects/anki, named where they're used (`collection.ts`, `packageFormat.ts`); don't guess.
-- **Packages are written with zstd's uncompressed blocks** (`RawZstdEncoder`): there's no JS zstd
-  compressor, and Anki reads raw blocks like any other. Each media file needs its SHA-1 in the
-  media list, or Anki refuses the package.
-- **Everything streams** (`ByteSource` / `ByteSink` in `package.ts`), so a package with hundreds
-  of megabytes of media is never whole in memory.
-- **Test against what Anki itself writes.** `tests/fixtures/anki/` holds a collection and its
-  .colpkg made by Anki (`make-collection.py` rebuilds them with the `anki` Python package); extend
-  that script for a new case. After changing what goes into a package, run
-  `tests/fixtures/anki/verify-package.py`, which imports Franki's package with Anki's own code and
-  checks the answers are there (it needs the `anki` package, so CI can't run it).
-
-### Sync (`src/anki/sync/`)
-
-Anki's sync protocol (v11), as an Anki client speaks it, against the user's own Anki sync server
-(`server/` sets one up). AnkiWeb's terms allow only Anki's own apps, so never point it there.
-
-- **Test against Anki's own server.** `tests/anki/sync/live.test.ts` starts `anki.syncserver` and
-  uses Anki's own client (`sync-device.py`) as the other device, then compares both collections row
-  by row: `FRANKI_ANKI_PYTHON=<venv>/bin/python npx vitest run tests/anki/sync/live.test.ts`. CI
-  skips it (no Anki), so run it after any change to the sync. The CI tests use a scripted server and
-  fixtures Anki made (`make-sync-fixtures.py`); the protocol's shapes come from rslib/src/sync.
-- **Decks, deck options, note types and tags are merged in place as Anki's merge does**
-  (`deckRows.ts`, `deckConfigRow.ts`, `notetypeRows.ts`, each checked against rows Anki wrote),
-  when the collation is registered. Without it (a build made before the module) a sync still updates
-  an existing deck in place and otherwise finishes, so Franki's answers reach the server, then
-  downloads the whole collection (`downloadNeeded`). The live test runs both ways.
-- **Media made in Franki (a recording) is sent by the upload half of Anki's media sync**
-  (`pushMedia` in `mediaSync.ts`). A file joins the pending list only once a note is saved with it,
-  and a pending file the server also changed is settled by Anki's rules (`mediaAction`). The live
-  test checks it with Anki's own client reading the file back.
-- **Sync JSON keeps 64-bit integers exact** (`sync/json.ts`): note type fields and templates carry
-  random 64-bit ids that `JSON.parse` would round. Read and write sync JSON only through it.
-- **A sync runs on its own connection to the kept collection, in one transaction, inside
-  `lockAnki`**: a failure rolls back every local change and aborts on the server.
-- **The server's sign-in key lives in the Keychain** (`expo-secure-store`); the password is never
-  stored. Settings are this phone's own and stay out of a backup.
-
-### The MCP (`server/mcp/`)
-
-A Python MCP that gives Claude the collection, run beside the sync server. It's **one more Anki
-client of the user's sync server, built on Anki's own `anki` package**, never Franki's TypeScript
-and never the server's files, so searches, note adds, scheduling and sync behave exactly as in Anki.
-
-- **Every tool goes through `CollectionManager.read` / `write`** (`collection.py`): one call at a
-  time (the `anki` package isn't thread-safe), a sync before reading, a sync after every change. A
-  full sync the server asks for is taken as a download, unless the MCP has changes that never
-  reached the server: then it refuses with the reason rather than overwrite either side.
-- **An error the caller can fix raises the SDK's `ToolError`** with what to change; any other
-  exception reaches the model as a bare "Error executing tool". Batch tools report each item's
-  result or reason rather than failing the whole call.
-- **Studying follows Anki's queue**: Anki only answers the card at the top of it, so `rate_card`
-  checks that first, and the server instructions tell Claude to show the answer and get the user's
-  rating before calling it.
-- **Sign-in is OAuth for one person** (`auth.py`): registration only for Claude's callback
-  addresses and loopback (any port, RFC 8252), a password page, rotating refresh tokens, tokens
-  stored hashed.
-- **Tests run against a real `anki.syncserver`** with Anki itself as the other device
-  (`tests/conftest.py`), and Azure faked (`FakeAzure`): `cd server/mcp && python -m pytest`, after
-  `pip install -r requirements-dev.txt ../speech`. CI runs them in their own job.
-- **Read & Listen's figures come from its server's API, never its database**
-  (`franki_mcp/reader.py`: `read_and_listen_costs` asks `/api/costs` with `READER_PASSPHRASE`).
-- **Azure is called through one client shared with Read & Listen** (`server/speech`, the
-  `franki_speech` package), so a fix to how Azure is called reaches both. Both images are built from
-  `server/` to copy it (`server/.dockerignore` keeps `.env` out of the build). Azure's request
-  shapes are unverified against a live key (its docstring says which parts were checked).
-- Keep `anki` in `requirements.txt` at the version the sync server runs (`ANKI_VERSION`;
-  `tests/test_anki_version.py` checks).
-- **A merge to `main` that touches `server/` deploys itself** (`server/update.sh`, on a timer, within
-  about 15 minutes) and restarts sync, the MCP and Read & Listen. A server change must work with nothing done by
-  hand on the server; if one truly needs a step there (a new `.env` setting), the PR says so plainly.
-
-### Read & Listen (`server/reader/`, `src/reader/`)
-
-Texts (dialogues, short stories) written by Claude from the words already in the language decks
-(Thai, Spanish, German, French, Russian, Greek, Polish, Norwegian, Japanese, English), checked in code to be 95-98% known words, recorded with Azure's voices, read in the app with
-a gloss on every word. **`docs/read-and-listen/brief.md` is the spec, with the evidence behind each
-rule; `architecture.md` beside it has every decision since.** Where they and this file disagree,
-they win and this is stale. The rules that must not break:
-
-- **Never grade FSRS from exposure, and never create Anki cards or reviews without an explicit
-  approval step.** The server only reads the collection (`collection.py`; `test_collection.py`
-  checks a read leaves nothing to send), and the app's side imports nothing that schedules or
-  writes cards (`tests/reader/noGrading.test.ts` fails the build on it). Adding a marked word or a
-  selected phrase to the deck goes through the note editor, opened by the `read-words` and `reader`
-  routes (and the vocabulary check), where saving is the approval. There is no daily cap on additions.
-- **Generate, then verify in code.** The model writes lines as `|`-split strings with stretch words
-  in `*asterisks*`; the server re-segments every line itself (lexicon-first for Thai, by lemma for
-  the rest, `spaced.py`) and sends drafts under the floor back with the unknown words named. Never trust the
-  model to stay in vocabulary. Japanese is split by SudachiPy (`japanese.py`).
-- **A word counts as known only when its note is studied** (young or mature); a word found only
-  inside a studied phrase is partial and counts as unknown. Every language but Thai also counts as
-  many of its most common word families as its `common` setting says, and Japanese also counts
-  WaniKani vocabulary at Guru or above (`wanikani.py`, read with the server's `WANIKANI_TOKEN`).
-- **Batch and cache.** Texts are written in the background and queued, never inside a request, and
-  never one API call per word or page view.
-- **The owner asks for each text.** The shelf (`architecture.md`, Shelf) holds only texts asked for
-  (a typed topic, Surprise me) and the ongoing story's next episode; nothing is written ahead. Already rejected, don't
-  revisit: cloze cards, saving generated sentences as Anki cards, rescheduling Thai cards.
-- **It reads Anki as a sync client of the sync server beside it**, through Anki's own `anki`
-  package like the MCP, every read under `with_timeout` (45 seconds) so a server that stops
-  answering leaves it on the last snapshot. Keep `anki` in `server/reader/pyproject.toml` at the
-  sync server's `ANKI_VERSION` (`tests/test_anki_version.py` checks).
-- It runs as the `reader` service in `server/docker-compose.yml`, under `/reader` on the sync
-  server's domain, with its own passphrase. Its keys (Claude, Azure) stay on the server, never in
-  the app.
-- **In the app, the server holds Read & Listen's data** (topics, texts, the reading log, marked
-  words, grammar choices, each language's deck); the screens fetch and show it, and keep nothing but
-  the passphrase, the reader's own settings (`src/reader/prefs.ts`, which include whether the deck
-  list's counts are shared for dundundun, off by default) and today's count of words added to the
-  deck (`src/reader/storage.ts`). The address is the sync server's plus
-  `/reader` (`readerAddress`), so it's on only while sync is.
-
-### Backup
-
-- **A backup is `VACUUM INTO` a file plus a `media` table of the media folder, shared through the
-  share sheet; a restore replaces each table's rows inside one transaction** (`restorePlan` in
-  `src/db/backup.ts`), copying only the columns both sides have, so a backup from before a
-  migration still restores, then rewrites the media folder from the backup's. A new table that
-  holds the user's data goes in `RESTORED_TABLES`, or a restore silently leaves it behind.
-  `settings` is deliberately not in it: when this phone last backed up isn't the backup's to say.
-- **The kept Anki collection travels in the backup too** (`anki_collection`, in 1 MB pieces), with
-  the settings that say what of it was already sent (`ANKI_SETTING_KEYS`). Without it, a restore
-  would bring back answers that could never reach Anki.
-
 ### After an `await`
 
 **Check the result still belongs where it's about to be written, and that the action can't run
@@ -563,15 +276,6 @@ ref so a double tap logs one review, not two from the same old state, and update
 functional `setCards(prev => ...)` because the render's own `cards` is stale once the awaits
 return. A screen can also be left mid-await; capture what the request was about before the await
 and compare after.
-
-### Database
-
-- **A new column is appended to `MIGRATIONS` in `sqliteRepo.ts`**, never added to the
-  `CREATE TABLE`, which only runs on a fresh install. Each entry is skipped when `PRAGMA table_info`
-  shows the column already exists. Don't switch to a `user_version` counter: it has to be kept in
-  step by hand and desyncs when tables are recreated without resetting it.
-- **A one-time backfill is behind a done flag**, or it costs a full table scan on every launch.
-- Dates are ISO strings; booleans are `0`/`1`; `fields`, `tags` and `sched` are JSON text.
 
 ## Working style
 

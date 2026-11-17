@@ -410,6 +410,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ranks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ranks
+         * @description Each word's place in its language's list of most common words (1 is the most common),
+         *     None past the list's end or for something that isn't a word. Reads only: it never touches
+         *     the deck or a card.
+         */
+        post: operations["ranks_api_ranks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/words/clear": {
         parameters: {
             query?: never;
@@ -1480,6 +1502,16 @@ export interface components {
              */
             meaning: string;
         };
+        /** RanksIn */
+        RanksIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /** Words */
+            words: string[];
+        };
         /** ReadingIn */
         ReadingIn: {
             /** Rating */
@@ -2519,6 +2551,45 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ranks_api_ranks_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RanksIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: {
+                            [key: string]: number | null;
+                        };
+                    };
                 };
             };
             /** @description Validation Error */
