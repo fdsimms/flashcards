@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Text, View } from 'react-native';
+import type { ConfusedPair } from '../core/confusedPairs';
 import { headword } from '../core/forms';
 import { htmlToText } from '../core/html';
 import { missReasonsFor } from '../core/misses';
@@ -25,7 +26,7 @@ export interface MixupRequest {
  * sounds by ear, the rest by meaning, each among the words it's confused with. Practicing changes
  * nothing about when the cards come back. `practicable` false (no route to the tool) offers none.
  */
-export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Note>, cards: Card[] | null, practicable: boolean, noteTypes: Map<string, NoteType>) {
+export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Note>, cards: Card[] | null, practicable: boolean, noteTypes: Map<string, NoteType>, pairs: ConfusedPair[]) {
   const missed = useMemo(() => history.filter((h) => h.rating === 1).map((h) => ({ noteId: h.before.noteId, kind: h.before.kind, cardId: h.before.id, miss: h.miss })), [history]);
   // An Anki note type's card once (its question and answer say which card), any other note once,
   // each with its latest reason.
@@ -52,11 +53,11 @@ export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Not
       const note = notes.get(noteId);
       return key && note ? missReasonsFor(note).find((r) => r.key === key)?.label : undefined;
     };
-    return practiceFromMisses(missed, mixupSet(notes.values(), studied)).map((p) => ({
+    return practiceFromMisses(missed, mixupSet(notes.values(), studied, pairs)).map((p) => ({
       label: missedPracticeLabel(p, labelOf(p.reason, p.noteIds[0])),
       request: { noteIds: p.noteIds, mode: p.mode, language: p.language } as MixupRequest,
     }));
-  }, [practicable, missed, notes, cards]);
+  }, [practicable, missed, notes, cards, pairs]);
   return { rows, practice };
 }
 

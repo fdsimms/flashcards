@@ -167,10 +167,10 @@ const withSayer = (sayers: Partial<Record<Language, unknown>>) => TOOL_LANGUAGES
 
 export const TOOLS: ToolInfo[] = [
   {
-    // Lookalikes and sound-alikes from the learner's own decks (mixups.ts). Every language: a deck with none says so.
+    // Lookalikes, sound-alikes and linked pairs from the learner's own decks (mixups.ts). Every language: a deck with none says so.
     id: 'mixups',
     title: 'Similar words',
-    summary: 'Tell apart look-alikes and sound-alikes from your decks.',
+    summary: 'Tell apart look-alikes, sound-alikes and words you link as mixed up.',
     languages: TOOL_LANGUAGES,
   },
   {
