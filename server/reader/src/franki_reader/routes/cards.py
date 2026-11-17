@@ -1,0 +1,132 @@
+"""Help for the app's cards: memory hints, a verb's aspect partner, and example sentences glossed."""
+
+from typing import Any
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+from pydantic import BaseModel, Field
+
+from franki_reader import (
+    aspect,
+    store,
+)
+from franki_reader.languages import Code
+from franki_reader.mnemonics import (
+    MnemonicRequest,
+    MnemonicsFailed,
+)
+from franki_reader.reader import render_sentence
+from franki_reader.routes.context import AppContext
+
+MAX_GLOSS_SENTENCES = 1000  # example sentences one /api/glosses call can ask about
+
+
+class MnemonicIn(BaseModel):
+    language: Code
+    entry: str = Field(min_length=1, max_length=200)
+    meaning: str = Field(min_length=1, max_length=300)
+    transliteration: str = Field(default="", max_length=200)
+    context: str = Field(default="", max_length=500)
+
+
+class GlossSentence(BaseModel):
+    text: str = Field(min_length=1, max_length=1000)
+    # The sentence's translation, which tells Claude which sense a word has.
+    english: str = Field(default="", max_length=1000)
+
+
+class GlossesIn(BaseModel):
+    language: Code
+    sentences: list[GlossSentence] = Field(max_length=MAX_GLOSS_SENTENCES)
+
+
+class AspectIn(BaseModel):
+    # The word's own language, which is not always the one being read: a card from the Polish deck
+    # can be studied while Thai is the reading language.
+    language: Code
+    word: str = Field(min_length=1, max_length=80)
+    # The sentence it was read in, so a homograph can be told apart; optional.
+    line: str = Field(default="", max_length=400)
+
+
+def router(ctx: AppContext) -> APIRouter:
+    routes = APIRouter()
+    authed = ctx.authed
+    engine = ctx.engine
+    mnemonics = ctx.mnemonics
+    write_aspect = ctx.write_aspect
+    keep_failed_cost = ctx.keep_failed_cost
+
+    @routes.post("/api/mnemonics", dependencies=authed)
+    async def make_mnemonics(body: MnemonicIn) -> dict[str, list[str]]:
+        if mnemonics is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't suggest hints. Write your own"
+                " (ANTHROPIC_API_KEY in server/.env turns suggestions on).",
+            )
+        try:
+            hints, used = await mnemonics(
+                MnemonicRequest(
+                    body.language,
+                    body.entry.strip(),
+                    body.meaning.strip(),
+                    body.transliteration.strip(),
+                    body.context.strip(),
+                )
+            )
+        except MnemonicsFailed as e:
+            keep_failed_cost("mnemonics", body.language, e.usage)
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(
+            engine.conn, "mnemonics", body.language, engine.clock(), used.cost_usd()
+        )
+        return {"hints": hints}
+
+    @routes.post("/api/aspect-pair", dependencies=authed)
+    async def aspect_pair(body: AspectIn) -> dict[str, Any]:
+        language = body.language
+        if language not in aspect.ASPECT_LANGUAGES:
+            raise HTTPException(422, "Aspect pairs are only suggested for Russian and Polish.")
+        if write_aspect is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't suggest an aspect pair"
+                " (ANTHROPIC_API_KEY in server/.env turns suggestions on).",
+            )
+        try:
+            pair, used = await write_aspect(
+                aspect.AspectRequest(language, body.word.strip(), body.line.strip())
+            )
+        except aspect.AspectFailed as e:
+            keep_failed_cost("aspect", language, e.usage)
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(engine.conn, "aspect", language, engine.clock(), used.cost_usd())
+        return pair.as_json()
+
+    @routes.post("/api/glosses", dependencies=authed)
+    async def glosses(body: GlossesIn, background: BackgroundTasks) -> dict[str, Any]:
+        """Never writes to Anki or grades a card: it only reads the snapshot of the deck."""
+        language = body.language
+        entries, lexicon = engine.snapshot(language)
+        sentences = [(s.text, s.english) for s in body.sentences]
+
+        async def after() -> None:
+            await engine.refresh_lexicon(language)
+            await engine.fill_sentence_meanings(sentences, language)
+
+        background.add_task(after)
+        if not entries:
+            return {"ready": False, "sentences": []}
+        known = engine.meanings(language)
+        translits = {e.text: e.translit for e in entries if e.translit}
+        return {
+            "ready": True,
+            "sentences": [
+                render_sentence(text, lexicon, known, translits, engine.ai_ipa(language))
+                for text, _ in sentences
+            ],
+        }
+
+    return routes
