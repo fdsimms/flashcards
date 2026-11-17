@@ -48,7 +48,22 @@
             "./assets/fonts/NotoSerifThai_600SemiBold.ttf",
             "./assets/fonts/CormorantGaramond_300Light.ttf",
             "./assets/fonts/CormorantGaramond_400Regular.ttf",
-            "./assets/fonts/CormorantGaramond_300Light_Italic.ttf"
+            "./assets/fonts/CormorantGaramond_300Light_Italic.ttf",
+            "./assets/fonts/Inter_400Regular.ttf",
+            "./assets/fonts/Inter_600SemiBold.ttf",
+            "./assets/fonts/Inter_700Bold.ttf",
+            "./assets/fonts/Lora_400Regular.ttf",
+            "./assets/fonts/Lora_600SemiBold.ttf",
+            "./assets/fonts/Lora_700Bold.ttf",
+            "./assets/fonts/Manrope_400Regular.ttf",
+            "./assets/fonts/Manrope_600SemiBold.ttf",
+            "./assets/fonts/Manrope_700Bold.ttf",
+            "./assets/fonts/Nunito_400Regular.ttf",
+            "./assets/fonts/Nunito_600SemiBold.ttf",
+            "./assets/fonts/Nunito_700Bold.ttf",
+            "./assets/fonts/SourceSerif4_400Regular.ttf",
+            "./assets/fonts/SourceSerif4_600SemiBold.ttf",
+            "./assets/fonts/SourceSerif4_700Bold.ttf"
           ]
         }
       ],

@@ -1,3 +1,4 @@
+import type { AppFont } from './fonts';
 import type { Segment } from './highlight';
 
 /**
@@ -303,4 +304,10 @@ export interface DeckSettings {
   priorityPercent?: number;
   /** Note id to when Franki first saw the tag on it, kept on the deck whose switch is on. */
   priorityStamps?: Record<string, string>;
+  /**
+   * The fonts this deck's cards cycle through, one per card for each review session (`cardFontFor`).
+   * An empty list means the app's font, and sets that for a subdeck whose parent cycles; unset, the
+   * deck takes its parent's (`deckCardFonts`).
+   */
+  cardFonts?: AppFont[];
 }

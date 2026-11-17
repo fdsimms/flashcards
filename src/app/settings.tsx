@@ -23,6 +23,7 @@ export default function SettingsRoute() {
       onSpeaking={() => router.push('/speaking')}
       onAnswerButtons={() => router.push('/answer-buttons')}
       onThaiSize={() => router.push('/thai-text-size')}
+      onFont={() => router.push('/app-font')}
     />
   );
 }

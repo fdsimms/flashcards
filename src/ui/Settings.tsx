@@ -3,8 +3,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView } from 'react-native';
 import { ANSWER_BUTTON_CHOICES, type AnswerButtons } from '../core/answerButtons';
 import { failureText } from '../core/failure';
+import { fontOption } from '../core/fonts';
 import { THAI_TEXT_CHOICES, type ThaiTextSize } from '../core/script';
 import type { Repo } from '../db/repo';
+import { useFontSettings } from './AppFont';
 import { Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
 import { reminderTime, useReminderPrefs } from './studyReminder';
 import { useStudyToday, useVacationPrefs } from './vacationPrefs';
@@ -17,7 +19,7 @@ import { space, useTheme, readable } from './theme';
  * cards look and answer. A choice with an explanation of its own (answer buttons, Thai text size) opens a
  * short screen, so this one stays a list.
  */
-export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBackup, onRead, onWaniKani, onVoices, onReminder, onExtras, onSpeaking, onVacation, onAnswerButtons, onThaiSize }: {
+export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBackup, onRead, onWaniKani, onVoices, onReminder, onExtras, onSpeaking, onVacation, onAnswerButtons, onThaiSize, onFont }: {
   repo: Repo;
   /** When the last backup was made (`backupStatus`). */
   backupText?: string;
@@ -36,6 +38,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
   onSpeaking: () => void;
   onAnswerButtons: () => void;
   onThaiSize: () => void;
+  onFont: () => void;
 }) {
   const c = useTheme();
   const [buttons, setButtons] = useState<AnswerButtons>();
@@ -44,6 +47,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
   const [hook, setHook] = useState<boolean>();
   const [speaking, setSpeaking] = useState<boolean>();
   const [thaiSize, setThaiSize] = useState<ThaiTextSize>();
+  const { settings: fontSettings } = useFontSettings();
   const reminder = useReminderPrefs();
   const vacation = useVacationPrefs();
   const { today } = useStudyToday();
@@ -78,6 +82,10 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
           <NavRow icon={{ name: 'externaldrive.fill', color: c.teal }} label="Backup" detail={backupText ?? 'Save or restore everything in Franki'} onPress={onBackup} />
           <NavRow icon={{ name: 'book.fill', color: c.indigo }} label="Read & Listen" detail={readerOn ? 'On' : 'Off. Texts to read and listen to, written from your decks'} onPress={onRead} />
           <NavRow icon={{ name: 'character.ja', color: c.violet }} label="WaniKani" detail={wanikaniOn ? 'On' : 'Off. Study your WaniKani reviews and lessons as a deck'} onPress={onWaniKani} />
+        </Group>
+        <SectionTitle>Appearance</SectionTitle>
+        <Group>
+          <NavRow first label="Font" detail={fontSettings.random ? 'A different one each time the app opens' : fontOption(fontSettings.font).label} onPress={onFont} />
         </Group>
         <SectionTitle>Studying</SectionTitle>
         <Group>

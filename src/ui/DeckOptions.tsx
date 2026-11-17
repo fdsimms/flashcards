@@ -9,6 +9,7 @@ import { paramsForDeck } from '../core/scheduler';
 import type { DeckSettings } from '../core/types';
 import type { Repo } from '../db/repo';
 import type { RecordDeps } from '../anki/recordService';
+import { DeckFontOptions } from './DeckFontOptions';
 import { DeckFormsOptions } from './DeckFormsOptions';
 import { DeckPriorityOptions } from './DeckPriorityOptions';
 import { DeckRecordings } from './DeckRecordings';
@@ -125,6 +126,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
           </Group>
         )}
         {settings ? <DeckPriorityOptions deck={deck} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
+        {settings ? <DeckFontOptions deck={deck} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {settings ? <DeckFormsOptions deck={deck} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {filtered ? null : <DeckRecordings repo={repo} deck={deck} recorder={recorder} />}
       </ScrollView>
