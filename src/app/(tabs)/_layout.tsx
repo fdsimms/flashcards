@@ -6,8 +6,8 @@ import { useReaderPlayerHost } from '../../ui/useReaderPlayer';
 
 /**
  * The bottom tab bar: Today (the first screen: only what's for today), Decks (every deck), Read &
- * Listen once it's signed in (or needs its passphrase again, as the deck list's row used to), and
- * Practice (src/tools/). Everything else (Review, Settings, the reader...) is pushed on
+ * Listen once it's signed in (or needs its passphrase again, as the deck list's row used to),
+ * Lessons (Read & Listen's audio lessons, while it's signed in), and Practice (src/tools/). Everything else (Review, Settings, the reader...) is pushed on
  * the root stack, over the bar.
  */
 export default function TabsLayout() {
@@ -29,6 +29,10 @@ export default function TabsLayout() {
       <NativeTabs.Trigger name="(read)" hidden={!reader.api && !reader.notice}>
         <NativeTabs.Trigger.Label>Read & Listen</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'book', selected: 'book.fill' }} md="menu_book" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="(lessons)" hidden={!reader.api}>
+        <NativeTabs.Trigger.Label>Lessons</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'waveform', selected: 'waveform' }} md="record_voice_over" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(practice)">
         <NativeTabs.Trigger.Label>Practice</NativeTabs.Trigger.Label>

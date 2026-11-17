@@ -12,6 +12,6 @@ export default function ReadLessonRoute() {
   const lesson = useMemo(() => {
     try { return raw ? (JSON.parse(raw) as AudioLesson) : null; } catch { return null; }
   }, [raw]);
-  if (!reader.api || !lesson) return <Redirect href="/read-lessons" />;
+  if (!reader.api || !lesson) return <Redirect href="/lessons" />;
   return <ReadLesson api={reader.api} lesson={lesson} onDeleted={() => router.back()} />;
 }

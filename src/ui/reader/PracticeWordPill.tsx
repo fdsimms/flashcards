@@ -5,8 +5,8 @@ import { Tappable } from '../kit';
 import { radius, space, type, useTheme } from '../theme';
 
 /**
- * A practice word as a pill: bold gold on a gold tint, the same in the reader and on the shelf's
- * story card. With `onPress` it opens the word's meaning (given where it was tapped, to place the
+ * A practice word as a pill: bold gold on a gold tint, the same in the reader and on a story's
+ * banner and page. With `onPress` it opens the word's meaning (given where it was tapped, to place the
  * popover); without, a server that sent no practice words, it's only shown.
  */
 export function PracticeWordPill({ word, onPress }: { word: string; onPress?: (x: number, y: number) => void }) {

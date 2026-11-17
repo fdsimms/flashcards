@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Keyboard, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Keyboard, ScrollView, Text, View } from 'react-native';
 import {
   ApiError, MAX_STORY_ABOUT_CHARS, type Api, type DifficultyLevel, type Progress, type Settings, type SettingsChange, type Shelf, type StretchWords,
 } from '../../reader/api';
@@ -113,14 +113,6 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
     }
   };
 
-  const confirmNewStory = () => {
-    if (!shelf?.story) { startStory(); return; }
-    Alert.alert('Start a new story?', `${shelf.story.title || 'Your story'} stops here. Its episodes stay in Past texts.`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Start a new story', onPress: startStory },
-    ]);
-  };
-
   const language = settings?.language;
   const name = language ? LANGUAGES[language].name : '';
   const story = shelf?.story ?? null;
@@ -174,13 +166,13 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
                   <Help>{`${story.read} ${story.read === 1 ? 'episode' : 'episodes'} read${story.about ? `. About ${story.about}` : ''}.`}</Help>
                 </View>
               ) : (
-                <Help>No story yet. Start one here or on the shelf.</Help>
+                <Help>No story yet. Start one here or with the + on Read & Listen.</Help>
               )}
               {story && story.read > 0 ? <Button label="Read from the start" variant="secondary" onPress={() => onEpisodes(story.id)} /> : null}
-              <Field label={story ? 'A new story about' : 'A story about'} placeholder="Leave empty to let the writer choose" value={about} onChangeText={setAbout} maxLength={MAX_STORY_ABOUT_CHARS} returnKeyType="done" onSubmitEditing={confirmNewStory} />
+              <Field label={story ? 'A new story about' : 'A story about'} placeholder="Leave empty to let the writer choose" value={about} onChangeText={setAbout} maxLength={MAX_STORY_ABOUT_CHARS} returnKeyType="done" onSubmitEditing={startStory} />
               {failure('story')}
-              <Button label={story ? 'Start a new story' : 'Start a story'} variant="secondary" onPress={confirmNewStory} busy={starting} />
-              <Help>A new story keeps the same people and places from one episode to the next.</Help>
+              <Button label={story ? 'Start a new story' : 'Start a story'} variant="secondary" onPress={startStory} busy={starting} />
+              <Help>A story keeps the same people and places from one episode to the next. A new one runs beside the others, and the one pinned to the top of Read & Listen stays there.</Help>
             </Card>
 
             <SectionTitle>Practice words</SectionTitle>

@@ -413,9 +413,10 @@ aloud is never heard by the phone.
 - **Open risk**: Azure's request shapes are unverified against a live key, as for the texts' audio,
   and the narrator's English voice and the Multilingual `<lang>` handling haven't been listened to.
   The first real lesson is the check.
-- **In the app** (the owner chose the layout from a mock, 15 November 2026): an Audio lessons row on
-  the shelf, shown only while the language is one the server makes lessons in (`lessonsOffered`,
-  mirroring `LESSON_LANGUAGES`), opens a list with a scene field (`ReadLessons.tsx`; it asks again
+- **In the app** (the owner chose the layout from a mock, 15 November 2026): the Lessons tab (an
+  Audio lessons row on the shelf until 17 November 2026, Shelf, Browse), for the language Read &
+  Listen is reading, saying so when the server makes no lessons in it (`lessonsOffered`, mirroring
+  `LESSON_LANGUAGES`), is a list with a scene field (`ReadLessons.tsx`; it asks again
   every 5 seconds while one is being made, and tapping a failed one offers to delete it). A lesson
   being made shows its steps (`LessonMakingRow.tsx`: writing, recording, joining), from the row's
   `stage`, which the server sets as `make_lesson` goes (`lesson_service.py`); a server from before
@@ -1221,16 +1222,24 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   background audio. A text whose last line has played is logged as read, unrated, and the next one
   opens. Whether iOS keeps the app running across the gap between two texts with the screen locked
   is unverified.
-- **The layout** (17 November 2026, the owner chose from a mock: the shelf showed too much at once).
-  Top to bottom: the reviews-due row, the story card (its name and episode, the title, its length
-  with the practice words, Read and listen, Last time), **Up next** (the shelf's texts, with a quieter
-  Play all whose line says what it covers, "3 texts · 12 min"). Play all no longer starts with the
-  story's episode, which is played from its own card; the reader's Next after the episode still
-  goes on to the shelf (`playOrder`), while Play all moving on stays within Up next (`upNextOrder`), the Hear again row, and
-  **Library** (Stories, Past texts, Audio lessons, Marked words). A row's second line is its
-  length, model and reason ("Story · 4 min · Sonnet · Because you liked ..."); the line count is gone.
-  Writing a text (Surprise me, or a topic as Dialogue or Story, and Written by) moved off the shelf
-  into a sheet behind the header's +, which isn't shown offline.
+- **Browse** (17 November 2026, the owner chose from a mock, after a simpler list the same day: "it
+  should feel like browsing a streaming app and creating your own shows"). The home is rows of
+  covers that scroll sideways, each a tint (picked from the id, so it keeps its color) with the kind
+  small and the title large, never a picture. Top to bottom: the reviews-due row; a **banner** for
+  the pinned story (its next episode, practice words, Play episode N, Episodes); **Your stories** (the
+  other running and ended stories, with how far through the season each is and whether its next
+  episode is ready; See all opens Stories); **Quick texts** (what the shelf has: texts asked for
+  that aren't story episodes, the name used for them in the app since then, with Play all); **Hear
+  again**; **Read before** (quick texts read, newest first; See all opens the full list); and Marked
+  words. A quick text's cover says its length, model and reason; the line count is gone. Play all
+  plays only the Quick texts row: the reader's Next after an episode still goes on to the shelf
+  (`playOrder`), while Play all moving on stays within it (`upNextOrder`). The header's + opens a
+  sheet to start a story or have a quick text written (Surprise me, or a topic as Dialogue or Story,
+  and Written by); it isn't shown offline, and neither are the rows that need the server. A story's
+  own page (`GET /api/stories/{id}`, with the banner's Last time and practice words) has its next
+  episode, Last time, and its episodes by season, and its ••• pins it to the top, ends it or
+  continues it. **Audio lessons moved to a tab of their own** (Lessons, shown while Read & Listen
+  is signed in), since they're speaking drills rather than texts to browse.
 - **The language's settings page** (the shelf's sliders button) holds what's set once: the deck,
   common words, voices, grammar, the story, practice words, and the progress
   summary (moved off the home screen). The `form` setting is no longer shown: the shelf varies it.
@@ -1240,20 +1249,18 @@ topics, favorites and constant setting changes awkward, though the texts themsel
 Added on 12 November 2026 by the owner, with the shelf: an ongoing story in each language, whose
 next episode is the top of the shelf.
 
-- **Several stories run at once, one pinned to the card** (17 November 2026, by the owner: a new
+- **Several stories run at once, one pinned to the top** (17 November 2026, by the owner: a new
   story used to retire the old one, for no reason anyone wrote down). A story (`stories`) is started
-  from the shelf, the settings page or Stories (the Library's row), with an optional line about what
-  it's about, and runs (`active`) until it's ended. Each language has one pinned story (`pinned`),
-  the one the shelf's card shows (`pinned_story`); a new story is pinned only when none is running,
-  and ending the pinned one passes the pin to the newest running story. Stories (`GET /api/stories`)
-  lists the language's stories, running then ended, with Pin to the shelf, Past episodes, End
-  story and Continue story (`POST /api/stories/{id}/pin`, `/end`, `/continue`). An ended story's
-  episodes stay in Past texts, listed first to last by Read from the start. **Spending:** each
-  running story writes its next episode once its last one is read (the top-up goes through them
-  all), so a story left unread writes nothing more and each has at most one episode waiting. Only
-  the pinned story's episode is downloaded for offline and counted on the card; the shelf sends how
-  many stories run and how many others have an episode ready (`stories`), for the Library row.
-  Play all never includes an episode (Shelf, The layout).
+  from the + sheet, Stories or the settings page, with an optional line about what it's about, and
+  runs (`active`) until it's ended. Each language has one pinned story (`pinned`), the one the
+  home's banner shows (`pinned_story`); a new story is pinned only when none is running, and ending
+  the pinned one passes the pin to the newest running story. Stories (`GET /api/stories`) lists the
+  language's stories, running then ended; a story's page pins, ends and continues it (`POST
+  /api/stories/{id}/pin`, `/end`, `/continue`). An ended story's episodes stay on its page and in
+  Read before's full list. **Spending:** each running story writes its next episode once its last one
+  is read (the top-up goes through them all), so a story left unread writes nothing more and each has
+  at most one episode waiting. Only the pinned story's episode is downloaded for offline. Play all
+  never includes an episode (Shelf, Browse).
 - **Continuity is carried in words, not in the conversation.** The first episode's request asks the
   model to invent two to four named characters and a place, and to return the story's name
   (`series`, in the text's language like a title, so the shelf card reads in the language being
