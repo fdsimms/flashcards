@@ -440,6 +440,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     haptic.answer();
     cardMotion.current?.flash(rating);
     try {
+      // Rebuilding the queue for the next card blocks JS for a while on a big deck, and the haptic's
+      // native call isn't sent until that's done. One frame here lets the haptic and the flash out first.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const when = new Date();
       // A filtered deck that doesn't reschedule only previews: the card's schedule stays as it
       // was, and it goes home to its own deck (Anki would show it again after a short delay first).
