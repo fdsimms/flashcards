@@ -84,6 +84,25 @@ async def test_previews_then_orders_the_decks_new_cards_most_common_first(cm, de
     assert json.loads(seen[0].content)["language"] == "es"
 
 
+async def test_says_how_many_suspended_and_buried_new_cards_it_leaves_alone(cm, desktop):
+    esperar, inventadear, casa = omni(desktop)
+
+    def card_ids(col):
+        return {n: list(col.find_cards(f"nid:{n}")) for n in (esperar, inventadear)}
+
+    ids = await cm.read(card_ids)
+
+    def set_up(col):
+        col.sched.suspend_cards(ids[esperar])
+        col.sched.bury_cards(ids[inventadear][:1])
+
+    await cm.write(set_up)
+    async with client_for(cm, []) as c:
+        preview = await call(c, "order_new_by_frequency", deck="Español", language="es")
+    assert preview["left_alone"] == {"suspended": len(ids[esperar]), "buried": 1}
+    assert preview["notes"] == 1  # only casa is left to order: each of the others has one card
+
+
 async def test_says_what_to_fix(cm, desktop):
     omni(desktop)
     async with client_for(cm, []) as c:

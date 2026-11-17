@@ -2,6 +2,7 @@ import { speechLangFor, isOmnilanguage } from './cards';
 import { studyDayKey, studyDayStart } from './day';
 import { inheritedSetting, isInDeck } from './deckTree';
 import { grammarPointForForms, type GrammarPointInfo } from './grammar';
+import { elidesBefore } from './gender';
 import { htmlToText } from './html';
 import { foldUndecomposed, foldYo } from './letters';
 import type { Card, DeckSettings, Note, ReviewLogEntry } from './types';
@@ -56,6 +57,7 @@ const ARTICLES: Record<string, Partial<Record<Gender, string[]>>> = {
   nb: { m: ['en'], f: ['ei', 'en'], n: ['et'] },
 };
 const GENDER_WORDS = { m: 'masculine', f: 'feminine', n: 'neuter' } as const;
+const PLURAL_GENDERS = new Set(['pl', 'mpl']);
 
 /**
  * The articles an Entry may start with, by language, and which definite articles each goes with:
@@ -81,7 +83,7 @@ const ENTRY_ARTICLES: Record<string, Record<string, string[]>> = {
  */
 function takesOtherArticle(lang: string, g: Gender, word: string): boolean {
   const w = word.toLocaleLowerCase();
-  if ((lang === 'fr' || lang === 'it') && /^[aeiouàâäéèêëìíîïòóôöùúûüœæ]/u.test(w)) return true;
+  if (elidesBefore(lang, w)) return true;
   return lang === 'it' && g === 'm' && /^(s[^aeiouàèéìíòóùú]|z|gn|ps|pn|x|y)/u.test(w);
 }
 
@@ -220,7 +222,9 @@ export function formsOf(note: Note): NoteForms {
   if (!isOmnilanguage(note)) return { forms, unreadable };
 
   const gender = htmlToText(note.fields.Gender ?? '').trim();
-  if (gender) {
+  // A plural marker (pl, and Polish's mpl) or a noun of two genders ("m/f": der/die Verlobte, el cómplice) is a
+  // gender value with nothing to ask, not one that can't be read.
+  if (gender && !PLURAL_GENDERS.has(gender.toLowerCase()) && !TWO_GENDERS.test(gender)) {
     const g = genderLetter(gender);
     if (!g) unreadable.push(`Gender: ${gender}`);
     else add({ key: 'field:Gender', group: 'gender', label: 'gender', answers: genderAnswers(note, g) });
@@ -231,6 +235,9 @@ export function formsOf(note: Note): NoteForms {
   }
   return { forms, unreadable };
 }
+
+/** The Gender field of a noun that takes two genders: m/f, m/n, f/n. */
+const TWO_GENDERS = /^[mfn]\s*[/,]\s*[mfn]$/i;
 
 /** "m", "masc", "masculine", "der" and the like, as m / f / n. Undefined when it isn't one. */
 function genderLetter(text: string): Gender | undefined {

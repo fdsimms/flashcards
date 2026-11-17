@@ -11,6 +11,7 @@ import { useDailyExtras } from '../../../ui/useDailyExtras';
 import { useGrammarDue } from '../../../ui/useGrammarDue';
 import { useTodaySummary } from '../../../ui/useTodaySummary';
 import { WaniKaniDeck } from '../../../ui/WaniKaniDeck';
+import { useReadWhileShown } from '../../../ui/useReadWhileShown';
 
 /** The Today tab: the first screen, with only what's for today. */
 export default function TodayRoute() {
@@ -21,7 +22,10 @@ export default function TodayRoute() {
   // `decks` starts empty until the first load from the database finishes, which is not the same as
   // having no decks: the empty state waits for it.
   const [loaded, setLoaded] = useState(false);
-  useFocusEffect(useCallback(() => { refresh().finally(() => setLoaded(true)); wanikani.refresh(); }, [refresh, wanikani.refresh]));
+  useFocusEffect(useCallback(() => { refresh().finally(() => setLoaded(true)); }, [refresh]));
+  // Read again when the app comes back too, or the count stays as it was when it went away.
+  // `refresh` keeps to its own limit (COUNTS_EVERY_MS in useWaniKani.ts).
+  useReadWhileShown(useCallback(() => { wanikani.refresh(); }, [wanikani.refresh]));
   const wanikaniAnswers = useMemo(() => answersFromLog(wanikani.log), [wanikani.log]);
   const studied = useTodaySummary(repo, decks, wanikaniAnswers);
   const openOptions = useCallback((deck: string) => router.push({ pathname: '/deck-options', params: { deck } }), [router]);

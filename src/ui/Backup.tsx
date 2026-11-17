@@ -46,8 +46,25 @@ export function Backup({ store, syncOn }: {
         say(`Couldn't open the share sheet on this device, so ${name} wasn't saved anywhere.`);
         return;
       }
+      const made = `${name}${media ? `, with ${plural(media, 'image or sound', 'images and sounds')}` : ''}`;
+      // The instruction has to come before the share sheet: once it's open, the screen behind it can't be read.
+      const proceed = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'Backup ready',
+          `Made ${made}. On the next screen, choose "Save to Files" to keep it in iCloud Drive or on this iPhone.`,
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Continue', onPress: () => resolve(true) },
+          ],
+          { cancelable: true, onDismiss: () => resolve(false) },
+        );
+      });
+      if (!proceed) {
+        say(`Made ${name}, but it wasn't saved anywhere.`);
+        return;
+      }
       await Sharing.shareAsync(file.uri, { UTI: 'public.database', mimeType: 'application/x-sqlite3', dialogTitle: 'Save backup' });
-      say(`Made ${name}${media ? `, with ${plural(media, 'image or sound', 'images and sounds')}` : ''}. Choose "Save to Files" to keep it in iCloud Drive or on this iPhone.`);
+      say(`Made ${made}.`);
     } catch (e: any) {
       say(failureText(e, { what: "Couldn't make a backup.", next: 'Try again.' }));
     }

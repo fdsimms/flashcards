@@ -61,6 +61,13 @@ describe('the queue', () => {
     });
   });
 
+  it("leaves a noun's article off the Entry when its Gender gives it, and on when it doesn't", () => {
+    const noun = (entry: string, language: string, gender: string) => reviewTarget(note({ entry, language: language as never, fields: { Gender: gender } })).fields.Entry;
+    expect(noun('der Tisch', 'de', 'm')).toBe('Tisch');
+    expect(noun("l'amertume", 'fr', 'f')).toBe('amertume');
+    expect(noun('el agua', 'es', 'f')).toBe('el agua');
+  });
+
   it('tags the note with its part of speech', () => {
     expect(reviewTarget(note({ fields: { PartOfSpeech: 'verb' } })).tags).toEqual(['verb']);
     expect(reviewTarget(note()).tags).toBeUndefined();

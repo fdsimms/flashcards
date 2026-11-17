@@ -41,6 +41,14 @@ describe('formsOf', () => {
     expect(forms[0]).toEqual({ key: 'present · yo', group: 'present', label: 'yo', answers: ['espero'] });
     expect(unreadable).toEqual([]);
   });
+  it('asks nothing about a plural Gender (pl, mpl) and does not call it unreadable', () => {
+    for (const Gender of ['pl', 'mpl']) {
+      const { forms, unreadable } = formsOf(esperar({ Gender }));
+      expect(unreadable).toEqual([]);
+      expect(forms.some((f) => f.key === 'field:Gender')).toBe(false);
+    }
+    expect(formsOf(esperar({ Gender: 'xx' })).unreadable).toEqual(['Gender: xx']);
+  });
   it('takes alternatives after a slash, a line with no group, and keeps lines it cannot read', () => {
     const { forms, unreadable } = formsOf(esperar({ Forms: 'imperfect subjunctive · yo: esperara / esperase<br>infinitive: esperar<br>no colon here<br>: lonely' }));
     expect(forms.map((f) => [f.key, f.answers])).toEqual([
@@ -57,10 +65,25 @@ describe('formsOf', () => {
       { key: 'field:Plural', group: 'plural', label: 'plural', answers: ['die Tische', 'Tische'] },
     ]);
   });
+  it('asks the article for a bare Entry, and the gender as a word for a French noun that elides', () => {
+    const answers = (over: Record<string, string>) => formsOf(omniNote(over)).forms[0].answers;
+    expect(answers({ Entry: 'Tisch', Language: 'german', Gender: 'm' })).toEqual(['der']);
+    expect(answers({ Entry: 'morceau', Language: 'french', Gender: 'm' })).toEqual(['le']);
+    expect(answers({ Entry: 'γειτονιά', Language: 'greek', Gender: 'f' })).toEqual(['η']);
+    // l'amertume has no le or la to ask for.
+    expect(answers({ Entry: 'amertume', Language: 'french', Gender: 'f' })).toEqual(['feminine']);
+  });
   it('uses masculine / feminine / neuter where the language has no article table, and refuses an unknown gender', () => {
     const ru = omniNote({ Entry: 'стол', Meaning: 'table', Language: 'russian', Gender: 'm' });
     expect(formsOf(ru).forms[0].answers).toEqual(['masculine']);
     expect(formsOf(omniNote({ Gender: 'common' })).unreadable).toEqual(['Gender: common']);
+  });
+  it('leaves a noun of two genders out of the gender question without calling it unreadable', () => {
+    for (const gender of ['m/f', 'm/n', 'M / F']) {
+      const note = omniNote({ Entry: 'der/die Verlobte', Language: 'german', Gender: gender, Plural: 'Verlobten' });
+      expect(formsOf(note).unreadable).toEqual([]);
+      expect(formsOf(note).forms.map((f) => f.key)).toEqual(['field:Plural']);
+    }
   });
   it("reads Norwegian's own articles as a gender, the same ones it asks for", () => {
     const bok = omniNote({ Entry: 'bok', Meaning: 'book', Language: 'norwegian', Gender: 'ei' });

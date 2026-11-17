@@ -15,6 +15,15 @@ import { hairline, radius, smooth, space, type, useTheme } from './theme';
 /** How many missed words the list shows before counting the rest. */
 const SHOWN = 8;
 
+/** The first field with text in it, for a note whose first field is only a picture. */
+function firstText(note: Note): string {
+  for (const value of Object.values(note.fields)) {
+    const text = htmlToText(value).replace(/\s+/g, ' ').trim();
+    if (text) return text;
+  }
+  return '';
+}
+
 export interface MixupRequest {
   noteIds: string[];
   mode: MixupMode;
@@ -44,7 +53,7 @@ export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Not
       const note = notes.get(m.noteId);
       if (!note) return [];
       const reason = m.miss ? missReasonsFor(note).find((r) => r.key === m.miss)?.label : undefined;
-      return [{ key, noteId: m.noteId, word: headword(note), meaning: htmlToText(note.fields.Meaning ?? '').replace(/\s+/g, ' ').trim(), card: m.card, reason }];
+      return [{ key, noteId: m.noteId, word: headword(note) || firstText(note), meaning: htmlToText(note.fields.Meaning ?? '').replace(/\s+/g, ' ').trim(), card: m.card, reason }];
     });
   }, [missed, notes, noteTypes]);
   const practice = useMemo(() => {

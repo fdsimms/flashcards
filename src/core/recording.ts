@@ -1,5 +1,6 @@
 import { strToU8 } from 'fflate';
 import { isOmnilanguage, speechLangFor } from './cards';
+import { genderOf, spokenEntry } from './gender';
 import { htmlToText, soundFiles } from './html';
 import { sha1Hex } from '../anki/sha1';
 import type { Note } from './types';
@@ -15,9 +16,14 @@ import { languageKey, type VoiceSettings } from './voices';
 /** Recordings are made at normal speed; how fast they play is the player's. */
 export const RECORDING_RATE = 1;
 
-/** What's read aloud: the Entry, as Review reads it with the phone's voice. */
+/**
+ * What's read aloud: the Entry as Review reads it with the phone's voice, so a noun's article from its Gender
+ * is said with it (die Einstellung, l'amertume) where the language says one.
+ */
 export function recordingText(note: Note): string {
-  return htmlToText(note.fields.Entry ?? '').replace(/\s+/g, ' ').trim();
+  const entry = htmlToText(note.fields.Entry ?? '').replace(/\s+/g, ' ').trim();
+  const lang = speechLangFor(note)?.slice(0, 2) ?? '';
+  return isOmnilanguage(note) ? spokenEntry(lang, genderOf(htmlToText(note.fields.Gender ?? '')), entry) : entry;
 }
 
 /** Whether a note can be recorded and has no recording yet. */

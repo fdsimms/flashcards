@@ -178,7 +178,7 @@ export function AnswerExtras(props: {
 }
 
 /** At the end of a session: the words suggested for forms practice and not practiced yet, each with its reason. */
-export function FormsCheck({ items }: { items: { note: Note; suggestion: FormsSuggestion }[] }) {
+export function FormsCheck({ items, onPractice }: { items: { note: Note; suggestion: FormsSuggestion }[]; onPractice: () => void }) {
   const c = useTheme();
   if (!items.length) return null;
   return (
@@ -193,6 +193,11 @@ export function FormsCheck({ items }: { items: { note: Note; suggestion: FormsSu
           <Text style={{ ...type.footnote, color: c.textSecondary }}>{suggestion.detail}</Text>
         </View>
       ))}
+      <Button
+        label={items.length === 1 ? 'Practice its forms' : `Practice these ${items.length} words`}
+        style={{ minHeight: MIN_TAP, marginTop: space.s }}
+        onPress={onPractice}
+      />
     </Box>
   );
 }

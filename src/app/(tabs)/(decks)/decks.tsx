@@ -8,6 +8,7 @@ import { useApp } from '../../../ui/AppContext';
 import { useDeckActions } from '../../../ui/DeckActions';
 import { DeckList } from '../../../ui/DeckList';
 import { WaniKaniDeck } from '../../../ui/WaniKaniDeck';
+import { useReadWhileShown } from '../../../ui/useReadWhileShown';
 
 /** The Decks tab: every deck, to study, organize and edit. What's for today is on Today. */
 export default function DecksRoute() {
@@ -18,7 +19,10 @@ export default function DecksRoute() {
   // `decks` starts empty until the first load from the database finishes, which is not the same as
   // having no decks: the empty state waits for it.
   const [loaded, setLoaded] = useState(false);
-  useFocusEffect(useCallback(() => { refresh().finally(() => setLoaded(true)); wanikani.refresh(); }, [refresh, wanikani.refresh]));
+  useFocusEffect(useCallback(() => { refresh().finally(() => setLoaded(true)); }, [refresh]));
+  // Read again when the app comes back too, or the count stays as it was when it went away.
+  // `refresh` keeps to its own limit (COUNTS_EVERY_MS in useWaniKani.ts).
+  useReadWhileShown(useCallback(() => { wanikani.refresh(); }, [wanikani.refresh]));
   const openOptions = useCallback((deck: string) => router.push({ pathname: '/deck-options', params: { deck } }), [router]);
   const deckActions = useDeckActions(openOptions);
   return (

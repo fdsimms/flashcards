@@ -78,9 +78,10 @@ class Extra:
 
 _NO = "an empty string"
 _LATIN_GENDER = frozenset({"m", "f", "n"})
-# What each language's owner-written notes fill in, read off the deck (16 November 2026). Spanish, Norwegian
-# and English have nothing beyond the common fields: their nouns keep the article in the Entry and leave
-# Gender empty, and Spanish Forms are filled in by fill_forms, not here.
+# What each language's owner-written notes fill in, read off the deck (16 November 2026). English has nothing
+# beyond the common fields, and Spanish Forms are filled in by fill_forms, not here. A noun's Gender (Spanish,
+# Norwegian, German, French, Greek) is what the card draws its article from (el / la, en / ei / et, der / die / das, le / la, ο / η / το),
+# so the Entry is the bare noun (the app drops the article it gives when a queued word is turned into a note).
 EXTRAS: dict[Code, tuple[Extra, ...]] = {
     "th": (
         Extra(
@@ -130,6 +131,21 @@ EXTRAS: dict[Code, tuple[Extra, ...]] = {
             "verb",
         ),
     ),
+    "es": (
+        Extra(
+            "gender",
+            "Gender",
+            'for a noun, "m" or "f"; else ' + _NO,
+            "noun",
+            frozenset({"m", "f"}),
+            1,
+        ),
+    ),
+    "nb": (
+        Extra(
+            "gender", "Gender", 'for a noun, "m", "f" or "n"; else ' + _NO, "noun", _LATIN_GENDER, 1
+        ),
+    ),
     "fr": (
         Extra(
             "gender",
@@ -141,14 +157,8 @@ EXTRAS: dict[Code, tuple[Extra, ...]] = {
         ),
     ),
     "ru": (
-        # Cyrillic letters, as the owner's notes have them.
         Extra(
-            "gender",
-            "Gender",
-            'for a noun, "м", "ж" or "с"; else ' + _NO,
-            "noun",
-            frozenset({"м", "ж", "с"}),
-            1,
+            "gender", "Gender", 'for a noun, "m", "f" or "n"; else ' + _NO, "noun", _LATIN_GENDER, 1
         ),
         Extra(
             "aspect_partner",
@@ -167,7 +177,13 @@ EXTRAS: dict[Code, tuple[Extra, ...]] = {
     ),
     "pl": (
         Extra(
-            "gender", "Gender", 'for a noun, "m", "f" or "n"; else ' + _NO, "noun", _LATIN_GENDER, 1
+            "gender",
+            "Gender",
+            'for a noun, "m", "f" or "n"; "pl" for a noun that has only a plural (spodnie), "mpl" '
+            "for a plural of men (ludzie); else " + _NO,
+            "noun",
+            _LATIN_GENDER | {"pl", "mpl"},
+            3,
         ),
         Extra(
             "key_forms",
@@ -179,6 +195,9 @@ EXTRAS: dict[Code, tuple[Extra, ...]] = {
         ),
     ),
     "el": (
+        Extra(
+            "gender", "Gender", 'for a noun, "m", "f" or "n"; else ' + _NO, "noun", _LATIN_GENDER, 1
+        ),
         Extra(
             "verb_class",
             "VerbClass",

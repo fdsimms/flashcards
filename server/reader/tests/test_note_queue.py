@@ -152,12 +152,20 @@ def test_a_german_verb_gets_class_auxiliary_and_key_forms() -> None:
     assert "Auxiliary" not in got_fields("de", "abwerfen", part_of_speech="verb", auxiliary="have")
 
 
-def test_french_gender_is_m_or_f_and_russian_gender_is_in_cyrillic() -> None:
+def test_polish_gender_may_also_be_pl_or_mpl_for_a_plural_only_noun() -> None:
+    for value in ("m", "pl", "mpl"):
+        assert got_fields("pl", "spodnie", part_of_speech="noun", gender=value)["Gender"] == value
+    assert "Gender" not in got_fields("pl", "spodnie", part_of_speech="noun", gender="plural")
+    # The other Latin-script languages keep m, f and n only.
+    assert "Gender" not in got_fields("fr", "le boulot", part_of_speech="noun", gender="pl")
+
+
+def test_french_gender_is_m_or_f_and_russian_gender_is_m_f_or_n() -> None:
     assert got_fields("fr", "le boulot", part_of_speech="noun", gender="m")["Gender"] == "m"
     assert "Gender" not in got_fields("fr", "le boulot", part_of_speech="noun", gender="n")
     ru: dict[str, Any] = {"romanization": "oblik", "transliteration": "oblik"}
-    assert got_fields("ru", "облик", part_of_speech="noun", gender="ж", **ru)["Gender"] == "ж"
-    assert "Gender" not in got_fields("ru", "облик", part_of_speech="noun", gender="f", **ru)
+    assert got_fields("ru", "облик", part_of_speech="noun", gender="m", **ru)["Gender"] == "m"
+    assert "Gender" not in got_fields("ru", "облик", part_of_speech="noun", gender="ж", **ru)
 
 
 def test_a_russian_verb_gets_its_aspect_partner_and_first_person() -> None:
@@ -184,14 +192,14 @@ def test_polish_key_forms_are_for_nouns_and_verbs_alike() -> None:
     )
 
 
-def test_a_greek_verb_gets_its_class_and_aorist_and_a_greek_noun_nothing_extra() -> None:
+def test_a_greek_verb_gets_its_class_and_aorist_and_a_greek_noun_only_its_gender() -> None:
     el: dict[str, Any] = {"romanization": "x", "transliteration": "x"}
     verb = got_fields(
         "el", "αντιπαθώ", part_of_speech="verb", verb_class="active", key_forms="αντιπάθησα", **el
     )
     assert verb["VerbClass"] == "active" and verb["KeyForms"] == "αντιπάθησα"
     noun = got_fields("el", "ο γραμματέας", part_of_speech="noun", gender="m", key_forms="x", **el)
-    assert not {"Gender", "KeyForms", "VerbClass"} & noun.keys()
+    assert noun["Gender"] == "m" and not {"KeyForms", "VerbClass"} & noun.keys()
 
 
 def test_a_japanese_word_gets_its_kanji_in_hanzi() -> None:
@@ -202,7 +210,7 @@ def test_a_japanese_word_gets_its_kanji_in_hanzi() -> None:
 
 
 def test_languages_with_no_extras_get_only_the_common_fields() -> None:
-    for language in ("es", "nb", "en"):
+    for language in ("en",):
         fields = got_fields(
             language, "x", part_of_speech="noun", gender="m", key_forms="x", classifier="x"
         )
@@ -211,6 +219,12 @@ def test_languages_with_no_extras_get_only_the_common_fields() -> None:
             "PartOfSpeech",
         }  # fmt: skip
         assert fields["Language"] == {"es": "spanish", "nb": "norwegian", "en": "english"}[language]
+
+
+def test_a_spanish_or_norwegian_noun_gets_its_gender() -> None:
+    assert got_fields("es", "agua", part_of_speech="noun", gender="f")["Gender"] == "f"
+    assert got_fields("nb", "bil", part_of_speech="noun", gender="m")["Gender"] == "m"
+    assert got_fields("nb", "hus", part_of_speech="noun", gender="n")["Gender"] == "n"
 
 
 def test_every_extra_is_a_field_of_the_note_type_and_asked_for_in_its_language() -> None:
