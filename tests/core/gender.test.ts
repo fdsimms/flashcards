@@ -108,6 +108,6 @@ describe("Polish's plural gender words", () => {
       expect(pluralWord('pl', 'pl', entry), entry).toBeUndefined();
     }
     expect(genderArticle('pl', 'm', 'mężczyzna')).toBe('ten');
-    expect(genderArticle('ru', 'f', 'моя кошка')).toBeUndefined();
+    expect(genderArticle('ru', 'f', 'эта кошка')).toBeUndefined();
   });
 });
