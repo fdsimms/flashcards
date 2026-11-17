@@ -199,6 +199,13 @@ export interface RenderedSide {
     /** Shown dimmed before an emphasized word: мой / моя / моё before a Russian noun, as Anki's template does. */
     prefix?: string;
     /**
+     * The word's grammatical gender (m, f, n), when the Gender field says one: the screen colors the word's
+     * article (or the Russian prefix) with it, and the dot on the gender chip. Display only.
+     */
+    gender?: 'm' | 'f' | 'n';
+    /** A Thai romanization: the screen colors each syllable by its tone (src/core/toneColors.ts). Display only. */
+    tones?: boolean;
+    /**
      * The text split around the words to highlight: the card's word in its example sentence, as
      * the note marks it in bold or else found by searching (`fieldSegments`).
      */
