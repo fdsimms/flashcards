@@ -51,6 +51,8 @@ export function WaniKaniDeck({ wanikani, onOpen, onOptions }: { wanikani: WaniKa
         <DeckRowView
           row={{ deck: 'WaniKani', name: 'WaniKani', depth: 0, due, fresh, total: 0, unstudied: 0, hasSubdecks: false, collapsed: false }}
           first
+          // Reserves the room the Anki rows keep for the show/hide button, so the counts line up with theirs.
+          toggleSlot
           detail={detail}
           menuHint="Options, or open wanikani.com"
           onOpen={() => (open ? setOpen(false) : onOpen())}
