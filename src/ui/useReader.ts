@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createApi, readerAddress, type Api, type Settings as ReaderSettings } from '../reader/api';
 import { clearPassphrase, loadPassphrase, loadPrefs, loadSettingsCopy, prefs, savePrefs, saveSettingsCopy } from '../reader/storage';
-import { guardedFetch, useBackOnline } from './connection';
+import { lessonsGone } from '../reader/downloads';
+import { withOffline } from '../reader/offlineApi';
+import { connection, guardedFetch, useBackOnline } from './connection';
+import { heldReader } from './held';
+import { downloads } from './reader/readerDownloads';
 
 export interface ReaderState {
-  /** Read & Listen's server, once its passphrase is saved; null while it's off. */
+  /**
+   * Read & Listen's server, once its passphrase is saved; null while it's off. Answered from what's
+   * kept on the phone when the server can't be reached, with what's sent then held (reader/offlineApi.ts).
+   */
   api: Api | null;
+  /** The server itself, for sending what was held (HeldWork) and downloading (ShelfDownloads). */
+  serverApi: Api | null;
   /** The sync server's address, which Read & Listen's server runs beside; undefined while sync is off. */
   server?: string;
   /**
@@ -51,7 +60,7 @@ export function useReader(server: string | undefined, dayStartsAtHour: number): 
     savePrefs({ shareCounts: on });
     setShareCountsState(on);
   }, []);
-  const api = useMemo(() => (server && passphrase
+  const serverApi = useMemo(() => (server && passphrase
     // Behind the connection guard (src/core/connection.ts), checked against the server's own address.
     ? createApi(readerAddress(server), passphrase, guardedFetch(`${readerAddress(server)}/api/check`), () => {
       // The passphrase was changed on the server: forget it and ask again, rather than fail every call.
@@ -60,6 +69,21 @@ export function useReader(server: string | undefined, dayStartsAtHour: number): 
       setNotice('The passphrase changed on the server. Enter the new one.');
     })
     : null), [server, passphrase]);
+  // The settings as last read, for the offline answers (switching language offline); a ref, since
+  // they're read when a call is made, not when the wrapper is.
+  const settingsRef = useRef<ReaderSettings | null>(null);
+  const api = useMemo(() => (serverApi ? withOffline(serverApi, {
+    unreachable: connection.cantReachHome,
+    index: downloads.get,
+    file: downloads.file,
+    held: heldReader.get,
+    hold: (action) => heldReader.update((list) => [...list, action]),
+    shelfRead: downloads.setShelf,
+    stale: (id) => downloads.dropTexts([id]),
+    lessonsRead: (language, lessons) => downloads.dropLessons(lessonsGone(language, lessons, downloads.get())),
+    settings: () => settingsRef.current,
+  }) : null), [serverApi]);
+  useEffect(() => { void downloads.load(); void heldReader.load(); }, []);
   const signedIn = useCallback((saved: string) => { setNotice(null); setPassphrase(saved); }, []);
   const signOut = useCallback(() => {
     clearPassphrase().catch(() => undefined);
@@ -71,6 +95,7 @@ export function useReader(server: string | undefined, dayStartsAtHour: number): 
   // and the server is asked again when the connection comes back.
   const address = server ? readerAddress(server) : null;
   const [settings, setSettingsState] = useState<ReaderSettings | null>(null);
+  settingsRef.current = settings;
   const setSettings = useCallback((next: ReaderSettings) => {
     setSettingsState(next);
     if (address) saveSettingsCopy(address, next);
@@ -97,7 +122,7 @@ export function useReader(server: string | undefined, dayStartsAtHour: number): 
   useBackOnline(fetchSettings);
 
   return useMemo(() => ({
-    api, server, notice, signedIn, signOut, settings, setSettings, dayStartsAtHour,
+    api, serverApi, server, notice, signedIn, signOut, settings, setSettings, dayStartsAtHour,
     shareCounts, setShareCounts,
-  }), [api, server, notice, signedIn, signOut, settings, dayStartsAtHour, shareCounts, setShareCounts]);
+  }), [api, serverApi, server, notice, signedIn, signOut, settings, dayStartsAtHour, shareCounts, setShareCounts]);
 }

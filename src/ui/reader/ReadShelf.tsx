@@ -4,6 +4,7 @@ import { ActionSheetIOS, Keyboard, Pressable, RefreshControl, ScrollView, Text, 
 import { ApiError, MAX_STORY_ABOUT_CHARS, MAX_TOPIC_CHARS, type Api, type Form, type Language, type PastText, type Shelf, type ShelfText, type TextModel, type Word } from '../../reader/api';
 import { LANGUAGES, flaggedName } from '../../reader/languages';
 import { FLAG_IMAGES } from '../flagImages';
+import { SAVED_LABEL, savedState, type SavedState } from '../../reader/downloads';
 import { lessonsOffered } from '../../reader/lessons';
 import { textSteps } from '../../reader/making';
 import { ReadListenAgain } from './ReadListenAgain';
@@ -18,6 +19,10 @@ import { GlossPopover, type Tapped } from './Reader';
 import { SkeletonList } from '../Skeleton';
 import { MIN_TAP, space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
+import { useConnectionProblem } from '../connection';
+import { prefs } from '../../reader/storage';
+import { useDownloads, useSaving } from './readerDownloads';
+import { SavedMark } from './SavedMark';
 
 /**
  * Read & Listen's home: one language's shelf (docs/read-and-listen/architecture.md, Shelf). On top,
@@ -63,7 +68,17 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
   const [shelf, setShelf] = useState<Shelf | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [markedCount, setMarkedCount] = useState<number | null>(null);
+  // Undefined when the count couldn't be read (offline), so the row stops waiting for it.
+  const [markedCount, setMarkedCount] = useState<number | null | undefined>(null);
+  // Offline the shelf is the texts kept on the phone (reader/offlineApi.ts), and what needs the server is left out.
+  const problem = useConnectionProblem();
+  const kept = useDownloads();
+  const saving = useSaving().texts;
+  const markOf = (id: number): SavedState | null => {
+    const state = savedState(kept, id, saving);
+    // With downloads off, only what's already kept is marked.
+    return state === 'saved' || prefs().offlineDownloads !== 'off' ? state : null;
+  };
   const [actionError, setActionError] = useState<string | null>(null);
   // The language just picked, shown in the header while its shelf loads.
   const [picked, setPicked] = useState<Language | null>(null);
@@ -83,7 +98,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
       if (started !== loadSeq.current) return;
       setError(e instanceof ApiError ? e.message : "Couldn't load your shelf. Pull down to try again.");
     }
-    api.markedWords().then((ws) => { if (started === loadSeq.current) setMarkedCount(ws.length); }, () => undefined);
+    api.markedWords().then((ws) => { if (started === loadSeq.current) setMarkedCount(ws.length); }, () => { if (started === loadSeq.current) setMarkedCount(undefined); });
   }, [api]);
   // Not only on mount: the reader opens on top of this screen, so what was just finished (the story's
   // next episode, the texts left on the shelf) is only known to the server until this asks again.
@@ -231,10 +246,10 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
           <>
             <ReadReviewFirst language={shelf.language} onReview={onReview} />
             <ReadListenAgain api={api} onPlay={onListenAgain} />
-            <StoryCard api={api} shelf={shelf} onPlayWord={onPlayWord} onOpen={(id) => open(id)} onEpisodes={onEpisodes} onStarted={refresh} />
+            <StoryCard api={api} shelf={shelf} saved={shelf.story?.next ? markOf(shelf.story.next.id) : null} onPlayWord={onPlayWord} onOpen={(id) => open(id)} onEpisodes={onEpisodes} onStarted={refresh} />
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: space.s }}>
-              <Text accessibilityRole="header" style={{ ...type.title, color: c.text }}>Ready for you</Text>
+              <Text accessibilityRole="header" style={{ ...type.title, color: c.text }}>{problem ? 'Downloaded' : 'Ready for you'}</Text>
               {order.length > 0 ? (
                 <Tappable
                   onPress={() => { haptic.tap(); open(order[0], true); }}
@@ -251,7 +266,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
             {shelf.texts.length > 0 || shelf.writing.length > 0 ? (
               <Group>
                 {shelf.texts.map((t, i) => (
-                  <ShelfRow key={t.id} text={t} first={i === 0} onPress={() => open(t.id)} onLongPress={() => textActions(t)} />
+                  <ShelfRow key={t.id} text={t} first={i === 0} saved={markOf(t.id)} onPress={() => open(t.id)} onLongPress={problem ? undefined : () => textActions(t)} />
                 ))}
                 {shelf.writing.map((w, i) => (
                   <View key={`${w.topic}:${i}`} style={{ padding: space.l }}>
@@ -261,16 +276,18 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
                 ))}
               </Group>
             ) : (
-              <Help>Nothing is written until you ask. Tap Surprise me below, or type a topic, and the text appears here when it's ready.</Help>
+              <Help>{problem
+                ? `No ${LANGUAGES[shelf.language].name} texts are on this iPhone. They download once you're online, as Settings, Read & Listen says.`
+                : "Nothing is written until you ask. Tap Surprise me below, or type a topic, and the text appears here when it's ready."}</Help>
             )}
-            {shelf.texts.length > 0 ? <Help>Press and hold a text to remove it from the shelf.</Help> : null}
+            {shelf.texts.length > 0 && !problem ? <Help>Press and hold a text to remove it from the shelf.</Help> : null}
 
-            <WriteCard api={api} onWriting={refresh} />
+            {problem ? null : <WriteCard api={api} onWriting={refresh} />}
 
             <Group>
-              <NavRow first label="Past texts" detail="Read or listen to a text again" onPress={onPast} />
-              {lessonsOffered(shelf.language) ? <NavRow label="Audio lessons" detail="Guided lessons to say aloud" onPress={onLessons} /> : null}
-              <NavRow label="Marked words" loading={markedCount === null} detail={markedCount === null ? undefined : `${markedCount} marked as unknown`} onPress={onWords} />
+              <NavRow first label="Past texts" detail={problem ? 'Needs a connection' : 'Read or listen to a text again'} disabled={!!problem} onPress={onPast} />
+              {lessonsOffered(shelf.language) ? <NavRow label="Audio lessons" detail={problem ? lessonsKept(kept.lessons.filter((l) => l.complete && l.lesson.language === shelf.language).length) : 'Guided lessons to say aloud'} onPress={onLessons} /> : null}
+              <NavRow label="Marked words" loading={markedCount === null} detail={markedCount == null ? undefined : `${markedCount} marked as unknown`} onPress={onWords} />
             </Group>
           </>
         ) : null}
@@ -279,18 +296,20 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
   );
 }
 
-function ShelfRow({ text, first, onPress, onLongPress }: { text: ShelfText; first: boolean; onPress: () => void; onLongPress: () => void }) {
+const lessonsKept = (n: number) => (n === 1 ? '1 on this iPhone' : `${n} on this iPhone`);
+
+function ShelfRow({ text, first, saved, onPress, onLongPress }: { text: ShelfText; first: boolean; saved: SavedState | null; onPress: () => void; onLongPress?: () => void }) {
   const c = useTheme();
   const reason = reasonLabel(text);
   return (
     <Pressable
       onPress={() => { haptic.tap(); onPress(); }}
-      onLongPress={() => { haptic.select(); onLongPress(); }}
+      onLongPress={onLongPress ? () => { haptic.select(); onLongPress(); } : undefined}
       accessibilityRole="button"
-      accessibilityLabel={`${text.title}. ${shelfDetail(text)}. ${reason}`}
+      accessibilityLabel={`${text.title}. ${shelfDetail(text)}. ${reason}${saved ? `. ${SAVED_LABEL[saved]}` : ''}`}
       accessibilityHint="Opens the text"
-      accessibilityActions={[{ name: 'more', label: 'Remove from shelf' }]}
-      onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'more') onLongPress(); }}
+      accessibilityActions={onLongPress ? [{ name: 'more', label: 'Remove from shelf' }] : undefined}
+      onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'more') onLongPress?.(); }}
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, backgroundColor: pressed ? c.fill : 'transparent' })}
     >
       {first ? null : <Divider inset={space.l} />}
@@ -299,13 +318,14 @@ function ShelfRow({ text, first, onPress, onLongPress }: { text: ShelfText; firs
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{shelfDetail(text)}</Text>
         <Text style={{ ...type.footnote, color: text.reason === 'due' ? c.countDue : c.textSecondary }}>{reason}</Text>
       </View>
+      {saved ? <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><SavedMark state={saved} /></View> : null}
       <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
     </Pressable>
   );
 }
 
 /** The ongoing story: its next episode, the one being written, or a way to start one. */
-function StoryCard({ api, shelf, onPlayWord, onOpen, onEpisodes, onStarted }: { api: Api; shelf: Shelf; onPlayWord: (word: string, language: Language) => void; onOpen: (textId: number) => void; onEpisodes: (storyId: number) => void; onStarted: () => void }) {
+function StoryCard({ api, shelf, saved, onPlayWord, onOpen, onEpisodes, onStarted }: { api: Api; shelf: Shelf; saved: SavedState | null; onPlayWord: (word: string, language: Language) => void; onOpen: (textId: number) => void; onEpisodes: (storyId: number) => void; onStarted: () => void }) {
   const c = useTheme();
   const [about, setAbout] = useState('');
   const [starting, setStarting] = useState(false);
@@ -360,7 +380,10 @@ function StoryCard({ api, shelf, onPlayWord, onOpen, onEpisodes, onStarted }: { 
       {next ? (
         <>
           <Text style={{ ...type.title, color: c.text }}>{next.title}</Text>
-          <Text style={{ ...type.subhead, color: c.textSecondary }}>{storyDetail(next)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+            <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>{storyDetail(next)}</Text>
+            {saved ? <SavedMark state={saved} /> : null}
+          </View>
           {next.stretch.length > 0 ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>Practice words</Text>

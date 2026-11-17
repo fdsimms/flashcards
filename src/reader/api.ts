@@ -492,6 +492,9 @@ export class ApiError extends Refusal {
 
 type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
+/** Where a recording plays from: the server, with the passphrase, or a file kept on the phone (offlineApi.ts). */
+export type AudioSource = { uri: string; headers?: Record<string, string> };
+
 // `onUnauthorized` runs when the server rejects the passphrase (it was changed on the server), so
 // the app can forget it and ask again instead of failing every call. `fetchImpl` has no default:
 // the app's goes through the connection guard (`guardedFetch`, src/ui/connection.ts).
@@ -604,7 +607,7 @@ export function createApi(
       call<void>('POST', '/api/lessons', { language, scene, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}) }),
     deleteLesson: (id: number) => call<void>('DELETE', `/api/lessons/${id}`),
     // For the audio player, which fetches the file itself and so needs the passphrase too.
-    lessonAudio: (id: number) => ({
+    lessonAudio: (id: number): AudioSource => ({
       uri: `${root}/api/lessons/${id}/audio`,
       headers: { Authorization: `Bearer ${passphrase}` },
     }),
@@ -617,7 +620,8 @@ export function createApi(
     // The text difficulty for the current language, from the next text written (reader/difficulty.ts); answers with `next` as progress does.
     setDifficulty: (level: DifficultyLevel) => call<Progress['next']>('PUT', '/api/difficulty', { level }),
     // The current language's shelf; asking also tops it up in the background.
-    shelf: () => call<Shelf>('GET', '/api/shelf'),
+    // With a language, that language's shelf only read (keeping it for offline): the reader's own language stays, and nothing is written for it.
+    shelf: (language?: Language) => call<Shelf>('GET', language ? `/api/shelf?language=${language}` : '/api/shelf'),
     // Writes a text on a typed topic in the background; it joins the shelf when it's ready.
     writeAbout: (name: string, form: Form, model?: TextModel) => call<void>('POST', '/api/shelf/write', { name, form, ...(model ? { model } : {}) }),
     // Starts a new story in the current language ('' lets the server choose what it's about).
@@ -703,7 +707,7 @@ export function createApi(
     slowTimes: (textId: number, line: number) => call<{ times: (Word['time'] | null)[] }>('GET', `/api/texts/${textId}/lines/${line}/slow`),
     // For the audio player, which fetches the file itself and so needs the passphrase too.
     // `rate` below normal asks for the slow recording, which the server makes the first time (`slowTimes` does too).
-    audioSource: (textId: number, line: number, rate = 1) => ({
+    audioSource: (textId: number, line: number, rate = 1): AudioSource => ({
       uri: `${root}/api/texts/${textId}/lines/${line}/audio${isSlow(rate) ? '?speed=slow' : ''}`,
       headers: { Authorization: `Bearer ${passphrase}` },
     }),

@@ -112,7 +112,11 @@ def router(ctx: AppContext) -> APIRouter:
         return rendered_text(text, engine)
 
     @routes.get("/api/shelf", dependencies=authed)
-    async def shelf(background: BackgroundTasks) -> dict[str, Any]:
+    async def shelf(background: BackgroundTasks, language: Code | None = None) -> dict[str, Any]:
+        # Another language's shelf (the app keeping every language's texts for offline) is only
+        # read: the reader's language stays, and nothing is topped up for it.
+        if language is not None:
+            return shelf_json(engine, language)
         background.add_task(engine.top_up)
         return shelf_json(engine)
 

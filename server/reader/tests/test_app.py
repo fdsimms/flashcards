@@ -1041,6 +1041,23 @@ def test_the_shelf_is_empty_until_a_text_is_asked_for_and_says_why_it_is_there()
     assert model.calls == 1
 
 
+def test_another_languages_shelf_is_read_without_switching_or_writing() -> None:
+    model = ScriptedModel(IN_RANGE)
+    c = client(model)
+    write_asked(c, "Food stall", "dialogue")
+    assert len(shelf_settled(c, 1)["texts"]) == 1
+    calls = model.calls
+
+    polish = c.get("/api/shelf?language=pl", headers=AUTH).json()
+    assert polish["language"] == "pl" and polish["texts"] == [] and polish["writing"] == []
+    thai = c.get("/api/shelf?language=th", headers=AUTH).json()
+    assert [t["topic"] for t in thai["texts"]] == ["Food stall"]
+    # The reader's own language is unchanged, and nothing was written for the other one.
+    assert c.get("/api/shelf", headers=AUTH).json()["language"] == "th"
+    assert model.calls == calls
+    assert c.get("/api/shelf?language=xx", headers=AUTH).status_code == 422
+
+
 def test_a_text_can_be_taken_off_the_shelf_once() -> None:
     c = client()
     write_asked(c)

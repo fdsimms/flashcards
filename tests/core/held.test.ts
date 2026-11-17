@@ -45,10 +45,10 @@ describe('sendHeld', () => {
 
 describe('waitingLines', () => {
   it("lists what's waiting, leaving out what has none", () => {
-    expect(waitingLines({ answers: 12, wanikani: 0, words: 1, recordings: 3 })).toEqual([
-      '12 answers to sync', '1 word to send to Claude', '3 new notes to record',
+    expect(waitingLines({ answers: 12, wanikani: 0, words: 1, recordings: 3, readings: 2 })).toEqual([
+      '12 answers to sync', '1 word to send to Claude', '3 new notes to record', '2 readings to send to Read & Listen',
     ]);
-    expect(waitingLines({ answers: 1, wanikani: 2, words: 0, recordings: 0 })).toEqual(['1 answer to sync', '2 WaniKani answers to send']);
-    expect(waitingLines({ answers: 0, wanikani: 0, words: 0, recordings: 0 })).toEqual([]);
+    expect(waitingLines({ answers: 1, wanikani: 2, words: 0, recordings: 0, readings: 0 })).toEqual(['1 answer to sync', '2 WaniKani answers to send']);
+    expect(waitingLines({ answers: 0, wanikani: 0, words: 0, recordings: 0, readings: 0 })).toEqual([]);
   });
 });

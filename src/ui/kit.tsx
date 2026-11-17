@@ -104,12 +104,17 @@ export function Screen(props: {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const problem = useConnectionProblem();
-  const label = problem === 'offline' ? 'Offline' : 'Server down';
+  // No Wi-Fi for offline; a cloud with a warning when the internet works but the user's server doesn't answer.
   const toolbar = problem && props.offlineButton !== false
     ? withOfflineButton(props.toolbar, (
-      <Stack.Toolbar.Button key="offline" separateBackground accessibilityLabel={problem === 'offline' ? 'Offline' : "Can't reach your server"} accessibilityHint="Shows what's waiting to be sent" onPress={() => { haptic.tap(); router.push('/offline'); }}>
-        {label}
-      </Stack.Toolbar.Button>
+      <Stack.Toolbar.Button
+        key="offline"
+        icon={problem === 'offline' ? 'wifi.slash' : 'exclamationmark.icloud'}
+        separateBackground
+        accessibilityLabel={problem === 'offline' ? 'Offline' : "Can't reach your server"}
+        accessibilityHint="Shows what's waiting to be sent"
+        onPress={() => { haptic.tap(); router.push('/offline'); }}
+      />
     ))
     : props.toolbar;
   const head = (

@@ -6,6 +6,8 @@ import { LANGUAGES } from '../../reader/languages';
 import { anyMaking, lessonDetail, POLL_MS, type Particle } from '../../reader/lessons';
 import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, Segments } from '../kit';
 import { LessonMakingRow } from './LessonMakingRow';
+import { useConnectionProblem } from '../connection';
+import { useLessonDownloads } from './useLessonDownloads';
 import { space, useTheme, readable } from '../theme';
 
 /**
@@ -34,6 +36,8 @@ export function ReadLessons({ api, language, narrator, defaultNarrator, particle
   const [scene, setScene] = useState('');
   const [asking, setAsking] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
+  const downloadButton = useLessonDownloads(api);
+  const problem = useConnectionProblem();
 
   const load = useCallback(async () => {
     try {
@@ -132,7 +136,8 @@ export function ReadLessons({ api, language, narrator, defaultNarrator, particle
         ) : null}
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {lessons === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
-        {lessons !== null && lessons.length === 0 ? <Help>No lessons yet. Type a scene above to make your first.</Help> : null}
+        {problem ? <Help>{problem === 'offline' ? "Offline, only lessons on this iPhone are listed." : "Your server isn't answering, so only lessons on this iPhone are listed."}</Help> : null}
+        {lessons !== null && lessons.length === 0 && !problem ? <Help>No lessons yet. Type a scene above to make your first.</Help> : null}
         {lessons !== null && lessons.length > 0 ? (
           <Group>
             {lessons.map((l, i) => (
@@ -145,7 +150,7 @@ export function ReadLessons({ api, language, narrator, defaultNarrator, particle
                     label={l.title}
                     detail={lessonDetail(l)}
                     onPress={() => (l.state === 'ready' ? onOpen(l) : confirmDelete(l))}
-                    action={l.state === 'failed' ? { icon: 'trash', label: `Delete ${l.title}`, onPress: () => confirmDelete(l) } : undefined}
+                    action={l.state === 'failed' ? { icon: 'trash', label: `Delete ${l.title}`, onPress: () => confirmDelete(l) } : l.state === 'ready' ? downloadButton(l) : undefined}
                   />
                 )}
               </View>
