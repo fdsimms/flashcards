@@ -4,6 +4,7 @@ import { markedParts } from '../reader/grammar';
 import { haptic } from './haptics';
 import { Button, Card, Icon, Tappable } from './kit';
 import { hairline, space, type, useTheme } from './theme';
+import { TranslationRow } from './TranslationRow';
 
 /** One example as a tile shows it: the line, its translation, and where it's from. */
 export interface ExampleTile {
@@ -49,7 +50,9 @@ function Tile({ example: e }: { example: ExampleTile }) {
           : part.text))}
       </Text>
       {shown ? (
-        <Text style={{ ...type.subhead, color: c.textSecondary }}>{e.english}</Text>
+        <TranslationRow>
+          <Text style={{ ...type.subhead, color: c.textSecondary }}>{e.english}</Text>
+        </TranslationRow>
       ) : (
         <Tappable
           onPress={() => { haptic.tap(); setShown(true); }}

@@ -16,6 +16,7 @@ import { Reveal } from '../motion';
 import type { ReadTextStyle } from './ReadWord';
 import { RecordYourself } from '../RecordYourself';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
+import { TranslationRow } from '../TranslationRow';
 import { TypedDiff } from '../TypedDiff';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { useSelfRecording } from '../useSelfRecording';
@@ -174,7 +175,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
                     </Tappable>
                   ) : null}
                 </View>
-                {kind === 'hear' ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{line.english}</Text> : null}
+                {kind === 'hear' ? <TranslationRow><Text style={{ ...type.subhead, color: c.textSecondary }}>{line.english}</Text></TranslationRow> : null}
               </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
                 {kind === 'say' ? <RecordYourself rec={self} label="Record" size="player" /> : null}

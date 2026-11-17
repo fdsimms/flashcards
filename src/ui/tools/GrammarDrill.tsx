@@ -15,6 +15,7 @@ import { Button, Card, ErrorNote, Field, Help, Loading, ProgressBar, Screen, Seg
 import { hairline, MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { PlayPill } from '../PlayButton';
+import { TranslationRow } from '../TranslationRow';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { Status } from './ToolScreen';
 
@@ -190,7 +191,9 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
             {prompt.after}
           </Text>
           {current || translated === index ? (
-            <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{prompt.english}</Text>
+            <TranslationRow centered>
+              <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{prompt.english}</Text>
+            </TranslationRow>
           ) : (
             <Tappable
               accessibilityRole="button"
