@@ -371,6 +371,17 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
     [rendered, phoneSpeech, self.stopTake],
   );
 
+  // The Example sentence's speaker button: the phone's voice for the note's language, at the speed chosen
+  // for it (Settings, Voices). Never the note's recording, which is of the word and not the sentence.
+  const speechLang = rendered?.speechLang;
+  const speakSentence = useCallback((text: string) => {
+    if (!speechLang) return;
+    self.stopTake();
+    player.current?.pause();
+    ttsRunning.current = true;
+    phoneSpeech.sayLine(text, speechLang, false);
+  }, [speechLang, phoneSpeech, self.stopTake]);
+
   // Anki's {{tts:}} tags, read with the phone's voices: on their own when a side without a
   // recording is shown (a recording plays instead, in the page), and from each play button.
   const readAloud = useCallback((tags: TtsTag[]) => {
@@ -1083,7 +1094,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. */}
             <Reveal key={showing} rise={10} style={{ gap: space.xl }}>
               {current.sched.state === 0 ? <NewCardChip /> : null}
-              <Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} />
+              <Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speakSentence={speechLang ? speakSentence : undefined} />
               {reminder ? <MissReminder text={reminder} /> : null}
               {canRecordYourself(rendered) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
@@ -1094,7 +1105,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
             {revealed ? (
               <Reveal rise={14} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
-                <Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} gloss={note ? glossFor(current, note) : null} />
+                <Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} />
                 {extras}
               </Reveal>
             ) : null}
