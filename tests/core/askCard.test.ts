@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { cardForClaude, cardMessage, claudeChatLink, withQuestion } from '../../src/core/askCard';
+import { cardForClaude, cardMessage, claudeChatLink, withNotesAnswer, withQuestion } from '../../src/core/askCard';
 import type { Note } from '../../src/core/types';
 
 const note = (fields: Record<string, string>, deck = 'Polski'): Note => ({
@@ -52,4 +52,15 @@ test('a long card is cut so the question still fits in the link', () => {
   const text = decodeURIComponent(url.slice('https://claude.ai/new?q='.length));
   expect(text.length).toBeLessThanOrEqual(1800);
   expect(text.endsWith('My question: Why?')).toBe(true);
+});
+
+test('an answer is added to Notes under what is there, as escaped text with line breaks', () => {
+  expect(withNotesAnswer({ Notes: 'Old note' }, 'Use <i>wyjść</i>.\nOnce.').Notes).toBe('Old note<br><br>Use &lt;i&gt;wyjść&lt;/i&gt;.<br>Once.');
+});
+
+test('an answer goes straight into empty Notes, and a blank one changes nothing', () => {
+  expect(withNotesAnswer({ Notes: '<br>' }, 'Hi').Notes).toBe('Hi');
+  expect(withNotesAnswer({}, 'Hi').Notes).toBe('Hi');
+  const fields = { Notes: 'x' };
+  expect(withNotesAnswer(fields, '  ')).toBe(fields);
 });

@@ -14,15 +14,15 @@ import { MIN_TAP, radius, space, type, useTheme } from './theme';
  * open, and each follow-up sends it again. "Open in the Claude app" hands the card and the typed
  * question to claude.ai instead, for asking without the server's key.
  *
- * `onUseAnswer` (present only for a note that can take a mnemonic) closes this sheet and opens the
- * mnemonic sheet with the answer filled in, so nothing is written to the note until it's saved there.
- * The button and its line say it's the Mnemonic field, which is where the answer ends up.
+ * `onSaveAnswer` (present only for a note with a Notes field) adds an answer there, under what's
+ * already in it, when its button is tapped; the button names the field.
  * A swipe down closes the sheet, except while an answer is on its way.
  */
-export function AskCardSheet({ card, ask, onUseAnswer, onClose }: {
+export function AskCardSheet({ card, ask, onSaveAnswer, onClose }: {
   card: CardForClaude;
   ask?: (turns: AskTurn[]) => Promise<string>;
-  onUseAnswer?: (answer: string) => void;
+  /** Adds an answer to the note's Notes field; throws when it can't be saved, and the sheet says why. */
+  onSaveAnswer?: (answer: string) => Promise<void>;
   onClose: () => void;
 }) {
   const c = useTheme();
@@ -31,6 +31,9 @@ export function AskCardSheet({ card, ask, onUseAnswer, onClose }: {
   const [text, setText] = useState('');
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The answer last added to the note, so its button doesn't add it twice.
+  const [addedAnswer, setAddedAnswer] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const scroll = useRef<ScrollViewInstance>(null);
   const open = useRef(true);
   useEffect(() => () => { open.current = false; }, []);
@@ -50,6 +53,21 @@ export function AskCardSheet({ card, ask, onUseAnswer, onClose }: {
       if (open.current) setError(failureText(e, { what: "Couldn't get an answer.", next: 'Try again.' }));
     } finally {
       if (open.current) setAsking(false);
+    }
+  };
+
+  const addToNote = async (answer: string) => {
+    if (!onSaveAnswer || adding) return;
+    haptic.select();
+    setAdding(true);
+    setError(null);
+    try {
+      await onSaveAnswer(answer);
+      if (open.current) setAddedAnswer(answer);
+    } catch (e) {
+      if (open.current) setError(failureText(e, { what: "Couldn't add this to the note.", next: 'Try again.' }));
+    } finally {
+      if (open.current) setAdding(false);
     }
   };
 
@@ -100,12 +118,18 @@ export function AskCardSheet({ card, ask, onUseAnswer, onClose }: {
             ))}
           </View>
         ) : null}
-        {onUseAnswer && lastAnswer && !asking ? (
+        {onSaveAnswer && lastAnswer && !asking ? (
           <View style={{ gap: space.xs }}>
-            <Button label="Save as mnemonic" variant="secondary" onPress={() => { haptic.select(); onUseAnswer(lastAnswer); }} accessibilityLabel="Save this answer as the note's mnemonic" />
-            <Text style={{ ...type.footnote, color: c.textSecondary }}>
-              Opens the mnemonic editor with this answer filled in, so you can change it first. It's saved in the note's Mnemonic field, which shows on the back of the card.
-            </Text>
+            {addedAnswer === lastAnswer ? (
+              <Text style={{ ...type.callout, fontWeight: '600', color: c.good }}>Added to the note's Notes</Text>
+            ) : (
+              <>
+                <Button label="Add to the note's Notes" variant="secondary" onPress={() => void addToNote(lastAnswer)} busy={adding} accessibilityLabel="Add this answer to the note's Notes field" />
+                <Text style={{ ...type.footnote, color: c.textSecondary }}>
+                  Adds this answer to the Notes field, under anything already there. Notes show on the card's back, and the change syncs to Anki. You can edit it later in the note editor.
+                </Text>
+              </>
+            )}
           </View>
         ) : null}
         <Field label="Question" value={text} onChangeText={setText} placeholder={turns.length ? 'Ask a follow-up' : 'Why is it used this way?'} multiline />

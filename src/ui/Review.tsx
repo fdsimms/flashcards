@@ -55,7 +55,7 @@ import { htmlToText } from '../core/html';
 import { chooseAgentFlagReason } from './agentFlagSheet';
 import { LeechHintSheet } from './LeechHintSheet';
 import { AskCardSheet } from './AskCardSheet';
-import { cardForClaude, type AskTurn, type CardForClaude } from '../core/askCard';
+import { cardForClaude, withNotesAnswer, type AskTurn, type CardForClaude } from '../core/askCard';
 import { canAddMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
 import { PLAY_BUTTON_CLEARANCE, PlayButton } from './PlayButton';
 import { usePhoneSpeech } from './usePhoneSpeech';
@@ -188,7 +188,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // The answer that just made a card a leech asks for a hint to keep in its note's Mnemonic field,
   // and names the card when that answer suspended it, so saving a hint can bring it back.
   // The same sheet opens from Write a mnemonic in the ⋯ menu, with no misses to report.
-  const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses?: number; suspendedCardId?: string; initialHint?: string } | null>(null);
+  const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses?: number; suspendedCardId?: string } | null>(null);
   // The Ask Claude sheet, from the ⋯ menu: the card it was opened for, as text.
   const [askCard, setAskCard] = useState<CardForClaude | null>(null);
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
@@ -698,7 +698,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       misses={leechPrompt.misses}
       suspended={!!leechPrompt.suspendedCardId}
       suggest={suggestHints && question ? () => suggestHints(question) : undefined}
-      initialHint={leechPrompt.initialHint}
       onSkip={() => setLeechPrompt(null)}
       onSave={async (hint) => {
         // The card as it is now, captured before the awaits: still suspended, or nothing to bring back.
@@ -1043,8 +1042,16 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       <AskCardSheet
         card={askCard}
         ask={askAboutCard ? (turns) => askAboutCard(askCard, turns) : undefined}
-        // The answer goes into the mnemonic sheet, where saving is the approval.
-        onUseAnswer={canAddMnemonic(note) ? (answer) => { setAskCard(null); setLeechPrompt({ noteId: note.id, initialHint: answer }); } : undefined}
+        // Added to the note's Notes field, as an edit made in the note editor would be.
+        onSaveAnswer={isOmnilanguage(note) ? async (answer) => {
+          writes.current++;
+          try {
+            const saved = await saveNote(repo as NoteStore, { id: note.id, deck: note.deck, model: note.model, fields: withNotesAnswer(note.fields, answer), tags: note.tags });
+            setNotes((prev) => new Map(prev).set(saved.id, saved));
+          } finally {
+            writes.current++;
+          }
+        } : undefined}
         onClose={() => setAskCard(null)}
       />
     ) : null}
