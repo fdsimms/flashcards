@@ -221,7 +221,8 @@ export function formsOf(note: Note): NoteForms {
   if (!isOmnilanguage(note)) return { forms, unreadable };
 
   const gender = htmlToText(note.fields.Gender ?? '').trim();
-  if (gender) {
+  // A noun of two genders ("m/f": der/die Verlobte, el cómplice) has no one gender to ask: it's left out, not unreadable.
+  if (gender && !TWO_GENDERS.test(gender)) {
     const g = genderLetter(gender);
     if (!g) unreadable.push(`Gender: ${gender}`);
     else add({ key: 'field:Gender', group: 'gender', label: 'gender', answers: genderAnswers(note, g) });
@@ -232,6 +233,9 @@ export function formsOf(note: Note): NoteForms {
   }
   return { forms, unreadable };
 }
+
+/** The Gender field of a noun that takes two genders: m/f, m/n, f/n. */
+const TWO_GENDERS = /^[mfn]\s*[/,]\s*[mfn]$/i;
 
 /** "m", "masc", "masculine", "der" and the like, as m / f / n. Undefined when it isn't one. */
 function genderLetter(text: string): Gender | undefined {
