@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  answerQuestion, askLater, buildSession, canAskLater, canMarkCorrect, canUndo, currentQuestion, questionMode, remaining, REVIEW_WINDOW, sessionProgress,
+  answerQuestion, askLater, buildSession, canAskLater, canMarkCorrect, canSaveMeaning, canUndo, currentQuestion, questionMode, remaining, REVIEW_WINDOW, sessionProgress,
   shuffled, startStudy, studyAnswer, studyAskLater, studyFlush, studyUndo, type SessionItem,
   sessionItems, windows, wrongSoFar,
 } from '../../src/wanikani/session';
@@ -248,9 +248,12 @@ describe('undo', () => {
 });
 
 describe('marking a typed answer correct', () => {
-  it('is offered for a meaning only, never a reading', () => {
+  it('is offered for a meaning or a reading, and saving as an answer for a meaning only', () => {
     expect(canMarkCorrect({ assignmentId: 1, kind: 'meaning' })).toBe(true);
-    expect(canMarkCorrect({ assignmentId: 1, kind: 'reading' })).toBe(false);
+    expect(canMarkCorrect({ assignmentId: 1, kind: 'reading' })).toBe(true);
+    expect(canSaveMeaning({ assignmentId: 1, kind: 'meaning' })).toBe(true);
+    expect(canSaveMeaning({ assignmentId: 1, kind: 'reading' })).toBe(false);
+    expect(canSaveMeaning(undefined)).toBe(false);
     expect(canMarkCorrect({ assignmentId: 1, kind: 'both' })).toBe(false);
     expect(canMarkCorrect({ assignmentId: 1, kind: 'lesson' })).toBe(false);
     expect(canMarkCorrect(undefined)).toBe(false);

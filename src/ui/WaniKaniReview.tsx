@@ -5,6 +5,7 @@ import { ActionSheetIOS, ActivityIndicator, Alert, Keyboard, Linking, ScrollView
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
+import { failureText } from '../core/failure';
 import { problemText, WaniKaniError, type WaniKaniApi, type WaniKaniUser } from '../wanikani/api';
 import { toKana } from '../core/kana';
 import { offlineText } from '../wanikani/offline';
@@ -12,7 +13,7 @@ import { canSkip, withoutSkipped } from '../wanikani/skipped';
 import { droppedText, lessonsToday } from '../wanikani/prefs';
 import { audioFileName, audioFor } from '../wanikani/production';
 import {
-  buildSession, canAskLater, canMarkCorrect, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
+  buildSession, canAskLater, canMarkCorrect, canSaveMeaning, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
   dropItem, studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
 import { nextStage, outcomeText, stageChange, type StageChange } from '../wanikani/srs';
@@ -327,6 +328,34 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     if (prefs.autoplay && question.kind === 'reading') play(audioUrl(subject));
   };
 
+  // A wrong typed answer the learner knows was right: counted right, and for a meaning optionally kept as a synonym on WaniKani too.
+  const saving = useRef(false);
+  const notRight = () => {
+    if (!study || !question || !subject) return;
+    const q = question;
+    const word = subject;
+    const text = typed.trim();
+    const canSave = canSaveMeaning(q) && !!text;
+    const options = ['Mark as correct', ...(canSave ? [`Save "${text}" as a correct meaning`] : []), 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: options.length - 1 }, async (i) => {
+      const picked = options[i];
+      if (picked === 'Mark as correct') answer(true);
+      if (!canSave || picked !== options[1] || !api || saving.current) return;
+      saving.current = true;
+      try {
+        await api.addSynonym(word.id, text);
+      } catch (e) {
+        Alert.alert("Couldn't save the meaning", failureText(e instanceof WaniKaniError ? new Error(problemText(e.problem)) : e, { next: 'It needs a connection to WaniKani. Try again, or mark the answer correct without saving it.' }));
+        return;
+      } finally {
+        saving.current = false;
+      }
+      setSynonyms((m) => new Map(m).set(word.id, [...(m.get(word.id) ?? []), text]));
+      // The screen may have moved on while the request was out: only this question is marked correct.
+      if (studyRef.current === study) answer(true);
+    });
+  };
+
   // The word is left out of this session and every later one; WaniKani still has it, and the options list it to bring it back.
   const confirmSkip = () => {
     if (!study || !question || !subject) return;
@@ -489,7 +518,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             borderColor: result ? 'transparent' : c.border,
           }}
         />
-        {result === 'wrong' && canMarkCorrect(question) ? <Button label="Mark as correct" variant="secondary" onPress={() => answer(true)} /> : null}
+        {result === 'wrong' && canMarkCorrect(question) ? <Button label="Not right?" variant="secondary" onPress={notRight} /> : null}
         <Button
           label={!verdict ? 'Check' : finishes || result === 'wrong' ? 'Next' : 'Next question'}
           onPress={check}

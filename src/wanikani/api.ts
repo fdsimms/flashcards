@@ -148,6 +148,8 @@ export interface WaniKaniApi {
   srsSystems(): Promise<SrsSystem[]>;
   /** The user's own synonyms for each subject (study materials), by subject id. */
   synonyms(subjectIds: number[]): Promise<Map<number, string[]>>;
+  /** Adds `synonym` to the user's own meaning synonyms for a subject (its study material, made if there isn't one). */
+  addSynonym(subjectId: number, synonym: string): Promise<void>;
   /** Sends a finished review or a lesson's start. */
   send(outcome: Outcome): Promise<void>;
   /** A pronunciation recording, for a production note's Audio field. */
@@ -281,6 +283,16 @@ export function createWaniKaniApi(token: string, fetchFn: Fetch): WaniKaniApi {
         }
       }
       return out;
+    },
+    async addSynonym(subjectId, synonym) {
+      const found = await collection(`/study_materials${query({ subject_ids: [subjectId] })}`);
+      const existing = found.map((r) => r as { id?: unknown; data?: { subject_id?: unknown; meaning_synonyms?: unknown } })
+        .find((r) => r?.data?.subject_id === subjectId && typeof r.id === 'number');
+      const have = Array.isArray(existing?.data?.meaning_synonyms) ? existing!.data!.meaning_synonyms.filter((x): x is string => typeof x === 'string') : [];
+      if (have.includes(synonym)) return;
+      const meaning_synonyms = [...have, synonym];
+      if (existing) await request(`${API_BASE}/study_materials/${existing.id}`, { method: 'PUT', body: { study_material: { meaning_synonyms } } });
+      else await request(`${API_BASE}/study_materials`, { method: 'POST', body: { study_material: { subject_id: subjectId, meaning_synonyms } } });
     },
     async send(outcome) {
       const r = outcomeRequest(outcome);
