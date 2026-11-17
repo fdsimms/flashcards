@@ -9,6 +9,10 @@ describe('soundFiles', () => {
 });
 
 describe('htmlToText', () => {
+  it('drops a script, a style and a comment with their contents', () => {
+    expect(htmlToText('Og <!-- x --><style>.a { color: red; }</style>Oganesson<SCRIPT type="text/javascript">var a = 1 < 2;</SCRIPT>!')).toBe('Og Oganesson!');
+  });
+
   it('reads numeric character references, as a plain-text CSV import writes an apostrophe', () => {
     expect(htmlToText('l&#x27;eau &#39;n&#233; &amp; &#X2014; &#0; &bogus;')).toBe("l'eau 'né & \u2014 &#0; &bogus;");
   });

@@ -15,6 +15,9 @@ export function decodeEntities(s: string): string {
 /** Anki fields are HTML. Reduce to readable plain text, keeping line breaks. */
 export function htmlToText(html: string): string {
   return html
+    // A script's or style's contents are code, not text a person reads (an Anki template can carry both).
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/\[sound:[^\]]*\]/g, '')
     .replace(/<\s*br\s*\/?>/gi, '\n')
     .replace(/<\/(div|p|li|tr)>/gi, '\n')
