@@ -106,9 +106,9 @@ def _presets_current(col: Collection, did: int, deck: str, settings: Settings) -
     return True
 
 
-def _gather(col: Collection, deck: str, settings: Settings) -> tuple[str, list[tuple[int, str, list[tuple[int, str]]]], int, bool]:
-    """The deck's name as Anki spells it, its notes as (id, word, [(card id, the deck it's in)]), how many
-    cards were left alone, and whether its tier subdecks and presets are already as `settings` say."""
+def _gather(col: Collection, deck: str, settings: Settings) -> tuple[str, list[tuple[int, str, list[tuple[int, str]]]], dict[str, Any], bool]:
+    """The deck's name as Anki spells it, its notes as (id, word, [(card id, the deck it's in)]), the cards
+    left alone and why (`_left_alone`), and whether its tier subdecks and presets are already as `settings` say."""
     did = col.decks.id_for_name(deck)
     if not did:
         names = sorted(n.name for n in col.decks.all_names_and_ids())
@@ -117,12 +117,17 @@ def _gather(col: Collection, deck: str, settings: Settings) -> tuple[str, list[t
     wanted = {deck}
     wanted.update(n.name for n in col.decks.all_names_and_ids() if n.name.startswith(deck + "::") and TIER_NAME.match(n.name[len(deck) + 2 :]))
     by_note: dict[int, list[tuple[int, str]]] = {}
-    skipped = 0
+    other_subdecks: dict[str, int] = {}
+    filtered = 0
+    no_field = 0
     for cid in col.find_cards(f'"deck:{search_text(deck)}"'):
         card = col.get_card(cid)
         home = col.decks.name(card.did)
-        if card.odid or home not in wanted:
-            skipped += 1
+        if card.odid:
+            filtered += 1
+            continue
+        if home not in wanted:
+            other_subdecks[home] = other_subdecks.get(home, 0) + 1
             continue
         by_note.setdefault(card.nid, []).append((cid, home))
     out = []
@@ -130,12 +135,18 @@ def _gather(col: Collection, deck: str, settings: Settings) -> tuple[str, list[t
         note = col.get_note(nid)
         if settings.field not in note:
             # Another note type in the deck (a cloze, a basic card): left where it is.
-            skipped += len(cards)
+            no_field += len(cards)
             continue
         out.append((nid, entry_word(note[settings.field]), cards))
     if not out:
         raise ToolError(f'None of "{deck}"\'s notes has a field "{settings.field}" in the deck itself, so there\'s nothing to file. Pass the field that holds the word.')
-    return deck, out, skipped, _presets_current(col, did, deck, settings)
+    left = {
+        "cards": no_field + filtered + sum(other_subdecks.values()),
+        "in_other_subdecks": other_subdecks,
+        "in_filtered_decks": filtered,
+        "without_the_field": no_field,
+    }
+    return deck, out, left, _presets_current(col, did, deck, settings)
 
 
 async def _ranks(client: ReaderClient, language: str, words: list[str]) -> dict[str, int | None]:
@@ -170,7 +181,7 @@ def _ensure_presets(col: Collection, deck: str, settings: Settings) -> list[int]
 async def file_deck(cm: CollectionManager, client: ReaderClient, deck: str, settings: Settings, apply: bool) -> dict[str, Any]:
     """Works out each note's tier (a read, then Read & Listen's ranks), and with `apply` creates the subdecks and presets and moves the cards."""
     settings.check()
-    deck, notes, skipped, current = await cm.read(lambda col: _gather(col, deck, settings))
+    deck, notes, left_alone, current = await cm.read(lambda col: _gather(col, deck, settings))
     words = list(dict.fromkeys(w for _, w, _ in notes if w))
     ranks = await _ranks(client, settings.language, words)
     if not any(ranks.get(w) is not None for w in words):
@@ -193,7 +204,7 @@ async def file_deck(cm: CollectionManager, client: ReaderClient, deck: str, sett
             {"deck": tier_deck_name(deck, i), **({"desired_retention": settings.retentions[i]} if settings.retentions else {}), **tiers[i]}
             for i in range(len(tiers))
         ],
-        "left_alone": skipped,
+        "left_alone": left_alone,
     }
     if not apply:
         return {"preview": True, **summary}
@@ -301,7 +312,8 @@ def register(server: MCPServer, cm: CollectionManager, client: ReaderClient) -> 
           preset, whose FSRS parameters are kept in step with the deck's on every run (so optimize the
           deck's own preset). Limits, steps and the like are copied once and are then yours to change.
         - Only cards directly in the deck, or already in its tier subdecks, move. Other subdecks,
-          cards in filtered decks and notes without the `field` are left alone (`left_alone`).
+          cards in filtered decks and notes without the `field` are left alone: `left_alone` counts
+          them and says which (`in_other_subdecks` by deck, `in_filtered_decks`, `without_the_field`).
         - Each call sets the tiers' retentions to `retentions`. `daily` (the default) files the deck
           again once a day so new notes get their tier; that pass leaves a retention or limit you've
           since changed in Anki alone.

@@ -90,7 +90,7 @@ async def test_previews_then_files_each_note_into_its_tier_and_leaves_other_subd
     async with client_for(cm) as c:
         preview = await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=BANDS, retentions=RET)
         assert [t["notes"] for t in preview["tiers"]] == [1, 1, 1]
-        assert preview["left_alone"] >= 1  # Odmiana's card
+        assert preview["left_alone"] == {"cards": 1, "in_other_subdecks": {"Español::Odmiana": 1}, "in_filtered_decks": 0, "without_the_field": 0}
         assert decks_of(desktop, [esperar, casa]) == ["Español", "Español"]  # a preview moves nothing
 
         done = await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=BANDS, retentions=RET, preview=False)
@@ -197,7 +197,7 @@ async def test_files_every_language_that_can_be_and_says_why_it_skipped_the_othe
         assert decks_of(desktop, [esperar]) == ["Español"]  # a preview moves nothing
 
         done = await call(c, "tier_all_languages_by_frequency", bands=BANDS, retentions=RET, preview=False)
-        assert done["languages"][0]["moved"] == 3 and done["languages"][0]["left_alone"] >= 1
+        assert done["languages"][0]["moved"] == 3 and done["languages"][0]["left_alone"]["without_the_field"] == 1
     assert decks_of(desktop, [casa, esperar, inventadear]) == ["Español::Tier 1", "Español::Tier 2", "Español::Tier 3"]
     desktop.run("sync")
     col = Collection(str(desktop.path))
