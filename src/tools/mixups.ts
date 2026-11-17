@@ -2,6 +2,8 @@ import { isOmnilanguage, speechLangFor } from '../core/cards';
 import { CONFUSED_REASON, partnerIndex, type ConfusedPair } from '../core/confusedPairs';
 import { headword } from '../core/forms';
 import { htmlToText } from '../core/html';
+import { toHiragana } from '../core/kana';
+import { stripMarks } from '../core/letters';
 import { lookalikeIndex } from '../core/lookalikes';
 import { meaningSet, sameMeaning } from '../core/synonyms';
 import type { Note } from '../core/types';
@@ -54,17 +56,18 @@ export function mixupLanguage(note: Note): Language | undefined {
 }
 
 const text = (field: string | undefined) => htmlToText(field ?? '').replace(/\s+/g, ' ').trim();
-const unmarked = (s: string) => s.normalize('NFKD').replace(/\p{M}/gu, '').normalize('NFC');
+const unmarked = (s: string) => stripMarks(s.normalize('NFKD')).normalize('NFC');
 
 /**
- * What a word sounds like, near enough to be confused by ear: its romanization (or kana) with
- * tones, accents and hyphens taken off, else its spelling the same way. Thai without a
+ * What a word sounds like, near enough to be confused by ear: its romanization (or kana, katakana
+ * read as the hiragana it spells) with tones, accents and hyphens taken off, else its spelling the
+ * same way. Kana keeps its voicing marks (stripMarks): かいがん and かいかん don't sound alike. Thai without a
  * romanization has none, as Thai script carries the tone in letters that can't be taken off.
  */
 export function soundKey(w: MixupWord): string | undefined {
   const base = w.roman || (w.language === 'th' || w.language === 'ja' ? '' : w.word);
   if (!base) return undefined;
-  const key = unmarked(base.toLocaleLowerCase()).replace(/[-‐·'’\s]/g, '');
+  const key = unmarked(toHiragana(base).toLocaleLowerCase()).replace(/[-‐·'’\s]/g, '');
   return key || undefined;
 }
 

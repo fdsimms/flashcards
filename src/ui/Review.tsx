@@ -79,8 +79,8 @@ import { TypedDiff } from './TypedDiff';
 import { SessionMissList, useSessionMisses, type MixupRequest } from './SessionMisses';
 import { ReviewMenu } from './ReviewMenu';
 import { NextSteps, type NextStep } from './ReviewNextSteps';
-import { asksOwnHook, typeItAnswer } from '../core/activeRecall';
-import { compareTyped } from '../core/typedCompare';
+import { asksOwnHook, typeItAnswer, typeItAnswers } from '../core/activeRecall';
+import { compareTypedAnswer } from '../core/typedCompare';
 import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
 import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
 import { ChangeRatingStrip, useRatingOffer } from './ChangeRating';
@@ -425,7 +425,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const typeInExpected = page?.typeAnswer?.expected;
   const typedKeyboard = useKeyboardLanguage(rendered?.speechLang ?? (typeInExpected ? keyboardLanguageForText(stripExpected(typeInExpected)) : undefined));
   const spoken = useSpokenAnswer(rendered?.speechLang, {
-    expected: rendered && note && current ? typeItAnswer(note, current) : undefined,
+    expected: rendered && note && current ? typeItAnswers(note, current) : undefined,
     onBeforeListen: () => { Keyboard.dismiss(); self.stop(false); },
     onHeard: (text) => { setTyping(true); setSpokenIn(true); setTyped(text); },
   });
@@ -849,7 +849,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // Under the answer: what was typed against the word, the offer to show the card sooner, the suggestion to practice its forms, and the hook.
   const extras = revealed ? (
     <>
-      {typing && typeItWord ? <TypedDiff comparison={compareTyped(typeItWord, typed)} showExpected={false} lang={rendered?.speechLang} typedLabel={spokenIn ? 'You said' : 'Yours'} /> : null}
+      {typing && typeItWord ? <TypedDiff comparison={compareTypedAnswer(typeItAnswers(note, current), typed, rendered?.speechLang)} showExpected={false} lang={rendered?.speechLang} typedLabel={spokenIn ? 'You said' : 'Yours'} /> : null}
       {typing && typeItWord && spokenIn ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{spokenAnswerNote(rendered?.speechLang)}</Text> : null}
       <AnswerExtras
         word={headword(note)}

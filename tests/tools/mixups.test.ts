@@ -35,6 +35,9 @@ describe('soundKey', () => {
     expect(soundKey({ noteId: 'a', language: 'th', word: 'ใกล้', meaning: 'near', roman: 'klâi' })).toBe('klai');
     expect(soundKey({ noteId: 'a', language: 'es', word: 'está', meaning: 'is' })).toBe('esta');
     expect(soundKey({ noteId: 'a', language: 'th', word: 'ใกล้', meaning: 'near' })).toBeUndefined();
+    // Kana keeps its voicing marks, and katakana is read as hiragana.
+    expect(soundKey({ noteId: 'a', language: 'ja', word: '海岸', meaning: 'coast', roman: 'かいがん' })).toBe('かいがん');
+    expect(soundKey({ noteId: 'a', language: 'ja', word: 'パン', meaning: 'bread', roman: 'パン' })).toBe('ぱん');
   });
 });
 

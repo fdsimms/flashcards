@@ -16,3 +16,10 @@ export const foldYo = (s: string): string => s.replace(/ё/g, 'е');
  */
 const UNDECOMPOSED: Record<string, string> = { ø: 'o', æ: 'ae', œ: 'oe', ł: 'l' };
 export const foldUndecomposed = (s: string): string => s.replace(/[øæœł]/g, (c) => UNDECOMPOSED[c]);
+
+/**
+ * Text with its accents and other marks taken off, for a check that forgives them: é is e, and a
+ * Thai tone mark goes. Kana's voicing marks (゛ and ゜, which NFD splits off が and ぱ) stay, since
+ * か for が is a different sound, not a missing accent. Takes decomposed text (NFD or NFKD).
+ */
+export const stripMarks = (s: string): string => s.replace(/(?![゙゚])\p{M}/gu, '');

@@ -2,11 +2,11 @@ import { useAudioPlayer } from 'expo-audio';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, TextInput, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { compareTyped } from '../../core/typedCompare';
+import { compareTypedAnswer } from '../../core/typedCompare';
 import type { Api, ReaderText } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { useKeyboardLanguage } from '../useKeyboardLanguage';
-import { drillLines, lineText, markLine, roundLine, roundProgress, roundScore, startRound, type LineDrillKind } from '../../reader/lineDrill';
+import { drillLines, lineAnswers, lineText, markLine, roundLine, roundProgress, roundScore, startRound, type LineDrillKind } from '../../reader/lineDrill';
 import { NORMAL_RATE, SLOW_RATE } from '../../reader/playbackRate';
 import { hasSlow, speedFor } from '../../reader/prefs';
 import { prefs } from '../../reader/storage';
@@ -73,15 +73,18 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
   }, [round.at]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const expected = line ? lineText(line) : '';
+  const answers = useMemo(() => (line ? lineAnswers(line, text.language) : []), [line, text.language]);
   // Say it back can be spoken (Answer by speaking): what's heard fills the box.
   const keyboardLang = useKeyboardLanguage(LANGUAGES[text.language].speech);
   const spoken = useSpokenAnswer(LANGUAGES[text.language].speech, {
-    expected,
+    expected: answers,
     mode: AUDIO_MODE,
     onBeforeListen: () => { player.pause(); self.stop(false); },
     onHeard: (heard) => setTyped(heard),
   });
-  const comparison = useMemo(() => compareTyped(expected, typed), [expected, typed]);
+  const comparison = useMemo(() => compareTypedAnswer(answers, typed, LANGUAGES[text.language].speech), [answers, typed, text.language]);
+  // Japanese typed in kana is checked against the line's reading; the line itself is then shown as written, unmarked.
+  const againstLine = comparison.expected.map((p) => p.text).join('') === expected.trim();
   const check = () => {
     spoken.cancel();
     haptic.tap();
@@ -156,7 +159,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
                 <Text style={{ ...type.overline, color: c.textSecondary }}>The line</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
                   <Text selectable accessibilityLanguage={LANGUAGES[text.language].speech} style={{ ...readFont, fontWeight: '600', color: c.text, flex: 1 }}>
-                    {typed.trim() ? comparison.expected.map((p, i) => (p.kind === 'same' ? p.text : (
+                    {typed.trim() && againstLine ? comparison.expected.map((p, i) => (p.kind === 'same' ? p.text : (
                       <Text key={i} style={{ color: c.goodInk, backgroundColor: c.goodFill }}>{p.text}</Text>
                     ))) : expected}
                   </Text>

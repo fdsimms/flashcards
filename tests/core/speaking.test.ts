@@ -7,6 +7,10 @@ describe('spokenAnswerNote', () => {
     expect(spokenAnswerNote('pl-PL')).not.toContain('tones');
     expect(spokenAnswerNote(undefined)).not.toContain('tones');
   });
+  it('mentions pitch accent for Japanese', () => {
+    expect(spokenAnswerNote('ja-JP')).toContain('pitch accent');
+    expect(spokenAnswerNote('th-TH')).not.toContain('pitch accent');
+  });
 });
 
 describe('recognitionLocale', () => {
@@ -32,6 +36,10 @@ describe('bestHeard', () => {
   it('takes the first without an answer, and skips empty guesses', () => {
     expect(bestHeard([' ', 'ไปสยามครับ', 'ไปสยาม'])).toBe('ไปสยามครับ');
     expect(bestHeard([])).toBe('');
+  });
+  it('picks the guess closest to any answer, such as a Japanese reading', () => {
+    expect(bestHeard(['違う', 'たべる'], ['食べる', 'たべる'])).toBe('たべる');
+    expect(bestHeard(['違う', '食べる'], ['食べる', 'たべる'])).toBe('食べる');
   });
 });
 

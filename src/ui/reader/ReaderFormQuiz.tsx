@@ -57,7 +57,7 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
   };
 
   const check = () => {
-    const found = checkForm(typed, word);
+    const found = checkForm(typed, word, language);
     if (found !== 'empty') setResult(found);
   };
   const again = () => {

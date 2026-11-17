@@ -1,3 +1,5 @@
+import { toHiragana, toKana } from './kana';
+import { stripMarks } from './letters';
 import { opcodes } from './typeAnswer';
 
 /**
@@ -32,6 +34,8 @@ export interface TypedComparison {
   sameLetters: boolean;
   /** How many letters and digits are wrong: the larger of those missed and those typed in their place or added. */
   off: number;
+  /** Right, but written in katakana where it's hiragana, or the other way round. */
+  otherKana?: boolean;
 }
 
 /** A base character with the marks after it. */
@@ -45,7 +49,7 @@ function letters(s: string): string[] {
 }
 
 const isWordy = (cluster: string) => /[\p{L}\p{N}]/u.test(cluster);
-const bare = (s: string) => s.normalize('NFKD').replace(/\p{M}/gu, '');
+const bare = (s: string) => stripMarks(s.normalize('NFKD'));
 /** The letters and digits only, lower case: for sameWords (with marks) and sameLetters (without). */
 const wordsOf = (s: string) => Array.from(folded(s)).filter((ch) => /[\p{L}\p{N}\p{M}]/u.test(ch)).join('');
 
@@ -69,6 +73,10 @@ export function compareTyped(expected: string, typedRaw: string): TypedCompariso
   if (typedText && folded(typedText) === folded(want)) {
     // Straße typed as Strasse: right, and shown as it was expected.
     return { typed: [{ text: typedText, kind: 'same' }], expected: [{ text: want, kind: 'same' }], exact: true, sameWords: true, sameLetters: true, off: 0 };
+  }
+  if (typedText && toHiragana(folded(typedText)) === toHiragana(folded(want))) {
+    // ラーメン typed as らーめん: the same sounds, in the other kana.
+    return { typed: [{ text: typedText, kind: 'same' }], expected: [{ text: want, kind: 'same' }], exact: false, sameWords: true, sameLetters: true, off: 0, otherKana: true };
   }
   const e = letters(want);
   const t = letters(typedText);
@@ -99,9 +107,29 @@ export function compareTyped(expected: string, typedRaw: string): TypedCompariso
   };
 }
 
+/** How close a comparison is, best first: exact, then the same words, the same letters, fewest off. */
+const closeness = (c: TypedComparison) => [c.exact ? 0 : 1, c.sameWords ? 0 : 1, c.sameLetters ? 0 : 1, c.off];
+
+/**
+ * What was typed against every right answer, keeping the closest: Type it on a Japanese card
+ * accepts the word (食べる) or its reading (たべる). In Japanese, romaji typed on an English keyboard
+ * is read as the kana it spells ("taberu" is たべる), as WaniKani's answer box reads it (kana.ts).
+ */
+export function compareTypedAnswer(answers: readonly string[], typedRaw: string, speechLang?: string): TypedComparison {
+  const typed = speechLang?.startsWith('ja') && /[a-z]/i.test(typedRaw) ? toKana(typedRaw.trim(), true) : typedRaw;
+  const tried = answers.filter((a) => a.trim()).map((a) => compareTyped(a, typed));
+  if (!tried.length) return compareTyped('', typed);
+  return tried.reduce((best, c) => {
+    const [a, b] = [closeness(c), closeness(best)];
+    const i = a.findIndex((n, k) => n !== b[k]);
+    return i >= 0 && a[i] < b[i] ? c : best;
+  });
+}
+
 /** One line on how close it was: "Exactly right.", "3 letters off.", and so on. */
 export function comparisonLine(c: TypedComparison): string {
   if (c.exact) return 'Exactly right.';
+  if (c.otherKana) return 'Right, but written in the other kana.';
   if (c.sameWords) return 'Right, apart from spacing or punctuation.';
   if (c.sameLetters) return `Right letters, but ${c.off === 1 ? 'one has' : `${c.off} have`} the wrong accent or mark.`;
   if (!c.typed.length) return 'Nothing typed.';

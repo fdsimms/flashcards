@@ -1,4 +1,4 @@
-import { foldUndecomposed, foldYo } from '../core/letters';
+import { foldUndecomposed, foldYo, stripMarks } from '../core/letters';
 import type { Phrase } from './phrase';
 
 /**
@@ -66,7 +66,7 @@ function tokens(s: string): Token[] {
 // Lowercased a letter at a time, a capital Σ is always σ, never the final ς; and ß may be written ss.
 const spelling = (ts: Token[]) => ts.map((t) => t.key ?? '').join('').replace(/ς/g, 'σ').replace(/ß/g, 'ss');
 /** The spelling without any marks: "มิ" and "มี" both become "ม", "øl" and "ol" both "ol". */
-const unmarked = (ts: Token[]) => foldUndecomposed(spelling(ts).normalize('NFD').replace(/\p{M}/gu, '').normalize('NFC'));
+const unmarked = (ts: Token[]) => foldUndecomposed(stripMarks(spelling(ts).normalize('NFD')).normalize('NFC'));
 
 const plain = (ts: Token[]): Segment[] => [{ text: ts.map((t) => t.text).join(''), marked: false }];
 

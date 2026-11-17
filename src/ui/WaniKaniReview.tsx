@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
 import { problemText, WaniKaniError, type WaniKaniApi, type WaniKaniUser } from '../wanikani/api';
-import { toKana } from '../wanikani/kana';
+import { toKana } from '../core/kana';
 import { offlineText } from '../wanikani/offline';
 import { canSkip, withoutSkipped } from '../wanikani/skipped';
 import { droppedText, lessonsToday } from '../wanikani/prefs';

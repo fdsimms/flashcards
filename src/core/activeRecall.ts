@@ -1,4 +1,4 @@
-import { isOmnilanguage } from './cards';
+import { isOmnilanguage, speechLangFor } from './cards';
 import { headword } from './forms';
 import { htmlToText } from './html';
 import type { Card, Note } from './types';
@@ -19,6 +19,20 @@ import type { Card, Note } from './types';
 export function typeItAnswer(note: Note, card: Card): string | undefined {
   if (!isOmnilanguage(note) || card.kind !== 'reverse') return undefined;
   return headword(note) || undefined;
+}
+
+/**
+ * Every answer Type it (and Answer by speaking) takes on this card: the word, and for a Japanese
+ * word its reading in kana (KanaReading), since 食べる typed as たべる is the word typed without
+ * converting it. Readings split on commas or slashes are each an answer. Empty when the card has no
+ * Type it.
+ */
+export function typeItAnswers(note: Note, card: Card): string[] {
+  const word = typeItAnswer(note, card);
+  if (!word) return [];
+  if (!speechLangFor(note)?.startsWith('ja')) return [word];
+  const readings = htmlToText(note.fields.KanaReading ?? '').split(/[,、/;]/).map((r) => r.trim()).filter(Boolean);
+  return [word, ...readings];
 }
 
 /**

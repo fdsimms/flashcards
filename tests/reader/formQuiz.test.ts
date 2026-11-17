@@ -55,8 +55,9 @@ describe('slotWidth', () => {
     expect(slotWidth(word('ją'), 20, 44)).toBe(44);
   });
 
-  it('counts letters, not code units', () => {
-    expect(slotWidth(word('食べました'), 20, 44)).toBe(60);
+  it('counts letters, not code units, and a full-width letter as a whole em', () => {
+    expect(slotWidth(word('食べました'), 20, 44)).toBe(100);
+    expect(slotWidth(word('Tokyoで'), 20, 44)).toBe(80);
   });
 });
 
@@ -89,6 +90,14 @@ describe('checkForm', () => {
   it('tells apart the right letters with the accents wrong', () => {
     expect(checkForm('czapke', word('czapkę'))).toBe('accents');
     expect(checkForm('czapkę', word('czapkę'))).toBe('right');
+  });
+
+  it('takes a Japanese form as its reading, in kana or romaji', () => {
+    const ate = word('食べました', { translit: 'たべました' });
+    expect(checkForm('たべました', ate, 'ja')).toBe('right');
+    expect(checkForm('tabemashita', ate, 'ja')).toBe('right');
+    expect(checkForm('たべます', ate, 'ja')).toBe('wrong');
+    expect(checkForm('たべました', ate)).toBe('wrong');
   });
 });
 
