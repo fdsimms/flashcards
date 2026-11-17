@@ -22,12 +22,22 @@ request (tagged `forms-unverified`) or the user in Anki.
 A noun is looked up without the demonstrative its Entry starts with ("ten ptak"). One whose Entry
 names a plural ("te buty", "ci rodzice") gets only the plural lines, from the noun UniMorph lists
 that plural under (but, rodzic), or from the word itself for a noun with no singular (spodnie).
+
+UniMorph is an extract of Wiktionary made years ago, and misses pages Wiktionary has had since
+(czas, koń, woda). A noun it lacks is looked up in kaikki.org's weekly extract of Wiktionary
+(Wiktextract, also CC BY-SA), one page per word, kept for `KAIKKI_FRESH` so the daily fill doesn't
+ask again each day. Only nouns: kaikki's Polish verb tables leave out the person (czekam and czekasz
+are both "present, singular"), so a verb's table can't be read from them.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import re
+import time
+import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
@@ -49,6 +59,16 @@ FIELD = "Forms"
 # Collection config (synced with Anki) saying whether the daily fill runs.
 AUTO_FILL_KEY = "frankiFormsAutoFill"
 SOURCE_URL = "https://raw.githubusercontent.com/unimorph/{code}/master/{code}"
+KAIKKI_URL = "https://kaikki.org/dictionary/{language}/meaning/{a}/{ab}/{word}.jsonl"
+# How long a kaikki.org page (or its absence) is kept before it's asked for again.
+KAIKKI_FRESH = 30 * 24 * 60 * 60
+# Wiktextract's tags for a case and a number, as UniMorph's features (`Row`s are written in them).
+KAIKKI_FEATURES = {"nominative": "NOM", "genitive": "GEN", "dative": "DAT", "accusative": "ACC", "instrumental": "INS",
+                   "locative": "ESS", "vocative": "VOC", "singular": "SG", "plural": "PL"}
+KAIKKI_CASES = frozenset({"NOM", "GEN", "DAT", "ACC", "INS", "ESS", "VOC"})
+# Forms a table lists that aren't the word's own standard ones (a diminutive, a dialect's).
+KAIKKI_SKIP = frozenset({"dialectal", "obsolete", "archaic", "rare", "diminutive", "augmentative", "alternative",
+                         "adjective", "romanization", "table-tags", "inflection-template"})
 
 
 @dataclass(frozen=True)
@@ -127,6 +147,8 @@ class Language:
     # that say the Entry names a plural ("te buty").
     determiners: frozenset[str] = frozenset()
     plural_determiners: frozenset[str] = frozenset()
+    # The language as kaikki.org names it, for nouns UniMorph lacks; none for no fallback.
+    kaikki: str = ""
 
     def lemma(self, entry: str) -> str:
         """The verb an Entry names: without a bracketed note or a trailing preposition."""
@@ -154,7 +176,7 @@ TABLES: dict[str, Language] = {
             Row.of("oni", "V;PST;3;PL;MASC;HUM"), Row.of("one", "V;PST;3;PL"),
         )),
     ), noun_tables=_cases(POLISH_CASES),
-        determiners=frozenset({"ten", "ta", "to", "te", "ci"}), plural_determiners=frozenset({"te", "ci"})),
+        determiners=frozenset({"ten", "ta", "to", "te", "ci"}), plural_determiners=frozenset({"te", "ci"}), kaikki="Polish"),
     "russian": Language("rus", tables=(
         _persons("present", "PRS", SLAVIC_PERSONS_RU),
         Table("past", (
@@ -272,12 +294,72 @@ class UniMorph:
                 out[form] = lemma
         return out
 
+    def kaikki_nouns(self, language: str, words: Iterable[str]) -> dict[str, list[tuple[str, frozenset[str]]]]:
+        """Each word's noun forms from kaikki.org (`language` as it names it), for the words it has a table for."""
+        out: dict[str, list[tuple[str, frozenset[str]]]] = {}
+        for word in words:
+            found = kaikki_noun_forms(self._kaikki_page(language, word))
+            if found:
+                out[word] = found
+        return out
+
+    def _kaikki_page(self, language: str, word: str) -> str:
+        """A word's kaikki.org page, from the cache while it's fresh; empty when there's none, or it couldn't be fetched."""
+        q = lambda part: urllib.parse.quote(part, safe="")  # noqa: E731
+        p = self.folder / "kaikki" / q(language) / f"{q(word)}.jsonl"
+        if p.exists() and time.time() - p.stat().st_mtime < KAIKKI_FRESH:
+            return p.read_text(encoding="utf-8")
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_suffix(".part")
+        try:
+            self.fetch(KAIKKI_URL.format(language=q(language), a=q(word[:1]), ab=q(word[:2]), word=q(word)), tmp)
+        except urllib.error.HTTPError as e:
+            if e.code != 404:
+                log.warning("kaikki.org answered %s for %s", e.code, word)
+                return ""
+            tmp.write_text("", encoding="utf-8")  # kept, so a word it doesn't have isn't asked for daily
+        except OSError as e:
+            log.warning("couldn't reach kaikki.org for %s: %s", word, e)
+            return ""  # not kept: asked for again next time
+        tmp.replace(p)
+        return p.read_text(encoding="utf-8")
+
     def _lines(self, code: str) -> Iterable[tuple[str, str, frozenset[str]]]:
         with self.path(code).open(encoding="utf-8") as f:
             for line in f:
                 parts = line.rstrip("\n").split("\t")
                 if len(parts) >= 3:
                     yield parts[0], parts[1], frozenset(parts[2].split(";"))
+
+
+def kaikki_noun_forms(page: str) -> list[tuple[str, frozenset[str]]]:
+    """
+    The noun on a kaikki.org page with the fullest declension table, as UniMorph-style forms
+    (`czasu`, {N, GEN, SG}), in the table's order, so `form_lines` reads them as it reads UniMorph's.
+    The fullest, as a page can hold several nouns spelled alike: para is "steam" (no plural) before
+    "couple". A form with one case and one number is kept, unless it's tagged as something other
+    than the word's standard form (`KAIKKI_SKIP`).
+    """
+    best: list[tuple[str, frozenset[str]]] = []
+    for line in page.splitlines():
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(entry, dict) or entry.get("pos") != "noun":
+            continue
+        out = []
+        for f in entry.get("forms", []):
+            tags = set(f.get("tags") or [])
+            form = str(f.get("form", "")).strip()
+            if not form or tags & KAIKKI_SKIP:
+                continue
+            features = {KAIKKI_FEATURES[t] for t in tags if t in KAIKKI_FEATURES}
+            if len(features & KAIKKI_CASES) == 1 and len(features - KAIKKI_CASES) == 1:
+                out.append((form, frozenset({"N", *features})))
+        if len({f for _, f in out}) > len({f for _, f in best}):
+            best = out
+    return best
 
 
 def _download(url: str, dest: Path) -> None:
@@ -391,10 +473,17 @@ def plan(survey_: Survey, unimorph: UniMorph, limit: int | None) -> FillPlan:
         found = unimorph.forms_of(language.code, (lemma for c in verbs for lemma in lemmas_for(language, c.word))) if verbs else {}
         plurals = unimorph.plurals_of(language.code, (w for w, plural in nouns if plural)) if any(p for _, p in nouns) else {}
         found_nouns = unimorph.forms_of(language.code, {w for w, _ in nouns} | set(plurals.values()), pos="N") if nouns else {}
+        lines = {c.note_id: lines_for(language, c.word, found) if c.pos == VERB else noun_lines_for(language, c.word, found_nouns, plurals)
+                 for c in cs}
+        # Nouns UniMorph lacks, from kaikki.org: a plural Entry as the word itself (drzwi's page is its plural).
+        missing = [c for c in cs if c.pos == NOUN and not lines[c.note_id]]
+        if missing and language.kaikki:
+            pages = unimorph.kaikki_nouns(language.kaikki, {noun_of(language, c.word)[0] for c in missing})
+            for c in missing:
+                lines[c.note_id] = noun_lines_for(language, c.word, pages, {})
         for c in cs:
-            lines = lines_for(language, c.word, found) if c.pos == VERB else noun_lines_for(language, c.word, found_nouns, plurals)
-            if lines:
-                filled.append(Planned(c.note_id, c.word, lines))
+            if lines[c.note_id]:
+                filled.append(Planned(c.note_id, c.word, lines[c.note_id]))
             else:
                 not_found.append(c.word)
     return FillPlan(filled, not_found, survey_.unsupported, len(survey_.candidates) - len(chosen))
@@ -462,7 +551,7 @@ def register(server: MCPServer, cm: CollectionManager, unimorph: UniMorph) -> No
         so far, nouns in Polish (a plural Entry like "te buty" gets the plural lines only). `query` narrows the notes (Anki's search syntax, e.g.
         "deck:Español"); `limit` is how many notes, up to 100. With dry_run (the default) nothing is
         written: show the user the lines first. A field that has anything in it is never changed.
-        Words Wiktionary doesn't have come back in not_found and are left empty. Fill those only if
+        Nouns UniMorph's older copy of Wiktionary lacks are looked up on kaikki.org. Words neither has come back in not_found and are left empty. Fill those only if
         the user asks: write the Forms field with update_notes in exactly the same lines (the same
         tenses and labels as the filled ones, `table` gives them), and add the tag forms-unverified."""
         if not 1 <= limit <= MAX_PER_CALL:
@@ -486,7 +575,7 @@ def register(server: MCPServer, cm: CollectionManager, unimorph: UniMorph) -> No
             "other_languages": p.unsupported,
             "remaining": p.remaining,
             "auto_fill": auto,
-            "source": "Wiktionary via UniMorph, CC BY-SA 3.0",
+            "source": "Wiktionary via UniMorph and kaikki.org, CC BY-SA",
             # The lines a Forms field holds, per language: for writing a not_found word's by hand.
             "table": {
                 **{lang: [f"{t.group} · {r.label}: <form>" for t in TABLES[lang].tables for r in t.rows] for lang in sorted(TABLES)},

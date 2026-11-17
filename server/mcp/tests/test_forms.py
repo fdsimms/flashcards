@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import io
 import json
+import urllib.error
+import urllib.parse
 from pathlib import Path
 
 import anyio
@@ -19,6 +22,8 @@ pytestmark = pytest.mark.anyio
 # Real excerpts of UniMorph's files (tests/unimorph): esperar, vengar and querer (only the noun,
 # in UniMorph) in Spanish; czekać and uczyć, and the nouns ptak, stół, but and rodzic, in Polish.
 EXCERPTS = Path(__file__).parent / "unimorph"
+# kaikki.org's pages for czas (which UniMorph lacks) and para, cut down (tests/kaikki).
+KAIKKI = Path(__file__).parent / "kaikki"
 
 
 def rows(code: str, lemma: str) -> list[tuple[str, frozenset[str]]]:
@@ -27,13 +32,19 @@ def rows(code: str, lemma: str) -> list[tuple[str, frozenset[str]]]:
 
 
 class Files:
-    """UniMorph's files as the tests have them, counting downloads."""
+    """UniMorph's files and kaikki.org's pages as the tests have them, counting downloads."""
 
     def __init__(self):
         self.fetched: list[str] = []
 
     def __call__(self, url: str, dest: Path) -> None:
         self.fetched.append(url)
+        if "kaikki.org" in url:
+            page = KAIKKI / urllib.parse.unquote(url.rsplit("/", 1)[1])
+            if not page.exists():
+                raise urllib.error.HTTPError(url, 404, "Not Found", {}, io.BytesIO())  # type: ignore[arg-type]
+            dest.write_text(page.read_text(encoding="utf-8"), encoding="utf-8")
+            return
         code = url.rsplit("/", 1)[1]
         source = EXCERPTS / code
         dest.write_text(source.read_text(encoding="utf-8") if source.exists() else "", encoding="utf-8")
@@ -105,6 +116,45 @@ def test_plurals_and_nouns_are_read_from_the_file(tmp_path):
     assert set(u.forms_of("pol", ["ptak", "czekać"])) == {"czekać"}
 
 
+def test_a_noun_unimorph_lacks_is_read_from_kaikki():
+    page = (KAIKKI / "czas.jsonl").read_text(encoding="utf-8")
+    lines = forms.noun_lines_for(polish(), "ten czas", {"czas": forms.kaikki_noun_forms(page)}, {})
+    assert len(lines) == 14
+    assert "genitive · singular: czasu" in lines and "locative · singular: czasie" in lines
+    # The table lists the obsolete instrumental czasy after czasami; the first is the one taken.
+    assert "instrumental · plural: czasami" in lines
+    # The diminutive and the dialect's forms aren't the word's own.
+    assert not any("czasik" in line for line in lines)
+
+
+def test_kaikki_takes_the_noun_with_the_fullest_table():
+    # para's first noun is "steam", with no plural; the deck's "couple" has one.
+    lines = forms.noun_lines_for(polish(), "ta para", {"para": forms.kaikki_noun_forms((KAIKKI / "para.jsonl").read_text(encoding="utf-8"))}, {})
+    assert "genitive · plural: par" in lines and len(lines) == 14
+
+
+def test_kaikki_pages_are_kept_and_a_missing_one_is_asked_for_once(tmp_path):
+    files = Files()
+    u = forms.UniMorph(tmp_path, fetch=files)
+    assert set(u.kaikki_nouns("Polish", ["czas", "żaba"])) == {"czas"}
+    assert files.fetched[-1] == "https://kaikki.org/dictionary/Polish/meaning/%C5%BC/%C5%BCa/%C5%BCaba.jsonl"
+    u.kaikki_nouns("Polish", ["czas", "żaba"])
+    assert len(files.fetched) == 2
+
+
+def test_kaikki_unreachable_is_not_kept(tmp_path):
+    calls = []
+
+    def down(url: str, dest: Path) -> None:
+        calls.append(url)
+        raise urllib.error.URLError("no network")
+
+    u = forms.UniMorph(tmp_path, fetch=down)
+    assert u.kaikki_nouns("Polish", ["czas"]) == {}
+    assert u.kaikki_nouns("Polish", ["czas"]) == {}
+    assert len(calls) == 2
+
+
 def test_every_group_a_grammar_point_links_to_is_one_the_fill_writes():
     # The app finds a form's grammar point by its group's name (src/core/grammar.ts), so a group
     # renamed here would quietly unlink it. Languages the fill doesn't cover are written by hand.
@@ -138,6 +188,7 @@ def omni(desktop, fields: str = OMNI_FIELDS) -> list[int]:
         "+", "add-fields-note", "Omnilanguage", "Español", note(Entry="la casa", Meaning="house", Language="spanish", PartOfSpeech="noun"),
         "+", "add-fields-note", "Omnilanguage", "Polski", note(Entry="czekać", Meaning="to wait", Language="polish", PartOfSpeech="verb"),
         "+", "add-fields-note", "Omnilanguage", "Polski", note(Entry="te buty", Meaning="shoes", Language="polish", PartOfSpeech="noun"),
+        "+", "add-fields-note", "Omnilanguage", "Polski", note(Entry="ten czas", Meaning="time", Language="polish", PartOfSpeech="noun"),
         "+", "add-fields-note", "Omnilanguage", "Thai", note(Entry="รอ", Meaning="to wait", Language="thai", PartOfSpeech="verb"),
         "+", "sync",
     )
@@ -153,9 +204,10 @@ async def forms_client(cm, tmp_path):
 
 
 async def test_previews_then_fills_and_the_lines_reach_another_device(forms_client, desktop):
-    esperar, _, casa, czekac, buty, _ = omni(desktop)
+    esperar, _, casa, czekac, buty, _, _ = omni(desktop)
     preview = await call(forms_client, "fill_forms")
-    assert [w["word"] for w in preview["would_fill"]] == ["esperar", "czekać", "te buty"]
+    # ten czas from kaikki.org, as UniMorph's file doesn't have it.
+    assert [w["word"] for w in preview["would_fill"]] == ["esperar", "czekać", "te buty", "ten czas"]
     assert preview["would_fill"][2]["lines"][0] == "nominative · plural: buty"
     assert preview["written"] == 0 and preview["not_found"] == ["inventadear"]
     # Spanish has verb tables but no noun tables, so la casa is reported, not skipped silently.
@@ -173,7 +225,7 @@ async def test_previews_then_fills_and_the_lines_reach_another_device(forms_clie
     assert fields[str(casa)]["Forms"] == "" and fields[str(czekac)]["Forms"] == "" and fields[str(buty)]["Forms"] == ""
 
     done = await call(forms_client, "fill_forms", dry_run=False, query="deck:Polski")
-    assert done["written"] == 2
+    assert done["written"] == 3
     fields = desktop.run("sync", "+", "fields", f"nid:{buty}")["fields"]
     assert "genitive · plural: butów" in fields[str(buty)]["Forms"].split("<br>")
 
