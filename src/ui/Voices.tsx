@@ -10,7 +10,7 @@ import { failureText } from '../core/failure';
 import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { searchVoices } from '../reader/voiceSlots';
-import { AzureVoiceRows, useAzureSample, useAzureVoices } from './AzureVoices';
+import { AzureVoiceRows, AzureVoiceTerms, useAzureSample, useAzureVoices } from './AzureVoices';
 import { CheckRow, ErrorNote, Group, Help, Loading, NavRow, Screen, SectionTitle, Segments } from './kit';
 import { space, useTheme, readable } from './theme';
 
@@ -171,6 +171,7 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: Repo; api: Api
             </Group>
             {query.trim() && !searchVoices(azure.voices, query).length ? <Help>{`No Azure voices match "${query.trim()}".`}</Help> : null}
             {sample.error ? <ErrorNote message={sample.error} /> : null}
+            <AzureVoiceTerms voices={azure.voices} />
             <Help>
               {`${lang.name} notes without a recording get one in this voice: when a note is added, from Record audio in the note editor, and for a whole deck from its options. Read & Listen's server records it, and it goes to Anki with the note at the next sync. Only Omnilanguage notes are recorded, from their Entry.`}
             </Help>

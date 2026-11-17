@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import type { AzureVoice } from '../../src/reader/api';
-import { auditionVoices, audioKey, castDetail, castFor, castInfo, CAST_KINDS, clampPitch, isCastKind, pitchLabel, PITCH_MAX, PITCH_MIN, resetChange, voicesForKind } from '../../src/reader/storyCast';
+import { auditionVoices, audioKey, castDetail, castFor, castInfo, CAST_KINDS, clampPitch, isCastKind, pitchLabel, PITCH_MAX, PITCH_MIN, resetChange, voiceFamily, voiceNotes, voiceTag, voicesForKind } from '../../src/reader/storyCast';
 
 const cast = (voice = 'ru-RU-DariyaNeural', pitch = 0) =>
   Object.fromEntries(CAST_KINDS.map((k) => [k.kind, { voice, pitch }])) as never;
@@ -71,4 +71,26 @@ test('the audition lists the kind\'s voices, or only the Multilingual ones among
   expect(auditionVoices(voices, 'girl', 'all').map((v) => v.name)).toEqual(['Zofia', 'Ava']);
   expect(auditionVoices(voices, 'girl', 'multilingual').map((v) => v.name)).toEqual(['Ava']);
   expect(auditionVoices(voices, 'boy', 'multilingual').map((v) => v.name)).toEqual(['Andrew']);
+});
+
+test('names the family a voice id belongs to', () => {
+  expect(voiceFamily('en-US-Ava:DragonHDLatestNeural')).toBe('hd');
+  expect(voiceFamily('en-US-Ava:DragonHDFlashLatestNeural')).toBe('hd-flash');
+  expect(voiceFamily('en-AU-Cyanspark:DragonHDOmniLatestNeural')).toBe('hd-omni');
+  expect(voiceFamily('en-AU-Isla:MAI-Voice-2')).toBe('mai');
+  expect(voiceFamily('en-AU-Isla:MAI-Voice-2.1-Flash')).toBe('mai-flash');
+  expect(voiceFamily('en-AU-AnnetteNeural')).toBeUndefined();
+});
+
+test('tags only the special voices', () => {
+  expect(voiceTag('en-AU-Cyanspark:DragonHDOmniLatestNeural')).toBe('HD Omni');
+  expect(voiceTag('en-AU-AnnetteNeural')).toBeUndefined();
+});
+
+test('explains just the kinds listed', () => {
+  expect(voiceNotes([{ voice: 'en-AU-AnnetteNeural' }])).toEqual([]);
+  const notes = voiceNotes([{ voice: 'en-AU-Isla:MAI-Voice-2-Flash' }, { voice: 'en-AU-AnnetteNeural' }]);
+  expect(notes).toHaveLength(1);
+  expect(notes[0].term).toBe('MAI Flash');
+  expect(voiceNotes([{ voice: 'a:DragonHDLatestNeural' }]).some((n) => n.term === 'Latest')).toBe(true);
 });

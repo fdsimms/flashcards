@@ -1,11 +1,13 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Text } from 'react-native';
 import { failureText } from '../core/failure';
 import { recordingName } from '../core/recording';
 import type { Api, AzureVoice } from '../reader/api';
-import { isMultilingual } from '../reader/storyCast';
-import { CheckRow } from './kit';
+import { isMultilingual, voiceNotes, voiceTag } from '../reader/storyCast';
+import { CheckRow, Help } from './kit';
+import { useTheme } from './theme';
 
 /**
  * Azure's voices, as Read & Listen's server lists and speaks them: for Read & Listen's speakers
@@ -78,12 +80,29 @@ export function AzureVoiceRows({ voices, selected, onChoose, none }: {
           key={v.voice}
           first={!none && i === 0}
           label={v.name}
-          hint={[v.gender, v.locale, isMultilingual(v.voice) ? 'any language' : ''].filter(Boolean).join(', ')}
+          hint={[v.gender, v.locale, voiceTag(v.voice), isMultilingual(v.voice) ? 'any language' : ''].filter(Boolean).join(', ')}
           selected={selected === v.voice}
           onPress={() => onChoose(v)}
         />
       ))}
     </>
+  );
+}
+
+/** What the qualifiers in the listed voices' names (HD, Flash, Omni, MAI) mean; nothing when none is listed. */
+export function AzureVoiceTerms({ voices }: { voices: AzureVoice[] }) {
+  const c = useTheme();
+  const notes = voiceNotes(voices);
+  if (!notes.length) return null;
+  return (
+    <Help>
+      {notes.map((n, i) => (
+        <Text key={n.term}>
+          {i ? ' ' : ''}
+          <Text style={{ fontWeight: '700', color: c.text }}>{n.term}</Text>: {n.note}
+        </Text>
+      ))}
+    </Help>
   );
 }
 

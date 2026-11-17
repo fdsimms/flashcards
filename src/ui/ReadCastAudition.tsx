@@ -7,7 +7,7 @@ import type { Api, CastKind, CastVoice, Language, Settings } from '../reader/api
 import { LANGUAGES } from '../reader/languages';
 import { auditionVoices, audioKey, castInfo, clampPitch, pitchLabel, PITCH_MAX, PITCH_MIN, PITCH_STEP, type AuditionFilter } from '../reader/storyCast';
 import { searchVoices } from '../reader/voiceSlots';
-import { AzureVoiceRows, useAzureVoices } from './AzureVoices';
+import { AzureVoiceRows, AzureVoiceTerms, useAzureVoices } from './AzureVoices';
 import { haptic } from './haptics';
 import { Button, Chip, ErrorNote, Group, Help, Screen, SectionTitle } from './kit';
 import { PitchButton } from './ReadCastKind';
@@ -112,6 +112,7 @@ export function ReadCastAudition({ api, language, kind, current, onSettings, onS
         ) : null}
         {options && searching && options.length === 0 ? <Help>{`No voices match "${query.trim()}".`}</Help> : null}
         {options && !searching && options.length === 0 ? <Help>{`Azure lists no ${filter === 'multilingual' ? 'Multilingual ' : ''}${people} voices in ${LANGUAGES[language].name}.`}</Help> : null}
+        {options ? <AzureVoiceTerms voices={options} /> : null}
         <Button
           label={`Use ${azureVoiceName(voice)} at ${pitchLabel(pitch)} for ${label}`}
           onPress={use}
