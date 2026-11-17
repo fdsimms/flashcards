@@ -1,7 +1,7 @@
 import { Redirect, useRouter } from 'expo-router';
 import React from 'react';
 import { useApp } from '../ui/AppContext';
-import { ReadLanguage } from '../ui/ReadLanguage';
+import { ReadLanguage } from '../ui/reader/ReadLanguage';
 
 /** The current Read & Listen language's settings, from the shelf's sliders button. */
 export default function ReadLanguageRoute() {

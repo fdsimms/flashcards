@@ -1146,8 +1146,8 @@ def test_a_text_with_no_choices_shows_none() -> None:
 def test_a_time_sent_to_the_app_is_utc_whatever_the_servers_zone(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from franki_reader.app import instant
     from franki_reader.engine import utc_now
+    from franki_reader.routes.views import instant
 
     # The server's clock and stored times are naive UTC; TZ is there for Anki's study day alone.
     monkeypatch.setenv("TZ", "Asia/Bangkok")
@@ -1162,7 +1162,9 @@ def test_a_time_sent_to_the_app_is_utc_whatever_the_servers_zone(
 
 def test_every_time_in_a_response_goes_through_instant() -> None:
     # A bare isoformat() sends a naive time, which the app reads as the phone's own zone.
-    source = (Path(__file__).parent.parent / "src" / "franki_reader" / "app.py").read_text()
+    package = Path(__file__).parent.parent / "src" / "franki_reader"
+    files = [package / "app.py", *sorted((package / "routes").glob("*.py"))]
+    source = "".join(f.read_text() for f in files)
     assert source.count(".isoformat()") == 1, "send times with instant(), not .isoformat()"
 
 

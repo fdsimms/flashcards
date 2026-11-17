@@ -50,7 +50,7 @@ class Difficulty:
     # are words already studied. Nothing moves it; a saved count is kept.
     stretch: int = 2
     # How many times a text may use grammar the owner hasn't marked. Not moved by anything here: the
-    # Grammar dial on the wrap-up screen sets it (app.py, PUT /api/grammar/stretch).
+    # Grammar dial on the wrap-up screen sets it (routes/grammar.py, PUT /api/grammar/stretch).
     unset_uses: int = UNSET_USES
 
     @property

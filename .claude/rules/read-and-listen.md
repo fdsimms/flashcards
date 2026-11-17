@@ -2,8 +2,7 @@
 paths:
   - "server/reader/**"
   - "src/reader/**"
-  - "src/ui/Read*.tsx"
-  - "src/ui/Reader*.tsx"
+  - "src/ui/reader/**"
   - "src/ui/useReader.ts"
   - "src/app/read*.tsx"
   - "docs/read-and-listen/**"

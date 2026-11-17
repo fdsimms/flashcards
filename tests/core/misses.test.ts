@@ -6,27 +6,27 @@ const THAI = missReasonsFor(omniNote());
 
 describe('which notes offer reasons', () => {
   it('gives Thai its own five', () => {
-    expect(THAI.map((r) => r.key)).toEqual(['tone', 'vowel-length', 'similar-letter', 'spelling', 'meaning']);
+    expect(THAI.map((r) => r.key)).toEqual(['tone', 'vowel-length', 'similar-letter', 'spelling', 'meaning', 'confused']);
   });
 
   it('gives German, Polish, Russian and Greek gender, stress, ending and meaning', () => {
     for (const language of ['German', 'Polish', 'Russian', 'Greek']) {
-      expect(missReasonsFor(omniNote({ Language: language, deck: 'x' })).map((r) => r.key)).toEqual(['gender', 'stress', 'ending', 'meaning']);
+      expect(missReasonsFor(omniNote({ Language: language, deck: 'x' })).map((r) => r.key)).toEqual(['gender', 'stress', 'ending', 'meaning', 'confused']);
     }
   });
 
   it('gives Spanish, French and Norwegian gender, spelling, ending and meaning', () => {
     for (const language of ['Spanish', 'French', 'Norwegian']) {
-      expect(missReasonsFor(omniNote({ Language: language, deck: 'x' })).map((r) => r.key)).toEqual(['gender', 'spelling', 'ending', 'meaning']);
+      expect(missReasonsFor(omniNote({ Language: language, deck: 'x' })).map((r) => r.key)).toEqual(['gender', 'spelling', 'ending', 'meaning', 'confused']);
     }
   });
 
   it('gives Japanese reading, pitch accent and meaning', () => {
-    expect(missReasonsFor(omniNote({ Language: 'Japanese', deck: 'x' })).map((r) => r.key)).toEqual(['reading', 'pitch', 'meaning']);
+    expect(missReasonsFor(omniNote({ Language: 'Japanese', deck: 'x' })).map((r) => r.key)).toEqual(['reading', 'pitch', 'meaning', 'confused']);
   });
 
-  it('offers none for a language not listed, or a note that is not Omnilanguage', () => {
-    expect(missReasonsFor(omniNote({ Language: 'Italian' }))).toEqual([]);
+  it('offers only the mix-up for a language not listed, and nothing for a note that is not Omnilanguage', () => {
+    expect(missReasonsFor(omniNote({ Language: 'Italian' })).map((r) => r.key)).toEqual(['confused']);
     const basic = { ...omniNote(), model: 'Basic', fields: { Front: 'a', Back: 'b' } };
     expect(missReasonsFor(basic)).toEqual([]);
   });
@@ -58,6 +58,9 @@ describe('the reminder', () => {
   it('names one reason, or several', () => {
     expect(missReminder(['tone'], THAI)).toBe('Last time: tone was wrong');
     expect(missReminder(['vowel-length', 'tone'], THAI)).toBe('Last time: tone and vowel length were wrong');
+    // A mix-up isn't something that was wrong: it keeps its own wording, after the others.
+    expect(missReminder(['confused'], THAI)).toBe('Last time: mixed up with another word');
+    expect(missReminder(['confused', 'tone'], THAI)).toBe('Last time: tone was wrong, mixed up with another word');
   });
 
   it('is null with nothing to remind about, or for a reason the language no longer offers', () => {

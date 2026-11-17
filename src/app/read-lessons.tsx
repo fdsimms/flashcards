@@ -1,7 +1,7 @@
 import { Redirect, useRouter } from 'expo-router';
 import React from 'react';
 import { useApp } from '../ui/AppContext';
-import { ReadLessons } from '../ui/ReadLessons';
+import { ReadLessons } from '../ui/reader/ReadLessons';
 import { useNarrator } from '../ui/useNarrator';
 import { useParticle } from '../ui/useParticle';
 

@@ -1,7 +1,7 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import { useApp } from '../ui/AppContext';
-import { Reader, type ReaderSource } from '../ui/Reader';
+import { Reader, type ReaderSource } from '../ui/reader/Reader';
 import { useAddMinedWord } from '../ui/useAddMinedWord';
 import { useReaderPlayerHost } from '../ui/useReaderPlayer';
 import { useWordAudio } from '../ui/useWordAudio';

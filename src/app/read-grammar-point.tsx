@@ -3,7 +3,7 @@ import React, { useMemo } from 'react';
 import { grammarPoint } from '../core/grammar';
 import { exampleSource } from '../reader/grammar';
 import { useApp } from '../ui/AppContext';
-import { ReadGrammarPoint } from '../ui/ReadGrammarPoint';
+import { ReadGrammarPoint } from '../ui/reader/ReadGrammarPoint';
 import { useAddMinedWord } from '../ui/useAddMinedWord';
 import { useWordAudio } from '../ui/useWordAudio';
 

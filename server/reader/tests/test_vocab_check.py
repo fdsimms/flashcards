@@ -12,11 +12,12 @@ from test_app import AUTH, started
 from test_generator import FakeClient, finish, response
 
 from franki_reader import store
-from franki_reader.app import VOCAB_RETRY, create_app
+from franki_reader.app import create_app
 from franki_reader.engine import Engine
 from franki_reader.generator import Usage
 from franki_reader.japanese import quiz_word
 from franki_reader.lexicon import Entry
+from franki_reader.routes.vocab import VOCAB_RETRY
 from franki_reader.spaced import common_lemmas
 from franki_reader.vocab_check import (
     ASKED_PER_BAND,

@@ -62,6 +62,9 @@ import { usePhoneSpeech } from './usePhoneSpeech';
 import { missReasonsFor, missReminder } from '../core/misses';
 import { AgainSplit, MissReminder } from './MissMarks';
 import { useMissMarks } from './useMissMarks';
+import { CONFUSED_REASON } from '../core/confusedPairs';
+import { canLinkConfused, ConfusedLinkSheet, ConfusedRow } from './ConfusedLink';
+import { useConfusedPairs } from './useConfusedPairs';
 import { OwnHookField, TypeItButton, useOwnHook } from './ReviewActive';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { spokenAnswerNote } from '../core/speaking';
@@ -279,6 +282,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const forms = useReviewForms(repo, { cards, notes, deckSettings, now, dayStartsAtHour: H });
   // The reasons chosen on Again, and the "Last time" reminder they bring back (src/core/misses.ts).
   const misses = useMissMarks(repo);
+  // Words linked as ones that get mixed up (src/core/confusedPairs.ts), and the sheet that links one.
+  const confused = useConfusedPairs(repo);
   const vacation = useVacationPrefs();
   const deckOf = useMemo(() => new Map([...notes.values()].map((n) => [n.id, n.deck])), [notes]);
   const queue = useMemo(() => {
@@ -440,7 +445,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   useEffect(() => { spoken.cancel(); }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
   const ownHook = useOwnHook(repo, showing, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
   // The session end's list of misses, and what of them Similar words can practice (SessionMisses.tsx).
-  const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups, noteTypes);
+  const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups, noteTypes, confused.pairs);
 
   // Auto-speak the front when a card with audio appears.
   useEffect(() => {
@@ -498,6 +503,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       setStudied((s) => bumpStudied(s, record.deck, record.preview ? null : studiedKind(record.before, H), 1));
       setHistory((h) => [...h, record]);
       misses.answered(current.id, rating === 1 ? miss : undefined);
+      if (rating === 1 && miss === CONFUSED_REASON && canLinkConfused(note)) confused.openLink(note.id);
       // Reads the hook typed for this card, so it's called before the next card clears it.
       void ownHook.answered(note);
       forms.answered({ cardId: current.id, ...res.log });
@@ -725,6 +731,19 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       }}
     />
   ) : null;
+  // Not while the leech sheet is up: two sheets can't be presented at once.
+  const linkingNote = confused.linking && !leechPrompt ? notes.get(confused.linking) : undefined;
+  const confusedSheet = linkingNote && cards ? (
+    <ConfusedLinkSheet
+      note={linkingNote}
+      notes={notes}
+      cards={cards}
+      pairs={confused.pairs}
+      onLink={(partnerId) => confused.link(linkingNote.id, partnerId)}
+      onUnlink={(partnerId) => confused.unlink(linkingNote.id, partnerId)}
+      onClose={() => confused.openLink(null)}
+    />
+  ) : null;
   if (!cards) return <Screen title={title} largeTitle={false}><Loading error={loadError} onRetry={() => setReloads((n) => n + 1)} /></Screen>;
 
   const undoButton = history.length
@@ -784,6 +803,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     return (
       <>
       {leechSheet}
+      {confusedSheet}
       <Screen
         title={title}
         largeTitle={false}
@@ -848,6 +868,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         onPractice={() => onPracticeForms(forms.drillFor([note.id], note.deck))}
         onLater={() => forms.putOff(note.id)}
       />
+      <ConfusedRow note={note} partners={confused.partners} notes={notes} onPress={() => confused.openLink(note.id)} />
       {asksHook ? <OwnHookField value={ownHook.text} onChange={ownHook.setText} /> : null}
     </>
   ) : null;
@@ -1038,6 +1059,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   return (
     <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
     {leechSheet}
+    {confusedSheet}
     {askCard ? (
       <AskCardSheet
         card={askCard}
@@ -1080,6 +1102,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           <ReviewMenu
             flag={current.flag ?? 0}
             onMnemonic={canAddMnemonic(note) ? () => setLeechPrompt({ noteId: note.id }) : undefined}
+            onLinkConfused={canLinkConfused(note) ? () => confused.openLink(note.id) : undefined}
             onAskClaude={() => {
               const card = cardForClaude(note, noteTypes.get(note.model), current.kind);
               if (card) setAskCard(card);

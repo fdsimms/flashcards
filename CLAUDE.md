@@ -166,7 +166,7 @@ src/db       Repo interface + MemoryRepo (tests), SQLite repo (app), backup plan
 src/media    the media folder (expo-file-system)
 src/app      routes (Expo Router): thin wrappers that give a screen in src/ui its props
 src/ui       screens, the shared pieces they're built from (kit.tsx), the theme, CardWebView, AppContext;
-             Read & Listen's screens are Read*.tsx and Reader.tsx
+             Read & Listen's screens are in src/ui/reader/
 src/reader   Read & Listen's side of the app: its server's API, the reading session, playback (pure,
              tested; storage.ts keeps the passphrase in the Keychain)
 src/wanikani WaniKani as a deck: its API, the study session (undo holds the latest answer), answer
@@ -209,7 +209,7 @@ rules. A comment or doc that cites "CLAUDE.md" for one of these sections means t
 | `screens.md` | `src/ui`, `src/app` | Screens and styling, mocking a UI change |
 | `anki-collection.md` | `src/anki`, `src/db/anki*`, `modules/anki-unicase`, `tests/anki` | The Anki collection, Sync |
 | `mcp.md` | `server/mcp`, `server/speech` | The MCP |
-| `read-and-listen.md` | `server/reader`, `src/reader`, the `Read*` screens and routes | Read & Listen |
+| `read-and-listen.md` | `server/reader`, `src/reader`, `src/ui/reader`, its routes | Read & Listen |
 | `database.md` | `src/db`, the Backup screen | Backup, Database |
 
 `tests/claudeRules.test.ts` keeps this working: it fails when this file passes 25,000 characters or

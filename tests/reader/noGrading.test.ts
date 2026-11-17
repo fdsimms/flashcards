@@ -4,9 +4,10 @@
  * answers, schedules or writes cards and notes: not the scheduler, not the Anki writeback, not the
  * repo.
  *
- * Every screen, hook and route that imports from `src/reader/` is scanned, not a list of names, so
- * a new one is checked without anyone remembering to add it. The ones that may import a writer are
- * named in `EXEMPT` with the reason, the way a coverage test names what it leaves out.
+ * Besides the files named below, every screen, hook and route that imports from `src/reader/` is
+ * scanned, so one living outside `src/ui/reader/` (a shared hook like Add to deck) is checked
+ * without anyone remembering to add it. The ones that may import a writer are named in `EXEMPT`
+ * with the reason, the way a coverage test names what it leaves out.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -15,6 +16,7 @@ import { describe, expect, it } from 'vitest';
 const ROOT = join(__dirname, '..', '..');
 const READER = join(ROOT, 'src', 'reader');
 const UI = join(ROOT, 'src', 'ui');
+const UI_READER = join(UI, 'reader');
 const ROUTES = join(ROOT, 'src', 'app');
 const READ_TAB = join(ROUTES, '(tabs)', '(read)');
 // Anything that answers, schedules or writes cards and notes.
@@ -54,7 +56,9 @@ function walk(dir: string): string[] {
 describe('Read & Listen', () => {
   const files = [
     ...readdirSync(READER).filter((f) => /\.tsx?$/.test(f)).map((f) => join(READER, f)),
-    ...readdirSync(UI).filter((f) => /^(Read[A-Z]?.*\.tsx|useReader\.ts|useFormQuiz\.ts|useCardGlosses\.ts|CardSentence\.tsx)$/.test(f)).map((f) => join(UI, f)),
+    // Its screens and the hooks only they use (src/ui/reader/), and the pieces of it other screens hold.
+    ...readdirSync(UI_READER, { recursive: true, encoding: 'utf8' }).filter((f) => /\.tsx?$/.test(f)).map((f) => join(UI_READER, f)),
+    ...readdirSync(UI).filter((f) => /^(useReader\.ts|useCardGlosses\.ts|CardSentence\.tsx)$/.test(f)).map((f) => join(UI, f)),
     // read-words opens the note editor for a marked word: saving there is the approval step.
     ...readdirSync(ROUTES).filter((f) => /^read(er|-.*)?\.tsx$/.test(f)).map((f) => join(ROUTES, f)),
     // The Read & Listen tab's home (and its stack layout) lives in its own route group.
@@ -64,16 +68,22 @@ describe('Read & Listen', () => {
     if (!files.includes(f) && USES_READER.test(readFileSync(f, 'utf8'))) files.push(f);
   }
 
+  it('keeps its screens in src/ui/reader/, where this test looks', () => {
+    const strays = readdirSync(UI).filter((f) => /^Read/.test(f));
+    expect(strays, 'move these into src/ui/reader/').toEqual([]);
+  });
+
   it('scans its logic, its screens and its routes', () => {
     expect(files.some((f) => f.endsWith('Reader.tsx'))).toBe(true);
     expect(files.some((f) => f.endsWith('ReadShelf.tsx'))).toBe(true);
     expect(files.some((f) => f.endsWith('ReadLanguage.tsx'))).toBe(true);
     expect(files.some((f) => f.endsWith('session.ts'))).toBe(true);
     expect(files.some((f) => f.endsWith('useReader.ts'))).toBe(true);
+    expect(files.some((f) => f.endsWith('useFormQuiz.ts'))).toBe(true);
     expect(files.some((f) => f.endsWith(join('app', 'read-words.tsx')))).toBe(true);
     expect(files.some((f) => f.endsWith(join('app', 'reader.tsx')))).toBe(true);
     expect(files.some((f) => f.endsWith(join('(read)', 'read.tsx')))).toBe(true);
-    // Found by its import of src/reader/, not by name.
+    // Found by its import of src/reader/, not by name or folder.
     expect(files.some((f) => f.endsWith('useAddMinedWord.ts'))).toBe(true);
   });
 

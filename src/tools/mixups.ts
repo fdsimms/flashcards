@@ -1,4 +1,5 @@
 import { isOmnilanguage, speechLangFor } from '../core/cards';
+import { CONFUSED_REASON, partnerIndex, type ConfusedPair } from '../core/confusedPairs';
 import { headword } from '../core/forms';
 import { htmlToText } from '../core/html';
 import { lookalikeIndex } from '../core/lookalikes';
@@ -15,11 +16,13 @@ import { LANGUAGES } from '../reader/languages';
  * - **By ear**: a word played, and which of its sound-alikes it was: words spelled or romanized
  *   the same once tones and accents are taken off (Thai ใกล้ klâi and ไกล klai, Spanish esta and
  *   está), or written the same in kana (Japanese 橋 and 箸).
+ * - **Your pairs**: words the learner linked by hand as ones they mix up (src/core/confusedPairs.ts),
+ *   asked like By meaning, whatever the words look or sound like.
  * Only words already being studied are asked or offered as choices: telling apart a word not yet
  * learned tests nothing. Like every tool, it never grades a card (tools.ts).
  */
 
-export const MIXUP_MODES = ['meaning', 'ear'] as const;
+export const MIXUP_MODES = ['meaning', 'ear', 'pairs'] as const;
 export type MixupMode = (typeof MIXUP_MODES)[number];
 
 export interface MixupWord {
@@ -37,6 +40,8 @@ export interface MixupSet {
   words: Map<string, MixupWord>;
   /** Each word's lookalikes with another meaning, by note id. */
   meaning: Map<string, string[]>;
+  /** Each word's linked partners (`ConfusedPair`) with another meaning, by note id. */
+  pairs: Map<string, string[]>;
   /** Each word's sound-alikes, by note id. */
   ear: Map<string, string[]>;
 }
@@ -79,8 +84,11 @@ function link(map: Map<string, string[]>, a: string, b: string) {
   }
 }
 
-/** The words that can be asked, from the notes being studied (`studied`: note ids with a card past new). */
-export function mixupSet(notes: Iterable<Note>, studied: ReadonlySet<string>): MixupSet {
+/**
+ * The words that can be asked, from the notes being studied (`studied`: note ids with a card past
+ * new) and the pairs linked by hand.
+ */
+export function mixupSet(notes: Iterable<Note>, studied: ReadonlySet<string>, linked: readonly ConfusedPair[] = []): MixupSet {
   const words = new Map<string, MixupWord>();
   const kept: Note[] = [];
   for (const n of notes) {
@@ -119,7 +127,62 @@ export function mixupSet(notes: Iterable<Note>, studied: ReadonlySet<string>): M
       }
     }
   }
-  return { words, meaning, ear };
+  // A linked pair is asked whatever the words look or sound like, but two with the same meaning would both be right.
+  const pairs = new Map<string, string[]>();
+  for (const [id, partners] of partnerIndex(linked)) {
+    const a = words.get(id);
+    if (!a) continue;
+    for (const other of partners) {
+      const b = words.get(other);
+      if (b && a.word !== b.word && !sameMeaning(meanings.get(id)!, meanings.get(other)!) && !isRepeatForm(a, b)) link(pairs, id, other);
+    }
+  }
+  return { words, meaning, pairs, ear };
+}
+
+/** Why a word is offered as the one a card was mixed up with. */
+export type CandidateWhy = 'sounds close' | 'looks close';
+
+export interface LinkCandidate {
+  word: MixupWord;
+  why: CandidateWhy;
+}
+
+/** The most words the link sheet suggests before the learner searches. */
+export const LINK_CANDIDATES = 5;
+
+/**
+ * The words a card is likely mixed up with, for the link sheet: its sound-alikes, then its
+ * lookalikes (the same links as By ear and By meaning), leaving out words already linked to it.
+ */
+export function linkCandidates(set: MixupSet, noteId: string, linked: ReadonlySet<string>, limit = LINK_CANDIDATES): LinkCandidate[] {
+  const out: LinkCandidate[] = [];
+  const seen = new Set<string>([noteId, ...linked]);
+  for (const [why, map] of [['sounds close', set.ear], ['looks close', set.meaning]] as const) {
+    for (const id of map.get(noteId) ?? []) {
+      const word = set.words.get(id);
+      if (!word || seen.has(id)) continue;
+      seen.add(id);
+      out.push({ word, why });
+    }
+  }
+  return out.slice(0, limit);
+}
+
+/**
+ * The words in `language` whose spelling, romanization or meaning contain `query`, for the link
+ * sheet's search; the note itself and `linked` ones are left out.
+ */
+export function searchWords(set: MixupSet, language: Language, query: string, noteId: string, linked: ReadonlySet<string>, limit = 8): MixupWord[] {
+  const q = query.trim().toLocaleLowerCase();
+  if (!q) return [];
+  const out: MixupWord[] = [];
+  for (const w of set.words.values()) {
+    if (w.language !== language || w.noteId === noteId || linked.has(w.noteId)) continue;
+    if ([w.word, w.roman ?? '', w.meaning].some((t) => t.toLocaleLowerCase().includes(q))) out.push(w);
+    if (out.length === limit) break;
+  }
+  return out;
 }
 
 export interface MixupQuestion {
@@ -192,8 +255,13 @@ export function practiceFromMisses(misses: readonly { noteId: string; miss?: str
   const latest = new Map<string, string | undefined>();
   for (const m of misses) { latest.delete(m.noteId); latest.set(m.noteId, m.miss); }
   const out: MissedPractice[] = [];
-  for (const mode of ['ear', 'meaning'] as const) {
-    const fits = (miss: string | undefined) => (mode === 'ear' ? !!miss && EAR_REASONS.has(miss) : !miss || MEANING_REASONS.has(miss));
+  for (const mode of ['ear', 'meaning', 'pairs'] as const) {
+    // A word missed as mixed up with another is practiced with the pairs it was linked in, not by look or sound.
+    const fits = (miss: string | undefined) => (
+      mode === 'ear' ? !!miss && EAR_REASONS.has(miss)
+        : mode === 'pairs' ? miss === CONFUSED_REASON
+          : !miss || MEANING_REASONS.has(miss)
+    );
     const byLanguage = new Map<Language, string[]>();
     for (const [id, miss] of latest) {
       const language = set.words.get(id)?.language;
@@ -201,7 +269,8 @@ export function practiceFromMisses(misses: readonly { noteId: string; miss?: str
     }
     for (const [language, ids] of byLanguage) {
       const reasons = new Set(ids.map((id) => latest.get(id)));
-      const reason = reasons.size === 1 ? [...reasons][0] : undefined;
+      // "Missed on mixed up with another word" doesn't read, so the pairs' practice names no reason.
+      const reason = mode !== 'pairs' && reasons.size === 1 ? [...reasons][0] : undefined;
       out.push({ mode, language, noteIds: ids, ...(reason ? { reason } : {}) });
     }
   }
@@ -213,5 +282,5 @@ export function missedPracticeLabel(p: MissedPractice, reasonLabel: string | und
   const n = p.noteIds.length;
   const which = n === 1 ? 'the one' : `the ${n}`;
   if (p.reason && reasonLabel) return `Practice ${which} missed on ${reasonLabel.toLowerCase()}`;
-  return p.mode === 'ear' ? `Practice ${which} missed, by ear` : `Practice ${which} missed, by meaning`;
+  return p.mode === 'ear' ? `Practice ${which} missed, by ear` : p.mode === 'pairs' ? `Practice ${which} missed, with your pairs` : `Practice ${which} missed, by meaning`;
 }

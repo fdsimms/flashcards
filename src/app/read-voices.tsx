@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import type { Language } from '../reader/api';
 import { castFor } from '../reader/storyCast';
 import { useApp } from '../ui/AppContext';
-import { ReadVoices } from '../ui/ReadVoices';
+import { ReadVoices } from '../ui/reader/ReadVoices';
 
 /** One language's voices in Read & Listen (`language`: its code, th, es, de...). */
 export default function ReadVoicesRoute() {
