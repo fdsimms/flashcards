@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf, repeatChipLabel } from '../../src/reader/playback';
+import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf, repeatBadge } from '../../src/reader/playback';
 
 const lines = [{ audio: false }, { audio: true }, { audio: false }, { audio: true }];
 
@@ -37,7 +37,7 @@ test('the repeat chip steps through the counts and wraps back to off', () => {
   expect(nextRepeatCount(3)).toBe(5);
   expect(nextRepeatCount(5)).toBe(Infinity);
   expect(nextRepeatCount(Infinity)).toBe(1);
-  expect(['Repeat: Off', '2×', '3×', '5×', '∞']).toEqual([1, 2, 3, 5, Infinity].map(repeatChipLabel));
+  expect([null, '2', '3', '5', '∞']).toEqual([1, 2, 3, 5, Infinity].map(repeatBadge));
 });
 
 test('previous line skips silent lines and stops at the start', () => {
