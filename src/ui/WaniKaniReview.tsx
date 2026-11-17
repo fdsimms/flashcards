@@ -299,6 +299,12 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const check = () => {
     if (!subject || !question) return;
     if (verdict) return answer(verdict.result === 'correct');
+    // Check stays tappable even when `typed` is empty: iOS can hold text from the Japanese keyboard back
+    // until it's confirmed, so an empty `typed` doesn't mean an empty field. Say what to do instead of dimming.
+    if (!typed.trim()) {
+      setRetry(question.kind === 'reading' ? 'Type the reading, then press Check.' : 'Type the meaning, then press Check.');
+      return;
+    }
     const v = question.kind === 'reading' ? checkReading(subject, typed) : checkMeaning(subject, synonyms.get(subject.id) ?? [], typed);
     if (v.result === 'retry') {
       setRetry(v.message);
@@ -533,7 +539,6 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         <Button
           label={!verdict ? 'Check' : finishes || result === 'wrong' ? 'Next' : 'Next question'}
           onPress={check}
-          disabled={!verdict && !typed.trim()}
         />
       </>
     );
