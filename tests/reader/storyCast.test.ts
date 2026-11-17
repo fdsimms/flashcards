@@ -91,6 +91,6 @@ test('explains just the kinds listed', () => {
   expect(voiceNotes([{ voice: 'en-AU-AnnetteNeural' }])).toEqual([]);
   const notes = voiceNotes([{ voice: 'en-AU-Isla:MAI-Voice-2-Flash' }, { voice: 'en-AU-AnnetteNeural' }]);
   expect(notes).toHaveLength(1);
-  expect(notes[0]).toMatch(/^MAI Flash/);
-  expect(voiceNotes([{ voice: 'a:DragonHDLatestNeural' }]).some((n) => n.startsWith('Latest'))).toBe(true);
+  expect(notes[0].term).toBe('MAI Flash');
+  expect(voiceNotes([{ voice: 'a:DragonHDLatestNeural' }]).some((n) => n.term === 'Latest')).toBe(true);
 });

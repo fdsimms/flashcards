@@ -78,12 +78,12 @@ export function voiceFamily(voice: string): VoiceFamily | undefined {
 }
 
 // What each family is, as Microsoft describes them (learn.microsoft.com, Azure Speech, high definition voices).
-const FAMILIES: Record<VoiceFamily, { tag: string; note: string }> = {
-  hd: { tag: 'HD', note: 'HD (Dragon HD): high definition voices. They read the whole text for context and set the tone to match it.' },
-  'hd-flash': { tag: 'HD Flash', note: 'Flash: a lighter HD voice that is made quickly, for fast replies.' },
-  'hd-omni': { tag: 'HD Omni', note: 'Omni: a newer HD model that Microsoft is rolling out.' },
-  mai: { tag: 'MAI', note: "MAI: voices made by Microsoft AI, separate from the HD ones. Standard MAI voices are for expressive, longer reading." },
-  'mai-flash': { tag: 'MAI Flash', note: 'MAI Flash: the quick, low-delay version of an MAI voice.' },
+const FAMILIES: Record<VoiceFamily, { tag: string; term: string; note: string }> = {
+  hd: { tag: 'HD', term: 'HD (Dragon HD)', note: 'High definition voices. They read the whole text for context and set the tone to match it.' },
+  'hd-flash': { tag: 'HD Flash', term: 'Flash', note: 'A lighter HD voice that is made quickly, for fast replies.' },
+  'hd-omni': { tag: 'HD Omni', term: 'Omni', note: 'A newer HD model that Microsoft is rolling out.' },
+  mai: { tag: 'MAI', term: 'MAI', note: "Voices made by Microsoft AI, separate from the HD ones. Standard MAI voices are for expressive, longer reading." },
+  'mai-flash': { tag: 'MAI Flash', term: 'MAI Flash', note: 'The quick, low-delay version of an MAI voice.' },
 };
 
 /** The short tag a voice's row shows (HD Omni), or none for a plain voice. */
@@ -93,13 +93,14 @@ export function voiceTag(voice: string): string | undefined {
 }
 
 /**
- * What the qualifiers in these voices' names mean, one line for each kind present, so a list is
- * explained only by what's in it. Empty when they are all plain voices.
+ * What the qualifiers in these voices' names mean, one note for each kind present (the term, shown
+ * in bold, and what it means), so a list is explained only by what's in it. Empty when they are all
+ * plain voices.
  */
-export function voiceNotes(voices: { voice: string }[]): string[] {
+export function voiceNotes(voices: { voice: string }[]): { term: string; note: string }[] {
   const present = new Set(voices.map((v) => voiceFamily(v.voice)));
-  const notes = (Object.keys(FAMILIES) as VoiceFamily[]).filter((f) => present.has(f)).map((f) => FAMILIES[f].note);
-  if (present.has('hd') || present.has('hd-flash') || present.has('hd-omni')) notes.push('Latest in a name means Microsoft updates the voice as new versions come out.');
+  const notes = (Object.keys(FAMILIES) as VoiceFamily[]).filter((f) => present.has(f)).map((f) => ({ term: FAMILIES[f].term, note: FAMILIES[f].note }));
+  if (present.has('hd') || present.has('hd-flash') || present.has('hd-omni')) notes.push({ term: 'Latest', note: 'In a name, it means Microsoft updates the voice as new versions come out.' });
   return notes;
 }
 
