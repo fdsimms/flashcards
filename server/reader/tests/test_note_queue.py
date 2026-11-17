@@ -184,14 +184,14 @@ def test_polish_key_forms_are_for_nouns_and_verbs_alike() -> None:
     )
 
 
-def test_a_greek_verb_gets_its_class_and_aorist_and_a_greek_noun_nothing_extra() -> None:
+def test_a_greek_verb_gets_its_class_and_aorist_and_a_greek_noun_only_its_gender() -> None:
     el: dict[str, Any] = {"romanization": "x", "transliteration": "x"}
     verb = got_fields(
         "el", "αντιπαθώ", part_of_speech="verb", verb_class="active", key_forms="αντιπάθησα", **el
     )
     assert verb["VerbClass"] == "active" and verb["KeyForms"] == "αντιπάθησα"
     noun = got_fields("el", "ο γραμματέας", part_of_speech="noun", gender="m", key_forms="x", **el)
-    assert not {"Gender", "KeyForms", "VerbClass"} & noun.keys()
+    assert noun["Gender"] == "m" and not {"KeyForms", "VerbClass"} & noun.keys()
 
 
 def test_a_japanese_word_gets_its_kanji_in_hanzi() -> None:

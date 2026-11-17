@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View, type TextStyle } from 'react-native';
 import { GENDER_WORDS } from '../core/cards';
-import { leadingArticle, type Gender } from '../core/gender';
+import { leadingArticle, withArticle, type Gender } from '../core/gender';
 import type { Segment } from '../core/highlight';
 import { DEFAULT_THAI_TEXT_SIZE, hasThai, thaiTextStyle, withThaiLineHeight, type ThaiTextSize } from '../core/script';
 import { toneSpans, type Tone } from '../core/toneColors';
@@ -235,7 +235,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               {b.icon ? <Icon name={b.icon} size={28} color={c.text} /> : null}
               {b.emphasis ? (
                 <Text style={{ ...withThaiLineHeight(type.cardFront, b.text), color: c.text, textAlign: 'center' }}>
-                  {b.prefix ? <Text style={{ color: b.gender ? genderColor(c, b.gender) : c.textTertiary, fontWeight: b.gender ? '600' : '400' }}>{b.prefix} </Text> : null}
+                  {b.prefix ? <Text style={{ color: b.gender ? genderColor(c, b.gender) : c.textTertiary, fontWeight: b.gender ? '600' : '400' }}>{b.prefix}{withArticle(b.prefix, '').endsWith(' ') ? ' ' : ''}</Text> : null}
                   <EntryText text={b.text} gender={b.gender} c={c} />
                 </Text>
               ) : (

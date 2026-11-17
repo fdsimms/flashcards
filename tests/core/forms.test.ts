@@ -57,6 +57,14 @@ describe('formsOf', () => {
       { key: 'field:Plural', group: 'plural', label: 'plural', answers: ['die Tische', 'Tische'] },
     ]);
   });
+  it('asks the article for a bare Entry, and the gender as a word for a French noun that elides', () => {
+    const answers = (over: Record<string, string>) => formsOf(omniNote(over)).forms[0].answers;
+    expect(answers({ Entry: 'Tisch', Language: 'german', Gender: 'm' })).toEqual(['der']);
+    expect(answers({ Entry: 'morceau', Language: 'french', Gender: 'm' })).toEqual(['le']);
+    expect(answers({ Entry: 'γειτονιά', Language: 'greek', Gender: 'f' })).toEqual(['η']);
+    // l'amertume has no le or la to ask for.
+    expect(answers({ Entry: 'amertume', Language: 'french', Gender: 'f' })).toEqual(['feminine']);
+  });
   it('uses masculine / feminine / neuter where the language has no article table, and refuses an unknown gender', () => {
     const ru = omniNote({ Entry: 'стол', Meaning: 'table', Language: 'russian', Gender: 'm' });
     expect(formsOf(ru).forms[0].answers).toEqual(['masculine']);

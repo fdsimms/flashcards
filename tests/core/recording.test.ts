@@ -5,6 +5,11 @@ import { omniNote } from '../support/fixtures';
 describe('recording a card with an Azure voice', () => {
   it('reads the Entry as text, and records only Omnilanguage notes with a language and no recording', () => {
     expect(recordingText(omniNote({ Entry: '<b>หนังสือ</b>&nbsp; เล่ม' }))).toBe('หนังสือ เล่ม');
+    // A noun's article is said with it where the language has one, and left out where it is only a reminder.
+    expect(recordingText(omniNote({ Entry: 'Einstellung', Language: 'german', Gender: 'f' }))).toBe('die Einstellung');
+    expect(recordingText(omniNote({ Entry: 'amertume', Language: 'french', Gender: 'f' }))).toBe("l'amertume");
+    expect(recordingText(omniNote({ Entry: 'el agua', Language: 'spanish', Gender: 'f' }))).toBe('el agua');
+    expect(recordingText(omniNote({ Entry: 'кошка', Language: 'russian', Gender: 'f' }))).toBe('кошка');
     expect(needsRecording(omniNote())).toBe(true);
     expect(needsRecording(omniNote({ Audio: '[sound:book.mp3]' }))).toBe(false);
     expect(needsRecording(omniNote({ Entry: '' }))).toBe(false);
