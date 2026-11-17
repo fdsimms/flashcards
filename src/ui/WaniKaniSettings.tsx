@@ -56,7 +56,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
       'plain-text', current !== null ? String(current) : '', 'number-pad',
     );
   };
-  const customLimit = () => askLimit('Apprentice limit', "Lessons aren't offered while more than this many items are at Apprentice.", prefs.maxApprentice, (maxApprentice) => setPrefs({ maxApprentice }));
+  const customLimit = () => askLimit('Apprentice limit', "Lessons are offered only up to this many items at Apprentice.", prefs.maxApprentice, (maxApprentice) => setPrefs({ maxApprentice }));
   const customLessons = () => askLimit('Lessons per day', 'The most lessons to offer in a study day.', prefs.newPerDay, (newPerDay) => setPrefs({ newPerDay }));
   const customLessonsOn = !NEW_PER_DAY_CHOICES.includes(prefs.newPerDay);
 
@@ -174,7 +174,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
           />
         </Group>
         <Help>
-          {`Lessons aren't offered while more than this many items are at Apprentice. Reviews are never held back.${wanikani.on && wanikani.apprentice !== null ? ` ${wanikani.apprentice} at Apprentice now.` : ''}`}
+          {`Lessons are offered only up to this many items at Apprentice. Reviews are never held back.${wanikani.on && wanikani.apprentice !== null ? ` ${wanikani.apprentice} at Apprentice now.` : ''}`}
         </Help>
 
         {wanikani.skipped.length ? (
