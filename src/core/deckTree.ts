@@ -7,6 +7,7 @@ import { isBuried, isDue, isInterdayLearning, isLearning, studiable, type Queue,
 import { paramsForDeck } from './scheduler';
 import { scaleLimits, vacationPlan, type VacationPlan, type VacationPrefs } from './vacation';
 import type { BurySettings, Card, CollectionSettings, DeckParams, DeckSettings, Note, StudyOrder } from './types';
+import { isAppFont, type AppFont } from './fonts';
 
 /**
  * Decks as Anki nests them: "A::B::C" is C inside B inside A. Studying a deck studies its
@@ -495,4 +496,9 @@ export function inheritedSetting<K extends keyof DeckSettings>(deck: string, all
     if (v !== undefined) return v;
   }
   return undefined;
+}
+
+/** The fonts a deck's cards cycle through: its own list, else its nearest ancestor's; none means the app's font. */
+export function deckCardFonts(deck: string, all: Map<string, DeckSettings>): AppFont[] {
+  return (inheritedSetting(deck, all, 'cardFonts') ?? []).filter(isAppFont);
 }

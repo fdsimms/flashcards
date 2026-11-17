@@ -3,7 +3,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { failureText } from '../core/failure';
+import { pageFont } from '../core/cardFonts';
 import { pageUsesMathJax } from '../core/mathjax';
+import { installCardFont } from '../media/cardFonts';
 import { installMathJax } from '../media/mathjax';
 import { space, type, useTheme } from './theme';
 
@@ -58,6 +60,12 @@ export function CardWebView({ html, onMessage, onTap }: {
       if (pageUsesMathJax(html)) {
         await installMathJax().catch((e) => console.warn('MathJax not installed', e));
         if (cancelled) return; // replaced meanwhile: don't write a page nothing will delete
+      }
+      // A side set in one of the bundled fonts loads its files from the documents folder; without them it shows in the system font.
+      const font = pageFont(html);
+      if (font) {
+        await installCardFont(font).catch((e) => console.warn('Card font not installed', e));
+        if (cancelled) return;
       }
       file.create({ overwrite: true });
       await file.write(html);

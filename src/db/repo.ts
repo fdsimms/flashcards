@@ -5,6 +5,7 @@ import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { isLinked, withoutPair, type ConfusedPair } from '../core/confusedPairs';
 import type { PracticeRecord } from '../core/forms';
 import type { GrammarAnswer } from '../core/grammarDrills';
+import { DEFAULT_FONT_SETTINGS, type FontSettings } from '../core/fonts';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
 import { parseVoiceSettings, type VoiceSettings } from '../core/voices';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry, CollectionSettings } from '../core/types';
@@ -79,6 +80,9 @@ export interface Repo {
   /** How large Thai text is drawn on a card. Large by default; this phone's own. */
   thaiTextSize(): Promise<ThaiTextSize>;
   saveThaiTextSize(size: ThaiTextSize): Promise<void>;
+  /** The app's font choice (src/core/fonts.ts). */
+  fontSettings(): Promise<FontSettings>;
+  saveFontSettings(settings: FontSettings): Promise<void>;
   /** Logs one answered forms practice prompt. Franki's own: never written to Anki. */
   addPractice(record: PracticeRecord): Promise<void>;
   /** Marks a logged prompt right (by note, form and time): an "almost" the user chose to count, so no miss is left behind. */
@@ -120,6 +124,7 @@ export class MemoryRepo implements Repo {
   askOwnHookSetting = true;
   answerBySpeakingSetting = false;
   thaiTextSizeSetting: ThaiTextSize = DEFAULT_THAI_TEXT_SIZE;
+  fontSettingsValue: FontSettings = DEFAULT_FONT_SETTINGS;
   practice: PracticeRecord[] = [];
   grammarAnswers: GrammarAnswer[] = [];
   confusedPairs: ConfusedPair[] = [];
@@ -217,6 +222,8 @@ export class MemoryRepo implements Repo {
   async saveAnswerBySpeaking(on: boolean) { this.answerBySpeakingSetting = on; }
   async thaiTextSize() { return this.thaiTextSizeSetting; }
   async saveThaiTextSize(size: ThaiTextSize) { this.thaiTextSizeSetting = size; }
+  async fontSettings() { return this.fontSettingsValue; }
+  async saveFontSettings(settings: FontSettings) { this.fontSettingsValue = settings; }
   async addPractice(record: PracticeRecord) { this.practice.push({ ...record }); }
   async countPractice(record: PracticeRecord) {
     for (const p of this.practice) {

@@ -4,6 +4,7 @@ import { registerUnicase } from '../../modules/anki-unicase';
 import { parseAnswerButtons } from '../core/answerButtons';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import type { CollectionSettings } from '../core/types';
+import { parseFontSettings } from '../core/fonts';
 import { parseThaiTextSize } from '../core/script';
 import { parseVoiceSettings } from '../core/voices';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } from '../core/types';
@@ -409,6 +410,13 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async saveThaiTextSize(size) {
       await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('thai_text_size', ?)", size);
+    },
+    async fontSettings() {
+      const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'app_font'");
+      return parseFontSettings(r?.value);
+    },
+    async saveFontSettings(settings) {
+      await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('app_font', ?)", JSON.stringify(settings));
     },
     async listReviews(since) {
       // ISO strings are all UTC, so comparing them as text compares the instants.

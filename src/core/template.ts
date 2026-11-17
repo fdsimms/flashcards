@@ -2,6 +2,8 @@ import { ttsFilter, ttsTags, withoutTts, TTS_NO_LANGUAGE, type TtsTag } from './
 import { clozeForTyping, clozeNumbers, clozeOnly, renderCloze } from './cloze';
 import { occlusionPlan, occlusionScript } from './imageOcclusion';
 import { mathjaxScripts, needsMathJax } from './mathjax';
+import { cardFontCss } from './cardFonts';
+import type { AppFont } from './fonts';
 import { compareAnswer } from './typeAnswer';
 import type { Note, NoteType } from './types';
 
@@ -375,6 +377,8 @@ export function cardDocument(
     mathjax?: string;
     /** The app's colors for the page behind the card, so it matches the frame it sits in. */
     colors?: { background: string; text: string; cloze: string };
+    /** Sets the page in this font (the bundled files are at `base`, with a trailing slash); the system font leaves the deck's own. */
+    font?: { id: AppFont; base: string };
   },
 ): string {
   const colors = opts.colors ?? (opts.dark
@@ -407,6 +411,7 @@ ${opts.dark ? `/* A deck's plain \`.card { background: white; color: black }\` (
    card in dark mode. \`body.card\` outranks \`.card\` but not a deck's own \`.nightMode .card\`, so a deck
    that styles night mode itself keeps its colors. */
 body.card { background: ${colors.background}; color: ${colors.text}; }` : ''}
+${opts.font ? cardFontCss(opts.font.id, opts.font.base) : ''}
 </style>
 <script>${occlusionScript(occlusionPlan(html))}</script></head>
 <body class="card card${opts.ord + 1}${night}"><div id="qa" style="width:100%${math ? ';opacity:0' : ''}">${ttsButtons(soundButtons(html))}</div>
