@@ -118,12 +118,12 @@ describe('cards', () => {
     expect(block({ Entry: '劇団', Language: 'japanese', Hanzi: '劇(ゲキ) drama' })?.label).toBe('Kanji');
     expect(block({ Entry: '剧团', Language: 'mandarin', Hanzi: '劇 drama' })?.label).toBe('Hanzi');
   });
-  it('puts мой / моя / моё before a Russian noun wherever the word is shown, but never speaks it', () => {
+  it('puts этот / эта / это before a Russian noun wherever the word is shown, but never speaks it', () => {
     const note = omniNote({ Entry: 'кошка', Meaning: 'cat', Language: 'russian', Gender: 'f', Transliteration: '' });
     const forward = renderCard(note, 'forward');
-    expect(forward.front.blocks[0]).toMatchObject({ text: 'кошка', prefix: 'моя' });
+    expect(forward.front.blocks[0]).toMatchObject({ text: 'кошка', prefix: 'эта' });
     expect(forward.front.speak).toBe('кошка');
-    expect(renderCard(note, 'reverse').back.blocks[0]).toMatchObject({ text: 'кошка', prefix: 'моя' });
+    expect(renderCard(note, 'reverse').back.blocks[0]).toMatchObject({ text: 'кошка', prefix: 'эта' });
   });
   it('puts ten / ta / to before a Polish noun by its Gender, but not before one that already starts with it', () => {
     const note = omniNote({ Entry: 'mężczyzna', Meaning: 'man', Language: 'polish', Gender: 'm', Transliteration: '' });

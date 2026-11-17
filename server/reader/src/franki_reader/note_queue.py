@@ -157,14 +157,8 @@ EXTRAS: dict[Code, tuple[Extra, ...]] = {
         ),
     ),
     "ru": (
-        # Cyrillic letters, as the owner's notes have them.
         Extra(
-            "gender",
-            "Gender",
-            'for a noun, "м", "ж" or "с"; else ' + _NO,
-            "noun",
-            frozenset({"м", "ж", "с"}),
-            1,
+            "gender", "Gender", 'for a noun, "m", "f" or "n"; else ' + _NO, "noun", _LATIN_GENDER, 1
         ),
         Extra(
             "aspect_partner",

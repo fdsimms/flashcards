@@ -13,10 +13,10 @@ export function genderOf(value: string): Gender | undefined {
 
 /**
  * The articles an Entry may start with, in the languages the decks have (German der/die/das, Spanish
- * el/la/lo, French le/la/l', Italian il, Greek ο/η/το, Norwegian en/ei/et). Which gender each is isn't
+ * el/la/lo, French le/la/l', Italian il, Greek ο/η/το, Norwegian en/ei/et, and the plurals a plural-only noun keeps: los, las, les, οι, τα). Which gender each is isn't
  * looked up: the note's Gender field says, and a word starting with one of these is a word with an article.
  */
-const ARTICLES = new Set(['der', 'die', 'das', 'el', 'la', 'lo', 'le', 'il', 'ο', 'η', 'το', 'en', 'ei', 'et', 'ett']);
+const ARTICLES = new Set(['der', 'die', 'das', 'el', 'la', 'lo', 'le', 'il', 'ο', 'η', 'το', 'en', 'ei', 'et', 'ett', 'los', 'las', 'les', 'οι', 'τα']);
 
 /** French and Italian drop the article's vowel before a vowel: l'amertume, with no space. */
 const ELISION = /^l['’](?=\S)/iu;
@@ -33,11 +33,11 @@ export function leadingArticle(entry: string): { article: string; rest: string }
 /**
  * The word shown dimmed before a noun, by the noun's Gender and its language (the first two letters of its
  * speech language). The Entry is the bare noun and the card puts this before it; Anki's template (Omnilanguage)
- * puts the same word there. Russian's and Polish's is a reminder (мой / моя / моё, ten / ta / to); in the
+ * puts the same word there. Russian's and Polish's is a reminder (этот / эта / это, ten / ta / to); in the
  * languages with a real article it is part of the word as it's said (`SPOKEN_ARTICLE`).
  */
 const GENDER_PREFIXES: Record<string, Partial<Record<Gender, string>>> = {
-  ru: { m: 'мой', f: 'моя', n: 'моё' },
+  ru: { m: 'этот', f: 'эта', n: 'это' },
   pl: { m: 'ten', f: 'ta', n: 'to' },
   es: { m: 'el', f: 'la' },
   nb: { m: 'en', f: 'ei', n: 'et' },
