@@ -767,7 +767,10 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
             <View style={{ gap: space.xs }}>
               <Text style={{ ...type.title, color: c.text }}>{text.title}</Text>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>
-                {text.episode ? `${text.topic} · Episode ${text.episode}` : (text.topic ?? (source.kind === 'topic' ? source.topic.name : source.kind === 'past' ? source.text.topic : ''))}
+                {[
+                  text.episode ? `${text.topic} · Episode ${text.episode}` : (text.topic ?? (source.kind === 'topic' ? source.topic.name : source.kind === 'past' ? source.text.topic : '')),
+                  !listenOnly && underFloor(text) ? `${Math.round(text.coverage * 100)}% known` : '',
+                ].filter(Boolean).join(' · ')}
               </Text>
               {text.last_time ? (
                 <ReadRecap
@@ -817,12 +820,6 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
               <>
                 {highlight && countOutsideDeck(text) === 0 ? (
                   <Text style={{ ...type.footnote, color: c.textSecondary }}>Every word in this text is in your deck.</Text>
-                ) : null}
-                {underFloor(text) ? (
-                  <Card style={{ padding: space.m, gap: space.s }}>
-                    <Help>{`${Math.round(text.coverage * 100)}% of the words in this one are in your deck, fewer than usual. Tap any word for its meaning.`}</Help>
-                    {highlight ? null : <View style={{ alignItems: 'flex-start' }}><HeaderAction label="Highlight them" onPress={() => turnOnHighlight(true)} /></View>}
-                  </Card>
                 ) : null}
               </>
             )}
