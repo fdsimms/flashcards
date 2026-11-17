@@ -9,6 +9,7 @@ import { notePreview } from '../core/noteEditing';
 import { answersFrom, calendarStart, type Answer } from '../core/stats';
 import { RECENT_DAYS, troubleCards, type TroubleMode, type TroubleRow } from '../core/trouble';
 import type { Card, Note, NoteType } from '../core/types';
+import { reviewWrites } from '../core/writeQueue';
 import type { AppRepo, NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { chooseAgentFlagReason } from './agentFlagSheet';
 import { haptic } from './haptics';
@@ -48,6 +49,8 @@ export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints }: {
   useEffect(() => {
     setError(undefined);
     (async () => {
+      // After the answers Review has shown but not yet written (src/core/writeQueue.ts).
+      await reviewWrites.idle();
       const now = new Date();
       const { dayStartsAtHour } = await repo.collectionSettings();
       const since = calendarStart(now, dayStartsAtHour, RECENT_DAYS);
