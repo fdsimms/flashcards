@@ -19,6 +19,7 @@ import { nextStage, outcomeText, stageChange, type StageChange } from '../wanika
 import { stackSlots } from '../wanikani/stagePopups';
 import { localAudioUri } from '../wanikani/storage';
 import { madeOf, SUBJECT_TYPE_NAMES, withComponents, type Assignment, type Subject } from '../wanikani/subjects';
+import { useKeyboardInset } from './useKeyboardInset';
 import { haptic } from './haptics';
 import { Button, Count, ErrorNote, Icon, ProgressBar, Screen, Tappable } from './kit';
 import { Reveal } from './motion';
@@ -180,12 +181,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   // The typing box sits in the footer, so the screen is padded by the keyboard, as in Review.
   const insets = useSafeAreaInsets();
   const header = useHeaderInset();
-  const [keyboard, setKeyboard] = useState(0);
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardWillShow', (e) => setKeyboard(e.endCoordinates.height));
-    const hide = Keyboard.addListener('keyboardWillHide', () => setKeyboard(0));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
+  const keyboard = useKeyboardInset();
 
   // One player for WaniKani's recordings, released when the screen closes.
   const player = useRef<AudioPlayer | null>(null);
@@ -434,14 +430,14 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         <Reveal style={{ flex: 1 }}>
           <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, flexGrow: 1, alignItems: 'center', gap: space.s, padding: space.xl }}>
           <Icon name="checkmark.circle.fill" size={56} color={c.countDue} weight="regular" />
-          <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>All done for now</Text>
+          <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>{kind === 'lessons' ? 'Lessons done' : 'Reviews done'}</Text>
           <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>
-            {done ? `${done} ${done === 1 ? 'item' : 'items'} this session. ` : ''}{kind === 'reviews' && offer ? 'Your lessons are ready when you want them.' : 'Nothing else is up on WaniKani right now.'}
+            {done ? `${done} ${done === 1 ? 'item' : 'items'} this session` : 'Nothing due right now'}
           </Text>
           {droppedNote()}
           {next.held && prefs.maxApprentice !== null ? (
             <Text style={{ ...type.subhead, color: c.warning, textAlign: 'center' }}>
-              {`Lessons are paused: ${next.apprentice} ${next.apprentice === 1 ? 'item is' : 'items are'} at Apprentice, at your limit of ${prefs.maxApprentice}.`}
+              {`Lessons paused: ${next.apprentice} at Apprentice (limit ${prefs.maxApprentice})`}
             </Text>
           ) : null}
           </ScrollView>

@@ -35,6 +35,7 @@ import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { cardFontsBase } from '../media/cardFonts';
+import { useKeyboardInset } from './useKeyboardInset';
 import { downloadedFontsBase } from './fontDownloads';
 import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
 import { mathjaxUri } from '../media/mathjax';
@@ -306,12 +307,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // keyboard covers the home indicator area the footer already leaves, so that much isn't added twice.
   const insets = useSafeAreaInsets();
   const header = useHeaderInset();
-  const [keyboard, setKeyboard] = useState(0);
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardWillShow', (e) => setKeyboard(e.endCoordinates.height));
-    const hide = Keyboard.addListener('keyboardWillHide', () => setKeyboard(0));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
+  const keyboard = useKeyboardInset();
   const typedShown = revealed ? typed : '';
   // The card's preset says whether a template card's sounds and {{tts:}} play on their own (Anki's autoplay).
   const autoplay = cardParams?.autoplay ?? true;
