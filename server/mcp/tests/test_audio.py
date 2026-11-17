@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from conftest import call, call_error
@@ -141,3 +143,48 @@ async def test_normalize_audio_says_what_it_cant_do(client):
     out = await call(client, "normalize_audio", note_ids=[WATER, BOOK], field="Back")
     assert out["changed"] == 0 and all("no audio" in r["error"] for r in out["results"])
     assert "has no field 'Word'" in (await call(client, "normalize_audio", note_ids=[WATER], field="Word"))["results"][0]["error"]
+
+
+NOUNS = "Entry,Meaning,Audio,Language,Gender"
+
+
+def nouns(desktop) -> dict[str, int]:
+    """Omnilanguage nouns on the server, from the user's computer: bare Entries and two exceptions."""
+    note = lambda **f: json.dumps(f)  # noqa: E731
+    words = [
+        ("Einstellung", "german", "f"), ("amertume", "french", "f"), ("el agua", "spanish", "f"),
+        ("bil", "norwegian", "m"), ("кошка", "russian", "f"), ("Tisch", "german", ""),
+    ]  # fmt: skip
+    args: list[str] = ["add-notetype", "Omnilanguage", NOUNS]
+    for entry, language, gender in words:
+        args += ["+", "add-fields-note", "Omnilanguage", "Default", note(Entry=entry, Meaning="x", Language=language, Gender=gender)]
+    ids = desktop.run(*args, "+", "sync")["notes"]
+    return {w[0]: i for w, i in zip(words, ids)}
+
+
+async def test_a_noun_is_read_with_its_article(client, azure, desktop):
+    n = nouns(desktop)
+    out = await call(client, "add_tts_audio", note_ids=list(n.values())[:5], source_fields=["Entry"], target_field="Audio",
+                     voice="de-DE-KatjaNeural", preview=True)
+    # The article its Gender gives; none where the Entry has its own, in a language that only shows one, or without a gender.
+    assert [p["text"] for p in out["preview"]] == ["die Einstellung", "l'amertume", "el agua", "en bil", "кошка"]
+    out = await call(client, "add_tts_audio", note_ids=[n["Tisch"]], source_fields=["Entry"], target_field="Audio",
+                     voice="de-DE-KatjaNeural", preview=True)
+    assert out["preview"][0]["text"] == "Tisch"
+    assert azure.requests == []
+
+
+async def test_the_article_can_be_left_out_and_an_override_is_read_as_given(client, desktop):
+    n = nouns(desktop)
+    ids = [n["Einstellung"]]
+    out = await call(client, "add_tts_audio", note_ids=ids, source_fields=["Entry"], target_field="Audio",
+                     voice="de-DE-KatjaNeural", article=False, preview=True)
+    assert out["preview"][0]["text"] == "Einstellung"
+    out = await call(client, "add_tts_audio", note_ids=ids, source_fields=["Entry"], target_field="Audio",
+                     voice="de-DE-KatjaNeural", text_overrides={str(ids[0]): "Einstellungen"}, preview=True)
+    assert out["preview"][0]["text"] == "Einstellungen"
+
+
+async def test_a_note_with_no_gender_or_language_field_is_read_as_before(client):
+    out = await call(client, "add_tts_audio", note_ids=[BOOK], source_fields=["Front"], target_field="Back", voice=VOICE, preview=True)
+    assert out["preview"][0]["text"] == "หนังสือ"
