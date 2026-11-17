@@ -1798,8 +1798,8 @@ def create_app(
         lesson_id = store.add_lesson(engine.conn, body.language, scene, engine.clock())
         synthesize = engine.synthesize
 
-        async def speak_bytes(text: str, voice: str, locale: str) -> bytes:
-            return (await synthesize(text, voice, locale)).audio
+        async def speak_bytes(text: str, voice: str, locale: str, rate: float) -> bytes:
+            return (await synthesize(text, voice, locale, rate=rate)).audio
 
         background.add_task(
             lesson_service.make_lesson,
