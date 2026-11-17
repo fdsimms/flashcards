@@ -13,6 +13,10 @@ import { useTheme } from './theme';
  * works because Metro compiles `import { Text } from 'react-native'` to a member access made when the
  * screen renders, not a binding taken when it's imported. Code that took `Text` at module scope with
  * `require` would miss it; there is none.
+ *
+ * Rule: a style that sets `fontFamily` at all (even to `undefined`, which means the system font) is left
+ * alone, so a face a screen names itself (Prompt for loopless Thai, a font row's own preview) is never
+ * replaced. Text that should follow the app's font must leave `fontFamily` out of its style.
  */
 
 /** The font text draws in here: the app's, or a card's inside `CardFontScope`. */
