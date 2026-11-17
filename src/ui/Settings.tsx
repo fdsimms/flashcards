@@ -47,7 +47,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
   const [hook, setHook] = useState<boolean>();
   const [speaking, setSpeaking] = useState<boolean>();
   const [thaiSize, setThaiSize] = useState<ThaiTextSize>();
-  const { settings: fontSettings } = useFontSettings();
+  const { settings: fontSettings, font: shownFont } = useFontSettings();
   const reminder = useReminderPrefs();
   const vacation = useVacationPrefs();
   const { today } = useStudyToday();
@@ -85,7 +85,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
         </Group>
         <SectionTitle>Appearance</SectionTitle>
         <Group>
-          <NavRow first label="Font" detail={fontSettings.random ? 'A different one each time the app opens' : fontOption(fontSettings.font).label} onPress={onFont} />
+          <NavRow first label="Font" detail={fontSettings.random ? 'A different one each time the app opens' : fontOption(shownFont).label} onPress={onFont} />
         </Group>
         <SectionTitle>Studying</SectionTitle>
         <Group>
