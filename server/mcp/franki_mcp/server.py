@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from mcp.server.mcpserver import MCPServer
 
-from . import forms, frequency, reader, tools
+from . import forms, frequency, reader, tiers, tools
 from .collection import CollectionManager
 from .reader import ReaderSettings
 from .speech import SpeechClient
@@ -21,4 +21,6 @@ def build_server(cm: CollectionManager, speech: SpeechClient | None = None, unim
     reader.register(server, reader_settings)
     # Ordering new cards by how common the word is, with the ranks from the same server.
     frequency.register(server, cm, reader_settings)
+    # Filing a language deck's notes into tier subdecks, each with its own desired retention.
+    tiers.register(server, cm, reader_settings)
     return server

@@ -27,10 +27,10 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from . import forms
+from . import forms, tiers
 from .auth import SingleUserAuth
 from .collection import CollectionManager, SyncSettings
-from .reader import ReaderSettings
+from .reader import ReaderClient, ReaderSettings
 from .server import build_server
 from .speech import SpeechClient
 
@@ -102,6 +102,8 @@ def build_app(environ=os.environ) -> tuple[Starlette, CollectionManager]:
     async def lifespan(a):
         async with serve(a) as state, anyio.create_task_group() as tg:
             tg.start_soon(forms.auto_fill_loop, cm, forms.UniMorph(data / "unimorph"))
+            if reader_settings:
+                tg.start_soon(tiers.daily_loop, cm, ReaderClient(reader_settings))
             yield state
             tg.cancel_scope.cancel()
 
