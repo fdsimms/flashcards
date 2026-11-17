@@ -35,6 +35,11 @@ describe('missedCardText', () => {
     expect(missedCardText(adams, plain, 't0')?.answer).toBe('John Quincy Adams');
   });
 
+  it('is undefined when both sides read the same, as with a template that hides parts by CSS', () => {
+    const table: NoteType = { ...presidents, templates: [{ ord: 0, name: 'Card 1', front: '{{Order}} {{Name}}', back: '{{FrontSide}}' }] };
+    expect(missedCardText(adams, table, 't0')).toBeUndefined();
+  });
+
   it('is undefined for Omnilanguage kinds, a missing note type and an empty side', () => {
     expect(missedCardText(adams, presidents, 'forward')).toBeUndefined();
     expect(missedCardText(adams, undefined, 't0')).toBeUndefined();
