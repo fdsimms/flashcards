@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { articleIsSpoken, bareNoun, elidesBefore, genderArticle, genderOf, leadingArticle, withArticle } from '../../src/core/gender';
+import { articleIsSpoken, bareNoun, elidesBefore, genderArticle, genderOf, leadingArticle, pluralWord, withArticle } from '../../src/core/gender';
 
 describe('gender for coloring', () => {
   it('reads m, f and n from the Gender field, however it is cased or spaced', () => {
@@ -90,5 +90,24 @@ describe('a noun without the article its Gender gives', () => {
     expect(bareNoun('de', 'm', 'Tisch')).toBe('Tisch');
     expect(bareNoun('de', undefined, 'der Tisch')).toBe('der Tisch');
     expect(bareNoun('ru', 'm', 'этот стол')).toBe('этот стол');
+  });
+});
+
+describe("Polish's plural gender words", () => {
+  it('are te for Gender pl and ci for Gender mpl, before a bare Entry only', () => {
+    expect(pluralWord('pl', 'pl', 'spodnie')).toBe('te');
+    expect(pluralWord('pl', ' MPL ', 'ludzie')).toBe('ci');
+    expect(pluralWord('pl', 'm', 'spodnie')).toBeUndefined();
+    expect(pluralWord('pl', '', 'spodnie')).toBeUndefined();
+    expect(pluralWord('de', 'pl', 'Einstellungen')).toBeUndefined();
+    expect(pluralWord('pl', 'pl', 'te spodnie')).toBeUndefined();
+  });
+  it('are never added before an Entry that starts with a gender word of the language, whichever one', () => {
+    for (const entry of ['ci ludzie', 'te drzwi', 'ten mężczyzna', 'ta kobieta', 'to dziecko']) {
+      expect(genderArticle('pl', 'm', entry), entry).toBeUndefined();
+      expect(pluralWord('pl', 'pl', entry), entry).toBeUndefined();
+    }
+    expect(genderArticle('pl', 'm', 'mężczyzna')).toBe('ten');
+    expect(genderArticle('ru', 'f', 'моя кошка')).toBeUndefined();
   });
 });

@@ -152,6 +152,14 @@ def test_a_german_verb_gets_class_auxiliary_and_key_forms() -> None:
     assert "Auxiliary" not in got_fields("de", "abwerfen", part_of_speech="verb", auxiliary="have")
 
 
+def test_polish_gender_may_also_be_pl_or_mpl_for_a_plural_only_noun() -> None:
+    for value in ("m", "pl", "mpl"):
+        assert got_fields("pl", "spodnie", part_of_speech="noun", gender=value)["Gender"] == value
+    assert "Gender" not in got_fields("pl", "spodnie", part_of_speech="noun", gender="plural")
+    # The other Latin-script languages keep m, f and n only.
+    assert "Gender" not in got_fields("fr", "le boulot", part_of_speech="noun", gender="pl")
+
+
 def test_french_gender_is_m_or_f_and_russian_gender_is_m_f_or_n() -> None:
     assert got_fields("fr", "le boulot", part_of_speech="noun", gender="m")["Gender"] == "m"
     assert "Gender" not in got_fields("fr", "le boulot", part_of_speech="noun", gender="n")

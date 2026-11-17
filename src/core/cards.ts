@@ -1,4 +1,4 @@
-import { genderArticle, genderOf, spokenEntry } from './gender';
+import { genderArticle, genderOf, pluralWord, spokenEntry } from './gender';
 import { fieldSegments } from './highlight';
 import { htmlToText, soundFiles } from './html';
 import { hasThai } from './script';
@@ -194,7 +194,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // English. A recording (`audioFile`) still plays.
   // A noun's article from its Gender (gender.ts), unless the Entry already starts with one.
   const lang2 = speechLang?.slice(0, 2) ?? '';
-  const prefix = genderArticle(lang2, genderOf(t(note, 'Gender')), entry);
+  const prefix = genderArticle(lang2, genderOf(t(note, 'Gender')), entry) ?? pluralWord(lang2, t(note, 'Gender'), entry);
   const say = speechLang ? spokenEntry(lang2, genderOf(t(note, 'Gender')), entry) : undefined;
   const translit = t(note, 'Transliteration');
   // A Thai romanization's tone marks are colored by tone (toneColors.ts).
