@@ -39,6 +39,7 @@ from .tools import search_text
 log = logging.getLogger(__name__)
 
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False)
+DESTRUCTIVE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=False)
 
 TIER_NAME = re.compile(r"^Tier \d+$")
 DEFAULT_BANDS = [1000, 3000]
@@ -222,6 +223,49 @@ async def file_deck(cm: CollectionManager, client: ReaderClient, deck: str, sett
     return {"preview": False, **summary, **await cm.write(save)}
 
 
+def _untier(col: Collection, deck: str, apply: bool) -> dict[str, Any]:
+    """Moves a deck's cards back out of its tier subdecks and removes the empty subdecks. A tier subdeck is
+    removed only once nothing is in it (a card in a filtered deck still counts), so no card is ever deleted
+    with it. The presets made for the tiers stay, unused and with daily filing off: Anki makes every device do a
+    full sync when a preset is deleted, so that is left to the user, and filing the deck again reuses them."""
+    did = col.decks.id_for_name(deck)
+    if not did:
+        names = sorted(n.name for n in col.decks.all_names_and_ids())
+        raise ToolError(f'There\'s no deck called "{deck}". Decks: {", ".join(names)}.')
+    deck = col.decks.name(did)
+    tiers = sorted((n.name, n.id) for n in col.decks.all_names_and_ids() if n.name.startswith(deck + "::") and TIER_NAME.match(n.name[len(deck) + 2 :]))
+    if not tiers:
+        raise ToolError(f'"{deck}" has no tier subdecks.')
+    plan: list[tuple[str, int, list[int], int]] = []
+    for name, tdid in tiers:
+        cids = list(col.find_cards(f'"deck:{search_text(name)}"'))
+        movable = [c for c in cids if not col.get_card(c).odid]
+        plan.append((name, tdid, movable, len(cids) - len(movable)))
+    summary: dict[str, Any] = {
+        "deck": deck,
+        "tiers": [{"deck": n, "cards_to_move_back": len(m), "in_filtered_decks": f} for n, _, m, f in plan],
+    }
+    if not apply:
+        return {"preview": True, **summary}
+    presets = [c for c in col.decks.all_config() if c.get(TIER_PRESET_KEY, {}).get("deck") == did]
+    for conf in presets:
+        # First, so the daily pass can't file the cards again, whatever happens below.
+        conf[TIER_PRESET_KEY] = {**conf[TIER_PRESET_KEY], "daily": False}
+        col.decks.update_config(conf)
+    moved = 0
+    removed: list[str] = []
+    kept: list[str] = []
+    for name, tdid, movable, _ in plan:
+        if movable:
+            moved += col.set_deck(movable, did).count
+        if col.find_cards(f'"deck:{search_text(name)}"'):
+            kept.append(name)
+        else:
+            col.decks.remove([tdid])
+            removed.append(name)
+    return {"preview": False, **summary, "moved": moved, "removed_decks": removed, "kept_decks": kept, "presets_left": len(presets)}
+
+
 def _tiered(col: Collection) -> dict[str, dict[str, Any]]:
     """The decks filed with `daily` on, by name, each with how it was filed (from its Tier 1 preset)."""
     out: dict[str, dict[str, Any]] = {}
@@ -285,6 +329,21 @@ def register(server: MCPServer, cm: CollectionManager, client: ReaderClient) -> 
                 log.exception("tiers: %s failed", deck)
                 skipped.append({"language": language, "deck": deck, "reason": f"Unexpected error ({e.__class__.__name__}); see the MCP's log."})
         return {"preview": preview, "languages": done, "skipped": skipped}
+
+    @server.tool(annotations=DESTRUCTIVE)
+    async def untier_deck(deck: str, preview: bool = True) -> dict[str, Any]:
+        """Undoes tier_deck_by_frequency for a deck: moves its cards back out of the `Tier N` subdecks into
+        the deck itself, stops the daily filing, and removes the empty tier subdecks. The options presets made for
+        the tiers (`<deck> · Tier N`) are left, unused: Anki makes every device do a full sync when a preset is
+        deleted, so delete them in Anki's deck options if you want them gone; filing the deck again reuses
+        them. The deck's own preset is untouched. A tier subdeck that still holds a card (one in a filtered
+        deck) is kept, listed under `kept_decks`, and no card is deleted.
+        `preview` (the default) changes nothing and says how many cards would move; apply with
+        preview=false only once the user agrees. After it, cards keep their schedules: only their next
+        interval is worked out from the deck's own retention again."""
+        if preview:
+            return await cm.read(lambda col: _untier(col, deck, apply=False))
+        return await cm.write(lambda col: _untier(col, deck, apply=True))
 
     @server.tool(annotations=WRITE)
     async def tier_deck_by_frequency(

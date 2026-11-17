@@ -260,6 +260,7 @@ reaches their devices at their next sync.
   higher), and keeps new notes filed daily. tier_all_languages_by_frequency does it for every
   language deck Read & Listen knows. Preview first, say which decks get new presets, and apply
   only once the user agrees. Franki shows the tiers as the one deck.
+  untier_deck undoes it for a deck (cards back in the deck, tier subdecks and presets removed).
 """
 
 
@@ -941,6 +942,9 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 term = deck.config.search_terms[0]
                 term.search, term.limit = search, max(1, min(limit, 9999))
                 term.order = FILTER_ORDERS[order]
+                # A new filtered deck has a second, empty search term, which Anki's own dialog drops when it is off and
+                # which otherwise gathers cards no search asked for.
+                del deck.config.search_terms[1:]
                 deck.config.reschedule = reschedule
                 try:
                     new_id = col.sched.add_or_update_filtered_deck(deck).id

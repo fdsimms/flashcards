@@ -275,6 +275,10 @@ async def test_filtered_decks(client):
     assert (await call(client, "filtered_deck", action="rebuild", name="Cram"))["cards"] > 0
     await call(client, "filtered_deck", action="delete", name="Cram")
     assert not any(d["deck"] == "Cram" for d in (await call(client, "list_decks"))["decks"])
+    # Only the cards the search names: a new deck's empty second search term used to gather others too.
+    narrow = await call(client, "filtered_deck", action="create", name="Narrow", search=f'"deck:{TRIVIA}" "Front:Capital of Bolivia?"')
+    assert narrow["cards"] == 1
+    await call(client, "filtered_deck", action="delete", name="Narrow")
     assert "normal deck" in await call_error(client, "filtered_deck", action="empty", name=TRIVIA)
     assert "no filtered deck" in await call_error(client, "filtered_deck", action="rebuild", name="Nope")
 

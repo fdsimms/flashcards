@@ -299,3 +299,50 @@ async def test_a_phrase_goes_in_the_first_tier(cm, desktop):
         assert {"word": "mantener a raya", "rank": None, "phrase": True} in preview["tiers"][0]["examples"]
         await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=BANDS, retentions=RET, preview=False)
     assert decks_of(desktop, [phrase, casa, inventadear]) == ["Español::Tier 1", "Español::Tier 1", "Español::Tier 3"]
+
+
+async def tier_spanish(c) -> None:
+    await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=BANDS, retentions=RET, preview=False)
+
+
+def preset_names(desktop) -> set[str]:
+    desktop.run("sync")
+    col = Collection(str(desktop.path))
+    try:
+        return {c["name"] for c in col.decks.all_config()}
+    finally:
+        col.close()
+
+
+async def test_untiering_puts_the_cards_back_and_removes_the_tiers_presets_and_daily_filing(cm, desktop):
+    esperar, inventadear, casa, hola = omni(desktop)
+    async with client_for(cm) as c:
+        await tier_spanish(c)
+        assert await cm.read(tiers._tiered)
+        preview = await call(c, "untier_deck", deck="Español")
+        assert preview["preview"] is True and [t["cards_to_move_back"] for t in preview["tiers"]] == [1, 1, 1]
+        assert decks_of(desktop, [casa]) == ["Español::Tier 1"]  # a preview moves nothing
+
+        done = await call(c, "untier_deck", deck="Español", preview=False)
+        assert done["moved"] == 3 and len(done["removed_decks"]) == 3 and done["kept_decks"] == [] and done["presets_left"] == 3
+        assert "has no tier subdecks" in await call_error(c, "untier_deck", deck="Español")
+    # Back in the deck, the other subdeck untouched, nothing left to file daily, and the tier presets gone.
+    assert decks_of(desktop, [casa, esperar, inventadear, hola]) == ["Español", "Español", "Español", "Español::Odmiana"]
+    assert await cm.read(tiers._tiered) == {}
+    # The presets are left, unused (deleting one makes every device do a full sync), and filing again reuses them.
+    assert {f"Español · Tier {i}" for i in (1, 2, 3)} <= preset_names(desktop)
+
+
+async def test_untiering_never_deletes_a_card_that_is_in_a_filtered_deck(cm, desktop):
+    esperar, inventadear, casa, hola = omni(desktop)
+    async with client_for(cm) as c:
+        await tier_spanish(c)
+        (borrowed,) = await cm.read(lambda col: list(col.find_cards(f"nid:{casa}")))
+        await call(c, "filtered_deck", action="create", name="Borrowed", search=f"cid:{borrowed}", limit=10)
+        preview = await call(c, "untier_deck", deck="Español")
+        assert preview["tiers"][0]["in_filtered_decks"] == 1
+        done = await call(c, "untier_deck", deck="Español", preview=False)
+        assert done["moved"] == 2 and done["kept_decks"] == ["Español::Tier 1"] and len(done["removed_decks"]) == 2
+        # The borrowed card is still there, in its filtered deck, and its tier deck stays for it.
+        assert await cm.read(lambda col: len(col.find_cards('"deck:Borrowed"'))) == 1
+        assert await cm.read(tiers._tiered) == {}  # daily filing is off whatever is kept
