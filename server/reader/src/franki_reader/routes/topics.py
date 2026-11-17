@@ -15,7 +15,7 @@ from franki_reader.generator import (
 )
 from franki_reader.languages import Code
 from franki_reader.routes.context import AppContext
-from franki_reader.routes.views import rendered_text, shelf_json
+from franki_reader.routes.views import rendered_text, shelf_json, stories_json
 from franki_reader.store import Topic
 from franki_reader.suggestions import suggest
 
@@ -137,6 +137,34 @@ def router(ctx: AppContext) -> APIRouter:
         except NotAvailable as e:
             raise HTTPException(503, str(e)) from e
         return {"writing": True, "id": story.id}
+
+    @routes.get("/api/stories", dependencies=authed)
+    async def stories(background: BackgroundTasks) -> dict[str, Any]:
+        # The reader's language's stories, running and ended.
+        background.add_task(engine.top_up)
+        return stories_json(engine)
+
+    @routes.post("/api/stories/{story_id}/pin", status_code=204, dependencies=authed)
+    async def pin_story(story_id: int) -> Response:
+        # Shows a running story on the shelf's card, in place of the one there.
+        if not store.pin_story(engine.conn, story_id):
+            raise HTTPException(404, "That story isn't running.")
+        return Response(status_code=204)
+
+    @routes.post("/api/stories/{story_id}/end", status_code=204, dependencies=authed)
+    async def end_story(story_id: int) -> Response:
+        # No more episodes; the ones written stay in Past texts.
+        if not store.end_story(engine.conn, story_id):
+            raise HTTPException(404, "That story has already ended.")
+        return Response(status_code=204)
+
+    @routes.post("/api/stories/{story_id}/continue", status_code=204, dependencies=authed)
+    async def continue_story(story_id: int, background: BackgroundTasks) -> Response:
+        # Runs an ended story again; its next episode is written in the background.
+        if not store.continue_story(engine.conn, story_id):
+            raise HTTPException(404, "That story is already running.")
+        background.add_task(engine.top_up)
+        return Response(status_code=204)
 
     @routes.post("/api/texts/{text_id}/skip", status_code=204, dependencies=authed)
     async def skip(text_id: int, background: BackgroundTasks) -> Response:

@@ -1,7 +1,7 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, Keyboard, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { ApiError, MAX_STORY_ABOUT_CHARS, MAX_TOPIC_CHARS, type Api, type Form, type Language, type PastText, type Shelf, type ShelfText, type TextModel, type Word } from '../../reader/api';
+import { ApiError, MAX_STORY_ABOUT_CHARS, type Api, type Language, type PastText, type Shelf, type ShelfText } from '../../reader/api';
 import { LANGUAGES, flaggedName } from '../../reader/languages';
 import { FLAG_IMAGES } from '../flagImages';
 import { SAVED_LABEL, savedState, type SavedState } from '../../reader/downloads';
@@ -9,15 +9,16 @@ import { lessonsOffered } from '../../reader/lessons';
 import { textSteps } from '../../reader/making';
 import { ReadListenAgain } from './ReadListenAgain';
 import { ReadReviewFirst } from './ReadReviewFirst';
-import { playMinutes, playOrder, reasonLabel, seasonLabel, shelfDetail, storyDetail, surprisePick } from '../../reader/shelf';
+import { cardDetail, episodeLabel, playOrder, reasonLabel, shelfDetail, upNextOrder, upNextSummary } from '../../reader/shelf';
+import { storiesDetail } from '../../reader/stories';
 import { haptic } from '../haptics';
-import { Button, Card, Divider, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, Segments, Tappable } from '../kit';
+import { Button, Card, Divider, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, SectionTitle, Tappable } from '../kit';
 import { MakingBody } from '../MakingCard';
 import { PracticeWordPill } from './PracticeWordPill';
 import { ReadRecap } from './ReadRecap';
 import { GlossPopover, type Tapped } from './Reader';
 import { SkeletonList } from '../Skeleton';
-import { MIN_TAP, space, type, useTheme, readable } from '../theme';
+import { MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { useConnectionProblem } from '../connection';
 import { prefs } from '../../reader/storage';
@@ -26,9 +27,11 @@ import { SavedMark } from './SavedMark';
 
 /**
  * Read & Listen's home: one language's shelf (docs/read-and-listen/architecture.md, Shelf). On top,
- * the ongoing story's next episode; under it the texts already written, each saying why it's there;
- * then a way to have one written, on a topic typed in or a surprise. Nothing is written unasked,
- * so opening a text never waits, since it's written already. The language is a menu in the header, and its settings are behind the sliders button.
+ * the pinned story's next episode; under it Up next, the texts already written, each saying why
+ * it's there, with Play all; then a text to hear again, and the Library (stories, past texts,
+ * lessons, marked words). The card shows the story pinned to it; others run in Stories. Nothing is written unasked, so opening a text never waits, since it's
+ * written already; the header's + has one written (`onWrite`, a sheet). The language is a menu in
+ * the header, and its settings are behind the sliders button.
  *
  * A text is written in the background after it's asked for, so this asks again while something is
  * being written, to show it as it lands.
@@ -39,7 +42,7 @@ const POLL_MS = 10_000;
 
 export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 
-export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, onPractice, onLanguagePage, onPast, onLessons, onEpisodes, onWords, onLanguage, onReview, onListenAgain }: {
+export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, onPractice, onWrite, onLanguagePage, onPast, onLessons, onStories, onWords, onLanguage, onReview, onListenAgain }: {
   api: Api;
   /** Opened from Review's "Read a text with these words": offers a text written to practice them. */
   /** The language the settings already name, so the header shows it while the shelf loads. */
@@ -50,12 +53,14 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
   onOpen: (open: OpenText) => void;
   /** Writes a text on `topicId` practicing the words just studied (the reader waits for it). */
   onPractice: (topic: { id: number; name: string }) => void;
+  /** Opens having a text written, on a topic or a surprise. */
+  onWrite: () => void;
   onLanguagePage: () => void;
   onPast: () => void;
   /** Opens the audio lessons, offered only in the languages the server makes them in. */
   onLessons: () => void;
-  /** Lists the ongoing story's episodes, first to last. */
-  onEpisodes: (storyId: number) => void;
+  /** Opens every story in the language: the one on the card and the others running or ended. */
+  onStories: () => void;
   onWords: () => void;
   /** The language was changed here; the app-wide settings follow. */
   onLanguage: () => void;
@@ -157,7 +162,13 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
   }, [practice, shelf]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const order = shelf ? playOrder(shelf) : [];
-  const open = (textId: number, playAll = false) => onOpen({ textId, order, playAll });
+  const summary = shelf ? upNextSummary(shelf) : null;
+  const open = (textId: number) => onOpen({ textId, order });
+  // Up next's texts only: the story's episode is played from its own card.
+  const playAll = () => {
+    const texts = shelf ? upNextOrder(shelf) : [];
+    if (texts.length > 0) onOpen({ textId: texts[0], order: texts, playAll: true });
+  };
 
   const textActions = (text: ShelfText) => {
     ActionSheetIOS.showActionSheetWithOptions(
@@ -184,7 +195,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
     try {
       // The idea that best fits the deck.
       const [idea] = await api.suggestions();
-      if (!idea) throw new ApiError('There are no topic ideas left. Type a topic below and write a text on it instead.', 0);
+      if (!idea) throw new ApiError('There are no topic ideas left. Tap + at the top to write a text on a topic of your own instead.', 0);
       onPractice(await api.addTopic(idea.name));
     } catch (e) {
       setActionError(e instanceof ApiError ? e.message : "Couldn't start that text. Try again.");
@@ -217,6 +228,8 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
             </Stack.Toolbar.Menu>
           </Stack.Toolbar>
           <Stack.Toolbar placement="right">
+            {/* Writing needs the server, so offline there's no +. */}
+            {problem ? null : <Stack.Toolbar.Button icon="plus" accessibilityLabel={`Write a new ${name} text`} onPress={onWrite} />}
             <Stack.Toolbar.Button icon="slider.horizontal.3" accessibilityLabel={`${name} settings`} onPress={onLanguagePage} />
           </Stack.Toolbar>
         </>
@@ -245,20 +258,22 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
         {shelf ? (
           <>
             <ReadReviewFirst language={shelf.language} onReview={onReview} />
-            <ReadListenAgain api={api} onPlay={onListenAgain} />
-            <StoryCard api={api} shelf={shelf} saved={shelf.story?.next ? markOf(shelf.story.next.id) : null} onPlayWord={onPlayWord} onOpen={(id) => open(id)} onEpisodes={onEpisodes} onStarted={refresh} />
+            <StoryCard api={api} shelf={shelf} saved={shelf.story?.next ? markOf(shelf.story.next.id) : null} onPlayWord={onPlayWord} onOpen={(id) => open(id)} onStarted={refresh} />
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: space.s }}>
-              <Text accessibilityRole="header" style={{ ...type.title, color: c.text }}>{problem ? 'Downloaded' : 'Ready for you'}</Text>
-              {order.length > 0 ? (
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: space.m, paddingTop: space.s }}>
+              <View style={{ flex: 1 }}>
+                <Text accessibilityRole="header" style={{ ...type.title, color: c.text }}>{problem ? 'Downloaded' : 'Up next'}</Text>
+                {summary ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{summary}</Text> : null}
+              </View>
+              {summary ? (
                 <Tappable
-                  onPress={() => { haptic.tap(); open(order[0], true); }}
+                  onPress={() => { haptic.tap(); playAll(); }}
                   accessibilityRole="button"
-                  accessibilityLabel={`Play all, about ${playMinutes(shelf)} minutes`}
-                  style={{ minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.xs }}
+                  accessibilityLabel={`Play all: ${summary}`}
+                  style={{ minHeight: MIN_TAP, paddingHorizontal: space.l, borderRadius: radius.pill, backgroundColor: c.accentFill, flexDirection: 'row', alignItems: 'center', gap: space.s }}
                 >
-                  <Icon name="headphones" size={17} color={c.accent} />
-                  <Text style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>{`Play all · ${playMinutes(shelf)} min`}</Text>
+                  <Icon name="play.fill" size={15} color={c.accentInk} />
+                  <Text style={{ ...type.body, fontWeight: '600', color: c.accentInk }}>Play all</Text>
                 </Tappable>
               ) : null}
             </View>
@@ -278,17 +293,20 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
             ) : (
               <Help>{problem
                 ? `No ${LANGUAGES[shelf.language].name} texts are on this iPhone. They download once you're online, as Settings, Read & Listen says.`
-                : "Nothing is written until you ask. Tap Surprise me below, or type a topic, and the text appears here when it's ready."}</Help>
+                : "Nothing is written until you ask. Tap + at the top to have a text written, and it appears here when it's ready."}</Help>
             )}
-            {shelf.texts.length > 0 && !problem ? <Help>Press and hold a text to remove it from the shelf.</Help> : null}
 
-            {problem ? null : <WriteCard api={api} onWriting={refresh} />}
+            <ReadListenAgain api={api} onPlay={onListenAgain} />
 
-            <Group>
-              <NavRow first label="Past texts" detail={problem ? 'Needs a connection' : 'Read or listen to a text again'} disabled={!!problem} onPress={onPast} />
-              {lessonsOffered(shelf.language) ? <NavRow label="Audio lessons" detail={problem ? lessonsKept(kept.lessons.filter((l) => l.complete && l.lesson.language === shelf.language).length) : 'Guided lessons to say aloud'} onPress={onLessons} /> : null}
-              <NavRow label="Marked words" loading={markedCount === null} detail={markedCount == null ? undefined : `${markedCount} marked as unknown`} onPress={onWords} />
-            </Group>
+            <View style={{ gap: space.s }}>
+              <SectionTitle>Library</SectionTitle>
+              <Group>
+                <NavRow first label="Stories" detail={problem ? 'Needs a connection' : storiesDetail(shelf.stories)} disabled={!!problem} onPress={onStories} />
+                <NavRow label="Past texts" detail={problem ? 'Needs a connection' : 'Read or listen to a text again'} disabled={!!problem} onPress={onPast} />
+                {lessonsOffered(shelf.language) ? <NavRow label="Audio lessons" detail={problem ? lessonsKept(kept.lessons.filter((l) => l.complete && l.lesson.language === shelf.language).length) : 'Guided lessons to say aloud'} onPress={onLessons} /> : null}
+                <NavRow label="Marked words" loading={markedCount === null} detail={markedCount == null ? undefined : `${markedCount} marked as unknown`} onPress={onWords} />
+              </Group>
+            </View>
           </>
         ) : null}
       </ScrollView>
@@ -310,13 +328,18 @@ function ShelfRow({ text, first, saved, onPress, onLongPress }: { text: ShelfTex
       accessibilityHint="Opens the text"
       accessibilityActions={onLongPress ? [{ name: 'more', label: 'Remove from shelf' }] : undefined}
       onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'more') onLongPress?.(); }}
-      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, backgroundColor: pressed ? c.fill : 'transparent' })}
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : 'transparent' })}
     >
-      {first ? null : <Divider inset={space.l} />}
+      {first ? null : <Divider inset={space.l + 40 + space.m} />}
+      <View style={{ width: 40, height: 40, borderRadius: radius.s + 2, backgroundColor: c.fill, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={text.form === 'dialogue' ? 'bubble.left.and.bubble.right' : 'text.alignleft'} size={18} color={c.textSecondary} />
+      </View>
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ ...type.headline, color: c.text }}>{text.title}</Text>
-        <Text style={{ ...type.subhead, color: c.textSecondary }}>{shelfDetail(text)}</Text>
-        <Text style={{ ...type.footnote, color: text.reason === 'due' ? c.countDue : c.textSecondary }}>{reason}</Text>
+        <Text style={{ ...type.footnote, color: c.textSecondary }}>
+          {`${shelfDetail(text)} · `}
+          <Text style={{ color: text.reason === 'due' ? c.countDue : c.textSecondary }}>{reason}</Text>
+        </Text>
       </View>
       {saved ? <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><SavedMark state={saved} /></View> : null}
       <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
@@ -325,7 +348,7 @@ function ShelfRow({ text, first, saved, onPress, onLongPress }: { text: ShelfTex
 }
 
 /** The ongoing story: its next episode, the one being written, or a way to start one. */
-function StoryCard({ api, shelf, saved, onPlayWord, onOpen, onEpisodes, onStarted }: { api: Api; shelf: Shelf; saved: SavedState | null; onPlayWord: (word: string, language: Language) => void; onOpen: (textId: number) => void; onEpisodes: (storyId: number) => void; onStarted: () => void }) {
+function StoryCard({ api, shelf, saved, onPlayWord, onOpen, onStarted }: { api: Api; shelf: Shelf; saved: SavedState | null; onPlayWord: (word: string, language: Language) => void; onOpen: (textId: number) => void; onStarted: () => void }) {
   const c = useTheme();
   const [about, setAbout] = useState('');
   const [starting, setStarting] = useState(false);
@@ -366,34 +389,25 @@ function StoryCard({ api, shelf, saved, onPlayWord, onOpen, onEpisodes, onStarte
   const name = story.title || 'Your story';
   const next = story.next;
   const episode = next ? next.episode : story.read + 1;
-  const season = seasonLabel(story);
   return (
     <Card style={{ borderColor: c.accent, gap: space.m }}>
-      {season ? (
-        <View style={{ gap: space.xs }}>
-          <Text style={{ ...type.overline, color: c.accent }}>{name}</Text>
-          <Text style={{ ...type.overline, color: c.textSecondary }}>{season}</Text>
-        </View>
-      ) : (
-        <Text style={{ ...type.overline, color: c.accent }}>{`${name} · Episode ${episode}`}</Text>
-      )}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', columnGap: space.s, rowGap: space.xs }}>
+        <Text style={{ ...type.overline, color: c.accent }}>{name}</Text>
+        <Text style={{ ...type.overline, color: c.textSecondary }}>{episodeLabel(story, episode)}</Text>
+      </View>
       {next ? (
         <>
           <Text style={{ ...type.title, color: c.text }}>{next.title}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-            <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>{storyDetail(next)}</Text>
+          {/* The practice words sit on the length's line, as pills. */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
+            <Text style={{ ...type.subhead, color: c.textSecondary }}>{next.stretch.length > 0 ? `${cardDetail(next)} ·` : cardDetail(next)}</Text>
+            {next.stretch.map((w) => {
+              // A server older than the practice words sends none, and the pill stays plain.
+              const word = next.practice?.find((p) => p.text === w);
+              return <PracticeWordPill key={w} word={w} onPress={word ? (x, y) => setTapped({ word, x, y }) : undefined} />;
+            })}
             {saved ? <SavedMark state={saved} /> : null}
           </View>
-          {next.stretch.length > 0 ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
-              <Text style={{ ...type.footnote, color: c.textSecondary }}>Practice words</Text>
-              {next.stretch.map((w) => {
-                // A server older than the practice words sends none, and the pill stays plain.
-                const word = next.practice?.find((p) => p.text === w);
-                return <PracticeWordPill key={w} word={w} onPress={word ? (x, y) => setTapped({ word, x, y }) : undefined} />;
-              })}
-            </View>
-          ) : null}
           <Button label="Read and listen" onPress={() => onOpen(next.id)} />
         </>
       ) : story.writing ? (
@@ -403,7 +417,6 @@ function StoryCard({ api, shelf, saved, onPlayWord, onOpen, onEpisodes, onStarte
       ) : (
         <Help>The next episode is written when you pull down or come back here.</Help>
       )}
-      {story.read > 0 ? <Button label="Past episodes" variant="secondary" onPress={() => onEpisodes(story.id)} /> : null}
       <ReadRecap
         recap={story.last_recap}
         line={story.last_recap_line}
@@ -426,66 +439,6 @@ function StoryCard({ api, shelf, saved, onPlayWord, onOpen, onEpisodes, onStarte
         onAddToDeck={null}
         onClose={() => setTapped(null)}
       />
-    </Card>
-  );
-}
-
-/** A text on any topic, written in the background; it joins the shelf when it's ready. */
-function WriteCard({ api, onWriting }: { api: Api; onWriting: () => void }) {
-  const [name, setName] = useState('');
-  const [form, setForm] = useState<Form>('dialogue');
-  const [model, setModel] = useState<TextModel>('claude-sonnet-5-5');
-  const c = useTheme();
-  // Which button is working: the other is disabled meanwhile, without a spinner of its own.
-  const [busy, setBusy] = useState<'write' | 'surprise' | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const write = async () => {
-    const topic = name.trim();
-    if (!topic || busy) return;
-    Keyboard.dismiss();
-    setBusy('write');
-    setError(null);
-    try {
-      await api.writeAbout(topic, form, model);
-      setName('');
-      onWriting();
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't start writing that. Try again.");
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  // A topic idea the deck fits, in a random form, written like a typed topic.
-  const surprise = async () => {
-    if (busy) return;
-    Keyboard.dismiss();
-    setBusy('surprise');
-    setError(null);
-    try {
-      const pick = surprisePick(await api.suggestions(), Math.random);
-      if (!pick) throw new ApiError('There are no topic ideas left. Type a topic below and write a text on it instead.', 0);
-      await api.writeAbout(pick.name, pick.form, model);
-      onWriting();
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't start writing that. Try again.");
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  return (
-    <Card>
-      <Button label="Surprise me" variant="secondary" onPress={surprise} busy={busy === 'surprise'} disabled={busy !== null} />
-      <Help>Writes a text on an idea you haven't tried, with no topic needed.</Help>
-      <Field label="Write one about something else" placeholder="For example, haggling at a market" value={name} onChangeText={setName} maxLength={MAX_TOPIC_CHARS} returnKeyType="done" onSubmitEditing={write} />
-      <Segments<Form> options={[{ value: 'dialogue', label: 'Dialogue' }, { value: 'story', label: 'Story' }]} value={form} onChange={setForm} />
-      <Text style={{ ...type.footnote, color: c.textSecondary }}>Written by</Text>
-      <Segments<TextModel> options={[{ value: 'claude-sonnet-5-5', label: 'Sonnet' }, { value: 'claude-haiku-5-5', label: 'Haiku' }]} value={model} onChange={setModel} />
-      {error ? <ErrorNote message={error} /> : null}
-      <Button label="Write" variant="secondary" onPress={write} busy={busy === 'write'} disabled={!name.trim() || busy !== null} />
-      <Help>Takes about half a minute. It joins the shelf when it's ready.</Help>
     </Card>
   );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GrammarList, ShelfText } from '../../src/reader/api';
-import { cardDetail, modelLabel, shelfDetail, grammarStepNote, hasPracticeRoom, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, seasonLabel, stepGrammarUses, stepLength, storyDetail, surprisePick } from '../../src/reader/shelf';
+import { cardDetail, episodeLabel, modelLabel, shelfDetail, grammarStepNote, hasPracticeRoom, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, upNextOrder, stepGrammarUses, stepLength, surprisePick, upNextSummary } from '../../src/reader/shelf';
 
 const text = (over: Partial<ShelfText> = {}): ShelfText => ({
   id: 1, title: 'At the stall', topic: 'Food stall', topic_id: 1, form: 'dialogue', lines: 8,
@@ -12,7 +12,7 @@ describe('the shelf', () => {
     expect(minutesFor(6)).toBe(2);
     expect(minutesFor(12)).toBe(4);
     expect(minutesFor(1)).toBe(1);
-    expect(cardDetail(text({ form: 'story', lines: 12 }))).toBe('Story · 12 lines · 4 min');
+    expect(cardDetail(text({ form: 'story', lines: 12 }))).toBe('Story · 4 min');
   });
 
   it('names the model that wrote a text, and says nothing for one from a server that does not say', () => {
@@ -20,15 +20,8 @@ describe('the shelf', () => {
     expect(modelLabel({ model: 'claude-sonnet-5-5' })).toBe('Sonnet');
     expect(modelLabel({ model: '' })).toBeNull();
     expect(modelLabel({})).toBeNull();
-    expect(shelfDetail(text({ form: 'dialogue', lines: 8, model: 'claude-haiku-5-5' }))).toBe('Dialogue · 8 lines · 3 min · Haiku');
-    expect(shelfDetail(text({ form: 'dialogue', lines: 8 }))).toBe('Dialogue · 8 lines · 3 min');
-  });
-
-  it('adds the release date to the story card, and nothing from a server that does not send one', () => {
-    const story = { form: 'story' as const, lines: 12, model: 'claude-sonnet-5-5' };
-    expect(storyDetail({ ...story, created_at: '2026-11-16T12:00' })).toBe('Story · 12 lines · 4 min · Sonnet · Released Nov 16');
-    expect(storyDetail({ ...story, created_at: null })).toBe('Story · 12 lines · 4 min · Sonnet');
-    expect(storyDetail(story)).toBe('Story · 12 lines · 4 min · Sonnet');
+    expect(shelfDetail(text({ form: 'dialogue', lines: 8, model: 'claude-haiku-5-5' }))).toBe('Dialogue · 3 min · Haiku');
+    expect(shelfDetail(text({ form: 'dialogue', lines: 8 }))).toBe('Dialogue · 3 min');
   });
 
   it('says why each text is there', () => {
@@ -44,11 +37,16 @@ describe('the shelf', () => {
   });
 
   it('places a story episode in its season, and says so on the last one', () => {
-    expect(seasonLabel({ season: 2, season_episode: 3, season_length: 8 })).toBe('Season 2 · Episode 3 of 8');
-    expect(seasonLabel({ season: 2, season_episode: 8, season_length: 8 })).toBe('Season 2 · Episode 8 of 8 · Finale');
-    expect(seasonLabel({ season: 3, season_episode: 1, season_length: 8 })).toBe('Season 3 · Episode 1 of 8');
-    // A server older than seasons sends none.
-    expect(seasonLabel({})).toBeNull();
+    expect(episodeLabel({ season: 2, season_episode: 3, season_length: 8 }, 11)).toBe('Episode 3 of 8');
+    expect(episodeLabel({ season: 2, season_episode: 8, season_length: 8 }, 16)).toBe('Episode 8 of 8 · Finale');
+    // A server older than seasons sends none, and the card keeps the running number.
+    expect(episodeLabel({}, 5)).toBe('Episode 5');
+  });
+
+  it('says what Play all goes through: the texts in Up next, without the story card episode', () => {
+    expect(upNextSummary({ texts: [] })).toBeNull();
+    expect(upNextSummary({ texts: [text({ lines: 12 })] })).toBe('1 text · 4 min');
+    expect(upNextSummary({ texts: [text({ lines: 12 }), text({ lines: 6 })] })).toBe('2 texts · 6 min');
   });
 
   it('plays the story first, then the shelf in order', () => {
@@ -57,6 +55,9 @@ describe('the shelf', () => {
     expect(playMinutes(shelf)).toBe(7);
     const withStory = { ...shelf, story: { id: 1, title: '', about: '', read: 0, last_recap: '', next: text({ id: 9 }), writing: false, failed: null } };
     expect(playOrder(withStory)).toEqual([9, 3, 5]);
+    // Play all leaves the episode to its own card.
+    expect(upNextOrder(withStory)).toEqual([3, 5]);
+    expect(playMinutes(withStory)).toBe(7);
     expect(nextInOrder([9, 3, 5], 3)).toBe(5);
     expect(nextInOrder([9, 3, 5], 5)).toBeNull();
     expect(nextInOrder([9, 3, 5], 4)).toBeNull();

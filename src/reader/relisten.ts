@@ -1,4 +1,4 @@
-// Texts to hear again (docs/read-and-listen/architecture.md, Client, Listen again): the shelf's card
+// Texts to hear again (docs/read-and-listen/architecture.md, Client, Listen again): the shelf's Hear again row
 // that offers the finished texts the server says are due (server relisten.py: 1, 4 and 10 study
 // days after each was read), and what it says about them. Pure, so it's tested.
 import { studyDayStart } from '../core/day';
@@ -24,16 +24,21 @@ function listed(items: string[]): string {
 
 export type ListenAgainCard = { title: string; detail: string; play: string };
 
-/** What the card says, or null when nothing is due. */
+/**
+ * What the shelf's Hear again row says, or null when nothing is due. One text is named in the
+ * title; several are counted there and named in the detail.
+ */
 export function listenAgainCard(texts: PastText[], now: Date, dayStartsAtHour: number): ListenAgainCard | null {
   if (texts.length === 0) return null;
+  const hidden = 'Played with the words hidden.';
+  const play = texts.length === 1 ? 'Play it' : texts.length === 2 ? 'Play both' : `Play all ${texts.length}`;
+  if (texts.length === 1) {
+    const ago = readAgo(texts[0].read_at, now, dayStartsAtHour);
+    return { title: texts[0].title, detail: ago ? `Read ${ago}. ${hidden}` : hidden, play };
+  }
   const names = texts.map((t) => {
     const ago = readAgo(t.read_at, now, dayStartsAtHour);
     return ago ? `"${t.title}" (${ago})` : `"${t.title}"`;
   });
-  return {
-    title: texts.length === 1 ? '1 text to hear again' : `${texts.length} texts to hear again`,
-    detail: `${listed(names)}. Played with the words hidden.`,
-    play: texts.length === 1 ? 'Play it' : texts.length === 2 ? 'Play both' : `Play all ${texts.length}`,
-  };
+  return { title: `${texts.length} texts`, detail: `${listed(names)}. ${hidden}`, play };
 }
