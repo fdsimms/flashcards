@@ -81,8 +81,9 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
       // Anki's decks with their ids, and Franki's own by name, for a deck column that gives a deck's id.
       const decks = [...await repo.ankiDecks(), ...[...new Set(notes.map((n) => n.deck))].map((name) => ({ name }))];
       // A row matching a note from Anki is left alone: this import can't change Anki's copy.
-      const ankiNotes = new Set((await repo.listCards()).filter((c) => c.ankiId).map((c) => c.noteId));
-      const result = leaveAnkiNotes(reconcileIds(importTsv(await picked.text(), { noteTypes: await repo.listNoteTypes(), decks }), notes), ankiNotes);
+      const cards = await repo.listCards();
+      const ankiNotes = new Set(cards.filter((c) => c.ankiId).map((c) => c.noteId));
+      const result = leaveAnkiNotes(reconcileIds(importTsv(await picked.text(), { noteTypes: await repo.listNoteTypes(), decks }), notes, cards), ankiNotes);
       await repo.upsertNotesAndCards(result.notes, result.cards);
       const shown = result.warnings.slice(0, MAX_WARNINGS);
       setLog((l) => [

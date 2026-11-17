@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildExport } from '../../src/anki/collection';
-import { collapsedDecks, deleteNote, NoteRefused, saveLeechHint, saveNote, setCardStates, setDeckCollapsed, type NoteStore } from '../../src/anki/noteService';
+import { ankiGuids, collapsedDecks, deleteNote, NoteRefused, saveLeechHint, saveNote, setCardStates, setDeckCollapsed, type NoteStore } from '../../src/anki/noteService';
 import { review } from '../../src/core/scheduler';
 import { MemoryRepo } from '../../src/db/repo';
 import { importAnkiJson } from '../../src/import/ankiJson';
@@ -109,6 +109,22 @@ describe('a note kept under an id that isn\'t Anki\'s (matched to a TSV note on 
     const db = await anki();
     expect(await db.first('SELECT id FROM notes WHERE id = ?', nid)).toBeNull();
     db.close();
+  });
+});
+
+describe("a note's Anki guid", () => {
+  it("is read from the kept collection for each note with a card there, and none without one", async () => {
+    const { store, anki } = await franki();
+    const cards = [...store.cards.values()];
+    const some = cards.find((c) => c.ankiId)!;
+    const db = await anki();
+    const { guid } = (await db.first<{ guid: string }>('SELECT n.guid FROM cards c JOIN notes n ON n.id = c.nid WHERE c.id = ?', Number(some.ankiId)))!;
+    db.close();
+    const guids = await ankiGuids(store, cards);
+    expect(guids.get(some.noteId)).toBe(guid);
+    expect(await ankiGuids(store, [{ ...some, ankiId: undefined }])).toEqual(new Map());
+    const { store: none } = await franki({ kept: false });
+    expect(await ankiGuids(none, cards)).toEqual(new Map());
   });
 });
 

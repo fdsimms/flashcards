@@ -7,6 +7,10 @@ describe('cards', () => {
   it('gates reverse/audio cards on the Generate* fields', () => {
     expect(cardKindsFor(omniNote())).toEqual(['forward']);
     expect(cardKindsFor(omniNote({ GenerateReverse: 'y' }))).toEqual(['forward', 'reverse']);
+    // As Anki's {{#GenerateReverse}} and {{^SuppressFrontCard}} read them: anything in the field
+    // turns it on, "no" and "0" included; only an empty one (or a bare <br>) is off.
+    expect(cardKindsFor(omniNote({ GenerateReverse: 'no' }))).toEqual(['forward', 'reverse']);
+    expect(cardKindsFor(omniNote({ GenerateReverse: '<br>', SuppressFrontCard: '0' }))).toEqual([]);
     expect(cardKindsFor(omniNote({ GenerateReverse: 'y', GenerateAudioCard: 'y' }))).toEqual(['forward', 'reverse', 'audio']);
     expect(cardKindsFor(omniNote({ SuppressFrontCard: 'y', GenerateAudioCard: 'y' }))).toEqual(['audio']);
   });

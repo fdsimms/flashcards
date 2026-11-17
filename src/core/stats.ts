@@ -31,7 +31,7 @@ export interface Answer {
   interday?: boolean;
   /** An answer in a filtered deck that only previews (review log type 3): it uses no deck's limits. */
   preview?: boolean;
-  /** The filtered deck it was given in, when Franki logged it there (`ReviewLogEntry.deck`). */
+  /** The deck it was given in, when Franki logged it (`ReviewLogEntry.deck`). */
   deck?: string;
   takenMs: number;
 }
@@ -46,21 +46,32 @@ export interface RevlogRow {
   type: number;
 }
 
-/** Every answer, from the review log for Anki's cards and Franki's table for the rest. */
+/**
+ * Every answer, from the review log for Anki's cards and Franki's table for the rest, and for an
+ * Anki card's answer Franki has that the review log doesn't (its Anki write failed: "it counts in
+ * Franki").
+ */
 export function answersFrom(input: { revlog: RevlogRow[]; reviews: ReviewLogEntry[]; cards: Card[] }): Answer[] {
   const byAnkiId = new Map<number, string>();
   const ankiCards = new Set<string>();
   for (const c of input.cards) {
     if (c.ankiId) { byAnkiId.set(Number(c.ankiId), c.id); ankiCards.add(c.id); }
   }
-  // Where Franki answered an Anki card in a filtered deck: its own log row for the answer, which
-  // has the deck the review log lacks. The review log row is stamped with the answer's time in ms
+  // Where Franki answered an Anki card: its own log row for the answer, which has the deck the
+  // review log lacks. The review log row is stamped with the answer's time in ms
   // (`nextRevlogId`, a little later only when two answers share a millisecond).
-  const filteredAt = new Map<string, { at: number; deck: string }[]>();
+  const answeredIn = new Map<string, { at: number; deck: string }[]>();
   for (const r of input.reviews) {
-    if (r.deck && ankiCards.has(r.cardId)) (filteredAt.get(r.cardId) ?? filteredAt.set(r.cardId, []).get(r.cardId)!).push({ at: Date.parse(r.reviewedAt), deck: r.deck });
+    if (r.deck && ankiCards.has(r.cardId)) (answeredIn.get(r.cardId) ?? answeredIn.set(r.cardId, []).get(r.cardId)!).push({ at: Date.parse(r.reviewedAt), deck: r.deck });
   }
-  const deckOf = (cardId: string, revlogId: number) => filteredAt.get(cardId)?.find((f) => revlogId >= f.at && revlogId - f.at < 1000)?.deck;
+  const deckOf = (cardId: string, revlogId: number) => answeredIn.get(cardId)?.find((f) => revlogId >= f.at && revlogId - f.at < 1000)?.deck;
+  // The review log's rows for each of Franki's Anki cards, to tell which of Franki's answers it has.
+  const logged = new Map<string, number[]>();
+  for (const r of input.revlog) {
+    const cardId = byAnkiId.get(r.cid);
+    if (cardId) (logged.get(cardId) ?? logged.set(cardId, []).get(cardId)!).push(r.id);
+  }
+  const inLog = (cardId: string, at: number) => !!logged.get(cardId)?.some((id) => id >= at && id - at < 1000);
   const out: Answer[] = [];
   for (const r of input.revlog) {
     const cardId = byAnkiId.get(r.cid);
@@ -81,7 +92,7 @@ export function answersFrom(input: { revlog: RevlogRow[]; reviews: ReviewLogEntr
     });
   }
   for (const r of input.reviews) {
-    if (ankiCards.has(r.cardId)) continue;
+    if (ankiCards.has(r.cardId) && inLog(r.cardId, Date.parse(r.reviewedAt))) continue;
     out.push({
       cardId: r.cardId,
       at: new Date(r.reviewedAt),

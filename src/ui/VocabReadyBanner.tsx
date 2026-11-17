@@ -8,13 +8,12 @@ import { useApp } from './AppContext';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { Reveal } from './motion';
+import { TODAY_PATH } from './tabPaths';
 import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
 
 const POLL_MS = 3000;
 const CHECK_PATH = '/read-vocab-check';
 
-/** The pathname of the Today tab, where the banner sits in the screen's own stack instead of floating. */
-export const TODAY_PATH = '/';
 
 /**
  * What the banner says, or null when there's nothing to announce. No effects, so Today can
@@ -121,6 +120,7 @@ export function VocabReadyBanner() {
   useEffect(() => { if (stale) vocabWatch.clear(); }, [stale]);
 
   // Today shows it in its own stack, beside the sync problem, so it never covers either.
+  // On Today the banner sits in the screen's own stack instead of floating.
   if (!banner || pathname === TODAY_PATH) return null;
   return (
     <View pointerEvents="box-none" style={{ position: 'absolute', top: insets.top + space.s, left: space.l, right: space.l }}>

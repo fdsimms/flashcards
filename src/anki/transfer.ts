@@ -66,7 +66,7 @@ export async function importCollectionPackage(repo: Repo & AnkiLink, picked: Fil
  */
 async function takeInCollection(repo: Repo & AnkiLink, collection: File) {
   const data = buildExport(await repo.readAnkiRows(collection));
-  const result = reconcileIds(importAnkiJson(data), await repo.listNotes());
+  const result = reconcileIds(importAnkiJson(data), await repo.listNotes(), await repo.listCards());
   // Note types first: a card whose template is missing falls back to plain text.
   if (result.noteTypes?.length) await repo.saveNoteTypes(result.noteTypes);
   await repo.applyAnkiCollection(result.notes, result.cards);

@@ -11,7 +11,7 @@ import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core
 import { failureText } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
-import { dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
+import { answerCounts, dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type AnswerContext, type RatingValue } from '../core/scheduler';
 import { fuzzSeed } from '../core/ankiFuzz';
@@ -23,6 +23,7 @@ import { parseDueDate } from '../core/reschedule';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
 import { answerTimeMs, bumpStudied, currentCard, sessionProgress, sessionSummary, type AnswerRecord } from '../core/session';
 import { reviewWrites } from '../core/writeQueue';
+import { vacationPlan } from '../core/vacation';
 import { durationText } from '../core/stats';
 import { wantedLines } from '../core/synonyms';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
@@ -43,6 +44,7 @@ import { stateChip } from '../core/stateChip';
 import { isLeechNote } from '../core/trouble';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
 import { useVacationPrefs } from './vacationPrefs';
+import { useStudyDay } from './useStudyDay';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
 import { wordsToUse, type WordToUse } from '../reader/production';
@@ -189,7 +191,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const [reloads, setReloads] = useState(0);
   const [noteTypes, setNoteTypes] = useState<Map<string, NoteType>>(new Map());
   const [deckSettings, setDeckSettings] = useState<Map<string, DeckSettings>>(new Map());
-  const [revealed, setRevealed] = useState(false);
+  // The showing whose answer is shown (below): any other card, whatever brought it on (an answer, a
+  // reload after the note editor, a learning card coming due), starts with its question.
+  const [revealedAt, setRevealedAt] = useState<string>();
   const [now, setNow] = useState(() => new Date());
   const [history, setHistory] = useState<AnswerRecord[]>([]);
   const [preferId, setPreferId] = useState<string>();
@@ -273,6 +277,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held, vacation]);
 
   const current = queue ? currentCard(queue, preferId) : undefined;
+  // Each showing of a card: the same card back again (after Again, with nothing else left, or an undo)
+  // is a new showing, timed, spoken and faded in afresh, as the WebView's key below does for a template card.
+  const showing = current ? `${current.id}:${history.length}` : undefined;
+  const revealed = !!showing && revealedAt === showing;
   const note = current ? notes.get(current.noteId) : undefined;
   const glossFor = useCardGlosses(glossing, queue?.order, notes);
   useEffect(() => { forms.showing({ card: current, note, revealed }); }, [current, note, revealed, forms.showing]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -405,9 +413,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const shownAt = useRef(Date.now());
   // One warning per session if answers can't be written into the Anki collection.
   const warnedAnki = useRef(false);
-  // Each showing of a card: the same card back again (after Again, with nothing else left, or an undo)
-  // is a new showing, timed, spoken and faded in afresh, as the WebView's key below does for a template card.
-  const showing = current ? `${current.id}:${history.length}` : undefined;
   useEffect(() => { shownAt.current = Date.now(); }, [showing]);
   // Each card, and each time a card comes back, starts with an empty box.
   useEffect(() => { if (!revealed) setTyped(''); }, [showing, revealed]);
@@ -472,11 +477,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const takenMs = answerTimeMs(when.getTime() - shownAt.current, cardParams);
       const record: AnswerRecord = {
         before: current, deck: cardDeck(current, note.deck), buried: siblings,
-        rating, takenMs, preview, ...(rating === 1 && miss ? { miss } : {}),
+        rating, takenMs, preview, counts: answerCounts(current, when, H, !!preview), ...(rating === 1 && miss ? { miss } : {}),
       };
       const stepCounts = { learn: (cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS).length, relearn: (cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS).length };
       const desiredRetention = cardParams?.desiredRetention;
-      const wasInFilteredDeck = current.filteredDeck;
       const interday = !preview && isInterdayLearning(current, H);
       const noteBefore = note;
 
@@ -484,8 +488,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // doesn't wait on the database. If a write fails, the answer is taken off the screen again.
       // Now a review, it weighs on the days the load balancer spreads later answers over, as in Anki.
       if (updated.sched.state === 2) recordAnswer(loadSnapshot.current, updated, cardParams?.presetId, updated.sched.scheduledDays);
-      // A preview uses no limits, as in Anki, and a reload (`studiedToday`) doesn't count it either.
-      setStudied((s) => bumpStudied(s, record.deck, record.preview ? null : studiedKind(record.before, H), 1));
+      // As a reload (`studiedToday`) counts it: a preview or an early review uses none.
+      setStudied((s) => bumpStudied(s, record.deck, record.counts, 1));
       setHistory((h) => [...h, record]);
       misses.answered(current.id, rating === 1 ? miss : undefined);
       if (rating === 1 && miss === CONFUSED_REASON && canLinkConfused(note)) confused.openLink(note.id);
@@ -500,7 +504,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const word = htmlToText(note.fields.Entry ?? '');
       ratingOffer.show(rating > 1 && !preview ? { cardId: current.id, rating, interval: intervals?.[rating], ...(word ? { word } : {}) } : null);
       setPreferId(undefined);
-      setRevealed(false);
+      setRevealedAt(undefined);
       setNow(when);
 
       writes.current++;
@@ -512,12 +516,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           await repo.saveCard(updated);
           for (const b of buried) await repo.saveCard(b);
           // Whether it was a day-long step goes in the row, so today's counts read it back after a reload.
-          // So does the filtered deck it was answered in, which a rescheduling one sends the card out of
-          // once it's a review: today's counts keep it there, as Anki counts it.
+          // So does the deck it was answered in (a filtered deck sends a card home; a card can be
+          // moved since): today's counts keep it there, as Anki's deck counter counts it.
           record.reviewId = await repo.addReview({
             cardId: record.before.id, ...res.log, interday,
             ...(rating === 1 && miss ? { miss } : {}),
-            ...(wasInFilteredDeck ? { deck: wasInFilteredDeck } : {}),
+            deck: record.deck,
           });
           // Into the kept Anki collection too, so "Send to Anki" carries this answer. If that write
           // fails, the answer still counts here, and you're told rather than it going missing.
@@ -620,13 +624,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       forgetCard(loadSnapshot.current, last.before.id);
       setHistory((h) => h.slice(0, -1));
       forms.undone(last.before.id);
-      setStudied((s) => bumpStudied(s, last.deck, last.preview ? null : studiedKind(last.before, H), -1));
+      setStudied((s) => bumpStudied(s, last.deck, last.counts, -1));
       const restored = new Map([last.before, ...last.buried].map((c) => [c.id, c]));
       setCards((prev) => prev && prev.map((c) => restored.get(c.id) ?? c));
       // The card shown again is the very one answered: it can be answered again now.
       lastAnswered.current = null;
       setPreferId(last.before.id);
-      setRevealed(false);
+      setRevealedAt(undefined);
       setNow(new Date());
       ratingOffer.show(null);
       return true;
@@ -661,10 +665,17 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   useEffect(() => {
     if (loadedDay.current && studyDayKey(now, H) !== loadedDay.current) setReloads((n) => n + 1);
   }, [now, H]);
+  // The clock is read again when the day starts with the screen open (nothing left to answer, say)
+  // or the app comes back after it, so "All done" left overnight finds the new day's cards.
+  const today = useStudyDay(H);
+  useEffect(() => {
+    if (loadedDay.current && today !== loadedDay.current) setNow(new Date());
+  }, [today]);
 
   // Out of cards with a learning card still to come: wake when it's within the learn-ahead limit
   // instead of declaring the deck done, which left it waiting until the deck was reopened.
-  const waitingFor = !current && cards
+  // Not while vacation mode is paused: the queue offers nothing then, so the card would never come.
+  const waitingFor = !current && cards && !vacationPlan(vacation, cards, now, H)?.paused
     ? nextLearningDue(cards.filter((c) => isInDeck(cardDeck(c, deckOf.get(c.noteId) ?? ''), deck)), { dayStartsAtHour: H })
     : undefined;
   useEffect(() => {
@@ -834,7 +845,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     Keyboard.dismiss();
     // A take made from memory ends here, quietly, so the answer's own recording plays.
     self.stop(false);
-    setRevealed(true);
+    setRevealedAt(showing);
     if (rendered) speak(autoplayFor(rendered, true));
   };
   // Type it and the learner's own hook (activeRecall.ts), for a native Omnilanguage card.
@@ -940,6 +951,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     busy.current = true;
     writes.current++;
     try {
+      // An answer still being written saves its card again once it has the Anki lock, which would put
+      // back the state this changes: it finishes first.
+      await reviewWrites.idle();
       const when = new Date();
       const { cards: updated, ankiError } = await setCardStates(repo, targets, change, when, H);
       if (ankiError) {
@@ -947,7 +961,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       }
       const byId = new Map(updated.map((u) => [u.id, u]));
       setCards((prev) => prev && prev.map((c) => byId.get(c.id) ?? c));
-      setRevealed(false);
+      setRevealedAt(undefined);
       setNow(when);
       haptic.success();
     } catch (e) {
@@ -993,11 +1007,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     busy.current = true;
     writes.current++;
     try {
+      await reviewWrites.idle(); // as in setStates above
       const when = new Date();
       const updated = await run(when);
       const byId = new Map(updated.map((u) => [u.id, u]));
       setCards((prev) => prev && prev.map((c) => byId.get(c.id) ?? c));
-      setRevealed(false);
+      setRevealedAt(undefined);
       setNow(when);
       haptic.success();
     } catch (e) {

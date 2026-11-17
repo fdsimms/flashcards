@@ -19,6 +19,7 @@ from franki_reader.explain import (
     PhraseRequest,
 )
 from franki_reader.languages import LANGUAGES
+from franki_reader.once import Once
 from franki_reader.routes.context import AppContext
 from franki_reader.store import StoredText
 
@@ -72,6 +73,9 @@ def router(ctx: AppContext) -> APIRouter:
     explain_form = ctx.explain_form
     check_natural = ctx.check_natural
     keep_failed_cost = ctx.keep_failed_cost
+    # An explanation being written: a second request for it (a double tap) waits for that answer
+    # rather than paying Claude for another.
+    explaining: Once[dict[str, Any]] = Once()
 
     def line_grammar(text: StoredText, line: int) -> list[dict[str, str]]:
         # Found by the finders, not asked of Claude, and read with the choices as they stand now,
@@ -104,27 +108,32 @@ def router(ctx: AppContext) -> APIRouter:
             )
         spaced = LANGUAGES[text.language].spaced
         plain = [parse_line(ln.text, spaced)[0] for ln in text.lines]
-        try:
-            points, used = await explain(
-                ExplainRequest(
-                    text.language,
-                    plain[line],
-                    text.lines[line].english,
-                    whole_text_lines(text, plain),
-                    body.simple,
-                    text.title,
-                    line,
-                    body.in_language,
+        explain_ = explain
+
+        async def ask() -> dict[str, Any]:
+            try:
+                points, used = await explain_(
+                    ExplainRequest(
+                        text.language,
+                        plain[line],
+                        text.lines[line].english,
+                        whole_text_lines(text, plain),
+                        body.simple,
+                        text.title,
+                        line,
+                        body.in_language,
+                    )
                 )
+            except ExplainFailed as e:
+                keep_failed_cost("explain", text.language, e.usage)
+                # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+                raise HTTPException(503, str(e)) from e
+            store.save_explanation(
+                engine.conn, text_id, line, body.version, points, engine.clock(), used.cost_usd()
             )
-        except ExplainFailed as e:
-            keep_failed_cost("explain", text.language, e.usage)
-            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
-            raise HTTPException(503, str(e)) from e
-        store.save_explanation(
-            engine.conn, text_id, line, body.version, points, engine.clock(), used.cost_usd()
-        )
-        return {"points": points, "grammar": line_grammar(text, line)}
+            return {"points": points, "grammar": line_grammar(text, line)}
+
+        return await explaining.run(("line", text_id, line, body.version), ask)
 
     @routes.post("/api/texts/{text_id}/lines/{line}/phrase", dependencies=authed)
     async def explain_phrase_in_line(text_id: int, line: int, body: PhraseIn) -> dict[str, Any]:
@@ -147,35 +156,40 @@ def router(ctx: AppContext) -> APIRouter:
                 "Claude isn't set up on the server, so it can't explain phrases"
                 " (ANTHROPIC_API_KEY in server/.env turns explanations on).",
             )
-        try:
-            answer, used = await explain_phrase(
-                PhraseRequest(
-                    text.language,
-                    phrase,
-                    plain[line],
-                    text.lines[line].english,
-                    whole_text_lines(text, plain),
-                    body.simple,
-                    text.title,
-                    line,
-                    body.in_language,
+        explain_phrase_ = explain_phrase
+
+        async def ask() -> dict[str, Any]:
+            try:
+                answer, used = await explain_phrase_(
+                    PhraseRequest(
+                        text.language,
+                        phrase,
+                        plain[line],
+                        text.lines[line].english,
+                        whole_text_lines(text, plain),
+                        body.simple,
+                        text.title,
+                        line,
+                        body.in_language,
+                    )
                 )
+            except ExplainFailed as e:
+                keep_failed_cost("phrase", text.language, e.usage)
+                # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+                raise HTTPException(503, str(e)) from e
+            store.save_phrase_explanation(
+                engine.conn,
+                text_id,
+                line,
+                phrase,
+                body.version,
+                answer,
+                engine.clock(),
+                used.cost_usd(),
             )
-        except ExplainFailed as e:
-            keep_failed_cost("phrase", text.language, e.usage)
-            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
-            raise HTTPException(503, str(e)) from e
-        store.save_phrase_explanation(
-            engine.conn,
-            text_id,
-            line,
-            phrase,
-            body.version,
-            answer,
-            engine.clock(),
-            used.cost_usd(),
-        )
-        return answer
+            return answer
+
+        return await explaining.run(("phrase", text_id, line, phrase, body.version), ask)
 
     @routes.post("/api/texts/{text_id}/lines/{line}/form", dependencies=authed)
     async def explain_form_in_line(text_id: int, line: int, body: FormExplainIn) -> dict[str, Any]:
@@ -196,28 +210,33 @@ def router(ctx: AppContext) -> APIRouter:
                 "Claude isn't set up on the server, so it can't explain forms"
                 " (ANTHROPIC_API_KEY in server/.env turns explanations on).",
             )
-        try:
-            paragraphs, used = await explain_form(
-                FormRequest(
-                    text.language,
-                    word,
-                    body.lemma.strip(),
-                    body.form.strip(),
-                    body.helper.strip(),
-                    plain[line],
-                    text.lines[line].english,
-                    whole_text_lines(text, plain),
-                    text.title,
-                    line,
+        explain_form_ = explain_form
+
+        async def ask() -> dict[str, Any]:
+            try:
+                paragraphs, used = await explain_form_(
+                    FormRequest(
+                        text.language,
+                        word,
+                        body.lemma.strip(),
+                        body.form.strip(),
+                        body.helper.strip(),
+                        plain[line],
+                        text.lines[line].english,
+                        whole_text_lines(text, plain),
+                        text.title,
+                        line,
+                    )
                 )
+            except ExplainFailed as e:
+                keep_failed_cost("form_explain", text.language, e.usage)
+                raise HTTPException(503, str(e)) from e
+            store.save_form_explanation(
+                engine.conn, text_id, line, word, paragraphs, engine.clock(), used.cost_usd()
             )
-        except ExplainFailed as e:
-            keep_failed_cost("form_explain", text.language, e.usage)
-            raise HTTPException(503, str(e)) from e
-        store.save_form_explanation(
-            engine.conn, text_id, line, word, paragraphs, engine.clock(), used.cost_usd()
-        )
-        return {"explanation": paragraphs}
+            return {"explanation": paragraphs}
+
+        return await explaining.run(("form", text_id, line, word), ask)
 
     @routes.post("/api/texts/{text_id}/lines/{line}/natural", dependencies=authed)
     async def check_line(text_id: int, line: int) -> dict[str, str]:

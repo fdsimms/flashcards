@@ -28,15 +28,22 @@ export function useCollapsedDecks(repo: NoteStore | null): CollapsedDecks {
     collapsedDecks(repo).then((s) => { if (started === seq.current) { read.current = true; setCollapsed(s); } }).catch(() => undefined);
   }, [repo]);
   const seed = useCallback((decks: Set<string>) => { if (!read.current && seq.current === 0) setCollapsed(decks); }, []);
+  // What's collapsed as of the last toggle, before it's drawn: a second tap on the same arrow in
+  // between toggles back, rather than reading the render's set and collapsing it again.
+  const latest = useRef(collapsed);
+  latest.current = collapsed;
   const toggle = useCallback((deck: string) => {
     if (!repo) return;
-    const next = !collapsed.has(deck);
+    const next = !latest.current.has(deck);
     seq.current++;
-    setCollapsed((prev) => { const s = new Set(prev); if (next) s.add(deck); else s.delete(deck); return s; });
+    const s = new Set(latest.current);
+    if (next) s.add(deck); else s.delete(deck);
+    latest.current = s;
+    setCollapsed(s);
     setDeckCollapsed(repo, deck, next).catch((e) => {
       Alert.alert(`Couldn't ${next ? 'collapse' : 'expand'} ${deck}`, failureText(e, { next: "It's back as it was. Try again." }));
       load();
     });
-  }, [repo, collapsed, load]);
+  }, [repo, load]);
   return useMemo(() => ({ collapsed, toggle, load, seed }), [collapsed, toggle, load, seed]);
 }

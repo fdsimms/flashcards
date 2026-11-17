@@ -104,20 +104,28 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
     setRefreshing(false);
   };
 
+  // Switches are sent one after another, so the server ends on the language picked last, and only
+  // the last one shows its outcome: picking A, then B before A's answer, leaves B on screen.
+  const switchSeq = useRef(0);
+  const switching = useRef<Promise<unknown>>(Promise.resolve());
   const changeLanguage = async (language: Language) => {
     if (language === shelf?.language) return;
+    const mine = ++switchSeq.current;
     loadSeq.current++;
     setPicked(language);
     setShelf(null);
     setError(null);
     setActionError(null);
+    const update = switching.current.then(() => api.updateSettings({ language }));
+    switching.current = update.catch(() => undefined);
     try {
-      await api.updateSettings({ language });
-      onLanguage();
+      await update;
+      if (mine === switchSeq.current) onLanguage();
     } catch (e) {
       // Not `error`: the reload below clears that once the shelf (still the old language's) loads.
-      setActionError(e instanceof ApiError ? e.message : "Couldn't switch the language. Try again.");
+      if (mine === switchSeq.current) setActionError(e instanceof ApiError ? e.message : "Couldn't switch the language. Try again.");
     }
+    if (mine !== switchSeq.current) return;
     await load();
     setPicked(null);
   };

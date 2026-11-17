@@ -266,12 +266,15 @@ marked words, ideas) is in the current language, the `language` setting.
 """
 
 import hmac
+import ipaddress
+import math
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 
 import anthropic
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from franki_speech import SpeechClient
 
 from franki_reader import (
@@ -339,6 +342,26 @@ from franki_reader.tts import (
 )
 from franki_reader.wanikani import wanikani_reader
 
+# Wrong passphrases from one source before it's refused for a while (refuse_if_guessing).
+MAX_WRONG = 20
+WRONG_WINDOW = 15 * 60
+
+
+def client_source(request: Request) -> str:
+    """Where a request came from, as the wrong-passphrase limit counts it: the address uvicorn gives
+    (Caddy's X-Forwarded-For, believed only from the proxy's network: start.sh), an IPv6 one by its
+    /64, since a connection is usually given a whole /64. The MCP counts its password page the same way."""
+    host = request.client.host if request.client else ""
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return host
+    if isinstance(ip, ipaddress.IPv6Address):
+        if ip.ipv4_mapped:
+            return str(ip.ipv4_mapped)
+        return str(ipaddress.ip_network(f"{ip}/64", strict=False))
+    return str(ip)
+
 
 def create_app(
     engine: Engine,
@@ -375,20 +398,54 @@ def create_app(
         # before comparing with the passphrase's UTF-8 bytes; otherwise "pässword" never matches.
         return (authorization or "").removeprefix("Bearer ").strip().encode("latin-1")
 
-    def require_passphrase(authorization: Annotated[str | None, Header()] = None) -> None:
+    # Wrong passphrases by where they came from: past MAX_WRONG in WRONG_WINDOW seconds, that source
+    # is refused, right passphrase or not, so it can't be guessed. Only by source, never for everyone,
+    # so a guesser can't lock the phone out. Async, so it's only ever touched on the event loop.
+    wrong: dict[str, list[float]] = {}
+
+    def refuse_if_guessing(request: Request) -> str:
+        source = client_source(request)
+        now = time.monotonic()
+        for key in list(wrong):
+            if not (kept := [t for t in wrong[key] if now - t < WRONG_WINDOW]):
+                del wrong[key]
+            else:
+                wrong[key] = kept
+        mine = wrong.get(source, [])
+        if len(mine) >= MAX_WRONG:
+            minutes = max(1, math.ceil((mine[-MAX_WRONG] + WRONG_WINDOW - now) / 60))
+            raise HTTPException(
+                429,
+                f"Too many wrong passphrases from your network. Try again in {minutes} "
+                f"{'minute' if minutes == 1 else 'minutes'}.",
+            )
+        return source
+
+    def count_wrong(source: str) -> None:
+        wrong.setdefault(source, []).append(time.monotonic())
+
+    async def require_passphrase(
+        request: Request, authorization: Annotated[str | None, Header()] = None
+    ) -> None:
         if not passphrase:
             raise HTTPException(503, "The server has no passphrase set.")
+        source = refuse_if_guessing(request)
         if not hmac.compare_digest(given_key(authorization), passphrase.encode()):
+            count_wrong(source)
             raise HTTPException(401, "Wrong passphrase.")
 
-    def require_status_key(authorization: Annotated[str | None, Header()] = None) -> None:
+    async def require_status_key(
+        request: Request, authorization: Annotated[str | None, Header()] = None
+    ) -> None:
         keys = [k for k in (passphrase, status_token) if k]
         if not keys:
             raise HTTPException(503, "The server has no passphrase set.")
+        source = refuse_if_guessing(request)
         given = given_key(authorization)
         # Both compared every time, so the answer's timing doesn't say which one was close.
         matches = [hmac.compare_digest(given, k.encode()) for k in keys]
         if not any(matches):
+            count_wrong(source)
             raise HTTPException(401, "Wrong passphrase or status key.")
 
     ctx = AppContext(

@@ -104,9 +104,21 @@ def router(ctx: AppContext) -> APIRouter:
 
     @routes.patch("/api/settings", dependencies=authed)
     async def update_settings(body: SettingsUpdate, background: BackgroundTasks) -> dict[str, Any]:
-        current = store.load_settings(engine.conn)
         if body.common and any(not LANGUAGES[code].counts_common for code in body.common):
             raise HTTPException(422, "Thai counts only the words in its deck.")
+        # Every voice is checked first: the gender check can wait seconds on Azure's voice list, and
+        # settings read before it would be saved over a change another request made meanwhile.
+        for code, chosen in (body.voices or {}).items():
+            for speaker, name in chosen.items():
+                if name.strip():
+                    check_voice(name.strip(), code)
+                    await _check_voice_gender(speech, name.strip(), speaker)
+        for code, chosen_for in (body.cast or {}).items():
+            for kind, choice in chosen_for.items():
+                if choice is not None:
+                    check_voice(choice.voice, code)
+                    await _check_voice_gender(speech, choice.voice, cast.CAST_TYPES[kind][0])
+        current = store.load_settings(engine.conn)
         common = dict(current.common)
         for code, count in (body.common or {}).items():
             if count == LANGUAGES[code].common:
@@ -131,8 +143,6 @@ def router(ctx: AppContext) -> APIRouter:
             for speaker, name in chosen.items():
                 name = name.strip()
                 if name:
-                    check_voice(name, code)
-                    await _check_voice_gender(speech, name, speaker)
                     mine[speaker] = name
                 else:
                     mine.pop(speaker, None)
@@ -145,9 +155,6 @@ def router(ctx: AppContext) -> APIRouter:
                 if choice is None:
                     mine_cast.pop(kind, None)
                     continue
-                check_voice(choice.voice, code)
-                gender = cast.CAST_TYPES[kind][0]
-                await _check_voice_gender(speech, choice.voice, gender)
                 mine_cast[kind] = {"voice": choice.voice, "pitch": choice.pitch}
             if not mine_cast:
                 story_cast.pop(code)

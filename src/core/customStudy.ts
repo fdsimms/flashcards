@@ -9,6 +9,8 @@ export const CUSTOM_STUDY_DECK = 'Custom Study Session';
 
 /** The most days or cards a field accepts: Anki's own limit for these fields. */
 export const CUSTOM_STUDY_MAX = 9999;
+/** How many cards a search that asks for no count takes, as Anki's custom_study.rs builds it (99,999), so every match is in. */
+const SEARCH_LIMIT = 99_999;
 
 export type CramSelect = 'new' | 'due' | 'review' | 'all';
 
@@ -32,8 +34,9 @@ export interface FilteredPlan {
   limit: number;
   order: number;
   /**
-   * Whether answers reschedule the cards. Anki's Review ahead reschedules; the rest are previews:
-   * the card goes back to its deck unchanged once it's passed.
+   * Whether answers reschedule the cards. Anki's Review ahead reschedules, and so does a cram of
+   * new, due or review cards (rslib's custom_study.rs, `cram_config`); the rest are previews: the
+   * card goes back to its deck unchanged once it's passed.
    */
   reschedule: boolean;
 }
@@ -76,17 +79,17 @@ export function filteredPlan(c: CustomStudy, deck: string): FilteredPlan | undef
     case 'moreReviews':
       return undefined;
     case 'forgotten':
-      return { search: `${inDeck} rated:${c.days}:1`, limit: CUSTOM_STUDY_MAX, order: FILTERED_ORDER.random, reschedule: false };
+      return { search: `${inDeck} rated:${c.days}:1`, limit: SEARCH_LIMIT, order: FILTERED_ORDER.random, reschedule: false };
     case 'ahead':
-      return { search: `${inDeck} prop:due<=${c.days}`, limit: CUSTOM_STUDY_MAX, order: FILTERED_ORDER.due, reschedule: true };
+      return { search: `${inDeck} prop:due<=${c.days}`, limit: SEARCH_LIMIT, order: FILTERED_ORDER.due, reschedule: true };
     case 'previewNew':
-      return { search: `${inDeck} is:new added:${c.days}`, limit: CUSTOM_STUDY_MAX, order: FILTERED_ORDER.added, reschedule: false };
+      return { search: `${inDeck} is:new added:${c.days}`, limit: SEARCH_LIMIT, order: FILTERED_ORDER.added, reschedule: false };
     case 'cram': {
       const state = { new: 'is:new', due: 'is:due', review: '-is:new', all: '' }[c.select];
       const order = c.select === 'new' ? FILTERED_ORDER.added : c.select === 'due' ? FILTERED_ORDER.due : FILTERED_ORDER.random;
       const include = c.include.length ? `(${c.include.map((t) => `tag:${quoted(t)}`).join(' or ')})` : '';
       const exclude = c.exclude.map((t) => `-tag:${quoted(t)}`).join(' ');
-      return { search: [inDeck, state, include, exclude].filter(Boolean).join(' '), limit: c.count, order, reschedule: false };
+      return { search: [inDeck, state, include, exclude].filter(Boolean).join(' '), limit: c.count, order, reschedule: c.select !== 'all' };
     }
   }
 }
@@ -109,7 +112,7 @@ export const CUSTOM_STUDY_OPTIONS: CustomStudyOption[] = [
   { kind: 'forgotten', title: "Review forgotten cards", detail: "Go over the cards you answered Again on recently. Their schedules stay as they are.", field: { label: 'Days back', start: 1 } },
   { kind: 'ahead', title: "Review ahead", detail: "Study reviews that are due in the next few days. Answers reschedule them as usual.", field: { label: 'Days ahead', start: 1 } },
   { kind: 'previewNew', title: "Preview new cards", detail: "Look at new cards added recently without starting them. Their schedules stay as they are.", field: { label: 'Days back', start: 1 } },
-  { kind: 'cram', title: "Study by card state or tag", detail: "Pick cards by their state or tags, for example to cram before a test. Their schedules stay as they are.", field: { label: 'Cards', start: 100 }, cram: true },
+  { kind: 'cram', title: "Study by card state or tag", detail: "Pick cards by their state or tags, for example to cram before a test. New, due and review cards are rescheduled by your answers, as usual. All cards only previews them.", field: { label: 'Cards', start: 100 }, cram: true },
 ];
 
 export const CRAM_CHOICES: { select: CramSelect; label: string }[] = [

@@ -3,6 +3,7 @@ keeping the last list when it can't be read, and refreshing it with the Japanese
 
 import asyncio
 import random
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -81,6 +82,10 @@ class FakeWaniKani:
         )
 
 
+def reader_on(handle: Callable[[httpx.Request], httpx.Response]) -> Any:
+    return wanikani_reader("token", httpx.MockTransport(handle))
+
+
 def read_with(fake: FakeWaniKani) -> Any:
     return wanikani_reader("token", httpx.MockTransport(fake.handle))
 
@@ -106,6 +111,27 @@ def test_a_refused_token_or_a_failure_is_unavailable() -> None:
         asyncio.run(read_with(FakeWaniKani(401))())
     with pytest.raises(WaniKaniUnavailable):
         asyncio.run(read_with(FakeWaniKani(503))())
+
+
+def test_a_next_page_off_wanikani_is_not_followed_and_an_endless_list_fails() -> None:
+    asked: list[str] = []
+
+    def off_site(request: httpx.Request) -> httpx.Response:
+        asked.append(str(request.url))
+        return httpx.Response(
+            200, json={"data": [], "pages": {"next_url": "https://evil.example/next"}}
+        )
+
+    assert asyncio.run(reader_on(off_site)()) == []
+    assert all(u.startswith("https://api.wanikani.com/") for u in asked)
+
+    def endless(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, json={"data": [], "pages": {"next_url": str(request.url) + "&p"}}
+        )
+
+    with pytest.raises(WaniKaniUnavailable, match="never ended"):
+        asyncio.run(reader_on(endless)())
 
 
 def test_only_vocabulary_with_a_meaning_is_kept() -> None:

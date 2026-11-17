@@ -14,6 +14,11 @@ test('the mark goes on the first vowel and the syllables stay separated', () => 
   expect(thaiToneMarks('/hen˩˩˦.koŋ˧.t͡ɕak̚˨˩/')).toBe('/hěn.koŋ.t͡ɕàk̚/');
 });
 
+test('each word of a phrase keeps its own tone', () => {
+  expect(thaiToneMarks('/kʰɔːp̚˨˩.kʰun˧ kʰrap̚˦˥/')).toBe('/kʰɔ̀ːp̚.kʰun kʰráp̚/');
+  expect(thaiToneMarks('/sa˨˩.wat̚˨˩.diː˧ kʰa˥˩/')).toBe('/sà.wàt̚.diː kʰâ/');
+});
+
 test('a vowel with no precomposed letter takes a combining mark', () => {
   expect(thaiToneMarks('/tʰɔːn˧/')).toBe('/tʰɔːn/');
   expect(thaiToneMarks('/pʰɔː˦˥/')).toBe('/pʰɔ́ː/');

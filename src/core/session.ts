@@ -22,7 +22,7 @@ export function answerTimeMs(shownForMs: number, params: Pick<DeckParams, 'maxAn
 
 /**
  * Today's counts after an answer (`delta` 1) or its undo (-1) on a card in `deck`, by what the
- * answer used of the limits (`studiedKind` of the card before it): the same rule `studiedToday`
+ * answer used of the limits (`AnswerRecord.counts`, from `answerCounts`): the same rule `studiedToday`
  * counts by, so an undo takes back exactly what the answer added.
  */
 export function bumpStudied(
@@ -58,8 +58,10 @@ export interface AnswerRecord {
   buried: Card[];
   /** The note the answer tagged as a leech: undo takes the tag back off, leaving anything edited since (a hint). */
   leechNoteId?: string;
-  /** An answer in a filtered deck that only previews: it uses no limits, so it isn't counted in today's. */
+  /** An answer in a filtered deck that only previews. */
   preview?: boolean;
+  /** What the answer used of today's limits (`answerCounts`), worked out once, so undo takes back the same. */
+  counts: 'new' | 'review' | null;
   /** What went wrong, chosen from Again's menu (misses.ts), for the session end's list of misses. */
   miss?: string;
 }

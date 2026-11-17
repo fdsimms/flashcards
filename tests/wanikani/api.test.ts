@@ -39,6 +39,13 @@ describe('requests', () => {
     expect(calls).toHaveLength(2);
   });
 
+  it('fails a collection that never ends, rather than using part of it', async () => {
+    let n = 0;
+    const { fn, calls } = fakeFetch(() => ({ body: { data: [assignmentResource(++n, 10)], pages: { next_url: `https://api.wanikani.com/v2/assignments?page_after_id=${n}` } } }));
+    await expect(createWaniKaniApi('t', fn).reviewsAvailable(60)).rejects.toEqual(new WaniKaniError('unavailable'));
+    expect(calls).toHaveLength(40);
+  });
+
   it('keeps a free account to the levels it opens', async () => {
     const { fn, calls } = fakeFetch(() => ({ body: { total_count: 4, data: [] } }));
     expect(await createWaniKaniApi('t', fn).counts(3)).toEqual({ reviews: 4, lessons: 4, apprentice: 4 });

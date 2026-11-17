@@ -2,7 +2,7 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { isInDeck } from '../core/deckTree';
 import { Refusal } from '../core/failure';
-import type { Repo } from '../db/repo';
+import { ankiGuids, type NoteStore } from '../anki/noteService';
 import { exportTsv } from '../import/exportTsv';
 
 /**
@@ -11,12 +11,14 @@ import { exportTsv } from '../import/exportTsv';
  * many notes were shared; the share sheet is the person's to dismiss, so a file they back out of
  * still counts. Throws a `Refusal` when there's nothing to share or the share sheet isn't there.
  */
-export async function shareDeckNotes(repo: Repo, deck: string): Promise<number> {
-  const [all, noteTypes] = await Promise.all([repo.listNotes(), repo.listNoteTypes()]);
+export async function shareDeckNotes(repo: NoteStore, deck: string): Promise<number> {
+  const [all, noteTypes, cards] = await Promise.all([repo.listNotes(), repo.listNoteTypes(), repo.listCards()]);
   const notes = all.filter((n) => isInDeck(n.deck, deck));
   if (!notes.length) throw new Refusal(`"${deck}" has no notes to export.`);
   if (!(await Sharing.isAvailableAsync())) throw new Refusal("Couldn't open the share sheet on this device, so nothing was exported.");
-  for (const f of exportTsv(notes, noteTypes, deck.replace(/::/g, ' - '))) {
+  const ids = new Set(notes.map((n) => n.id));
+  const guids = await ankiGuids(repo, cards.filter((c) => ids.has(c.noteId)));
+  for (const f of exportTsv(notes, noteTypes, deck.replace(/::/g, ' - '), guids)) {
     const file = new File(Paths.cache, f.name);
     file.create({ overwrite: true });
     await file.write(f.text);

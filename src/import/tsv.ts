@@ -115,15 +115,19 @@ export function importTsv(
 ): ImportResult {
   const warnings: string[] = [];
   const headers: Record<string, string> = {};
-  const lines = text.replace(/^﻿/, '').split(/\r?\n/);
+  const all = text.replace(/^﻿/, '');
+  // The header lines are read off the top, and the body is the rest as it is: split into lines and
+  // joined again, a line break inside a quoted field lost its \r.
   let bodyStart = 0;
-  while (bodyStart < lines.length && lines[bodyStart].startsWith('#')) {
-    const m = /^#([^:]+):(.*)$/.exec(lines[bodyStart]);
+  while (all.startsWith('#', bodyStart)) {
+    const end = all.indexOf('\n', bodyStart);
+    const line = (end < 0 ? all.slice(bodyStart) : all.slice(bodyStart, end)).replace(/\r$/, '');
+    const m = /^#([^:]+):(.*)$/.exec(line);
     // Untrimmed, so "#separator: " (a space) and "#separator:\t" survive.
     if (m) headers[m[1].trim().toLowerCase()] = m[2];
-    bodyStart++;
+    bodyStart = end < 0 ? all.length : end + 1;
   }
-  const body = lines.slice(bodyStart).join('\n');
+  const body = all.slice(bodyStart);
   // With no #separator (or one Anki doesn't know), it's guessed from the text, as Anki does.
   let sep = headers['separator'] !== undefined ? separatorFrom(headers['separator']) : undefined;
   if (headers['separator'] !== undefined && !sep) {
