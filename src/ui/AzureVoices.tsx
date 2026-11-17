@@ -4,8 +4,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { failureText } from '../core/failure';
 import { recordingName } from '../core/recording';
 import type { Api, AzureVoice } from '../reader/api';
-import { isMultilingual } from '../reader/storyCast';
-import { CheckRow } from './kit';
+import { isMultilingual, voiceNotes, voiceTag } from '../reader/storyCast';
+import { CheckRow, Help } from './kit';
 
 /**
  * Azure's voices, as Read & Listen's server lists and speaks them: for Read & Listen's speakers
@@ -78,13 +78,19 @@ export function AzureVoiceRows({ voices, selected, onChoose, none }: {
           key={v.voice}
           first={!none && i === 0}
           label={v.name}
-          hint={[v.gender, v.locale, isMultilingual(v.voice) ? 'any language' : ''].filter(Boolean).join(', ')}
+          hint={[v.gender, v.locale, voiceTag(v.voice), isMultilingual(v.voice) ? 'any language' : ''].filter(Boolean).join(', ')}
           selected={selected === v.voice}
           onPress={() => onChoose(v)}
         />
       ))}
     </>
   );
+}
+
+/** What the qualifiers in the listed voices' names (HD, Flash, Omni, MAI) mean; nothing when none is listed. */
+export function AzureVoiceTerms({ voices }: { voices: AzureVoice[] }) {
+  const notes = voiceNotes(voices);
+  return notes.length ? <Help>{notes.join(' ')}</Help> : null;
 }
 
 /** A voice's display name (Premwadee), from the list; its id when it isn't there. */
