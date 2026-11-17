@@ -428,14 +428,14 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         <Reveal style={{ flex: 1 }}>
           <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, flexGrow: 1, alignItems: 'center', gap: space.s, padding: space.xl }}>
           <Icon name="checkmark.circle.fill" size={56} color={c.countDue} weight="regular" />
-          <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>All done for now</Text>
+          <Text style={{ ...type.title, color: c.text, textAlign: 'center', marginTop: space.s }}>{kind === 'lessons' ? 'Lessons done' : 'Reviews done'}</Text>
           <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>
-            {done ? `${done} ${done === 1 ? 'item' : 'items'} this session. ` : ''}{kind === 'reviews' && offer ? 'Your lessons are ready when you want them.' : 'Nothing else is up on WaniKani right now.'}
+            {done ? `${done} ${done === 1 ? 'item' : 'items'} this session` : 'Nothing due right now'}
           </Text>
           {droppedNote()}
           {next.held && prefs.maxApprentice !== null ? (
             <Text style={{ ...type.subhead, color: c.warning, textAlign: 'center' }}>
-              {`Lessons are paused: ${next.apprentice} ${next.apprentice === 1 ? 'item is' : 'items are'} at Apprentice, at your limit of ${prefs.maxApprentice}.`}
+              {`Lessons paused: ${next.apprentice} at Apprentice (limit ${prefs.maxApprentice})`}
             </Text>
           ) : null}
           </ScrollView>
