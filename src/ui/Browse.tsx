@@ -5,6 +5,7 @@ import type { NoteStore } from '../anki/noteService';
 import { failureText } from '../core/failure';
 import { deckChipRows, matchesNoteFilter, NOTE_FILTERS, notePreview, searchNotes, type NoteFilter } from '../core/noteEditing';
 import type { Card, Note } from '../core/types';
+import { reviewWrites } from '../core/writeQueue';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { Chip, Divider, Loading, Screen } from './kit';
 import { hairline, radius, smooth, space, type, useTheme, readable } from './theme';
@@ -28,6 +29,8 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
   const load = useCallback(async () => {
     setError(null);
     try {
+      // After the answers Review has shown but not yet written (src/core/writeQueue.ts).
+      await reviewWrites.idle();
       const [loaded, all, { dayStartsAtHour }] = await Promise.all([repo.listNotes(), repo.listCards(), repo.collectionSettings()]);
       const byNote = new Map<string, Card[]>();
       for (const card of all) byNote.set(card.noteId, [...(byNote.get(card.noteId) ?? []), card]);

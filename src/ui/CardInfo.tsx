@@ -8,6 +8,7 @@ import { cardHomeDeck } from '../core/deckTree';
 import { failureText } from '../core/failure';
 import { paramsForDeck } from '../core/scheduler';
 import { durationText } from '../core/stats';
+import { reviewWrites } from '../core/writeQueue';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { Divider, Group, Loading, Screen, SectionTitle } from './kit';
@@ -93,6 +94,8 @@ export function CardInfo({ repo, cardId }: { repo: Repo & AnkiLink; cardId: stri
     setError(undefined);
     (async () => {
       try {
+        // After the answers Review has shown but not yet written (src/core/writeQueue.ts).
+        await reviewWrites.idle();
         const now = new Date();
         const card = (await repo.listCards()).find((x) => x.id === cardId);
         const note = card && (await repo.getNote(card.noteId));

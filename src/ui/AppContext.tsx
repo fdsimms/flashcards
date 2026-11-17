@@ -8,6 +8,7 @@ import { listedDecks } from '../core/deckNames';
 import { deckRows, queueInput, type DeckRow } from '../core/deckTree';
 import { studiedToday } from '../core/queue';
 import type { Note } from '../core/types';
+import { reviewWrites } from '../core/writeQueue';
 import { backupStatus } from '../db/backup';
 import type { AnkiLink, SyncSettings } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
@@ -102,6 +103,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(() => load.guard(async () => {
     if (!repo) return;
+    // Review shows the next card before its answer is written; counting before the writes land
+    // would show a deck with counts its review screen won't open with.
+    await reviewWrites.idle();
     const now = new Date();
     const collection = await repo.collectionSettings();
     setDayStartsAtHour(collection.dayStartsAtHour);

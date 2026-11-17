@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text } from 'react-native';
 import { buildPackageForAnki, importCollectionPackage } from '../anki/transfer';
 import { failureText } from '../core/failure';
+import { reviewWrites } from '../core/writeQueue';
 import type { AnkiLink, AnkiStatus } from '../db/ankiLink';
 import { fileUriToPath } from '../db/backup';
 import type { Repo } from '../db/repo';
@@ -38,7 +39,8 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
   const running = useRef(false);
   const say = (line: string) => setLog((l) => [line, ...l]);
 
-  const refresh = useCallback(async () => setStatus(await repo.ankiStatus()), [repo]);
+  // After Review's pending answers are written, so the unsent count includes them.
+  const refresh = useCallback(async () => { await reviewWrites.idle(); setStatus(await repo.ankiStatus()); }, [repo]);
   useEffect(() => { refresh(); }, [refresh]);
 
   const run = async (which: 'import' | 'send', work: () => Promise<void>) => {
@@ -56,7 +58,10 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
 
   const importPackage = (picked: File, name: string) => run('import', async () => {
     try {
-      // Holding the kept collection, so neither a sync nor an answer writes it mid-import.
+      // Holding the kept collection, so neither a sync nor an answer writes it mid-import. Answers
+      // Review is still writing go first (outside the lock, which they wait on), or one would land
+      // after the import and over the scheduling it brought in.
+      await reviewWrites.idle();
       const r = await repo.lockAnki(() => importCollectionPackage(repo, picked));
       const shown = r.warnings.slice(0, MAX_WARNINGS);
       setLog((l) => [
@@ -135,7 +140,9 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
 
   const send = () => run('send', async () => {
     try {
-      // Under the lock, so a sync can't commit to the collection while it's being packed.
+      // Under the lock, so a sync can't commit to the collection while it's being packed. Answers
+      // Review is still writing go in first (outside the lock, which they wait on).
+      await reviewWrites.idle();
       const out = await repo.lockAnki(() => buildPackageForAnki(repo));
       if (!(await Sharing.isAvailableAsync())) {
         say(`Couldn't open the share sheet on this device, so ${out.name} wasn't sent anywhere.`);
