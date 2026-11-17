@@ -1,7 +1,7 @@
 import { Asset } from 'expo-asset';
 import { Directory, File, Paths } from 'expo-file-system';
 import { CARD_FONTS_DIR } from '../core/cardFonts';
-import { fontFileNames, type AppFont } from '../core/fonts';
+import { fontFileNames, isBundled, type AppFont } from '../core/fonts';
 
 /**
  * The bundled fonts where a card page can load them. A WebView reads only the documents folder (like
@@ -46,9 +46,6 @@ const FILES: Record<string, number> = {
   'SourceSerif4_600SemiBold.ttf': require('../../assets/fonts/SourceSerif4_600SemiBold.ttf'),
   'SourceSerif4_700Bold.ttf': require('../../assets/fonts/SourceSerif4_700Bold.ttf'),
   'Sriracha_400Regular.ttf': require('../../assets/fonts/Sriracha_400Regular.ttf'),
-  'Yomogi_400Regular.ttf': require('../../assets/fonts/Yomogi_400Regular.ttf'),
-  'ZenKurenaido_400Regular.ttf': require('../../assets/fonts/ZenKurenaido_400Regular.ttf'),
-  'ZenMaruGothic_400Regular.ttf': require('../../assets/fonts/ZenMaruGothic_400Regular.ttf'),
 };
 
 /** The folder's file:// URI with a trailing slash, for `cardDocument`'s `fontBase`. */
@@ -70,6 +67,8 @@ export function installCardFont(id: AppFont): Promise<void> {
 }
 
 async function copyFont(id: AppFont): Promise<void> {
+  // A downloaded font's files are already in the documents folder (src/ui/fontDownloads.ts).
+  if (!isBundled(id)) return;
   const dir = new Directory(Paths.document, CARD_FONTS_DIR);
   dir.create({ idempotent: true, intermediates: true });
   for (const name of fontFileNames(id)) {

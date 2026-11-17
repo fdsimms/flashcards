@@ -15,8 +15,12 @@ export const FONT_SAMPLE = 'Привет · Zażółć · Straße · Καλημ�
  * covers and a sample line. `unavailable` dims the row and says why in its place (a deck's script the font
  * can't draw); it isn't tappable, so call it only for a font that isn't already checked.
  */
-export function FontRow({ id, selected, choice, detail, unavailable, first, onPress }: {
+export function FontRow({ id, selected, choice, detail, unavailable, download, onRemove, first, onPress }: {
   id: AppFont; selected: boolean; choice: 'one' | 'many'; detail?: boolean; unavailable?: string; first?: boolean; onPress: () => void;
+  /** A font that isn't on the phone yet: its size, or how far its download is (0 to 1). The row's press then starts the download. */
+  download?: { size: string; progress?: number };
+  /** Deletes a downloaded font. Shown beside the check. */
+  onRemove?: () => void;
 }) {
   const c = useTheme();
   const option = fontOption(id);
@@ -26,7 +30,7 @@ export function FontRow({ id, selected, choice, detail, unavailable, first, onPr
     <Tappable
       onPress={() => { haptic.select(); onPress(); }}
       accessibilityRole={choice === 'one' ? 'radio' : 'checkbox'}
-      accessibilityLabel={unavailable ? `${option.label}. ${unavailable}` : option.label}
+      accessibilityLabel={unavailable ? `${option.label}. ${unavailable}` : download ? `${option.label}. ${download.progress === undefined ? `Download, ${download.size}` : 'Downloading'}` : option.label}
       accessibilityState={{ disabled: !!unavailable, ...(choice === 'one' ? { selected } : { checked: selected }) }}
       disabled={!!unavailable}
       restOpacity={unavailable ? 0.45 : 1}
@@ -42,6 +46,17 @@ export function FontRow({ id, selected, choice, detail, unavailable, first, onPr
         {unavailable ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{unavailable}</Text> : null}
         {detail ? <Text style={{ ...type.callout, fontFamily: regular, color: c.text, marginTop: 2 }}>{FONT_SAMPLE}</Text> : null}
       </View>
+      {download ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+          <Text style={{ ...type.footnote, color: c.accentInk }}>{download.progress === undefined ? download.size : `${Math.round(download.progress * 100)}%`}</Text>
+          {download.progress === undefined ? <Icon name="arrow.down.circle" size={22} color={c.accent} /> : null}
+        </View>
+      ) : null}
+      {onRemove ? (
+        <Tappable accessibilityRole="button" accessibilityLabel={`Remove ${option.label}`} onPress={() => { haptic.tap(); onRemove(); }} hitSlop={space.s} style={{ paddingHorizontal: space.s, paddingVertical: space.xs }}>
+          <Text style={{ ...type.footnote, color: c.textSecondary }}>Remove</Text>
+        </Tappable>
+      ) : null}
       {selected ? <Icon name="checkmark" size={17} color={c.accent} weight="semibold" /> : null}
     </Tappable>
   );

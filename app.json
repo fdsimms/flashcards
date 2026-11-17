@@ -83,10 +83,7 @@
             "./assets/fonts/Mitr_600SemiBold.ttf",
             "./assets/fonts/Mitr_700Bold.ttf",
             "./assets/fonts/Charmonman_400Regular.ttf",
-            "./assets/fonts/Charmonman_700Bold.ttf",
-            "./assets/fonts/Yomogi_400Regular.ttf",
-            "./assets/fonts/ZenKurenaido_400Regular.ttf",
-            "./assets/fonts/ZenMaruGothic_400Regular.ttf"
+            "./assets/fonts/Charmonman_700Bold.ttf"
           ]
         }
       ],

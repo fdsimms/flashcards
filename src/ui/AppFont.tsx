@@ -1,7 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View, type TextStyle } from 'react-native';
+import { availableFont, availableFonts } from '../core/fontDownloads';
 import { DEFAULT_FONT_SETTINGS, launchFont, resolveFontFace, type AppFont, type FontSettings } from '../core/fonts';
 import type { Repo } from '../db/repo';
+import { useFontDownloads, type FontDownloads } from './useFontDownloads';
 import { useTheme } from './theme';
 
 /**
@@ -60,9 +62,9 @@ function applyPatch() {
 // Runs on import: _layout imports this module before anything renders.
 applyPatch();
 
-interface FontValue {
+interface FontValue extends Pick<FontDownloads, 'installed' | 'progress' | 'download' | 'remove'> {
   settings: FontSettings;
-  /** The font the app is drawn in now: the chosen one, or the pick made when the app opened. */
+  /** The font the app is drawn in now: the chosen one, or the pick made when the app opened, or the system font when its files aren't on the phone. */
   font: AppFont;
   /** Saves the choice, then shows it. Rejects when it couldn't be saved, so the screen can say so. */
   save: (next: FontSettings) => Promise<void>;
@@ -76,32 +78,52 @@ export function useFontSettings(): FontValue {
   return v;
 }
 
-/** Holds the app's font for everything below it. Shows nothing until the setting is read, so no screen draws in the wrong font first. */
+/**
+ * Holds the app's font for everything below it, and the downloaded fonts (src/core/fontDownloads.ts).
+ * Shows nothing until the setting is read and the fonts on the phone are registered, so no screen draws in the wrong font first.
+ */
 export function AppFontScope({ repo, children }: { repo: Repo; children: React.ReactNode }) {
   const c = useTheme();
-  const [loaded, setLoaded] = useState<{ settings: FontSettings; font: AppFont }>();
+  const [settings, setSettings] = useState<FontSettings>();
+  // The font picked for this launch (random picks happen once the downloaded fonts are known, so one that isn't on the phone isn't picked).
+  const [picked, setPicked] = useState<AppFont>();
+  const { ready, installed, progress, download, remove } = useFontDownloads();
 
   useEffect(() => {
     let stale = false;
     repo.fontSettings()
       .catch(() => DEFAULT_FONT_SETTINGS) // a setting that can't be read is no reason to keep the app from opening
-      .then((settings) => { if (!stale) setLoaded({ settings, font: launchFont(settings) }); });
+      .then((s) => { if (!stale) setSettings(s); });
     return () => { stale = true; };
   }, [repo]);
 
+  useEffect(() => {
+    if (settings && ready && picked === undefined) setPicked(launchFont(usable(settings, installed)));
+  }, [settings, ready, picked, installed]);
+
   const save = useCallback(async (next: FontSettings) => {
     await repo.saveFontSettings(next);
+    setSettings(next);
     // A random pick holds until the app is opened again, unless the font showing is no longer in the pool.
-    setLoaded((prev) => ({ settings: next, font: !next.random ? next.font : prev && next.pool.includes(prev.font) ? prev.font : launchFont(next) }));
-  }, [repo]);
+    setPicked((prev) => (!next.random ? next.font : prev && next.pool.includes(prev) ? prev : launchFont(usable(next, installed))));
+  }, [repo, installed]);
 
-  const value = useMemo(() => loaded && { settings: loaded.settings, font: loaded.font, save }, [loaded, save]);
+  const value = useMemo(
+    () => (settings && ready && picked !== undefined ? { settings, font: availableFont(picked, installed), installed, progress, download, remove, save } : undefined),
+    [settings, ready, picked, installed, progress, download, remove, save],
+  );
   if (!value) return <View style={{ flex: 1, backgroundColor: c.bg }} />;
   return (
     <Value.Provider value={value}>
       <FontContext.Provider value={value.font}>{children}</FontContext.Provider>
     </Value.Provider>
   );
+}
+
+/** The settings with only the fonts that can be used now: a random pick comes from the pool's available ones. */
+function usable(s: FontSettings, installed: ReadonlySet<AppFont>): FontSettings {
+  const pool = availableFonts(s.pool, installed);
+  return { ...s, font: availableFont(s.font, installed), pool: pool.length ? pool : [availableFont(s.font, installed)] };
 }
 
 /** A card's own font, over the app's: what a deck cycling its fonts picked for this card, or the system font when cards don't use the app's. */

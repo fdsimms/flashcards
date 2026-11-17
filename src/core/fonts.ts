@@ -39,6 +39,8 @@ export interface AppFontOption {
   weights: FontWeightKey[];
   /** The scripts besides Latin that the family covers. The system font falls back per character, so it covers every one. */
   scripts: Script[];
+  /** Not in the app: the files are downloaded when the font is first wanted (`FONT_DOWNLOADS`). */
+  download?: true;
 }
 
 const ALL_SCRIPTS: Script[] = ['cyrillic', 'greek', 'thai', 'japanese'];
@@ -63,11 +65,11 @@ export const APP_FONT_OPTIONS: AppFontOption[] = [
   { id: 'caveat', label: 'Caveat', hint: 'A quick, casual pen.', group: 'handwritten', family: 'Caveat', weights: THREE, scripts: ['cyrillic'] },
   { id: 'mali', label: 'Mali', hint: 'Friendly Thai handwriting.', group: 'handwritten', family: 'Mali', weights: THREE, scripts: ['thai'] },
   { id: 'sriracha', label: 'Sriracha', hint: 'Thai brush handwriting.', group: 'handwritten', family: 'Sriracha', weights: [400], scripts: ['thai'] },
-  { id: 'yomogi', label: 'Yomogi', hint: 'Casual Japanese pen handwriting.', group: 'handwritten', family: 'Yomogi', weights: [400], scripts: ['japanese', 'cyrillic'] },
-  { id: 'zenKurenaido', label: 'Zen Kurenaido', hint: 'Neat Japanese handwriting, with Greek and Cyrillic.', group: 'handwritten', family: 'ZenKurenaido', weights: [400], scripts: ['japanese', 'cyrillic', 'greek'] },
+  { id: 'yomogi', label: 'Yomogi', hint: 'Casual Japanese pen handwriting.', group: 'handwritten', family: 'Yomogi', weights: [400], scripts: ['japanese', 'cyrillic'], download: true },
+  { id: 'zenKurenaido', label: 'Zen Kurenaido', hint: 'Neat Japanese handwriting, with Greek and Cyrillic.', group: 'handwritten', family: 'ZenKurenaido', weights: [400], scripts: ['japanese', 'cyrillic', 'greek'], download: true },
   { id: 'mitr', label: 'Mitr', hint: 'Bold, rounded Thai with a lot of character.', group: 'stylistic', family: 'Mitr', weights: THREE, scripts: ['thai'] },
   { id: 'charmonman', label: 'Charmonman', hint: 'Calligraphic Thai, formal and ornate.', group: 'stylistic', family: 'Charmonman', weights: [400, 700], scripts: ['thai'] },
-  { id: 'zenMaru', label: 'Zen Maru Gothic', hint: 'Rounded Japanese, with Greek and Cyrillic.', group: 'stylistic', family: 'ZenMaruGothic', weights: [400], scripts: ['japanese', 'cyrillic', 'greek'] },
+  { id: 'zenMaru', label: 'Zen Maru Gothic', hint: 'Rounded Japanese, with Greek and Cyrillic.', group: 'stylistic', family: 'ZenMaruGothic', weights: [400], scripts: ['japanese', 'cyrillic', 'greek'], download: true },
 ];
 
 /** The fonts a deck can cycle through: every one but the system font. */
@@ -81,6 +83,11 @@ export function isAppFont(value: unknown): value is AppFont {
 
 export function fontOption(id: AppFont): AppFontOption {
   return APP_FONT_OPTIONS.find((o) => o.id === id) ?? APP_FONT_OPTIONS[0];
+}
+
+/** Whether the font's files are in the app, so it can be used at once. A font that isn't is downloaded first. */
+export function isBundled(id: AppFont): boolean {
+  return !fontOption(id).download;
 }
 
 /** Whether a font covers every one of `scripts`. */

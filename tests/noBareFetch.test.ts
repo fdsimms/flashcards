@@ -21,6 +21,7 @@ const EXEMPT: Record<string, string> = {
   'src/ui/connection.ts': 'the guard itself, and its quick checks (PROBE_MS)',
   'src/anki/syncService.ts': "sync's own requests: useSync checks the server first, and each request has an idle timeout",
   'src/ui/preloadFiles.ts': 'a line download, given up when nothing arrives for STALLED_MS',
+  'src/ui/fontDownloads.ts': 'a font file download, given up when nothing arrives for STALLED_MS and refused offline; the user taps it',
   'src/ui/reader/readerDownloads.ts': 'texts and lessons kept for offline, each download given up when nothing arrives for STALLED_MS',
 };
 
