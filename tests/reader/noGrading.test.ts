@@ -29,6 +29,11 @@ describe('Read & Listen', () => {
     ...readdirSync(READ_TAB).filter((f) => /\.tsx$/.test(f)).map((f) => join(READ_TAB, f)),
   ];
 
+  it('keeps its screens in src/ui/reader/, where this test looks', () => {
+    const strays = readdirSync(UI).filter((f) => /^Read/.test(f));
+    expect(strays, 'move these into src/ui/reader/').toEqual([]);
+  });
+
   it('scans its logic, its screens and its routes', () => {
     expect(files.some((f) => f.endsWith('Reader.tsx'))).toBe(true);
     expect(files.some((f) => f.endsWith('ReadShelf.tsx'))).toBe(true);
