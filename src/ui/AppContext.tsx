@@ -52,7 +52,7 @@ interface AppValue {
   ankiUnsent: number;
   syncSettings?: SyncSettings;
   syncing: boolean;
-  sync: () => Promise<string | undefined>;
+  sync: (opts?: { afterRunning?: boolean }) => Promise<string | undefined>;
   reloadSync: () => Promise<void>;
   /** Loads the deck list's rows again. A failure is kept in `loadProblem`, not thrown. */
   refresh: () => Promise<void>;
@@ -158,6 +158,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const editorClose = useRef<((result?: NoteEditorResult) => void) | null>(null);
   const openNoteEditor = useCallback((target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => {
+    // One editor at a time: a second tap before the first one is up (it clears this as it closes)
+    // is answered as closed without a change, rather than pushing another over it.
+    if (editorClose.current) { onClose(undefined); return; }
     editorClose.current = onClose;
     const params: Record<string, string> = 'noteId' in target ? { noteId: target.noteId } : target.deck ? { deck: target.deck } : {};
     if (!('noteId' in target)) {

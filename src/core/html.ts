@@ -30,9 +30,3 @@ export function htmlToText(html: string): string {
 export function soundFiles(field: string | undefined): string[] {
   return [...(field ?? '').matchAll(/\[sound:([^\]]+)\]/g)].map((m) => m[1].trim()).filter(Boolean);
 }
-
-export function isTruthyField(v: string | undefined): boolean {
-  if (!v) return false;
-  const t = htmlToText(v).toLowerCase();
-  return t !== '' && t !== 'n' && t !== 'no' && t !== '0' && t !== 'false';
-}

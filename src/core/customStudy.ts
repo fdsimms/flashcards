@@ -9,6 +9,8 @@ export const CUSTOM_STUDY_DECK = 'Custom Study Session';
 
 /** The most days or cards a field accepts: Anki's own limit for these fields. */
 export const CUSTOM_STUDY_MAX = 9999;
+/** How many cards a search that asks for no count takes, as Anki's custom_study.rs builds it (99,999), so every match is in. */
+const SEARCH_LIMIT = 99_999;
 
 export type CramSelect = 'new' | 'due' | 'review' | 'all';
 
@@ -77,11 +79,11 @@ export function filteredPlan(c: CustomStudy, deck: string): FilteredPlan | undef
     case 'moreReviews':
       return undefined;
     case 'forgotten':
-      return { search: `${inDeck} rated:${c.days}:1`, limit: CUSTOM_STUDY_MAX, order: FILTERED_ORDER.random, reschedule: false };
+      return { search: `${inDeck} rated:${c.days}:1`, limit: SEARCH_LIMIT, order: FILTERED_ORDER.random, reschedule: false };
     case 'ahead':
-      return { search: `${inDeck} prop:due<=${c.days}`, limit: CUSTOM_STUDY_MAX, order: FILTERED_ORDER.due, reschedule: true };
+      return { search: `${inDeck} prop:due<=${c.days}`, limit: SEARCH_LIMIT, order: FILTERED_ORDER.due, reschedule: true };
     case 'previewNew':
-      return { search: `${inDeck} is:new added:${c.days}`, limit: CUSTOM_STUDY_MAX, order: FILTERED_ORDER.added, reschedule: false };
+      return { search: `${inDeck} is:new added:${c.days}`, limit: SEARCH_LIMIT, order: FILTERED_ORDER.added, reschedule: false };
     case 'cram': {
       const state = { new: 'is:new', due: 'is:due', review: '-is:new', all: '' }[c.select];
       const order = c.select === 'new' ? FILTERED_ORDER.added : c.select === 'due' ? FILTERED_ORDER.due : FILTERED_ORDER.random;

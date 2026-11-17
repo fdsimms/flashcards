@@ -89,6 +89,15 @@ PRICES = {
 }
 
 
+def prices_of(model: str) -> tuple[float, float, float, float]:
+    """A model's prices, found by its name with any date after it (claude-haiku-5-5-20261101 is
+    claude-haiku-5-5's), else MODEL's: a dated id missed the table and was priced as Sonnet."""
+    if model in PRICES:
+        return PRICES[model]
+    named = [name for name in PRICES if model.startswith(name + "-")]
+    return PRICES[max(named, key=len)] if named else PRICES[MODEL]
+
+
 @dataclass(frozen=True)
 class Usage:
     input_tokens: int = 0
@@ -113,7 +122,7 @@ class Usage:
     def cost_usd(self) -> float:
         if self.usd is not None:
             return self.usd
-        inp, out, read, write = PRICES.get(self.model or MODEL, PRICES[MODEL])
+        inp, out, read, write = prices_of(self.model or MODEL)
         return (
             self.input_tokens * inp
             + self.output_tokens * out

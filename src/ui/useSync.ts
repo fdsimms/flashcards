@@ -30,16 +30,27 @@ export function useSync(repo: (Repo & AnkiLink) | null, onSynced: () => void) {
     Alert.alert(title, message, buttons);
   });
 
-  /** Syncs if sync is on and none is running. Returns what happened, as a line to show. */
-  const sync = useCallback(async (): Promise<string | undefined> => {
-    if (!repo || running.current) return undefined;
+  // Settled when the sync running now is over, for a caller that has to wait for it (`afterRunning`).
+  const over = useRef<Promise<void>>(Promise.resolve());
+
+  /**
+   * Syncs if sync is on and none is running. Returns what happened, as a line to show. With
+   * `afterRunning`, a sync already running is waited for and then another is run, since the
+   * running one may have started before the answers this caller needs sent.
+   */
+  const sync = useCallback(async (opts?: { afterRunning?: boolean }): Promise<string | undefined> => {
+    if (!repo) return undefined;
+    if (opts?.afterRunning) while (running.current) await over.current;
+    if (running.current) return undefined;
     // Claimed before the settings read, so a second call made during that await doesn't start a second sync.
     running.current = true;
+    let release = () => {};
+    over.current = new Promise<void>((resolve) => { release = resolve; });
     let enabled = false;
     try {
       enabled = (await repo.syncSettings()).enabled;
     } finally {
-      if (!enabled) running.current = false;
+      if (!enabled) { running.current = false; release(); }
     }
     if (!enabled) return undefined;
     setSyncing(true);
@@ -49,6 +60,7 @@ export function useSync(repo: (Repo & AnkiLink) | null, onSynced: () => void) {
       return syncErrorText(e);
     } finally {
       running.current = false;
+      release();
       setSyncing(false);
       try {
         await reload();

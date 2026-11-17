@@ -1,4 +1,5 @@
 import random
+import re
 import time
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
@@ -1189,6 +1190,16 @@ def test_every_time_in_a_response_goes_through_instant() -> None:
     files = [package / "app.py", *sorted((package / "routes").glob("*.py"))]
     source = "".join(f.read_text() for f in files)
     assert source.count(".isoformat()") == 1, "send times with instant(), not .isoformat()"
+
+
+def test_no_route_answers_502() -> None:
+    # The app reads any 502 as Caddy's (src/reader/api.ts, errorMessage): "Read & Listen isn't
+    # running", whatever the detail says. A failure of the server's own goes out as 503.
+    package = Path(__file__).parent.parent / "src" / "franki_reader"
+    for f in [package / "app.py", *sorted((package / "routes").glob("*.py"))]:
+        assert not re.search(r"HTTPException\(\s*502|status_code\s*=\s*502", f.read_text()), (
+            f"{f.name} answers 502: use 503"
+        )
 
 
 # ---- /api/status ----

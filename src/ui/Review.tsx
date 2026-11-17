@@ -11,7 +11,7 @@ import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core
 import { failureText } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
-import { dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedKind, studiedToday, type StudiedToday } from '../core/queue';
+import { answerCounts, dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedToday, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type AnswerContext, type RatingValue } from '../core/scheduler';
 import { fuzzSeed } from '../core/ankiFuzz';
@@ -44,6 +44,7 @@ import { stateChip } from '../core/stateChip';
 import { isLeechNote } from '../core/trouble';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
 import { useVacationPrefs } from './vacationPrefs';
+import { useStudyDay } from './useStudyDay';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
 import { wordsToUse, type WordToUse } from '../reader/production';
@@ -476,11 +477,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const takenMs = answerTimeMs(when.getTime() - shownAt.current, cardParams);
       const record: AnswerRecord = {
         before: current, deck: cardDeck(current, note.deck), buried: siblings,
-        rating, takenMs, preview, ...(rating === 1 && miss ? { miss } : {}),
+        rating, takenMs, preview, counts: answerCounts(current, when, H, !!preview), ...(rating === 1 && miss ? { miss } : {}),
       };
       const stepCounts = { learn: (cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS).length, relearn: (cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS).length };
       const desiredRetention = cardParams?.desiredRetention;
-      const wasInFilteredDeck = current.filteredDeck;
       const interday = !preview && isInterdayLearning(current, H);
       const noteBefore = note;
 
@@ -488,8 +488,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // doesn't wait on the database. If a write fails, the answer is taken off the screen again.
       // Now a review, it weighs on the days the load balancer spreads later answers over, as in Anki.
       if (updated.sched.state === 2) recordAnswer(loadSnapshot.current, updated, cardParams?.presetId, updated.sched.scheduledDays);
-      // A preview uses no limits, as in Anki, and a reload (`studiedToday`) doesn't count it either.
-      setStudied((s) => bumpStudied(s, record.deck, record.preview ? null : studiedKind(record.before, H), 1));
+      // As a reload (`studiedToday`) counts it: a preview or an early review uses none.
+      setStudied((s) => bumpStudied(s, record.deck, record.counts, 1));
       setHistory((h) => [...h, record]);
       misses.answered(current.id, rating === 1 ? miss : undefined);
       if (rating === 1 && miss === CONFUSED_REASON && canLinkConfused(note)) confused.openLink(note.id);
@@ -516,12 +516,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           await repo.saveCard(updated);
           for (const b of buried) await repo.saveCard(b);
           // Whether it was a day-long step goes in the row, so today's counts read it back after a reload.
-          // So does the filtered deck it was answered in, which a rescheduling one sends the card out of
-          // once it's a review: today's counts keep it there, as Anki counts it.
+          // So does the deck it was answered in (a filtered deck sends a card home; a card can be
+          // moved since): today's counts keep it there, as Anki's deck counter counts it.
           record.reviewId = await repo.addReview({
             cardId: record.before.id, ...res.log, interday,
             ...(rating === 1 && miss ? { miss } : {}),
-            ...(wasInFilteredDeck ? { deck: wasInFilteredDeck } : {}),
+            deck: record.deck,
           });
           // Into the kept Anki collection too, so "Send to Anki" carries this answer. If that write
           // fails, the answer still counts here, and you're told rather than it going missing.
@@ -624,7 +624,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       forgetCard(loadSnapshot.current, last.before.id);
       setHistory((h) => h.slice(0, -1));
       forms.undone(last.before.id);
-      setStudied((s) => bumpStudied(s, last.deck, last.preview ? null : studiedKind(last.before, H), -1));
+      setStudied((s) => bumpStudied(s, last.deck, last.counts, -1));
       const restored = new Map([last.before, ...last.buried].map((c) => [c.id, c]));
       setCards((prev) => prev && prev.map((c) => restored.get(c.id) ?? c));
       // The card shown again is the very one answered: it can be answered again now.
@@ -665,6 +665,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   useEffect(() => {
     if (loadedDay.current && studyDayKey(now, H) !== loadedDay.current) setReloads((n) => n + 1);
   }, [now, H]);
+  // The clock is read again when the day starts with the screen open (nothing left to answer, say)
+  // or the app comes back after it, so "All done" left overnight finds the new day's cards.
+  const today = useStudyDay(H);
+  useEffect(() => {
+    if (loadedDay.current && today !== loadedDay.current) setNow(new Date());
+  }, [today]);
 
   // Out of cards with a learning card still to come: wake when it's within the learn-ahead limit
   // instead of declaring the deck done, which left it waiting until the deck was reopened.

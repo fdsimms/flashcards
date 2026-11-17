@@ -272,6 +272,8 @@ def test_the_answering_model_is_recorded_and_priced() -> None:
     assert used.model == "claude-opus-4-8"
     assert Usage(1_000_000, model="claude-opus-4-8").cost_usd() == pytest.approx(5.0)
     assert Usage(1_000_000, model="something-new").cost_usd() == pytest.approx(2.0)
+    # A dated id is priced as the model it names.
+    assert Usage(1_000_000, model="claude-haiku-5-5-20261101").cost_usd() == pytest.approx(0.10)
     # Added up, each part keeps its own model's price, though the sum names the last model.
     mixed = Usage(1_000_000, model="claude-sonnet-5-5") + Usage(1_000, model="claude-opus-4-8")
     assert mixed.model == "claude-opus-4-8" and mixed.input_tokens == 1_001_000

@@ -91,7 +91,7 @@ describe('Custom Study Session in the kept collection', () => {
     // Two review cards are due on days 3 and 4, today is 2: only the first. The learning card and the new one stay.
     expect(r.ankiIds).toEqual(['1794408858014']);
     expect(await card(db, 1794408858014)).toMatchObject({ queue: 2, due: -100000, odue: 3, odid: 1794408857990 });
-    expect(deckJson(row(await deckNamed(db, CUSTOM_STUDY_DECK)))).toMatchObject({ resched: true, terms: [[`deck:"${THAI}" prop:due<=1`, 9999, 6]] });
+    expect(deckJson(row(await deckNamed(db, CUSTOM_STUDY_DECK)))).toMatchObject({ resched: true, terms: [[`deck:"${THAI}" prop:due<=1`, 99_999, 6]] });
     expect(await card(db, 1794408858016)).toMatchObject({ odid: 0, queue: 1 });
     db.close();
   });

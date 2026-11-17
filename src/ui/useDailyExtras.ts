@@ -10,6 +10,7 @@ import { liveMisses, markList } from '../tools/marks';
 import { loadToolMarks, saveToolPrefs, toolMarks } from '../tools/storage';
 import { toolById } from '../tools/tools';
 import { useApp } from './AppContext';
+import { useStudyDay } from './useStudyDay';
 
 /** How long after one tap on an extra another one is taken as the same tap. */
 const OPEN_GAP_MS = 1000;
@@ -54,10 +55,12 @@ export function useDailyExtras() {
   const readerOn = !!reader.api;
   const hour = reader.dayStartsAtHour;
 
+  // Worked out again when the next study day starts, so Today left open overnight isn't on yesterday's plan.
+  const day = useStudyDay(hour);
   const plan = useMemo(() => {
     if (!saved || !marksIn || !languages.length) return undefined;
     return planExtras({ prefs: saved.prefs, state: saved.state, languages, readerOn, marks: toolMarks(), now: new Date(), dayStartsAtHour: hour });
-  }, [saved, marksIn, languages, readerOn, hour]);
+  }, [saved, marksIn, languages, readerOn, hour, day]); // eslint-disable-line react-hooks/exhaustive-deps -- `day` is when to work it out again
 
   // The first plan of the day, or one for changed settings, is kept so the day's list holds still.
   const kept = useRef<unknown>(undefined);
