@@ -32,6 +32,7 @@ from pydantic import BaseModel, Field
 from .articles import article_for, with_article
 from .collection import CollectionManager
 from .presets import TIER_PRESET_KEY, share_params, tier_presets_for
+from .reader import ReaderClient
 from .speech import (
     TARGET_LUFS,
     TOLERANCE_LU,
@@ -264,8 +265,10 @@ reaches their devices at their next sync.
 """
 
 
-def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | None = None) -> None:
-    """Adds every tool to the server. Without `speech`, the audio tools say how to turn them on."""
+def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | None = None,
+             reader: ReaderClient | None = None) -> None:
+    """Adds every tool to the server. Without `speech`, the audio tools say how to turn them on.
+    `reader` (Read & Listen) says which Japanese words to record from their reading."""
 
     # ---- what's in the collection ----
 
@@ -1081,6 +1084,11 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
           and ignore it.
         - A note whose target field already has audio is skipped unless `overwrite`, which replaces
           that audio; other text in the field stays.
+        - A Japanese Entry (a Japanese voice, or `language` ja-JP) with a KanaReading is recorded
+          from that reading wherever Read & Listen's Sudachi reads the kanji otherwise (今日 meant as
+          こんにち), and from the kanji as written everywhere else, which keeps the word's pitch.
+          `reading` in a result says which reading was said. Without Read & Listen, the kanji are
+          recorded as written and the result says so.
         - `preview` returns the text each note would be read as, recording nothing.
         """
         if len(note_ids) > MAX_AUDIO_NOTES_PER_CALL:
@@ -1097,6 +1105,26 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             overrides = {int(k): v for k, v in (text_overrides or {}).items()}
         except ValueError as e:
             raise ToolError("text_overrides keys must be note ids (numbers), each mapped to the text to record.") from e
+
+        async def said_readings(asked: list[dict[str, Any]]) -> None:
+            """Sets `reading` on each Japanese row Read & Listen says to record from its reading
+            (/api/readings, japanese.spoken_reading); its KanaReading is taken off the row."""
+            if not asked:
+                return
+            try:
+                if reader is None:
+                    raise ToolError("Read & Listen isn't connected to the MCP.")
+                body = {"words": [{"text": p["text"], "reading": p["kana"]} for p in asked]}
+                found = (await reader.post("/api/readings", body))["readings"]
+            except ToolError as e:
+                for p in asked:
+                    del p["kana"]
+                    p["warning"] = f"Recorded from the kanji as written: its reading couldn't be checked. {e}"
+                return
+            for p, reading in zip(asked, found, strict=True):
+                del p["kana"]
+                if reading:
+                    p["reading"] = reading
 
         def spoken(col: Collection, note: Note) -> str:
             if note.id in overrides:
@@ -1122,12 +1150,19 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                         raise ToolError("There's no text to read: the source fields are empty.")
                     if SOUND.search(note[target_field]) and not overwrite:
                         raise ToolError(f"{target_field} already has audio. Pass overwrite to replace it.")
-                    out.append({"note_id": nid, "text": text})
+                    row: dict[str, Any] = {"note_id": nid, "text": text}
+                    if japanese and source_fields == ["Entry"] and nid not in overrides and "KanaReading" in note:
+                        kana = col._backend.html_to_text_line(text=note["KanaReading"], preserve_media_filenames=False).strip()
+                        if kana:
+                            row["kana"] = kana
+                    out.append(row)
                 except ToolError as e:
                     out.append({"note_id": nid, "error": str(e)})
             return out
 
+        japanese = (language or locale_of(voice)).startswith("ja")
         plans = await cm.read(plan)
+        await said_readings([p for p in plans if "kana" in p])
         if preview:
             return {"preview": plans}
 
@@ -1137,7 +1172,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if "error" in p:
                 continue
             try:
-                audio[p["note_id"]] = await client.synthesize(p["text"], voice, rate, language)
+                audio[p["note_id"]] = await client.synthesize(p["text"], voice, rate, language, p.get("reading"))
             except SpeechError as e:
                 p["error"] = str(e)
                 continue
@@ -1162,7 +1197,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 if spoken(col, note) != p["text"]:
                     p["error"] = "The note changed while the audio was being made. Nothing was saved; try it again."
                     continue
-                name = col.media.write_data(audio_filename(p["text"], voice, rate), audio[p["note_id"]])
+                name = col.media.write_data(audio_filename(p["text"], voice, rate, p.get("reading")), audio[p["note_id"]])
                 kept = SOUND.sub("", note[target_field]).strip() if overwrite else note[target_field].strip()
                 note[target_field] = f"{kept} [sound:{name}]" if kept else f"[sound:{name}]"
                 col.update_note(note)

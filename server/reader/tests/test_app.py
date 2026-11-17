@@ -721,6 +721,7 @@ class FakeSpeech:
 
     def __init__(self) -> None:
         self.spoken: list[tuple[str, str, float, str | None]] = []
+        self.readings: list[str | None] = []
 
     async def voices(self) -> list[dict[str, Any]]:
         return [
@@ -755,9 +756,15 @@ class FakeSpeech:
         ]
 
     async def synthesize(
-        self, text: str, voice: str, rate: float = 1.0, language: str | None = None
+        self,
+        text: str,
+        voice: str,
+        rate: float = 1.0,
+        language: str | None = None,
+        reading: str | None = None,
     ) -> bytes:
         self.spoken.append((text, voice, rate, language))
+        self.readings.append(reading)
         return b"ID3" + text.encode()
 
 
@@ -843,6 +850,37 @@ def test_a_cards_language_reaches_azure_as_a_locale() -> None:
     assert "isn't a language and region" in bad.json()["detail"]
 
 
+def test_a_japanese_card_is_recorded_from_its_reading_where_sudachi_reads_it_otherwise() -> None:
+    speech = FakeSpeech()
+    c = voice_client(speech)
+    nanami = "ja-JP-NanamiNeural"
+    for text, reading in [("今日", "こんにち"), ("今日", "きょう"), ("今日", None)]:
+        body = {"text": text, "voice": nanami, **({"reading": reading} if reading else {})}
+        assert c.post("/api/speech", json=body, headers=AUTH).status_code == 200
+    # Another language's voice ignores a reading.
+    body = {"text": "kot", "voice": "pl-PL-ZofiaNeural", "reading": "こんにち"}
+    c.post("/api/speech", json=body, headers=AUTH)
+    assert speech.readings == ["こんにち", None, None, None]
+
+
+def test_conjugates_japanese_verbs_for_the_forms_field() -> None:
+    c = voice_client(FakeSpeech())
+    body = {"verbs": [{"entry": "帰る", "reading": "かえる"}, {"entry": "劇団"}]}
+    forms = c.post("/api/conjugations", json=body, headers=AUTH).json()["forms"]
+    assert "past · plain: 帰った / かえった" in forms[0] and forms[1] is None
+    assert c.post("/api/conjugations", json=body).status_code == 401
+
+
+def test_lists_the_reading_each_japanese_word_is_recorded_from() -> None:
+    c = voice_client(FakeSpeech())
+    words = [{"text": "今日", "reading": "こんにち"}, {"text": "劇団", "reading": "げきだん"}]
+    r = c.post("/api/readings", json={"words": words}, headers=AUTH)
+    assert r.json() == {"readings": ["こんにち", None]}
+    assert c.post("/api/readings", json={"words": words}).status_code == 401
+    too_many = {"words": words * 26}
+    assert c.post("/api/readings", json=too_many, headers=AUTH).status_code == 422
+
+
 def test_a_cards_recording_counts_in_the_costs_and_a_failed_one_doesnt() -> None:
     speech = FakeSpeech()
     c = voice_client(speech)
@@ -853,7 +891,13 @@ def test_a_cards_recording_counts_in_the_costs_and_a_failed_one_doesnt() -> None
     # Azure bills kana and kanji as two characters each (tts.billed_chars).
     c.post("/api/speech", json={"text": "猫", "voice": "ja-JP-NanamiNeural"}, headers=AUTH)
 
-    async def down(text: str, voice: str, rate: float = 1.0, language: str | None = None) -> bytes:
+    async def down(
+        text: str,
+        voice: str,
+        rate: float = 1.0,
+        language: str | None = None,
+        reading: str | None = None,
+    ) -> bytes:
         raise SpeechError("Azure didn't answer.")
 
     speech.synthesize = down  # type: ignore[method-assign]

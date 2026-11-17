@@ -1,5 +1,5 @@
-"""Help for the app's cards: memory hints, questions about a card, a verb's aspect partner, and
-example sentences glossed."""
+"""Help for the app's cards: memory hints, questions about a card, a verb's aspect partner,
+example sentences glossed, and a Japanese verb's forms."""
 
 from typing import Any, Literal
 
@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from franki_reader import (
     ask_card,
     aspect,
+    conjugation,
     store,
 )
 from franki_reader.languages import Code
@@ -20,6 +21,17 @@ from franki_reader.reader import render_sentence
 from franki_reader.routes.context import AppContext
 
 MAX_GLOSS_SENTENCES = 1000  # example sentences one /api/glosses call can ask about
+MAX_CONJUGATIONS = 100  # verbs one /api/conjugations call can ask about: fill_forms' most a call
+
+
+class VerbIn(BaseModel):
+    entry: str = Field(min_length=1, max_length=200)
+    # The note's KanaReading, for each form's reading (Sudachi's when it's empty).
+    reading: str = Field(default="", max_length=200)
+
+
+class ConjugationsIn(BaseModel):
+    verbs: list[VerbIn] = Field(max_length=MAX_CONJUGATIONS)
 
 
 class MnemonicIn(BaseModel):
@@ -149,6 +161,12 @@ def router(ctx: AppContext) -> APIRouter:
             raise HTTPException(503, str(e)) from e
         store.save_call_cost(engine.conn, "aspect", language, engine.clock(), used.cost_usd())
         return pair.as_json()
+
+    @routes.post("/api/conjugations", dependencies=authed)
+    def conjugations(body: ConjugationsIn) -> dict[str, list[list[str] | None]]:
+        """Each Japanese verb's lines for its Forms field (conjugation.form_lines), or None for an
+        Entry that isn't a verb in its dictionary form: the MCP's fill_forms asks here."""
+        return {"forms": [conjugation.form_lines(v.entry, v.reading) for v in body.verbs]}
 
     @routes.post("/api/glosses", dependencies=authed)
     async def glosses(body: GlossesIn, background: BackgroundTasks) -> dict[str, Any]:

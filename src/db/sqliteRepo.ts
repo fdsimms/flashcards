@@ -6,6 +6,7 @@ import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import type { CollectionSettings } from '../core/types';
 import { parseFontSettings } from '../core/fonts';
 import { parseThaiTextSize } from '../core/script';
+import { parseFuriganaMode } from '../core/furigana';
 import { parseVoiceSettings } from '../core/voices';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } from '../core/types';
 import { clearMedia, listMedia, writeMedia } from '../media/mediaFiles';
@@ -410,6 +411,13 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async saveThaiTextSize(size) {
       await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('thai_text_size', ?)", size);
+    },
+    async furiganaMode() {
+      const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'furigana'");
+      return parseFuriganaMode(r?.value);
+    },
+    async saveFuriganaMode(mode) {
+      await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('furigana', ?)", mode);
     },
     async fontSettings() {
       const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'app_font'");

@@ -7,6 +7,7 @@ import type { PracticeRecord } from '../core/forms';
 import type { GrammarAnswer } from '../core/grammarDrills';
 import { DEFAULT_FONT_SETTINGS, type FontSettings } from '../core/fonts';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
+import { DEFAULT_FURIGANA_MODE, type FuriganaMode } from '../core/furigana';
 import { parseVoiceSettings, type VoiceSettings } from '../core/voices';
 import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry, CollectionSettings } from '../core/types';
 
@@ -80,6 +81,9 @@ export interface Repo {
   /** How large Thai text is drawn on a card. Large by default; this phone's own. */
   thaiTextSize(): Promise<ThaiTextSize>;
   saveThaiTextSize(size: ThaiTextSize): Promise<void>;
+  /** Where a Japanese word's reading is set above its kanji once the answer shows (src/core/furigana.ts). Off by default; this phone's own. */
+  furiganaMode(): Promise<FuriganaMode>;
+  saveFuriganaMode(mode: FuriganaMode): Promise<void>;
   /** The app's font choice (src/core/fonts.ts). */
   fontSettings(): Promise<FontSettings>;
   saveFontSettings(settings: FontSettings): Promise<void>;
@@ -124,6 +128,7 @@ export class MemoryRepo implements Repo {
   askOwnHookSetting = true;
   answerBySpeakingSetting = false;
   thaiTextSizeSetting: ThaiTextSize = DEFAULT_THAI_TEXT_SIZE;
+  furiganaSetting: FuriganaMode = DEFAULT_FURIGANA_MODE;
   fontSettingsValue: FontSettings = DEFAULT_FONT_SETTINGS;
   practice: PracticeRecord[] = [];
   grammarAnswers: GrammarAnswer[] = [];
@@ -222,6 +227,8 @@ export class MemoryRepo implements Repo {
   async saveAnswerBySpeaking(on: boolean) { this.answerBySpeakingSetting = on; }
   async thaiTextSize() { return this.thaiTextSizeSetting; }
   async saveThaiTextSize(size: ThaiTextSize) { this.thaiTextSizeSetting = size; }
+  async furiganaMode() { return this.furiganaSetting; }
+  async saveFuriganaMode(mode: FuriganaMode) { this.furiganaSetting = mode; }
   async fontSettings() { return this.fontSettingsValue; }
   async saveFontSettings(settings: FontSettings) { this.fontSettingsValue = settings; }
   async addPractice(record: PracticeRecord) { this.practice.push({ ...record }); }

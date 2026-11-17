@@ -1,4 +1,5 @@
-"""Azure's voices, a card recorded with one (/api/speech), and hearing a story's cast."""
+"""Azure's voices, a card recorded with one (/api/speech), the readings a Japanese card is recorded
+from (/api/readings), and hearing a story's cast."""
 
 from typing import Annotated, Any
 
@@ -9,6 +10,7 @@ from pydantic import BaseModel, Field
 from franki_reader import (
     cast,
     cast_samples,
+    japanese,
     store,
 )
 from franki_reader.languages import (
@@ -27,6 +29,8 @@ from franki_reader.tts import (
 
 # The longest text /api/speech speaks: a card's word or sentence, never a whole text.
 MAX_SPEECH_CHARS = 500
+# The most words /api/readings answers at once: the MCP records up to 10 notes a call.
+MAX_READINGS = 50
 
 
 class CastSampleIn(BaseModel):
@@ -47,6 +51,18 @@ class SpeechIn(BaseModel):
     # The text's language (th-TH, or a code here: th), for a Multilingual voice to read it in. An
     # app from before it was sent leaves it out, and the voice guesses from the text as before.
     language: str | None = Field(default=None, min_length=2, max_length=20)
+    # A Japanese word's KanaReading, said in its place where Sudachi reads the word otherwise
+    # (japanese.spoken_reading). An app from before it was sent leaves it out.
+    reading: str | None = Field(default=None, max_length=200)
+
+
+class ReadingIn(BaseModel):
+    text: str = Field(min_length=1, max_length=MAX_SPEECH_CHARS)
+    reading: str = Field(max_length=200)
+
+
+class ReadingsIn(BaseModel):
+    words: list[ReadingIn] = Field(max_length=MAX_READINGS)
 
 
 def router(ctx: AppContext) -> APIRouter:
@@ -98,8 +114,14 @@ def router(ctx: AppContext) -> APIRouter:
         except SpeechError as e:
             raise HTTPException(400, str(e)) from e
         spoken = body.text.strip()
+        japanese_voice = (language or locale_of(body.voice)).startswith("ja")
+        said = (
+            japanese.spoken_reading(spoken, body.reading)
+            if body.reading and japanese_voice
+            else None
+        )
         try:
-            mp3 = await need_speech().synthesize(spoken, body.voice, body.rate, language)
+            mp3 = await need_speech().synthesize(spoken, body.voice, body.rate, language, said)
         except SpeechError as e:
             # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
             raise HTTPException(503, str(e)) from e
@@ -109,6 +131,13 @@ def router(ctx: AppContext) -> APIRouter:
             engine.conn, "recording", "", engine.clock(), audio_chars=billed_chars(spoken)
         )
         return Response(mp3, media_type="audio/mpeg")
+
+    @routes.post("/api/readings", dependencies=authed)
+    def readings(body: ReadingsIn) -> dict[str, list[str | None]]:
+        """For each Japanese word and its KanaReading, the reading to record it from, or None to
+        record the kanji as written (japanese.spoken_reading): the MCP's add_tts_audio asks here,
+        as it has no Sudachi of its own."""
+        return {"readings": [japanese.spoken_reading(w.text, w.reading) for w in body.words]}
 
     async def cast_audio(parts: list[Part], language: Code) -> Response:
         """A story characters sample or scene (cast_samples.py): the parts spoken in their voices

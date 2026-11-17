@@ -59,6 +59,15 @@ def test_a_thai_respelling_has_no_space_the_voice_would_pause_at() -> None:
         assert not any(c.isspace() and c != "\u200b" for c in alias)
 
 
+def test_a_japanese_part_says_its_reading_in_the_texts_place() -> None:
+    out = ssml_parts([Part("今日", "ja-JP-NanamiNeural", reading="こんにち")])
+    assert "<sub alias='こんにち'>今日</sub>" in out
+    # Escaped in the attribute; and any other language ignores a reading.
+    assert "alias='a&apos;&lt;'" in ssml_parts([Part("今日", "ja-JP-NanamiNeural", reading="a'<")])
+    assert "<sub" not in ssml_parts([Part("hoy", "es-MX-JorgeNeural", reading="oi")])
+    assert "<sub" not in ssml("今日", "ja-JP-NanamiNeural")
+
+
 def test_ssml_sets_the_speed() -> None:
     assert "<prosody rate='-20%'>" in ssml("x", VOICE, 0.8)
 

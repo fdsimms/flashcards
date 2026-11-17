@@ -86,6 +86,8 @@ import { ReviewMenu } from './ReviewMenu';
 import { NextSteps, type NextStep } from './ReviewNextSteps';
 import { asksOwnHook, typeItAnswer, typeItAnswers } from '../core/activeRecall';
 import { compareTypedAnswer } from '../core/typedCompare';
+import { cardWordRuns } from '../core/furigana';
+import { useFurigana } from './useFurigana';
 import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
 import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
 import { ChangeRatingStrip, useRatingOffer } from './ChangeRating';
@@ -195,6 +197,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const [swipeOn, setSwipeOn] = useState(false);
   const [showHints, setShowHints] = useState(false);
   const [thaiSize, setThaiSize] = useState<ThaiTextSize>(DEFAULT_THAI_TEXT_SIZE);
+  const furigana = useFurigana(repo, collection.dayStartsAtHour);
   // Bumped after the note editor saves or deletes, to load the cards and notes again.
   const [reloads, setReloads] = useState(0);
   const [noteTypes, setNoteTypes] = useState<Map<string, NoteType>>(new Map());
@@ -328,6 +331,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // Which word a reverse card wants when other notes share its meaning (synonyms.ts), from every note loaded.
   const wanted = useMemo(() => wantedLines(notes.values()), [notes]);
   const rendered = current && note && !page ? renderCard(note, current.kind, wanted.get(note.id)) : undefined;
+  // The card's word with its reading over its kanji once the answer shows (Settings, Furigana), whichever side it's on.
+  const wordRuns = rendered ? cardWordRuns([...rendered.front.blocks, ...rendered.back.blocks], furigana) : null;
   // The fuzz seed and load balancer for answering the current card, as Anki has them: the buttons show what an answer does.
   const baseContext = (card: Card, when: Date): AnswerContext => {
     const seed = fuzzSeed(card.ankiId, card.sched.reps) ?? BigInt.asUintN(64, fnvHash(card.id) + BigInt(card.sched.reps));
@@ -1158,7 +1163,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. */}
             <Reveal key={showing} rise={10} style={{ gap: space.xl }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} />
-              <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} /></CardFontScope>
+              <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
               {reminder ? <MissReminder text={reminder} /> : null}
               {canRecordYourself(rendered) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
@@ -1169,7 +1174,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             {revealed ? (
               <Reveal rise={14} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
-                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} /></CardFontScope>
+                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} /></CardFontScope>
                 {fragile !== undefined ? <MemoryStrength percent={fragile} /> : null}
                 {extras}
               </Reveal>

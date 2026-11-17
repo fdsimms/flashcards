@@ -78,7 +78,12 @@ class Speech(Protocol):
     async def voices(self) -> list[dict[str, Any]]: ...
 
     async def synthesize(
-        self, text: str, voice: str, rate: float = 1.0, language: str | None = None
+        self,
+        text: str,
+        voice: str,
+        rate: float = 1.0,
+        language: str | None = None,
+        reading: str | None = None,
     ) -> bytes: ...
 
 

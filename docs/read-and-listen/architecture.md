@@ -783,6 +783,26 @@ rather than `Transliteration` (`Language.translit_field`).
   katakana for hiragana (`compareTypedAnswer`, `src/core/kana.ts`). A missing ゛ or ゜ is a wrong
   letter, not a missing accent (`stripMarks`). Japanese text is drawn in Hiragino Sans
   (`japaneseFont`), so kanji keep their Japanese forms.
+- **Recordings from the reading** (17 November 2026, #480, the owner's choice): a card's recording
+  in the app and the MCP's add_tts_audio send the word's KanaReading. The server says it in the
+  word's place (Azure's `<sub alias>`, `Part.reading`) only where Sudachi reads the kanji otherwise
+  (`japanese.spoken_reading`: 今日 meant as こんにち), since kanji as written keep the word's pitch,
+  which kana alone can lose (はし). The MCP asks `/api/readings`. Azure's Japanese phonemes weren't
+  used: they need a pitch accent no reading carries.
+- **Verb forms** (17 November 2026, #479): `conjugation.py` writes a verb's Forms lines from its
+  conjugation type as Sudachi gives it (五段-ラ行 for 帰る), seventeen forms with their readings, for
+  the MCP's fill_forms (`/api/conjugations`). Japanese grammar points name the groups they practice.
+- **Furigana** (17 November 2026, #477, the owner's choices: three settings, per kanji, the
+  sentence too): Settings, Furigana is Off (the default), every kanji, or kanji not learned in
+  WaniKani (Guru or above, and none over a word learned there as vocabulary). Shown only once the
+  answer is, over the word and its example sentence's words (`src/core/furigana.ts`, `Ruby.tsx`).
+  A run of kanji is split by WaniKani's kanji readings where they allow one way, else read whole.
+  WaniKani's kanji and learned items are read once a study day while it's on
+  (`src/wanikani/furigana.ts`).
+- **Similar words** (17 November 2026, #478): a Japanese lookalike shares a start of two
+  characters with a kanji in it (経験, 経験する); words a kanji apart (劇団, 劇場) are asked in
+  Similar words but not held apart; by ear, a long vowel heard short and a missed small っ or ゃ
+  make sound-alikes (おばさん, おばあさん).
 
 ## Grammar
 

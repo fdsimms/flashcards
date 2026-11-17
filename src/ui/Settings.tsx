@@ -5,6 +5,7 @@ import { ANSWER_BUTTON_CHOICES, type AnswerButtons } from '../core/answerButtons
 import { failureText } from '../core/failure';
 import { fontOption } from '../core/fonts';
 import { THAI_TEXT_CHOICES, type ThaiTextSize } from '../core/script';
+import type { FuriganaMode } from '../core/furigana';
 import type { Repo } from '../db/repo';
 import { useFontSettings } from './AppFont';
 import { Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
@@ -16,10 +17,10 @@ import { space, useTheme, readable } from './theme';
 /**
  * App-wide settings: the screens that aren't about studying (Anki, Backup, Read & Listen, WaniKani), then
  * how studying goes (answer buttons, speaking, voices, the reminder, vacation mode) and how Omnilanguage
- * cards look and answer. A choice with an explanation of its own (answer buttons, Thai text size) opens a
+ * cards look and answer. A choice with an explanation of its own (answer buttons, Thai text size, furigana) opens a
  * short screen, so this one stays a list.
  */
-export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBackup, onRead, onWaniKani, onVoices, onReminder, onExtras, onSpeaking, onVacation, onAnswerButtons, onThaiSize, onFont }: {
+export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBackup, onRead, onWaniKani, onVoices, onReminder, onExtras, onSpeaking, onVacation, onAnswerButtons, onThaiSize, onFurigana, onFont }: {
   repo: Repo;
   /** When the last backup was made (`backupStatus`). */
   backupText?: string;
@@ -38,6 +39,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
   onSpeaking: () => void;
   onAnswerButtons: () => void;
   onThaiSize: () => void;
+  onFurigana: () => void;
   onFont: () => void;
 }) {
   const c = useTheme();
@@ -47,6 +49,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
   const [hook, setHook] = useState<boolean>();
   const [speaking, setSpeaking] = useState<boolean>();
   const [thaiSize, setThaiSize] = useState<ThaiTextSize>();
+  const [furigana, setFurigana] = useState<FuriganaMode>();
   const { settings: fontSettings, font: shownFont } = useFontSettings();
   const reminder = useReminderPrefs();
   const vacation = useVacationPrefs();
@@ -56,6 +59,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
     repo.answerBySpeaking().then(setSpeaking).catch(() => undefined);
     repo.answerButtons().then(setButtons).catch(() => undefined);
     repo.thaiTextSize().then(setThaiSize).catch(() => undefined);
+    repo.furiganaMode().then(setFurigana).catch(() => undefined);
   }, [repo]));
 
   useEffect(() => { repo.swipeToRate().then(setSwipe); repo.showCardHints().then(setHints); repo.askOwnHook().then(setHook); }, [repo]);
@@ -123,6 +127,7 @@ export function Settings({ repo, backupText, readerOn, wanikaniOn, onAnki, onBac
             onValueChange={chooseHook}
           />
           <NavRow label="Thai text size" loading={thaiSize === undefined} detail={THAI_TEXT_CHOICES.find((x) => x.value === thaiSize)?.label} onPress={onThaiSize} />
+          <NavRow label="Furigana" loading={furigana === undefined} detail={furigana === 'off' ? 'Off' : furigana === 'all' ? 'Every kanji' : furigana ? 'Not learned' : undefined} onPress={onFurigana} />
         </Group>
         <Help>These apply to Omnilanguage cards. Other note types use the buttons and their own templates.</Help>
       </ScrollView>

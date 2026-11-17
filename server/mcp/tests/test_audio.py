@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import json
 
+import httpx
 import pytest
+from mcp import Client
 
 from conftest import call, call_error
-from franki_mcp.speech import ssml
+from franki_mcp.reader import ReaderClient, ReaderSettings
+from franki_mcp.server import build_server
+from franki_mcp.speech import SpeechClient, audio_filename, ssml
 
 pytestmark = pytest.mark.anyio
 
@@ -188,3 +192,49 @@ async def test_the_article_can_be_left_out_and_an_override_is_read_as_given(clie
 async def test_a_note_with_no_gender_or_language_field_is_read_as_before(client):
     out = await call(client, "add_tts_audio", note_ids=[BOOK], source_fields=["Front"], target_field="Back", voice=VOICE, preview=True)
     assert out["preview"][0]["text"] == "หนังสือ"
+
+
+def japanese(desktop) -> list[int]:
+    """Two Japanese words on the server: 今日 meant as こんにち, and 劇団 as Sudachi reads it."""
+    note = lambda **f: json.dumps(f)  # noqa: E731
+    args: list[str] = ["add-notetype", "Omnilanguage", "Entry,Meaning,Audio,Language,KanaReading"]
+    for entry, kana in [("今日", "こんにち"), ("劇団", "げきだん")]:
+        args += ["+", "add-fields-note", "Omnilanguage", "Default", note(Entry=entry, Meaning="x", Language="japanese", KanaReading=kana)]
+    return desktop.run(*args, "+", "sync")["notes"]
+
+
+async def japanese_client(cm, azure, readings):
+    """A client whose Read & Listen answers /api/readings with `readings` (None: it isn't reachable)."""
+    asked: list[dict] = []
+
+    def reader(request: httpx.Request) -> httpx.Response:
+        asked.append(json.loads(request.content))
+        return httpx.Response(200, json={"readings": readings}) if readings is not None else httpx.Response(502)
+
+    speech = SpeechClient("key", "westeurope", http=httpx.AsyncClient(transport=httpx.MockTransport(azure)),
+                          user_agent="franki-mcp", voice_help="")
+    client = ReaderClient(ReaderSettings("http://reader", "pw"), httpx.AsyncClient(transport=httpx.MockTransport(reader)))
+    return Client(build_server(cm, speech, reader=client)), asked
+
+
+async def test_a_japanese_word_is_recorded_from_its_reading_where_read_and_listen_says_to(cm, azure, desktop):
+    ids = japanese(desktop)
+    c, asked = await japanese_client(cm, azure, ["こんにち", None])
+    async with c as client:
+        out = await call(client, "add_tts_audio", note_ids=ids, source_fields=["Entry"], target_field="Audio", voice="ja-JP-NanamiNeural")
+    assert asked == [{"words": [{"text": "今日", "reading": "こんにち"}, {"text": "劇団", "reading": "げきだん"}]}]
+    first, second = out["results"]
+    assert first["reading"] == "こんにち" and "reading" not in second and "kana" not in second
+    sent = [r.content.decode() for r in azure.requests]
+    assert "<sub alias='こんにち'>今日</sub>" in sent[0] and "<sub" not in sent[1]
+    # Named apart from a recording of the kanji as written.
+    assert first["audio"] == audio_filename("今日", "ja-JP-NanamiNeural", 1.0, "こんにち")
+
+
+async def test_without_read_and_listen_a_japanese_word_is_recorded_as_written_and_says_so(cm, azure, desktop):
+    ids = japanese(desktop)
+    c, _ = await japanese_client(cm, azure, None)
+    async with c as client:
+        out = await call(client, "add_tts_audio", note_ids=ids[:1], source_fields=["Entry"], target_field="Audio",
+                         voice="ja-JP-NanamiNeural", preview=True)
+    assert "reading couldn't be checked" in out["preview"][0]["warning"] and "reading" not in out["preview"][0]

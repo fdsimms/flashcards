@@ -641,8 +641,9 @@ export function createApi(
       (await call<{ voices: AzureVoice[] }>('GET', `/api/voices?language=${encodeURIComponent(language)}`)).voices,
     // `text` spoken by an Azure voice, as MP3 bytes: a card's recording, or a voice's sample. `language` is
     // the text's (th-TH, or a code: th), which a Multilingual voice would otherwise guess from the text.
-    speech: async (text: string, voice: string, rate = 1, language?: string) =>
-      new Uint8Array(await (await send('POST', '/api/speech', { text, voice, rate, language })).arrayBuffer()),
+    // `reading` is a Japanese word's KanaReading, said in its place where the server reads the kanji otherwise.
+    speech: async (text: string, voice: string, rate = 1, language?: string, reading?: string) =>
+      new Uint8Array(await (await send('POST', '/api/speech', { text, voice, rate, language, reading })).arrayBuffer()),
     // One line a story character might say, spoken in `voice` at `pitch` (a percent change), as MP3
     // bytes: the Story characters screen's way to hear a choice. Thai's line has a man's ending or a woman's.
     castSample: async (language: Language, voice: string, pitch: number, gender: 'male' | 'female') =>
