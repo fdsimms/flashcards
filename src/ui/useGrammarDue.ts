@@ -1,10 +1,10 @@
-import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { grammarPointsFor } from '../core/grammar';
 import { dueByLanguage } from '../core/grammarDrills';
 import type { Repo } from '../db/repo';
 import type { Api, Language } from '../reader/api';
 import { LANGUAGE_ORDER } from '../reader/languages';
+import { useReadWhileShown } from './useReadWhileShown';
 
 /** Grammar due today: in each language with some, most first, and in all. */
 export interface GrammarDue {
@@ -15,12 +15,13 @@ export interface GrammarDue {
 /**
  * The grammar points due today (src/core/grammarDrills.ts, `duePoints`), for the Practice tab's Grammar row
  * and Today's extras. Read from Read & Listen's choices and the phone's answers each time the screen
- * comes into view, since both change elsewhere. Null with Read & Listen off, or until known and after a
- * failed request: nothing is said about grammar then, rather than a guess.
+ * comes into view or the app comes back to it, since both change elsewhere and the day can turn.
+ * Null with Read & Listen off, or until known and after a failed request: nothing is said about
+ * grammar then, rather than a guess.
  */
 export function useGrammarDue(readerApi: Api | null, repo: Repo): GrammarDue | null {
   const [due, setDue] = useState<GrammarDue | null>(null);
-  useFocusEffect(useCallback(() => {
+  useReadWhileShown(useCallback(() => {
     if (!readerApi) { setDue(null); return; }
     let live = true;
     const languages = LANGUAGE_ORDER.filter((l) => grammarPointsFor(l).length > 0);
