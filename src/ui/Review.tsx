@@ -7,7 +7,8 @@ import { FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
 import { AGENT_FLAG, withFlagReason } from '../core/agentFlag';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
-import { cardDeck, cardHomeDeck, isInDeck, queueInput, treeQueue } from '../core/deckTree';
+import { cardDeck, cardHomeDeck, deckCardFonts, isInDeck, queueInput, treeQueue } from '../core/deckTree';
+import { cardFontFor } from '../core/fonts';
 import { failureText } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
@@ -32,9 +33,11 @@ import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType
 import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
+import { cardFontsBase } from '../media/cardFonts';
 import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
 import { mathjaxUri } from '../media/mathjax';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CardFontScope, useFontSettings } from './AppFont';
 import { CardWebView } from './CardWebView';
 import { Side } from './CardSide';
 import { CardStateChips } from './CardStateChips';
@@ -167,6 +170,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
 }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
+  // Which font each card of a deck that cycles its fonts gets is worked out from the card and this number, so it holds while the screen is open and changes the next time.
+  const [fontSession] = useState(() => Math.floor(Math.random() * 2 ** 31));
+  const appFont = useFontSettings();
   const [cards, setCards] = useState<Card[] | null>(null);
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
   // The answer that just made a card a leech asks for a hint to keep in its note's Mnemonic field,
@@ -304,6 +310,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const typedShown = revealed ? typed : '';
   // The card's preset says whether a template card's sounds and {{tts:}} play on their own (Anki's autoplay).
   const autoplay = cardParams?.autoplay ?? true;
+  // The font this card is set in: its deck's cycle, else the app's font when cards use it, else the system font (`cardFontFor`).
+  const cardFont = (note && current ? cardFontFor(deckCardFonts(cardHomeDeck(current, note.deck), deckSettings), current.id, fontSession) : undefined) ?? (appFont.settings.onCards ? appFont.font : 'system');
   const page = useMemo(() => {
     if (!note || !noteType || !current) return undefined;
     const ord = Number(current.kind.slice(1));
@@ -311,9 +319,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     const opts = {
       css: noteType.css, ord, dark, autoplay, mediaBase: mediaBaseUri(), mathjax: mathjaxUri(),
       colors: { background: c.surface, text: c.text, cloze: c.countNew },
+      font: cardFont === 'system' ? undefined : { id: cardFont, base: cardFontsBase() },
     };
     return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer, frontAudio: sideAudio(front), backAudio: sideAudio(back) };
-  }, [note, noteType, current?.id, current?.kind, dark, c, typedShown, autoplay]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [note, noteType, current?.id, current?.kind, dark, c, typedShown, autoplay, cardFont]); // eslint-disable-line react-hooks/exhaustive-deps
   // Which word a reverse card wants when other notes share its meaning (synonyms.ts), from every note loaded.
   const wanted = useMemo(() => wantedLines(notes.values()), [notes]);
   const rendered = current && note && !page ? renderCard(note, current.kind, wanted.get(note.id)) : undefined;
@@ -1147,7 +1156,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. */}
             <Reveal key={showing} rise={10} style={{ gap: space.xl }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} />
-              <Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} />
+              <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} /></CardFontScope>
               {reminder ? <MissReminder text={reminder} /> : null}
               {canRecordYourself(rendered) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
@@ -1158,7 +1167,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             {revealed ? (
               <Reveal rise={14} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
-                <Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} />
+                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} /></CardFontScope>
                 {fragile !== undefined ? <MemoryStrength percent={fragile} /> : null}
                 {extras}
               </Reveal>

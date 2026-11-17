@@ -3,7 +3,8 @@ import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AppProvider } from '../ui/AppContext';
+import { AppFontScope } from '../ui/AppFont';
+import { AppProvider, useApp } from '../ui/AppContext';
 import { HeldWork } from '../ui/HeldWork';
 import { ShelfDownloads } from '../ui/reader/ShelfDownloads';
 import { ReaderPlayerProvider } from '../ui/useReaderPlayer';
@@ -17,6 +18,11 @@ import { VocabReadyBanner } from '../ui/VocabReadyBanner';
  * pushed onto (the tabs sit at its root). Each route file wraps one screen from src/ui; the screen
  * sets its own title and header buttons (`Screen` in src/ui/kit.tsx).
  */
+/** The app's font (Settings, Font) for everything under the shared state. */
+function FontScope({ children }: { children: React.ReactNode }) {
+  return <AppFontScope repo={useApp().repo}>{children}</AppFontScope>;
+}
+
 export default function RootLayout() {
   const c = useTheme();
   const stackOptions = useStackScreenOptions();
@@ -30,6 +36,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
     <ThemeProvider value={theme}>
       <AppProvider>
+        <FontScope>
         <ReaderPlayerProvider>
         <Stack screenOptions={stackOptions}>
           {/* The tabs (Decks, Read & Listen) each hold their own stack, with their own header. The
@@ -45,6 +52,7 @@ export default function RootLayout() {
         <HeldWork />
         <ShelfDownloads />
         </ReaderPlayerProvider>
+        </FontScope>
       </AppProvider>
       <StatusBar style="auto" />
     </ThemeProvider>

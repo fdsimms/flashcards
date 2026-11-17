@@ -9,6 +9,9 @@ import { paramsForDeck } from '../core/scheduler';
 import type { DeckSettings } from '../core/types';
 import type { Repo } from '../db/repo';
 import type { RecordDeps } from '../anki/recordService';
+import { deckScripts } from '../core/fontScripts';
+import type { Script } from '../core/fonts';
+import { DeckFontOptions } from './DeckFontOptions';
 import { DeckFormsOptions } from './DeckFormsOptions';
 import { DeckPriorityOptions } from './DeckPriorityOptions';
 import { DeckRecordings } from './DeckRecordings';
@@ -30,6 +33,8 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
   const [filtered, setFiltered] = useState(false);
   // Every deck's settings, for what this deck inherits from the decks above it.
   const [all, setAll] = useState<Map<string, DeckSettings>>(new Map());
+  // The scripts this deck's cards are written in, for the card fonts that can draw them (`deckScripts`).
+  const [scripts, setScripts] = useState<Script[]>([]);
   const saving = useRef(Promise.resolve());
 
   useEffect(() => {
@@ -38,6 +43,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
       await saving.current; // a reload after a failed save reads what the saves still queued wrote
       const [all, cards, notes, params] = await Promise.all([repo.listDeckSettings(), repo.listCards(deck), repo.listNotes(), repo.listDeckParams()]);
       setFiltered(!!paramsForDeck(deck, params)?.filtered);
+      setScripts(deckScripts(deck, notes));
       const s = all.get(deck) ?? {};
       setAll(all);
       setSettings(s);
@@ -125,6 +131,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
           </Group>
         )}
         {settings ? <DeckPriorityOptions deck={deck} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
+        {settings ? <DeckFontOptions deck={deck} scripts={scripts} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {settings ? <DeckFormsOptions deck={deck} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {filtered ? null : <DeckRecordings repo={repo} deck={deck} recorder={recorder} />}
       </ScrollView>
