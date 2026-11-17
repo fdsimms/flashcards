@@ -182,7 +182,13 @@ EXTRAS: dict[Code, tuple[Extra, ...]] = {
     ),
     "pl": (
         Extra(
-            "gender", "Gender", 'for a noun, "m", "f" or "n"; else ' + _NO, "noun", _LATIN_GENDER, 1
+            "gender",
+            "Gender",
+            'for a noun, "m", "f" or "n"; "pl" for a noun that has only a plural (spodnie), "mpl" '
+            "for a plural of men (ludzie); else " + _NO,
+            "noun",
+            _LATIN_GENDER | {"pl", "mpl"},
+            3,
         ),
         Extra(
             "key_forms",

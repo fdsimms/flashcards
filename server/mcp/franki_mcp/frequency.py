@@ -73,7 +73,8 @@ def register(server: MCPServer, cm: CollectionManager, client: ReaderClient) -> 
         note stay together in template order. An entry is ranked without its article or gender word
         (ten mężczyzna as mężczyzna). A phrase (an entry of several words) comes first, as one the
         user added on purpose. Words with no place in the language's list of its 10,000 most common
-        go after the ranked ones, in the order they had. Suspended and buried cards are left alone.
+        go after the ranked ones, in the order they had. Suspended and buried new cards are left alone,
+        and `left_alone` says how many of each.
         - `language` is Read & Listen's code: th, es, de, fr, ru, el, pl, nb, ja, en.
         - `field` is the note field that holds the word (Entry, for Omnilanguage).
         - `preview` (the default) changes nothing and returns the first of the new order,
@@ -82,7 +83,7 @@ def register(server: MCPServer, cm: CollectionManager, client: ReaderClient) -> 
         Needs Read & Listen running (it holds the lists). Run it again after adding notes to the
         deck to place the new ones."""
 
-        def gather(col: Collection) -> list[tuple[int, str, list[int]]]:
+        def gather(col: Collection) -> tuple[list[tuple[int, str, list[int]]], dict[str, int]]:
             did = col.decks.id_for_name(deck)
             if not did:
                 names = sorted(n.name for n in col.decks.all_names_and_ids())
@@ -90,6 +91,11 @@ def register(server: MCPServer, cm: CollectionManager, client: ReaderClient) -> 
             name = col.decks.name(did)
             escaped = re.sub(r'([\\"*_])', r"\\\1", name)
             cids = list(col.find_cards(f'"deck:{escaped}" is:new -is:suspended -is:buried'))
+            # New cards that are left where they are: Anki doesn't offer them today, so they aren't ordered.
+            left = {
+                "suspended": len(col.find_cards(f'"deck:{escaped}" is:new is:suspended')),
+                "buried": len(col.find_cards(f'"deck:{escaped}" is:new is:buried -is:suspended')),
+            }
             if not cids:
                 raise ToolError(f'"{deck}" has no new cards to order.')
             if len(cids) > MAX_CARDS:
@@ -105,9 +111,9 @@ def register(server: MCPServer, cm: CollectionManager, client: ReaderClient) -> 
                 if field not in note:
                     raise ToolError(f'The note type "{note.note_type()["name"]}" has no field "{field}". Pass the field that holds the word.')
                 out.append((nid, entry_word(note[field]), ids))
-            return out
+            return out, left
 
-        order = await cm.read(gather)
+        order, left_alone = await cm.read(gather)
         ranks, phrases = await entry_ranks(client, language, list(dict.fromkeys(w for _, w, _ in order if w)))
         new_order = placed(order, ranks, phrases)
         found = sum(1 for _, w, _ in order if ranks.get(w) is not None)
@@ -117,6 +123,7 @@ def register(server: MCPServer, cm: CollectionManager, client: ReaderClient) -> 
             "ranked": found,
             "phrases": phrase_notes,
             "unranked": len(order) - found - phrase_notes,
+            "left_alone": left_alone,
             "first": [{"word": w, "rank": ranks.get(w), **({"phrase": True} if w in phrases and ranks.get(w) is None else {})} for _, w, _ in new_order[:PREVIEW_ROWS]],
         }
         if not found and not phrase_notes:
