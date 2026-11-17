@@ -530,7 +530,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         ) : null}
         {droppedNote()}
         <ProgressBar value={sessionProgress(study.session)} style={{ marginHorizontal: space.l, marginTop: space.xs }} />
-        <CardSurface color={subjectColor(c, subject.type)} overlay={popup ? <StagePopup key={popup.id} change={popup.change} /> : null}>
+        <CardSurface color={subjectColor(c, subject.type)}>
           <ScrollView
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
@@ -555,7 +555,11 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             </Reveal>
           </ScrollView>
           {/* What's asked, at the card's foot beside the answer: light for the meaning, dark for the reading. */}
-          {question.kind !== 'lesson' ? <QuestionBand kind={question.kind} /> : null}
+          {/* The stage popup hangs off this view's top edge: just above the band, or the card's foot in a lesson. */}
+          <View>
+            {question.kind !== 'lesson' ? <QuestionBand kind={question.kind} /> : null}
+            {popup ? <StagePopup key={popup.id} change={popup.change} animate={prefs.stageAnimation} /> : null}
+          </View>
           {answerFlash.overlay}
         </CardSurface>
       </Screen>

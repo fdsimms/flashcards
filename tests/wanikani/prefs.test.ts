@@ -18,6 +18,12 @@ describe('options', () => {
     expect(parsePrefs('{nope')).toEqual(DEFAULT_PREFS);
   });
 
+  it('animates level ups unless that was turned off, and reads nothing else as off', () => {
+    expect(DEFAULT_PREFS.stageAnimation).toBe(true);
+    expect(parsePrefs(JSON.stringify({ stageAnimation: false })).stageAnimation).toBe(false);
+    expect(parsePrefs(JSON.stringify({ stageAnimation: 'no' })).stageAnimation).toBe(true);
+  });
+
   it("offers today's lessons up to the limit, counting ones done on WaniKani", () => {
     expect(lessonsToday(40, 15, 0)).toBe(15);
     expect(lessonsToday(40, 15, 10)).toBe(5);

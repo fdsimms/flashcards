@@ -15,13 +15,15 @@ export interface WaniKaniPrefs {
   maxApprentice: number | null;
   /** Play WaniKani's recording when a vocabulary answer is shown. */
   autoplay: boolean;
+  /** Animate the popup when an answer moves an item to another stage group; off, it only fades. Separate from the system's Reduce Motion, which turns it off as well. */
+  stageAnimation: boolean;
   /** Make production cards (production.ts) for words at Guru. */
   production: boolean;
   /** The Anki deck they go in; unset until chosen or suggested. */
   productionDeck?: string;
 }
 
-export const DEFAULT_PREFS: WaniKaniPrefs = { answer: 'type', separate: true, newPerDay: 15, maxApprentice: null, autoplay: true, production: true };
+export const DEFAULT_PREFS: WaniKaniPrefs = { answer: 'type', separate: true, newPerDay: 15, maxApprentice: null, autoplay: true, stageAnimation: true, production: true };
 
 export const NEW_PER_DAY_CHOICES = [0, 5, 10, 15, 20, 30, 50];
 
@@ -50,6 +52,7 @@ export function parsePrefs(raw: string | null | undefined): WaniKaniPrefs {
     newPerDay: typeof o.newPerDay === 'number' && o.newPerDay >= 0 ? Math.floor(o.newPerDay) : DEFAULT_PREFS.newPerDay,
     maxApprentice: typeof o.maxApprentice === 'number' && o.maxApprentice >= 0 ? Math.floor(o.maxApprentice) : null,
     autoplay: typeof o.autoplay === 'boolean' ? o.autoplay : DEFAULT_PREFS.autoplay,
+    stageAnimation: typeof o.stageAnimation === 'boolean' ? o.stageAnimation : DEFAULT_PREFS.stageAnimation,
     production: typeof o.production === 'boolean' ? o.production : DEFAULT_PREFS.production,
     ...(typeof o.productionDeck === 'string' && o.productionDeck ? { productionDeck: o.productionDeck } : {}),
   };
