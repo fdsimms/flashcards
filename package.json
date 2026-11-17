@@ -56,7 +56,7 @@
     "test:watch": "vitest",
     "test:tz": "TZ=Pacific/Kiritimati vitest run && TZ=Pacific/Pago_Pago vitest run && TZ=America/St_Johns vitest run",
     "typecheck": "tsc --noEmit",
-    "verify": "tsc --noEmit && vitest run && git status --short"
+    "verify": "tsc --noEmit && vitest run && TZ=Pacific/Kiritimati vitest run && git status --short"
   },
   "private": true
 }

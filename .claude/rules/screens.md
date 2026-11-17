@@ -32,4 +32,7 @@ load by path" there). A comment that cites "CLAUDE.md" for one of these sections
   the code) and ask which direction to take. Use the values from `src/ui/theme.ts` so the mock
   looks like the app, and for a choice between layouts show the options side by side. Build in
   the app only after they've picked. Skip it for a change too small to need one (a label, a
-  spacing value, a color token).
+  spacing value, a color token). It covers how a screen moves and responds too (an animation, a
+  swipe, a native control): where a mock can't show the change, describe each one in a line and
+  ask before building, and keep one change in feel per PR, so a rejected one doesn't take the rest
+  with it. The PR body says `Mock: <shown and picked>` or `Mock: skipped, <why>`.
