@@ -140,6 +140,10 @@ export interface WaniKaniApi {
   lessonsAvailable(maxLevel: number): Promise<Assignment[]>;
   /** Vocabulary at Guru or above: what gets a production card. */
   passedVocabulary(maxLevel: number): Promise<Assignment[]>;
+  /** Every item at Guru or above, radicals, kanji and vocabulary alike: what counts as learned for furigana. */
+  passed(maxLevel: number): Promise<Assignment[]>;
+  /** Every kanji WaniKani teaches, with its readings, at any level: what furigana splits a reading by. */
+  kanji(): Promise<Subject[]>;
   subjects(ids: number[]): Promise<Subject[]>;
   srsSystems(): Promise<SrsSystem[]>;
   /** The user's own synonyms for each subject (study materials), by subject id. */
@@ -251,6 +255,10 @@ export function createWaniKaniApi(token: string, fetchFn: Fetch): WaniKaniApi {
     // value could fail the whole request. Radicals and kanji are dropped here instead.
     passedVocabulary: async (maxLevel) => (await assignments({ srs_stages: [5, 6, 7, 8, 9], hidden: false, levels: levels(maxLevel) }))
       .filter((a) => a.subjectType === 'vocabulary' || a.subjectType === 'kana_vocabulary'),
+    passed: (maxLevel) => assignments({ srs_stages: [5, 6, 7, 8, 9], hidden: false, levels: levels(maxLevel) }),
+    async kanji() {
+      return (await collection(`/subjects${query({ types: 'kanji', hidden: false })}`)).map(parseSubject).filter((s): s is Subject => !!s);
+    },
     async subjects(ids) {
       const out: Subject[] = [];
       for (let i = 0; i < ids.length; i += IDS_PER_REQUEST) {

@@ -28,6 +28,13 @@ describe('repo', () => {
     expect(await repo.thaiTextSize()).toBe('largest');
   });
 
+  it('keeps furigana off until a mode is chosen', async () => {
+    const repo = new MemoryRepo();
+    expect(await repo.furiganaMode()).toBe('off');
+    await repo.saveFuriganaMode('unlearned');
+    expect(await repo.furiganaMode()).toBe('unlearned');
+  });
+
   it('keeps the voices chosen for each language', async () => {
     const repo = new MemoryRepo();
     expect(await repo.voiceSettings()).toEqual({});

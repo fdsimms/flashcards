@@ -1,5 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
+import { parseFuriganaData, type FuriganaData } from './furigana';
 import { parseSnapshot, type Snapshot } from './offline';
 import { parseStats, type WaniKaniStats } from './stats';
 import { parsePrefs, parseState, type WaniKaniPrefs, type WaniKaniState } from './prefs';
@@ -55,6 +56,7 @@ export function saveState(state: WaniKaniState): void {
 
 const OFFLINE_FILE = 'wanikani-offline.json';
 const AUDIO_FOLDER = 'wanikani-audio';
+const FURIGANA_FILE = 'wanikani-furigana.json';
 
 /** The offline copy (offline.ts), in the documents folder: a few megabytes, too big for the Keychain. */
 export async function loadSnapshot(): Promise<Snapshot | null> {
@@ -141,9 +143,33 @@ export function clearOffline(): void {
     if (f.exists) f.delete();
     const stats = new File(Paths.document, STATS_FILE);
     if (stats.exists) stats.delete();
+    // What furigana knows from WaniKani (furigana.ts) goes with the token too.
+    const furigana = new File(Paths.document, FURIGANA_FILE);
+    if (furigana.exists) furigana.delete();
     const dir = new Directory(Paths.document, AUDIO_FOLDER);
     if (dir.exists) dir.delete();
   } catch {
     // Nothing to do: the next sign-in overwrites them.
+  }
+}
+
+
+/** What furigana needs from WaniKani (furigana.ts), in the documents folder: every kanji's readings is too big for the Keychain. */
+export async function loadFuriganaData(): Promise<FuriganaData | null> {
+  try {
+    const f = new File(Paths.document, FURIGANA_FILE);
+    return parseFuriganaData(f.exists ? await f.text() : null);
+  } catch {
+    return null;
+  }
+}
+
+export function saveFuriganaData(data: FuriganaData): void {
+  try {
+    const f = new File(Paths.document, FURIGANA_FILE);
+    if (!f.exists) f.create();
+    f.writeSync(JSON.stringify(data));
+  } catch {
+    // Nothing to do: it's read from WaniKani again next time.
   }
 }

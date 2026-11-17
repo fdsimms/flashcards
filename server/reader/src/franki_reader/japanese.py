@@ -64,6 +64,9 @@ class Morpheme:
     pos: str
     pos2: str
     form: str = ""  # the conjugation form (意志推量形 for 会おう), for grammar_japanese.py
+    kind: str = (
+        ""  # the conjugation type (五段-ラ行 for 帰る, 下一段-バ行 for 食べる), for conjugation.py
+    )
 
     @property
     def forms(self) -> tuple[str, ...]:
@@ -134,6 +137,7 @@ def morphemes(text: str, short: bool = False) -> list[Morpheme]:
             m.part_of_speech()[0],
             m.part_of_speech()[1],
             m.part_of_speech()[5],
+            m.part_of_speech()[4],
         )
         for m in _tokenizer().tokenize(text, mode)
     ]
@@ -171,6 +175,23 @@ def quiz_word(word: str) -> bool:
 def hiragana(katakana: str) -> str:
     """Katakana as hiragana; ー and anything else stays as it is."""
     return "".join(chr(ord(c) - 0x60) if "ァ" <= c <= "ヶ" else c for c in katakana)
+
+
+def spoken_reading(text: str, reading: str) -> str | None:
+    """The reading a voice should say in place of `text` (a card's word, with its KanaReading), or
+    None to read the kanji as written. Written kanji keep the pitch a voice gives the word, so the
+    reading is used only where the voice would likely misread it: when the text has kanji and
+    Sudachi reads it otherwise than every one of the reading's alternatives (生 meant as せい, 今日
+    as こんにち). The first alternative is the one said."""
+    if not _KANJI.search(text):
+        return None
+    alternatives = [
+        a for part in re.split(r"[/／;；、,，]", reading) if (a := "".join(part.split()))
+    ]
+    if not alternatives:
+        return None
+    sudachi = hiragana("".join(m.reading for m in morphemes(text) if m.is_word))
+    return None if any(hiragana(a) == sudachi for a in alternatives) else alternatives[0]
 
 
 # ==== The word list ====

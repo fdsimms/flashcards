@@ -39,6 +39,16 @@ describe('soundKey', () => {
     expect(soundKey({ noteId: 'a', language: 'ja', word: '海岸', meaning: 'coast', roman: 'かいがん' })).toBe('かいがん');
     expect(soundKey({ noteId: 'a', language: 'ja', word: 'パン', meaning: 'bread', roman: 'パン' })).toBe('ぱん');
   });
+  it('hears a Japanese long vowel as short, and a small っ or ゃ as missed', () => {
+    const key = (roman: string) => soundKey({ noteId: 'a', language: 'ja', word: 'x', meaning: 'x', roman });
+    expect(key('おばあさん')).toBe(key('おばさん'));
+    expect(key('びょういん')).toBe(key('びよういん'));
+    expect(key('きって')).toBe(key('きて'));
+    expect(key('コーヒー')).toBe(key('こひ'));
+    expect(key('せんせい')).toBe('せんせ');
+    expect(key('あい')).toBe('あい'); // not a long vowel: い after an a
+    expect(key('かいがん')).not.toBe(key('かいかん'));
+  });
 });
 
 describe('mixupSet', () => {
@@ -74,6 +84,25 @@ describe('mixupSet', () => {
     // By ear they're still told apart from other words, and a spelled-out space doesn't hide the mark.
     expect(isRepeatForm(pair.words.get('jing')!, pair.words.get('jing2')!)).toBe(true);
     expect(isRepeatForm(pair.words.get('jing')!, pair.words.get('jing')!)).toBe(false);
+  });
+});
+
+describe('mixupSet in Japanese', () => {
+  const ja = (id: string, Entry: string, Meaning: string, KanaReading: string): Note =>
+    ({ ...omniNote({ Entry, Meaning, Language: 'japanese', Transliteration: '', KanaReading }), id, deck: '👅 Languages::🍥 日本語' });
+  const words = [
+    ja('gekidan', '劇団', 'theater company', 'げきだん'), ja('gekijou', '劇場', 'theater', 'げきじょう'),
+    ja('obasan', 'おばさん', 'aunt', 'おばさん'), ja('obaasan', 'おばあさん', 'grandmother', 'おばあさん'),
+    ja('keiken', '経験', 'experience', 'けいけん'), ja('keikensuru', '経験する', 'to experience', 'けいけんする'),
+  ];
+  const set = mixupSet(words, new Set(words.map((w) => w.id)));
+  it('asks words a kanji apart, and a noun against its suru verb, by meaning', () => {
+    expect(set.meaning.get('gekidan')).toEqual(['gekijou']);
+    // As Spanish asks esperar against la espera.
+    expect(set.meaning.get('keiken')).toEqual(['keikensuru']);
+  });
+  it('asks a long vowel against a short one by ear', () => {
+    expect(set.ear.get('obasan')).toEqual(['obaasan']);
   });
 });
 

@@ -26,6 +26,23 @@ export function recordingText(note: Note): string {
   return isOmnilanguage(note) ? spokenEntry(lang, genderOf(htmlToText(note.fields.Gender ?? '')), entry) : entry;
 }
 
+/**
+ * What a note is recorded from: its text (`recordingText`), the text's language, and for a Japanese word its
+ * reading (KanaReading), which Read & Listen's server says in the word's place where it would read the kanji
+ * otherwise (japanese.spoken_reading): 今日 meant as こんにち.
+ */
+export interface RecordingRequest {
+  text: string;
+  language?: string;
+  reading?: string;
+}
+
+export function recordingRequest(note: Note): RecordingRequest {
+  const language = speechLangFor(note);
+  const reading = language?.startsWith('ja') ? htmlToText(note.fields.KanaReading ?? '').trim() : '';
+  return { text: recordingText(note), ...(language ? { language } : {}), ...(reading ? { reading } : {}) };
+}
+
 /** Whether a note can be recorded and has no recording yet. */
 export function needsRecording(note: Note): boolean {
   return isOmnilanguage(note) && !soundFiles(note.fields.Audio).length && !!recordingText(note) && !!speechLangFor(note);
@@ -45,10 +62,12 @@ function pyFloat(n: number): string {
 /**
  * The file a recording is kept in, named as the MCP's `add_tts_audio` names its own
  * (server/mcp/franki_mcp/speech.py, `audio_filename`): the same text in the same voice and speed
- * gets the same file, whichever made it.
+ * gets the same file, whichever made it. A Japanese word's reading goes into the name too, so a
+ * recording made from it never reuses one made before readings were sent.
  */
-export function recordingName(text: string, voice: string, rate = RECORDING_RATE): string {
-  return `franki-tts-${sha1Hex(strToU8(`${voice}\n${pyFloat(rate)}\n${text}`)).slice(0, 16)}.mp3`;
+export function recordingName(text: string, voice: string, rate = RECORDING_RATE, reading?: string): string {
+  const key = `${voice}\n${pyFloat(rate)}\n${text}${reading ? `\n${reading}` : ''}`;
+  return `franki-tts-${sha1Hex(strToU8(key)).slice(0, 16)}.mp3`;
 }
 
 /** The note's fields with the recording added to Audio, after any text already there. */

@@ -32,9 +32,12 @@ __all__ = [
 ]
 
 
-def audio_filename(text: str, voice: str, rate: float) -> str:
-    """The same text in the same voice and speed gets the same file, so asking again adds nothing."""
-    digest = hashlib.sha1(f"{voice}\n{rate}\n{text}".encode()).hexdigest()[:16]
+def audio_filename(text: str, voice: str, rate: float, reading: str | None = None) -> str:
+    """The same text in the same voice and speed gets the same file, so asking again adds nothing. A
+    Japanese word recorded from its reading is named with it, apart from one recorded from the kanji
+    (the app's recordingName names them the same way)."""
+    key = f"{voice}\n{rate}\n{text}" + (f"\n{reading}" if reading else "")
+    digest = hashlib.sha1(key.encode()).hexdigest()[:16]
     return f"franki-tts-{digest}.mp3"
 
 

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { PixelRatio, Pressable, Text, View, type TextStyle } from 'react-native';
+import { furiganaRuns, hasRuby, shownRuns, type FuriganaSetting } from '../core/furigana';
 import type { Segment } from '../core/highlight';
 import { dotOffsets, sentencePieces, wordBreaks } from '../reader/cardGlosses';
 import { LANGUAGES } from '../reader/languages';
 import { GlossPopover, type Tapped } from './reader/Reader';
+import { Ruby } from './Ruby';
 import { radius, useTheme, smooth } from './theme';
 import type { SentenceGloss } from './useCardGlosses';
 
@@ -24,7 +26,11 @@ type Laid = { y?: number; width?: number };
  * the line between them, so the sentence shows where it splits. The card's own word keeps its
  * highlight. Tapping a word only shows it: nothing is graded or written (reader/cardGlosses.ts).
  */
-export function CardSentence({ gloss, segments, style }: { gloss: SentenceGloss; segments?: Segment[]; style: TextStyle }) {
+export function CardSentence({ gloss, segments, style, furigana }: {
+  gloss: SentenceGloss; segments?: Segment[]; style: TextStyle;
+  /** The furigana setting, once the answer shows: each word's reading (its gloss's `translit`) over its kanji. */
+  furigana?: FuriganaSetting;
+}) {
   const c = useTheme();
   const pieces = sentencePieces(gloss.words, segments);
   const breaks = wordBreaks(pieces);
@@ -84,11 +90,23 @@ export function CardSentence({ gloss, segments, style }: { gloss: SentenceGloss;
               {ringed ? (
                 <View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.s - 2, ...smooth, borderWidth: 1.5, borderColor: c.accent }} />
               ) : null}
-              <Text style={style}>
-                {piece.parts.map((p, k) => (p.marked
-                  ? <Text key={k} style={{ color: c.accentInk, backgroundColor: c.accentFill, fontWeight: '600' }}>{p.text}</Text>
-                  : p.text))}
-              </Text>
+              {(() => {
+                // With furigana, a word with a reading over it is drawn as runs; the card's own word keeps its highlight.
+                const runs = furigana && gloss.language === 'ja' && piece.word.translit
+                  ? shownRuns(furiganaRuns(piece.word.text, piece.word.translit, furigana.readings), furigana.mode, furigana.learned, piece.word.text, piece.word.lemma ?? undefined)
+                  : null;
+                if (runs && hasRuby(runs)) {
+                  const marked = piece.parts.some((p) => p.marked);
+                  return <Ruby runs={runs} style={{ ...style, ...(marked ? { color: c.accentInk, backgroundColor: c.accentFill, fontWeight: '600' } : {}) }} rubyColor={c.textSecondary} />;
+                }
+                return (
+                  <Text style={style}>
+                    {piece.parts.map((p, k) => (p.marked
+                      ? <Text key={k} style={{ color: c.accentInk, backgroundColor: c.accentFill, fontWeight: '600' }}>{p.text}</Text>
+                      : p.text))}
+                  </Text>
+                );
+              })()}
               {box ? dotOffsets(box.width - left - right, DOT).map((x, k) => (
                 <View key={k} pointerEvents="none" style={{ position: 'absolute', bottom: 0, left: left + x, width: DOT, height: DOT, backgroundColor: dotColor }} />
               )) : null}

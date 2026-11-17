@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  heldCards, lookalikeForm, lookalikeIndex, lookalikeSettings, seenEvents, seenSince, soonerOffer, whenSeen, wordsLookAlike, type SeenEvent,
+  heldCards, kanjiNeighbors, lookalikeForm, lookalikeIndex, lookalikeSettings, seenEvents, seenSince, soonerOffer, whenSeen, wordsLookAlike, type SeenEvent,
 } from '../../src/core/lookalikes';
 import { newSchedState } from '../../src/core/scheduler';
 import type { Card, Note, SchedState } from '../../src/core/types';
@@ -56,6 +56,37 @@ describe('lookalikeForm / wordsLookAlike', () => {
   });
   it('keeps marked letters apart in a language where they are letters of their own', () => {
     expect(wordsLookAlike(lookalikeForm('dziękuję', 'pl-PL'), lookalikeForm('dzień', 'pl-PL'))).toBe(false);
+  });
+});
+
+describe('Japanese lookalikes', () => {
+  const ja = (id: string, entry: string) => word(id, entry, { Language: 'japanese' }, '👅 Languages::🍥 日本語');
+  it('links a word to a suru verb, phrase or compound built on it', () => {
+    expect(wordsLookAlike('経験', '経験する', 'ja-JP')).toBe(true);
+    expect(wordsLookAlike('約束', '約束を破る', 'ja-JP')).toBe(true);
+    expect(wordsLookAlike('日本', '日本語', 'ja-JP')).toBe(true);
+  });
+  it('needs more than one shared kanji, and a kanji among what is shared', () => {
+    expect(wordsLookAlike('新しい', '新聞', 'ja-JP')).toBe(false);
+    expect(wordsLookAlike('劇団', '劇場', 'ja-JP')).toBe(false);
+    expect(wordsLookAlike('おはよう', 'おはようございます', 'ja-JP')).toBe(false);
+  });
+  it('reads full-width brackets and commas as the end of the word', () => {
+    expect(lookalikeForm('方（かた）', 'ja-JP')).toBe('方');
+    expect(lookalikeForm('今日、本日', 'ja-JP')).toBe('今日');
+  });
+  it('links Japanese notes in the index, two characters being enough to share', () => {
+    const idx = lookalikeIndex([ja('a', '経験'), ja('b', '経験する'), ja('c', '経済')]);
+    expect(idx.get('a')).toEqual(new Set(['b']));
+    expect(idx.has('c')).toBe(false);
+  });
+  it('finds words a kanji apart, for Similar words', () => {
+    expect(kanjiNeighbors('劇団', '劇場')).toBe(true);
+    expect(kanjiNeighbors('毎日', '毎年')).toBe(true);
+    expect(kanjiNeighbors('お茶', 'お酒')).toBe(false); // nothing in common but a kana
+    expect(kanjiNeighbors('劇団', '劇団員')).toBe(false);
+    expect(kanjiNeighbors('劇', '刷')).toBe(false);
+    expect(kanjiNeighbors('食べる', '食べた')).toBe(false); // a kana apart
   });
 });
 

@@ -196,10 +196,13 @@ export interface RenderedSide {
      * blocks are one example sentence's lines (set tight together), a `note` is set off in a
      * callout, `forms` is a labeled list of the word's forms (`rows`), and `wanted` is the short line
      * under a reverse card's meaning that says which of the words with that meaning is asked for
-     * (`wantedLine` in synonyms.ts), `counting` is a Thai noun counted with its counting word (`rows`: label the counting word, value the counted phrase), and a `gloss` is a meaning shown under the word it translates,
-     * smaller and quieter than that word (the audio card's back). A block with no role is plain labeled text.
+     * (`wantedLine` in synonyms.ts), `counting` is a Thai noun counted with its counting word (`rows`: label the counting word, value the counted phrase), a `gloss` is a meaning shown under the word it translates,
+     * smaller and quieter than that word (the audio card's back), and `reading` is a Japanese word's kana, which the
+     * screen leaves out when furigana shows it over the word already. A block with no role is plain labeled text.
      */
-    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'forms' | 'counting' | 'wanted' | 'gloss';
+    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'forms' | 'counting' | 'wanted' | 'gloss' | 'reading';
+    /** The word's reading in kana (a Japanese Entry's KanaReading), for furigana over it once the answer shows (furigana.ts). */
+    reading?: string;
     chips?: string[];
     /** A `forms` block's lines: one of the word's forms each, under its label ("plural", "genitive"). */
     rows?: { label: string; value: string; /** A `counting` row's note on what its counting word counts: "hèng" and "places and institutions". */ counts?: { roman: string; what: string } }[];

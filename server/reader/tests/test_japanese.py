@@ -19,6 +19,7 @@ from franki_reader.japanese import (
     hiragana,
     is_phrase,
     lemma_key,
+    spoken_reading,
     words,
 )
 from franki_reader.languages import LANGUAGES
@@ -307,3 +308,15 @@ def test_is_phrase_files_an_entry_as_the_lexicon_does() -> None:
 def test_words_split_a_line_as_the_reader_does_without_a_deck() -> None:
     assert words("お茶を飲みたいです。") == ["お茶", "を", "飲みたいです"]
     assert words("、。") == []
+
+
+def test_a_word_is_said_from_its_reading_only_where_sudachi_reads_it_otherwise() -> None:
+    # Sudachi reads 今日 as きょう and 生 as なま.
+    assert spoken_reading("今日", "きょう") is None
+    assert spoken_reading("今日", "こんにち") == "こんにち"
+    assert spoken_reading("生", "せい") == "せい"
+    assert spoken_reading("劇団", "ゲキダン") is None  # katakana is the same reading
+    assert spoken_reading("今日", "こんにち、きょう") is None  # any alternative Sudachi agrees with
+    assert spoken_reading("今日", "こんにち / こんじつ") == "こんにち"
+    assert spoken_reading("ラーメン", "らーめん") is None  # no kanji
+    assert spoken_reading("今日", " ") is None
