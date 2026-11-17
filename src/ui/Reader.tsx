@@ -325,7 +325,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     if (!text) return;
     const mine = ++starting.current;
     const key = `${text.id}:${i}`;
-    const audio = await lineAudio(api, text.id, i, r, slowTimed[key]);
+    // The line fetched while the last one played, when this is it; else loaded now.
+    const audio = (await playerHost.preloader.take(text.id, i, r)) ?? (await lineAudio(api, text.id, i, r, slowTimed[key]));
     if (starting.current !== mine) return;
     if (audio.times) setSlowTimed((prev) => ({ ...prev, [key]: audio.times! }));
     setPlayedSlow(audio.slow);
@@ -336,6 +337,17 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     // Now Playing, on the lock screen and in Control Center: the text's title, with play and pause. The progress bar there is the line's.
     player.setActiveForLockScreen(true, { title: text.title, artist: 'Franki', albumTitle: 'Read & Listen' });
   };
+
+  // While a line plays in Play all, the next one is fetched (src/reader/preload.ts), so it can start as
+  // soon as this ends. That's the line after the last repeat of this one; a line repeated forever has no
+  // next. Asking again for the held line does nothing, and a line asked for that isn't it (another line
+  // tapped, the speed changed) loads as usual. Marking a line heard stays with `didJustFinish` below.
+  useEffect(() => {
+    if (!text || current === null || !playingAll || !(status.playing || status.isBuffering)) return;
+    if (!Number.isFinite(repeat)) return;
+    const next = nextLine(text.lines, current, true, repeat, repeat);
+    if (next !== null && next !== current) playerHost.preloader.prefetch(api, text.id, next, rate, slowTimed[`${text.id}:${next}`]);
+  }, [text, current, playingAll, status.playing, status.isBuffering, repeat, rate]); // eslint-disable-line react-hooks/exhaustive-deps -- `slowTimed` only saves asking for times again
 
   const playLine = (i: number, all: boolean, r = rate) => {
     if (!text) return;
@@ -412,6 +424,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     const id = ++loadId.current;
     const stillWanted = () => mounted.current && id === loadId.current;
     player.pause();
+    playerHost.preloader.clear();
     setCurrent(null);
     setPlayingAll(false);
     setSilentLine(null);
