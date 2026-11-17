@@ -382,6 +382,17 @@ export function shownDeckRows<R extends DeckNode>(rows: R[], collapsed: Set<stri
 }
 
 /**
+ * The Today tab's decks: the deck list's rows trimmed to the decks with something due or new
+ * today. A deck stays when it or a deck inside it has cards today, so a subdeck is never shown
+ * without the decks above it, and a deck whose subdecks all have nothing loses its show/hide
+ * button. Collapsed decks hide their subdecks here as on the deck list.
+ */
+export function todayDeckRows<R extends DeckNode & { due: number; fresh: number }>(rows: R[], collapsed: Set<string>) {
+  const busy = rows.filter((r) => r.due + r.fresh > 0);
+  return shownDeckRows(rows.filter((r) => busy.some((b) => isInDeck(b.deck, r.deck))), collapsed);
+}
+
+/**
  * The deck to open after finishing `deck`: the next one down the deck list (as shown, so a
  * collapsed deck's subdecks are skipped) that has something to study. A deck's own subdecks are
  * already part of studying it, so the search starts after them. Undefined when nothing is left.

@@ -1,0 +1,59 @@
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
+import { syncStatusText } from '../../../anki/sync/runSync';
+import { answersFromLog } from '../../../wanikani/log';
+import { useApp } from '../../../ui/AppContext';
+import { ExtrasStrip } from '../../../ui/DailyExtras';
+import { useDeckActions } from '../../../ui/DeckActions';
+import { Today } from '../../../ui/Today';
+import { useDailyExtras } from '../../../ui/useDailyExtras';
+import { useGrammarDue } from '../../../ui/useGrammarDue';
+import { useTodaySummary } from '../../../ui/useTodaySummary';
+import { WaniKaniDeck } from '../../../ui/WaniKaniDeck';
+
+/** The Today tab: the first screen, with only what's for today. */
+export default function TodayRoute() {
+  const router = useRouter();
+  const { repo, decks, backup, syncSettings, syncing, sync, refresh, loadProblem, collapse, wanikani, reader } = useApp();
+  // Counts change while studying, so load them again each time this screen comes back into view.
+  // `decks` starts empty until the first load from the database finishes, which is not the same as
+  // having no decks: the empty state waits for it.
+  const [loaded, setLoaded] = useState(false);
+  useFocusEffect(useCallback(() => { refresh().finally(() => setLoaded(true)); wanikani.refresh(); }, [refresh, wanikani.refresh]));
+  const wanikaniAnswers = useMemo(() => answersFromLog(wanikani.log), [wanikani.log]);
+  const studied = useTodaySummary(repo, decks, wanikaniAnswers);
+  const openOptions = useCallback((deck: string) => router.push({ pathname: '/deck-options', params: { deck } }), [router]);
+  const deckActions = useDeckActions(openOptions);
+  const extras = useDailyExtras();
+  const grammarDue = useGrammarDue(reader.api, repo);
+  return (
+    <Today
+      decks={decks}
+      loaded={loaded}
+      studied={studied}
+      extrasStrip={<ExtrasStrip extras={extras} grammarDue={grammarDue} />}
+      backup={backup}
+      loadProblem={loadProblem ? { text: loadProblem, onRetry: refresh } : undefined}
+      onImport={() => router.push('/anki')}
+      onBackup={() => router.push('/backup')}
+      onSettings={() => router.push('/settings')}
+      onOptions={openOptions}
+      onDeckMenu={deckActions.menu}
+      onDeckAction={deckActions.act}
+      collapsed={collapse.collapsed}
+      onToggleCollapsed={collapse.toggle}
+      extra={wanikani.on ? {
+        due: wanikani.counts?.reviews ?? 0,
+        fresh: wanikani.counts?.lessons ?? 0,
+        refresh: () => wanikani.refresh(true),
+        node: <WaniKaniDeck wanikani={wanikani} onOpen={() => router.push('/wanikani')} onOptions={() => router.push('/wanikani-settings')} />,
+      } : undefined}
+      sync={syncSettings?.enabled ? {
+        syncing,
+        status: syncStatusText(syncSettings, new Date()),
+        failed: !!syncSettings.lastError,
+        onSync: () => sync(),
+      } : undefined}
+    />
+  );
+}

@@ -26,7 +26,7 @@ export const VACATION_NEW_CHOICES = [0, 1, 2, 3, 5] as const;
 export const VACATION_REVIEW_CHOICES = [10, 25, 50, 75] as const;
 /** How long after a vacation ends the weakest-first order can stay on, whatever is left. */
 export const CATCH_UP_DAYS = 14;
-/** How long after a vacation ends the deck list says so. */
+/** How long after a vacation ends Today says so. */
 export const WELCOME_BACK_DAYS = 2;
 
 export interface VacationPrefs {
@@ -149,7 +149,7 @@ export function scaleLimits(limits: DeckLimits, plan: VacationPlan | undefined, 
   };
 }
 
-/** What the deck list says about the vacation, or undefined when there's nothing to say. */
+/** What Today says about the vacation, or undefined when there's nothing to say. */
 export type VacationNotice =
   | { kind: 'away'; mode: 'light' | 'paused'; until?: string }
   | { kind: 'back'; days: number };
