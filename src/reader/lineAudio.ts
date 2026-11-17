@@ -8,7 +8,8 @@ import { isSlow, NORMAL_RATE, SLOW_RATE } from './playbackRate';
  * normal recording is played stretched instead, and `slow` says so.
  */
 export type LineAudio = {
-  source: ReturnType<Api['audioSource']>;
+  /** A server address with the passphrase, or (once preloaded, src/reader/preload.ts) a file on the phone. */
+  source: { uri: string; headers?: Record<string, string> };
   /** The player's own playback rate: stretched only for the fallback. */
   stretch: number;
   /** Whether what plays is the slow recording. */

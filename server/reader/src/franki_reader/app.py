@@ -303,6 +303,7 @@ from franki_reader import (
     situations,
     store,
     timing,
+    topic_image,
     vocab_check,
 )
 from franki_reader.collection import AnkiDeck, SyncSettings
@@ -541,6 +542,12 @@ class SituationFocus(BaseModel):
 class GrammarTopicIn(BaseModel):
     language: Code
     title: str = Field(min_length=1, max_length=grammar_topics.MAX_TITLE)
+
+
+class TopicImageIn(BaseModel):
+    language: Code
+    image: str = Field(min_length=1, max_length=topic_image.MAX_IMAGE_CHARS)  # base64
+    media_type: Literal["image/jpeg", "image/png", "image/webp", "image/gif"]
 
 
 class SituationIn(BaseModel):
@@ -782,6 +789,7 @@ def create_app(
     play: situations.Play | None = None,
     give_feedback: situations.GiveFeedback | None = None,
     write_topic: grammar_topics.WriteTopic | None = None,
+    read_topic_image: topic_image.ReadTopic | None = None,
     clips: ClipCache | None = None,
     write_lesson: WritePlan | None = None,
     lessons_dir: Path | None = None,
@@ -802,6 +810,8 @@ def create_app(
     sentences_writing: set[Code] = set()
     # Your topics' pages being written (grammar_topics.write_page), shared by every request.
     grammar_topics_writing: set[int] = set()
+    # Images read for a topic's title in each study day (topic_image.py); a restart resets it.
+    topic_image_reads: dict[datetime, int] = {}
 
     def keep_failed_cost(feature: store.CallFeature, language: str, used: Usage) -> None:
         """What a call that failed after Claude answered cost: no answer is kept to carry it, so
@@ -1639,6 +1649,35 @@ def create_app(
         start_grammar_topic_write(topic, "page", background)
         return JSONResponse(grammar_topic_json(topic), status_code=202)
 
+    @app.post("/api/grammar-topics/read-image", dependencies=authed)
+    async def read_grammar_topic_image(body: TopicImageIn) -> dict[str, str]:
+        """The grammar point an image (a photo of a book's page, a screenshot) is about, as a title
+        to put in the New topic screen. Nothing is stored: the topic is made by a separate call
+        once the owner has looked at the title."""
+        if read_topic_image is None:
+            raise HTTPException(503, no_claude.replace("check your writing", "read an image"))
+        since = study_day_start(engine.clock(), engine.rollover(), engine.zone)
+        if topic_image_reads.get(since, 0) >= topic_image.MAX_READS_PER_DAY:
+            raise HTTPException(
+                429,
+                f"You've read {topic_image.MAX_READS_PER_DAY} images today. "
+                "Type the topic, or try again after your study day starts.",
+            )
+        if since not in topic_image_reads:
+            topic_image_reads.clear()  # an earlier day's count is no use
+        topic_image_reads[since] = topic_image_reads.get(since, 0) + 1
+        try:
+            title, used = await read_topic_image(body.language, body.image, body.media_type)
+        except topic_image.ReadFailed as e:
+            keep_failed_cost("topic_image", body.language, e.usage)
+            raise HTTPException(502, str(e)) from e
+        store.save_call_cost(
+            engine.conn, "topic_image", body.language, engine.clock(), used.cost_usd()
+        )
+        if title is None:
+            raise HTTPException(422, topic_image.NOT_FOUND)
+        return {"title": title}
+
     @app.get("/api/grammar-topics/{topic_id}", dependencies=authed)
     async def get_grammar_topic(topic_id: int) -> dict[str, Any]:
         topic = store.get_grammar_topic(engine.conn, topic_id)
@@ -2081,6 +2120,7 @@ def create_app(
         explained = store.explanation_spending(engine.conn, since)
         drilled = store.drill_spending(engine.conn, since)
         topic_writes = store.grammar_topic_spending(engine.conn, since)
+        topic_images = store.topic_image_spending(engine.conn, since)
         vocab = store.vocab_spending(engine.conn, since)
         queued = store.queue_spending(engine.conn, since)
         glossed = store.meaning_spending(engine.conn, since)
@@ -2140,6 +2180,20 @@ def create_app(
                         "cost_usd": round(c, 4),
                     }
                     for code, (n, c) in topic_writes.items()
+                ],
+            },
+            # Images read for a topic's title (topic_image.py), failed calls included.
+            "topic_images": {
+                "read": sum(n for n, _ in topic_images.values()),
+                "cost_usd": round(sum(c for _, c in topic_images.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "read": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in topic_images.items()
                 ],
             },
             "drills": {
@@ -2834,6 +2888,7 @@ def production_app() -> FastAPI:
     give_feedback: situations.GiveFeedback | None = None
     write_drills: drills.WriteDrills | None = None
     write_topic: grammar_topics.WriteTopic | None = None
+    read_topic_image: topic_image.ReadTopic | None = None
     write_vocab: vocab_check.WriteVocab | None = None
     write_notes: note_queue.WriteNotes | None = None
     write_meanings: meanings.WriteMeanings | None = None
@@ -2857,6 +2912,7 @@ def production_app() -> FastAPI:
         give_feedback = situations.claude_feedback(client)
         write_drills = drills.claude_drills(client)
         write_topic = grammar_topics.claude_topics(client)
+        read_topic_image = topic_image.claude_topic_reader(client)
         write_vocab = vocab_check.claude_vocab(client)
         write_notes = note_queue.claude_notes(client)
         write_meanings = meanings.claude_meanings(client)
@@ -2945,6 +3001,7 @@ def production_app() -> FastAPI:
         play=play,
         give_feedback=give_feedback,
         write_topic=write_topic,
+        read_topic_image=read_topic_image,
         # Beside the texts' audio: a text's folder is its id, so "situations" can't be one.
         clips=ClipCache(settings.audio_dir / "situations"),
         write_lesson=write_lesson,
