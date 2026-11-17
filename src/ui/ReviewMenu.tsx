@@ -4,13 +4,15 @@ import { FLAG_NAMES } from '../core/cardState';
 
 /**
  * The "…" menu of Review's header: what can be done to the card on screen besides answering it,
- * in groups (mnemonic and a confusing word to link, flag, hold back, reschedule, info). Flag is a submenu with the card's current
+ * in groups (ask Claude, mnemonic and a confusing word to link, flag, hold back, reschedule, info). Flag is a submenu with the card's current
  * color checked, so choosing one doesn't open a second sheet. Forget is the destructive one: it
  * clears the card's memory (and asks first), where Suspend and Bury can be undone in the note editor.
  */
-export function ReviewMenu({ flag, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onDueDate, onForget, onCardInfo }: {
+export function ReviewMenu({ flag, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onDueDate, onForget, onCardInfo }: {
   /** The card's flag, 0 for none. */
   flag: number;
+  /** Opens Ask Claude for the card on screen. */
+  onAskClaude: () => void;
   /** Write a mnemonic for the word; missing when the card's note can't take one (`canAddMnemonic`). */
   onMnemonic?: () => void;
   /** Link the word to one it's mixed up with (src/core/confusedPairs.ts); missing when the note can't be linked (`canLinkConfused`). */
@@ -25,7 +27,10 @@ export function ReviewMenu({ flag, onMnemonic, onLinkConfused, onFlag, onAgentFl
   onCardInfo: () => void;
 }) {
   return (
-    <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More for this card: mnemonic, a confusing word to link, flag, bury, suspend, reschedule or card info">
+    <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More for this card: ask Claude, mnemonic, a confusing word to link, flag, bury, suspend, reschedule or card info">
+      <Stack.Toolbar.Menu inline>
+        <Stack.Toolbar.MenuAction icon="sparkles" onPress={onAskClaude}>Ask Claude</Stack.Toolbar.MenuAction>
+      </Stack.Toolbar.Menu>
       {/* Offered for the hard words, not every card, so it lives here and not in the header, which stays at four buttons. */}
       {onMnemonic || onLinkConfused ? (
         <Stack.Toolbar.Menu inline>

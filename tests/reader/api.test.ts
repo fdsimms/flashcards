@@ -161,6 +161,15 @@ test('asks for memory hints for a word and returns the list', async () => {
   expect(JSON.parse(calls[0].init.body as string)).toEqual({ language: 'th', entry: 'ทุก', meaning: 'every; all' });
 });
 
+test('asks Claude about a card with the conversation and returns the answer', async () => {
+  const { impl, calls } = fakeFetch(json({ answer: 'It is perfective.' }));
+  const api = createApi('https://x/reader', 'p', impl);
+  const turns = [{ role: 'user' as const, content: 'Why wyjść?' }];
+  expect(await api.askCard({ language: 'pl', front: 'wyjść', back: 'to go out' }, turns)).toBe('It is perfective.');
+  expect(calls[0].url).toBe('https://x/reader/api/ask-card');
+  expect(JSON.parse(calls[0].init.body as string)).toEqual({ language: 'pl', front: 'wyjść', back: 'to go out', turns });
+});
+
 test("asks for every language's grammar choices", async () => {
   const { impl, calls } = fakeFetch(json({ choices: { 'es.preterite': 'practice' } }));
   const got = await createApi('https://x/reader', 'p', impl).grammarChoices();

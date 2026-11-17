@@ -41,6 +41,7 @@ Required = SyncCollectionResponse.ChangesRequired
 
 ENTRY_FIELD = "Entry"
 MEANING_FIELD = "Meaning"
+REGISTER_FIELD = "Register"
 
 
 @dataclass(frozen=True)
@@ -161,6 +162,7 @@ def read_entries(col: Collection, language: Language) -> list[Entry]:
                 fields[ENTRY_FIELD],
                 fields.get(MEANING_FIELD, ""),
                 fields.get(language.translit_field, ""),
+                fields.get(REGISTER_FIELD, ""),
             )
         )
     if not notes:
