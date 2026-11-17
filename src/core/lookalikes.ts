@@ -43,7 +43,8 @@ const STRESS_MARKED = new Set(['ru', 'uk']);
 const withoutStress = (s: string) => s.normalize('NFD').replace(/[\u0300\u0301]/g, '').normalize('NFC');
 
 export function lookalikeForm(word: string, lang: string | undefined): string {
-  const head = word.split(/\s[(—–-]|\(|,/)[0].trim();
+  // Japanese writes its brackets and commas full width: 方（かた）, 今日、本日.
+  const head = word.split(/\s[(—–-]|[(（]|[,、，]/)[0].trim();
   const lower = withoutArticle(head, lang).toLocaleLowerCase().normalize('NFC');
   const code = lang?.split('-')[0].toLowerCase() ?? '';
   // Stress marks added to a Russian or Ukrainian word for learning (молоко́) aren't spelling: they
@@ -57,6 +58,19 @@ export function noteLanguage(note: Note): string {
   return speechLangFor(note) ?? note.deck.split('::').slice(0, 2).join('::');
 }
 
+/** A kanji (CJK ideograph, or 々). */
+const KANJI = /[\u3400-\u4dbf\u4e00-\u9fff々]/;
+
+/**
+ * Japanese is compared by its characters, which carry far more than a letter: a word looks like
+ * another when they share a beginning of `JA_MIN_SHARED` characters or more with a kanji in it,
+ * covering most of the shorter one (経験 and 経験する, 約束 and 約束を破る, 日本 and 日本語), so a
+ * suru verb, a phrase or a compound built on a word is linked to it. One shared kanji (新しい and
+ * 新聞) isn't enough: 日 alone starts hundreds of words.
+ */
+const JA_MIN_SHARED = 2;
+const isJapanese = (lang: string | undefined) => !!lang?.toLowerCase().startsWith('ja');
+
 function sharedStart(a: string, b: string): number {
   let i = 0;
   while (i < a.length && i < b.length && a[i] === b[i]) i++;
@@ -67,9 +81,15 @@ function sharedStart(a: string, b: string): number {
  * Whether two compared words look alike: one starts most of the way into the other, and a short
  * word only links to its inflections, not to every longer word built on it.
  */
-export function wordsLookAlike(a: string, b: string): boolean {
+export function wordsLookAlike(a: string, b: string, lang?: string): boolean {
   if (!a || !b) return false;
   if (a === b) return true;
+  if (isJapanese(lang)) {
+    const [x, y] = [Array.from(a), Array.from(b)];
+    let shared = 0;
+    while (shared < x.length && shared < y.length && x[shared] === y[shared]) shared++;
+    return shared >= JA_MIN_SHARED && shared >= MIN_SHARE * Math.min(x.length, y.length) && x.slice(0, shared).some((c) => KANJI.test(c));
+  }
   const shorter = Math.min(a.length, b.length);
   const longer = Math.max(a.length, b.length);
   if (shorter < MIN_STEM && longer - shorter > MAX_LONGER_BY) return false;
@@ -100,25 +120,41 @@ export function lookalikeIndex(notes: Note[]): Map<string, Set<string>> {
     for (const k of htmlToText(n.fields.KeyForms ?? '').split(/[,;\n]/)) if (k.trim()) forms.add(lookalikeForm(k, lang));
     (byLang.get(lang) ?? byLang.set(lang, []).get(lang)!).push({ id: n.id, word, forms });
   }
-  for (const words of byLang.values()) {
-    // Words sharing a beginning of MIN_SHARED letters are the only ones that can look alike.
+  for (const [lang, words] of byLang) {
+    // Words sharing a beginning of MIN_SHARED letters (JA_MIN_SHARED characters) are the only ones that can look alike.
+    const start = isJapanese(lang) ? JA_MIN_SHARED : MIN_SHARED;
     const buckets = new Map<string, typeof words>();
     const byWord = new Map<string, string[]>();
     for (const w of words) {
-      const b = w.word.slice(0, MIN_SHARED);
+      const b = Array.from(w.word).slice(0, start).join('');
       (buckets.get(b) ?? buckets.set(b, []).get(b)!).push(w);
       (byWord.get(w.word) ?? byWord.set(w.word, []).get(w.word)!).push(w.id);
     }
     for (const bucket of buckets.values()) {
       for (let i = 0; i < bucket.length; i++) {
         for (let j = i + 1; j < bucket.length; j++) {
-          if (wordsLookAlike(bucket[i].word, bucket[j].word)) link(bucket[i].id, bucket[j].id);
+          if (wordsLookAlike(bucket[i].word, bucket[j].word, lang)) link(bucket[i].id, bucket[j].id);
         }
       }
     }
     for (const w of words) for (const f of w.forms) for (const id of byWord.get(f) ?? []) link(w.id, id);
   }
   return out;
+}
+
+/**
+ * Two Japanese words of the same length that differ in one kanji and share another (劇団 and 劇場,
+ * 毎日 and 毎年): easy to mix up when reading, so Similar words asks them. Not a lookalike: seeing
+ * one doesn't give the other away, and a hold on these would keep back every word sharing a common
+ * kanji with one just seen.
+ */
+export function kanjiNeighbors(a: string, b: string): boolean {
+  const [x, y] = [Array.from(a), Array.from(b)];
+  if (x.length !== y.length || x.length < 2) return false;
+  const differ = x.map((c, i) => c !== y[i]);
+  if (differ.filter(Boolean).length !== 1) return false;
+  const at = differ.indexOf(true);
+  return KANJI.test(x[at]) && KANJI.test(y[at]) && x.some((c, i) => i !== at && KANJI.test(c));
 }
 
 /** A word seen: one of its cards answered, or its forms practiced. */

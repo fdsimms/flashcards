@@ -4,7 +4,7 @@ import { headword } from '../core/forms';
 import { htmlToText } from '../core/html';
 import { toHiragana } from '../core/kana';
 import { stripMarks } from '../core/letters';
-import { lookalikeIndex } from '../core/lookalikes';
+import { kanjiNeighbors, lookalikeIndex } from '../core/lookalikes';
 import { meaningSet, sameMeaning } from '../core/synonyms';
 import type { Note } from '../core/types';
 import type { Language } from '../reader/api';
@@ -68,7 +68,33 @@ export function soundKey(w: MixupWord): string | undefined {
   const base = w.roman || (w.language === 'th' || w.language === 'ja' ? '' : w.word);
   if (!base) return undefined;
   const key = unmarked(toHiragana(base).toLocaleLowerCase()).replace(/[-‐·'’\s]/g, '');
-  return key || undefined;
+  return (w.language === 'ja' ? heardAs(key) : key) || undefined;
+}
+
+/** Each small kana as the full-size one (びょういん as びよういん). */
+const FULL_SIZE: Record<string, string> = { ゃ: 'や', ゅ: 'ゆ', ょ: 'よ', ぁ: 'あ', ぃ: 'い', ぅ: 'う', ぇ: 'え', ぉ: 'お', ゎ: 'わ' };
+/** The vowel each kana ends in, for telling a long vowel from a new syllable. */
+const VOWEL_OF: Record<string, string> = Object.fromEntries(
+  ['あかさたなはまやらわがざだばぱ', 'いきしちにひみりぎじぢびぴ', 'うくすつぬふむゆるぐずづぶぷ', 'えけせてねへめれげぜでべぺ', 'おこそとのほもよろをごぞどぼぽ']
+    .flatMap((row, v) => Array.from(row, (k) => [k, 'aiueo'[v]])),
+);
+const LENGTHENS: Record<string, string> = { a: 'あ', i: 'い', u: 'う', e: 'いえ', o: 'うお' };
+
+/**
+ * A Japanese reading as a learner's ear slips on it: a long vowel heard short (おばあさん as おばさん,
+ * せんせい as せんせ), the small っ missed (きって as きて), and a small ゃゅょ heard full size (びょういん
+ * as びよういん). Words whose readings come out the same are asked as sound-alikes.
+ */
+function heardAs(kana: string): string {
+  const chars = Array.from(kana.replace(/[っー]/g, '')).map((c) => FULL_SIZE[c] ?? c);
+  const out: string[] = [];
+  for (const c of chars) {
+    const before = out[out.length - 1];
+    const vowel = before && VOWEL_OF[before];
+    if (vowel && LENGTHENS[vowel].includes(c)) continue;
+    out.push(c);
+  }
+  return out.join('');
 }
 
 /** A Thai word without its repetition mark ๆ (จริงๆ is จริง said twice, for emphasis). */
@@ -114,6 +140,20 @@ export function mixupSet(notes: Iterable<Note>, studied: ReadonlySet<string>, li
       const a = words.get(id)!;
       const b = words.get(other);
       if (b && !sameMeaning(meanings.get(id)!, meanings.get(other)!) && !isRepeatForm(a, b)) link(meaning, id, other);
+    }
+  }
+  // Japanese words a kanji apart (劇団 and 劇場) are easy to misread for each other.
+  const byLength = new Map<string, MixupWord[]>();
+  for (const w of words.values()) {
+    if (w.language !== 'ja') continue;
+    const key = String(Array.from(w.word).length);
+    (byLength.get(key) ?? byLength.set(key, []).get(key)!).push(w);
+  }
+  for (const group of byLength.values()) {
+    for (const a of group) {
+      for (const b of group) {
+        if (a.noteId < b.noteId && kanjiNeighbors(a.word, b.word) && !sameMeaning(meanings.get(a.noteId)!, meanings.get(b.noteId)!)) link(meaning, a.noteId, b.noteId);
+      }
     }
   }
   const ear = new Map<string, string[]>();
