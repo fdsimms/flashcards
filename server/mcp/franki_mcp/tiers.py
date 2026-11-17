@@ -30,7 +30,7 @@ from mcp.types import ToolAnnotations
 from .collection import CollectionManager
 from .frequency import BATCH, entry_word
 from .reader import ReaderClient, ReaderSettings
-from .tools import _search_text
+from .tools import PARAM_KEYS, TIER_PRESET_KEY, TIER_PRESET_SEP, _search_text
 
 log = logging.getLogger(__name__)
 
@@ -39,15 +39,13 @@ WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint
 # What a tier's preset remembers about how its deck was filed (Anki keeps keys it doesn't know in a
 # preset and syncs them), so the daily pass finds the decks and their settings without a separate
 # list, which a device syncing from an older state could drop.
-PRESET_KEY = "frankiTier"
+PRESET_KEY = TIER_PRESET_KEY
 TIER_NAME = re.compile(r"^Tier \d+$")
 DEFAULT_BANDS = [1000, 3000]
 DEFAULT_RETENTIONS = [0.92, 0.88, 0.80]
 EVERY = 24 * 3600
 FIRST_RUN_DELAY = 600
 EXAMPLES = 5
-# Where a preset keeps its FSRS parameters (Anki reads the newest it finds).
-PARAM_KEYS = ("fsrsParams6", "fsrsParams5", "fsrsWeights")
 
 
 @dataclass(frozen=True)
@@ -124,7 +122,7 @@ def _ensure_presets(col: Collection, deck: str, settings: Settings) -> list[int]
     ids = []
     for tier in range(len(settings.bands) + 1):
         did = col.decks.id(tier_deck_name(deck, tier))
-        name = f"{parent['name']} · Tier {tier + 1}"
+        name = f"{parent['name']}{TIER_PRESET_SEP}{tier + 1}"
         conf = existing.get(name) or col.decks.add_config(name, clone_from=parent)
         # In step with the parent on every run: its parameters and its limits, but not its retention.
         for key in PARAM_KEYS:

@@ -148,3 +148,35 @@ async def test_says_what_to_fix(cm, desktop):
         assert "nothing to file by" in await call_error(c, "tier_deck_by_frequency", deck="Español", language="th")
     async with client_for(cm, None) as c:
         assert "READER_PASSPHRASE" in await call_error(c, "tier_deck_by_frequency", deck="Español", language="es")
+
+
+THAI = "👅 Languages::🐘 ภาษาไทย"
+
+
+async def test_optimizing_a_tiered_deck_reads_its_tiers_and_hands_the_result_back_to_them(cm, desktop, monkeypatch):
+    from anki._backend import RustBackend
+
+    searches: list[str] = []
+    original = RustBackend.compute_fsrs_params
+    monkeypatch.setattr(RustBackend, "compute_fsrs_params", lambda self, **kw: (searches.append(kw["search"]), original(self, **kw))[1])
+    server = MCPServer("test")
+    tools.register(server, cm, None)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        words = json.loads(request.content)["words"]
+        return httpx.Response(200, json={"ranks": {w: (50 if "น้ำ" in w else None) for w in words}})
+
+    tiers.register(server, cm, SETTINGS, http=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    async with Client(server) as c:
+        await call(c, "optimize_fsrs", deck=THAI)
+        assert searches[-1].count("preset:") == 1
+        await call(c, "tier_deck_by_frequency", deck=THAI, language="th", field="Front", bands=[100], retentions=[0.9, 0.8], preview=False)
+        # The cards now sit under the tier presets, and the optimizer still reads all of them.
+        await call(c, "optimize_fsrs", deck=THAI)
+        assert searches[-1].count("preset:") == 3 and "· Tier 1" in searches[-1] and "· Tier 2" in searches[-1]
+        assert "frequency tiers" in await call_error(c, "optimize_fsrs", deck=f"{THAI}::Tier 1")
+        # Parameters set on the parent reach the tiers at once.
+        p6 = [round(0.1 + i / 10, 4) for i in range(21)]
+        await call(c, "set_fsrs_settings", deck=THAI, params=p6)
+        got = await call(c, "get_fsrs_settings", deck=f"{THAI}::Tier 2")
+        assert got["params"] == pytest.approx(p6) and got["desired_retention"] == 0.8
