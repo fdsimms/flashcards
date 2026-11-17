@@ -33,8 +33,9 @@ cd server/reader && uv run ruff check . ../speech && uv run ruff format --check 
                      # Read & Listen's server and the shared Azure client: their loop, after any change under server/reader or server/speech
 ```
 
-**The verification loop is `npm run verify`** (`tsc --noEmit && vitest run && git status --short`).
-Run it, not a subset, before committing. Read the closing `git status`: an uncommitted file looks
+**The verification loop is `npm run verify`** (`tsc --noEmit`, the suite in your zone and again in
+UTC+14 as CI runs it, then `git status --short`). Run it, not a subset, before committing, a
+one-line or copy-only change included: if you didn't run it, the PR isn't ready to open. Read the closing `git status`: an uncommitted file looks
 exactly like a passing run. All of it is green on `main`; if anything is red, it's you. That holds
 even when it's red before you've touched anything: fix a small, obvious break in the same PR and
 say so, and ask about anything bigger.
@@ -78,6 +79,14 @@ yours into a conflict for the owner to see.
 - **Keep a PR's life short:** open it once it's verified, and don't keep adding new issues to an
   open one; the longer it's open, the more of `main` it has to catch up with.
 
+**Write the PR body as a record of decisions, not a to-do list.** Each item you'd put under "Not
+done", "Not changed", "Not covered", "Not included", "Left out", "Known limits", "Not in this PR" or
+"follow-up" is a question you haven't asked yet, even with a reason attached: ask it (fix it now,
+file an issue, or leave it; "Bugs, siblings, orphans and follow-ups") before opening the PR, and
+write the answer or the issue number instead. A known bug never ships as a line in the body. A PR
+that changes what a screen looks like or how it moves says `Mock: <shown and picked>` or
+`Mock: skipped, <why it's too small to need one>`.
+
 **Batch pushes.** Each push reruns CI, and Actions minutes are a fixed allowance. When several
 review comments or failures land together, fix them all locally, run the loop, and push once. Push
 and wait only when the next fix depends on seeing this one's CI result.
@@ -89,8 +98,11 @@ the same PR** and note it in the description. Anything that needs a design decis
 files, or you're not sure is wrong: **stop and ask** (`AskUserQuestion` if the harness has it, a
 plain question otherwise). "Say so" means ask, not a line in a PR description nobody rereads.
 
-**When a fix applies to one component, look for its siblings yourself.** Grep for the same shape
-(the same copy-pasted structure, the same missing treatment). The same mechanical change applied
+**When a fix applies to one component, look for its siblings yourself.** Grep the whole repo for
+the exact thing you changed (the regex, the literal, the element, the copy-pasted block), `server/`
+included, since a rule the app checks is often checked again in Python, and say in the PR what
+else the grep found. A sibling includes the same value written out in another file; where you find
+one, prefer making both use one definition. "Nobody reported that one" is not a reason to skip it. The same mechanical change applied
 again goes in the same PR; a sibling that needs its own design call gets a question.
 
 **Remove what your own change orphaned** (a prop, a style, a helper, an export, a comment
@@ -100,7 +112,7 @@ Code that was already dead before you arrived is a different case: ask before re
 **Never file a GitHub issue without asking first**, unless the user directly asked for one. For
 every piece of adjacent work you decided not to do, ask with three options: fix it now, file an
 issue, or leave it. A "What's left" section in a PR body is not a decision; it's a decision
-avoided.
+avoided, whatever its heading says (see "Write the PR body as a record of decisions").
 
 **Offer to write down a rule when a fix's cause isn't obvious from the code** and a future reader
 would plausibly repeat the mistake. Say in one line what it would say and where, and let the user
@@ -181,7 +193,7 @@ so plainly rather than implying you ran it. Keep logic out of screens so it can 
 screen grows a decision worth testing, move it into `src/core`.
 
 **Fixtures are local times**: `new Date(2026, 10, 11, 12)` or `'2026-11-11T12:00'`, never a `...Z`
-literal that the code then reads back as a local date. `tests/support/fixtures.ts` holds the shared
+or `-05:00` literal that the code then reads back as a local date. `tests/support/fixtures.ts` holds the shared
 ones.
 
 ## Rules that load by path
@@ -212,7 +224,8 @@ A few of those rules apply far from their own folder, so they're repeated here:
   (`tests/reader/noGrading.test.ts`, `tests/tools/noGrading.test.ts`).
 - **A check that predicts what another code path will do calls that code path's function**; don't
   write a lookalike. The deck list and the review screen both count through `treeQueue`.
-- **Mock up a proposed UI change as an Artifact before building it** (`screens.md` says how).
+- **Mock up a proposed UI change as an Artifact before building it** (`screens.md` says how),
+  motion, gestures and native controls included, and say in the PR that you did.
 - **A merge to `main` that touches `server/` deploys itself** (`server/update.sh`, on a timer, within
   about 15 minutes) and restarts sync, the MCP and Read & Listen. A server change must work with nothing done by
   hand on the server; if one truly needs a step there (a new `.env` setting), the PR says so plainly.
@@ -223,7 +236,11 @@ A few of those rules apply far from their own folder, so they're repeated here:
 
 SQLite (expo-sqlite, WAL) -> `src/db/sqliteRepo.ts` (implements `Repo`) -> screens. **Write to
 SQLite first, then update React state**, so a crash between the two loses the screen's copy, not
-the review. `MemoryRepo` is the reference implementation and must behave like the SQLite one
+the user's work. Review's answers are the one exception, so the next card shows without waiting:
+the answer is worked out in memory, shown, and written behind it through `reviewWrites`
+(`src/core/writeQueue.ts`), one at a time in the order given, and a failed write takes the answer
+back off the screen. Anything that reads or undoes what an answer wrote awaits
+`reviewWrites.idle()` first. `MemoryRepo` is the reference implementation and must behave like the SQLite one
 (re-import rules included), since every repo test runs against it.
 
 **Audio plays with the silent switch on** (`setAudioModeAsync({ playsInSilentMode: true })` in
@@ -271,8 +288,8 @@ session still belongs to the day before: its new cards come out of that day's li
 ### After an `await`
 
 **Check the result still belongs where it's about to be written, and that the action can't run
-twice.** A tap can land again while a write is in flight: `Review`'s `answer` holds an `answering`
-ref so a double tap logs one review, not two from the same old state, and updates state with a
+twice.** A tap can land again while a write is in flight: `Review`'s `answer` holds a `busy` ref
+and checks `lastAnswered` so a double tap logs one review, not two from the same old state, and updates state with a
 functional `setCards(prev => ...)` because the render's own `cards` is stale once the awaits
 return. A screen can also be left mid-await; capture what the request was about before the await
 and compare after.
@@ -299,4 +316,6 @@ lives downstream: the schema and the scheduling rules decide what the UI may do.
 
 **These rules are strong defaults, not settled law.** Most carry their reason. If a case doesn't
 fit the reason, or there's a genuinely better approach, say so and ask rather than either following
-it blindly or quietly ignoring it.
+it blindly or quietly ignoring it. When the owner agrees to a change that goes against a rule here
+or in `.claude/rules/`, rewrite or delete the rule in the same PR, so the guidance says what the
+code does.

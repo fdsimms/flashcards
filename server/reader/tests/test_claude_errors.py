@@ -1,5 +1,8 @@
+import logging
+
 import anthropic
 import httpx2
+import pytest
 
 from franki_reader.claude_errors import SPEND_LIMIT, didnt_answer, spend_limit_message
 
@@ -31,3 +34,11 @@ def test_another_bad_request_keeps_the_error_name() -> None:
 def test_other_errors_keep_the_error_name() -> None:
     e = anthropic.APIConnectionError(request=httpx2.Request("POST", "https://x"))
     assert didnt_answer(e) == "Claude didn't answer (APIConnectionError)"
+
+
+def test_a_failed_call_logs_the_apis_own_message(caplog: pytest.LogCaptureFixture) -> None:
+    e = bad_request("messages: text content blocks must be non-empty")
+    with caplog.at_level(logging.WARNING, logger="franki_reader.claude_errors"):
+        didnt_answer(e, doing="explain kot")
+    assert "Claude couldn't explain kot: BadRequestError" in caplog.text
+    assert "text content blocks must be non-empty" in caplog.text

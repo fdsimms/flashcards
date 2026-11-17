@@ -8,9 +8,12 @@ on:
     branches: [main]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
   # Only superseded PR pushes are worth cancelling. Merges land close together, and cancelling a
   # main run lets a merge that broke main have its run killed by the next one and never show red.
+  # So each push to main gets a group of its own: within one group GitHub cancels a run that is
+  # still waiting whenever a newer one queues, whatever `cancel-in-progress` says, so a shared
+  # `main` group still cancelled every merge but the last of a burst.
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

@@ -8,7 +8,6 @@ listening still never grade or write cards: this only fills in text for the edit
 """
 
 import json
-import logging
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -20,8 +19,6 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
-
-log = logging.getLogger(__name__)
 
 # The languages whose verbs come in aspect pairs that the deck keeps as two linked notes.
 ASPECT_LANGUAGES: tuple[Code, ...] = ("ru", "pl")
@@ -142,8 +139,9 @@ def claude_aspect(client: anthropic.AsyncAnthropic) -> WriteAspect:
                 output_config=output_config,
             )
         except anthropic.APIError as e:
-            log.warning("Claude couldn't give an aspect pair: %s: %s", type(e).__name__, e)
-            raise AspectFailed(didnt_answer(e, ". Try again in a moment.")) from e
+            raise AspectFailed(
+                didnt_answer(e, ". Try again in a moment.", doing="give an aspect pair")
+            ) from e
         used = usage_of(response)
         text = next((b.text for b in response.content if b.type == "text"), None)
         if response.stop_reason in ("refusal", "max_tokens") or text is None:

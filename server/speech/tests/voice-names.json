@@ -1,0 +1,12 @@
+{
+  "_about": "Voice names checked by both the server (franki_speech.is_voice_name, lesson_service.is_narrator_voice) and the app (parseNarrator in src/reader/lessons.ts), so the two can't disagree about a voice form. Add a real Azure name here when one of a new shape turns up.",
+  "narrators": [
+    "en-US-GuyNeural",
+    "en-GB-RyanNeural",
+    "en-US-AvaMultilingualNeural",
+    "en-US-Ada:DragonHDLatestNeural",
+    "en-au-cyanspark:DragonHDOmniLatestNeural"
+  ],
+  "other_voices": ["fr-FR-HenriNeural", "th-TH-PremwadeeNeural"],
+  "not_voices": ["Guy", "en-US-Guy Neural", ""]
+}

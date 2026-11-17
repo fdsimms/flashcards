@@ -43,6 +43,10 @@ MAX_RETRY_WAIT = 10.0
 SDK_TIMEOUT_SECONDS = 60.0
 # Azure lists some voices with a lowercase locale (en-au-cyanspark:DragonHDOmniLatestNeural).
 LOCALE = re.compile(r"^([a-z]{2,3})-([a-z]{2})-", re.IGNORECASE)
+# A whole voice name: a locale, then the voice, with a colon in a Dragon HD one
+# (en-US-Ada:DragonHDLatestNeural). The app's own check (`parseNarrator`, src/reader/lessons.ts) is
+# tested against the same names (tests/voice-names.json beside this package).
+_VOICE_NAME = re.compile(r"[a-z]{2,3}-[a-z]{2,4}-[a-z0-9:]+", re.IGNORECASE)
 # A text's language as a locale: a language, an optional script and a region (th-TH, ja-JP, sr-Latn-RS).
 _TEXT_LOCALE = re.compile(r"^([A-Za-z]{2,3})(?:-([A-Za-z]{4}))?-([A-Za-z]{2}|\d{3})$")
 # Thai has no commas or periods: a space after Thai text (or its ? or !) and before more Thai ends a
@@ -284,6 +288,12 @@ def _retry_wait(r: httpx.Response, attempt: int) -> float:
     except (KeyError, ValueError):
         asked = 2.0 * (attempt + 1)
     return min(max(asked, 0.0), MAX_RETRY_WAIT)
+
+
+def is_voice_name(voice: str) -> bool:
+    """Whether `voice` reads as an Azure voice name (th-TH-PremwadeeNeural), which is as far as a
+    name can be checked without asking Azure: it refuses one it doesn't know."""
+    return _VOICE_NAME.fullmatch(voice) is not None
 
 
 def locale_of(voice: str) -> str:

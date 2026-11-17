@@ -8,6 +8,7 @@ import {
   type Answer, type Rate,
 } from '../core/stats';
 import type { Card, DeckParams, Note } from '../core/types';
+import { reviewWrites } from '../core/writeQueue';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { WANIKANI_SCOPE } from '../wanikani/log';
@@ -41,6 +42,8 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
   useEffect(() => {
     setError(undefined);
     (async () => {
+      // After the answers Review has shown but not yet written (src/core/writeQueue.ts).
+      await reviewWrites.idle();
       const now = new Date();
       const { dayStartsAtHour } = await repo.collectionSettings();
       // The calendar's year, which also reaches back past the first day the 30-day charts show,
