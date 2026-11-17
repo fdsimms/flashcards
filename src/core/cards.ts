@@ -237,7 +237,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   };
 
   // Anki's template puts the same word before the noun wherever it is shown (the Omnilanguage template).
-  const pushEntry = (blocks: Block[]) => pushIf(blocks, entry, undefined, true, undefined, { ...(prefix ? { prefix } : {}), gender: genderOf(t(note, 'Gender')) });
+  const pushEntry = (blocks: Block[]) => pushIf(blocks, entry, undefined, true, undefined, { ...(prefix ? { prefix } : {}), gender: genderOf(t(note, 'Gender')), ...(kana && speechLang?.startsWith('ja') ? { reading: kana } : {}) });
 
   if (kind === 'forward') {
     pushEntry(front);
@@ -245,7 +245,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     pushIf(back, meaning, undefined, true);
     pushIf(back, pronunciation);
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { tones: isThai });
-    pushIf(back, kana, undefined, undefined, 'Show reading');
+    pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
     back.push(...detail());
     // The word is on the front already: Play may say it there, but it plays by itself only with the answer.
     return { front: { blocks: front, speak: say }, back: { blocks: back, speak: say }, speechLang, frontShowsWord: true };
@@ -259,7 +259,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     pushEntry(back);
     pushIf(back, pronunciation);
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { tones: isThai });
-    pushIf(back, kana, undefined, undefined, 'Show reading');
+    pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
     back.push(...detail());
     return { front: { blocks: front }, back: { blocks: back, speak: say }, speechLang };
   }
@@ -278,7 +278,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   pushIf(back, meaning, undefined, undefined, undefined, { role: 'gloss' });
   pushIf(back, pronunciation);
   pushIf(back, translit, undefined, undefined, 'Show transliteration', { tones: isThai });
-  pushIf(back, kana, undefined, undefined, 'Show reading');
+  pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
   back.push(...detail());
   return { front: { blocks: front, speak: say }, back: { blocks: back }, speechLang };
 }

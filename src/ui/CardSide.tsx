@@ -10,6 +10,8 @@ import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { MIN_TAP, hairline, radius, smooth, space, type, useTheme, type Colors } from './theme';
 import { useFont } from './AppFont';
+import { Ruby } from './Ruby';
+import type { FuriganaSetting, Run } from '../core/furigana';
 import { CardSentence } from './CardSentence';
 import type { SentenceGloss } from './useCardGlosses';
 
@@ -56,12 +58,18 @@ function MarkedText({ text, segments, style, c, tones }: { text: string; segment
  * With `gloss` (the sentence's words from Read & Listen's server), the example sentence's words can
  * be tapped for their meanings (CardSentence).
  * With `speakSentence`, the Example heading has a speaker button that reads the sentence aloud.
+ * With `furigana` (once the answer shows), a Japanese word is drawn with `wordRuns`, its reading over
+ * its kanji, and the sentence's words with theirs; the "Show reading" line goes, as it says the same.
  */
-export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE, gloss, speakSentence, speechLang }: {
+export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE, gloss, speakSentence, speechLang, furigana, wordRuns }: {
   side: RenderedSide; which: 'front' | 'back'; showHints: boolean; thaiSize?: ThaiTextSize; gloss?: SentenceGloss | null;
   speakSentence?: (text: string) => void;
   /** The card's language, so Japanese text takes Japanese's face (script.ts). */
   speechLang?: string;
+  /** The furigana setting, given once the answer shows (furigana.ts). */
+  furigana?: FuriganaSetting;
+  /** The card's word as runs with their readings (`cardWordRuns`), or null to draw it as before. */
+  wordRuns?: Run[] | null;
 }) {
   const c = useTheme();
   const thai = thaiTextStyle(thaiSize);
@@ -75,12 +83,14 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   const groups = useMemo(() => {
     const out: Item[][] = [];
     side.blocks.forEach((b, i) => {
+      // Furigana over the word says what the reading line would.
+      if (b.role === 'reading' && furigana && wordRuns) return;
       const last = out[out.length - 1];
       if (isExample(b) && last && isExample(last[0].b)) last.push({ b, i });
       else out.push([{ b, i }]);
     });
     return out;
-  }, [side.blocks]);
+  }, [side.blocks, furigana, wordRuns]);
 
   const reveal = (i: number) => { haptic.select(); setShownHints((prev) => new Set(prev).add(i)); };
 
@@ -115,7 +125,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   const line = ({ b, i }: Item) => {
     if (b.role === 'example') {
       const style = { ...(hasThai(b.text) ? thai : { fontSize: type.title.fontSize, lineHeight: 34 }), ...ja(b.text), color: c.text };
-      if (gloss && gloss.words.map((w) => w.text).join('') === b.text) return <CardSentence key={i} gloss={gloss} segments={b.segments} style={style} />;
+      if (gloss && gloss.words.map((w) => w.text).join('') === b.text) return <CardSentence key={i} gloss={gloss} segments={b.segments} style={style} furigana={furigana} />;
       return <MarkedText key={i} text={b.text} segments={b.segments} c={c} style={style} />;
     }
     if (b.role === 'exampleRomanized' || b.role === 'exampleTranslation') {
@@ -238,7 +248,9 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
             {b.label ? <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text> : null}
             <View style={b.icon ? { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s } : undefined}>
               {b.icon ? <Icon name={b.icon} size={28} color={c.text} /> : null}
-              {b.emphasis ? (
+              {b.emphasis && b.reading && furigana && wordRuns ? (
+                <Ruby runs={wordRuns} style={{ ...type.cardFront, ...ja(b.text), color: c.text }} rubyColor={c.textSecondary} center />
+              ) : b.emphasis ? (
                 <Text style={{ ...withThaiLineHeight(type.cardFront, b.text), ...ja(b.text), color: c.text, textAlign: 'center' }}>
                   {b.prefix ? <Text style={{ color: b.gender ? genderColor(c, b.gender) : c.textTertiary, fontWeight: b.gender ? '600' : '400' }}>{b.prefix}{withArticle(b.prefix, '').endsWith(' ') ? ' ' : ''}</Text> : null}
                   <EntryText text={b.text} gender={b.gender} c={c} />
