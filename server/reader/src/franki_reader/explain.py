@@ -391,10 +391,9 @@ async def _ask(
             output_config=output_config,
         )
     except anthropic.APIError as e:
-        # The person sees only the class name; the API's own message (what a 400 objected to)
-        # is what says why, so it goes in the server log.
-        log.warning("Claude couldn't explain %s: %s: %s", what, type(e).__name__, e)
-        raise ExplainFailed(didnt_answer(e, ". Try again in a moment.")) from e
+        raise ExplainFailed(
+            didnt_answer(e, ". Try again in a moment.", doing=f"explain {what}")
+        ) from e
     used = usage_of(response)
     text = next((b.text for b in response.content if b.type == "text"), None)
     if response.stop_reason in ("refusal", "max_tokens") or text is None:

@@ -6,7 +6,6 @@ follow-up is one call. It only returns text: nothing here reads or writes the co
 rating stays the owner's.
 """
 
-import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Literal, cast
@@ -17,8 +16,6 @@ from anthropic.types.beta import BetaMessageParam
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
-
-log = logging.getLogger(__name__)
 
 MAX_TOKENS = 1200
 # Turns kept in a request, so a long chat in an open sheet doesn't grow each call without bound.
@@ -106,8 +103,9 @@ def claude_ask_card(client: anthropic.AsyncAnthropic) -> AskCard:
                 messages=messages,
             )
         except anthropic.APIError as e:
-            log.warning("Claude couldn't answer a card question: %s: %s", type(e).__name__, e)
-            raise AskCardFailed(didnt_answer(e, ". Try again in a moment.")) from e
+            raise AskCardFailed(
+                didnt_answer(e, ". Try again in a moment.", doing="answer a card question")
+            ) from e
         used = usage_of(response)
         text = next((b.text for b in response.content if b.type == "text"), None)
         if response.stop_reason == "refusal" or not text or not text.strip():
