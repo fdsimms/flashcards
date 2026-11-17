@@ -152,8 +152,8 @@ RULES: dict[str, Rules] = {
             | {"ένα"}
         ),
     ),
-    # The deck marks a noun's gender with ten, ta, to or te (ta kobieta).
-    "pl": Rules(prefixes=frozenset({"ten", "ta", "to", "te"}), suffixes=frozenset({"się"})),
+    # The deck marks a noun's gender with ten, ta, to, or te and ci in the plural (ta kobieta, ci ludzie).
+    "pl": Rules(prefixes=frozenset({"ten", "ta", "to", "te", "ci"}), suffixes=frozenset({"się"})),
     "nb": Rules(prefixes=frozenset({"en", "ei", "et", "å"}), suffixes=frozenset({"seg"})),
     # The deck's entries are bare words (velleity, abnegate), with no article or "to". simplemma
     # knows the common ones' forms but not a rare word's (velleities, kenoses), so a form is also
@@ -308,7 +308,17 @@ class SpacedLexicon:
 
     def _keys(self, entry: str) -> list[tuple[str, ...]]:
         """The ways an entry is matched, each as its words: one per alternative, without the
-        article or marker it's written with."""
+        article or marker it's written with. Remembers the markers it took off."""
+        keys, markers = self._split(entry)
+        self._markers |= markers
+        return keys
+
+    def entry_keys(self, entry: str) -> list[tuple[str, ...]]:
+        """`_keys` for a lookup: it changes nothing (ten mężczyzna is (mężczyzna,))."""
+        return self._split(entry)[0]
+
+    def _split(self, entry: str) -> tuple[list[tuple[str, ...]], set[str]]:
+        markers: set[str] = set()
         text = re.sub(r"\([^)]*\)", " ", entry)
         alternatives = [self._words(alt) for alt in text.split("/")]
         alternatives = [a for a in alternatives if a]
@@ -316,15 +326,15 @@ class SpacedLexicon:
         for words in alternatives:
             core = list(words)
             while len(core) > 1 and core[0] in self.rules.prefixes:
-                self._markers.add(core.pop(0))
+                markers.add(core.pop(0))
             while len(core) > 1 and core[-1] in self.rules.suffixes:
-                self._markers.add(core.pop())
+                markers.add(core.pop())
             if len(alternatives) > 1 and len(core) == 1 and core[0] in self.rules.prefixes:
                 # "der" in der/die Mitwirkende: an article, not an entry of its own.
-                self._markers.add(core[0])
+                markers.add(core[0])
                 continue
             keys.append(tuple(core))
-        return keys
+        return keys, markers
 
     def _words(self, text: str) -> list[str]:
         return [fold(p, self.code) for p in self._pieces(text) if _is_word(p)]

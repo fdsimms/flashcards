@@ -24,10 +24,11 @@ def test_the_word_is_ranked_without_markup_or_a_bracketed_note():
     assert frequency.entry_word("internarse [en]") == "internarse"
 
 
-def test_ranked_words_come_first_most_common_first_and_the_rest_keep_their_order():
-    order = [(1, "rare", [10]), (2, "esperar", [20]), (3, "unknown", [30]), (4, "casa", [40, 41])]
-    ranks = {"rare": None, "esperar": 900, "casa": 120}
-    assert [n[0] for n in frequency.placed(order, ranks)] == [4, 2, 1, 3]
+def test_phrases_come_first_then_ranked_words_most_common_first_and_the_rest_keep_their_order():
+    order = [(1, "rare", [10]), (2, "esperar", [20]), (3, "unknown", [30]), (4, "casa", [40, 41]), (5, "dar a luz", [50])]
+    ranks = {"rare": None, "esperar": 900, "casa": 120, "dar a luz": None}
+    assert [n[0] for n in frequency.placed(order, ranks, {"dar a luz"})] == [5, 4, 2, 1, 3]
+    assert [n[0] for n in frequency.placed(order, ranks, set())] == [4, 2, 1, 3, 5]
 
 
 def omni(desktop) -> list[int]:
@@ -55,7 +56,8 @@ def client_for(cm, seen: list[httpx.Request], settings: ReaderSettings | None = 
         seen.append(request)
         body = json.loads(request.content)
         known = RANKS if body["language"] == "es" else {}
-        return httpx.Response(200, json={"ranks": {w: known.get(w) for w in body["words"]}})
+        phrases = [w for w in body["words"] if known and known.get(w) is None and " " in w]
+        return httpx.Response(200, json={"ranks": {w: known.get(w) for w in body["words"]}, "phrases": phrases})
 
     server = MCPServer("test")
     frequency.register(server, cm, ReaderClient(settings, httpx.AsyncClient(transport=httpx.MockTransport(handler))))

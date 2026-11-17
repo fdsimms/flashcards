@@ -1370,7 +1370,7 @@
     "/api/ranks": {
       "post": {
         "summary": "Ranks",
-        "description": "Each word's place in its language's list of most common words (1 is the most common),\nNone past the list's end or for something that isn't a word. Reads only: it never touches\nthe deck or a card.",
+        "description": "Where each deck entry stands among its language's most common words (frequency.entry_place):\nits place (1 is the most common), None past the list's end, and the entries that are phrases,\nwhich no list of single words ranks. Reads only: it never touches the deck or a card.",
         "operationId": "ranks_api_ranks_post",
         "parameters": [
           {
@@ -1406,21 +1406,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "anyOf": [
-                        {
-                          "type": "integer"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  },
-                  "title": "Response Ranks Api Ranks Post"
+                  "$ref": "#/components/schemas/RanksOut"
                 }
               }
             }
@@ -5303,6 +5289,37 @@
           "words"
         ],
         "title": "RanksIn"
+      },
+      "RanksOut": {
+        "properties": {
+          "ranks": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Ranks"
+          },
+          "phrases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Phrases"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ranks",
+          "phrases"
+        ],
+        "title": "RanksOut"
       },
       "ReadingIn": {
         "properties": {

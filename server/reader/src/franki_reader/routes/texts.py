@@ -14,7 +14,7 @@ from franki_reader import (
     timing,
 )
 from franki_reader.engine import NotFound
-from franki_reader.frequency import rank_of
+from franki_reader.frequency import entry_place
 from franki_reader.ipa import ipa_for
 from franki_reader.languages import Code
 from franki_reader.reader import (
@@ -41,6 +41,11 @@ MAX_RANKED = 1000
 class RanksIn(BaseModel):
     language: Code
     words: list[str] = Field(min_length=1, max_length=MAX_RANKED)
+
+
+class RanksOut(BaseModel):
+    ranks: dict[str, int | None]
+    phrases: list[str]
 
 
 class ChoiceIn(BaseModel):
@@ -237,12 +242,16 @@ def router(ctx: AppContext) -> APIRouter:
         ]
 
     @routes.post("/api/ranks", dependencies=authed)
-    async def ranks(body: RanksIn) -> dict[str, dict[str, int | None]]:
-        """Each word's place in its language's list of most common words (1 is the most common),
-        None past the list's end or for something that isn't a word. Reads only: it never touches
-        the deck or a card."""
+    async def ranks(body: RanksIn) -> RanksOut:
+        """Where each deck entry stands among its language's most common words (frequency.entry_place):
+        its place (1 is the most common), None past the list's end, and the entries that are phrases,
+        which no list of single words ranks. Reads only: it never touches the deck or a card."""
         _, lexicon = engine.snapshot(body.language)
-        return {"ranks": {w: rank_of(w, lexicon) for w in dict.fromkeys(body.words)}}
+        places = {w: entry_place(w, lexicon) for w in dict.fromkeys(body.words)}
+        return RanksOut(
+            ranks={w: p.rank for w, p in places.items()},
+            phrases=[w for w, p in places.items() if p.phrase],
+        )
 
     @routes.post("/api/words/clear", status_code=204, dependencies=authed)
     async def clear_word(body: ClearWord) -> Response:
