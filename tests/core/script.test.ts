@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasThai, parseThaiTextSize, THAI_TEXT_CHOICES, thaiTextStyle, withThaiLineHeight } from '../../src/core/script';
+import { hasThai, japaneseFont, parseThaiTextSize, THAI_TEXT_CHOICES, thaiTextStyle, withThaiLineHeight } from '../../src/core/script';
 
 describe('hasThai', () => {
   it('finds Thai script', () => {
@@ -35,5 +35,22 @@ describe('withThaiLineHeight', () => {
   it('leaves other text alone', () => {
     const base = { fontSize: 34 };
     expect(withThaiLineHeight(base, 'July')).toBe(base);
+  });
+});
+
+describe('japaneseFont', () => {
+  it("gives text with kana Japanese's face", () => {
+    expect(japaneseFont('食べる')).toEqual({ fontFamily: 'Hiragino Sans' });
+    expect(japaneseFont('ラーメン, ramen')).toEqual({ fontFamily: 'Hiragino Sans' });
+  });
+  it('gives kanji alone the face only in Japanese, since it may be Chinese', () => {
+    expect(japaneseFont('四時', 'ja-JP')).toEqual({ fontFamily: 'Hiragino Sans' });
+    expect(japaneseFont('四時', 'ja')).toEqual({ fontFamily: 'Hiragino Sans' });
+    expect(japaneseFont('四时', 'zh-CN')).toEqual({});
+    expect(japaneseFont('四時')).toEqual({});
+  });
+  it('leaves other text alone', () => {
+    expect(japaneseFont('theater company', 'ja-JP')).toEqual({});
+    expect(japaneseFont('หนังสือ')).toEqual({});
   });
 });

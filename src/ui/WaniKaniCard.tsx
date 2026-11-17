@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { Image, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { JAPANESE_FONT } from '../core/script';
 import { mnemonicParts, otherMeanings, primaryMeaning, READING_TYPE_NAMES, readingGroups, SUBJECT_TYPE_NAMES, type Part, type Subject, type SubjectType } from '../wanikani/subjects';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, type Colors } from './theme';
 
 /** Japanese on a card: the system's Japanese face, so kanji don't fall back to Chinese forms. */
-const JA = { fontFamily: 'Hiragino Sans' } as const;
+const JA = { fontFamily: JAPANESE_FONT } as const;
 
 /** The fill WaniKani's colors give a kind of subject: radicals blue, kanji pink, vocabulary purple. */
 export function subjectColor(c: Colors, t: SubjectType): string {
