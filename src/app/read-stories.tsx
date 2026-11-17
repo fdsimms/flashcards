@@ -3,7 +3,7 @@ import React from 'react';
 import { useApp } from '../ui/AppContext';
 import { ReadStories } from '../ui/reader/ReadStories';
 
-/** Every story in the language being read, from the shelf's Library. */
+/** Every story in the language being read, from the home's Your stories row. */
 export default function ReadStoriesRoute() {
   const router = useRouter();
   const { reader } = useApp();
@@ -11,8 +11,8 @@ export default function ReadStoriesRoute() {
   return (
     <ReadStories
       api={reader.api}
-      onOpen={(textId) => router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'shelf', textId, order: [textId] }) } })}
-      onEpisodes={(story) => router.push({ pathname: '/read-past', params: { story: String(story) } })}
+      onStory={(story) => router.push({ pathname: '/read-story', params: { story: String(story) } })}
+      onNew={() => router.push({ pathname: '/read-write', params: { kind: 'story' } })}
     />
   );
 }

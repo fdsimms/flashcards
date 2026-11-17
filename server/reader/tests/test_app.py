@@ -1757,19 +1757,23 @@ def test_several_stories_run_and_any_running_one_can_be_pinned_to_the_card() -> 
     ]
     # The list leaves the card's recap and practice words to the card.
     assert listed[0]["last_recap_line"] is None and "practice" not in listed[0]["next"]
-    shelf = c.get("/api/shelf", headers=AUTH).json()
-    assert shelf["story"]["id"] == first
-    assert shelf["stories"] == {"running": 2, "ready": 1}
+    assert c.get("/api/shelf", headers=AUTH).json()["story"]["id"] == first
 
     assert c.post(f"/api/stories/{second}/pin", headers=AUTH).status_code == 204
     assert c.get("/api/shelf", headers=AUTH).json()["story"]["id"] == second
+    # One story's page has the card's practice words, whichever story it is.
+    page = c.get(f"/api/stories/{first}", headers=AUTH).json()
+    assert page["id"] == first and not page["pinned"] and "practice" in page["next"]
+    assert c.get("/api/stories/999", headers=AUTH).status_code == 404
 
     assert c.post(f"/api/stories/{second}/end", headers=AUTH).status_code == 204
     assert c.post(f"/api/stories/{second}/end", headers=AUTH).status_code == 404
     assert c.post(f"/api/stories/{second}/pin", headers=AUTH).status_code == 404
-    shelf = c.get("/api/shelf", headers=AUTH).json()
-    assert shelf["story"]["id"] == first and shelf["stories"] == {"running": 1, "ready": 0}
+    assert c.get("/api/shelf", headers=AUTH).json()["story"]["id"] == first
 
     assert c.post(f"/api/stories/{second}/continue", headers=AUTH).status_code == 204
     assert c.post(f"/api/stories/{second}/continue", headers=AUTH).status_code == 404
-    assert c.get("/api/shelf", headers=AUTH).json()["stories"]["running"] == 2
+    assert [s["running"] for s in c.get("/api/stories", headers=AUTH).json()["stories"]] == [
+        True,
+        True,
+    ]

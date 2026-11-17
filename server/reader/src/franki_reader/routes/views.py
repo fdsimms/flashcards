@@ -161,21 +161,22 @@ def story_json(
     }
 
 
+def listed_story_json(engine: Engine, story: Story, card: bool = False) -> dict[str, Any]:
+    """A story with whether it's running and whether it's the one on the shelf's card."""
+    pinned = store.pinned_story(engine.conn, story.language)
+    return {
+        **story_json(engine, story, engine.writing(story.language), card=card),
+        "running": story.active,
+        "pinned": pinned is not None and story.id == pinned.id,
+    }
+
+
 def stories_json(engine: Engine) -> dict[str, Any]:
     """The reader's language's stories for the Stories list: running first, then ended."""
     language = engine.language()
-    writing = engine.writing(language)
-    pinned = store.pinned_story(engine.conn, language)
     return {
         "language": language,
-        "stories": [
-            {
-                **story_json(engine, s, writing, card=False),
-                "running": s.active,
-                "pinned": pinned is not None and s.id == pinned.id,
-            }
-            for s in store.stories(engine.conn, language)
-        ],
+        "stories": [listed_story_json(engine, s) for s in store.stories(engine.conn, language)],
     }
 
 
@@ -185,8 +186,6 @@ def shelf_json(engine: Engine, language: Code | None = None) -> dict[str, Any]:
     writing = engine.writing(language)
     story = store.pinned_story(engine.conn, language)
     story_out = story_json(engine, story, writing) if story is not None else None
-    running = store.stories(engine.conn, language, running_only=True)
-    others = [s for s in running if story is None or s.id != story.id]
     counts = store.ready_counts(engine.conn)
     return {
         "language": language,
@@ -207,9 +206,4 @@ def shelf_json(engine: Engine, language: Code | None = None) -> dict[str, Any]:
             if j.story_id is None
         ],
         "story": story_out,
-        # The Stories row: how many run, and how many besides the card's have an episode ready.
-        "stories": {
-            "running": len(running),
-            "ready": sum(1 for s in others if store.waiting_episode(engine.conn, s.id)),
-        },
     }

@@ -84,7 +84,7 @@ export function ExtraCard({ extras, language }: { extras: Extras; language: keyo
   const { kind } = item.extra;
   const name = LANGUAGES[language].name;
   const what = kind === 'read' ? 'Read a text' : toolById(kind)?.title ?? '';
-  const about = kind === 'read' ? `Opens your ${name} shelf in Read & Listen.` : toolById(kind)?.summary ?? '';
+  const about = kind === 'read' ? `Opens Read & Listen in ${name}.` : toolById(kind)?.summary ?? '';
   const go = async () => {
     if (busy) return;
     haptic.tap();

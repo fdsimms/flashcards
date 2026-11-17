@@ -1,73 +1,63 @@
 import React, { useCallback, useState } from 'react';
-import { Text, View } from 'react-native';
+import { ActionSheetIOS } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import type { Api, PastText } from '../../reader/api';
+import { pastMeta } from '../../reader/browse';
 import { prefs } from '../../reader/storage';
-import { listenAgainCard } from '../../reader/relisten';
+import { listenAgainPlay } from '../../reader/relisten';
 import { useApp } from '../AppContext';
-import { haptic } from '../haptics';
-import { Icon, SectionTitle, Tappable } from '../kit';
 import { Reveal } from '../motion';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { Cover, CoverRow, useCoverTint } from './Cover';
 
 /**
- * The shelf's Hear again row for finished texts due to be heard again (`listenAgainCard`, server relisten.py):
- * one to three, offered once 3 study days after each was read, or three times at 1, 4 and 10 days,
- * or not at all (Settings, Read & Listen, Hear texts again). Play runs them one after
- * another with the words hidden, the first listen of each counted when it's heard through. Its ✕
- * (Not now) hides it until the shelf is opened again. Nothing here grades a card or counts as a reading.
+ * The home's Hear again row: finished texts due to be heard again (server relisten.py), one to
+ * three, offered once 3 study days after each was read, or three times at 1, 4 and 10 days, or not
+ * at all (Settings, Read & Listen, Hear texts again). A cover plays that text with the words
+ * hidden; Play plays them all one after another, the first listen of each counted when it's heard
+ * through. Pressing and holding a cover offers Not now, which hides the row until the screen is opened again. Nothing
+ * here grades a card or counts as a reading.
  */
 export function ReadListenAgain({ api, onPlay }: { api: Api; onPlay: (texts: PastText[]) => void }) {
-  const c = useTheme();
   const { reader } = useApp();
   const [texts, setTexts] = useState<PastText[]>([]);
   const [hidden, setHidden] = useState(false);
 
-  // Asked each time the shelf comes into view, so a text just heard through drops off the card. A
-  // server that can't be reached, or an older one with no such route, just shows no card.
+  // Asked each time the home comes into view, so a text just heard through drops off the row. A
+  // server that can't be reached, or an older one with no such route, just shows no row.
   useFocusEffect(useCallback(() => {
     let live = true;
     setHidden(false);
-    // Read here, each time the shelf shows, so changing the setting takes effect on return.
+    // Read here, each time the home shows, so changing the setting takes effect on return.
     const wanted = prefs().listenAgain;
     if (wanted === 0) setTexts([]);
     else api.relisten(wanted).then((due) => { if (live) setTexts(due); }, () => { if (live) setTexts([]); });
     return () => { live = false; };
   }, [api]));
 
-  const card = hidden ? null : listenAgainCard(texts, new Date(), reader.dayStartsAtHour);
-  if (!card) return null;
+  if (hidden || texts.length === 0) return null;
+  const now = new Date();
   return (
     <Reveal>
-      <View style={{ gap: space.s }}>
-        <SectionTitle>Hear again</SectionTitle>
-        <View style={{
-          flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: 56, paddingVertical: space.m, paddingLeft: space.l, paddingRight: space.s,
-          borderRadius: radius.l, ...smooth, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline,
-        }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ ...type.headline, color: c.text }}>{card.title}</Text>
-            <Text style={{ ...type.footnote, color: c.textSecondary }}>{card.detail}</Text>
-          </View>
-          <Tappable
-            onPress={() => { haptic.tap(); onPlay(texts); }}
-            accessibilityRole="button"
-            accessibilityLabel={card.play}
-            hitSlop={space.xs}
-            style={{ width: 36, height: 36, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Icon name="play.fill" size={15} color={c.accentInk} />
-          </Tappable>
-          <Tappable
-            onPress={() => { haptic.tap(); setHidden(true); }}
-            accessibilityRole="button"
-            accessibilityLabel="Not now"
-            style={{ width: 36, minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Icon name="xmark" size={13} color={c.textTertiary} weight="semibold" />
-          </Tappable>
-        </View>
-      </View>
+      <CoverRow title="Hear again" action={{ label: listenAgainPlay(texts.length), accessibilityLabel: `${listenAgainPlay(texts.length)}, with the words hidden`, onPress: () => onPlay(texts) }}>
+        {texts.map((t) => <HearAgainCover key={t.id} text={t} meta={pastMeta({ read_at: t.read_at, rating: null }, now, reader.dayStartsAtHour)} onPlay={() => onPlay([t])} onHide={() => ActionSheetIOS.showActionSheetWithOptions(
+          { title: 'Hear again', message: 'Not now hides these until you come back to this screen.', options: ['Not now', 'Cancel'], cancelButtonIndex: 1 },
+          (i) => { if (i === 0) setHidden(true); },
+        )} />)}
+      </CoverRow>
     </Reveal>
+  );
+}
+
+function HearAgainCover({ text, meta, onPlay, onHide }: { text: PastText; meta: string; onPlay: () => void; onHide: () => void }) {
+  return (
+    <Cover
+      tint={useCoverTint(text.id)}
+      kind="Words hidden"
+      title={text.title}
+      meta={meta}
+      onPress={onPlay}
+      onLongPress={onHide}
+      accessibilityLabel={`${text.title}. ${meta}. Plays with the words hidden. Press and hold for Not now.`}
+    />
   );
 }

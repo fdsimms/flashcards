@@ -241,7 +241,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
                 }}
               />
               <Help>
-                Texts you finish come back on the shelf to listen to with the words hidden. Once is 3 days after you read
+                Texts you finish come back under Hear again, to listen to with the words hidden. Once is 3 days after you read
                 it. Three times is 1, 4 and 10 days after. A text isn't offered once it's been heard that many times, or
                 a month after you read it.
               </Help>

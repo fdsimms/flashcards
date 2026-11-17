@@ -34,10 +34,11 @@ export default function ReadRoute() {
         router.setParams({ practice: '' });
         router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'topic', topic, words }) } });
       }}
-      onWrite={() => router.push('/read-write')}
+      onNew={() => router.push('/read-write')}
       onLanguagePage={() => router.push('/read-language')}
       onPast={() => router.push('/read-past')}
-      onLessons={() => router.push('/read-lessons')}
+      onReadAgain={(text) => router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'past', text }) } })}
+      onStory={(story) => router.push({ pathname: '/read-story', params: { story: String(story) } })}
       onStories={() => router.push('/read-stories')}
       onWords={() => router.push('/read-words')}
       onLanguage={() => { api.settings().then(reader.setSettings, () => undefined); }}

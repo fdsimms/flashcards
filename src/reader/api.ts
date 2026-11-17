@@ -332,13 +332,10 @@ export type Shelf = {
   // Shelf texts being written now (a typed topic shows here until it's ready).
   writing: { topic: string; reason: ShelfReason; form: Form; stage?: TextStage | null }[];
   story: ShelfStory | null;
-  // How many stories run in this language, and how many besides the card's have an episode ready
-  // (the Library's Stories row). Missing from a server older than several stories.
-  stories?: { running: number; ready: number };
 };
 
-// A story in the Stories list: as the card has it, without the recap and practice words, and
-// whether it's running (else ended) and the one pinned to the shelf's card.
+// A story in the Stories list: as the banner has it, without the recap and practice words (which
+// one story's own page has), and whether it's running (else ended) and the one pinned to the top.
 export type StoryListItem = ShelfStory & { running: boolean; pinned: boolean };
 
 // 'topic': the model picks stretch words that suit the topic from a list of newer words and words
@@ -638,6 +635,8 @@ export function createApi(
     startStory: (about: string) => call<void>('POST', '/api/story', { about }),
     // The reader's language's stories, running first, then ended.
     stories: () => call<{ language: Language; stories: StoryListItem[] }>('GET', '/api/stories'),
+    // One story for its own page: as the card has it (Last time, the next episode's practice words).
+    story: (id: number) => call<StoryListItem>('GET', `/api/stories/${id}`),
     // Shows a running story on the shelf's card, in place of the one there.
     pinStory: (id: number) => call<void>('POST', `/api/stories/${id}/pin`),
     // No more episodes are written; the ones written stay in Past texts.

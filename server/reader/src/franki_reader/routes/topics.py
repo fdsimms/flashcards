@@ -15,7 +15,7 @@ from franki_reader.generator import (
 )
 from franki_reader.languages import Code
 from franki_reader.routes.context import AppContext
-from franki_reader.routes.views import rendered_text, shelf_json, stories_json
+from franki_reader.routes.views import listed_story_json, rendered_text, shelf_json, stories_json
 from franki_reader.store import Topic
 from franki_reader.suggestions import suggest
 
@@ -144,6 +144,15 @@ def router(ctx: AppContext) -> APIRouter:
         background.add_task(engine.top_up)
         return stories_json(engine)
 
+    @routes.get("/api/stories/{story_id}", dependencies=authed)
+    async def story(story_id: int) -> dict[str, Any]:
+        # One story for its own page: as the card has it (Last time, the next episode's practice
+        # words), whichever story it is.
+        found = store.get_story(engine.conn, story_id)
+        if found is None:
+            raise HTTPException(404, "No such story.")
+        return listed_story_json(engine, found, card=True)
+
     @routes.post("/api/stories/{story_id}/pin", status_code=204, dependencies=authed)
     async def pin_story(story_id: int) -> Response:
         # Shows a running story on the shelf's card, in place of the one there.
@@ -169,7 +178,7 @@ def router(ctx: AppContext) -> APIRouter:
     @routes.post("/api/texts/{text_id}/skip", status_code=204, dependencies=authed)
     async def skip(text_id: int, background: BackgroundTasks) -> Response:
         if not store.skip_text(engine.conn, text_id):
-            raise HTTPException(404, "That text isn't on the shelf any more.")
+            raise HTTPException(404, "That text has already been read or removed.")
         background.add_task(engine.top_up)
         return Response(status_code=204)
 

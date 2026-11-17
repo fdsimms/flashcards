@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { ShelfText, StoryListItem } from '../../src/reader/api';
-import { storiesDetail, storyNext, storyPlace } from '../../src/reader/stories';
+import type { PastText, ShelfText, StoryListItem } from '../../src/reader/api';
+import { episodeSections, storyNext, storyPlace } from '../../src/reader/stories';
 
 const episode = (n: number): ShelfText => ({
   id: 10 + n, title: 'Le zoo', topic: 'Night at the Zoo', topic_id: 1, form: 'story', lines: 12,
@@ -30,11 +30,26 @@ describe('the Stories list', () => {
     expect(storyNext(story({ running: false }))).toBeNull();
   });
 
-  it('sums the stories up on the Library row', () => {
-    expect(storiesDetail({ running: 3, ready: 1 })).toBe('3 running · 1 more episode ready');
-    expect(storiesDetail({ running: 3, ready: 2 })).toBe('3 running · 2 more episodes ready');
-    expect(storiesDetail({ running: 1, ready: 0 })).toBe('1 running');
-    expect(storiesDetail({ running: 0, ready: 0 })).toBe('None running');
-    expect(storiesDetail(undefined)).toBe('Your stories and their episodes');
+});
+
+describe("a story's page", () => {
+  const past = (episode: number): PastText => ({ id: 100 + episode, topic: 'Night at the Zoo', title: `Titre ${episode}`, rating: null, read_at: '2026-11-16T20:00', coverage: 0.95, form: 'story', episode });
+
+  it('lists the episodes read and the next one by season', () => {
+    const sections = episodeSections(story({ read: 9, season: 2, season_episode: 2, next: episode(10) }), [1, 2, 3, 4, 5, 6, 7, 8, 9].map(past));
+    expect(sections.map((s) => [s.season, s.rows.map((r) => r.episode)])).toEqual([[1, [1, 2, 3, 4, 5, 6, 7, 8]], [2, [9, 10]]]);
+    const next = sections[1].rows[1];
+    expect(next).toMatchObject({ kind: 'next', title: 'Le zoo', textId: 20, status: 'Episode 10 is ready', ready: true });
+  });
+
+  it('names an episode not written yet by its number, and lists no next one for an ended story', () => {
+    const [only] = episodeSections(story({ read: 1, writing: true }), [past(1)]);
+    expect(only.rows[1]).toMatchObject({ kind: 'next', title: 'Episode 2', textId: null, status: 'Writing episode 2', ready: false });
+    expect(episodeSections(story({ running: false, read: 1 }), [past(1)])[0].rows.map((r) => r.kind)).toEqual(['read']);
+  });
+
+  it('keeps every episode in one list from a server older than seasons', () => {
+    const sections = episodeSections(story({ season: undefined, season_episode: undefined, season_length: undefined, read: 2 }), [past(1), past(2)]);
+    expect(sections.map((s) => s.season)).toEqual([0]);
   });
 });

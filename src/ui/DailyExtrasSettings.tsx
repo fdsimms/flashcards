@@ -97,7 +97,7 @@ export function DailyExtrasSettings() {
                   <SwitchRow first label="Drills from the Practice tab" hint="Time, dates, money, numbers, counting and reading the script, whichever you've missed most." value={prefs.drills} onValueChange={(drills) => save({ ...prefs, drills })} />
                   <SwitchRow
                     label="A text to read"
-                    hint={reader.api ? 'Opens that language\'s shelf in Read & Listen.' : 'Needs Read & Listen, which is off.'}
+                    hint={reader.api ? 'Opens Read & Listen in that language.' : 'Needs Read & Listen, which is off.'}
                     value={prefs.read}
                     onValueChange={(read) => save({ ...prefs, read })}
                   />

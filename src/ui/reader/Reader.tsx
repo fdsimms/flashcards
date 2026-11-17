@@ -1045,7 +1045,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
               <Card style={{ gap: space.m }}>
                 <View style={{ gap: 2 }}>
                   <Text style={{ ...type.headline, color: c.text }}>For the next ones</Text>
-                  <Help>Changes the texts written from now on. Texts already on the shelf stay as they are.</Help>
+                  <Help>Changes the texts written from now on. Texts already written stay as they are.</Help>
                 </View>
                 <View style={{ gap: space.xs }}>
                   <Text style={{ ...type.footnote, color: c.textSecondary }}>Length</Text>
