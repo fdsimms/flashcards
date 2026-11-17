@@ -1,7 +1,7 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import { useApp } from '../ui/AppContext';
-import { ReadPastTexts } from '../ui/ReadPastTexts';
+import { ReadPastTexts } from '../ui/reader/ReadPastTexts';
 
 export default function ReadPastRoute() {
   const router = useRouter();

@@ -4,7 +4,7 @@ import type { Language } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import type { WordToUse } from '../reader/production';
 import { useApp } from '../ui/AppContext';
-import { ReadUseWords } from '../ui/ReadUseWords';
+import { ReadUseWords } from '../ui/reader/ReadUseWords';
 import { usePhoneSpeech } from '../ui/usePhoneSpeech';
 
 /** Use today's words, opened from a review session's end with the words learned in it (`words`, JSON). */

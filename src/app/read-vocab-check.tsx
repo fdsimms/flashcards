@@ -2,7 +2,7 @@ import { Redirect, useRouter } from 'expo-router';
 import React from 'react';
 import { useApp } from '../ui/AppContext';
 import { useAddMinedWord } from '../ui/useAddMinedWord';
-import { ReadVocabCheck } from '../ui/ReadVocabCheck';
+import { ReadVocabCheck } from '../ui/reader/ReadVocabCheck';
 import { useWordAudio } from '../ui/useWordAudio';
 
 /** The current Read & Listen language's vocabulary check, from its settings page. */

@@ -1,7 +1,7 @@
 import { Redirect, useRouter } from 'expo-router';
 import React from 'react';
 import { useApp } from '../ui/AppContext';
-import { ReadGrammar } from '../ui/ReadGrammar';
+import { ReadGrammar } from '../ui/reader/ReadGrammar';
 
 export default function ReadGrammarRoute() {
   const router = useRouter();

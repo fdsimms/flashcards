@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
-import { ReadNarratorPick } from '../ui/ReadNarratorPick';
+import { ReadNarratorPick } from '../ui/reader/ReadNarratorPick';
 import { useApp } from '../ui/AppContext';
 import { useNarrator } from '../ui/useNarrator';
 

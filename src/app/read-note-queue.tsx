@@ -3,7 +3,7 @@ import React from 'react';
 import { reviewTarget } from '../reader/noteQueue';
 import { noteQueueStore } from '../reader/noteQueueStore';
 import { useApp } from '../ui/AppContext';
-import { ReadNoteQueue } from '../ui/ReadNoteQueue';
+import { ReadNoteQueue } from '../ui/reader/ReadNoteQueue';
 import { useNoteQueue } from '../ui/useNoteQueue';
 
 /** The queued notes, opened from the deck list's card: review what Claude filled in, one note at a time. */
