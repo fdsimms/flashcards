@@ -769,7 +769,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
               <Text style={{ ...type.footnote, color: c.textSecondary }}>
                 {[
                   text.episode ? `${text.topic} · Episode ${text.episode}` : (text.topic ?? (source.kind === 'topic' ? source.topic.name : source.kind === 'past' ? source.text.topic : '')),
-                  !listenOnly && underFloor(text) ? `${Math.round(text.coverage * 100)}% known` : '',
+                  !listenOnly && underFloor(text) ? `${Math.round(text.coverage * 100)}% words known` : '',
                 ].filter(Boolean).join(' · ')}
               </Text>
               {text.last_time ? (
