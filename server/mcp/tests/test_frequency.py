@@ -10,7 +10,7 @@ import pytest
 from anki.collection import Collection  # noqa: F401 - first, for the anki package's imports
 from conftest import call, call_error
 from franki_mcp import frequency
-from franki_mcp.reader import ReaderSettings
+from franki_mcp.reader import ReaderClient, ReaderSettings
 from mcp import Client
 from mcp.server.mcpserver import MCPServer
 
@@ -58,7 +58,7 @@ def client_for(cm, seen: list[httpx.Request], settings: ReaderSettings | None = 
         return httpx.Response(200, json={"ranks": {w: known.get(w) for w in body["words"]}})
 
     server = MCPServer("test")
-    frequency.register(server, cm, settings, http=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    frequency.register(server, cm, ReaderClient(settings, httpx.AsyncClient(transport=httpx.MockTransport(handler))))
     return Client(server)
 
 

@@ -20,6 +20,27 @@ export function deckLineage(deck: string): string[] {
   return parts.map((_, i) => parts.slice(0, i + 1).join('::'));
 }
 
+/** One path part of a tier subdeck, as the MCP names them (`TIER_NAME` in server/mcp/franki_mcp/tiers.py; tests/tierDeckNames.test.ts checks they match). */
+export const TIER_DECK_PART = /^Tier \d+$/;
+
+/**
+ * A frequency tier's subdeck ("Thai::Tier 1"): the MCP's tier_deck_by_frequency files a language's
+ * notes into these, each on its own preset. The deck list shows the language as one deck, so a
+ * path with a "Tier N" part below its top level is never listed. A top-level deck called "Tier 1"
+ * is the user's own and stays; a subdeck the user made with exactly such a name is taken for a
+ * tier, since nothing in Franki's own data says which subdecks the MCP made.
+ */
+export function isTierDeck(deck: string): boolean {
+  return deck.split('::').slice(1).some((part) => TIER_DECK_PART.test(part));
+}
+
+/** The deck a tier subdeck is shown as ("Thai::Tier 2" is "Thai"); any other deck is itself. */
+export function untiered(deck: string): string {
+  const parts = deck.split('::');
+  const at = parts.findIndex((part, i) => i >= 1 && TIER_DECK_PART.test(part));
+  return at < 0 ? deck : parts.slice(0, at).join('::');
+}
+
 export function isInDeck(deck: string, root: string): boolean {
   return deck === root || deck.startsWith(`${root}::`);
 }
@@ -436,7 +457,9 @@ export function deckListTotals(rows: DeckRow[]): { due: number; fresh: number } 
  * hold no cards (`listedDecks`): Anki lists an empty deck too. `position` orders siblings (`deckTree`).
  */
 export function deckRows(input: TreeQueueInput, listed: Iterable<string> = [], position?: (deck: string) => number | undefined): DeckRow[] {
-  return deckTree([...input.cardsByDeck.keys(), ...listed], position).map((node) => {
+  // A tier subdeck has no row of its own, but its cards still count in every deck above it: the counts
+  // below are taken over all of `input`, not over the rows that are shown.
+  return deckTree([...input.cardsByDeck.keys(), ...listed], position).filter((node) => !isTierDeck(node.deck)).map((node) => {
     const q = treeQueue(node.deck, input);
     let total = 0;
     let unstudied = 0;
