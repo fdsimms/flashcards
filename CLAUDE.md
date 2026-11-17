@@ -253,7 +253,7 @@ allows recording only while a take is made, since iOS's play-and-record category
 headphones into call quality. The plugin also allows background audio, which only Read & Listen's
 reader turns on, while it's open (`shouldPlayInBackground`), so listening goes on with the screen locked.
 
-**Everything stays on the device, except sync, Read & Listen and WaniKani.** TTS is `expo-speech` (on-device
+**Everything stays on the device, except sync, Read & Listen, WaniKani and font downloads.** TTS is `expo-speech` (on-device
 voices, chosen per language in Settings, Voices) and storage is local SQLite. The network calls are
 sync with the user's own Anki sync server (`src/anki/sync/`), off until they sign in, and Read &
 Listen, which talks to its server beside the sync server and is off until its passphrase is entered
@@ -266,7 +266,9 @@ microphone while offline. WaniKani talks to api.wanikani.com only once its token
 notes enter the collection. It keeps an offline copy of what's up (`offline.ts`: reviews, lessons, subjects, synonyms, and
 recordings as files), made each time WaniKani is reached, so a session can be studied with no connection: its answers go to the
 outbox and are sent later, and the copy leaves out items answered since it was made. Recording a card with an Azure voice (`src/core/recording.ts`) goes
-through Read & Listen's server, so it's off while Read & Listen is. A
+through Read & Listen's server, so it's off while Read & Listen is. The three Japanese fonts
+(Settings, Font) are too large to bundle: each is downloaded from jsDelivr, version-pinned, only when its row is
+tapped, and kept in the documents folder (`src/core/fontDownloads.ts`). A
 future feature that needs the network (a dictionary lookup, an AI hint) ships behind its own setting
 that defaults to off.
 

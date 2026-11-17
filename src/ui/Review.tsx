@@ -8,7 +8,8 @@ import { AGENT_FLAG, withFlagReason } from '../core/agentFlag';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, deckCardFonts, isInDeck, queueInput, treeQueue } from '../core/deckTree';
-import { cardFontFor } from '../core/fonts';
+import { availableFonts } from '../core/fontDownloads';
+import { cardFontFor, isBundled } from '../core/fonts';
 import { failureText } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
@@ -34,6 +35,7 @@ import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { cardFontsBase } from '../media/cardFonts';
+import { downloadedFontsBase } from './fontDownloads';
 import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
 import { mathjaxUri } from '../media/mathjax';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -311,7 +313,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // The card's preset says whether a template card's sounds and {{tts:}} play on their own (Anki's autoplay).
   const autoplay = cardParams?.autoplay ?? true;
   // The font this card is set in: its deck's cycle, else the app's font when cards use it, else the system font (`cardFontFor`).
-  const cardFont = (note && current ? cardFontFor(deckCardFonts(cardHomeDeck(current, note.deck), deckSettings), current.id, fontSession) : undefined) ?? (appFont.settings.onCards ? appFont.font : 'system');
+  const cardFont = (note && current ? cardFontFor(availableFonts(deckCardFonts(cardHomeDeck(current, note.deck), deckSettings), appFont.installed), current.id, fontSession) : undefined) ?? (appFont.settings.onCards ? appFont.font : 'system');
   const page = useMemo(() => {
     if (!note || !noteType || !current) return undefined;
     const ord = Number(current.kind.slice(1));
@@ -319,7 +321,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     const opts = {
       css: noteType.css, ord, dark, autoplay, mediaBase: mediaBaseUri(), mathjax: mathjaxUri(),
       colors: { background: c.surface, text: c.text, cloze: c.countNew },
-      font: cardFont === 'system' ? undefined : { id: cardFont, base: cardFontsBase() },
+      font: cardFont === 'system' ? undefined : { id: cardFont, base: isBundled(cardFont) ? cardFontsBase() : downloadedFontsBase() },
     };
     return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer, frontAudio: sideAudio(front), backAudio: sideAudio(back) };
   }, [note, noteType, current?.id, current?.kind, dark, c, typedShown, autoplay, cardFont]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Alert, ScrollView, Text } from 'react-native';
-import { APP_FONT_OPTIONS, FONT_GROUPS, togglePoolFont, type FontSettings } from '../core/fonts';
+import { Alert, ScrollView } from 'react-native';
+import { downloadBytes, isAvailable, sizeText } from '../core/fontDownloads';
+import { APP_FONT_OPTIONS, FONT_GROUPS, fontOption, togglePoolFont, type AppFont, type FontSettings } from '../core/fonts';
 import { failureText } from '../core/failure';
 import { useFontSettings } from './AppFont';
 import { FontRow } from './FontRows';
@@ -13,7 +14,7 @@ import { space, readable } from './theme';
  * text size on the cards, Looped or Loopless in Read & Listen), and Japanese keeps the system font.
  */
 export function AppFontSettings() {
-  const { settings, font, save } = useFontSettings();
+  const { settings, font, save, installed, progress, download, remove } = useFontSettings();
 
   // Saved first, then shown (AppFontScope.save), so the screen never shows a setting that isn't stored.
   const change = async (next: FontSettings) => {
@@ -22,6 +23,23 @@ export function AppFontSettings() {
     } catch (e) {
       Alert.alert("Couldn't save this setting", failureText(e, { next: 'Try again.' }));
     }
+  };
+  // A font that isn't on the phone is downloaded first; it isn't picked until it's there.
+  const get = async (id: AppFont) => {
+    if (progress.has(id)) return;
+    try {
+      await download(id);
+    } catch (e) {
+      Alert.alert(`Couldn't download ${fontOption(id).label}`, failureText(e, { next: 'Try again.' }));
+    }
+  };
+  const confirmRemove = (id: AppFont) => {
+    const label = fontOption(id).label;
+    const inUse = font === id || settings.font === id || settings.pool.includes(id);
+    Alert.alert(`Remove ${label}?`, `This frees ${sizeText(downloadBytes(id))}.${inUse ? ' The app and any deck set to use it show in the system font until you download it again.' : ' You can download it again here.'}`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => remove(id) },
+    ]);
   };
   const setRandom = (random: boolean) => change({ ...settings, random, pool: random && !settings.pool.includes(settings.font) ? [settings.font, ...settings.pool] : settings.pool });
 
@@ -48,8 +66,10 @@ export function AppFontSettings() {
                   first={i === 0}
                   detail
                   choice={settings.random ? 'many' : 'one'}
-                  selected={settings.random ? settings.pool.includes(o.id) : settings.font === o.id}
-                  onPress={() => (settings.random ? change({ ...settings, pool: togglePoolFont(settings.pool, o.id) }) : change({ ...settings, font: o.id, pool: [o.id] }))}
+                  selected={isAvailable(o.id, installed) && (settings.random ? settings.pool.includes(o.id) : settings.font === o.id)}
+                  download={isAvailable(o.id, installed) ? undefined : { size: sizeText(downloadBytes(o.id)), progress: progress.get(o.id) }}
+                  onRemove={o.download && installed.has(o.id) ? () => confirmRemove(o.id) : undefined}
+                  onPress={() => (!isAvailable(o.id, installed) ? get(o.id) : settings.random ? change({ ...settings, pool: togglePoolFont(settings.pool, o.id) }) : change({ ...settings, font: o.id, pool: [o.id] }))}
                 />
               ))}
             </Group>
@@ -65,7 +85,7 @@ export function AppFontSettings() {
           />
         </Group>
         <Help>
-          The fonts are bundled with the app, so nothing downloads. Each one lists the scripts it covers. Text in a script a font doesn't cover shows in the system font. Thai also has its own setting for Looped or Loopless.
+          Most fonts are in the app. The Japanese ones are large, so each downloads the first time you pick it and can be removed to free the space. Each font lists the scripts it covers. Text in a script a font doesn't cover shows in the system font. Thai also has its own setting for Looped or Loopless.
           {settings.random && font !== settings.font ? ` Right now the app is in ${APP_FONT_OPTIONS.find((o) => o.id === font)?.label}.` : ''}
         </Help>
       </ScrollView>
