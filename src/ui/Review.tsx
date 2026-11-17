@@ -1089,7 +1089,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           ) : null}
           {undoButton}
           <Stack.Toolbar.Button
-            icon="pencil"
+            icon="square.and.pencil"
             accessibilityLabel="Edit this card's note"
             onPress={() => onEditNote({ noteId: note.id }, (result) => {
               if (!result) return;
