@@ -569,6 +569,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/readings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Readings
+         * @description For each Japanese word and its KanaReading, the reading to record it from, or None to
+         *     record the kanji as written (japanese.spoken_reading): the MCP's add_tts_audio asks here,
+         *     as it has no Sudachi of its own.
+         */
+        post: operations["readings_api_readings_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cast/sample": {
         parameters: {
             query?: never;
@@ -946,6 +968,27 @@ export interface paths {
         put?: never;
         /** Aspect Pair */
         post: operations["aspect_pair_api_aspect_pair_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/conjugations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Conjugations
+         * @description Each Japanese verb's lines for its Forms field (conjugation.form_lines), or None for an
+         *     Entry that isn't a verb in its dictionary form: the MCP's fill_forms asks here.
+         */
+        post: operations["conjugations_api_conjugations_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1379,6 +1422,11 @@ export interface components {
             /** Word */
             word: string;
         };
+        /** ConjugationsIn */
+        ConjugationsIn: {
+            /** Verbs */
+            verbs: components["schemas"]["VerbIn"][];
+        };
         /** DifficultyIn */
         DifficultyIn: {
             /**
@@ -1586,51 +1634,10 @@ export interface components {
             /** Phrases */
             phrases: string[];
         };
-        /** ReadingIn */
-        ReadingIn: {
-            /** Rating */
-            rating?: ("too_easy" | "about_right" | "too_hard") | null;
-            /**
-             * Finished
-             * @default false
-             */
-            finished: boolean;
-            /**
-             * Words Glossed
-             * @default []
-             */
-            words_glossed: string[];
-            /**
-             * Words Flagged
-             * @default []
-             */
-            words_flagged: string[];
-            /** Audio Speed */
-            audio_speed?: number | null;
-            /**
-             * Listen Only
-             * @default false
-             */
-            listen_only: boolean;
-            /**
-             * Seconds
-             * @default 0
-             */
-            seconds: number;
-            /** Check Right */
-            check_right?: number | null;
-            /** Check Asked */
-            check_asked?: number | null;
-            /**
-             * Quiz Right
-             * @default []
-             */
-            quiz_right: string[];
-            /**
-             * Quiz Wrong
-             * @default []
-             */
-            quiz_wrong: string[];
+        /** ReadingsIn */
+        ReadingsIn: {
+            /** Words */
+            words: components["schemas"]["franki_reader__routes__voices__ReadingIn"][];
         };
         /** RetellIn */
         RetellIn: {
@@ -1762,6 +1769,8 @@ export interface components {
             rate: number;
             /** Language */
             language?: string | null;
+            /** Reading */
+            reading?: string | null;
         };
         /** StoryIn */
         StoryIn: {
@@ -1823,6 +1832,16 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** VerbIn */
+        VerbIn: {
+            /** Entry */
+            entry: string;
+            /**
+             * Reading
+             * @default
+             */
+            reading: string;
+        };
         /** WriteIn */
         WriteIn: {
             /** Name */
@@ -1839,6 +1858,59 @@ export interface components {
              * @enum {string}
              */
             model: "claude-sonnet-5-5" | "claude-haiku-5-5";
+        };
+        /** ReadingIn */
+        franki_reader__routes__texts__ReadingIn: {
+            /** Rating */
+            rating?: ("too_easy" | "about_right" | "too_hard") | null;
+            /**
+             * Finished
+             * @default false
+             */
+            finished: boolean;
+            /**
+             * Words Glossed
+             * @default []
+             */
+            words_glossed: string[];
+            /**
+             * Words Flagged
+             * @default []
+             */
+            words_flagged: string[];
+            /** Audio Speed */
+            audio_speed?: number | null;
+            /**
+             * Listen Only
+             * @default false
+             */
+            listen_only: boolean;
+            /**
+             * Seconds
+             * @default 0
+             */
+            seconds: number;
+            /** Check Right */
+            check_right?: number | null;
+            /** Check Asked */
+            check_asked?: number | null;
+            /**
+             * Quiz Right
+             * @default []
+             */
+            quiz_right: string[];
+            /**
+             * Quiz Wrong
+             * @default []
+             */
+            quiz_wrong: string[];
+        };
+        /** ReadingIn */
+        franki_reader__routes__voices__ReadingIn: {
+            /** Text */
+            text: string;
+            /** Reading */
+            reading: string;
         };
     };
     responses: never;
@@ -2600,7 +2672,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ReadingIn"];
+                "application/json": components["schemas"]["franki_reader__routes__texts__ReadingIn"];
             };
         };
         responses: {
@@ -3006,6 +3078,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readings_api_readings_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadingsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: (string | null)[];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3851,6 +3960,43 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    conjugations_api_conjugations_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConjugationsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: (string[] | null)[];
                     };
                 };
             };

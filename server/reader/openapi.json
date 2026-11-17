@@ -1322,7 +1322,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ReadingIn"
+                "$ref": "#/components/schemas/franki_reader__routes__texts__ReadingIn"
               }
             }
           }
@@ -1998,6 +1998,77 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/readings": {
+      "post": {
+        "summary": "Readings",
+        "description": "For each Japanese word and its KanaReading, the reading to record it from, or None to\nrecord the kanji as written (japanese.spoken_reading): the MCP's add_tts_audio asks here,\nas it has no Sudachi of its own.",
+        "operationId": "readings_api_readings_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "title": "Response Readings Api Readings Post"
+                }
               }
             }
           },
@@ -3422,6 +3493,80 @@
         }
       }
     },
+    "/api/conjugations": {
+      "post": {
+        "summary": "Conjugations",
+        "description": "Each Japanese verb's lines for its Forms field (conjugation.form_lines), or None for an\nEntry that isn't a verb in its dictionary form: the MCP's fill_forms asks here.",
+        "operationId": "conjugations_api_conjugations_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConjugationsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "title": "Response Conjugations Api Conjugations Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/glosses": {
       "post": {
         "summary": "Glosses",
@@ -4793,6 +4938,23 @@
         ],
         "title": "ClearWord"
       },
+      "ConjugationsIn": {
+        "properties": {
+          "verbs": {
+            "items": {
+              "$ref": "#/components/schemas/VerbIn"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Verbs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "verbs"
+        ],
+        "title": "ConjugationsIn"
+      },
       "DifficultyIn": {
         "properties": {
           "level": {
@@ -5349,113 +5511,22 @@
         ],
         "title": "RanksOut"
       },
-      "ReadingIn": {
+      "ReadingsIn": {
         "properties": {
-          "rating": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "too_easy",
-                  "about_right",
-                  "too_hard"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rating"
-          },
-          "finished": {
-            "type": "boolean",
-            "title": "Finished",
-            "default": false
-          },
-          "words_glossed": {
+          "words": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/franki_reader__routes__voices__ReadingIn"
             },
             "type": "array",
-            "title": "Words Glossed",
-            "default": []
-          },
-          "words_flagged": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Words Flagged",
-            "default": []
-          },
-          "audio_speed": {
-            "anyOf": [
-              {
-                "type": "number",
-                "maximum": 1.5,
-                "minimum": 0.5
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Audio Speed"
-          },
-          "listen_only": {
-            "type": "boolean",
-            "title": "Listen Only",
-            "default": false
-          },
-          "seconds": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Seconds",
-            "default": 0
-          },
-          "check_right": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Check Right"
-          },
-          "check_asked": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 20.0,
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Check Asked"
-          },
-          "quiz_right": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Quiz Right",
-            "default": []
-          },
-          "quiz_wrong": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Quiz Wrong",
-            "default": []
+            "maxItems": 50,
+            "title": "Words"
           }
         },
         "type": "object",
-        "title": "ReadingIn"
+        "required": [
+          "words"
+        ],
+        "title": "ReadingsIn"
       },
       "RetellIn": {
         "properties": {
@@ -5956,6 +6027,18 @@
               }
             ],
             "title": "Language"
+          },
+          "reading": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reading"
           }
         },
         "type": "object",
@@ -6113,6 +6196,27 @@
         ],
         "title": "ValidationError"
       },
+      "VerbIn": {
+        "properties": {
+          "entry": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Entry"
+          },
+          "reading": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Reading",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "entry"
+        ],
+        "title": "VerbIn"
+      },
       "WriteIn": {
         "properties": {
           "name": {
@@ -6145,6 +6249,135 @@
           "name"
         ],
         "title": "WriteIn"
+      },
+      "franki_reader__routes__texts__ReadingIn": {
+        "properties": {
+          "rating": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "too_easy",
+                  "about_right",
+                  "too_hard"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "finished": {
+            "type": "boolean",
+            "title": "Finished",
+            "default": false
+          },
+          "words_glossed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Words Glossed",
+            "default": []
+          },
+          "words_flagged": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Words Flagged",
+            "default": []
+          },
+          "audio_speed": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.5,
+                "minimum": 0.5
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Speed"
+          },
+          "listen_only": {
+            "type": "boolean",
+            "title": "Listen Only",
+            "default": false
+          },
+          "seconds": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Seconds",
+            "default": 0
+          },
+          "check_right": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Right"
+          },
+          "check_asked": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Asked"
+          },
+          "quiz_right": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Quiz Right",
+            "default": []
+          },
+          "quiz_wrong": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Quiz Wrong",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "ReadingIn"
+      },
+      "franki_reader__routes__voices__ReadingIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "reading": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Reading"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "reading"
+        ],
+        "title": "ReadingIn"
       }
     }
   }
