@@ -41,6 +41,14 @@ describe('formsOf', () => {
     expect(forms[0]).toEqual({ key: 'present · yo', group: 'present', label: 'yo', answers: ['espero'] });
     expect(unreadable).toEqual([]);
   });
+  it('asks nothing about a plural Gender (pl, mpl) and does not call it unreadable', () => {
+    for (const Gender of ['pl', 'mpl']) {
+      const { forms, unreadable } = formsOf(esperar({ Gender }));
+      expect(unreadable).toEqual([]);
+      expect(forms.some((f) => f.key === 'field:Gender')).toBe(false);
+    }
+    expect(formsOf(esperar({ Gender: 'xx' })).unreadable).toEqual(['Gender: xx']);
+  });
   it('takes alternatives after a slash, a line with no group, and keeps lines it cannot read', () => {
     const { forms, unreadable } = formsOf(esperar({ Forms: 'imperfect subjunctive · yo: esperara / esperase<br>infinitive: esperar<br>no colon here<br>: lonely' }));
     expect(forms.map((f) => [f.key, f.answers])).toEqual([

@@ -56,6 +56,7 @@ const ARTICLES: Record<string, Partial<Record<Gender, string[]>>> = {
   nb: { m: ['en'], f: ['ei', 'en'], n: ['et'] },
 };
 const GENDER_WORDS = { m: 'masculine', f: 'feminine', n: 'neuter' } as const;
+const PLURAL_GENDERS = new Set(['pl', 'mpl']);
 
 /**
  * The articles an Entry may start with, by language, and which definite articles each goes with:
@@ -220,7 +221,8 @@ export function formsOf(note: Note): NoteForms {
   if (!isOmnilanguage(note)) return { forms, unreadable };
 
   const gender = htmlToText(note.fields.Gender ?? '').trim();
-  if (gender) {
+  // A plural marker (pl, and Polish's mpl) is a gender value with nothing to ask, not one that can't be read.
+  if (gender && !PLURAL_GENDERS.has(gender.toLowerCase())) {
     const g = genderLetter(gender);
     if (!g) unreadable.push(`Gender: ${gender}`);
     else add({ key: 'field:Gender', group: 'gender', label: 'gender', answers: genderAnswers(note, g) });

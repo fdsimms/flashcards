@@ -185,7 +185,7 @@ export function thaiCountingWords(entry: string, classifier: string): string[] {
   return words.length && hasThai(entry) && words.every(hasThai) ? words : [];
 }
 
-export const GENDER_WORDS: Record<string, string> = { m: 'masculine', f: 'feminine', n: 'neuter' };
+export const GENDER_WORDS: Record<string, string> = { m: 'masculine', f: 'feminine', n: 'neuter', pl: 'plural', mpl: 'masculine plural' };
 /**
  * The word shown dimmed before a noun, by the noun's Gender and its language (the first two letters of
  * its speech language): мой / моя / моё before a Russian noun, ten / ta / to before a Polish one. The
@@ -193,7 +193,8 @@ export const GENDER_WORDS: Record<string, string> = { m: 'masculine', f: 'femini
  */
 const GENDER_PREFIXES: Record<string, Record<string, string>> = {
   ru: { m: 'мой', f: 'моя', n: 'моё' },
-  pl: { m: 'ten', f: 'ta', n: 'to' },
+  // Polish: ten / ta / to by gender, te for a plural-only noun (Gender pl) and ci for a plural of men (Gender mpl).
+  pl: { m: 'ten', f: 'ta', n: 'to', pl: 'te', mpl: 'ci' },
   es: { m: 'el', f: 'la' },
   nb: { m: 'en', f: 'ei', n: 'et' },
 };
@@ -208,9 +209,11 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // English. A recording (`audioFile`) still plays.
   // A noun's article from its Gender (el / la, en / ei / et), unless the Entry already starts with one: that
   // is how an exception is written (el agua is feminine, en bok may be feminine), and it must not get a second.
+  // Likewise an Entry that still starts with one of the language's gender words (ten, te, ci) gets none.
   const lang2 = speechLang?.slice(0, 2) ?? '';
   const genderWord = GENDER_PREFIXES[lang2]?.[t(note, 'Gender').toLowerCase()];
-  const prefix = genderWord && !leadingArticle(entry) && !entry.toLowerCase().startsWith(`${genderWord} `) ? genderWord : undefined;
+  const startsWithGenderWord = Object.values(GENDER_PREFIXES[lang2] ?? {}).some((w) => entry.toLowerCase().startsWith(`${w} `));
+  const prefix = genderWord && !leadingArticle(entry) && !startsWithGenderWord ? genderWord : undefined;
   const say = speechLang ? (prefix && SPOKEN_PREFIX.has(lang2) ? `${prefix} ${entry}` : entry) : undefined;
   const translit = t(note, 'Transliteration');
   // A Thai romanization's tone marks are colored by tone (toneColors.ts).
