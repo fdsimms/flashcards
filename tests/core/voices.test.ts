@@ -12,6 +12,8 @@ const voices = [
   { identifier: 'com.apple.voice.premium.es-ES.Marisol', name: 'Marisol', language: 'es-ES', quality: 'Default' },
   { identifier: 'com.apple.voice.compact.en-US.Samantha', name: 'Samantha', language: 'en-US', quality: 'Default' },
   { identifier: 'com.apple.speech.synthesis.voice.Albert', name: 'Albert', language: 'en-US', quality: 'Enhanced' },
+  { identifier: 'com.apple.eloquence.es-ES.Eddy', name: 'Eddy', language: 'es-ES', quality: 'Default' },
+  { identifier: 'com.apple.eloquence.es-MX.Grandma', name: 'Grandma', language: 'es-MX', quality: 'Default' },
 ];
 
 const basic: NoteType = {
@@ -49,10 +51,10 @@ describe("the phone's voices", () => {
   });
 
   it("tells Premium apart, which expo-speech reports as Default", () => {
-    expect(voices.map(voiceQuality)).toEqual(['Default', 'Enhanced', 'Default', 'Premium', 'Default', 'Enhanced']);
+    expect(voices.map(voiceQuality)).toEqual(['Default', 'Enhanced', 'Default', 'Premium', 'Default', 'Enhanced', 'Default', 'Default']);
   });
 
-  it('lists every region of a language, the best sounding first, without the novelty voices', () => {
+  it('lists every region of a language, the best sounding first, without the novelty and Eloquence voices', () => {
     expect(voicesIn(voices, 'es').map((v) => v.name)).toEqual(['Marisol', 'Paulina']);
     expect(voicesIn(voices, 'th').map((v) => v.name)).toEqual(['Narisa', 'Kanya']);
     expect(voicesIn(voices, 'en').map((v) => v.name)).toEqual(['Samantha']);
