@@ -183,7 +183,15 @@ export function thaiCountingWords(entry: string, classifier: string): string[] {
 }
 
 export const GENDER_WORDS: Record<string, string> = { m: 'masculine', f: 'feminine', n: 'neuter' };
-const RUSSIAN_PRONOUNS: Record<string, string> = { m: 'мой', f: 'моя', n: 'моё' };
+/**
+ * The word shown dimmed before a noun, by the noun's Gender and its language (the first two letters of
+ * its speech language): мой / моя / моё before a Russian noun, ten / ta / to before a Polish one. The
+ * Entry is the bare noun; Anki's template (Omnilanguage) puts the same word before it.
+ */
+const GENDER_PREFIXES: Record<string, Record<string, string>> = {
+  ru: { m: 'мой', f: 'моя', n: 'моё' },
+  pl: { m: 'ten', f: 'ta', n: 'to' },
+};
 
 function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): RenderedCard {
   const speechLang = speechLangFor(note);
@@ -232,8 +240,10 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     return b;
   };
 
-  // Anki's template puts мой / моя / моё before a Russian noun wherever the word is shown.
-  const prefix = speechLang?.startsWith('ru') ? RUSSIAN_PRONOUNS[t(note, 'Gender').toLowerCase()] : undefined;
+  // Anki's template puts мой / моя / моё (ten / ta / to) before a Russian (Polish) noun wherever the word is shown,
+  // unless the Entry still starts with it, as a Polish note's did before the word moved out of the Entry.
+  const genderWord = GENDER_PREFIXES[speechLang?.slice(0, 2) ?? '']?.[t(note, 'Gender').toLowerCase()];
+  const prefix = genderWord && !entry.toLowerCase().startsWith(`${genderWord} `) ? genderWord : undefined;
   const pushEntry = (blocks: Block[]) => pushIf(blocks, entry, undefined, true, undefined, { ...(prefix ? { prefix } : {}), gender: genderOf(t(note, 'Gender')) });
 
   if (kind === 'forward') {
