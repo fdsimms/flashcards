@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Answer } from '../../src/core/stats';
-import { todaySummary } from '../../src/core/todaySummary';
+import { todayProgress, todaySummary } from '../../src/core/todaySummary';
 
 const H = 4;
 const NOW = new Date(2026, 10, 11, 12);
@@ -40,5 +40,17 @@ describe('today\'s summary', () => {
       answer('a', new Date(2026, 10, 11, 9), { kind: 'learn', wasNew: true }),
     ];
     expect(todaySummary(answers, NOW, H).newCards).toBe(0);
+  });
+});
+
+describe('today\'s progress', () => {
+  it('is the answers given against those plus what is still waiting', () => {
+    expect(todayProgress(0, 40)).toBe(0);
+    expect(todayProgress(10, 30)).toBe(0.25);
+  });
+
+  it('is full once nothing is waiting, and empty on a day with nothing to do', () => {
+    expect(todayProgress(12, 0)).toBe(1);
+    expect(todayProgress(0, 0)).toBe(0);
   });
 });

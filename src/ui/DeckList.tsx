@@ -1,13 +1,14 @@
 import { Link, Stack } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
+import { deckTint, leadingEmoji } from '../core/deckBadge';
 import { siblingStep, type DeckMove } from '../core/deckOrder';
 import { isInDeck, shownDeckRows, type DeckRow } from '../core/deckTree';
 import { useDeckDrag } from './DeckDrag';
 import { DISCLOSURE, ROW_PAD } from './deckLayout';
 import { haptic } from './haptics';
 import { Button, Card, Group, Icon, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
-import { Reveal, useReduceMotion } from './motion';
+import { CountingText, Reveal, useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
 import { SyncingPill, useSyncTap, type SyncProp } from './syncTap';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
@@ -43,16 +44,37 @@ function Disclosure({ open, fill, color }: { open: boolean; fill: string; color:
   );
 }
 
-/** A count over its label, in a fixed-width column so a deck's numbers line up with the next deck's. */
-function Stat({ value, label, color }: { value: number; label: string; color: string }) {
+/**
+ * A count over its label, in a fixed-width column so a deck's numbers line up with the next deck's.
+ * A count with something in it sits on a pill of its own color; it ticks to a new value when the
+ * deck list is recounted (back from studying, after a sync).
+ */
+function Stat({ value, label, color, fill }: { value: number; label: string; color: string; fill: string }) {
   const c = useTheme();
   return (
-    <View style={{ minWidth: 40, alignItems: 'center' }}>
-      <Text style={{ ...type.headline, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }}>{value}</Text>
+    <View style={{ minWidth: 44, alignItems: 'center', gap: 2 }}>
+      <View style={{ minWidth: 40, alignItems: 'center', borderRadius: radius.pill, ...smooth, paddingHorizontal: space.xs + 2, paddingVertical: 2, backgroundColor: value ? fill : 'transparent' }}>
+        <CountingText value={value} style={{ ...type.headline, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }} />
+      </View>
       <Text style={{ ...type.caption, color: c.textSecondary }}>{label}</Text>
     </View>
   );
 }
+
+/** The emoji a deck's name starts with, on a soft tile in the deck's own tint (`deckTint`). */
+function DeckBadge({ deck, emoji }: { deck: string; emoji: string }) {
+  const c = useTheme();
+  return (
+    <View style={{ width: BADGE, height: BADGE, borderRadius: radius.m, ...smooth, backgroundColor: c.deckTints[deckTint(deck, c.deckTints.length)], alignItems: 'center', justifyContent: 'center' }}>
+      {/* Not scaled with the text size: it's the deck's mark, and a fixed tile has to hold it. */}
+      <Text allowFontScaling={false} style={{ fontSize: 20 }}>{emoji}</Text>
+    </View>
+  );
+}
+const BADGE = 36;
+
+/** How long a family of decks waits to settle in, by its place in the list (Decks and Today): 45 ms apart, none after the seventh. */
+export const settleDelay = (group: number) => Math.min(group, 6) * 45;
 
 export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint = 'Add a note, rename, options or delete', below, belowLabel, editing = false, onOpen, onPress, onMenu, onToggle, onDelete, onHandle, onStep }: {
   row: ShownRow;
@@ -93,6 +115,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
   const inDeck = row.depth >= (editing ? 1 : 2) ? `in ${parts[parts.length - 2]}` : '';
   // A detail line (WaniKani's level) goes under the name too; the card counts were dropped to save space.
   const line = detail ? detail.text : inDeck;
+  const badge = leadingEmoji(row.name);
   const gateLine = row.gate ? `${row.gate.inProgress} of ${row.gate.cap} in progress${atCap ? ', new cards wait' : ''}` : null;
   return (
     <Pressable
@@ -123,8 +146,9 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
           <Icon name="minus" size={12} color={c.onRating} weight="bold" />
         </Tappable>
       ) : null}
+      {badge.emoji ? <DeckBadge deck={row.deck} emoji={badge.emoji} /> : null}
       <View style={{ flex: 1, gap: 2 }}>
-        <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{row.name}</Text>
+        <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{badge.rest}</Text>
         {line ? <Text style={{ ...type.footnote, color: detail?.warning ? c.warning : c.textSecondary }}>{line}</Text> : null}
         {below}
         {gateLine ? (
@@ -147,8 +171,8 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
           <Icon name="line.3.horizontal" size={18} color={c.textTertiary} weight="semibold" />
         </Pressable>
       ) : (<>
-      <Stat value={row.due} label="due" color={c.countDue} />
-      <Stat value={row.fresh} label="new" color={c.countNew} />
+      <Stat value={row.due} label="due" color={c.countDue} fill={c.goodFill} />
+      <Stat value={row.fresh} label="new" color={c.countNew} fill={c.countNewFill} />
       <Tappable
         onPress={() => { haptic.tap(); onMenu(); }}
         accessibilityRole="button"
@@ -388,8 +412,10 @@ export function DeckList(props: {
           {groups.length === 0 ? (props.loaded === false ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : (
             <NoDecksCard onImport={props.onImport} />
           )) : (
-            groups.map((g) => (
-              <Group key={g[0].deck}>
+            groups.map((g, gi) => (
+              // Each family of decks settles in a beat after the one above, the first time the list shows.
+              <Reveal key={g[0].deck} delay={settleDelay(gi)}>
+              <Group>
                 {g.map((row, i) => (
                   // Measured by a drag, and dimmed while it, or a deck it's inside, is being dragged.
                   <View key={row.deck} ref={drag.rowRef(row.deck)} collapsable={false} style={{ opacity: drag.dragging !== null && isInDeck(row.deck, drag.dragging) ? 0.35 : 1 }}>
@@ -421,6 +447,7 @@ export function DeckList(props: {
                   </View>
                 ))}
               </Group>
+              </Reveal>
             ))
           )}
           {props.extra?.node}
