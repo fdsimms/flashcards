@@ -5,7 +5,8 @@ import { noteWithExample } from '../core/grammar';
 import { ApiError, type Api, type ExplainPoint, type GrammarChoice, type GrammarState, type LineGrammar } from '../reader/api';
 import { GRAMMAR_CHOICES, grammarStateWord } from '../reader/grammar';
 import { prefs } from '../reader/storage';
-import { HeaderAction, Tappable, ErrorNote, Segments } from './kit';
+import { grammarTag } from './grammarTag';
+import { HeaderAction, Tappable, ErrorNote, Segments, Tag } from './kit';
 import { haptic } from './haptics';
 import { NaturalPill, NaturalResult, useNaturalCheck } from './ReaderNatural';
 import { hairline, radius, space, type, useTheme } from './theme';
@@ -153,7 +154,7 @@ function GrammarInLine({ api, grammar, chosen, onChosen, onOpen }: {
             }}
           >
             <Text style={{ ...type.footnote, fontWeight: '600', color: c.text }}>{g.name}</Text>
-            <Text style={{ ...type.footnote, color: c.textSecondary }}>{`· ${grammarStateWord(stateOf(g))}`}</Text>
+            <Tag {...grammarTag(c, stateOf(g))} />
           </Tappable>
         ))}
       </View>

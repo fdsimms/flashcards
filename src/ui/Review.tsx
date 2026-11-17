@@ -207,7 +207,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
   // Set while an answer or an undo is being written. A second tap during the await would
   // otherwise act on the same card again from its old state.
   const busy = useRef(false);
-  // The card's motion (SwipeCard's): an undo brings the card back in from the side.
+  // The card's motion (SwipeCard's): an undo brings the card back in from the side, and an answer flashes its color.
   const cardMotion = useRef<CardMotion | null>(null);
   const rating = useRef(false);
   // The card last answered, as it was shown. `busy` is cleared before React has drawn the next card,
@@ -428,6 +428,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
     if (!current || !note || busy.current || current === lastAnswered.current) return;
     busy.current = true;
     haptic.answer();
+    cardMotion.current?.flash(rating);
     try {
       const when = new Date();
       // A filtered deck that doesn't reschedule only previews: the card's schedule stays as it

@@ -1,13 +1,16 @@
 import { Link, Stack } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
+import { deckTint, leadingEmoji } from '../core/deckBadge';
 import { siblingStep, type DeckMove } from '../core/deckOrder';
 import { deckListTotals, isInDeck, shownDeckRows, type DeckRow } from '../core/deckTree';
+import { todayProgress } from '../core/todaySummary';
 import { useDeckDrag } from './DeckDrag';
 import { DISCLOSURE, ROW_PAD } from './deckLayout';
 import { haptic } from './haptics';
 import { Button, Card, Group, Icon, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
-import { Reveal, useReduceMotion } from './motion';
+import { CountingText, Reveal, useReduceMotion } from './motion';
+import type { StudiedToday } from './useTodaySummary';
 import { useHeaderInset } from './useHeaderInset';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
 import { VacationCard, useVacationBanner } from './vacationNotice';
@@ -46,19 +49,19 @@ function Disclosure({ open, fill, color }: { open: boolean; fill: string; color:
 }
 
 /** What's waiting across every deck, or that nothing is: the first thing the deck list says. */
-function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; studied?: string }) {
+function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; studied?: StudiedToday }) {
   const c = useTheme();
   const caughtUp = due + fresh === 0;
   const figure = (value: number, label: string, color: string) => (
     <View style={{ flex: 1, gap: 2, alignItems: 'center' }}>
-      <Text style={{ ...type.largeTitle, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }}>{value}</Text>
+      <CountingText value={value} style={{ ...type.largeTitle, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }} />
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
     </View>
   );
   return (
     <View
       accessible
-      accessibilityLabel={[caughtUp ? 'All caught up. Nothing is due today.' : `Today: ${due} due, ${fresh} new`, studied].filter(Boolean).join('. ')}
+      accessibilityLabel={[caughtUp ? 'All caught up. Nothing is due today.' : `Today: ${due} due, ${fresh} new`, studied?.text].filter(Boolean).join('. ')}
       style={{
         gap: space.m, padding: space.l, borderRadius: radius.l, ...smooth,
         backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border,
@@ -81,24 +84,70 @@ function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; stu
       )}
       </View>
       {studied ? (
-        <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center', fontVariant: ['tabular-nums'], borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.s }}>
-          {studied}
-        </Text>
+        <View style={{ gap: space.s, borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.m }}>
+          <ProgressTrack value={todayProgress(studied.answered, due + fresh)} />
+          <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center', fontVariant: ['tabular-nums'] }}>
+            {studied.text}
+          </Text>
+        </View>
       ) : null}
     </View>
   );
 }
 
-/** A count over its label, in a fixed-width column so a deck's numbers line up with the next deck's. */
-function Stat({ value, label, color }: { value: number; label: string; color: string }) {
+/**
+ * How far through today's cards: answers given against those plus what's still waiting
+ * (`todayProgress`). Grows to a new value rather than jumping, at once when Reduce Motion is on.
+ */
+function ProgressTrack({ value }: { value: number }) {
+  const c = useTheme();
+  const reduce = useReduceMotion();
+  const v = useRef(new Animated.Value(value)).current;
+  useEffect(() => {
+    if (reduce) { v.setValue(value); return undefined; }
+    const run = Animated.timing(v, { toValue: value, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: false });
+    run.start();
+    return () => run.stop();
+  }, [value, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <View accessible={false} style={{ height: space.s, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }}>
+      <Animated.View style={{ height: '100%', borderRadius: radius.pill, backgroundColor: c.countDue, width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }} />
+    </View>
+  );
+}
+
+/**
+ * A count over its label, in a fixed-width column so a deck's numbers line up with the next deck's.
+ * A count with something in it sits on a pill of its own color; it ticks to a new value when the
+ * deck list is recounted (back from studying, after a sync).
+ */
+function Stat({ value, label, color, fill }: { value: number; label: string; color: string; fill: string }) {
   const c = useTheme();
   return (
-    <View style={{ minWidth: 40, alignItems: 'center' }}>
-      <Text style={{ ...type.headline, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }}>{value}</Text>
+    <View style={{ minWidth: 44, alignItems: 'center', gap: 2 }}>
+      <View style={{ minWidth: 40, alignItems: 'center', borderRadius: radius.pill, ...smooth, paddingHorizontal: space.xs + 2, paddingVertical: 2, backgroundColor: value ? fill : 'transparent' }}>
+        <CountingText value={value} style={{ ...type.headline, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }} />
+      </View>
       <Text style={{ ...type.caption, color: c.textSecondary }}>{label}</Text>
     </View>
   );
 }
+
+/** The emoji a deck's name starts with, on a soft tile in the deck's own tint (`deckTint`). */
+function DeckBadge({ deck, emoji }: { deck: string; emoji: string }) {
+  const c = useTheme();
+  return (
+    <View style={{ width: BADGE, height: BADGE, borderRadius: radius.m, ...smooth, backgroundColor: c.deckTints[deckTint(deck, c.deckTints.length)], alignItems: 'center', justifyContent: 'center' }}>
+      {/* Not scaled with the text size: it's the deck's mark, and a fixed tile has to hold it. */}
+      <Text allowFontScaling={false} style={{ fontSize: 20 }}>{emoji}</Text>
+    </View>
+  );
+}
+const BADGE = 36;
+
+/** The deck list's groups settle in this many ms apart, and no group waits longer than the seventh. */
+const SETTLE_STEP = 45;
+const SETTLE_MAX = 6;
 
 export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint = 'Add a note, rename, options or delete', editing = false, onOpen, onPress, onMenu, onToggle, onDelete, onHandle, onStep }: {
   row: ShownRow;
@@ -136,6 +185,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
   const inDeck = row.depth >= (editing ? 1 : 2) ? `in ${parts[parts.length - 2]}` : '';
   // A detail line (WaniKani's level) goes under the name too; the card counts were dropped to save space.
   const line = detail ? detail.text : inDeck;
+  const badge = leadingEmoji(row.name);
   const gateLine = row.gate ? `${row.gate.inProgress} of ${row.gate.cap} in progress${atCap ? ', new cards wait' : ''}` : null;
   return (
     <Pressable
@@ -166,8 +216,9 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
           <Icon name="minus" size={12} color={c.onRating} weight="bold" />
         </Tappable>
       ) : null}
+      {badge.emoji ? <DeckBadge deck={row.deck} emoji={badge.emoji} /> : null}
       <View style={{ flex: 1, gap: 2 }}>
-        <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{row.name}</Text>
+        <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{badge.rest}</Text>
         {line ? <Text style={{ ...type.footnote, color: detail?.warning ? c.warning : c.textSecondary }}>{line}</Text> : null}
         {gateLine ? (
           // Under the cap, new cards come in; at it, they wait until cards are a week out.
@@ -189,8 +240,8 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
           <Icon name="line.3.horizontal" size={18} color={c.textTertiary} weight="semibold" />
         </Pressable>
       ) : (<>
-      <Stat value={row.due} label="due" color={c.countDue} />
-      <Stat value={row.fresh} label="new" color={c.countNew} />
+      <Stat value={row.due} label="due" color={c.countDue} fill={c.goodFill} />
+      <Stat value={row.fresh} label="new" color={c.countNew} fill={c.countNewFill} />
       <Tappable
         onPress={() => { haptic.tap(); onMenu(); }}
         accessibilityRole="button"
@@ -254,7 +305,7 @@ const MIN_SYNC_SHOWN_MS = 1200;
 export function DeckList(props: {
   decks: DeckRow[];
   /** "Studied today: ..." under the due and new figures (useTodaySummary), once something has been answered today. */
-  studied?: string;
+  studied?: StudiedToday;
   /**
    * When the last backup was made, and whether another is due (`backupStatus`). Not shown while
    * sync is on: the Anki server then holds the collection, and Backup is still in Settings.
@@ -417,8 +468,10 @@ export function DeckList(props: {
               <Button label="Set up Anki" onPress={props.onImport} style={{ alignSelf: 'stretch' }} />
             </Card>
           )) : (
-            groups.map((g) => (
-              <Group key={g[0].deck}>
+            groups.map((g, gi) => (
+              // Each family of decks settles in a beat after the one above, the first time the list shows.
+              <Reveal key={g[0].deck} delay={Math.min(gi, SETTLE_MAX) * SETTLE_STEP}>
+              <Group>
                 {g.map((row, i) => (
                   // Measured by a drag, and dimmed while it, or a deck it's inside, is being dragged.
                   <View key={row.deck} ref={drag.rowRef(row.deck)} collapsable={false} style={{ opacity: drag.dragging !== null && isInDeck(row.deck, drag.dragging) ? 0.35 : 1 }}>
@@ -475,6 +528,7 @@ export function DeckList(props: {
                   </View>
                 ))}
               </Group>
+              </Reveal>
             ))
           )}
           {props.extra?.node}
