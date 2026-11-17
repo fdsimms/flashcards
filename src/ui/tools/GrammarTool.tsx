@@ -5,13 +5,14 @@ import { failureText } from '../../core/failure';
 import { grammarPoint } from '../../core/grammar';
 import { DRILL_POINTS, dueWhen, grammarListGroups, type DrillState, type GrammarAnswer, type GrammarListRow } from '../../core/grammarDrills';
 import { ApiError, type GrammarTopicRow, type Language } from '../../reader/api';
-import { grammarStateWord } from '../../reader/grammar';
 import { LANGUAGES, flaggedName } from '../../reader/languages';
 import { FLAG_IMAGES } from '../flagImages';
 import { topicLine } from '../../reader/topics';
 import { toolLanguage } from '../../tools/tools';
 import { loadToolPrefs, saveToolPrefs, toolPrefs } from '../../tools/storage';
-import { Button, Card, ErrorNote, Group, Help, NavRow, Screen } from '../kit';
+import { grammarTag } from '../grammarTag';
+import { Button, Card, ErrorNote, Group, Help, NavRow, Screen, Tag } from '../kit';
+import { Reveal } from '../motion';
 import { space, type, useTheme, readable } from '../theme';
 import { GrammarDrill } from './GrammarDrill';
 import type { ToolScreenProps } from './index';
@@ -77,13 +78,16 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
   const groups = choices ? grammarListGroups(language, choices, answers, now, hour) : null;
   const name = LANGUAGES[language].name;
   const open = (pointId: string) => router.push({ pathname: '/read-grammar-point', params: { id: pointId } });
-  const rows = (list: GrammarListRow[], detail: (r: GrammarListRow) => string) => (
+  // Each point's state is a colored tag; `when` (Coming up's) follows it.
+  const rows = (list: GrammarListRow[], when?: (r: GrammarListRow) => string) => (
     <Group>
       {list.map((r, i) => (
-        <NavRow key={r.pointId} first={i === 0} label={grammarPoint(r.pointId)?.name ?? r.pointId} detail={detail(r)} onPress={() => open(r.pointId)} />
+        <NavRow key={r.pointId} first={i === 0} label={grammarPoint(r.pointId)?.name ?? r.pointId} badge={grammarTag(c, r.state)} detail={when?.(r)} onPress={() => open(r.pointId)} />
       ))}
     </Group>
   );
+  // The sections settle in one after another once the list has loaded.
+  const settle = (i: number) => i * 45;
 
   return (
     <Screen
@@ -115,27 +119,30 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
         ) : (
           <>
             {groups.due.length ? (
-              <View style={{ gap: space.s }}>
-                <ControlLabel>Due today</ControlLabel>
-                {rows(groups.due, (r) => grammarStateWord(r.state))}
+              <Reveal style={{ gap: space.s }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+                  <ControlLabel>Due today</ControlLabel>
+                  <Tag text={String(groups.due.length)} color={c.violetInk} fill={c.violetFill} />
+                </View>
+                {rows(groups.due)}
                 {groups.due.length > DRILL_POINTS ? <Help>{`Practice now mixes ${DRILL_POINTS} grammar points, Practice ones first. Start again for the rest.`}</Help> : null}
-              </View>
+              </Reveal>
             ) : (
               <Help>{groups.later.length
                 ? `Nothing due today. Next: ${dueWhen(groups.later[0].schedule!.due, now, hour).toLocaleLowerCase()}.`
                 : `Nothing to practice yet. Set a ${name} grammar point to Practice or Know it, and it comes back here.`}</Help>
             )}
             {groups.later.length ? (
-              <View style={{ gap: space.s }}>
+              <Reveal delay={settle(1)} style={{ gap: space.s }}>
                 <ControlLabel>Coming up</ControlLabel>
-                {rows(groups.later, (r) => `${grammarStateWord(r.state)} · ${dueWhen(r.schedule!.due, now, hour)}`)}
-              </View>
+                {rows(groups.later, (r) => dueWhen(r.schedule!.due, now, hour))}
+              </Reveal>
             ) : null}
             {groups.other.length ? (
-              <View style={{ gap: space.s }}>
+              <Reveal delay={settle(2)} style={{ gap: space.s }}>
                 <ControlLabel>Not practicing</ControlLabel>
-                {rows(groups.other, (r) => grammarStateWord(r.state))}
-              </View>
+                {rows(groups.other)}
+              </Reveal>
             ) : null}
             {topics && topics.language === language ? (
               <View style={{ gap: space.s }}>

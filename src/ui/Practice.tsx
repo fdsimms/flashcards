@@ -4,6 +4,7 @@ import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { TOOLS, type ToolInfo } from '../tools/tools';
 import { Group, NavRow, Screen } from './kit';
+import { Reveal } from './motion';
 import { space, useTheme, readable } from './theme';
 import { TOOL_SCREENS } from './tools';
 import { useGrammarDue } from './useGrammarDue';
@@ -20,9 +21,10 @@ export function Practice({ onOpen, readerApi, repo }: { onOpen: (tool: ToolInfo)
             // Grammar, Sentences and Situations need Read & Listen's server.
             const needsServer = tool.id === 'sentences' || tool.id === 'situations' || tool.id === 'grammar';
             const off = needsServer && !readerApi;
+            // The rows settle in one after another the first time the tab opens.
             return (
+              <Reveal key={tool.id} delay={i * 30}>
               <NavRow
-                key={tool.id}
                 first={i === 0}
                 icon={{ name: TOOL_SCREENS[tool.id].icon, color: TOOL_SCREENS[tool.id].color(c) }}
                 label={tool.title}
@@ -30,6 +32,7 @@ export function Practice({ onOpen, readerApi, repo }: { onOpen: (tool: ToolInfo)
                 disabled={off}
                 onPress={() => onOpen(tool)}
               />
+              </Reveal>
             );
           })}
         </Group>

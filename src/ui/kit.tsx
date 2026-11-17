@@ -145,9 +145,11 @@ export function Divider({ inset }: { inset: number }) {
  * `icon`, a colored tile holds the symbol, as in iOS Settings; `icon.color` should be a theme
  * color that white reads on (the rating colors are).
  */
-export function NavRow({ label, detail, facts, loading, onPress, first, icon, disabled, action }: {
+export function NavRow({ label, detail, badge, facts, loading, onPress, first, icon, disabled, action }: {
   label: string;
   detail?: string;
+  /** A colored `Tag` at the start of the line under the name, before `detail` (a grammar point's state). */
+  badge?: TagProps;
   /** Captioned lines under the name, in place of `detail`, for a row that says several things (Voices: Azure, iPhone). Each value wraps on its own. */
   facts?: { label: string; value: string }[];
   /** The detail is still being read: its line is held open (blank), so the row doesn't grow when the value arrives. */
@@ -168,7 +170,7 @@ export function NavRow({ label, detail, facts, loading, onPress, first, icon, di
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ disabled: !!disabled }}
-      accessibilityLabel={[label, ...(facts ? facts.map((f) => `${f.label}: ${f.value}`) : detail ? [detail] : [])].join('. ')}
+      accessibilityLabel={[label, ...(badge ? [badge.text] : []), ...(facts ? facts.map((f) => `${f.label}: ${f.value}`) : detail ? [detail] : [])].join('. ')}
       style={({ pressed }) => ({
         minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m,
         paddingVertical: space.m, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : 'transparent',
@@ -188,7 +190,12 @@ export function NavRow({ label, detail, facts, loading, onPress, first, icon, di
             <Text style={{ ...type.footnote, color: c.textSecondary, width: 56 }}>{f.label}</Text>
             <Text style={{ ...type.footnote, color: c.text, flex: 1 }}>{f.value}</Text>
           </View>
-        )) : detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : loading ? <Text style={type.footnote}>{'\u00a0'}</Text> : null}
+        )) : badge ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s, marginTop: 3 }}>
+            <Tag {...badge} />
+            {detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : null}
+          </View>
+        ) : detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : loading ? <Text style={type.footnote}>{'\u00a0'}</Text> : null}
       </View>
       {action ? (
         <Tappable
@@ -203,6 +210,21 @@ export function NavRow({ label, detail, facts, loading, onPress, first, icon, di
       ) : null}
       <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
     </Pressable>
+  );
+}
+
+type TagProps = { text: string; color: string; fill: string };
+
+/**
+ * A short colored label (a grammar point's state, a count beside a heading): its text in a color
+ * on a faint fill of the same color, which the theme pairs to pass 4.5:1 (`violetInk` on
+ * `violetFill`, `goodInk` on `goodFill`).
+ */
+export function Tag({ text, color, fill }: TagProps) {
+  return (
+    <View style={{ borderRadius: radius.pill, ...smooth, backgroundColor: fill, paddingHorizontal: space.s, paddingVertical: 2 }}>
+      <Text style={{ ...type.footnote, fontWeight: '600', color, fontVariant: ['tabular-nums'] }}>{text}</Text>
+    </View>
   );
 }
 

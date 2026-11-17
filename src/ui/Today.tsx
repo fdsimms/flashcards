@@ -1,9 +1,12 @@
 import { Stack } from 'expo-router';
-import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { deckListTotals, todayDeckRows, type DeckRow } from '../core/deckTree';
-import { DeckRowLink, groupByTopLevel, NoDecksCard, WarningBanner, type DeckAction } from './DeckList';
+import { todayProgress } from '../core/todaySummary';
+import { DeckRowLink, groupByTopLevel, NoDecksCard, settleDelay, WarningBanner, type DeckAction } from './DeckList';
 import { Group, Icon, Screen } from './kit';
+import { CountingText, Reveal, useReduceMotion } from './motion';
+import type { StudiedToday } from './useTodaySummary';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
 import { SyncingPill, useSyncTap, type SyncProp } from './syncTap';
 import { hairline, radius, readable, smooth, space, type, useTheme } from './theme';
@@ -12,19 +15,20 @@ import { VacationCard, useVacationBanner } from './vacationNotice';
 import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
 
 /** What's waiting across every deck, or that nothing is: the first thing Today says. */
-function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; studied?: string }) {
+function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; studied?: StudiedToday }) {
   const c = useTheme();
   const caughtUp = due + fresh === 0;
+  // The figures tick to a new value (back from studying, after a sync) rather than jumping.
   const figure = (value: number, label: string, color: string) => (
     <View style={{ flex: 1, gap: 2, alignItems: 'center' }}>
-      <Text style={{ ...type.largeTitle, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }}>{value}</Text>
+      <CountingText value={value} style={{ ...type.largeTitle, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }} />
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
     </View>
   );
   return (
     <View
       accessible
-      accessibilityLabel={[caughtUp ? 'All caught up. Nothing is due today.' : `Today: ${due} due, ${fresh} new`, studied].filter(Boolean).join('. ')}
+      accessibilityLabel={[caughtUp ? 'All caught up. Nothing is due today.' : `Today: ${due} due, ${fresh} new`, studied?.text].filter(Boolean).join('. ')}
       style={{
         gap: space.m, padding: space.l, borderRadius: radius.l, ...smooth,
         backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border,
@@ -47,10 +51,34 @@ function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; stu
       )}
       </View>
       {studied ? (
-        <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center', fontVariant: ['tabular-nums'], borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.s }}>
-          {studied}
-        </Text>
+        <View style={{ gap: space.s, borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.m }}>
+          <ProgressTrack value={todayProgress(studied.answered, due + fresh)} />
+          <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center', fontVariant: ['tabular-nums'] }}>
+            {studied.text}
+          </Text>
+        </View>
       ) : null}
+    </View>
+  );
+}
+
+/**
+ * How far through today's cards: answers given against those plus what's still waiting
+ * (`todayProgress`). Grows to a new value rather than jumping, at once when Reduce Motion is on.
+ */
+function ProgressTrack({ value }: { value: number }) {
+  const c = useTheme();
+  const reduce = useReduceMotion();
+  const v = useRef(new Animated.Value(value)).current;
+  useEffect(() => {
+    if (reduce) { v.setValue(value); return undefined; }
+    const run = Animated.timing(v, { toValue: value, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: false });
+    run.start();
+    return () => run.stop();
+  }, [value, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <View accessible={false} style={{ height: space.s, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }}>
+      <Animated.View style={{ height: '100%', borderRadius: radius.pill, backgroundColor: c.countDue, width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }} />
     </View>
   );
 }
@@ -67,7 +95,7 @@ export function Today(props: {
   /** False until the first load of the decks has finished, so an empty list isn't "No decks yet" yet. */
   loaded?: boolean;
   /** "Studied today: ..." under the due and new figures (useTodaySummary), once something has been answered today. */
-  studied?: string;
+  studied?: StudiedToday;
   /** Today's extras (DailyExtras.tsx), under the day's count. */
   extrasStrip?: React.ReactNode;
   /** When the last backup was made, and whether another is due (`backupStatus`); warned about only when overdue, and not while sync is on. */
@@ -140,8 +168,10 @@ export function Today(props: {
           {vacation ? <VacationCard notice={vacation} due={totals.due} /> : null}
           {props.extrasStrip}
           {!anyDecks ? (props.loaded === false ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : <NoDecksCard onImport={props.onImport} />) : (
-            groups.map((g) => (
-              <Group key={g[0].deck}>
+            groups.map((g, gi) => (
+              // Each family of decks settles in a beat after the one above, the first time the list shows.
+              <Reveal key={g[0].deck} delay={settleDelay(gi)}>
+              <Group>
                 {g.map((row, i) => (
                   <DeckRowLink
                     key={row.deck}
@@ -157,6 +187,7 @@ export function Today(props: {
                   />
                 ))}
               </Group>
+              </Reveal>
             ))
           )}
           {props.extra && props.extra.due + props.extra.fresh > 0 ? props.extra.node : null}
