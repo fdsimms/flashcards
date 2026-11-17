@@ -15,11 +15,11 @@ def build_server(cm: CollectionManager, speech: SpeechClient | None = None, unim
                  reader_settings: ReaderSettings | None = None, reader: ReaderClient | None = None, **kwargs) -> MCPServer:
     """The server with every tool. kwargs go to MCPServer (sign-in settings, for one)."""
     server = MCPServer("Franki", instructions=tools.INSTRUCTIONS, **kwargs)
-    tools.register(server, cm, speech)
+    # Read & Listen's server (optional): its costs, word ranks and Japanese readings.
+    client = reader or ReaderClient(reader_settings)
+    tools.register(server, cm, speech, client)
     # Wiktionary's inflection tables, kept beside the collection's folder.
     forms.register(server, cm, unimorph or forms.UniMorph(cm.path.parent.parent / "unimorph"))
-    # Read & Listen's costs, from its own server (optional).
-    client = reader or ReaderClient(reader_settings)
     reader_tools.register(server, client)
     # Ordering new cards by how common the word is, with the ranks from the same server.
     frequency.register(server, cm, client)

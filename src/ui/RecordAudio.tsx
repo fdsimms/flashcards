@@ -5,7 +5,7 @@ import { makeRecording, recordNote, sendRecording, type RecordDeps, type Recordi
 import { isOmnilanguage, speechLangFor } from '../core/cards';
 import { failureText } from '../core/failure';
 import { holdRecording, isOffline } from '../core/held';
-import { needsRecording, recordingText, recordingVoice } from '../core/recording';
+import { needsRecording, recordingRequest, recordingVoice } from '../core/recording';
 import type { Note } from '../core/types';
 import { azureVoiceName, languageKey, languageName, type VoiceSettings } from '../core/voices';
 import type { Repo } from '../db/repo';
@@ -74,7 +74,7 @@ export function RecordAudio({ recorder, note, settings, onRecorded }: {
     setBusy(true);
     setError(undefined);
     try {
-      const r = await makeRecording(recorder, recordingText(note), voice, speechLangFor(note));
+      const r = await makeRecording(recorder, recordingRequest(note), voice);
       onRecorded(r);
       const uri = mediaFileUri(r.name);
       if (uri) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { needsRecording, planRecordings, recordingName, recordingText, recordingVoice, withRecording } from '../../src/core/recording';
+import { needsRecording, planRecordings, recordingName, recordingRequest, recordingText, recordingVoice, withRecording } from '../../src/core/recording';
 import { omniNote } from '../support/fixtures';
 
 describe('recording a card with an Azure voice', () => {
@@ -20,6 +20,19 @@ describe('recording a card with an Azure voice', () => {
   it("names the file as the MCP's add_tts_audio does, so either one's recording is the same file", () => {
     // hashlib.sha1("th-TH-PremwadeeNeural\n1.0\nหนังสือ".encode()).hexdigest()[:16]
     expect(recordingName('หนังสือ', 'th-TH-PremwadeeNeural')).toBe('franki-tts-00b4a24cf90d8f1b.mp3');
+  });
+
+  it("names a recording made from a Japanese word's reading apart from one made from the word", () => {
+    // hashlib.sha1("ja-JP-NanamiNeural\n1.0\n今日\nこんにち".encode()).hexdigest()[:16]
+    expect(recordingName('今日', 'ja-JP-NanamiNeural', 1, 'こんにち')).toBe('franki-tts-9862666779f46db3.mp3');
+    expect(recordingName('今日', 'ja-JP-NanamiNeural', 1, 'こんにち')).not.toBe(recordingName('今日', 'ja-JP-NanamiNeural'));
+  });
+
+  it("asks for a Japanese word with its reading, and any other language without one", () => {
+    const ja = { ...omniNote({ Entry: '今日', Language: 'japanese', KanaReading: 'こんにち', Transliteration: '' }), deck: '日本語' };
+    expect(recordingRequest(ja)).toEqual({ text: '今日', language: 'ja-JP', reading: 'こんにち' });
+    expect(recordingRequest({ ...ja, fields: { ...ja.fields, KanaReading: '' } })).toEqual({ text: '今日', language: 'ja-JP' });
+    expect(recordingRequest(omniNote())).toEqual({ text: 'หนังสือ', language: 'th-TH' });
   });
 
   it('adds the recording after anything already in Audio', () => {

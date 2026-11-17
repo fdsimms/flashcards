@@ -1,5 +1,4 @@
-import { speechLangFor } from '../core/cards';
-import { needsRecording, recordingName, recordingText, RECORDING_RATE, withRecording } from '../core/recording';
+import { needsRecording, recordingName, recordingRequest, recordingText, RECORDING_RATE, withRecording, type RecordingRequest } from '../core/recording';
 import type { Note } from '../core/types';
 import { sha1Hex } from './sha1';
 import { saveNote, type NoteStore } from './noteService';
@@ -13,9 +12,10 @@ export interface RecordDeps {
   store: NoteStore;
   /**
    * The text as MP3, from Read & Listen's server (`Api.speech`). `language` is the text's (th-TH), for a
-   * Multilingual voice, which reads any language and would otherwise guess it from the text.
+   * Multilingual voice, which reads any language and would otherwise guess it from the text. `reading` is a
+   * Japanese word's KanaReading (`recordingRequest`).
    */
-  speak(text: string, voice: string, rate: number, language?: string): Promise<Uint8Array>;
+  speak(text: string, voice: string, rate: number, language?: string, reading?: string): Promise<Uint8Array>;
   media: {
     exists(name: string): boolean;
     read(name: string): Promise<Uint8Array | undefined>;
@@ -33,16 +33,16 @@ export interface Recording {
 }
 
 /**
- * `text` spoken in `voice`, kept in the media folder. A file with the same text and voice already
- * here is used again rather than asked for. Nothing is sent yet (`sendRecording`), so a recording
- * made in the note editor and never saved stays on the phone. `language` is the text's
- * (`speechLangFor` the note).
+ * A note's text (`recordingRequest`) spoken in `voice`, kept in the media folder. A file with the same text,
+ * voice and reading already here is used again rather than asked for. Nothing is sent yet (`sendRecording`),
+ * so a recording made in the note editor and never saved stays on the phone.
  */
-export async function makeRecording(deps: RecordDeps, text: string, voice: string, language?: string): Promise<Recording> {
-  const name = recordingName(text, voice);
+export async function makeRecording(deps: RecordDeps, request: RecordingRequest, voice: string): Promise<Recording> {
+  const { text, language, reading } = request;
+  const name = recordingName(text, voice, RECORDING_RATE, reading);
   let bytes = deps.media.exists(name) ? await deps.media.read(name) : undefined;
   if (!bytes?.length) {
-    bytes = await deps.speak(text, voice, RECORDING_RATE, language);
+    bytes = await deps.speak(text, voice, RECORDING_RATE, language, reading);
     await deps.media.write(name, bytes);
   }
   return { name, sha1: sha1Hex(bytes) };
@@ -61,8 +61,9 @@ export async function sendRecording(deps: RecordDeps, r: Recording): Promise<voi
 export async function recordNote(deps: RecordDeps, noteId: string, voice: string): Promise<Note | undefined> {
   const before = await deps.store.getNote(noteId);
   if (!before || !needsRecording(before)) return undefined;
-  const text = recordingText(before);
-  const recording = await makeRecording(deps, text, voice, speechLangFor(before));
+  const request = recordingRequest(before);
+  const text = request.text;
+  const recording = await makeRecording(deps, request, voice);
 
   const note = await deps.store.getNote(noteId);
   if (!note || !needsRecording(note) || recordingText(note) !== text) return undefined;

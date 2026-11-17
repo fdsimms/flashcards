@@ -134,10 +134,16 @@ class SpeechClient:
         return self._voices
 
     async def synthesize(
-        self, text: str, voice: str, rate: float = 1.0, language: str | None = None
+        self,
+        text: str,
+        voice: str,
+        rate: float = 1.0,
+        language: str | None = None,
+        reading: str | None = None,
     ) -> bytes:
-        """`synthesize_parts` for a line in one voice."""
-        return await self.synthesize_parts([Part(text, voice)], rate, language)
+        """`synthesize_parts` for a line in one voice. `reading` is said in the text's place, in
+        Japanese only (`Part.reading`)."""
+        return await self.synthesize_parts([Part(text, voice, reading=reading)], rate, language)
 
     async def speak(
         self, text: str, voice: str, rate: float = 1.0, language: str | None = None
@@ -322,11 +328,15 @@ def text_locale(language: str) -> str:
 @dataclass(frozen=True)
 class Part:
     """A stretch of a line spoken in one voice. `pitch` is a percent change to the voice's pitch
-    (a child's voice is the same voice a little higher); 0 leaves it as it is."""
+    (a child's voice is the same voice a little higher); 0 leaves it as it is. `reading` is what a
+    Japanese voice says in the text's place, in kana (今日 meant as こんにち), with SSML's <sub
+    alias>: Japanese's phonemes would need a pitch accent no reading carries. Ignored in any other
+    language."""
 
     text: str
     voice: str
     pitch: int = 0
+    reading: str | None = None
 
 
 def ssml(text: str, voice: str, rate: float = 1.0, language: str | None = None) -> str:
@@ -360,6 +370,9 @@ def _voice_element(part: Part, rate: float, language: str | None) -> str:
     if language is not None and is_multilingual(voice):
         spoken_in = text_locale(language)
     body = escape(part.text)
+    if part.reading and spoken_in.split("-")[0] == "ja":
+        alias = escape(part.reading, {"'": "&apos;"})
+        body = f"<sub alias='{alias}'>{body}</sub>"
     if spoken_in.split("-")[0] == "th":
         body = _THAI_BREAK.sub(THAI_PAUSE, body)
         for word, alias in THAI_PRONUNCIATIONS.items():

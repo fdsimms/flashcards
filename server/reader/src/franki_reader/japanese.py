@@ -173,6 +173,23 @@ def hiragana(katakana: str) -> str:
     return "".join(chr(ord(c) - 0x60) if "ァ" <= c <= "ヶ" else c for c in katakana)
 
 
+def spoken_reading(text: str, reading: str) -> str | None:
+    """The reading a voice should say in place of `text` (a card's word, with its KanaReading), or
+    None to read the kanji as written. Written kanji keep the pitch a voice gives the word, so the
+    reading is used only where the voice would likely misread it: when the text has kanji and
+    Sudachi reads it otherwise than every one of the reading's alternatives (生 meant as せい, 今日
+    as こんにち). The first alternative is the one said."""
+    if not _KANJI.search(text):
+        return None
+    alternatives = [
+        a for part in re.split(r"[/／;；、,，]", reading) if (a := "".join(part.split()))
+    ]
+    if not alternatives:
+        return None
+    sudachi = hiragana("".join(m.reading for m in morphemes(text) if m.is_word))
+    return None if any(hiragana(a) == sudachi for a in alternatives) else alternatives[0]
+
+
 # ==== The word list ====
 
 
