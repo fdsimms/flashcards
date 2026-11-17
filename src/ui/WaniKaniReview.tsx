@@ -19,6 +19,7 @@ import { nextStage, outcomeText, stageChange, type StageChange } from '../wanika
 import { stackSlots } from '../wanikani/stagePopups';
 import { localAudioUri } from '../wanikani/storage';
 import { madeOf, SUBJECT_TYPE_NAMES, withComponents, type Assignment, type Subject } from '../wanikani/subjects';
+import { useKeyboardInset } from './useKeyboardInset';
 import { haptic } from './haptics';
 import { Button, Count, ErrorNote, Icon, ProgressBar, Screen, Tappable } from './kit';
 import { Reveal } from './motion';
@@ -180,12 +181,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   // The typing box sits in the footer, so the screen is padded by the keyboard, as in Review.
   const insets = useSafeAreaInsets();
   const header = useHeaderInset();
-  const [keyboard, setKeyboard] = useState(0);
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardWillShow', (e) => setKeyboard(e.endCoordinates.height));
-    const hide = Keyboard.addListener('keyboardWillHide', () => setKeyboard(0));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
+  const keyboard = useKeyboardInset();
 
   // One player for WaniKani's recordings, released when the screen closes.
   const player = useRef<AudioPlayer | null>(null);
