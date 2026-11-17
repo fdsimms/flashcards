@@ -152,8 +152,8 @@ RULES: dict[str, Rules] = {
             | {"ένα"}
         ),
     ),
-    # The deck marks a noun's gender with ten, ta, to or te (ta kobieta).
-    "pl": Rules(prefixes=frozenset({"ten", "ta", "to", "te"}), suffixes=frozenset({"się"})),
+    # The deck marks a noun's gender with ten, ta, to, or te and ci in the plural (ta kobieta, ci ludzie).
+    "pl": Rules(prefixes=frozenset({"ten", "ta", "to", "te", "ci"}), suffixes=frozenset({"się"})),
     "nb": Rules(prefixes=frozenset({"en", "ei", "et", "å"}), suffixes=frozenset({"seg"})),
     # The deck's entries are bare words (velleity, abnegate), with no article or "to". simplemma
     # knows the common ones' forms but not a rare word's (velleities, kenoses), so a form is also

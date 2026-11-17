@@ -45,6 +45,10 @@ def test_an_entry_is_ranked_without_its_article_or_gender_word() -> None:
     pl = lexicon_from([], "pl")
     assert entry_place("ten mężczyzna", pl) == entry_place("mężczyzna", pl)
     assert entry_place("ten mężczyzna", pl).rank is not None
+    # The plural marker of a person (ci ludzie) goes too, as te does for the rest (te drzwi).
+    assert entry_place("ci rodzice", pl) == entry_place("rodzice", pl)
+    assert entry_place("ci rodzice", pl).rank is not None
+    assert entry_place("te drzwi", pl) == entry_place("drzwi", pl)
     es = lexicon_from([], "es")
     assert entry_place("la casa", es) == EntryPlace(common_lemmas("es").index("casa") + 1)
     # A reflexive marker goes too (bać się), and the better of two alternatives is the place.
