@@ -1,4 +1,5 @@
 import random
+import re
 import time
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
@@ -6,12 +7,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from fastapi import Request
 from fastapi.testclient import TestClient
 from franki_speech import SpeechError, WordMark
 from scripted import BAD, ENTRIES, IN_RANGE, ScriptedModel
 
 from franki_reader import cast, store
-from franki_reader.app import create_app
+from franki_reader.app import MAX_WRONG, client_source, create_app
 from franki_reader.engine import Engine
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.languages import Code
@@ -270,6 +272,28 @@ def test_topics_report_their_state() -> None:
     next_text(c, food["id"])  # a text written for it waits to be read
     states = {t["name"]: t["state"] for t in c.get("/api/topics", headers=AUTH).json()}
     assert states == {"Food stall": "ready", "Taxi": "idle"}
+
+
+def test_a_source_guessing_the_passphrase_is_refused_for_a_while() -> None:
+    c = client()
+    for _ in range(MAX_WRONG):
+        assert c.get("/api/check", headers={"Authorization": "Bearer nope"}).status_code == 401
+    # Refused now even with the right one, so a guess that's right can't be told from a wrong one.
+    refused = c.get("/api/check", headers=AUTH)
+    assert refused.status_code == 429
+    assert (
+        refused.json()["detail"]
+        == "Too many wrong passphrases from your network. Try again in 15 minutes."
+    )
+
+
+def test_a_source_is_counted_by_its_address_and_an_ipv6_one_by_its_64() -> None:
+    def source(host: str) -> str:
+        return client_source(Request({"type": "http", "client": (host, 1)}))
+
+    assert source("203.0.113.9") == "203.0.113.9"
+    assert source("2001:db8:1:2:3:4:5:6") == source("2001:db8:1:2:ffff::1") == "2001:db8:1:2::/64"
+    assert source("::ffff:203.0.113.9") == "203.0.113.9"
 
 
 def test_a_passphrase_with_non_ascii_characters_works() -> None:
@@ -1166,6 +1190,16 @@ def test_every_time_in_a_response_goes_through_instant() -> None:
     files = [package / "app.py", *sorted((package / "routes").glob("*.py"))]
     source = "".join(f.read_text() for f in files)
     assert source.count(".isoformat()") == 1, "send times with instant(), not .isoformat()"
+
+
+def test_no_route_answers_502() -> None:
+    # The app reads any 502 as Caddy's (src/reader/api.ts, errorMessage): "Read & Listen isn't
+    # running", whatever the detail says. A failure of the server's own goes out as 503.
+    package = Path(__file__).parent.parent / "src" / "franki_reader"
+    for f in [package / "app.py", *sorted((package / "routes").glob("*.py"))]:
+        assert not re.search(r"HTTPException\(\s*502|status_code\s*=\s*502", f.read_text()), (
+            f"{f.name} answers 502: use 503"
+        )
 
 
 # ---- /api/status ----

@@ -1,10 +1,10 @@
 import { genderOf } from './gender';
 import { fieldSegments } from './highlight';
-import { htmlToText, isTruthyField, soundFiles } from './html';
+import { htmlToText, soundFiles } from './html';
 import { hasThai } from './script';
 import { THAI_COUNTING_WORDS } from './thaiCounting';
 import { newSchedState } from './scheduler';
-import { templateOrdinals } from './template';
+import { fieldIsEmpty, templateOrdinals } from './template';
 import type { Card, CardKind, Note, NoteType, RenderedCard, RenderedSide } from './types';
 
 /**
@@ -62,15 +62,18 @@ export function isOmnilanguage(note: Note): boolean {
 }
 
 /**
- * Which card kinds a note produces. Mirrors the Anki templates' gating: the front card unless
- * SuppressFrontCard is set, and the reverse / audio cards when GenerateReverse /
- * GenerateAudioCard are.
+ * Which card kinds a note produces. Mirrors the Anki templates' gating, `{{^SuppressFrontCard}}`
+ * and `{{#GenerateReverse}}` / `{{#GenerateAudioCard}}`: the front card unless SuppressFrontCard
+ * has anything in it, and the reverse / audio cards when GenerateReverse / GenerateAudioCard do.
+ * Anything at all, as Anki reads a conditional (`fieldIsEmpty`): "no" or "0" still turns one on
+ * there, so it does here, or Anki has a card Franki never shows.
  */
 export function cardKindsFor(note: Note): CardKind[] {
   if (isOmnilanguage(note)) {
-    const kinds: CardKind[] = isTruthyField(note.fields.SuppressFrontCard) ? [] : ['forward'];
-    if (isTruthyField(note.fields.GenerateReverse)) kinds.push('reverse');
-    if (isTruthyField(note.fields.GenerateAudioCard)) kinds.push('audio');
+    const set = (field: string) => !fieldIsEmpty(note.fields[field]);
+    const kinds: CardKind[] = set('SuppressFrontCard') ? [] : ['forward'];
+    if (set('GenerateReverse')) kinds.push('reverse');
+    if (set('GenerateAudioCard')) kinds.push('audio');
     return kinds;
   }
   return ['forward'];

@@ -57,21 +57,31 @@ describe("a deck's limits for today in the kept collection", () => {
 });
 
 describe('Custom Study Session in the kept collection', () => {
-  it('moves new cards in as a preview, in the order added, leaving out suspended cards and those already in a filtered deck', async () => {
+  it('moves new cards in, in the order added, leaving out suspended cards and those already in a filtered deck', async () => {
     const db = await kept();
     const r = await build(db, TRIVIA, cram('new'));
     // Notes ..018, ..030, then ..031's two cards (ord 0 before ord 1); the suspended ..019 and the one in Filtered Deck 1 stay.
     expect(r.ankiIds).toEqual(['1794408858020', '1794408858030', '1794408858032', '1794408858031']);
     const session = await deckNamed(db, CUSTOM_STUDY_DECK);
     expect(session.usn).toBe(-1);
-    expect(deckJson(row(session))).toMatchObject({ dyn: 1, resched: false, terms: [[`deck:"${TRIVIA}" is:new`, 100, 5]], previewAgainSecs: 60, previewHardSecs: 600, previewGoodSecs: 0 });
-    // Position stands in for the card's due; its own is kept in odue; every card is in the review
-    // queue, as Anki builds a deck that doesn't reschedule.
-    expect(await card(db, 1794408858020)).toMatchObject({ did: session.id, odid: 1794408857991, type: 0, queue: 2, due: -100000, odue: 5, usn: -1 });
-    expect(await card(db, 1794408858031)).toMatchObject({ queue: 2, due: -99997, odue: 7 });
+    // A cram of new cards reschedules, as Anki's does: they stay new cards.
+    expect(deckJson(row(session))).toMatchObject({ dyn: 1, resched: true, terms: [[`deck:"${TRIVIA}" is:new`, 100, 5]] });
+    // Position stands in for the card's due; its own is kept in odue.
+    expect(await card(db, 1794408858020)).toMatchObject({ did: session.id, odid: 1794408857991, type: 0, queue: 0, due: -100000, odue: 5, usn: -1 });
+    expect(await card(db, 1794408858031)).toMatchObject({ queue: 0, due: -99997, odue: 7 });
     expect(await card(db, 1794408858019)).toMatchObject({ did: 1794408857991, odid: 0, queue: -1 });
     expect(await card(db, 1794408858018)).toMatchObject({ did: 1794408858039, odid: 1794408857991, odue: 10 });
     expect((await db.first<{ mod: number }>('SELECT mod FROM col'))!.mod).toBe(NOW.getTime());
+    db.close();
+  });
+
+  it('puts new cards in the review queue as a preview when the session only previews (a cram of all cards)', async () => {
+    const db = await kept();
+    await build(db, TRIVIA, cram('all'));
+    const session = await deckNamed(db, CUSTOM_STUDY_DECK);
+    expect(deckJson(row(session))).toMatchObject({ dyn: 1, resched: false, previewAgainSecs: 60, previewHardSecs: 600, previewGoodSecs: 0 });
+    // Every card is in the review queue, as Anki builds a deck that doesn't reschedule.
+    expect(await card(db, 1794408858020)).toMatchObject({ did: session.id, type: 0, queue: 2, odue: 5 });
     db.close();
   });
 
@@ -81,7 +91,7 @@ describe('Custom Study Session in the kept collection', () => {
     // Two review cards are due on days 3 and 4, today is 2: only the first. The learning card and the new one stay.
     expect(r.ankiIds).toEqual(['1794408858014']);
     expect(await card(db, 1794408858014)).toMatchObject({ queue: 2, due: -100000, odue: 3, odid: 1794408857990 });
-    expect(deckJson(row(await deckNamed(db, CUSTOM_STUDY_DECK)))).toMatchObject({ resched: true, terms: [[`deck:"${THAI}" prop:due<=1`, 9999, 6]] });
+    expect(deckJson(row(await deckNamed(db, CUSTOM_STUDY_DECK)))).toMatchObject({ resched: true, terms: [[`deck:"${THAI}" prop:due<=1`, 99_999, 6]] });
     expect(await card(db, 1794408858016)).toMatchObject({ odid: 0, queue: 1 });
     db.close();
   });

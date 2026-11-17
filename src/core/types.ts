@@ -171,9 +171,11 @@ export interface ReviewLogEntry {
    */
   interday?: boolean;
   /**
-   * The filtered deck the card was answered in, when it was in one. A rescheduling filtered deck
-   * sends a card home once it's a review, and Anki's review log doesn't say where an answer was
-   * given, so today's counts read it here (`answersFrom`), as Anki counts the answer there.
+   * The deck the card was answered in (a filtered deck, when it was in one). A rescheduling
+   * filtered deck sends a card home once it's a review, a card can be moved to another deck, and
+   * Anki's review log doesn't say where an answer was given, so today's counts read it here
+   * (`answersFrom`), as Anki's deck counter counts the answer there. Rows from before every answer
+   * kept it hold only a filtered deck.
    */
   deck?: string;
   /** What was wrong, when the answer was Again with a reason chosen (`MissReason.key`, src/core/misses.ts). Franki's own: never sent to Anki. */

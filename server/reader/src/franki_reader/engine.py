@@ -58,6 +58,7 @@ from franki_reader.generator import (
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
+from franki_reader.once import Once
 from franki_reader.reader import lemma_for
 from franki_reader.recognition import measure
 from franki_reader.relisten import DEFAULT_LISTENS, Candidate, due
@@ -189,6 +190,9 @@ class Engine:
         self.synthesize = synthesize
         self.synthesize_parts = synthesize_parts
         self.audio = audio
+        # A line being recorded, so a second request for it (the reader's own and its prefetch,
+        # or make_audio's) waits for that recording rather than paying Azure for another.
+        self._recording: Once[Path | None] = Once()
         self.voices = voices or DEFAULT_VOICES
         # Which study day it is (study_day.py): the collection's "Next day starts at" as last read,
         # in `zone`, the process's own (TZ) when None.
@@ -885,6 +889,12 @@ class Engine:
             return self.audio.path(text.id, line, slow)
         if self.synthesize is None:
             return None
+        return await self._recording.run(
+            (text.id, line, slow), lambda: self._record_line(text, line, slow)
+        )
+
+    async def _record_line(self, text: StoredText, line: int, slow: bool) -> Path | None:
+        assert self.audio is not None and self.synthesize is not None
         spoken, _ = parse_line(text.lines[line].text, LANGUAGES[text.language].spaced)
         voice = voice_for(text.lines[line].speaker, text.genders, self.voices_for(text.language))
         parts = self._line_parts(text, line, spoken, voice)

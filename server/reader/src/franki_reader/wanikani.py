@@ -87,21 +87,34 @@ def parse_subject(resource: dict[str, Any], srs_stage: int) -> WaniKaniWord | No
     )
 
 
+# Pages of a list read at most: 20,000 assignments at 500 a page, twice what WaniKani has items.
+MAX_PAGES = 40
+
+
 def wanikani_reader(token: str, transport: httpx.AsyncBaseTransport | None = None) -> ReadWaniKani:
     """Reads the learned vocabulary from WaniKani's API. `transport` is for tests."""
     headers = {"Authorization": f"Bearer {token}", "Wanikani-Revision": REVISION}
 
     async def pages(client: httpx.AsyncClient, url: str) -> list[dict[str, Any]]:
+        # Only WaniKani's own next page, which gets the token, and at most MAX_PAGES of them, as
+        # the app reads them (src/wanikani/api.ts): past that it fails rather than use part.
         out: list[dict[str, Any]] = []
         next_url: str | None = url
-        while next_url:
+        for _ in range(MAX_PAGES):
+            if not next_url:
+                return out
             response = await client.get(next_url)
             if response.status_code == 401:
                 raise WaniKaniUnavailable("WaniKani refused WANIKANI_TOKEN. Make a new token.")
             response.raise_for_status()
             body = response.json()
             out += [r for r in body.get("data") or [] if isinstance(r, dict)]
-            next_url = (body.get("pages") or {}).get("next_url")
+            following = (body.get("pages") or {}).get("next_url")
+            next_url = (
+                following if isinstance(following, str) and following.startswith(API_BASE) else None
+            )
+        if next_url:
+            raise WaniKaniUnavailable("WaniKani's list never ended, so none of it was used.")
         return out
 
     async def read() -> list[WaniKaniWord]:

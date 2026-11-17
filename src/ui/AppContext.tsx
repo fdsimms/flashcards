@@ -28,6 +28,7 @@ import { Loading } from './kit';
 import { useLoadProblem } from './useLoadProblem';
 import { useOpenRepo } from './useOpenRepo';
 import { useSync } from './useSync';
+import { DECKS_PATH, TODAY_PATH } from './tabPaths';
 import { loadVacation, useVacationRefresh } from './vacationPrefs';
 import { useWaniKani, type WaniKaniState } from './useWaniKani';
 
@@ -53,7 +54,7 @@ interface AppValue {
   ankiUnsent: number;
   syncSettings?: SyncSettings;
   syncing: boolean;
-  sync: () => Promise<string | undefined>;
+  sync: (opts?: { afterRunning?: boolean }) => Promise<string | undefined>;
   reloadSync: () => Promise<void>;
   /** Loads the deck list's rows again. A failure is kept in `loadProblem`, not thrown. */
   refresh: () => Promise<void>;
@@ -124,24 +125,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const rows = deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now, held, vacation, boostFor: boostFor({ notes, settings, now }) }), listedDecks(ankiDecks, settings), (d) => settings.get(d)?.position);
     setDecks(rows);
     snapshot.save(rows, now, collection.dayStartsAtHour);
-    setBackup(backupStatus(lastBackup, now, cards.length > 0));
+    setBackup(backupStatus(lastBackup, now, cards.length > 0, collection.dayStartsAtHour));
     setAnkiUnsent((await repo.ankiStatus()).unsent);
     collapse.load();
   }), [repo, collapse.load, snapshot.save, load.guard]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync, when it's on: at launch, on coming back to the app (to Today or the deck list, so a deck
-  // being studied isn't changed under it), after studying a deck (Review's screen asks), and on leaving the app.
+  // Sync, when it's on: at launch, on coming back to the app (from Today or the deck list, so a deck
+  // being studied isn't changed under it), after studying a deck (Review's screen asks), and on
+  // leaving the app. With sync off, coming back counts the decks again, as a sync would: a new study
+  // day may have started.
   const { settings: syncSettings, syncing, sync, reload: reloadSync } = useSync(repo, refresh);
-  const onDecks = pathname === '/' || pathname === '/decks';
+  const onDecks = pathname === TODAY_PATH || pathname === DECKS_PATH;
   const onDecksRef = useRef(onDecks);
   onDecksRef.current = onDecks;
+  const syncOnRef = useRef(false);
+  syncOnRef.current = !!syncSettings?.enabled;
   useEffect(() => { if (repo) sync(); }, [repo]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'background' || (state === 'active' && onDecksRef.current)) sync();
+      if (state === 'background') sync();
+      else if (state === 'active' && onDecksRef.current) {
+        if (syncOnRef.current) sync();
+        else refresh();
+      }
     });
     return () => sub.remove();
-  }, [sync]);
+  }, [sync, refresh]);
 
   useConnection(syncSettings?.enabled ? normalizeEndpoint(syncSettings.server) : undefined);
   const reader = useReader(syncSettings?.enabled ? syncSettings.server : undefined, dayStartsAtHour);
@@ -152,6 +161,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const editorClose = useRef<((result?: NoteEditorResult) => void) | null>(null);
   const openNoteEditor = useCallback((target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => {
+    // One editor at a time: a second tap before the first one is up (it clears this as it closes)
+    // is answered as closed without a change, rather than pushing another over it.
+    if (editorClose.current) { onClose(undefined); return; }
     editorClose.current = onClose;
     const params: Record<string, string> = 'noteId' in target ? { noteId: target.noteId } : target.deck ? { deck: target.deck } : {};
     if (!('noteId' in target)) {

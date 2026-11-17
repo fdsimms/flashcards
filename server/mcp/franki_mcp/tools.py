@@ -10,9 +10,11 @@ error naming what to change, never as a silent skip.
 from __future__ import annotations
 
 import base64
+import html
 import os
 import re
 import time
+import urllib.parse
 from datetime import date, datetime, timedelta
 from typing import Any, Literal
 
@@ -581,6 +583,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
 
     # ---- studying ----
 
+    # When study_next showed each card: rate_card's card is a new object, so its own timer would
+    # start at the answer and log about 0 ms. Anki caps the time at the preset's limit (time_taken).
+    shown_at: dict[int, float] = {}
+
     @server.tool(annotations=WRITE)
     async def study_next(deck: str, include_html: bool = False) -> dict[str, Any]:
         """The next card to study in a deck (with its subdecks), in Anki's order and within its
@@ -594,7 +600,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if not queued.cards:
                 return {"card": None, "message": f"Nothing is due in {deck} right now."}
             card = Card(col, backend_card=queued.cards[0].card)
-            card.start_timer()
+            shown_at.clear()  # only the card on screen is answered
+            shown_at[card.id] = time.time()
             intervals = col.sched.describe_next_states(queued.cards[0].states)
             return {
                 "card": _card_dict(col, card),
@@ -636,8 +643,9 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if not queued.cards or queued.cards[0].card.id != card_id:
                 raise ToolError(f"Card {card_id} isn't the next card to study any more. Call study_next for the deck again.")
             card = Card(col, backend_card=queued.cards[0].card)
-            card.start_timer()
+            card.timer_started = shown_at.get(card_id, time.time())
             col.sched.answer_card(col.sched.build_answer(card=card, states=queued.cards[0].states, rating=rating))
+            shown_at.pop(card_id, None)
             card.load()
             return {"card": _card_dict(col, card)}
 
@@ -980,6 +988,17 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
 
     # ---- deleting media ----
 
+    def _notes_using(col: Collection, name: str) -> list[int]:
+        # A field holds the name as written in HTML: Anki's editor percent-encodes a space in
+        # <img src> (encode_iri_paths), and an & is &amp; in a field like any other text. Looking
+        # for the bare name alone called a file in use unused.
+        encoded = col.media.escape_media_filenames(f'<img src="{name}">')[len('<img src="'):-len('">')]
+        spellings = {name, encoded, urllib.parse.quote(name)}
+        spellings |= {html.escape(s, quote=False) for s in spellings}
+        likes = ["%" + s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%" for s in sorted(spellings)]
+        where = " or ".join("flds like ? escape '\\'" for _ in likes)
+        return col.db.list(f"select id from notes where {where} limit 5", *likes)
+
     @server.tool(annotations=DESTRUCTIVE)
     async def delete_media(filenames: list[str], even_if_used: bool = False) -> dict[str, Any]:
         """Deletes media files (to Anki's media trash, and from other devices at their next media
@@ -992,8 +1011,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 if not col.media.have(name):
                     results.append({"filename": name, "error": "There's no media file by that name."})
                     continue
-                like = "%" + name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
-                users = col.db.list("select id from notes where flds like ? escape '\\' limit 5", like)
+                users = _notes_using(col, name)
                 if users and not even_if_used:
                     results.append({"filename": name, "error": f"Notes still use it ({', '.join(map(str, users))}). Pass even_if_used to delete it anyway.", "used_by": users})
                     continue

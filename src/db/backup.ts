@@ -1,4 +1,6 @@
+import { studyDayKey } from '../core/day';
 import { Refusal } from '../core/failure';
+import { daysBetween } from '../core/vacation';
 
 /**
  * Backup and restore. A backup is a copy of the whole SQLite database (`VACUUM INTO`), which the
@@ -61,10 +63,11 @@ export const BACKUP_REMINDER_DAYS = 7;
  * Nothing while there's nothing to lose. "Backed up" means a backup file was made and the share
  * sheet opened; whether it was then saved anywhere, the app can't see.
  */
-export function backupStatus(lastBackupAt: string | null, now: Date, hasCards: boolean): { text: string; overdue: boolean } | undefined {
+export function backupStatus(lastBackupAt: string | null, now: Date, hasCards: boolean, dayStartsAtHour: number): { text: string; overdue: boolean } | undefined {
   if (!hasCards) return undefined;
   if (!lastBackupAt) return { text: 'Not backed up yet', overdue: true };
-  const days = Math.floor((now.getTime() - new Date(lastBackupAt).getTime()) / 86400000);
+  // By study day, not by 24 hours: one made at 11 PM was yesterday's by the next morning.
+  const days = daysBetween(studyDayKey(new Date(lastBackupAt), dayStartsAtHour), studyDayKey(now, dayStartsAtHour));
   const text = days <= 0 ? 'Backed up today' : days === 1 ? 'Last backed up yesterday' : `Last backed up ${days} days ago`;
   return { text, overdue: days >= BACKUP_REMINDER_DAYS };
 }

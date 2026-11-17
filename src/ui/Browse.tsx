@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../anki/noteService';
 import { failureText } from '../core/failure';
-import { deckChipRows, matchesNoteFilter, NOTE_FILTERS, notePreview, searchNotes, type NoteFilter } from '../core/noteEditing';
+import { deckChipRows, matchesNoteFilter, NOTE_FILTERS, notePreview, notesStillThere, searchNotes, type NoteFilter } from '../core/noteEditing';
 import type { Card, Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
@@ -35,7 +35,7 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
       const byNote = new Map<string, Card[]>();
       for (const card of all) byNote.set(card.noteId, [...(byNote.get(card.noteId) ?? []), card]);
       setCards({ byNote, now: new Date(), dayStartsAtHour });
-      setNotes(loaded);
+      setNotes(notesStillThere(loaded, all));
     } catch (e) {
       setError(failureText(e, { what: "Couldn't load your notes.", next: 'Try again.' }));
     }

@@ -287,6 +287,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     setListenOnly(false);
     setUpNext(undefined);
     setNextFailed(false);
+    setNextEpisode('idle');
+    setNextStage(undefined);
     setLengthStep('same');
     setSteerError(null);
     setChosen(null);
@@ -449,6 +451,9 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const writeNextEpisode = async () => {
     if (!text || !session || review || source.kind !== 'shelf' || logged.current || nextEpisode === 'writing') return;
     logged.current = true;
+    // The route swaps texts in place: once another one loads, this wait is no longer its business.
+    const forLoad = loadId.current;
+    const stillHere = () => mounted.current && forLoad === loadId.current;
     setNextEpisode('writing');
     setNextStage(undefined);
     try {
@@ -458,11 +463,12 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       // The reading is lost, not your place: carry on either way.
     }
     const until = Date.now() + WRITE_WAIT_MS;
-    while (mounted.current && Date.now() < until) {
+    while (stillHere() && Date.now() < until) {
       await wait(POLL_MS);
-      if (!mounted.current) return;
+      if (!stillHere()) return;
       try {
         const shelf = await api.shelf();
+        if (!stillHere()) return;
         const episode = shelf.story?.next;
         if (episode && episode.id !== text.id) {
           const order = playOrder(shelf).filter((id) => id !== text.id);
@@ -477,7 +483,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         // Unreachable for now: ask again until the wait runs out.
       }
     }
-    if (mounted.current) setNextEpisode('failed');
+    if (stillHere()) setNextEpisode('failed');
   };
 
   const chooseLength = async (step: LengthStep) => {

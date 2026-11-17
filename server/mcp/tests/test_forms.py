@@ -153,6 +153,23 @@ def test_kaikki_unreachable_is_not_kept(tmp_path):
     assert u.kaikki_nouns("Polish", ["czas"]) == {}
     assert u.kaikki_nouns("Polish", ["czas"]) == {}
     assert len(calls) == 2
+    assert not list(tmp_path.rglob("*.part"))  # nothing half-written left behind
+
+
+def test_a_note_deleted_while_its_forms_are_looked_up_is_passed_over(tmp_path):
+    col = Collection(str(tmp_path / "c.anki2"))
+    try:
+        basic = col.models.by_name("Basic")
+        col.models.add_field(basic, col.models.new_field(forms.FIELD))
+        col.models.update_dict(basic)
+        note = col.new_note(basic)
+        note["Front"] = "esperar"
+        col.add_note(note, col.decks.id("D"))
+        plan = forms.FillPlan([forms.Planned(1, "gone", ["x"]), forms.Planned(note.id, "esperar", ["present · yo: espero"])], [], [], 0)
+        assert forms.apply(col, plan) == 1
+        assert col.get_note(note.id)[forms.FIELD] == "present · yo: espero"
+    finally:
+        col.close()
 
 
 def test_every_group_a_grammar_point_links_to_is_one_the_fill_writes():

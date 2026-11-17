@@ -352,6 +352,9 @@ def ssml_parts(parts: Sequence[Part], rate: float = 1.0, language: str | None = 
 def _voice_element(part: Part, rate: float, language: str | None) -> str:
     pct = round((rate - 1) * 100)
     voice = part.voice
+    # Checked whole, not only its locale: the name goes in an attribute, and a ' in it would end it.
+    if not is_voice_name(voice):
+        raise SpeechError(f'"{voice}" isn\'t an Azure voice name (like "th-TH-PremwadeeNeural").')
     locale = locale_of(voice)
     spoken_in = locale
     if language is not None and is_multilingual(voice):

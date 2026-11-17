@@ -38,11 +38,12 @@ export function thaiToneMarks(ipa: string): string {
   const open = ipa.startsWith('/') || ipa.startsWith('[') ? 1 : 0;
   const close = open && (ipa.endsWith('/') || ipa.endsWith(']')) ? 1 : 0;
   const inner = ipa.slice(open, ipa.length - close);
-  const out: string[] = [];
-  for (const syllable of inner.split('.')) {
-    const marked = markSyllable(syllable);
+  // Syllables end at a dot, and so do words at a space; the separators go back as they were.
+  const parts = inner.split(/([.\s]+)/);
+  for (let i = 0; i < parts.length; i += 2) {
+    const marked = markSyllable(parts[i]);
     if (marked === null) return ipa;
-    out.push(marked);
+    parts[i] = marked;
   }
-  return ipa.slice(0, open) + out.join('.') + ipa.slice(ipa.length - close);
+  return ipa.slice(0, open) + parts.join('') + ipa.slice(ipa.length - close);
 }

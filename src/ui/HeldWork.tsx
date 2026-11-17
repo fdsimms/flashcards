@@ -4,10 +4,10 @@ import { recordNote } from '../anki/recordService';
 import { failureText } from '../core/failure';
 import { sendHeld } from '../core/held';
 import type { HeldWords } from '../reader/heldNotes';
-import { noteQueueStore } from '../reader/noteQueueStore';
 import { useApp } from './AppContext';
 import { connection, useBackOnline } from './connection';
 import { heldRecordings, heldWords } from './held';
+import { queueWords } from './useNoteQueue';
 import { useRecorder } from './useRecorder';
 
 /**
@@ -33,9 +33,7 @@ export function HeldWork() {
 
       const words = heldWords.get();
       if (api && words.length) {
-        const result = await sendHeld(words, async (g: HeldWords) => {
-          noteQueueStore.set({ queue: await api.queueNotes(g.language, g.deck, g.entries), error: null });
-        });
+        const result = await sendHeld(words, (g: HeldWords) => queueWords(api, g.language, g.deck, g.entries));
         const refused = result.refused.map(({ item, error }) => ({ ...item, problem: failureText(error, { next: 'Try again later, or remove them.' }) }));
         // Words held while this ran are kept as they are.
         await heldWords.update((list) => [...list.filter((g) => !words.includes(g)), ...result.left, ...refused]);

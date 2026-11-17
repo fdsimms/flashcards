@@ -139,6 +139,24 @@ async function ankiNoteIdOf(db: SyncDb, cards: Card[]): Promise<number | null> {
   return null;
 }
 
+/**
+ * Anki's guid of each note in `cards` that's in the kept collection, by Franki's note id: what a
+ * text export writes in its GUID column, so Anki's own import finds the note it already has.
+ * Franki's id is Anki's note id (or one an import gave it), which Anki doesn't match on.
+ */
+export async function ankiGuids(store: NoteStore, cards: Card[]): Promise<Map<string, string>> {
+  const noteOf = new Map(cards.filter((c) => c.ankiId).map((c) => [Number(c.ankiId), c.noteId]));
+  if (!noteOf.size || !(await store.keptCollection())) return new Map();
+  const rows = await store.lockAnki(() => store.withSyncConnection((db) =>
+    db.all<{ cid: number; guid: string }>('SELECT c.id AS cid, n.guid FROM cards c JOIN notes n ON n.id = c.nid')));
+  const out = new Map<string, string>();
+  for (const r of rows) {
+    const noteId = noteOf.get(r.cid);
+    if (noteId !== undefined && !out.has(noteId)) out.set(noteId, r.guid);
+  }
+  return out;
+}
+
 export async function deleteNote(store: NoteStore, noteId: string, now: Date = new Date()): Promise<void> {
   const note = await store.getNote(noteId);
   if (!note) return;

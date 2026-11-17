@@ -95,6 +95,21 @@ export function matchesNoteFilter(filter: NoteFilter, note: Note, cards: Card[],
   return studyable.some((c) => c.sched.state !== 0 && !isBuried(c, now, dayStartsAtHour) && new Date(c.sched.due).getTime() < end);
 }
 
+/**
+ * The notes still in the collection: a note whose cards were all in Anki and are all retired was
+ * deleted there (applyAnkiCollection retires an Anki card that's gone, keeping its history), so
+ * Browse and the editor's duplicate check leave it out. Editing it could only be refused.
+ */
+export function notesStillThere(notes: Note[], cards: Card[]): Note[] {
+  const live = new Set<string>();
+  const fromAnki = new Set<string>();
+  for (const c of cards) {
+    if (!c.retired) live.add(c.noteId);
+    if (c.ankiId) fromAnki.add(c.noteId);
+  }
+  return notes.filter((n) => live.has(n.id) || !fromAnki.has(n.id));
+}
+
 export type DeckChip = { label: string; deck: string | null; selected: boolean };
 
 /**

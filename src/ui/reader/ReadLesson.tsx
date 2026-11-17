@@ -1,13 +1,14 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type AudioLesson } from '../../reader/api';
 import { atEnd, clock, SKIP_SECONDS, skipTo } from '../../reader/lessons';
 import { haptic } from '../haptics';
 import { Button, Divider, ErrorNote, Group, Icon, NavRow, Screen, Tappable } from '../kit';
 import { MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
+import { useReaderPlayerHost } from '../useReaderPlayer';
 
-// Background playback is on while a lesson is open, so it goes on with the screen locked, and is
+// Background playback is on once a lesson plays, so it goes on with the screen locked, and is
 // turned off again on the way out (Review's card audio doesn't need it).
 const LESSON_AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: true };
 
@@ -23,17 +24,30 @@ export function ReadLesson({ api, lesson, onDeleted }: { api: Api; lesson: Audio
   const status = useAudioPlayerStatus(player);
   const [showPhrases, setShowPhrases] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Play all carried on by the mini-player keeps going while a lesson is only open; the lesson takes
+  // over (stops it, and has the lock screen and background playback) once it plays, and gives them
+  // up on the way out only then, so leaving a lesson never stops Play all with the phone locked.
+  const host = useReaderPlayerHost();
+  const playing = useRef(false);
 
   useEffect(() => {
-    setAudioModeAsync(LESSON_AUDIO_MODE).catch(() => undefined);
+    playing.current = false;
     player.replace(api.lessonAudio(lesson.id));
-    player.setActiveForLockScreen(true, { title: lesson.title, artist: 'Franki', albumTitle: 'Audio lessons' });
     return () => {
       player.pause();
+      if (!playing.current) return;
       player.clearLockScreenControls();
       setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false }).catch(() => undefined);
     };
   }, [api, lesson.id]); // eslint-disable-line react-hooks/exhaustive-deps -- the player is stable; the lesson is what changes
+
+  const takeOver = async () => {
+    if (playing.current) return;
+    playing.current = true;
+    host.claim();
+    await setAudioModeAsync(LESSON_AUDIO_MODE).catch(() => undefined);
+    player.setActiveForLockScreen(true, { title: lesson.title, artist: 'Franki', albumTitle: 'Audio lessons' });
+  };
 
   const duration = status.duration > 0 ? status.duration : lesson.duration_ms / 1000;
   const progress = duration > 0 ? Math.min(1, status.currentTime / duration) : 0;
@@ -44,6 +58,7 @@ export function ReadLesson({ api, lesson, onDeleted }: { api: Api; lesson: Audio
       player.pause();
       return;
     }
+    await takeOver();
     if (atEnd(status.currentTime, status.duration)) await player.seekTo(0);
     player.play();
   };

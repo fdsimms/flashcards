@@ -89,6 +89,15 @@ PRICES = {
 }
 
 
+def prices_of(model: str) -> tuple[float, float, float, float]:
+    """A model's prices, found by its name with any date after it (claude-haiku-5-5-20261101 is
+    claude-haiku-5-5's), else MODEL's: a dated id missed the table and was priced as Sonnet."""
+    if model in PRICES:
+        return PRICES[model]
+    named = [name for name in PRICES if model.startswith(name + "-")]
+    return PRICES[max(named, key=len)] if named else PRICES[MODEL]
+
+
 @dataclass(frozen=True)
 class Usage:
     input_tokens: int = 0
@@ -96,6 +105,9 @@ class Usage:
     cache_read_tokens: int = 0
     cache_write_tokens: int = 0
     model: str = ""  # the model that actually answered, which a refusal fallback can change
+    # A sum's cost, each part priced at its own model: the tokens are added up, but a fallback can
+    # have answered one call on another model, and pricing them all at the last one's rate was wrong.
+    usd: float | None = field(default=None, compare=False)
 
     def __add__(self, other: "Usage") -> "Usage":
         return Usage(
@@ -104,10 +116,13 @@ class Usage:
             self.cache_read_tokens + other.cache_read_tokens,
             self.cache_write_tokens + other.cache_write_tokens,
             other.model or self.model,
+            self.cost_usd() + other.cost_usd(),
         )
 
     def cost_usd(self) -> float:
-        inp, out, read, write = PRICES.get(self.model or MODEL, PRICES[MODEL])
+        if self.usd is not None:
+            return self.usd
+        inp, out, read, write = prices_of(self.model or MODEL)
         return (
             self.input_tokens * inp
             + self.output_tokens * out
