@@ -1,7 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View, type TextStyle } from 'react-native';
+import { GENDER_WORDS } from '../core/cards';
+import { leadingArticle, type Gender } from '../core/gender';
 import type { Segment } from '../core/highlight';
 import { DEFAULT_THAI_TEXT_SIZE, hasThai, thaiTextStyle, withThaiLineHeight, type ThaiTextSize } from '../core/script';
+import { toneSpans, type Tone } from '../core/toneColors';
 import type { RenderedSide } from '../core/types';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
@@ -14,14 +17,30 @@ type Item = { b: Block; i: number };
 
 const isExample = (b: Block) => b.role === 'example' || b.role === 'exampleRomanized' || b.role === 'exampleTranslation';
 
+const genderColor = (c: Colors, g: Gender) => (g === 'm' ? c.genderM : g === 'f' ? c.genderF : c.genderN);
+const toneColor = (c: Colors, t: Tone) => (t === 'low' ? c.toneLow : t === 'falling' ? c.toneFalling : t === 'high' ? c.toneHigh : c.toneRising);
+
+/** A Thai romanization with each syllable colored by its tone; mid tone keeps the text's own color. The tone marks stay, so color is never the only signal. */
+function ToneSpans({ text, c }: { text: string; c: Colors }) {
+  return <>{toneSpans(text).map((s, k) => (s.tone ? <Text key={k} style={{ color: toneColor(c, s.tone) }}>{s.text}</Text> : s.text))}</>;
+}
+
+/** A word with its leading article (der, la, ο) in its gender's color, when the note names a gender and the word has one. */
+function EntryText({ text, gender, c }: { text: string; gender?: Gender; c: Colors }) {
+  const split = gender ? leadingArticle(text) : null;
+  if (!gender || !split) return <>{text}</>;
+  return <><Text style={{ color: genderColor(c, gender) }}>{split.article}</Text>{split.rest}</>;
+}
+
 /** Text with its marked segments picked out, as a card's word is in its example sentence. */
-function MarkedText({ text, segments, style, c }: { text: string; segments?: Segment[]; style: TextStyle; c: Colors }) {
+function MarkedText({ text, segments, style, c, tones }: { text: string; segments?: Segment[]; style: TextStyle; c: Colors; tones?: boolean }) {
+  const plain = (t: string) => (tones ? <ToneSpans text={t} c={c} /> : t);
   return (
     <Text style={style}>
       {(segments ?? [{ text, marked: false }]).map((s, k) => (
         s.marked
-          ? <Text key={k} style={{ color: c.accent, backgroundColor: c.accentFill, fontWeight: '600' }}>{s.text}</Text>
-          : s.text
+          ? <Text key={k} style={{ color: c.accent, backgroundColor: c.accentFill, fontWeight: '600' }}>{plain(s.text)}</Text>
+          : <React.Fragment key={k}>{plain(s.text)}</React.Fragment>
       ))}
     </Text>
   );
@@ -95,7 +114,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
       return <MarkedText key={i} text={b.text} segments={b.segments} c={c} style={style} />;
     }
     if (b.role === 'exampleRomanized' || b.role === 'exampleTranslation') {
-      return <MarkedText key={i} text={b.text} segments={b.segments} c={c} style={{ ...type.subhead, lineHeight: 21, color: c.textSecondary }} />;
+      return <MarkedText key={i} text={b.text} segments={b.segments} c={c} tones={b.tones} style={{ ...type.subhead, lineHeight: 21, color: c.textSecondary }} />;
     }
     return null;
   };
@@ -139,7 +158,8 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
           return (
             <View key={i} style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.xs + 2 }}>
               {(b.chips ?? []).map((chip) => (
-                <View key={chip} style={{ backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m - 1, paddingVertical: space.xs }}>
+                <View key={chip} style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m - 1, paddingVertical: space.xs }}>
+                  {b.gender && chip === GENDER_WORDS[b.gender] ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: genderColor(c, b.gender) }} /> : null}
                   <Text style={{ ...type.footnote, color: c.textSecondary }}>{chip}</Text>
                 </View>
               ))}
@@ -215,8 +235,8 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               {b.icon ? <Icon name={b.icon} size={28} color={c.text} /> : null}
               {b.emphasis ? (
                 <Text style={{ ...withThaiLineHeight(type.cardFront, b.text), color: c.text, textAlign: 'center' }}>
-                  {b.prefix ? <Text style={{ color: c.textTertiary, fontWeight: '400' }}>{b.prefix} </Text> : null}
-                  {b.text}
+                  {b.prefix ? <Text style={{ color: b.gender ? genderColor(c, b.gender) : c.textTertiary, fontWeight: b.gender ? '600' : '400' }}>{b.prefix} </Text> : null}
+                  <EntryText text={b.text} gender={b.gender} c={c} />
                 </Text>
               ) : (
                 // A field can hold Thai and its romanization on separate lines; the Thai lines get the
@@ -226,7 +246,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
                 <View style={{ gap: space.xs }}>
                   {b.text.split('\n').map((ln, k) => (hasThai(ln)
                     ? <Text key={k} style={{ ...thai, color: c.text, textAlign: b.label ? undefined : 'center' }}>{ln}</Text>
-                    : <Text key={k} style={{ ...type.body, color: c.textSecondary, lineHeight: 24, textAlign: b.label ? undefined : 'center' }}>{ln}</Text>))}
+                    : <Text key={k} style={{ ...type.body, color: c.textSecondary, lineHeight: 24, textAlign: b.label ? undefined : 'center' }}>{b.tones ? <ToneSpans text={ln} c={c} /> : ln}</Text>))}
                 </View>
               )}
             </View>
