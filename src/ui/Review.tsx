@@ -36,7 +36,11 @@ import { mathjaxUri } from '../media/mathjax';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardWebView } from './CardWebView';
 import { Side } from './CardSide';
-import { NewCardChip } from './NewCardChip';
+import { CardStateChips } from './CardStateChips';
+import { MemoryStrength } from './MemoryStrength';
+import { fragilePercent } from '../core/memoryStrength';
+import { stateChip } from '../core/stateChip';
+import { isLeechNote } from '../core/trouble';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
 import { useVacationPrefs } from './vacationPrefs';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
@@ -290,6 +294,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   useEffect(() => { forms.showing({ card: current, note, revealed }); }, [current, note, revealed, forms.showing]); // eslint-disable-line react-hooks/exhaustive-deps
   // The card's own deck decides its FSRS settings, not the deck being studied.
   const cardParams = note && current ? paramsForDeck(cardHomeDeck(current, note.deck), allParams) : undefined;
+  // A shaky review card says so on its answer (display only: nothing here reads into the rating or the queue).
+  const fragile = revealed && current ? fragilePercent(current, new Date(), cardParams?.weights ?? []) : undefined;
   const noteType = note && current?.kind.startsWith('t') && !isOmnilanguage(note) ? noteTypes.get(note.model) : undefined;
   // What's typed into a {{type:}} card's box, compared on the back once the answer is shown.
   const [typed, setTyped] = useState('');
@@ -1095,7 +1101,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         </View>
       ) : null}
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} /> : null}
-      {page && current.sched.state === 0 ? <NewCardChip /> : null}
+      {page ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} /> : null}
       {page ? (
         <SwipeCard enabled={false} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
@@ -1115,7 +1121,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. */}
             <Reveal key={showing} rise={10} style={{ gap: space.xl }}>
-              {current.sched.state === 0 ? <NewCardChip /> : null}
+              <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} />
               <Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speakSentence={speechLang ? speakSentence : undefined} />
               {reminder ? <MissReminder text={reminder} /> : null}
               {canRecordYourself(rendered) ? (
@@ -1128,6 +1134,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               <Reveal rise={14} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
                 <Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} />
+                {fragile !== undefined ? <MemoryStrength percent={fragile} /> : null}
                 {extras}
               </Reveal>
             ) : null}

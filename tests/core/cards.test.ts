@@ -239,4 +239,30 @@ describe('cards', () => {
       expect(autoplayFor(renderCard(plain, 'audio'), false)?.text).toBe('kot');
     });
   });
+  describe('what the screen colors', () => {
+    const german = (over: Record<string, string> = {}) => omniNote({ Entry: 'die Blutung', Meaning: 'bleeding', Language: 'German', Gender: 'f', Transliteration: '', ...over });
+
+    it("marks the entry and the gender chip with the note's gender", () => {
+      const r = renderCard(german(), 'forward');
+      expect(r.front.blocks[0].gender).toBe('f');
+      expect(r.back.blocks.find((b) => b.role === 'chips')?.gender).toBe('f');
+    });
+
+    it('marks the entry of a reverse card too, where the word is the answer', () => {
+      expect(renderCard(german(), 'reverse').back.blocks[0].gender).toBe('f');
+    });
+
+    it('colors no gender the field does not name as m, f or n', () => {
+      expect(renderCard(german({ Gender: 'pl' }), 'forward').front.blocks[0].gender).toBeUndefined();
+      expect(renderCard(german({ Gender: '' }), 'forward').front.blocks[0].gender).toBeUndefined();
+    });
+
+    it("marks a Thai romanization and its example's romanization for tone colors, and no other language's", () => {
+      const thai = renderCard(omniNote({ Context: 'ฉันชื่อนิดา', ContextRomanized: 'chǎn chûue Ni-daa' }), 'forward').back.blocks;
+      expect(thai.find((b) => b.tapLabel === 'Show transliteration')?.tones).toBe(true);
+      expect(thai.find((b) => b.role === 'exampleRomanized')?.tones).toBe(true);
+      const polish = renderCard(omniNote({ Language: 'Polish', Entry: 'kot', Transliteration: 'kót' }), 'forward').back.blocks;
+      expect(polish.find((b) => b.tapLabel === 'Show transliteration')?.tones).toBeFalsy();
+    });
+  });
 });
