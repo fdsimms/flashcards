@@ -5,8 +5,8 @@ import { ActionSheetIOS, ActivityIndicator, Alert, Keyboard, Linking, ScrollView
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
-import { failureText } from '../core/failure';
 import { problemText, WaniKaniError, type WaniKaniApi, type WaniKaniUser } from '../wanikani/api';
+import { withPending } from '../wanikani/synonyms';
 import { toKana } from '../core/kana';
 import { offlineText } from '../wanikani/offline';
 import { canSkip, withoutSkipped } from '../wanikani/skipped';
@@ -93,7 +93,7 @@ async function source(api: WaniKaniApi, wanikani: WaniKaniState): Promise<Source
 export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: WaniKaniState; onDone: () => void; onOptions: () => void }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
-  const { api, prefs, srs, send, seenDropped, skip } = wanikani;
+  const { api, prefs, srs, send, seenDropped, skip, changeSynonym, synonymsWithPending } = wanikani;
   const [subjects, setSubjects] = useState<Map<number, Subject>>(new Map());
   const [synonyms, setSynonyms] = useState<Map<number, string[]>>(new Map());
   const [study, setStudy] = useState<Study | null>(null);
@@ -164,7 +164,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         const syn = typed ? await src.synonyms(items.map((i) => i.subjectId)).catch(() => new Map<number, string[]>()) : new Map<number, string[]>();
         if (gone) return;
         setSubjects(read);
-        setSynonyms(syn);
+        // Saved on this phone and not sent yet counts too.
+        setSynonyms(new Map(items.map((i): [number, string[]] => [i.subjectId, synonymsWithPending(i.subjectId, syn.get(i.subjectId) ?? [])])));
         setCopySavedAt(src.savedAt ?? null);
         setKind(lessonKind ? 'lessons' : 'reviews');
         setNext({ lessons: lessonKind ? 0 : lessonCount, held, apprentice });
@@ -268,6 +269,13 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     // A typed answer judged wrong and not yet counted (before Next) still counts as a miss.
     const back = study && studyUndo(study, verdict?.result === 'wrong');
     if (!back) return;
+    // Undoing the answer that saved a synonym takes the synonym back too.
+    const saved = savedFrom.current;
+    if (saved && back.session.queue === saved.queue) {
+      savedFrom.current = null;
+      changeSynonym({ subjectId: saved.subjectId, synonym: saved.synonym, remove: true });
+      setSynonyms((m) => new Map(m).set(saved.subjectId, withPending(saved.subjectId, m.get(saved.subjectId) ?? [], [{ subjectId: saved.subjectId, synonym: saved.synonym, remove: true }])));
+    }
     haptic.tap();
     answeredFrom.current = null;
     setStudy(back);
@@ -331,30 +339,24 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   };
 
   // A wrong typed answer the learner knows was right: counted right, and for a meaning optionally kept as a synonym on WaniKani too.
-  const saving = useRef(false);
+  // The save counts at once here and is sent when WaniKani can be reached (useWaniKani's `changeSynonym`).
+  // `savedFrom` is the queue the saving answer was given from, so undoing that answer takes the synonym back.
+  const savedFrom = useRef<{ queue: Study['session']['queue']; subjectId: number; synonym: string } | null>(null);
   const notRight = () => {
     if (!study || !question || !subject) return;
-    const q = question;
-    const word = subject;
     const text = typed.trim();
-    const canSave = canSaveMeaning(q) && !!text;
+    const canSave = canSaveMeaning(question) && !!text;
     const options = ['Mark as correct', ...(canSave ? ['Save as a correct meaning'] : []), 'Cancel'];
-    ActionSheetIOS.showActionSheetWithOptions({ title: text ? `You typed "${text}". Count it as right?` : 'Count it as right?', options, cancelButtonIndex: options.length - 1 }, async (i) => {
+    ActionSheetIOS.showActionSheetWithOptions({ title: text ? `You typed "${text}". Count it as right?` : 'Count it as right?', options, cancelButtonIndex: options.length - 1 }, (i) => {
       const picked = options[i];
       if (picked === 'Mark as correct') answer(true);
-      if (!canSave || picked !== options[1] || !api || saving.current) return;
-      saving.current = true;
-      try {
-        await api.addSynonym(word.id, text);
-      } catch (e) {
-        Alert.alert("Couldn't save the meaning", failureText(e instanceof WaniKaniError ? new Error(problemText(e.problem)) : e, { next: 'It needs a connection to WaniKani. Try again, or mark the answer correct without saving it.' }));
-        return;
-      } finally {
-        saving.current = false;
-      }
-      setSynonyms((m) => new Map(m).set(word.id, [...(m.get(word.id) ?? []), text]));
-      // The screen may have moved on while the request was out: only this question is marked correct.
-      if (studyRef.current === study) answer(true);
+      if (!canSave || picked !== options[1]) return;
+      // The screen may have moved on while the sheet was open: only this question is marked correct.
+      if (studyRef.current !== study) return;
+      savedFrom.current = { queue: study.session.queue, subjectId: subject.id, synonym: text };
+      changeSynonym({ subjectId: subject.id, synonym: text });
+      setSynonyms((m) => new Map(m).set(subject.id, [...(m.get(subject.id) ?? []), text]));
+      answer(true);
     });
   };
 

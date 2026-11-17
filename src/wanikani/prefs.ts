@@ -1,3 +1,4 @@
+import { isSynonymChange, type SynonymChange } from './synonyms';
 import { WaniKaniError, type WaniKaniProblem } from './api';
 import { parseLog, type LogEntry } from './log';
 import type { Outcome } from './session';
@@ -93,6 +94,8 @@ export interface WaniKaniState {
   dropped: number;
   /** Words skipped for good (skipped.ts). */
   skipped: SkippedWord[];
+  /** Meaning synonyms saved or taken back that WaniKani hasn't been told yet (synonyms.ts). */
+  synonymChanges: SynonymChange[];
 }
 
 export function parseState(raw: string | null | undefined): WaniKaniState {
@@ -105,9 +108,10 @@ export function parseState(raw: string | null | undefined): WaniKaniState {
       log: parseLog(o?.log),
       dropped: typeof o?.dropped === 'number' && o.dropped > 0 ? Math.floor(o.dropped) : 0,
       skipped: parseSkipped(o?.skipped),
+      synonymChanges: Array.isArray(o?.synonymChanges) ? o.synonymChanges.filter(isSynonymChange) : [],
     };
   } catch {
-    return { outbox: [], sent: [], made: [], log: [], dropped: 0, skipped: [] };
+    return { outbox: [], sent: [], made: [], log: [], dropped: 0, skipped: [], synonymChanges: [] };
   }
 }
 

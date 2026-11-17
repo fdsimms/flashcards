@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { studyDayStart } from '../core/day';
 import { hasMedia, readMedia, writeMedia } from '../media/mediaFiles';
+import { flushSynonyms, queueSynonym, withPending, type SynonymChange } from '../wanikani/synonyms';
 import { API_BASE, createWaniKaniApi, WaniKaniError, type WaniKaniApi, type WaniKaniProblem, type WaniKaniUser } from '../wanikani/api';
 import { logOutcomes, type LogEntry } from '../wanikani/log';
 import { offlineData, wantedAudio, type OfflineData, type Snapshot } from '../wanikani/offline';
@@ -51,6 +52,10 @@ export interface WaniKaniState {
   srs: Map<number, SrsSystem>;
   /** Hands answers to WaniKani, keeping them to try again if it can't be reached. */
   send: (outcomes: Outcome[]) => void;
+  /** Saves a meaning synonym (or takes one back), held and sent later when WaniKani can't be reached. */
+  changeSynonym: (change: SynonymChange) => void;
+  /** A word's synonyms with the changes not yet sent applied. */
+  synonymsWithPending: (subjectId: number, synonyms: readonly string[]) => string[];
   /** Answers given here that haven't reached WaniKani yet. */
   unsent: number;
   /** The assignments those answers are for, which WaniKani still lists as up until they reach it. */
@@ -103,7 +108,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   const [dropped, setDropped] = useState(0);
   const [skipped, setSkipped] = useState<SkippedWord[]>([]);
   // What's kept in the state file, read once; written back on every change.
-  const stored = useRef<{ outbox: Outcome[]; sent: Outcome[]; made: Set<number>; log: LogEntry[]; dropped: number; skipped: SkippedWord[] } | null>(null);
+  const stored = useRef<{ outbox: Outcome[]; sent: Outcome[]; made: Set<number>; log: LogEntry[]; dropped: number; skipped: SkippedWord[]; synonymChanges: SynonymChange[] } | null>(null);
   // The offline copy: read at launch, replaced each time WaniKani is reached.
   const snapshot = useRef<Snapshot | null>(null);
   const lastCopy = useRef(0);
@@ -115,7 +120,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
 
   useEffect(() => {
     Promise.all([loadToken(), loadPrefs(), loadState(), loadSnapshot()]).then(([t, p, s, copy]) => {
-      stored.current = { outbox: s.outbox, sent: s.sent, made: new Set(s.made), log: s.log, dropped: s.dropped, skipped: s.skipped };
+      stored.current = { outbox: s.outbox, sent: s.sent, made: new Set(s.made), log: s.log, dropped: s.dropped, skipped: s.skipped, synonymChanges: s.synonymChanges };
       snapshot.current = copy;
       setOfflineSavedAt(copy ? new Date(copy.savedAt) : null);
       setUnsent(s.outbox.length);
@@ -133,7 +138,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
   readStatsRef.current = readStats;
   const persist = () => {
     const s = stored.current;
-    if (s) saveState({ outbox: s.outbox, sent: s.sent, made: [...s.made], log: s.log, dropped: s.dropped, skipped: s.skipped });
+    if (s) saveState({ outbox: s.outbox, sent: s.sent, made: [...s.made], log: s.log, dropped: s.dropped, skipped: s.skipped, synonymChanges: s.synonymChanges });
   };
 
   const setPrefs = useCallback((change: Partial<WaniKaniPrefs>) => {
@@ -150,6 +155,17 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     if (flushing.current) return flushing.current;
     flushing.current = (async () => {
       const s = stored.current!;
+      // Synonyms saved or taken back, first: a typed answer can depend on them.
+      if (s.synonymChanges.length) {
+        const batch = [...s.synonymChanges];
+        const result = await flushSynonyms(batch, (c) => (c.remove ? api.removeSynonym(c.subjectId, c.synonym) : api.addSynonym(c.subjectId, c.synonym)));
+        s.synonymChanges = [...result.left, ...s.synonymChanges.slice(batch.length)];
+        persist();
+        if (result.problem) {
+          setProblem(result.problem);
+          return;
+        }
+      }
       while (s.outbox.length) {
         const batch = [...s.outbox];
         const result = await flushOutbox(batch, (o) => api.send(o));
@@ -181,6 +197,18 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     setUnsent(stored.current.outbox.length);
     flush();
   }, [flush]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Saves a synonym (or takes one back) on WaniKani, now if it can be reached and otherwise when it can. */
+  const changeSynonym = useCallback((change: SynonymChange) => {
+    const s = stored.current;
+    if (!s) return;
+    s.synonymChanges = queueSynonym(s.synonymChanges, change);
+    persist();
+    flush();
+  }, [flush]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** A word's synonyms with the changes WaniKani hasn't been told yet applied. */
+  const synonymsWithPending = useCallback((subjectId: number, synonyms: readonly string[]) => withPending(subjectId, synonyms, stored.current?.synonymChanges ?? []), []);
 
   const productionDeck = prefs.productionDeck ?? suggestedDeck(decks);
 
@@ -375,7 +403,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     counts: counts ? { reviews: counts.reviews, lessons: lessonsToday(counts.available, prefs.newPerDay, startedToday, counts.apprentice, prefs.maxApprentice) } : null,
     apprentice: counts ? counts.apprentice : null,
     stats, refreshStats,
-    problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, unsentAssignments, log, productionDeck, production, startedToday, dayStartsAtHour,
+    problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, changeSynonym, synonymsWithPending, unsent, unsentAssignments, log, productionDeck, production, startedToday, dayStartsAtHour,
     offline, offlineData: copyData, offlineSavedAt, dropped, seenDropped, skipped, skip, unskip,
-  }), [token, api, user, counts, stats, refreshStats, problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, unsent, unsentAssignments, log, productionDeck, production, startedToday, dayStartsAtHour, offline, copyData, offlineSavedAt, dropped, seenDropped, skipped, skip, unskip]);
+  }), [token, api, user, counts, stats, refreshStats, problem, prefs, setPrefs, signIn, signOut, refresh, srs, send, changeSynonym, synonymsWithPending, unsent, unsentAssignments, log, productionDeck, production, startedToday, dayStartsAtHour, offline, copyData, offlineSavedAt, dropped, seenDropped, skipped, skip, unskip]);
 }

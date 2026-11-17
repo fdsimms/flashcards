@@ -112,6 +112,16 @@ describe('requests', () => {
     expect(same.calls).toHaveLength(1);
   });
 
+  it('takes a synonym off, and leaves a word without it alone', async () => {
+    const mat = { id: 55, data: { subject_id: 2467, meaning_synonyms: ['big kid', 'one stand'] } };
+    const put = fakeFetch((_url, init) => (init?.method === 'PUT' ? { body: {} } : { body: { data: [mat], pages: { next_url: null } } }));
+    await createWaniKaniApi('t', put.fn).removeSynonym(2467, 'One Stand');
+    expect(JSON.parse(put.calls[1].init!.body as string)).toEqual({ study_material: { meaning_synonyms: ['big kid'] } });
+    const none = fakeFetch(() => ({ body: { data: [], pages: { next_url: null } } }));
+    await createWaniKaniApi('t', none.fn).removeSynonym(2467, 'x');
+    expect(none.calls).toHaveLength(1);
+  });
+
   it('turns a failed status into a problem', async () => {
     const { fn } = fakeFetch(() => ({ status: 401, body: { error: 'Unauthorized', code: 401 } }));
     await expect(createWaniKaniApi('t', fn).user()).rejects.toEqual(new WaniKaniError('unauthorized', 401));
