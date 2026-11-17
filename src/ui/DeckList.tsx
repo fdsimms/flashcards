@@ -149,7 +149,7 @@ const BADGE = 36;
 const SETTLE_STEP = 45;
 const SETTLE_MAX = 6;
 
-export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint = 'Add a note, rename, options or delete', editing = false, onOpen, onPress, onMenu, onToggle, onDelete, onHandle, onStep }: {
+export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint = 'Add a note, rename, options or delete', below, belowLabel, editing = false, onOpen, onPress, onMenu, onToggle, onDelete, onHandle, onStep }: {
   row: ShownRow;
   first: boolean;
   /** Room at the right edge for the show/hide button, so every row's counts line up whether or not it has subdecks. */
@@ -158,6 +158,9 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
   detail?: { text: string; warning?: boolean };
   /** What the ⋯ menu offers, for VoiceOver. */
   menuHint?: string;
+  /** Under the lines of text (WaniKani's stage bar), and what it says aloud. */
+  below?: React.ReactNode;
+  belowLabel?: string;
   /** Edit mode: a delete button before the name and a handle to drag the deck by, in place of the counts and the menu. */
   editing?: boolean;
   onOpen?: () => void;
@@ -194,7 +197,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
       accessibilityRole={editing ? undefined : 'button'}
       accessible={!editing}
       // The label replaces the text inside, so it says the lines under the name too.
-      accessibilityLabel={[`${row.name}: ${row.due} due, ${row.fresh} new`, line.replace(' · ', ', '), gateLine].filter(Boolean).join('. ')}
+      accessibilityLabel={[`${row.name}: ${row.due} due, ${row.fresh} new`, line.replace(' · ', ', '), belowLabel, gateLine].filter(Boolean).join('. ')}
       accessibilityActions={onStep ? [{ name: 'moveUp', label: 'Move up' }, { name: 'moveDown', label: 'Move down' }] : undefined}
       onAccessibilityAction={(e) => onStep?.(e.nativeEvent.actionName === 'moveUp' ? -1 : 1)}
       style={({ pressed }) => ({
@@ -220,6 +223,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
       <View style={{ flex: 1, gap: 2 }}>
         <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{badge.rest}</Text>
         {line ? <Text style={{ ...type.footnote, color: detail?.warning ? c.warning : c.textSecondary }}>{line}</Text> : null}
+        {below}
         {gateLine ? (
           // Under the cap, new cards come in; at it, they wait until cards are a week out.
           <Text style={{ ...type.footnote, color: atCap ? c.warning : c.textSecondary }}>{gateLine}</Text>
