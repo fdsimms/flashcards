@@ -788,7 +788,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
           {history.length ? <Reveal rise={8} delay={560} style={{ alignSelf: 'stretch' }}><SessionSummary history={history} delay={560} /></Reveal> : null}
           {sessionMisses.rows.length || forms.toCheck.length || steps.length || extraCard ? (
             <Reveal rise={8} delay={760} style={{ alignSelf: 'stretch', gap: space.s }}>
-              <SessionMissList rows={sessionMisses.rows} practicable={mixing > 0} />
+              <SessionMissList rows={sessionMisses.rows} />
               <FormsCheck items={forms.toCheck} />
               {extraCard}
               <NextSteps steps={steps} />

@@ -54,8 +54,8 @@ export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Not
 
 export type SessionMissRow = ReturnType<typeof useSessionMisses>['rows'][number];
 
-/** The list of words missed this session, with a line under it when some can be practiced. */
-export function SessionMissList({ rows, practicable }: { rows: SessionMissRow[]; practicable: boolean }) {
+/** The list of words missed this session. */
+export function SessionMissList({ rows }: { rows: SessionMissRow[] }) {
   const c = useTheme();
   if (!rows.length) return null;
   return (
@@ -83,11 +83,6 @@ export function SessionMissList({ rows, practicable }: { rows: SessionMissRow[];
         ))}
       </View>
       {rows.length > SHOWN ? <Text style={{ ...type.footnote, color: c.textSecondary, paddingHorizontal: space.xs }}>{`And ${rows.length - SHOWN} more.`}</Text> : null}
-      {practicable ? (
-        <Text style={{ ...type.footnote, color: c.textSecondary, paddingHorizontal: space.xs }}>
-          Practicing these doesn't change when the cards come back.
-        </Text>
-      ) : null}
     </View>
   );
 }
