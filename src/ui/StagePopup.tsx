@@ -23,7 +23,7 @@ const SPARKS = [{ x: -64, y: -30 }, { x: 60, y: -34 }, { x: -34, y: 30 }, { x: 4
  * (Apprentice, Guru, Master, Enlightened, Burned). Put it in a view that wraps the band: it hangs off
  * that view's top edge. A rise swoops in from the upper left on an arc, overshoots, and settles; the
  * arrow hops, a ring pulses outward and sparks fly off. Each group takes a tint from the theme, and a
- * white ring and glow lift it off any card color. A drop is a quiet neutral pill with a down arrow that
+ * white ring lifts it off any card color. A drop is a quiet neutral pill with a down arrow that
  * only fades up, so a miss shows without an alarm color or a fanfare. The parent removes it after
  * `stagePopupMs`; it lifts itself away just before. Key it to the answer so each one replays. With
  * Reduce Motion on, or the animation turned off in WaniKani's settings, it only fades.
@@ -105,16 +105,14 @@ export function StagePopup({ change, animate }: { change: StageChange; /** WaniK
 }
 
 /**
- * What goes on behind a rise's pill on arrival: a glow (a shadow in the ring's color, cast from a
- * view the pill hides), a ring that pulses outward and fades, and four sparks. All are as big as the
- * pill, so they sit under it and grow out from its edge.
+ * What goes on behind a rise's pill on arrival: a ring that pulses outward and fades, and four
+ * sparks. Both are sized from the pill, so they sit under it and grow out from its edge.
  */
 function Burst({ burst, ringColor }: { burst: Animated.Value; ringColor: string }) {
   const fade = burst.interpolate({ inputRange: [0, 1], outputRange: [0.9, 0] });
   const fill = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.pill } as const;
   return (
     <>
-      <View style={{ ...fill, backgroundColor: ringColor, shadowColor: ringColor, shadowOpacity: 0.6, shadowRadius: 14, shadowOffset: { width: 0, height: 0 } }} />
       <Animated.View
         style={{
           ...fill, borderWidth: 3, borderColor: ringColor, opacity: fade,
