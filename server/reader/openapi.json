@@ -3290,6 +3290,66 @@
         }
       }
     },
+    "/api/ask-card": {
+      "post": {
+        "summary": "Ask Card Route",
+        "operationId": "ask_card_route_api_ask_card_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskCardIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Ask Card Route Api Ask Card Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/aspect-pair": {
       "post": {
         "summary": "Aspect Pair",
@@ -4408,6 +4468,65 @@
   },
   "components": {
     "schemas": {
+      "AskCardIn": {
+        "properties": {
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "th",
+                  "es",
+                  "de",
+                  "fr",
+                  "ru",
+                  "el",
+                  "pl",
+                  "nb",
+                  "ja",
+                  "en"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "front": {
+            "type": "string",
+            "maxLength": 1500,
+            "title": "Front"
+          },
+          "back": {
+            "type": "string",
+            "maxLength": 1500,
+            "title": "Back"
+          },
+          "details": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Details",
+            "default": ""
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/CardTurnIn"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "minItems": 1,
+            "title": "Turns"
+          }
+        },
+        "type": "object",
+        "required": [
+          "front",
+          "back",
+          "turns"
+        ],
+        "title": "AskCardIn"
+      },
       "AspectIn": {
         "properties": {
           "language": {
@@ -4510,6 +4629,30 @@
           "attempt"
         ],
         "title": "AttemptIn"
+      },
+      "CardTurnIn": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 1500,
+            "minLength": 1,
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "CardTurnIn"
       },
       "CastChoice": {
         "properties": {

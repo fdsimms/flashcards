@@ -243,6 +243,12 @@ marked words, ideas) is in the current language, the `language` setting.
     DELETE /api/lessons/{id}          forgets the lesson and its audio
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
                                       memory hints for a word the owner keeps forgetting: {hints: [...]}
+    POST  /api/ask-card               {language?, front, back, details?, turns: [{role, content}]} the
+                                      answer to the owner's question about the card on screen, from
+                                      the conversation so far (the last turn is the new question):
+                                      {answer}. Asked only when a question is sent. 503 without
+                                      Claude. Its cost is kept in `call_costs` (feature "ask_card"),
+                                      not yet in /api/costs
     POST  /api/aspect-pair            {language, word, line?} a Russian or Polish verb's aspect and its aspect
                                       partner, written by Claude for the note editor to check, asked
                                       only on Add to deck: {aspect, partner, partner_meaning,
@@ -270,6 +276,7 @@ from franki_speech import SpeechClient
 
 from franki_reader import (
     ai_ipa,
+    ask_card,
     aspect,
     comprehension,
     config,
@@ -359,6 +366,7 @@ def create_app(
     write_lesson: WritePlan | None = None,
     lessons_dir: Path | None = None,
     write_aspect: aspect.WriteAspect | None = None,
+    ask_about_card: ask_card.AskCard | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
 
@@ -407,6 +415,7 @@ def create_app(
         write_lesson=write_lesson,
         lessons_dir=lessons_dir,
         write_aspect=write_aspect,
+        ask_about_card=ask_about_card,
         authed=[Depends(require_passphrase)],
         status_auth=[Depends(require_status_key)],
     )
@@ -444,6 +453,7 @@ def production_app() -> FastAPI:
     write_lesson: WritePlan | None = None
     write_ipa: ai_ipa.WriteIpa | None = None
     write_aspect: aspect.WriteAspect | None = None
+    ask_about_card: ask_card.AskCard | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
@@ -467,6 +477,7 @@ def production_app() -> FastAPI:
         write_lesson = lesson_writer.claude_plan(client)
         write_ipa = ai_ipa.claude_ipa(client)
         write_aspect = aspect.claude_aspect(client)
+        ask_about_card = ask_card.claude_ask_card(client)
 
         def ask_for(
             entries: list[Entry], language: Code, model: TextModel = MODEL, effort: Effort = EFFORT
@@ -552,4 +563,5 @@ def production_app() -> FastAPI:
         write_lesson=write_lesson,
         lessons_dir=settings.audio_dir / "lessons",
         write_aspect=write_aspect,
+        ask_about_card=ask_about_card,
     )

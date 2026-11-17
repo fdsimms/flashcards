@@ -393,6 +393,9 @@ class StoredText:
     # Meanings asked for its words that nothing else glossed, each in its line here (meanings.py), by
     # lower-case word; "" for a word Claude gave none for, so it isn't asked again.
     meanings: dict[str, str] = field(default_factory=dict)
+    # How formal each of those words is where it's used, by lower-case word (meanings.py); a word
+    # with none is left out.
+    registers: dict[str, str] = field(default_factory=dict)
     # The model that wrote it, as the API reported it ("" for a text a test builds).
     model: str = ""
     # When it was written, naive UTC as stored (None for a text a test builds); the shelf card's date.
@@ -513,6 +516,8 @@ def connect(path: Path | str) -> sqlite3.Connection:
         ("reviewed", "reviewed INTEGER NOT NULL DEFAULT 0"),
         # FSRS stability of the note's most fragile studied card (stretch.py's order).
         ("stability", "stability REAL"),
+        # The note's Register field, as one of the reader's four or '' (lexicon.normalize_register).
+        ("register", "register TEXT NOT NULL DEFAULT ''"),
     ):
         if column not in lexicon_columns:
             conn.execute(f"ALTER TABLE lexicon ADD COLUMN {sql}")
@@ -561,6 +566,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # English of its line (meanings.py), by lower-case word; "" for one it gave none for. A
         # text's own, so a word glossed in one sense elsewhere shows the sense it has here.
         ("meanings", "meanings TEXT NOT NULL DEFAULT '{}'"),
+        # The register Claude gave those words in their lines (meanings.py), by lower-case word, one
+        # of the reader's four; a word it wasn't sure of is left out.
+        ("registers", "registers TEXT NOT NULL DEFAULT '{}'"),
     ):
         if column not in texts_columns:
             conn.execute(f"ALTER TABLE texts ADD COLUMN {sql}")
@@ -606,8 +614,8 @@ def save_snapshot(
         conn.executemany(
             # OR REPLACE: a note moved to the other language's deck belongs to the newer snapshot.
             "INSERT OR REPLACE INTO lexicon"
-            " (note_id, entry, meaning, tier, due, language, translit, due_in, reviewed, stability)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " (note_id, entry, meaning, tier, due, language, translit, due_in, reviewed, stability,"
+            " register) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (
                     e.note_id,
@@ -620,6 +628,7 @@ def save_snapshot(
                     e.due_in,
                     int(e.reviewed),
                     e.stability,
+                    e.register,
                 )
                 for e in entries
             ],
@@ -631,14 +640,16 @@ def load_snapshot(
     conn: sqlite3.Connection, language: Code = "th"
 ) -> tuple[list[Entry], datetime | None]:
     rows = conn.execute(
-        "SELECT note_id, entry, meaning, tier, due, translit, due_in, reviewed, stability"
+        "SELECT note_id, entry, meaning, tier, due, translit, due_in, reviewed, stability, register"
         " FROM lexicon"
         " WHERE language = ? ORDER BY note_id",
         (language,),
     )
     entries = [
-        Entry(nid, entry, meaning, tier, bool(due), translit, due_in, bool(reviewed), stability)
-        for nid, entry, meaning, tier, due, translit, due_in, reviewed, stability in rows
+        Entry(
+            nid, entry, meaning, tier, bool(due), translit, due_in, bool(reviewed), stability, reg
+        )
+        for nid, entry, meaning, tier, due, translit, due_in, reviewed, stability, reg in rows
     ]
     taken_at = _get_meta(conn, _per_language("snapshot_taken_at", language))
     return entries, datetime.fromisoformat(taken_at) if taken_at else None
@@ -931,7 +942,8 @@ def get_text(conn: sqlite3.Connection, text_id: int) -> StoredText | None:
 _TEXT_COLUMNS = (
     "id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar,"
     " translits, reason, story_id, episode, recap, genders, characters, choices, chosen,"
-    " questions, forms, recap_line, recap_english, meanings, model, created_at"
+    " questions, forms, recap_line, recap_english, meanings, registers, model,"
+    " created_at"
 )
 
 
@@ -962,6 +974,7 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         recap_line,
         recap_english,
         meanings,
+        registers,
         model,
         created_at,
     ) = row
@@ -993,6 +1006,7 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         recap_line=recap_line,
         recap_english=recap_english,
         meanings=json.loads(meanings),
+        registers=json.loads(registers),
         model=model,
         created_at=datetime.fromisoformat(created_at) if created_at else None,
     )
@@ -1579,6 +1593,7 @@ CallFeature = Literal[
     "lessons",
     "ipa",
     "aspect",
+    "ask_card",
     "topic_image",
 ]
 
@@ -2234,14 +2249,17 @@ def save_meaning_batch(
     cost_usd: float,
     texts: dict[int, dict[str, str]] | None = None,
     counts: tuple[int, int] | None = None,
+    registers: dict[int, dict[str, str]] | None = None,
 ) -> None:
     """A batch of words Claude glossed for a language, as {lower-case word: meaning}, with its cost.
     A word it gave no usable meaning for is kept with an empty one, so it isn't asked again. The
     language keeps the first meaning a word was given, as the fallback for a text or a card's
     sentence with none of its own. `texts` is the meanings each text was asked for, by text id,
     added to that text's own (`StoredText.meanings`). `counts` is how many words the call asked about
-    and how many it gave a meaning for, when one word was asked for in more than one text."""
+    and how many it gave a meaning for, when one word was asked for in more than one text.
+    `registers` is the registers Claude gave, by text id and word, added to that text's own."""
     texts = texts or {}
+    registers = registers or {}
     with conn:
         for text_id, own in texts.items():
             row = conn.execute("SELECT meanings FROM texts WHERE id = ?", (text_id,)).fetchone()
@@ -2250,6 +2268,14 @@ def save_meaning_batch(
             conn.execute(
                 "UPDATE texts SET meanings = ? WHERE id = ?",
                 (json.dumps({**json.loads(row[0]), **own}, ensure_ascii=False), text_id),
+            )
+        for text_id, own_registers in registers.items():
+            row = conn.execute("SELECT registers FROM texts WHERE id = ?", (text_id,)).fetchone()
+            if row is None:
+                continue
+            conn.execute(
+                "UPDATE texts SET registers = ? WHERE id = ?",
+                (json.dumps({**json.loads(row[0]), **own_registers}, ensure_ascii=False), text_id),
             )
         batch = conn.execute(
             "INSERT INTO meaning_batches (language, asked, kept, created_at, cost_usd)"

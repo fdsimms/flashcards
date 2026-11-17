@@ -467,3 +467,10 @@ def test_a_chosen_level_is_saved_and_read_back_exactly(conn) -> None:  # type: i
         assert load_difficulty(conn) == Difficulty(floor, 3, 4)
     # Another language's is its own.
     assert load_difficulty(conn, "es") == Difficulty()
+
+
+def test_a_decks_register_survives_the_snapshot() -> None:
+    conn = connect(":memory:")
+    entries = [Entry(1, "ฉัน", "I", "mature", register="casual"), Entry(2, "เรา", "we", "young")]
+    save_snapshot(conn, entries, NOW)
+    assert [e.register for e in load_snapshot(conn)[0]] == ["casual", ""]

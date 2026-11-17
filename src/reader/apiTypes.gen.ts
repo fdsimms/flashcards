@@ -918,6 +918,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ask-card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask Card Route */
+        post: operations["ask_card_route_api_ask_card_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/aspect-pair": {
         parameters: {
             query?: never;
@@ -1237,6 +1254,22 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AskCardIn */
+        AskCardIn: {
+            /** Language */
+            language?: ("th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en") | null;
+            /** Front */
+            front: string;
+            /** Back */
+            back: string;
+            /**
+             * Details
+             * @default
+             */
+            details: string;
+            /** Turns */
+            turns: components["schemas"]["CardTurnIn"][];
+        };
         /** AspectIn */
         AspectIn: {
             /**
@@ -1286,6 +1319,16 @@ export interface components {
              * @default
              */
             reference: string;
+        };
+        /** CardTurnIn */
+        CardTurnIn: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+            /** Content */
+            content: string;
         };
         /**
          * CastChoice
@@ -3727,6 +3770,43 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: string[];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ask_card_route_api_ask_card_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AskCardIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
                     };
                 };
             };

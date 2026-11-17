@@ -1,11 +1,13 @@
-"""Help for the app's cards: memory hints, a verb's aspect partner, and example sentences glossed."""
+"""Help for the app's cards: memory hints, questions about a card, a verb's aspect partner, and
+example sentences glossed."""
 
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 
 from franki_reader import (
+    ask_card,
     aspect,
     store,
 )
@@ -39,6 +41,20 @@ class GlossesIn(BaseModel):
     sentences: list[GlossSentence] = Field(max_length=MAX_GLOSS_SENTENCES)
 
 
+class CardTurnIn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=1500)
+
+
+class AskCardIn(BaseModel):
+    # The card's language when the app knows it (an Omnilanguage note); other note types send none.
+    language: Code | None = None
+    front: str = Field(max_length=1500)
+    back: str = Field(max_length=1500)
+    details: str = Field(default="", max_length=2000)
+    turns: list[CardTurnIn] = Field(min_length=1, max_length=40)
+
+
 class AspectIn(BaseModel):
     # The word's own language, which is not always the one being read: a card from the Polish deck
     # can be studied while Thai is the reading language.
@@ -54,6 +70,7 @@ def router(ctx: AppContext) -> APIRouter:
     engine = ctx.engine
     mnemonics = ctx.mnemonics
     write_aspect = ctx.write_aspect
+    ask_about_card = ctx.ask_about_card
     keep_failed_cost = ctx.keep_failed_cost
 
     @routes.post("/api/mnemonics", dependencies=authed)
@@ -82,6 +99,34 @@ def router(ctx: AppContext) -> APIRouter:
             engine.conn, "mnemonics", body.language, engine.clock(), used.cost_usd()
         )
         return {"hints": hints}
+
+    @routes.post("/api/ask-card", dependencies=authed)
+    async def ask_card_route(body: AskCardIn) -> dict[str, str]:
+        if ask_about_card is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't answer questions about a card"
+                " (ANTHROPIC_API_KEY in server/.env turns it on).",
+            )
+        if body.turns[-1].role != "user":
+            raise HTTPException(422, "The last turn has to be your question.")
+        language = body.language or ""
+        try:
+            answer, used = await ask_about_card(
+                ask_card.CardQuestion(
+                    body.language,
+                    body.front.strip(),
+                    body.back.strip(),
+                    body.details.strip(),
+                    [ask_card.Turn(t.role, t.content.strip()) for t in body.turns],
+                )
+            )
+        except ask_card.AskCardFailed as e:
+            keep_failed_cost("ask_card", language, e.usage)
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(engine.conn, "ask_card", language, engine.clock(), used.cost_usd())
+        return {"answer": answer}
 
     @routes.post("/api/aspect-pair", dependencies=authed)
     async def aspect_pair(body: AspectIn) -> dict[str, Any]:

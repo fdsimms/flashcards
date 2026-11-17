@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from franki_reader import (
+    ask_card,
     aspect,
     drills,
     grammar_topics,
@@ -22,7 +23,6 @@ from franki_reader.engine import Engine
 from franki_reader.explain import CheckNatural, Explain, ExplainForm, ExplainPhrase
 from franki_reader.gateway import ReadDue, ReadReviews
 from franki_reader.generator import Usage
-from franki_reader.languages import Code
 from franki_reader.lesson_writer import WritePlan
 from franki_reader.mnemonics import MakeMnemonics
 from franki_reader.tts import ClipCache, Speech
@@ -58,12 +58,13 @@ class AppContext:
     write_lesson: WritePlan | None
     lessons_dir: Path | None
     write_aspect: aspect.WriteAspect | None
+    ask_about_card: ask_card.AskCard | None
     # `dependencies=` for a route behind the passphrase, and for /api/status, which also opens
     # with STATUS_TOKEN.
     authed: Sequence[Any]
     status_auth: Sequence[Any]
 
-    def keep_failed_cost(self, feature: store.CallFeature, language: Code, used: Usage) -> None:
+    def keep_failed_cost(self, feature: store.CallFeature, language: str, used: Usage) -> None:
         """What a call that failed after Claude answered cost: no answer is kept to carry it, so
         it goes in `call_costs`. A call Claude never answered cost nothing."""
         if used != Usage():
