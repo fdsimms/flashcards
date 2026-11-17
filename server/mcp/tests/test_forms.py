@@ -17,7 +17,7 @@ from mcp import Client
 pytestmark = pytest.mark.anyio
 
 # Real excerpts of UniMorph's files (tests/unimorph): esperar, vengar and querer (only the noun,
-# in UniMorph) in Spanish; czekać and uczyć in Polish.
+# in UniMorph) in Spanish; czekać and uczyć, and the nouns ptak, stół, but and rodzic, in Polish.
 EXCERPTS = Path(__file__).parent / "unimorph"
 
 
@@ -73,6 +73,38 @@ def test_a_table_less_than_half_full_counts_as_not_found():
     assert forms.lines_for(spanish(), "querer", {"querer": rows("spa", "querer")}) == []
 
 
+def polish() -> forms.Language:
+    return forms.TABLES["polish"]
+
+
+def test_a_noun_gets_each_case_singular_and_plural():
+    found = {"ptak": rows("pol", "ptak")}
+    lines = forms.noun_lines_for(polish(), "ten ptak", found, {})
+    assert len(lines) == forms.rows_in(polish(), polish().noun_tables) == 14
+    assert lines[:2] == ["nominative · singular: ptak", "nominative · plural: ptaki"]
+    # Animate: the accusative is the genitive. UniMorph's ESS is the locative.
+    assert "accusative · singular: ptaka" in lines and "locative · singular: ptaku" in lines
+    assert "accusative · singular: stół" in forms.noun_lines_for(polish(), "ten stół", {"stół": rows("pol", "stół")}, {})
+
+
+def test_a_plural_entry_gets_the_plural_lines_of_the_noun_it_is_the_plural_of():
+    assert forms.noun_of(polish(), "ci rodzice") == ("rodzice", True)
+    assert forms.noun_of(polish(), "ten ptak (bird)") == ("ptak", False)
+    found = {"rodzic": rows("pol", "rodzic")}
+    lines = forms.noun_lines_for(polish(), "ci rodzice", found, {"rodzice": "rodzic"})
+    assert len(lines) == 7 and all("· plural:" in line for line in lines)
+    assert "accusative · plural: rodziców" in lines
+    # A plural UniMorph doesn't list (spodnie has no entry) isn't found, rather than guessed.
+    assert forms.noun_lines_for(polish(), "te spodnie", found, {"rodzice": "rodzic"}) == []
+
+
+def test_plurals_and_nouns_are_read_from_the_file(tmp_path):
+    u = forms.UniMorph(tmp_path, fetch=Files())
+    assert u.plurals_of("pol", ["buty", "rodzice", "spodnie"]) == {"buty": "but", "rodzice": "rodzic"}
+    assert set(u.forms_of("pol", ["ptak", "czekać"], pos="N")) == {"ptak"}
+    assert set(u.forms_of("pol", ["ptak", "czekać"])) == {"czekać"}
+
+
 def test_every_group_a_grammar_point_links_to_is_one_the_fill_writes():
     # The app finds a form's grammar point by its group's name (src/core/grammar.ts), so a group
     # renamed here would quietly unlink it. Languages the fill doesn't cover are written by hand.
@@ -105,6 +137,7 @@ def omni(desktop, fields: str = OMNI_FIELDS) -> list[int]:
         "+", "add-fields-note", "Omnilanguage", "Español", note(Entry="inventadear", Meaning="made up", Language="spanish"), "verb",
         "+", "add-fields-note", "Omnilanguage", "Español", note(Entry="la casa", Meaning="house", Language="spanish", PartOfSpeech="noun"),
         "+", "add-fields-note", "Omnilanguage", "Polski", note(Entry="czekać", Meaning="to wait", Language="polish", PartOfSpeech="verb"),
+        "+", "add-fields-note", "Omnilanguage", "Polski", note(Entry="te buty", Meaning="shoes", Language="polish", PartOfSpeech="noun"),
         "+", "add-fields-note", "Omnilanguage", "Thai", note(Entry="รอ", Meaning="to wait", Language="thai", PartOfSpeech="verb"),
         "+", "sync",
     )
@@ -120,11 +153,14 @@ async def forms_client(cm, tmp_path):
 
 
 async def test_previews_then_fills_and_the_lines_reach_another_device(forms_client, desktop):
-    esperar, _, casa, czekac, _ = omni(desktop)
+    esperar, _, casa, czekac, buty, _ = omni(desktop)
     preview = await call(forms_client, "fill_forms")
-    assert [w["word"] for w in preview["would_fill"]] == ["esperar", "czekać"]
+    assert [w["word"] for w in preview["would_fill"]] == ["esperar", "czekać", "te buty"]
+    assert preview["would_fill"][2]["lines"][0] == "nominative · plural: buty"
     assert preview["written"] == 0 and preview["not_found"] == ["inventadear"]
-    assert preview["other_languages"] == {"thai": 1}
+    # Spanish has verb tables but no noun tables, so la casa is reported, not skipped silently.
+    assert preview["other_languages"] == {"spanish nouns": 1, "thai": 1}
+    assert "accusative · singular: <form>" in preview["table"]["polish nouns"]
     assert preview["auto_fill"] is False
 
     # Nothing was written by the preview.
@@ -132,9 +168,14 @@ async def test_previews_then_fills_and_the_lines_reach_another_device(forms_clie
 
     done = await call(forms_client, "fill_forms", dry_run=False, query="deck:Español")
     assert done["written"] == 1 and [w["word"] for w in done["filled"]] == ["esperar"]
-    fields = desktop.run("sync", "+", "fields", f"nid:{esperar} OR nid:{casa} OR nid:{czekac}")["fields"]
+    fields = desktop.run("sync", "+", "fields", f"nid:{esperar} OR nid:{casa} OR nid:{czekac} OR nid:{buty}")["fields"]
     assert fields[str(esperar)]["Forms"].split("<br>")[:2] == ["present · yo: espero", "present · tú: esperas"]
-    assert fields[str(casa)]["Forms"] == "" and fields[str(czekac)]["Forms"] == ""
+    assert fields[str(casa)]["Forms"] == "" and fields[str(czekac)]["Forms"] == "" and fields[str(buty)]["Forms"] == ""
+
+    done = await call(forms_client, "fill_forms", dry_run=False, query="deck:Polski")
+    assert done["written"] == 2
+    fields = desktop.run("sync", "+", "fields", f"nid:{buty}")["fields"]
+    assert "genitive · plural: butów" in fields[str(buty)]["Forms"].split("<br>")
 
 
 async def test_never_overwrites_a_field_with_something_in_it(forms_client, desktop):

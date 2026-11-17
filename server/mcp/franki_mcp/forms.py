@@ -1,20 +1,27 @@
 """
-Filling the Omnilanguage note type's Forms field, which Franki's forms practice reads.
+Filling the Omnilanguage note type's Forms field, which Franki's forms practice reads: a verb's
+conjugations, and in a language with noun tables (`Language.noun_tables`) a noun's cases.
 
 A word's forms come from UniMorph (unimorph.github.io): Wiktionary's inflection tables, one form
 per line with its features (`esperar  esperé  V;IND;PST;PFV;1;SG`), under CC BY-SA 3.0. Each
 language's file is downloaded once into the MCP's data folder and read from there.
 
-What goes into the field is fixed per language (`TABLES`): which tenses, which persons, and the
-label each line gets, so every note of a language is labeled the same way and Franki can match a
-form across words (`present · yo: espero`, the format `src/core/forms.ts` reads). A field that
-already holds anything is never overwritten: a correction made in Anki stays.
+What goes into the field is fixed per language (`TABLES`): which tenses, which persons, which
+cases, and the label each line gets, so every note of a language is labeled the same way and Franki
+can match a form across words (`present · yo: espero`, `accusative · singular: ptaka`, the format
+`src/core/forms.ts` reads). A noun's group is its case, so practice can be narrowed to one case
+across every noun. A field that already holds anything is never overwritten: a correction made in
+Anki stays.
 
 A verb is looked up as its Entry says it, without a trailing preposition or a bracketed note
 ("vengarse de", "internarse (en)"). A reflexive UniMorph lacks is built from its base verb with the
 pronoun added (vengarse: me vengo, te vengas; bać się: boję się). A verb that still isn't found, or
 whose table is less than half full, is reported as not found and left empty, for Claude to fill on
 request (tagged `forms-unverified`) or the user in Anki.
+
+A noun is looked up without the demonstrative its Entry starts with ("ten ptak"). One whose Entry
+names a plural ("te buty", "ci rodzice") gets only the plural lines, from the noun UniMorph lists
+that plural under (but, rodzic), or from the word itself for a noun with no singular (spodnie).
 """
 
 from __future__ import annotations
@@ -66,6 +73,17 @@ def _persons(group: str, base: str, labels: list[tuple[str, str]]) -> Table:
     return Table(group, tuple(Row.of(label, f"V;{base};{person}") for label, person in labels))
 
 
+def _cases(cases: list[tuple[str, str]]) -> tuple[Table, ...]:
+    """One table per case, with its singular and plural."""
+    return tuple(Table(case, (Row.of("singular", f"N;{tag};SG"), Row.of("plural", f"N;{tag};PL"))) for case, tag in cases)
+
+
+PLURAL = "plural"
+# UniMorph tags the locative ESS.
+POLISH_CASES = [("nominative", "NOM"), ("genitive", "GEN"), ("dative", "DAT"), ("accusative", "ACC"),
+                ("instrumental", "INS"), ("locative", "ESS"), ("vocative", "VOC")]
+
+
 SPANISH_PERSONS = [("yo", "1;SG"), ("tú", "2;SG;INFM"), ("él", "3;SG"), ("nosotros", "1;PL"), ("vosotros", "2;PL"), ("ellos", "3;PL")]
 SLAVIC_PERSONS_PL = [("ja", "1;SG"), ("ty", "2;SG"), ("on", "3;SG"), ("my", "1;PL"), ("wy", "2;PL"), ("oni", "3;PL")]
 SLAVIC_PERSONS_RU = [("я", "1;SG"), ("ты", "2;SG"), ("он", "3;SG"), ("мы", "1;PL"), ("вы", "2;PL"), ("они", "3;PL")]
@@ -103,6 +121,12 @@ class Language:
     # Words that may follow a verb in an Entry ("vengarse de"), dropped to look it up.
     prepositions: frozenset[str] = frozenset()
     lookups: Callable[[str], list[tuple[str, Transform]]] = lambda word: [(word, _same)]
+    # A noun's cases. A language without them has its nouns reported as unsupported.
+    noun_tables: tuple[Table, ...] = ()
+    # Words a noun's Entry may start with ("ten ptak"), dropped to look it up, and those of them
+    # that say the Entry names a plural ("te buty").
+    determiners: frozenset[str] = frozenset()
+    plural_determiners: frozenset[str] = frozenset()
 
     def lemma(self, entry: str) -> str:
         """The verb an Entry names: without a bracketed note or a trailing preposition."""
@@ -129,7 +153,8 @@ TABLES: dict[str, Language] = {
             Row.of("on", "V;PST;3;SG;MASC"), Row.of("ona", "V;PST;3;SG;FEM"),
             Row.of("oni", "V;PST;3;PL;MASC;HUM"), Row.of("one", "V;PST;3;PL"),
         )),
-    )),
+    ), noun_tables=_cases(POLISH_CASES),
+        determiners=frozenset({"ten", "ta", "to", "te", "ci"}), plural_determiners=frozenset({"te", "ci"})),
     "russian": Language("rus", tables=(
         _persons("present", "PRS", SLAVIC_PERSONS_RU),
         Table("past", (
@@ -143,14 +168,16 @@ LANGUAGE_NAMES = {"spanish": "spanish", "español": "spanish", "espanol": "spani
                   "russian": "russian", "русский": "russian"}
 
 
-def form_lines(language: Language, forms: list[tuple[str, frozenset[str]]], transform: Transform = _same) -> list[str]:
+def form_lines(language: Language, forms: list[tuple[str, frozenset[str]]], transform: Transform = _same,
+               tables: tuple[Table, ...] | None = None) -> list[str]:
     """
-    The Forms field's lines for one lemma, from its UniMorph forms in file order. A row takes the
-    form with all of the row's features and the fewest others (the first, when several tie), so
-    Polish's past "oni" (MASC;HUM) and "one" (neither) don't take each other's form.
+    The Forms field's lines for one lemma, from its UniMorph forms in file order, by `tables` (the
+    verb tables when none are given). A row takes the form with all of the row's features and the
+    fewest others (the first, when several tie), so Polish's past "oni" (MASC;HUM) and "one"
+    (neither) don't take each other's form.
     """
     lines = []
-    for table in language.tables:
+    for table in language.tables if tables is None else tables:
         for row in table.rows:
             matches = [(len(f - row.features), form) for form, f in forms if row.features <= f]
             if not matches:
@@ -161,8 +188,8 @@ def form_lines(language: Language, forms: list[tuple[str, frozenset[str]]], tran
     return lines
 
 
-def rows_in(language: Language) -> int:
-    return sum(len(t.rows) for t in language.tables)
+def rows_in(language: Language, tables: tuple[Table, ...] | None = None) -> int:
+    return sum(len(t.rows) for t in (language.tables if tables is None else tables))
 
 
 def lines_for(language: Language, entry: str, found: dict[str, list[tuple[str, frozenset[str]]]]) -> list[str]:
@@ -183,6 +210,34 @@ def lemmas_for(language: Language, entry: str) -> list[str]:
     return [lemma for lemma, _ in language.lookups(language.lemma(entry))]
 
 
+def noun_of(language: Language, entry: str) -> tuple[str, bool]:
+    """The noun an Entry names, without a leading determiner or a bracketed note, and whether it names a plural."""
+    word = re.sub(r"\s*\(.*?\)\s*$", "", entry).strip()
+    first, _, rest = word.partition(" ")
+    if rest and first.lower() in language.determiners:
+        return rest.strip(), first.lower() in language.plural_determiners
+    return word, False
+
+
+def plural_tables(language: Language) -> tuple[Table, ...]:
+    """The noun tables with only their plural rows, for a noun whose Entry names a plural."""
+    return tuple(Table(t.group, tuple(r for r in t.rows if r.label == PLURAL)) for t in language.noun_tables)
+
+
+def noun_lines_for(language: Language, entry: str, found: dict[str, list[tuple[str, frozenset[str]]]],
+                   plurals: dict[str, str]) -> list[str]:
+    """
+    The Forms lines for a noun's Entry, or none when its table is less than half full (as for a
+    verb). A plural Entry is looked up as the noun UniMorph lists it as the plural of (`plurals`,
+    buty: but), else as itself, and takes only the plural rows.
+    """
+    word, plural = noun_of(language, entry)
+    tables = plural_tables(language) if plural else language.noun_tables
+    lemma = plurals.get(word, word) if plural else word
+    lines = form_lines(language, found.get(lemma, []), tables=tables)
+    return lines if lines and len(lines) * 2 >= rows_in(language, tables) else []
+
+
 @dataclass
 class UniMorph:
     """UniMorph's files, downloaded into `folder` on first use. `fetch` is replaceable for the tests."""
@@ -199,19 +254,30 @@ class UniMorph:
             tmp.replace(p)
         return p
 
-    def forms_of(self, code: str, lemmas: Iterable[str]) -> dict[str, list[tuple[str, frozenset[str]]]]:
-        """Each lemma's verb forms, in file order. Lemmas the file doesn't have are missing from the result."""
+    def forms_of(self, code: str, lemmas: Iterable[str], pos: str = "V") -> dict[str, list[tuple[str, frozenset[str]]]]:
+        """Each lemma's forms as a `pos` ("V", "N"), in file order. Lemmas the file doesn't have are missing from the result."""
         wanted = set(lemmas)
         out: dict[str, list[tuple[str, frozenset[str]]]] = {}
+        for lemma, form, features in self._lines(code):
+            if lemma in wanted and pos in features:
+                out.setdefault(lemma, []).append((form, features))
+        return out
+
+    def plurals_of(self, code: str, words: Iterable[str]) -> dict[str, str]:
+        """The noun each word is the nominative plural of (buty: but), for the words the file has as one."""
+        wanted = set(words)
+        out: dict[str, str] = {}
+        for lemma, form, features in self._lines(code):
+            if form in wanted and form not in out and {"N", "NOM", "PL"} <= features:
+                out[form] = lemma
+        return out
+
+    def _lines(self, code: str) -> Iterable[tuple[str, str, frozenset[str]]]:
         with self.path(code).open(encoding="utf-8") as f:
             for line in f:
                 parts = line.rstrip("\n").split("\t")
-                if len(parts) < 3 or parts[0] not in wanted:
-                    continue
-                features = frozenset(parts[2].split(";"))
-                if "V" in features:
-                    out.setdefault(parts[0], []).append((parts[1], features))
-        return out
+                if len(parts) >= 3:
+                    yield parts[0], parts[1], frozenset(parts[2].split(";"))
 
 
 def _download(url: str, dest: Path) -> None:
@@ -230,26 +296,40 @@ def _plain(html: str) -> str:
     return re.sub(r"\s+", " ", TAG.sub(" ", html.replace("&nbsp;", " "))).strip()
 
 
+VERB = "verb"
+NOUN = "noun"
+
+
 @dataclass
 class Candidate:
     note_id: int
     word: str
     language: str  # a TABLES key
+    pos: str = VERB  # VERB or NOUN
 
 
 @dataclass
 class Survey:
     candidates: list[Candidate]
-    # Verbs with an empty Forms field in a language there's no table for yet.
+    # Verbs and nouns with an empty Forms field in a language there's no table for yet, by
+    # language ("thai") for verbs and "<language> nouns" for nouns.
     unsupported: dict[str, int]
 
 
+def _pos_of(note: Any) -> str:
+    """VERB or NOUN, by the PartOfSpeech field first, then the tags."""
+    said = _plain(note["PartOfSpeech"]).lower() if "PartOfSpeech" in note else ""
+    if said in (VERB, NOUN):
+        return said
+    return VERB if note.has_tag(VERB) else NOUN
+
+
 def survey(col: Collection, query: str = "") -> Survey:
-    """Omnilanguage verbs with an empty Forms field, matching `query` (Anki's search syntax)."""
+    """Omnilanguage verbs and nouns with an empty Forms field, matching `query` (Anki's search syntax)."""
     nt = col.models.by_name(NOTE_TYPE)
     if nt is None or FIELD not in col.models.field_names(nt):
         raise MissingField()
-    search = f'"note:{NOTE_TYPE}" "{FIELD}:" (PartOfSpeech:verb OR tag:verb)'
+    search = f'"note:{NOTE_TYPE}" "{FIELD}:" (PartOfSpeech:verb OR tag:verb OR PartOfSpeech:noun OR tag:noun)'
     if query.strip():
         search += f" ({query})"
     candidates: list[Candidate] = []
@@ -260,11 +340,13 @@ def survey(col: Collection, query: str = "") -> Survey:
         word = _plain(note["Entry"]) if "Entry" in note else ""
         if not word:
             continue
-        if lang in TABLES:
-            candidates.append(Candidate(nid, word, lang))
+        pos = _pos_of(note)
+        if lang in TABLES and (pos == VERB or TABLES[lang].noun_tables):
+            candidates.append(Candidate(nid, word, lang, pos))
         else:
-            name = _plain(note["Language"]).lower() if "Language" in note else ""
-            unsupported[name or "(no language)"] = unsupported.get(name or "(no language)", 0) + 1
+            name = (_plain(note["Language"]).lower() if "Language" in note else "") or "(no language)"
+            key = name if pos == VERB else f"{name} nouns"
+            unsupported[key] = unsupported.get(key, 0) + 1
     return Survey(candidates, unsupported)
 
 
@@ -304,9 +386,13 @@ def plan(survey_: Survey, unimorph: UniMorph, limit: int | None) -> FillPlan:
     not_found: list[str] = []
     for lang, cs in by_lang.items():
         language = TABLES[lang]
-        found = unimorph.forms_of(language.code, (lemma for c in cs for lemma in lemmas_for(language, c.word)))
+        verbs = [c for c in cs if c.pos == VERB]
+        nouns = [noun_of(language, c.word) for c in cs if c.pos == NOUN]
+        found = unimorph.forms_of(language.code, (lemma for c in verbs for lemma in lemmas_for(language, c.word))) if verbs else {}
+        plurals = unimorph.plurals_of(language.code, (w for w, plural in nouns if plural)) if any(p for _, p in nouns) else {}
+        found_nouns = unimorph.forms_of(language.code, {w for w, _ in nouns} | set(plurals.values()), pos="N") if nouns else {}
         for c in cs:
-            lines = lines_for(language, c.word, found)
+            lines = lines_for(language, c.word, found) if c.pos == VERB else noun_lines_for(language, c.word, found_nouns, plurals)
             if lines:
                 filled.append(Planned(c.note_id, c.word, lines))
             else:
@@ -351,7 +437,7 @@ async def fill(cm: CollectionManager, unimorph: UniMorph, query: str, limit: int
 
 
 async def auto_fill_loop(cm: CollectionManager, unimorph: UniMorph, first_delay: float = FIRST_RUN_DELAY, every: float = EVERY) -> None:
-    """Once a day, while it's turned on (`set_forms_auto_fill`), fills every Omnilanguage verb's empty Forms field."""
+    """Once a day, while it's turned on (`set_forms_auto_fill`), fills every Omnilanguage verb's and noun's empty Forms field."""
     await anyio.sleep(first_delay)
     while True:
         try:
@@ -370,9 +456,10 @@ def register(server: MCPServer, cm: CollectionManager, unimorph: UniMorph) -> No
 
     @server.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True))
     async def fill_forms(query: str = "", limit: int = 20, dry_run: bool = True) -> dict[str, Any]:
-        """Fills the Forms field of Omnilanguage verbs that have it empty, from Wiktionary's inflection
-        tables (UniMorph), for Franki's forms practice: one line per form, like "present · yo: espero".
-        Spanish, Polish and Russian so far. `query` narrows the notes (Anki's search syntax, e.g.
+        """Fills the Forms field of Omnilanguage verbs and nouns that have it empty, from Wiktionary's
+        inflection tables (UniMorph), for Franki's forms practice: one line per form, like
+        "present · yo: espero" or "accusative · singular: ptaka". Verbs in Spanish, Polish and Russian
+        so far, nouns in Polish (a plural Entry like "te buty" gets the plural lines only). `query` narrows the notes (Anki's search syntax, e.g.
         "deck:Español"); `limit` is how many notes, up to 100. With dry_run (the default) nothing is
         written: show the user the lines first. A field that has anything in it is never changed.
         Words Wiktionary doesn't have come back in not_found and are left empty. Fill those only if
@@ -401,12 +488,16 @@ def register(server: MCPServer, cm: CollectionManager, unimorph: UniMorph) -> No
             "auto_fill": auto,
             "source": "Wiktionary via UniMorph, CC BY-SA 3.0",
             # The lines a Forms field holds, per language: for writing a not_found word's by hand.
-            "table": {lang: [f"{t.group} · {r.label}: <form>" for t in TABLES[lang].tables for r in t.rows] for lang in sorted({x for x in TABLES})},
+            "table": {
+                **{lang: [f"{t.group} · {r.label}: <form>" for t in TABLES[lang].tables for r in t.rows] for lang in sorted(TABLES)},
+                **{f"{lang} nouns": [f"{t.group} · {r.label}: <form>" for t in TABLES[lang].noun_tables for r in t.rows]
+                   for lang in sorted(TABLES) if TABLES[lang].noun_tables},
+            },
         }
 
     @server.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False))
     async def set_forms_auto_fill(on: bool) -> dict[str, Any]:
-        """Turns the daily fill on or off: once a day, every Omnilanguage verb with an empty Forms field
+        """Turns the daily fill on or off: once a day, every Omnilanguage verb and noun with an empty Forms field
         is filled as fill_forms would. Turn it on only after the user has checked a batch."""
         await cm.write(lambda col: col.set_config(AUTO_FILL_KEY, on))
         return {"auto_fill": on}

@@ -242,8 +242,8 @@ reaches their devices at their next sync.
   say which decks a change affects before making it.
 - add_field makes every device download the whole collection: ask the user to sync every device
   first, and only then pass every_device_synced=true.
-- Forms: fill_forms fills Omnilanguage verbs' Forms field (for Franki's forms practice) from
-  Wiktionary's tables. Preview first (dry_run) and show the user; turn on the daily fill
+- Forms: fill_forms fills the Forms field of Omnilanguage verbs (conjugations) and nouns (cases,
+  where a language has them) for Franki's forms practice, from Wiktionary's tables. Preview first (dry_run) and show the user; turn on the daily fill
   (set_forms_auto_fill) only once they've checked a batch. Write a not_found word's forms yourself
   only when asked, in the same lines, tagged forms-unverified.
 """
