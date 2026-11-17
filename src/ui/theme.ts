@@ -14,6 +14,9 @@ const light = {
   surface: '#ffffff',
   /** A quieter fill inside a surface: chips, inputs, the guide line of a subdeck. */
   fill: '#efebe2',
+  /** Something floating over a surface (the change-rating strip over the review card): set apart from it by its fill and edge, not only its shadow. */
+  raised: '#f1ede4',
+  raisedEdge: '#d6d0c2',
   text: '#1b1b1b',
   textSecondary: '#5f636b',
   /** Icons, chevrons and a count of zero: things meant to recede, at 3:1 (WCAG's floor for icons). Words that carry information use textSecondary. */
@@ -31,6 +34,8 @@ const light = {
   countNew: '#2f6db5',
   /** A quiet fill behind a new card's chip, in the new count's blue. */
   countNewFill: 'rgba(47, 109, 181, 0.12)',
+  /** A quiet fill behind a learning card's chip, in the learning count's red. */
+  countLearnFill: 'rgba(181, 71, 63, 0.12)',
   countLearn: '#b5473f',
   countDue: '#3d7a52',
   again: '#c35249',
@@ -117,6 +122,15 @@ const light = {
   onWkSoft: 'rgba(255, 255, 255, 0.86)',
   wkLine: 'rgba(255, 255, 255, 0.3)',
   wkWell: 'rgba(0, 0, 0, 0.2)',
+  /** Grammatical gender, as the color of a word's article (and a dot on its chip): masculine, feminine, neuter. Text colors, so none is red, green or blue like a card count. */
+  genderM: '#4a55b0',
+  genderF: '#b23a6a',
+  genderN: '#2f7d7a',
+  /** Thai tones, as the color of a syllable in a romanization (mid has none): low, falling, high, rising. */
+  toneLow: '#2f6db5',
+  toneFalling: '#b5473f',
+  toneHigh: '#b0601e',
+  toneRising: '#3d7a52',
   /** The outline of WaniKani's stage popup: on a white card its colored pill needs one to stand out, on dark it doesn't. */
   stageRing: 'rgba(27, 27, 27, 0.4)',
   /** A soft drop shadow under a raised surface (the review card). Near-invisible on dark, so it's heavier there. */
@@ -130,6 +144,8 @@ const dark: typeof light = {
   bg: '#0f1115',
   surface: '#1a1d24',
   fill: '#242833',
+  raised: '#272b36',
+  raisedEdge: '#3a3f4c',
   text: '#f1f1f1',
   textSecondary: '#a2a8b3',
   textTertiary: '#6c727d',
@@ -143,6 +159,7 @@ const dark: typeof light = {
   warning: '#e0a85a',
   countNew: '#6fa8ec',
   countNewFill: 'rgba(111, 168, 236, 0.16)',
+  countLearnFill: 'rgba(224, 118, 108, 0.16)',
   countLearn: '#e0766c',
   countDue: '#6cc08a',
   again: '#b5473f',
@@ -190,6 +207,13 @@ const dark: typeof light = {
   onWkSoft: 'rgba(255, 255, 255, 0.86)',
   wkLine: 'rgba(255, 255, 255, 0.3)',
   wkWell: 'rgba(0, 0, 0, 0.22)',
+  genderM: '#8f9bf0',
+  genderF: '#e486a8',
+  genderN: '#5fc4bf',
+  toneLow: '#6fa8ec',
+  toneFalling: '#e0766c',
+  toneHigh: '#f0984f',
+  toneRising: '#6cc08a',
   stageRing: 'transparent',
   shadow: '#000000',
   shadowOpacity: 0.45,

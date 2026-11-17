@@ -77,7 +77,7 @@ def lesson_client(
     writer: WritePlan = write_plan,
     conn: sqlite3.Connection | None = None,
 ) -> TestClient:
-    async def voice(text: str, name: str, language: str) -> Spoken:
+    async def voice(text: str, name: str, language: str, rate: float = 1.0) -> Spoken:
         return Spoken(mp3)
 
     conn = conn or store.connect(":memory:")
@@ -217,7 +217,7 @@ def test_the_narrator_chosen_is_the_voice_azure_is_asked_for(tmp_path: Path) -> 
     asked: list[str] = []
     clip = tone()
 
-    async def voice(text: str, name: str, language: str) -> Spoken:
+    async def voice(text: str, name: str, language: str, rate: float = 1.0) -> Spoken:
         asked.append(name)
         return Spoken(clip)
 

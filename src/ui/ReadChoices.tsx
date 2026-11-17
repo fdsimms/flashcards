@@ -25,10 +25,10 @@ export function ReadChoices({ choices, chosen, textStyle, onChoose, error, showE
   const c = useTheme();
   return (
     <Card style={{ gap: space.s }}>
-      <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>What happens next?</Text>
+      <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>What should happen next?</Text>
       <Help>
         {onChoose
-          ? "Your choice shapes the next episode. If you don't choose, the story carries on by itself."
+          ? "Pick what you'd like to see in the next episode. There's no right answer. If you skip this, the story continues on its own."
           : 'You chose this for the next episode.'}
       </Help>
       <View accessibilityRole="radiogroup" style={{ gap: space.s }}>
