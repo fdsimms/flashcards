@@ -91,6 +91,18 @@ const light = {
   nameFill: '#cfe3f2',
   /** Behind the word being spoken as a Read & Listen line plays. */
   spoken: '#e4ddcb',
+  /**
+   * WaniKani's three kinds of subject, each a solid fill: a card is filled with its own kind's
+   * color, and a "Made of" tile with its part's kind. White (`onWk`) is on all of them.
+   */
+  wkRadical: '#0b6fc4',
+  wkKanji: '#c8157f',
+  wkVocab: '#8a2be2',
+  onWk: '#ffffff',
+  /** Quieter white on those fills (labels, secondary text), and the lines and wells drawn on them. */
+  onWkSoft: 'rgba(255, 255, 255, 0.86)',
+  wkLine: 'rgba(255, 255, 255, 0.3)',
+  wkWell: 'rgba(0, 0, 0, 0.2)',
   /** The outline of WaniKani's stage popup: on a white card its colored pill needs one to stand out, on dark it doesn't. */
   stageRing: 'rgba(27, 27, 27, 0.4)',
   /** A soft drop shadow under a raised surface (the review card). Near-invisible on dark, so it's heavier there. */
@@ -149,6 +161,13 @@ const dark: typeof light = {
   highlight: '#4d3a14',
   nameFill: '#1f3a4f',
   spoken: '#3b4252',
+  wkRadical: '#0a5a9e',
+  wkKanji: '#a3106a',
+  wkVocab: '#6b25b8',
+  onWk: '#ffffff',
+  onWkSoft: 'rgba(255, 255, 255, 0.86)',
+  wkLine: 'rgba(255, 255, 255, 0.3)',
+  wkWell: 'rgba(0, 0, 0, 0.22)',
   stageRing: 'transparent',
   shadow: '#000000',
   shadowOpacity: 0.45,

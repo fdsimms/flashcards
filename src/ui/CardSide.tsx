@@ -35,9 +35,11 @@ function MarkedText({ text, segments, style, c }: { text: string; segments?: Seg
  * `showHints` shows the lines Anki hides behind a tap (romanization, translation) without one.
  * With `gloss` (the sentence's words from Read & Listen's server), the example sentence's words can
  * be tapped for their meanings (CardSentence).
+ * With `speakSentence`, the Example heading has a speaker button that reads the sentence aloud.
  */
-export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE, gloss }: {
+export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE, gloss, speakSentence }: {
   side: RenderedSide; which: 'front' | 'back'; showHints: boolean; thaiSize?: ThaiTextSize; gloss?: SentenceGloss | null;
+  speakSentence?: (text: string) => void;
 }) {
   const c = useTheme();
   const thai = thaiTextStyle(thaiSize);
@@ -105,9 +107,23 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
         const hidden = (it: Item) => !!it.b.tapLabel && !showHints && !shownHints.has(it.i);
 
         if (isExample(first.b)) {
+          const sentence = group.find((it) => it.b.role === 'example')?.b.text;
           return (
             <View key={first.i} style={{ gap: space.xs }}>
-              <Text style={{ ...type.overline, color: c.accent }}>Example</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={{ ...type.overline, color: c.accent }}>Example</Text>
+                {sentence && speakSentence ? (
+                  <Tappable
+                    accessibilityRole="button"
+                    accessibilityLabel="Read the example sentence aloud"
+                    onPress={() => { haptic.tap(); speakSentence(sentence); }}
+                    hitSlop={space.m}
+                    scaleTo={0.9}
+                  >
+                    <Icon name="speaker.wave.2.fill" size={18} color={c.accent} />
+                  </Tappable>
+                ) : null}
+              </View>
               <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, overflow: 'hidden' }}>
                 {group.map((it) => (hidden(it)
                   ? hintRow(it)

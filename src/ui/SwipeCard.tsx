@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
-import Animated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { SWIPE_DISTANCE, swipeRating } from '../core/session';
 import type { RatingValue } from '../core/scheduler';
@@ -10,13 +10,13 @@ import { useReduceMotion } from './motion';
 import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
 
 /** The card itself: a raised sheet that fills the space between the header and the buttons. */
-export function CardSurface({ children, overlay }: { children: React.ReactNode; overlay?: React.ReactNode }) {
+export function CardSurface({ children, overlay, color }: { children: React.ReactNode; overlay?: React.ReactNode; /** Fills the card instead of the theme's surface (WaniKani's subject colors). */ color?: string }) {
   const c = useTheme();
   return (
     <View
       style={{
         flex: 1, marginHorizontal: space.l, marginTop: space.xxl, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
-        backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, ...lift(c),
+        backgroundColor: color ?? c.surface, borderWidth: hairline, borderColor: color ? 'transparent' : c.border, ...lift(c),
         // A popup hangs below the card: the row after it must not paint over it.
         ...(overlay ? { zIndex: 10 } : null),
       }}
@@ -38,19 +38,28 @@ export type CardMotion = {
 /** How the card settles: back to the middle after a short drag, or in from the side after an undo. */
 const BACK_SPRING = { damping: 16, stiffness: 240, mass: 1 } as const;
 const ENTER_SPRING = { damping: 18, stiffness: 170, mass: 1 } as const;
+/** The card leaving after an answering swipe: as fast as the flick that threw it, within these bounds (ms). */
+const EXIT_MIN_MS = 120;
+const EXIT_MAX_MS = 240;
+/** The next card arriving: it grows in from this share of its size while fading up (ms). */
+const ARRIVE_FROM = 0.94;
+const ARRIVE_MS = 260;
 
 /**
  * The card sheet, draggable sideways once it's revealed when swiping is on: it follows the finger,
  * tints toward the answer it would give (right Good, left Again), and answers when let go past
- * the line. The card doesn't fly off: the next card replaces it at once. Only a rating the answer buttons show can be given
- * (`swipeRating`).
+ * the line. The card then flies off the side it was thrown to, and the answer is given as it leaves, so the
+ * next card arrives (fading and growing in) on a clear screen instead of the old card snapping back to the
+ * middle. Only a rating the answer buttons show can be given (`swipeRating`).
  *
  * The drag and the tint run on the UI thread (Reanimated), so they keep up with
  * the finger even while the screen is busy rendering the next card; only the decision to answer
  * and the haptic hop back to JS.
  */
-export function SwipeCard({ enabled, shown, motion, onRate, children }: {
+export function SwipeCard({ enabled, cardKey, shown, motion, onRate, children }: {
   enabled: boolean;
+  /** Names the card on screen and how many answers there are: a swipe that lands after this changed (an answer button, an undo) is dropped. */
+  cardKey: string;
   shown: RatingValue[];
   motion: React.MutableRefObject<CardMotion | null>;
   onRate: (r: RatingValue) => Promise<void>;
@@ -64,9 +73,13 @@ export function SwipeCard({ enabled, shown, motion, onRate, children }: {
   const rightOk = useSharedValue(shown.includes(3));
   const leftOk = useSharedValue(shown.includes(1));
   const crossed = useSharedValue(false);
+  // True from the moment an answering swipe is let go until the next card has arrived: the drag is ignored meanwhile.
+  const leaving = useSharedValue(false);
+  // 0 to 1 as the next card arrives after a swipe.
+  const arrive = useSharedValue(1);
   // The gesture's callbacks reach JS through these, so they read the latest props from here.
-  const latest = useRef({ enabled, shown, onRate, width, reduce });
-  latest.current = { enabled, shown, onRate, width, reduce };
+  const latest = useRef({ enabled, cardKey, shown, onRate, width, reduce });
+  latest.current = { enabled, cardKey, shown, onRate, width, reduce };
   useEffect(() => {
     rightOk.value = shown.includes(3);
     leftOk.value = shown.includes(1);
@@ -87,8 +100,25 @@ export function SwipeCard({ enabled, shown, motion, onRate, children }: {
   const release = (dx: number, vx: number) => {
     const rating = swipeRating(dx, vx / 1000, latest.current.shown);
     if (!rating) { back(vx); return; }
-    x.value = 0;
-    void latest.current.onRate(rating);
+    const { cardKey: thrown, width: w, reduce: still } = latest.current;
+    // The answer is given once the card has gone, unless it was answered or undone from a button meanwhile.
+    const land = () => {
+      if (latest.current.cardKey === thrown) void latest.current.onRate(rating);
+      // Back at the middle for the next card, hidden until it's there and then grown in.
+      arrive.value = still ? 1 : 0;
+      x.value = 0;
+      if (!still) arrive.value = withTiming(1, { duration: ARRIVE_MS, easing: Easing.out(Easing.cubic) });
+      leaving.value = false;
+    };
+    leaving.value = true;
+    if (still) { land(); return; }
+    const dir = dx > 0 ? 1 : -1;
+    const target = dir * w * 1.15;
+    const speed = Math.max(Math.abs(vx) / 1000, 0.01);
+    const ms = Math.min(EXIT_MAX_MS, Math.max(EXIT_MIN_MS, Math.abs(target - dx) / speed));
+    x.value = withTiming(target, { duration: ms, easing: Easing.in(Easing.quad) }, (done) => {
+      if (done) scheduleOnRN(land);
+    });
   };
   const tick = () => haptic.select();
   const pan = usePanGesture({
@@ -97,6 +127,7 @@ export function SwipeCard({ enabled, shown, motion, onRate, children }: {
     activeOffsetX: [-12, 12],
     failOffsetY: [-18, 18],
     onUpdate: (e) => {
+      if (leaving.value) return;
       x.value = e.translationX;
       const past = (e.translationX >= SWIPE_DISTANCE && rightOk.value) || (e.translationX <= -SWIPE_DISTANCE && leftOk.value);
       if (past !== crossed.value) {
@@ -106,14 +137,17 @@ export function SwipeCard({ enabled, shown, motion, onRate, children }: {
     },
     onDeactivate: (e) => {
       crossed.value = false;
+      if (leaving.value) return;
       if (e.canceled) { x.value = withSpring(0, BACK_SPRING); return; }
       scheduleOnRN(release, e.translationX, e.velocityX);
     },
   });
   const cardStyle = useAnimatedStyle(() => ({
+    opacity: arrive.value,
     transform: [
       { translateX: x.value },
       { rotate: `${interpolate(x.value, [-300, 0, 300], [-5, 0, 5], Extrapolation.CLAMP)}deg` },
+      { scale: interpolate(arrive.value, [0, 1], [ARRIVE_FROM, 1]) },
     ],
   }));
   // Tints and words that ramp in as the card is dragged, the answer it gives.
