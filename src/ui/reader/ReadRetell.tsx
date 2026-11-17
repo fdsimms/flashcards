@@ -15,6 +15,7 @@ import { Reveal } from '../motion';
 import type { ReadTextStyle } from './ReadWord';
 import { WritingResult } from './ReadWritingResult';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
+import { TranslationRow } from '../TranslationRow';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 
 /**
@@ -98,7 +99,7 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
                   >
                     <Text style={{ ...type.overline, color: c.textSecondary }}>{`Line ${opened + 1}`}</Text>
                     <Text style={{ ...readFont, color: c.text }}>{lineText(text.lines[opened])}</Text>
-                    <Text style={{ ...type.footnote, color: c.textSecondary }}>{text.lines[opened].english}</Text>
+                    <TranslationRow><Text style={{ ...type.footnote, color: c.textSecondary }}>{text.lines[opened].english}</Text></TranslationRow>
                   </Tappable>
                 ) : <Help>Tap one to see the line it's in.</Help>}
               </Card>

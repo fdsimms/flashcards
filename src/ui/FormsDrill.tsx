@@ -13,6 +13,7 @@ import { Button, Card, Field, HeaderAction, Help, Icon, Loading, ProgressBar, Sc
 import { Reveal } from './motion';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
+import { TranslationRow } from './TranslationRow';
 import { usePhoneSpeech } from './usePhoneSpeech';
 
 export type AnswerMode = 'pick' | 'type';
@@ -296,7 +297,9 @@ function Question({ prompt, reveal }: { prompt: FormPrompt; reveal?: string }) {
             {prompt.sentence.after}
           </Text>
           {prompt.sentence.translation ? (
-            <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{prompt.sentence.translation}</Text>
+            <TranslationRow centered>
+              <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{prompt.sentence.translation}</Text>
+            </TranslationRow>
           ) : null}
         </View>
       ) : null}

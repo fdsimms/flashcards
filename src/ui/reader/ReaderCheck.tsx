@@ -11,6 +11,7 @@ import { Button, Card, Chip, Help, Icon, ProgressBar, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import type { ReadTextStyle } from './ReadWord';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
+import { TranslationRow } from '../TranslationRow';
 
 /**
  * The check after reading (reader/check.ts), one question at a time, in place of the reader's end
@@ -185,7 +186,7 @@ function Evidence({ line, index, word, textStyle, onPlay }: { line: TextLine; in
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
         <View style={{ flex: 1, gap: 2 }}>
           <LineWords line={line} word={word} textStyle={textStyle} />
-          <Text style={{ ...type.footnote, color: c.textSecondary }}>{line.english}</Text>
+          <TranslationRow><Text style={{ ...type.footnote, color: c.textSecondary }}>{line.english}</Text></TranslationRow>
         </View>
         {onPlay ? (
           <Tappable

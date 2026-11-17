@@ -13,6 +13,7 @@ import { useFont } from './AppFont';
 import { Ruby } from './Ruby';
 import type { FuriganaSetting, Run } from '../core/furigana';
 import { CardSentence } from './CardSentence';
+import { TranslationRow } from './TranslationRow';
 import type { SentenceGloss } from './useCardGlosses';
 
 type Block = RenderedSide['blocks'][number];
@@ -134,6 +135,13 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
     return null;
   };
 
+  // The shown translation is its own labeled row, so one that reads like a question isn't taken for a prompt.
+  const translationRow = (it: Item) => (
+    <View key={it.i} style={{ marginTop: space.xs, paddingHorizontal: space.m, paddingBottom: space.m }}>
+      <TranslationRow>{line(it)}</TranslationRow>
+    </View>
+  );
+
   return (
     <View style={{ gap: space.l }}>
       {groups.map((group) => {
@@ -161,6 +169,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, overflow: 'hidden' }}>
                 {group.map((it) => (hidden(it)
                   ? hintRow(it)
+                  : it.b.role === 'exampleTranslation' ? translationRow(it)
                   : <View key={it.i} style={{ padding: space.m, paddingTop: it.b.role === 'example' ? space.m : space.s }}>{line(it)}</View>))}
               </View>
             </View>
