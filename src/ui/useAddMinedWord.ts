@@ -6,6 +6,7 @@ import type { Note } from '../core/types';
 import type { AspectPair, Language } from '../reader/api';
 import { ASPECT_LANGUAGES, minedNote, pairFollowUp, type MinedNote, type PairFollowUp, type Pronunciation } from '../reader/mining';
 import { useApp } from './AppContext';
+import { connection } from './connection';
 import { haptic } from './haptics';
 import { useNoteQueue } from './useNoteQueue';
 
@@ -76,17 +77,19 @@ export function useAddMinedWord(): (add: AddWord) => Promise<boolean> {
   return useCallback(async ({ word, meaning, deck, language, pronunciation }: AddWord) => {
     let pair: AspectPair | null = null;
     // A phrase has no aspect. A failed lookup just opens the editor without a suggestion.
-    if (api && language && ASPECT_LANGUAGES.includes(language) && !/\s/.test(word.trim())) {
+    // Offline there's no lookup to wait on: the word is held for Claude below.
+    if (api && language && !connection.cantReachHome() && ASPECT_LANGUAGES.includes(language) && !/\s/.test(word.trim())) {
       pair = await api.aspectPair(language, word).catch(() => null);
     }
     if (!pair && api && language) {
       try {
-        await queue.add(language, deck, [{ entry: word, meaning: meaning ?? '' }]);
+        const added = await queue.add(language, deck, [{ entry: word, meaning: meaning ?? '' }]);
         haptic.success();
-        Alert.alert(`Added ${word} to your queue`, "Claude is writing an example sentence and translation. In a few minutes it will be ready to review on Today.");
+        if (added === 'held') Alert.alert(`Added ${word}`, `${connection.offline() ? "You're offline, so it goes to Claude when you're back online" : "Your server isn't answering, so it goes to Claude once it does"}. Then it will be ready to review on Today.`);
+        else Alert.alert(`Added ${word} to your queue`, "Claude is writing an example sentence and translation. In a few minutes it will be ready to review on Today.");
         return true;
       } catch {
-        // The server can't fill it in right now (no Claude key, or unreachable): the editor still works by hand.
+        // The server refused it (no Claude key): the editor still works by hand. Offline it was held instead.
       }
     }
     const saved = await edit(minedNote(word, meaning, deck, pronunciation, pair));

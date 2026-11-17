@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { studyDayStart } from '../core/day';
 import { hasMedia, readMedia, writeMedia } from '../media/mediaFiles';
-import { createWaniKaniApi, WaniKaniError, type WaniKaniApi, type WaniKaniProblem, type WaniKaniUser } from '../wanikani/api';
+import { API_BASE, createWaniKaniApi, WaniKaniError, type WaniKaniApi, type WaniKaniProblem, type WaniKaniUser } from '../wanikani/api';
 import { logOutcomes, type LogEntry } from '../wanikani/log';
 import { offlineData, wantedAudio, type OfflineData, type Snapshot } from '../wanikani/offline';
 import { makeSnapshot } from '../wanikani/offlineService';
@@ -15,6 +15,7 @@ import { DEFAULT_SRS, type SrsSystem } from '../wanikani/srs';
 import { clearOffline, clearToken, keepAudio, loadPrefs, loadSnapshot, loadState, loadToken, savePrefs, saveSnapshot, saveState, saveToken } from '../wanikani/storage';
 import type { WaniKaniStats } from '../wanikani/stats';
 import type { AppRepo } from './AppContext';
+import { guardedFetch, useBackOnline } from './connection';
 import { useWaniKaniStats } from './useWaniKaniStats';
 
 /** The deck list asks again at most this often; opening WaniKani or pulling to sync asks right away. */
@@ -126,7 +127,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     }, () => setToken(null));
   }, []);
 
-  const api = useMemo(() => (token ? createWaniKaniApi(token) : null), [token]);
+  const api = useMemo(() => (token ? createWaniKaniApi(token, guardedFetch(API_BASE)) : null), [token]);
   const { stats, readStats } = useWaniKaniStats(api);
   const readStatsRef = useRef(readStats);
   readStatsRef.current = readStats;
@@ -339,6 +340,8 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
 
   // At launch, and whenever the token changes.
   useEffect(() => { if (api) refresh(true); }, [api]); // eslint-disable-line react-hooks/exhaustive-deps
+  // And when the connection comes back, which sends the answers given offline.
+  useBackOnline(() => { if (api) void refresh(true); });
 
   const refreshStats = useCallback(() => {
     if (user && counts) readStatsRef.current(user, counts.apprentice, true);
@@ -346,7 +349,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
 
   const signIn = useCallback(async (value: string) => {
     const t = value.trim();
-    const u = await createWaniKaniApi(t).user();
+    const u = await createWaniKaniApi(t, guardedFetch(API_BASE)).user();
     await saveToken(t);
     setUser(u);
     setProblem(null);

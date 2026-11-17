@@ -1,6 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { syncStatusText } from '../../../anki/sync/runSync';
+import { syncLine } from '../../../anki/sync/runSync';
+import { useConnectionProblem } from '../../../ui/connection';
 import { answersFromLog } from '../../../wanikani/log';
 import { useApp } from '../../../ui/AppContext';
 import { ExtrasStrip } from '../../../ui/DailyExtras';
@@ -14,7 +15,8 @@ import { WaniKaniDeck } from '../../../ui/WaniKaniDeck';
 /** The Today tab: the first screen, with only what's for today. */
 export default function TodayRoute() {
   const router = useRouter();
-  const { repo, decks, backup, syncSettings, syncing, sync, refresh, loadProblem, collapse, wanikani, reader } = useApp();
+  const { repo, decks, backup, ankiUnsent, syncSettings, syncing, sync, refresh, loadProblem, collapse, wanikani, reader } = useApp();
+  const problem = useConnectionProblem();
   // Counts change while studying, so load them again each time this screen comes back into view.
   // `decks` starts empty until the first load from the database finishes, which is not the same as
   // having no decks: the empty state waits for it.
@@ -50,8 +52,7 @@ export default function TodayRoute() {
       } : undefined}
       sync={syncSettings?.enabled ? {
         syncing,
-        status: syncStatusText(syncSettings, new Date()),
-        failed: !!syncSettings.lastError,
+        ...syncLine(syncSettings, { problem, unsent: ankiUnsent }, new Date()),
         onSync: () => sync(),
       } : undefined}
     />

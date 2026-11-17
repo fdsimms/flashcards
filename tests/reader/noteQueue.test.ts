@@ -93,6 +93,16 @@ describe('bannerOf', () => {
   it('says what failed when that is all there is', () => {
     expect(bannerOf(queue(note({ state: 'failed' })))).toMatchObject({ tone: 'failed', message: "Couldn't fill in 1 note" });
   });
+
+  it('counts the words held offline, even before the queue has loaded', () => {
+    expect(bannerOf(null, { waiting: 2, refused: 0 })).toEqual({
+      tone: 'waiting', message: '2 words waiting for Claude', hint: "They'll be sent when you're back online",
+    });
+    expect(bannerOf(queue(note({ state: 'waiting' })), { waiting: 2, refused: 1 })).toMatchObject({ tone: 'failed', message: "Couldn't send 1 word to Claude" });
+    expect(bannerOf(null, { waiting: 1, refused: 0 }, true)?.hint).toBe("They'll be sent once your server answers");
+    // A ready note still comes first: it's the one thing to do now.
+    expect(bannerOf(queue(note({ id: 1 })), { waiting: 2, refused: 0 })?.tone).toBe('ready');
+  });
 });
 
 describe('the store', () => {

@@ -1,12 +1,15 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Text, View } from 'react-native';
+import { heldCounts } from '../reader/heldNotes';
 import { bannerOf } from '../reader/noteQueue';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { Reveal } from './motion';
 import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
+import { useConnectionProblem } from './connection';
+import { useHeldWords } from './held';
 import { useNoteQueue } from './useNoteQueue';
 
 /** What Today's note queue card says, or null with nothing queued (the card hides itself). */
@@ -14,11 +17,13 @@ export function useNoteQueueBanner() {
   const router = useRouter();
   const { reader } = useApp();
   const { queue } = useNoteQueue(reader.api);
-  const banner = bannerOf(queue);
+  const held = useHeldWords();
+  const problem = useConnectionProblem();
+  const banner = reader.api ? bannerOf(queue, heldCounts(held), problem === 'server') : null;
   return banner ? { ...banner, open: () => { haptic.tap(); router.push('/read-note-queue'); } } : null;
 }
 
-/** The card on Today: words waiting for Claude, ready to review, or that it couldn't fill in. */
+/** The card on Today: words waiting for Claude (held on the phone while offline, or with Claude), ready to review, or that it couldn't fill in. */
 export function NoteQueueCard({ banner }: { banner: NonNullable<ReturnType<typeof useNoteQueueBanner>> }) {
   const c = useTheme();
   const { tone, message, hint } = banner;

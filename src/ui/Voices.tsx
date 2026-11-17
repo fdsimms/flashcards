@@ -162,7 +162,7 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: Repo; api: Api
               <AzureVoiceRows
                 voices={searchVoices(azure.voices, query)}
                 selected={choice?.azureVoice}
-                none={query.trim() ? undefined : { label: 'Don\'t record', hint: 'Cards without a recording are read with the iPhone voice below' }}
+                none={query.trim() ? undefined : { label: 'No Azure voice', hint: 'Notes aren\'t recorded. Cards without audio are read aloud with the iPhone voice below' }}
                 onChoose={(v) => {
                   if (v) sample.play(lang.sample ?? lang.name, v.voice, lang.sample ? lang.lang : undefined);
                   choose(lang.key, { azureVoice: v?.voice });

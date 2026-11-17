@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bestHeard, recognitionLocale, spokenAnswerNote, speakingErrorText } from '../../src/core/speaking';
+import { bestHeard, canListen, hearingText, recognitionLocale, spokenAnswerNote, speakingErrorText } from '../../src/core/speaking';
 
 describe('spokenAnswerNote', () => {
   it('mentions tones only for Thai', () => {
@@ -40,5 +40,31 @@ describe('speakingErrorText', () => {
     expect(speakingErrorText('aborted')).toBeUndefined();
     expect(speakingErrorText('no-speech')).toMatch(/^Didn't hear anything/);
     expect(speakingErrorText('something new')).toMatch(/Try again/);
+  });
+});
+
+describe('canListen', () => {
+  const base = { on: true, locale: 'th-TH', offline: false, onDevice: false };
+  it('hides the microphone offline only for a language heard by Apple\'s servers', () => {
+    expect(canListen(base)).toBe(true);
+    expect(canListen({ ...base, offline: true })).toBe(false);
+    expect(canListen({ ...base, offline: true, onDevice: true })).toBe(true);
+    // A build that can't tell keeps it, as before.
+    expect(canListen({ ...base, offline: true, onDevice: null })).toBe(true);
+  });
+
+  it('needs the setting and a language that can be heard', () => {
+    expect(canListen({ ...base, on: false })).toBe(false);
+    expect(canListen({ ...base, locale: undefined })).toBe(false);
+  });
+});
+
+describe('hearingText', () => {
+  it('says whether a language can be heard offline', () => {
+    expect(hearingText(true, true)).toBe('Can be heard, also offline');
+    expect(hearingText(true, false)).toBe('Can be heard when online');
+    expect(hearingText(true, null)).toBe('Can be heard');
+    expect(hearingText(false, null)).toBe("Can't be heard");
+    expect(hearingText(null, null)).toBe('');
   });
 });

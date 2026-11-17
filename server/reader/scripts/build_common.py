@@ -33,6 +33,7 @@ import sys
 import tempfile
 import urllib.request
 from collections import Counter
+from functools import cache
 from importlib.metadata import version
 from multiprocessing import Pool
 from pathlib import Path
@@ -61,7 +62,8 @@ _LATIN = re.compile(r"[A-Za-z]")
 # noise), and no letter three times running (งงงงง).
 _THAI_WORD = re.compile(r"[\u0e01-\u0e39\u0e40-\u0e45\u0e47-\u0e4e]{2,}")
 _REPEATED = re.compile(r"(.)\1\1")
-# A leading vowel and one letter (เธ), what an OCR or a split leaves of a word.
+# A leading vowel and one letter (เธ), what an OCR or a split leaves of a word. A few real words are
+# written so (ไป, ใน, แก), so the dictionary's own spellings are kept.
 _BROKEN = re.compile(r"[\u0e40-\u0e44].")
 
 
@@ -92,11 +94,18 @@ SUBTITLE_STRIDE = (
 _segmenter: Trie | None = None
 
 
+@cache
+def _dictionary() -> frozenset[str]:
+    from pythainlp.corpus import thai_words
+
+    return frozenset(thai_words())
+
+
 def _thai_word(word: str) -> bool:
     return (
         bool(_THAI_WORD.fullmatch(word))
         and not _REPEATED.search(word)
-        and not _BROKEN.fullmatch(word)
+        and (not _BROKEN.fullmatch(word) or word in _dictionary())
     )
 
 

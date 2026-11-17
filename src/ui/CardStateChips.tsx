@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { Text, View, type ViewStyle } from 'react-native';
 import type { StateChip } from '../core/stateChip';
 import { Icon } from './kit';
 import { radius, smooth, space, type, useTheme } from './theme';
@@ -12,12 +12,12 @@ const NAMES = { new: 'New', learning: 'Learning', relearning: 'Relearning' } as 
  * step), and Leech for a note tagged one. Colors follow the deck's counts (new blue, learning red);
  * a leech is the warning amber. A Review card shows none. The card's state is read from its schedule.
  */
-export function CardStateChips({ chip, leech }: { chip?: StateChip; leech: boolean }) {
+export function CardStateChips({ chip, leech, style }: { chip?: StateChip; leech: boolean; style?: ViewStyle }) {
   const c = useTheme();
   if (!chip && !leech) return null;
   const pill = { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, borderRadius: radius.pill, ...smooth, paddingHorizontal: space.m, paddingVertical: space.xs } as const;
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s, ...style }}>
       {chip ? (
         <View
           accessible

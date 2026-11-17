@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { failureText } from '../core/failure';
-import { recognitionLocale } from '../core/speaking';
+import { supportsOnDevice } from '../../modules/speech-on-device';
+import { hearingText, recognitionLocale } from '../core/speaking';
 import type { Repo } from '../db/repo';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import { Group, Help, Screen, SectionTitle, SwitchRow } from './kit';
@@ -48,7 +49,8 @@ export function SpeakingSettings({ repo }: { repo: Repo }) {
         <SectionTitle>On this iPhone</SectionTitle>
         <Group>
           {LANGUAGE_ORDER.filter((l) => l !== 'en').map((l, i) => {
-            const heard = locales ? !!recognitionLocale(LANGUAGES[l].speech, locales) : null;
+            const locale = locales ? recognitionLocale(LANGUAGES[l].speech, locales) : undefined;
+            const heard = locales ? !!locale : null;
             return (
               <View
                 key={l}
@@ -57,14 +59,14 @@ export function SpeakingSettings({ repo }: { repo: Repo }) {
               >
                 <Text style={{ ...type.body, color: c.text, flex: 1 }}>{LANGUAGES[l].name}</Text>
                 <Text style={{ ...type.subhead, color: heard ? c.countDue : c.textSecondary }}>
-                  {heard === null ? '' : heard ? 'Can be heard' : "Can't be heard"}
+                  {hearingText(heard, locale ? supportsOnDevice(locale) : null)}
                 </Text>
               </View>
             );
           })}
         </Group>
         <Help>
-          {"A language that can't be heard has no microphone; type it instead. Adding it in the iPhone's Settings, General, Keyboard, Dictation may keep it on the phone."}
+          {"A language that can't be heard has no microphone; type it instead. One heard only when online has no microphone while you're offline. Adding it in the iPhone's Settings, General, Keyboard, Dictation may keep it on the phone."}
         </Help>
       </ScrollView>
     </Screen>
