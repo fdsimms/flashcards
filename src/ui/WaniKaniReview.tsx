@@ -9,7 +9,7 @@ import { problemText, WaniKaniError, type WaniKaniApi, type WaniKaniUser } from 
 import { toKana } from '../wanikani/kana';
 import { offlineText } from '../wanikani/offline';
 import { canSkip, withoutSkipped } from '../wanikani/skipped';
-import { apprenticeBlocks, droppedText, lessonsToday } from '../wanikani/prefs';
+import { droppedText, lessonsToday } from '../wanikani/prefs';
 import { audioFileName, audioFor } from '../wanikani/production';
 import {
   buildSession, canAskLater, canMarkCorrect, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
@@ -142,8 +142,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         // Reviews first; lessons only when none are up or they were asked for.
         const lessonKind = lessonsOnly || reviews.length === 0;
         const offered = lessonsToday(lessons.length, prefs.newPerDay, started);
-        const held = apprenticeBlocks(apprentice, prefs.maxApprentice) && offered > 0;
-        const lessonCount = held ? 0 : offered;
+        const lessonCount = lessonsToday(lessons.length, prefs.newPerDay, started, apprentice, prefs.maxApprentice);
+        const held = lessonCount === 0 && offered > 0;
         // With the radicals and kanji they're made of, for the "Made of" row: one more batched read.
         const own = await src.subjects((lessonKind ? lessons : reviews).map((a) => a.subjectId));
         const read = new Map((await withComponents(own, src.subjects)).map((s) => [s.id, s]));
@@ -403,7 +403,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           {droppedNote()}
           {next.held && prefs.maxApprentice !== null ? (
             <Text style={{ ...type.subhead, color: c.warning, textAlign: 'center' }}>
-              {`Lessons are paused: ${next.apprentice} ${next.apprentice === 1 ? 'item is' : 'items are'} at Apprentice, over your limit of ${prefs.maxApprentice}.`}
+              {`Lessons are paused: ${next.apprentice} ${next.apprentice === 1 ? 'item is' : 'items are'} at Apprentice, at your limit of ${prefs.maxApprentice}.`}
             </Text>
           ) : null}
           </ScrollView>
