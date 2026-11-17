@@ -6,6 +6,9 @@ import { deckRowX } from './deckLayout';
 import { haptic } from './haptics';
 import { lift, radius, smooth, useTheme } from './theme';
 
+/** A thin ring of the screen's color around a mark, so it reads over text. */
+const halo = (color: string) => ({ shadowColor: color, shadowOpacity: 1, shadowRadius: 1.5, shadowOffset: { width: 0, height: 0 } }) as const;
+
 /**
  * Dragging a deck on the deck list to reorder, nest or unnest it: touch a row's handle in Edit mode,
  * then move it up or
@@ -21,7 +24,10 @@ import { lift, radius, smooth, useTheme } from './theme';
  *
  * Unlike that list, the rows don't slide apart to open a gap: they sit in rounded cards that clip
  * them, and a gap can be in a card or between two. The line shows where the deck will land
- * instead, indented to its depth, the way a sidebar does.
+ * instead, indented to its depth, the way a sidebar does. The lifted deck is a small pill held at
+ * the row's right edge (where its handle is) rather than the whole row, because a full-width card
+ * covers the gap it's choosing: the gap is picked from the card's middle, so the line was always
+ * under it. The pill is centered on the row's middle, so the gap is picked as it always was.
  *
  * Positions are measured once, when the drag starts (nothing moves under it after that but the
  * scroll), in the content's own coordinates (`measureLayout` against the view holding the rows),
@@ -33,6 +39,11 @@ const DEPTH_STEP = 32;
 /** How close to the top or bottom edge the card has to be for the list to scroll. */
 const AUTOSCROLL_ZONE = 56;
 const AUTOSCROLL_STEP = 8;
+/** The lifted deck is a pill this tall, and no wider than this, so the rows around the drop line stay in view. */
+const CHIP_HEIGHT = 52;
+const CHIP_MAX_WIDTH = 220;
+/** The drop line's end dot. */
+const DOT = 12;
 /** The navigation bar under the status bar, and the tab bar above the home indicator, which the list scrolls under. */
 const NAV_BAR = 44;
 const TAB_BAR = 49;
@@ -237,29 +248,32 @@ export function useDeckDrag(opts: {
     onContentSizeChange: (_w: number, h: number) => { contentHeight.current = h; },
   };
 
-  // Last inside the view holding the rows, so it's drawn over them and outside their cards.
+  // Last inside the view holding the rows, so it's drawn over them and outside their cards. The
+  // line comes first so the pill passes over its right end; its halo, in the screen's color, keeps
+  // it apart from the text of the rows it crosses.
   const overlay = card ? (
     <>
       <Animated.View
         pointerEvents="none"
         style={{
-          position: 'absolute', top: -4, left: lineX, width: Animated.subtract(card.at.x + card.at.width, lineX),
+          position: 'absolute', top: -DOT / 2, left: lineX, width: Animated.subtract(card.at.x + card.at.width, lineX),
           flexDirection: 'row', alignItems: 'center', transform: [{ translateY: lineY }],
         }}
       >
-        <View style={{ width: 8, height: 8, borderRadius: 4, borderWidth: 2, borderColor: c.accent, backgroundColor: c.bg }} />
-        <View style={{ flex: 1, height: 2, borderRadius: 1, backgroundColor: c.accent }} />
+        <View style={{ width: DOT, height: DOT, borderRadius: DOT / 2, borderWidth: 2, borderColor: c.accent, backgroundColor: c.bg, ...halo(c.bg) }} />
+        <View style={{ flex: 1, height: 3, borderRadius: 1.5, backgroundColor: c.accent, ...halo(c.bg) }} />
       </Animated.View>
       <Animated.View
         pointerEvents="none"
         style={{
-          position: 'absolute', left: card.at.x, top: card.at.y, width: card.at.width,
-          borderRadius: radius.l, ...smooth, backgroundColor: c.surface, ...lift(c, 'high'),
-          transform: [{ translateX: cardX }, { translateY: cardY }, { scale: 1.03 }],
+          position: 'absolute', left: card.at.x, width: card.at.width, top: card.at.y + (card.at.height - CHIP_HEIGHT) / 2,
+          alignItems: 'flex-end', transform: [{ translateX: cardX }, { translateY: cardY }],
         }}
       >
-        {/* Clipped inside the shadow's box: a view that clips can't also cast one. */}
-        <View style={{ borderRadius: radius.l, ...smooth, overflow: 'hidden' }}>{latest.current.renderCard(card.deck)}</View>
+        <View style={{ maxWidth: CHIP_MAX_WIDTH, borderRadius: radius.pill, ...smooth, backgroundColor: c.surface, ...lift(c, 'high') }}>
+          {/* Clipped inside the shadow's box: a view that clips can't also cast one. */}
+          <View style={{ height: CHIP_HEIGHT, borderRadius: radius.pill, ...smooth, overflow: 'hidden', justifyContent: 'center' }}>{latest.current.renderCard(card.deck)}</View>
+        </View>
       </Animated.View>
     </>
   ) : null;

@@ -1,9 +1,11 @@
+import { Stack } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { failureText } from '../core/failure';
 import type { Api, CastKind, CastVoice, Language, Settings } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { audioKey, castInfo, clampPitch, pitchLabel, PITCH_MAX, PITCH_MIN, PITCH_STEP, voicesForKind } from '../reader/storyCast';
+import { searchVoices } from '../reader/voiceSlots';
 import { AzureVoiceRows, useAzureVoices } from './AzureVoices';
 import { haptic } from './haptics';
 import { Button, ErrorNote, Group, Help, Icon, NavRow, Screen, SectionTitle, Tappable } from './kit';
@@ -87,14 +89,17 @@ export function ReadCastKind({ api, language, kind, current, onSettings, onAudit
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- runs once, on leaving
 
-  const options = azure.voices ? voicesForKind(azure.voices, kind) : undefined;
+  const [query, setQuery] = useState('');
+  const searching = query.trim() !== '';
+  const options = azure.voices ? searchVoices(voicesForKind(azure.voices, kind), query) : undefined;
   const span = PITCH_MAX - PITCH_MIN;
   const at = (pitch - PITCH_MIN) / span;
   const zero = (0 - PITCH_MIN) / span;
 
   return (
     <Screen title={label}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <Stack.SearchBar placeholder="Search voices" autoCapitalize="none" onChangeText={(e) => setQuery(e.nativeEvent.text)} />
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {error ? <ErrorNote message={error} /> : null}
         {azure.error ? <ErrorNote message={azure.error} onRetry={azure.retry} /> : null}
         {audio.error ? <ErrorNote message={audio.error} /> : null}
@@ -105,7 +110,8 @@ export function ReadCastKind({ api, language, kind, current, onSettings, onAudit
             <AzureVoiceRows voices={options} selected={voice} onChoose={(v) => { if (v) choose(v.voice); }} />
           </Group>
         ) : null}
-        {options && options.length === 0 ? <Help>{`Azure lists no ${gender === 'male' ? "men's" : "women's"} voices in ${LANGUAGES[language].name}.`}</Help> : null}
+        {options && searching && options.length === 0 ? <Help>{`No voices match "${query.trim()}".`}</Help> : null}
+        {options && !searching && options.length === 0 ? <Help>{`Azure lists no ${gender === 'male' ? "men's" : "women's"} voices in ${LANGUAGES[language].name}.`}</Help> : null}
         <Group>
           <NavRow first label="Audition voices" detail="Play one line in each voice to compare them" onPress={onAudition} />
         </Group>

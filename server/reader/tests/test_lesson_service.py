@@ -59,6 +59,7 @@ class Fakes:
     def __init__(self) -> None:
         self.asked: list[tuple[str, str]] = []
         self.spoken: list[tuple[str, str, str]] = []
+        self.rates: list[float] = []
 
     async def write(
         self, language: str, scene: str, feedback: str, learner: str = "male"
@@ -66,8 +67,9 @@ class Fakes:
         self.asked.append((scene, feedback))
         return good_plan(), USAGE
 
-    async def synthesize(self, text: str, voice: str, locale: str) -> bytes:
+    async def synthesize(self, text: str, voice: str, locale: str, rate: float = 1.0) -> bytes:
         self.spoken.append((text, voice, locale))
+        self.rates.append(rate)
         return text.encode()
 
     async def renderer(
@@ -124,6 +126,18 @@ def test_speaks_the_narrator_in_english_and_the_rest_in_the_language(tmp_path: P
     assert by_text["Listen."] == ("en-US-GuyNeural", "en-US")
     assert by_text["Un café."] == ("fr-FR-HenriNeural", "fr-FR")
     assert by_text["Un café, s'il vous plaît."] == ("fr-FR-DeniseNeural", "fr-FR")  # B, the woman
+
+
+def test_teaching_clips_are_spoken_slower_and_the_rest_at_normal_speed(tmp_path: Path) -> None:
+    conn = store.connect(":memory:")
+    fakes = Fakes()
+    run(conn, fakes, tmp_path)
+    rates = list(zip((t for t, _, _ in fakes.spoken), fakes.rates, strict=True))
+    assert any(rate == lesson.TEACH_RATE for _, rate in rates)
+    assert all(
+        rate == 1.0 for text, rate in rates if text in ("Listen.", "That's the end of the lesson.")
+    )
+    assert {rate for _, rate in rates} == {1.0, lesson.TEACH_RATE}
 
 
 def test_a_narrator_chosen_for_the_lesson_speaks_only_the_narration(tmp_path: Path) -> None:

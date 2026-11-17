@@ -3,6 +3,8 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import type { Api } from '../reader/api';
 import { afterLine, linePosition, skipTo, type Handoff } from '../reader/handoff';
 import { lineAudio } from '../reader/lineAudio';
+import { createPreloader, type Preloader } from '../reader/preload';
+import { preloadFiles } from './preloadFiles';
 
 /**
  * The one audio player Read & Listen's reader plays lines on, kept above the router so that Play
@@ -26,6 +28,8 @@ export interface MiniPlayer {
 export interface ReaderPlayerHost {
   /** Plays the reader's lines. Shared, so the reader never creates one of its own. */
   player: AudioPlayer;
+  /** Fetches the next line while one plays; shared so a line fetched in the reader is there for the mini-player. */
+  preloader: Preloader;
   /** What's playing after the reader was closed on Play all; null when nothing is. */
   mini: MiniPlayer | null;
   /** The reader opened: whatever was carrying on stops, and the reader plays from here. */
@@ -45,6 +49,8 @@ const FOREGROUND_MODE = { playsInSilentMode: true, shouldPlayInBackground: false
 function useReaderPlayer(): ReaderPlayerHost {
   const player = useRef<AudioPlayer | null>(null);
   player.current ??= createAudioPlayer(null, { keepAudioSessionActive: true });
+  const preloader = useRef<Preloader | null>(null);
+  preloader.current ??= createPreloader(preloadFiles);
   const carrying = useRef<{ api: Api; handoff: Handoff } | null>(null);
   const listener = useRef<{ remove: () => void } | null>(null);
   // Counts line starts: a slow line is fetched before it plays, and a newer start wins.
@@ -66,6 +72,7 @@ function useReaderPlayer(): ReaderPlayerHost {
     starting.current++;
     if (pause) player.current!.pause();
     player.current!.clearLockScreenControls();
+    preloader.current!.clear();
     setMini(null);
     setAudioModeAsync(FOREGROUND_MODE).catch(() => undefined);
   }, []);
@@ -75,7 +82,7 @@ function useReaderPlayer(): ReaderPlayerHost {
     if (!c) return;
     const mine = ++starting.current;
     const { api, handoff } = c;
-    const audio = await lineAudio(api, handoff.textId, line, handoff.rate);
+    const audio = (await preloader.current!.take(handoff.textId, line, handoff.rate)) ?? (await lineAudio(api, handoff.textId, line, handoff.rate));
     if (starting.current !== mine || carrying.current !== c) return;
     c.handoff = { ...handoff, current: line, played: 1 };
     player.current!.replace(audio.source);
@@ -83,6 +90,9 @@ function useReaderPlayer(): ReaderPlayerHost {
     player.current!.play();
     player.current!.setActiveForLockScreen(true, { title: handoff.title, artist: 'Franki', albumTitle: 'Read & Listen' });
     show(true);
+    // The line after this one's last repeat, fetched while this plays (a line repeated forever has none).
+    const after = Number.isFinite(c.handoff.repeat) ? afterLine({ ...c.handoff, played: c.handoff.repeat }) : null;
+    if (after?.kind === 'line') preloader.current!.prefetch(api, handoff.textId, after.line, handoff.rate);
   }, [show]);
 
   const onStatus = useCallback((status: { didJustFinish: boolean; playing: boolean; isBuffering: boolean; error?: unknown }) => {
@@ -121,6 +131,7 @@ function useReaderPlayer(): ReaderPlayerHost {
   }, [onStatus, show]);
 
   const release = useCallback(() => {
+    preloader.current!.clear();
     player.current!.pause();
     player.current!.clearLockScreenControls();
   }, []);
@@ -141,7 +152,7 @@ function useReaderPlayer(): ReaderPlayerHost {
 
   useEffect(() => () => { listener.current?.remove(); player.current?.remove(); }, []);
 
-  return { player: player.current, mini, claim, handOff, release, toggle, skip, stop };
+  return { player: player.current, preloader: preloader.current, mini, claim, handOff, release, toggle, skip, stop };
 }
 
 const Host = createContext<ReaderPlayerHost | null>(null);
