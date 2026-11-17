@@ -9,11 +9,13 @@ import urllib.parse
 from pathlib import Path
 
 import anyio
+import httpx
 import pytest
 
 from anki.collection import Collection  # noqa: F401 - first, for the anki package's imports
 from conftest import call, call_error
 from franki_mcp import forms
+from franki_mcp.reader import ReaderClient, ReaderSettings
 from franki_mcp.server import build_server
 from mcp import Client
 
@@ -282,3 +284,49 @@ async def test_the_daily_fill_runs_only_once_turned_on(cm, desktop, tmp_path):
             await anyio.sleep(1.5)
             tg.cancel_scope.cancel()
     assert desktop.run("sync", "+", "fields", f"nid:{esperar}")["fields"][str(esperar)]["Forms"].startswith("present · yo: espero")
+
+
+def japanese_verbs(desktop) -> list[int]:
+    """Two Japanese verbs and a noun on the server."""
+    note = lambda **f: json.dumps(f)  # noqa: E731
+    return desktop.run(
+        "add-notetype", "Omnilanguage", OMNI_FIELDS + ",KanaReading",
+        "+", "add-fields-note", "Omnilanguage", "日本語", note(Entry="帰る", Meaning="to go home", Language="japanese", PartOfSpeech="verb", KanaReading="かえる"),
+        "+", "add-fields-note", "Omnilanguage", "日本語", note(Entry="食べた", Meaning="ate", Language="japanese", PartOfSpeech="verb"),
+        "+", "add-fields-note", "Omnilanguage", "日本語", note(Entry="劇団", Meaning="theater company", Language="japanese", PartOfSpeech="noun"),
+        "+", "sync",
+    )["notes"]
+
+
+def reader_answering(answer):
+    """Read & Listen's /api/conjugations, answering `answer` (None: out of reach), and what it was asked."""
+    asked: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        asked.append(json.loads(request.content))
+        return httpx.Response(200, json={"forms": answer}) if answer is not None else httpx.Response(502)
+
+    return ReaderClient(ReaderSettings("http://reader", "pw"), httpx.AsyncClient(transport=httpx.MockTransport(handler))), asked
+
+
+async def test_japanese_verbs_are_conjugated_by_read_and_listen(cm, desktop, tmp_path):
+    kaeru, tabeta, _ = japanese_verbs(desktop)
+    reader, asked = reader_answering([["past · plain: 帰った / かえった"], None])
+    unimorph = forms.UniMorph(tmp_path / "unimorph", fetch=Files())
+    async with Client(build_server(cm, unimorph=unimorph, reader=reader)) as c:
+        done = await call(c, "fill_forms", dry_run=False)
+    assert asked == [{"verbs": [{"entry": "帰る", "reading": "かえる"}, {"entry": "食べた", "reading": ""}]}]
+    assert done["filled"] == [{"note_id": kaeru, "word": "帰る", "lines": ["past · plain: 帰った / かえった"]}]
+    assert done["not_found"] == ["食べた"] and done["other_languages"] == {"japanese nouns": 1}
+    assert "past · plain: <form> / <reading>" in done["table"]["japanese"]
+    fields = desktop.run("sync", "+", "fields", f"nid:{kaeru} OR nid:{tabeta}")["fields"]
+    assert fields[str(kaeru)]["Forms"] == "past · plain: 帰った / かえった" and fields[str(tabeta)]["Forms"] == ""
+
+
+async def test_without_read_and_listen_japanese_verbs_are_left_empty_and_it_says_why(cm, desktop, tmp_path):
+    japanese_verbs(desktop)
+    reader, _ = reader_answering(None)
+    async with Client(build_server(cm, unimorph=forms.UniMorph(tmp_path / "unimorph", fetch=Files()), reader=reader)) as c:
+        preview = await call(c, "fill_forms")
+    assert preview["would_fill"] == [] and preview["not_found"] == []
+    assert preview["japanese_skipped"].startswith("2 Japanese verbs were left empty")

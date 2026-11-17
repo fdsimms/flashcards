@@ -64,6 +64,9 @@ class Morpheme:
     pos: str
     pos2: str
     form: str = ""  # the conjugation form (意志推量形 for 会おう), for grammar_japanese.py
+    kind: str = (
+        ""  # the conjugation type (五段-ラ行 for 帰る, 下一段-バ行 for 食べる), for conjugation.py
+    )
 
     @property
     def forms(self) -> tuple[str, ...]:
@@ -134,6 +137,7 @@ def morphemes(text: str, short: bool = False) -> list[Morpheme]:
             m.part_of_speech()[0],
             m.part_of_speech()[1],
             m.part_of_speech()[5],
+            m.part_of_speech()[4],
         )
         for m in _tokenizer().tokenize(text, mode)
     ]

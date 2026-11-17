@@ -103,7 +103,7 @@ def build_app(environ=os.environ) -> tuple[Starlette, CollectionManager]:
     @asynccontextmanager
     async def lifespan(a):
         async with serve(a) as state, anyio.create_task_group() as tg:
-            tg.start_soon(forms.auto_fill_loop, cm, forms.UniMorph(data / "unimorph"))
+            tg.start_soon(forms.auto_fill_loop, cm, forms.UniMorph(data / "unimorph"), forms.FIRST_RUN_DELAY, forms.EVERY, reader_client)
             if reader_settings:
                 tg.start_soon(tiers.daily_loop, cm, reader_client)
             yield state

@@ -19,6 +19,11 @@ pronoun added (vengarse: me vengo, te vengas; bać się: boję się). A verb tha
 whose table is less than half full, is reported as not found and left empty, for Claude to fill on
 request (tagged `forms-unverified`) or the user in Anki.
 
+Japanese verbs aren't in UniMorph's tables in a usable form: their lines are worked out by Read &
+Listen's server (/api/conjugations, conjugation.py there), from the verb's conjugation type as
+Sudachi gives it, each form with its reading in kana. Without Read & Listen they're left empty and
+the result says why.
+
 A noun is looked up without the demonstrative its Entry starts with ("ten ptak"). One whose Entry
 names a plural ("te buty", "ci rodzice") gets only the plural lines, from the noun UniMorph lists
 that plural under (but, rodzic), or from the word itself for a noun with no singular (spodnie).
@@ -53,6 +58,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from .collection import CollectionManager
+from .reader import ReaderClient
 
 log = logging.getLogger(__name__)
 
@@ -187,9 +193,16 @@ TABLES: dict[str, Language] = {
         _persons("future", "FUT", SLAVIC_PERSONS_RU),
     )),
 }
+# Japanese verbs are conjugated by Read & Listen's server, not read from UniMorph (`japanese_lines`).
+JAPANESE = "japanese"
+# The lines a Japanese verb gets (server/reader conjugation.ROWS), for writing a not_found one by hand.
+JAPANESE_TABLE = ["polite · present", "polite · past", "polite · negative", "polite · past negative", "past · plain",
+                  "negative · plain", "negative · plain past", "te-form · plain", "potential · plain", "passive · plain",
+                  "causative · plain", "volitional · plain", "volitional · polite", "conditional · ば", "conditional · たら",
+                  "imperative · plain", "desire · plain"]
 # What the Language field may say for each (Omnilanguage's own names, as `speechLangFor` reads them).
 LANGUAGE_NAMES = {"spanish": "spanish", "español": "spanish", "espanol": "spanish", "polish": "polish", "polski": "polish",
-                  "russian": "russian", "русский": "russian"}
+                  "russian": "russian", "русский": "russian", "japanese": JAPANESE, "日本語": JAPANESE}
 
 
 def form_lines(language: Language, forms: list[tuple[str, frozenset[str]]], transform: Transform = _same,
@@ -400,8 +413,9 @@ NOUN = "noun"
 class Candidate:
     note_id: int
     word: str
-    language: str  # a TABLES key
+    language: str  # a TABLES key, or JAPANESE
     pos: str = VERB  # VERB or NOUN
+    reading: str = ""  # a Japanese verb's KanaReading
 
 
 @dataclass
@@ -437,7 +451,10 @@ def survey(col: Collection, query: str = "") -> Survey:
         if not word:
             continue
         pos = _pos_of(note)
-        if lang in TABLES and (pos == VERB or TABLES[lang].noun_tables):
+        if lang == JAPANESE and pos == VERB:
+            reading = _plain(note["KanaReading"]) if "KanaReading" in note else ""
+            candidates.append(Candidate(nid, word, lang, pos, reading))
+        elif lang in TABLES and (pos == VERB or TABLES[lang].noun_tables):
             candidates.append(Candidate(nid, word, lang, pos))
         else:
             name = (_plain(note["Language"]).lower() if "Language" in note else "") or "(no language)"
@@ -470,6 +487,8 @@ class FillPlan:
     unsupported: dict[str, int]
     # Candidates beyond the limit, for the next call.
     remaining: int
+    # Why the Japanese verbs among them weren't conjugated (Read & Listen out of reach), if they weren't.
+    japanese_skipped: str = ""
 
 
 def plan(survey_: Survey, unimorph: UniMorph, limit: int | None) -> FillPlan:
@@ -481,6 +500,8 @@ def plan(survey_: Survey, unimorph: UniMorph, limit: int | None) -> FillPlan:
     filled: list[Planned] = []
     not_found: list[str] = []
     for lang, cs in by_lang.items():
+        if lang == JAPANESE:
+            continue  # conjugated by Read & Listen's server (`japanese_lines`)
         language = TABLES[lang]
         verbs = [c for c in cs if c.pos == VERB]
         nouns = [noun_of(language, c.word) for c in cs if c.pos == NOUN]
@@ -533,23 +554,53 @@ class FillResult:
     written: int
 
 
-async def fill(cm: CollectionManager, unimorph: UniMorph, query: str, limit: int | None, dry_run: bool) -> FillResult:
-    """Finds the notes (a read), works out their lines from UniMorph outside the lock (a download the first time), then writes them."""
+async def japanese_lines(reader: ReaderClient | None, verbs: list[Candidate], fill_: FillPlan) -> None:
+    """Adds the Japanese verbs' lines to `fill_`, from Read & Listen's /api/conjugations, or says
+    why it couldn't (`japanese_skipped`); a verb it can't conjugate is not found."""
+    if not verbs:
+        return
+    try:
+        if reader is None:
+            raise ToolError("Read & Listen isn't connected to the MCP.")
+        found: list[list[str] | None] = []
+        for start in range(0, len(verbs), MAX_PER_CALL):
+            batch = verbs[start : start + MAX_PER_CALL]
+            body = {"verbs": [{"entry": c.word, "reading": c.reading} for c in batch]}
+            found += (await reader.post("/api/conjugations", body))["forms"]
+    except ToolError as e:
+        fill_.japanese_skipped = f"{len(verbs)} Japanese verbs were left empty: their forms come from Read & Listen. {e}"
+        return
+    for c, lines in zip(verbs, found, strict=True):
+        if lines:
+            fill_.filled.append(Planned(c.note_id, c.word, lines))
+        else:
+            fill_.not_found.append(c.word)
+
+
+async def fill(cm: CollectionManager, unimorph: UniMorph, query: str, limit: int | None, dry_run: bool,
+               reader: ReaderClient | None = None) -> FillResult:
+    """Finds the notes (a read), works out their lines from UniMorph outside the lock (a download the first time),
+    and Japanese verbs' from Read & Listen, then writes them."""
     found = await cm.read(lambda col: survey(col, query))
     planned = await anyio.to_thread.run_sync(plan, found, unimorph, limit)
+    chosen = found.candidates if limit is None else found.candidates[:limit]
+    await japanese_lines(reader, [c for c in chosen if c.language == JAPANESE], planned)
     if dry_run or not planned.filled:
         return FillResult(planned, 0)
     return FillResult(planned, await cm.write(lambda col: apply(col, planned)))
 
 
-async def auto_fill_loop(cm: CollectionManager, unimorph: UniMorph, first_delay: float = FIRST_RUN_DELAY, every: float = EVERY) -> None:
+async def auto_fill_loop(cm: CollectionManager, unimorph: UniMorph, first_delay: float = FIRST_RUN_DELAY, every: float = EVERY,
+                         reader: ReaderClient | None = None) -> None:
     """Once a day, while it's turned on (`set_forms_auto_fill`), fills every Omnilanguage verb's and noun's empty Forms field."""
     await anyio.sleep(first_delay)
     while True:
         try:
             if await cm.read(lambda col: bool(col.get_config(AUTO_FILL_KEY, False))):
-                result = await fill(cm, unimorph, "", None, dry_run=False)
+                result = await fill(cm, unimorph, "", None, dry_run=False, reader=reader)
                 log.info("forms filled on %d notes; %d not found", result.written, len(result.plan.not_found))
+                if result.plan.japanese_skipped:
+                    log.info(result.plan.japanese_skipped)
         except MissingField:
             log.info("forms auto-fill is on, but the Omnilanguage note type has no Forms field yet")
         except Exception:  # noqa: BLE001 - a failed run waits for the next one
@@ -557,7 +608,7 @@ async def auto_fill_loop(cm: CollectionManager, unimorph: UniMorph, first_delay:
         await anyio.sleep(every)
 
 
-def register(server: MCPServer, cm: CollectionManager, unimorph: UniMorph) -> None:
+def register(server: MCPServer, cm: CollectionManager, unimorph: UniMorph, reader: ReaderClient | None = None) -> None:
     """The forms tools: fill_forms (a batch, previewed first) and set_forms_auto_fill."""
 
     @server.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True))
@@ -565,7 +616,10 @@ def register(server: MCPServer, cm: CollectionManager, unimorph: UniMorph) -> No
         """Fills the Forms field of Omnilanguage verbs and nouns that have it empty, from Wiktionary's
         inflection tables (UniMorph), for Franki's forms practice: one line per form, like
         "present · yo: espero" or "accusative · singular: ptaka". Verbs in Spanish, Polish and Russian
-        so far, nouns in Polish (a plural Entry like "te buty" gets the plural lines only). `query` narrows the notes (Anki's search syntax, e.g.
+        so far, nouns in Polish (a plural Entry like "te buty" gets the plural lines only). Japanese
+        verbs are conjugated by Read & Listen's server from their type as Sudachi gives it, each form
+        with its reading ("past · plain: 帰った / かえった"); without Read & Listen they're left empty
+        and japanese_skipped says so. `query` narrows the notes (Anki's search syntax, e.g.
         "deck:Español"); `limit` is how many notes, up to 100. With dry_run (the default) nothing is
         written: show the user the lines first. A field that has anything in it is never changed.
         Nouns UniMorph's older copy of Wiktionary lacks are looked up on kaikki.org. Words neither has come back in not_found and are left empty. Fill those only if
@@ -574,7 +628,7 @@ def register(server: MCPServer, cm: CollectionManager, unimorph: UniMorph) -> No
         if not 1 <= limit <= MAX_PER_CALL:
             raise ToolError(f"limit must be between 1 and {MAX_PER_CALL}.")
         try:
-            result = await fill(cm, unimorph, query, limit, dry_run)
+            result = await fill(cm, unimorph, query, limit, dry_run, reader)
         except MissingField as e:
             raise ToolError(MissingField.MESSAGE) from e
         except OSError as e:
@@ -591,13 +645,15 @@ def register(server: MCPServer, cm: CollectionManager, unimorph: UniMorph) -> No
             "not_found": p.not_found,
             "other_languages": p.unsupported,
             "remaining": p.remaining,
+            **({"japanese_skipped": p.japanese_skipped} if p.japanese_skipped else {}),
             "auto_fill": auto,
-            "source": "Wiktionary via UniMorph and kaikki.org, CC BY-SA",
+            "source": "Wiktionary via UniMorph and kaikki.org, CC BY-SA; Japanese conjugated from Sudachi's verb types",
             # The lines a Forms field holds, per language: for writing a not_found word's by hand.
             "table": {
                 **{lang: [f"{t.group} · {r.label}: <form>" for t in TABLES[lang].tables for r in t.rows] for lang in sorted(TABLES)},
                 **{f"{lang} nouns": [f"{t.group} · {r.label}: <form>" for t in TABLES[lang].noun_tables for r in t.rows]
                    for lang in sorted(TABLES) if TABLES[lang].noun_tables},
+                JAPANESE: [f"{row}: <form> / <reading>" for row in JAPANESE_TABLE],
             },
         }
 

@@ -863,6 +863,14 @@ def test_a_japanese_card_is_recorded_from_its_reading_where_sudachi_reads_it_oth
     assert speech.readings == ["こんにち", None, None, None]
 
 
+def test_conjugates_japanese_verbs_for_the_forms_field() -> None:
+    c = voice_client(FakeSpeech())
+    body = {"verbs": [{"entry": "帰る", "reading": "かえる"}, {"entry": "劇団"}]}
+    forms = c.post("/api/conjugations", json=body, headers=AUTH).json()["forms"]
+    assert "past · plain: 帰った / かえった" in forms[0] and forms[1] is None
+    assert c.post("/api/conjugations", json=body).status_code == 401
+
+
 def test_lists_the_reading_each_japanese_word_is_recorded_from() -> None:
     c = voice_client(FakeSpeech())
     words = [{"text": "今日", "reading": "こんにち"}, {"text": "劇団", "reading": "げきだん"}]

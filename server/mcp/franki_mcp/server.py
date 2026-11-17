@@ -19,7 +19,7 @@ def build_server(cm: CollectionManager, speech: SpeechClient | None = None, unim
     client = reader or ReaderClient(reader_settings)
     tools.register(server, cm, speech, client)
     # Wiktionary's inflection tables, kept beside the collection's folder.
-    forms.register(server, cm, unimorph or forms.UniMorph(cm.path.parent.parent / "unimorph"))
+    forms.register(server, cm, unimorph or forms.UniMorph(cm.path.parent.parent / "unimorph"), client)
     reader_tools.register(server, client)
     # Ordering new cards by how common the word is, with the ranks from the same server.
     frequency.register(server, cm, client)
