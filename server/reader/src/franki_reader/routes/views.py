@@ -16,13 +16,12 @@ from franki_reader.generator import (
 from franki_reader.languages import (
     HIDDEN_LANGUAGES,
     LANGUAGES,
-    Code,
 )
 from franki_reader.reader import (
     render,
     render_line,
 )
-from franki_reader.store import StoredText, Topic
+from franki_reader.store import StoredText
 
 
 def instant(at: datetime) -> str:
@@ -176,15 +175,4 @@ def shelf_json(engine: Engine) -> dict[str, Any]:
             if j.story_id is None
         ],
         "story": story_out,
-    }
-
-
-def topic_json(t: Topic, engine: Engine, language: Code) -> dict[str, Any]:
-    # A topic's ready count is per language, so it's read again for the one being shown.
-    t = store.get_topic(engine.conn, t.id, language) or t
-    return {
-        "id": t.id,
-        "name": t.name,
-        "ready": t.ready,
-        "state": engine.topic_state(t, language),
     }

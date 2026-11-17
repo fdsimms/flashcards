@@ -1,9 +1,15 @@
-// Read & Listen's server API (server/reader/src/franki_reader/app.py). Every call sends the
-// passphrase; the server's own error sentences are passed through, since they're written to be
-// shown as they are.
+// Read & Listen's server API (server/reader/src/franki_reader/app.py lists it; routes/ has the code).
+// Every call sends the passphrase; the server's own error sentences are passed through, since
+// they're written to be shown as they are.
+//
+// A route that answers with a Pydantic model has its types generated into apiTypes.gen.ts
+// (`npm run api:types`), and the types here are aliases of those. The hand-written types below are
+// the routes not converted yet: converting one means a response model on the server, rerunning
+// that, and an alias here in place of the hand-written type.
 
 import { Refusal } from '../core/failure';
 import type { DrillQuestionIn } from '../core/grammarDrills';
+import type { components } from './apiTypes.gen';
 import { isSlow } from './playbackRate';
 
 /**
@@ -16,11 +22,13 @@ export function readerAddress(syncServer: string): string {
 
 /** What a text being written is doing, in order (the server's TextStage). */
 export type TextStage = 'writing' | 'translating' | 'recording';
+type Schemas = components['schemas'];
+
 // 'writing': a text is being written now. 'failed': the last write failed and the server is
 // waiting before it tries that topic again by itself.
-export type TopicState = 'ready' | 'writing' | 'failed' | 'idle';
+export type TopicState = Schemas['TopicOut']['state'];
 
-export type Topic = { id: number; name: string; ready: number; state: TopicState };
+export type Topic = Schemas['TopicOut'];
 
 // `helper` and `phrase` are there when a word of its line goes with the form (a preposition, an auxiliary):
 // "в" and "in hoods".
@@ -387,7 +395,7 @@ export type Progress = {
 };
 
 // A topic idea not yet added. `fit` is the share of its key words the deck knows.
-export type Suggestion = { name: string; fit: number };
+export type Suggestion = Schemas['SuggestionOut'];
 
 // An audio lesson (server lesson.py): asked for by a scene, then written and spoken in the background.
 export type LessonState = 'making' | 'ready' | 'failed';

@@ -7,15 +7,37 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from franki_reader import store
-from franki_reader.engine import NotAvailable, NotFound
+from franki_reader.engine import Engine, NotAvailable, NotFound, TopicState
 from franki_reader.generator import (
     MODEL,
     Form,
     TextModel,
 )
+from franki_reader.languages import Code
 from franki_reader.routes.context import AppContext
-from franki_reader.routes.views import rendered_text, shelf_json, topic_json
+from franki_reader.routes.views import rendered_text, shelf_json
+from franki_reader.store import Topic
 from franki_reader.suggestions import suggest
+
+
+class TopicOut(BaseModel):
+    """A reading topic as the app lists it, its count and state in the language being shown."""
+
+    id: int
+    name: str
+    ready: int  # texts on this topic waiting to be read
+    state: TopicState
+
+
+class SuggestionOut(BaseModel):
+    name: str
+    fit: float  # the share of the idea's words the deck knows
+
+
+def topic_json(t: Topic, engine: Engine, language: Code) -> TopicOut:
+    # A topic's ready count is per language, so it's read again for the one being shown.
+    t = store.get_topic(engine.conn, t.id, language) or t
+    return TopicOut(id=t.id, name=t.name, ready=t.ready, state=engine.topic_state(t, language))
 
 
 class NewTopic(BaseModel):
@@ -46,13 +68,13 @@ def router(ctx: AppContext) -> APIRouter:
     engine = ctx.engine
 
     @routes.get("/api/topics", dependencies=authed)
-    async def topics(background: BackgroundTasks) -> list[dict[str, Any]]:
+    async def topics(background: BackgroundTasks) -> list[TopicOut]:
         background.add_task(engine.top_up)
         language = engine.language()
         return [topic_json(t, engine, language) for t in store.list_topics(engine.conn, language)]
 
     @routes.post("/api/topics", dependencies=authed)
-    async def add_topic(body: NewTopic, background: BackgroundTasks) -> dict[str, Any]:
+    async def add_topic(body: NewTopic, background: BackgroundTasks) -> TopicOut:
         try:
             topic = store.add_topic(engine.conn, body.name, engine.clock())
         except ValueError as e:
@@ -67,11 +89,11 @@ def router(ctx: AppContext) -> APIRouter:
         return Response(status_code=204)
 
     @routes.get("/api/suggestions", dependencies=authed)
-    async def suggestions() -> list[dict[str, Any]]:
+    async def suggestions() -> list[SuggestionOut]:
         language = engine.language()
         _, lexicon = engine.snapshot(language)
         taken = store.topic_names(engine.conn)
-        return [{"name": s.name, "fit": s.fit} for s in suggest(lexicon, taken, language)]
+        return [SuggestionOut(name=s.name, fit=s.fit) for s in suggest(lexicon, taken, language)]
 
     @routes.post("/api/topics/{topic_id}/next", dependencies=authed)
     async def next_text(

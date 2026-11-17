@@ -1,0 +1,5753 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "franki-reader",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/check": {
+      "get": {
+        "summary": "Check",
+        "operationId": "check_api_check_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/status": {
+      "get": {
+        "summary": "Status",
+        "operationId": "status_api_status_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Status Api Status Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/franki-counts": {
+      "put": {
+        "summary": "Franki Counts",
+        "operationId": "franki_counts_api_franki_counts_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FrankiCountsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/topics": {
+      "get": {
+        "summary": "Topics",
+        "operationId": "topics_api_topics_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TopicOut"
+                  },
+                  "title": "Response Topics Api Topics Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add Topic",
+        "operationId": "add_topic_api_topics_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewTopic"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/topics/{topic_id}": {
+      "delete": {
+        "summary": "Remove Topic",
+        "operationId": "remove_topic_api_topics__topic_id__delete",
+        "parameters": [
+          {
+            "name": "topic_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Topic Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/suggestions": {
+      "get": {
+        "summary": "Suggestions",
+        "operationId": "suggestions_api_suggestions_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SuggestionOut"
+                  },
+                  "title": "Response Suggestions Api Suggestions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/topics/{topic_id}/next": {
+      "post": {
+        "summary": "Next Text",
+        "operationId": "next_text_api_topics__topic_id__next_post",
+        "parameters": [
+          {
+            "name": "topic_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Topic Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/NextIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Next Text Api Topics  Topic Id  Next Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/shelf": {
+      "get": {
+        "summary": "Shelf",
+        "operationId": "shelf_api_shelf_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Shelf Api Shelf Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/shelf/write": {
+      "post": {
+        "summary": "Write",
+        "operationId": "write_api_shelf_write_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriteIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Write Api Shelf Write Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/story": {
+      "post": {
+        "summary": "Start Story",
+        "operationId": "start_story_api_story_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StoryIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Start Story Api Story Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/texts/{text_id}/skip": {
+      "post": {
+        "summary": "Skip",
+        "operationId": "skip_api_texts__text_id__skip_post",
+        "parameters": [
+          {
+            "name": "text_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Text Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/texts": {
+      "get": {
+        "summary": "Past Texts",
+        "operationId": "past_texts_api_texts_get",
+        "parameters": [
+          {
+            "name": "story",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Story"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Past Texts Api Texts Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/audit/texts": {
+      "get": {
+        "summary": "Audit Texts",
+        "description": "Every language's shown texts, for review (audit.py); `/api/texts` is the app's.",
+        "operationId": "audit_texts_api_audit_texts_get",
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Language"
+            }
+          },
+          {
+            "name": "story",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Story"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 3650,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Days"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Audit Texts Api Audit Texts Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/audit/texts/{text_id}": {
+      "get": {
+        "summary": "Audit Text",
+        "operationId": "audit_text_api_audit_texts__text_id__get",
+        "parameters": [
+          {
+            "name": "text_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Text Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Audit Text Api Audit Texts  Text Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/relisten": {
+      "get": {
+        "summary": "Relisten Texts",
+        "description": "Finished texts due to be heard again, as `/api/texts` lists them (relisten.py), with\n`listens` wanted per text: 3 (1, 4 and 10 days), 1 (3 days) or 0 (none).",
+        "operationId": "relisten_texts_api_relisten_get",
+        "parameters": [
+          {
+            "name": "listens",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 3,
+              "minimum": 0,
+              "default": 3,
+              "title": "Listens"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Relisten Texts Api Relisten Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/texts/{text_id}/listen": {
+      "post": {
+        "summary": "Listened",
+        "description": "A finished text heard again with its words hidden. Only counted: no reading, no\ndifficulty change. 404 for a text that wasn't read to the end.",
+        "operationId": "listened_api_texts__text_id__listen_post",
+        "parameters": [
+          {
+            "name": "text_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Text Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/texts/{text_id}": {
+      "get": {
+        "summary": "Get Text",
+        "operationId": "get_text_api_texts__text_id__get",
+        "parameters": [
+          {
+            "name": "text_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Text Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Text Api Texts  Text Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/texts/{text_id}/lines/{line}/audio": {
+      "get": {
+        "summary": "Line Audio",
+        "operationId": "line_audio_api_texts__text_id__lines__line__audio_get",
+        "parameters": [
+          {
+            "name": "text_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Text Id"
+            }
+          },
+          {
+            "name": "line",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Line"
+            }
+          },
+          {
+            "name": "speed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "normal",
+                "slow"
+              ],
+              "type": "string",
+              "default": "normal",
+              "title": "Speed"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/texts/{text_id}/lines/{line}/slow": {
+      "get": {
+        "summary": "Slow Line",
+        "description": "Records the line slowly if it isn't yet, and says when each of its words is spoken in\nthat recording (`times`, one [start, end] in milliseconds or null per word of the line, as\n`words` has them), so the reader can follow along: the normal recording's times don't fit.",
+        "operationId": "slow_line_api_texts__text_id__lines__line__slow_get",
+        "parameters": [
+          {
+            "name": "text_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Text Id"
+            }
+          },
+          {
+            "name": "line",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Line"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Slow Line Api Texts  Text Id  Lines  Line  Slow Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/texts/{text_id}/choice": {
+      "post": {
+        "summary": "Choose",
+        "operationId": "choose_api_texts__text_id__choice_post",
+        "parameters": [
+          {
+            "name": "text_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Text Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChoiceIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/texts/{text_id}/reading": {
+      "post": {
+        "summary": "Reading",
+        "operationId": "reading_api_texts__text_id__reading_post",
+        "parameters": [
+          {
+            "name": "text_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Text Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/words": {
+      "get": {
+        "summary": "Words",
+        "operationId": "words_api_words_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Words Api Words Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/words/clear": {
+      "post": {
+        "summary": "Clear Word",
+        "operationId": "clear_word_api_words_clear_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClearWord"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/texts/{text_id}/lines/{line}/explain": {
+      "post": {
+        "summary": "Explain Line",
+        "operationId": "explain_line_api_texts__text_id__lines__line__explain_post",
+        "parameters": [
+          {
+            "name": "text_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Text Id"
+            }
+          },
+          {
+            "name": "line",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Line"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExplainIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Explain Line Api Texts  Text Id  Lines  Line  Explain Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/texts/{text_id}/lines/{line}/phrase": {
+      "post": {
+        "summary": "Explain Phrase In Line",
+        "operationId": "explain_phrase_in_line_api_texts__text_id__lines__line__phrase_post",
+        "parameters": [
+          {
+            "name": "text_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Text Id"
+            }
+          },
+          {
+            "name": "line",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Line"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhraseIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Explain Phrase In Line Api Texts  Text Id  Lines  Line  Phrase Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/texts/{text_id}/lines/{line}/form": {
+      "post": {
+        "summary": "Explain Form In Line",
+        "operationId": "explain_form_in_line_api_texts__text_id__lines__line__form_post",
+        "parameters": [
+          {
+            "name": "text_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Text Id"
+            }
+          },
+          {
+            "name": "line",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Line"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormExplainIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Explain Form In Line Api Texts  Text Id  Lines  Line  Form Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/texts/{text_id}/lines/{line}/natural": {
+      "post": {
+        "summary": "Check Line",
+        "operationId": "check_line_api_texts__text_id__lines__line__natural_post",
+        "parameters": [
+          {
+            "name": "text_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Text Id"
+            }
+          },
+          {
+            "name": "line",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Line"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Check Line Api Texts  Text Id  Lines  Line  Natural Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "summary": "Settings",
+        "operationId": "settings_api_settings_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Settings Api Settings Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update Settings",
+        "operationId": "update_settings_api_settings_patch",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Update Settings Api Settings Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/voices": {
+      "get": {
+        "summary": "Voices",
+        "operationId": "voices_api_voices_get",
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 20,
+              "title": "Language"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Voices Api Voices Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/speech": {
+      "post": {
+        "summary": "Speak",
+        "operationId": "speak_api_speech_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeechIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cast/sample": {
+      "post": {
+        "summary": "Cast Sample",
+        "operationId": "cast_sample_api_cast_sample_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CastSampleIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cast/scene": {
+      "post": {
+        "summary": "Cast Scene",
+        "operationId": "cast_scene_api_cast_scene_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CastSceneIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/production/check": {
+      "post": {
+        "summary": "Check Attempt Route",
+        "description": "Never writes to Anki or grades a card: it only answers.",
+        "operationId": "check_attempt_route_api_production_check_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttemptIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Check Attempt Route Api Production Check Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/texts/{text_id}/retell": {
+      "post": {
+        "summary": "Retell",
+        "operationId": "retell_api_texts__text_id__retell_post",
+        "parameters": [
+          {
+            "name": "text_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Text Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetellIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Retell Api Texts  Text Id  Retell Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sentences": {
+      "post": {
+        "summary": "Sentences Route",
+        "description": "Never writes to Anki or grades a card: it only reads the snapshot of the deck.",
+        "operationId": "sentences_route_api_sentences_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SentencesIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Sentences Route Api Sentences Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grammar-topics": {
+      "get": {
+        "summary": "List Grammar Topics",
+        "operationId": "list_grammar_topics_api_grammar_topics_get",
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "th",
+                "es",
+                "de",
+                "fr",
+                "ru",
+                "el",
+                "pl",
+                "nb",
+                "ja",
+                "en"
+              ],
+              "type": "string",
+              "title": "Language"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response List Grammar Topics Api Grammar Topics Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add Grammar Topic",
+        "operationId": "add_grammar_topic_api_grammar_topics_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrammarTopicIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grammar-topics/{topic_id}": {
+      "get": {
+        "summary": "Get Grammar Topic",
+        "operationId": "get_grammar_topic_api_grammar_topics__topic_id__get",
+        "parameters": [
+          {
+            "name": "topic_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Topic Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Grammar Topic Api Grammar Topics  Topic Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Grammar Topic",
+        "operationId": "delete_grammar_topic_api_grammar_topics__topic_id__delete",
+        "parameters": [
+          {
+            "name": "topic_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Topic Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grammar-topics/{topic_id}/examples": {
+      "post": {
+        "summary": "New Grammar Examples",
+        "operationId": "new_grammar_examples_api_grammar_topics__topic_id__examples_post",
+        "parameters": [
+          {
+            "name": "topic_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Topic Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grammar-topics/{topic_id}/rewrite": {
+      "post": {
+        "summary": "Rewrite Grammar Topic",
+        "operationId": "rewrite_grammar_topic_api_grammar_topics__topic_id__rewrite_post",
+        "parameters": [
+          {
+            "name": "topic_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Topic Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/situations/scenes": {
+      "get": {
+        "summary": "Situation Scenes",
+        "operationId": "situation_scenes_api_situations_scenes_get",
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "th",
+                "es",
+                "de",
+                "fr",
+                "ru",
+                "el",
+                "pl",
+                "nb",
+                "ja",
+                "en"
+              ],
+              "type": "string",
+              "title": "Language"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Situation Scenes Api Situations Scenes Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/situations/turn": {
+      "post": {
+        "summary": "Situation Turn",
+        "description": "Never writes to Anki or grades a card: it only reads the snapshot of the deck.",
+        "operationId": "situation_turn_api_situations_turn_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SituationIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Situation Turn Api Situations Turn Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/situations/feedback": {
+      "post": {
+        "summary": "Situation Feedback",
+        "operationId": "situation_feedback_api_situations_feedback_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SituationIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Situation Feedback Api Situations Feedback Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/situations/slow": {
+      "post": {
+        "summary": "Situation Slow",
+        "description": "One of their lines again, spoken slowly by Azure: the clip's key for\n`/api/situations/audio/{key}`, or None when it couldn't be recorded. Made the first time it's\nasked for and kept like any clip.",
+        "operationId": "situation_slow_api_situations_slow_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlowClipIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "title": "Response Situation Slow Api Situations Slow Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/situations/audio/{key}": {
+      "get": {
+        "summary": "Situation Audio",
+        "operationId": "situation_audio_api_situations_audio__key__get",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lessons": {
+      "post": {
+        "summary": "Make Lesson",
+        "description": "Reads the deck's snapshot to keep the dialogue to words the learner knows; never writes to\nAnki or grades a card.",
+        "operationId": "make_lesson_api_lessons_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LessonIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Make Lesson Api Lessons Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Lessons Route",
+        "operationId": "lessons_route_api_lessons_get",
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "th",
+                    "es",
+                    "de",
+                    "fr",
+                    "ru",
+                    "el",
+                    "pl",
+                    "nb",
+                    "ja",
+                    "en"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Language"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Lessons Route Api Lessons Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lessons/{lesson_id}/audio": {
+      "get": {
+        "summary": "Lesson Audio Route",
+        "operationId": "lesson_audio_route_api_lessons__lesson_id__audio_get",
+        "parameters": [
+          {
+            "name": "lesson_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Lesson Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lessons/{lesson_id}": {
+      "delete": {
+        "summary": "Delete Lesson Route",
+        "operationId": "delete_lesson_route_api_lessons__lesson_id__delete",
+        "parameters": [
+          {
+            "name": "lesson_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Lesson Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mnemonics": {
+      "post": {
+        "summary": "Make Mnemonics",
+        "operationId": "make_mnemonics_api_mnemonics_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MnemonicIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "title": "Response Make Mnemonics Api Mnemonics Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/aspect-pair": {
+      "post": {
+        "summary": "Aspect Pair",
+        "operationId": "aspect_pair_api_aspect_pair_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AspectIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Aspect Pair Api Aspect Pair Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/glosses": {
+      "post": {
+        "summary": "Glosses",
+        "description": "Never writes to Anki or grades a card: it only reads the snapshot of the deck.",
+        "operationId": "glosses_api_glosses_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GlossesIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Glosses Api Glosses Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/progress": {
+      "get": {
+        "summary": "Progress",
+        "operationId": "progress_api_progress_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Progress Api Progress Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exposure-effect": {
+      "get": {
+        "summary": "Stretch Exposure Effect",
+        "description": "Whether stretch words were remembered better at their next review than similar words\nthat weren't (exposure_effect.py): an association from the log, not a controlled test.",
+        "operationId": "stretch_exposure_effect_api_exposure_effect_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 3650,
+              "minimum": 7,
+              "default": 90,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Stretch Exposure Effect Api Exposure Effect Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/costs": {
+      "get": {
+        "summary": "Costs",
+        "operationId": "costs_api_costs_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 3650,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Costs Api Costs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grammar": {
+      "get": {
+        "summary": "Get Grammar",
+        "operationId": "get_grammar_api_grammar_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Grammar Api Grammar Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grammar/choices": {
+      "get": {
+        "summary": "Get Grammar Choices",
+        "operationId": "get_grammar_choices_api_grammar_choices_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Grammar Choices Api Grammar Choices Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/drills": {
+      "post": {
+        "summary": "Drill",
+        "operationId": "drill_api_drills_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DrillsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Drill Api Drills Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/forms": {
+      "get": {
+        "summary": "Get Forms",
+        "description": "The primers for a language's word forms (the chip on a word's popup opens one). Static:\nnothing here asks Claude.",
+        "operationId": "get_forms_api_forms_get",
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "th",
+                "es",
+                "de",
+                "fr",
+                "ru",
+                "el",
+                "pl",
+                "nb",
+                "ja",
+                "en"
+              ],
+              "type": "string",
+              "title": "Language"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Forms Api Forms Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grammar/{point_id}": {
+      "get": {
+        "summary": "Get Grammar Point",
+        "operationId": "get_grammar_point_api_grammar__point_id__get",
+        "parameters": [
+          {
+            "name": "point_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Point Id"
+            }
+          },
+          {
+            "name": "examples",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 6,
+              "minimum": 1,
+              "default": 3,
+              "title": "Examples"
+            }
+          },
+          {
+            "name": "shuffle",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Shuffle"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Grammar Point Api Grammar  Point Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Choose Grammar",
+        "operationId": "choose_grammar_api_grammar__point_id__put",
+        "parameters": [
+          {
+            "name": "point_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Point Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrammarChoice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Choose Grammar Api Grammar  Point Id  Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grammar/stretch": {
+      "put": {
+        "summary": "Set Grammar Stretch",
+        "operationId": "set_grammar_stretch_api_grammar_stretch_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrammarStretchIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Set Grammar Stretch Api Grammar Stretch Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/difficulty": {
+      "put": {
+        "summary": "Set Difficulty",
+        "description": "Text difficulty for the current language (Settings: Harder 93%, Standard 95% or Easier\n97% known words), from the next text written. Answers as `next` in GET /api/progress does.",
+        "operationId": "set_difficulty_api_difficulty_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DifficultyIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Set Difficulty Api Difficulty Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grammar/level": {
+      "put": {
+        "summary": "Set Grammar Level",
+        "operationId": "set_grammar_level_api_grammar_level_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrammarLevelIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Set Grammar Level Api Grammar Level Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vocab-check": {
+      "get": {
+        "summary": "Get Vocab Check",
+        "description": "The vocabulary check's questions for a language (vocab_check.py). `state` is \"ready\" with\nthe `items`, \"preparing\" while Claude writes them (ask again in a few seconds), \"failed\"\nwhen it couldn't (not asked again for `VOCAB_RETRY`), or \"unavailable\" with no Claude key.",
+        "operationId": "get_vocab_check_api_vocab_check_get",
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "th",
+                "es",
+                "de",
+                "fr",
+                "ru",
+                "el",
+                "pl",
+                "nb",
+                "ja",
+                "en"
+              ],
+              "type": "string",
+              "title": "Language"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Vocab Check Api Vocab Check Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/note-queue": {
+      "get": {
+        "summary": "Get Note Queue",
+        "description": "The queued words (note_queue.py). Also the way a pass starts again after the server\nrestarted, or a failed word's wait is over.",
+        "operationId": "get_note_queue_api_note_queue_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Note Queue Api Note Queue Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add To Note Queue",
+        "operationId": "add_to_note_queue_api_note_queue_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteQueueIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Add To Note Queue Api Note Queue Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/note-queue/{note_id}/retry": {
+      "post": {
+        "summary": "Retry Queued Note",
+        "operationId": "retry_queued_note_api_note_queue__note_id__retry_post",
+        "parameters": [
+          {
+            "name": "note_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Note Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Retry Queued Note Api Note Queue  Note Id  Retry Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/note-queue/{note_id}": {
+      "delete": {
+        "summary": "Remove Queued Note",
+        "operationId": "remove_queued_note_api_note_queue__note_id__delete",
+        "parameters": [
+          {
+            "name": "note_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Note Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AspectIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "word": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Word"
+          },
+          "line": {
+            "type": "string",
+            "maxLength": 400,
+            "title": "Line",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "word"
+        ],
+        "title": "AspectIn"
+      },
+      "AttemptIn": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "sentence",
+              "translate"
+            ],
+            "title": "Kind"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "attempt": {
+            "type": "string",
+            "maxLength": 1200,
+            "minLength": 1,
+            "title": "Attempt"
+          },
+          "word": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Word",
+            "default": ""
+          },
+          "meaning": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Meaning",
+            "default": ""
+          },
+          "english": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "English",
+            "default": ""
+          },
+          "reference": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Reference",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "language",
+          "attempt"
+        ],
+        "title": "AttemptIn"
+      },
+      "CastChoice": {
+        "properties": {
+          "voice": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Voice"
+          },
+          "pitch": {
+            "type": "integer",
+            "maximum": 35.0,
+            "minimum": -30.0,
+            "title": "Pitch"
+          }
+        },
+        "type": "object",
+        "required": [
+          "voice",
+          "pitch"
+        ],
+        "title": "CastChoice",
+        "description": "The voice and pitch (a percent change) for one kind of story character."
+      },
+      "CastSampleIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "voice": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Voice"
+          },
+          "pitch": {
+            "type": "integer",
+            "maximum": 35.0,
+            "minimum": -30.0,
+            "title": "Pitch",
+            "default": 0
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female"
+            ],
+            "title": "Gender",
+            "default": "female"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "voice"
+        ],
+        "title": "CastSampleIn"
+      },
+      "CastSceneIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language"
+        ],
+        "title": "CastSceneIn"
+      },
+      "ChoiceIn": {
+        "properties": {
+          "choice": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Choice"
+          }
+        },
+        "type": "object",
+        "required": [
+          "choice"
+        ],
+        "title": "ChoiceIn"
+      },
+      "ClearWord": {
+        "properties": {
+          "word": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Word"
+          }
+        },
+        "type": "object",
+        "required": [
+          "word"
+        ],
+        "title": "ClearWord"
+      },
+      "DifficultyIn": {
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "harder",
+              "standard",
+              "easier"
+            ],
+            "title": "Level"
+          }
+        },
+        "type": "object",
+        "required": [
+          "level"
+        ],
+        "title": "DifficultyIn"
+      },
+      "DrillsIn": {
+        "properties": {
+          "points": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 30.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "default": 10
+          }
+        },
+        "type": "object",
+        "required": [
+          "points"
+        ],
+        "title": "DrillsIn"
+      },
+      "ExplainIn": {
+        "properties": {
+          "simple": {
+            "type": "boolean",
+            "title": "Simple",
+            "default": false
+          },
+          "in_language": {
+            "type": "boolean",
+            "title": "In Language",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ExplainIn"
+      },
+      "FormExplainIn": {
+        "properties": {
+          "word": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Word"
+          },
+          "lemma": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Lemma"
+          },
+          "form": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Form"
+          },
+          "helper": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Helper",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "word",
+          "lemma",
+          "form"
+        ],
+        "title": "FormExplainIn"
+      },
+      "FrankiCountsIn": {
+        "properties": {
+          "due": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Due"
+          },
+          "new": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "New"
+          }
+        },
+        "type": "object",
+        "required": [
+          "due",
+          "new"
+        ],
+        "title": "FrankiCountsIn"
+      },
+      "GlossSentence": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "english": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "English",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "GlossSentence"
+      },
+      "GlossesIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "sentences": {
+            "items": {
+              "$ref": "#/components/schemas/GlossSentence"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "title": "Sentences"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "sentences"
+        ],
+        "title": "GlossesIn"
+      },
+      "GrammarChoice": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "practice",
+              "avoid",
+              "normal"
+            ],
+            "title": "State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "GrammarChoice"
+      },
+      "GrammarLevelIn": {
+        "properties": {
+          "through": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Through"
+          }
+        },
+        "type": "object",
+        "required": [
+          "through"
+        ],
+        "title": "GrammarLevelIn"
+      },
+      "GrammarStretchIn": {
+        "properties": {
+          "uses": {
+            "type": "integer",
+            "maximum": 4.0,
+            "minimum": 1.0,
+            "title": "Uses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "uses"
+        ],
+        "title": "GrammarStretchIn"
+      },
+      "GrammarTopicIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "title"
+        ],
+        "title": "GrammarTopicIn"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LessonIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "scene": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Scene"
+          },
+          "narrator": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Narrator"
+          },
+          "particle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "khrap",
+                  "kha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Particle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "scene"
+        ],
+        "title": "LessonIn"
+      },
+      "MnemonicIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "entry": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Entry"
+          },
+          "meaning": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Meaning"
+          },
+          "transliteration": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Transliteration",
+            "default": ""
+          },
+          "context": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Context",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "entry",
+          "meaning"
+        ],
+        "title": "MnemonicIn"
+      },
+      "NewTopic": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "NewTopic"
+      },
+      "NextIn": {
+        "properties": {
+          "words": {
+            "items": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Words"
+          }
+        },
+        "type": "object",
+        "title": "NextIn"
+      },
+      "NoteQueueIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "deck": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Deck"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/QueuedEntry"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Entries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "deck",
+          "entries"
+        ],
+        "title": "NoteQueueIn"
+      },
+      "PhraseIn": {
+        "properties": {
+          "phrase": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Phrase"
+          },
+          "simple": {
+            "type": "boolean",
+            "title": "Simple",
+            "default": false
+          },
+          "in_language": {
+            "type": "boolean",
+            "title": "In Language",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "phrase"
+        ],
+        "title": "PhraseIn"
+      },
+      "QueuedEntry": {
+        "properties": {
+          "entry": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Entry"
+          },
+          "meaning": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Meaning",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "entry"
+        ],
+        "title": "QueuedEntry"
+      },
+      "ReadingIn": {
+        "properties": {
+          "rating": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "too_easy",
+                  "about_right",
+                  "too_hard"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "finished": {
+            "type": "boolean",
+            "title": "Finished",
+            "default": false
+          },
+          "words_glossed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Words Glossed",
+            "default": []
+          },
+          "words_flagged": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Words Flagged",
+            "default": []
+          },
+          "audio_speed": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.5,
+                "minimum": 0.5
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Speed"
+          },
+          "listen_only": {
+            "type": "boolean",
+            "title": "Listen Only",
+            "default": false
+          },
+          "seconds": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Seconds",
+            "default": 0
+          },
+          "check_right": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Right"
+          },
+          "check_asked": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Asked"
+          },
+          "quiz_right": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Quiz Right",
+            "default": []
+          },
+          "quiz_wrong": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Quiz Wrong",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "ReadingIn"
+      },
+      "RetellIn": {
+        "properties": {
+          "attempt": {
+            "type": "string",
+            "maxLength": 1200,
+            "minLength": 1,
+            "title": "Attempt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attempt"
+        ],
+        "title": "RetellIn"
+      },
+      "SentencesIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "default": 10
+          }
+        },
+        "type": "object",
+        "required": [
+          "language"
+        ],
+        "title": "SentencesIn"
+      },
+      "SettingsUpdate": {
+        "properties": {
+          "stretch_words": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "topic",
+                  "any"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stretch Words"
+          },
+          "lines": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "enum": [
+                  6,
+                  8,
+                  12
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lines"
+          },
+          "form": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "dialogue",
+                  "story"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Form"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "th",
+                  "es",
+                  "de",
+                  "fr",
+                  "ru",
+                  "el",
+                  "pl",
+                  "nb",
+                  "ja",
+                  "en"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "decks": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "propertyNames": {
+                  "enum": [
+                    "th",
+                    "es",
+                    "de",
+                    "fr",
+                    "ru",
+                    "el",
+                    "pl",
+                    "nb",
+                    "ja",
+                    "en"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decks"
+          },
+          "common": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer",
+                  "enum": [
+                    0,
+                    250,
+                    500,
+                    1000,
+                    2000,
+                    3000,
+                    5000,
+                    10000
+                  ]
+                },
+                "propertyNames": {
+                  "enum": [
+                    "th",
+                    "es",
+                    "de",
+                    "fr",
+                    "ru",
+                    "el",
+                    "pl",
+                    "nb",
+                    "ja",
+                    "en"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Common"
+          },
+          "voices": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "propertyNames": {
+                    "enum": [
+                      "male",
+                      "male2",
+                      "female",
+                      "female2"
+                    ]
+                  },
+                  "type": "object"
+                },
+                "propertyNames": {
+                  "enum": [
+                    "th",
+                    "es",
+                    "de",
+                    "fr",
+                    "ru",
+                    "el",
+                    "pl",
+                    "nb",
+                    "ja",
+                    "en"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voices"
+          },
+          "cast": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/CastChoice"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "propertyNames": {
+                    "enum": [
+                      "man",
+                      "woman",
+                      "boy",
+                      "girl",
+                      "elder_man",
+                      "elder_woman"
+                    ]
+                  },
+                  "type": "object"
+                },
+                "propertyNames": {
+                  "enum": [
+                    "th",
+                    "es",
+                    "de",
+                    "fr",
+                    "ru",
+                    "el",
+                    "pl",
+                    "nb",
+                    "ja",
+                    "en"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cast"
+          }
+        },
+        "type": "object",
+        "title": "SettingsUpdate"
+      },
+      "SituationFocus": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "lead": {
+            "type": "string",
+            "maxLength": 160,
+            "title": "Lead",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "SituationFocus"
+      },
+      "SituationIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "scene": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Scene"
+          },
+          "focus": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SituationFocus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roles": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SituationRoles"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/SituationLine"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "title": "Lines"
+          },
+          "speak": {
+            "type": "boolean",
+            "title": "Speak",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "scene"
+        ],
+        "title": "SituationIn"
+      },
+      "SituationLine": {
+        "properties": {
+          "speaker": {
+            "type": "string",
+            "enum": [
+              "them",
+              "you"
+            ],
+            "title": "Speaker"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "speaker",
+          "text"
+        ],
+        "title": "SituationLine"
+      },
+      "SituationRoles": {
+        "properties": {
+          "you": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "You"
+          },
+          "them": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Them"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female"
+            ],
+            "title": "Gender"
+          }
+        },
+        "type": "object",
+        "required": [
+          "you",
+          "them",
+          "name",
+          "gender"
+        ],
+        "title": "SituationRoles"
+      },
+      "SlowClipIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female"
+            ],
+            "title": "Gender"
+          },
+          "line": {
+            "type": "string",
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Line"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "gender",
+          "line"
+        ],
+        "title": "SlowClipIn"
+      },
+      "SpeechIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "voice": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Voice"
+          },
+          "rate": {
+            "type": "number",
+            "maximum": 2.0,
+            "minimum": 0.5,
+            "title": "Rate",
+            "default": 1.0
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20,
+                "minLength": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "voice"
+        ],
+        "title": "SpeechIn"
+      },
+      "StoryIn": {
+        "properties": {
+          "about": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "About",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "StoryIn"
+      },
+      "SuggestionOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "fit": {
+            "type": "number",
+            "title": "Fit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "fit"
+        ],
+        "title": "SuggestionOut"
+      },
+      "TopicOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "ready": {
+            "type": "integer",
+            "title": "Ready"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "writing",
+              "failed",
+              "idle"
+            ],
+            "title": "State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "ready",
+          "state"
+        ],
+        "title": "TopicOut",
+        "description": "A reading topic as the app lists it, its count and state in the language being shown."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WriteIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "form": {
+            "type": "string",
+            "enum": [
+              "dialogue",
+              "story"
+            ],
+            "title": "Form",
+            "default": "dialogue"
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "claude-sonnet-5-5",
+              "claude-haiku-5-5"
+            ],
+            "title": "Model",
+            "default": "claude-sonnet-5-5"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "WriteIn"
+      }
+    }
+  }
+}
