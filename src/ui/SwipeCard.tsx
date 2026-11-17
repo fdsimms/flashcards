@@ -10,13 +10,13 @@ import { useReduceMotion } from './motion';
 import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
 
 /** The card itself: a raised sheet that fills the space between the header and the buttons. */
-export function CardSurface({ children, overlay }: { children: React.ReactNode; overlay?: React.ReactNode }) {
+export function CardSurface({ children, overlay, color }: { children: React.ReactNode; overlay?: React.ReactNode; /** Fills the card instead of the theme's surface (WaniKani's subject colors). */ color?: string }) {
   const c = useTheme();
   return (
     <View
       style={{
         flex: 1, marginHorizontal: space.l, marginTop: space.xxl, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
-        backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, ...lift(c),
+        backgroundColor: color ?? c.surface, borderWidth: hairline, borderColor: color ? 'transparent' : c.border, ...lift(c),
       }}
     >
       {/* Clipped inside the shadow's box: a view that clips can't also cast one. */}

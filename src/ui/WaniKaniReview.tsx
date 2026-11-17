@@ -26,7 +26,7 @@ import type { WaniKaniState } from './useWaniKani';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 import { StagePopup, stagePopupMs } from './StagePopup';
-import { SubjectDetails, SubjectFront } from './WaniKaniCard';
+import { SubjectDetails, SubjectFront, subjectColor } from './WaniKaniCard';
 
 /** What a session is built from: WaniKani itself, or the offline copy when it can't be reached. */
 interface Source {
@@ -493,7 +493,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         ) : null}
         {droppedNote()}
         <ProgressBar value={sessionProgress(study.session)} />
-        <CardSurface overlay={popup ? <StagePopup key={popup.id} change={popup.change} /> : null}>
+        <CardSurface color={subjectColor(c, subject.type)} overlay={popup ? <StagePopup key={popup.id} change={popup.change} /> : null}>
           <ScrollView
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
@@ -502,7 +502,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
               <SubjectFront subject={subject} label={label} />
               {showMeaning || showReading ? (
                 <>
-                  <View style={{ height: hairline, backgroundColor: c.border }} />
+                  <View style={{ height: hairline, backgroundColor: c.wkLine }} />
                   <SubjectDetails
                     key={`${subject.id}:${question.kind}`}
                     subject={subject}
