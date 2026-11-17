@@ -1,4 +1,4 @@
-import { genderOf } from './gender';
+import { genderOf, leadingArticle } from './gender';
 import { fieldSegments } from './highlight';
 import { htmlToText, soundFiles } from './html';
 import { hasThai } from './script';
@@ -194,7 +194,11 @@ export const GENDER_WORDS: Record<string, string> = { m: 'masculine', f: 'femini
 const GENDER_PREFIXES: Record<string, Record<string, string>> = {
   ru: { m: 'мой', f: 'моя', n: 'моё' },
   pl: { m: 'ten', f: 'ta', n: 'to' },
+  es: { m: 'el', f: 'la' },
+  nb: { m: 'en', f: 'ei', n: 'et' },
 };
+/** Languages whose article is part of the word as it's said (el agua), so a recording or the voice includes it. Russian's and Polish's are only a reminder. */
+const SPOKEN_PREFIX = new Set(['es', 'nb']);
 
 function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): RenderedCard {
   const speechLang = speechLangFor(note);
@@ -202,7 +206,12 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   const entry = t(note, 'Entry');
   // What the phone's voice may say: nothing in a language that isn't known, which it would read as
   // English. A recording (`audioFile`) still plays.
-  const say = speechLang ? entry : undefined;
+  // A noun's article from its Gender (el / la, en / ei / et), unless the Entry already starts with one: that
+  // is how an exception is written (el agua is feminine, en bok may be feminine), and it must not get a second.
+  const lang2 = speechLang?.slice(0, 2) ?? '';
+  const genderWord = GENDER_PREFIXES[lang2]?.[t(note, 'Gender').toLowerCase()];
+  const prefix = genderWord && !leadingArticle(entry) && !entry.toLowerCase().startsWith(`${genderWord} `) ? genderWord : undefined;
+  const say = speechLang ? (prefix && SPOKEN_PREFIX.has(lang2) ? `${prefix} ${entry}` : entry) : undefined;
   const translit = t(note, 'Transliteration');
   // A Thai romanization's tone marks are colored by tone (toneColors.ts).
   const isThai = !!speechLang?.startsWith('th');
@@ -243,10 +252,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     return b;
   };
 
-  // Anki's template puts мой / моя / моё (ten / ta / to) before a Russian (Polish) noun wherever the word is shown,
-  // unless the Entry still starts with it, as a Polish note's did before the word moved out of the Entry.
-  const genderWord = GENDER_PREFIXES[speechLang?.slice(0, 2) ?? '']?.[t(note, 'Gender').toLowerCase()];
-  const prefix = genderWord && !entry.toLowerCase().startsWith(`${genderWord} `) ? genderWord : undefined;
+  // Anki's template puts the same word before the noun wherever it is shown (the Omnilanguage template).
   const pushEntry = (blocks: Block[]) => pushIf(blocks, entry, undefined, true, undefined, { ...(prefix ? { prefix } : {}), gender: genderOf(t(note, 'Gender')) });
 
   if (kind === 'forward') {
