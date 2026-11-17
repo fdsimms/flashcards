@@ -98,6 +98,10 @@ export interface AnkiDeckConfig {
   /** The preset's id, and its easy days (Monday to Sunday). */
   presetId?: number;
   easyDays?: number[];
+  /** Whether a card's sounds play on their own when a side is shown (Anki's "Don't play audio automatically", inverted). */
+  autoplay?: boolean;
+  /** Anki's "Maximum answer seconds": the most time one answer records. */
+  maxAnswerSecs?: number;
   /** Today-only limits: the limit, and the Anki day number it's for. */
   newLimitToday?: { limit: number; today: number };
   reviewLimitToday?: { limit: number; today: number };
@@ -151,6 +155,8 @@ export function deckParamsFromConfigs(configs: Record<string, AnkiDeckConfig>, d
       } : undefined,
       presetId: c.presetId,
       easyDays: c.easyDays?.length ? c.easyDays : undefined,
+      autoplay: c.autoplay,
+      maxAnswerSecs: c.maxAnswerSecs,
       newLimitToday: dayLimit(c.newLimitToday),
       reviewLimitToday: dayLimit(c.reviewLimitToday),
     });

@@ -186,7 +186,7 @@ describe('cardDocument', () => {
     expect(doc).toContain('<body class="card card2 nightMode night_mode">');
     expect(doc).toContain('.card { color: red; }');
     expect(doc).toContain('data-sound="hello.mp3"');
-    expect(doc).toContain('playSound(first.dataset.sound)');
+    expect(doc).toContain('playFrom(0)');
   });
 
   it("defines anki.imageOcclusion before the card's own script calls it, with Anki's layout for it", () => {
@@ -214,5 +214,41 @@ describe('cardDocument', () => {
     const dark = cardDocument('Hi', { css, ord: 0, dark: true, autoplay: false, colors: { background: '#123456', text: '#abcdef', cloze: '#fedcba' } });
     expect(dark.indexOf('body.card { background: #123456; color: #abcdef; }')).toBeGreaterThan(dark.indexOf(css));
     expect(cardDocument('Hi', { css, ord: 0, dark: false, autoplay: false })).not.toContain('body.card {');
+  });
+});
+
+describe('autoplay', () => {
+  /** Runs a page's player script with a stand-in Audio, and says which files played, in order. */
+  function runPlayer(page: string) {
+    const played: string[] = [];
+    const players: { file: string; onended?: () => void; paused: boolean; pause(): void; play(): void }[] = [];
+    function Audio(this: (typeof players)[number], file: string) {
+      Object.assign(this, { file, paused: false, pause() { this.paused = true; }, play() { played.push(file); } });
+      players.push(this);
+    }
+    const files = [...page.matchAll(/data-sound="([^"]+)"/g)].map((m) => m[1]);
+    const document = { querySelectorAll: () => files.map((sound) => ({ dataset: { sound } })) };
+    const script = page.match(/<script>\nvar player[\s\S]*?<\/script>/)![0].replace(/<\/?script>/g, '');
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    const playSound = new Function('document', 'Audio', 'window', `${script}; return playSound;`)(document, Audio, {}) as (f: string) => void;
+    return { played, players, playSound };
+  }
+  const opts = { css: '', ord: 0, dark: false };
+
+  it("plays each of a side's sounds in turn, as Anki does", () => {
+    const { played, players } = runPlayer(cardDocument('[sound:word.mp3] a sentence [sound:sentence.mp3]', { ...opts, autoplay: true }));
+    expect(played).toEqual(['word.mp3']);
+    players[0].onended!();
+    expect(played).toEqual(['word.mp3', 'sentence.mp3']);
+    players[1].onended!();
+    expect(played).toEqual(['word.mp3', 'sentence.mp3']);
+  });
+
+  it('stops the rest when a play button is tapped, and plays nothing on its own without autoplay', () => {
+    const tapped = runPlayer(cardDocument('[sound:a.mp3][sound:b.mp3]', { ...opts, autoplay: true }));
+    tapped.playSound('b.mp3');
+    expect(tapped.players[0].paused).toBe(true);
+    expect(tapped.played).toEqual(['a.mp3', 'b.mp3']);
+    expect(runPlayer(cardDocument('[sound:a.mp3][sound:b.mp3]', { ...opts, autoplay: false })).played).toEqual([]);
   });
 });

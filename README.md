@@ -42,7 +42,7 @@ Everything happens on the phone, with AnkiMobile.
 
 One app holds the collection at a time: don't study in AnkiMobile between bringing the collection into Franki and sending it back, or those answers are replaced. Importing again into Franki warns you first if Franki has answers that haven't gone back to Anki.
 
-Franki also imports Anki's "Notes in Plain Text" export (.txt or .tsv). Those cards start as new and stay in Franki only. Uses `#columns` / `#tags column` / `#deck` when present, otherwise the Omnilanguage field order in `src/import/models.ts`.
+Franki also imports Anki's "Notes in Plain Text" export, and other text files of notes (.txt, .tsv or .csv), separated as Anki guesses or as a `#separator` line says. Those cards start as new and stay in Franki only. Uses `#columns` / `#tags column` / `#deck` when present, otherwise the Omnilanguage field order in `src/import/models.ts`.
 
 ## Adding and editing notes
 
@@ -169,4 +169,4 @@ The study day starts at 4 AM, as in Anki, so a late-night session counts toward 
 
 ## Not built yet
 
-Changing a note's type, and editing a note type's fields, card templates or styling (do these in Anki and sync). Image Occlusion notes, and LaTeX and MathJax in cards. Optimizing FSRS parameters (Optimize is in Anki's deck options). Anki's full search syntax in Browse.
+Changing a note's type, and editing a note type's fields, card templates or styling (do these in Anki and sync). Making Image Occlusion notes (Image Occlusion cards made in Anki study as they do there), and LaTeX in cards (MathJax works). Changing a deck's Anki options, such as limits, steps and desired retention, and optimizing FSRS parameters (both are in Anki's deck options). Anki's full search syntax in Browse.

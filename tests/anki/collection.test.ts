@@ -47,6 +47,12 @@ describe('reading a collection', () => {
     expect(readDeckConfig(hex('221C0000803F0000803F0000803F0000803F0000803F0000003F00000000')).easyDays).toEqual([1, 1, 1, 1, 1, 0.5, 0]);
   });
 
+  it("reads a preset's autoplay and maximum answer seconds, with Anki's defaults when missing", () => {
+    // Anki's own encoding of "Don't play audio automatically" on and a 45 second maximum answer time.
+    expect(readDeckConfig(hex('B80101C0012D'))).toMatchObject({ autoplay: false, maxAnswerSecs: 45 });
+    expect(readDeckConfig(hex('48075046'))).toMatchObject({ autoplay: true, maxAnswerSecs: 60 });
+  });
+
   it("imports each card's own deck, filtered deck, new-card position and learning step", async () => {
     const rows = await readCollectionRows(FIXTURE);
     const data = buildExport(rows);

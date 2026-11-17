@@ -1,8 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { studiedKind } from '../../src/core/queue';
-import { bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../../src/core/session';
+import { answerTimeMs, bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../../src/core/session';
 import { NOW, omniNote } from '../support/fixtures';
+
+describe('answerTimeMs', () => {
+  it("caps an answer's time at the preset's maximum answer seconds, a minute without one", () => {
+    expect(answerTimeMs(95_000, undefined)).toBe(60_000);
+    expect(answerTimeMs(95_000, { maxAnswerSecs: 120 })).toBe(95_000);
+    expect(answerTimeMs(95_000, { maxAnswerSecs: 30 })).toBe(30_000);
+    expect(answerTimeMs(4_000, { maxAnswerSecs: 30 })).toBe(4_000);
+    // A clock that moved back records nothing rather than a negative time.
+    expect(answerTimeMs(-500, undefined)).toBe(0);
+  });
+});
 
 describe('bumpStudied', () => {
   it('counts first answers to new cards and answers to reviews, and takes them back on undo', () => {
