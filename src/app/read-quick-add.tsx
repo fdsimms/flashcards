@@ -3,7 +3,7 @@ import React from 'react';
 import { quickAddDecks } from '../reader/noteQueue';
 import { useApp } from '../ui/AppContext';
 import { Loading, Screen } from '../ui/kit';
-import { ReadQuickAdd } from '../ui/ReadQuickAdd';
+import { ReadQuickAdd } from '../ui/reader/ReadQuickAdd';
 import { useNoteQueue } from '../ui/useNoteQueue';
 
 /** Quick add, from the deck list: words for Claude to fill in on Read & Listen's server. */

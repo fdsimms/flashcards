@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import type { Language } from '../reader/api';
 import { castFor } from '../reader/storyCast';
 import { useApp } from '../ui/AppContext';
-import { ReadCast } from '../ui/ReadCast';
+import { ReadCast } from '../ui/reader/ReadCast';
 
 /** One language's story characters in Read & Listen (`language`: its code, th, es, de...). */
 export default function ReadCastRoute() {

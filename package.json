@@ -42,6 +42,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
+    "openapi-typescript": "^7.13.0",
     "typescript": "~6.0.3",
     "vitest": "^5.1.0"
   },
@@ -56,7 +57,13 @@
     "test:watch": "vitest",
     "test:tz": "TZ=Pacific/Kiritimati vitest run && TZ=Pacific/Pago_Pago vitest run && TZ=America/St_Johns vitest run",
     "typecheck": "tsc --noEmit",
-    "verify": "tsc --noEmit && vitest run && git status --short"
+    "verify": "tsc --noEmit && vitest run && git status --short",
+    "api:types": "cd server/reader && uv run python -m franki_reader.openapi && cd ../.. && node scripts/api-types.mjs"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
+  }
 }

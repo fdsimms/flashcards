@@ -36,8 +36,7 @@ Franki's (Client, below).
 
 - **Part of Franki** (11 November 2026, by the owner's decision; before that its own Expo app,
   chosen on 19 October 2026 over the brief's home-screen web app). The logic is in `src/reader/`
-  (tested with vitest, like the rest of Franki), the screens are `src/ui/Read*.tsx` and
-  `src/ui/Reader.tsx`, built from Franki's kit and theme.
+  (tested with vitest, like the rest of Franki), the screens are in `src/ui/reader/`, built from Franki's kit and theme.
 - **Off until it's turned on** in Settings, Read & Listen, with the passphrase: Franki's rule for
   anything that uses the network besides sync. The server's address isn't asked for: it's the sync
   server's plus `/reader` (`readerAddress`), so Read & Listen needs sync set up first. Once on, the
@@ -115,7 +114,7 @@ Franki's (Client, below).
 - **Check what you understood** (13 November 2026, the owner chose from a mock). After Done, the end
   view offers a few multiple-choice questions, one at a time, each marked at once
   with the line that answers it (its words, English and audio). Three kinds, built when Done is
-  tapped (`src/reader/check.ts`, pure and tested; `src/ui/ReaderCheck.tsx`): up to two about what
+  tapped (`src/reader/check.ts`, pure and tested; `src/ui/reader/ReaderCheck.tsx`): up to two about what
   happens, then one line to recognize by ear (two when there are none about what happens), then up to
   two words (marked unknown first, then looked up, then the practice words). A line heard is offered
   with the same speaker's other lines as the wrong choices, and the other speaker's only when there
@@ -146,7 +145,7 @@ Franki's (Client, below).
   before it.
 - **Use the lines yourself** (14 November 2026, the owner chose from a mock). Under the check, the
   end view offers two ways to make the text's lines again, each in place of the end view until it's
-  done or stopped (`src/reader/lineDrill.ts`, pure and tested; `src/ui/ReadLineDrill.tsx`): **Say it
+  done or stopped (`src/reader/lineDrill.ts`, pure and tested; `src/ui/reader/ReadLineDrill.tsx`): **Say it
   back** shows a line's English (and who says it), to say aloud or type in the language, and **Write
   what you hear** plays a line (at 0.7x to start, 1x a tap away) to type. Check shows the line with
   what was typed against it, letter by letter (`src/core/typedCompare.ts`, shared with Review's Type
@@ -299,12 +298,12 @@ answers aren't kept.
   `effort: medium` (raised from low on 15 November 2026, since a wrong verdict teaches the wrong
   thing); the cost is `production` in `/api/costs`, failed calls included. The app draws the
   correction against what was typed with Review's own comparison (`src/core/typedCompare.ts`).
-- **Use today's words** (`src/ui/ReadUseWords.tsx`, the `read-use-words` route): offered at the end
+- **Use today's words** (`src/ui/reader/ReadUseWords.tsx`, the `read-use-words` route): offered at the end
   of a review session of a language's deck while Read & Listen is on, with the notes answered while
   new in it (`wordsToUse`), one at a time, to write a sentence with. Placed after the session rather
   than on the answer side (the owner's choice): it doesn't slow reviewing, and recalling the word a
   few minutes later is the better practice.
-- **Retell it** (`POST /api/texts/{id}/retell`, `src/ui/ReadRetell.tsx`): the third row of the end
+- **Retell it** (`POST /api/texts/{id}/retell`, `src/ui/reader/ReadRetell.tsx`): the third row of the end
   view's "Use the lines yourself". The same check, with the text's lines and English sent, plus up to
   four words from the text the retelling could have used (each kept only if it is in the text and not
   already in the retelling, with the line it's in, which a tap shows and plays) and what it left out.
