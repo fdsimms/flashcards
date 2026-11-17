@@ -93,6 +93,22 @@ def translit_for(
     return " + ".join(parts) if pieces and len(parts) == len(pieces) else None
 
 
+def register_for(
+    piece: str,
+    entry: str | None,
+    registers: Mapping[str, str] | None,
+    deck_registers: Mapping[str, str] | None,
+) -> str:
+    """How formal a word is: its deck note's Register (`entry` is the note's Entry it is a form of),
+    which is the owner's own, else what Claude gave it in the text, else "" for no chip."""
+    return (
+        (deck_registers or {}).get(entry or "")
+        or (registers or {}).get(piece)
+        or (registers or {}).get(piece.casefold())
+        or ""
+    )
+
+
 def word_out(
     piece: str,
     lexicon: Checker,
@@ -106,6 +122,8 @@ def word_out(
     point: str | None = None,
     form: dict[str, str] | None = None,
     ai_ipa: Mapping[str, str] | None = None,
+    registers: Mapping[str, str] | None = None,
+    deck_registers: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     """One piece of a line as the app draws it (`Word` in src/reader/api.ts): a word with its
     meaning (or, for a compound with none, its parts' meanings), dictionary form, pronunciation and
@@ -113,7 +131,9 @@ def word_out(
     `translits` are a text's own, `stretch` its practice words, `point` the grammar point the word
     uses, `form` its grammatical form as {"id", "name"} (the app's chip and primer, form_primers.py), with
     "helper" and "phrase" added when a word of its line goes with it (a preposition, an auxiliary: forms.py).
-    `contraction` is a contracted word's parts ("σε + το" for στο: helpers.py)."""
+    `contraction` is a contracted word's parts ("σε + το" for στο: helpers.py). `register` is how
+    formal the word is: the deck note's own (`deck_registers`, by entry), else the one Claude gave it
+    in this text (`registers`), else "" (`register_for`)."""
     if not is_word(piece):
         return {
             "text": piece,
@@ -131,6 +151,7 @@ def word_out(
             "grammar": None,
             "form": None,
             "contraction": None,
+            "register": "",
         }
     entry = lexicon.entry_of(piece)
     gloss = gloss_for(piece, glosses or {}, lexicon, meanings)
@@ -158,6 +179,7 @@ def word_out(
         "contraction": None
         if is_name
         else helpers.contraction(getattr(lexicon, "code", ""), piece),
+        "register": "" if is_name else register_for(piece, entry, registers, deck_registers),
     }
 
 
@@ -211,6 +233,7 @@ def render_line(
     marked: dict[int, str] | None = None,
     forms: dict[str, dict[str, str]] | None = None,
     ai_ipa: Mapping[str, str] | None = None,
+    deck_registers: Mapping[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """A model line written for `text` (one of its lines, a choice, its recap) as the reader's
     words, glossed from the text's own glosses and translits first. `marked` is the grammar point
@@ -251,6 +274,8 @@ def render_line(
                 point=point,
                 form=form_of(piece),
                 ai_ipa=ai_ipa,
+                registers=text.registers,
+                deck_registers=deck_registers,
             )
         )
     mark_reflexive_pronouns(words, lexicon)
@@ -266,6 +291,7 @@ def render(
     deck_translits: dict[str, str] | None = None,
     unset: tuple[str, ...] = (),
     ai_ipa: Mapping[str, str] | None = None,
+    deck_registers: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     """`unset` is the language's grammar points the owner hasn't marked, as of now: any that turn
     up are marked and explained like the known ones worked in for review."""
@@ -277,7 +303,15 @@ def render(
 
     def render_words(source: str, marked: dict[int, str]) -> list[dict[str, Any]]:
         return render_line(
-            source, text, lexicon, meanings, deck_translits, marked, text.forms, ai_ipa
+            source,
+            text,
+            lexicon,
+            meanings,
+            deck_translits,
+            marked,
+            text.forms,
+            ai_ipa,
+            deck_registers,
         )
 
     lines: list[dict[str, Any]] = []

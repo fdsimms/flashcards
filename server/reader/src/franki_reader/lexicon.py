@@ -45,6 +45,26 @@ class Entry:
     # to 90%); None when no studied card has a memory state (not on FSRS, or a snapshot from before
     # this was read). stretch.py puts the most fragile words first.
     stability: float | None = None
+    # The note's Register field as one of the reader's four (casual, neutral, formal, slang), or ""
+    # when the note has none or says something outside them (normalize_register).
+    register: str = ""
+
+
+# How the deck's Register field (free text; "neutral" when plain) maps onto the reader's four.
+# Anything else ("vulgar", "literary", "dated") has no chip rather than a wrong one.
+_REGISTER_ALIASES = {
+    "neutral": "neutral",
+    "formal": "formal",
+    "informal": "casual",
+    "casual": "casual",
+    "colloquial": "casual",
+    "slang": "slang",
+}
+
+
+def normalize_register(raw: str) -> str:
+    """A note's Register field as one of the reader's four registers, or "" when it isn't one."""
+    return _REGISTER_ALIASES.get(clean(raw).casefold(), "")
 
 
 @dataclass(frozen=True)
@@ -55,6 +75,7 @@ class NoteRow:
     entry: str
     meaning: str
     translit: str = ""
+    register: str = ""
 
 
 @dataclass(frozen=True)
@@ -170,6 +191,7 @@ def build_entries(notes: Iterable[NoteRow], cards: Iterable[CardRow]) -> list[En
                 due_in=due_in.get(note.note_id),
                 reviewed=note.note_id in reviewed_notes,
                 stability=stability.get(note.note_id),
+                register=normalize_register(note.register),
             )
         )
     return entries

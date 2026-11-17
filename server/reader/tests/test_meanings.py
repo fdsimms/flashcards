@@ -366,3 +366,29 @@ def test_the_engine_fills_card_sentences_and_shares_the_cooldown_with_texts() ->
     engine._meanings_failed.clear()
     asyncio.run(engine.fill_sentence_meanings([("Varm suppe.", "Warm soup.")], "nb"))
     assert engine.meanings("nb")["suppe"] == "meaning of suppe"
+
+
+def test_the_register_claude_gives_is_kept_with_the_text_and_only_from_the_list() -> None:
+    conn = store.connect(":memory:")
+    text = stored_text(conn)
+    lexicon = lexicon_from(DECK, "nb", 1000)
+    n = {w.word: i for i, w in enumerate(missing([text], lexicon, {"mat": "food"}), 1)}
+
+    async def write(language: str, words: list[tuple[str, str]]) -> Any:
+        return [
+            {"n": n["varm"], "word": "varm", "meaning": "warm", "register": "neutral"},
+            {"n": n["hei"], "word": "hei", "meaning": "hi", "register": "casual"},
+            {"n": n["og"], "word": "og", "meaning": "and", "register": "rude"},  # not on the list
+            {"n": n["vi"], "word": "vi", "meaning": "we", "register": ""},  # not sure
+        ], Usage(0, 0, 0, 0)
+
+    asyncio.run(fill(conn, write, "nb", [text], lexicon, {"mat": "food"}, lambda: NOW))
+    kept = now_stored(conn, text.id)
+    assert kept.registers == {"varm": "neutral", "hei": "casual"}
+    # The word still has its meaning, so the text doesn't ask for it again.
+    assert kept.meanings["og"] == "and"
+    rendered = render(kept, lexicon, {"mat": "food"})
+    words = {
+        w["text"].casefold(): w for ln in rendered["lines"] for w in ln["words"] if w["status"]
+    }
+    assert words["hei"]["register"] == "casual" and words["og"]["register"] == ""

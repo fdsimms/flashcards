@@ -3,6 +3,7 @@ import { ipaNote } from '../reader/languages';
 import type { Pronunciation } from '../reader/mining';
 import { prefs } from '../reader/storage';
 import { thaiToneMarks } from '../reader/thaiTones';
+import { RegisterChip } from './ReaderNatural';
 import { radius, space, type, useTheme } from './theme';
 
 /**
@@ -10,9 +11,11 @@ import { radius, space, type, useTheme } from './theme';
  * IPA under the word when the two don't fit one line. IPA written by AI carries an "AI" label here
  * and its status note elsewhere (`ipaNote`), since nothing checks it.
  */
-export function ReadWordTitle({ text, pronunciation, titleStyle }: {
+export function ReadWordTitle({ text, pronunciation, register, titleStyle }: {
   text: string;
   pronunciation: Pronunciation;
+  /** How formal the word is (the gloss popover passes it); no chip when missing or empty. */
+  register?: string;
   titleStyle?: Parameters<typeof Text>[0]['style'];
 }) {
   const c = useTheme();
@@ -24,6 +27,7 @@ export function ReadWordTitle({ text, pronunciation, titleStyle }: {
       {ipa ? (
         <Text style={{ ...type.body, color: c.textSecondary }} selectable accessibilityHint={ipaNote(pronunciation) ?? undefined}>{ipa}</Text>
       ) : null}
+      <RegisterChip register={register} inline />
       {ai ? (
         <View style={{ backgroundColor: c.warningFill, borderRadius: radius.pill, paddingHorizontal: space.s, paddingVertical: 2 }} accessible accessibilityLabel="Written by AI">
           <Text style={{ ...type.caption, fontWeight: '600', color: c.warning }}>AI</Text>

@@ -2,7 +2,7 @@ from scripted import ENTRIES
 
 from franki_reader.generator import Line
 from franki_reader.lexicon import Entry, lexicon_from
-from franki_reader.reader import render, render_sentence
+from franki_reader.reader import register_for, render, render_sentence
 from franki_reader.store import StoredText
 
 TEXT = StoredText(
@@ -39,6 +39,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "grammar": None,
         "form": None,
         "contraction": None,
+        "register": "",
     }
     assert words[4] == {
         "text": "!",
@@ -56,6 +57,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "grammar": None,
         "form": None,
         "contraction": None,
+        "register": "",
     }
     assert out["lines"][0]["english"] == "I'd like mango sticky rice."
 
@@ -104,6 +106,7 @@ def test_a_word_off_the_list_takes_the_models_gloss() -> None:
         "grammar": None,
         "form": None,
         "contraction": None,
+        "register": "",
     }
 
 
@@ -226,3 +229,10 @@ def test_a_cards_sentence_is_split_and_glossed_like_a_line_and_joins_back_to_its
     assert eat["gloss"] == "eat" and eat["translit"] == "gin" and eat["deck"] is True
     assert eat["stretch"] is False and eat["grammar"] is None
     assert all(w["status"] is None for w in words if not w["text"].strip())
+
+
+def test_a_words_register_is_its_decks_then_the_one_claude_gave_it() -> None:
+    assert register_for("Varm", "varm", {"s": "slang"}, {"varm": "formal"}) == "formal"
+    assert register_for("Varm", "varm", {"varm": "slang"}, {}) == "slang"
+    assert register_for("Varm", None, {"varm": "casual"}, None) == "casual"
+    assert register_for("varm", None, None, None) == ""
