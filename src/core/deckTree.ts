@@ -20,6 +20,17 @@ export function deckLineage(deck: string): string[] {
   return parts.map((_, i) => parts.slice(0, i + 1).join('::'));
 }
 
+/**
+ * A frequency tier's subdeck ("Thai::Tier 1"): the MCP's tier_deck_by_frequency files a language's
+ * notes into these, each on its own preset (server/mcp/franki_mcp/tiers.py, `TIER_NAME`, which has
+ * to name them the same way). The deck list shows the language as one deck, so a path with a
+ * "Tier N" part below its top level is never listed. A top-level deck called "Tier 1" is the
+ * user's own and stays.
+ */
+export function isTierDeck(deck: string): boolean {
+  return deck.split('::').slice(1).some((part) => /^Tier \d+$/.test(part));
+}
+
 export function isInDeck(deck: string, root: string): boolean {
   return deck === root || deck.startsWith(`${root}::`);
 }
@@ -436,7 +447,9 @@ export function deckListTotals(rows: DeckRow[]): { due: number; fresh: number } 
  * hold no cards (`listedDecks`): Anki lists an empty deck too. `position` orders siblings (`deckTree`).
  */
 export function deckRows(input: TreeQueueInput, listed: Iterable<string> = [], position?: (deck: string) => number | undefined): DeckRow[] {
-  return deckTree([...input.cardsByDeck.keys(), ...listed], position).map((node) => {
+  // A tier subdeck has no row of its own, but its cards still count in every deck above it: the counts
+  // below are taken over all of `input`, not over the rows that are shown.
+  return deckTree([...input.cardsByDeck.keys(), ...listed], position).filter((node) => !isTierDeck(node.deck)).map((node) => {
     const q = treeQueue(node.deck, input);
     let total = 0;
     let unstudied = 0;
