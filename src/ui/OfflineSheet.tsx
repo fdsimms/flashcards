@@ -4,7 +4,7 @@ import { Group, Help, Icon, Screen } from './kit';
 import { hairline, MIN_TAP, readable, space, type, useTheme } from './theme';
 
 /**
- * What the header's Offline (or Server down) button opens (Screen in kit.tsx): what's waiting for the connection,
+ * What the header's Offline button (no Wi-Fi, or a cloud with a warning) opens (Screen in kit.tsx): what's waiting for the connection,
  * one line each (`waitingLines`), all of it sent by itself when the connection comes back.
  */
 export function OfflineSheet({ problem, lines }: { problem: 'offline' | 'server' | null; lines: string[] }) {

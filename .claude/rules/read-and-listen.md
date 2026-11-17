@@ -56,6 +56,8 @@ they win and this is stale. The rules that must not break:
   list's counts are shared for dundundun, off by default) and today's count of words added to the
   deck (`src/reader/storage.ts`). For offline use the phone also keeps copies, each replaced when
   the server is read again: the server's settings (`saveSettingsCopy`), card glosses
-  (`useCardGlosses`), and words added offline until they're sent to the note queue
-  (`src/reader/heldNotes.ts`). The address is the sync server's plus
+  (`useCardGlosses`), the shelf's texts with their audio and the lessons downloaded
+  (`src/reader/downloads.ts`), and what's done offline until it's sent: words for the note queue
+  (`src/reader/heldNotes.ts`), and readings and story choices (`heldReader`). Screens reach the
+  server through `withOffline` (`src/reader/offlineApi.ts`), which answers from those copies. The address is the sync server's plus
   `/reader` (`readerAddress`), so it's on only while sync is.

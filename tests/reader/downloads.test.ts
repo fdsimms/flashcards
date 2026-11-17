@@ -1,0 +1,115 @@
+import { describe, expect, it } from 'vitest';
+import type { AudioLesson, Shelf, ShelfStory, ShelfText } from '../../src/reader/api';
+import { card, readerText, saved } from '../support/reader';
+import {
+  asksBeforeLesson, EMPTY_INDEX, lessonsGone, linesWithAudio, mayDownload, offlineShelf, parseHeldReader, parseIndex, planTexts,
+  languagesToKeep, readOffline, savedState, usageText, type DownloadIndex,
+} from '../../src/reader/downloads';
+
+const story = (next: ShelfText | null): ShelfStory => ({ id: 9, title: 'The flat', about: '', read: 3, last_recap: '', next, writing: true, stage: 'writing', failed: null });
+
+const shelf = (texts: ShelfText[], next: ShelfText | null = null, language: Shelf['language'] = 'pl'): Shelf => ({
+  language, languages: [], texts, writing: [{ topic: 'beach', reason: 'asked', form: 'story' }], story: next ? story(next) : null,
+});
+
+const lesson = (id: number, language: AudioLesson['language'] = 'pl'): AudioLesson => ({
+  id, language, scene: 'bakery', title: 'At the bakery', state: 'ready', error: '', duration_ms: 300_000, created_at: '2026-11-14T12:00', phrases: [], dialogue: [],
+});
+
+describe('when texts download by themselves', () => {
+  it('follows the setting', () => {
+    expect(mayDownload('wifi', 'wifi')).toBe(true);
+    expect(mayDownload('wifi', 'cellular')).toBe(false);
+    expect(mayDownload('any', 'cellular')).toBe(true);
+    expect(mayDownload('any', 'none')).toBe(false);
+    expect(mayDownload('off', 'wifi')).toBe(false);
+  });
+
+  it('asks before a tapped lesson only on cellular, unless any connection is allowed', () => {
+    expect(asksBeforeLesson('wifi', 'cellular')).toBe(true);
+    expect(asksBeforeLesson('off', 'cellular')).toBe(true);
+    expect(asksBeforeLesson('any', 'cellular')).toBe(false);
+    expect(asksBeforeLesson('wifi', 'wifi')).toBe(false);
+  });
+});
+
+describe('planTexts', () => {
+  it('fetches what is on the shelf and not kept whole, the story episode first', () => {
+    const index = { texts: [saved(2), saved(3, { complete: false })] };
+    const plan = planTexts(shelf([card({ id: 2 }), card({ id: 3 })], card({ id: 7, reason: 'story' })), index);
+    expect(plan.fetch.map((t) => t.id)).toEqual([7, 3]);
+  });
+
+  it('drops kept texts of the shelf language that left it, and leaves other languages alone', () => {
+    const index = { texts: [saved(2), saved(4), saved(5, { language: 'th' })] };
+    expect(planTexts(shelf([card({ id: 2 })]), index).drop).toEqual([4]);
+  });
+});
+
+describe('the shelf offline', () => {
+  it('keeps only what is kept whole and not read since, with nothing being written', () => {
+    const index: DownloadIndex = { ...EMPTY_INDEX, texts: [saved(2), saved(3), saved(4, { complete: false }), saved(7)], shelves: { pl: shelf([card({ id: 2 }), card({ id: 3 }), card({ id: 4 })], card({ id: 7 })) } };
+    const offline = offlineShelf(index, new Set([3]), 'pl')!;
+    expect(offline.texts.map((t) => t.id)).toEqual([2]);
+    expect(offline.writing).toEqual([]);
+    expect(offline.story).toMatchObject({ next: { id: 7 }, writing: false, stage: null });
+  });
+
+  it("drops the story's episode when it isn't kept", () => {
+    const index: DownloadIndex = { ...EMPTY_INDEX, texts: [], shelves: { pl: shelf([], card({ id: 7 })) } };
+    expect(offlineShelf(index, new Set(), 'pl')?.story?.next).toBeNull();
+  });
+
+  it("makes do with a language's kept texts when its shelf wasn't read yet", () => {
+    expect(offlineShelf({ ...EMPTY_INDEX, texts: [saved(2), saved(3, { language: 'th' })] }, new Set(), 'pl')?.texts.map((t) => t.id)).toEqual([2]);
+    expect(offlineShelf(EMPTY_INDEX, new Set(), 'pl')).toBeNull();
+  });
+
+  it("keeps each language's shelf apart", () => {
+    const index: DownloadIndex = { ...EMPTY_INDEX, texts: [saved(2), saved(5, { language: 'th' })], shelves: { pl: shelf([card({ id: 2 })]), th: shelf([card({ id: 5 })], null, 'th') } };
+    expect(offlineShelf(index, new Set(), 'th')?.texts.map((t) => t.id)).toEqual([5]);
+  });
+
+  it('keeps every language with texts ready, and any with texts already kept', () => {
+    const current = { language: 'pl' as const, languages: [{ code: 'pl' as const, name: 'Polish', ready: 2 }, { code: 'th' as const, name: 'Thai', ready: 1 }, { code: 'de' as const, name: 'German', ready: 0 }] };
+    expect(languagesToKeep(current, { texts: [saved(9, { language: 'es' })] })).toEqual(['pl', 'th', 'es']);
+  });
+});
+
+describe('what the screens show', () => {
+  it('says whether a text is on this iPhone', () => {
+    const index = { texts: [saved(2), saved(3, { complete: false })] };
+    expect(savedState(index, 2, new Set())).toBe('saved');
+    expect(savedState(index, 3, new Set([3]))).toBe('saving');
+    expect(savedState(index, 3, new Set())).toBe('waiting');
+  });
+
+  it('counts what is kept', () => {
+    expect(usageText({ texts: [], lessons: [] })).toBe('Nothing is on this iPhone yet.');
+    expect(usageText({ texts: [saved(1), saved(2)], lessons: [{ lesson: lesson(1), complete: true, bytes: 2_000_000 }] }))
+      .toBe('On this iPhone: 2 texts and 1 lesson, 2.6 MB.');
+  });
+
+  it('lists the lines a text has recordings for', () => {
+    expect(linesWithAudio(readerText(1, [true, false, true]))).toEqual([0, 2]);
+  });
+});
+
+describe('lessons', () => {
+  it("drops kept lessons the language's list no longer has", () => {
+    const index = { lessons: [{ lesson: lesson(1), complete: true, bytes: 1 }, { lesson: lesson(2), complete: true, bytes: 1 }, { lesson: lesson(3, 'th'), complete: true, bytes: 1 }] };
+    expect(lessonsGone('pl', [lesson(1)], index)).toEqual([2]);
+  });
+});
+
+describe('reading back', () => {
+  it('reads back only what it wrote', () => {
+    expect(parseIndex({ version: 1, texts: [saved(1), { id: 'x' }], lessons: [], shelves: {} }).texts).toHaveLength(1);
+    expect(parseIndex(null)).toEqual(EMPTY_INDEX);
+    expect(parseHeldReader([{ kind: 'choice', textId: 1, choice: 2 }, { kind: 'reading', textId: 1 }, { kind: 'listen', textId: 3 }, { kind: 'language', language: 'th' }])).toHaveLength(3);
+  });
+
+  it('knows which texts were read offline', () => {
+    expect([...readOffline([{ kind: 'choice', textId: 1, choice: 0 }, { kind: 'listen', textId: 2 }, { kind: 'reading', textId: 3, log: {} as never }])]).toEqual([3]);
+  });
+});

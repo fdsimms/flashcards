@@ -6,12 +6,14 @@ import { sendHeld } from '../core/held';
 import type { HeldWords } from '../reader/heldNotes';
 import { useApp } from './AppContext';
 import { connection, useBackOnline } from './connection';
-import { heldRecordings, heldWords } from './held';
+import type { HeldReaderAction } from '../reader/downloads';
+import { heldReader, heldRecordings, heldWords } from './held';
 import { queueWords } from './useNoteQueue';
 import { useRecorder } from './useRecorder';
 
 /**
- * Sends what was held while offline (src/core/held.ts): words to the note queue for Claude, and
+ * Sends what was held while offline (src/core/held.ts): Read & Listen's language switches, readings,
+ * listens and story choices (in order, so a choice goes before its reading), words to the note queue for Claude, and
  * new notes' recordings. It runs at launch and each time the connection comes back. Drawn once,
  * under AppProvider (src/app/_layout.tsx), and draws nothing.
  *
@@ -22,6 +24,7 @@ import { useRecorder } from './useRecorder';
 export function HeldWork() {
   const { reader } = useApp();
   const api = reader.api;
+  const server = reader.serverApi;
   const recorder = useRecorder();
   const sending = useRef(false);
 
@@ -29,7 +32,19 @@ export function HeldWork() {
     if (sending.current || connection.cantReachHome()) return;
     sending.current = true;
     try {
-      await Promise.all([heldWords.load(), heldRecordings.load()]);
+      await Promise.all([heldWords.load(), heldRecordings.load(), heldReader.load()]);
+
+      // Straight to the server, not through the offline answers, which would hold them again.
+      const actions = heldReader.get();
+      if (server && actions.length) {
+        const result = await sendHeld(actions, (a: HeldReaderAction) => (
+          a.kind === 'reading' ? server.logReading(a.textId, a.log) : a.kind === 'listen' ? server.logListen(a.textId)
+            : a.kind === 'choice' ? server.chooseNext(a.textId, a.choice) : server.updateSettings({ language: a.language }).then(() => undefined)
+        ));
+        // One the server refuses has nothing left to do: the text was deleted (404), or its episode
+        // was read before the choice arrived (409). Held while this ran are kept as they are.
+        await heldReader.update((list) => [...list.filter((a) => !actions.includes(a)), ...result.left]);
+      }
 
       const words = heldWords.get();
       if (api && words.length) {
@@ -54,7 +69,7 @@ export function HeldWork() {
     } finally {
       sending.current = false;
     }
-  }, [api, recorder]);
+  }, [api, server, recorder]);
 
   useEffect(() => { void send(); }, [send]);
   useBackOnline(() => { void send(); });

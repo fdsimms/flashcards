@@ -29,6 +29,7 @@ from mcp.server.mcpserver.exceptions import ToolError  # its message reaches the
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 
+from .articles import article_for, with_article
 from .collection import CollectionManager
 from .presets import TIER_PRESET_KEY, share_params, tier_presets_for
 from .speech import (
@@ -239,7 +240,8 @@ reaches their devices at their next sync.
   calling update_notes or add_tts_audio. Only after they approve, and once the fix is made, call
   resolve_flag to clear the flag. Leave a flag in place when the user declines or you're unsure.
 - Audio: add_tts_audio records a field's text with an Azure voice into another field (list_voices
-  names them), leveled to one loudness. With a Multilingual voice, pass the text's language. normalize_audio does the same for audio a note already has
+  names them), leveled to one loudness. A noun's article is read with it (from Gender), so record a
+  noun from `Entry`. With a Multilingual voice, pass the text's language. normalize_audio does the same for audio a note already has
   (preview first: it measures each file and changes nothing). Try preview=true first when the text needs cleaning up (replacements, text_overrides).
 - FSRS settings and limits belong to a deck's options preset, which several decks can share:
   say which decks a change affects before making it.
@@ -1054,6 +1056,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         language: str | None = None,
         replacements: list[Replacement] | None = None,
         text_overrides: dict[str, str] | None = None,
+        article: bool = True,
         overwrite: bool = False,
         preview: bool = False,
     ) -> dict[str, Any]:
@@ -1063,6 +1066,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         - The text is `source_fields`' text (formatting and media left out) joined by `join`, then
           each `replacements` find/replace in order; `text_overrides` (note id to text) replaces it
           outright for the notes named.
+        - An Omnilanguage noun is read with its article (die Einstellung, l'amertume), as Franki says
+          it: when `Entry` is the first source field and the note's Gender and Language give one
+          (Spanish, Norwegian, German, French, Greek). An Entry that already starts with its article
+          (el agua) is read as it is. `article=false` reads the Entry alone.
         - `rate` is the speed (0.5 to 2.0, 1 is normal).
         - `language` is the text's language and region ("th-TH", "ja-JP"). Pass it with a
           Multilingual voice (en-US-AvaMultilingualNeural), which otherwise guesses the language
@@ -1092,6 +1099,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 return overrides[note.id].strip()
             parts = [col._backend.html_to_text_line(text=SOUND.sub("", note[f]), preserve_media_filenames=False).strip() for f in source_fields]
             text = join.join(p for p in parts if p)
+            if article and text and source_fields[0] == "Entry" and "Gender" in note and "Language" in note:
+                said = article_for(note["Language"], note["Gender"], parts[0])
+                if said:
+                    text = with_article(said, text)
             for r in replacements or []:
                 text = text.replace(r.find, r.replace)
             return text.strip()

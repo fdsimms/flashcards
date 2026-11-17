@@ -2133,7 +2133,9 @@ export interface operations {
     };
     shelf_api_shelf_get: {
         parameters: {
-            query?: never;
+            query?: {
+                language?: ("th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en") | null;
+            };
             header?: {
                 authorization?: string | null;
             };
