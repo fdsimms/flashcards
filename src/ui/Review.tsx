@@ -417,7 +417,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
   useEffect(() => { spoken.cancel(); }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
   const ownHook = useOwnHook(repo, showing, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
   // The session end's list of misses, and what of them Similar words can practice (SessionMisses.tsx).
-  const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups);
+  const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups, noteTypes);
 
   // Auto-speak the front when a card with audio appears.
   useEffect(() => {
