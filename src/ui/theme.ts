@@ -122,6 +122,15 @@ const light = {
   onWkSoft: 'rgba(255, 255, 255, 0.86)',
   wkLine: 'rgba(255, 255, 255, 0.3)',
   wkWell: 'rgba(0, 0, 0, 0.2)',
+  /**
+   * The band across a WaniKani card's foot that says what's asked: light for the meaning, dark for
+   * the reading, as on wanikani.com and its iOS clients, so the kind of question reads at a glance.
+   * The same in both themes, since the convention is the cue.
+   */
+  wkMeaningBand: '#f1f1f1',
+  onWkMeaningBand: '#333333',
+  wkReadingBand: '#2a2a2a',
+  onWkReadingBand: '#ffffff',
   /** Grammatical gender, as the color of a word's article (and a dot on its chip): masculine, feminine, neuter. Text colors, so none is red, green or blue like a card count. */
   genderM: '#4a55b0',
   genderF: '#b23a6a',
@@ -207,6 +216,10 @@ const dark: typeof light = {
   onWkSoft: 'rgba(255, 255, 255, 0.86)',
   wkLine: 'rgba(255, 255, 255, 0.3)',
   wkWell: 'rgba(0, 0, 0, 0.22)',
+  wkMeaningBand: '#f1f1f1',
+  onWkMeaningBand: '#333333',
+  wkReadingBand: '#2a2a2a',
+  onWkReadingBand: '#ffffff',
   genderM: '#8f9bf0',
   genderF: '#e486a8',
   genderN: '#5fc4bf',
