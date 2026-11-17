@@ -31,8 +31,9 @@ LESSON_LANGUAGES: tuple[Code, ...] = ("fr", "th", "es", "de", "ru", "el", "pl", 
 # What a voice in a lesson is, for each language: the narrator is an English voice, and the native
 # voices are the language's male and female ones (Engine.voices_for).
 Voices = Callable[[Code], dict[str, str]]
-# Speaks text in a voice and a locale, as an MP3 (Engine.synthesize, without the word timings).
-Synthesize = Callable[[str, str, str], Awaitable[bytes]]
+# Speaks text in a voice and a locale at a rate (1.0 is normal speed), as an MP3 (Engine.synthesize,
+# without the word timings).
+Synthesize = Callable[[str, str, str, float], Awaitable[bytes]]
 Renderer = Callable[..., Awaitable[Rendered]]
 
 
@@ -62,8 +63,9 @@ def speaker(
 
     async def speak(clip: lesson.Say) -> bytes:
         if clip.voice == "narrator":
-            return await synthesize(clip.text, narrator_voice, narrator_locale)
-        return await synthesize(clip.text, native[clip.voice], locale)
+            return await synthesize(clip.text, narrator_voice, narrator_locale, 1.0)
+        rate = lesson.TEACH_RATE if clip.slow else 1.0
+        return await synthesize(clip.text, native[clip.voice], locale, rate)
 
     return speak
 

@@ -537,6 +537,13 @@ def test_both_prompts_keep_frequency_and_register_to_what_is_certain() -> None:
     assert ENGLISH in PHRASE_SYSTEM
 
 
+def test_a_phrase_meaning_translates_only_the_selection() -> None:
+    # The whole text is in the prompt, and the model once tacked the story onto a meaning.
+    assert "add no clause, detail or explanation that the phrase doesn't say" in PHRASE_SYSTEM
+    # What the text adds is welcome, in a note under the meaning.
+    assert "never in `meaning`" in PHRASE_SYSTEM
+
+
 def test_the_notes_in_the_language_are_asked_and_kept_apart() -> None:
     calls: list[bool] = []
 

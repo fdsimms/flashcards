@@ -3,12 +3,13 @@ import { Animated, Easing, Text, View } from 'react-native';
 import type { RatingValue } from '../core/scheduler';
 import { Icon, Tappable } from './kit';
 import { useReduceMotion } from './motion';
-import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
+import { lift, radius, smooth, space, type, useTheme } from './theme';
 
 /**
  * Change a rating you gave too fast: after Hard, Good or Easy, a strip floats over the next card
  * for a few seconds, and one tap replaces that answer with Again (Review undoes it and answers
- * again in one step). It never reaches the scheduler itself; it only offers the tap.
+ * again in one step), or takes it back with Undo (the toolbar's undo, a thumb's reach away). It
+ * never reaches the scheduler itself; it only offers the taps.
  */
 
 /** How long the strip stays, and how long its "Changed to Again" confirmation does. */
@@ -43,8 +44,11 @@ export function useRatingOffer() {
   return { offer, show };
 }
 
-/** Passed to Screen's `floating`: it sits on the content's bottom edge, just above the footer, over the card's lower edge. */
-export function ChangeRatingStrip({ offer, onChange }: { offer: RatingOffer; onChange: () => void }) {
+/**
+ * Passed to Screen's `floating`: it sits on the content's bottom edge, just above the footer, over the card's lower edge.
+ * It's inset from the card's sides and drawn in `raised`, so it reads as something over the card rather than part of it.
+ */
+export function ChangeRatingStrip({ offer, onChange, onUndo }: { offer: RatingOffer; onChange: () => void; onUndo: () => void }) {
   const c = useTheme();
   const reduce = useReduceMotion();
   const color = offer.changed ? c.again : offer.rating === 2 ? c.hard : offer.rating === 4 ? c.easy : c.good;
@@ -66,7 +70,7 @@ export function ChangeRatingStrip({ offer, onChange }: { offer: RatingOffer; onC
     <Animated.View
       pointerEvents="box-none"
       style={{
-        marginHorizontal: space.l, marginBottom: space.s,
+        marginHorizontal: space.l + space.m + 2, marginBottom: space.s,
         opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
       }}
     >
@@ -74,7 +78,7 @@ export function ChangeRatingStrip({ offer, onChange }: { offer: RatingOffer; onC
         accessibilityLiveRegion="polite"
         style={{
           flexDirection: 'row', alignItems: 'center', gap: space.m, overflow: 'hidden',
-          backgroundColor: c.surface, borderRadius: radius.l, ...smooth, borderWidth: hairline, borderColor: c.border,
+          backgroundColor: c.raised, borderRadius: radius.l, ...smooth, borderWidth: 1, borderColor: c.raisedEdge,
           paddingLeft: space.m + 2, paddingRight: space.s, paddingVertical: space.s, minHeight: 56, ...lift(c, 'high'),
         }}
       >
@@ -87,13 +91,24 @@ export function ChangeRatingStrip({ offer, onChange }: { offer: RatingOffer; onC
         </View>
         {offer.changed ? null : (
           <Tappable
+            onPress={onUndo}
+            accessibilityRole="button"
+            accessibilityLabel="Undo the last answer"
+            scaleTo={0.95}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: space.m, borderRadius: radius.m, ...smooth }}
+          >
+            <Icon name="arrow.uturn.backward" size={15} color={c.textSecondary} weight="semibold" />
+            <Text style={{ ...type.subhead, fontWeight: '600', color: c.textSecondary }}>Undo</Text>
+          </Tappable>
+        )}
+        {offer.changed ? null : (
+          <Tappable
             onPress={onChange}
             accessibilityRole="button"
             accessibilityLabel={`Change ${NAMES[offer.rating]} to Again`}
             scaleTo={0.95}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: space.m + 2, borderRadius: radius.m, ...smooth, backgroundColor: c.dangerFill }}
           >
-            <Icon name="arrow.uturn.backward" size={15} color={c.danger} weight="semibold" />
             <Text style={{ ...type.subhead, fontWeight: '600', color: c.danger }}>Again</Text>
           </Tappable>
         )}

@@ -278,6 +278,24 @@ class TestBuildScript:
         assert len(first) == 1 and len(second) == 1
         assert first[0] < second[0]
 
+    def test_the_native_voice_is_slow_only_while_a_phrase_is_taught(self) -> None:
+        steps = lesson.build_script(PLAN)
+        native = [s for s in steps if isinstance(s, Say) and s.voice != "narrator"]
+        slow = {s.text for s in native if s.slow}
+        assert {"un café", "Je voudrais un café."} <= slow
+        # The dialogue, the role-play and a phrase asked for are at normal speed, and the narrator
+        # is never slowed.
+        assert Say("male", "Bonjour, vous désirez ?") in steps
+        assert Say("female", "Je voudrais un café.") in steps
+        asked = steps.index(Say("narrator", "How do you say: I'd like a coffee."))
+        assert steps[asked + 2] == Say("male", "Je voudrais un café.")
+        assert not any(s.slow for s in steps if isinstance(s, Say) and s.voice == "narrator")
+
+    def test_a_phrase_taught_slowly_and_asked_normally_is_two_clips(self) -> None:
+        clips = lesson.clips(lesson.build_script(PLAN))
+        assert Say("male", "Je voudrais un café.", slow=True) in clips
+        assert Say("male", "Je voudrais un café.") in clips
+
     def test_builds_a_phrase_up_a_piece_at_a_time(self) -> None:
         steps = lesson.build_script(PLAN)
         taught = steps.index(Say("narrator", "That means: I'd like a coffee."))
@@ -416,7 +434,7 @@ class TestLearner:
         assert steps[2] == Say("female", "Bonjour, vous désirez ?")  # A is the learner
         assert steps[4] == Say("male", "Je voudrais un café.")
         taught = steps.index(Say("narrator", "That means: I'd like a coffee."))
-        assert steps[taught - 2] == Say("female", CAFE.text)
+        assert steps[taught - 2] == Say("female", CAFE.text, slow=True)
 
     def test_the_role_play_plays_the_other_speaker_and_the_learner_answers_in_their_own_voice(
         self,

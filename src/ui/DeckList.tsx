@@ -73,6 +73,18 @@ function DeckBadge({ deck, emoji }: { deck: string; emoji: string }) {
 }
 const BADGE = 36;
 
+/** A deck as the small pill that follows the finger while it's dragged (DeckDrag.tsx): its mark and its name. */
+function DeckChip({ row }: { row: ShownRow }) {
+  const c = useTheme();
+  const badge = leadingEmoji(row.name);
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, paddingLeft: space.s, paddingRight: space.l }}>
+      {badge.emoji ? <DeckBadge deck={row.deck} emoji={badge.emoji} /> : <View style={{ width: space.s }} />}
+      <Text numberOfLines={1} style={{ ...type.callout, fontWeight: '600', color: c.text, flexShrink: 1 }}>{badge.rest}</Text>
+    </View>
+  );
+}
+
 /** How long a family of decks waits to settle in, by its place in the list (Decks and Today): 45 ms apart, none after the seventh. */
 export const settleDelay = (group: number) => Math.min(group, 6) * 45;
 
@@ -360,7 +372,7 @@ export function DeckList(props: {
     onMove: props.onMoveDeck,
     renderCard: (deck) => {
       const row = shown.find((r) => r.deck === deck);
-      return row ? <DeckRowView row={row} first editing onMenu={() => undefined} /> : null;
+      return row ? <DeckChip row={row} /> : null;
     },
   });
   const step = (deck: string, by: -1 | 1) => {
