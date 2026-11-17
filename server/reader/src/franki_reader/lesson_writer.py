@@ -90,6 +90,23 @@ def _thai_note(learner: lesson.Learner) -> str:
     )
 
 
+# Japanese has no spaces either, and its script and politeness are worth saying: a lesson teaches
+# what a learner says to a stranger (a shop, a station), which is the polite です/ます form.
+_JAPANESE_NOTE = (
+    "\n\nJapanese: write standard Japanese in kanji and kana as a native speaker would, never"
+    " romaji, with no spaces between words, and cut `parts` where a person would pause. Phrases"
+    " taught and the new sentences in `mixes` use the polite です/ます form."
+)
+
+
+def _language_note(language: Code, learner: lesson.Learner) -> str:
+    """What the request adds for one language: Thai's script and gendered particles, Japanese's
+    script and politeness, nothing for the rest."""
+    if language == "th":
+        return _thai_note(learner)
+    return _JAPANESE_NOTE if language == "ja" else ""
+
+
 def _speakers(language: Code, learner: lesson.Learner) -> tuple[str, str]:
     """Who A and B are: the learner is A, and in every language but Thai that is a man."""
     if language == "th" and learner == "female":
@@ -224,7 +241,7 @@ def request_message(language: Code, scene: str, learner: lesson.Learner = "male"
         many=lesson.MAX_PHRASES,
         mixes=lesson.MAX_MIXES,
         parts=lesson.MAX_PARTS,
-        note=_thai_note(learner) if language == "th" else "",
+        note=_language_note(language, learner),
     )
 
 

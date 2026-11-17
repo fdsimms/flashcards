@@ -6,7 +6,7 @@ import type { AudioLesson, Language, LessonStage } from './api';
 import { stepsAt, type StageStep } from './making';
 
 /** The languages the server makes lessons in (server lesson_service.LESSON_LANGUAGES): the shelf offers lessons only in these. */
-export const LESSON_LANGUAGES: readonly Language[] = ['fr', 'th', 'es', 'de', 'ru', 'el', 'pl', 'nb'];
+export const LESSON_LANGUAGES: readonly Language[] = ['fr', 'th', 'es', 'de', 'ru', 'el', 'pl', 'nb', 'ja'];
 
 /** While a lesson is being made, check back this often. */
 export const POLL_MS = 5_000;

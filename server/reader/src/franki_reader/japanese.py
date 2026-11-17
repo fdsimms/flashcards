@@ -406,6 +406,17 @@ class JapaneseLexicon:
         return hiragana("".join(m.reading for m in word.morphemes)) or None
 
 
+@cache
+def _no_deck() -> JapaneseLexicon:
+    return JapaneseLexicon(())
+
+
+def words(text: str) -> list[str]:
+    """The words of `text` as the reader splits a line (a verb with what conjugates it, a prefix
+    with its word), with no deck phrase joined and no punctuation: for counting words (lesson.py)."""
+    return [w.surface for w in _no_deck()._split(text) if any(m.is_word for m in w.morphemes)]
+
+
 def _conjugates(m: Morpheme, before: Morpheme) -> bool:
     """Whether `m` belongs to the verb or adjective it follows."""
     if m.pos == _AUXILIARY:

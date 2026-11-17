@@ -36,6 +36,7 @@ from typing import Any, Literal
 
 from pythainlp.tokenize import word_tokenize
 
+from franki_reader import japanese
 from franki_reader.coverage import Checker, is_word
 
 MIN_PHRASES, MAX_PHRASES = 3, 5
@@ -123,14 +124,23 @@ class Plan:
 # named, or a Thai word would split at every one.
 _WORD = re.compile(r"[\w'\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]+", re.UNICODE)
 _THAI = re.compile(r"[\u0E00-\u0E7F]")
+_JAPANESE = re.compile(r"[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF]")
 _SPACES = re.compile(r"\s+")
 
 
+def _unspaced(text: str) -> bool:
+    """Whether `text` is in a language written without spaces between words (Thai, Japanese)."""
+    return bool(_THAI.search(text) or _JAPANESE.search(text))
+
+
 def tokens(text: str) -> list[str]:
-    """The words of `text`. Thai is written without spaces between words, so it's cut by the same
-    segmenter the rest of the server uses (newmm); anything else is split where it's spaced."""
+    """The words of `text`. Thai and Japanese are written without spaces between words, so each is
+    cut by the segmenter the rest of the server uses for it (newmm, Sudachi as the reader splits it);
+    anything else is split where it's spaced."""
     if _THAI.search(text):
         return [t for t in word_tokenize(text, engine="newmm") if _WORD.search(t)]
+    if _JAPANESE.search(text):
+        return japanese.words(text)
     return _WORD.findall(text)
 
 
@@ -256,7 +266,7 @@ def unfamiliar_words(plan: Plan, lexicon: Checker) -> list[str]:
             if is_word(piece)
             and lexicon.status(piece) != "known"
             and _plain(piece) not in taught_words
-            and not (_THAI.search(piece) and _plain(piece) in taught_text)
+            and not (_unspaced(piece) and _plain(piece) in taught_text)
         ]
         if len(strangers) > MAX_UNFAMILIAR_PER_LINE:
             over.update(dict.fromkeys(strangers))
@@ -268,8 +278,8 @@ def build_up(phrase: Phrase) -> list[str]:
     "un café s'il vous plaît" in parts un café | s'il vous plaît is "s'il vous plaît", then the
     whole. A phrase of one part has only itself."""
     parts = phrase.parts
-    # Thai has no spaces between words, and Azure's voice would pause at one.
-    joiner = "" if _THAI.search(phrase.text) else " "
+    # Thai and Japanese have no spaces between words, and Azure's voice would pause at one.
+    joiner = "" if _unspaced(phrase.text) else " "
     steps = [joiner.join(parts[i:]) for i in range(len(parts) - 1, -1, -1)]
     return steps[:-1] + [phrase.text] if len(parts) > 1 else [phrase.text]
 

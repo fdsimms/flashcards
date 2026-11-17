@@ -12,9 +12,8 @@ const lesson = (over: Partial<AudioLesson> = {}): AudioLesson => ({
 });
 
 describe('lessonsOffered', () => {
-  it('is every language but Japanese and English', () => {
-    for (const code of ['fr', 'th', 'es', 'de', 'ru', 'el', 'pl', 'nb'] as const) expect(lessonsOffered(code)).toBe(true);
-    expect(lessonsOffered('ja')).toBe(false);
+  it('is every language but English', () => {
+    for (const code of ['fr', 'th', 'es', 'de', 'ru', 'el', 'pl', 'nb', 'ja'] as const) expect(lessonsOffered(code)).toBe(true);
     expect(lessonsOffered('en')).toBe(false);
   });
 });
