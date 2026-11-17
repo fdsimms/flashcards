@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { treeQueue } from '../../src/core/deckTree';
-import { dueCounts, isBuried, isDue, nextCard, nextLearningDue, siblingsToBury, studiedToday } from '../../src/core/queue';
+import { answerCounts, dueCounts, isBuried, isDue, nextCard, nextLearningDue, siblingsToBury, studiedToday } from '../../src/core/queue';
 import { review } from '../../src/core/scheduler';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
@@ -171,6 +171,39 @@ describe("today's counts", () => {
     expect(counts({ cards: [card], reviews }).get(deck)).toEqual({ introduced: 1, reviewed: 2 });
   });
 
+  it('counts an answer in the session as a reload will: not a preview, or a review answered before its day', () => {
+    const [base] = makeCards(note, NOW);
+    const reviewDue = (d: Date): Card => ({ ...base, sched: { ...base.sched, state: 2, due: d.toISOString() } });
+    expect(answerCounts(base, NOW, H, false)).toBe('new');
+    expect(answerCounts(base, NOW, H, true)).toBeNull();
+    expect(answerCounts(reviewDue(new Date(2026, 10, 11, 20)), NOW, H, false)).toBe('review'); // due later today
+    expect(answerCounts(reviewDue(new Date(2026, 10, 14, 9)), NOW, H, false)).toBeNull(); // review ahead
+    expect(answerCounts(reviewDue(new Date(2026, 10, 12, 2)), NOW, H, false)).toBe('review'); // 2 AM: still today's
+  });
+
+  it('counts a card reset to new and studied again the same day as introduced twice, as Anki does', () => {
+    const [base] = makeCards(note, NOW);
+    const card = { ...base, ankiId: '100' };
+    const at = (h: number) => new Date(2026, 10, 11, h, 0).getTime();
+    const revlog = [
+      { id: at(8), cid: 100, ease: 3, lastIvl: 0, time: 5000, type: 0 },
+      { id: at(9), cid: 100, ease: 0, lastIvl: 0, time: 0, type: 4 }, // Forget
+      { id: at(10), cid: 100, ease: 3, lastIvl: 0, time: 5000, type: 0 },
+    ];
+    expect(counts({ cards: [card], revlog }).get(deck)).toEqual({ introduced: 2, reviewed: 0 });
+  });
+
+  it("counts an answer against the deck it was given in, though the card has moved since", () => {
+    const [base] = makeCards(note, NOW);
+    const moved = { ...base, ankiId: '100', deck: 'Elsewhere' };
+    const at = new Date(2026, 10, 11, 9, 0);
+    const revlog = [{ id: at.getTime(), cid: 100, ease: 3, lastIvl: 12, time: 3000, type: 1 }];
+    const reviews = [{ cardId: moved.id, ...review({ ...base.sched, state: 2 }, 3, at).log, deck }];
+    const c = counts({ cards: [moved], revlog, reviews });
+    expect(c.get(deck)).toEqual({ introduced: 0, reviewed: 1 });
+    expect(c.get('Elsewhere')).toBeUndefined();
+  });
+
   it('counts a 1 AM session against the study day before it', () => {
     const [card] = makeCards(note, NOW);
     const reviews = [{ cardId: card.id, ...review(card.sched, 3, new Date(2026, 10, 12, 1, 0)).log }];
@@ -198,7 +231,7 @@ describe("today's counts", () => {
     ];
     // Franki's own answer to an Anki card is in the review log too (write-back), so its row in
     // Franki's table isn't counted again.
-    const reviews = [{ cardId: fresh.id, ...review(fresh.sched, 3, NOW).log }];
+    const reviews = [{ cardId: fresh.id, ...review(fresh.sched, 3, new Date(at(8))).log }];
     expect(counts({ cards: [fresh, reviewing], revlog, reviews }).get(deck)).toEqual({ introduced: 1, reviewed: 2 });
   });
 

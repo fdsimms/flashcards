@@ -1,6 +1,6 @@
 import { frontFieldName } from '../core/cards';
 import { htmlToText } from '../core/html';
-import type { Note } from '../core/types';
+import type { Card, Note } from '../core/types';
 import type { ImportResult } from './tsv';
 
 /**
@@ -20,15 +20,24 @@ export function matchKey(note: Note): string | undefined {
  * and as JSON (`tsv:<deck>:<entry>` against Anki's note id), or a note moved to another deck and
  * exported as TSV again.
  *
- * An incoming note whose id is already stored keeps it. Otherwise it takes the id of the one
- * stored note with the same `matchKey`, and its new deck goes with it. When several stored notes
+ * An incoming note whose id is already stored keeps it. Otherwise it takes the id of the stored
+ * note whose card has one of its cards' Anki ids (`existingCards`): a note matched by its front
+ * once keeps that id after its front or note type changes in Anki, rather than coming in again
+ * beside it. Otherwise it takes the id of the one stored note with the same `matchKey`, and its
+ * new deck goes with it. When several stored notes
  * share that key (a homograph like German "Bank", bench and bank), it is imported as new with a
  * warning rather than guessed at. A stored note is matched at most once per import, and never
  * when this import also updates it under its own id.
  */
-export function reconcileIds(result: ImportResult, existing: Note[]): ImportResult {
+export function reconcileIds(result: ImportResult, existing: Note[], existingCards: Card[]): ImportResult {
   const existingIds = new Set(existing.map((n) => n.id));
   const incomingIds = new Set(result.notes.map((n) => n.id));
+  const noteOfAnkiCard = new Map<string, string>();
+  for (const c of existingCards) {
+    if (c.ankiId && existingIds.has(c.noteId) && !incomingIds.has(c.noteId)) noteOfAnkiCard.set(c.ankiId, c.noteId);
+  }
+  const ankiCardsOf = new Map<string, string[]>();
+  for (const c of result.cards) if (c.ankiId) (ankiCardsOf.get(c.noteId) ?? ankiCardsOf.set(c.noteId, []).get(c.noteId)!).push(c.ankiId);
   const byKey = new Map<string, Note[]>();
   for (const n of existing) {
     if (incomingIds.has(n.id)) continue;
@@ -41,6 +50,12 @@ export function reconcileIds(result: ImportResult, existing: Note[]): ImportResu
   const claimed = new Set<string>();
   for (const n of result.notes) {
     if (existingIds.has(n.id)) continue;
+    const same = (ankiCardsOf.get(n.id) ?? []).map((a) => noteOfAnkiCard.get(a)).find((id) => id !== undefined && !claimed.has(id));
+    if (same) {
+      remap.set(n.id, same);
+      claimed.add(same);
+      continue;
+    }
     const k = matchKey(n);
     const candidates = (k ? byKey.get(k) ?? [] : []).filter((c) => !claimed.has(c.id));
     if (candidates.length === 1) {

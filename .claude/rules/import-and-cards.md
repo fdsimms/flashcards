@@ -28,10 +28,12 @@ load by path" there). A comment that cites "CLAUDE.md" for one of these sections
   deck. Several matches means a homograph: import as new and warn, never guess. Import screens
   always pass results through it before writing.
 - **Re-importing never resets a card already studied here.** The upsert only overwrites scheduling
-  and suspension on a card still in state New. Keep that true in both repos.
+  on a card still in state New, and never suspension, a flag or a bury: its callers (a TSV, the
+  note editor) don't carry them, so overwriting them could only undo one set in Franki or Anki. An
+  Anki import goes through `applyAnkiCollection`, where Anki's values win. Keep that true in both repos.
 - **A card whose kind the note no longer generates is `retired`, not deleted or suspended.**
-  `suspended` comes from Anki and a TSV re-import doesn't carry it, so the two must stay separate;
-  retiring keeps the card's history, and turning the kind back on restores it.
+  Suspension is the user's (set in Franki or Anki) and a TSV re-import doesn't carry it, so the two
+  must stay separate; retiring keeps the card's history, and turning the kind back on restores it.
 - **An Anki card's `ord` is its template's position in the note type**, fixed whichever cards a
   note generates (`omnilanguageKindByOrd`). Matching it against the list of kinds a note happens to
   generate dropped the audio card's scheduling on notes with no reverse card.

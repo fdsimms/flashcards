@@ -10,6 +10,10 @@ import { liveMisses, markList } from '../tools/marks';
 import { loadToolMarks, saveToolPrefs, toolMarks } from '../tools/storage';
 import { toolById } from '../tools/tools';
 import { useApp } from './AppContext';
+import { useStudyDay } from './useStudyDay';
+
+/** How long after one tap on an extra another one is taken as the same tap. */
+const OPEN_GAP_MS = 1000;
 
 /** One of today's extras as a screen shows it. */
 export interface ExtraItem {
@@ -51,10 +55,12 @@ export function useDailyExtras() {
   const readerOn = !!reader.api;
   const hour = reader.dayStartsAtHour;
 
+  // Worked out again when the next study day starts, so Today left open overnight isn't on yesterday's plan.
+  const day = useStudyDay(hour);
   const plan = useMemo(() => {
     if (!saved || !marksIn || !languages.length) return undefined;
     return planExtras({ prefs: saved.prefs, state: saved.state, languages, readerOn, marks: toolMarks(), now: new Date(), dayStartsAtHour: hour });
-  }, [saved, marksIn, languages, readerOn, hour]);
+  }, [saved, marksIn, languages, readerOn, hour, day]); // eslint-disable-line react-hooks/exhaustive-deps -- `day` is when to work it out again
 
   // The first plan of the day, or one for changed settings, is kept so the day's list holds still.
   const kept = useRef<unknown>(undefined);
@@ -83,7 +89,11 @@ export function useDailyExtras() {
   }, [saved, plan]);
 
   /** Opens the extra: a drill in its language, or Read & Listen's shelf in it. */
+  // A second tap before the screen it opens is up (a double tap on a chip or a row) opens it once.
+  const openedAt = useRef(0);
   const open = useCallback(async (extra: Extra): Promise<string | undefined> => {
+    if (Date.now() - openedAt.current < OPEN_GAP_MS) return undefined;
+    openedAt.current = Date.now();
     if (extra.kind !== 'read') {
       saveToolPrefs({ language: extra.language });
       router.push({ pathname: '/tool', params: { id: extra.kind } });
@@ -93,6 +103,7 @@ export function useDailyExtras() {
     try {
       reader.setSettings(await reader.api.updateSettings({ language: extra.language }));
     } catch (e) {
+      openedAt.current = 0; // nothing opened: Try again is taken at once
       return e instanceof ApiError ? e.message : "Couldn't open Read & Listen. Try again.";
     }
     router.navigate('/read');

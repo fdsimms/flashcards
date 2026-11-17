@@ -40,6 +40,20 @@ describe('answers for stats', () => {
   });
 });
 
+describe('answers for stats, when the review log lacks one', () => {
+  it("counts Franki's own row for an Anki card's answer whose Anki write failed", () => {
+    const cards = [card('a', { ankiId: '100' })];
+    const revlog = [{ id: new Date(2026, 10, 11, 9).getTime() + 1, cid: 100, ease: 3, lastIvl: 0, time: 4000, type: 0 }];
+    const reviews: ReviewLogEntry[] = [
+      // In the log (a millisecond later, as when two answers share one): counted once, from it.
+      { cardId: 'a', rating: 3, reviewedAt: new Date(2026, 10, 11, 9).toISOString(), state: 0, due: '', stability: 1, difficulty: 1 },
+      // Not in it.
+      { cardId: 'a', rating: 1, reviewedAt: new Date(2026, 10, 11, 9, 5).toISOString(), state: 1, due: '', stability: 1, difficulty: 1 },
+    ];
+    expect(answersFrom({ revlog, reviews, cards }).map((a) => [a.at.getMinutes(), a.rating, a.takenMs])).toEqual([[0, 3, 4000], [5, 1, 0]]);
+  });
+});
+
 describe('stats', () => {
   it('starts every past day at the day-start hour, even across a spring-forward gap', () => {
     // In a zone where 2 AM doesn't exist on the change day, the days before it still start at 2 AM.

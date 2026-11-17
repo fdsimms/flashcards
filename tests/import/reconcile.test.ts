@@ -14,33 +14,46 @@ describe('reconcileIds', () => {
   it('matches the same note across export formats and decks', () => {
     const stored = basic('1700000000', 'Trivia::Old', 'Capital of Peru?');
     const incoming = basic('tsv:Trivia::New:Capital of Peru?', 'Trivia::New', 'Capital of Peru?', 'Lima');
-    const res = reconcileIds(resultOf([incoming]), [stored]);
+    const res = reconcileIds(resultOf([incoming]), [stored], []);
     expect(res.notes[0].id).toBe('1700000000');
     expect(res.notes[0].deck).toBe('Trivia::New');
     expect(res.cards.map((c) => [c.id, c.noteId])).toEqual([['1700000000:forward', '1700000000']]);
   });
   it('matches a front written with a character reference to the same text stored plainly', () => {
     const stored = basic('tsv:Fr:l\'eau', 'Fr', "l'eau");
-    const res = reconcileIds(resultOf([basic('tsv:Fr:l&#x27;eau', 'Fr', 'l&#x27;eau', 'water')]), [stored]);
+    const res = reconcileIds(resultOf([basic('tsv:Fr:l&#x27;eau', 'Fr', 'l&#x27;eau', 'water')]), [stored], []);
     expect(res.notes[0].id).toBe("tsv:Fr:l'eau");
   });
   it('keeps an id that is already stored', () => {
     const stored = basic('a', 'D', 'Q');
-    expect(reconcileIds(resultOf([basic('a', 'D', 'Q')]), [stored, basic('b', 'E', 'Q')]).notes[0].id).toBe('a');
+    expect(reconcileIds(resultOf([basic('a', 'D', 'Q')]), [stored, basic('b', 'E', 'Q')], []).notes[0].id).toBe('a');
   });
   it('adds a new note with a warning when several stored notes match', () => {
     const stored = [basic('1', 'D', 'Bank', 'bench'), basic('2', 'D', 'Bank', 'bank')];
-    const res = reconcileIds(resultOf([basic('tsv:D:Bank', 'D', 'Bank')]), stored);
+    const res = reconcileIds(resultOf([basic('tsv:D:Bank', 'D', 'Bank')]), stored, []);
     expect(res.notes[0].id).toBe('tsv:D:Bank');
     expect(res.warnings.join(' ')).toMatch(/matches 2 notes/);
   });
   it('claims a stored note once, and never one this import updates under its own id', () => {
     const stored = [basic('1', 'D', 'Q')];
-    const res = reconcileIds(resultOf([basic('x', 'D', 'Q'), basic('y', 'E', 'Q')]), stored);
+    const res = reconcileIds(resultOf([basic('x', 'D', 'Q'), basic('y', 'E', 'Q')]), stored, []);
     expect(res.notes.map((n) => n.id)).toEqual(['1', 'y']);
-    const own = reconcileIds(resultOf([basic('1', 'D', 'Q'), basic('z', 'E', 'Q')]), stored);
+    const own = reconcileIds(resultOf([basic('1', 'D', 'Q'), basic('z', 'E', 'Q')]), stored, []);
     expect(own.notes.map((n) => n.id)).toEqual(['1', 'z']);
   });
+  it("keeps a note matched once by its front on that note after its front changes in Anki", () => {
+    // tsv:Polski:kot was matched to Anki's note 222 by its front, and its card took Anki's card id.
+    const stored = basic('tsv:Polski:kot', 'Polski', 'kot', 'cat');
+    const storedCards = makeCards(stored, NOW).map((c) => ({ ...c, ankiId: '9001' }));
+    const renamed = basic('222', 'Polski', 'kot (cat)', 'cat');
+    const incoming: ImportResult = { notes: [renamed], cards: makeCards(renamed, NOW).map((c) => ({ ...c, ankiId: '9001' })), warnings: [] };
+    const res = reconcileIds(incoming, [stored], storedCards);
+    expect(res.notes.map((n) => [n.id, n.fields.Front])).toEqual([['tsv:Polski:kot', 'kot (cat)']]);
+    expect(res.cards.map((c) => c.noteId)).toEqual(['tsv:Polski:kot']);
+    // The stored note is also coming in under its own id: nothing to match.
+    expect(reconcileIds({ ...incoming, notes: [renamed, stored] }, [stored], storedCards).notes.map((n) => n.id)).toEqual(['222', 'tsv:Polski:kot']);
+  });
+
   it('keys on note type and front text, ignoring HTML and spacing but not case', () => {
     expect(matchKey(basic('a', 'D', '<b>Weg</b>  '))).toBe(matchKey(basic('b', 'E', 'Weg')));
     expect(matchKey(basic('a', 'D', 'Weg'))).not.toBe(matchKey(basic('b', 'D', 'weg')));
@@ -52,7 +65,7 @@ describe('leaveAnkiNotes', () => {
   it("leaves a TSV row that matches a note from Anki as it is, and says so", () => {
     const fromAnki = basic('1700000000', 'Polski', 'kot', 'cat');
     const res = leaveAnkiNotes(
-      reconcileIds(resultOf([basic('tsv:Imported:kot', 'Imported', 'kot', 'cat'), basic('tsv:Imported:pies', 'Imported', 'pies', 'dog')]), [fromAnki]),
+      reconcileIds(resultOf([basic('tsv:Imported:kot', 'Imported', 'kot', 'cat'), basic('tsv:Imported:pies', 'Imported', 'pies', 'dog')]), [fromAnki], []),
       new Set(['1700000000']),
     );
     expect(res.notes.map((n) => n.id)).toEqual(['tsv:Imported:pies']);

@@ -31,9 +31,10 @@ export default function ReviewRoute() {
   const practice = readerSettings?.decks && language ? {
     languageDeck: readerSettings.decks[language],
     onRead: async (words: string[]) => {
-      // Synced first, so the server reads the answers just given before it writes the text. Unless
-      // this screen was left while it ran: then the replace would land on whatever is in front.
-      await sync();
+      // Synced first, so the server reads the answers just given before it writes the text (after a
+      // sync already running, which may have started before them). Unless this screen was left
+      // while it ran: then the replace would land on whatever is in front.
+      await sync({ afterRunning: true });
       if (left.current) return;
       router.dismissTo({ pathname: '/read', params: { practice: JSON.stringify({ language, words }) } });
     },

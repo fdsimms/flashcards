@@ -34,6 +34,14 @@ def test_ssml_names_the_voice_takes_its_language_and_escapes_the_text() -> None:
     assert "xml:lang='es-MX'" in ssml("¿Qué tal?", "es-MX-JorgeNeural")
 
 
+def test_ssml_refuses_a_voice_name_that_could_end_its_attribute() -> None:
+    with pytest.raises(SpeechError, match="isn't an Azure voice name"):
+        ssml("hi", "en-US-Ava'><audio src='x'/><voice name='en-US-AvaNeural")
+    assert "<voice name='en-US-Ada:DragonHDLatestNeural'>" in ssml(
+        "hi", "en-US-Ada:DragonHDLatestNeural"
+    )
+
+
 def test_ssml_pauses_at_a_thai_clause_break() -> None:
     out = ssml("สวัสดีครับ ไปไหนครับ? กลับบ้าน OK ค่ะ", VOICE)
     assert f"สวัสดีครับ{THAI_PAUSE}ไปไหนครับ?{THAI_PAUSE}กลับบ้าน OK ค่ะ" in out

@@ -17,7 +17,11 @@ const API_REVISION = '20170710';
 const REQUEST_TIMEOUT_MS = 15_000;
 /** Subject ids per request: well under any URL length limit. */
 const IDS_PER_REQUEST = 200;
-/** A collection is read at most this many pages, so a runaway `next_url` can't loop forever. */
+/**
+ * A collection is read at most this many pages, so a runaway `next_url` can't loop forever: 20,000
+ * assignments at 500 a page, twice what WaniKani has items. Past it the read fails, rather than
+ * quietly using part of the list.
+ */
 const MAX_PAGES = 40;
 
 /** Why a request failed, in terms a screen can say something about. */
@@ -187,6 +191,7 @@ export function createWaniKaniApi(token: string, fetchFn: Fetch = fetch): WaniKa
       const next = body.pages?.next_url;
       url = typeof next === 'string' && next.startsWith(API_BASE) ? next : null;
     }
+    if (url) throw new WaniKaniError('unavailable');
     return out;
   }
 

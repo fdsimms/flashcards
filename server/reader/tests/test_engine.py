@@ -601,6 +601,28 @@ def test_missing_audio_is_made_on_request_and_then_cached(tmp_path: Path) -> Non
     assert run(lambda: e.line_audio(text, 9)) is None
 
 
+def test_two_requests_for_a_line_at_once_pay_for_one_recording(tmp_path: Path) -> None:
+    e = speaking_engine(tmp_path, None)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    text = run(lambda: fetch(e, topic.id))
+
+    class SlowVoice(FakeVoice):
+        async def __call__(self, text: str, voice: str, language: str, rate: float = 1.0) -> Spoken:
+            await asyncio.sleep(0.01)  # Azure takes a moment: both requests are in by then
+            return await super().__call__(text, voice, language, rate)
+
+    voice = SlowVoice()
+    e.synthesize = voice
+
+    async def both() -> list[Path | None]:
+        return list(await asyncio.gather(e.line_audio(text, 0), e.line_audio(text, 0)))
+
+    first, second = run(both)
+    assert first is not None and first == second
+    assert len(voice.calls) == 1
+    assert not e._recording  # nothing left waiting
+
+
 def audio_chars(e: Engine, text_id: int) -> int:
     return int(
         e.conn.execute("SELECT audio_chars FROM texts WHERE id = ?", (text_id,)).fetchone()[0]

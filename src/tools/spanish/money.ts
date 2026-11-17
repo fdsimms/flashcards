@@ -1,6 +1,6 @@
 import { CURRENCIES, type MoneySaying } from '../money';
 import { distinct, type Phrase } from '../phrase';
-import { spanishCount } from './numbers';
+import { spanishCount, spanishNumber } from './numbers';
 
 /*
  * An amount of Mexican pesos in Spanish: un peso, veintiún pesos, mil doscientos setenta y siete
@@ -24,7 +24,8 @@ export function saySpanishMoney(amount: number): MoneySaying {
   else if (!pesos) everyday = centavosSaid;
   else {
     everyday = `${pesosSaid} con ${centavosSaid}`;
-    also.push(say(`${pesosSaid} ${spanishCount(centavos)}`, 'As a price is read out'));
+    // No noun follows the centavos, so they're said whole: uno and veintiuno, never un or veintiún.
+    also.push(say(`${pesosSaid} ${spanishNumber(centavos)}`, 'As a price is read out'));
   }
   const written = `$${pesos.toLocaleString('en-US')}${centavos ? `.${String(centavos).padStart(2, '0')}` : ''}`;
   return { everyday: say(everyday), also: distinct([say(everyday), ...also]).slice(1), written: say(written) };

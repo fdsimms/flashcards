@@ -8,6 +8,10 @@ describe('TSV import', () => {
   it('parses quoted multi-line fields', () => {
     expect(parseDelimited('a\t"b\nc"\td\n', '\t')).toEqual([['a', 'b\nc', 'd']]);
   });
+  it('keeps a quoted field\'s line break as the file has it, after CRLF header lines', () => {
+    const res = importTsv('#separator:tab\r\n#html:true\r\n#columns:Front\tBack\r\n"a\r\nb"\tc\r\n', { now: NOW });
+    expect(res.notes.map((n) => n.fields)).toEqual([{ Front: 'a\r\nb', Back: 'c' }]);
+  });
   it('imports an Omnilanguage TSV with metadata headers and tags column', () => {
     const row = omnilanguageFieldNames.map((n) => ({ Entry: 'Haus', Meaning: 'house', GenerateReverse: 'y', Language: 'German' } as Record<string, string>)[n] ?? '');
     const text = ['#separator:tab', '#html:true', '#notetype:Omnilanguage', '#deck:👅 Languages::🥨 Deutsch', `#tags column:${omnilanguageFieldNames.length + 1}`, [...row, 'noun a1'].join('\t')].join('\n');

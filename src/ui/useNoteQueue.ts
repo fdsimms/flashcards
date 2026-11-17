@@ -13,6 +13,12 @@ const poll = { api: null as Api | null, users: 0, token: 0, timer: undefined as 
 const reason = (e: unknown) => (e instanceof ApiError ? e.message : "Couldn't reach the server. Check your connection and try again.");
 const anyWaiting = (queue: NoteQueue | null) => !!queue?.items.some((n) => n.state === 'waiting');
 
+// A change made here (a word added, retried or removed) makes a look already on its way out of date:
+// its answer was read before the change, and would put back what the change took away.
+function supersede() {
+  poll.token++;
+}
+
 function schedule() {
   clearTimeout(poll.timer);
   poll.timer = setTimeout(look, POLL_MS);
@@ -60,20 +66,26 @@ export function useNoteQueue(api: Api | null) {
   const refresh = useCallback(() => { look(); }, []);
   const add = useCallback(async (language: Language, deck: string, entries: { entry: string; meaning: string }[]) => {
     if (!api) return;
-    noteQueueStore.set({ queue: await api.queueNotes(language, deck, entries), error: null });
+    const queue = await api.queueNotes(language, deck, entries);
+    supersede();
+    noteQueueStore.set({ queue, error: null });
     schedule();
   }, [api]);
   const retry = useCallback(async (id: number) => {
     if (!api) return;
-    noteQueueStore.set({ queue: await api.retryQueuedNote(id), error: null });
+    const queue = await api.retryQueuedNote(id);
+    supersede();
+    noteQueueStore.set({ queue, error: null });
     schedule();
   }, [api]);
   const remove = useCallback(async (id: number) => {
     if (!api) return;
     await api.removeQueuedNote(id);
+    supersede();
     // Taken off here at once; the server's own list follows with the next look.
     const current = noteQueueStore.get().queue;
     if (current) noteQueueStore.set({ queue: { ...current, items: current.items.filter((n) => n.id !== id) }, error: null });
+    if (anyWaiting(noteQueueStore.get().queue)) schedule();
   }, [api]);
 
   return { queue: api ? queue : null, error: api ? error : null, refresh, add, retry, remove };

@@ -86,7 +86,7 @@ def test_no_grammar_point_in_the_image_says_so() -> None:
 def test_a_failed_call_is_refused_with_its_reason_and_still_costs() -> None:
     c, conn = client(Reader(ReadFailed("Claude didn't answer. Try again in a moment.", COST)))
     response = read(c)
-    assert response.status_code == 502
+    assert response.status_code == 503
     assert response.json()["detail"] == "Claude didn't answer. Try again in a moment."
     assert store.topic_image_spending(conn, NOW.replace(year=2000)) == {"th": (1, 2.0)}
 

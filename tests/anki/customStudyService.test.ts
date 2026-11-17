@@ -100,7 +100,7 @@ describe('studying cards in a custom study session', () => {
     const cards = await store.listCards();
     expect(cards.filter((c) => c.filteredDeck === CUSTOM_STUDY_DECK)).toHaveLength(4);
     const params = await store.listDeckParams();
-    expect(params.get(CUSTOM_STUDY_DECK)?.filtered).toMatchObject({ reschedule: false });
+    expect(params.get(CUSTOM_STUDY_DECK)?.filtered).toMatchObject({ reschedule: true });
     const notes = await store.listNotes();
     const cs = await store.collectionSettings();
     const queue = treeQueue(CUSTOM_STUDY_DECK, queueInput({ notes, cards, params, studied: new Map(), collection: cs, now: NOW }));

@@ -152,7 +152,8 @@ def router(ctx: AppContext) -> APIRouter:
             title, used = await read_topic_image(body.language, body.image, body.media_type)
         except topic_image.ReadFailed as e:
             ctx.keep_failed_cost("topic_image", body.language, e.usage)
-            raise HTTPException(502, str(e)) from e
+            # 503, as every route here: the app reads a 502 as Caddy's, meaning the server isn't running.
+            raise HTTPException(503, str(e)) from e
         store.save_call_cost(
             engine.conn, "topic_image", body.language, engine.clock(), used.cost_usd()
         )

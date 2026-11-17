@@ -420,7 +420,7 @@ aloud is never heard by the phone.
   stages sends none, and the row shows the first step. A ready
   lesson opens its player (`ReadLesson.tsx`): play or pause, skip back or forward 15 seconds to hear
   a phrase again, the lock screen's controls, and the phrases and conversation behind a row, hidden
-  until asked for so the lesson can be heard first. Background playback is on only while it's open.
+  until asked for so the lesson can be heard first. Background playback is on only once it plays, while it's open; playing it stops Play all on the mini-player, and only opening it leaves Play all going.
 - **The dialogue is held to words the learner knows** (16 November 2026, the owner: the closing
   dialogue was made of words never taught). It is played first and acted out last, so
   `lesson.unfamiliar_words` checks each line against the deck's checker (`engine.snapshot`: studied
