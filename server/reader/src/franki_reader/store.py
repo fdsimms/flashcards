@@ -1579,6 +1579,7 @@ CallFeature = Literal[
     "lessons",
     "ipa",
     "aspect",
+    "topic_image",
 ]
 
 
@@ -1640,6 +1641,14 @@ def lesson_spending(
         (since.isoformat(),),
     ).fetchone()
     return _feature_spending(conn, "lessons", since), int(chars or 0)
+
+
+def topic_image_spending(
+    conn: sqlite3.Connection, since: datetime
+) -> dict[Code, tuple[int, float]]:
+    """Each language with images read for a topic's title since `since` (topic_image.py): how many
+    calls (failed ones included) and what they cost Claude."""
+    return _feature_spending(conn, "topic_image", since)
 
 
 def form_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:

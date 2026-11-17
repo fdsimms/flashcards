@@ -38,6 +38,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   const [listenFirst, setListenFirst] = useState(prefs().listenFirst);
   const [listenTwice, setListenTwice] = useState(prefs().listenTwice);
   const [situationsAzure, setSituationsAzure] = useState(prefs().situationsAzure);
+  const [topicImages, setTopicImages] = useState(prefs().topicImages);
   const [slowLanguages, setSlowLanguages] = useState(prefs().slowLanguages);
   const [guessFirst, setGuessFirst] = useState(prefs().guessFirst);
   const [quizKnown, setQuizKnown] = useState(prefs().quizKnown);
@@ -204,6 +205,23 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
               arrives as soon as it's written. If a language's phone voice sounds too poor, turn this on and the lines
               are recorded with Azure's voices instead. They sound more natural, but each reply waits for the recording,
               and the recording costs a little. The Slow speed is recorded the first time you play a line slowly.
+            </Help>
+            <SectionTitle>Topics</SectionTitle>
+            <Group>
+              <SwitchRow
+                first
+                label="Start a topic from an image"
+                value={topicImages}
+                onValueChange={(on) => {
+                  savePrefs({ topicImages: on });
+                  setTopicImages(on);
+                }}
+              />
+            </Group>
+            <Help>
+              New topic gets a From an image button. Take a photo of a grammar book's page, or choose a screenshot, and
+              Claude names the grammar point on it for you to edit before the page is written. The image is sent to
+              Claude through your server when you pick it. It isn't saved on the server or on this phone.
             </Help>
             <SectionTitle>Hear texts again</SectionTitle>
             <Card style={{ gap: space.s }}>

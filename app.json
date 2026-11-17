@@ -61,6 +61,14 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Franki uses the camera to photograph a page of a grammar book, to start a topic from it. The photo is sent to Claude only when you ask and isn't saved.",
+          "photosPermission": "Franki reads a photo or screenshot of a grammar book's page that you choose, to start a topic from it. It is sent to Claude only when you ask and isn't saved.",
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-notifications",
         {
           "enableRemoteNotifications": false

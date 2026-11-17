@@ -3,15 +3,21 @@ import { ScrollView, Text, TextInput, View, useColorScheme } from 'react-native'
 import { failureText } from '../core/failure';
 import { ApiError, type Api, type GrammarTopic, type GrammarTopicRow, type Language } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
+import { prefs } from '../reader/storage';
 import { TOPIC_TITLE_MAX, topicIdeas, topicTitle } from '../reader/topics';
 import { haptic } from './haptics';
 import { Button, ErrorNote, Help, Screen, Tappable } from './kit';
+import { TopicImagePicker, type PickedImage } from './TopicImagePicker';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 
 /**
  * Asking for a grammar topic (Your topics): a few words for a grammar idea the catalog doesn't have, in the
  * language chosen on the Grammar screen. The server writes the page in the background, so this only starts it
  * and opens its page, which waits for it. Nothing here grades or schedules anything.
+ *
+ * With Settings, Read & Listen, "Start a topic from an image" on, "From an image" also fills the title from a photo
+ * or screenshot of a grammar book's page (the server has Claude name the grammar point). The title is the
+ * only thing that comes from the image: it can be edited, and the page is written as a typed topic's is.
  */
 export function GrammarTopicNew({ api, language, onWriting }: {
   api: Api;
@@ -26,6 +32,9 @@ export function GrammarTopicNew({ api, language, onWriting }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const starting = useRef(false);
+  const [reading, setReading] = useState(false);
+  const [imageRead, setImageRead] = useState(false);
+  const fromImage = prefs().topicImages;
   const name = LANGUAGES[language].name;
   const ready = topicTitle(title).length > 0;
 
@@ -50,6 +59,21 @@ export function GrammarTopicNew({ api, language, onWriting }: {
     }
   };
 
+  const readImage = async (image: PickedImage) => {
+    if (reading) return;
+    setReading(true);
+    setError(null);
+    try {
+      const got = await api.readTopicImage(language, image.base64, image.mediaType);
+      setTitle(topicTitle(got.title));
+      setImageRead(true);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : failureText(e, { what: "Couldn't read the image.", next: 'Try again, or type the topic.' }));
+    } finally {
+      setReading(false);
+    }
+  };
+
   return (
     <Screen title="New topic" largeTitle={false} footer={<Button label="Write the page" onPress={start} disabled={!ready} busy={busy} />}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.l }}>
@@ -67,12 +91,24 @@ export function GrammarTopicNew({ api, language, onWriting }: {
             selectionColor={c.accent}
             keyboardAppearance={dark ? 'dark' : 'light'}
             maxLength={TOPIC_TITLE_MAX}
+            editable={!reading}
             style={{
               ...type.body, color: c.text, backgroundColor: c.surface, ...smooth, borderRadius: radius.m,
               borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP,
             }}
           />
         </View>
+        {fromImage ? (
+          <View style={{ gap: space.s }}>
+            <TopicImagePicker
+              label={reading ? 'Reading the image' : imageRead ? 'Use a different image' : 'From an image'}
+              disabled={reading}
+              onPicked={readImage}
+              onFailed={(e) => setError(failureText(e, { what: "Couldn't get the image.", next: 'Try again, or type the topic.' }))}
+            />
+            {imageRead && !error ? <Help>Claude named this topic from your image. Change the title if it isn't what you want.</Help> : null}
+          </View>
+        ) : null}
         {topicIdeas(language, have).length ? (
           <View style={{ gap: space.s }}>
             <Text style={{ ...type.overline, color: c.textSecondary }}>Ideas</Text>
@@ -93,7 +129,7 @@ export function GrammarTopicNew({ api, language, onWriting }: {
           </View>
         ) : null}
         {error ? <ErrorNote message={error} /> : null}
-        <Help>Takes about 20 seconds. The examples use only words you know, and each page is one Claude call.</Help>
+        <Help>Takes about 20 seconds. The examples use only words you know, and each page is one Claude call.{fromImage ? ' An image is sent to Claude to read the topic and isn\'t saved.' : ''}</Help>
       </ScrollView>
     </Screen>
   );
