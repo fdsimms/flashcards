@@ -332,8 +332,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     const word = subject;
     const text = typed.trim();
     const canSave = canSaveMeaning(q) && !!text;
-    const options = ['Mark as correct', ...(canSave ? [`Save "${text}" as a correct meaning`] : []), 'Cancel'];
-    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: options.length - 1 }, async (i) => {
+    const options = ['Mark as correct', ...(canSave ? ['Save as a correct meaning'] : []), 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({ title: text ? `You typed "${text}". Count it as right?` : 'Count it as right?', options, cancelButtonIndex: options.length - 1 }, async (i) => {
       const picked = options[i];
       if (picked === 'Mark as correct') answer(true);
       if (!canSave || picked !== options[1] || !api || saving.current) return;
@@ -489,6 +489,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
       <>
         {retry ? <Text style={{ ...type.subhead, color: c.warning, textAlign: 'center' }}>{retry}</Text> : null}
         {verdict?.result === 'correct' && verdict.close ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>Close enough: check the spelling.</Text> : null}
+        <View>
         <TextInput
           key={`${item.assignmentId}:${question.kind}:${session!.finished.length}`}
           value={typed}
@@ -508,13 +509,27 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           keyboardAppearance={dark ? 'dark' : 'light'}
           style={{
             ...type.body, textAlign: 'center', ...smooth, borderRadius: radius.m, borderWidth: hairline, minHeight: MIN_TAP,
-            paddingHorizontal: space.m, paddingVertical: space.s,
+            paddingHorizontal: space.m + (result === 'wrong' && canMarkCorrect(question) ? MIN_TAP - space.s : 0), paddingVertical: space.s,
             color: result ? c.onRating : c.text,
             backgroundColor: result === 'correct' ? c.good : result === 'wrong' ? c.again : c.surface,
             borderColor: result ? 'transparent' : c.border,
           }}
         />
-        {result === 'wrong' && canMarkCorrect(question) ? <Button label="Not right?" variant="secondary" onPress={notRight} /> : null}
+        {/* A wrong answer can be counted right (a typo, a slip of the keys): a round button at the box's end opens the choices. */}
+        {result === 'wrong' && canMarkCorrect(question) ? (
+          <Tappable
+            onPress={notRight}
+            accessibilityRole="button"
+            accessibilityLabel="Count my answer as right"
+            scaleTo={0.92}
+            style={{ position: 'absolute', right: space.xs, top: 0, bottom: 0, width: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: c.wkLine }}>
+              <Icon name="ellipsis" size={18} color={c.onRating} weight="bold" />
+            </View>
+          </Tappable>
+        ) : null}
+        </View>
         <Button
           label={!verdict ? 'Check' : finishes || result === 'wrong' ? 'Next' : 'Next question'}
           onPress={check}
