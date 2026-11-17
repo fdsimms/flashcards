@@ -1,23 +1,39 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import React, { useRef, useState } from 'react';
-import { Alert, ScrollView, Text } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, Linking, ScrollView, Text, View } from 'react-native';
 import { dayKeyOf } from '../core/day';
 import { failureText } from '../core/failure';
-import { backupFileName, fileUriToPath } from '../db/backup';
+import { backupCardText, backupFileName, backupProgress, BACKUP_REMINDER_DAYS, fileUriToPath, type BackupInfo } from '../db/backup';
+import type { Repo } from '../db/repo';
 import type { BackupStore } from '../db/sqliteRepo';
-import { Button, Card, Help, MessageList, Screen } from './kit';
-import { space, type, useTheme, readable } from './theme';
+import { saveBackupReminder, useBackupReminderOn } from './backupReminder';
+import { haptic } from './haptics';
+import { Button, Card, Group, Help, Icon, MessageList, ProgressBar, Screen, SwitchRow } from './kit';
+import { notificationsAllowed } from './studyReminder';
+import { radius, readable, smooth, space, type, useTheme } from './theme';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-export function Backup({ store, syncOn }: {
-  store: BackupStore;
+export function Backup({ store, syncOn, onBackedUp }: {
+  store: BackupStore & Pick<Repo, 'collectionSettings'>;
   /** Sync is on, so the Anki server also holds the collection. */
   syncOn: boolean;
+  /** A backup was made: the deck list's backup line and the reminders are worked out again. */
+  onBackedUp: () => Promise<void>;
 }) {
   const c = useTheme();
+  const reminderOn = useBackupReminderOn();
+  const [info, setInfo] = useState<BackupInfo | null>();
+  const [dayStartsAtHour, setDayStartsAtHour] = useState<number>();
+  const [progress, setProgress] = useState<{ fraction: number; text: string }>();
+  const loadInfo = async () => {
+    const [i, collection] = await Promise.all([store.lastBackupInfo(), store.collectionSettings()]);
+    setInfo(i);
+    setDayStartsAtHour(collection.dayStartsAtHour);
+  };
+  useEffect(() => { loadInfo().catch(() => undefined); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState<'backup' | 'restore' | null>(null);
   // A second tap while a backup or restore is running would start another one over the first.
@@ -41,7 +57,12 @@ export function Backup({ store, syncOn }: {
     const file = new File(Paths.cache, name);
     try {
       if (file.exists) file.delete();
-      const { media } = await store.backupTo(fileUriToPath(file.uri));
+      setProgress(backupProgress({ phase: 'database', done: 0, total: 1 }));
+      const { media } = await store.backupTo(fileUriToPath(file.uri), (p) => setProgress(backupProgress(p)));
+      setProgress(undefined);
+      haptic.success();
+      await loadInfo().catch(() => undefined);
+      onBackedUp().catch(() => undefined);
       if (!(await Sharing.isAvailableAsync())) {
         say(`Couldn't open the share sheet on this device, so ${name} wasn't saved anywhere.`);
         return;
@@ -67,8 +88,28 @@ export function Backup({ store, syncOn }: {
       say(`Made ${made}.`);
     } catch (e: any) {
       say(failureText(e, { what: "Couldn't make a backup.", next: 'Try again.' }));
+    } finally {
+      setProgress(undefined);
     }
   });
+
+  const turnReminder = async (on: boolean) => {
+    if (on && !(await notificationsAllowed(true).catch(() => false))) {
+      Alert.alert(
+        'Notifications are off for Franki',
+        'To get a backup reminder, allow notifications for Franki in the Settings app, then turn this on again.',
+        [{ text: 'Cancel', style: 'cancel' }, { text: 'Open Settings', onPress: () => { Linking.openSettings().catch(() => undefined); } }],
+      );
+      return;
+    }
+    try {
+      await saveBackupReminder(on);
+    } catch (e) {
+      Alert.alert("Couldn't save this setting", failureText(e, { next: 'Try again.' }));
+    }
+  };
+
+  const last = info !== undefined && dayStartsAtHour !== undefined ? backupCardText(info, new Date(), dayStartsAtHour) : undefined;
 
   const restore = async () => {
     let res: Awaited<ReturnType<typeof DocumentPicker.getDocumentAsync>>;
@@ -106,12 +147,37 @@ export function Backup({ store, syncOn }: {
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Back up</Text>
+          {progress ? (
+            <View style={{ gap: space.s }}>
+              <ProgressBar value={progress.fraction} label="Progress of the backup" />
+              <Text style={{ ...type.body, color: c.textSecondary }}>{progress.text}</Text>
+            </View>
+          ) : last && (
+            <View style={{ flexDirection: 'row', gap: space.m, alignItems: 'flex-start' }}>
+              <View style={{ width: 36, height: 36, borderRadius: radius.s + 2, ...smooth, alignItems: 'center', justifyContent: 'center', backgroundColor: last.overdue ? c.warningFill : c.goodFill }}>
+                <Icon name={last.overdue ? 'exclamationmark.triangle.fill' : 'checkmark.circle.fill'} color={last.overdue ? c.warningInk : c.goodInk} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ ...type.headline, color: last.overdue ? c.warningInk : c.text }}>{last.title}</Text>
+                {last.detail ? <Text style={{ ...type.body, color: c.textSecondary }}>{last.detail}</Text> : null}
+              </View>
+            </View>
+          )}
           <Help>
             {syncOn ? '' : 'Everything is stored only on this iPhone. '}A backup is one file with your decks, cards, review history,
             and the images and sounds imported from Anki. Choose "Save to Files" to keep it in iCloud Drive.
           </Help>
-          <Button label="Back up now" onPress={backUp} busy={busy === 'backup'} disabled={busy === 'restore'} />
+          <Button label={busy === 'backup' ? 'Backing up…' : 'Back up now'} onPress={backUp} disabled={busy !== null} />
         </Card>
+        <Group>
+          <SwitchRow
+            first
+            label="Remind me to back up"
+            hint={reminderOn ? `An evening notification when the last backup is ${BACKUP_REMINDER_DAYS} days old.` : `A notification in the evening once the last backup is ${BACKUP_REMINDER_DAYS} days old.`}
+            value={!!reminderOn}
+            onValueChange={turnReminder}
+          />
+        </Group>
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Restore</Text>
           <Help>Replace everything on this iPhone with a backup, for example after reinstalling the app or on a new phone.</Help>
