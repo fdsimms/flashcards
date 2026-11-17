@@ -13,6 +13,7 @@ import { useFont } from './AppFont';
 import { Ruby } from './Ruby';
 import type { FuriganaSetting, Run } from '../core/furigana';
 import { CardSentence } from './CardSentence';
+import { TranslationRow } from './TranslationRow';
 import type { SentenceGloss } from './useCardGlosses';
 
 type Block = RenderedSide['blocks'][number];
@@ -134,12 +135,10 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
     return null;
   };
 
-  // The shown translation sits under the same hairline its Show translation row has, labeled with its language
-  // (ContextTranslation is English), so a translation that reads like a question isn't taken for a prompt.
+  // The shown translation is its own labeled row, so one that reads like a question isn't taken for a prompt.
   const translationRow = (it: Item) => (
-    <View key={it.i} style={{ borderTopWidth: hairline, borderTopColor: c.border, marginTop: space.xs, padding: space.m, gap: 2 }}>
-      <Text style={{ ...type.footnote, fontWeight: '600', color: c.textDim }}>English</Text>
-      {line(it)}
+    <View key={it.i} style={{ marginTop: space.xs, paddingHorizontal: space.m, paddingBottom: space.m }}>
+      <TranslationRow>{line(it)}</TranslationRow>
     </View>
   );
 
