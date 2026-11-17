@@ -341,7 +341,7 @@ class Topic:
 
 
 # Why a text is on the shelf (docs/read-and-listen/architecture.md, Shelf): "asked", a topic typed in
-# or a Surprise me; "story", an episode of the ongoing story. "liked", "due" and "new" are from
+# or a Surprise me; "story", an episode of a story. "liked", "due" and "new" are from
 # the days the shelf wrote ahead on its own, and are no longer written. "" for texts from before
 # the shelf.
 Reason = Literal["liked", "due", "new", "asked", "story", ""]
@@ -538,6 +538,14 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # The voice each of the story's speaking characters was given, by name (JSON, cast.py),
         # kept for good so a character sounds the same in every episode.
         conn.execute("ALTER TABLE stories ADD COLUMN voices TEXT NOT NULL DEFAULT '{}'")
+    if "pinned" not in {r[1] for r in conn.execute("PRAGMA table_info(stories)")}:
+        # The running story the shelf's card shows, one per language (pin_story). Before several
+        # stories could run, the one running was the card's, so it starts pinned.
+        conn.execute("ALTER TABLE stories ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
+        conn.execute(
+            "UPDATE stories SET pinned = 1 WHERE active = 1 AND id IN"
+            " (SELECT MAX(id) FROM stories WHERE active = 1 GROUP BY language)"
+        )
     texts_columns = {r[1] for r in conn.execute("PRAGMA table_info(texts)")}
     for column, sql in (
         # Why a text is on the shelf (Reason); empty for texts written before it.
@@ -1149,14 +1157,16 @@ class Story:
     plan: str  # where the season is heading, from the latest episode
     # The voice each speaking character was given, by name: fixed once given, for every episode.
     voices: dict[str, CastVoice] = field(default_factory=dict)
+    # Running (its next episode is written once the last is read), or ended.
+    active: bool = True
+    # The running story the shelf's card shows; at most one per language.
+    pinned: bool = False
 
 
 def start_story(conn: sqlite3.Connection, language: Code, about: str, now: datetime) -> Story:
-    """Starts a new story in a language and retires the one before it (its episodes stay readable
-    in Past texts)."""
-    about = " ".join(about.split())
+    """Starts a new story in a language. The stories already running keep running; the new one is
+    pinned to the shelf's card only when none is."""
     with conn:
-        conn.execute("UPDATE stories SET active = 0 WHERE language = ? AND active = 1", (language,))
         # Episodes need a topic; the story's is removed, so it's never listed or offered. Its
         # name only has to be unique: the next story's number.
         (number,) = conn.execute("SELECT COALESCE(MAX(id), 0) + 1 FROM stories").fetchone()
@@ -1165,9 +1175,10 @@ def start_story(conn: sqlite3.Connection, language: Code, about: str, now: datet
             (f"Ongoing story {number}", now.isoformat()),
         )
         topic_id = cur.lastrowid
+        pinned = _pinned_id(conn, language) is None
         cur = conn.execute(
-            "INSERT INTO stories (language, topic_id, about, created_at) VALUES (?, ?, ?, ?)",
-            (language, topic_id, about, now.isoformat()),
+            "INSERT INTO stories (language, topic_id, about, created_at, pinned) VALUES (?, ?, ?, ?, ?)",
+            (language, topic_id, about, now.isoformat(), int(pinned)),
         )
     story = get_story(conn, cur.lastrowid or 0)
     assert story is not None
@@ -1176,15 +1187,17 @@ def start_story(conn: sqlite3.Connection, language: Code, about: str, now: datet
 
 def get_story(conn: sqlite3.Connection, story_id: int) -> Story | None:
     row = conn.execute(
-        "SELECT id, language, topic_id, about, title, cast_, plan, voices FROM stories"
-        " WHERE id = ?",
+        "SELECT id, language, topic_id, about, title, cast_, plan, voices, active, pinned"
+        " FROM stories WHERE id = ?",
         (story_id,),
     ).fetchone()
     if not row:
         return None
     voices = {name: CastVoice(**v) for name, v in json.loads(row[7]).items()}
-    story_id, language, topic_id, about, title, cast_, plan, _ = row
-    return Story(story_id, language, topic_id, about, title, cast_, plan, voices)
+    story_id, language, topic_id, about, title, cast_, plan, _, active, pinned = row
+    return Story(
+        story_id, language, topic_id, about, title, cast_, plan, voices, bool(active), bool(pinned)
+    )
 
 
 def add_story_voices(conn: sqlite3.Connection, story_id: int, new: dict[str, CastVoice]) -> None:
@@ -1202,12 +1215,75 @@ def add_story_voices(conn: sqlite3.Connection, story_id: int, new: dict[str, Cas
         )
 
 
-def active_story(conn: sqlite3.Connection, language: Code) -> Story | None:
+def _pinned_id(conn: sqlite3.Connection, language: Code) -> int | None:
     row = conn.execute(
-        "SELECT id FROM stories WHERE language = ? AND active = 1 ORDER BY id DESC LIMIT 1",
+        "SELECT id FROM stories WHERE language = ? AND active = 1 AND pinned = 1", (language,)
+    ).fetchone()
+    return row[0] if row else None
+
+
+def pinned_story(conn: sqlite3.Connection, language: Code) -> Story | None:
+    """The story the shelf's card shows: the one pinned, else the newest running one."""
+    row = conn.execute(
+        "SELECT id FROM stories WHERE language = ? AND active = 1"
+        " ORDER BY pinned DESC, id DESC LIMIT 1",
         (language,),
     ).fetchone()
     return get_story(conn, row[0]) if row else None
+
+
+def stories(conn: sqlite3.Connection, language: Code, running_only: bool = False) -> list[Story]:
+    """A language's stories: the running ones first, then the ended, newest first in each."""
+    where = " AND active = 1" if running_only else ""
+    rows = conn.execute(
+        f"SELECT id FROM stories WHERE language = ?{where} ORDER BY active DESC, id DESC",
+        (language,),
+    ).fetchall()
+    return [s for (story_id,) in rows if (s := get_story(conn, story_id))]
+
+
+def pin_story(conn: sqlite3.Connection, story_id: int) -> bool:
+    """Pins a running story to the shelf's card in place of the one there. Returns whether it was
+    a running story."""
+    story = get_story(conn, story_id)
+    if story is None or not story.active:
+        return False
+    with conn:
+        conn.execute("UPDATE stories SET pinned = 0 WHERE language = ?", (story.language,))
+        conn.execute("UPDATE stories SET pinned = 1 WHERE id = ?", (story_id,))
+    return True
+
+
+def end_story(conn: sqlite3.Connection, story_id: int) -> bool:
+    """Ends a story: no more episodes are written, and its episodes stay in Past texts. One that
+    was pinned leaves the card to the newest running story. Returns whether it was running."""
+    story = get_story(conn, story_id)
+    if story is None or not story.active:
+        return False
+    with conn:
+        conn.execute("UPDATE stories SET active = 0, pinned = 0 WHERE id = ?", (story_id,))
+        if story.pinned:
+            # The card passes to the newest running story, pinned so it stays put.
+            conn.execute(
+                "UPDATE stories SET pinned = 1 WHERE id = (SELECT MAX(id) FROM stories"
+                " WHERE language = ? AND active = 1)",
+                (story.language,),
+            )
+    return True
+
+
+def continue_story(conn: sqlite3.Connection, story_id: int) -> bool:
+    """Runs an ended story again: its next episode is written as for any running story. Pinned
+    when no story is. Returns whether it had ended."""
+    story = get_story(conn, story_id)
+    if story is None or story.active:
+        return False
+    pinned = _pinned_id(conn, story.language) is None
+    with conn:
+        conn.execute(
+            "UPDATE stories SET active = 1, pinned = ? WHERE id = ?", (int(pinned), story_id)
+        )
+    return True
 
 
 def name_story(conn: sqlite3.Connection, story_id: int, title: str, cast: str) -> None:

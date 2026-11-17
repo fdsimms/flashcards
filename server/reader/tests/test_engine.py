@@ -430,7 +430,7 @@ def test_an_episode_read_with_no_choice_made_carries_on_without_one() -> None:
     assert "chose what happens next" not in model.messages_seen[calls][0]["content"]
 
 
-def test_a_new_story_retires_the_old_one() -> None:
+def test_a_new_story_runs_beside_the_old_one_which_keeps_the_card() -> None:
     e = engine(ScriptedModel(IN_RANGE))
 
     async def scenario() -> tuple[int, int]:
@@ -441,8 +441,43 @@ def test_a_new_story_retires_the_old_one() -> None:
         return old.id, new.id
 
     old, new = run(scenario)
-    active = store.active_story(e.conn, "th")
-    assert active is not None and active.id == new != old
+    assert [s.id for s in store.stories(e.conn, "th", running_only=True)] == [new, old]
+    pinned = store.pinned_story(e.conn, "th")
+    assert pinned is not None and pinned.id == old
+
+
+def test_pinning_ending_and_continuing_stories() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    first = store.start_story(e.conn, "th", "", NOW)
+    second = store.start_story(e.conn, "th", "", NOW)
+    # Another language's pin is its own.
+    other = store.start_story(e.conn, "pl", "", NOW)
+    assert store.pin_story(e.conn, second.id)
+    assert store.pinned_story(e.conn, "th").id == second.id  # type: ignore[union-attr]
+    assert store.pinned_story(e.conn, "pl").id == other.id  # type: ignore[union-attr]
+    # Ending the pinned story leaves the card to the newest running one, and it can't be pinned.
+    assert store.end_story(e.conn, second.id)
+    assert not store.end_story(e.conn, second.id)
+    assert not store.pin_story(e.conn, second.id)
+    assert store.pinned_story(e.conn, "th").id == first.id  # type: ignore[union-attr]
+    assert [s.id for s in store.stories(e.conn, "th")] == [first.id, second.id]
+    # Continued, it runs again, but the card stays where it is.
+    assert store.continue_story(e.conn, second.id)
+    assert not store.continue_story(e.conn, second.id)
+    assert store.pinned_story(e.conn, "th").id == first.id  # type: ignore[union-attr]
+    assert not store.pin_story(e.conn, 999)
+
+
+def test_top_up_writes_each_running_story_its_next_episode() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    first = store.start_story(e.conn, "th", "", NOW)
+    second = store.start_story(e.conn, "th", "a haunted house", NOW)
+    ended = store.start_story(e.conn, "th", "", NOW)
+    store.end_story(e.conn, ended.id)
+    run(e.top_up)
+    assert store.waiting_episode(e.conn, first.id) is not None
+    assert store.waiting_episode(e.conn, second.id) is not None
+    assert store.waiting_episode(e.conn, ended.id) is None
 
 
 def test_top_up_stops_quietly_without_a_key() -> None:

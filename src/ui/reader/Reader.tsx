@@ -475,7 +475,13 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       try {
         const shelf = await api.shelf();
         if (!stillHere()) return;
-        const episode = shelf.story?.next;
+        // This episode's own story: the card's, or another running one from the Stories list. A
+        // server older than several stories sends no story_id, and only the card's runs there.
+        const story = text.story_id == null || shelf.story?.id === text.story_id
+          ? shelf.story
+          : (await api.stories()).stories.find((s) => s.id === text.story_id) ?? null;
+        if (!stillHere()) return;
+        const episode = story?.next;
         if (episode && episode.id !== text.id) {
           const order = playOrder(shelf).filter((id) => id !== text.id);
           setUpNext({ id: episode.id, title: episode.title, lines: episode.lines, order });
@@ -483,8 +489,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           setNextEpisode('ready');
           return;
         }
-        setNextStage(shelf.story?.stage ?? undefined);
-        if (shelf.story?.failed) break;
+        setNextStage(story?.stage ?? undefined);
+        if (story?.failed) break;
       } catch {
         // Unreachable for now: ask again until the wait runs out.
       }

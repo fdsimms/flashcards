@@ -258,6 +258,9 @@ export type ReaderText = {
   topic?: string;
   reason?: ShelfReason;
   episode?: number;
+  // Which story an episode is from; null for any other text, and missing from a server older than
+  // several stories running at once.
+  story_id?: number | null;
   // A story episode's options for what happens next, and the index of the one picked (null until
   // one is). Missing from a server older than story choices, and empty for any other text.
   choices?: TextChoice[];
@@ -329,7 +332,14 @@ export type Shelf = {
   // Shelf texts being written now (a typed topic shows here until it's ready).
   writing: { topic: string; reason: ShelfReason; form: Form; stage?: TextStage | null }[];
   story: ShelfStory | null;
+  // How many stories run in this language, and how many besides the card's have an episode ready
+  // (the Library's Stories row). Missing from a server older than several stories.
+  stories?: { running: number; ready: number };
 };
+
+// A story in the Stories list: as the card has it, without the recap and practice words, and
+// whether it's running (else ended) and the one pinned to the shelf's card.
+export type StoryListItem = ShelfStory & { running: boolean; pinned: boolean };
 
 // 'topic': the model picks stretch words that suit the topic from a list of newer words and words
 // reviewed today (never one due today and not reviewed yet).
@@ -626,6 +636,14 @@ export function createApi(
     writeAbout: (name: string, form: Form, model?: TextModel) => call<void>('POST', '/api/shelf/write', { name, form, ...(model ? { model } : {}) }),
     // Starts a new story in the current language ('' lets the server choose what it's about).
     startStory: (about: string) => call<void>('POST', '/api/story', { about }),
+    // The reader's language's stories, running first, then ended.
+    stories: () => call<{ language: Language; stories: StoryListItem[] }>('GET', '/api/stories'),
+    // Shows a running story on the shelf's card, in place of the one there.
+    pinStory: (id: number) => call<void>('POST', `/api/stories/${id}/pin`),
+    // No more episodes are written; the ones written stay in Past texts.
+    endStory: (id: number) => call<void>('POST', `/api/stories/${id}/end`),
+    // Runs an ended story again.
+    continueStory: (id: number) => call<void>('POST', `/api/stories/${id}/continue`),
     // Takes a text off the shelf unread (Not this).
     skip: (textId: number) => call<void>('POST', `/api/texts/${textId}/skip`),
     // A past text, to read again. Reading it again isn't logged.

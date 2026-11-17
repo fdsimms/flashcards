@@ -44,13 +44,19 @@ marked words, ideas) is in the current language, the `language` setting.
                                       changed deck is read again at once; texts waiting to be read
                                       are spoken again in changed voices
     GET   /api/shelf                  the current language's shelf: the texts waiting (each
-                                      with why it's there), the ongoing story and its next episode,
+                                      with why it's there), the pinned story and its next episode,
+                                      how many stories run,
                                       what's being written, and each language's
                                       count of texts waiting; tops up in the background
     POST  /api/shelf/write            {name, form} writes a text on a topic typed in; it joins the
                                       shelf when it's ready (202)
-    POST  /api/story                  {about?} starts a new story in the current language, retiring
-                                      the one before it, and writes its first episode (202)
+    POST  /api/story                  {about?} starts a new story in the current language, beside
+                                      those running, and writes its first episode (202)
+    GET   /api/stories                the current language's stories, running then ended, and which
+                                      one is pinned to the shelf's card
+    POST  /api/stories/{id}/pin       pins a running story to the shelf's card; 404 if it isn't running
+    POST  /api/stories/{id}/end       ends a story (no more episodes); 404 if it already has
+    POST  /api/stories/{id}/continue  runs an ended story again; 404 if it's running
     POST  /api/texts/{id}/skip        takes a text off the shelf unread (Not this); 404 if it isn't
                                       waiting
     GET   /api/texts                  texts read to the end, newest first, to read again; with

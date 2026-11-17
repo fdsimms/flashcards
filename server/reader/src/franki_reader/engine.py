@@ -1,10 +1,10 @@
 """What the API does, apart from HTTP: serve a ready text, write one in the background when none is
-ready, keep the shelf and the ongoing story topped up, and log readings
+ready, keep the shelf and the running stories topped up, and log readings
 (docs/read-and-listen/architecture.md, Hosting, Shelf and Stories).
 
 The shelf is the texts written and not yet read in the language being read. Nothing fills it on its
-own: a text is written only when asked for (a typed topic, "Surprise me", a practice text), and the
-ongoing story's next episode is written once the last one is read.
+own: a text is written only when asked for (a typed topic, "Surprise me", a practice text), and each
+running story's next episode is written once its last one is read.
 
 Writing a text takes up to a minute or more (three attempts, then audio), longer than an iPhone
 waits on one request, so `/next` never waits for it: `next_text` returns a ready text or starts a
@@ -969,8 +969,8 @@ class Engine:
     # ==== Top-up and readings ====
 
     async def top_up(self) -> None:
-        """Refreshes the current language's lexicon if it's a day old and writes the story's next
-        episode if it has none waiting. Nothing else is written unasked: the shelf holds only
+        """Refreshes the current language's lexicon if it's a day old and writes each running
+        story's next episode if it has none waiting (so a story left unread writes nothing more). Nothing else is written unasked: the shelf holds only
         texts the owner asked for. Only the current language, so having several doesn't multiply
         the spending. Runs after a response is sent; a second call while one is running does
         nothing. The first pass also re-records the texts waiting to be read with word timings
@@ -996,8 +996,7 @@ class Engine:
             except NotAvailable as e:
                 log.info("Not topping up: %s", e)
                 return
-            story = store.active_story(self.conn, language)
-            if story is not None:
+            for story in store.stories(self.conn, language, running_only=True):
                 episode = Job(story.topic_id, language, reason="story", story_id=story.id)
                 if self._idle(episode) and not self._episode_waiting(story):
                     await self._write(episode)
@@ -1028,7 +1027,7 @@ class Engine:
         return topic
 
     def start_story(self, about: str) -> Story:
-        """Starts a new story in the current language (retiring the one before it) and writes its
+        """Starts a new story in the current language, beside any already running, and writes its
         first episode in the background."""
         language = self.language()
         self._check_setup(language)

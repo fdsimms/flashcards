@@ -1197,8 +1197,8 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   being read is ever written for.
 - **The shelf writes nothing on its own** (13 November 2026, by the owner: 41 of 65 texts written in
   a month were never read, and each language opened filled its own shelf of 3). It holds the texts
-  asked for: a typed topic, Surprise me (`asked`), a practice text, and the ongoing story's next
-  episode, which is written once the last one is read. Before this the shelf kept `SHELF_SIZE` (3)
+  asked for: a typed topic, Surprise me (`asked`), a practice text, and each running story's next
+  episode, which is written once its last one is read. Before this the shelf kept `SHELF_SIZE` (3)
   texts written ahead per language, one each of `due`, `liked` and `new`, refilled every time one
   was read; those texts keep their reasons and show as they did, but none is written any more, and
   the top-up no longer reads Anki every 30 minutes for a due text (the snapshot is daily again).
@@ -1227,7 +1227,7 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   Play all whose line says what it covers, "3 texts · 12 min"). Play all no longer starts with the
   story's episode, which is played from its own card; the reader's Next after the episode still
   goes on to the shelf (`playOrder`), while Play all moving on stays within Up next (`upNextOrder`), the Hear again row, and
-  **Library** (Past episodes, Past texts, Audio lessons, Marked words). A row's second line is its
+  **Library** (Stories, Past texts, Audio lessons, Marked words). A row's second line is its
   length, model and reason ("Story · 4 min · Sonnet · Because you liked ..."); the line count is gone.
   Writing a text (Surprise me, or a topic as Dialogue or Story, and Written by) moved off the shelf
   into a sheet behind the header's +, which isn't shown offline.
@@ -1240,9 +1240,20 @@ topics, favorites and constant setting changes awkward, though the texts themsel
 Added on 12 November 2026 by the owner, with the shelf: an ongoing story in each language, whose
 next episode is the top of the shelf.
 
-- **One active story per language** (`stories`), started from the shelf or the settings page, with
-  an optional line about what it's about. Starting a new one retires the old one; its episodes stay
-  in Past texts, listed first to last by Read from the start.
+- **Several stories run at once, one pinned to the card** (17 November 2026, by the owner: a new
+  story used to retire the old one, for no reason anyone wrote down). A story (`stories`) is started
+  from the shelf, the settings page or Stories (the Library's row), with an optional line about what
+  it's about, and runs (`active`) until it's ended. Each language has one pinned story (`pinned`),
+  the one the shelf's card shows (`pinned_story`); a new story is pinned only when none is running,
+  and ending the pinned one passes the pin to the newest running story. Stories (`GET /api/stories`)
+  lists the language's stories, running then ended, with Pin to the shelf, Past episodes, End
+  story and Continue story (`POST /api/stories/{id}/pin`, `/end`, `/continue`). An ended story's
+  episodes stay in Past texts, listed first to last by Read from the start. **Spending:** each
+  running story writes its next episode once its last one is read (the top-up goes through them
+  all), so a story left unread writes nothing more and each has at most one episode waiting. Only
+  the pinned story's episode is downloaded for offline and counted on the card; the shelf sends how
+  many stories run and how many others have an episode ready (`stories`), for the Library row.
+  Play all never includes an episode (Shelf, The layout).
 - **Continuity is carried in words, not in the conversation.** The first episode's request asks the
   model to invent two to four named characters and a place, and to return the story's name
   (`series`, in the text's language like a title, so the shelf card reads in the language being

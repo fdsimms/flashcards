@@ -1735,3 +1735,41 @@ def test_ranks_gives_each_words_place_in_the_common_list() -> None:
         c.post("/api/ranks", json={"language": "es", "words": []}, headers=AUTH).status_code == 422
     )
     assert c.post("/api/ranks", json={"language": "es", "words": ["a"]}).status_code == 401
+
+
+def test_several_stories_run_and_any_running_one_can_be_pinned_to_the_card() -> None:
+    c = client()
+    first = c.post("/api/story", json={"about": ""}, headers=AUTH).json()["id"]
+    second = c.post("/api/story", json={"about": "a haunted house"}, headers=AUTH).json()["id"]
+
+    def settled() -> Any:
+        deadline = time.time() + 10
+        while True:
+            listed = c.get("/api/stories", headers=AUTH).json()["stories"]
+            if all(s["next"] for s in listed) or time.time() > deadline:
+                return listed
+            time.sleep(0.02)
+
+    listed = settled()
+    assert [(s["id"], s["running"], s["pinned"]) for s in listed] == [
+        (second, True, False),
+        (first, True, True),
+    ]
+    # The list leaves the card's recap and practice words to the card.
+    assert listed[0]["last_recap_line"] is None and "practice" not in listed[0]["next"]
+    shelf = c.get("/api/shelf", headers=AUTH).json()
+    assert shelf["story"]["id"] == first
+    assert shelf["stories"] == {"running": 2, "ready": 1}
+
+    assert c.post(f"/api/stories/{second}/pin", headers=AUTH).status_code == 204
+    assert c.get("/api/shelf", headers=AUTH).json()["story"]["id"] == second
+
+    assert c.post(f"/api/stories/{second}/end", headers=AUTH).status_code == 204
+    assert c.post(f"/api/stories/{second}/end", headers=AUTH).status_code == 404
+    assert c.post(f"/api/stories/{second}/pin", headers=AUTH).status_code == 404
+    shelf = c.get("/api/shelf", headers=AUTH).json()
+    assert shelf["story"]["id"] == first and shelf["stories"] == {"running": 1, "ready": 0}
+
+    assert c.post(f"/api/stories/{second}/continue", headers=AUTH).status_code == 204
+    assert c.post(f"/api/stories/{second}/continue", headers=AUTH).status_code == 404
+    assert c.get("/api/shelf", headers=AUTH).json()["stories"]["running"] == 2

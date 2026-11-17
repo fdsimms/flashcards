@@ -10,6 +10,7 @@ import { textSteps } from '../../reader/making';
 import { ReadListenAgain } from './ReadListenAgain';
 import { ReadReviewFirst } from './ReadReviewFirst';
 import { cardDetail, episodeLabel, playOrder, reasonLabel, shelfDetail, upNextOrder, upNextSummary } from '../../reader/shelf';
+import { storiesDetail } from '../../reader/stories';
 import { haptic } from '../haptics';
 import { Button, Card, Divider, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, SectionTitle, Tappable } from '../kit';
 import { MakingBody } from '../MakingCard';
@@ -26,9 +27,9 @@ import { SavedMark } from './SavedMark';
 
 /**
  * Read & Listen's home: one language's shelf (docs/read-and-listen/architecture.md, Shelf). On top,
- * the ongoing story's next episode; under it Up next, the texts already written, each saying why
- * it's there, with Play all; then a text to hear again, and the Library (past episodes and texts,
- * lessons, marked words). Nothing is written unasked, so opening a text never waits, since it's
+ * the pinned story's next episode; under it Up next, the texts already written, each saying why
+ * it's there, with Play all; then a text to hear again, and the Library (stories, past texts,
+ * lessons, marked words). The card shows the story pinned to it; others run in Stories. Nothing is written unasked, so opening a text never waits, since it's
  * written already; the header's + has one written (`onWrite`, a sheet). The language is a menu in
  * the header, and its settings are behind the sliders button.
  *
@@ -41,7 +42,7 @@ const POLL_MS = 10_000;
 
 export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 
-export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, onPractice, onWrite, onLanguagePage, onPast, onLessons, onEpisodes, onWords, onLanguage, onReview, onListenAgain }: {
+export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, onPractice, onWrite, onLanguagePage, onPast, onLessons, onStories, onWords, onLanguage, onReview, onListenAgain }: {
   api: Api;
   /** Opened from Review's "Read a text with these words": offers a text written to practice them. */
   /** The language the settings already name, so the header shows it while the shelf loads. */
@@ -58,8 +59,8 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
   onPast: () => void;
   /** Opens the audio lessons, offered only in the languages the server makes them in. */
   onLessons: () => void;
-  /** Lists the ongoing story's episodes, first to last. */
-  onEpisodes: (storyId: number) => void;
+  /** Opens every story in the language: the one on the card and the others running or ended. */
+  onStories: () => void;
   onWords: () => void;
   /** The language was changed here; the app-wide settings follow. */
   onLanguage: () => void;
@@ -300,8 +301,8 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
             <View style={{ gap: space.s }}>
               <SectionTitle>Library</SectionTitle>
               <Group>
-                {shelf.story && shelf.story.read > 0 ? <NavRow first label="Past episodes" detail={shelf.story.title || 'Your story'} onPress={() => onEpisodes(shelf.story!.id)} /> : null}
-                <NavRow first={!shelf.story || shelf.story.read === 0} label="Past texts" detail={problem ? 'Needs a connection' : 'Read or listen to a text again'} disabled={!!problem} onPress={onPast} />
+                <NavRow first label="Stories" detail={problem ? 'Needs a connection' : storiesDetail(shelf.stories)} disabled={!!problem} onPress={onStories} />
+                <NavRow label="Past texts" detail={problem ? 'Needs a connection' : 'Read or listen to a text again'} disabled={!!problem} onPress={onPast} />
                 {lessonsOffered(shelf.language) ? <NavRow label="Audio lessons" detail={problem ? lessonsKept(kept.lessons.filter((l) => l.complete && l.lesson.language === shelf.language).length) : 'Guided lessons to say aloud'} onPress={onLessons} /> : null}
                 <NavRow label="Marked words" loading={markedCount === null} detail={markedCount == null ? undefined : `${markedCount} marked as unknown`} onPress={onWords} />
               </Group>

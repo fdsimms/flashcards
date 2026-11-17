@@ -8,7 +8,7 @@ from franki_reader import (
     store,
     timing,
 )
-from franki_reader.engine import Engine
+from franki_reader.engine import Engine, Job
 from franki_reader.generator import (
     SEASON_EPISODES,
     StoryContext,
@@ -22,7 +22,7 @@ from franki_reader.reader import (
     render,
     render_line,
 )
-from franki_reader.store import StoredText
+from franki_reader.store import StoredText, Story
 
 
 def instant(at: datetime) -> str:
@@ -61,6 +61,8 @@ def rendered_text(text: StoredText, engine: Engine) -> dict[str, Any]:
     out["topic"] = (story.title or "Your story") if story else (topic.name if topic else "")
     out["reason"] = text.reason
     out["episode"] = text.episode
+    # Which story an episode is from, so the reader can wait for that story's next one.
+    out["story_id"] = text.story_id
     if story and text.episode > 1:
         # What happened in the episode before, shown above the text so it isn't retold in it.
         before = [t for t in store.episodes(engine.conn, story.id) if t.episode == text.episode - 1]
@@ -129,36 +131,62 @@ def recap_json(text: StoredText, engine: Engine) -> dict[str, Any] | None:
     return {"english": text.recap_english, "words": words}
 
 
+def story_json(
+    engine: Engine, story: Story, writing: list[Job], card: bool = True
+) -> dict[str, Any]:
+    """A story as the shelf's card shows it, or with `card` False as the Stories list does (no
+    recap or practice words, which only the card shows)."""
+    told = store.episodes(engine.conn, story.id)
+    read = [t for t in told if store.text_status(engine.conn, t.id) == "read"]
+    waiting = store.waiting_episode(engine.conn, story.id)
+    # Where the episode the card shows (the waiting one, else the next to be written) falls
+    # in its season, so the app doesn't repeat how long a season is.
+    place = StoryContext(episode=waiting.episode if waiting else len(read) + 1)
+    return {
+        "id": story.id,
+        "title": story.title,
+        "about": story.about,
+        "read": len(read),
+        "season": place.season,
+        "season_episode": place.season_episode,
+        "season_length": SEASON_EPISODES,
+        "last_recap": read[-1].recap if read and card else "",
+        # The same in the story's language, as the reader's words, with that line's English;
+        # null for an episode written before it was asked for.
+        "last_recap_line": recap_json(read[-1], engine) if read and card else None,
+        "next": shelf_text(waiting, engine, practice=card) if waiting else None,
+        "writing": any(j.story_id == story.id for j in writing),
+        "stage": next((engine.stage_of(j) for j in writing if j.story_id == story.id), None),
+        "failed": engine.failure(story.topic_id, story.language),
+    }
+
+
+def stories_json(engine: Engine) -> dict[str, Any]:
+    """The reader's language's stories for the Stories list: running first, then ended."""
+    language = engine.language()
+    writing = engine.writing(language)
+    pinned = store.pinned_story(engine.conn, language)
+    return {
+        "language": language,
+        "stories": [
+            {
+                **story_json(engine, s, writing, card=False),
+                "running": s.active,
+                "pinned": pinned is not None and s.id == pinned.id,
+            }
+            for s in store.stories(engine.conn, language)
+        ],
+    }
+
+
 def shelf_json(engine: Engine, language: Code | None = None) -> dict[str, Any]:
     """The shelf of `language`, the reader's own language when none is given."""
     language = language or engine.language()
     writing = engine.writing(language)
-    story = store.active_story(engine.conn, language)
-    story_out = None
-    if story is not None:
-        told = store.episodes(engine.conn, story.id)
-        read = [t for t in told if store.text_status(engine.conn, t.id) == "read"]
-        waiting = store.waiting_episode(engine.conn, story.id)
-        # Where the episode the card shows (the waiting one, else the next to be written) falls
-        # in its season, so the app doesn't repeat how long a season is.
-        place = StoryContext(episode=waiting.episode if waiting else len(read) + 1)
-        story_out = {
-            "id": story.id,
-            "title": story.title,
-            "about": story.about,
-            "read": len(read),
-            "season": place.season,
-            "season_episode": place.season_episode,
-            "season_length": SEASON_EPISODES,
-            "last_recap": read[-1].recap if read else "",
-            # The same in the story's language, as the reader's words, with that line's English;
-            # null for an episode written before it was asked for.
-            "last_recap_line": recap_json(read[-1], engine) if read else None,
-            "next": shelf_text(waiting, engine, practice=True) if waiting else None,
-            "writing": any(j.story_id == story.id for j in writing),
-            "stage": next((engine.stage_of(j) for j in writing if j.story_id == story.id), None),
-            "failed": engine.failure(story.topic_id, language),
-        }
+    story = store.pinned_story(engine.conn, language)
+    story_out = story_json(engine, story, writing) if story is not None else None
+    running = store.stories(engine.conn, language, running_only=True)
+    others = [s for s in running if story is None or s.id != story.id]
     counts = store.ready_counts(engine.conn)
     return {
         "language": language,
@@ -179,4 +207,9 @@ def shelf_json(engine: Engine, language: Code | None = None) -> dict[str, Any]:
             if j.story_id is None
         ],
         "story": story_out,
+        # The Stories row: how many run, and how many besides the card's have an episode ready.
+        "stories": {
+            "running": len(running),
+            "ready": sum(1 for s in others if store.waiting_episode(engine.conn, s.id)),
+        },
     }
