@@ -124,7 +124,19 @@ describe('cards', () => {
     expect(forward.front.blocks[0]).toMatchObject({ text: 'кошка', prefix: 'моя' });
     expect(forward.front.speak).toBe('кошка');
     expect(renderCard(note, 'reverse').back.blocks[0]).toMatchObject({ text: 'кошка', prefix: 'моя' });
-    expect(renderCard({ ...note, fields: { ...note.fields, Language: 'polish' } }, 'forward').front.blocks[0].prefix).toBeUndefined();
+  });
+  it('puts ten / ta / to before a Polish noun by its Gender, but not before one that already starts with it', () => {
+    const note = omniNote({ Entry: 'mężczyzna', Meaning: 'man', Language: 'polish', Gender: 'm', Transliteration: '' });
+    const forward = renderCard(note, 'forward');
+    expect(forward.front.blocks[0]).toMatchObject({ text: 'mężczyzna', prefix: 'ten' });
+    expect(forward.front.speak).toBe('mężczyzna');
+    expect(renderCard(note, 'reverse').back.blocks[0]).toMatchObject({ prefix: 'ten' });
+    expect(renderCard({ ...note, fields: { ...note.fields, Entry: 'kobieta', Gender: 'f' } }, 'forward').front.blocks[0].prefix).toBe('ta');
+    expect(renderCard({ ...note, fields: { ...note.fields, Entry: 'dziecko', Gender: 'n' } }, 'forward').front.blocks[0].prefix).toBe('to');
+    // Not yet moved out of the Entry, or a plural-only noun with no Gender: nothing is added.
+    expect(renderCard({ ...note, fields: { ...note.fields, Entry: 'ten mężczyzna' } }, 'forward').front.blocks[0].prefix).toBeUndefined();
+    expect(renderCard({ ...note, fields: { ...note.fields, Entry: 'te spodnie', Gender: '' } }, 'forward').front.blocks[0].prefix).toBeUndefined();
+    expect(renderCard({ ...note, fields: { ...note.fields, Language: 'spanish' } }, 'forward').front.blocks[0].prefix).toBeUndefined();
   });
   it("shows which word is wanted under a reverse card's meaning, and nowhere else", () => {
     const note = omniNote({ Entry: 'esperar', Meaning: 'to wait', Language: 'Spanish', LeechHint: 'hint' });

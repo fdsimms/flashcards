@@ -421,9 +421,9 @@ export interface paths {
         put?: never;
         /**
          * Ranks
-         * @description Each word's place in its language's list of most common words (1 is the most common),
-         *     None past the list's end or for something that isn't a word. Reads only: it never touches
-         *     the deck or a card.
+         * @description Where each deck entry stands among its language's most common words (frequency.entry_place):
+         *     its place (1 is the most common), None past the list's end, and the entries that are phrases,
+         *     which no list of single words ranks. Reads only: it never touches the deck or a card.
          */
         post: operations["ranks_api_ranks_post"];
         delete?: never;
@@ -1577,6 +1577,15 @@ export interface components {
             /** Words */
             words: string[];
         };
+        /** RanksOut */
+        RanksOut: {
+            /** Ranks */
+            ranks: {
+                [key: string]: number | null;
+            };
+            /** Phrases */
+            phrases: string[];
+        };
         /** ReadingIn */
         ReadingIn: {
             /** Rating */
@@ -2665,11 +2674,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: {
-                            [key: string]: number | null;
-                        };
-                    };
+                    "application/json": components["schemas"]["RanksOut"];
                 };
             };
             /** @description Validation Error */

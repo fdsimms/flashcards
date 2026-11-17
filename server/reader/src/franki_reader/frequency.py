@@ -7,12 +7,15 @@ casual words rank where they're said (scripts/build_common.py). This only ranks 
 What counts as known is decided elsewhere, and Thai still counts only its deck.
 """
 
+from dataclasses import dataclass
 from functools import cache
+
+from pythainlp.tokenize import word_tokenize
 
 from franki_reader.coverage import Checker, is_word
 from franki_reader.japanese import JapaneseLexicon, lemma_key
 from franki_reader.japanese import common_words as japanese_words
-from franki_reader.spaced import common_words, fold, lemma
+from franki_reader.spaced import SpacedLexicon, common_words, fold, lemma
 
 THAI = "th"
 
@@ -52,3 +55,39 @@ def rank_of(word: str, lexicon: Checker) -> int | None:
             keys = [lemma(word, code), fold(word, code)]
     found = [ranks[k] for k in keys if k in ranks]
     return min(found) if found else None
+
+
+@dataclass(frozen=True)
+class EntryPlace:
+    """Where a deck entry stands: its place in the list, and whether it's a phrase (an entry of
+    several words, which no list of single words ranks)."""
+
+    rank: int | None
+    phrase: bool = False
+
+
+def _spaced_rank(word: str, code: str) -> int | None:
+    ranks = _ranks(common_words(code))
+    found = [ranks[k] for k in (lemma(word, code), fold(word, code)) if k in ranks]
+    return min(found) if found else None
+
+
+def entry_place(entry: str, lexicon: Checker) -> EntryPlace:
+    """The place of a deck entry as the deck writes it, for ordering and tiering cards. A spaced
+    language's entry is ranked without its article or marker (ten mężczyzna, as mężczyzna; bać się,
+    as bać) and by its best alternative (der/die Mitwirkende); one left with several words is a
+    phrase. Thai's entry is a phrase when it isn't on the list and the default dictionary cuts it
+    into several words. Japanese's is ranked as a word. Unlike `rank_of`, this reads a whole entry."""
+    if isinstance(lexicon, SpacedLexicon):
+        keys = lexicon.entry_keys(entry)
+        found = [
+            r for k in keys if len(k) == 1 and (r := _spaced_rank(k[0], lexicon.code)) is not None
+        ]
+        if found:
+            return EntryPlace(min(found))
+        return EntryPlace(None, phrase=any(len(k) > 1 for k in keys))
+    rank = rank_of(entry, lexicon)
+    if rank is not None or isinstance(lexicon, JapaneseLexicon):
+        return EntryPlace(rank)
+    pieces = [p for p in word_tokenize(entry.strip(), engine="newmm") if is_word(p)]
+    return EntryPlace(None, phrase=len(pieces) > 1)
