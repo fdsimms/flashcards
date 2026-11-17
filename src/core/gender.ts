@@ -48,6 +48,20 @@ const GENDER_PREFIXES: Record<string, Partial<Record<Gender, string>>> = {
 const SPOKEN_ARTICLE = new Set(['es', 'nb', 'de', 'fr', 'el']);
 
 /**
+ * Polish's gender words for a plural, by the Gender field's value: te before a noun that has only a plural
+ * (pl: te spodnie) and ci before a plural of men (mpl: ci ludzie). They aren't a `Gender`, which is m, f or n,
+ * so they have their own lookup (`pluralWord`).
+ */
+const PLURAL_PREFIXES: Record<string, Record<string, string>> = { pl: { pl: 'te', mpl: 'ci' } };
+
+/** Whether an Entry already starts with one of the language's gender words (ten, te, ci, мой, el): it must not get a second. */
+function startsWithGenderWord(lang: string, entry: string): boolean {
+  const words = [...Object.values(GENDER_PREFIXES[lang] ?? {}), ...Object.values(PLURAL_PREFIXES[lang] ?? {})];
+  const e = entry.toLowerCase();
+  return words.some((w) => e.startsWith(`${w} `));
+}
+
+/**
  * Whether a French or Italian word takes l' in place of its gender's article: a vowel starts it. The Forms
  * practice asks the same question, so it's one function. A French h goes either way (l'homme, le héros), so
  * it's not decided here: such a noun keeps its article in the Entry.
@@ -63,8 +77,17 @@ export function elidesBefore(lang: string, word: string): boolean {
  */
 export function genderArticle(lang: string, gender: Gender | undefined, entry: string): string | undefined {
   const word = gender ? GENDER_PREFIXES[lang]?.[gender] : undefined;
-  if (!word || leadingArticle(entry) || entry.toLowerCase().startsWith(`${word} `)) return undefined;
+  if (!word || leadingArticle(entry) || startsWithGenderWord(lang, entry)) return undefined;
   return lang === 'fr' && elidesBefore(lang, entry.trim()) ? "l'" : word;
+}
+
+/**
+ * The plural gender word to show before a bare Entry (te, ci), from the Gender field's value as written, or undefined:
+ * no such value, a language with none, or an Entry that already starts with a gender word of its own.
+ */
+export function pluralWord(lang: string, value: string, entry: string): string | undefined {
+  const word = PLURAL_PREFIXES[lang]?.[value.trim().toLowerCase()];
+  return word && !startsWithGenderWord(lang, entry) ? word : undefined;
 }
 
 /** An article and its word as they're written or said: l'amertume, but el blindaje. */
