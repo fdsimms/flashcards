@@ -14,7 +14,7 @@ export interface GrammarDue {
 
 /**
  * The grammar points due today (src/core/grammarDrills.ts, `duePoints`), for the Practice tab's Grammar row
- * and the deck list's extras. Read from Read & Listen's choices and the phone's answers each time the screen
+ * and Today's extras. Read from Read & Listen's choices and the phone's answers each time the screen
  * comes into view, since both change elsewhere. Null with Read & Listen off, or until known and after a
  * failed request: nothing is said about grammar then, rather than a guess.
  */

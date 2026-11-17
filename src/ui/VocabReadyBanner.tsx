@@ -13,11 +13,11 @@ import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
 const POLL_MS = 3000;
 const CHECK_PATH = '/read-vocab-check';
 
-/** The pathname of the deck list, where the banner sits in the list's own stack instead of floating. */
-export const DECKS_PATH = '/';
+/** The pathname of the Today tab, where the banner sits in the screen's own stack instead of floating. */
+export const TODAY_PATH = '/';
 
 /**
- * What the banner says, or null when there's nothing to announce. No effects, so the deck list can
+ * What the banner says, or null when there's nothing to announce. No effects, so Today can
  * call it too; the waiting and the clean-up live in `VocabReadyBanner`, which is mounted once.
  */
 export function useVocabReady() {
@@ -45,7 +45,7 @@ export function useVocabReady() {
   };
 }
 
-/** The banner's card: the same on the deck list and floating over any other screen. */
+/** The banner's card: the same on Today and floating over any other screen. */
 export function VocabReadyCard({ banner }: { banner: NonNullable<ReturnType<typeof useVocabReady>['banner']> }) {
   const c = useTheme();
   const { ready, message, hint } = banner;
@@ -120,8 +120,8 @@ export function VocabReadyBanner() {
 
   useEffect(() => { if (stale) vocabWatch.clear(); }, [stale]);
 
-  // The deck list shows it in its own stack, above the sync problem, so it never covers either.
-  if (!banner || pathname === DECKS_PATH) return null;
+  // Today shows it in its own stack, beside the sync problem, so it never covers either.
+  if (!banner || pathname === TODAY_PATH) return null;
   return (
     <View pointerEvents="box-none" style={{ position: 'absolute', top: insets.top + space.s, left: space.l, right: space.l }}>
       <VocabReadyCard banner={banner} />

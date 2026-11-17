@@ -22,7 +22,7 @@ export interface ExtraItem {
 }
 
 /**
- * Today's extras (src/tools/extras.ts) for the deck list, the end of a deck and the settings
+ * Today's extras (src/tools/extras.ts) for the Today tab, the end of a deck and the settings
  * screen: one plan, so they never disagree. Needs Read & Listen's deck settings to know which deck
  * is which language, so it offers nothing while those aren't loaded. Never touches a card.
  */

@@ -2,25 +2,23 @@ import { Link, Stack } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
 import { siblingStep, type DeckMove } from '../core/deckOrder';
-import { deckListTotals, isInDeck, shownDeckRows, type DeckRow } from '../core/deckTree';
+import { isInDeck, shownDeckRows, type DeckRow } from '../core/deckTree';
 import { useDeckDrag } from './DeckDrag';
 import { DISCLOSURE, ROW_PAD } from './deckLayout';
 import { haptic } from './haptics';
 import { Button, Card, Group, Icon, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
 import { Reveal, useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
-import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
-import { VacationCard, useVacationBanner } from './vacationNotice';
-import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
-import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
+import { SyncingPill, useSyncTap, type SyncProp } from './syncTap';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 
-type ShownRow = DeckRow & { hasSubdecks: boolean; collapsed: boolean };
+export type ShownRow = DeckRow & { hasSubdecks: boolean; collapsed: boolean };
 
 /** What a deck's long-press menu and its ⋯ button offer besides studying it. */
 export type DeckAction = 'note' | 'rename' | 'options' | 'export' | 'delete';
 
 /** Rows grouped under their top-level deck, so each family of decks sits in one card. */
-function groupByTopLevel(rows: ShownRow[]): ShownRow[][] {
+export function groupByTopLevel(rows: ShownRow[]): ShownRow[][] {
   const groups: ShownRow[][] = [];
   for (const r of rows) {
     if (r.depth === 0 || !groups.length) groups.push([r]);
@@ -41,50 +39,6 @@ function Disclosure({ open, fill, color }: { open: boolean; fill: string; color:
       <Animated.View style={{ transform: [{ rotate: turn.interpolate({ inputRange: [0, 1], outputRange: ['-90deg', '0deg'] }) }] }}>
         <Icon name="chevron.down" size={12} color={color} weight="semibold" />
       </Animated.View>
-    </View>
-  );
-}
-
-/** What's waiting across every deck, or that nothing is: the first thing the deck list says. */
-function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; studied?: string }) {
-  const c = useTheme();
-  const caughtUp = due + fresh === 0;
-  const figure = (value: number, label: string, color: string) => (
-    <View style={{ flex: 1, gap: 2, alignItems: 'center' }}>
-      <Text style={{ ...type.largeTitle, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }}>{value}</Text>
-      <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
-    </View>
-  );
-  return (
-    <View
-      accessible
-      accessibilityLabel={[caughtUp ? 'All caught up. Nothing is due today.' : `Today: ${due} due, ${fresh} new`, studied].filter(Boolean).join('. ')}
-      style={{
-        gap: space.m, padding: space.l, borderRadius: radius.l, ...smooth,
-        backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
-      {caughtUp ? (
-        <>
-          <Icon name="checkmark.circle.fill" size={34} color={c.countDue} weight="regular" effect="bounce" />
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ ...type.headline, color: c.text }}>All caught up</Text>
-            <Text style={{ ...type.subhead, color: c.textSecondary }}>Nothing is due today.</Text>
-          </View>
-        </>
-      ) : (
-        <>
-          {figure(due, 'due today', c.countDue)}
-          {figure(fresh, 'new today', c.countNew)}
-        </>
-      )}
-      </View>
-      {studied ? (
-        <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center', fontVariant: ['tabular-nums'], borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.s }}>
-          {studied}
-        </Text>
-      ) : null}
     </View>
   );
 }
@@ -231,10 +185,10 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
 }
 
 /**
- * Something on the deck list that needs doing (a backup overdue, a sync or a load that failed):
+ * Something that needs doing (a backup overdue, a sync or a load that failed), on Today or Decks:
  * a card edged in the warning color, with what to tap for in the accent color. The whole card is the button.
  */
-function WarningBanner({ title, detail, action, hint, onPress }: { title: string; detail: string; action: string; hint?: string; onPress: () => void }) {
+export function WarningBanner({ title, detail, action, hint, onPress }: { title: string; detail: string; action: string; hint?: string; onPress: () => void }) {
   const c = useTheme();
   return (
     <Reveal>
@@ -252,16 +206,85 @@ function WarningBanner({ title, detail, action, hint, onPress }: { title: string
   );
 }
 
-/** How long a tap on the sync button shows "Syncing" at least, however quickly the sync itself ends. */
-const MIN_SYNC_SHOWN_MS = 1200;
+/**
+ * A deck's row outside Edit mode, on Decks and Today: a tap studies it, a long press opens iOS's
+ * own menu for it, and a swipe reveals Options (a full swipe opens them, as in Mail).
+ */
+export function DeckRowLink({ row, first, toggleSlot, open, onOpenChange, onOptions, onMenu, onAction, onToggle, onStep }: {
+  row: ShownRow;
+  first: boolean;
+  toggleSlot: boolean;
+  /** Slid open on its Options action; one row at a time, so the list holds which. */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onOptions: () => void;
+  onMenu: () => void;
+  onAction: (action: DeckAction) => void;
+  onToggle?: () => void;
+  onStep?: (by: -1 | 1) => void;
+}) {
+  const reduce = useReduceMotion();
+  return (
+    <SwipeToReveal
+      open={open}
+      onOpenChange={onOpenChange}
+      onFullSwipe={onOptions}
+      action={<SwipeAction icon="gearshape" label="Options" accessibilityLabel={`Options for ${row.name}`} onPress={() => { onOpenChange(false); onOptions(); }} />}
+    >
+      {/* The row takes the link's press itself. */}
+      <Link
+        href={{ pathname: '/review', params: { deck: row.deck } }}
+        asChild
+        // Tapping a row that's slid open closes it, rather than opening the deck.
+        onPress={(e) => { if (open) { e.preventDefault(); onOpenChange(false); } }}
+      >
+        <Link.Trigger>
+          <DeckRowView
+            row={row}
+            first={first}
+            toggleSlot={toggleSlot}
+            onMenu={onMenu}
+            onToggle={onToggle ? () => {
+              // The rows below slide into place instead of jumping.
+              if (!reduce) LayoutAnimation.configureNext(LayoutAnimation.create(220, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
+              onToggle();
+            } : undefined}
+            onStep={onStep}
+          />
+        </Link.Trigger>
+        <Link.Menu title={row.name}>
+          <Link.MenuAction icon="plus" onPress={() => onAction('note')}>Add note</Link.MenuAction>
+          <Link.MenuAction icon="pencil" onPress={() => onAction('rename')}>Rename</Link.MenuAction>
+          <Link.MenuAction icon="gearshape" onPress={() => onAction('options')}>Deck options</Link.MenuAction>
+          <Link.MenuAction icon="square.and.arrow.up" onPress={() => onAction('export')}>Export notes</Link.MenuAction>
+          <Link.MenuAction icon="trash" destructive onPress={() => onAction('delete')}>Delete</Link.MenuAction>
+        </Link.Menu>
+      </Link>
+    </SwipeToReveal>
+  );
+}
+
+/** With no decks at all: where to bring them in from. */
+export function NoDecksCard({ onImport }: { onImport: () => void }) {
+  const c = useTheme();
+  return (
+    <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
+      <Icon name="tray" size={40} color={c.textTertiary} weight="regular" />
+      <Text style={{ ...type.title, color: c.text, marginTop: space.s }}>No decks yet</Text>
+      <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21, textAlign: 'center', marginBottom: space.m }}>
+        Bring in your Anki collection, by syncing with your Anki server or from a file exported from AnkiMobile.
+      </Text>
+      <Button label="Set up Anki" onPress={onImport} style={{ alignSelf: 'stretch' }} />
+    </Card>
+  );
+}
 
 export function DeckList(props: {
   decks: DeckRow[];
-  /** "Studied today: ..." under the due and new figures (useTodaySummary), once something has been answered today. */
-  studied?: string;
   /**
-   * When the last backup was made, and whether another is due (`backupStatus`). Not shown while
-   * sync is on: the Anki server then holds the collection, and Backup is still in Settings.
+   * When the last backup was made, and whether another is due (`backupStatus`), as a line under
+   * the decks; Today warns when it's overdue. Not shown while sync is on: the Anki server then
+   * holds the collection, and Backup is still in Settings.
    */
   backup?: { text: string; overdue: boolean };
   /** Why the decks couldn't be loaded, when the last try failed: the rows shown may be out of date. */
@@ -271,9 +294,8 @@ export function DeckList(props: {
   /** Answers given here and not yet in Anki: not synced, or (without sync) not sent back by file. */
   ankiUnsent?: number;
   /** Present when sync is on. */
-  sync?: { syncing: boolean; status: string; failed: boolean; onSync: () => Promise<unknown> | void };
+  sync?: SyncProp;
   onImport: () => void;
-  onBackup: () => void;
   onSettings: () => void;
   onBrowse: () => void;
   onStats: () => void;
@@ -296,15 +318,9 @@ export function DeckList(props: {
    * in today's totals. `refresh` reads its counts again: on a pull, and with the sync button.
    */
   extra?: { node: React.ReactNode; due: number; fresh: number; refresh: () => Promise<unknown> };
-  /** Today's extras (DailyExtras.tsx), under the day's count. */
-  extrasStrip?: React.ReactNode;
 }) {
   const c = useTheme();
-  const reduce = useReduceMotion();
   const header = useHeaderInset();
-  const { banner: vocabReady } = useVocabReady();
-  const noteQueue = useNoteQueueBanner();
-  const vacation = useVacationBanner();
   const shown = useMemo(() => shownDeckRows(props.decks, props.collapsed ?? new Set()), [props.decks, props.collapsed]);
   const groups = useMemo(() => groupByTopLevel(shown), [shown]);
   const allDecks = useMemo(() => props.decks.map((r) => r.deck), [props.decks]);
@@ -312,30 +328,7 @@ export function DeckList(props: {
   const [openDeck, setOpenDeck] = useState<string | null>(null);
   // Edit mode: rows show a delete button and a handle to drag them by, and don't open.
   const [editing, setEditing] = useState(false);
-  // The pull-down spinner is for a pull-down only. Tied to every sync, the one at launch scrolled
-  // the list to show the spinner, and the large title flashed open and snapped shut.
-  const [pulling, setPulling] = useState(false);
-  // A tap on the sync button shows "Syncing" for at least MIN_SYNC_SHOWN_MS, so a sync that has
-  // nothing to do or finishes at once still visibly did something.
-  const [tapped, setTapped] = useState(false);
-  // The pill answers a tap on the sync button. A sync at launch or on returning to the app runs
-  // quietly: the button is disabled while it runs, and the line under the list reports it.
-  const syncShown = !!props.sync && tapped;
-  const syncBusy = !!props.sync && (props.sync.syncing || tapped);
-  const syncTapped = async () => {
-    if (!props.sync || syncBusy) return;
-    setTapped(true);
-    props.extra?.refresh();
-    try {
-      await Promise.all([props.sync.onSync(), new Promise((resolve) => setTimeout(resolve, MIN_SYNC_SHOWN_MS))]);
-    } finally {
-      setTapped(false);
-    }
-  };
-  const totals = useMemo(() => {
-    const t = deckListTotals(props.decks);
-    return props.extra ? { due: t.due + props.extra.due, fresh: t.fresh + props.extra.fresh } : t;
-  }, [props.decks, props.extra?.due, props.extra?.fresh]); // eslint-disable-line react-hooks/exhaustive-deps
+  const syncTap = useSyncTap(props.sync, props.extra?.refresh);
   const backup = props.sync ? undefined : props.backup;
   const drag = useDeckDrag({
     decks: allDecks,
@@ -359,7 +352,7 @@ export function DeckList(props: {
             <Stack.Toolbar.Button accessibilityLabel="Done editing decks" onPress={() => { haptic.tap(); setEditing(false); }}>Done</Stack.Toolbar.Button>
           ) : null}
           {!editing && props.sync ? (
-            <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" selected={syncBusy} tintColor={syncBusy ? c.accent : undefined} accessibilityLabel={syncBusy ? 'Syncing' : 'Sync now'} onPress={syncTapped} />
+            <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" selected={syncTap.busy} tintColor={syncTap.busy ? c.accent : undefined} accessibilityLabel={syncTap.busy ? 'Syncing' : 'Sync now'} onPress={syncTap.tap} />
           ) : null}
           {!editing ? <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} /> : null}
           {!editing ? <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={props.onSettings} /> : null}
@@ -383,43 +376,17 @@ export function DeckList(props: {
         // moved the content down and showed the large title that had been scrolled out of view at
         // launch. With neither, a pull does nothing.
         refreshControl={(
-          <RefreshControl
-            refreshing={pulling}
-            onRefresh={async () => {
-              setPulling(true);
-              try { await Promise.all([props.sync?.onSync(), props.extra?.refresh()]); } finally { setPulling(false); }
-            }}
-            tintColor={c.textSecondary}
-          />
+          <RefreshControl refreshing={syncTap.pulling} onRefresh={syncTap.pull} tintColor={c.textSecondary} />
         )}
       >
         {/* Everything in one view, which a drag measures the rows against and draws its card in. */}
         <View {...drag.contentProps} style={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
-          {/* Today's count first; what needs doing sits under it, so a few banners never push it off the screen. */}
-          {groups.length || props.extra ? <TodaySummary due={totals.due} fresh={totals.fresh} studied={props.studied} /> : null}
-          {props.extrasStrip}
-          {backup?.overdue ? (
-            <WarningBanner title={backup.text} detail="Everything is stored only on this iPhone." action="Tap to back up now" hint="Opens Backup" onPress={props.onBackup} />
-          ) : null}
+          {/* What's for today (the day's count, extras, what needs doing) is on Today; this is every deck. */}
           {props.loadProblem ? (
             <WarningBanner title="Couldn't load your decks" detail={props.loadProblem.text} action="Tap to try again" hint="Loads the decks again" onPress={props.loadProblem.onRetry} />
           ) : null}
-          {vocabReady ? <VocabReadyCard banner={vocabReady} /> : null}
-          {noteQueue ? <NoteQueueCard banner={noteQueue} /> : null}
-          {vacation ? <VacationCard notice={vacation} due={totals.due} /> : null}
-          {props.sync?.failed ? (
-            // A failed sync sits right under today's count, where it can't be scrolled past; a tap tries again.
-            <WarningBanner title="Sync didn't finish" detail={props.sync.status} action="Tap to try again" hint="Syncs now" onPress={syncTapped} />
-          ) : null}
           {groups.length === 0 ? (props.loaded === false ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : (
-            <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
-              <Icon name="tray" size={40} color={c.textTertiary} weight="regular" />
-              <Text style={{ ...type.title, color: c.text, marginTop: space.s }}>No decks yet</Text>
-              <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21, textAlign: 'center', marginBottom: space.m }}>
-                Bring in your Anki collection, by syncing with your Anki server or from a file exported from AnkiMobile.
-              </Text>
-              <Button label="Set up Anki" onPress={props.onImport} style={{ alignSelf: 'stretch' }} />
-            </Card>
+            <NoDecksCard onImport={props.onImport} />
           )) : (
             groups.map((g) => (
               <Group key={g[0].deck}>
@@ -438,43 +405,18 @@ export function DeckList(props: {
                         onStep={(by) => step(row.deck, by)}
                       />
                     ) : (
-                    <SwipeToReveal
+                    <DeckRowLink
+                      row={row}
+                      first={i === 0}
+                      toggleSlot={!!props.onToggleCollapsed}
                       open={openDeck === row.deck}
                       onOpenChange={(open) => setOpenDeck(open ? row.deck : null)}
-                      // A swipe across the whole row opens Options, as a full swipe does in Mail.
-                      onFullSwipe={() => props.onOptions(row.deck)}
-                      action={<SwipeAction icon="gearshape" label="Options" accessibilityLabel={`Options for ${row.name}`} onPress={() => { setOpenDeck(null); props.onOptions(row.deck); }} />}
-                    >
-                      {/* A long press opens iOS's own menu for the deck; a tap studies it (the link). The row takes the link's press itself. */}
-                      <Link
-                        href={{ pathname: '/review', params: { deck: row.deck } }}
-                        asChild
-                        // Tapping a row that's slid open closes it, rather than opening the deck.
-                        onPress={(e) => { if (openDeck === row.deck) { e.preventDefault(); setOpenDeck(null); } }}
-                      >
-                        <Link.Trigger>
-                          <DeckRowView
-                            row={row}
-                            first={i === 0}
-                            toggleSlot={!!props.onToggleCollapsed}
-                            onMenu={() => props.onDeckMenu(row.deck)}
-                            onToggle={props.onToggleCollapsed ? () => {
-                              // The rows below slide into place instead of jumping.
-                              if (!reduce) LayoutAnimation.configureNext(LayoutAnimation.create(220, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
-                              props.onToggleCollapsed!(row.deck);
-                            } : undefined}
-                            onStep={(by) => step(row.deck, by)}
-                          />
-                        </Link.Trigger>
-                        <Link.Menu title={row.name}>
-                          <Link.MenuAction icon="plus" onPress={() => props.onDeckAction(row.deck, 'note')}>Add note</Link.MenuAction>
-                          <Link.MenuAction icon="pencil" onPress={() => props.onDeckAction(row.deck, 'rename')}>Rename</Link.MenuAction>
-                          <Link.MenuAction icon="gearshape" onPress={() => props.onDeckAction(row.deck, 'options')}>Deck options</Link.MenuAction>
-                          <Link.MenuAction icon="square.and.arrow.up" onPress={() => props.onDeckAction(row.deck, 'export')}>Export notes</Link.MenuAction>
-                          <Link.MenuAction icon="trash" destructive onPress={() => props.onDeckAction(row.deck, 'delete')}>Delete</Link.MenuAction>
-                        </Link.Menu>
-                      </Link>
-                    </SwipeToReveal>
+                      onOptions={() => props.onOptions(row.deck)}
+                      onMenu={() => props.onDeckMenu(row.deck)}
+                      onAction={(action) => props.onDeckAction(row.deck, action)}
+                      onToggle={props.onToggleCollapsed ? () => props.onToggleCollapsed!(row.deck) : undefined}
+                      onStep={(by) => step(row.deck, by)}
+                    />
                     )}
                   </View>
                 ))}
@@ -482,13 +424,14 @@ export function DeckList(props: {
             ))
           )}
           {props.extra?.node}
-          {props.sync && (!props.sync.failed || props.ankiUnsent) ? (
-            <Pressable onPress={syncTapped} accessibilityRole="button" accessibilityHint="Syncs now"
+          {props.sync ? (
+            // Today warns when a sync didn't finish; here the line says why, in the warning color.
+            <Pressable onPress={syncTap.tap} accessibilityRole="button" accessibilityHint="Syncs now"
               // A line of footnote text is about 18pt tall; the slop makes it a full tap target without moving the list.
               hitSlop={{ top: space.l, bottom: space.l }}
               style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
               <Text style={{ ...type.footnote, color: props.sync.failed ? c.warning : c.textSecondary, textAlign: 'center' }}>
-                {props.sync.failed ? '' : props.sync.status}
+                {props.sync.status}
                 {props.ankiUnsent ? ` ${props.ankiUnsent} ${props.ankiUnsent === 1 ? "answer isn't" : "answers aren't"} synced yet.` : ''}
               </Text>
             </Pressable>
@@ -499,23 +442,13 @@ export function DeckList(props: {
               </Text>
             </Pressable>
           ) : null}
-          {backup && !backup.overdue ? (
-            <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{backup.text}</Text>
+          {backup ? (
+            <Text style={{ ...type.footnote, color: backup.overdue ? c.warning : c.textSecondary, textAlign: 'center' }}>{backup.text}</Text>
           ) : null}
           {drag.overlay}
         </View>
       </ScrollView>
-      {syncShown ? (
-        // Over the list, not in it, so the rows don't move when it comes and goes; taps pass through.
-        <View pointerEvents="none" style={{ position: 'absolute', top: header.top + space.s, left: 0, right: 0, alignItems: 'center' }}>
-          <Reveal rise={-8}>
-          <View accessibilityRole="progressbar" accessibilityLabel="Syncing" style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.pill, paddingVertical: space.s, paddingHorizontal: space.m, ...lift(c, 'high') }}>
-            <ActivityIndicator size="small" color={c.textSecondary} />
-            <Text style={{ ...type.footnote, color: c.text }}>Syncing…</Text>
-          </View>
-          </Reveal>
-        </View>
-      ) : null}
+      {syncTap.shown ? <SyncingPill top={header.top} /> : null}
       </View>
     </Screen>
   );

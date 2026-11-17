@@ -9,7 +9,7 @@ import { Reveal } from './motion';
 import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
 import { useNoteQueue } from './useNoteQueue';
 
-/** What the deck list's note queue card says, or null with nothing queued (the card hides itself). */
+/** What Today's note queue card says, or null with nothing queued (the card hides itself). */
 export function useNoteQueueBanner() {
   const router = useRouter();
   const { reader } = useApp();
@@ -18,7 +18,7 @@ export function useNoteQueueBanner() {
   return banner ? { ...banner, open: () => { haptic.tap(); router.push('/read-note-queue'); } } : null;
 }
 
-/** The card on the deck list: words waiting for Claude, ready to review, or that it couldn't fill in. */
+/** The card on Today: words waiting for Claude, ready to review, or that it couldn't fill in. */
 export function NoteQueueCard({ banner }: { banner: NonNullable<ReturnType<typeof useNoteQueueBanner>> }) {
   const c = useTheme();
   const { tone, message, hint } = banner;
