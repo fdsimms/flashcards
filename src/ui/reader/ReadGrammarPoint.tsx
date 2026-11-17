@@ -12,7 +12,7 @@ import { GrammarExplanation, type ExplanationGlossing } from './GrammarExplanati
 import { haptic } from '../haptics';
 import { grammarTag } from '../grammarTag';
 import { Card, ErrorNote, Group, HeaderAction, Help, NavRow, Screen, SectionTitle, Segments, Tag, Tappable } from '../kit';
-import { hairline, radius, space, type, useTheme, readable } from '../theme';
+import { hairline, radius, space, type, useTheme, readable, smooth } from '../theme';
 
 /**
  * A grammar point's page (docs/grammar.md, step 4): its choice, the explanation and related points
@@ -159,7 +159,7 @@ export function ReadGrammarPoint({ api, glossing, practice: phone, id, dayStarts
         ) : null}
 
         {suggestion && page ? (
-          <View style={{ backgroundColor: c.accentFill, borderRadius: radius.l, padding: space.l, gap: space.s }}>
+          <View style={{ backgroundColor: c.accentFill, borderRadius: radius.l, ...smooth, padding: space.l, gap: space.s }}>
             <Text style={{ ...type.headline, color: c.text }}>Set it to Know it?</Text>
             <Text style={{ ...type.subhead, color: c.text }}>{knowItReason(suggestion, page.seen.texts)}</Text>
             <View style={{ flexDirection: 'row', gap: space.m }}>

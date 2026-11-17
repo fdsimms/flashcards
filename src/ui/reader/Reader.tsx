@@ -878,7 +878,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
               }}
               style={{
                 flexDirection: 'row', gap: space.m, paddingHorizontal: space.l, paddingVertical: space.m,
-                borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border,
+                borderBottomWidth: hairline, borderBottomColor: c.border,
                 backgroundColor: shaded === i ? c.surface : undefined,
               }}
             >
@@ -1279,7 +1279,7 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
       <Pop
         ready={popHeight > 0}
         style={{
-          backgroundColor: c.surface, borderColor: c.border, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.l,
+          backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.l, ...smooth,
           padding: space.l, gap: space.xs, ...lift(c, 'high'),
         }}
       >
@@ -1461,7 +1461,7 @@ function SkipButton({ icon, label, onPress }: { icon: SFSymbol; label: string; o
 function Stat({ value, label }: { value: string; label: string }) {
   const c = useTheme();
   return (
-    <View style={{ flex: 1, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.m, padding: space.m }}>
+    <View style={{ flex: 1, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.m, ...smooth, padding: space.m }}>
       <Text style={{ ...type.title, color: c.text }}>{value}</Text>
       <Text style={{ ...type.caption, color: c.textSecondary }}>{label}</Text>
     </View>

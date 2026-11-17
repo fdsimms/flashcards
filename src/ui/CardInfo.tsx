@@ -71,7 +71,7 @@ function HistoryRow({ entry, first }: { entry: HistoryEntry; first?: boolean }) 
     >
       {first ? null : <Divider inset={space.l} />}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.m }}>
-        <Text style={{ ...type.body, color: entry.rating === 1 ? c.again : c.text, flexShrink: 1 }}>{what}</Text>
+        <Text style={{ ...type.body, color: entry.rating === 1 ? c.danger : c.text, flexShrink: 1 }}>{what}</Text>
         {detail ? <Text style={{ ...type.body, color: c.textSecondary, flexShrink: 1, textAlign: 'right' }}>{detail}</Text> : null}
       </View>
       <Text style={{ ...type.footnote, color: c.textSecondary }}>{dateTime(entry.at)}</Text>

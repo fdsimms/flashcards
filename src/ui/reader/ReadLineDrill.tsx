@@ -11,7 +11,7 @@ import { NORMAL_RATE, SLOW_RATE } from '../../reader/playbackRate';
 import { hasSlow, speedFor } from '../../reader/prefs';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
-import { Button, Card, Chip, Help, Icon, NavRow, Tappable } from '../kit';
+import { Button, Card, Chip, Help, Icon, NavRow, ProgressBar, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import type { ReadTextStyle } from './ReadWord';
 import { RecordYourself } from '../RecordYourself';
@@ -123,9 +123,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
           <Text style={{ ...type.footnote, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{`Line ${progress.done} of ${progress.total}`}</Text>
           <Text style={{ ...type.footnote, color: c.textSecondary }}>{back ? 'Missed earlier' : kind === 'say' ? 'Say it back' : 'Write what you hear'}</Text>
         </View>
-        <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: progress.total, now: progress.done - 1 }} style={{ height: 4, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }}>
-          <View style={{ height: 4, width: `${((progress.done - 1) / progress.total) * 100}%`, backgroundColor: c.accent }} />
-        </View>
+        <ProgressBar value={(progress.done - 1) / progress.total} label="Progress through these lines" />
         <Reveal key={round.at} rise={10} style={{ gap: space.m }}>
           {kind === 'say' ? (
             <Card style={{ gap: space.s, paddingVertical: space.l }}>
@@ -159,7 +157,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
                   <Text selectable accessibilityLanguage={LANGUAGES[text.language].speech} style={{ ...readFont, fontWeight: '600', color: c.text, flex: 1 }}>
                     {typed.trim() ? comparison.expected.map((p, i) => (p.kind === 'same' ? p.text : (
-                      <Text key={i} style={{ color: c.good, backgroundColor: c.goodFill }}>{p.text}</Text>
+                      <Text key={i} style={{ color: c.goodInk, backgroundColor: c.goodFill }}>{p.text}</Text>
                     ))) : expected}
                   </Text>
                   {line.audio ? (

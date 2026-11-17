@@ -7,7 +7,7 @@ import { choiceText } from '../../reader/choices';
 import { speedFor } from '../../reader/prefs';
 import { prefs, savePrefs } from '../../reader/storage';
 import { haptic } from '../haptics';
-import { Button, Card, Chip, Help, Icon, Tappable } from '../kit';
+import { Button, Card, Chip, Help, Icon, ProgressBar, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import type { ReadTextStyle } from './ReadWord';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
@@ -60,9 +60,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
         <Text style={{ ...type.footnote, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{`Question ${at + 1} of ${questions.length}`}</Text>
         <Text style={{ ...type.footnote, color: c.textSecondary }}>{KIND_LABEL[q.kind]}</Text>
       </View>
-      <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: questions.length, now: at }} style={{ height: 4, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }}>
-        <View style={{ height: 4, width: `${(at / questions.length) * 100}%`, backgroundColor: c.accent }} />
-      </View>
+      <ProgressBar value={at / questions.length} label="Progress through this check" />
       <Reveal key={q.key} rise={10} style={{ gap: space.m }}>
         <Card style={{ gap: space.s, paddingVertical: space.l }}>
           {q.kind === 'text' ? (

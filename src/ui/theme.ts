@@ -55,7 +55,10 @@ const light = {
   /** A grammar point being practiced: its chip's text and fill, in the Grammar tool's violet. */
   violetInk: '#6b43a3',
   violetFill: 'rgba(122, 79, 181, 0.12)',
-  /** Text on `goodFill` and on `warningFill` (a known or a not-known grammar point's tag): the count colors are under 4.5:1 there in light mode. */
+  /**
+   * Text in the good or the warning color, on its fill or on a surface (a known or a not-known grammar point's tag, the right letters of a typed answer).
+   * `good` is a button's fill, under 4.5:1 as text in dark mode, and `warning` is under it on `warningFill` in light mode.
+   */
   goodInk: '#2f6a45',
   warningInk: '#7a4f12',
   /**

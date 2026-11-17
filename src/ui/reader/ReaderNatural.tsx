@@ -5,7 +5,7 @@ import type { Api, NaturalCheck } from '../../reader/api';
 import { isOff, registerLabel, verdictLabel } from '../../reader/register';
 import { ErrorNote, Icon, Tappable } from '../kit';
 import { haptic } from '../haptics';
-import { hairline, radius, space, type, useTheme } from '../theme';
+import { hairline, radius, space, type, useTheme, smooth } from '../theme';
 
 /**
  * How a line is said, and whether a native speaker would say it. The chip is the register Claude
@@ -103,7 +103,7 @@ export function NaturalResult({ state, ask }: ReturnType<typeof useNaturalCheck>
       </View>
       <Text style={{ ...type.subhead, color: c.text }}>{reason}</Text>
       {alternative ? (
-        <View style={{ backgroundColor: c.accentFill, borderRadius: radius.s, paddingHorizontal: space.m, paddingVertical: space.s, gap: 2 }}>
+        <View style={{ backgroundColor: c.accentFill, borderRadius: radius.s, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s, gap: 2 }}>
           <Text style={{ ...type.footnote, color: c.textSecondary }}>A native speaker would more likely say</Text>
           <Text style={{ ...type.body, fontWeight: '600', color: c.accent }} selectable>{alternative}</Text>
         </View>

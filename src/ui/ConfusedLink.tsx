@@ -11,7 +11,7 @@ import type { Card, Note } from '../core/types';
 import { LANGUAGES } from '../reader/languages';
 import { linkCandidates, mixupLanguage, mixupSet, searchWords, type MixupWord } from '../tools/mixups';
 import { haptic } from './haptics';
-import { Button, Divider, ErrorNote, Field, Group, Help, Icon, Tappable } from './kit';
+import { Button, Divider, ErrorNote, Field, Group, Help, Icon, Tag, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
@@ -117,9 +117,7 @@ export function ConfusedLinkSheet({ note, notes, cards, pairs, onLink, onUnlink,
               <View key={cand.word.noteId}>
                 {i ? <Divider inset={space.m} /> : null}
                 <WordRow word={cand.word} label={`Link ${cand.word.word}, ${cand.why}`} onPress={() => run(() => onLink(cand.word.noteId), true)}>
-                  <View style={{ backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.s, paddingVertical: 2 }}>
-                    <Text style={{ ...type.caption, color: c.textSecondary }}>{cand.why}</Text>
-                  </View>
+                  <Tag text={cand.why} color={c.textSecondary} fill={c.fill} />
                 </WordRow>
               </View>
             ))}

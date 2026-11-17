@@ -97,7 +97,7 @@ export function QuizChoices({ choices, answer, picked }: { choices: string[]; an
             {note ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
                 {right ? <Icon name="checkmark.circle.fill" size={18} color={c.good} effect={gotIt ? 'bounce' : undefined} /> : null}
-                <Text style={{ ...type.footnote, color: right ? c.good : c.danger }}>{note}</Text>
+                <Text style={{ ...type.footnote, color: right ? c.goodInk : c.danger }}>{note}</Text>
               </View>
             ) : null}
           </View>

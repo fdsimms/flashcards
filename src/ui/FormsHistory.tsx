@@ -5,7 +5,7 @@ import { CONFUSION_MISSES, CONFUSION_WORDS, FORM_CLEARED_AFTER } from '../core/f
 import { practiceStats, type PracticeStats, type WeakFormStat } from '../core/formsStats';
 import type { Repo } from '../db/repo';
 import { Card, Help, Loading, Screen, SectionTitle } from './kit';
-import { hairline, radius, space, type, useTheme, readable } from './theme';
+import { hairline, radius, space, type, useTheme, readable, smooth } from './theme';
 
 /** How many forms "Still needs work" lists before "and N more". */
 const LISTED_FORMS = 10;
@@ -103,7 +103,7 @@ function Content({ stats }: { stats: PracticeStats }) {
             >
               <View style={{ flex: 1, gap: space.xs }}>
                 <Text style={{ ...type.headline, color: c.text }}>{g.group}</Text>
-                <View style={{ height: 8, borderRadius: radius.s, backgroundColor: c.fill, overflow: 'hidden' }}>
+                <View style={{ height: 8, borderRadius: radius.s, ...smooth, backgroundColor: c.fill, overflow: 'hidden' }}>
                   <View style={{ width: `${p}%`, height: '100%', backgroundColor: c.chart }} />
                 </View>
               </View>

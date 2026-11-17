@@ -9,6 +9,7 @@ import { missedCardText, type MissedCardText } from '../core/missedCard';
 import type { Card, Note, NoteType } from '../core/types';
 import type { Language } from '../reader/api';
 import { missedPracticeLabel, mixupSet, practiceFromMisses, type MixupMode } from '../tools/mixups';
+import { Tag } from './kit';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
 
 /** How many missed words the list shows before counting the rest. */
@@ -96,9 +97,7 @@ export function SessionMissList({ rows }: { rows: SessionMissRow[] }) {
               </>
             )}
             {r.reason ? (
-              <View style={{ backgroundColor: c.dangerFill, borderRadius: radius.pill, paddingHorizontal: space.s, paddingVertical: 2 }}>
-                <Text style={{ ...type.footnote, color: c.danger }}>{r.reason}</Text>
-              </View>
+              <Tag text={r.reason} color={c.danger} fill={c.dangerFill} />
             ) : null}
           </View>
         ))}

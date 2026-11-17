@@ -11,7 +11,7 @@ import { vocabWatch } from '../../reader/vocabWatch';
 import { haptic } from '../haptics';
 import { PlayPill } from '../PlayButton';
 import { Reveal } from '../motion';
-import { Button, Card, Divider, ErrorNote, Group, Help, Screen, SectionTitle, Tappable } from '../kit';
+import { Button, Card, Divider, ErrorNote, Group, Help, ProgressBar, Screen, SectionTitle, Tappable } from '../kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 
 const POLL_MS = 3000;
@@ -272,9 +272,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
           <Text style={{ ...type.footnote, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{`Question ${asked.length + 1} of ${QUESTIONS}`}</Text>
           <Text style={{ ...type.footnote, color: c.textSecondary }}>{name}</Text>
         </View>
-        <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: QUESTIONS, now: asked.length }} style={{ height: 4, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }}>
-          <View style={{ height: 4, width: `${(asked.length / QUESTIONS) * 100}%`, backgroundColor: c.accent }} />
-        </View>
+        <ProgressBar value={asked.length / QUESTIONS} label="Progress through this check" />
         {/* Keyed to the word, so each question fades in as a new card does in Review. */}
         <Reveal key={item.word} rise={10} style={{ gap: space.m }}>
           <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.xs }}>
