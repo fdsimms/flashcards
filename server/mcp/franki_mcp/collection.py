@@ -32,11 +32,12 @@ Required = SyncCollectionResponse.ChangesRequired
 
 
 # A setting changed since the last sync, other than those Anki changes as a side effect of
-# studying or adding (the deck and note type last picked, the day's unburying). A setting's usn
-# stays -1 after a sync, so its modified time says whether it changed here since.
+# studying or adding (the deck and note type last picked, the day's unburying, and the time zone's
+# offset, which it writes when this machine's differs from the one stored). A setting's usn stays
+# -1 after a sync, so its modified time says whether it changed here since.
 CHANGED_CONFIG_SQL = (
     "select 1 from config where usn = -1 and mtime_secs >= ?"
-    " and KEY not in ('curDeck', 'activeDecks', 'curModel', 'lastUnburied')"
+    " and KEY not in ('curDeck', 'activeDecks', 'curModel', 'lastUnburied', 'localOffset')"
     " and KEY not like '\\_deck\\_%\\_lastNotetype' escape '\\'"
     " and KEY not like '\\_nt\\_%\\_lastDeck' escape '\\' limit 1"
 )
