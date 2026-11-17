@@ -1,4 +1,4 @@
-import { studyDayKey } from '../core/day';
+import { studyDayKey, studyDayStart } from '../core/day';
 import { Refusal } from '../core/failure';
 import { daysBetween } from '../core/vacation';
 
@@ -70,6 +70,71 @@ export function backupStatus(lastBackupAt: string | null, now: Date, hasCards: b
   const days = daysBetween(studyDayKey(new Date(lastBackupAt), dayStartsAtHour), studyDayKey(now, dayStartsAtHour));
   const text = days <= 0 ? 'Backed up today' : days === 1 ? 'Last backed up yesterday' : `Last backed up ${days} days ago`;
   return { text, overdue: days >= BACKUP_REMINDER_DAYS };
+}
+
+/** What the last backup held, kept beside when it was made. Null counts: a backup made before they were kept. */
+export interface BackupInfo { at: string; cards: number | null; media: number | null }
+
+const plural = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+const clock = (d: Date) => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
+/**
+ * The Backup screen's "Last backup" card. "Made" because that's all the app can see: the file was
+ * written and the share sheet opened, and whether it was then saved anywhere isn't reported back.
+ */
+export function backupCardText(info: BackupInfo | null, now: Date, dayStartsAtHour: number): { title: string; detail?: string; overdue: boolean } {
+  if (!info) return { title: 'Not backed up yet', overdue: true };
+  const at = new Date(info.at);
+  const days = daysBetween(studyDayKey(at, dayStartsAtHour), studyDayKey(now, dayStartsAtHour));
+  const title = days <= 0 ? `Last backup made today, ${clock(at)}`
+    : days === 1 ? `Last backup made yesterday, ${clock(at)}`
+    : `Last backup made ${days} days ago`;
+  const held = [info.cards === null ? '' : plural(info.cards, 'card', 'cards'), info.media ? plural(info.media, 'image or sound', 'images and sounds') : ''].filter(Boolean).join(', ');
+  const detail = days >= 2 ? [at.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), held].filter(Boolean).join(', ') : held;
+  return { title, detail: detail || undefined, overdue: days >= BACKUP_REMINDER_DAYS };
+}
+
+export type BackupPhase = 'database' | 'media' | 'anki';
+export interface BackupProgress { phase: BackupPhase; done: number; total: number }
+
+/** Where each phase sits on the bar: the media is most of the time, so it gets most of the bar. */
+const PHASE_SPAN: Record<BackupPhase, [number, number]> = { database: [0, 0.15], media: [0.15, 0.85], anki: [0.85, 1] };
+
+/** How far along a backup is (0 to 1) and what to call the step. */
+export function backupProgress(p: BackupProgress): { fraction: number; text: string } {
+  const [from, to] = PHASE_SPAN[p.phase];
+  const fraction = from + (to - from) * (p.total > 0 ? Math.min(1, p.done / p.total) : 1);
+  const text = p.phase === 'database' ? 'Saving your decks'
+    : p.phase === 'media' ? `Copying images and sounds (${p.done.toLocaleString()} of ${p.total.toLocaleString()})`
+    : 'Adding your Anki collection';
+  return { fraction, text };
+}
+
+/** The evening hour the backup reminder arrives, and how many are written ahead (a week apart). */
+export const BACKUP_REMINDER_HOUR = 20;
+export const BACKUP_REMINDER_COUNT = 4;
+
+/**
+ * The backup reminders to schedule from `now`: the first evening the last backup is
+ * `BACKUP_REMINDER_DAYS` old (or tonight, or tomorrow evening, when it already is), then a week
+ * apart. Nothing while there's nothing to lose. Every recount and every backup rewrites them, so
+ * a backup made in between clears the ones that no longer apply.
+ */
+export function backupReminderPlan(input: { lastBackupAt: string | null; hasCards: boolean; now: Date; dayStartsAtHour: number }): { at: Date; title: string; body: string }[] {
+  const { lastBackupAt, hasCards, now, dayStartsAtHour } = input;
+  if (!hasCards) return [];
+  const evening = (base: Date, plusDays: number) => new Date(base.getFullYear(), base.getMonth(), base.getDate() + plusDays, BACKUP_REMINDER_HOUR, 0);
+  let first = lastBackupAt ? evening(studyDayStart(new Date(lastBackupAt), dayStartsAtHour), BACKUP_REMINDER_DAYS) : evening(now, 0);
+  if (first.getTime() <= now.getTime()) first = evening(now, evening(now, 0).getTime() > now.getTime() ? 0 : 1);
+  const out: { at: Date; title: string; body: string }[] = [];
+  for (let i = 0; i < BACKUP_REMINDER_COUNT; i++) {
+    const at = evening(first, i * 7);
+    const body = lastBackupAt
+      ? `Your last backup was ${plural(daysBetween(studyDayKey(new Date(lastBackupAt), dayStartsAtHour), studyDayKey(at, dayStartsAtHour)), 'day', 'days')} ago. Open Backup to make a new one.`
+      : "Your decks aren't backed up yet. Open Backup to make one.";
+    out.push({ at, title: 'Time to back up Franki', body });
+  }
+  return out;
 }
 
 /** What a picked SQLite file is, by its tables: a backup from this app (our core tables), or something else. */

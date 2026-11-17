@@ -22,6 +22,7 @@ import { useCollapsedDecks, type CollapsedDecks } from './useCollapsedDecks';
 import { useConnection } from './connection';
 import { useReader, type ReaderState } from './useReader';
 import { useCountsReport } from './useCountsReport';
+import { useBackupReminder } from './backupReminder';
 import { useStudyReminder } from './studyReminder';
 import { useDeckSnapshot } from './useDeckSnapshot';
 import { Loading } from './kit';
@@ -156,6 +157,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const reader = useReader(syncSettings?.enabled ? syncSettings.server : undefined, dayStartsAtHour);
   useCountsReport(reader, decks, dayStartsAtHour);
   useStudyReminder(decks, dayStartsAtHour);
+  useBackupReminder(repo ?? undefined, decks, dayStartsAtHour);
   useVacationRefresh(refresh);
   const wanikani = useWaniKani(repo, dayStartsAtHour);
 

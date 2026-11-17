@@ -77,3 +77,56 @@ describe('sqliteFileKind', () => {
     expect(sqliteFileKind(['col', 'notes', 'cards', 'revlog'])).toBe('other'); // an Anki collection
   });
 });
+
+describe('backupCardText', () => {
+  it('says when it was made and what it held, and warns from a week', async () => {
+    const { backupCardText } = await import('../../src/db/backup');
+    const now = new Date(2026, 10, 17, 12);
+    const today = backupCardText({ at: new Date(2026, 10, 17, 9, 14).toISOString(), cards: 3482, media: 1240 }, now, 4);
+    expect(today.title).toMatch(/^Last backup made today, 9:14/);
+    expect(today.detail).toBe('3,482 cards, 1,240 images and sounds');
+    expect(today.overdue).toBe(false);
+    const old = backupCardText({ at: new Date(2026, 10, 5, 9).toISOString(), cards: 1, media: 0 }, now, 4);
+    expect(old).toEqual({ title: 'Last backup made 12 days ago', detail: expect.stringContaining('1 card'), overdue: true });
+    // A backup made before counts were kept shows the time alone.
+    expect(backupCardText({ at: new Date(2026, 10, 17, 9).toISOString(), cards: null, media: null }, now, 4).detail).toBeUndefined();
+    expect(backupCardText(null, now, 4)).toEqual({ title: 'Not backed up yet', overdue: true });
+  });
+});
+
+describe('backupProgress', () => {
+  it('moves forward through the phases and never past the end', async () => {
+    const { backupProgress } = await import('../../src/db/backup');
+    const f = (phase: 'database' | 'media' | 'anki', done: number, total: number) => backupProgress({ phase, done, total }).fraction;
+    expect(f('database', 0, 1)).toBe(0);
+    expect(f('media', 0, 100)).toBeGreaterThanOrEqual(f('database', 1, 1));
+    expect(f('media', 50, 100)).toBeGreaterThan(f('media', 0, 100));
+    expect(f('media', 100, 100)).toBeLessThanOrEqual(f('anki', 0, 1));
+    expect(f('media', 500, 100)).toBe(f('media', 100, 100));
+    expect(backupProgress({ phase: 'media', done: 1240, total: 1240 }).text).toBe('Copying images and sounds (1,240 of 1,240)');
+  });
+});
+
+describe('backupReminderPlan', () => {
+  it('first reminds on the evening the backup is a week old, then weekly', async () => {
+    const { backupReminderPlan } = await import('../../src/db/backup');
+    const plan = backupReminderPlan({ lastBackupAt: new Date(2026, 10, 11, 9).toISOString(), hasCards: true, now: new Date(2026, 10, 12, 12), dayStartsAtHour: 4 });
+    expect(plan.map((p) => p.at)).toEqual([new Date(2026, 10, 18, 20), new Date(2026, 10, 25, 20), new Date(2026, 11, 2, 20), new Date(2026, 11, 9, 20)]);
+    expect(plan[0].body).toBe('Your last backup was 7 days ago. Open Backup to make a new one.');
+    expect(plan[1].body).toContain('14 days');
+  });
+  it('is tonight or tomorrow evening once already overdue, and counts study days', async () => {
+    const { backupReminderPlan } = await import('../../src/db/backup');
+    const last = new Date(2026, 10, 1, 9).toISOString();
+    expect(backupReminderPlan({ lastBackupAt: last, hasCards: true, now: new Date(2026, 10, 17, 12), dayStartsAtHour: 4 })[0].at).toEqual(new Date(2026, 10, 17, 20));
+    expect(backupReminderPlan({ lastBackupAt: last, hasCards: true, now: new Date(2026, 10, 17, 21), dayStartsAtHour: 4 })[0].at).toEqual(new Date(2026, 10, 18, 20));
+    // Made at 2 AM on the 11th: still the 10th's study day, so a week is the 17th.
+    expect(backupReminderPlan({ lastBackupAt: new Date(2026, 10, 11, 2).toISOString(), hasCards: true, now: new Date(2026, 10, 12, 12), dayStartsAtHour: 4 })[0].at).toEqual(new Date(2026, 10, 17, 20));
+  });
+  it('never backed up asks tonight, and nothing is sent with nothing to lose', async () => {
+    const { backupReminderPlan } = await import('../../src/db/backup');
+    const plan = backupReminderPlan({ lastBackupAt: null, hasCards: true, now: new Date(2026, 10, 17, 12), dayStartsAtHour: 4 });
+    expect(plan[0]).toMatchObject({ at: new Date(2026, 10, 17, 20), body: "Your decks aren't backed up yet. Open Backup to make one." });
+    expect(backupReminderPlan({ lastBackupAt: null, hasCards: false, now: new Date(2026, 10, 17, 12), dayStartsAtHour: 4 })).toEqual([]);
+  });
+});

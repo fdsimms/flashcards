@@ -10,7 +10,7 @@ import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } f
 import { clearMedia, listMedia, writeMedia } from '../media/mediaFiles';
 import { ankiFolder, fileSink, fileSource, keptCollectionFile } from '../anki/files';
 import { ANKI_SETTING_KEYS, makeAnkiLink, type AnkiLink } from './ankiLink';
-import { restorePlan, sqliteFileKind } from './backup';
+import { restorePlan, sqliteFileKind, type BackupInfo, type BackupProgress } from './backup';
 import type { Repo } from './repo';
 import { ankiCollectionPlan, CARD_COLUMNS, CARD_RETIRE_SQL, CARD_ROWS_SQL, CARD_UPSERT_SQL, NOTE_COLUMNS, NOTE_ROWS_SQL, NOTE_UPSERT_SQL, rowValues, type SqlValue } from './ankiApply';
 
@@ -104,13 +104,15 @@ async function migrate(db: SQLite.SQLiteDatabase) {
  */
 export interface BackupStore {
   /** Writes a consistent copy of the whole database, media included, to `path` (a file path, not a URI). */
-  backupTo(path: string): Promise<{ media: number }>;
+  backupTo(path: string, onProgress?: (p: BackupProgress) => void): Promise<{ media: number; cards: number }>;
   /** Replaces everything here, media included, with the backup at `path`. Throws `NotABackupError` for another kind of file. */
   restoreFrom(path: string): Promise<{ notes: number; cards: number; media: number }>;
   /** What the SQLite file at `path` is: one of our backups, or something else. */
   sqliteFileKind(path: string): Promise<'backup' | 'other'>;
   /** When `backupTo` last succeeded (ISO), or null. Kept outside what a restore replaces. */
   lastBackupAt(): Promise<string | null>;
+  /** When the last backup was made and what it held, or null. Kept outside what a restore replaces. */
+  lastBackupInfo(): Promise<BackupInfo | null>;
   /** The deck list as last loaded (`encodeDeckSnapshot`), for the next cold start to show at once. Not in a backup. */
   deckListSnapshot(): Promise<string | null>;
   saveDeckListSnapshot(json: string): Promise<void>;
@@ -456,7 +458,8 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
       return new Map(rows.map((r) => [r.deck, JSON.parse(r.params) as DeckParams]));
     },
     // Under the Anki lock, so a sync or an answer can't write the kept collection while it's copied.
-    backupTo: (path) => anki.lockAnki(async () => {
+    backupTo: (path, onProgress) => anki.lockAnki(async () => {
+      onProgress?.({ phase: 'database', done: 0, total: 1 });
       // VACUUM INTO writes a self-contained copy, WAL pages included, without closing anything.
       await db.runAsync('VACUUM INTO ?', path);
       // Media lives in files, not the database, so it's added to the copy as a table: a backup
@@ -465,8 +468,10 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
       await db.runAsync('ATTACH DATABASE ? AS backup', path);
       try {
         await db.execAsync('CREATE TABLE backup.media (name TEXT PRIMARY KEY, data BLOB NOT NULL)');
-        for (const f of files) {
+        for (const [i, f] of files.entries()) {
           await db.runAsync('INSERT INTO backup.media (name, data) VALUES (?, ?)', f.name, await f.bytes());
+          // Every 25th file: a screen updating per file would cost more than the copy.
+          if ((i + 1) % 25 === 0 || i + 1 === files.length) onProgress?.({ phase: 'media', done: i + 1, total: files.length });
         }
       } finally {
         await db.runAsync('DETACH DATABASE backup');
@@ -475,6 +480,7 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
       // backup without it would restore answers that can no longer be sent to Anki.
       const kept = await anki.keptCollection();
       if (kept) {
+        onProgress?.({ phase: 'anki', done: 0, total: 1 });
         await db.runAsync('ATTACH DATABASE ? AS backup', path);
         try {
           await db.execAsync('CREATE TABLE backup.anki_collection (seq INTEGER PRIMARY KEY, data BLOB NOT NULL)');
@@ -488,9 +494,21 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
           await db.runAsync('DETACH DATABASE backup');
         }
       }
+      const cards = (await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM cards'))?.n ?? 0;
+      await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('last_backup_info', ?)", JSON.stringify({ cards, media: files.length }));
       await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('last_backup_at', ?)", new Date().toISOString());
-      return { media: files.length };
+      return { media: files.length, cards };
     }),
+    async lastBackupInfo() {
+      const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'last_backup_at'");
+      const at = row?.value;
+      if (!at) return null;
+      const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'last_backup_info'");
+      let held: { cards?: unknown; media?: unknown } = {};
+      try { held = r ? JSON.parse(r.value) : {}; } catch { /* kept before counts were: show the time alone */ }
+      const n = (v: unknown) => (typeof v === 'number' ? v : null);
+      return { at, cards: n(held.cards), media: n(held.media) };
+    },
     async lastBackupAt() {
       const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'last_backup_at'");
       return r?.value ?? null;
