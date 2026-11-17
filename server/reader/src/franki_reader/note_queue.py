@@ -79,8 +79,9 @@ class Extra:
 _NO = "an empty string"
 _LATIN_GENDER = frozenset({"m", "f", "n"})
 # What each language's owner-written notes fill in, read off the deck (16 November 2026). English has nothing
-# beyond the common fields, and Spanish Forms are filled in by fill_forms, not here. A Spanish or Norwegian
-# noun's Gender is what the card draws its article from (el / la, en / ei / et), so the Entry is the bare noun.
+# beyond the common fields, and Spanish Forms are filled in by fill_forms, not here. A noun's Gender (Spanish,
+# Norwegian, German, French, Greek) is what the card draws its article from (el / la, en / ei / et, der / die / das, le / la, ο / η / το),
+# so the Entry is the bare noun (the app drops the article it gives when a queued word is turned into a note).
 EXTRAS: dict[Code, tuple[Extra, ...]] = {
     "th": (
         Extra(
@@ -200,6 +201,9 @@ EXTRAS: dict[Code, tuple[Extra, ...]] = {
         ),
     ),
     "el": (
+        Extra(
+            "gender", "Gender", 'for a noun, "m", "f" or "n"; else ' + _NO, "noun", _LATIN_GENDER, 1
+        ),
         Extra(
             "verb_class",
             "VerbClass",

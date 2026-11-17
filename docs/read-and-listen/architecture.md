@@ -1686,8 +1686,9 @@ in the current language, with when one was last read to the end. Nothing else le
   to Anki, and the approval rule stands: a ready word opens in the note editor with its fields filled
   in, and saving there is the approval, after which the app deletes the word from the queue. The Audio
   field is the one the server doesn't write: the app records it as it does for any note when it's saved
-  (`src/core/recording.ts`). The spend is the `note_queue` block of `/api/costs`. Not done: Gender for
-  Spanish, Greek and Norwegian (the owner's notes keep the article in the Entry and leave it empty),
+  (`src/core/recording.ts`). The spend is the `note_queue` block of `/api/costs`. A noun's Gender is filled for every language
+  that has one, and the Entry is the bare noun (the card shows the article from the Gender, and the app drops
+  the article the Gender gives when a ready word opens in the editor). Not done:
   Spanish `Forms` (`fill_forms` writes them), Etymology and Mnemonic, the aspect tags on Russian and
   Polish verbs, a check that
   the sentence uses only known words (it's one sentence, not a text), and a note that says it was
