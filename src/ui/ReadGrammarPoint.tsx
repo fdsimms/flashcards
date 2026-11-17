@@ -10,7 +10,8 @@ import { canShuffleExamples, DEFAULT_MAX_PRACTICE, EXAMPLES_SHOWN, grammarChoice
 import { GrammarExamples } from './GrammarExamples';
 import { GrammarExplanation, type ExplanationGlossing } from './GrammarExplanation';
 import { haptic } from './haptics';
-import { Card, ErrorNote, Group, HeaderAction, Help, NavRow, Screen, SectionTitle, Segments, Tappable } from './kit';
+import { grammarTag } from './grammarTag';
+import { Card, ErrorNote, Group, HeaderAction, Help, NavRow, Screen, SectionTitle, Segments, Tag, Tappable } from './kit';
 import { hairline, radius, space, type, useTheme, readable } from './theme';
 
 /**
@@ -197,7 +198,7 @@ export function ReadGrammarPoint({ api, glossing, practice: phone, id, dayStarts
                     style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, backgroundColor: c.accentFill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.s }}
                   >
                     <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{r.name}</Text>
-                    {state ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{`· ${grammarStateWord(state)}`}</Text> : null}
+                    {state ? <Tag {...grammarTag(c, state)} /> : null}
                   </Tappable>
                 );
               })}

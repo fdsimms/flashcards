@@ -22,6 +22,7 @@ import { haptic } from './haptics';
 import { Button, Count, ErrorNote, Icon, Screen, Tappable } from './kit';
 import { Reveal } from './motion';
 import { CardSurface, ProgressBar } from './Review';
+import { useAnswerFlash } from './SwipeCard';
 import type { WaniKaniState } from './useWaniKani';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
@@ -242,10 +243,13 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   // held answer to WaniKani and logging it twice.
   const answeredFrom = useRef<Study | null>(null);
   const starting = useRef(false);
+  // The card washes green or red as an answer is given, as Review's does.
+  const answerFlash = useAnswerFlash();
   const answer = (correct: boolean) => {
     if (!study || !question || answeredFrom.current === study) return;
     answeredFrom.current = study;
     haptic.answer();
+    answerFlash.flash(correct ? 3 : 1);
     const ms = (itemMs.current.get(question.assignmentId) ?? 0) + Math.min(60_000, Date.now() - shownAt.current);
     itemMs.current.set(question.assignmentId, ms);
     const r = studyAnswer(study, correct, new Date());
@@ -550,6 +554,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
               ) : null}
             </Reveal>
           </ScrollView>
+          {answerFlash.overlay}
         </CardSurface>
       </Screen>
     </View>

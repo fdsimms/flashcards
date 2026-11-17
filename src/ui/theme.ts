@@ -47,6 +47,20 @@ const light = {
   teal: '#2f7d7a',
   rose: '#b23a6a',
   indigo: '#4a55b0',
+  /** A grammar point being practiced: its chip's text and fill, in the Grammar tool's violet. */
+  violetInk: '#6b43a3',
+  violetFill: 'rgba(122, 79, 181, 0.12)',
+  /** Text on `goodFill` and on `warningFill` (a known or a not-known grammar point's tag): the count colors are under 4.5:1 there in light mode. */
+  goodInk: '#2f6a45',
+  warningInk: '#7a4f12',
+  /**
+   * The soft tile behind a deck's emoji on the deck list, one per deck (`deckTint`): the tile colors
+   * above (orange, rose, blue, teal, indigo, red, violet, green), faint enough that the emoji reads on any of them.
+   */
+  deckTints: [
+    'rgba(176, 96, 30, 0.15)', 'rgba(178, 58, 106, 0.15)', 'rgba(66, 121, 182, 0.15)', 'rgba(47, 125, 122, 0.15)',
+    'rgba(74, 85, 176, 0.15)', 'rgba(195, 82, 73, 0.15)', 'rgba(122, 79, 181, 0.15)', 'rgba(67, 131, 90, 0.15)',
+  ],
   /**
    * A chart's bars (Stats): the accent's gold, stepped to pass the dataviz checks for a data mark
    * (lightness band, chroma floor, 3:1 against the surface) in each mode.
@@ -142,6 +156,14 @@ const dark: typeof light = {
   teal: '#2a6e6b',
   rose: '#9c3560',
   indigo: '#434c9c',
+  violetInk: '#c4a6f0',
+  violetFill: 'rgba(150, 110, 210, 0.24)',
+  goodInk: '#6cc08a',
+  warningInk: '#e0a85a',
+  deckTints: [
+    'rgba(176, 96, 30, 0.3)', 'rgba(178, 58, 106, 0.3)', 'rgba(66, 121, 182, 0.3)', 'rgba(47, 125, 122, 0.3)',
+    'rgba(74, 85, 176, 0.3)', 'rgba(195, 82, 73, 0.3)', 'rgba(122, 79, 181, 0.3)', 'rgba(67, 131, 90, 0.3)',
+  ],
   chart: '#b88d32',
   heat: ['#614e20', '#87692a', '#b38f3e', '#e6c270'],
   cashNotes: ['#4b3f66', '#6a3f38', '#34496a', '#365a40', '#665a33', '#5a4b3c', '#3b5357'],
