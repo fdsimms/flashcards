@@ -1,4 +1,5 @@
 import asyncio
+import json
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
@@ -149,19 +150,16 @@ def test_a_narrator_chosen_for_the_lesson_speaks_only_the_narration(tmp_path: Pa
     assert by_text["Un café."] == ("fr-FR-HenriNeural", "fr-FR")
 
 
+# The same names the app's parseNarrator is tested with (tests/reader/lessons.test.ts).
+_VOICES = json.loads(
+    (Path(__file__).parents[2] / "speech" / "tests" / "voice-names.json").read_text()
+)
+
+
 @pytest.mark.parametrize(
     ("voice", "english"),
-    [
-        ("en-US-GuyNeural", True),
-        ("en-GB-RyanNeural", True),
-        ("en-US-AvaMultilingualNeural", True),
-        ("en-US-Ada:DragonHDLatestNeural", True),
-        ("en-au-cyanspark:DragonHDOmniLatestNeural", True),
-        ("fr-FR-HenriNeural", False),
-        ("Guy", False),
-        ("en-US-Guy Neural", False),
-        ("", False),
-    ],
+    [(v, True) for v in _VOICES["narrators"]]
+    + [(v, False) for v in _VOICES["other_voices"] + _VOICES["not_voices"]],
 )
 def test_only_an_english_voice_can_narrate(voice: str, english: bool) -> None:
     assert lesson_service.is_narrator_voice(voice) is english

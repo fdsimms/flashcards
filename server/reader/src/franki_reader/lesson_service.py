@@ -8,11 +8,12 @@ grades a card or writes a note.
 
 import logging
 import os
-import re
 import sqlite3
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 from pathlib import Path
+
+from franki_speech import is_voice_name
 
 from franki_reader import lesson, lesson_audio, lesson_writer, store
 from franki_reader.coverage import Checker
@@ -37,15 +38,11 @@ Synthesize = Callable[[str, str, str, float], Awaitable[bytes]]
 Renderer = Callable[..., Awaitable[Rendered]]
 
 
-# The colon is for Azure's Dragon HD voices (en-US-Ada:DragonHDLatestNeural), which the voice list
-# offers; the app's own check (`parseNarrator`) allows it too.
-_NARRATOR = re.compile(r"en-[A-Za-z]{2,4}-[A-Za-z0-9:]+")
-
-
 def is_narrator_voice(voice: str) -> bool:
     """Whether `voice` is an English Azure voice by its name (en-US-GuyNeural), which is as far as
-    it can be checked here: Azure refuses a name it doesn't know, and the lesson fails with that."""
-    return _NARRATOR.fullmatch(voice) is not None
+    it can be checked here: Azure refuses a name it doesn't know, and the lesson fails with that.
+    The name check is `franki_speech`'s, so a voice form it learns (a Dragon HD colon) reaches here."""
+    return voice.startswith("en-") and is_voice_name(voice)
 
 
 def audio_path(lessons_dir: Path, lesson_id: int) -> Path:

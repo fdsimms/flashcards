@@ -1,6 +1,8 @@
 """The shared Azure client, against a faked Azure: what it sends, and how each failure reads."""
 
 import asyncio
+import json
+from pathlib import Path
 
 import httpx
 import pytest
@@ -14,6 +16,7 @@ from franki_speech import (
     SpeechError,
     WordMark,
     is_multilingual,
+    is_voice_name,
     locale_of,
     ssml,
     ssml_parts,
@@ -406,3 +409,16 @@ def test_speak_parts_sends_every_voice_in_one_sdk_call_and_returns_its_timings()
 
     assert asyncio.run(go()) == (b"ID3sdk", MARKS)
     assert sent == [ssml_parts(parts)]
+
+
+_VOICES = json.loads((Path(__file__).parent / "voice-names.json").read_text())
+
+
+@pytest.mark.parametrize("voice", _VOICES["narrators"] + _VOICES["other_voices"])
+def test_reads_a_voice_name_in_every_form_azure_lists(voice: str) -> None:
+    assert is_voice_name(voice)
+
+
+@pytest.mark.parametrize("voice", _VOICES["not_voices"])
+def test_refuses_what_is_not_a_voice_name(voice: str) -> None:
+    assert not is_voice_name(voice)

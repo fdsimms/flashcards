@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { AudioLesson } from '../../src/reader/api';
 import { anyMaking, atEnd, clock, lessonDetail, lessonsOffered, parseNarrator, parseParticle, skipTo, stageSteps } from '../../src/reader/lessons';
@@ -88,6 +90,13 @@ describe('stageSteps', () => {
 });
 
 describe('parseNarrator', () => {
+  // The same names the server's narrator check is tested with (server/reader/tests/test_lesson_service.py).
+  const voices = JSON.parse(readFileSync(join(__dirname, '..', '..', 'server', 'speech', 'tests', 'voice-names.json'), 'utf8')) as
+    { narrators: string[]; other_voices: string[]; not_voices: string[] };
+  it('agrees with the server on every listed voice name', () => {
+    for (const v of voices.narrators) expect(parseNarrator(v)).toBe(v);
+    for (const v of [...voices.other_voices, ...voices.not_voices]) expect(parseNarrator(v)).toBe('');
+  });
   it('keeps an English voice', () => {
     expect(parseNarrator('en-GB-RyanNeural')).toBe('en-GB-RyanNeural');
     expect(parseNarrator(' en-US-AvaMultilingualNeural ')).toBe('en-US-AvaMultilingualNeural');
