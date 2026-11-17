@@ -165,12 +165,13 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
         for (const c of cards) {
           // Re-importing the same note must not wipe existing review progress: scheduling and
           // suspension are overwritten only on a card still New. Every card here is generated
-          // again, so it is never retired.
+          // again, so it is never retired. A flag and a bury are kept as they are: neither a TSV
+          // nor the note editor carries one (an Anki import goes through applyAnkiCollection).
           await db.runAsync(
             'INSERT INTO cards (id, note_id, kind, suspended, retired, anki_id, buried_at, deck, filtered_deck, position, anki_mod, filtered_due, preview_due, flag, sched, state, due) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ' +
-              'ON CONFLICT(id) DO UPDATE SET retired = 0, anki_id = COALESCE(excluded.anki_id, cards.anki_id), buried_at = excluded.buried_at, ' +
+              'ON CONFLICT(id) DO UPDATE SET retired = 0, anki_id = COALESCE(excluded.anki_id, cards.anki_id), ' +
               'deck = excluded.deck, filtered_deck = excluded.filtered_deck, position = excluded.position, ' +
-              'anki_mod = excluded.anki_mod, filtered_due = excluded.filtered_due, preview_due = excluded.preview_due, flag = excluded.flag, ' +
+              'anki_mod = excluded.anki_mod, filtered_due = excluded.filtered_due, preview_due = excluded.preview_due, ' +
               'suspended = CASE WHEN cards.state = 0 THEN excluded.suspended ELSE cards.suspended END, ' +
               'sched = CASE WHEN cards.state = 0 THEN excluded.sched ELSE cards.sched END, ' +
               'due = CASE WHEN cards.state = 0 THEN excluded.due ELSE cards.due END, ' +

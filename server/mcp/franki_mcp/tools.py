@@ -10,9 +10,11 @@ error naming what to change, never as a silent skip.
 from __future__ import annotations
 
 import base64
+import html
 import os
 import re
 import time
+import urllib.parse
 from datetime import date, datetime, timedelta
 from typing import Any, Literal
 
@@ -965,6 +967,17 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
 
     # ---- deleting media ----
 
+    def _notes_using(col: Collection, name: str) -> list[int]:
+        # A field holds the name as written in HTML: Anki's editor percent-encodes a space in
+        # <img src> (encode_iri_paths), and an & is &amp; in a field like any other text. Looking
+        # for the bare name alone called a file in use unused.
+        encoded = col.media.escape_media_filenames(f'<img src="{name}">')[len('<img src="'):-len('">')]
+        spellings = {name, encoded, urllib.parse.quote(name)}
+        spellings |= {html.escape(s, quote=False) for s in spellings}
+        likes = ["%" + s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%" for s in sorted(spellings)]
+        where = " or ".join("flds like ? escape '\\'" for _ in likes)
+        return col.db.list(f"select id from notes where {where} limit 5", *likes)
+
     @server.tool(annotations=DESTRUCTIVE)
     async def delete_media(filenames: list[str], even_if_used: bool = False) -> dict[str, Any]:
         """Deletes media files (to Anki's media trash, and from other devices at their next media
@@ -977,8 +990,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 if not col.media.have(name):
                     results.append({"filename": name, "error": "There's no media file by that name."})
                     continue
-                like = "%" + name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
-                users = col.db.list("select id from notes where flds like ? escape '\\' limit 5", like)
+                users = _notes_using(col, name)
                 if users and not even_if_used:
                     results.append({"filename": name, "error": f"Notes still use it ({', '.join(map(str, users))}). Pass even_if_used to delete it anyway.", "used_by": users})
                     continue

@@ -281,6 +281,17 @@ async def test_deletes_media_only_when_unused_unless_asked(client, cm, desktop):
     assert not (desktop.path.parent / "collection.media" / "spare.txt").exists()
 
 
+async def test_a_file_used_under_its_html_spelling_is_kept(client):
+    # Anki's editor writes a space in <img src> as %20, and a field's & is &amp;.
+    name = (await call(client, "store_media", filename="my pic & more.jpg", data_base64=base64.b64encode(b"x").decode()))["filename"]
+    assert name == "my pic & more.jpg"
+    await call(client, "add_notes", notes=[
+        {"deck": TRIVIA, "note_type": "Basic", "fields": {"Front": "Which picture?", "Back": '<img src="my%20pic%20&amp;%20more.jpg">'}},
+    ])
+    out = await call(client, "delete_media", filenames=[name])
+    assert out["deleted"] == 0 and "Notes still use it" in out["results"][0]["error"]
+
+
 async def test_cards_come_as_text_unless_html_is_asked_for(client):
     card = (await call(client, "study_next", deck=TRIVIA))["card"]["card_id"]
     plain = await call(client, "present_card", card_id=card, show_answer=True)

@@ -52,6 +52,9 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
   const drillId = useRef(`${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
   // Set while an answer is being written: a second tap must not answer the same question twice.
   const busy = useRef(false);
+  // The question last answered: busy clears before the answer is drawn, so a tap in between mustn't
+  // log this question again (FormsDrill guards the same way).
+  const answeredIndex = useRef(-1);
   const speech = usePhoneSpeech(repo);
   // The question whose translation was tapped open; any other question starts with it hidden.
   const [translated, setTranslated] = useState(-1);
@@ -128,7 +131,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
     speech.sayWord(p.before + p.middle + p.after, promptSpeech(p));
   };
   const answer = async (given: string, picked: boolean) => {
-    if (current || busy.current) return;
+    if (current || busy.current || answeredIndex.current === index) return;
     busy.current = true;
     try {
       const verdict = picked ? (given === prompt.answer ? 'right' : 'wrong') : checkAnswer(given, [prompt.answer]);
@@ -136,6 +139,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
       await repo.addGrammarAnswer({ pointId: prompt.pointId, drillId: drillId.current, kind: prompt.kind, correct: right, answeredAt: new Date().toISOString() });
       if (right) haptic.success(); else haptic.select();
       setAnswered((a) => [...a, { prompt, given, right, almost: verdict === 'almost' }]);
+      answeredIndex.current = index;
       say(prompt);
     } catch (e) {
       Alert.alert("Couldn't save this answer", failureText(e, { next: 'The question is still here: answer it again.' }));

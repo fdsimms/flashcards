@@ -23,6 +23,7 @@ import { parseDueDate } from '../core/reschedule';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
 import { bumpStudied, currentCard, sessionProgress, sessionSummary, type AnswerRecord } from '../core/session';
 import { reviewWrites } from '../core/writeQueue';
+import { vacationPlan } from '../core/vacation';
 import { durationText } from '../core/stats';
 import { wantedLines } from '../core/synonyms';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
@@ -210,7 +211,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const [reloads, setReloads] = useState(0);
   const [noteTypes, setNoteTypes] = useState<Map<string, NoteType>>(new Map());
   const [deckSettings, setDeckSettings] = useState<Map<string, DeckSettings>>(new Map());
-  const [revealed, setRevealed] = useState(false);
+  // The showing whose answer is shown (below): any other card, whatever brought it on (an answer, a
+  // reload after the note editor, a learning card coming due), starts with its question.
+  const [revealedAt, setRevealedAt] = useState<string>();
   const [now, setNow] = useState(() => new Date());
   const [history, setHistory] = useState<AnswerRecord[]>([]);
   const [preferId, setPreferId] = useState<string>();
@@ -294,6 +297,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held, vacation]);
 
   const current = queue ? currentCard(queue, preferId) : undefined;
+  // Each showing of a card: the same card back again (after Again, with nothing else left, or an undo)
+  // is a new showing, timed, spoken and faded in afresh, as the WebView's key below does for a template card.
+  const showing = current ? `${current.id}:${history.length}` : undefined;
+  const revealed = !!showing && revealedAt === showing;
   const note = current ? notes.get(current.noteId) : undefined;
   const glossFor = useCardGlosses(glossing, queue?.order, notes);
   useEffect(() => { forms.showing({ card: current, note, revealed }); }, [current, note, revealed, forms.showing]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -423,9 +430,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const shownAt = useRef(Date.now());
   // One warning per session if answers can't be written into the Anki collection.
   const warnedAnki = useRef(false);
-  // Each showing of a card: the same card back again (after Again, with nothing else left, or an undo)
-  // is a new showing, timed, spoken and faded in afresh, as the WebView's key below does for a template card.
-  const showing = current ? `${current.id}:${history.length}` : undefined;
   useEffect(() => { shownAt.current = Date.now(); }, [showing]);
   // Each card, and each time a card comes back, starts with an empty box.
   useEffect(() => { if (!revealed) setTyped(''); }, [showing, revealed]);
@@ -515,7 +519,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const word = htmlToText(note.fields.Entry ?? '');
       ratingOffer.show(rating > 1 && !preview ? { cardId: current.id, rating, interval: intervals?.[rating], ...(word ? { word } : {}) } : null);
       setPreferId(undefined);
-      setRevealed(false);
+      setRevealedAt(undefined);
       setNow(when);
 
       writes.current++;
@@ -641,7 +645,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // The card shown again is the very one answered: it can be answered again now.
       lastAnswered.current = null;
       setPreferId(last.before.id);
-      setRevealed(false);
+      setRevealedAt(undefined);
       setNow(new Date());
       ratingOffer.show(null);
       return true;
@@ -679,7 +683,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
 
   // Out of cards with a learning card still to come: wake when it's within the learn-ahead limit
   // instead of declaring the deck done, which left it waiting until the deck was reopened.
-  const waitingFor = !current && cards
+  // Not while vacation mode is paused: the queue offers nothing then, so the card would never come.
+  const waitingFor = !current && cards && !vacationPlan(vacation, cards, now, H)?.paused
     ? nextLearningDue(cards.filter((c) => isInDeck(cardDeck(c, deckOf.get(c.noteId) ?? ''), deck)), { dayStartsAtHour: H })
     : undefined;
   useEffect(() => {
@@ -849,7 +854,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     Keyboard.dismiss();
     // A take made from memory ends here, quietly, so the answer's own recording plays.
     self.stop(false);
-    setRevealed(true);
+    setRevealedAt(showing);
     if (rendered) speak(autoplayFor(rendered, true));
   };
   // Type it and the learner's own hook (activeRecall.ts), for a native Omnilanguage card.
@@ -955,6 +960,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     busy.current = true;
     writes.current++;
     try {
+      // An answer still being written saves its card again once it has the Anki lock, which would put
+      // back the state this changes: it finishes first.
+      await reviewWrites.idle();
       const when = new Date();
       const { cards: updated, ankiError } = await setCardStates(repo, targets, change, when, H);
       if (ankiError) {
@@ -962,7 +970,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       }
       const byId = new Map(updated.map((u) => [u.id, u]));
       setCards((prev) => prev && prev.map((c) => byId.get(c.id) ?? c));
-      setRevealed(false);
+      setRevealedAt(undefined);
       setNow(when);
       haptic.success();
     } catch (e) {
@@ -1008,11 +1016,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     busy.current = true;
     writes.current++;
     try {
+      await reviewWrites.idle(); // as in setStates above
       const when = new Date();
       const updated = await run(when);
       const byId = new Map(updated.map((u) => [u.id, u]));
       setCards((prev) => prev && prev.map((c) => byId.get(c.id) ?? c));
-      setRevealed(false);
+      setRevealedAt(undefined);
       setNow(when);
       haptic.success();
     } catch (e) {

@@ -28,6 +28,9 @@ describe('an amount in Mexican pesos', () => {
     expect(s.everyday.text).toBe('mil doscientos setenta y siete pesos con cincuenta centavos');
     expect(s.also.map((p) => p.text)).toEqual(['mil doscientos setenta y siete pesos cincuenta']);
     expect(saySpanishMoney(101).everyday.text).toBe('un peso con un centavo');
+    // Read off a price, nothing follows the centavos, so uno isn't cut.
+    expect(saySpanishMoney(101).also.map((p) => p.text)).toEqual(['un peso uno']);
+    expect(saySpanishMoney(121).also.map((p) => p.text)).toEqual(['un peso veintiuno']);
     expect(saySpanishMoney(50).everyday.text).toBe('cincuenta centavos');
     expect(saySpanishMoney(50).also).toEqual([]);
   });

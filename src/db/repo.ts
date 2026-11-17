@@ -139,14 +139,17 @@ export class MemoryRepo implements Repo {
       const existing = this.cards.get(c.id);
       if (existing && existing.sched.state !== 0) {
         this.cards.set(c.id, {
-          ...existing, retired: false, buriedAt: c.buriedAt, deck: c.deck, filteredDeck: c.filteredDeck, position: c.position,
-          ankiMod: c.ankiMod, filteredDue: c.filteredDue, previewDue: c.previewDue, flag: c.flag,
+          ...existing, retired: false, deck: c.deck, filteredDeck: c.filteredDeck, position: c.position,
+          ankiMod: c.ankiMod, filteredDue: c.filteredDue, previewDue: c.previewDue,
           // As the SQLite repo's COALESCE: an import that doesn't carry the Anki id (a TSV) keeps it.
           ankiId: c.ankiId ?? existing.ankiId,
         });
         continue;
       }
-      this.cards.set(c.id, { ...c, retired: false, ankiId: c.ankiId ?? existing?.ankiId });
+      // A flag and a bury stay as they are, as in the SQLite repo: no caller here carries one.
+      this.cards.set(c.id, existing
+        ? { ...c, retired: false, ankiId: c.ankiId ?? existing.ankiId, flag: existing.flag, buriedAt: existing.buriedAt }
+        : { ...c, retired: false });
     }
   }
   async applyAnkiCollection(notes: Note[], cards: Card[]) {

@@ -119,6 +119,20 @@ describe('repo', () => {
     expect((await repo.listCards())[0].sched.reps).toBe(1);
   });
 
+  it('keeps a flag and a bury on re-import, new card or studied', async () => {
+    const repo = new MemoryRepo();
+    const note = omniNote({ GenerateReverse: 'y' });
+    const [fresh, other] = makeCards(note, NOW);
+    await repo.upsertNotesAndCards([note], [fresh, other]);
+    const buriedAt = NOW.toISOString();
+    await repo.saveCard({ ...fresh, flag: 1, buriedAt });
+    await repo.saveCard({ ...other, sched: review(other.sched, 3, NOW).sched, flag: 3, buriedAt });
+    await repo.upsertNotesAndCards([note], makeCards(note, NOW));
+    const byId = new Map((await repo.listCards()).map((c) => [c.id, c]));
+    expect([byId.get(fresh.id)!.flag, byId.get(fresh.id)!.buriedAt]).toEqual([1, buriedAt]);
+    expect([byId.get(other.id)!.flag, byId.get(other.id)!.buriedAt]).toEqual([3, buriedAt]);
+  });
+
   it('retires cards a note stops generating, and brings them back with their history', async () => {
     const repo = new MemoryRepo();
     const withReverse = omniNote({ GenerateReverse: 'y' });

@@ -26,6 +26,7 @@ import { Loading } from './kit';
 import { useLoadProblem } from './useLoadProblem';
 import { useOpenRepo } from './useOpenRepo';
 import { useSync } from './useSync';
+import { DECKS_PATH, TODAY_PATH } from './tabPaths';
 import { loadVacation, useVacationRefresh } from './vacationPrefs';
 import { useWaniKani, type WaniKaniState } from './useWaniKani';
 
@@ -122,24 +123,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const rows = deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now, held, vacation, boostFor: boostFor({ notes, settings, now }) }), listedDecks(ankiDecks, settings), (d) => settings.get(d)?.position);
     setDecks(rows);
     snapshot.save(rows, now, collection.dayStartsAtHour);
-    setBackup(backupStatus(lastBackup, now, cards.length > 0));
+    setBackup(backupStatus(lastBackup, now, cards.length > 0, collection.dayStartsAtHour));
     setAnkiUnsent((await repo.ankiStatus()).unsent);
     collapse.load();
   }), [repo, collapse.load, snapshot.save, load.guard]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync, when it's on: at launch, on coming back to the app (from the deck list, so a deck being
-  // studied isn't changed under it), after studying a deck (Review's screen asks), and on leaving the app.
+  // Sync, when it's on: at launch, on coming back to the app (from Today or the deck list, so a deck
+  // being studied isn't changed under it), after studying a deck (Review's screen asks), and on
+  // leaving the app. With sync off, coming back counts the decks again, as a sync would: a new study
+  // day may have started.
   const { settings: syncSettings, syncing, sync, reload: reloadSync } = useSync(repo, refresh);
-  const onDecks = pathname === '/';
+  const onDecks = pathname === TODAY_PATH || pathname === DECKS_PATH;
   const onDecksRef = useRef(onDecks);
   onDecksRef.current = onDecks;
+  const syncOnRef = useRef(false);
+  syncOnRef.current = !!syncSettings?.enabled;
   useEffect(() => { if (repo) sync(); }, [repo]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'background' || (state === 'active' && onDecksRef.current)) sync();
+      if (state === 'background') sync();
+      else if (state === 'active' && onDecksRef.current) {
+        if (syncOnRef.current) sync();
+        else refresh();
+      }
     });
     return () => sub.remove();
-  }, [sync]);
+  }, [sync, refresh]);
 
   const reader = useReader(syncSettings?.enabled ? syncSettings.server : undefined, dayStartsAtHour);
   useCountsReport(reader, decks, dayStartsAtHour);

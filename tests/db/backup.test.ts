@@ -51,11 +51,21 @@ describe('backupStatus', () => {
   it('stays quiet with nothing to lose, and reminds after a week', async () => {
     const { backupStatus } = await import('../../src/db/backup');
     const now = new Date(2026, 10, 11, 12);
-    expect(backupStatus(null, now, false)).toBeUndefined();
-    expect(backupStatus(null, now, true)).toEqual({ text: 'Not backed up yet', overdue: true });
-    expect(backupStatus(new Date(2026, 10, 11, 8).toISOString(), now, true)).toEqual({ text: 'Backed up today', overdue: false });
-    expect(backupStatus(new Date(2026, 10, 10, 8).toISOString(), now, true)).toEqual({ text: 'Last backed up yesterday', overdue: false });
-    expect(backupStatus(new Date(2026, 10, 4, 12).toISOString(), now, true)).toEqual({ text: 'Last backed up 7 days ago', overdue: true });
+    expect(backupStatus(null, now, false, 4)).toBeUndefined();
+    expect(backupStatus(null, now, true, 4)).toEqual({ text: 'Not backed up yet', overdue: true });
+    expect(backupStatus(new Date(2026, 10, 11, 8).toISOString(), now, true, 4)).toEqual({ text: 'Backed up today', overdue: false });
+    expect(backupStatus(new Date(2026, 10, 10, 8).toISOString(), now, true, 4)).toEqual({ text: 'Last backed up yesterday', overdue: false });
+    expect(backupStatus(new Date(2026, 10, 4, 12).toISOString(), now, true, 4)).toEqual({ text: 'Last backed up 7 days ago', overdue: true });
+  });
+
+  it('counts study days, not 24 hours', async () => {
+    const { backupStatus } = await import('../../src/db/backup');
+    // 11 PM, then 9 AM the next morning: yesterday, though under 24 hours ago.
+    expect(backupStatus(new Date(2026, 10, 10, 23).toISOString(), new Date(2026, 10, 11, 9), true, 4)?.text).toBe('Last backed up yesterday');
+    // 11 PM Monday, then 10 PM Wednesday: two days, though under 48 hours ago.
+    expect(backupStatus(new Date(2026, 10, 9, 23).toISOString(), new Date(2026, 10, 11, 22), true, 4)?.text).toBe('Last backed up 2 days ago');
+    // 2 AM still belongs to the day before.
+    expect(backupStatus(new Date(2026, 10, 10, 22).toISOString(), new Date(2026, 10, 11, 2), true, 4)?.text).toBe('Backed up today');
   });
 });
 

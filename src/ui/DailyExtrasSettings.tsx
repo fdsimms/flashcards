@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActionSheetIOS, Alert, ScrollView, Text } from 'react-native';
 import { failureText } from '../core/failure';
 import { LANGUAGES } from '../reader/languages';
@@ -26,6 +26,8 @@ export function DailyExtrasSettings() {
   const { reader } = useApp();
   const extras = useDailyExtras();
   const { prefs, languages, turns, items } = extras;
+  // Why an extra tapped below couldn't open, as Today's strip says it.
+  const [problem, setProblem] = useState<string>();
 
   const save = async (next: ExtraPrefs) => {
     try {
@@ -111,13 +113,14 @@ export function DailyExtrasSettings() {
                         icon={item.done ? { name: 'checkmark.circle.fill', color: c.countDue } : undefined}
                         label={item.title}
                         detail={item.detail}
-                        onPress={() => { extras.open(item.extra); }}
+                        onPress={async () => { setProblem(await extras.open(item.extra)); }}
                       />
                     ))}
                   </Group>
                 ) : (
                   <Text style={{ ...type.subhead, color: c.textSecondary }}>Nothing is planned for today.</Text>
                 )}
+                {problem ? <Text style={{ ...type.footnote, color: c.danger }}>{problem}</Text> : null}
               </>
             ) : null}
           </>
