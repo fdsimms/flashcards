@@ -25,3 +25,13 @@ export function todaySummary(answers: Answer[], now: Date, dayStartsAtHour: numb
     : `Studied today: ${n(today.answered, 'answer', 'answers')} · ${durationText(today.takenMs)} · ${today.newCards.toLocaleString()} new`;
   return { answered: today.answered, takenMs: today.takenMs, newCards: today.newCards, text };
 }
+
+/**
+ * How far through today the deck list's bar shows: the answers given today against those plus
+ * what's still waiting (due and new). Answers count repeats (a card failed and seen again), so it's
+ * a sense of progress rather than a share of cards; 1 once nothing is waiting.
+ */
+export function todayProgress(answered: number, waiting: number): number {
+  if (waiting <= 0) return answered > 0 ? 1 : 0;
+  return answered / (answered + waiting);
+}
