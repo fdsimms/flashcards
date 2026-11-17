@@ -17,6 +17,8 @@ export function CardSurface({ children, overlay }: { children: React.ReactNode; 
       style={{
         flex: 1, marginHorizontal: space.l, marginTop: space.xxl, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
         backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, ...lift(c),
+        // A popup hangs below the card: the row after it must not paint over it.
+        ...(overlay ? { zIndex: 10 } : null),
       }}
     >
       {/* Clipped inside the shadow's box: a view that clips can't also cast one. */}

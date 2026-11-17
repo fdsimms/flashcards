@@ -119,6 +119,12 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     popupTimer.current = null;
     setPopup(null);
   };
+  const showStage = (change: StageChange) => {
+    hidePopup();
+    popupId.current += 1;
+    setPopup({ id: popupId.current, change });
+    popupTimer.current = setTimeout(hidePopup, stagePopupMs(change));
+  };
   useEffect(() => () => { if (popupTimer.current) clearTimeout(popupTimer.current); }, []);
 
   // Whatever is held when the screen closes goes to WaniKani then, and the deck list's counts are read again.
@@ -240,11 +246,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     // An item that crossed into another stage group says so, by what WaniKani will do with this answer.
     const outcome = r.study.held;
     const change = outcome?.kind === 'review' ? stageChange(outcome.srsStage, outcome.wrongMeaning + outcome.wrongReading, srs.get(subjects.get(outcome.subjectId)?.srsId ?? 1)) : null;
-    hidePopup();
-    if (change) {
-      popupId.current += 1;
-      setPopup({ id: popupId.current, change });
-      popupTimer.current = setTimeout(hidePopup, stagePopupMs(change));
+    // A typed answer judged correct already showed its popup when it was checked: leave it up.
+    if (verdict?.result !== 'correct') {
+      hidePopup();
+      if (change) showStage(change);
     }
     if (!currentQuestion(r.study.session)) haptic.success();
     else if (change) change.burned ? haptic.success() : haptic.select();
@@ -292,7 +297,18 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     setRetry(null);
     setVerdict(v);
     setRevealed(true);
-    if (v.result === 'correct') haptic.select();
+    if (v.result === 'correct') {
+      haptic.select();
+      // The stage popup comes with the right answer, not with the Next press after it.
+      const q = question;
+      const it = study?.session.items[q.assignmentId];
+      const pr = study?.session.progress[q.assignmentId];
+      const finishesItem = q.kind === 'both' || (q.kind === 'meaning' ? pr?.reading : pr?.meaning);
+      if (study && it && !it.lesson && finishesItem) {
+        const change = stageChange(it.srsStage, wrongSoFar(study.session, it.assignmentId), srs.get(subjects.get(it.subjectId)?.srsId ?? 1));
+        if (change) showStage(change);
+      }
+    }
     if (prefs.autoplay && question.kind === 'reading') play(audioUrl(subject));
   };
 
