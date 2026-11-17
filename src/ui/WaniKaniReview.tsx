@@ -16,6 +16,7 @@ import {
   dropItem, studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
 import { nextStage, outcomeText, stageChange, type StageChange } from '../wanikani/srs';
+import { stackSlots } from '../wanikani/stagePopups';
 import { localAudioUri } from '../wanikani/storage';
 import { madeOf, SUBJECT_TYPE_NAMES, withComponents, type Assignment, type Subject } from '../wanikani/subjects';
 import { haptic } from './haptics';
@@ -26,7 +27,8 @@ import { useAnswerFlash } from './SwipeCard';
 import type { WaniKaniState } from './useWaniKani';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
-import { StagePopup, stagePopupMs } from './StagePopup';
+import { StagePopup } from './StagePopup';
+import { useStagePopups } from './useStagePopups';
 import { QuestionBand, SubjectDetails, SubjectFront, subjectColor } from './WaniKaniCard';
 
 /** What a session is built from: WaniKani itself, or the offline copy when it can't be reached. */
@@ -111,32 +113,21 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const [copySavedAt, setCopySavedAt] = useState<Date | null>(null);
   // How many refused answers this screen has said were dropped: marked seen as it closes.
   const shownDropped = useRef(0);
-  // The stage popup for the answer just given; `id` replays it, and a timer takes it down.
-  const [popup, setPopup] = useState<{ id: number; change: StageChange } | null>(null);
-  const popupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const popupId = useRef(0);
-  const hidePopup = () => {
-    if (popupTimer.current) clearTimeout(popupTimer.current);
-    popupTimer.current = null;
-    setPopup(null);
-  };
-  const showStage = (change: StageChange) => {
-    hidePopup();
-    popupId.current += 1;
-    setPopup({ id: popupId.current, change });
-    popupTimer.current = setTimeout(hidePopup, stagePopupMs(change));
-  };
-  useEffect(() => () => { if (popupTimer.current) clearTimeout(popupTimer.current); }, []);
+  // The stage popups for the latest answers: a new one stacks over the ones still showing, each on its own timer.
+  const popups = useStagePopups();
+  // The popup a typed answer showed when it was judged, so a different answer can take it down again.
+  const checkPopup = useRef<number | null>(null);
+  const showStage = (change: StageChange) => popups.show(change);
   // A miss that moves the item into a lower group says so at once, not when the item finally finishes.
   // A second miss shows again only if it drops a further group.
-  const missPopup = (assignmentId: number) => {
+  const missPopup = (assignmentId: number): number | null => {
     const it = study?.session.items[assignmentId];
-    if (!study || !it || it.lesson) return;
+    if (!study || !it || it.lesson) return null;
     const sys = srs.get(subjects.get(it.subjectId)?.srsId ?? 1);
     const w = wrongSoFar(study.session, assignmentId);
     const change = stageChange(it.srsStage, w + 1, sys);
     const before = stageChange(it.srsStage, w, sys);
-    if (change && change.group !== before?.group) showStage(change);
+    return change && change.group !== before?.group ? showStage(change) : null;
   };
 
   // Whatever is held when the screen closes goes to WaniKani then, and the deck list's counts are read again.
@@ -264,8 +255,11 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     // A typed answer already showed its popup when it was judged (a rise when it finished the item, a
     // drop when it missed): leave that one up. A marked-correct answer or a button press shows it now.
     const shownAtCheck = !!verdict && verdict.result === (correct ? 'correct' : 'wrong');
+    // The popup of the check, if there was one and this answer differs from it, comes down.
+    const shownBefore = checkPopup.current;
+    checkPopup.current = null;
     if (!shownAtCheck) {
-      hidePopup();
+      if (shownBefore !== null) popups.hide(shownBefore);
       if (change?.up) showStage(change);
       else if (!correct) missPopup(question.assignmentId);
     }
@@ -281,7 +275,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     answeredFrom.current = null;
     setStudy(back);
     resetQuestion();
-    hidePopup();
+    checkPopup.current = null;
+    popups.hideAll();
   };
 
   // Moves the question to the back of its pile without answering it, so nothing is counted wrong.
@@ -324,10 +319,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
       const finishesItem = q.kind === 'both' || (q.kind === 'meaning' ? pr?.reading : pr?.meaning);
       if (study && it && !it.lesson && finishesItem) {
         const change = stageChange(it.srsStage, wrongSoFar(study.session, it.assignmentId), srs.get(subjects.get(it.subjectId)?.srsId ?? 1));
-        if (change?.up) showStage(change);
+        if (change?.up) checkPopup.current = showStage(change);
       }
     } else {
-      missPopup(question.assignmentId);
+      checkPopup.current = missPopup(question.assignmentId);
     }
     if (prefs.autoplay && question.kind === 'reading') play(audioUrl(subject));
   };
@@ -352,7 +347,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             skip(word, assignmentId);
             setStudy((s) => (s ? dropItem(s, assignmentId) : s));
             if (onIt) resetQuestion();
-            hidePopup();
+            checkPopup.current = null;
+            popups.hideAll();
           },
         },
       ],
@@ -517,6 +513,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     );
   }
 
+  const slots = stackSlots(popups.stack);
   return (
     <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
       <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
@@ -530,7 +527,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         ) : null}
         {droppedNote()}
         <ProgressBar value={sessionProgress(study.session)} style={{ marginHorizontal: space.l, marginTop: space.xs }} />
-        <CardSurface color={subjectColor(c, subject.type)} overlay={popup ? <StagePopup key={popup.id} change={popup.change} /> : null}>
+        <CardSurface color={subjectColor(c, subject.type)}>
           <ScrollView
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
@@ -555,7 +552,11 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             </Reveal>
           </ScrollView>
           {/* What's asked, at the card's foot beside the answer: light for the meaning, dark for the reading. */}
-          {question.kind !== 'lesson' ? <QuestionBand kind={question.kind} /> : null}
+          {/* The stage popup hangs off this view's top edge: just above the band, or the card's foot in a lesson. */}
+          <View>
+            {question.kind !== 'lesson' ? <QuestionBand kind={question.kind} /> : null}
+            {popups.stack.map((e, i) => <StagePopup key={e.id} change={e.change} side={e.side} slot={slots[i]} animate={prefs.stageAnimation} />)}
+          </View>
           {answerFlash.overlay}
         </CardSurface>
       </Screen>

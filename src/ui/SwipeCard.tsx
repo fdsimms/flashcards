@@ -10,21 +10,17 @@ import { useReduceMotion } from './motion';
 import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
 
 /** The card itself: a raised sheet that fills the space between the header and the buttons. */
-export function CardSurface({ children, overlay, color }: { children: React.ReactNode; overlay?: React.ReactNode; /** Fills the card instead of the theme's surface (WaniKani's subject colors). */ color?: string }) {
+export function CardSurface({ children, color }: { children: React.ReactNode; /** Fills the card instead of the theme's surface (WaniKani's subject colors). */ color?: string }) {
   const c = useTheme();
   return (
     <View
       style={{
         flex: 1, marginHorizontal: space.l, marginTop: space.xxl, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
         backgroundColor: color ?? c.surface, borderWidth: hairline, borderColor: color ? 'transparent' : c.border, ...lift(c),
-        // A popup hangs below the card: the row after it must not paint over it.
-        ...(overlay ? { zIndex: 10 } : null),
       }}
     >
       {/* Clipped inside the shadow's box: a view that clips can't also cast one. */}
       <View style={{ flex: 1, borderRadius: radius.xl, ...smooth, overflow: 'hidden' }}>{children}</View>
-      {/* Drawn over the card's lower edge, outside the clip. */}
-      {overlay}
     </View>
   );
 }

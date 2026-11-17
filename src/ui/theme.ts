@@ -145,8 +145,6 @@ const light = {
   toneFalling: '#b5473f',
   toneHigh: '#b0601e',
   toneRising: '#3d7a52',
-  /** The outline of WaniKani's stage popup: on a white card its colored pill needs one to stand out, on dark it doesn't. */
-  stageRing: 'rgba(27, 27, 27, 0.4)',
   /** A soft drop shadow under a raised surface (the review card). Near-invisible on dark, so it's heavier there. */
   shadow: '#2a2113',
   shadowOpacity: 0.08,
@@ -233,7 +231,6 @@ const dark: typeof light = {
   toneFalling: '#e0766c',
   toneHigh: '#f0984f',
   toneRising: '#6cc08a',
-  stageRing: 'transparent',
   shadow: '#000000',
   shadowOpacity: 0.45,
   flags: ['', '#ee6b63', '#f0984f', '#62bd7b', '#6ba2ec', '#e486cb', '#4cc4c4', '#a989e6'],
