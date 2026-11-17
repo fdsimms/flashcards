@@ -13,7 +13,14 @@ from franki_reader import store
 from franki_reader.coverage import check, parse_line
 from franki_reader.engine import Engine
 from franki_reader.generator import Line, system_prompt
-from franki_reader.japanese import JapaneseLexicon, common_lemmas, hiragana, lemma_key
+from franki_reader.japanese import (
+    JapaneseLexicon,
+    common_lemmas,
+    hiragana,
+    is_phrase,
+    lemma_key,
+    words,
+)
 from franki_reader.languages import LANGUAGES
 from franki_reader.lexicon import Entry, lexicon_from
 from franki_reader.reader import render
@@ -289,3 +296,14 @@ def test_a_withheld_entry_is_unknown_in_any_form_even_as_a_common_word() -> None
 def test_azure_bills_japanese_characters_twice() -> None:
     assert billed_chars("Hola.") == 5
     assert billed_chars("劇団に行く。") == 11  # 。 is billed once
+
+
+def test_is_phrase_files_an_entry_as_the_lexicon_does() -> None:
+    assert is_phrase("約束を破る") and is_phrase("気 を 失う")
+    assert is_phrase("経験 / 約束を破る")  # any alternative
+    assert not is_phrase("経験する") and not is_phrase("静かな") and not is_phrase("〜方（かた）")
+
+
+def test_words_split_a_line_as_the_reader_does_without_a_deck() -> None:
+    assert words("お茶を飲みたいです。") == ["お茶", "を", "飲みたいです"]
+    assert words("、。") == []

@@ -13,7 +13,7 @@ from functools import cache
 from pythainlp.tokenize import word_tokenize
 
 from franki_reader.coverage import Checker, is_word
-from franki_reader.japanese import JapaneseLexicon, lemma_key
+from franki_reader.japanese import JapaneseLexicon, is_phrase, lemma_key
 from franki_reader.japanese import common_words as japanese_words
 from franki_reader.spaced import SpacedLexicon, common_words, fold, lemma
 
@@ -42,6 +42,8 @@ def rank_of(word: str, lexicon: Checker) -> int | None:
     if not is_word(word):
         return None
     if isinstance(lexicon, JapaneseLexicon):
+        if is_phrase(word):
+            return None  # 気を失う would otherwise rank as 気
         ranks = _ranks(japanese_words())
         keys = [lemma_key(lexicon.lemma_of(word) or word), lemma_key(word)]
     else:
@@ -77,7 +79,8 @@ def entry_place(entry: str, lexicon: Checker) -> EntryPlace:
     language's entry is ranked without its article or marker (ten mężczyzna, as mężczyzna; bać się,
     as bać) and by its best alternative (der/die Mitwirkende); one left with several words is a
     phrase. Thai's entry is a phrase when it isn't on the list and the default dictionary cuts it
-    into several words. Japanese's is ranked as a word. Unlike `rank_of`, this reads a whole entry."""
+    into several words, and Japanese's when it isn't on the list and the lexicon files it as a
+    phrase (`japanese.is_phrase`: 約束を破る). Unlike `rank_of`, this reads a whole entry."""
     if isinstance(lexicon, SpacedLexicon):
         keys = lexicon.entry_keys(entry)
         found = [
@@ -87,7 +90,9 @@ def entry_place(entry: str, lexicon: Checker) -> EntryPlace:
             return EntryPlace(min(found))
         return EntryPlace(None, phrase=any(len(k) > 1 for k in keys))
     rank = rank_of(entry, lexicon)
-    if rank is not None or isinstance(lexicon, JapaneseLexicon):
+    if rank is not None:
         return EntryPlace(rank)
+    if isinstance(lexicon, JapaneseLexicon):
+        return EntryPlace(None, phrase=is_phrase(entry))
     pieces = [p for p in word_tokenize(entry.strip(), engine="newmm") if is_word(p)]
     return EntryPlace(None, phrase=len(pieces) > 1)
