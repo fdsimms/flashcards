@@ -36,3 +36,19 @@ describe('cardDocument with a font', () => {
     expect(cardDocument('<div>x</div>', { ...opts, font: { id: 'system', base: BASE } })).not.toContain('card-font');
   });
 });
+
+describe('cardDocument in Japanese', () => {
+  const opts = { css: '', ord: 0, dark: false, autoplay: false };
+  it("marks a side with kana as Japanese, with Japanese's face after the system font", () => {
+    const html = cardDocument('<div>約束を破る</div>', opts);
+    expect(html).toContain('<html lang="ja">');
+    expect(html).toContain('font-family: -apple-system, system-ui, "Hiragino Sans", sans-serif;');
+  });
+  it('leaves kanji alone, which may be Chinese, and every other language', () => {
+    for (const side of ['<div>学习</div>', '<div>увидеть</div>']) {
+      const html = cardDocument(side, opts);
+      expect(html).toContain('<html><head>');
+      expect(html).not.toContain('Hiragino');
+    }
+  });
+});

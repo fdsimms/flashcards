@@ -3,6 +3,9 @@ import { clozeForTyping, clozeNumbers, clozeOnly, renderCloze } from './cloze';
 import { occlusionPlan, occlusionScript } from './imageOcclusion';
 import { mathjaxScripts, needsMathJax } from './mathjax';
 import { cardFontCss } from './cardFonts';
+import { htmlToText } from './html';
+import { keyboardLanguageForText } from './keyboardLanguage';
+import { JAPANESE_FONT } from './script';
 import type { AppFont } from './fonts';
 import { compareAnswer } from './typeAnswer';
 import type { Note, NoteType } from './types';
@@ -387,11 +390,15 @@ export function cardDocument(
   const night = opts.dark ? ' nightMode night_mode' : '';
   const base = opts.mediaBase ? `<base href="${escapeAttr(opts.mediaBase)}">` : '';
   const math = opts.mathjax && needsMathJax(html) ? opts.mathjax : undefined;
-  return `<!doctype html><html><head><meta charset="utf-8">${base}
+  // A side written in Japanese (any kana: kanji alone may be Chinese) is marked so, and has Japanese's
+  // face after the system font, so its kanji take their Japanese forms. `lang` reaches a deck that
+  // names its own font too (.card { font-family: arial }), as WebKit picks a missing glyph's face by it.
+  const ja = keyboardLanguageForText(htmlToText(html)) === 'ja';
+  return `<!doctype html><html${ja ? ' lang="ja"' : ''}><head><meta charset="utf-8">${base}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 html { height: 100%; }
-body { margin: 0; padding: 16px; min-height: 100%; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; font-family: -apple-system, system-ui, sans-serif; font-size: 20px; text-align: center;
+body { margin: 0; padding: 16px; min-height: 100%; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; font-family: -apple-system, system-ui, ${ja ? `"${JAPANESE_FONT}", ` : ''}sans-serif; font-size: 20px; text-align: center;
   background: ${colors.background}; color: ${colors.text}; }
 img { max-width: 100%; height: auto; }
 .cloze { font-weight: bold; color: ${colors.cloze}; }
