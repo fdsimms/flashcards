@@ -18,7 +18,7 @@ import { failureText } from '../core/failure';
  * Skip does. Not while a hint is written or being saved: then the sheet springs back, as iOS
  * does for a sheet with changes that would be lost.
  */
-export function LeechHintSheet({ word, translit, gloss, misses, suspended, suggest, onSave, onSkip }: {
+export function LeechHintSheet({ word, translit, gloss, misses, suspended, suggest, initialHint, onSave, onSkip }: {
   word: string;
   /** The word's transliteration, shown on its own line above the meaning. */
   translit?: string;
@@ -29,13 +29,15 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, sugge
   /** The answer suspended the card, as the deck's options say for a leech; saving a hint unsuspends it. */
   suspended?: boolean;
   suggest?: () => Promise<string[]>;
+  /** Text to start the hint with, such as an answer from Ask Claude to keep on the note. */
+  initialHint?: string;
   /** Saves the hint on the note (and unsuspends the card, when `suspended`); throws when it can't, and the sheet says why. */
   onSave: (hint: string) => Promise<void>;
   onSkip: () => void;
 }) {
   const c = useTheme();
   const insets = useSafeAreaInsets();
-  const [hint, setHint] = useState('');
+  const [hint, setHint] = useState(initialHint ?? '');
   const [ideas, setIdeas] = useState<string[]>([]);
   const [asking, setAsking] = useState(false);
   const [saving, setSaving] = useState(false);

@@ -631,6 +631,10 @@ export function createApi(
     // Memory hints for a word (a leech), written by Claude on the server: asked only when the owner taps for them.
     mnemonics: async (question: { language: Language; entry: string; meaning: string; transliteration?: string; context?: string }) =>
       (await call<{ hints: string[] }>('POST', '/api/mnemonics', question)).hints,
+    // Claude's answer to a question typed about the card on screen, from the conversation so far (the last turn is the
+    // new question): asked only when the owner sends one (core/askCard.ts).
+    askCard: async (card: { language?: Language; front: string; back: string; details?: string }, turns: { role: 'user' | 'assistant'; content: string }[]) =>
+      (await call<{ answer: string }>('POST', '/api/ask-card', { ...card, turns })).answer,
     // A Russian or Polish verb's aspect and its aspect partner, written by Claude on the server: asked only on Add to deck,
     // for the note editor to show and check (reader/mining.ts). Every field is null when there's nothing to suggest.
     aspectPair: (language: Language, word: string, line?: string) =>

@@ -64,7 +64,7 @@ export default function ReviewRoute() {
   const earlierDeck = nextDeck ? undefined : earlierDeckToStudy(decks, collapse.collapsed, deck);
   return (
     <Review
-      repo={repo} deck={deck} practice={practice} extraCard={language ? <ExtraCard extras={extras} language={language} /> : undefined} glossing={glossing} suggestHints={readerApi ? (q) => readerApi.mnemonics(q) : undefined} reloadKey={reloadKey} onDone={() => router.back()} onEditNote={openNoteEditor}
+      repo={repo} deck={deck} practice={practice} extraCard={language ? <ExtraCard extras={extras} language={language} /> : undefined} glossing={glossing} suggestHints={readerApi ? (q) => readerApi.mnemonics(q) : undefined} askAboutCard={readerApi ? (card, turns) => readerApi.askCard(card, turns) : undefined} reloadKey={reloadKey} onDone={() => router.back()} onEditNote={openNoteEditor}
       nextDeck={nextDeck?.split('::').pop()}
       onNextDeck={nextDeck ? () => router.replace({ pathname: '/review', params: { deck: nextDeck } }) : undefined}
       earlierDeck={earlierDeck?.split('::').pop()}

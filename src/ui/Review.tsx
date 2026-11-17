@@ -50,6 +50,8 @@ import { useSelfRecording } from './useSelfRecording';
 import { htmlToText } from '../core/html';
 import { chooseAgentFlagReason } from './agentFlagSheet';
 import { LeechHintSheet } from './LeechHintSheet';
+import { AskCardSheet } from './AskCardSheet';
+import { cardForClaude, type AskTurn, type CardForClaude } from '../core/askCard';
 import { canAddMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
 import { PLAY_BUTTON_CLEARANCE, PlayButton } from './PlayButton';
 import { usePhoneSpeech } from './usePhoneSpeech';
@@ -136,7 +138,7 @@ function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, extraCard, suggestHints, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
+export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -148,6 +150,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
   extraCard?: React.ReactNode;
   /** Present while Read & Listen is signed in: asks its server for memory hints, when a leech's hint sheet asks for them. */
   suggestHints?: (question: MnemonicQuestion) => Promise<string[]>;
+  /** Present while Read & Listen is signed in: answers a question typed about the card on screen (AskCardSheet). */
+  askAboutCard?: (card: CardForClaude, turns: AskTurn[]) => Promise<string>;
   /** Present while Read & Listen is signed in: an example sentence's words can be tapped for their meanings (useCardGlosses). */
   glossing?: CardGlossing;
   /** Changes when something outside this screen may have changed the deck (custom study): loads the cards again. */
@@ -180,7 +184,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
   // The answer that just made a card a leech asks for a hint to keep in its note's Mnemonic field,
   // and names the card when that answer suspended it, so saving a hint can bring it back.
   // The same sheet opens from Write a mnemonic in the ⋯ menu, with no misses to report.
-  const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses?: number; suspendedCardId?: string } | null>(null);
+  const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses?: number; suspendedCardId?: string; initialHint?: string } | null>(null);
+  // The Ask Claude sheet, from the ⋯ menu: the card it was opened for, as text.
+  const [askCard, setAskCard] = useState<CardForClaude | null>(null);
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
   // While "Read a text with these words" waits for the sync that sends today's answers first.
@@ -686,6 +692,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
       misses={leechPrompt.misses}
       suspended={!!leechPrompt.suspendedCardId}
       suggest={suggestHints && question ? () => suggestHints(question) : undefined}
+      initialHint={leechPrompt.initialHint}
       onSkip={() => setLeechPrompt(null)}
       onSave={async (hint) => {
         // The card as it is now, captured before the awaits: still suspended, or nothing to bring back.
@@ -1026,6 +1033,15 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
   return (
     <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
     {leechSheet}
+    {askCard ? (
+      <AskCardSheet
+        card={askCard}
+        ask={askAboutCard ? (turns) => askAboutCard(askCard, turns) : undefined}
+        // The answer goes into the mnemonic sheet, where saving is the approval.
+        onUseAnswer={canAddMnemonic(note) ? (answer) => { setAskCard(null); setLeechPrompt({ noteId: note.id, initialHint: answer }); } : undefined}
+        onClose={() => setAskCard(null)}
+      />
+    ) : null}
     <Screen
       title={title}
       largeTitle={false}
@@ -1051,6 +1067,11 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
           <ReviewMenu
             flag={current.flag ?? 0}
             onMnemonic={canAddMnemonic(note) ? () => setLeechPrompt({ noteId: note.id }) : undefined}
+            onAskClaude={() => {
+              const card = cardForClaude(note, noteTypes.get(note.model), current.kind);
+              if (card) setAskCard(card);
+              else Alert.alert("Can't ask about this card", 'This card has no text to ask about. Open its note to see the fields.');
+            }}
             onFlag={(flag) => setStates([current], (s) => ({ ...s, flag }))}
             onAgentFlag={chooseAgentFlag}
             onBuryCard={() => setStates([current], (s) => ({ ...s, buried: true }))}

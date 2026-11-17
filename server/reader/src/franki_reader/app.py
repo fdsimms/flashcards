@@ -239,6 +239,12 @@ marked words, ideas) is in the current language, the `language` setting.
     DELETE /api/lessons/{id}          forgets the lesson and its audio
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
                                       memory hints for a word the owner keeps forgetting: {hints: [...]}
+    POST  /api/ask-card               {language?, front, back, details?, turns: [{role, content}]} the
+                                      answer to the owner's question about the card on screen, from
+                                      the conversation so far (the last turn is the new question):
+                                      {answer}. Asked only when a question is sent. 503 without
+                                      Claude. Its cost is kept in `call_costs` (feature "ask_card"),
+                                      not yet in /api/costs
     POST  /api/aspect-pair            {language, word, line?} a Russian or Polish verb's aspect and its aspect
                                       partner, written by Claude for the note editor to check, asked
                                       only on Add to deck: {aspect, partner, partner_meaning,
@@ -271,6 +277,7 @@ from pydantic import BaseModel, Field
 
 from franki_reader import (
     ai_ipa,
+    ask_card,
     aspect,
     audit,
     cast,
@@ -603,6 +610,20 @@ class FormExplainIn(BaseModel):
     helper: str = Field(default="", max_length=100)
 
 
+class CardTurnIn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=1500)
+
+
+class AskCardIn(BaseModel):
+    # The card's language when the app knows it (an Omnilanguage note); other note types send none.
+    language: Code | None = None
+    front: str = Field(max_length=1500)
+    back: str = Field(max_length=1500)
+    details: str = Field(default="", max_length=2000)
+    turns: list[CardTurnIn] = Field(min_length=1, max_length=40)
+
+
 class AspectIn(BaseModel):
     # The word's own language, which is not always the one being read: a card from the Polish deck
     # can be studied while Thai is the reading language.
@@ -753,6 +774,7 @@ def create_app(
     write_lesson: WritePlan | None = None,
     lessons_dir: Path | None = None,
     write_aspect: aspect.WriteAspect | None = None,
+    ask_about_card: ask_card.AskCard | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
     # Points whose drill questions are being written, shared by every request (drills.top_up).
@@ -769,7 +791,7 @@ def create_app(
     # Your topics' pages being written (grammar_topics.write_page), shared by every request.
     grammar_topics_writing: set[int] = set()
 
-    def keep_failed_cost(feature: store.CallFeature, language: Code, used: Usage) -> None:
+    def keep_failed_cost(feature: store.CallFeature, language: str, used: Usage) -> None:
         """What a call that failed after Claude answered cost: no answer is kept to carry it, so
         it goes in `call_costs`. A call Claude never answered cost nothing."""
         if used != Usage():
@@ -1868,6 +1890,34 @@ def create_app(
         )
         return {"hints": hints}
 
+    @app.post("/api/ask-card", dependencies=authed)
+    async def ask_card_route(body: AskCardIn) -> dict[str, str]:
+        if ask_about_card is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't answer questions about a card"
+                " (ANTHROPIC_API_KEY in server/.env turns it on).",
+            )
+        if body.turns[-1].role != "user":
+            raise HTTPException(422, "The last turn has to be your question.")
+        language = body.language or ""
+        try:
+            answer, used = await ask_about_card(
+                ask_card.CardQuestion(
+                    body.language,
+                    body.front.strip(),
+                    body.back.strip(),
+                    body.details.strip(),
+                    [ask_card.Turn(t.role, t.content.strip()) for t in body.turns],
+                )
+            )
+        except ask_card.AskCardFailed as e:
+            keep_failed_cost("ask_card", language, e.usage)
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(engine.conn, "ask_card", language, engine.clock(), used.cost_usd())
+        return {"answer": answer}
+
     @app.post("/api/aspect-pair", dependencies=authed)
     async def aspect_pair(body: AspectIn) -> dict[str, Any]:
         language = body.language
@@ -2772,6 +2822,7 @@ def production_app() -> FastAPI:
     write_lesson: WritePlan | None = None
     write_ipa: ai_ipa.WriteIpa | None = None
     write_aspect: aspect.WriteAspect | None = None
+    ask_about_card: ask_card.AskCard | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
@@ -2794,6 +2845,7 @@ def production_app() -> FastAPI:
         write_lesson = lesson_writer.claude_plan(client)
         write_ipa = ai_ipa.claude_ipa(client)
         write_aspect = aspect.claude_aspect(client)
+        ask_about_card = ask_card.claude_ask_card(client)
 
         def ask_for(
             entries: list[Entry], language: Code, model: TextModel = MODEL, effort: Effort = EFFORT
@@ -2878,4 +2930,5 @@ def production_app() -> FastAPI:
         write_lesson=write_lesson,
         lessons_dir=settings.audio_dir / "lessons",
         write_aspect=write_aspect,
+        ask_about_card=ask_about_card,
     )
