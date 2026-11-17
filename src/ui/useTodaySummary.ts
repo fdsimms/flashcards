@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { DeckRow } from '../core/deckTree';
 import { answersFrom, type Answer } from '../core/stats';
 import { SUMMARY_LOOKBACK_DAYS, todaySummary } from '../core/todaySummary';
+import { reviewWrites } from '../core/writeQueue';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 
@@ -19,6 +20,8 @@ export function useTodaySummary(repo: Repo & AnkiLink, decks: DeckRow[], wanikan
   useEffect(() => {
     let live = true;
     (async () => {
+      // After the answers Review has shown but not yet written, so the line counts them.
+      await reviewWrites.idle();
       const now = new Date();
       const { dayStartsAtHour } = await repo.collectionSettings();
       const since = new Date(now.getFullYear(), now.getMonth(), now.getDate() - SUMMARY_LOOKBACK_DAYS);
