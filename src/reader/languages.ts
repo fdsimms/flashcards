@@ -26,12 +26,13 @@ export const LANGUAGES: Record<Language, LanguageInfo> = {
   pl: { name: 'Polish', flag: '🇵🇱', ...SPACED, speech: 'pl-PL' },
   nb: { name: 'Norwegian', flag: '🇳🇴', ...SPACED, speech: 'nb-NO' },
   en: { name: 'English', flag: '🇺🇸', ...SPACED, speech: 'en-US' },
+  tr: { name: 'Turkish', flag: '🇹🇷', ...SPACED, speech: 'tr-TR' },
   // Written without spaces, and kanji want room for their strokes; a word's reading is its kana.
   ja: { name: 'Japanese', flag: '🇯🇵', fontSize: 21, lineHeight: 1.7, highlightLabel: 'Might be new to you', speech: 'ja-JP', translitLabel: 'Show reading' },
 };
 
 // Thai and Spanish came first; the rest are in alphabetical order.
-export const LANGUAGE_ORDER: Language[] = ['th', 'es', 'fr', 'de', 'el', 'en', 'ja', 'nb', 'pl', 'ru'];
+export const LANGUAGE_ORDER: Language[] = ['th', 'es', 'fr', 'de', 'el', 'en', 'ja', 'nb', 'pl', 'ru', 'tr'];
 
 // The language's name with its flag, for a menu row or a header button.
 export function flaggedName(code: Language): string {

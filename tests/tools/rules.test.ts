@@ -116,7 +116,27 @@ describe('the examples in the time rules', () => {
   });
 });
 
+describe('the examples in the Turkish time rule', () => {
+  it('are what Turkish says', () => {
+    expect(timeEveryday('tr', 15, 0)).toBe('saat üç');
+    expect(timeEveryday('tr', 15, 30)).toBe('saat üç buçuk');
+    expect(timeEveryday('tr', 15, 5)).toBe('saat üçü beş geçiyor');
+    expect(timeEveryday('tr', 15, 15)).toBe('saat üçü çeyrek geçiyor');
+    expect(timeEveryday('tr', 15, 55)).toBe('saat dörde beş var');
+    expect(timeEveryday('tr', 15, 45)).toBe('saat dörde çeyrek var');
+  });
+});
+
 describe('which time rule a question gets', () => {
+  it('gives Turkish the way the hour is counted, on the hour, at the half, past and to', () => {
+    expect(rule.time('tr', 15, 0)).toMatch(/^On the hour/);
+    expect(rule.time('tr', 15, 30)).toMatch(/^Half past is buçuk/);
+    expect(rule.time('tr', 15, 1)).toMatch(/^Minutes past take the hour in the accusative/);
+    expect(rule.time('tr', 15, 29)).toMatch(/^Minutes past take the hour in the accusative/);
+    expect(rule.time('tr', 15, 31)).toMatch(/^Minutes to the hour take the next hour in the dative/);
+    expect(rule.time('tr', 15, 59)).toMatch(/^Minutes to the hour take the next hour in the dative/);
+  });
+
   it('gives Thai the part of the day the hour is said in, at its edges', () => {
     expect(rule.time('th', 1, 0)).toMatch(/^1 to 5 a\.m\. are ตี/);
     expect(rule.time('th', 5, 59)).toMatch(/^1 to 5 a\.m\./);
@@ -341,7 +361,19 @@ describe('the examples in the date rules', () => {
   });
 });
 
+describe('the example in the Turkish date rule', () => {
+  it('is what Turkish says', () => {
+    expect(dateEveryday('tr', 2026, 11, 12).text).toBe('on iki Kasım');
+    expect(dateEveryday('tr', 2026, 11, 12, true).text).toBe('on iki Kasım iki bin yirmi altı');
+  });
+});
+
 describe('which date rule a date gets', () => {
+  it('gives Turkish its plain-number day and year, whichever day it is', () => {
+    expect(rule.date('tr', 11, 12)).toMatch(/^The day is a plain number, not an ordinal/);
+    expect(rule.date('tr', 11, 1)).toBeDefined();
+  });
+
   it('gives Japanese its own day readings, the irregular months, and a year ending in 4', () => {
     expect(rule.date('ja', 11, 14)).toMatch(/^1 to 10, 14, 20 and 24 have their own readings/);
     expect(rule.date('ja', 11, 24)).toMatch(/^1 to 10, 14, 20 and 24/);
@@ -398,6 +430,8 @@ describe('the number rules', () => {
     expect(NUMBER_SAYERS.ja!(num(12_345)).everyday).toEqual({ text: '一万二千三百四十五', roman: 'いちまんにせんさんびゃくよんじゅうご' });
     expect(said('el', age(34))).toBe('είμαι τριάντα τεσσάρων χρονών');
     expect(said('th', year(1987))).toBe('พ.ศ. สองพันห้าร้อยสามสิบ');
+    expect(said('tr', age(22))).toBe('yirmi iki yaşındayım');
+    expect(said('tr', year(1987))).toBe('bin dokuz yüz seksen yedi');
   });
 
   it('come up only where they apply', () => {
@@ -415,5 +449,9 @@ describe('the number rules', () => {
     expect(ruleFor('el', age(25))).toBeUndefined();
     expect(ruleFor('el', age(23))).toBeDefined();
     expect(ruleFor('nb', age(23))).toBeUndefined();
+    expect(ruleFor('tr', age(23))).toContain('yaşındayım');
+    expect(ruleFor('tr', year(1987))).toContain('not an ordinal');
+    expect(ruleFor('tr', num(1987))).toBeUndefined();
+    expect(ruleFor('tr', { kind: 'phone', written: '0532 123 45 67' })).toBeUndefined();
   });
 });

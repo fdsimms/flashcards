@@ -17,7 +17,7 @@ from mcp import Client
 pytestmark = pytest.mark.anyio
 
 # Real excerpts of UniMorph's files (tests/unimorph): esperar, vengar and querer (only the noun,
-# in UniMorph) in Spanish; czekać and uczyć in Polish.
+# in UniMorph) in Spanish; czekać and uczyć in Polish; yapmak in Turkish, its positive statements.
 EXCERPTS = Path(__file__).parent / "unimorph"
 
 
@@ -56,6 +56,20 @@ def test_a_row_takes_the_form_with_the_fewest_other_features():
     assert "past · oni: czekali" in lines and "past · one: czekały" in lines
 
 
+def test_turkish_takes_each_tenses_plain_positive_statement():
+    turkish = forms.TABLES["turkish"]
+    lines = forms.form_lines(turkish, rows("tur", "yapmak"))
+    assert len(lines) == forms.rows_in(turkish) == 30
+    assert lines[:3] == ["present continuous · ben: yapıyorum", "present continuous · sen: yapıyorsun", "present continuous · o: yapıyor"]
+    # The plain past, not the past of the past (yaptıydılar) UniMorph lists with one more feature.
+    assert "past · onlar: yaptılar" in lines and "past · ben: yaptım" in lines
+    assert "future · biz: yapacağız" in lines and "aorist · siz: yaparsınız" in lines
+    assert "evidential past · ben: yapmışım" in lines
+    assert turkish.lemma("yapmak (to do)") == "yapmak"
+    # UniMorph has no konuşmak, so it's not found rather than guessed.
+    assert forms.lines_for(turkish, "konuşmak", {}) == []
+
+
 def test_reflexives_and_prepositions_are_looked_up_as_their_verb():
     found = {"vengar": rows("spa", "vengar"), "uczyć": rows("pol", "uczyć")}
     assert spanish().lemma("vengarse de") == "vengarse" and spanish().lemma("internarse (en)") == "internarse"
@@ -77,7 +91,9 @@ def test_every_group_a_grammar_point_links_to_is_one_the_fill_writes():
     # The app finds a form's grammar point by its group's name (src/core/grammar.ts), so a group
     # renamed here would quietly unlink it. Languages the fill doesn't cover are written by hand.
     catalog = Path(__file__).resolve().parents[2] / "reader" / "src" / "franki_reader" / "grammar_points.json"
-    tables = {"es": forms.TABLES["spanish"], "pl": forms.TABLES["polish"], "ru": forms.TABLES["russian"]}
+    tables = {
+        "es": forms.TABLES["spanish"], "pl": forms.TABLES["polish"], "ru": forms.TABLES["russian"], "tr": forms.TABLES["turkish"],
+    }
     linked = [(p["language"], g) for p in json.loads(catalog.read_text(encoding="utf-8"))["points"] for g in p.get("forms", [])]
     assert linked
     for language, group in linked:

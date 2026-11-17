@@ -271,7 +271,8 @@ def test_a_participle_after_its_auxiliary_is_a_verb_even_when_it_is_also_a_noun(
 
 def test_every_language_but_english_has_points_with_names_and_notes() -> None:
     for code in LANGUAGES:
-        assert points_for(code) or code == "en", code
+        # Turkish's points are the next step of issue 299; take it off this list when they land.
+        assert points_for(code) or code in ("en", "tr"), code
     for p in POINTS.values():
         assert p.name and p.note and p.example and "—" not in p.name + p.note + p.example
         assert p.id.startswith(p.language + ".")

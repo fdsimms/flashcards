@@ -47,6 +47,10 @@ import { sayThaiDate } from './thai/date';
 import { sayThaiMoney } from './thai/money';
 import { sayThaiNumber } from './thai/number';
 import { sayThaiTime } from './thai/time';
+import { sayTurkishDate } from './turkish/date';
+import { sayTurkishMoney } from './turkish/money';
+import { sayTurkishNumber } from './turkish/number';
+import { sayTurkishTime } from './turkish/time';
 import type { CalendarDate, DateParts, DateSaying } from './date';
 import type { CountingLanguage } from './counting';
 import type { CurrencyCode, MoneySaying } from './money';
@@ -88,6 +92,7 @@ export const TIME_SAYERS: Partial<Record<Language, (t: ClockTime) => TimeSaying>
   nb: sayNorwegianTime,
   pl: sayPolishTime,
   ru: sayRussianTime,
+  tr: sayTurkishTime,
 };
 
 /** Each language Saying dates can say a date in. */
@@ -101,6 +106,7 @@ export const DATE_SAYERS: Partial<Record<Language, (d: CalendarDate, parts: Date
   nb: sayNorwegianDate,
   pl: sayPolishDate,
   ru: sayRussianDate,
+  tr: sayTurkishDate,
 };
 
 /** Each language Counting money can say an amount in, in its currency (`CURRENCY_OF`). */
@@ -114,6 +120,7 @@ export const MONEY_SAYERS: Partial<Record<Language, (amount: number) => MoneySay
   nb: sayNorwegianMoney,
   pl: sayPolishMoney,
   ru: sayRussianMoney,
+  tr: sayTurkishMoney,
 };
 
 /** Each language Numbers can say a number in (a plain number, a phone number, a year, an age). */
@@ -127,11 +134,13 @@ export const NUMBER_SAYERS: Partial<Record<Language, (q: NumberQuestion) => Numb
   nb: sayNorwegianNumber,
   pl: sayPolishNumber,
   ru: sayRussianNumber,
+  tr: sayTurkishNumber,
 };
 
 /**
  * Each language Counting things can count in. Spanish and French are left out: their plurals are
- * regular, and the one thing a number changes (veintiuna, vingt et une) is already in Numbers.
+ * regular, and the one thing a number changes (veintiuna, vingt et une) is already in Numbers. Turkish is
+ * too: the noun stays singular after a number (iki kedi), with nothing else to drill.
  */
 export const COUNTING: Partial<Record<Language, CountingLanguage>> = {
   th: THAI_COUNTING,
@@ -155,12 +164,12 @@ export const SCRIPTS: Partial<Record<Language, ScriptLanguage>> = {
 
 /** The money each language is practiced with: Mexican pesos for Spanish, as its voice is Mexican. */
 export const CURRENCY_OF: Partial<Record<Language, CurrencyCode>> = {
-  th: 'THB', es: 'MXN', fr: 'EUR', de: 'EUR', el: 'EUR', pl: 'PLN', ru: 'RUB', nb: 'NOK', ja: 'JPY',
+  th: 'THB', es: 'MXN', fr: 'EUR', de: 'EUR', el: 'EUR', pl: 'PLN', ru: 'RUB', nb: 'NOK', ja: 'JPY', tr: 'TRY',
 };
 
 /** The weekday a calendar's week starts on where the language is spoken: 0 Sunday (Thailand, Mexico, Japan), 1 Monday. */
 export const WEEK_STARTS_ON: Partial<Record<Language, 0 | 1>> = {
-  th: 0, es: 0, fr: 1, de: 1, el: 1, pl: 1, ru: 1, nb: 1, ja: 0,
+  th: 0, es: 0, fr: 1, de: 1, el: 1, pl: 1, ru: 1, nb: 1, ja: 0, tr: 1,
 };
 
 const withSayer = (sayers: Partial<Record<Language, unknown>>) => TOOL_LANGUAGES.filter((l) => !!sayers[l]);

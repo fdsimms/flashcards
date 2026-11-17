@@ -42,8 +42,8 @@ describe('the Practice tools', () => {
     }
   });
 
-  it('offers Counting things where a number changes how a noun is said, Spanish and French aside', () => {
-    expect(toolById('counting')!.languages).toEqual(TOOL_LANGUAGES.filter((l) => l !== 'es' && l !== 'fr'));
+  it('offers Counting things where a number changes how a noun is said, Spanish, French and Turkish aside', () => {
+    expect(toolById('counting')!.languages).toEqual(TOOL_LANGUAGES.filter((l) => l !== 'es' && l !== 'fr' && l !== 'tr'));
   });
 
   it('can count every noun up to 100, with at least two wrong choices for Pick', () => {
