@@ -96,6 +96,12 @@ export interface AnkiLink {
    * A sync and an import of a whole collection hold it.
    */
   lockAnki<T>(fn: () => Promise<T>): Promise<T>;
+  /**
+   * What the lock has done so far: how many times it was taken, and whether it's held now. A caller
+   * that reads it before and after its own `lockAnki` call knows whether anyone else (a sync, an
+   * import) held the collection in between, or still did when it first looked.
+   */
+  ankiLockState(): { runs: number; held: boolean };
   /** A connection of its own to the kept collection, for a sync; closed after `fn`. Call inside `lockAnki`. */
   withSyncConnection<T>(fn: (db: SyncDb) => Promise<T>): Promise<T>;
   /** What the media pull remembers between syncs. */
@@ -123,8 +129,15 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
   let attached = false;
   // One holder of the kept collection at a time, in the order they asked.
   let queue: Promise<unknown> = Promise.resolve();
+  let lockRuns = 0;
+  let lockHeld = false;
   const lockAnki = <T,>(fn: () => Promise<T>): Promise<T> => {
-    const run = queue.then(fn, fn);
+    const counted = async () => {
+      lockRuns++;
+      lockHeld = true;
+      try { return await fn(); } finally { lockHeld = false; }
+    };
+    const run = queue.then(counted, counted);
     queue = run.catch(() => undefined);
     return run;
   };
@@ -330,6 +343,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
     attachAnki: attach,
 
     lockAnki,
+    ankiLockState: () => ({ runs: lockRuns, held: lockHeld }),
 
     async withSyncConnection(fn) {
       if (!keptCollectionFile().exists) throw new Error('There is no Anki collection in Franki yet.');

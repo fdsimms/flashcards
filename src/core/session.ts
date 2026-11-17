@@ -33,11 +33,11 @@ export function bumpStudied(
 export interface AnswerRecord {
   /** The card as it was before the answer. */
   before: Card;
-  /** The review log row the answer wrote. */
-  reviewId: number;
+  /** The review log row the answer wrote. Set once the answer is written, which Review does behind showing the next card. */
+  reviewId?: number;
   /** The card's own deck (not the one being studied, which may be its parent). */
   deck: string;
-  /** What undoes the answer in the kept Anki collection, when the card is from one. */
+  /** What undoes the answer in the kept Anki collection, when the card is from one. Set with `reviewId`. */
   anki?: AnkiUndo;
   /** The rating given, and how long the card was on screen before it, for the session's summary. */
   rating: RatingValue;
