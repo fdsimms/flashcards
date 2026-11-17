@@ -119,3 +119,8 @@ saves what went wrong in the answer's own review row (`ReviewLogEntry.miss`), wh
 takes it back with the answer. The "Last time" line is read from those rows each time, never
 stored. Nothing in `src/core/scheduler.ts` or the queue may read it, and it isn't written into the
 Anki collection.
+
+**A confused-word link is practice, never an input to scheduling.** Words linked as mixed up
+(`src/core/confusedPairs.ts`, the `confused_pairs` table) are shown on the answer side and asked in
+Similar words. Nothing in `src/core/scheduler.ts`, the queue or the lookalike hold may read them, and
+they aren't written into the Anki collection.

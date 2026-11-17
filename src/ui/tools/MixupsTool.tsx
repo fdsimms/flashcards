@@ -14,15 +14,15 @@ import type { ToolScreenProps } from './index';
 import { ChipChoice, PlayButton, Status, ToolScreen, useToolLanguage, useToolPref, type ToolActions } from './ToolScreen';
 import { useRetries } from './useRetries';
 
-const MODES: { value: MixupMode; label: string }[] = [{ value: 'meaning', label: 'By meaning' }, { value: 'ear', label: 'By ear' }];
+const MODES: { value: MixupMode; label: string }[] = [{ value: 'meaning', label: 'By meaning' }, { value: 'ear', label: 'By ear' }, { value: 'pairs', label: 'Your pairs' }];
 
 /** A word's romanization (or reading) and meaning as one string, for the spoken label; shown on separate lines. */
 const detail = (w: MixupWord) => [w.roman, w.meaning].filter(Boolean).join(' · ');
 
 /**
- * Similar words (src/tools/mixups.ts): a meaning and the word for it among its look-alikes, or
- * a word played and which of its sound-alikes it was. Opened from Review's session end with the
- * words just missed (`notes`, a JSON list of note ids, and `mode`), it asks those first. A miss
+ * Similar words (src/tools/mixups.ts): a meaning and the word for it among its look-alikes or the
+ * words linked to it as ones you mix up, or a word played and which of its sound-alikes it was.
+ * Opened from Review's session end with the words just missed (`notes`, a JSON list of note ids, and `mode`), it asks those first. A miss
  * comes back a few questions later. Nothing here grades a card.
  */
 export function MixupsTool({ tool, repo, params }: ToolScreenProps) {
@@ -49,10 +49,10 @@ export function MixupsTool({ tool, repo, params }: ToolScreenProps) {
     let live = true;
     setError(null);
     (async () => {
-      const [notes, cards] = await Promise.all([repo.listNotes(), repo.listCards()]);
+      const [notes, cards, linked] = await Promise.all([repo.listNotes(), repo.listCards(), repo.listConfusedPairs()]);
       // Studied: a card of the note has been answered, wherever (its state is past new).
       const studied = new Set(cards.filter((card) => card.sched.state !== 0 && !card.retired).map((card) => card.noteId));
-      if (live) setSet(mixupSet(notes, studied));
+      if (live) setSet(mixupSet(notes, studied, linked));
     })().catch((e) => { if (live) setError(failureText(e, { what: "Couldn't read your decks.", next: 'Try again.' })); });
     return () => { live = false; };
   }, [repo, loads]);
@@ -88,7 +88,7 @@ export function MixupsTool({ tool, repo, params }: ToolScreenProps) {
       haptic.answer();
       retries.missed(scope, question.target.noteId, question.target.noteId);
     }
-    if (mode === 'meaning') void play(question.target.word, language);
+    if (mode !== 'ear') void play(question.target.word, language);
   };
   const next = () => { if (set) ask(set, question?.target.noteId); };
 
@@ -113,13 +113,15 @@ export function MixupsTool({ tool, repo, params }: ToolScreenProps) {
           <Help>
             {mode === 'ear'
               ? `None of the ${LANGUAGES[language].name} words you're studying sound like another one in your deck.`
-              : `None of the ${LANGUAGES[language].name} words you're studying look like another one with a different meaning.`}
+              : mode === 'pairs'
+                ? `You haven't linked any ${LANGUAGES[language].name} words you're studying yet. When you mix two up in Review, choose Mixed up with another word on Again's menu, or Link a confusing word in the ⋯ menu.`
+                : `None of the ${LANGUAGES[language].name} words you're studying look like another one with a different meaning.`}
           </Help>
         </Card>
       ) : (
         <>
           <Card style={{ alignItems: 'center', gap: space.s, paddingVertical: space.xl }}>
-            {mode === 'meaning' ? (
+            {mode !== 'ear' ? (
               <>
                 <Text style={{ ...type.subhead, color: c.textSecondary }}>Which one means</Text>
                 <Text selectable style={{ ...type.cardBack, color: c.text, textAlign: 'center' }}>{question.target.meaning}</Text>
