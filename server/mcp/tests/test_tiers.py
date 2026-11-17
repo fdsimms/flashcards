@@ -73,7 +73,8 @@ def reader_http(seen: list[httpx.Request] | None = None) -> httpx.AsyncClient:
             return httpx.Response(200, json={"decks": {"es": "Español", "th": THAI, "pl": "Polski"}})
         body = json.loads(request.content)
         known = RANKS if body["language"] == "es" else {}
-        return httpx.Response(200, json={"ranks": {w: known.get(w) for w in body["words"]}})
+        phrases = [w for w in body["words"] if known and known.get(w) is None and " " in w]
+        return httpx.Response(200, json={"ranks": {w: known.get(w) for w in body["words"]}, "phrases": phrases})
 
     return httpx.AsyncClient(transport=httpx.MockTransport(handler))
 
@@ -286,3 +287,15 @@ async def test_a_run_with_nothing_to_do_writes_nothing(cm, desktop, monkeypatch)
         monkeypatch.setattr(cm, "write", lambda *a, **k: (writes.append(a), real(*a, **k))[1])
         again = await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=BANDS, retentions=RET, preview=False)
         assert again["moved"] == 0 and writes == []
+
+
+async def test_a_phrase_goes_in_the_first_tier(cm, desktop):
+    esperar, inventadear, casa, hola = omni(desktop)
+    note = json.dumps({"Entry": "mantener a raya", "Meaning": "to keep at bay", "Language": "spanish"})
+    phrase = desktop.run("add-fields-note", "Omnilanguage", "Español", note, "+", "sync")["notes"][0]
+    async with client_for(cm) as c:
+        preview = await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=BANDS, retentions=RET)
+        assert [t["notes"] for t in preview["tiers"]] == [2, 1, 1]
+        assert {"word": "mantener a raya", "rank": None, "phrase": True} in preview["tiers"][0]["examples"]
+        await call(c, "tier_deck_by_frequency", deck="Español", language="es", bands=BANDS, retentions=RET, preview=False)
+    assert decks_of(desktop, [phrase, casa, inventadear]) == ["Español::Tier 1", "Español::Tier 1", "Español::Tier 3"]

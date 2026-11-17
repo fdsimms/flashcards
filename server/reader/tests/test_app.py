@@ -1612,11 +1612,12 @@ def test_ranks_gives_each_words_place_in_the_common_list() -> None:
     first, second = common_words("es")[:2]
     response = c.post(
         "/api/ranks",
-        json={"language": "es", "words": [second, first, "zzzzqx", second]},
+        json={"language": "es", "words": [second, first, "zzzzqx", second, "mantener a raya"]},
         headers=AUTH,
     )
     ranks = response.json()["ranks"]
-    assert ranks == {second: 2, first: 1, "zzzzqx": None}
+    assert ranks == {second: 2, first: 1, "zzzzqx": None, "mantener a raya": None}
+    assert response.json()["phrases"] == ["mantener a raya"]
     assert (
         c.post("/api/ranks", json={"language": "es", "words": []}, headers=AUTH).status_code == 422
     )

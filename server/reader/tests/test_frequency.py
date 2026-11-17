@@ -1,4 +1,4 @@
-from franki_reader.frequency import rank_of
+from franki_reader.frequency import EntryPlace, entry_place, rank_of
 from franki_reader.languages import LANGUAGES
 from franki_reader.lexicon import lexicon_from
 from franki_reader.spaced import common_lemmas
@@ -39,3 +39,34 @@ def test_japanese_is_ranked_by_the_dictionary_form() -> None:
     lexicon = lexicon_from([], "ja")
     assert rank_of("行きました", lexicon) == rank_of("行く", lexicon)
     assert rank_of("行く", lexicon) is not None
+
+
+def test_an_entry_is_ranked_without_its_article_or_gender_word() -> None:
+    pl = lexicon_from([], "pl")
+    assert entry_place("ten mężczyzna", pl) == entry_place("mężczyzna", pl)
+    assert entry_place("ten mężczyzna", pl).rank is not None
+    es = lexicon_from([], "es")
+    assert entry_place("la casa", es) == EntryPlace(common_lemmas("es").index("casa") + 1)
+    # A reflexive marker goes too (bać się), and the better of two alternatives is the place.
+    assert entry_place("bać się", pl) == entry_place("bać", pl)
+    de = lexicon_from([], "de")
+    assert entry_place("der/die Kollege", de).rank == entry_place("Kollege", de).rank
+
+
+def test_an_entry_of_several_words_is_a_phrase_and_a_single_word_never_is() -> None:
+    assert entry_place("mantener a raya", lexicon_from([], "es")) == EntryPlace(None, phrase=True)
+    assert entry_place("dzień dobry", lexicon_from([], "pl")) == EntryPlace(None, phrase=True)
+    assert entry_place("ornitorrinco", lexicon_from([], "es")) == EntryPlace(None, phrase=False)
+
+
+def test_a_thai_entry_the_dictionary_cuts_into_words_is_a_phrase() -> None:
+    th = lexicon_from([], "th")
+    assert entry_place("ยินดีที่ได้รู้จัก", th) == EntryPlace(None, phrase=True)
+    assert entry_place("ที่", th) == EntryPlace(1)
+
+
+def test_thai_words_written_with_a_leading_vowel_and_one_letter_are_on_the_list() -> None:
+    # ไป and ใน were dropped as broken words when the list was built.
+    th = lexicon_from([], "th")
+    assert (rank_of("ไป", th) or 10**6) < 100
+    assert (rank_of("ใน", th) or 10**6) < 100

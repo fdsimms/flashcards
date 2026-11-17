@@ -4,8 +4,10 @@ Ordering a deck's new cards by how common their word is, so the most useful word
 This is Anki's own new-card order (a card's position), so it holds on every device and changes
 nothing about scheduling: no interval, no memory state, no review is touched. The ranks come from
 Read & Listen's server (`/api/ranks`, its lists of each language's 10,000 most common words), which
-is why this needs it running. A word with no place (past the list, or a phrase it can't rank) goes
-after the ranked ones, in the order it already had.
+is why this needs it running. An entry is ranked as the deck writes it, without its article or
+gender word, and a phrase (an entry of several words, which the lists don't rank) is taken as
+important, since it wouldn't have been added otherwise. A word with no place goes after the ranked
+ones, in the order it already had.
 """
 
 from __future__ import annotations
@@ -39,12 +41,24 @@ def entry_word(html: str) -> str:
     return BRACKETED.sub("", text).strip()
 
 
-def placed(order: list[tuple[int, str, list[int]]], ranks: dict[str, int | None]) -> list[tuple[int, str, list[int]]]:
-    """`order` (note id, word, its new cards in template order, as they are now) with the ranked
-    notes first, most common first, then the rest as they were."""
+async def entry_ranks(client: ReaderClient, language: str, words: list[str]) -> tuple[dict[str, int | None], set[str]]:
+    """Read & Listen's place for each entry, and which of them are phrases."""
+    ranks: dict[str, int | None] = {}
+    phrases: set[str] = set()
+    for i in range(0, len(words), BATCH):
+        answer = await client.post("/api/ranks", {"language": language, "words": words[i : i + BATCH]})
+        ranks.update(answer["ranks"])
+        phrases.update(answer.get("phrases", []))
+    return ranks, phrases
+
+
+def placed(order: list[tuple[int, str, list[int]]], ranks: dict[str, int | None], phrases: set[str]) -> list[tuple[int, str, list[int]]]:
+    """`order` (note id, word, its new cards in template order, as they are now) with the phrases
+    first, then the ranked notes, most common first, then the rest as they were."""
+    first = [n for n in order if n[1] in phrases and ranks.get(n[1]) is None]
     ranked = [(place, n) for n in order if (place := ranks.get(n[1])) is not None]
-    rest = [n for n in order if ranks.get(n[1]) is None]
-    return [n for _, n in sorted(ranked, key=lambda r: r[0])] + rest
+    rest = [n for n in order if ranks.get(n[1]) is None and n[1] not in phrases]
+    return first + [n for _, n in sorted(ranked, key=lambda r: r[0])] + rest
 
 
 def register(server: MCPServer, cm: CollectionManager, client: ReaderClient) -> None:
@@ -56,9 +70,10 @@ def register(server: MCPServer, cm: CollectionManager, client: ReaderClient) -> 
         """Puts a deck's new cards (and its subdecks') in order of how common each note's word is,
         most common first, so the most useful words are introduced first. It sets Anki's new-card
         positions, which every device follows; no schedule, interval or review changes. Cards of one
-        note stay together in template order. Words with no place in the language's list of its
-        10,000 most common (rarer ones, phrases) go after the ranked ones, in the order they had.
-        Suspended cards are left alone.
+        note stay together in template order. An entry is ranked without its article or gender word
+        (ten mężczyzna as mężczyzna). A phrase (an entry of several words) comes first, as one the
+        user added on purpose. Words with no place in the language's list of its 10,000 most common
+        go after the ranked ones, in the order they had. Suspended and buried cards are left alone.
         - `language` is Read & Listen's code: th, es, de, fr, ru, el, pl, nb, ja, en.
         - `field` is the note field that holds the word (Entry, for Omnilanguage).
         - `preview` (the default) changes nothing and returns the first of the new order,
@@ -93,20 +108,18 @@ def register(server: MCPServer, cm: CollectionManager, client: ReaderClient) -> 
             return out
 
         order = await cm.read(gather)
-        words = list(dict.fromkeys(w for _, w, _ in order if w))
-        ranks: dict[str, int | None] = {}
-        for i in range(0, len(words), BATCH):
-            answer = await client.post("/api/ranks", {"language": language, "words": words[i : i + BATCH]})
-            ranks.update(answer["ranks"])
-        new_order = placed(order, ranks)
+        ranks, phrases = await entry_ranks(client, language, list(dict.fromkeys(w for _, w, _ in order if w)))
+        new_order = placed(order, ranks, phrases)
         found = sum(1 for _, w, _ in order if ranks.get(w) is not None)
+        phrase_notes = sum(1 for _, w, _ in order if w in phrases and ranks.get(w) is None)
         summary: dict[str, Any] = {
             "notes": len(order),
             "ranked": found,
-            "unranked": len(order) - found,
-            "first": [{"word": w, "rank": ranks.get(w)} for _, w, _ in new_order[:PREVIEW_ROWS]],
+            "phrases": phrase_notes,
+            "unranked": len(order) - found - phrase_notes,
+            "first": [{"word": w, "rank": ranks.get(w), **({"phrase": True} if w in phrases and ranks.get(w) is None else {})} for _, w, _ in new_order[:PREVIEW_ROWS]],
         }
-        if not found:
+        if not found and not phrase_notes:
             raise ToolError(f'None of "{deck}"\'s new words has a place in the {language} list, so there\'s nothing to order by. Check `language` and `field`.')
         if preview:
             return {"preview": True, **summary}

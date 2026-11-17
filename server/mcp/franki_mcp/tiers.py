@@ -31,7 +31,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from .collection import CollectionManager
-from .frequency import BATCH, entry_word
+from .frequency import entry_ranks, entry_word
 from .presets import TIER_PRESET_KEY, copy_params
 from .reader import ReaderClient
 from .tools import search_text
@@ -68,8 +68,11 @@ class Settings:
         if not all(0.7 <= r <= 0.99 for r in self.retentions):
             raise ToolError("Each retention must be between 0.7 and 0.99.")
 
-    def tier_of(self, rank: int | None) -> int:
-        """0 for the most common tier; a word with no place goes in the last."""
+    def tier_of(self, rank: int | None, phrase: bool = False) -> int:
+        """0 for the most common tier; a phrase goes there too (it was added on purpose), and a word with
+        no place goes in the last."""
+        if phrase and rank is None:
+            return 0
         if rank is None:
             return len(self.bands)
         return next((i for i, upto in enumerate(self.bands) if rank <= upto), len(self.bands))
@@ -149,13 +152,6 @@ def _gather(col: Collection, deck: str, settings: Settings) -> tuple[str, list[t
     return deck, out, left, _presets_current(col, did, deck, settings)
 
 
-async def _ranks(client: ReaderClient, language: str, words: list[str]) -> dict[str, int | None]:
-    ranks: dict[str, int | None] = {}
-    for i in range(0, len(words), BATCH):
-        ranks.update((await client.post("/api/ranks", {"language": language, "words": words[i : i + BATCH]}))["ranks"])
-    return ranks
-
-
 def _ensure_presets(col: Collection, deck: str, settings: Settings) -> list[int]:
     """The tier subdecks' ids, each on a preset of its own: made as a copy of the deck's, then kept in
     step with its FSRS parameters and set to its tier's retention."""
@@ -183,16 +179,17 @@ async def file_deck(cm: CollectionManager, client: ReaderClient, deck: str, sett
     settings.check()
     deck, notes, left_alone, current = await cm.read(lambda col: _gather(col, deck, settings))
     words = list(dict.fromkeys(w for _, w, _ in notes if w))
-    ranks = await _ranks(client, settings.language, words)
-    if not any(ranks.get(w) is not None for w in words):
+    ranks, phrases = await entry_ranks(client, settings.language, words)
+    if not any(ranks.get(w) is not None or w in phrases for w in words):
         raise ToolError(f'None of "{deck}"\'s words has a place in the {settings.language} list, so there\'s nothing to file by. Check `language` and `field`.')
     tiers: list[dict[str, Any]] = [{"notes": 0, "cards_to_move": 0, "examples": []} for _ in range(len(settings.bands) + 1)]
     moves: dict[int, list[int]] = {}
     for _, word, cards in notes:
-        t = settings.tier_of(ranks.get(word))
+        phrase = word in phrases
+        t = settings.tier_of(ranks.get(word), phrase)
         tiers[t]["notes"] += 1
         if len(tiers[t]["examples"]) < EXAMPLES:
-            tiers[t]["examples"].append({"word": word, "rank": ranks.get(word)})
+            tiers[t]["examples"].append({"word": word, "rank": ranks.get(word), **({"phrase": True} if phrase else {})})
         target = tier_deck_name(deck, t)
         for cid, home in cards:
             if home != target:
@@ -307,6 +304,8 @@ def register(server: MCPServer, cm: CollectionManager, client: ReaderClient) -> 
         - `language` is Read & Listen's code: th, es, de, fr, ru, el, pl, nb, ja, en.
         - `bands` are the ranks that end each tier but the last (default [1000, 3000]: tier 1 is the
           1,000 most common words, tier 2 up to 3,000, tier 3 the rest and any word with no place).
+          An entry is ranked as written without its article or gender word (ten mężczyzna as
+          mężczyzna), and a phrase (an entry of several words) goes in tier 1, as one added on purpose.
           `retentions` is one value per tier, most common first (default [0.92, 0.88, 0.80]).
         - The subdecks are `<deck>::Tier 1`, `Tier 2`, ...; each gets its own copy of the deck's
           preset, whose FSRS parameters are kept in step with the deck's on every run (so optimize the
