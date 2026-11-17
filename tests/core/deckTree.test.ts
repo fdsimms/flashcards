@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../../src/core/config';
-import { deckLimits, deckLineage, deckListTotals, deckRows, deckTree, earlierDeckToStudy, isInDeck, isTierDeck, nextDeckToStudy, queueInput, shownDeckRows, todayDeckRows, treeQueue, type TreeQueueInput } from '../../src/core/deckTree';
+import { deckLimits, deckLineage, deckListTotals, deckRows, deckTree, earlierDeckToStudy, isInDeck, isTierDeck, nextDeckToStudy, queueInput, shownDeckRows, todayDeckRows, treeQueue, untiered, type TreeQueueInput } from '../../src/core/deckTree';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -242,6 +242,9 @@ describe('frequency tier subdecks', () => {
   it('are recognized by name only below the top level', () => {
     expect(['Thai::Tier 1', 'A::B::Tier 12', 'Thai::Tier 2::Odmiana'].map(isTierDeck)).toEqual([true, true, true]);
     expect(['Tier 1', 'Thai::Tiers', 'Thai::Tier', 'Thai::My Tier 1', 'Thai::Tier 1b'].map(isTierDeck)).toEqual([false, false, false, false, false]);
+  });
+  it('show as the deck above them wherever a deck is named, and other decks as themselves', () => {
+    expect(['Thai::Tier 2', 'Languages::Thai::Tier 1', 'Thai::Tier 1::Odmiana', 'Languages::Thai', 'Tier 1', 'Thai::Tiers'].map(untiered)).toEqual(['Thai', 'Languages::Thai', 'Thai', 'Languages::Thai', 'Tier 1', 'Thai::Tiers']);
   });
   it('are not listed even when they are empty decks Anki lists', () => {
     expect(deckRows(input({ 'Languages::Thai': newCards(1) }), ['Languages::Thai::Tier 1']).map((r) => r.deck)).toEqual(['Languages', 'Languages::Thai']);

@@ -34,6 +34,13 @@ export function isTierDeck(deck: string): boolean {
   return deck.split('::').slice(1).some((part) => TIER_DECK_PART.test(part));
 }
 
+/** The deck a tier subdeck is shown as ("Thai::Tier 2" is "Thai"); any other deck is itself. */
+export function untiered(deck: string): string {
+  const parts = deck.split('::');
+  const at = parts.findIndex((part, i) => i >= 1 && TIER_DECK_PART.test(part));
+  return at < 0 ? deck : parts.slice(0, at).join('::');
+}
+
 export function isInDeck(deck: string, root: string): boolean {
   return deck === root || deck.startsWith(`${root}::`);
 }
