@@ -5,6 +5,7 @@ import { failureText } from '../../core/failure';
 import type { Api, Language, PhraseExplanation as Explained } from '../../reader/api';
 import type { Pronunciation } from '../../reader/mining';
 import { Icon, Tappable, ErrorNote } from '../kit';
+import { registerLabel } from '../../reader/register';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
 import { Pop } from '../motion';
@@ -142,8 +143,14 @@ export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, o
                 <Text style={{ ...type.body, fontWeight: '600', color: c.text }}>{answer.meaning}</Text>
                 {answer.literal ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary }}>
-                    <Text style={{ fontWeight: '600', color: c.text }}>Literally: </Text>
+                    <Text style={{ fontWeight: '600', color: c.text }}>Literal meaning: </Text>
                     {answer.literal}
+                  </Text>
+                ) : null}
+                {registerLabel(answer.register) ? (
+                  <Text style={{ ...type.subhead, color: c.textSecondary }}>
+                    <Text style={{ fontWeight: '600', color: c.text }}>Register: </Text>
+                    {answer.register_note ? `${registerLabel(answer.register)}. ${answer.register_note}` : registerLabel(answer.register)}
                   </Text>
                 ) : null}
                 {answer.points.map((p, i) => (

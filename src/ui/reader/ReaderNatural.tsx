@@ -14,8 +14,12 @@ import { hairline, radius, space, type, useTheme } from '../theme';
  * a word or touches a card.
  */
 
-/** The register a line was written in, at the end of its buttons. Nothing for a text from before registers. */
-export function RegisterChip({ register }: { register: string | undefined }) {
+/**
+ * The register a line was written in, at the end of its buttons (or, with `inline`, beside a word's
+ * title, where it sits after the text before it instead of at the row's end). Nothing for a text from
+ * before registers.
+ */
+export function RegisterChip({ register, inline = false }: { register: string | undefined; inline?: boolean }) {
   const c = useTheme();
   const label = registerLabel(register);
   if (!label) return null;
@@ -23,7 +27,7 @@ export function RegisterChip({ register }: { register: string | undefined }) {
     <View
       accessible
       accessibilityLabel={`Register: ${label}`}
-      style={{ marginLeft: 'auto', alignSelf: 'center', backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.xs }}
+      style={{ marginLeft: inline ? 0 : 'auto', alignSelf: 'center', backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.xs }}
     >
       <Text style={{ ...type.footnote, fontWeight: '600', color: c.textSecondary }}>{label}</Text>
     </View>

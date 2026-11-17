@@ -101,6 +101,16 @@ Franki's (Client, below).
   on every line when a text is written (a cost on every text for lines never questioned), to be
   reconsidered if the taps show lines are often off, and coloring the chip when it disagrees with the
   situation.
+- **Register on words and phrases** (17 November 2026, by the owner's decision after a mock). A
+  phrase explanation carries `register` (one of the four, or "" when the model isn't sure) and a
+  one-sentence `register_note`, shown as a **Register** line (`explain.py`; answers kept before it
+  have none). A word's popup shows the same chip beside its title: the deck note's own Register field
+  first (`lexicon.normalize_register` maps neutral, formal, informal or colloquial or casual, slang;
+  "vulgar", "literary" and the like show no chip rather than a wrong one; kept in `lexicon.register`,
+  read with the snapshot), else the one the meanings pass gave the word in its line
+  (`texts.registers`, asked in the same call as the meaning, so no extra call). Words glossed by the
+  text's writer (off the list) have no chip, and a text whose meanings were asked before this keeps
+  none for them. Card example sentences and recaps show none. It only shows text, like the line chip.
 - **Check what you understood** (13 November 2026, the owner chose from a mock). After Done, the end
   view offers a few multiple-choice questions, one at a time, each marked at once
   with the line that answers it (its words, English and audio). Three kinds, built when Done is
@@ -1682,3 +1692,20 @@ in the current language, with when one was last read to the end. Nothing else le
   Polish verbs, a check that
   the sentence uses only known words (it's one sentence, not a text), and a note that says it was
   filled in by Claude in the editor.
+
+## Ask Claude about a card
+
+The review screen's ⋯ menu has Ask Claude (`src/ui/AskCardSheet.tsx`, `src/core/askCard.ts`). The
+learner types a question about the card on screen and `POST /api/ask-card` (`ask_card.py`) answers
+it with Haiku; nothing is asked until a question is sent. The card goes as plain text (an
+Omnilanguage note's word, meaning, example and mnemonic; any other note type as its template
+renders), so a card of any note type can be asked about, and the language is sent only when the
+note has one Read & Listen writes in. The conversation is kept only while the sheet is open and
+sent again with each follow-up (cut to the latest 12 turns). Answers are text only: they never
+grade a card. An answer isn't necessarily a mnemonic (it may be grammar or an example), so the
+button "Add to the note's Notes" adds it to the Notes field under what's there (`withNotesAnswer`),
+only for Omnilanguage notes; tapping the button, which names the field, is the approval. "Open in the Claude app instead" opens a
+claude.ai/new link with the card and the typed question in the message box, for asking on the
+learner's own Claude plan instead of the server's key; it works without Read & Listen. The prefilled
+`q` on a plain new chat is documented for desktop only, so on iOS it may open claude.ai in the
+browser. The cost is in `call_costs` (feature `ask_card`), not yet in `/api/costs`.

@@ -9,6 +9,7 @@ from franki_reader.lexicon import (
     clean,
     days_until_due,
     lexicon_from,
+    normalize_register,
 )
 
 # Real entries and meanings from the Thai deck.
@@ -200,3 +201,17 @@ def test_a_chosen_decks_name_is_searched_literally(tmp_path: Path) -> None:
             assert [col.get_note(n)["Front"] for n in col.find_notes(query)] == [name]
     finally:
         col.close()
+
+
+def test_a_decks_register_field_maps_onto_the_readers_four() -> None:
+    assert [
+        normalize_register(r) for r in ("neutral", "Informal", " colloquial ", "FORMAL", "slang")
+    ] == [
+        "neutral",
+        "casual",
+        "casual",
+        "formal",
+        "slang",
+    ]
+    # Anything else gets no chip rather than a wrong one.
+    assert [normalize_register(r) for r in ("vulgar", "literary", "", "<b>dated</b>")] == [""] * 4

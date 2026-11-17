@@ -47,6 +47,9 @@ export type Word = {
   // written by AI where Wiktionary has none. Absent from a server older than it, and null for a word with none.
   ipa?: string | null;
   ipa_source?: 'wiktionary' | 'rules' | 'ai' | null; // 'rules': Japanese, written from the kana reading by rule
+  // How formal the word is where it's used: the deck note's own Register, else the one Claude gave it in its
+  // text. '' for a word with none (and for a name); absent from a server older than it.
+  register?: Register | '';
   stretch: boolean;
   deck: boolean; // a deck word, as against one known for being common (every language but Thai)
   wanikani?: boolean; // known for being learned in WaniKani (Japanese; absent from a server older than it)
@@ -203,6 +206,9 @@ export type PhraseExplanation = {
   meaning: string;
   /** A word-for-word rendering, only when it differs from `meaning`. Absent from an answer kept before it existed. */
   literal?: string;
+  /** How formal the phrase is, and one sentence on where it fits. '' when the model wasn't sure; absent from an answer kept before it existed. */
+  register?: Register | '';
+  register_note?: string;
   points: ExplainPoint[];
 };
 
@@ -633,6 +639,10 @@ export function createApi(
     // Memory hints for a word (a leech), written by Claude on the server: asked only when the owner taps for them.
     mnemonics: async (question: { language: Language; entry: string; meaning: string; transliteration?: string; context?: string }) =>
       (await call<{ hints: string[] }>('POST', '/api/mnemonics', question)).hints,
+    // Claude's answer to a question typed about the card on screen, from the conversation so far (the last turn is the
+    // new question): asked only when the owner sends one (core/askCard.ts).
+    askCard: async (card: { language?: Language; front: string; back: string; details?: string }, turns: { role: 'user' | 'assistant'; content: string }[]) =>
+      (await call<{ answer: string }>('POST', '/api/ask-card', { ...card, turns })).answer,
     // A Russian or Polish verb's aspect and its aspect partner, written by Claude on the server: asked only on Add to deck,
     // for the note editor to show and check (reader/mining.ts). Every field is null when there's nothing to suggest.
     aspectPair: (language: Language, word: string, line?: string) =>
