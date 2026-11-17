@@ -436,6 +436,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           key={`${item.assignmentId}:${question.kind}:${session!.finished.length}`}
           value={typed}
           onChangeText={(t) => { if (!verdict) setTyped(question.kind === 'reading' ? toKana(t) : t); }}
+          editable={!verdict}
           onSubmitEditing={check}
           submitBehavior="submit"
           autoFocus
