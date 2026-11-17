@@ -28,7 +28,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 from franki_reader import store
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import Checker, is_word, segment_line
-from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
+from franki_reader.generator import CHEAP_MODEL, REGISTERS, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.reader import gloss_for
 from franki_reader.store import StoredText
@@ -52,7 +52,9 @@ word can be listed more than once, with different lines: give each the meaning i
 compound means what the whole word means, not what its parts mean. Leave out a preposition or \
 auxiliary that goes with the word in the line: "hoods", not "in hoods"; "eaten", not "has eaten". Give \
 each word's number, and the \
-word exactly as listed. Plain text only: no `|`, no asterisks, no em dashes.
+word exactly as listed. Plain text only: no `|`, no asterisks, no em dashes. Also give each word's "register": how formal \
+the word is where it is used in that line, one of casual, neutral, formal or slang, or an empty \
+string when you are not confident native speakers use it that way. Most everyday words are neutral.
 
 Words, each numbered and followed by the English of a line it is in:
 {words}"""
@@ -68,8 +70,9 @@ SCHEMA: dict[str, Any] = {
                     "n": {"type": "integer"},
                     "word": {"type": "string"},
                     "meaning": {"type": "string"},
+                    "register": {"type": "string", "enum": [*REGISTERS, ""]},
                 },
-                "required": ["n", "word", "meaning"],
+                "required": ["n", "word", "meaning", "register"],
                 "additionalProperties": False,
             },
         }
@@ -198,6 +201,7 @@ async def fill_words(
             store.save_meaning_batch(conn, language, {}, now(), e.usage.cost_usd())
         raise
     answered: dict[int, str] = {}
+    registered: dict[int, str] = {}
     for item in raw:
         if not isinstance(item, dict) or not isinstance(item.get("word"), str):
             continue
@@ -205,12 +209,17 @@ async def fill_words(
         # The number places the answer, and the word has to match it, so a miscount keeps nothing.
         if isinstance(n, int) and 1 <= n <= len(asked) and key(item["word"]) == asked[n - 1].word:
             answered.setdefault(n - 1, _clean(item.get("meaning")))
+            if item.get("register") in REGISTERS:
+                registered.setdefault(n - 1, item["register"])
     texts: dict[int, dict[str, str]] = {}
+    text_registers: dict[int, dict[str, str]] = {}
     for_language: dict[str, str] = {}
     for i, wanted in enumerate(asked):
         meaning = answered.get(i, "")
         if wanted.text_id is not None:
             texts.setdefault(wanted.text_id, {})[wanted.word] = meaning
+            if i in registered:
+                text_registers.setdefault(wanted.text_id, {})[wanted.word] = registered[i]
         if not for_language.get(wanted.word):
             for_language[wanted.word] = meaning
     store.save_meaning_batch(
@@ -221,6 +230,7 @@ async def fill_words(
         used.cost_usd(),
         texts,
         (len(asked), sum(1 for m in answered.values() if m)),
+        text_registers,
     )
     return len(asked)
 

@@ -47,6 +47,9 @@ export type Word = {
   // written by AI where Wiktionary has none. Absent from a server older than it, and null for a word with none.
   ipa?: string | null;
   ipa_source?: 'wiktionary' | 'rules' | 'ai' | null; // 'rules': Japanese, written from the kana reading by rule
+  // How formal the word is where it's used: the deck note's own Register, else the one Claude gave it in its
+  // text. '' for a word with none (and for a name); absent from a server older than it.
+  register?: Register | '';
   stretch: boolean;
   deck: boolean; // a deck word, as against one known for being common (every language but Thai)
   wanikani?: boolean; // known for being learned in WaniKani (Japanese; absent from a server older than it)

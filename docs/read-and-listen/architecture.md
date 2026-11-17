@@ -102,6 +102,16 @@ Franki's (Client, below).
   on every line when a text is written (a cost on every text for lines never questioned), to be
   reconsidered if the taps show lines are often off, and coloring the chip when it disagrees with the
   situation.
+- **Register on words and phrases** (17 November 2026, by the owner's decision after a mock). A
+  phrase explanation carries `register` (one of the four, or "" when the model isn't sure) and a
+  one-sentence `register_note`, shown as a **Register** line (`explain.py`; answers kept before it
+  have none). A word's popup shows the same chip beside its title: the deck note's own Register field
+  first (`lexicon.normalize_register` maps neutral, formal, informal or colloquial or casual, slang;
+  "vulgar", "literary" and the like show no chip rather than a wrong one; kept in `lexicon.register`,
+  read with the snapshot), else the one the meanings pass gave the word in its line
+  (`texts.registers`, asked in the same call as the meaning, so no extra call). Words glossed by the
+  text's writer (off the list) have no chip, and a text whose meanings were asked before this keeps
+  none for them. Card example sentences and recaps show none. It only shows text, like the line chip.
 - **Check what you understood** (13 November 2026, the owner chose from a mock). After Done, the end
   view offers a few multiple-choice questions, one at a time, each marked at once
   with the line that answers it (its words, English and audio). Three kinds, built when Done is
