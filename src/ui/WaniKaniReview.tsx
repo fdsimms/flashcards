@@ -126,6 +126,17 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     popupTimer.current = setTimeout(hidePopup, stagePopupMs(change));
   };
   useEffect(() => () => { if (popupTimer.current) clearTimeout(popupTimer.current); }, []);
+  // A miss that moves the item into a lower group says so at once, not when the item finally finishes.
+  // A second miss shows again only if it drops a further group.
+  const missPopup = (assignmentId: number) => {
+    const it = study?.session.items[assignmentId];
+    if (!study || !it || it.lesson) return;
+    const sys = srs.get(subjects.get(it.subjectId)?.srsId ?? 1);
+    const w = wrongSoFar(study.session, assignmentId);
+    const change = stageChange(it.srsStage, w + 1, sys);
+    const before = stageChange(it.srsStage, w, sys);
+    if (change && change.group !== before?.group) showStage(change);
+  };
 
   // Whatever is held when the screen closes goes to WaniKani then, and the deck list's counts are read again.
   const studyRef = useRef(study);
@@ -246,10 +257,13 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     // An item that crossed into another stage group says so, by what WaniKani will do with this answer.
     const outcome = r.study.held;
     const change = outcome?.kind === 'review' ? stageChange(outcome.srsStage, outcome.wrongMeaning + outcome.wrongReading, srs.get(subjects.get(outcome.subjectId)?.srsId ?? 1)) : null;
-    // A typed answer judged correct already showed its popup when it was checked: leave it up.
-    if (verdict?.result !== 'correct') {
+    // A typed answer already showed its popup when it was judged (a rise when it finished the item, a
+    // drop when it missed): leave that one up. A marked-correct answer or a button press shows it now.
+    const shownAtCheck = !!verdict && verdict.result === (correct ? 'correct' : 'wrong');
+    if (!shownAtCheck) {
       hidePopup();
-      if (change) showStage(change);
+      if (change?.up) showStage(change);
+      else if (!correct) missPopup(question.assignmentId);
     }
     if (!currentQuestion(r.study.session)) haptic.success();
     else if (change) change.burned ? haptic.success() : haptic.select();
@@ -306,8 +320,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
       const finishesItem = q.kind === 'both' || (q.kind === 'meaning' ? pr?.reading : pr?.meaning);
       if (study && it && !it.lesson && finishesItem) {
         const change = stageChange(it.srsStage, wrongSoFar(study.session, it.assignmentId), srs.get(subjects.get(it.subjectId)?.srsId ?? 1));
-        if (change) showStage(change);
+        if (change?.up) showStage(change);
       }
+    } else {
+      missPopup(question.assignmentId);
     }
     if (prefs.autoplay && question.kind === 'reading') play(audioUrl(subject));
   };
