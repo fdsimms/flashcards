@@ -107,8 +107,9 @@ describe('mapping an answer to Anki', () => {
 
   it('logs the answer with Anki\'s kinds and units', () => {
     const after: Card = { ...card, sched: review(card.sched, 3, now).sched };
-    const r = revlogEntry(card, after, 3, { id: 1, cid: 7, previousIvl: 0, now, takenMs: 95_000 });
-    expect(r).toMatchObject({ id: 1, cid: 7, usn: -1, ease: 3, type: 0, lastIvl: 0, time: 60_000 });
+    // The time comes capped already (answerTimeMs), so a preset allowing 2 minutes keeps 95 seconds.
+    const r = revlogEntry(card, after, 3, { id: 1, cid: 7, previousIvl: 0, now, takenMs: 95_000.4 });
+    expect(r).toMatchObject({ id: 1, cid: 7, usn: -1, ease: 3, type: 0, lastIvl: 0, time: 95_000 });
     expect(r.ivl).toBeLessThan(0); // learning: negative seconds
   });
 

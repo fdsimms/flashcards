@@ -144,12 +144,12 @@ describe('Anki JSON import', () => {
   it('takes per-deck limits and FSRS settings from deckConfigs over fsrsParams', () => {
     const res = importAnkiJson({
       notes: [], cards: [],
-      deckConfigs: { Thai: { newPerDay: 10, reviewsPerDay: 150, desiredRetention: 0.85, weights: [0.1], maxInterval: 3650, buryNew: true } },
+      deckConfigs: { Thai: { newPerDay: 10, reviewsPerDay: 150, desiredRetention: 0.85, weights: [0.1], maxInterval: 3650, buryNew: true, autoplay: false, maxAnswerSecs: 90 } },
       fsrsParams: { presets: [{ decks: ['Thai'], desired_retention: 0.9 }] },
     }, { now: NOW });
     expect(res.deckParams!.get('Thai')).toEqual({
       weights: [0.1], desiredRetention: 0.85, maxInterval: 3650, newPerDay: 10, reviewsPerDay: 150,
-      bury: { new: true, reviews: false, interdayLearning: false },
+      bury: { new: true, reviews: false, interdayLearning: false }, autoplay: false, maxAnswerSecs: 90,
     });
   });
 
