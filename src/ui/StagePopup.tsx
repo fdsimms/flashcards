@@ -29,7 +29,7 @@ export function StagePopup({ change }: { change: StageChange }) {
   // Burned's fill is the secondary text color, so its text is the page's background.
   const ink = !change.up ? c.text : change.burned ? c.bg : c.onRating;
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: -space.l - space.xs, alignItems: 'center' }}>
+    <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: -space.l - space.xs, alignItems: 'center', zIndex: 10, elevation: 10 }}>
       <Animated.View
         accessible
         accessibilityRole="alert"

@@ -1,3 +1,4 @@
+import type { ReviewBatch, StageCounts } from './stats';
 import { parseAssignment, parseSubject, type Assignment, type Subject } from './subjects';
 import { parseSrsSystem, type SrsSystem } from './srs';
 import type { Outcome } from './session';
@@ -123,6 +124,12 @@ export interface WaniKaniApi {
   counts(maxLevel: number): Promise<{ reviews: number; lessons: number; apprentice: number }>;
   /** How many items are at Apprentice (stages 1 to 4): what the lesson limit is checked against. */
   apprenticeCount(maxLevel: number): Promise<number>;
+  /** Items at Guru, Master, Enlightened and Burned (Apprentice is `apprenticeCount`), for the row's stage bar. */
+  stageCounts(maxLevel: number): Promise<Omit<StageCounts, 'apprentice'>>;
+  /** The kanji in `level`, and how many of them are at Guru or above: what reaching the next level needs. */
+  levelKanji(level: number): Promise<{ total: number; passed: number }>;
+  /** What's coming up: batches of reviews by the time they become available, from now over the next day. */
+  upcomingReviews(): Promise<ReviewBatch[]>;
   /** Lessons done since `since` (the study day's start), here or anywhere else. */
   lessonsStartedSince(since: Date): Promise<number>;
   reviewsAvailable(maxLevel: number): Promise<Assignment[]>;
@@ -209,6 +216,25 @@ export function createWaniKaniApi(token: string, fetchFn: Fetch = fetch): WaniKa
       return { reviews, lessons, apprentice };
     },
     apprenticeCount,
+    async stageCounts(maxLevel) {
+      const at = (srs_stages: number[]) => total(`/assignments${query({ srs_stages, hidden: false, levels: levels(maxLevel) })}`);
+      const [guru, master, enlightened, burned] = await Promise.all([at([5, 6]), at([7]), at([8]), at([9])]);
+      return { guru, master, enlightened, burned };
+    },
+    async levelKanji(level) {
+      const [all, passed] = await Promise.all([
+        total(`/subjects${query({ types: 'kanji', levels: [level], hidden: false })}`),
+        total(`/assignments${query({ subject_types: 'kanji', levels: [level], srs_stages: [5, 6, 7, 8, 9], hidden: false })}`),
+      ]);
+      return { total: all, passed };
+    },
+    async upcomingReviews() {
+      const body = await request(`${API_BASE}/summary`) as { data?: { reviews?: unknown } };
+      if (!Array.isArray(body?.data?.reviews)) throw new WaniKaniError('unavailable');
+      return (body.data.reviews as { available_at?: unknown; subject_ids?: unknown }[])
+        .filter((r) => typeof r?.available_at === 'string' && Array.isArray(r.subject_ids))
+        .map((r) => ({ availableAt: r.available_at as string, count: (r.subject_ids as unknown[]).length }));
+    },
     async lessonsStartedSince(since) {
       // Assignments changed since the day began (reviews change them too), counted by when each was started.
       return startedSince(await assignments({ started: true, updated_after: since.toISOString() }), since.getTime());
