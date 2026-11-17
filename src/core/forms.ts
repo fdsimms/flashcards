@@ -222,8 +222,9 @@ export function formsOf(note: Note): NoteForms {
   if (!isOmnilanguage(note)) return { forms, unreadable };
 
   const gender = htmlToText(note.fields.Gender ?? '').trim();
-  // A plural marker (pl, and Polish's mpl) is a gender value with nothing to ask, not one that can't be read.
-  if (gender && !PLURAL_GENDERS.has(gender.toLowerCase())) {
+  // A plural marker (pl, and Polish's mpl) or a noun of two genders ("m/f": der/die Verlobte, el cómplice) is a
+  // gender value with nothing to ask, not one that can't be read.
+  if (gender && !PLURAL_GENDERS.has(gender.toLowerCase()) && !TWO_GENDERS.test(gender)) {
     const g = genderLetter(gender);
     if (!g) unreadable.push(`Gender: ${gender}`);
     else add({ key: 'field:Gender', group: 'gender', label: 'gender', answers: genderAnswers(note, g) });
@@ -234,6 +235,9 @@ export function formsOf(note: Note): NoteForms {
   }
   return { forms, unreadable };
 }
+
+/** The Gender field of a noun that takes two genders: m/f, m/n, f/n. */
+const TWO_GENDERS = /^[mfn]\s*[/,]\s*[mfn]$/i;
 
 /** "m", "masc", "masculine", "der" and the like, as m / f / n. Undefined when it isn't one. */
 function genderLetter(text: string): Gender | undefined {

@@ -78,6 +78,13 @@ describe('formsOf', () => {
     expect(formsOf(ru).forms[0].answers).toEqual(['masculine']);
     expect(formsOf(omniNote({ Gender: 'common' })).unreadable).toEqual(['Gender: common']);
   });
+  it('leaves a noun of two genders out of the gender question without calling it unreadable', () => {
+    for (const gender of ['m/f', 'm/n', 'M / F']) {
+      const note = omniNote({ Entry: 'der/die Verlobte', Language: 'german', Gender: gender, Plural: 'Verlobten' });
+      expect(formsOf(note).unreadable).toEqual([]);
+      expect(formsOf(note).forms.map((f) => f.key)).toEqual(['field:Plural']);
+    }
+  });
   it("reads Norwegian's own articles as a gender, the same ones it asks for", () => {
     const bok = omniNote({ Entry: 'bok', Meaning: 'book', Language: 'norwegian', Gender: 'ei' });
     expect(formsOf(bok).unreadable).toEqual([]);
