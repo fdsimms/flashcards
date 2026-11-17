@@ -5,6 +5,7 @@ import { sayFrenchDate } from './french/date';
 import { sayFrenchMoney } from './french/money';
 import { sayFrenchNumber } from './french/number';
 import { sayFrenchTime } from './french/time';
+import { CASE_LANGUAGES } from './cases';
 import { GERMAN_COUNTING } from './german/counting';
 import { sayGermanDate } from './german/date';
 import { sayGermanMoney } from './german/money';
@@ -66,7 +67,7 @@ import type { ClockTime, TimeSaying } from './time';
 /** The languages the tools come in: every app language but English, which the app is already in. */
 export const TOOL_LANGUAGES: Language[] = LANGUAGE_ORDER.filter((l) => l !== 'en');
 
-export type ToolId = 'mixups' | 'sentences' | 'situations' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'grammar';
+export type ToolId = 'mixups' | 'sentences' | 'situations' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'grammar' | 'cases';
 
 export interface ToolInfo {
   id: ToolId;
@@ -231,6 +232,13 @@ export const TOOLS: ToolInfo[] = [
     title: 'Grammar',
     summary: "Read about a grammar point, then practice it.",
     languages: TOOL_LANGUAGES.filter((l) => grammarPointsFor(l).length > 0),
+  },
+  {
+    // The case after a preposition or verb, then a studied noun in it (cases.ts). Only languages with cases.
+    id: 'cases',
+    title: 'Which case',
+    summary: 'The case after a preposition or verb, then a noun in it.',
+    languages: withSayer(CASE_LANGUAGES),
   },
 ];
 
